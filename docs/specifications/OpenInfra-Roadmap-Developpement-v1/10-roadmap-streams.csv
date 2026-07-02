@@ -1,0 +1,11 @@
+id,stream,responsabilites
+STR-PROD,Produit & fonctionnel,"Vision, backlog, priorisation, UX métier, critères d’acceptation, démonstrations."
+STR-ARCH,Architecture entreprise,"C4, ADR/RFC, urbanisation, intégration, décisions structurantes, revues d’architecture."
+STR-DATA,Data/PostgreSQL,"Modèle, migrations, partitionnement, HA, index, performance SQL, archivage."
+STR-BE,Backend/API,"Domain services, REST, GraphQL, jobs, outbox, webhooks, sécurité applicative."
+STR-FE,Frontend/UX,"UI web, vues DCIM/IPAM/graphes, accessibilité, performance navigateur."
+STR-DISC,Discovery/collectors,"Collectors, protocoles, orchestration, secrets, réconciliation, preuves."
+STR-SEC,Sécurité,"IAM, RBAC/ABAC, audit, chiffrement, threat modeling, tests sécurité."
+STR-SRE,Ops/SRE,"Kubernetes, Helm, observabilité, sauvegarde, PRA/PCA, runbooks."
+STR-QA,QA/Validation,"Stratégie tests, automatisation, charge, chaos, sécurité, non-régression."
+STR-DOC,Documentation & enablement,"SFG/STG, guides admin, API, runbooks, formation, migration."

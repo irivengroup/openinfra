@@ -1,0 +1,505 @@
+openapi: 3.1.0
+info:
+  title: OpenInfra API Foundation
+  version: 0.8.0
+components:
+  securitySchemes:
+    bearerToken:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenInfra API token
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: API is alive
+  /ready:
+    get:
+      summary: Runtime readiness probe validating persistence and PostgreSQL schema state
+      responses:
+        '200':
+          description: Backend is reachable and schema is ready
+        '503':
+          description: Backend or schema is not ready
+  /api/v1/version:
+    get:
+      summary: Version
+      responses:
+        '200':
+          description: Version payload
+  /api/v1/database/schema:
+    get:
+      summary: PostgreSQL schema migration status
+      responses:
+        '200':
+          description: Schema is up to date or JSON backend does not require migrations
+        '409':
+          description: PostgreSQL schema has pending migrations or checksum drift
+  /api/v1/security/whoami:
+    post:
+      summary: Validate an API token and return the authenticated principal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, token]
+              properties:
+                tenant_id:
+                  type: string
+                token:
+                  type: string
+      responses:
+        '200':
+          description: Authenticated principal
+        '400':
+          description: Validation error
+        '401':
+          description: Invalid token
+
+  /api/v1/security/tokens:
+    get:
+      summary: List API token metadata without returning token hashes or secrets
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: include_inactive
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Paginated token metadata
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid security administrator token
+  /api/v1/security/revoke-token:
+    post:
+      summary: Revoke an API token using a security administrator token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, target_token]
+              properties:
+                tenant_id:
+                  type: string
+                actor:
+                  type: string
+                target_token:
+                  type: string
+                admin_token:
+                  type: string
+      responses:
+        '200':
+          description: Revocation result
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid security administrator token
+  /api/v1/security/rotate-token:
+    post:
+      summary: Rotate a security administrator token and revoke the previous token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, current_token]
+              properties:
+                tenant_id:
+                  type: string
+                actor:
+                  type: string
+                current_token:
+                  type: string
+                subject:
+                  type: string
+                roles:
+                  type: array
+                  items:
+                    type: string
+                token:
+                  type: string
+                ttl_seconds:
+                  type: integer
+                  minimum: 60
+      responses:
+        '201':
+          description: Replacement token created
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid security administrator token
+  /api/v1/identity/users:
+    post:
+      summary: Create or update an IAM user
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, username, display_name]
+              properties:
+                tenant_id:
+                  type: string
+                actor:
+                  type: string
+                username:
+                  type: string
+                display_name:
+                  type: string
+                email:
+                  type: string
+                roles:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '201':
+          description: IAM user persisted
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid security administrator token
+  /api/v1/identity/groups:
+    post:
+      summary: Create or update an IAM group
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, name, display_name]
+              properties:
+                tenant_id:
+                  type: string
+                actor:
+                  type: string
+                name:
+                  type: string
+                display_name:
+                  type: string
+                roles:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '201':
+          description: IAM group persisted
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid security administrator token
+  /api/v1/identity/group-memberships:
+    post:
+      summary: Add a user to an IAM group
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, username, group_name]
+              properties:
+                tenant_id:
+                  type: string
+                actor:
+                  type: string
+                username:
+                  type: string
+                group_name:
+                  type: string
+      responses:
+        '201':
+          description: IAM group membership persisted
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid security administrator token
+  /api/v1/identity/user-roles:
+    post:
+      summary: Grant a built-in role directly to a user
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, username, role]
+              properties:
+                tenant_id:
+                  type: string
+                actor:
+                  type: string
+                username:
+                  type: string
+                role:
+                  type: string
+      responses:
+        '200':
+          description: User role grant result
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid security administrator token
+  /api/v1/identity/group-roles:
+    post:
+      summary: Grant a built-in role to a group
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, group_name, role]
+              properties:
+                tenant_id:
+                  type: string
+                actor:
+                  type: string
+                group_name:
+                  type: string
+                role:
+                  type: string
+      responses:
+        '200':
+          description: Group role grant result
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid security administrator token
+  /api/v1/identity/effective:
+    get:
+      summary: Return effective roles for an IAM subject
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: subject
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Effective identity roles
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid security administrator token
+  /api/v1/access/rules:
+    get:
+      summary: List ABAC access policy rules
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: include_inactive
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Paginated ABAC rules
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid access policy administrator token
+    post:
+      summary: Create or update an ABAC access policy rule
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, name, permission, effect]
+              properties:
+                tenant_id:
+                  type: string
+                actor:
+                  type: string
+                name:
+                  type: string
+                permission:
+                  type: string
+                effect:
+                  type: string
+                  enum: [allow, deny]
+                subjects:
+                  type: array
+                  items:
+                    type: string
+                roles:
+                  type: array
+                  items:
+                    type: string
+                site_codes:
+                  type: array
+                  items:
+                    type: string
+                environments:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '201':
+          description: ABAC rule persisted
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid access policy administrator token
+  /api/v1/access/evaluate:
+    post:
+      summary: Evaluate a Bearer token against a contextual ABAC request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, token, permission]
+              properties:
+                tenant_id:
+                  type: string
+                token:
+                  type: string
+                permission:
+                  type: string
+                site_code:
+                  type: string
+                environment:
+                  type: string
+      responses:
+        '200':
+          description: ABAC evaluation result
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid token
+  /api/v1/access/deactivate-rule:
+    post:
+      summary: Deactivate an ABAC access policy rule
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, name]
+              properties:
+                tenant_id:
+                  type: string
+                actor:
+                  type: string
+                name:
+                  type: string
+      responses:
+        '200':
+          description: Deactivation result
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid access policy administrator token
+  /api/v1/ipam/allocate:
+    post:
+      summary: Allocate an IP address with idempotency
+      description: Requires a Bearer token carrying ipam.allocate when API authentication is enabled.
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, vrf, prefix, hostname, idempotency_key]
+              properties:
+                tenant_id:
+                  type: string
+                actor:
+                  type: string
+                vrf:
+                  type: string
+                prefix:
+                  type: string
+                hostname:
+                  type: string
+                idempotency_key:
+                  type: string
+                site_code:
+                  type: string
+                environment:
+                  type: string
+      responses:
+        '201':
+          description: Address allocated
+        '200':
+          description: Existing idempotent allocation returned
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid Bearer token when authentication is enabled

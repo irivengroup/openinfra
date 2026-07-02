@@ -1,2 +1,260 @@
-# openinfra
+# OpenInfra Python Foundation
+
 OpenInfra est un socle Python orienté objet pour construire une solution open source de Source of Truth, DCIM, ITAM, Discovery, Dependency Mapping et IPAM Enterprise++ sans fonction ITSM intégrée.
+
+Cette livraison correspond au socle exécutable de démarrage aligné avec la roadmap P01/P02/P04/P05 : architecture hexagonale, modèle domaine, CLI, API HTTP standard library, migrations PostgreSQL applicatives, adaptateur PostgreSQL runtime, sécurité API par jetons hachés avec expiration, révocation et rotation, IAM utilisateurs/groupes avec rôles effectifs, ABAC contextuel site/environnement, environnement d’exécution Docker, tests, documentation et CI.
+
+## Garanties de cette itération
+
+- Code produit en Python POO : les comportements sont portés par des classes de domaine, services applicatifs, ports et adaptateurs.
+- Séparation stricte `domain / application / infrastructure / interfaces`.
+- Localisation DCIM univoque : site, bâtiment, salle, ligne, colonne, coordonnées X/Y/Z facultatives, rack et unité U.
+- IPAM IPv4/IPv6 : VRF, préfixe, allocation transactionnelle côté service applicatif, idempotence par clé métier, détection de conflit.
+- Persistance locale JSON atomique pour développement et tests reproductibles.
+- Persistance PostgreSQL runtime optionnelle via `psycopg`, DSN explicite et transactions courtes.
+- Migration PostgreSQL initiale avec tables partitionnées, index, contraintes et audit append-only.
+- Moteur de migrations PostgreSQL applicatif : statut, dry-run, application idempotente, historique `openinfra_schema_migrations` et checksum SHA-256.
+- CLI exploitable : `openinfra version`, `openinfra spec validate`, `openinfra dcim locate`, `openinfra ipam allocate`, `openinfra security bootstrap-token`, `openinfra security whoami`, `openinfra security list-tokens`, `openinfra security revoke-token`, `openinfra security rotate-token`, `openinfra identity create-user`, `openinfra identity create-group`, `openinfra identity add-user-to-group`, `openinfra identity grant-user-role`, `openinfra identity grant-group-role`, `openinfra identity effective`, `openinfra access create-rule`, `openinfra access list-rules`, `openinfra access evaluate`, `openinfra access deactivate-rule`, `openinfra database render-migration`, `openinfra database status`, `openinfra database apply-migrations`.
+- API HTTP légère : `/health`, `/ready`, `/api/v1/version`, `/api/v1/database/schema`, `/api/v1/security/whoami`, `/api/v1/security/tokens`, `/api/v1/security/revoke-token`, `/api/v1/security/rotate-token`, `/api/v1/identity/users`, `/api/v1/identity/groups`, `/api/v1/identity/group-memberships`, `/api/v1/identity/user-roles`, `/api/v1/identity/group-roles`, `/api/v1/identity/effective`, `/api/v1/access/rules`, `/api/v1/access/evaluate`, `/api/v1/access/deactivate-rule`, `/api/v1/ipam/allocate`.
+- GitHub Actions complète : format, lint, types, tests, couverture, sécurité, build, smoke tests CLI/API et runtime Docker authentifié.
+
+## Installation développeur
+
+```bash
+python3.11 -m venv .venv
+. .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e '.[dev]'
+# Avec backend PostgreSQL runtime :
+python -m pip install -e '.[dev,postgresql]'
+```
+
+## Commandes de validation
+
+```bash
+python scripts/quality_gate.py
+python -m pytest
+python -m openinfra.interfaces.cli version
+python -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4
+python -m compileall -q src tests scripts
+```
+
+Lorsque les outils de qualité sont installés :
+
+```bash
+ruff format --check src tests scripts
+ruff check src tests scripts
+mypy src/openinfra
+bandit -q -r src/openinfra
+python -m build
+python scripts/verify_artifact.py dist/*.whl
+```
+
+## Exécution CLI sans installation
+
+```bash
+PYTHONPATH=src python -m openinfra.interfaces.cli version
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0001_bootstrap
+```
+
+## API locale
+
+```bash
+PYTHONPATH=src python -m openinfra.interfaces.http_api --host 127.0.0.1 --port 8080 --data .openinfra.json
+```
+
+## Exemple IPAM
+
+```bash
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam allocate \
+  --data .openinfra.json \
+  --tenant default \
+  --vrf default \
+  --prefix 10.10.0.0/24 \
+  --hostname srv-app-01 \
+  --idempotency-key req-0001
+```
+
+## Exemple DCIM
+
+```bash
+PYTHONPATH=src python -m openinfra.interfaces.cli dcim locate \
+  --asset-tag SRV-0001 \
+  --site PAR1 \
+  --building BAT-A \
+  --room MMR1 \
+  --row B \
+  --column 12 \
+  --rack R42 \
+  --u-position 18
+```
+
+
+## Sécurité API, RBAC et cycle de vie des jetons
+
+La v0.8.0 étend le socle RBAC exploitable pour les accès API : les jetons sont hachés en SHA-256 avant persistance, les rôles intégrés sont validés côté domaine et chaque création, inventaire, révocation et rotation de jeton produit un événement d’audit. L’authentification API est désactivée par défaut pour préserver la compatibilité ascendante des exemples existants. Elle s’active avec `--auth-required` ou `OPENINFRA_AUTH_REQUIRED=true`.
+
+Rôles intégrés :
+
+- `admin` : toutes les permissions initiales ;
+- `ipam:operator` : allocation IPAM et lecture de statut de schéma ;
+- `dcim:operator` : localisation DCIM et lecture de statut de schéma ;
+- `viewer` : lecture de statut de schéma ;
+- `security:admin` : administration sécurité initiale et lecture de statut de schéma.
+- `access:admin` : administration des politiques ABAC et lecture de statut de schéma.
+
+Exemple JSON local avec expiration explicite :
+
+```bash
+TOKEN="$(python - <<'PY'
+import secrets
+print(secrets.token_urlsafe(48))
+PY
+)"
+PYTHONPATH=src python -m openinfra.interfaces.cli security bootstrap-token \
+  --data .openinfra.json \
+  --tenant default \
+  --subject api-client-01 \
+  --role ipam:operator \
+  --token "$TOKEN" \
+  --ttl-seconds 86400
+PYTHONPATH=src python -m openinfra.interfaces.cli security whoami \
+  --data .openinfra.json \
+  --tenant default \
+  --token "$TOKEN"
+PYTHONPATH=src python -m openinfra.interfaces.cli security list-tokens \
+  --data .openinfra.json \
+  --tenant default \
+  --admin-token "$TOKEN"
+```
+
+Les commandes `revoke-token` et `rotate-token` permettent de retirer un jeton compromis ou de remplacer un jeton administrateur sans exposer de hash ni secret en sortie. En backend PostgreSQL, les commandes acceptent `--backend postgresql` et `--postgres-dsn`, ou utilisent `OPENINFRA_DATABASE_DSN`. Le runtime Docker applique les migrations, crée un jeton d’amorçage depuis le `.env` local généré et lance l’API avec authentification obligatoire.
+
+
+## IAM utilisateurs, groupes et rôles effectifs
+
+La v0.8.0 ajoute un socle IAM persistant : utilisateurs, groupes, appartenance utilisateur/groupe, rôles directs et rôles hérités des groupes. L’authentification par jeton conserve les rôles embarqués dans le jeton et agrège, lorsque le sujet du jeton correspond à un utilisateur IAM actif, les rôles directs et les rôles des groupes actifs. Cette compatibilité évite de casser les jetons existants tout en permettant une administration plus proche des standards entreprise.
+
+Exemple local avec un jeton administrateur existant :
+
+```bash
+PYTHONPATH=src python -m openinfra.interfaces.cli security bootstrap-token \
+  --data .openinfra.json \
+  --tenant default \
+  --subject identity-admin \
+  --role admin \
+  --token "$ADMIN_TOKEN"
+PYTHONPATH=src python -m openinfra.interfaces.cli identity create-user \
+  --data .openinfra.json \
+  --tenant default \
+  --admin-token "$ADMIN_TOKEN" \
+  --username alice \
+  --display-name "Alice Infra" \
+  --email alice@example.com \
+  --role viewer
+PYTHONPATH=src python -m openinfra.interfaces.cli identity create-group \
+  --data .openinfra.json \
+  --tenant default \
+  --admin-token "$ADMIN_TOKEN" \
+  --name ipam-ops \
+  --display-name "IPAM Operators" \
+  --role ipam:operator
+PYTHONPATH=src python -m openinfra.interfaces.cli identity add-user-to-group \
+  --data .openinfra.json \
+  --tenant default \
+  --admin-token "$ADMIN_TOKEN" \
+  --username alice \
+  --group ipam-ops
+PYTHONPATH=src python -m openinfra.interfaces.cli identity effective \
+  --data .openinfra.json \
+  --tenant default \
+  --admin-token "$ADMIN_TOKEN" \
+  --subject alice
+```
+
+La migration PostgreSQL `0004_identity_users_groups.sql` crée des tables partitionnées par `tenant_id`, des index sur rôles et appartenance, ainsi qu’un index d’audit dédié aux actions `identity.%`.
+
+## ABAC contextuel tenant/site/environnement
+
+La v0.8.0 ajoute un premier socle ABAC, c’est-à-dire un contrôle d’accès par attributs venant compléter RBAC. RBAC décide si un principal possède la permission fonctionnelle, par exemple `ipam.allocate`. ABAC restreint ensuite le contexte autorisé, par exemple uniquement le site `PAR1` en environnement `prod`. En absence de règle applicable, le comportement reste compatible avec les versions précédentes. Dès qu’une règle s’applique à un sujet ou à un rôle pour une permission donnée, toute requête hors contexte autorisé est refusée. Les règles `deny` priment sur les règles `allow`.
+
+Exemple local :
+
+```bash
+PYTHONPATH=src python -m openinfra.interfaces.cli access create-rule \
+  --data .openinfra.json \
+  --tenant default \
+  --admin-token "$ADMIN_TOKEN" \
+  --name worker-par1-prod \
+  --permission ipam.allocate \
+  --effect allow \
+  --subject worker-client \
+  --site-code PAR1 \
+  --environment prod
+PYTHONPATH=src python -m openinfra.interfaces.cli access evaluate \
+  --data .openinfra.json \
+  --tenant default \
+  --token "$WORKER_TOKEN" \
+  --permission ipam.allocate \
+  --site-code PAR1 \
+  --environment prod
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam allocate \
+  --data .openinfra.json \
+  --tenant default \
+  --auth-token "$WORKER_TOKEN" \
+  --site-code PAR1 \
+  --environment prod \
+  --vrf default \
+  --prefix 10.20.0.0/30 \
+  --hostname srv-abac-01 \
+  --idempotency-key req-abac-0001
+```
+
+La migration PostgreSQL `0005_access_policy_abac.sql` crée la table partitionnée `access_policy_rules`, des index GIN sur sujets/rôles/sites/environnements et un index d’audit dédié aux actions `access.policy.%`.
+
+
+## Environnement d’exécution Docker
+
+Le dépôt contient un lab Docker destiné à exécuter la solution développée et à vérifier son bon fonctionnement avec PostgreSQL réel, migration, API et CLI.
+
+```bash
+python scripts/docker_environment.py init
+python scripts/docker_environment.py up
+python scripts/docker_environment.py validate
+python scripts/docker_environment.py down
+```
+
+Le script `init` génère un `.env` local non versionné avec un mot de passe aléatoire et des permissions restrictives. Le scénario `validate` démarre le profil de validation Compose, applique les migrations via `openinfra database apply-migrations`, puis exécute des smoke tests fonctionnels contre l’API et la CLI en backend PostgreSQL. Le runbook complet est disponible dans `docs/runbooks/RUNTIME_DOCKER.md`.
+
+
+## Migrations PostgreSQL
+
+```bash
+export OPENINFRA_DATABASE_DSN='postgresql://openinfra@postgres/openinfra'
+PYTHONPATH=src python -m openinfra.interfaces.cli database status --root migrations/postgresql
+PYTHONPATH=src python -m openinfra.interfaces.cli database apply-migrations --root migrations/postgresql --dry-run
+PYTHONPATH=src python -m openinfra.interfaces.cli database apply-migrations --root migrations/postgresql
+```
+
+Le moteur applique uniquement les migrations absentes, maintient l'historique `openinfra_schema_migrations` et refuse toute divergence de checksum sur une migration déjà appliquée. `/ready` et `/api/v1/database/schema` utilisent cet état pour exposer un statut opérationnel fiable.
+
+## Backend PostgreSQL runtime
+
+La CLI et l’API acceptent `--backend postgresql`. Le DSN est fourni par `--postgres-dsn` ou `OPENINFRA_DATABASE_DSN`. Aucun secret n’est stocké dans le code ni dans la configuration versionnée.
+
+```bash
+export OPENINFRA_DATABASE_DSN='postgresql://openinfra@postgres/openinfra'
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam allocate \
+  --backend postgresql \
+  --tenant default \
+  --vrf default \
+  --prefix 10.10.0.0/24 \
+  --hostname srv-app-01 \
+  --idempotency-key req-0001
+```
+
+L’adaptateur PostgreSQL couvre les référentiels DCIM, IPAM et audit alignés avec la migration `0001_bootstrap.sql`. Les opérations IPAM exécutent création de préfixe, contrôle d’idempotence, allocation, réservation et audit dans une seule unité de travail transactionnelle.
+
+## Limites explicites de cette itération
+
+Cette archive ne prétend pas livrer toute la cible Device42-like/OpenInfra GA. Elle livre un socle industriel complet et validable pour démarrer le développement, avec les premières capacités DCIM/IPAM intégrées, testées et documentées. Les modules Discovery distribuée, graphes de dépendances avancés, UI web complète, RBAC avancé, imports massifs et jobs distribués seront développés par releases successives sur ce socle.

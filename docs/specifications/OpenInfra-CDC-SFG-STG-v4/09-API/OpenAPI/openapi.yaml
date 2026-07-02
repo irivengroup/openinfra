@@ -1,0 +1,145 @@
+openapi: 3.1.0
+info:
+  title: OpenInfra API
+  version: 3.0.0
+  description: API de référence OpenInfra pour Source of Truth, DCIM, IPAM, Discovery,
+    Dependency Mapping et ITAM.
+servers:
+- url: https://openinfra.example.internal/api/v1
+paths:
+  /assets:
+    get:
+      summary: Liste paginée des actifs
+      parameters:
+      - name: cursor
+        in: query
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          maximum: 500
+      - name: filter
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Page d’actifs
+  /assets/{id}:
+    get:
+      summary: Détail actif
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Actif
+  /ipam/vrfs/{vrfId}/prefixes/{prefixId}/next-available-ip:
+    post:
+      summary: Réservation IP transactionnelle
+      parameters:
+      - name: vrfId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: prefixId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+      responses:
+        '201':
+          description: IP réservée
+        '409':
+          description: Conflit ou préfixe saturé
+  /discovery/jobs:
+    post:
+      summary: Créer un job de découverte
+      responses:
+        '202':
+          description: Job accepté
+  /imports:
+    post:
+      summary: Créer un import asynchrone
+      responses:
+        '202':
+          description: Import accepté
+  /dependency/impact-analysis:
+    post:
+      summary: Calculer une analyse d’impact
+      responses:
+        '202':
+          description: Analyse planifiée
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://idp.example.internal/oauth/token
+          scopes:
+            openinfra:read: Lecture
+            openinfra:write: Écriture
+
+
+# Extension v4.0.0 — ressources avancées OpenInfra
+x-openinfra-v4-resources:
+  governance:
+    - /data-domains
+    - /authoritative-sources
+    - /certification-campaigns
+  dataQuality:
+    - /quality-rules
+    - /quality-findings
+    - /reconciliation-jobs
+  flowManagement:
+    - /flow-rules
+    - /flow-observations
+    - /flow-impact-reports
+  certificates:
+    - /certificates
+    - /certificate-endpoints
+    - /secret-references
+  networkCompliance:
+    - /golden-configs
+    - /config-snapshots
+    - /config-drifts
+  finops:
+    - /cost-records
+    - /budgets
+    - /showback-reports
+  fieldOperations:
+    - /field-operation-sheets
+    - /qr-codes
+    - /field-evidence
+  simulation:
+    - /simulation-scenarios
+    - /impact-reports
+    - /migration-waves
+  greenops:
+    - /energy-measurements
+    - /carbon-estimates
+    - /sustainability-reports
+  sbom:
+    - /sbom-documents
+    - /vulnerabilities
+    - /exposure-contexts
+  kubernetesAdvanced:
+    - /kubernetes-clusters
+    - /kubernetes-workloads
+    - /gitops-states
+  policyEngine:
+    - /policy-rules
+    - /policy-evaluations
+    - /policy-findings

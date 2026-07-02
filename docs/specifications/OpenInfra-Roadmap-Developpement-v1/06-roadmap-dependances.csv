@@ -1,0 +1,15 @@
+phase,depend_de,justification
+P01,P00,Le socle engineering dépend de la gouvernance et des standards.
+P02,P01,"La plateforme data dépend des conventions repository, CI et environnements."
+P03,P02,"Le référentiel dépend du modèle core, migrations et isolation tenant."
+P04,P03,DCIM dépend des objets SOT et de l’audit.
+P05,P02,"IPAM dépend du modèle PostgreSQL, types réseau et migrations."
+P06,P03,Imports dépendent des modèles cibles et règles de validation.
+P07,P03/P05/P10,"Discovery dépend du SOT, de l’IPAM et des secrets/RBAC pour être sûre."
+P08,P03/P05/P07,"Dépendances et flux dépendent des relations, IPAM et observations discovery."
+P09,P03/P07,ITAM dépend des actifs SOT et de l’inventaire discovery.
+P10,P01/P03,Sécurité avancée dépend du socle API et des objets à protéger.
+P11,P04/P08,Field operations et simulation dépendent du DCIM et de l’impact analysis.
+P12,P09/P04/P08/P10,"FinOps/GreenOps/SBOM dépendent de l’ITAM, DCIM, flux et policy engine."
+P13,P10/P03/P08/P12,"IA/RAG dépend des droits, données certifiées, graphes et sources enrichies."
+P14,Toutes phases,GA dépend des validations cumulées et de l’industrialisation.

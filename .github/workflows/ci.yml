@@ -10,14 +10,17 @@ on:
 
 permissions:
   contents: read
+  security-events: write
+  actions: read
 
 jobs:
   quality:
+    name: Quality / Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.11', '3.12']
+        python-version: ['3.11', '3.12', '3.13', '3.14']
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,7 +34,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e '.[dev]'
+          python -m pip install -e '.[postgresql,dev]'
 
       - name: Format check
         run: ruff format --check src tests scripts docker
@@ -48,8 +51,11 @@ jobs:
       - name: Compile check
         run: python -m compileall -q src tests scripts docker
 
-      - name: Security scan
+      - name: Security scan - Bandit SAST
         run: bandit -q -r src/openinfra
+
+      - name: Security gate - secrets and CI hardening
+        run: python scripts/security_gate.py --project-root .
 
       - name: Build package
         run: python -m build
@@ -91,22 +97,28 @@ jobs:
             --hostname ci-smoke \
             --idempotency-key ci-smoke-1
 
-
       - name: Smoke JSON security token
         run: |
           tmpdir="$(mktemp -d)"
-          token="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+          operator_token="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+          security_admin_token="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+          worker_token="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
           openinfra security bootstrap-token \
             --data "$tmpdir/state.json" \
             --tenant default \
             --subject ci-client \
             --role ipam:operator \
-            --token "$token"
+            --token "$operator_token"
           openinfra security whoami \
             --data "$tmpdir/state.json" \
             --tenant default \
-            --token "$token"
-          worker_token="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+            --token "$operator_token"
+          openinfra security bootstrap-token \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --subject ci-security-admin \
+            --role security:admin \
+            --token "$security_admin_token"
           openinfra security bootstrap-token \
             --data "$tmpdir/state.json" \
             --tenant default \
@@ -116,13 +128,12 @@ jobs:
           openinfra security list-tokens \
             --data "$tmpdir/state.json" \
             --tenant default \
-            --admin-token "$token"
+            --admin-token "$security_admin_token"
           openinfra security revoke-token \
             --data "$tmpdir/state.json" \
             --tenant default \
             --target-token "$worker_token" \
-            --admin-token "$token"
-
+            --admin-token "$security_admin_token"
 
       - name: Smoke JSON identity lifecycle
         run: |
@@ -159,7 +170,6 @@ jobs:
             --tenant default \
             --admin-token "$admin_token" \
             --subject ci-user
-
 
       - name: Smoke JSON access policy lifecycle
         run: |
@@ -241,7 +251,6 @@ jobs:
             --tenant default \
             --admin-token "$admin_token"
 
-
       - name: Smoke JSON Source of Truth governance
         run: |
           tmpdir="$(mktemp -d)"
@@ -279,7 +288,6 @@ jobs:
             --tenant default \
             --admin-token "$admin_token" \
             --name ci-serial-authority
-
 
       - name: Smoke JSON DCIM physical model
         run: |
@@ -320,7 +328,6 @@ jobs:
             --x 1 \
             --y 2 \
             --z 0
-
 
       - name: Smoke JSON DCIM field operations
         run: |
@@ -417,7 +424,7 @@ jobs:
           assert rack_elevation["used_units"] == [2, 3]
           PYSMOKE
 
-      - name: Smoke JSON DCIM cabling foundation
+      - name: Smoke JSON DCIM cabling and energy foundation
         run: |
           tmpdir="$(mktemp -d)"
           openinfra dcim define-room \
@@ -578,3 +585,70 @@ jobs:
 
       - name: Internal quality gate
         run: python scripts/quality_gate.py
+
+  blocking-security:
+    name: Blocking security checks / Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.12', '3.13', '3.14']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install security dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[postgresql,dev]'
+
+      - name: Security gate - repository secrets and workflow hardening
+        run: python scripts/security_gate.py --project-root .
+
+      - name: Bandit SAST - application code
+        run: bandit -q -r src/openinfra
+
+      - name: Pip audit - known vulnerable dependencies
+        run: python -m pip_audit --strict --progress-spinner off
+
+  dependency-review:
+    name: Dependency review / PR vulnerability gate
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v5
+        with:
+          fail-on-severity: moderate
+
+  codeql-security:
+    name: CodeQL security analysis
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: python
+          queries: security-extended,security-and-quality
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4

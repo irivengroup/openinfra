@@ -1,56 +1,64 @@
-# OpenInfra Python POO v0.17.1 — Rapport de validation
+# OpenInfra Python POO v0.17.2 — Rapport de validation
 
 Date : 2026-07-03
 
 ## Synthèse
 
-- Release : `0.17.1`
-- Type : correctif CI sans nouveau jalon fonctionnel
+- Release : `0.17.2`
+- Type : correctif CI / sécurité, sans nouveau jalon fonctionnel
 - Baseline fonctionnelle : `0.17.0` — P04 / EPIC-0406 — Énergie et refroidissement fondation
-- Bug corrigé : échec GitHub Actions sur `ruff format --check src tests scripts docker`
-- Correctifs associés : `ruff check`, typage `mypy`, scan `bandit`, configuration qualité CI
+- Bug corrigé : le smoke CI `security list-tokens` / `security revoke-token` utilisait un jeton `ipam:operator` non autorisé pour une opération d'administration sécurité
+- Exigence ajoutée : contrôles sécurité bloquants sur `push` et pull request
+- Compatibilité CI ajoutée : Python `3.13` et `3.14`, en plus de `3.11` et `3.12`
 - Production : déploiement serveur natif, indépendant de Docker
 - Docker : environnement de test/smoke facultatif uniquement
 - Seuil officiel de couverture : `>= 98 %`
 - Couverture mesurée : `98.10 %`
-- Résultat global local : réussi
+- Résultat global local : réussi, hors audit de vulnérabilités en ligne `pip-audit` bloqué par la résolution DNS locale
 
 ## Impact
 
-Cette livraison ne poursuit pas le jalon suivant. Elle corrige uniquement la chaîne qualité afin que la CI GitHub Actions passe de nouveau après un `push`.
+Cette livraison ne poursuit pas le jalon suivant. Elle corrige uniquement la chaîne CI et les contrôles sécurité.
 
-Aucune commande publique, aucun endpoint HTTP, aucune migration métier et aucun comportement DCIM/IPAM/SOT existant n’ont été supprimés.
+Aucune commande publique, aucun endpoint HTTP, aucune migration métier et aucun comportement DCIM/IPAM/SOT existant n'ont été supprimés.
 
 ## Corrections livrées
 
-- Reformattage Ruff complet des répertoires contrôlés : `src`, `tests`, `scripts`, `docker`.
-- Stabilisation de `ruff check` sur la base existante : imports, annotations, simplifications de conditions et règles de sécurité pertinentes.
-- Correction `mypy` sur le typage strict : `ClassVar`, `Any`, `cast`, conversions `Mapping[str, object]`, types DCIM PostgreSQL et retours HTTP/API.
-- Correction `bandit` : suppression des fragments SQL dynamiques détectés B608 et remplacement par des requêtes SQL statiques entièrement paramétrées.
-- Conservation du runtime natif hors Docker : `systemd`, runbook serveur et smoke natif restent la voie de production.
+- Correction du smoke sécurité GitHub Actions :
+  - le jeton `ipam:operator` reste utilisé pour `whoami` et les opérations IPAM autorisées ;
+  - un jeton séparé `security:admin` est créé pour `security list-tokens` et `security revoke-token`.
+- Ajout du job `blocking-security` dans `.github/workflows/ci.yml`.
+- Extension de la matrice CI à Python `3.11`, `3.12`, `3.13` et `3.14`.
+- Ajout d'un audit de vulnérabilités de dépendances via `pip-audit`.
+- Ajout d'une analyse statique sécurité bloquante via `bandit`.
+- Ajout de CodeQL avec les suites `security-extended` et `security-and-quality`.
+- Ajout de `dependency-review-action` pour les pull requests.
+- Ajout de `.github/dependabot.yml` pour `pip` et `github-actions`.
+- Ajout de `scripts/security_gate.py` pour détecter les secrets committés et verrouiller les exigences de durcissement CI.
+- Intégration de `scripts/security_gate.py` dans `scripts/quality_gate.py`.
+- Ajout du runbook `docs/runbooks/SECURITY_CI.md`.
+- Ajout des tests `tests/integration/test_security_gate.py`.
 - Mise à jour version : `VERSION`, `pyproject.toml`, `src/openinfra/__init__.py`, `docs/api/openapi.yaml`, tests de version.
-- Mise à jour documentation : `README.md`, `CHANGELOG.md`, `docs/runbooks/VALIDATION.md`.
+- Mise à jour documentation : `README.md`, `CHANGELOG.md`, `docs/runbooks/VALIDATION.md`, `docs/TRACEABILITY.md`.
 
 ## Fichiers principalement concernés
 
 - `.github/workflows/ci.yml`
+- `.github/dependabot.yml`
 - `pyproject.toml`
 - `VERSION`
 - `src/openinfra/__init__.py`
-- `src/openinfra/application/dcim_services.py`
-- `src/openinfra/application/security_services.py`
-- `src/openinfra/application/source_governance_services.py`
-- `src/openinfra/domain/dcim.py`
-- `src/openinfra/infrastructure/json_store.py`
-- `src/openinfra/infrastructure/postgresql.py`
-- `src/openinfra/interfaces/http_api.py`
-- `tests/architecture/test_architecture.py`
+- `scripts/security_gate.py`
+- `scripts/quality_gate.py`
+- `tests/integration/test_security_gate.py`
 - `tests/integration/test_cli.py`
 - `tests/integration/test_http_api.py`
-- `tests/integration/test_runtime_docker_environment.py`
+- `docs/runbooks/SECURITY_CI.md`
+- `docs/runbooks/VALIDATION.md`
+- `docs/TRACEABILITY.md`
 - `README.md`
 - `CHANGELOG.md`
-- `docs/runbooks/VALIDATION.md`
+- `VALIDATION-REPORT.md`
 
 ## Validations exécutées localement
 
@@ -58,19 +66,19 @@ Aucune commande publique, aucun endpoint HTTP, aucune migration métier et aucun
 python3 -m ruff format --check src tests scripts docker
 ```
 
-Résultat : réussi — `69 files already formatted`.
+Résultat : réussi, `71 files already formatted`.
 
 ```bash
 python3 -m ruff check src tests scripts docker
 ```
 
-Résultat : réussi — `All checks passed!`.
+Résultat : réussi.
 
 ```bash
 python3 -m mypy src/openinfra
 ```
 
-Résultat : réussi — `Success: no issues found in 29 source files`.
+Résultat : réussi, `Success: no issues found in 29 source files`.
 
 ```bash
 python3 -m bandit -q -r src/openinfra
@@ -79,16 +87,26 @@ python3 -m bandit -q -r src/openinfra
 Résultat : réussi.
 
 ```bash
+python3 scripts/security_gate.py --project-root .
+```
+
+Résultat : réussi.
+
+```bash
 PYTHONPATH=src python3 -m pytest -q
 ```
 
-Résultat : `163 passed`, couverture globale `98.10 %`, seuil `>= 98 %` atteint.
+Résultat :
+
+- `166 passed`
+- couverture globale : `98.10 %`
+- seuil obligatoire : `>= 98 %`
 
 ```bash
 PYTHONPATH=src python3 scripts/quality_gate.py
 ```
 
-Résultat : réussi — `163 passed`, couverture globale `98.10 %`.
+Résultat : réussi, avec `166 passed` et couverture `98.10 %`.
 
 ```bash
 PYTHONPATH=src python3 -m compileall -q src tests scripts docker
@@ -100,77 +118,84 @@ Résultat : réussi.
 PYTHONPATH=src python3 -m openinfra.interfaces.cli version
 ```
 
-Résultat : `0.17.1`.
+Résultat : `0.17.2`.
 
 ```bash
 PYTHONPATH=src python3 -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4
 ```
 
-Résultat : `status=valid`, version CDC `4.0.0`, `488` exigences, `310` tests.
+Résultat :
+
+- `status=valid`
+- `version=4.0.0`
+- `requirements=488`
+- `tests=310`
 
 ```bash
 PYTHONPATH=src python3 -m openinfra.interfaces.cli database render-migration --name 0014_dcim_energy_cooling_foundation --root migrations/postgresql
 ```
 
-Résultat : réussi. La migration 0014 reste celle du jalon v0.17.0, sans nouvelle migration corrective en v0.17.1.
+Résultat : réussi. Aucune nouvelle migration métier n'est ajoutée en v0.17.2.
 
 ```bash
-python3 scripts/native_runtime_smoke.py
+python3 scripts/native_runtime_smoke.py --project-root .
 ```
 
-Résultat : réussi. Les actifs de production natifs sont présents et cohérents.
+Résultat : réussi.
 
 ```bash
 python3 -m build
 python3 scripts/verify_artifact.py dist/*.whl
 ```
 
-Résultat : réussi. Wheel et sdist générés puis retirés de l’archive finale conformément à la règle d’archive nettoyée.
+Résultat : réussi. Wheel générée : `openinfra-0.17.2-py3-none-any.whl`.
+
+## Smoke RBAC sécurité exécuté
+
+Scénario validé localement :
+
+1. création d'un jeton `ipam:operator` pour `ci-client` ;
+2. validation `whoami` sur ce jeton ;
+3. création d'un jeton `security:admin` pour `ci-security-admin` ;
+4. création d'un jeton `viewer` pour `ci-viewer` ;
+5. exécution de `security list-tokens` avec le jeton `security:admin` ;
+6. exécution de `security revoke-token` avec le jeton `security:admin`.
+
+Résultat final : révocation réussie du jeton `viewer`.
+
+## Audit vulnérabilités `pip-audit`
+
+La commande suivante est intégrée dans GitHub Actions :
 
 ```bash
-python3 - <<'PY'
-from pathlib import Path
-import yaml
-for name in ['.github/workflows/ci.yml', 'compose.yaml', 'docs/api/openapi.yaml']:
-    yaml.safe_load(Path(name).read_text(encoding='utf-8'))
-PY
+python -m pip_audit --strict --progress-spinner off
 ```
 
-Résultat : réussi pour les fichiers YAML contrôlés.
+Exécution locale : non finalisée, car l'environnement local ne pouvait pas résoudre `pypi.org` pendant la requête d'audit. La dépendance `pip-audit` a bien été installée localement, mais la vérification en ligne a échoué sur la résolution DNS externe.
 
-## Contrôle couverture
+## Points non exécutés localement
 
-- Seuil configuré dans `pyproject.toml` : `--cov-fail-under=98`
-- Seuil contrôlé par `scripts/quality_gate.py` : `>= 98 %`
-- Couverture mesurée : `98.10 %`
-- Livraison autorisée : oui
+- Matrice Python complète GitHub Actions `3.11`, `3.12`, `3.13`, `3.14` : seul Python `3.13.5` était disponible localement.
+- CodeQL GitHub : non exécutable hors GitHub Actions.
+- Dependency Review GitHub : non exécutable hors contexte pull request GitHub.
+- Docker Compose réel : non exécuté, Docker n'est pas requis pour la production.
+- PostgreSQL réel : non exécuté, aucun serveur PostgreSQL local disponible.
 
-## Contrôle GitHub Actions
+## Condition pour rendre les checks réellement bloquants dans GitHub
 
-La CI contient les étapes suivantes :
+Le workflow contient les jobs bloquants. Pour empêcher un merge malgré échec CI, configurer les règles de protection de branche GitHub avec les checks requis suivants :
 
-- checkout
-- setup Python 3.11 / 3.12
-- installation `.[dev]`
-- `ruff format --check src tests scripts docker`
-- `ruff check src tests scripts docker`
-- `mypy src/openinfra`
-- `python -m pytest`
-- `compileall`
-- `bandit -q -r src/openinfra`
-- `python -m build`
-- vérification artefact
-- `quality_gate.py`
-- CLI version
-- validation CDC/SFG/STG
-- rendu migration 0014
-- smoke runtime natif
+- `Quality / Python 3.11`
+- `Quality / Python 3.12`
+- `Quality / Python 3.13`
+- `Quality / Python 3.14`
+- `Blocking security checks / Python 3.11`
+- `Blocking security checks / Python 3.12`
+- `Blocking security checks / Python 3.13`
+- `Blocking security checks / Python 3.14`
+- `CodeQL security analysis`
+- `Dependency review / PR vulnerability gate` pour les pull requests
 
-## Contrôles non exécutés localement
+## Conclusion
 
-- Docker Compose réel : non exécuté, car Docker n’est pas requis en production et n’est qu’un lab facultatif.
-- PostgreSQL réel : non exécuté, aucun serveur PostgreSQL local/Compose disponible.
-
-## Résultat
-
-La livraison `0.17.1` corrige le bug CI signalé avant toute poursuite roadmap. Le prochain jalon peut maintenant reprendre sur une base CI propre.
+La livraison `0.17.2` corrige le bug CI RBAC signalé et ajoute une CI sécurité bloquante complète. Le prochain jalon roadmap peut reprendre uniquement après validation GitHub Actions sur la branche cible.

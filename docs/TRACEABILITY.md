@@ -13,3 +13,11 @@
 | Architecture hexagonale / POO | packages `domain`, `application`, `infrastructure`, `interfaces` | `test_architecture.py`, `scripts/quality_gate.py` |
 | CLI/API/documentation/CI alignées | CLI, API HTTP, OpenAPI, docs, GitHub Actions | `test_cli.py`, `test_http_api.py`, `.github/workflows/ci.yml` |
 | Runtime serveur natif production | `deploy/systemd/openinfra-api.service`, `RUNTIME_NATIVE.md`, `native_runtime_smoke.py` | `test_runtime_docker_environment.py`, `scripts/quality_gate.py`, CI native runtime smoke |
+
+## v0.17.2 — Correctif CI sécurité bloquante
+
+- Exigence : la CI doit bloquer les régressions sécurité sur `push` et pull request.
+- Implémentation : job `blocking-security`, CodeQL, Dependency Review, Dependabot, `pip-audit`, `bandit` et `scripts/security_gate.py`.
+- Compatibilité Python : matrice CI `3.11`, `3.12`, `3.13`, `3.14`.
+- Correction RBAC : `security list-tokens` et `security revoke-token` utilisent un jeton `security:admin` dans le smoke CI.
+- Roadmap : aucun nouveau jalon métier ; P04 / EPIC-0406 reste inchangé.

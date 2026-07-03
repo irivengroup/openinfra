@@ -203,9 +203,30 @@ PYTHONPATH=src python scripts/native_runtime_smoke.py --project-root .
 Les tests couvrent le domaine de câblage, les services applicatifs, les ports JSON/PostgreSQL, la CLI, l’API HTTP, les contrats d’erreur et les branches de validation connecteur/média. Le quality gate ne dépend plus d’un moteur Docker et contrôle le runtime serveur natif.
 
 
-## Correctif CI v0.17.1
+## Correctif CI sécurité v0.17.2
 
-La v0.17.1 corrige le blocage GitHub Actions sur `ruff format --check src tests scripts docker`. Le workflow conserve les étapes format, lint, type-check, tests, couverture, compile, sécurité, build, artefact et smoke tests. Docker reste un laboratoire facultatif, jamais une dépendance de production.
+La v0.17.2 corrige la CI pour intégrer des contrôles sécurité bloquants sur `push` et pull request. Le workflow couvre Python `3.11`, `3.12`, `3.13` et `3.14`.
+
+Commandes locales de référence :
+
+```bash
+python3 -m ruff format --check src tests scripts docker
+python3 -m ruff check src tests scripts docker
+python3 -m mypy src/openinfra
+python3 -m bandit -q -r src/openinfra
+python3 scripts/security_gate.py --project-root .
+PYTHONPATH=src python3 -m pytest -q
+PYTHONPATH=src python3 scripts/quality_gate.py
+PYTHONPATH=src python3 -m compileall -q src tests scripts docker
+PYTHONPATH=src python3 -m openinfra.interfaces.cli version
+PYTHONPATH=src python3 -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4
+PYTHONPATH=src python3 -m openinfra.interfaces.cli database render-migration --name 0014_dcim_energy_cooling_foundation --root migrations/postgresql
+python3 scripts/native_runtime_smoke.py --project-root .
+```
+
+`pip-audit` est exécuté dans GitHub Actions après installation de `.[postgresql,dev]`. En local, son exécution nécessite que la dépendance `pip-audit` soit disponible dans l'environnement Python courant.
+
+La correction RBAC du smoke sécurité impose un jeton `security:admin` pour `security list-tokens` et `security revoke-token`. Le jeton `ipam:operator` reste limité aux opérations IPAM et lecture de schéma.
 
 ## Contrôles ajoutés en v0.17.0
 

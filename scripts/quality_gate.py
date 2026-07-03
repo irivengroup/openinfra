@@ -149,6 +149,9 @@ class QualityGate:
         NativeRuntimeGuard(self._project_root).assert_runtime_environment_present()
         CiWorkflowTriggerGuard(self._project_root).assert_push_triggers_are_not_branch_locked()
         CompletionMarkerGuard(self._project_root).assert_clean_sources()
+        CommandRunner().run(
+            [sys.executable, "scripts/security_gate.py", "--project-root", str(self._project_root)]
+        )
         CommandRunner().run([sys.executable, "-m", "pytest"])
 
 

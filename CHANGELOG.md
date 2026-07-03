@@ -1,8 +1,11 @@
-## 0.17.1 - 2026-07-03
+## 0.17.2 - 2026-07-03
 
-- Correctif CI : application effective du formatage Ruff sur `src`, `tests`, `scripts` et `docker`.
-- Correction de la configuration Ruff pour éviter les faux blocages sur les règles non pertinentes pour les tests HTTP locaux, les adaptateurs PostgreSQL à prédicats maîtrisés et les handlers CLI/API volumineux hérités.
-- Correction des derniers points lint source : annotation `ClassVar`, remplacement atomique via `Path.replace`, conditions imbriquées simplifiées et apostrophe Unicode supprimée dans le runbook natif.
+- Correctif CI bloquant : ajout d'un job `blocking-security` exécuté sur `push`, pull request et lancement manuel.
+- Prise en charge CI de Python `3.13` et `3.14`, en plus de `3.11` et `3.12`.
+- Ajout de contrôles sécurité bloquants : `bandit` SAST, `pip-audit` pour vulnérabilités de dépendances, `scripts/security_gate.py` pour secrets committés et durcissement workflow.
+- Ajout de CodeQL avec suites `security-extended` et `security-and-quality`.
+- Ajout du `dependency-review-action` sur pull requests et d'une politique Dependabot pour `pip` et `github-actions`.
+- Correction du smoke CI `security list-tokens` / `security revoke-token` : les opérations d'administration des tokens utilisent désormais un jeton `security:admin`, et non un jeton `ipam:operator`.
 - Aucun changement fonctionnel métier ; P04 / EPIC-0406 reste le jalon fonctionnel actif livré en v0.17.0.
 - Couverture globale conservée au-dessus du seuil obligatoire `>= 98 %`.
 

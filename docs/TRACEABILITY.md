@@ -14,6 +14,15 @@
 | CLI/API/documentation/CI alignées | CLI, API HTTP, OpenAPI, docs, GitHub Actions | `test_cli.py`, `test_http_api.py`, `.github/workflows/ci.yml` |
 | Runtime serveur natif production | `deploy/systemd/openinfra-api.service`, `RUNTIME_NATIVE.md`, `native_runtime_smoke.py` | `test_runtime_docker_environment.py`, `scripts/quality_gate.py`, CI native runtime smoke |
 
+## v0.17.3 — Correctif CI audit vulnérabilités et runtime PostgreSQL
+
+- Exigence : la CI sécurité doit auditer les dépendances sans échouer sur le package local non publié `openinfra`.
+- Implémentation : `pip-audit` est exécuté avec `--skip-editable` dans le job `blocking-security`.
+- Garde-fou : `scripts/security_gate.py` rejette un workflow qui conserve `pip_audit` sans `--skip-editable`.
+- Exigence : les erreurs PostgreSQL runtime doivent rester dans le contrat d'erreur OpenInfra.
+- Implémentation : `PostgreSQLDriver.connect()` transforme les erreurs de connexion `psycopg` en `OpenInfraError`.
+- Roadmap : aucun nouveau jalon métier ; P04 / EPIC-0406 reste inchangé.
+
 ## v0.17.2 — Correctif CI sécurité bloquante
 
 - Exigence : la CI doit bloquer les régressions sécurité sur `push` et pull request.

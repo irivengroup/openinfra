@@ -502,6 +502,23 @@ La migration PostgreSQL `0013_dcim_cabling_foundation.sql` ajoute les tables par
 Production : le runtime officiel est désormais documenté comme déploiement serveur natif via `systemd`, virtualenv Python et PostgreSQL. Docker reste un lab optionnel de test/smoke et n’est pas une dépendance de production.
 
 
+## v0.17.3 — Correctif CI audit vulnérabilités et runtime PostgreSQL
+
+La v0.17.3 est une livraison corrective sans nouveau jalon métier. Elle corrige l'échec GitHub Actions où `pip-audit` tentait d'auditer le package local `openinfra` installé en editable et échouait car ce package n'est pas publié sur PyPI.
+
+Corrections CI sécurité :
+
+- le job `blocking-security` exécute maintenant `python -m pip_audit --strict --skip-editable --progress-spinner off` ;
+- `scripts/security_gate.py` vérifie explicitement la présence de `--skip-editable` dans le workflow ;
+- les tests de sécurité CI couvrent cette exigence pour éviter une régression.
+
+Correction PostgreSQL runtime :
+
+- `PostgreSQLDriver.connect()` encapsule les échecs de connexion réels de `psycopg` en `OpenInfraError` ;
+- les erreurs DNS, réseau, serveur absent ou refus de connexion sont désormais reportées proprement par l'abstraction OpenInfra.
+
+Le runtime de production reste serveur natif : virtualenv Python, `systemd` et PostgreSQL. Docker demeure uniquement un environnement facultatif de test/smoke local.
+
 ## v0.17.2 — Correctif CI sécurité bloquante
 
 La v0.17.2 est une livraison corrective sans nouveau jalon métier. Elle renforce la CI pour que les contrôles sécurité soient réellement bloquants après un `push` et corrige le smoke RBAC qui utilisait un jeton `ipam:operator` pour des opérations d'administration de tokens.
@@ -511,7 +528,7 @@ Chaîne CI renforcée :
 - matrice Python `3.11`, `3.12`, `3.13` et `3.14` ;
 - job `blocking-security` exécuté sur `push`, pull request, tag `v*` et lancement manuel ;
 - `bandit -q -r src/openinfra` pour l'analyse statique sécurité Python ;
-- `python -m pip_audit --strict --progress-spinner off` pour bloquer les dépendances connues vulnérables ;
+- `python -m pip_audit --strict --skip-editable --progress-spinner off` pour bloquer les dépendances connues vulnérables ;
 - `scripts/security_gate.py` pour détecter des secrets committés et vérifier le durcissement workflow ;
 - CodeQL avec les suites `security-extended` et `security-and-quality` ;
 - `dependency-review-action` sur pull requests ;

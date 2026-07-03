@@ -203,9 +203,9 @@ PYTHONPATH=src python scripts/native_runtime_smoke.py --project-root .
 Les tests couvrent le domaine de câblage, les services applicatifs, les ports JSON/PostgreSQL, la CLI, l’API HTTP, les contrats d’erreur et les branches de validation connecteur/média. Le quality gate ne dépend plus d’un moteur Docker et contrôle le runtime serveur natif.
 
 
-## Correctif CI sécurité v0.17.2
+## Correctif CI sécurité v0.17.2 et v0.17.3
 
-La v0.17.2 corrige la CI pour intégrer des contrôles sécurité bloquants sur `push` et pull request. Le workflow couvre Python `3.11`, `3.12`, `3.13` et `3.14`.
+La v0.17.2 corrige la CI pour intégrer des contrôles sécurité bloquants sur `push` et pull request. La v0.17.3 corrige l’audit de vulnérabilités pour ignorer le package local editable `openinfra` et maintenir l’audit sur les dépendances installées. Le workflow couvre Python `3.11`, `3.12`, `3.13` et `3.14`.
 
 Commandes locales de référence :
 
@@ -227,6 +227,23 @@ python3 scripts/native_runtime_smoke.py --project-root .
 `pip-audit` est exécuté dans GitHub Actions après installation de `.[postgresql,dev]`. En local, son exécution nécessite que la dépendance `pip-audit` soit disponible dans l'environnement Python courant.
 
 La correction RBAC du smoke sécurité impose un jeton `security:admin` pour `security list-tokens` et `security revoke-token`. Le jeton `ipam:operator` reste limité aux opérations IPAM et lecture de schéma.
+
+
+## Correctif CI audit vulnérabilités v0.17.3
+
+La commande CI d’audit de vulnérabilités est :
+
+```bash
+python -m pip_audit --strict --skip-editable --progress-spinner off
+```
+
+`--skip-editable` est obligatoire parce que la CI installe OpenInfra avec `pip install -e .[postgresql,dev]`. Le package local `openinfra` n’est pas publié sur PyPI ; l’audit doit donc porter sur les dépendances installées et non échouer sur le projet local.
+
+Le test local sans accès réseau complet peut valider la collecte avec :
+
+```bash
+python3 -m pip_audit --strict --skip-editable --progress-spinner off --dry-run
+```
 
 ## Contrôles ajoutés en v0.17.0
 

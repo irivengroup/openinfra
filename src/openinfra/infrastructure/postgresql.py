@@ -385,12 +385,15 @@ class PostgreSQLDriver:
             ) from exc
         connect = cast(Callable[..., ConnectionProtocol], psycopg.connect)
         row_factory = rows.dict_row
-        return connect(
-            dsn,
-            autocommit=False,
-            row_factory=row_factory,
-            options="-c " + profile.dsn_options().replace(" ", " -c "),
-        )
+        try:
+            return connect(
+                dsn,
+                autocommit=False,
+                row_factory=row_factory,
+                options="-c " + profile.dsn_options().replace(" ", " -c "),
+            )
+        except Exception as exc:  # pragma: no cover - depends on external PostgreSQL runtime
+            raise OpenInfraError("postgresql connection failed: " + str(exc)) from exc
 
 
 class PostgreSQLConnectionFactory:

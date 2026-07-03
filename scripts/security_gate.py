@@ -171,6 +171,7 @@ class GitHubWorkflowSecurityGuard:
             "security-events: write",
             "blocking-security:",
             "pip_audit",
+            "--skip-editable",
             "bandit -q -r src/openinfra",
             "scripts/security_gate.py --project-root .",
             "github/codeql-action/init",

@@ -1,3 +1,12 @@
+## 0.17.3 - 2026-07-03
+
+- Correctif CI sécurité : `pip-audit` utilise désormais `--skip-editable` pour auditer les dépendances installées sans tenter de résoudre le package local `openinfra` non publié sur PyPI.
+- Durcissement `scripts/security_gate.py` : le workflow doit conserver `pip_audit` et `--skip-editable` pour éviter toute régression similaire.
+- Correction PostgreSQL runtime : `PostgreSQLDriver.connect()` encapsule les erreurs de connexion `psycopg` en `OpenInfraError`, afin que les erreurs DNS/réseau/serveur manquant soient reportées proprement par OpenInfra au lieu de faire échouer les tests avec une exception tierce.
+- Mise à jour tests de sécurité CI pour valider la présence de `--skip-editable`.
+- Aucun changement fonctionnel métier ; P04 / EPIC-0406 reste le jalon fonctionnel actif livré en v0.17.0.
+- Couverture globale conservée au-dessus du seuil obligatoire `>= 98 %`.
+
 ## 0.17.2 - 2026-07-03
 
 - Correctif CI bloquant : ajout d'un job `blocking-security` exécuté sur `push`, pull request et lancement manuel.

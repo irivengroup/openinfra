@@ -10,7 +10,7 @@ La CI OpenInfra doit bloquer un `push` ou une pull request lorsqu'une faiblesse 
 - `python -m pip_audit --strict --requirement requirements/security-audit.txt --progress-spinner off` : audit des dépendances installées contre les bases de vulnérabilités Python ; `requirements/security-audit.txt` évite d'auditer l'environnement editable et limite le contrôle aux dépendances tierces.
 - `python scripts/security_gate.py --project-root .` : scan déterministe des secrets committés et vérification du durcissement GitHub Actions.
 - CodeQL : analyse de sécurité et de qualité avec les suites `security-extended` et `security-and-quality`.
-- Dependency Review : blocage des pull requests introduisant des dépendances vulnérables à sévérité au moins modérée.
+- Dependency Review : workflow séparé, déclenché uniquement sur pull request, pour bloquer les dépendances vulnérables introduites dans une PR sans créer de job `Skipped` sur les pushs.
 - Dependabot : ouverture automatique de pull requests de mise à jour pour `pip` et `github-actions`.
 
 ## Matrice Python
@@ -25,10 +25,10 @@ Pour que ces contrôles soient bloquants au niveau GitHub, les règles de protec
 - `Quality / Python 3.12`
 - `Quality / Python 3.13`
 - `Quality / Python 3.14`
-- `Blocking security checks / Python 3.11`
-- `Blocking security checks / Python 3.12`
-- `Blocking security checks / Python 3.13`
-- `Blocking security checks / Python 3.14`
+- `Blocking push vulnerability gate / Python 3.11`
+- `Blocking push vulnerability gate / Python 3.12`
+- `Blocking push vulnerability gate / Python 3.13`
+- `Blocking push vulnerability gate / Python 3.14`
 - `CodeQL security analysis`
 - `Dependency review / PR vulnerability gate` pour les pull requests
 
@@ -51,3 +51,14 @@ python -m pip_audit --strict --requirement requirements/security-audit.txt --pro
 ```
 
 Le `security_gate.py` vérifie la présence de `pip_audit` et `requirements/security-audit.txt` dans le workflow pour éviter toute régression similaire.
+
+## Séparation push / pull request
+
+Le contrôle `Dependency review / PR vulnerability gate` ne doit pas être placé dans `.github/workflows/ci.yml`, car ce workflow se déclenche aussi sur `push`. Un job conditionné par `if: github.event_name == 'pull_request'` apparaîtrait alors comme `Skipped` dans les exécutions de push.
+
+La séparation retenue est la suivante :
+
+- `.github/workflows/ci.yml` : qualité, tests, `bandit`, `pip-audit`, `security_gate.py`, CodeQL et smoke runtime ; exécution sur `push`, pull request, tag `v*` et lancement manuel ;
+- `.github/workflows/dependency-review.yml` : `actions/dependency-review-action`, exécution uniquement sur `pull_request`.
+
+Le `security_gate.py` vérifie cette séparation et refuse toute réintroduction de `actions/dependency-review-action` ou de condition `if: github.event_name == 'pull_request'` dans le workflow de push.

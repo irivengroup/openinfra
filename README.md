@@ -502,6 +502,20 @@ La migration PostgreSQL `0013_dcim_cabling_foundation.sql` ajoute les tables par
 Production : le runtime officiel est désormais documenté comme déploiement serveur natif via `systemd`, virtualenv Python et PostgreSQL. Docker reste un lab optionnel de test/smoke et n’est pas une dépendance de production.
 
 
+## v0.17.5 — Correctif CI Dependency Review non exécutée sur push
+
+La v0.17.5 est une livraison corrective sans nouveau jalon métier. Elle corrige l'affichage GitHub Actions `Dependency review / PR vulnerability gate (push) Skipped` en séparant les responsabilités CI :
+
+- `.github/workflows/ci.yml` reste déclenché sur `push`, pull request, tag `v*` et lancement manuel ; il contient les contrôles bloquants de vulnérabilités applicables aux pushs : `bandit`, `pip-audit`, `security_gate.py`, CodeQL et la matrice Python `3.11` à `3.14` ;
+- `.github/workflows/dependency-review.yml` est désormais un workflow séparé, déclenché uniquement par `pull_request`, car la revue différentielle des dépendances est un contrôle de PR ;
+- aucun job PR-only n'est conservé dans le workflow de push, ce qui évite les checks `Skipped` sur push ;
+- `scripts/security_gate.py` bloque toute régression réintroduisant `actions/dependency-review-action` ou `if: github.event_name == 'pull_request'` dans le workflow de push.
+
+Checks requis conseillés :
+
+- sur `push` / branches protégées : `Quality / Python 3.11`, `Quality / Python 3.12`, `Quality / Python 3.13`, `Quality / Python 3.14`, `Blocking push vulnerability gate / Python 3.11`, `Blocking push vulnerability gate / Python 3.12`, `Blocking push vulnerability gate / Python 3.13`, `Blocking push vulnerability gate / Python 3.14`, `CodeQL security analysis` ;
+- sur pull request : ajouter `Dependency review / PR vulnerability gate`.
+
 ## v0.17.4 — Correctif CI audit vulnérabilités editable
 
 La v0.17.4 est une livraison corrective sans nouveau jalon métier. Elle corrige l'échec GitHub Actions `distribution marked as editable` rencontré par `pip-audit` lorsque l'environnement CI contient le package projet installé en mode editable.

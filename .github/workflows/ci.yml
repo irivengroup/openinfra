@@ -587,7 +587,7 @@ jobs:
         run: python scripts/quality_gate.py
 
   blocking-security:
-    name: Blocking security checks / Python ${{ matrix.python-version }}
+    name: Blocking push vulnerability gate / Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -616,22 +616,6 @@ jobs:
 
       - name: Pip audit - known vulnerable dependencies
         run: python -m pip_audit --strict --requirement requirements/security-audit.txt --progress-spinner off
-
-  dependency-review:
-    name: Dependency review / PR vulnerability gate
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    permissions:
-      contents: read
-      pull-requests: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Dependency Review
-        uses: actions/dependency-review-action@v5
-        with:
-          fail-on-severity: moderate
 
   codeql-security:
     name: CodeQL security analysis

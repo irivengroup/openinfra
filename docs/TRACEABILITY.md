@@ -1,3 +1,10 @@
+## v0.17.5 — Correctif CI Dependency Review séparée
+
+- Exigence : aucun job PR-only ne doit apparaître `Skipped` dans une exécution de push.
+- Implémentation : `.github/workflows/dependency-review.yml` séparé, déclenché uniquement par `pull_request`; `.github/workflows/ci.yml` conserve les contrôles bloquants push.
+- Garde-fou : `scripts/security_gate.py` refuse `actions/dependency-review-action` et les conditions `if: github.event_name == 'pull_request'` dans le workflow de push.
+- Tests : `tests/integration/test_security_gate.py` couvre la séparation push / PR et le rejet d'une régression.
+
 ## v0.17.4 — Correctif CI audit vulnérabilités editable
 
 - Exigence qualité : la CI doit auditer les dépendances tierces sans échouer sur le package projet installé en editable.

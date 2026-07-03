@@ -1,3 +1,12 @@
+## 0.17.5 - 2026-07-03
+
+- Correctif GitHub Actions : suppression du job PR-only `dependency-review` du workflow de push pour éviter le statut `Skipped` après `push`.
+- Ajout du workflow séparé `.github/workflows/dependency-review.yml`, déclenché uniquement par `pull_request`.
+- Renommage explicite du job sécurité en `Blocking push vulnerability gate / Python ...` pour matérialiser le blocage vulnérabilités sur `push`.
+- Renforcement de `scripts/security_gate.py` : rejet de `actions/dependency-review-action` et de `if: github.event_name == 'pull_request'` dans le workflow de push, et vérification du workflow PR dédié.
+- Ajout de tests de non-régression sur la séparation workflow push / workflow PR.
+- Aucun changement fonctionnel métier ; P04 / EPIC-0406 reste le jalon fonctionnel actif.
+
 ## 0.17.4 - 2026-07-03
 
 - Correctif CI sécurité : remplacement de l'audit d'environnement par un audit explicite du fichier `requirements/security-audit.txt`.

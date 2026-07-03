@@ -1,54 +1,72 @@
-# OpenInfra Python POO v0.17.4 — Rapport de validation
+# OpenInfra Python POO v0.17.5 — Rapport de validation
 
 ## Synthèse
 
-- Release : `0.17.4`
-- Type : correctif CI sécurité / audit vulnérabilités
-- Baseline fonctionnelle : `0.17.0` — P04 / EPIC-0406 — Énergie et refroidissement fondation
-- Nouveau jalon métier : aucun
-- Exigence production : runtime serveur natif, sans dépendance Docker
-- Seuil couverture obligatoire : `>= 98 %`
-- Couverture mesurée : `98.10 %`
+- Release : `0.17.5`
+- Type : correctif CI / sécurité, sans nouveau jalon métier
+- Baseline : `0.17.4`
+- Roadmap : inchangée, dernier jalon fonctionnel conservé `P04 / EPIC-0406 — Énergie et refroidissement fondation`
+- Objectif : corriger le statut GitHub Actions `Dependency review / PR vulnerability gate (push) Skipped` en séparant le workflow PR-only du workflow CI push.
 
-## Bug corrigé
+## Analyse d'impact
 
-Le job GitHub Actions échouait avec :
+Le workflow `.github/workflows/ci.yml` était déclenché sur `push` et contenait un job `dependency-review` protégé par `if: github.event_name == 'pull_request'`. Sur un push, GitHub Actions affichait donc ce job comme `Skipped`. Le contrôle était correct fonctionnellement pour les pull requests, mais polluait le résultat de push et pouvait perturber les règles de checks requis.
 
-```bash
-python -m pip_audit --strict --skip-editable --progress-spinner off
-ERROR:pip_audit._cli:openinfra: distribution marked as editable
-```
+La correction sépare les responsabilités :
 
-Cause : le job installait le projet avec `pip install -e '.[postgresql,dev]'`, puis lançait `pip-audit` sur l'environnement Python complet. Avec `--strict`, la distribution projet installée en editable restait un cas bloquant.
+- `.github/workflows/ci.yml` : qualité, tests, sécurité bloquante sur push, CodeQL, smoke runtime ;
+- `.github/workflows/dependency-review.yml` : Dependency Review déclenchée uniquement par `pull_request`.
 
-Correction : le job sécurité n'audite plus l'environnement complet. Il audite un fichier explicite de dépendances tierces :
+Aucun comportement métier OpenInfra n'est modifié.
 
-```bash
-python -m pip_audit --strict --requirement requirements/security-audit.txt --progress-spinner off
-```
-
-## Fichiers modifiés ou ajoutés
+## Fichiers modifiés
 
 - `.github/workflows/ci.yml`
-  - Remplacement de l'audit d'environnement par l'audit `requirements/security-audit.txt`.
-- `requirements/security-audit.txt`
-  - Nouvelle entrée d'audit dédiée aux dépendances tierces.
+- `.github/workflows/dependency-review.yml`
 - `scripts/security_gate.py`
-  - Vérification de la présence du fichier d'audit.
-  - Rejet d'un workflow qui revient à l'audit d'environnement editable.
-  - Rejet d'un fichier d'audit qui référence le package projet local.
 - `tests/integration/test_security_gate.py`
-  - Tests de non-régression sur l'audit par fichier de dépendances.
-  - Test de rejet du retour à `pip-audit` sur environnement editable.
-  - Test de rejet d'une référence au package local dans l'entrée d'audit.
-- `VERSION`, `pyproject.toml`, `src/openinfra/__init__.py`, `docs/api/openapi.yaml`
-  - Version mise à jour en `0.17.4`.
-- `README.md`, `CHANGELOG.md`, `docs/TRACEABILITY.md`, `docs/runbooks/SECURITY_CI.md`, `docs/runbooks/VALIDATION.md`
-  - Documentation corrective mise à jour.
+- `VERSION`
+- `pyproject.toml`
+- `src/openinfra/__init__.py`
+- `docs/api/openapi.yaml`
+- `README.md`
+- `CHANGELOG.md`
+- `docs/runbooks/SECURITY_CI.md`
+- `docs/runbooks/VALIDATION.md`
+- `docs/TRACEABILITY.md`
+- `VALIDATION-REPORT.md`
+
+## Corrections CI
+
+- Suppression de `actions/dependency-review-action` du workflow de push `.github/workflows/ci.yml`.
+- Suppression de tout job conditionné par `if: github.event_name == 'pull_request'` dans le workflow de push.
+- Ajout du workflow `.github/workflows/dependency-review.yml`, déclenché uniquement par `pull_request`.
+- Renommage explicite du job sécurité en `Blocking push vulnerability gate / Python ${{ matrix.python-version }}`.
+- Conservation de la matrice Python `3.11`, `3.12`, `3.13`, `3.14`.
+- Conservation des contrôles bloquants push : `bandit`, `pip-audit`, `security_gate.py`, CodeQL.
+
+## Garde-fous ajoutés
+
+`scripts/security_gate.py` vérifie désormais :
+
+- présence du workflow PR dédié `.github/workflows/dependency-review.yml` ;
+- présence de `actions/dependency-review-action` dans le workflow PR ;
+- absence de `actions/dependency-review-action` dans `.github/workflows/ci.yml` ;
+- absence de `if: github.event_name == 'pull_request'` dans `.github/workflows/ci.yml` ;
+- absence de `push:` et `workflow_dispatch:` dans le workflow Dependency Review ;
+- conservation de `pip-audit` via `requirements/security-audit.txt` ;
+- conservation de Python `3.13` et `3.14` dans la matrice.
+
+## Tests ajoutés
+
+- `test_security_gate_rejects_dependency_review_in_push_workflow`
+- `test_security_gate_rejects_push_trigger_on_dependency_review_workflow`
+
+Ces tests empêchent la réintroduction d'un job PR-only dans le workflow de push.
 
 ## Validations exécutées
 
-### Format Ruff
+### Formatage
 
 ```bash
 python3 -m ruff format --check src tests scripts docker
@@ -56,13 +74,13 @@ python3 -m ruff format --check src tests scripts docker
 
 Résultat : réussi, `71 files already formatted`.
 
-### Lint Ruff
+### Lint
 
 ```bash
 python3 -m ruff check src tests scripts docker
 ```
 
-Résultat : réussi.
+Résultat : réussi, `All checks passed!`.
 
 ### Typage statique
 
@@ -72,7 +90,7 @@ python3 -m mypy src/openinfra
 
 Résultat : réussi, `Success: no issues found in 29 source files`.
 
-### Scan sécurité Bandit
+### Sécurité SAST
 
 ```bash
 python3 -m bandit -q -r src/openinfra
@@ -83,28 +101,33 @@ Résultat : réussi.
 ### Gate sécurité interne
 
 ```bash
-PYTHONPATH=. python3 scripts/security_gate.py --project-root .
+python3 scripts/security_gate.py --project-root .
 ```
 
 Résultat : réussi.
 
-### Pip audit — collecte locale sans réseau
+### Audit dépendances — dry-run local
 
 ```bash
 python3 -m pip_audit --strict --requirement requirements/security-audit.txt --progress-spinner off --dry-run
 ```
 
-Résultat : réussi, `Dry run: would have audited 47 packages`.
+Résultat : réussi.
 
-### Tests automatisés et couverture
+```text
+INFO:pip_audit._audit:Dry run: would have audited 47 packages
+No known vulnerabilities found
+```
+
+### Tests complets
 
 ```bash
-PYTHONPATH=src python3 -m pytest -q
+PYTHONPATH=src python3 -m pytest
 ```
 
 Résultat :
 
-- `168 passed`
+- `170 passed`
 - couverture globale : `98.10 %`
 - seuil obligatoire : `>= 98 %`
 
@@ -114,9 +137,9 @@ Résultat :
 PYTHONPATH=src python3 scripts/quality_gate.py
 ```
 
-Résultat : réussi, `168 passed`, couverture `98.10 %`.
+Résultat : réussi.
 
-### Compilation Python
+### Compilation
 
 ```bash
 PYTHONPATH=src python3 -m compileall -q src tests scripts docker
@@ -130,7 +153,7 @@ Résultat : réussi.
 PYTHONPATH=src python3 -m openinfra.interfaces.cli version
 ```
 
-Résultat : `0.17.4`.
+Résultat : `0.17.5`.
 
 ### Validation CDC/SFG/STG
 
@@ -140,23 +163,14 @@ PYTHONPATH=src python3 -m openinfra.interfaces.cli spec validate --root docs/spe
 
 Résultat :
 
-- `status=valid`
-- `version=4.0.0`
-- `requirements=488`
-- `tests=310`
-
-### Migrations PostgreSQL
-
-```bash
-for f in migrations/postgresql/*.sql; do
-  n="$(basename "$f" .sql)"
-  PYTHONPATH=src python3 -m openinfra.interfaces.cli database render-migration --name "$n" --root migrations/postgresql >/tmp/openinfra-${n}.sql
-done
+```text
+status=valid
+version=4.0.0
+requirements=488
+tests=310
 ```
 
-Résultat : migrations `0001` à `0014` rendues avec succès.
-
-Validation ciblée demandée :
+### Migrations PostgreSQL
 
 ```bash
 PYTHONPATH=src python3 -m openinfra.interfaces.cli database render-migration --name 0014_dcim_energy_cooling_foundation --root migrations/postgresql
@@ -164,43 +178,39 @@ PYTHONPATH=src python3 -m openinfra.interfaces.cli database render-migration --n
 
 Résultat : réussi.
 
+Toutes les migrations PostgreSQL `0001` à `0014` ont également été rendues avec succès.
+
 ### Smoke runtime natif
 
 ```bash
-python3 scripts/native_runtime_smoke.py
+python3 scripts/native_runtime_smoke.py --project-root .
 ```
 
 Résultat : réussi.
 
-### Build packaging
+### Build et vérification artefact
 
 ```bash
-python3 -m build --no-isolation
+python3 -m build
 python3 scripts/verify_artifact.py dist/*.whl
 ```
 
-Résultat : réussi, wheel générée `openinfra-0.17.4-py3-none-any.whl`.
+Résultat : réussi.
 
-## Validations non exécutées localement
+```text
+Successfully built openinfra-0.17.5.tar.gz and openinfra-0.17.5-py3-none-any.whl
+```
 
-- Audit complet `pip-audit` réseau : non exécutable localement à cause d'une résolution DNS impossible vers `pypi.org`. Le `--dry-run` prouve que la collecte utilise bien `requirements/security-audit.txt` et n'inclut plus le package editable local.
+## Non exécuté localement
+
+- Exécution réelle GitHub Actions : non exécutable dans l'environnement local.
 - Matrice GitHub complète Python `3.11`, `3.12`, `3.13`, `3.14` : seul Python `3.13.5` était disponible localement.
-- CodeQL et Dependency Review : exécutables uniquement dans GitHub Actions.
+- CodeQL : exécutable uniquement dans GitHub Actions.
+- Dependency Review Action : exécutable uniquement dans GitHub Actions sur événement `pull_request`.
+- Audit réseau complet `pip-audit` : non exécuté localement ; le dry-run a validé l'entrée d'audit dédiée, l'audit réseau complet reste dans la CI.
 - Docker Compose réel : non exécuté ; Docker n'est pas requis pour la production.
 - PostgreSQL réel : non exécuté ; aucun serveur PostgreSQL local disponible.
 
-## Contrôle archive
+## Résultat
 
-L'archive source livrée exclut :
-
-- `__pycache__`
-- `.pytest_cache`
-- `.mypy_cache`
-- `.ruff_cache`
-- `build`
-- `dist`
-- `*.egg-info`
-
-## Conclusion
-
-La livraison `0.17.4` corrige l'échec CI `distribution marked as editable` et ajoute des garde-fous contre les régressions similaires. Le prochain jalon roadmap peut reprendre après validation GitHub Actions sur la branche cible.
+La livraison `0.17.5` corrige le statut `Dependency review / PR vulnerability gate (push) Skipped`. Après push, le workflow CI ne contient plus de job PR-only susceptible d'être marqué `Skipped`. Le contrôle Dependency Review reste disponible et bloquant pour les pull requests via un workflow dédié.

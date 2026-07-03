@@ -156,6 +156,7 @@ class RepositorySecretScanner:
 class GitHubWorkflowSecurityGuard:
     def __init__(self, project_root: Path) -> None:
         self._workflow = project_root / ".github/workflows/ci.yml"
+        self._dependency_review_workflow = project_root / ".github/workflows/dependency-review.yml"
 
     def assert_hardened(self) -> None:
         if not self._workflow.is_file():
@@ -165,18 +166,21 @@ class GitHubWorkflowSecurityGuard:
             raise SecurityGateError("missing Dependabot vulnerability update policy")
         content = self._workflow.read_text(encoding="utf-8")
         dependabot_content = dependabot.read_text(encoding="utf-8")
+        if not self._dependency_review_workflow.is_file():
+            raise SecurityGateError("missing pull request dependency review workflow")
+        dependency_review_content = self._dependency_review_workflow.read_text(encoding="utf-8")
         required_fragments = (
             "branches: ['**']",
             "workflow_dispatch:",
             "security-events: write",
             "blocking-security:",
+            "Blocking push vulnerability gate",
             "pip_audit",
             "--requirement requirements/security-audit.txt",
             "bandit -q -r src/openinfra",
             "scripts/security_gate.py --project-root .",
             "github/codeql-action/init",
             "github/codeql-action/analyze",
-            "actions/dependency-review-action",
             "'3.13'",
             "'3.14'",
         )
@@ -184,6 +188,22 @@ class GitHubWorkflowSecurityGuard:
         if missing:
             raise SecurityGateError(
                 "CI workflow missing required security controls: " + ", ".join(missing)
+            )
+        dependency_review_required = (
+            "pull_request:",
+            "branches: ['**']",
+            "actions/dependency-review-action",
+            "fail-on-severity: moderate",
+        )
+        missing_dependency_review = [
+            fragment
+            for fragment in dependency_review_required
+            if fragment not in dependency_review_content
+        ]
+        if missing_dependency_review:
+            raise SecurityGateError(
+                "dependency review workflow missing required controls: "
+                + ", ".join(missing_dependency_review)
             )
         forbidden_fragments = (
             "pull_request_target:",
@@ -195,6 +215,28 @@ class GitHubWorkflowSecurityGuard:
         if forbidden:
             raise SecurityGateError(
                 "CI workflow contains unsafe trigger configuration: " + ", ".join(forbidden)
+            )
+        ci_forbidden_fragments = (
+            "actions/dependency-review-action",
+            "if: github.event_name == 'pull_request'",
+            'if: github.event_name == "pull_request"',
+        )
+        ci_forbidden = [fragment for fragment in ci_forbidden_fragments if fragment in content]
+        if ci_forbidden:
+            raise SecurityGateError(
+                "CI push workflow contains PR-only dependency review controls: "
+                + ", ".join(ci_forbidden)
+            )
+        dependency_review_forbidden = ("push:", "workflow_dispatch:")
+        dependency_review_forbidden_found = [
+            fragment
+            for fragment in dependency_review_forbidden
+            if fragment in dependency_review_content
+        ]
+        if dependency_review_forbidden_found:
+            raise SecurityGateError(
+                "dependency review workflow must remain pull-request only: "
+                + ", ".join(dependency_review_forbidden_found)
             )
         audit_requirements = self._workflow.parent.parent.parent / "requirements/security-audit.txt"
         if not audit_requirements.is_file():

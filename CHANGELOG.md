@@ -1,3 +1,12 @@
+## 0.17.6 - 2026-07-03
+
+- Correctif CI Python 3.13 : les jetons générés dans les smoke tests GitHub Actions sont désormais préfixés par `ci_` afin qu'aucune valeur aléatoire commençant par `-` ne soit interprétée par `argparse` comme une option au lieu d'un argument de `--token`.
+- Durcissement de la génération applicative des jetons API : `TokenGenerator` produit désormais des jetons préfixés par `oi_`, sans casser la validation ni l'authentification des jetons existants.
+- Alignement des scripts optionnels Docker/lab : `docker/openinfra-runtime-smoke.py` et `scripts/docker_environment.py` génèrent aussi des jetons préfixés sûrs.
+- Ajout d'un garde-fou dans `scripts/security_gate.py` contre le retour de `print(secrets.token_urlsafe(48))` dans le workflow CI.
+- Ajout de tests de non-régression sur le gate CI et la génération de jetons applicatifs.
+- Aucun changement fonctionnel métier ; P04 / EPIC-0406 reste le jalon fonctionnel actif.
+
 ## 0.17.5 - 2026-07-03
 
 - Correctif GitHub Actions : suppression du job PR-only `dependency-review` du workflow de push pour éviter le statut `Skipped` après `push`.

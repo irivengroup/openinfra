@@ -1,96 +1,51 @@
-# OpenInfra Python POO v0.17.5 — Rapport de validation
+# OpenInfra Python POO v0.17.6 — Rapport de validation
 
 ## Synthèse
 
-- Release : `0.17.5`
-- Type : correctif CI / sécurité, sans nouveau jalon métier
-- Baseline : `0.17.4`
-- Roadmap : inchangée, dernier jalon fonctionnel conservé `P04 / EPIC-0406 — Énergie et refroidissement fondation`
-- Objectif : corriger le statut GitHub Actions `Dependency review / PR vulnerability gate (push) Skipped` en séparant le workflow PR-only du workflow CI push.
+- Release : `0.17.6`
+- Baseline : `0.17.5`
+- Type : correctif CI / sécurité / Python 3.13
+- Roadmap : inchangée
+- Dernier jalon fonctionnel conservé : P04 / EPIC-0406 — Énergie et refroidissement fondation
+- Production : runtime serveur natif ; Docker reste facultatif pour lab/smoke uniquement
 
-## Analyse d'impact
+## Bug corrigé
 
-Le workflow `.github/workflows/ci.yml` était déclenché sur `push` et contenait un job `dependency-review` protégé par `if: github.event_name == 'pull_request'`. Sur un push, GitHub Actions affichait donc ce job comme `Skipped`. Le contrôle était correct fonctionnellement pour les pull requests, mais polluait le résultat de push et pouvait perturber les règles de checks requis.
+Le smoke GitHub Actions échouait aléatoirement sur Python 3.13 pendant `openinfra security bootstrap-token` :
 
-La correction sépare les responsabilités :
+```text
+openinfra security bootstrap-token: error: argument --token: expected one argument
+```
 
-- `.github/workflows/ci.yml` : qualité, tests, sécurité bloquante sur push, CodeQL, smoke runtime ;
-- `.github/workflows/dependency-review.yml` : Dependency Review déclenchée uniquement par `pull_request`.
+Cause : `secrets.token_urlsafe(48)` peut générer une chaîne commençant par `-`. Dans une commande shell du type `--token "$token"`, `argparse` peut interpréter cette valeur comme une option au lieu de l'argument de `--token`.
 
-Aucun comportement métier OpenInfra n'est modifié.
+## Corrections intégrées
 
-## Fichiers modifiés
+- `.github/workflows/ci.yml` : tous les jetons générés dans les smoke tests CI sont préfixés par `ci_`.
+- `TokenGenerator` : les nouveaux jetons API générés automatiquement par OpenInfra sont préfixés par `oi_`.
+- `docker/openinfra-runtime-smoke.py` et `scripts/docker_environment.py` : jetons de lab/smoke préfixés par `oi_`.
+- `scripts/security_gate.py` : rejet de la génération CI non préfixée `print(secrets.token_urlsafe(48))`.
+- Tests ajoutés/modifiés : non-régression du gate CI et garantie que les jetons générés par OpenInfra ne commencent pas par `-`.
 
-- `.github/workflows/ci.yml`
-- `.github/workflows/dependency-review.yml`
-- `scripts/security_gate.py`
-- `tests/integration/test_security_gate.py`
-- `VERSION`
-- `pyproject.toml`
-- `src/openinfra/__init__.py`
-- `docs/api/openapi.yaml`
-- `README.md`
-- `CHANGELOG.md`
-- `docs/runbooks/SECURITY_CI.md`
-- `docs/runbooks/VALIDATION.md`
-- `docs/TRACEABILITY.md`
-- `VALIDATION-REPORT.md`
-
-## Corrections CI
-
-- Suppression de `actions/dependency-review-action` du workflow de push `.github/workflows/ci.yml`.
-- Suppression de tout job conditionné par `if: github.event_name == 'pull_request'` dans le workflow de push.
-- Ajout du workflow `.github/workflows/dependency-review.yml`, déclenché uniquement par `pull_request`.
-- Renommage explicite du job sécurité en `Blocking push vulnerability gate / Python ${{ matrix.python-version }}`.
-- Conservation de la matrice Python `3.11`, `3.12`, `3.13`, `3.14`.
-- Conservation des contrôles bloquants push : `bandit`, `pip-audit`, `security_gate.py`, CodeQL.
-
-## Garde-fous ajoutés
-
-`scripts/security_gate.py` vérifie désormais :
-
-- présence du workflow PR dédié `.github/workflows/dependency-review.yml` ;
-- présence de `actions/dependency-review-action` dans le workflow PR ;
-- absence de `actions/dependency-review-action` dans `.github/workflows/ci.yml` ;
-- absence de `if: github.event_name == 'pull_request'` dans `.github/workflows/ci.yml` ;
-- absence de `push:` et `workflow_dispatch:` dans le workflow Dependency Review ;
-- conservation de `pip-audit` via `requirements/security-audit.txt` ;
-- conservation de Python `3.13` et `3.14` dans la matrice.
-
-## Tests ajoutés
-
-- `test_security_gate_rejects_dependency_review_in_push_workflow`
-- `test_security_gate_rejects_push_trigger_on_dependency_review_workflow`
-
-Ces tests empêchent la réintroduction d'un job PR-only dans le workflow de push.
-
-## Validations exécutées
-
-### Formatage
+## Validations exécutées localement
 
 ```bash
 python3 -m ruff format --check src tests scripts docker
 ```
 
-Résultat : réussi, `71 files already formatted`.
-
-### Lint
+Résultat : réussi.
 
 ```bash
 python3 -m ruff check src tests scripts docker
 ```
 
-Résultat : réussi, `All checks passed!`.
-
-### Typage statique
+Résultat : réussi.
 
 ```bash
 python3 -m mypy src/openinfra
 ```
 
-Résultat : réussi, `Success: no issues found in 29 source files`.
-
-### Sécurité SAST
+Résultat : réussi.
 
 ```bash
 python3 -m bandit -q -r src/openinfra
@@ -98,40 +53,21 @@ python3 -m bandit -q -r src/openinfra
 
 Résultat : réussi.
 
-### Gate sécurité interne
-
 ```bash
-python3 scripts/security_gate.py --project-root .
+PYTHONPATH=src python3 scripts/security_gate.py --project-root .
 ```
 
 Résultat : réussi.
 
-### Audit dépendances — dry-run local
-
 ```bash
-python3 -m pip_audit --strict --requirement requirements/security-audit.txt --progress-spinner off --dry-run
-```
-
-Résultat : réussi.
-
-```text
-INFO:pip_audit._audit:Dry run: would have audited 47 packages
-No known vulnerabilities found
-```
-
-### Tests complets
-
-```bash
-PYTHONPATH=src python3 -m pytest
+PYTHONPATH=src python3 -m pytest -q
 ```
 
 Résultat :
 
-- `170 passed`
-- couverture globale : `98.10 %`
-- seuil obligatoire : `>= 98 %`
-
-### Quality gate
+- 171 tests réussis
+- Couverture globale : 98.10 %
+- Seuil obligatoire : >= 98 %
 
 ```bash
 PYTHONPATH=src python3 scripts/quality_gate.py
@@ -139,38 +75,23 @@ PYTHONPATH=src python3 scripts/quality_gate.py
 
 Résultat : réussi.
 
-### Compilation
-
 ```bash
 PYTHONPATH=src python3 -m compileall -q src tests scripts docker
 ```
 
 Résultat : réussi.
 
-### CLI version
-
 ```bash
 PYTHONPATH=src python3 -m openinfra.interfaces.cli version
 ```
 
-Résultat : `0.17.5`.
-
-### Validation CDC/SFG/STG
+Résultat : `0.17.6`.
 
 ```bash
 PYTHONPATH=src python3 -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4
 ```
 
-Résultat :
-
-```text
-status=valid
-version=4.0.0
-requirements=488
-tests=310
-```
-
-### Migrations PostgreSQL
+Résultat : valide.
 
 ```bash
 PYTHONPATH=src python3 -m openinfra.interfaces.cli database render-migration --name 0014_dcim_energy_cooling_foundation --root migrations/postgresql
@@ -180,37 +101,43 @@ Résultat : réussi.
 
 Toutes les migrations PostgreSQL `0001` à `0014` ont également été rendues avec succès.
 
-### Smoke runtime natif
-
 ```bash
 python3 scripts/native_runtime_smoke.py --project-root .
 ```
 
 Résultat : réussi.
 
-### Build et vérification artefact
+```bash
+python3 -m pip_audit --strict --requirement requirements/security-audit.txt --progress-spinner off --dry-run --timeout 5
+```
+
+Résultat : réussi ; 47 paquets collectés, aucun package local `openinfra` audité comme dépendance PyPI.
 
 ```bash
 python3 -m build
 python3 scripts/verify_artifact.py dist/*.whl
 ```
 
-Résultat : réussi.
+Résultat : réussi ; wheel `openinfra-0.17.6-py3-none-any.whl` construit et vérifié.
 
-```text
-Successfully built openinfra-0.17.5.tar.gz and openinfra-0.17.5-py3-none-any.whl
-```
+## Contrôle de non-régression ciblé
+
+Smoke reproduisant le bloc CI corrigé avec jetons préfixés `ci_` :
+
+- `security bootstrap-token` admin : réussi
+- `security bootstrap-token` worker : réussi
+- `access create-rule` : réussi
+- `access evaluate` : réussi
+- aucun appel `--token` sans valeur détecté
 
 ## Non exécuté localement
 
-- Exécution réelle GitHub Actions : non exécutable dans l'environnement local.
-- Matrice GitHub complète Python `3.11`, `3.12`, `3.13`, `3.14` : seul Python `3.13.5` était disponible localement.
-- CodeQL : exécutable uniquement dans GitHub Actions.
-- Dependency Review Action : exécutable uniquement dans GitHub Actions sur événement `pull_request`.
-- Audit réseau complet `pip-audit` : non exécuté localement ; le dry-run a validé l'entrée d'audit dédiée, l'audit réseau complet reste dans la CI.
-- Docker Compose réel : non exécuté ; Docker n'est pas requis pour la production.
+- GitHub Actions réel sur matrice `3.11`, `3.12`, `3.13`, `3.14` : seul Python `3.13.5` est disponible localement.
+- CodeQL et Dependency Review : exécutables uniquement côté GitHub Actions.
+- Audit `pip-audit` réseau complet : impossible localement à cause d'une résolution DNS externe vers `pypi.org`; le dry-run et la configuration CI sont validés.
+- Docker Compose réel : non exécuté ; Docker n'est pas requis en production.
 - PostgreSQL réel : non exécuté ; aucun serveur PostgreSQL local disponible.
 
-## Résultat
+## Conclusion
 
-La livraison `0.17.5` corrige le statut `Dependency review / PR vulnerability gate (push) Skipped`. Après push, le workflow CI ne contient plus de job PR-only susceptible d'être marqué `Skipped`. Le contrôle Dependency Review reste disponible et bloquant pour les pull requests via un workflow dédié.
+La version `0.17.6` corrige le bug CI Python 3.13 lié aux jetons aléatoires commençant par `-`, ajoute des garde-fous de non-régression, conserve la couverture globale au-dessus de 98 %, et ne modifie aucun jalon fonctionnel métier.

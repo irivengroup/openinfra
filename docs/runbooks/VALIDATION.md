@@ -77,7 +77,7 @@ PYTHONPATH=src python -m openinfra.interfaces.cli security bootstrap-token \
   --role ipam:operator \
   --token "$(python - <<'PY'
 import secrets
-print(secrets.token_urlsafe(48))
+print("oi_" + secrets.token_urlsafe(48))
 PY
 )"
 PYTHONPATH=src python -m pytest tests/unit/test_security_domain.py tests/integration/test_http_api.py
@@ -270,9 +270,9 @@ PYTHONPATH=src python -m openinfra.interfaces.cli dcim energy-cooling-capacity -
 
 Les tests couvrent le domaine énergie/refroidissement, les services applicatifs, les ports JSON/PostgreSQL, la CLI, l’API HTTP authentifiée et non authentifiée, les contrats d’erreur, la correction du workflow GitHub Actions et les branches de capacité source/circuit/rack/refroidissement.
 
-## Correctif CI Dependency Review v0.17.5
+## Correctif CI Dependency Review v0.17.6
 
-La v0.17.5 corrige le statut GitHub Actions `Dependency review / PR vulnerability gate (push) Skipped`. Le workflow de push ne contient plus de job PR-only. La revue différentielle des dépendances est déplacée dans `.github/workflows/dependency-review.yml`, déclenché uniquement sur pull request.
+La v0.17.6 corrige le statut GitHub Actions `Dependency review / PR vulnerability gate (push) Skipped`. Le workflow de push ne contient plus de job PR-only. La revue différentielle des dépendances est déplacée dans `.github/workflows/dependency-review.yml`, déclenché uniquement sur pull request.
 
 Validation attendue :
 
@@ -285,3 +285,13 @@ python -m bandit -q -r src/openinfra
 PYTHONPATH=src python -m pytest
 ```
 
+
+## Correctif CI Python 3.13 jetons v0.17.6
+
+La v0.17.6 corrige les échecs intermittents du smoke sécurité lorsque le jeton généré aléatoirement commence par `-`. Les commandes CI utilisent désormais des jetons préfixés par `ci_`, et le gate sécurité refuse la génération non préfixée.
+
+Contrôle attendu :
+
+```bash
+PYTHONPATH=src python3 scripts/security_gate.py --project-root .
+```

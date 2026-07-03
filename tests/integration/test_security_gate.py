@@ -69,6 +69,7 @@ class TestSecurityGate:
                     "      - run: python scripts/security_gate.py --project-root .",
                     "      - uses: github/codeql-action/init@v4",
                     "      - uses: github/codeql-action/analyze@v4",
+                    'print("ci_" + secrets.token_urlsafe(48))',
                     "  name: Blocking push vulnerability gate",
                     "matrix:",
                     "  python-version: ['3.13', '3.14']",
@@ -100,6 +101,7 @@ class TestSecurityGate:
                     "scripts/security_gate.py --project-root .",
                     "github/codeql-action/init",
                     "github/codeql-action/analyze",
+                    'print("ci_" + secrets.token_urlsafe(48))',
                     "'3.13'",
                     "'3.14'",
                 )
@@ -143,6 +145,7 @@ class TestSecurityGate:
                     "scripts/security_gate.py --project-root .",
                     "github/codeql-action/init",
                     "github/codeql-action/analyze",
+                    'print("ci_" + secrets.token_urlsafe(48))',
                     "'3.13'",
                     "'3.14'",
                 )
@@ -165,7 +168,7 @@ class TestSecurityGate:
         self._write_dependency_review_workflow(tmp_path)
         requirements = tmp_path / "requirements/security-audit.txt"
         requirements.parent.mkdir(parents=True, exist_ok=True)
-        requirements.write_text("openinfra==0.17.5\n", encoding="utf-8")
+        requirements.write_text("openinfra==0.17.6\n", encoding="utf-8")
         workflow.write_text(
             "\n".join(
                 (
@@ -180,6 +183,7 @@ class TestSecurityGate:
                     "scripts/security_gate.py --project-root .",
                     "github/codeql-action/init",
                     "github/codeql-action/analyze",
+                    'print("ci_" + secrets.token_urlsafe(48))',
                     "'3.13'",
                     "'3.14'",
                 )
@@ -215,6 +219,7 @@ class TestSecurityGate:
                     "scripts/security_gate.py --project-root .",
                     "github/codeql-action/init",
                     "github/codeql-action/analyze",
+                    'print("ci_" + secrets.token_urlsafe(48))',
                     "actions/dependency-review-action",
                     "'3.13'",
                     "'3.14'",
@@ -258,6 +263,7 @@ class TestSecurityGate:
                     "scripts/security_gate.py --project-root .",
                     "github/codeql-action/init",
                     "github/codeql-action/analyze",
+                    'print("ci_" + secrets.token_urlsafe(48))',
                     "'3.13'",
                     "'3.14'",
                 )
@@ -271,10 +277,46 @@ class TestSecurityGate:
         else:
             raise AssertionError("security gate accepted push trigger in dependency review")
 
+    def test_security_gate_rejects_unprefixed_ci_token_generation(self, tmp_path: Path) -> None:
+        workflow = tmp_path / ".github/workflows/ci.yml"
+        workflow.parent.mkdir(parents=True)
+        self._write_dependabot_policy(tmp_path)
+        self._write_dependency_review_workflow(tmp_path)
+        requirements = tmp_path / "requirements/security-audit.txt"
+        requirements.parent.mkdir(parents=True, exist_ok=True)
+        requirements.write_text("pytest>=8.0\n", encoding="utf-8")
+        workflow.write_text(
+            "\n".join(
+                (
+                    "branches: ['**']",
+                    "workflow_dispatch:",
+                    "security-events: write",
+                    "blocking-security:",
+                    "Blocking push vulnerability gate",
+                    "pip_audit",
+                    "--requirement requirements/security-audit.txt",
+                    "bandit -q -r src/openinfra",
+                    "scripts/security_gate.py --project-root .",
+                    "github/codeql-action/init",
+                    "github/codeql-action/analyze",
+                    "print(secrets.token_urlsafe(48))",
+                    "'3.13'",
+                    "'3.14'",
+                )
+            ),
+            encoding="utf-8",
+        )
+        try:
+            SecurityGate(tmp_path).run()
+        except SecurityGateError as exc:
+            assert "unsafe token generation" in str(exc)
+        else:
+            raise AssertionError("security gate accepted unprefixed CI token generation")
+
     def test_secret_scanner_accepts_runtime_generated_shell_tokens(self, tmp_path: Path) -> None:
         script = tmp_path / "ci.yml"
         script.write_text(
-            "operator_token=\"$(python -c 'import secrets; print(secrets.token_urlsafe(48))')\"\n",
+            'operator_token="$(python -c \'import secrets; print("ci_" + secrets.token_urlsafe(48))\')"\n',
             encoding="utf-8",
         )
         assert RepositorySecretScanner(tmp_path).scan() == []

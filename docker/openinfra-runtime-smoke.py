@@ -87,7 +87,7 @@ class RuntimeSmokeScenario:
 
     def _assert_version(self) -> None:
         version = self._client.get("/api/v1/version")
-        if version.get("version") != "0.16.0":
+        if version.get("version") != "0.17.6":
             raise SmokeError("unexpected version response: " + json.dumps(version, sort_keys=True))
 
     def _assert_schema_status(self) -> None:
@@ -96,7 +96,7 @@ class RuntimeSmokeScenario:
             raise SmokeError("unexpected schema status: " + json.dumps(schema, sort_keys=True))
 
     def _assert_security_lifecycle(self) -> None:
-        worker_token = secrets.token_urlsafe(48)
+        worker_token = "oi_" + secrets.token_urlsafe(48)
         bootstrap_command = [
             "openinfra",
             "security",

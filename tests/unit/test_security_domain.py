@@ -62,6 +62,8 @@ class TestSecurityDomainAndService:
 
         assert isinstance(result.token, str)
         assert len(result.token) >= 32
+        assert result.token.startswith("oi_")
+        assert not result.token.startswith("-")
         assert result.token not in data_path.read_text(encoding="utf-8")
 
     def test_invalid_token_and_unsupported_role_are_rejected(self, tmp_path: Path) -> None:

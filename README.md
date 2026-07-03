@@ -133,7 +133,7 @@ Exemple JSON local avec expiration explicite :
 ```bash
 TOKEN="$(python - <<'PY'
 import secrets
-print(secrets.token_urlsafe(48))
+print("oi_" + secrets.token_urlsafe(48))
 PY
 )"
 PYTHONPATH=src python -m openinfra.interfaces.cli security bootstrap-token \
@@ -501,6 +501,20 @@ La migration PostgreSQL `0013_dcim_cabling_foundation.sql` ajoute les tables par
 
 Production : le runtime officiel est désormais documenté comme déploiement serveur natif via `systemd`, virtualenv Python et PostgreSQL. Docker reste un lab optionnel de test/smoke et n’est pas une dépendance de production.
 
+
+## v0.17.6 — Correctif CI Python 3.13 génération de jetons
+
+La v0.17.6 est une livraison corrective sans nouveau jalon métier. Elle corrige l'échec GitHub Actions observé sur Python 3.13 lorsque `secrets.token_urlsafe(48)` générait occasionnellement une valeur commençant par `-`. Dans ce cas, l'appel shell `--token "$token"` pouvait être interprété par `argparse` comme une option manquante au lieu d'une valeur de jeton.
+
+Corrections intégrées :
+
+- tous les jetons générés dans `.github/workflows/ci.yml` sont préfixés par `ci_` ;
+- les jetons applicatifs générés automatiquement par OpenInfra sont préfixés par `oi_` ;
+- les scripts de smoke/lab facultatifs génèrent également des jetons préfixés ;
+- `scripts/security_gate.py` refuse la réintroduction d'une génération CI non préfixée ;
+- les tests valident que les jetons générés ne commencent jamais par `-`.
+
+Cette correction ne modifie pas la compatibilité des jetons existants : les jetons déjà créés restent authentifiés par leur hash stocké.
 
 ## v0.17.5 — Correctif CI Dependency Review non exécutée sur push
 

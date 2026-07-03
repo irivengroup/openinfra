@@ -34,7 +34,7 @@ class EnvFileManager:
             self._assert_private_permissions()
             return self._config.env_file
         password = secrets.token_urlsafe(32)
-        bootstrap_token = secrets.token_urlsafe(48)
+        bootstrap_token = "oi_" + secrets.token_urlsafe(48)
         payload = "\n".join(
             (
                 "OPENINFRA_POSTGRES_DB=openinfra",

@@ -183,7 +183,7 @@ class TokenHasher:
 
 class TokenGenerator:
     def create(self) -> str:
-        return secrets.token_urlsafe(48)
+        return "oi_" + secrets.token_urlsafe(48)
 
 
 class TokenExpirationPolicy:

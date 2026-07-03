@@ -100,9 +100,9 @@ jobs:
       - name: Smoke JSON security token
         run: |
           tmpdir="$(mktemp -d)"
-          operator_token="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
-          security_admin_token="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
-          worker_token="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+          operator_token="$(python -c 'import secrets; print("ci_" + secrets.token_urlsafe(48))')"
+          security_admin_token="$(python -c 'import secrets; print("ci_" + secrets.token_urlsafe(48))')"
+          worker_token="$(python -c 'import secrets; print("ci_" + secrets.token_urlsafe(48))')"
           openinfra security bootstrap-token \
             --data "$tmpdir/state.json" \
             --tenant default \
@@ -138,7 +138,7 @@ jobs:
       - name: Smoke JSON identity lifecycle
         run: |
           tmpdir="$(mktemp -d)"
-          admin_token="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+          admin_token="$(python -c 'import secrets; print("ci_" + secrets.token_urlsafe(48))')"
           openinfra security bootstrap-token \
             --data "$tmpdir/state.json" \
             --tenant default \
@@ -174,8 +174,8 @@ jobs:
       - name: Smoke JSON access policy lifecycle
         run: |
           tmpdir="$(mktemp -d)"
-          admin_token="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
-          worker_token="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+          admin_token="$(python -c 'import secrets; print("ci_" + secrets.token_urlsafe(48))')"
+          worker_token="$(python -c 'import secrets; print("ci_" + secrets.token_urlsafe(48))')"
           openinfra security bootstrap-token \
             --data "$tmpdir/state.json" \
             --tenant default \
@@ -223,7 +223,7 @@ jobs:
       - name: Smoke JSON audit trail
         run: |
           tmpdir="$(mktemp -d)"
-          admin_token="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+          admin_token="$(python -c 'import secrets; print("ci_" + secrets.token_urlsafe(48))')"
           openinfra security bootstrap-token \
             --data "$tmpdir/state.json" \
             --tenant default \
@@ -254,7 +254,7 @@ jobs:
       - name: Smoke JSON Source of Truth governance
         run: |
           tmpdir="$(mktemp -d)"
-          admin_token="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+          admin_token="$(python -c 'import secrets; print("ci_" + secrets.token_urlsafe(48))')"
           openinfra security bootstrap-token \
             --data "$tmpdir/state.json" \
             --tenant default \

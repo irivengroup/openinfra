@@ -1,3 +1,11 @@
+## v0.17.6 — Correctif CI Python 3.13 jetons sûrs
+
+- Exigence : la matrice CI Python 3.13/3.14 ne doit pas échouer aléatoirement lors des smoke tests sécurité.
+- Correction : tous les jetons CI générés via `secrets.token_urlsafe(48)` sont préfixés par `ci_`.
+- Correction domaine/application : les nouveaux jetons API générés par `TokenGenerator` sont préfixés par `oi_`.
+- Contrôle : `scripts/security_gate.py` rejette la génération CI non préfixée `print(secrets.token_urlsafe(48))`.
+- Non-régression : tests unitaires et intégration sécurité ajoutés.
+
 ## v0.17.5 — Correctif CI Dependency Review séparée
 
 - Exigence : aucun job PR-only ne doit apparaître `Skipped` dans une exécution de push.

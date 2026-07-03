@@ -169,6 +169,15 @@ class GitHubWorkflowSecurityGuard:
         if not self._dependency_review_workflow.is_file():
             raise SecurityGateError("missing pull request dependency review workflow")
         dependency_review_content = self._dependency_review_workflow.read_text(encoding="utf-8")
+        unsafe_token_generators = ("print(secrets.token_urlsafe(48))",)
+        unsafe_token_generator_matches = [
+            fragment for fragment in unsafe_token_generators if fragment in content
+        ]
+        if unsafe_token_generator_matches:
+            raise SecurityGateError(
+                "CI workflow contains unsafe token generation: "
+                + ", ".join(unsafe_token_generator_matches)
+            )
         required_fragments = (
             "branches: ['**']",
             "workflow_dispatch:",
@@ -183,6 +192,7 @@ class GitHubWorkflowSecurityGuard:
             "github/codeql-action/analyze",
             "'3.13'",
             "'3.14'",
+            'print("ci_" + secrets.token_urlsafe(48))',
         )
         missing = [fragment for fragment in required_fragments if fragment not in content]
         if missing:

@@ -96,6 +96,9 @@ def test_http_api_error_contracts_cover_all_routes(tmp_path: Path) -> None:
             "GET",
             token=dcim_token,
         )[0] == 400
+        assert _request_json(base + "/api/v1/dcim/room-plan?tenant_id=default", "GET", token=dcim_token)[0] == 400
+        assert _request_json(base + "/api/v1/dcim/rack-elevation?tenant_id=default", "GET", token=dcim_token)[0] == 400
+        assert _request_json(base + "/api/v1/dcim/cable-trace?tenant_id=default", "GET", token=dcim_token)[0] == 400
         # Authenticated positive locator keeps success path under the same test.
         locator_code, locator = _request_json(
             base + "/api/v1/dcim/locator-sheet?tenant_id=default&asset_tag=ERR-QR-1&format=html",
@@ -121,6 +124,9 @@ def test_http_api_error_contracts_cover_all_routes(tmp_path: Path) -> None:
         bad_posts: tuple[tuple[str, dict[str, object], str | None], ...] = (
             ("/api/v1/dcim/rooms", {}, dcim_token),
             ("/api/v1/dcim/racks", {}, dcim_token),
+            ("/api/v1/dcim/patch-panels", {}, dcim_token),
+            ("/api/v1/dcim/ports", {}, dcim_token),
+            ("/api/v1/dcim/cables", {"tenant_id": "default", "path_segments": "bad"}, dcim_token),
             ("/api/v1/dcim/verify-scan", {"tenant_id": "default", "asset_tag": "ERR-QR-1", "payload": "bad"}, dcim_token),
             ("/api/v1/sot/governance-rules", {}, admin_token),
             ("/api/v1/sot/governance/evaluate", {}, admin_token),

@@ -879,6 +879,377 @@ class RackElevation:
         )
 
 
+
+
+class DcimCableMedium(StrEnum):
+    COPPER = "copper"
+    FIBER = "fiber"
+    DAC = "dac"
+
+    @classmethod
+    def from_value(cls, value: str) -> DcimCableMedium:
+        normalized = value.strip().lower()
+        for medium in cls:
+            if normalized == medium.value:
+                return medium
+        raise ValidationError("cable medium must be copper, fiber or dac")
+
+
+class DcimConnectorType(StrEnum):
+    RJ45 = "rj45"
+    LC = "lc"
+    SC = "sc"
+    MPO = "mpo"
+    SFP = "sfp"
+    QSFP = "qsfp"
+
+    @classmethod
+    def from_value(cls, value: str) -> DcimConnectorType:
+        normalized = value.strip().lower()
+        for connector in cls:
+            if normalized == connector.value:
+                return connector
+        raise ValidationError("connector must be rj45, lc, sc, mpo, sfp or qsfp")
+
+    def compatible_media(self) -> tuple[DcimCableMedium, ...]:
+        if self == DcimConnectorType.RJ45:
+            return (DcimCableMedium.COPPER,)
+        if self in (DcimConnectorType.LC, DcimConnectorType.SC, DcimConnectorType.MPO):
+            return (DcimCableMedium.FIBER,)
+        return (DcimCableMedium.FIBER, DcimCableMedium.DAC)
+
+    def assert_supports_medium(self, medium: DcimCableMedium) -> None:
+        if medium not in self.compatible_media():
+            raise ValidationError(
+                f"connector {self.value} is not compatible with {medium.value} cabling"
+            )
+
+
+class DcimPortOwnerType(StrEnum):
+    EQUIPMENT = "equipment"
+    PATCH_PANEL = "patch_panel"
+
+    @classmethod
+    def from_value(cls, value: str) -> DcimPortOwnerType:
+        normalized = value.strip().lower().replace("-", "_")
+        for owner_type in cls:
+            if normalized == owner_type.value:
+                return owner_type
+        raise ValidationError("port owner type must be equipment or patch_panel")
+
+
+class DcimCableStatus(StrEnum):
+    PLANNED = "planned"
+    INSTALLED = "installed"
+    RETIRED = "retired"
+
+    @classmethod
+    def from_value(cls, value: str) -> DcimCableStatus:
+        normalized = value.strip().lower()
+        for status in cls:
+            if normalized == status.value:
+                return status
+        raise ValidationError("cable status must be planned, installed or retired")
+
+    @property
+    def consumes_endpoint_capacity(self) -> bool:
+        return self in (DcimCableStatus.PLANNED, DcimCableStatus.INSTALLED)
+
+
+@dataclass(frozen=True, slots=True)
+class PatchPanel:
+    id: EntityId
+    tenant_id: TenantId
+    site_code: Code
+    building_code: Code
+    room_code: Code
+    rack_code: Code
+    code: Code
+    rack_face: RackFace
+    u_position: int
+    u_height: int
+    port_count: int
+    connector: DcimConnectorType
+    medium: DcimCableMedium
+    label: str
+
+    @classmethod
+    def create(
+        cls,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+        rack: str,
+        code: str,
+        rack_face: str,
+        u_position: int,
+        u_height: int,
+        port_count: int,
+        connector: str,
+        medium: str,
+        label: str = "",
+    ) -> Self:
+        normalized_face = RackFace.from_value(rack_face)
+        if normalized_face is None:
+            raise ValidationError("patch panel rack face is mandatory")
+        normalized_u = int(u_position)
+        normalized_height = int(u_height)
+        normalized_ports = int(port_count)
+        normalized_medium = DcimCableMedium.from_value(medium)
+        normalized_connector = DcimConnectorType.from_value(connector)
+        normalized_connector.assert_supports_medium(normalized_medium)
+        if not 1 <= normalized_u <= 60:
+            raise ValidationError("patch panel U position must be between 1 and 60")
+        if not 1 <= normalized_height <= 10:
+            raise ValidationError("patch panel height must be between 1 and 10 U")
+        if not 1 <= normalized_ports <= 288:
+            raise ValidationError("patch panel port count must be between 1 and 288")
+        normalized_label = " ".join(label.strip().split())
+        if len(normalized_label) > 160:
+            raise ValidationError("patch panel label cannot exceed 160 characters")
+        return cls(
+            id=EntityId.new(),
+            tenant_id=tenant_id,
+            site_code=Code.from_value(site, "site code"),
+            building_code=Code.from_value(building, "building code"),
+            room_code=Code.from_value(room, "room code"),
+            rack_code=Code.from_value(rack, "rack code"),
+            code=Code.from_value(code, "patch panel code"),
+            rack_face=normalized_face,
+            u_position=normalized_u,
+            u_height=normalized_height,
+            port_count=normalized_ports,
+            connector=normalized_connector,
+            medium=normalized_medium,
+            label=normalized_label,
+        )
+
+    def occupied_units(self) -> tuple[int, ...]:
+        return tuple(range(self.u_position, self.u_position + self.u_height))
+
+    def overlaps(self, face: RackFace, occupied_units: tuple[int, ...]) -> bool:
+        return self.rack_face == face and bool(set(self.occupied_units()).intersection(occupied_units))
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "tenant_id": self.tenant_id.value,
+            "site": self.site_code.value,
+            "building": self.building_code.value,
+            "room": self.room_code.value,
+            "rack": self.rack_code.value,
+            "patch_panel": self.code.value,
+            "rack_face": self.rack_face.value,
+            "u_position": self.u_position,
+            "u_height": self.u_height,
+            "occupied_units": list(self.occupied_units()),
+            "port_count": self.port_count,
+            "connector": self.connector.value,
+            "medium": self.medium.value,
+            "label": self.label,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class DcimPortEndpoint:
+    owner_type: DcimPortOwnerType
+    owner_code: Code
+    port_name: Code
+
+    @classmethod
+    def create(cls, owner_type: str, owner_code: str, port_name: str) -> Self:
+        return cls(
+            owner_type=DcimPortOwnerType.from_value(owner_type),
+            owner_code=Code.from_value(owner_code, "port owner code"),
+            port_name=Code.from_value(port_name, "port name"),
+        )
+
+    def key(self) -> str:
+        return f"{self.owner_type.value}:{self.owner_code.value}:{self.port_name.value}"
+
+    def as_dict(self) -> dict[str, str]:
+        return {
+            "owner_type": self.owner_type.value,
+            "owner_code": self.owner_code.value,
+            "port_name": self.port_name.value,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class DcimPort:
+    id: EntityId
+    tenant_id: TenantId
+    endpoint: DcimPortEndpoint
+    site_code: Code
+    building_code: Code
+    room_code: Code
+    connector: DcimConnectorType
+    medium: DcimCableMedium
+    enabled: bool = True
+
+    @classmethod
+    def create(
+        cls,
+        tenant_id: TenantId,
+        owner_type: str,
+        owner_code: str,
+        port_name: str,
+        site: str,
+        building: str,
+        room: str,
+        connector: str,
+        medium: str,
+        enabled: bool = True,
+    ) -> Self:
+        normalized_medium = DcimCableMedium.from_value(medium)
+        normalized_connector = DcimConnectorType.from_value(connector)
+        normalized_connector.assert_supports_medium(normalized_medium)
+        return cls(
+            id=EntityId.new(),
+            tenant_id=tenant_id,
+            endpoint=DcimPortEndpoint.create(owner_type, owner_code, port_name),
+            site_code=Code.from_value(site, "site code"),
+            building_code=Code.from_value(building, "building code"),
+            room_code=Code.from_value(room, "room code"),
+            connector=normalized_connector,
+            medium=normalized_medium,
+            enabled=bool(enabled),
+        )
+
+    def assert_cable_compatible(self, medium: DcimCableMedium) -> None:
+        if not self.enabled:
+            raise ValidationError(f"port {self.endpoint.key()} is disabled")
+        if self.medium != medium:
+            raise ValidationError(f"port {self.endpoint.key()} does not support {medium.value}")
+        self.connector.assert_supports_medium(medium)
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "tenant_id": self.tenant_id.value,
+            **self.endpoint.as_dict(),
+            "site": self.site_code.value,
+            "building": self.building_code.value,
+            "room": self.room_code.value,
+            "connector": self.connector.value,
+            "medium": self.medium.value,
+            "enabled": self.enabled,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class DcimCablePathSegment:
+    order: int
+    kind: str
+    label: str
+
+    @classmethod
+    def create(cls, order: int, label: str, kind: str = "path") -> Self:
+        normalized_order = int(order)
+        normalized_kind = "-".join(kind.strip().lower().replace("_", "-").split())
+        normalized_label = " ".join(label.strip().split())
+        if not 1 <= normalized_order <= 100:
+            raise ValidationError("cable path segment order must be between 1 and 100")
+        if not 1 <= len(normalized_kind) <= 40:
+            raise ValidationError("cable path segment kind must contain 1 to 40 characters")
+        if not 1 <= len(normalized_label) <= 200:
+            raise ValidationError("cable path segment label must contain 1 to 200 characters")
+        return cls(normalized_order, normalized_kind, normalized_label)
+
+    def as_dict(self) -> dict[str, object]:
+        return {"order": self.order, "kind": self.kind, "label": self.label}
+
+
+@dataclass(frozen=True, slots=True)
+class DcimCable:
+    id: EntityId
+    tenant_id: TenantId
+    cable_id: Code
+    a_endpoint: DcimPortEndpoint
+    b_endpoint: DcimPortEndpoint
+    medium: DcimCableMedium
+    status: DcimCableStatus
+    path: tuple[DcimCablePathSegment, ...]
+    length_m: float | None = None
+    label: str = ""
+
+    @classmethod
+    def create(
+        cls,
+        tenant_id: TenantId,
+        cable_id: str,
+        a_endpoint: DcimPortEndpoint,
+        b_endpoint: DcimPortEndpoint,
+        medium: str,
+        status: str,
+        path: tuple[DcimCablePathSegment, ...],
+        length_m: float | None = None,
+        label: str = "",
+    ) -> Self:
+        normalized_medium = DcimCableMedium.from_value(medium)
+        normalized_status = DcimCableStatus.from_value(status)
+        if a_endpoint.key() == b_endpoint.key():
+            raise ValidationError("a cable cannot connect a port to itself")
+        if not path:
+            raise ValidationError("cable path must contain at least one segment")
+        normalized_length = cls._normalize_length(length_m)
+        normalized_label = " ".join(label.strip().split())
+        if len(normalized_label) > 160:
+            raise ValidationError("cable label cannot exceed 160 characters")
+        return cls(
+            id=EntityId.new(),
+            tenant_id=tenant_id,
+            cable_id=Code.from_value(cable_id, "cable id"),
+            a_endpoint=a_endpoint,
+            b_endpoint=b_endpoint,
+            medium=normalized_medium,
+            status=normalized_status,
+            path=tuple(sorted(path, key=lambda segment: segment.order)),
+            length_m=normalized_length,
+            label=normalized_label,
+        )
+
+    @classmethod
+    def _normalize_length(cls, value: float | None) -> float | None:
+        if value is None:
+            return None
+        normalized = float(value)
+        if not 0 < normalized <= 100_000:
+            raise ValidationError("cable length must be greater than 0 and at most 100000 meters")
+        return round(normalized, 3)
+
+    def assert_compatible_ports(self, a_port: DcimPort, b_port: DcimPort) -> None:
+        if a_port.tenant_id != self.tenant_id or b_port.tenant_id != self.tenant_id:
+            raise ValidationError("cable tenant must match both ports")
+        if a_port.endpoint != self.a_endpoint:
+            raise ValidationError("cable side A endpoint does not match side A port")
+        if b_port.endpoint != self.b_endpoint:
+            raise ValidationError("cable side B endpoint does not match side B port")
+        a_port.assert_cable_compatible(self.medium)
+        b_port.assert_cable_compatible(self.medium)
+
+    def touches(self, endpoint: DcimPortEndpoint) -> bool:
+        return endpoint in (self.a_endpoint, self.b_endpoint)
+
+    def human_trace(self) -> str:
+        endpoints = f"{self.a_endpoint.key()} -> {self.b_endpoint.key()}"
+        path = " > ".join(segment.label for segment in self.path)
+        return f"{self.cable_id.value}: {endpoints} via {path}"
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "tenant_id": self.tenant_id.value,
+            "cable_id": self.cable_id.value,
+            "a_endpoint": self.a_endpoint.as_dict(),
+            "b_endpoint": self.b_endpoint.as_dict(),
+            "medium": self.medium.value,
+            "status": self.status.value,
+            "path": [segment.as_dict() for segment in self.path],
+            "length_m": self.length_m,
+            "label": self.label,
+            "trace": self.human_trace(),
+        }
+
+
 @dataclass(frozen=True, slots=True)
 class InterventionRouteStep:
     order: int

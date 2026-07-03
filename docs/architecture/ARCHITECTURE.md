@@ -165,3 +165,12 @@ La version 0.15.0 ajoute la couche de visualisation DCIM sans déplacer la logiq
 Les ports restent hexagonaux : le magasin JSON et l’adaptateur PostgreSQL exposent les méthodes de lecture `list_racks_in_room` et `list_equipment_in_room`, sans dépendance de l’application à un format de stockage. Les interfaces ajoutent `openinfra dcim room-plan`, `openinfra dcim rack-elevation`, `GET /api/v1/dcim/room-plan` et `GET /api/v1/dcim/rack-elevation`.
 
 La migration `0012_dcim_visualization_indexes.sql` est additive. Elle ajoute uniquement des index de lecture pour les grilles salle, les occupations rack et l’audit des rendus, sans modifier la forme des données existantes.
+
+
+## v0.16.0 — P04 EPIC-0405 Câblage DCIM fondation
+
+La version 0.16.0 ajoute une frontière métier dédiée au câblage sans diluer les responsabilités existantes. Le domaine DCIM porte `PatchPanel`, `DcimPortEndpoint`, `DcimPort`, `DcimCablePathSegment` et `DcimCable`. Ces objets imposent les invariants de compatibilité connecteur/média, l’unicité logique des endpoints, l’interdiction des boucles et la présence d’un chemin humain exploitable.
+
+Le service applicatif `DcimCablingService` orchestre la création de panneaux, la génération déterministe des ports, la création des ports équipements, la connexion des câbles et la restitution de trace. Les repositories JSON et PostgreSQL implémentent le même port `DcimRepository`, ce qui conserve l’architecture hexagonale et la compatibilité des interfaces CLI/API.
+
+La production est indépendante de Docker : le chemin de déploiement supporté est un service `systemd` natif démarrant `openinfra-api` depuis un virtualenv Python. Les actifs Docker existants sont conservés comme lab facultatif pour smoke local, mais le quality gate vérifie les actifs natifs `deploy/systemd/openinfra-api.service`, `docs/runbooks/RUNTIME_NATIVE.md` et `scripts/native_runtime_smoke.py`.

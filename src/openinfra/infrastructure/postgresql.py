@@ -51,9 +51,18 @@ from openinfra.domain.common import (
 )
 from openinfra.domain.dcim import (
     Building,
+    DcimCable,
+    DcimCableMedium,
+    DcimCablePathSegment,
+    DcimCableStatus,
+    DcimConnectorType,
+    DcimPort,
+    DcimPortEndpoint,
+    DcimPortOwnerType,
     Equipment,
     EquipmentLocation,
     Floor,
+    PatchPanel,
     Rack,
     RackFace,
     Room,
@@ -770,6 +779,98 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             },
         )
 
+
+    def add_patch_panel(self, patch_panel: PatchPanel) -> None:
+        self._ensure_tenant(patch_panel.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO dcim_patch_panels (
+                id, tenant_id, site_code, building_code, room_code, rack_code, code,
+                rack_face, u_position, u_height, port_count, connector, medium, label
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(site_code)s, %(building_code)s, %(room_code)s,
+                %(rack_code)s, %(code)s, %(rack_face)s, %(u_position)s, %(u_height)s,
+                %(port_count)s, %(connector)s, %(medium)s, %(label)s
+            )
+            """,
+            {
+                "id": patch_panel.id.value,
+                "tenant_id": patch_panel.tenant_id.value,
+                "site_code": patch_panel.site_code.value,
+                "building_code": patch_panel.building_code.value,
+                "room_code": patch_panel.room_code.value,
+                "rack_code": patch_panel.rack_code.value,
+                "code": patch_panel.code.value,
+                "rack_face": patch_panel.rack_face.value,
+                "u_position": patch_panel.u_position,
+                "u_height": patch_panel.u_height,
+                "port_count": patch_panel.port_count,
+                "connector": patch_panel.connector.value,
+                "medium": patch_panel.medium.value,
+                "label": patch_panel.label,
+            },
+        )
+
+    def add_dcim_port(self, port: DcimPort) -> None:
+        self._ensure_tenant(port.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO dcim_ports (
+                id, tenant_id, owner_type, owner_code, port_name, site_code,
+                building_code, room_code, connector, medium, enabled
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(owner_type)s, %(owner_code)s, %(port_name)s,
+                %(site_code)s, %(building_code)s, %(room_code)s, %(connector)s,
+                %(medium)s, %(enabled)s
+            )
+            """,
+            {
+                "id": port.id.value,
+                "tenant_id": port.tenant_id.value,
+                "owner_type": port.endpoint.owner_type.value,
+                "owner_code": port.endpoint.owner_code.value,
+                "port_name": port.endpoint.port_name.value,
+                "site_code": port.site_code.value,
+                "building_code": port.building_code.value,
+                "room_code": port.room_code.value,
+                "connector": port.connector.value,
+                "medium": port.medium.value,
+                "enabled": port.enabled,
+            },
+        )
+
+    def add_dcim_cable(self, cable: DcimCable) -> None:
+        self._ensure_tenant(cable.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO dcim_cables (
+                id, tenant_id, cable_id, a_owner_type, a_owner_code, a_port_name,
+                b_owner_type, b_owner_code, b_port_name, medium, status, path_segments,
+                length_m, label
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(cable_id)s, %(a_owner_type)s, %(a_owner_code)s,
+                %(a_port_name)s, %(b_owner_type)s, %(b_owner_code)s, %(b_port_name)s,
+                %(medium)s, %(status)s, %(path_segments)s, %(length_m)s, %(label)s
+            )
+            """,
+            {
+                "id": cable.id.value,
+                "tenant_id": cable.tenant_id.value,
+                "cable_id": cable.cable_id.value,
+                "a_owner_type": cable.a_endpoint.owner_type.value,
+                "a_owner_code": cable.a_endpoint.owner_code.value,
+                "a_port_name": cable.a_endpoint.port_name.value,
+                "b_owner_type": cable.b_endpoint.owner_type.value,
+                "b_owner_code": cable.b_endpoint.owner_code.value,
+                "b_port_name": cable.b_endpoint.port_name.value,
+                "medium": cable.medium.value,
+                "status": cable.status.value,
+                "path_segments": json.dumps([segment.as_dict() for segment in cable.path]),
+                "length_m": cable.length_m,
+                "label": cable.label,
+            },
+        )
+
     def add_equipment(self, equipment: Equipment) -> None:
         self._ensure_tenant(equipment.tenant_id)
         location = equipment.location
@@ -956,6 +1057,101 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
         )
         return self._rack_from_row(row) if row else None
 
+
+    def find_patch_panel(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+        rack: str,
+        patch_panel: str,
+    ) -> PatchPanel | None:
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, site_code, building_code, room_code, rack_code, code,
+                   rack_face, u_position, u_height, port_count, connector, medium, label
+            FROM dcim_patch_panels
+            WHERE tenant_id = %(tenant_id)s AND site_code = %(site_code)s
+              AND building_code = %(building_code)s AND room_code = %(room_code)s
+              AND rack_code = %(rack_code)s AND code = %(code)s
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "site_code": Code.from_value(site, "site code").value,
+                "building_code": Code.from_value(building, "building code").value,
+                "room_code": Code.from_value(room, "room code").value,
+                "rack_code": Code.from_value(rack, "rack code").value,
+                "code": Code.from_value(patch_panel, "patch panel code").value,
+            },
+        )
+        return self._patch_panel_from_row(row) if row else None
+
+    def find_dcim_port(
+        self,
+        tenant_id: TenantId,
+        endpoint: DcimPortEndpoint,
+    ) -> DcimPort | None:
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, owner_type, owner_code, port_name, site_code,
+                   building_code, room_code, connector, medium, enabled
+            FROM dcim_ports
+            WHERE tenant_id = %(tenant_id)s AND owner_type = %(owner_type)s
+              AND owner_code = %(owner_code)s AND port_name = %(port_name)s
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "owner_type": endpoint.owner_type.value,
+                "owner_code": endpoint.owner_code.value,
+                "port_name": endpoint.port_name.value,
+            },
+        )
+        return self._dcim_port_from_row(row) if row else None
+
+    def find_dcim_cable(self, tenant_id: TenantId, cable_id: str) -> DcimCable | None:
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, cable_id, a_owner_type, a_owner_code, a_port_name,
+                   b_owner_type, b_owner_code, b_port_name, medium, status, path_segments,
+                   length_m, label
+            FROM dcim_cables
+            WHERE tenant_id = %(tenant_id)s AND cable_id = %(cable_id)s
+            """,
+            {"tenant_id": tenant_id.value, "cable_id": Code.from_value(cable_id).value},
+        )
+        return self._dcim_cable_from_row(row) if row else None
+
+    def find_active_dcim_cable_by_endpoint(
+        self,
+        tenant_id: TenantId,
+        endpoint: DcimPortEndpoint,
+    ) -> DcimCable | None:
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, cable_id, a_owner_type, a_owner_code, a_port_name,
+                   b_owner_type, b_owner_code, b_port_name, medium, status, path_segments,
+                   length_m, label
+            FROM dcim_cables
+            WHERE tenant_id = %(tenant_id)s AND status IN ('planned', 'installed')
+              AND (
+                (a_owner_type = %(owner_type)s AND a_owner_code = %(owner_code)s
+                 AND a_port_name = %(port_name)s)
+                OR (b_owner_type = %(owner_type)s AND b_owner_code = %(owner_code)s
+                    AND b_port_name = %(port_name)s)
+              )
+            ORDER BY cable_id
+            LIMIT 1
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "owner_type": endpoint.owner_type.value,
+                "owner_code": endpoint.owner_code.value,
+                "port_name": endpoint.port_name.value,
+            },
+        )
+        return self._dcim_cable_from_row(row) if row else None
+
     def find_equipment(self, tenant_id: TenantId, asset_tag: str) -> Equipment | None:
         row = self._fetch_one(
             """
@@ -1031,6 +1227,86 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             },
         )
         return tuple(self._rack_from_row(row) for row in rows)
+
+
+    def list_patch_panels_in_rack(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+        rack: str,
+    ) -> tuple[PatchPanel, ...]:
+        rows = self._fetch_all(
+            """
+            SELECT id, tenant_id, site_code, building_code, room_code, rack_code, code,
+                   rack_face, u_position, u_height, port_count, connector, medium, label
+            FROM dcim_patch_panels
+            WHERE tenant_id = %(tenant_id)s AND site_code = %(site_code)s
+              AND building_code = %(building_code)s AND room_code = %(room_code)s
+              AND rack_code = %(rack_code)s
+            ORDER BY rack_face, u_position, code
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "site_code": Code.from_value(site, "site code").value,
+                "building_code": Code.from_value(building, "building code").value,
+                "room_code": Code.from_value(room, "room code").value,
+                "rack_code": Code.from_value(rack, "rack code").value,
+            },
+        )
+        return tuple(self._patch_panel_from_row(row) for row in rows)
+
+    def list_dcim_ports_by_owner(
+        self,
+        tenant_id: TenantId,
+        owner_type: str,
+        owner_code: str,
+    ) -> tuple[DcimPort, ...]:
+        rows = self._fetch_all(
+            """
+            SELECT id, tenant_id, owner_type, owner_code, port_name, site_code,
+                   building_code, room_code, connector, medium, enabled
+            FROM dcim_ports
+            WHERE tenant_id = %(tenant_id)s AND owner_type = %(owner_type)s
+              AND owner_code = %(owner_code)s
+            ORDER BY port_name
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "owner_type": DcimPortOwnerType.from_value(owner_type).value,
+                "owner_code": Code.from_value(owner_code).value,
+            },
+        )
+        return tuple(self._dcim_port_from_row(row) for row in rows)
+
+    def list_dcim_cables_by_endpoint(
+        self,
+        tenant_id: TenantId,
+        endpoint: DcimPortEndpoint,
+    ) -> tuple[DcimCable, ...]:
+        rows = self._fetch_all(
+            """
+            SELECT id, tenant_id, cable_id, a_owner_type, a_owner_code, a_port_name,
+                   b_owner_type, b_owner_code, b_port_name, medium, status, path_segments,
+                   length_m, label
+            FROM dcim_cables
+            WHERE tenant_id = %(tenant_id)s AND (
+                (a_owner_type = %(owner_type)s AND a_owner_code = %(owner_code)s
+                 AND a_port_name = %(port_name)s)
+                OR (b_owner_type = %(owner_type)s AND b_owner_code = %(owner_code)s
+                    AND b_port_name = %(port_name)s)
+              )
+            ORDER BY cable_id
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "owner_type": endpoint.owner_type.value,
+                "owner_code": endpoint.owner_code.value,
+                "port_name": endpoint.port_name.value,
+            },
+        )
+        return tuple(self._dcim_cable_from_row(row) for row in rows)
 
     def list_equipment_in_room(
         self,

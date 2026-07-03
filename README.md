@@ -475,3 +475,28 @@ API ajoutées :
 - `GET /api/v1/dcim/rack-elevation` : retourne l’occupation verticale d’une face rack en JSON ou un rendu SVG/HTML encapsulé.
 
 La migration PostgreSQL `0012_dcim_visualization_indexes.sql` ajoute des index de lecture pour les plans salle, les rack elevations et les événements d’audit `dcim.room-plan.rendered` / `dcim.rack-elevation.rendered`. La CI rend désormais les migrations `0001` à `0012` et le smoke Docker couvre les endpoints de visualisation.
+
+
+## v0.16.0 — P04 EPIC-0405 Câblage DCIM fondation
+
+La v0.16.0 poursuit strictement le jalon roadmap P04 avec EPIC-0405. Elle ajoute la fondation de câblage DCIM : panneaux de brassage montés en rack, ports DCIM attachés aux équipements ou aux panneaux, câbles point-à-point, validation de compatibilité connecteur/média, prévention des conflits d’endpoint actif et trace humaine du chemin de câble. Les localisations existantes ligne/colonne/X/Y/Z, rack, face et U restent préservées.
+
+Commandes principales :
+
+```bash
+openinfra dcim define-patch-panel --tenant default --site PAR1 --building BAT-A --room MMR1 --rack R01 --patch-panel PP01 --rack-face front --u-position 2 --port-count 24 --connector rj45 --medium copper
+openinfra dcim define-port --tenant default --owner-type equipment --owner-code SRV-001 --port-name ETH0 --connector rj45 --medium copper
+openinfra dcim connect-cable --tenant default --cable-id CAB-0001 --a-owner-type equipment --a-owner-code SRV-001 --a-port-name ETH0 --b-owner-type patch_panel --b-owner-code PP01 --b-port-name P01 --medium copper --path "Rack R01" --path "Patch panel PP01"
+openinfra dcim cable-trace --tenant default --cable-id CAB-0001
+```
+
+API ajoutées :
+
+- `POST /api/v1/dcim/patch-panels` : crée un panneau de brassage racké et génère ses ports ;
+- `POST /api/v1/dcim/ports` : crée un port DCIM pour équipement ou panneau ;
+- `POST /api/v1/dcim/cables` : connecte deux ports compatibles ;
+- `GET /api/v1/dcim/cable-trace` : retourne la trace humaine du câble et ses deux endpoints.
+
+La migration PostgreSQL `0013_dcim_cabling_foundation.sql` ajoute les tables partitionnées `dcim_patch_panels`, `dcim_ports` et `dcim_cables`, ainsi que les index actifs par endpoint et les index d’audit `dcim.patch-panel.defined`, `dcim.port.defined`, `dcim.cable.connected` et `dcim.cable.traced`.
+
+Production : le runtime officiel est désormais documenté comme déploiement serveur natif via `systemd`, virtualenv Python et PostgreSQL. Docker reste un lab optionnel de test/smoke et n’est pas une dépendance de production.

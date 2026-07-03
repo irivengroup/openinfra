@@ -1,18 +1,40 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import stat
+import subprocess
 import sys
 from pathlib import Path
 
 
-class TestRuntimeDockerEnvironment:
-    def test_runtime_docker_assets_are_present_and_securely_configured(self) -> None:
+class TestRuntimeEnvironment:
+    def test_native_runtime_assets_are_present_and_hardened(self) -> None:
+        unit = Path("deploy/systemd/openinfra-api.service").read_text(encoding="utf-8")
+        runbook = Path("docs/runbooks/RUNTIME_NATIVE.md").read_text(encoding="utf-8")
+        smoke = subprocess.run(
+            [sys.executable, "scripts/native_runtime_smoke.py", "--project-root", "."],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        payload = json.loads(smoke.stdout)
+
+        assert "ExecStart=/opt/openinfra/venv/bin/openinfra-api" in unit
+        assert "User=openinfra" in unit
+        assert "NoNewPrivileges=true" in unit
+        assert "ProtectSystem=strict" in unit
+        assert "OPENINFRA_DATABASE_DSN" in runbook
+        assert "Docker ne fait pas partie de la chaîne d’exécution production" in runbook
+        assert payload["assets"]["systemd_unit"].endswith("deploy/systemd/openinfra-api.service")
+
+    def test_optional_docker_assets_remain_test_only(self) -> None:
         compose = Path("compose.yaml").read_text(encoding="utf-8")
         dockerfile = Path("Dockerfile").read_text(encoding="utf-8")
         env_example = Path(".env.example").read_text(encoding="utf-8")
         smoke = Path("docker/openinfra-runtime-smoke.py").read_text(encoding="utf-8")
+        runbook = Path("docs/runbooks/RUNTIME_DOCKER.md").read_text(encoding="utf-8")
 
         assert "postgres:" in compose
         assert "migrate:" in compose
@@ -28,6 +50,7 @@ class TestRuntimeDockerEnvironment:
         assert "/ready" in smoke
         assert "/api/v1/database/schema" in smoke
         assert "openinfra" in smoke
+        assert "production" in runbook.lower()
 
     def test_runtime_env_manager_creates_private_env_file(self, tmp_path: Path) -> None:
         module_path = Path("scripts/docker_environment.py")

@@ -185,3 +185,19 @@ PYTHONPATH=src python -m openinfra.interfaces.cli dcim rack-elevation --tenant d
 ```
 
 Les tests couvrent le domaine de visualisation, les services applicatifs, les ports JSON/PostgreSQL, la CLI, l’API HTTP et les contrats d’erreur. Les endpoints `GET /api/v1/dcim/room-plan` et `GET /api/v1/dcim/rack-elevation` sont protégés par les mêmes règles d’authentification DCIM que la localisation terrain.
+
+
+## Contrôles ajoutés en v0.16.0
+
+La v0.16.0 conserve le seuil bloquant `>= 98 %` et ajoute les contrôles P04 / EPIC-0405 suivants :
+
+```bash
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0013_dcim_cabling_foundation --root migrations/postgresql >/tmp/openinfra-0013.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli dcim define-patch-panel --tenant default --site PAR1 --building BAT-A --room MMR1 --rack R01 --patch-panel PP01 --rack-face front --u-position 2 --port-count 24 --connector rj45 --medium copper
+PYTHONPATH=src python -m openinfra.interfaces.cli dcim define-port --tenant default --owner-type equipment --owner-code SRV-001 --port-name ETH0 --connector rj45 --medium copper
+PYTHONPATH=src python -m openinfra.interfaces.cli dcim connect-cable --tenant default --cable-id CAB-0001 --a-owner-type equipment --a-owner-code SRV-001 --a-port-name ETH0 --b-owner-type patch_panel --b-owner-code PP01 --b-port-name P01 --medium copper --path "Rack R01" --path "Patch panel PP01"
+PYTHONPATH=src python -m openinfra.interfaces.cli dcim cable-trace --tenant default --cable-id CAB-0001
+PYTHONPATH=src python scripts/native_runtime_smoke.py --project-root .
+```
+
+Les tests couvrent le domaine de câblage, les services applicatifs, les ports JSON/PostgreSQL, la CLI, l’API HTTP, les contrats d’erreur et les branches de validation connecteur/média. Le quality gate ne dépend plus d’un moteur Docker et contrôle le runtime serveur natif.

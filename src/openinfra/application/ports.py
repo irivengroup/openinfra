@@ -7,7 +7,19 @@ from typing import Generic, TypeVar
 from openinfra.domain.access_policy import AccessPolicyRule
 from openinfra.domain.audit import AuditEventFilter, AuditEventPage, AuditIntegrityReport
 from openinfra.domain.common import AuditEvent, Pagination, TenantId
-from openinfra.domain.dcim import Building, Equipment, Floor, Rack, Room, RoomZone, Site
+from openinfra.domain.dcim import (
+    Building,
+    DcimCable,
+    DcimPort,
+    DcimPortEndpoint,
+    Equipment,
+    Floor,
+    PatchPanel,
+    Rack,
+    Room,
+    RoomZone,
+    Site,
+)
 from openinfra.domain.identity import (
     EffectiveIdentity,
     GroupMembership,
@@ -128,6 +140,18 @@ class DcimRepository(ABC):
         raise TypeError("adapter contract invoked directly")
 
     @abstractmethod
+    def add_patch_panel(self, patch_panel: PatchPanel) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def add_dcim_port(self, port: DcimPort) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def add_dcim_cable(self, cable: DcimCable) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
     def add_equipment(self, equipment: Equipment) -> None:
         raise TypeError("adapter contract invoked directly")
 
@@ -176,6 +200,38 @@ class DcimRepository(ABC):
         raise TypeError("adapter contract invoked directly")
 
     @abstractmethod
+    def find_patch_panel(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+        rack: str,
+        patch_panel: str,
+    ) -> PatchPanel | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_dcim_port(
+        self,
+        tenant_id: TenantId,
+        endpoint: DcimPortEndpoint,
+    ) -> DcimPort | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_dcim_cable(self, tenant_id: TenantId, cable_id: str) -> DcimCable | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_active_dcim_cable_by_endpoint(
+        self,
+        tenant_id: TenantId,
+        endpoint: DcimPortEndpoint,
+    ) -> DcimCable | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
     def find_equipment(self, tenant_id: TenantId, asset_tag: str) -> Equipment | None:
         raise TypeError("adapter contract invoked directly")
 
@@ -198,6 +254,34 @@ class DcimRepository(ABC):
         building: str,
         room: str,
     ) -> tuple[Rack, ...]:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_patch_panels_in_rack(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+        rack: str,
+    ) -> tuple[PatchPanel, ...]:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_dcim_ports_by_owner(
+        self,
+        tenant_id: TenantId,
+        owner_type: str,
+        owner_code: str,
+    ) -> tuple[DcimPort, ...]:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_dcim_cables_by_endpoint(
+        self,
+        tenant_id: TenantId,
+        endpoint: DcimPortEndpoint,
+    ) -> tuple[DcimCable, ...]:
         raise TypeError("adapter contract invoked directly")
 
     @abstractmethod

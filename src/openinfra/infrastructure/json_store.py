@@ -50,9 +50,18 @@ from openinfra.domain.common import (
 )
 from openinfra.domain.dcim import (
     Building,
+    DcimCable,
+    DcimCableMedium,
+    DcimCablePathSegment,
+    DcimCableStatus,
+    DcimConnectorType,
+    DcimPort,
+    DcimPortEndpoint,
+    DcimPortOwnerType,
     Equipment,
     EquipmentLocation,
     Floor,
+    PatchPanel,
     Rack,
     RackFace,
     Room,
@@ -150,6 +159,9 @@ class JsonDocumentStore:
             "rooms": {},
             "room_zones": {},
             "racks": {},
+            "patch_panels": {},
+            "dcim_ports": {},
+            "dcim_cables": {},
             "equipment": {},
             "vrfs": {},
             "prefixes": {},
@@ -194,6 +206,9 @@ class JsonReadinessProbe(ReadinessProbe):
                     "rooms",
                     "room_zones",
                     "racks",
+                    "patch_panels",
+                    "dcim_ports",
+                    "dcim_cables",
                     "equipment",
                     "vrfs",
                     "prefixes",
@@ -304,6 +319,26 @@ class JsonDcimRepository(DcimRepository):
         )
         self._put_unique("racks", key, self._rack_to_dict(rack))
 
+
+    def add_patch_panel(self, patch_panel: PatchPanel) -> None:
+        key = self._key(
+            patch_panel.tenant_id,
+            patch_panel.site_code.value,
+            patch_panel.building_code.value,
+            patch_panel.room_code.value,
+            patch_panel.rack_code.value,
+            patch_panel.code.value,
+        )
+        self._put_unique("patch_panels", key, self._patch_panel_to_dict(patch_panel))
+
+    def add_dcim_port(self, port: DcimPort) -> None:
+        key = self._key(port.tenant_id, port.endpoint.key())
+        self._put_unique("dcim_ports", key, self._dcim_port_to_dict(port))
+
+    def add_dcim_cable(self, cable: DcimCable) -> None:
+        key = self._key(cable.tenant_id, cable.cable_id.value)
+        self._put_unique("dcim_cables", key, self._dcim_cable_to_dict(cable))
+
     def add_equipment(self, equipment: Equipment) -> None:
         key = self._key(equipment.tenant_id, equipment.asset_tag.value)
         self._store.data["equipment"][key] = self._equipment_to_dict(equipment)
@@ -385,6 +420,53 @@ class JsonDcimRepository(DcimRepository):
         item = self._store.data["racks"].get(key)
         return self._rack_from_dict(item) if item else None
 
+
+    def find_patch_panel(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+        rack: str,
+        patch_panel: str,
+    ) -> PatchPanel | None:
+        key = self._key(
+            tenant_id,
+            Code.from_value(site, "site code").value,
+            Code.from_value(building, "building code").value,
+            Code.from_value(room, "room code").value,
+            Code.from_value(rack, "rack code").value,
+            Code.from_value(patch_panel, "patch panel code").value,
+        )
+        item = self._store.data["patch_panels"].get(key)
+        return self._patch_panel_from_dict(item) if item else None
+
+    def find_dcim_port(
+        self,
+        tenant_id: TenantId,
+        endpoint: DcimPortEndpoint,
+    ) -> DcimPort | None:
+        item = self._store.data["dcim_ports"].get(self._key(tenant_id, endpoint.key()))
+        return self._dcim_port_from_dict(item) if item else None
+
+    def find_dcim_cable(self, tenant_id: TenantId, cable_id: str) -> DcimCable | None:
+        key = self._key(tenant_id, Code.from_value(cable_id, "cable id").value)
+        item = self._store.data["dcim_cables"].get(key)
+        return self._dcim_cable_from_dict(item) if item else None
+
+    def find_active_dcim_cable_by_endpoint(
+        self,
+        tenant_id: TenantId,
+        endpoint: DcimPortEndpoint,
+    ) -> DcimCable | None:
+        for value in self._store.data["dcim_cables"].values():
+            if value.get("tenant_id") != tenant_id.value:
+                continue
+            cable = self._dcim_cable_from_dict(value)
+            if cable.status.consumes_endpoint_capacity and cable.touches(endpoint):
+                return cable
+        return None
+
     def find_equipment(self, tenant_id: TenantId, asset_tag: str) -> Equipment | None:
         key = self._key(tenant_id, Code.from_value(asset_tag).value)
         item = self._store.data["equipment"].get(key)
@@ -435,6 +517,64 @@ class JsonDcimRepository(DcimRepository):
             ):
                 matching.append(self._rack_from_dict(value))
         return tuple(sorted(matching, key=lambda item: (item.row, item.column, item.code.value)))
+
+
+    def list_patch_panels_in_rack(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+        rack: str,
+    ) -> tuple[PatchPanel, ...]:
+        normalized_site = Code.from_value(site, "site code").value
+        normalized_building = Code.from_value(building, "building code").value
+        normalized_room = Code.from_value(room, "room code").value
+        normalized_rack = Code.from_value(rack, "rack code").value
+        matching: list[PatchPanel] = []
+        for value in self._store.data["patch_panels"].values():
+            if (
+                value.get("tenant_id") == tenant_id.value
+                and value.get("site_code") == normalized_site
+                and value.get("building_code") == normalized_building
+                and value.get("room_code") == normalized_room
+                and value.get("rack_code") == normalized_rack
+            ):
+                matching.append(self._patch_panel_from_dict(value))
+        return tuple(sorted(matching, key=lambda item: (item.rack_face.value, item.u_position)))
+
+    def list_dcim_ports_by_owner(
+        self,
+        tenant_id: TenantId,
+        owner_type: str,
+        owner_code: str,
+    ) -> tuple[DcimPort, ...]:
+        normalized_owner_type = DcimPortOwnerType.from_value(owner_type).value
+        normalized_owner_code = Code.from_value(owner_code, "port owner code").value
+        matching: list[DcimPort] = []
+        for value in self._store.data["dcim_ports"].values():
+            endpoint = value.get("endpoint", {})
+            if (
+                value.get("tenant_id") == tenant_id.value
+                and endpoint.get("owner_type") == normalized_owner_type
+                and endpoint.get("owner_code") == normalized_owner_code
+            ):
+                matching.append(self._dcim_port_from_dict(value))
+        return tuple(sorted(matching, key=lambda item: item.endpoint.port_name.value))
+
+    def list_dcim_cables_by_endpoint(
+        self,
+        tenant_id: TenantId,
+        endpoint: DcimPortEndpoint,
+    ) -> tuple[DcimCable, ...]:
+        matching: list[DcimCable] = []
+        for value in self._store.data["dcim_cables"].values():
+            if value.get("tenant_id") != tenant_id.value:
+                continue
+            cable = self._dcim_cable_from_dict(value)
+            if cable.touches(endpoint):
+                matching.append(cable)
+        return tuple(sorted(matching, key=lambda item: item.cable_id.value))
 
     def list_equipment_in_room(
         self,
@@ -683,6 +823,110 @@ class JsonDcimRepository(DcimRepository):
             ),
         )
 
+
+    def _patch_panel_to_dict(self, patch_panel: PatchPanel) -> dict[str, Any]:
+        return {
+            "id": patch_panel.id.value,
+            "tenant_id": patch_panel.tenant_id.value,
+            "site_code": patch_panel.site_code.value,
+            "building_code": patch_panel.building_code.value,
+            "room_code": patch_panel.room_code.value,
+            "rack_code": patch_panel.rack_code.value,
+            "code": patch_panel.code.value,
+            "rack_face": patch_panel.rack_face.value,
+            "u_position": patch_panel.u_position,
+            "u_height": patch_panel.u_height,
+            "port_count": patch_panel.port_count,
+            "connector": patch_panel.connector.value,
+            "medium": patch_panel.medium.value,
+            "label": patch_panel.label,
+        }
+
+    def _patch_panel_from_dict(self, value: dict[str, Any]) -> PatchPanel:
+        return PatchPanel(
+            id=EntityId.from_value(value["id"]),
+            tenant_id=TenantId.from_value(value["tenant_id"]),
+            site_code=Code.from_value(value["site_code"], "site code"),
+            building_code=Code.from_value(value["building_code"], "building code"),
+            room_code=Code.from_value(value["room_code"], "room code"),
+            rack_code=Code.from_value(value["rack_code"], "rack code"),
+            code=Code.from_value(value["code"], "patch panel code"),
+            rack_face=RackFace.from_value(value["rack_face"]) or RackFace.FRONT,
+            u_position=int(value["u_position"]),
+            u_height=int(value["u_height"]),
+            port_count=int(value["port_count"]),
+            connector=DcimConnectorType.from_value(value["connector"]),
+            medium=DcimCableMedium.from_value(value["medium"]),
+            label=str(value.get("label", "")),
+        )
+
+    def _dcim_port_to_dict(self, port: DcimPort) -> dict[str, Any]:
+        return {
+            "id": port.id.value,
+            "tenant_id": port.tenant_id.value,
+            "endpoint": port.endpoint.as_dict(),
+            "site_code": port.site_code.value,
+            "building_code": port.building_code.value,
+            "room_code": port.room_code.value,
+            "connector": port.connector.value,
+            "medium": port.medium.value,
+            "enabled": port.enabled,
+        }
+
+    def _dcim_port_from_dict(self, value: dict[str, Any]) -> DcimPort:
+        endpoint = value["endpoint"]
+        return DcimPort(
+            id=EntityId.from_value(value["id"]),
+            tenant_id=TenantId.from_value(value["tenant_id"]),
+            endpoint=DcimPortEndpoint.create(
+                endpoint["owner_type"], endpoint["owner_code"], endpoint["port_name"]
+            ),
+            site_code=Code.from_value(value["site_code"], "site code"),
+            building_code=Code.from_value(value["building_code"], "building code"),
+            room_code=Code.from_value(value["room_code"], "room code"),
+            connector=DcimConnectorType.from_value(value["connector"]),
+            medium=DcimCableMedium.from_value(value["medium"]),
+            enabled=bool(value.get("enabled", True)),
+        )
+
+    def _dcim_cable_to_dict(self, cable: DcimCable) -> dict[str, Any]:
+        return {
+            "id": cable.id.value,
+            "tenant_id": cable.tenant_id.value,
+            "cable_id": cable.cable_id.value,
+            "a_endpoint": cable.a_endpoint.as_dict(),
+            "b_endpoint": cable.b_endpoint.as_dict(),
+            "medium": cable.medium.value,
+            "status": cable.status.value,
+            "path": [segment.as_dict() for segment in cable.path],
+            "length_m": cable.length_m,
+            "label": cable.label,
+        }
+
+    def _dcim_cable_from_dict(self, value: dict[str, Any]) -> DcimCable:
+        a_endpoint = value["a_endpoint"]
+        b_endpoint = value["b_endpoint"]
+        return DcimCable(
+            id=EntityId.from_value(value["id"]),
+            tenant_id=TenantId.from_value(value["tenant_id"]),
+            cable_id=Code.from_value(value["cable_id"], "cable id"),
+            a_endpoint=DcimPortEndpoint.create(
+                a_endpoint["owner_type"], a_endpoint["owner_code"], a_endpoint["port_name"]
+            ),
+            b_endpoint=DcimPortEndpoint.create(
+                b_endpoint["owner_type"], b_endpoint["owner_code"], b_endpoint["port_name"]
+            ),
+            medium=DcimCableMedium.from_value(value["medium"]),
+            status=DcimCableStatus.from_value(value["status"]),
+            path=tuple(
+                DcimCablePathSegment.create(
+                    int(segment["order"]), str(segment["label"]), str(segment.get("kind", "path"))
+                )
+                for segment in value.get("path", [])
+            ),
+            length_m=(float(value["length_m"]) if value.get("length_m") is not None else None),
+            label=str(value.get("label", "")),
+        )
 
 class JsonIpamRepository(IpamRepository):
     def __init__(self, store: JsonDocumentStore) -> None:

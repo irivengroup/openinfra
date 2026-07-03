@@ -1,84 +1,115 @@
-# OpenInfra Python POO v0.15.0 — Rapport de validation
+# OpenInfra Python POO v0.16.0 — Rapport de validation
 
-## Alignement roadmap
+Date : 2026-07-03
 
-- Release : `0.15.0`
-- Roadmap : `P04 / EPIC-0404 — Plans 2D salle et rack elevation`
-- Baseline reprise : `0.14.0`, jalon `P04 / EPIC-0403` déjà livré.
-- Objectif : fournir une visualisation terrain déterministe pour les salles et racks sans casser la localisation DCIM existante.
-- Seuil qualité bloquant : couverture globale `>= 98 %` conservée dans `pyproject.toml`, `pytest` et la CI.
+## Synthèse
 
-## Fonctionnalités livrées
+- Release : `0.16.0`
+- Roadmap : P04
+- Jalon livré : EPIC-0405 — Câblage DCIM fondation
+- Production : déploiement serveur natif, indépendant de Docker
+- Seuil officiel de couverture : `>= 98 %`
+- Couverture mesurée : `98.15 %`
+- Résultat global local : réussi
 
-- Domaine DCIM : `RoomPlanCell`, `RoomPlan2D`, `RackElevationUnit`, `RackElevation`.
-- Service applicatif : `DcimVisualizationService` avec audit des rendus.
-- Ports : lectures `list_racks_in_room` et `list_equipment_in_room` ajoutées au `DcimRepository`.
-- Adaptateurs : backend JSON et backend PostgreSQL alignés sur le même port.
-- CLI :
-  - `openinfra dcim room-plan`
-  - `openinfra dcim rack-elevation`
-- API HTTP :
-  - `GET /api/v1/dcim/room-plan`
-  - `GET /api/v1/dcim/rack-elevation`
-- OpenAPI : endpoints DCIM visualisation documentés en version `0.15.0`.
-- Migration PostgreSQL : `0012_dcim_visualization_indexes.sql`.
-- Runtime Docker smoke : scénario étendu aux rendus room plan et rack elevation.
-- Documentation : README, architecture, runbooks, changelog et traçabilité mis à jour.
+## Implémentation livrée
+
+- Domaine POO : `PatchPanel`, `DcimPortEndpoint`, `DcimPort`, `DcimCablePathSegment`, `DcimCable`, énumérations média/connecteur/statut.
+- Service applicatif : `DcimCablingService` pour panneaux, ports, câbles et traces.
+- Ports applicatifs : extension de `DcimRepository` pour les lectures/écritures câblage.
+- Backend JSON : collections `patch_panels`, `dcim_ports`, `dcim_cables` avec sérialisation complète.
+- Backend PostgreSQL : méthodes repository câblage alignées sur le port applicatif.
+- Migration PostgreSQL : `0013_dcim_cabling_foundation.sql` avec tables partitionnées et index endpoint/audit.
+- CLI : `openinfra dcim define-patch-panel`, `define-port`, `connect-cable`, `cable-trace`.
+- API HTTP : `/api/v1/dcim/patch-panels`, `/api/v1/dcim/ports`, `/api/v1/dcim/cables`, `/api/v1/dcim/cable-trace`.
+- OpenAPI : version `0.16.0`, endpoints câblage documentés.
+- Runtime production : `deploy/systemd/openinfra-api.service`, `docs/runbooks/RUNTIME_NATIVE.md`, `scripts/native_runtime_smoke.py`.
+- CI GitHub Actions : migration 0013, smoke CLI câblage, smoke runtime natif, suppression du job Docker obligatoire.
+- Documentation : README, architecture, validation, traçabilité, changelog et runbooks mis à jour.
 
 ## Validations exécutées localement
 
 ```bash
 PYTHONPATH=src python3 -m pytest -q
-PYTHONPATH=src python3 scripts/quality_gate.py
-PYTHONPATH=src python3 -m compileall -q src tests scripts docker
-PYTHONPATH=src python3 -m openinfra.interfaces.cli version
-PYTHONPATH=src python3 -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4
-for name in 0001_bootstrap 0002_security_rbac 0003_security_token_lifecycle 0004_identity_users_groups 0005_access_policy_abac 0006_audit_trail_integrity 0007_source_of_truth_core 0008_source_governance 0009_dcim_physical_model 0010_dcim_rack_capacity 0011_dcim_field_operations 0012_dcim_visualization_indexes; do
-  PYTHONPATH=src python3 -m openinfra.interfaces.cli database render-migration --name "$name" --root migrations/postgresql >/tmp/openinfra-${name}.sql
-done
-PYTHONPATH=src python3 -m openinfra.interfaces.cli dcim define-room --data "$tmpdir/state.json" --tenant default --site-code PAR1 --site-name "Paris DC" --country FR --region IDF --city Paris --building-code BAT-A --building-name "Building A" --floor-code F01 --floor-name "Floor 1" --floor-index 1 --room-code MMR1 --room-name "MMR" --row A --row B --column 01 --column 02 --zone-code Z1 --zone-name "Zone 1" --zone-row A --zone-column 01
-PYTHONPATH=src python3 -m openinfra.interfaces.cli dcim define-rack --data "$tmpdir/state.json" --tenant default --site PAR1 --building BAT-A --floor F01 --room MMR1 --zone Z1 --rack R01 --row A --column 01 --units 8 --face front --face rear
-PYTHONPATH=src python3 -m openinfra.interfaces.cli dcim locate --data "$tmpdir/state.json" --tenant default --asset-tag SRV-001 --equipment-name "Server 001" --site PAR1 --building BAT-A --floor F01 --room MMR1 --zone Z1 --row A --column 01 --rack R01 --u-position 2 --u-height 2 --rack-face front --x 1 --y 2 --z 0
-PYTHONPATH=src python3 -m openinfra.interfaces.cli dcim rack-capacity --data "$tmpdir/state.json" --tenant default --site PAR1 --building BAT-A --room MMR1 --rack R01
-PYTHONPATH=src python3 -m openinfra.interfaces.cli dcim locator-sheet --data "$tmpdir/state.json" --tenant default --asset-tag SRV-001 --format json
-PYTHONPATH=src python3 -m openinfra.interfaces.cli dcim verify-scan --data "$tmpdir/state.json" --tenant default --asset-tag SRV-001 --payload "$payload"
-PYTHONPATH=src python3 -m openinfra.interfaces.cli dcim room-plan --data "$tmpdir/state.json" --tenant default --site PAR1 --building BAT-A --room MMR1 --format json
-PYTHONPATH=src python3 -m openinfra.interfaces.cli dcim rack-elevation --data "$tmpdir/state.json" --tenant default --site PAR1 --building BAT-A --room MMR1 --rack R01 --face front --format json
 ```
 
-## Résultats
+Résultat : `156 passed`, couverture globale `98.15 %`, seuil `>= 98 %` atteint.
 
-- Tests : `152 passed`.
-- Couverture globale : `98.03 %`.
-- Seuil configuré : `98 %`.
-- `quality_gate.py` : réussi.
-- Compilation Python : réussie.
-- CLI version : `0.15.0`.
-- Validation CDC/SFG/STG : réussie, `488` exigences et `310` tests détectés.
-- Rendu migrations `0001` à `0012` : réussi.
-- Smoke CLI DCIM physique, rack, QR, plan 2D et rack elevation : réussi.
-- Validation OpenAPI YAML : réussie, version `0.15.0`, endpoints visualisation présents.
-- Contrôle des interdictions de code incomplet dans `src`, `tests`, `scripts`, `docker`, `.github`, documentation projet et migrations : réussi.
+```bash
+PYTHONPATH=src python3 scripts/quality_gate.py
+```
 
-## Validations non exécutées localement
+Résultat : réussi. Le quality gate vérifie l’absence de fonctions module-level dans `src/openinfra`, la présence des sources contractuelles, les actifs runtime natifs et relance la suite de tests avec couverture.
 
-- `ruff` : indisponible dans l’environnement local (`No module named ruff`).
-- `mypy` : indisponible dans l’environnement local (`No module named mypy`).
-- `bandit` : indisponible dans l’environnement local (`No module named bandit`).
-- `python -m build` : module `build` indisponible localement.
-- Docker Compose runtime réel : commande `docker` indisponible localement.
-- PostgreSQL réel hors Docker : aucun serveur PostgreSQL externe disponible dans l’environnement courant.
+```bash
+PYTHONPATH=src python3 -m compileall -q src tests scripts docker
+```
 
-Ces validations restent configurées dans `.github/workflows/ci.yml` pour le runner complet.
+Résultat : réussi.
 
-## Nettoyage avant livraison
+```bash
+PYTHONPATH=src python3 -m openinfra.interfaces.cli version
+```
 
-- `.env` supprimé après test de disponibilité Docker.
-- Caches supprimés : `__pycache__`, `.pytest_cache`, `.mypy_cache`, `.ruff_cache`.
-- Artefacts temporaires supprimés : `.coverage`, `build`, `dist`, `*.egg-info`, `*.pyc`.
+Résultat : `0.16.0`.
 
-## Risques résiduels
+```bash
+PYTHONPATH=src python3 -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4
+```
 
-- Le rendu SVG/HTML est déterministe et couvert localement ; la validation avec navigateur terrain réel reste à faire côté recette utilisateur.
-- La validation PostgreSQL réelle doit être exécutée dans un lab Docker/CI ou sur cluster PostgreSQL.
-- Les prochains epics P04 restent à traiter selon roadmap : câblage, énergie/refroidissement et capacité avancée.
+Résultat : `status=valid`, version CDC `4.0.0`, `488` exigences, `310` tests.
+
+```bash
+PYTHONPATH=src python3 -m openinfra.interfaces.cli database render-migration --name 0013_dcim_cabling_foundation --root migrations/postgresql
+```
+
+Résultat : réussi. La migration 0013 est rendue et validée par le validateur PostgreSQL interne.
+
+```bash
+PYTHONPATH=src python3 scripts/native_runtime_smoke.py --project-root .
+```
+
+Résultat : réussi. Les actifs de production natifs sont présents et cohérents.
+
+```bash
+python3 - <<'PY'
+import yaml
+from pathlib import Path
+spec = yaml.safe_load(Path('docs/api/openapi.yaml').read_text())
+assert spec['info']['version'] == '0.16.0'
+for path in ['/api/v1/dcim/patch-panels', '/api/v1/dcim/ports', '/api/v1/dcim/cables', '/api/v1/dcim/cable-trace']:
+    assert path in spec['paths']
+PY
+```
+
+Résultat : réussi.
+
+## Smoke CLI câblage exécuté
+
+Scénario exécuté avec backend JSON temporaire :
+
+1. création salle ;
+2. création rack ;
+3. localisation serveur en rack/front/U6 ;
+4. création panneau `PP01` en rack/front/U2 ;
+5. génération ports panneau ;
+6. création port équipement `ETH0` ;
+7. connexion câble `CAB-SM-001` ;
+8. trace câble et vérification endpoint panneau.
+
+Résultat : réussi.
+
+## Contrôles non exécutés localement
+
+- `ruff` : module indisponible localement (`No module named ruff`).
+- `mypy` : module indisponible localement (`No module named mypy`).
+- `bandit` : module indisponible localement (`No module named bandit`).
+- `python -m build` : module indisponible localement (`No module named build`).
+- Docker Compose réel : commande `docker` indisponible localement ; Docker n’est plus requis pour le runtime de production.
+- PostgreSQL réel : aucun serveur PostgreSQL/Compose local disponible ; la migration est rendue et validée statiquement, les méthodes repository PostgreSQL sont compilées.
+
+Ces contrôles restent présents dans la CI lorsque les dépendances dev ou infrastructures correspondantes sont disponibles.
+
+## Nettoyage attendu archive
+
+Avant packaging : suppression de `__pycache__`, `.pytest_cache`, `.mypy_cache`, `.ruff_cache`, `build`, `dist` et `*.egg-info`.

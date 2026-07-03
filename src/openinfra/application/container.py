@@ -7,6 +7,7 @@ from typing import Any
 from openinfra.application.access_policy_services import AccessPolicyService
 from openinfra.application.audit_services import AuditTrailService
 from openinfra.application.dcim_services import (
+    DcimCablingService,
     DcimFieldOperationService,
     DcimLocationService,
     DcimRackService,
@@ -73,6 +74,7 @@ class OpenInfraApplication:
     dcim_rack_service: DcimRackService
     dcim_field_operation_service: DcimFieldOperationService
     dcim_visualization_service: DcimVisualizationService
+    dcim_cabling_service: DcimCablingService
     ipam_service: IpamAllocationService
     dcim_repository: DcimRepository
     ipam_repository: IpamRepository
@@ -225,6 +227,11 @@ class ApplicationFactory:
                 transaction_manager,
             ),
             dcim_visualization_service=DcimVisualizationService(
+                dcim_repository,
+                audit_repository,
+                transaction_manager,
+            ),
+            dcim_cabling_service=DcimCablingService(
                 dcim_repository,
                 audit_repository,
                 transaction_manager,

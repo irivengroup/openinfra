@@ -14,14 +14,21 @@ from openinfra.domain.common import (
 )
 from openinfra.domain.dcim import (
     Building,
+    DcimCable,
+    DcimCablePathSegment,
+    DcimPort,
+    DcimPortEndpoint,
+    DcimPortOwnerType,
     Equipment,
     EquipmentLocation,
-    Floor,
-    Rack,
     EquipmentLocatorSheet,
     EquipmentScanProof,
+    Floor,
+    PatchPanel,
+    Rack,
     RackCapacityReport,
     RackElevation,
+    RackFace,
     Room,
     RoomPlan2D,
     RoomZone,
@@ -107,6 +114,65 @@ class RenderRackElevationCommand:
     face: str = "front"
     output_format: str = "json"
 
+
+
+@dataclass(frozen=True, slots=True)
+class DefinePatchPanelCommand:
+    tenant_id: str
+    actor: str
+    site: str
+    building: str
+    room: str
+    rack: str
+    patch_panel: str
+    rack_face: str
+    u_position: int
+    u_height: int
+    port_count: int
+    connector: str
+    medium: str
+    label: str = ""
+    port_prefix: str = "P"
+
+
+@dataclass(frozen=True, slots=True)
+class DefineDcimPortCommand:
+    tenant_id: str
+    actor: str
+    owner_type: str
+    owner_code: str
+    port_name: str
+    connector: str
+    medium: str
+    site: str | None = None
+    building: str | None = None
+    room: str | None = None
+    enabled: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class ConnectDcimCableCommand:
+    tenant_id: str
+    actor: str
+    cable_id: str
+    a_owner_type: str
+    a_owner_code: str
+    a_port_name: str
+    b_owner_type: str
+    b_owner_code: str
+    b_port_name: str
+    medium: str
+    status: str = "installed"
+    path_segments: tuple[str, ...] = ()
+    length_m: float | None = None
+    label: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class TraceDcimCableCommand:
+    tenant_id: str
+    actor: str
+    cable_id: str
 
 @dataclass(frozen=True, slots=True)
 class GenerateEquipmentLocatorCommand:
@@ -427,6 +493,296 @@ class DcimRackService:
         zone.assert_within_room(room)
         zone.assert_cell_exists(command.row, command.column)
         return zone
+
+
+
+class DcimCablingService:
+    def __init__(
+        self,
+        dcim_repository: DcimRepository,
+        audit_repository: AuditRepository,
+        transaction_manager: TransactionManager,
+    ) -> None:
+        self._dcim_repository = dcim_repository
+        self._audit_repository = audit_repository
+        self._transaction_manager = transaction_manager
+
+    def define_patch_panel(self, command: DefinePatchPanelCommand) -> dict[str, object]:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        rack = self._dcim_repository.find_rack(
+            tenant_id,
+            command.site,
+            command.building,
+            command.room,
+            command.rack,
+        )
+        if rack is None:
+            raise NotFoundError("rack must exist before defining a patch panel")
+        patch_panel = PatchPanel.create(
+            tenant_id=tenant_id,
+            site=command.site,
+            building=command.building,
+            room=command.room,
+            rack=command.rack,
+            code=command.patch_panel,
+            rack_face=command.rack_face,
+            u_position=command.u_position,
+            u_height=command.u_height,
+            port_count=command.port_count,
+            connector=command.connector,
+            medium=command.medium,
+            label=command.label,
+        )
+        rack.assert_face_supported(patch_panel.rack_face)
+        rack.assert_unit_interval(patch_panel.u_position, patch_panel.u_height)
+        self._assert_patch_panel_interval_available(tenant_id, patch_panel)
+        generated_ports = self._build_patch_panel_ports(command, tenant_id, patch_panel)
+        with self._transaction_manager.begin() as unit_of_work:
+            self._dcim_repository.add_patch_panel(patch_panel)
+            for port in generated_ports:
+                self._dcim_repository.add_dcim_port(port)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=command.actor,
+                    action="dcim.patch-panel.defined",
+                    target_type="patch_panel",
+                    target_id=patch_panel.code.value,
+                    metadata={
+                        "rack": rack.code.value,
+                        "ports": patch_panel.port_count,
+                        "medium": patch_panel.medium.value,
+                        "connector": patch_panel.connector.value,
+                    },
+                )
+            )
+            unit_of_work.commit()
+        payload = patch_panel.as_dict()
+        payload["generated_ports"] = [port.endpoint.port_name.value for port in generated_ports]
+        return payload
+
+    def define_port(self, command: DefineDcimPortCommand) -> dict[str, object]:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        owner_type = DcimPortOwnerType.from_value(command.owner_type)
+        site, building, room = self._resolve_port_location(tenant_id, owner_type, command)
+        port = DcimPort.create(
+            tenant_id=tenant_id,
+            owner_type=owner_type.value,
+            owner_code=command.owner_code,
+            port_name=command.port_name,
+            site=site,
+            building=building,
+            room=room,
+            connector=command.connector,
+            medium=command.medium,
+            enabled=command.enabled,
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            self._dcim_repository.add_dcim_port(port)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=command.actor,
+                    action="dcim.port.defined",
+                    target_type="dcim_port",
+                    target_id=port.endpoint.key(),
+                    metadata={"medium": port.medium.value, "connector": port.connector.value},
+                )
+            )
+            unit_of_work.commit()
+        return port.as_dict()
+
+    def connect_cable(self, command: ConnectDcimCableCommand) -> dict[str, object]:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        a_endpoint = DcimPortEndpoint.create(
+            command.a_owner_type,
+            command.a_owner_code,
+            command.a_port_name,
+        )
+        b_endpoint = DcimPortEndpoint.create(
+            command.b_owner_type,
+            command.b_owner_code,
+            command.b_port_name,
+        )
+        a_port = self._dcim_repository.find_dcim_port(tenant_id, a_endpoint)
+        b_port = self._dcim_repository.find_dcim_port(tenant_id, b_endpoint)
+        if a_port is None or b_port is None:
+            raise NotFoundError("both cable endpoints must reference existing DCIM ports")
+        path = self._build_path(command.path_segments)
+        cable = DcimCable.create(
+            tenant_id=tenant_id,
+            cable_id=command.cable_id,
+            a_endpoint=a_endpoint,
+            b_endpoint=b_endpoint,
+            medium=command.medium,
+            status=command.status,
+            path=path,
+            length_m=command.length_m,
+            label=command.label,
+        )
+        cable.assert_compatible_ports(a_port, b_port)
+        self._assert_endpoint_available(tenant_id, a_endpoint)
+        self._assert_endpoint_available(tenant_id, b_endpoint)
+        with self._transaction_manager.begin() as unit_of_work:
+            self._dcim_repository.add_dcim_cable(cable)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=command.actor,
+                    action="dcim.cable.connected",
+                    target_type="dcim_cable",
+                    target_id=cable.cable_id.value,
+                    metadata={
+                        "a_endpoint": cable.a_endpoint.key(),
+                        "b_endpoint": cable.b_endpoint.key(),
+                        "status": cable.status.value,
+                        "medium": cable.medium.value,
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return cable.as_dict()
+
+    def trace_cable(self, command: TraceDcimCableCommand) -> dict[str, object]:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        cable = self._dcim_repository.find_dcim_cable(tenant_id, command.cable_id)
+        if cable is None:
+            raise NotFoundError("cable does not exist")
+        a_port = self._dcim_repository.find_dcim_port(tenant_id, cable.a_endpoint)
+        b_port = self._dcim_repository.find_dcim_port(tenant_id, cable.b_endpoint)
+        if a_port is None or b_port is None:
+            raise NotFoundError("cable references a missing endpoint port")
+        with self._transaction_manager.begin() as unit_of_work:
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=command.actor,
+                    action="dcim.cable.traced",
+                    target_type="dcim_cable",
+                    target_id=cable.cable_id.value,
+                    metadata={"trace": cable.human_trace()},
+                )
+            )
+            unit_of_work.commit()
+        payload = cable.as_dict()
+        payload["a_port"] = a_port.as_dict()
+        payload["b_port"] = b_port.as_dict()
+        return payload
+
+    def _resolve_port_location(
+        self,
+        tenant_id: TenantId,
+        owner_type: DcimPortOwnerType,
+        command: DefineDcimPortCommand,
+    ) -> tuple[str, str, str]:
+        if owner_type == DcimPortOwnerType.EQUIPMENT:
+            equipment = self._dcim_repository.find_equipment(tenant_id, command.owner_code)
+            if equipment is None:
+                raise NotFoundError("equipment must exist before defining an equipment port")
+            location = equipment.location
+            return location.site_code.value, location.building_code.value, location.room_code.value
+        if not command.site or not command.building or not command.room:
+            raise ValidationError("site, building and room are mandatory for patch panel ports")
+        existing = self._find_patch_panel_by_code(
+            tenant_id,
+            command.site,
+            command.building,
+            command.room,
+            command.owner_code,
+        )
+        if existing is None:
+            raise NotFoundError("patch panel must exist before defining a patch panel port")
+        return existing.site_code.value, existing.building_code.value, existing.room_code.value
+
+    def _find_patch_panel_by_code(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+        code: str,
+    ) -> PatchPanel | None:
+        racks = self._dcim_repository.list_racks_in_room(tenant_id, site, building, room)
+        normalized = code.strip().upper()
+        for rack in racks:
+            panel = self._dcim_repository.find_patch_panel(
+                tenant_id,
+                site,
+                building,
+                room,
+                rack.code.value,
+                normalized,
+            )
+            if panel is not None:
+                return panel
+        return None
+
+    def _assert_patch_panel_interval_available(
+        self,
+        tenant_id: TenantId,
+        patch_panel: PatchPanel,
+    ) -> None:
+        occupied_units = patch_panel.occupied_units()
+        for item in self._dcim_repository.list_equipment_in_rack(
+            tenant_id,
+            patch_panel.site_code.value,
+            patch_panel.building_code.value,
+            patch_panel.room_code.value,
+            patch_panel.rack_code.value,
+        ):
+            if item.location.effective_rack_face() == patch_panel.rack_face:
+                if set(occupied_units).intersection(item.location.occupied_units()):
+                    raise ConflictError("patch panel interval overlaps existing rack equipment")
+        for existing in self._dcim_repository.list_patch_panels_in_rack(
+            tenant_id,
+            patch_panel.site_code.value,
+            patch_panel.building_code.value,
+            patch_panel.room_code.value,
+            patch_panel.rack_code.value,
+        ):
+            if existing.overlaps(patch_panel.rack_face, occupied_units):
+                raise ConflictError("patch panel interval overlaps existing patch panel")
+
+    def _build_patch_panel_ports(
+        self,
+        command: DefinePatchPanelCommand,
+        tenant_id: TenantId,
+        patch_panel: PatchPanel,
+    ) -> tuple[DcimPort, ...]:
+        prefix = command.port_prefix.strip().upper()
+        if not prefix or len(prefix) > 8:
+            raise ValidationError("patch panel port prefix must contain 1 to 8 characters")
+        return tuple(
+            DcimPort.create(
+                tenant_id=tenant_id,
+                owner_type=DcimPortOwnerType.PATCH_PANEL.value,
+                owner_code=patch_panel.code.value,
+                port_name=f"{prefix}{index:02d}",
+                site=patch_panel.site_code.value,
+                building=patch_panel.building_code.value,
+                room=patch_panel.room_code.value,
+                connector=patch_panel.connector.value,
+                medium=patch_panel.medium.value,
+            )
+            for index in range(1, patch_panel.port_count + 1)
+        )
+
+    def _build_path(self, path_segments: tuple[str, ...]) -> tuple[DcimCablePathSegment, ...]:
+        return tuple(
+            DcimCablePathSegment.create(index, label)
+            for index, label in enumerate(path_segments, start=1)
+        )
+
+    def _assert_endpoint_available(
+        self,
+        tenant_id: TenantId,
+        endpoint: DcimPortEndpoint,
+    ) -> None:
+        existing = self._dcim_repository.find_active_dcim_cable_by_endpoint(tenant_id, endpoint)
+        if existing is not None:
+            raise ConflictError(
+                f"endpoint {endpoint.key()} is already used by cable {existing.cable_id.value}"
+            )
 
 
 class DcimVisualizationService:

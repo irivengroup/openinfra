@@ -1,5 +1,7 @@
 # Environnement d'exécution Docker OpenInfra
 
+Ce runbook décrit un lab facultatif. La production OpenInfra s’exécute directement sur serveurs Linux via le runbook `RUNTIME_NATIVE.md`; Docker n’est pas requis pour le runtime de production.
+
 Ce runbook décrit le lab Docker livré avec OpenInfra pour valider le fonctionnement réel de la solution développée : PostgreSQL, moteur de migrations applicatif, API, readiness backend, statut de schéma, sécurité API, allocation IPAM transactionnelle par API et allocation IPAM par CLI.
 
 ## Objectif

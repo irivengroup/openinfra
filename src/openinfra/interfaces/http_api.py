@@ -24,12 +24,16 @@ from openinfra.application.audit_services import (
 )
 from openinfra.application.container import ApplicationFactory, OpenInfraApplication
 from openinfra.application.dcim_services import (
+    ConnectDcimCableCommand,
+    DefineDcimPortCommand,
+    DefinePatchPanelCommand,
     DefinePhysicalRoomCommand,
     DefineRackCommand,
     GenerateEquipmentLocatorCommand,
     RackCapacityCommand,
     RenderRackElevationCommand,
     RenderRoomPlanCommand,
+    TraceDcimCableCommand,
     VerifyEquipmentScanCommand,
 )
 from openinfra.application.identity_services import (
@@ -383,6 +387,27 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except (ValueError, OpenInfraError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
+        if route == "/api/v1/dcim/cable-trace":
+            try:
+                query = parse_qs(parsed.query)
+                tenant_id = self._first_query_value(query, "tenant_id")
+                actor = "api"
+                if self.server.auth_required:
+                    principal = self._authenticate(tenant_id, Permission.DCIM_LOCATE)
+                    actor = principal.subject
+                result = self.server.application.dcim_cabling_service.trace_cable(
+                    TraceDcimCableCommand(
+                        tenant_id=tenant_id,
+                        actor=actor,
+                        cable_id=self._first_query_value(query, "cable_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
         if route == "/api/v1/identity/effective":
             try:
                 query = parse_qs(parsed.query)
@@ -483,6 +508,111 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         x=(float(payload["x"]) if payload.get("x") is not None else None),
                         y=(float(payload["y"]) if payload.get("y") is not None else None),
                         z=(float(payload["z"]) if payload.get("z") is not None else None),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+
+        if route == "/api/v1/dcim/patch-panels":
+            try:
+                payload = self._read_json_body()
+                tenant_id = str(payload["tenant_id"])
+                actor = str(payload.get("actor", "api"))
+                if self.server.auth_required:
+                    principal = self._authenticate(tenant_id, Permission.DCIM_WRITE)
+                    actor = principal.subject
+                result = self.server.application.dcim_cabling_service.define_patch_panel(
+                    DefinePatchPanelCommand(
+                        tenant_id=tenant_id,
+                        actor=actor,
+                        site=str(payload["site"]),
+                        building=str(payload["building"]),
+                        room=str(payload["room"]),
+                        rack=str(payload["rack"]),
+                        patch_panel=str(payload["patch_panel"]),
+                        rack_face=str(payload.get("rack_face", "front")),
+                        u_position=int(payload["u_position"]),
+                        u_height=int(payload.get("u_height", 1)),
+                        port_count=int(payload["port_count"]),
+                        connector=str(payload["connector"]),
+                        medium=str(payload["medium"]),
+                        label=str(payload.get("label", "")),
+                        port_prefix=str(payload.get("port_prefix", "P")),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/dcim/ports":
+            try:
+                payload = self._read_json_body()
+                tenant_id = str(payload["tenant_id"])
+                actor = str(payload.get("actor", "api"))
+                if self.server.auth_required:
+                    principal = self._authenticate(tenant_id, Permission.DCIM_WRITE)
+                    actor = principal.subject
+                result = self.server.application.dcim_cabling_service.define_port(
+                    DefineDcimPortCommand(
+                        tenant_id=tenant_id,
+                        actor=actor,
+                        owner_type=str(payload["owner_type"]),
+                        owner_code=str(payload["owner_code"]),
+                        port_name=str(payload["port_name"]),
+                        connector=str(payload["connector"]),
+                        medium=str(payload["medium"]),
+                        site=(str(payload["site"]) if payload.get("site") else None),
+                        building=(str(payload["building"]) if payload.get("building") else None),
+                        room=(str(payload["room"]) if payload.get("room") else None),
+                        enabled=bool(payload.get("enabled", True)),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/dcim/cables":
+            try:
+                payload = self._read_json_body()
+                tenant_id = str(payload["tenant_id"])
+                actor = str(payload.get("actor", "api"))
+                if self.server.auth_required:
+                    principal = self._authenticate(tenant_id, Permission.DCIM_WRITE)
+                    actor = principal.subject
+                path_payload = payload.get("path_segments", [])
+                if not isinstance(path_payload, list):
+                    raise OpenInfraError("path_segments must be a list")
+                result = self.server.application.dcim_cabling_service.connect_cable(
+                    ConnectDcimCableCommand(
+                        tenant_id=tenant_id,
+                        actor=actor,
+                        cable_id=str(payload["cable_id"]),
+                        a_owner_type=str(payload["a_owner_type"]),
+                        a_owner_code=str(payload["a_owner_code"]),
+                        a_port_name=str(payload["a_port_name"]),
+                        b_owner_type=str(payload["b_owner_type"]),
+                        b_owner_code=str(payload["b_owner_code"]),
+                        b_port_name=str(payload["b_port_name"]),
+                        medium=str(payload["medium"]),
+                        status=str(payload.get("status", "installed")),
+                        path_segments=tuple(str(segment) for segment in path_payload),
+                        length_m=(
+                            float(payload["length_m"])
+                            if payload.get("length_m") is not None
+                            else None
+                        ),
+                        label=str(payload.get("label", "")),
                     )
                 )
                 responder.send(HTTPStatus.CREATED, result)

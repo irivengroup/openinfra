@@ -1,0 +1,32 @@
+[Unit]
+Description=OpenInfra API native server runtime
+Documentation=/opt/openinfra/docs/runbooks/RUNTIME_NATIVE.md
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=openinfra
+Group=openinfra
+WorkingDirectory=/opt/openinfra
+EnvironmentFile=/etc/openinfra/openinfra.env
+ExecStart=/opt/openinfra/venv/bin/openinfra-api --host 0.0.0.0 --port 8080 --backend postgresql --auth-required
+Restart=on-failure
+RestartSec=5s
+TimeoutStartSec=30s
+TimeoutStopSec=30s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/openinfra /var/log/openinfra /etc/openinfra
+CapabilityBoundingSet=
+AmbientCapabilities=
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

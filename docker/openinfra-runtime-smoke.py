@@ -87,7 +87,7 @@ class RuntimeSmokeScenario:
 
     def _assert_version(self) -> None:
         version = self._client.get("/api/v1/version")
-        if version.get("version") != "0.15.0":
+        if version.get("version") != "0.16.0":
             raise SmokeError("unexpected version response: " + json.dumps(version, sort_keys=True))
 
     def _assert_schema_status(self) -> None:

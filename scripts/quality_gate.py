@@ -39,37 +39,29 @@ class ContractFileGuard:
             raise QualityGateError("missing contractual source files: " + ", ".join(missing))
 
 
-class RuntimeDockerGuard:
+class NativeRuntimeGuard:
     def __init__(self, project_root: Path) -> None:
         self._project_root = project_root
 
     def assert_runtime_environment_present(self) -> None:
         required = (
-            "Dockerfile",
-            "compose.yaml",
-            ".env.example",
-            "docker/openinfra-runtime-smoke.py",
-            "scripts/docker_environment.py",
-            "docs/runbooks/RUNTIME_DOCKER.md",
+            "deploy/systemd/openinfra-api.service",
+            "docs/runbooks/RUNTIME_NATIVE.md",
+            "scripts/native_runtime_smoke.py",
         )
         missing = [name for name in required if not (self._project_root / name).is_file()]
         if missing:
-            raise QualityGateError("missing runtime docker assets: " + ", ".join(missing))
-        compose = (self._project_root / "compose.yaml").read_text(encoding="utf-8")
-        for service_name in ("postgres:", "migrate:", "auth-bootstrap:", "api:", "smoke:"):
-            if service_name not in compose:
-                raise QualityGateError("compose service missing: " + service_name.rstrip(":"))
-        if "service_healthy" not in compose or "service_completed_successfully" not in compose:
-            raise QualityGateError(
-                "compose runtime dependencies must enforce health and migration order"
-            )
-        env_example = (self._project_root / ".env.example").read_text(encoding="utf-8")
-        if "OPENINFRA_POSTGRES_PASSWORD=" not in env_example:
-            raise QualityGateError(".env.example must document OPENINFRA_POSTGRES_PASSWORD")
-        if "OPENINFRA_BOOTSTRAP_TOKEN=" not in env_example:
-            raise QualityGateError(".env.example must document OPENINFRA_BOOTSTRAP_TOKEN")
-        if "OPENINFRA_AUTH_REQUIRED" not in compose:
-            raise QualityGateError("runtime API must enable authentication explicitly")
+            raise QualityGateError("missing native runtime assets: " + ", ".join(missing))
+        unit = (self._project_root / "deploy/systemd/openinfra-api.service").read_text(encoding="utf-8")
+        runbook = (self._project_root / "docs/runbooks/RUNTIME_NATIVE.md").read_text(encoding="utf-8")
+        if "ExecStart=/opt/openinfra/venv/bin/openinfra-api" not in unit:
+            raise QualityGateError("native systemd service must start openinfra-api from virtualenv")
+        if "User=openinfra" not in unit or "NoNewPrivileges=true" not in unit:
+            raise QualityGateError("native systemd service must run with a hardened openinfra user")
+        if "OPENINFRA_DATABASE_DSN" not in runbook:
+            raise QualityGateError("native runbook must document the PostgreSQL DSN")
+        if "Docker ne fait pas partie de la chaîne d’exécution production" not in runbook:
+            raise QualityGateError("native runbook must state that Docker is not part of production runtime")
         if (self._project_root / ".env").exists():
             raise QualityGateError("local .env must not be packaged or committed")
 
@@ -88,7 +80,7 @@ class QualityGate:
     def run(self) -> None:
         ModuleFunctionGuard(self._project_root / "src/openinfra").assert_no_module_level_functions()
         ContractFileGuard(self._project_root).assert_sources_present()
-        RuntimeDockerGuard(self._project_root).assert_runtime_environment_present()
+        NativeRuntimeGuard(self._project_root).assert_runtime_environment_present()
         CommandRunner().run([sys.executable, "-m", "pytest"])
 
 

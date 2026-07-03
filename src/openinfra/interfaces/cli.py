@@ -21,6 +21,9 @@ from openinfra.application.audit_services import (
 )
 from openinfra.application.container import ApplicationFactory, OpenInfraApplication
 from openinfra.application.dcim_services import (
+    ConnectDcimCableCommand,
+    DefineDcimPortCommand,
+    DefinePatchPanelCommand,
     DefinePhysicalRoomCommand,
     DefineRackCommand,
     GenerateEquipmentLocatorCommand,
@@ -28,6 +31,7 @@ from openinfra.application.dcim_services import (
     RackCapacityCommand,
     RenderRackElevationCommand,
     RenderRoomPlanCommand,
+    TraceDcimCableCommand,
     VerifyEquipmentScanCommand,
 )
 from openinfra.application.identity_services import (
@@ -596,6 +600,86 @@ class OpenInfraCLI:
         locate.add_argument("--y", type=float)
         locate.add_argument("--z", type=float)
         locate.set_defaults(handler=self._handle_dcim_locate)
+
+
+        define_patch_panel = dcim_subparsers.add_parser(
+            "define-patch-panel",
+            help="define a rack-mounted patch panel and generate its ports",
+        )
+        define_patch_panel.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        define_patch_panel.add_argument("--data", type=Path, default=Path(".openinfra.json"))
+        define_patch_panel.add_argument("--postgres-dsn")
+        define_patch_panel.add_argument("--tenant", default="default")
+        define_patch_panel.add_argument("--actor", default="cli")
+        define_patch_panel.add_argument("--site", required=True)
+        define_patch_panel.add_argument("--building", required=True)
+        define_patch_panel.add_argument("--room", required=True)
+        define_patch_panel.add_argument("--rack", required=True)
+        define_patch_panel.add_argument("--patch-panel", required=True)
+        define_patch_panel.add_argument("--rack-face", choices=("front", "rear"), default="front")
+        define_patch_panel.add_argument("--u-position", type=int, required=True)
+        define_patch_panel.add_argument("--u-height", type=int, default=1)
+        define_patch_panel.add_argument("--port-count", type=int, required=True)
+        define_patch_panel.add_argument("--connector", required=True)
+        define_patch_panel.add_argument("--medium", required=True)
+        define_patch_panel.add_argument("--label", default="")
+        define_patch_panel.add_argument("--port-prefix", default="P")
+        define_patch_panel.set_defaults(handler=self._handle_dcim_define_patch_panel)
+
+        define_port = dcim_subparsers.add_parser(
+            "define-port",
+            help="define a DCIM port on an equipment or patch panel",
+        )
+        define_port.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        define_port.add_argument("--data", type=Path, default=Path(".openinfra.json"))
+        define_port.add_argument("--postgres-dsn")
+        define_port.add_argument("--tenant", default="default")
+        define_port.add_argument("--actor", default="cli")
+        define_port.add_argument("--owner-type", choices=("equipment", "patch_panel"), required=True)
+        define_port.add_argument("--owner-code", required=True)
+        define_port.add_argument("--port-name", required=True)
+        define_port.add_argument("--connector", required=True)
+        define_port.add_argument("--medium", required=True)
+        define_port.add_argument("--site")
+        define_port.add_argument("--building")
+        define_port.add_argument("--room")
+        define_port.add_argument("--disabled", action="store_true")
+        define_port.set_defaults(handler=self._handle_dcim_define_port)
+
+        connect_cable = dcim_subparsers.add_parser(
+            "connect-cable",
+            help="connect two compatible DCIM ports with a point-to-point cable",
+        )
+        connect_cable.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        connect_cable.add_argument("--data", type=Path, default=Path(".openinfra.json"))
+        connect_cable.add_argument("--postgres-dsn")
+        connect_cable.add_argument("--tenant", default="default")
+        connect_cable.add_argument("--actor", default="cli")
+        connect_cable.add_argument("--cable-id", required=True)
+        connect_cable.add_argument("--a-owner-type", choices=("equipment", "patch_panel"), required=True)
+        connect_cable.add_argument("--a-owner-code", required=True)
+        connect_cable.add_argument("--a-port-name", required=True)
+        connect_cable.add_argument("--b-owner-type", choices=("equipment", "patch_panel"), required=True)
+        connect_cable.add_argument("--b-owner-code", required=True)
+        connect_cable.add_argument("--b-port-name", required=True)
+        connect_cable.add_argument("--medium", required=True)
+        connect_cable.add_argument("--status", choices=("planned", "installed", "retired"), default="installed")
+        connect_cable.add_argument("--path", action="append", required=True)
+        connect_cable.add_argument("--length-m", type=float)
+        connect_cable.add_argument("--label", default="")
+        connect_cable.set_defaults(handler=self._handle_dcim_connect_cable)
+
+        cable_trace = dcim_subparsers.add_parser(
+            "cable-trace",
+            help="trace a DCIM cable path and endpoints",
+        )
+        cable_trace.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        cable_trace.add_argument("--data", type=Path, default=Path(".openinfra.json"))
+        cable_trace.add_argument("--postgres-dsn")
+        cable_trace.add_argument("--tenant", default="default")
+        cable_trace.add_argument("--actor", default="cli")
+        cable_trace.add_argument("--cable-id", required=True)
+        cable_trace.set_defaults(handler=self._handle_dcim_cable_trace)
 
 
         locator_sheet = dcim_subparsers.add_parser(
@@ -1226,6 +1310,86 @@ class OpenInfraCLI:
         print(equipment.location.human_readable())
         return 0
 
+
+
+    def _handle_dcim_define_patch_panel(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_cabling_service.define_patch_panel(
+            DefinePatchPanelCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                site=args.site,
+                building=args.building,
+                room=args.room,
+                rack=args.rack,
+                patch_panel=args.patch_panel,
+                rack_face=args.rack_face,
+                u_position=args.u_position,
+                u_height=args.u_height,
+                port_count=args.port_count,
+                connector=args.connector,
+                medium=args.medium,
+                label=args.label,
+                port_prefix=args.port_prefix,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_define_port(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_cabling_service.define_port(
+            DefineDcimPortCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                owner_type=args.owner_type,
+                owner_code=args.owner_code,
+                port_name=args.port_name,
+                connector=args.connector,
+                medium=args.medium,
+                site=args.site,
+                building=args.building,
+                room=args.room,
+                enabled=not args.disabled,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_connect_cable(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_cabling_service.connect_cable(
+            ConnectDcimCableCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                cable_id=args.cable_id,
+                a_owner_type=args.a_owner_type,
+                a_owner_code=args.a_owner_code,
+                a_port_name=args.a_port_name,
+                b_owner_type=args.b_owner_type,
+                b_owner_code=args.b_owner_code,
+                b_port_name=args.b_port_name,
+                medium=args.medium,
+                status=args.status,
+                path_segments=tuple(args.path),
+                length_m=args.length_m,
+                label=args.label,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_cable_trace(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_cabling_service.trace_cable(
+            TraceDcimCableCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                cable_id=args.cable_id,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
 
     def _handle_dcim_locator_sheet(self, args: argparse.Namespace) -> int:
         application = self._create_application(args)

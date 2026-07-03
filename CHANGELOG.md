@@ -1,3 +1,14 @@
+## 0.16.0 - 2026-07-03
+
+- Roadmap : P04 / EPIC-0405 — Câblage DCIM fondation.
+- Ajout du domaine `PatchPanel`, `DcimPortEndpoint`, `DcimPort`, `DcimCablePathSegment` et `DcimCable`.
+- Ajout du service applicatif `DcimCablingService` avec génération de ports, connexion de câbles, prévention des conflits d’endpoint actif et trace humaine.
+- Ajout des commandes `openinfra dcim define-patch-panel`, `define-port`, `connect-cable` et `cable-trace`.
+- Ajout des endpoints `POST /api/v1/dcim/patch-panels`, `POST /api/v1/dcim/ports`, `POST /api/v1/dcim/cables` et `GET /api/v1/dcim/cable-trace`.
+- Ajout de la migration PostgreSQL `0013_dcim_cabling_foundation.sql` avec tables partitionnées et index par endpoint.
+- Production clarifiée : runtime serveur natif `systemd` + virtualenv + PostgreSQL ; Docker reste uniquement un lab optionnel.
+- CI, OpenAPI, runbooks, architecture, tests et quality gate mis à jour avec couverture globale `>= 98 %`.
+
 ## 0.15.0 - 2026-07-03
 
 - Roadmap : P04 / EPIC-0404 — Plans 2D salle et rack elevation.

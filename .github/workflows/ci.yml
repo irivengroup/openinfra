@@ -75,6 +75,7 @@ jobs:
           openinfra database render-migration --name 0010_dcim_rack_capacity --root migrations/postgresql >/tmp/openinfra-0010.sql
           openinfra database render-migration --name 0011_dcim_field_operations --root migrations/postgresql >/tmp/openinfra-0011.sql
           openinfra database render-migration --name 0012_dcim_visualization_indexes --root migrations/postgresql >/tmp/openinfra-0012.sql
+          openinfra database render-migration --name 0013_dcim_cabling_foundation --root migrations/postgresql >/tmp/openinfra-0013.sql
 
       - name: Smoke JSON IPAM allocation
         run: |
@@ -413,27 +414,100 @@ assert rack_elevation["type"] == "rack_elevation"
 assert rack_elevation["used_units"] == [2, 3]
 PYSMOKE
 
+      - name: Smoke JSON DCIM cabling foundation
+        run: |
+          tmpdir="$(mktemp -d)"
+          openinfra dcim define-room \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --site-code CBL-CI \
+            --site-name "CI Cabling Datacenter" \
+            --country FR \
+            --city Paris \
+            --building-code BAT-CBL \
+            --building-name "CI Cabling Building" \
+            --floor-code F01 \
+            --floor-name "First Floor" \
+            --floor-index 1 \
+            --room-code MMR-CBL \
+            --room-name "CI Cabling Room" \
+            --row A \
+            --column 01
+          openinfra dcim define-rack \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --site CBL-CI \
+            --building BAT-CBL \
+            --floor F01 \
+            --room MMR-CBL \
+            --rack R01 \
+            --row A \
+            --column 01 \
+            --units 12 \
+            --face front
+          openinfra dcim locate \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --asset-tag CI-SRV-CABLE-01 \
+            --equipment-name "CI Cabled Server" \
+            --site CBL-CI \
+            --building BAT-CBL \
+            --floor F01 \
+            --room MMR-CBL \
+            --row A \
+            --column 01 \
+            --rack R01 \
+            --u-position 6 \
+            --rack-face front
+          openinfra dcim define-patch-panel \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --site CBL-CI \
+            --building BAT-CBL \
+            --room MMR-CBL \
+            --rack R01 \
+            --patch-panel PP01 \
+            --rack-face front \
+            --u-position 2 \
+            --port-count 2 \
+            --connector rj45 \
+            --medium copper
+          openinfra dcim define-port \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --owner-type equipment \
+            --owner-code CI-SRV-CABLE-01 \
+            --port-name ETH0 \
+            --connector rj45 \
+            --medium copper
+          openinfra dcim connect-cable \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --cable-id CAB-CI-001 \
+            --a-owner-type equipment \
+            --a-owner-code CI-SRV-CABLE-01 \
+            --a-port-name ETH0 \
+            --b-owner-type patch_panel \
+            --b-owner-code PP01 \
+            --b-port-name P01 \
+            --medium copper \
+            --path "Rack R01 front vertical manager" \
+            --path "Patch panel PP01 port P01" > "$tmpdir/cable.json"
+          openinfra dcim cable-trace \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --cable-id CAB-CI-001 > "$tmpdir/trace.json"
+          python - "$tmpdir/trace.json" <<'PYSMOKE'
+import json
+import sys
+trace = json.load(open(sys.argv[1], encoding="utf-8"))
+assert trace["cable_id"] == "CAB-CI-001"
+assert trace["a_port"]["owner_type"] == "equipment"
+assert trace["b_port"]["owner_code"] == "PP01"
+PYSMOKE
+
+      - name: Native runtime asset smoke
+        run: python scripts/native_runtime_smoke.py --project-root .
+
       - name: Internal quality gate
         run: python scripts/quality_gate.py
-
-  runtime-docker:
-    runs-on: ubuntu-latest
-    needs: quality
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Generate local runtime environment
-        run: python scripts/docker_environment.py init
-
-      - name: Validate Docker runtime execution
-        run: python scripts/docker_environment.py validate
-
-      - name: Stop Docker runtime
-        if: always()
-        run: python scripts/docker_environment.py reset

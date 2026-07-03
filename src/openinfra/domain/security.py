@@ -15,6 +15,7 @@ class Permission(StrEnum):
     SCHEMA_READ = "database.schema.read"
     SECURITY_ADMIN = "security.admin"
     ACCESS_POLICY_ADMIN = "access.policy.admin"
+    AUDIT_READ = "audit.read"
 
 
 @dataclass(frozen=True, slots=True)

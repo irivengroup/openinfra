@@ -68,6 +68,7 @@ jobs:
           openinfra database render-migration --name 0003_security_token_lifecycle --root migrations/postgresql >/tmp/openinfra-0003.sql
           openinfra database render-migration --name 0004_identity_users_groups --root migrations/postgresql >/tmp/openinfra-0004.sql
           openinfra database render-migration --name 0005_access_policy_abac --root migrations/postgresql >/tmp/openinfra-0005.sql
+          openinfra database render-migration --name 0006_audit_trail_integrity --root migrations/postgresql >/tmp/openinfra-0006.sql
 
       - name: Smoke JSON IPAM allocation
         run: |
@@ -198,6 +199,37 @@ jobs:
             --prefix 10.252.0.0/30 \
             --hostname ci-abac-smoke \
             --idempotency-key ci-abac-smoke-1
+
+      - name: Smoke JSON audit trail
+        run: |
+          tmpdir="$(mktemp -d)"
+          admin_token="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+          openinfra security bootstrap-token \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --subject ci-audit-admin \
+            --role admin \
+            --token "$admin_token"
+          openinfra ipam allocate \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --vrf default \
+            --prefix 10.253.0.0/30 \
+            --hostname ci-audit-smoke \
+            --idempotency-key ci-audit-smoke-1
+          openinfra audit list \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --admin-token "$admin_token"
+          openinfra audit export \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --admin-token "$admin_token" \
+            --format jsonl
+          openinfra audit verify-integrity \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --admin-token "$admin_token"
 
       - name: Internal quality gate
         run: python scripts/quality_gate.py

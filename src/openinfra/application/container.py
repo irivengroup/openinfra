@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from openinfra.application.access_policy_services import AccessPolicyService
+from openinfra.application.audit_services import AuditTrailService
 from openinfra.application.dcim_services import DcimLocationService
 from openinfra.application.identity_services import IdentityService
 from openinfra.application.ipam_services import IpamAllocationService
@@ -60,6 +61,7 @@ class OpenInfraApplication:
     security_service: SecurityService
     identity_service: IdentityService
     access_policy_service: AccessPolicyService
+    audit_service: AuditTrailService
     identity_repository: IdentityRepository
     security_repository: SecurityRepository
     access_policy_repository: AccessPolicyRepository
@@ -175,6 +177,11 @@ class ApplicationFactory:
             ),
             access_policy_service=AccessPolicyService(
                 access_policy_repository,
+                audit_repository,
+                transaction_manager,
+                security_service,
+            ),
+            audit_service=AuditTrailService(
                 audit_repository,
                 transaction_manager,
                 security_service,

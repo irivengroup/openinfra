@@ -7,6 +7,7 @@ import urllib.request
 from pathlib import Path
 
 from openinfra.application.container import ApplicationFactory
+from openinfra.application.ipam_services import AllocateIpCommand
 from openinfra.application.security_services import BootstrapTokenCommand
 from openinfra.interfaces.http_api import OpenInfraThreadingServer
 
@@ -37,7 +38,7 @@ class TestHttpApi:
             assert health["status"] == "ok"
             assert ready["ready"] is True
             assert ready["component"] == "json"
-            assert version["version"] == "0.8.0"
+            assert version["version"] == "0.9.0"
             assert allocation["address"] == "10.6.0.1"
         finally:
             server.shutdown()
@@ -400,6 +401,54 @@ class TestAccessPolicyHttpApi:
             assert evaluation["allowed"] is True
             assert allocation["address"] == "10.88.0.1"
             assert deactivated["deactivated"] is True
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+
+class TestAuditHttpApi:
+    def test_audit_api_lists_exports_and_verifies_chain(self, tmp_path: Path) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+        admin_token = "i" * 40
+        app.security_service.bootstrap_token(
+            BootstrapTokenCommand("default", "pytest", "audit-api-admin", ("admin",), admin_token)
+        )
+        app.ipam_service.allocate(
+            AllocateIpCommand(
+                tenant_id="default",
+                actor="pytest",
+                vrf="default",
+                prefix="10.98.0.0/30",
+                hostname="audit-api-srv",
+                idempotency_key="audit-api-1",
+            )
+        )
+        server = OpenInfraThreadingServer(("127.0.0.1", 0), app, auth_required=True)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            helper = TestHttpApi()
+            base_url = f"http://127.0.0.1:{server.server_port}"
+            listed = helper._get_json(
+                base_url + "/api/v1/audit/events?tenant_id=default&limit=10",
+                token=admin_token,
+            )
+            exported = helper._post_json(
+                base_url + "/api/v1/audit/export",
+                {"tenant_id": "default", "format": "json", "limit": 10},
+                token=admin_token,
+            )
+            verified = helper._get_json(
+                base_url + "/api/v1/audit/integrity?tenant_id=default&limit=100",
+                token=admin_token,
+            )
+
+            assert listed["items"]
+            assert listed["items"][0]["integrity_valid"] is True
+            assert exported["content_type"] == "application/json"
+            assert exported["count"] >= 1
+            assert verified["valid"] is True
         finally:
             server.shutdown()
             server.server_close()

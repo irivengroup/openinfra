@@ -118,7 +118,9 @@ class AccessPolicyRule:
         active: bool,
         created_at: datetime,
     ) -> Self:
-        normalized_created_at = created_at if created_at.tzinfo is not None else created_at.replace(tzinfo=UTC)
+        normalized_created_at = (
+            created_at if created_at.tzinfo is not None else created_at.replace(tzinfo=UTC)
+        )
         return cls(
             id=id,
             tenant_id=tenant_id,
@@ -185,7 +187,11 @@ class AccessPolicyRule:
         principal_roles = {role.name for role in principal.roles}
         role_names = set(self.role_names())
         role_match = bool(role_names.intersection(principal_roles))
-        return self.active and self.permission in principal.permissions and (subject_match or role_match)
+        return (
+            self.active
+            and self.permission in principal.permissions
+            and (subject_match or role_match)
+        )
 
     def matches_context(self, context: AccessRequestContext) -> bool:
         if self.permission != context.permission:

@@ -10,6 +10,9 @@ PYTHONPATH=src python -m openinfra.interfaces.cli spec validate --root docs/spec
 PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0001_bootstrap --root migrations/postgresql >/tmp/openinfra-0001.sql
 PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0002_security_rbac --root migrations/postgresql >/tmp/openinfra-0002.sql
 PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0003_security_token_lifecycle --root migrations/postgresql >/tmp/openinfra-0003.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0004_identity_users_groups --root migrations/postgresql >/tmp/openinfra-0004.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0005_access_policy_abac --root migrations/postgresql >/tmp/openinfra-0005.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0006_audit_trail_integrity --root migrations/postgresql >/tmp/openinfra-0006.sql
 PYTHONPATH=src python -m openinfra.interfaces.cli ipam allocate --data /tmp/openinfra-state.json --tenant default --vrf default --prefix 10.99.0.0/30 --hostname validation --idempotency-key validation-1
 ```
 
@@ -99,3 +102,18 @@ PYTHONPATH=src python -m pytest -q tests/unit/test_access_policy_domain.py tests
 ```
 
 La CI exécute également un smoke test JSON ABAC et le runtime Docker couvre le scénario PostgreSQL/API/CLI.
+
+
+## Validation Audit Trail v0.9.0
+
+Commandes minimales :
+
+```bash
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0006_audit_trail_integrity --root migrations/postgresql
+PYTHONPATH=src python -m openinfra.interfaces.cli audit list --data /tmp/openinfra.json --tenant default --admin-token "$ADMIN_TOKEN" --limit 100
+PYTHONPATH=src python -m openinfra.interfaces.cli audit export --data /tmp/openinfra.json --tenant default --admin-token "$ADMIN_TOKEN" --format jsonl --limit 500
+PYTHONPATH=src python -m openinfra.interfaces.cli audit verify-integrity --data /tmp/openinfra.json --tenant default --admin-token "$ADMIN_TOKEN"
+PYTHONPATH=src python -m pytest -q tests/unit/test_audit_domain.py tests/integration/test_audit_trail_services.py
+```
+
+La CI exécute également un smoke test JSON audit et le runtime Docker valide `/api/v1/audit/events`, `/api/v1/audit/export` et `/api/v1/audit/integrity` en backend PostgreSQL.

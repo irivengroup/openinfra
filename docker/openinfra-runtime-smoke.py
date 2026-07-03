@@ -59,6 +59,7 @@ class RuntimeSmokeScenario:
         self._assert_access_policy_lifecycle()
         self._assert_api_ipam_idempotency()
         self._assert_cli_ipam_transaction()
+        self._assert_audit_trail()
 
     def _wait_until_ready(self) -> None:
         deadline = time.monotonic() + 60.0
@@ -81,7 +82,7 @@ class RuntimeSmokeScenario:
 
     def _assert_version(self) -> None:
         version = self._client.get("/api/v1/version")
-        if version.get("version") != "0.8.0":
+        if version.get("version") != "0.9.0":
             raise SmokeError("unexpected version response: " + json.dumps(version, sort_keys=True))
 
     def _assert_schema_status(self) -> None:
@@ -211,11 +212,15 @@ class RuntimeSmokeScenario:
             },
         )
         if rule.get("name") != "runtime-docker-par1-prod":
-            raise SmokeError("access policy rule creation failed: " + json.dumps(rule, sort_keys=True))
+            raise SmokeError(
+                "access policy rule creation failed: " + json.dumps(rule, sort_keys=True)
+            )
         if not rules.get("items"):
             raise SmokeError("access policy listing failed: " + json.dumps(rules, sort_keys=True))
         if evaluation.get("allowed") is not True:
-            raise SmokeError("access policy evaluation failed: " + json.dumps(evaluation, sort_keys=True))
+            raise SmokeError(
+                "access policy evaluation failed: " + json.dumps(evaluation, sort_keys=True)
+            )
 
     def _assert_api_ipam_idempotency(self) -> None:
         payload = {
@@ -272,6 +277,24 @@ class RuntimeSmokeScenario:
         payload = json.loads(completed.stdout)
         if payload.get("address") != "10.90.1.1" or payload.get("created") is not True:
             raise SmokeError("unexpected CLI allocation: " + json.dumps(payload, sort_keys=True))
+
+    def _assert_audit_trail(self) -> None:
+        listed = self._client.get("/api/v1/audit/events?tenant_id=default&limit=50")
+        if not listed.get("items"):
+            raise SmokeError("audit event listing returned no data")
+        if "record_hash" not in json.dumps(listed):
+            raise SmokeError("audit event listing did not include integrity hashes")
+        integrity = self._client.get("/api/v1/audit/integrity?tenant_id=default&limit=500")
+        if integrity.get("valid") is not True:
+            raise SmokeError(
+                "audit integrity validation failed: " + json.dumps(integrity, sort_keys=True)
+            )
+        exported = self._client.post(
+            "/api/v1/audit/export",
+            {"tenant_id": "default", "format": "jsonl", "limit": 50},
+        )
+        if exported.get("content_type") != "application/x-ndjson":
+            raise SmokeError("audit export failed: " + json.dumps(exported, sort_keys=True))
 
 
 class RuntimeSmokeCli:

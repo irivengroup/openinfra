@@ -2,7 +2,7 @@
 
 OpenInfra est un socle Python orienté objet pour construire une solution open source de Source of Truth, DCIM, ITAM, Discovery, Dependency Mapping et IPAM Enterprise++ sans fonction ITSM intégrée.
 
-Cette livraison correspond au socle exécutable de démarrage aligné avec la roadmap P01/P02/P04/P05 : architecture hexagonale, modèle domaine, CLI, API HTTP standard library, migrations PostgreSQL applicatives, adaptateur PostgreSQL runtime, sécurité API par jetons hachés avec expiration, révocation et rotation, IAM utilisateurs/groupes avec rôles effectifs, ABAC contextuel site/environnement, environnement d’exécution Docker, tests, documentation et CI.
+Cette livraison correspond au socle exécutable de démarrage aligné avec la roadmap P01/P02/P04/P05 : architecture hexagonale, modèle domaine, CLI, API HTTP standard library, migrations PostgreSQL applicatives, adaptateur PostgreSQL runtime, sécurité API par jetons hachés avec expiration, révocation et rotation, IAM utilisateurs/groupes avec rôles effectifs, ABAC contextuel site/environnement, audit trail consultable/exportable avec intégrité chaînée, environnement d’exécution Docker, tests, documentation et CI.
 
 ## Garanties de cette itération
 
@@ -14,8 +14,8 @@ Cette livraison correspond au socle exécutable de démarrage aligné avec la ro
 - Persistance PostgreSQL runtime optionnelle via `psycopg`, DSN explicite et transactions courtes.
 - Migration PostgreSQL initiale avec tables partitionnées, index, contraintes et audit append-only.
 - Moteur de migrations PostgreSQL applicatif : statut, dry-run, application idempotente, historique `openinfra_schema_migrations` et checksum SHA-256.
-- CLI exploitable : `openinfra version`, `openinfra spec validate`, `openinfra dcim locate`, `openinfra ipam allocate`, `openinfra security bootstrap-token`, `openinfra security whoami`, `openinfra security list-tokens`, `openinfra security revoke-token`, `openinfra security rotate-token`, `openinfra identity create-user`, `openinfra identity create-group`, `openinfra identity add-user-to-group`, `openinfra identity grant-user-role`, `openinfra identity grant-group-role`, `openinfra identity effective`, `openinfra access create-rule`, `openinfra access list-rules`, `openinfra access evaluate`, `openinfra access deactivate-rule`, `openinfra database render-migration`, `openinfra database status`, `openinfra database apply-migrations`.
-- API HTTP légère : `/health`, `/ready`, `/api/v1/version`, `/api/v1/database/schema`, `/api/v1/security/whoami`, `/api/v1/security/tokens`, `/api/v1/security/revoke-token`, `/api/v1/security/rotate-token`, `/api/v1/identity/users`, `/api/v1/identity/groups`, `/api/v1/identity/group-memberships`, `/api/v1/identity/user-roles`, `/api/v1/identity/group-roles`, `/api/v1/identity/effective`, `/api/v1/access/rules`, `/api/v1/access/evaluate`, `/api/v1/access/deactivate-rule`, `/api/v1/ipam/allocate`.
+- CLI exploitable : `openinfra version`, `openinfra spec validate`, `openinfra dcim locate`, `openinfra ipam allocate`, `openinfra security bootstrap-token`, `openinfra security whoami`, `openinfra security list-tokens`, `openinfra security revoke-token`, `openinfra security rotate-token`, `openinfra identity create-user`, `openinfra identity create-group`, `openinfra identity add-user-to-group`, `openinfra identity grant-user-role`, `openinfra identity grant-group-role`, `openinfra identity effective`, `openinfra access create-rule`, `openinfra access list-rules`, `openinfra access evaluate`, `openinfra access deactivate-rule`, `openinfra audit list`, `openinfra audit export`, `openinfra audit verify-integrity`, `openinfra database render-migration`, `openinfra database status`, `openinfra database apply-migrations`.
+- API HTTP légère : `/health`, `/ready`, `/api/v1/version`, `/api/v1/database/schema`, `/api/v1/security/whoami`, `/api/v1/security/tokens`, `/api/v1/security/revoke-token`, `/api/v1/security/rotate-token`, `/api/v1/identity/users`, `/api/v1/identity/groups`, `/api/v1/identity/group-memberships`, `/api/v1/identity/user-roles`, `/api/v1/identity/group-roles`, `/api/v1/identity/effective`, `/api/v1/access/rules`, `/api/v1/access/evaluate`, `/api/v1/access/deactivate-rule`, `/api/v1/audit/events`, `/api/v1/audit/export`, `/api/v1/audit/integrity`, `/api/v1/ipam/allocate`.
 - GitHub Actions complète : format, lint, types, tests, couverture, sécurité, build, smoke tests CLI/API et runtime Docker authentifié.
 
 ## Installation développeur
@@ -211,6 +211,38 @@ PYTHONPATH=src python -m openinfra.interfaces.cli ipam allocate \
 ```
 
 La migration PostgreSQL `0005_access_policy_abac.sql` crée la table partitionnée `access_policy_rules`, des index GIN sur sujets/rôles/sites/environnements et un index d’audit dédié aux actions `access.policy.%`.
+
+## Audit trail, export et intégrité chaînée
+
+La v0.9.0 rend l’audit exploitable par les équipes exploitation, sécurité et conformité. Chaque événement est stocké avec `previous_hash` et `record_hash`, calculés en SHA-256 sur une représentation canonique de l’événement. Le chaînage permet de détecter une altération locale du journal. Les sorties API/CLI exposent uniquement les métadonnées d’audit nécessaires et ne publient aucun secret ni hash de jeton API.
+
+Rôle dédié :
+
+- `audit:reader` : lecture, export et vérification d’intégrité de l’audit ;
+- `security:admin` : inclut aussi `audit.read` ;
+- `admin` : conserve toutes les permissions.
+
+Exemple local :
+
+```bash
+PYTHONPATH=src python -m openinfra.interfaces.cli audit list \
+  --data .openinfra.json \
+  --tenant default \
+  --admin-token "$ADMIN_TOKEN" \
+  --limit 100
+PYTHONPATH=src python -m openinfra.interfaces.cli audit export \
+  --data .openinfra.json \
+  --tenant default \
+  --admin-token "$ADMIN_TOKEN" \
+  --format jsonl \
+  --limit 500
+PYTHONPATH=src python -m openinfra.interfaces.cli audit verify-integrity \
+  --data .openinfra.json \
+  --tenant default \
+  --admin-token "$ADMIN_TOKEN"
+```
+
+La migration PostgreSQL `0006_audit_trail_integrity.sql` ajoute les colonnes d’intégrité à `audit_events`, les contraintes de format SHA-256 et les index nécessaires aux recherches par acteur, action, sévérité et chaîne d’intégrité.
 
 
 ## Environnement d’exécution Docker

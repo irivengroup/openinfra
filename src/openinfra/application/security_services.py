@@ -115,8 +115,13 @@ class BuiltinRolePolicy:
         "ipam:operator": frozenset((Permission.IPAM_ALLOCATE, Permission.SCHEMA_READ)),
         "dcim:operator": frozenset((Permission.DCIM_LOCATE, Permission.SCHEMA_READ)),
         "viewer": frozenset((Permission.SCHEMA_READ,)),
-        "security:admin": frozenset((Permission.SECURITY_ADMIN, Permission.SCHEMA_READ)),
+        "security:admin": frozenset((
+            Permission.SECURITY_ADMIN,
+            Permission.SCHEMA_READ,
+            Permission.AUDIT_READ,
+        )),
         "access:admin": frozenset((Permission.ACCESS_POLICY_ADMIN, Permission.SCHEMA_READ)),
+        "audit:reader": frozenset((Permission.AUDIT_READ, Permission.SCHEMA_READ)),
     }
 
     def permissions_for(self, roles: tuple[SecurityRole, ...]) -> frozenset[Permission]:

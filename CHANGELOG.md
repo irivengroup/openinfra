@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.0 - 2026-07-03
+
+- Ajout du domaine d’audit exploitable : filtres sûrs, export JSON/JSONL, page d’événements et rapport d’intégrité.
+- Ajout du chaînage d’intégrité `previous_hash` / `record_hash` calculé en SHA-256 sur les événements d’audit.
+- Ajout du service applicatif `AuditTrailService` : liste, export et vérification d’intégrité avec contrôle `audit.read`.
+- Ajout du rôle intégré `audit:reader` et extension de `security:admin` avec la permission `audit.read`.
+- Ajout de la migration PostgreSQL `0006_audit_trail_integrity.sql` avec colonnes, contraintes et index d’intégrité.
+- Ajout des commandes `openinfra audit list`, `openinfra audit export` et `openinfra audit verify-integrity`.
+- Ajout des endpoints `/api/v1/audit/events`, `/api/v1/audit/export` et `/api/v1/audit/integrity`.
+- Extension des smoke tests Docker et CI pour couvrir l’audit trail.
+- Mise à jour README, OpenAPI, runbooks, architecture, CI et tests de non-régression.
+
 ## 0.8.0 - 2026-07-02
 
 - Ajout du socle ABAC contextuel tenant/site/environnement comme contrôle complémentaire à RBAC.

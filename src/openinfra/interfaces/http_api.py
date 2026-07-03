@@ -17,6 +17,11 @@ from openinfra.application.access_policy_services import (
     EvaluateAccessPolicyCommand,
     ListAccessPolicyRulesCommand,
 )
+from openinfra.application.audit_services import (
+    ExportAuditEventsCommand,
+    ListAuditEventsCommand,
+    VerifyAuditIntegrityCommand,
+)
 from openinfra.application.container import ApplicationFactory, OpenInfraApplication
 from openinfra.application.identity_services import (
     AddUserToGroupCommand,
@@ -120,6 +125,43 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except (ValueError, OpenInfraError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
+        if route == "/api/v1/audit/events":
+            try:
+                query = parse_qs(parsed.query)
+                page = self.server.application.audit_service.list_events(
+                    ListAuditEventsCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        actor=query.get("actor", [None])[0],
+                        action=query.get("action", [None])[0],
+                        target_type=query.get("target_type", [None])[0],
+                        severity=query.get("severity", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, page.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/audit/integrity":
+            try:
+                query = parse_qs(parsed.query)
+                report = self.server.application.audit_service.verify_integrity(
+                    VerifyAuditIntegrityCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "500")),
+                    )
+                )
+                responder.send(HTTPStatus.OK, report.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
         if route == "/api/v1/identity/effective":
             try:
                 query = parse_qs(parsed.query)
@@ -142,6 +184,30 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         responder = JsonHttpResponder(self)
         route = urlparse(self.path).path
+        if route == "/api/v1/audit/export":
+            try:
+                payload = self._read_json_body()
+                bundle = self.server.application.audit_service.export_events(
+                    ExportAuditEventsCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        admin_token=self._bearer_token(),
+                        format=str(payload.get("format", "jsonl")),
+                        limit=int(payload.get("limit", 500)),
+                        cursor=str(payload["cursor"]) if payload.get("cursor") else None,
+                        actor=str(payload["actor"]) if payload.get("actor") else None,
+                        action=str(payload["action"]) if payload.get("action") else None,
+                        target_type=(
+                            str(payload["target_type"]) if payload.get("target_type") else None
+                        ),
+                        severity=str(payload["severity"]) if payload.get("severity") else None,
+                    )
+                )
+                responder.send(HTTPStatus.OK, bundle.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, KeyError, json.JSONDecodeError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
         if route == "/api/v1/security/whoami":
             try:
                 payload = self._read_json_body()

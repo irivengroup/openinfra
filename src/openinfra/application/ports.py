@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Generic, TypeVar
 
 from openinfra.domain.access_policy import AccessPolicyRule
+from openinfra.domain.audit import AuditEventFilter, AuditEventPage, AuditIntegrityReport
 from openinfra.domain.common import AuditEvent, Pagination, TenantId
 from openinfra.domain.dcim import Building, Equipment, Rack, Room, Site
 from openinfra.domain.identity import (
@@ -257,6 +258,14 @@ class AccessPolicyRepository(ABC):
 class AuditRepository(ABC):
     @abstractmethod
     def append(self, event: AuditEvent) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_records(self, event_filter: AuditEventFilter) -> AuditEventPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def verify_integrity(self, tenant_id: TenantId, limit: int = 500) -> AuditIntegrityReport:
         raise TypeError("adapter contract invoked directly")
 
 

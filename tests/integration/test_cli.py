@@ -12,7 +12,7 @@ class TestOpenInfraCli:
         captured = capsys.readouterr()
 
         assert code == 0
-        assert captured.out.strip() == "0.8.0"
+        assert captured.out.strip() == "0.9.0"
 
     def test_spec_validate_command(self, capsys: object) -> None:
         root = Path("docs/specifications/OpenInfra-CDC-SFG-STG-v4")
@@ -356,7 +356,9 @@ class TestOpenInfraCli:
         assert "idx_audit_events_identity_actions" in captured.out
 
 class TestOpenInfraAccessPolicyCli:
-    def test_access_policy_cli_lifecycle_and_authenticated_ipam(self, tmp_path: Path, capsys: object) -> None:
+    def test_access_policy_cli_lifecycle_and_authenticated_ipam(
+        self, tmp_path: Path, capsys: object
+    ) -> None:
         data = tmp_path / "state.json"
         admin_token = "m" * 40
         worker_token = "n" * 40
@@ -458,7 +460,7 @@ class TestOpenInfraAccessPolicyCli:
             "--vrf",
             "default",
             "--prefix",
-            "10.8.0.0/30",
+            "10.9.0.0/30",
             "--hostname",
             "srv-abac",
             "--idempotency-key",
@@ -481,7 +483,7 @@ class TestOpenInfraAccessPolicyCli:
             "--vrf",
             "default",
             "--prefix",
-            "10.8.0.0/30",
+            "10.9.0.0/30",
             "--hostname",
             "srv-denied",
             "--idempotency-key",
@@ -509,7 +511,7 @@ class TestOpenInfraAccessPolicyCli:
         assert evaluate_code == 0
         assert allowed["allowed"] is True
         assert ipam_code == 0
-        assert allocation["address"] == "10.8.0.1"
+        assert allocation["address"] == "10.9.0.1"
         assert denied_code == 2
         assert "access policy denies" in denied.err
         assert deactivate_code == 0
@@ -529,3 +531,106 @@ class TestOpenInfraAccessPolicyCli:
         assert code == 0
         assert "CREATE TABLE IF NOT EXISTS access_policy_rules" in captured.out
         assert "idx_audit_events_access_policy" in captured.out
+
+    def test_audit_cli_list_export_and_verify_integrity(
+        self, tmp_path: Path, capsys: object
+    ) -> None:
+        data = tmp_path / "state.json"
+        admin_token = "h" * 40
+        OpenInfraCLI().run([
+            "security",
+            "bootstrap-token",
+            "--data",
+            str(data),
+            "--tenant",
+            "default",
+            "--subject",
+            "audit-admin",
+            "--role",
+            "admin",
+            "--token",
+            admin_token,
+        ])
+        capsys.readouterr()
+        OpenInfraCLI().run([
+            "ipam",
+            "allocate",
+            "--data",
+            str(data),
+            "--tenant",
+            "default",
+            "--vrf",
+            "default",
+            "--prefix",
+            "10.99.0.0/30",
+            "--hostname",
+            "audit-srv",
+            "--idempotency-key",
+            "audit-req-1",
+        ])
+        capsys.readouterr()
+
+        list_code = OpenInfraCLI().run([
+            "audit",
+            "list",
+            "--data",
+            str(data),
+            "--tenant",
+            "default",
+            "--admin-token",
+            admin_token,
+            "--limit",
+            "10",
+        ])
+        listed = json.loads(capsys.readouterr().out)
+        export_code = OpenInfraCLI().run([
+            "audit",
+            "export",
+            "--data",
+            str(data),
+            "--tenant",
+            "default",
+            "--admin-token",
+            admin_token,
+            "--format",
+            "jsonl",
+            "--limit",
+            "10",
+        ])
+        exported = json.loads(capsys.readouterr().out)
+        verify_code = OpenInfraCLI().run([
+            "audit",
+            "verify-integrity",
+            "--data",
+            str(data),
+            "--tenant",
+            "default",
+            "--admin-token",
+            admin_token,
+        ])
+        verified = json.loads(capsys.readouterr().out)
+
+        assert list_code == 0
+        assert export_code == 0
+        assert verify_code == 0
+        assert listed["items"]
+        assert listed["items"][0]["record_hash"]
+        assert "token_hash" not in json.dumps(listed)
+        assert exported["content_type"] == "application/x-ndjson"
+        assert exported["count"] >= 1
+        assert verified["valid"] is True
+
+    def test_database_render_audit_integrity_migration_command(self, capsys: object) -> None:
+        code = OpenInfraCLI().run([
+            "database",
+            "render-migration",
+            "--name",
+            "0006_audit_trail_integrity",
+            "--root",
+            "migrations/postgresql",
+        ])
+        captured = capsys.readouterr()
+
+        assert code == 0
+        assert "previous_hash" in captured.out
+        assert "idx_audit_events_integrity_chain" in captured.out

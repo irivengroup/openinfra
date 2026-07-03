@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from openinfra.domain.access_policy import AccessPolicyEffect, AccessPolicyRule, AccessRequestContext
+from openinfra.domain.access_policy import (
+    AccessPolicyEffect,
+    AccessPolicyRule,
+    AccessRequestContext,
+)
 from openinfra.domain.common import TenantId, ValidationError
 from openinfra.domain.security import AuthenticatedPrincipal, Permission, SecurityRole
 

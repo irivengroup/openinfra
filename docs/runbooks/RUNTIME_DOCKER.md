@@ -113,3 +113,13 @@ Le smoke test Docker crée une règle ABAC `runtime-docker-par1-prod` autorisant
 - allocation IPAM CLI en backend PostgreSQL avec `--auth-token`, `--site-code` et `--environment`.
 
 L’objectif est de valider que l’environnement d’exécution contrôle réellement RBAC + ABAC sur la solution démarrée, et pas seulement les tests unitaires.
+
+## Validation runtime Audit Trail v0.9.0
+
+Le smoke test Docker vérifie désormais le journal d’audit dans l’environnement d’exécution réel :
+
+- `GET /api/v1/audit/events` retourne des événements avec `record_hash` ;
+- `GET /api/v1/audit/integrity` valide le chaînage SHA-256 ;
+- `POST /api/v1/audit/export` produit un export JSONL sans secret applicatif.
+
+Ces contrôles s’exécutent après les scénarios sécurité, IAM, ABAC, IPAM API et IPAM CLI afin de vérifier que les événements issus des flux réels sont consultables et intègres en backend PostgreSQL.

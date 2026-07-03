@@ -27,6 +27,13 @@ from openinfra.application.ports import (
     UnitOfWork,
 )
 from openinfra.domain.access_policy import AccessPolicyRule
+from openinfra.domain.audit import (
+    AuditEventFilter,
+    AuditEventPage,
+    AuditEventRecord,
+    AuditIntegrityHasher,
+    AuditIntegrityReport,
+)
 from openinfra.domain.common import (
     AuditEvent,
     Code,
@@ -1473,13 +1480,16 @@ class PostgreSQLAccessPolicyRepository(PostgreSQLRepositoryBase, AccessPolicyRep
 class PostgreSQLAuditRepository(PostgreSQLRepositoryBase, AuditRepository):
     def append(self, event: AuditEvent) -> None:
         self._ensure_tenant(event.tenant_id)
+        previous_hash = self._latest_hash(event.tenant_id)
+        record = AuditEventRecord.create(event, previous_hash)
         self._execute_without_result(
             """
             INSERT INTO audit_events (
-                id, tenant_id, actor, action, target_type, target_id, severity, metadata, created_at
+                id, tenant_id, actor, action, target_type, target_id, severity, metadata,
+                created_at, previous_hash, record_hash
             ) VALUES (
                 %(id)s, %(tenant_id)s, %(actor)s, %(action)s, %(target_type)s, %(target_id)s,
-                %(severity)s, %(metadata)s, %(created_at)s
+                %(severity)s, %(metadata)s, %(created_at)s, %(previous_hash)s, %(record_hash)s
             )
             """,
             {
@@ -1492,24 +1502,128 @@ class PostgreSQLAuditRepository(PostgreSQLRepositoryBase, AuditRepository):
                 "severity": event.severity.value,
                 "metadata": json.dumps(event.metadata, sort_keys=True),
                 "created_at": event.created_at,
+                "previous_hash": record.previous_hash,
+                "record_hash": record.record_hash,
             },
+        )
+
+    def list_records(self, event_filter: AuditEventFilter) -> AuditEventPage:
+        try:
+            offset = int(event_filter.pagination.cursor or "0")
+        except ValueError as exc:
+            raise ValidationError("pagination cursor must be a numeric offset") from exc
+        if offset < 0:
+            raise ValidationError("pagination cursor must be positive")
+        conditions = ["tenant_id = %(tenant_id)s"]
+        params: dict[str, object] = {
+            "tenant_id": event_filter.tenant_id.value,
+            "limit": event_filter.pagination.limit + 1,
+            "offset": offset,
+        }
+        if event_filter.actor is not None:
+            conditions.append("actor = %(actor)s")
+            params["actor"] = event_filter.actor
+        if event_filter.action is not None:
+            conditions.append("action = %(action)s")
+            params["action"] = event_filter.action
+        if event_filter.target_type is not None:
+            conditions.append("target_type = %(target_type)s")
+            params["target_type"] = event_filter.target_type
+        if event_filter.severity is not None:
+            conditions.append("severity = %(severity)s")
+            params["severity"] = event_filter.severity.value
+        if event_filter.created_from is not None:
+            conditions.append("created_at >= %(created_from)s")
+            params["created_from"] = event_filter.created_from
+        if event_filter.created_to is not None:
+            conditions.append("created_at <= %(created_to)s")
+            params["created_to"] = event_filter.created_to
+        rows = self._fetch_all(
+            """
+            SELECT id, tenant_id, actor, action, target_type, target_id, severity,
+                   metadata, created_at, previous_hash, record_hash
+            FROM audit_events
+            WHERE """ + " AND ".join(conditions) + """
+            ORDER BY created_at DESC, id DESC
+            LIMIT %(limit)s OFFSET %(offset)s
+            """,
+            params,
+        )
+        records = tuple(self._record_from_row(row) for row in rows[: event_filter.pagination.limit])
+        next_cursor = (
+            str(offset + event_filter.pagination.limit)
+            if len(rows) > event_filter.pagination.limit
+            else None
+        )
+        return AuditEventPage(records, next_cursor)
+
+    def verify_integrity(self, tenant_id: TenantId, limit: int = 500) -> AuditIntegrityReport:
+        if not 1 <= int(limit) <= 10_000:
+            raise ValidationError("audit integrity limit must be between 1 and 10000")
+        rows = self._fetch_all(
+            """
+            SELECT id, tenant_id, actor, action, target_type, target_id, severity,
+                   metadata, created_at, previous_hash, record_hash
+            FROM audit_events
+            WHERE tenant_id = %(tenant_id)s
+            ORDER BY created_at ASC, id ASC
+            LIMIT %(limit)s
+            """,
+            {"tenant_id": tenant_id.value, "limit": int(limit)},
+        )
+        previous_hash = AuditIntegrityHasher.GENESIS_HASH
+        checked = 0
+        for row in rows:
+            record = self._record_from_row(row)
+            if record.previous_hash != previous_hash or not record.verifies():
+                return AuditIntegrityReport(
+                    tenant_id=tenant_id,
+                    checked=checked + 1,
+                    valid=False,
+                    broken_record_id=record.event.id.value,
+                    head_hash=previous_hash,
+                )
+            previous_hash = record.record_hash
+            checked += 1
+        return AuditIntegrityReport(
+            tenant_id=tenant_id,
+            checked=checked,
+            valid=True,
+            broken_record_id=None,
+            head_hash=previous_hash,
         )
 
     def list_events(self, tenant_id: TenantId, limit: int = 100) -> tuple[AuditEvent, ...]:
         if not 1 <= limit <= 500:
             raise ValidationError("audit list limit must be between 1 and 500")
-        rows = self._fetch_all(
+        event_filter = AuditEventFilter.create(
+            tenant_id,
+            Pagination.from_values(limit),
+        )
+        return tuple(record.event for record in self.list_records(event_filter).items)
+
+    def _latest_hash(self, tenant_id: TenantId) -> str:
+        row = self._fetch_one(
             """
-            SELECT id, tenant_id, actor, action, target_type, target_id, severity,
-                   metadata, created_at
+            SELECT record_hash
             FROM audit_events
             WHERE tenant_id = %(tenant_id)s
             ORDER BY created_at DESC, id DESC
-            LIMIT %(limit)s
+            LIMIT 1
             """,
-            {"tenant_id": tenant_id.value, "limit": limit},
+            {"tenant_id": tenant_id.value},
         )
-        return tuple(self._event_from_row(row) for row in rows)
+        if row is None or row.get("record_hash") is None:
+            return AuditIntegrityHasher.GENESIS_HASH
+        return AuditIntegrityHasher.normalize_hash(str(row["record_hash"]), "record_hash")
+
+    def _record_from_row(self, row: Mapping[str, object]) -> AuditEventRecord:
+        event = self._event_from_row(row)
+        previous_hash = str(row.get("previous_hash") or AuditIntegrityHasher.GENESIS_HASH)
+        record_hash = row.get("record_hash")
+        if record_hash is None:
+            return AuditEventRecord.create(event, previous_hash)
+        return AuditEventRecord.restore(event, previous_hash, str(record_hash))
 
     def _event_from_row(self, row: Mapping[str, object]) -> AuditEvent:
         metadata = row["metadata"]
@@ -1524,7 +1638,11 @@ class PostgreSQLAuditRepository(PostgreSQLRepositoryBase, AuditRepository):
             target_type=str(row["target_type"]),
             target_id=str(row["target_id"]),
             severity=Severity(str(row["severity"])),
-            created_at=created_at,
+            created_at=(
+                created_at
+                if created_at.tzinfo is not None
+                else created_at.replace(tzinfo=UTC)
+            ),
             metadata=(
                 json.loads(str(metadata))
                 if isinstance(metadata, str)

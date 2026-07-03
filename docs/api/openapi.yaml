@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.8.0
+  version: 0.9.0
 components:
   securitySchemes:
     bearerToken:
@@ -464,6 +464,122 @@ paths:
           description: Validation error
         '401':
           description: Missing or invalid access policy administrator token
+  /api/v1/audit/events:
+    get:
+      summary: List audit events with pagination, filters and integrity hashes
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: actor
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: action
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: target_type
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: severity
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [info, warning, error, critical]
+      responses:
+        '200':
+          description: Paginated audit event records
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid audit reader token
+  /api/v1/audit/export:
+    post:
+      summary: Export audit events as JSON or JSONL
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id]
+              properties:
+                tenant_id:
+                  type: string
+                format:
+                  type: string
+                  enum: [json, jsonl]
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 500
+                cursor:
+                  type: string
+                actor:
+                  type: string
+                action:
+                  type: string
+                target_type:
+                  type: string
+                severity:
+                  type: string
+                  enum: [info, warning, error, critical]
+      responses:
+        '200':
+          description: Audit export bundle
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid audit reader token
+  /api/v1/audit/integrity:
+    get:
+      summary: Verify the tenant audit trail hash chain
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 10000
+      responses:
+        '200':
+          description: Audit integrity report
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid audit reader token
   /api/v1/ipam/allocate:
     post:
       summary: Allocate an IP address with idempotency

@@ -42,7 +42,7 @@ class EnvFileManager:
                 f"OPENINFRA_POSTGRES_PASSWORD={password}",
                 "OPENINFRA_API_BIND=127.0.0.1",
                 "OPENINFRA_API_PORT=8080",
-                "OPENINFRA_IMAGE_TAG=0.8.0",
+                "OPENINFRA_IMAGE_TAG=0.9.0",
                 f"OPENINFRA_BOOTSTRAP_TOKEN={bootstrap_token}",
                 "",
             )

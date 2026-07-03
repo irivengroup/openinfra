@@ -24,7 +24,7 @@ openinfra database apply-migrations --root migrations/postgresql --dry-run
 openinfra database apply-migrations --root migrations/postgresql
 ```
 
-Le moteur applique les migrations `0001_bootstrap.sql`, `0002_security_rbac.sql` et `0003_security_token_lifecycle.sql`. Il maintient `openinfra_schema_migrations` avec :
+Le moteur applique les migrations versionnées `0001_bootstrap.sql` à `0006_audit_trail_integrity.sql`. Il maintient `openinfra_schema_migrations` avec :
 
 - `version` : nom du fichier SQL ;
 - `checksum` : SHA-256 du contenu source ;
@@ -77,3 +77,17 @@ openinfra database status --root migrations/postgresql
 ```
 
 Les index GIN accélèrent la recherche par sujets, rôles, sites et environnements. L’index `idx_audit_events_access_policy` facilite l’audit des actions `access.policy.%`.
+
+
+## Audit Trail v0.9.0
+
+La migration `0006_audit_trail_integrity.sql` ajoute `previous_hash` et `record_hash` à `audit_events`. Chaque événement applicatif est chaîné au précédent par tenant avec un hash SHA-256 canonique. Les index `idx_audit_events_actor_action`, `idx_audit_events_severity_time` et `idx_audit_events_integrity_chain` accélèrent respectivement les recherches d’exploitation, les filtres de conformité et les vérifications d’intégrité.
+
+Commandes de validation :
+
+```bash
+openinfra database render-migration --name 0006_audit_trail_integrity --root migrations/postgresql
+openinfra audit list --backend postgresql --tenant default --admin-token "$ADMIN_TOKEN"
+openinfra audit export --backend postgresql --tenant default --admin-token "$ADMIN_TOKEN" --format jsonl
+openinfra audit verify-integrity --backend postgresql --tenant default --admin-token "$ADMIN_TOKEN"
+```

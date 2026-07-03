@@ -244,6 +244,11 @@ class FakeCursor(CursorProtocol):
                 updated = dict(rule)
                 updated["active"] = False
                 self._connection.access_policy_rules[str(effective["name"])] = updated
+        elif "SELECT record_hash" in query and "FROM audit_events" in query:
+            if self._connection.audit_events:
+                self._row = {"record_hash": self._connection.audit_events[-1].get("record_hash")}
+            else:
+                self._row = None
         elif "SELECT id, tenant_id, actor" in query:
             self._rows = [
                 {
@@ -255,12 +260,16 @@ class FakeCursor(CursorProtocol):
                     "target_id": event["target_id"],
                     "severity": event["severity"],
                     "metadata": event["metadata"],
-                    "created_at": datetime.now(UTC),
+                    "created_at": event.get("created_at", datetime.now(UTC)),
+                    "previous_hash": event.get("previous_hash"),
+                    "record_hash": event.get("record_hash"),
                 }
                 for event in self._connection.audit_events
             ]
         elif "INSERT INTO audit_events" in query:
-            self._connection.audit_events.append(effective)
+            payload = dict(effective)
+            payload["created_at"] = effective.get("created_at", datetime.now(UTC))
+            self._connection.audit_events.append(payload)
         return self
 
     def fetchone(self) -> Mapping[str, object] | None:
@@ -924,3 +933,48 @@ class TestPostgreSQLAccessPolicyRuntime:
             "INSERT INTO access_policy_rules" in statement[0]
             for statement in connector.connection.statements
         )
+
+    def test_postgresql_audit_trail_lists_and_verifies_integrity(self) -> None:
+        from openinfra.application.audit_services import (
+            ListAuditEventsCommand,
+            VerifyAuditIntegrityCommand,
+        )
+
+        connector = FakeConnector()
+        registry = PostgreSQLSessionRegistry(
+            PostgreSQLConnectionFactory(
+                "postgresql://openinfra@db/openinfra",
+                connector=connector.connect,
+            )
+        )
+        app = ApplicationFactory()._build_application(
+            store=registry,
+            dcim_repository=PostgreSQLDcimRepository(registry),
+            ipam_repository=PostgreSQLIpamRepository(registry),
+            security_repository=PostgreSQLSecurityRepository(registry),
+            identity_repository=PostgreSQLIdentityRepository(registry),
+            audit_repository=PostgreSQLAuditRepository(registry),
+            access_policy_repository=PostgreSQLAccessPolicyRepository(registry),
+            transaction_manager=PostgreSQLTransactionManager(registry),
+            readiness_probe=PostgreSQLReadinessProbe(registry),
+            schema_status_provider=PostgreSQLMigrationExecutor(
+                registry,
+                PostgreSQLMigrationCatalog(Path("migrations/postgresql")),
+            ),
+        )
+        token = "j" * 40
+        app.security_service.bootstrap_token(
+            BootstrapTokenCommand("default", "pytest", "pg-audit-admin", ("admin",), token)
+        )
+
+        page = app.audit_service.list_events(
+            ListAuditEventsCommand("default", token, limit=10, action="security.token.bootstrap")
+        )
+        report = app.audit_service.verify_integrity(
+            VerifyAuditIntegrityCommand("default", token, limit=100)
+        )
+
+        assert len(page.items) == 1
+        assert page.items[0].record_hash
+        assert report.valid is True
+        assert connector.connection.commits >= 3

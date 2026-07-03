@@ -14,6 +14,11 @@ from openinfra.application.access_policy_services import (
     EvaluateAccessPolicyCommand,
     ListAccessPolicyRulesCommand,
 )
+from openinfra.application.audit_services import (
+    ExportAuditEventsCommand,
+    ListAuditEventsCommand,
+    VerifyAuditIntegrityCommand,
+)
 from openinfra.application.container import ApplicationFactory, OpenInfraApplication
 from openinfra.application.dcim_services import LocateEquipmentCommand
 from openinfra.application.identity_services import (
@@ -67,6 +72,7 @@ class OpenInfraCLI:
         self._add_security_commands(subparsers)
         self._add_identity_commands(subparsers)
         self._add_access_policy_commands(subparsers)
+        self._add_audit_commands(subparsers)
         self._add_ipam_commands(subparsers)
         self._add_dcim_commands(subparsers)
         return parser
@@ -285,6 +291,39 @@ class OpenInfraCLI:
         evaluate.add_argument("--site-code")
         evaluate.add_argument("--environment")
         evaluate.set_defaults(handler=self._handle_access_evaluate)
+
+    def _add_audit_commands(self, subparsers: Any) -> None:
+        audit = subparsers.add_parser("audit", help="audit trail operations")
+        audit_subparsers = audit.add_subparsers(dest="audit_command", required=True)
+        list_events = audit_subparsers.add_parser("list", help="list audit events safely")
+        self._add_backend_arguments(list_events)
+        list_events.add_argument("--tenant", required=True)
+        list_events.add_argument("--admin-token", required=True)
+        list_events.add_argument("--limit", type=int, default=100)
+        list_events.add_argument("--cursor")
+        list_events.add_argument("--actor")
+        list_events.add_argument("--action")
+        list_events.add_argument("--target-type")
+        list_events.add_argument("--severity")
+        list_events.set_defaults(handler=self._handle_audit_list)
+        export = audit_subparsers.add_parser("export", help="export audit events as JSON or JSONL")
+        self._add_backend_arguments(export)
+        export.add_argument("--tenant", required=True)
+        export.add_argument("--admin-token", required=True)
+        export.add_argument("--format", choices=("json", "jsonl"), default="jsonl")
+        export.add_argument("--limit", type=int, default=500)
+        export.add_argument("--cursor")
+        export.add_argument("--actor")
+        export.add_argument("--action")
+        export.add_argument("--target-type")
+        export.add_argument("--severity")
+        export.set_defaults(handler=self._handle_audit_export)
+        verify = audit_subparsers.add_parser("verify-integrity", help="verify audit hash chain")
+        self._add_backend_arguments(verify)
+        verify.add_argument("--tenant", required=True)
+        verify.add_argument("--admin-token", required=True)
+        verify.add_argument("--limit", type=int, default=500)
+        verify.set_defaults(handler=self._handle_audit_verify_integrity)
 
     def _add_backend_arguments(self, parser: Any) -> None:
         parser.add_argument("--backend", choices=("json", "postgresql"), default="json")
@@ -573,6 +612,53 @@ class OpenInfraCLI:
             )
         )
         print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_audit_list(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        page = application.audit_service.list_events(
+            ListAuditEventsCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                limit=args.limit,
+                cursor=args.cursor,
+                actor=args.actor,
+                action=args.action,
+                target_type=args.target_type,
+                severity=args.severity,
+            )
+        )
+        print(json.dumps(page.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_audit_export(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        bundle = application.audit_service.export_events(
+            ExportAuditEventsCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                format=args.format,
+                limit=args.limit,
+                cursor=args.cursor,
+                actor=args.actor,
+                action=args.action,
+                target_type=args.target_type,
+                severity=args.severity,
+            )
+        )
+        print(json.dumps(bundle.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_audit_verify_integrity(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        report = application.audit_service.verify_integrity(
+            VerifyAuditIntegrityCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                limit=args.limit,
+            )
+        )
+        print(json.dumps(report.as_dict(), sort_keys=True))
         return 0
 
     def _handle_ipam_allocate(self, args: argparse.Namespace) -> int:

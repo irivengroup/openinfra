@@ -95,3 +95,8 @@ Le modèle respecte la séparation hexagonale :
 Le comportement est compatible avec les versions précédentes : en absence de règle applicable à un principal et une permission, l’accès reste gouverné uniquement par RBAC. Si une règle s’applique à un sujet ou à l’un de ses rôles pour la permission demandée, le contexte doit correspondre à au moins une règle `allow`, et aucune règle `deny` ne doit correspondre. Les règles `deny` priment toujours.
 
 La persistance PostgreSQL est ajoutée par `0005_access_policy_abac.sql` avec partitionnement par `tenant_id`, index GIN sur sujets/rôles/sites/environnements et index audit `access.policy.%`.
+
+
+## v0.9.0 — Audit trail exploitable et intégrité chaînée
+
+La v0.9.0 ajoute une couche applicative d’audit consultable indépendamment des modules métier. Les services existants continuent d’écrire des `AuditEvent`; les adaptateurs JSON et PostgreSQL les enrichissent avec `previous_hash` et `record_hash`. Le service `AuditTrailService` expose la liste paginée, l’export JSON/JSONL et la vérification de chaîne avec permission `audit.read`. L’architecture reste hexagonale : le domaine contient les objets d’intégrité, l’application orchestre les cas d’usage, l’infrastructure persiste et calcule le chaînage au plus près de l’écriture transactionnelle, et les interfaces CLI/API exposent des contrats stables.

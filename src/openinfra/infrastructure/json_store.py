@@ -27,6 +27,13 @@ from openinfra.application.ports import (
     UnitOfWork,
 )
 from openinfra.domain.access_policy import AccessPolicyRule
+from openinfra.domain.audit import (
+    AuditEventFilter,
+    AuditEventPage,
+    AuditEventRecord,
+    AuditIntegrityHasher,
+    AuditIntegrityReport,
+)
 from openinfra.domain.common import (
     AuditEvent,
     Code,
@@ -905,15 +912,102 @@ class JsonAccessPolicyRepository(AccessPolicyRepository):
 class JsonAuditRepository(AuditRepository):
     def __init__(self, store: JsonDocumentStore) -> None:
         self._store = store
+        self._hasher = AuditIntegrityHasher()
 
     def append(self, event: AuditEvent) -> None:
-        self._store.data["audit_events"].append(self._event_to_dict(event))
+        previous_hash = self._latest_hash(event.tenant_id)
+        record = AuditEventRecord.create(event, previous_hash)
+        self._store.data["audit_events"].append(self._record_to_dict(record))
         self._store.mark_dirty()
 
-    def list_events(self) -> tuple[AuditEvent, ...]:
-        return tuple(self._event_from_dict(value) for value in self._store.data["audit_events"])
+    def list_records(self, event_filter: AuditEventFilter) -> AuditEventPage:
+        try:
+            start = int(event_filter.pagination.cursor or "0")
+        except ValueError as exc:
+            raise ValidationError("pagination cursor must be a numeric offset") from exc
+        if start < 0:
+            raise ValidationError("pagination cursor must be positive")
+        records = [
+            self._record_from_dict(value)
+            for value in self._store.data["audit_events"]
+            if value.get("tenant_id") == event_filter.tenant_id.value
+        ]
+        records = [record for record in records if self._matches(record, event_filter)]
+        records.sort(
+            key=lambda item: (item.event.created_at.isoformat(), item.event.id.value),
+            reverse=True,
+        )
+        selected = tuple(records[start : start + event_filter.pagination.limit])
+        next_index = start + len(selected)
+        next_cursor = str(next_index) if next_index < len(records) else None
+        return AuditEventPage(selected, next_cursor)
 
-    def _event_to_dict(self, event: AuditEvent) -> dict[str, Any]:
+    def verify_integrity(self, tenant_id: TenantId, limit: int = 500) -> AuditIntegrityReport:
+        if not 1 <= int(limit) <= 10_000:
+            raise ValidationError("audit integrity limit must be between 1 and 10000")
+        records = [
+            self._record_from_dict(value)
+            for value in self._store.data["audit_events"]
+            if value.get("tenant_id") == tenant_id.value
+        ]
+        records.sort(key=lambda item: (item.event.created_at.isoformat(), item.event.id.value))
+        selected = records[-int(limit) :]
+        previous_hash = AuditIntegrityHasher.GENESIS_HASH
+        checked = 0
+        for record in selected:
+            if record.previous_hash != previous_hash or not record.verifies():
+                return AuditIntegrityReport(
+                    tenant_id=tenant_id,
+                    checked=checked + 1,
+                    valid=False,
+                    broken_record_id=record.event.id.value,
+                    head_hash=previous_hash,
+                )
+            previous_hash = record.record_hash
+            checked += 1
+        return AuditIntegrityReport(
+            tenant_id=tenant_id,
+            checked=checked,
+            valid=True,
+            broken_record_id=None,
+            head_hash=previous_hash,
+        )
+
+    def list_events(self) -> tuple[AuditEvent, ...]:
+        return tuple(
+            self._record_from_dict(value).event
+            for value in self._store.data["audit_events"]
+        )
+
+    def _latest_hash(self, tenant_id: TenantId) -> str:
+        records = [
+            self._record_from_dict(value)
+            for value in self._store.data["audit_events"]
+            if value.get("tenant_id") == tenant_id.value
+        ]
+        if not records:
+            return AuditIntegrityHasher.GENESIS_HASH
+        records.sort(key=lambda item: (item.event.created_at.isoformat(), item.event.id.value))
+        return records[-1].record_hash
+
+    def _matches(self, record: AuditEventRecord, event_filter: AuditEventFilter) -> bool:
+        event = record.event
+        if event_filter.actor is not None and event.actor != event_filter.actor:
+            return False
+        if event_filter.action is not None and event.action != event_filter.action:
+            return False
+        if event_filter.target_type is not None and event.target_type != event_filter.target_type:
+            return False
+        if event_filter.severity is not None and event.severity != event_filter.severity:
+            return False
+        if event_filter.created_from is not None and event.created_at < event_filter.created_from:
+            return False
+        if event_filter.created_to is not None and event.created_at > event_filter.created_to:
+            return False
+        return True
+
+    def _record_to_dict(self, record: AuditEventRecord) -> dict[str, Any]:
+        event = record.event
         return {
             "id": event.id.value,
             "tenant_id": event.tenant_id.value,
@@ -924,9 +1018,22 @@ class JsonAuditRepository(AuditRepository):
             "severity": event.severity.value,
             "created_at": event.created_at.isoformat(),
             "metadata": event.metadata,
+            "previous_hash": record.previous_hash,
+            "record_hash": record.record_hash,
         }
 
+    def _record_from_dict(self, value: dict[str, Any]) -> AuditEventRecord:
+        event = self._event_from_dict(value)
+        previous_hash = value.get("previous_hash", AuditIntegrityHasher.GENESIS_HASH)
+        record_hash = value.get("record_hash")
+        if record_hash is None:
+            return AuditEventRecord.create(event, str(previous_hash))
+        return AuditEventRecord.restore(event, str(previous_hash), str(record_hash))
+
     def _event_from_dict(self, value: dict[str, Any]) -> AuditEvent:
+        created_at = datetime.fromisoformat(value["created_at"])
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=UTC)
         return AuditEvent(
             id=EntityId.from_value(value["id"]),
             tenant_id=TenantId.from_value(value["tenant_id"]),
@@ -935,7 +1042,7 @@ class JsonAuditRepository(AuditRepository):
             target_type=value["target_type"],
             target_id=value["target_id"],
             severity=Severity(value["severity"]),
-            created_at=datetime.fromisoformat(value["created_at"]),
+            created_at=created_at,
             metadata=value["metadata"],
         )
 

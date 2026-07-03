@@ -70,11 +70,11 @@ La commande de démarrage utilise directement le binaire Python installé dans `
 Avant ouverture du service aux utilisateurs :
 
 ```bash
-/opt/openinfra/venv/bin/openinfra database render-migration --name 0013_dcim_cabling_foundation --root /opt/openinfra/migrations/postgresql >/tmp/openinfra-0013.sql
+/opt/openinfra/venv/bin/openinfra database render-migration --name 0014_dcim_energy_cooling_foundation --root /opt/openinfra/migrations/postgresql >/tmp/openinfra-0014.sql
 /opt/openinfra/venv/bin/openinfra database apply-migrations --postgres-dsn "$OPENINFRA_DATABASE_DSN" --root /opt/openinfra/migrations/postgresql
 ```
 
-La migration `0013_dcim_cabling_foundation` ajoute les tables partitionnées pour panneaux de brassage, ports DCIM et câbles, ainsi que les index de recherche et d’audit.
+La migration `0014_dcim_energy_cooling_foundation` ajoute les tables partitionnées pour PDU/UPS, circuits électriques, zones de refroidissement et réservations de puissance, ainsi que les index de recherche et d’audit.
 
 ## Contrôles de santé
 
@@ -102,3 +102,8 @@ Le smoke natif valide les actifs de déploiement et, lorsque `--base-url` est fo
 4. Les secrets sont gérés hors dépôt et hors image applicative.
 5. Le service fonctionne sous utilisateur non privilégié.
 6. Les contrôles `/health` et `/ready` sont intégrés au superviseur et au load balancer.
+
+
+## CI GitHub Actions
+
+Le workflow se déclenche sur toutes les branches en `push`, toutes les pull requests et via `workflow_dispatch`. Le runtime natif reste contrôlé dans `scripts/quality_gate.py`; Docker n’est pas une condition d’exécution production.

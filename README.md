@@ -2,7 +2,7 @@
 
 OpenInfra est un socle Python orienté objet pour construire une solution open source de Source of Truth, DCIM, ITAM, Discovery, Dependency Mapping et IPAM Enterprise++ sans fonction ITSM intégrée.
 
-Cette livraison correspond au socle exécutable de démarrage aligné avec la roadmap P01/P02 puis REL-01/P03 : architecture hexagonale, modèle domaine, CLI, API HTTP standard library, migrations PostgreSQL applicatives, adaptateur PostgreSQL runtime, sécurité API par jetons hachés avec expiration, révocation et rotation, IAM utilisateurs/groupes avec rôles effectifs, ABAC contextuel site/environnement, audit trail consultable/exportable avec intégrité chaînée, Source of Truth P03 objets/relations/historique, gouvernance minimale des sources autoritatives, DCIM P04 modèle physique pays/région/ville/site/bâtiment/étage/salle/zone/grille, racks, QR terrain, plans 2D et rack elevation, environnement d’exécution Docker, tests, documentation et CI.
+Cette livraison correspond au socle exécutable de démarrage aligné avec la roadmap P01/P02 puis REL-01/P03 : architecture hexagonale, modèle domaine, CLI, API HTTP standard library, migrations PostgreSQL applicatives, adaptateur PostgreSQL runtime, sécurité API par jetons hachés avec expiration, révocation et rotation, IAM utilisateurs/groupes avec rôles effectifs, ABAC contextuel site/environnement, audit trail consultable/exportable avec intégrité chaînée, Source of Truth P03 objets/relations/historique, gouvernance minimale des sources autoritatives, DCIM P04 modèle physique pays/région/ville/site/bâtiment/étage/salle/zone/grille, racks, QR terrain, plans 2D et rack elevation, runtime serveur natif, lab Docker facultatif, tests, documentation et CI.
 
 ## Garanties de cette itération
 
@@ -16,7 +16,7 @@ Cette livraison correspond au socle exécutable de démarrage aligné avec la ro
 - Moteur de migrations PostgreSQL applicatif : statut, dry-run, application idempotente, historique `openinfra_schema_migrations` et checksum SHA-256.
 - CLI exploitable : `openinfra version`, `openinfra spec validate`, `openinfra dcim define-room`, `openinfra dcim locate`, `openinfra dcim define-rack`, `openinfra dcim rack-capacity`, `openinfra dcim locator-sheet`, `openinfra dcim verify-scan`, `openinfra dcim room-plan`, `openinfra dcim rack-elevation`, `openinfra ipam allocate`, `openinfra security bootstrap-token`, `openinfra security whoami`, `openinfra security list-tokens`, `openinfra security revoke-token`, `openinfra security rotate-token`, `openinfra identity create-user`, `openinfra identity create-group`, `openinfra identity add-user-to-group`, `openinfra identity grant-user-role`, `openinfra identity grant-group-role`, `openinfra identity effective`, `openinfra access create-rule`, `openinfra access list-rules`, `openinfra access evaluate`, `openinfra access deactivate-rule`, `openinfra audit list`, `openinfra audit export`, `openinfra audit verify-integrity`, `openinfra sot upsert-object`, `openinfra sot get-object`, `openinfra sot list-objects`, `openinfra sot get-object-version`, `openinfra sot create-relation`, `openinfra sot list-relations`, `openinfra sot create-governance-rule`, `openinfra sot list-governance-rules`, `openinfra sot evaluate-governance`, `openinfra sot deactivate-governance-rule`, `openinfra database render-migration`, `openinfra database status`, `openinfra database apply-migrations`.
 - API HTTP légère : `/health`, `/ready`, `/api/v1/version`, `/api/v1/database/schema`, `/api/v1/security/whoami`, `/api/v1/security/tokens`, `/api/v1/security/revoke-token`, `/api/v1/security/rotate-token`, `/api/v1/identity/users`, `/api/v1/identity/groups`, `/api/v1/identity/group-memberships`, `/api/v1/identity/user-roles`, `/api/v1/identity/group-roles`, `/api/v1/identity/effective`, `/api/v1/access/rules`, `/api/v1/access/evaluate`, `/api/v1/access/deactivate-rule`, `/api/v1/audit/events`, `/api/v1/audit/export`, `/api/v1/audit/integrity`, `/api/v1/sot/objects`, `/api/v1/sot/object-versions`, `/api/v1/sot/relations`, `/api/v1/sot/governance-rules`, `/api/v1/sot/governance/evaluate`, `/api/v1/sot/governance/deactivate-rule`, `/api/v1/ipam/allocate`, `/api/v1/dcim/rooms`, `/api/v1/dcim/racks`, `/api/v1/dcim/rack-capacity`, `/api/v1/dcim/locator-sheet`, `/api/v1/dcim/verify-scan`, `/api/v1/dcim/room-plan`, `/api/v1/dcim/rack-elevation`.
-- GitHub Actions complète : format, lint, types, tests, couverture, sécurité, build, smoke tests CLI/API et runtime Docker authentifié.
+- GitHub Actions complète : format, lint, types, tests, couverture, sécurité, build, smoke tests CLI/API et runtime serveur natif et lab Docker authentifié facultatif.
 
 ## Installation développeur
 
@@ -153,7 +153,7 @@ PYTHONPATH=src python -m openinfra.interfaces.cli security list-tokens \
   --admin-token "$TOKEN"
 ```
 
-Les commandes `revoke-token` et `rotate-token` permettent de retirer un jeton compromis ou de remplacer un jeton administrateur sans exposer de hash ni secret en sortie. En backend PostgreSQL, les commandes acceptent `--backend postgresql` et `--postgres-dsn`, ou utilisent `OPENINFRA_DATABASE_DSN`. Le runtime Docker applique les migrations, crée un jeton d’amorçage depuis le `.env` local généré et lance l’API avec authentification obligatoire.
+Les commandes `revoke-token` et `rotate-token` permettent de retirer un jeton compromis ou de remplacer un jeton administrateur sans exposer de hash ni secret en sortie. En backend PostgreSQL, les commandes acceptent `--backend postgresql` et `--postgres-dsn`, ou utilisent `OPENINFRA_DATABASE_DSN`. Le runtime natif de production s’appuie sur `systemd`, un virtualenv Python et PostgreSQL. Le lab Docker facultatif applique les migrations, crée un jeton d’amorçage depuis le `.env` local généré et lance l’API avec authentification obligatoire pour les tests.
 
 
 ## IAM utilisateurs, groupes et rôles effectifs
@@ -500,3 +500,32 @@ API ajoutées :
 La migration PostgreSQL `0013_dcim_cabling_foundation.sql` ajoute les tables partitionnées `dcim_patch_panels`, `dcim_ports` et `dcim_cables`, ainsi que les index actifs par endpoint et les index d’audit `dcim.patch-panel.defined`, `dcim.port.defined`, `dcim.cable.connected` et `dcim.cable.traced`.
 
 Production : le runtime officiel est désormais documenté comme déploiement serveur natif via `systemd`, virtualenv Python et PostgreSQL. Docker reste un lab optionnel de test/smoke et n’est pas une dépendance de production.
+
+
+## v0.17.0 — P04 EPIC-0406 Énergie et refroidissement DCIM
+
+La v0.17.0 poursuit strictement le jalon roadmap P04 avec la fondation énergie/refroidissement. Elle permet de déclarer des PDU/UPS, circuits A/B, zones de refroidissement, réservations de puissance par équipement et rapports de capacité rack. Les contrôles applicatifs empêchent la surallocation des sources électriques, circuits, capacités déclarées du rack et zones froides/chaudes.
+
+Exemples CLI :
+
+```bash
+openinfra dcim define-power-device --data .openinfra.json --tenant default \
+  --code PDU-A --kind pdu --site PAR1 --building BAT-A --room MMR1 \
+  --rack R01 --side A --capacity-watts 8000 --derating-percent 80
+
+openinfra dcim define-power-circuit --data .openinfra.json --tenant default \
+  --circuit-id CIR-A-01 --source-device PDU-A --site PAR1 --building BAT-A \
+  --room MMR1 --rack R01 --side A --capacity-watts 4000 --breaker-rating-amps 16
+
+openinfra dcim define-cooling-zone --data .openinfra.json --tenant default \
+  --site PAR1 --building BAT-A --room MMR1 --zone Z1 --role cold_aisle \
+  --cooling-capacity-watts 12000 --supply-temperature-c 18 --return-temperature-c 30
+
+openinfra dcim reserve-power --data .openinfra.json --tenant default \
+  --asset-tag SRV-001 --circuit-id CIR-A-01 --expected-watts 1200
+
+openinfra dcim energy-cooling-capacity --data .openinfra.json --tenant default \
+  --site PAR1 --building BAT-A --room MMR1 --rack R01
+```
+
+Correction CI : `.github/workflows/ci.yml` déclenche désormais les validations sur toutes les branches en `push`, toutes les pull requests et en lancement manuel. L’ancien verrouillage sur `main` pouvait empêcher l’exécution après un push sur `master`, `develop` ou une branche de fonctionnalité.

@@ -1,3 +1,15 @@
+## 0.17.0 - 2026-07-03
+
+- Roadmap : P04 / EPIC-0406 — Énergie et refroidissement fondation.
+- Ajout du domaine `PowerDevice`, `PowerCircuit`, `CoolingZone`, `RackPowerReservation` et `RackEnergyCoolingReport`.
+- Ajout du service applicatif `DcimEnvironmentService` avec contrôle des capacités source, circuit, rack et zone de refroidissement.
+- Ajout des commandes `openinfra dcim define-power-device`, `define-power-circuit`, `define-cooling-zone`, `reserve-power` et `energy-cooling-capacity`.
+- Ajout des endpoints `POST /api/v1/dcim/power-devices`, `POST /api/v1/dcim/power-circuits`, `POST /api/v1/dcim/cooling-zones`, `POST /api/v1/dcim/power-reservations` et `GET /api/v1/dcim/energy-cooling-capacity`.
+- Ajout de la migration PostgreSQL `0014_dcim_energy_cooling_foundation.sql` avec tables partitionnées et index par source, rack, circuit et zone.
+- Correction du déclenchement GitHub Actions : le workflow n’est plus limité à `main`, il se lance sur tous les `push`, toutes les pull requests et peut être lancé manuellement via `workflow_dispatch`.
+- Confirmation production : OpenInfra reste indépendant de Docker en production ; Docker demeure un lab facultatif de test/smoke.
+- CI, OpenAPI, runbooks, architecture, tests et quality gate mis à jour avec couverture globale `>= 98 %`.
+
 ## 0.16.0 - 2026-07-03
 
 - Roadmap : P04 / EPIC-0405 — Câblage DCIM fondation.

@@ -1250,6 +1250,415 @@ class DcimCable:
         }
 
 
+class PowerFeedSide(StrEnum):
+    A = "A"
+    B = "B"
+
+    @classmethod
+    def from_value(cls, value: str) -> PowerFeedSide:
+        normalized = value.strip().upper()
+        for side in cls:
+            if normalized == side.value:
+                return side
+        raise ValidationError("power feed side must be A or B")
+
+
+class PowerDeviceKind(StrEnum):
+    PDU = "pdu"
+    UPS = "ups"
+
+    @classmethod
+    def from_value(cls, value: str) -> PowerDeviceKind:
+        normalized = value.strip().lower()
+        for kind in cls:
+            if normalized == kind.value:
+                return kind
+        raise ValidationError("power device kind must be pdu or ups")
+
+
+class CoolingRole(StrEnum):
+    COLD_AISLE = "cold_aisle"
+    HOT_AISLE = "hot_aisle"
+    NEUTRAL = "neutral"
+
+    @classmethod
+    def from_value(cls, value: str) -> CoolingRole:
+        normalized = value.strip().lower().replace("-", "_")
+        for role in cls:
+            if normalized == role.value:
+                return role
+        raise ValidationError("cooling role must be cold_aisle, hot_aisle or neutral")
+
+
+@dataclass(frozen=True, slots=True)
+class PowerDevice:
+    id: EntityId
+    tenant_id: TenantId
+    code: Code
+    kind: PowerDeviceKind
+    site_code: Code
+    building_code: Code
+    room_code: Code
+    rack_code: Code | None
+    side: PowerFeedSide | None
+    capacity_watts: int
+    derating_percent: int
+    input_source: str
+    output_voltage: int
+    label: str
+
+    @classmethod
+    def create(
+        cls,
+        tenant_id: TenantId,
+        code: str,
+        kind: str,
+        site: str,
+        building: str,
+        room: str,
+        rack: str | None,
+        side: str | None,
+        capacity_watts: int,
+        derating_percent: int = 80,
+        input_source: str = "utility",
+        output_voltage: int = 230,
+        label: str = "",
+    ) -> Self:
+        normalized_kind = PowerDeviceKind.from_value(kind)
+        normalized_side = PowerFeedSide.from_value(side) if side is not None else None
+        normalized_capacity = int(capacity_watts)
+        normalized_derating = int(derating_percent)
+        normalized_voltage = int(output_voltage)
+        normalized_input = " ".join(input_source.strip().split())
+        normalized_label = " ".join(label.strip().split())
+        if not 1 <= normalized_capacity <= 10_000_000:
+            raise ValidationError("power device capacity must be between 1 and 10000000 watts")
+        if not 1 <= normalized_derating <= 100:
+            raise ValidationError("power device derating percent must be between 1 and 100")
+        if not 48 <= normalized_voltage <= 1000:
+            raise ValidationError("power device output voltage must be between 48 and 1000 volts")
+        if not 1 <= len(normalized_input) <= 120:
+            raise ValidationError("power device input source must contain 1 to 120 characters")
+        if len(normalized_label) > 160:
+            raise ValidationError("power device label cannot exceed 160 characters")
+        return cls(
+            id=EntityId.new(),
+            tenant_id=tenant_id,
+            code=Code.from_value(code, "power device code"),
+            kind=normalized_kind,
+            site_code=Code.from_value(site, "site code"),
+            building_code=Code.from_value(building, "building code"),
+            room_code=Code.from_value(room, "room code"),
+            rack_code=Code.from_value(rack, "rack code") if rack else None,
+            side=normalized_side,
+            capacity_watts=normalized_capacity,
+            derating_percent=normalized_derating,
+            input_source=normalized_input,
+            output_voltage=normalized_voltage,
+            label=normalized_label,
+        )
+
+    @property
+    def derated_capacity_watts(self) -> int:
+        return self.capacity_watts * self.derating_percent // 100
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "tenant_id": self.tenant_id.value,
+            "power_device": self.code.value,
+            "kind": self.kind.value,
+            "site": self.site_code.value,
+            "building": self.building_code.value,
+            "room": self.room_code.value,
+            "rack": self.rack_code.value if self.rack_code else None,
+            "side": self.side.value if self.side else None,
+            "capacity_watts": self.capacity_watts,
+            "derating_percent": self.derating_percent,
+            "derated_capacity_watts": self.derated_capacity_watts,
+            "input_source": self.input_source,
+            "output_voltage": self.output_voltage,
+            "label": self.label,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class PowerCircuit:
+    id: EntityId
+    tenant_id: TenantId
+    circuit_id: Code
+    source_device_code: Code
+    site_code: Code
+    building_code: Code
+    room_code: Code
+    rack_code: Code
+    side: PowerFeedSide
+    capacity_watts: int
+    breaker_rating_amps: int
+    redundancy_group: str
+    label: str
+
+    @classmethod
+    def create(
+        cls,
+        tenant_id: TenantId,
+        circuit_id: str,
+        source_device_code: str,
+        site: str,
+        building: str,
+        room: str,
+        rack: str,
+        side: str,
+        capacity_watts: int,
+        breaker_rating_amps: int,
+        redundancy_group: str = "default",
+        label: str = "",
+    ) -> Self:
+        normalized_capacity = int(capacity_watts)
+        normalized_breaker = int(breaker_rating_amps)
+        normalized_group = "-".join(redundancy_group.strip().lower().replace("_", "-").split())
+        normalized_label = " ".join(label.strip().split())
+        if not 1 <= normalized_capacity <= 1_000_000:
+            raise ValidationError("power circuit capacity must be between 1 and 1000000 watts")
+        if not 1 <= normalized_breaker <= 10_000:
+            raise ValidationError("power circuit breaker rating must be between 1 and 10000 amps")
+        if not 1 <= len(normalized_group) <= 80:
+            raise ValidationError("power circuit redundancy group must contain 1 to 80 characters")
+        if len(normalized_label) > 160:
+            raise ValidationError("power circuit label cannot exceed 160 characters")
+        return cls(
+            id=EntityId.new(),
+            tenant_id=tenant_id,
+            circuit_id=Code.from_value(circuit_id, "power circuit id"),
+            source_device_code=Code.from_value(source_device_code, "power device code"),
+            site_code=Code.from_value(site, "site code"),
+            building_code=Code.from_value(building, "building code"),
+            room_code=Code.from_value(room, "room code"),
+            rack_code=Code.from_value(rack, "rack code"),
+            side=PowerFeedSide.from_value(side),
+            capacity_watts=normalized_capacity,
+            breaker_rating_amps=normalized_breaker,
+            redundancy_group=normalized_group,
+            label=normalized_label,
+        )
+
+    def remaining_watts(self, reservations: tuple[RackPowerReservation, ...]) -> int:
+        used = sum(item.expected_watts for item in reservations if item.circuit_id == self.circuit_id)
+        return self.capacity_watts - used
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "tenant_id": self.tenant_id.value,
+            "circuit_id": self.circuit_id.value,
+            "source_device": self.source_device_code.value,
+            "site": self.site_code.value,
+            "building": self.building_code.value,
+            "room": self.room_code.value,
+            "rack": self.rack_code.value,
+            "side": self.side.value,
+            "capacity_watts": self.capacity_watts,
+            "breaker_rating_amps": self.breaker_rating_amps,
+            "redundancy_group": self.redundancy_group,
+            "label": self.label,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class CoolingZone:
+    id: EntityId
+    tenant_id: TenantId
+    site_code: Code
+    building_code: Code
+    room_code: Code
+    zone_code: Code
+    role: CoolingRole
+    cooling_capacity_watts: int
+    supply_temperature_c: float
+    return_temperature_c: float
+    label: str
+
+    @classmethod
+    def create(
+        cls,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+        zone: str,
+        role: str,
+        cooling_capacity_watts: int,
+        supply_temperature_c: float,
+        return_temperature_c: float,
+        label: str = "",
+    ) -> Self:
+        normalized_capacity = int(cooling_capacity_watts)
+        normalized_supply = round(float(supply_temperature_c), 2)
+        normalized_return = round(float(return_temperature_c), 2)
+        normalized_label = " ".join(label.strip().split())
+        if not 1 <= normalized_capacity <= 10_000_000:
+            raise ValidationError("cooling capacity must be between 1 and 10000000 watts")
+        if not 5 <= normalized_supply <= 35:
+            raise ValidationError("cooling supply temperature must be between 5 and 35 Celsius")
+        if not 10 <= normalized_return <= 60:
+            raise ValidationError("cooling return temperature must be between 10 and 60 Celsius")
+        if normalized_return <= normalized_supply:
+            raise ValidationError("cooling return temperature must exceed supply temperature")
+        if len(normalized_label) > 160:
+            raise ValidationError("cooling zone label cannot exceed 160 characters")
+        return cls(
+            id=EntityId.new(),
+            tenant_id=tenant_id,
+            site_code=Code.from_value(site, "site code"),
+            building_code=Code.from_value(building, "building code"),
+            room_code=Code.from_value(room, "room code"),
+            zone_code=Code.from_value(zone, "zone code"),
+            role=CoolingRole.from_value(role),
+            cooling_capacity_watts=normalized_capacity,
+            supply_temperature_c=normalized_supply,
+            return_temperature_c=normalized_return,
+            label=normalized_label,
+        )
+
+    def remaining_watts(self, reservations: tuple[RackPowerReservation, ...]) -> int:
+        return self.cooling_capacity_watts - sum(item.expected_watts for item in reservations)
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "tenant_id": self.tenant_id.value,
+            "site": self.site_code.value,
+            "building": self.building_code.value,
+            "room": self.room_code.value,
+            "zone": self.zone_code.value,
+            "role": self.role.value,
+            "cooling_capacity_watts": self.cooling_capacity_watts,
+            "supply_temperature_c": self.supply_temperature_c,
+            "return_temperature_c": self.return_temperature_c,
+            "label": self.label,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class RackPowerReservation:
+    id: EntityId
+    tenant_id: TenantId
+    asset_tag: Code
+    circuit_id: Code
+    side: PowerFeedSide
+    site_code: Code
+    building_code: Code
+    room_code: Code
+    rack_code: Code
+    expected_watts: int
+    label: str
+
+    @classmethod
+    def create(
+        cls,
+        tenant_id: TenantId,
+        asset_tag: str,
+        circuit_id: str,
+        side: str,
+        site: str,
+        building: str,
+        room: str,
+        rack: str,
+        expected_watts: int,
+        label: str = "",
+    ) -> Self:
+        normalized_watts = int(expected_watts)
+        normalized_label = " ".join(label.strip().split())
+        if not 1 <= normalized_watts <= 1_000_000:
+            raise ValidationError("power reservation must be between 1 and 1000000 watts")
+        if len(normalized_label) > 160:
+            raise ValidationError("power reservation label cannot exceed 160 characters")
+        return cls(
+            id=EntityId.new(),
+            tenant_id=tenant_id,
+            asset_tag=Code.from_value(asset_tag, "asset tag"),
+            circuit_id=Code.from_value(circuit_id, "power circuit id"),
+            side=PowerFeedSide.from_value(side),
+            site_code=Code.from_value(site, "site code"),
+            building_code=Code.from_value(building, "building code"),
+            room_code=Code.from_value(room, "room code"),
+            rack_code=Code.from_value(rack, "rack code"),
+            expected_watts=normalized_watts,
+            label=normalized_label,
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "tenant_id": self.tenant_id.value,
+            "asset_tag": self.asset_tag.value,
+            "circuit_id": self.circuit_id.value,
+            "side": self.side.value,
+            "site": self.site_code.value,
+            "building": self.building_code.value,
+            "room": self.room_code.value,
+            "rack": self.rack_code.value,
+            "expected_watts": self.expected_watts,
+            "label": self.label,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class RackEnergyCoolingReport:
+    rack: Rack
+    circuits: tuple[PowerCircuit, ...]
+    reservations: tuple[RackPowerReservation, ...]
+    cooling_zone: CoolingZone | None
+
+    def as_dict(self) -> dict[str, object]:
+        side_capacity: dict[str, dict[str, object]] = {}
+        for side in PowerFeedSide:
+            side_circuits = tuple(circuit for circuit in self.circuits if circuit.side == side)
+            side_reservations = tuple(item for item in self.reservations if item.side == side)
+            capacity = sum(circuit.capacity_watts for circuit in side_circuits)
+            reserved = sum(item.expected_watts for item in side_reservations)
+            side_capacity[side.value] = {
+                "circuit_count": len(side_circuits),
+                "capacity_watts": capacity,
+                "reserved_watts": reserved,
+                "remaining_watts": capacity - reserved,
+                "status": "over_capacity" if reserved > capacity else "ok",
+                "circuits": [circuit.as_dict() for circuit in side_circuits],
+            }
+        reserved_total = sum(item.expected_watts for item in self.reservations)
+        rack_limit_remaining = (
+            None
+            if self.rack.power_capacity_watts is None
+            else self.rack.power_capacity_watts - reserved_total
+        )
+        cooling_remaining = (
+            None if self.cooling_zone is None else self.cooling_zone.remaining_watts(self.reservations)
+        )
+        return {
+            "type": "rack_energy_cooling_report",
+            "tenant_id": self.rack.tenant_id.value,
+            "site": self.rack.site_code.value,
+            "building": self.rack.building_code.value,
+            "room": self.rack.room_code.value,
+            "zone": self.rack.zone_code.value if self.rack.zone_code else None,
+            "rack": self.rack.code.value,
+            "rack_power_capacity_watts": self.rack.power_capacity_watts,
+            "rack_reserved_watts": reserved_total,
+            "rack_remaining_watts": rack_limit_remaining,
+            "rack_power_status": (
+                "unbounded" if rack_limit_remaining is None else "over_capacity" if rack_limit_remaining < 0 else "ok"
+            ),
+            "redundant_power_ready": (
+                side_capacity[PowerFeedSide.A.value]["capacity_watts"] > 0
+                and side_capacity[PowerFeedSide.B.value]["capacity_watts"] > 0
+            ),
+            "sides": side_capacity,
+            "cooling": None if self.cooling_zone is None else {
+                **self.cooling_zone.as_dict(),
+                "reserved_watts": reserved_total,
+                "remaining_watts": cooling_remaining,
+                "status": "over_capacity" if cooling_remaining is not None and cooling_remaining < 0 else "ok",
+            },
+            "reservations": [reservation.as_dict() for reservation in self.reservations],
+        }
+
+
 @dataclass(frozen=True, slots=True)
 class InterventionRouteStep:
     order: int

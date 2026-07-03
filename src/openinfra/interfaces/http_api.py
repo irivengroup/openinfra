@@ -25,14 +25,19 @@ from openinfra.application.audit_services import (
 from openinfra.application.container import ApplicationFactory, OpenInfraApplication
 from openinfra.application.dcim_services import (
     ConnectDcimCableCommand,
+    DefineCoolingZoneCommand,
     DefineDcimPortCommand,
     DefinePatchPanelCommand,
     DefinePhysicalRoomCommand,
+    DefinePowerCircuitCommand,
+    DefinePowerDeviceCommand,
     DefineRackCommand,
     GenerateEquipmentLocatorCommand,
     RackCapacityCommand,
+    RackEnergyCoolingCapacityCommand,
     RenderRackElevationCommand,
     RenderRoomPlanCommand,
+    ReserveEquipmentPowerCommand,
     TraceDcimCableCommand,
     VerifyEquipmentScanCommand,
 )
@@ -408,6 +413,30 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except (ValueError, OpenInfraError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
+        if route == "/api/v1/dcim/energy-cooling-capacity":
+            try:
+                query = parse_qs(parsed.query)
+                tenant_id = self._first_query_value(query, "tenant_id")
+                actor = "api"
+                if self.server.auth_required:
+                    principal = self._authenticate(tenant_id, Permission.DCIM_LOCATE)
+                    actor = principal.subject
+                report = self.server.application.dcim_environment_service.rack_energy_cooling_capacity(
+                    RackEnergyCoolingCapacityCommand(
+                        tenant_id=tenant_id,
+                        actor=actor,
+                        site=self._first_query_value(query, "site"),
+                        building=self._first_query_value(query, "building"),
+                        room=self._first_query_value(query, "room"),
+                        rack=self._first_query_value(query, "rack"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, report.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
         if route == "/api/v1/identity/effective":
             try:
                 query = parse_qs(parsed.query)
@@ -622,6 +651,126 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
+
+        if route == "/api/v1/dcim/power-devices":
+            try:
+                payload = self._read_json_body()
+                tenant_id = str(payload["tenant_id"])
+                actor = str(payload.get("actor", "api"))
+                if self.server.auth_required:
+                    principal = self._authenticate(tenant_id, Permission.DCIM_WRITE)
+                    actor = principal.subject
+                result = self.server.application.dcim_environment_service.define_power_device(
+                    DefinePowerDeviceCommand(
+                        tenant_id=tenant_id,
+                        actor=actor,
+                        code=str(payload["code"]),
+                        kind=str(payload["kind"]),
+                        site=str(payload["site"]),
+                        building=str(payload["building"]),
+                        room=str(payload["room"]),
+                        rack=self._optional_payload_value(payload, "rack"),
+                        side=self._optional_payload_value(payload, "side"),
+                        capacity_watts=int(payload["capacity_watts"]),
+                        derating_percent=int(payload.get("derating_percent", 80)),
+                        input_source=str(payload.get("input_source", "utility")),
+                        output_voltage=int(payload.get("output_voltage", 230)),
+                        label=str(payload.get("label", "")),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/dcim/power-circuits":
+            try:
+                payload = self._read_json_body()
+                tenant_id = str(payload["tenant_id"])
+                actor = str(payload.get("actor", "api"))
+                if self.server.auth_required:
+                    principal = self._authenticate(tenant_id, Permission.DCIM_WRITE)
+                    actor = principal.subject
+                result = self.server.application.dcim_environment_service.define_power_circuit(
+                    DefinePowerCircuitCommand(
+                        tenant_id=tenant_id,
+                        actor=actor,
+                        circuit_id=str(payload["circuit_id"]),
+                        source_device=str(payload["source_device"]),
+                        site=str(payload["site"]),
+                        building=str(payload["building"]),
+                        room=str(payload["room"]),
+                        rack=str(payload["rack"]),
+                        side=str(payload["side"]),
+                        capacity_watts=int(payload["capacity_watts"]),
+                        breaker_rating_amps=int(payload["breaker_rating_amps"]),
+                        redundancy_group=str(payload.get("redundancy_group", "default")),
+                        label=str(payload.get("label", "")),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/dcim/cooling-zones":
+            try:
+                payload = self._read_json_body()
+                tenant_id = str(payload["tenant_id"])
+                actor = str(payload.get("actor", "api"))
+                if self.server.auth_required:
+                    principal = self._authenticate(tenant_id, Permission.DCIM_WRITE)
+                    actor = principal.subject
+                result = self.server.application.dcim_environment_service.define_cooling_zone(
+                    DefineCoolingZoneCommand(
+                        tenant_id=tenant_id,
+                        actor=actor,
+                        site=str(payload["site"]),
+                        building=str(payload["building"]),
+                        room=str(payload["room"]),
+                        zone=str(payload["zone"]),
+                        role=str(payload["role"]),
+                        cooling_capacity_watts=int(payload["cooling_capacity_watts"]),
+                        supply_temperature_c=float(payload["supply_temperature_c"]),
+                        return_temperature_c=float(payload["return_temperature_c"]),
+                        label=str(payload.get("label", "")),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/dcim/power-reservations":
+            try:
+                payload = self._read_json_body()
+                tenant_id = str(payload["tenant_id"])
+                actor = str(payload.get("actor", "api"))
+                if self.server.auth_required:
+                    principal = self._authenticate(tenant_id, Permission.DCIM_WRITE)
+                    actor = principal.subject
+                result = self.server.application.dcim_environment_service.reserve_equipment_power(
+                    ReserveEquipmentPowerCommand(
+                        tenant_id=tenant_id,
+                        actor=actor,
+                        asset_tag=str(payload["asset_tag"]),
+                        circuit_id=str(payload["circuit_id"]),
+                        expected_watts=int(payload["expected_watts"]),
+                        label=str(payload.get("label", "")),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
 
         if route == "/api/v1/dcim/verify-scan":
             try:

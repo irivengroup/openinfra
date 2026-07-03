@@ -22,15 +22,20 @@ from openinfra.application.audit_services import (
 from openinfra.application.container import ApplicationFactory, OpenInfraApplication
 from openinfra.application.dcim_services import (
     ConnectDcimCableCommand,
+    DefineCoolingZoneCommand,
     DefineDcimPortCommand,
     DefinePatchPanelCommand,
     DefinePhysicalRoomCommand,
+    DefinePowerCircuitCommand,
+    DefinePowerDeviceCommand,
     DefineRackCommand,
     GenerateEquipmentLocatorCommand,
     LocateEquipmentCommand,
     RackCapacityCommand,
+    RackEnergyCoolingCapacityCommand,
     RenderRackElevationCommand,
     RenderRoomPlanCommand,
+    ReserveEquipmentPowerCommand,
     TraceDcimCableCommand,
     VerifyEquipmentScanCommand,
 )
@@ -739,6 +744,102 @@ class OpenInfraCLI:
         rack_elevation.add_argument("--face", choices=("front", "rear"), default="front")
         rack_elevation.add_argument("--format", choices=("json", "svg", "html"), default="json")
         rack_elevation.set_defaults(handler=self._handle_dcim_rack_elevation)
+
+
+        define_power_device = dcim_subparsers.add_parser(
+            "define-power-device",
+            help="define a DCIM PDU or UPS power source",
+        )
+        define_power_device.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        define_power_device.add_argument("--data", type=Path, default=Path(".openinfra.json"))
+        define_power_device.add_argument("--postgres-dsn")
+        define_power_device.add_argument("--tenant", default="default")
+        define_power_device.add_argument("--actor", default="cli")
+        define_power_device.add_argument("--code", required=True)
+        define_power_device.add_argument("--kind", choices=("pdu", "ups"), required=True)
+        define_power_device.add_argument("--site", required=True)
+        define_power_device.add_argument("--building", required=True)
+        define_power_device.add_argument("--room", required=True)
+        define_power_device.add_argument("--rack")
+        define_power_device.add_argument("--side", choices=("A", "B"))
+        define_power_device.add_argument("--capacity-watts", type=int, required=True)
+        define_power_device.add_argument("--derating-percent", type=int, default=80)
+        define_power_device.add_argument("--input-source", default="utility")
+        define_power_device.add_argument("--output-voltage", type=int, default=230)
+        define_power_device.add_argument("--label", default="")
+        define_power_device.set_defaults(handler=self._handle_dcim_define_power_device)
+
+        define_power_circuit = dcim_subparsers.add_parser(
+            "define-power-circuit",
+            help="define an A/B power circuit from a power source to a rack",
+        )
+        define_power_circuit.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        define_power_circuit.add_argument("--data", type=Path, default=Path(".openinfra.json"))
+        define_power_circuit.add_argument("--postgres-dsn")
+        define_power_circuit.add_argument("--tenant", default="default")
+        define_power_circuit.add_argument("--actor", default="cli")
+        define_power_circuit.add_argument("--circuit-id", required=True)
+        define_power_circuit.add_argument("--source-device", required=True)
+        define_power_circuit.add_argument("--site", required=True)
+        define_power_circuit.add_argument("--building", required=True)
+        define_power_circuit.add_argument("--room", required=True)
+        define_power_circuit.add_argument("--rack", required=True)
+        define_power_circuit.add_argument("--side", choices=("A", "B"), required=True)
+        define_power_circuit.add_argument("--capacity-watts", type=int, required=True)
+        define_power_circuit.add_argument("--breaker-rating-amps", type=int, required=True)
+        define_power_circuit.add_argument("--redundancy-group", default="default")
+        define_power_circuit.add_argument("--label", default="")
+        define_power_circuit.set_defaults(handler=self._handle_dcim_define_power_circuit)
+
+        define_cooling_zone = dcim_subparsers.add_parser(
+            "define-cooling-zone",
+            help="define a hot/cold aisle cooling capacity zone",
+        )
+        define_cooling_zone.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        define_cooling_zone.add_argument("--data", type=Path, default=Path(".openinfra.json"))
+        define_cooling_zone.add_argument("--postgres-dsn")
+        define_cooling_zone.add_argument("--tenant", default="default")
+        define_cooling_zone.add_argument("--actor", default="cli")
+        define_cooling_zone.add_argument("--site", required=True)
+        define_cooling_zone.add_argument("--building", required=True)
+        define_cooling_zone.add_argument("--room", required=True)
+        define_cooling_zone.add_argument("--zone", required=True)
+        define_cooling_zone.add_argument("--role", choices=("cold_aisle", "hot_aisle", "neutral"), required=True)
+        define_cooling_zone.add_argument("--cooling-capacity-watts", type=int, required=True)
+        define_cooling_zone.add_argument("--supply-temperature-c", type=float, required=True)
+        define_cooling_zone.add_argument("--return-temperature-c", type=float, required=True)
+        define_cooling_zone.add_argument("--label", default="")
+        define_cooling_zone.set_defaults(handler=self._handle_dcim_define_cooling_zone)
+
+        reserve_power = dcim_subparsers.add_parser(
+            "reserve-power",
+            help="reserve expected power draw for a rack-mounted equipment on a circuit",
+        )
+        reserve_power.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        reserve_power.add_argument("--data", type=Path, default=Path(".openinfra.json"))
+        reserve_power.add_argument("--postgres-dsn")
+        reserve_power.add_argument("--tenant", default="default")
+        reserve_power.add_argument("--actor", default="cli")
+        reserve_power.add_argument("--asset-tag", required=True)
+        reserve_power.add_argument("--circuit-id", required=True)
+        reserve_power.add_argument("--expected-watts", type=int, required=True)
+        reserve_power.add_argument("--label", default="")
+        reserve_power.set_defaults(handler=self._handle_dcim_reserve_power)
+
+        energy_cooling = dcim_subparsers.add_parser(
+            "energy-cooling-capacity",
+            help="report rack A/B power and cooling capacity",
+        )
+        energy_cooling.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        energy_cooling.add_argument("--data", type=Path, default=Path(".openinfra.json"))
+        energy_cooling.add_argument("--postgres-dsn")
+        energy_cooling.add_argument("--tenant", default="default")
+        energy_cooling.add_argument("--actor", default="cli")
+        energy_cooling.add_argument("--site", required=True)
+        energy_cooling.add_argument("--building", required=True)
+        energy_cooling.add_argument("--room", required=True)
+        energy_cooling.add_argument("--rack", required=True)
+        energy_cooling.set_defaults(handler=self._handle_dcim_energy_cooling_capacity)
 
     def _handle_version(self, args: argparse.Namespace) -> int:
         print(__version__)
@@ -1460,6 +1561,101 @@ class OpenInfraCLI:
             print(elevation.html_document())
         else:
             print(json.dumps(elevation.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_dcim_define_power_device(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_environment_service.define_power_device(
+            DefinePowerDeviceCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                code=args.code,
+                kind=args.kind,
+                site=args.site,
+                building=args.building,
+                room=args.room,
+                rack=args.rack,
+                side=args.side,
+                capacity_watts=args.capacity_watts,
+                derating_percent=args.derating_percent,
+                input_source=args.input_source,
+                output_voltage=args.output_voltage,
+                label=args.label,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_define_power_circuit(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_environment_service.define_power_circuit(
+            DefinePowerCircuitCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                circuit_id=args.circuit_id,
+                source_device=args.source_device,
+                site=args.site,
+                building=args.building,
+                room=args.room,
+                rack=args.rack,
+                side=args.side,
+                capacity_watts=args.capacity_watts,
+                breaker_rating_amps=args.breaker_rating_amps,
+                redundancy_group=args.redundancy_group,
+                label=args.label,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_define_cooling_zone(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_environment_service.define_cooling_zone(
+            DefineCoolingZoneCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                site=args.site,
+                building=args.building,
+                room=args.room,
+                zone=args.zone,
+                role=args.role,
+                cooling_capacity_watts=args.cooling_capacity_watts,
+                supply_temperature_c=args.supply_temperature_c,
+                return_temperature_c=args.return_temperature_c,
+                label=args.label,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_reserve_power(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_environment_service.reserve_equipment_power(
+            ReserveEquipmentPowerCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                asset_tag=args.asset_tag,
+                circuit_id=args.circuit_id,
+                expected_watts=args.expected_watts,
+                label=args.label,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_energy_cooling_capacity(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        report = application.dcim_environment_service.rack_energy_cooling_capacity(
+            RackEnergyCoolingCapacityCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                site=args.site,
+                building=args.building,
+                room=args.room,
+                rack=args.rack,
+            )
+        )
+        print(json.dumps(report.as_dict(), sort_keys=True))
         return 0
 
     def _create_migration_executor(self, args: argparse.Namespace) -> PostgreSQLMigrationExecutor:

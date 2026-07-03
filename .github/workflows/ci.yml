@@ -2,9 +2,11 @@ name: OpenInfra CI
 
 on:
   push:
-    branches: [main]
+    branches: ['**']
+    tags: ['v*']
   pull_request:
-    branches: [main]
+    branches: ['**']
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -76,6 +78,7 @@ jobs:
           openinfra database render-migration --name 0011_dcim_field_operations --root migrations/postgresql >/tmp/openinfra-0011.sql
           openinfra database render-migration --name 0012_dcim_visualization_indexes --root migrations/postgresql >/tmp/openinfra-0012.sql
           openinfra database render-migration --name 0013_dcim_cabling_foundation --root migrations/postgresql >/tmp/openinfra-0013.sql
+          openinfra database render-migration --name 0014_dcim_energy_cooling_foundation --root migrations/postgresql >/tmp/openinfra-0014.sql
 
       - name: Smoke JSON IPAM allocation
         run: |
@@ -405,14 +408,14 @@ jobs:
             --face front \
             --format html > "$tmpdir/rack-elevation.html"
           python - "$tmpdir/room-plan.json" "$tmpdir/rack-elevation.json" <<'PYSMOKE'
-import json
-import sys
-room_plan = json.load(open(sys.argv[1], encoding="utf-8"))
-rack_elevation = json.load(open(sys.argv[2], encoding="utf-8"))
-assert room_plan["type"] == "room_plan_2d"
-assert rack_elevation["type"] == "rack_elevation"
-assert rack_elevation["used_units"] == [2, 3]
-PYSMOKE
+          import json
+          import sys
+          room_plan = json.load(open(sys.argv[1], encoding="utf-8"))
+          rack_elevation = json.load(open(sys.argv[2], encoding="utf-8"))
+          assert room_plan["type"] == "room_plan_2d"
+          assert rack_elevation["type"] == "rack_elevation"
+          assert rack_elevation["used_units"] == [2, 3]
+          PYSMOKE
 
       - name: Smoke JSON DCIM cabling foundation
         run: |
@@ -432,7 +435,11 @@ PYSMOKE
             --room-code MMR-CBL \
             --room-name "CI Cabling Room" \
             --row A \
-            --column 01
+            --column 01 \
+            --zone-code Z1 \
+            --zone-name "CI Energy Zone" \
+            --zone-row A \
+            --zone-column 01
           openinfra dcim define-rack \
             --data "$tmpdir/state.json" \
             --tenant default \
@@ -440,6 +447,7 @@ PYSMOKE
             --building BAT-CBL \
             --floor F01 \
             --room MMR-CBL \
+            --zone Z1 \
             --rack R01 \
             --row A \
             --column 01 \
@@ -454,6 +462,7 @@ PYSMOKE
             --building BAT-CBL \
             --floor F01 \
             --room MMR-CBL \
+            --zone Z1 \
             --row A \
             --column 01 \
             --rack R01 \
@@ -498,13 +507,71 @@ PYSMOKE
             --tenant default \
             --cable-id CAB-CI-001 > "$tmpdir/trace.json"
           python - "$tmpdir/trace.json" <<'PYSMOKE'
-import json
-import sys
-trace = json.load(open(sys.argv[1], encoding="utf-8"))
-assert trace["cable_id"] == "CAB-CI-001"
-assert trace["a_port"]["owner_type"] == "equipment"
-assert trace["b_port"]["owner_code"] == "PP01"
-PYSMOKE
+          import json
+          import sys
+          trace = json.load(open(sys.argv[1], encoding="utf-8"))
+          assert trace["cable_id"] == "CAB-CI-001"
+          assert trace["a_port"]["owner_type"] == "equipment"
+          assert trace["b_port"]["owner_code"] == "PP01"
+          PYSMOKE
+          openinfra dcim define-power-device \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --code PDU-A \
+            --kind pdu \
+            --site CBL-CI \
+            --building BAT-CBL \
+            --room MMR-CBL \
+            --rack R01 \
+            --side A \
+            --capacity-watts 8000 \
+            --derating-percent 80 \
+            --input-source UPS-A \
+            --output-voltage 230
+          openinfra dcim define-power-circuit \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --circuit-id CIR-A-01 \
+            --source-device PDU-A \
+            --site CBL-CI \
+            --building BAT-CBL \
+            --room MMR-CBL \
+            --rack R01 \
+            --side A \
+            --capacity-watts 3000 \
+            --breaker-rating-amps 16
+          openinfra dcim define-cooling-zone \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --site CBL-CI \
+            --building BAT-CBL \
+            --room MMR-CBL \
+            --zone Z1 \
+            --role cold_aisle \
+            --cooling-capacity-watts 6000 \
+            --supply-temperature-c 18 \
+            --return-temperature-c 30
+          openinfra dcim reserve-power \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --asset-tag CI-SRV-CABLE-01 \
+            --circuit-id CIR-A-01 \
+            --expected-watts 1200
+          openinfra dcim energy-cooling-capacity \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --site CBL-CI \
+            --building BAT-CBL \
+            --room MMR-CBL \
+            --rack R01 > "$tmpdir/energy.json"
+          python - "$tmpdir/energy.json" <<'PYENERGY'
+          import json
+          import sys
+          report = json.load(open(sys.argv[1], encoding="utf-8"))
+          assert report["rack"] == "R01"
+          assert report["sides"]["A"]["reserved_watts"] == 1200
+          assert report["cooling"]["remaining_watts"] == 4800
+          PYENERGY
 
       - name: Native runtime asset smoke
         run: python scripts/native_runtime_smoke.py --project-root .

@@ -201,3 +201,19 @@ PYTHONPATH=src python scripts/native_runtime_smoke.py --project-root .
 ```
 
 Les tests couvrent le domaine de câblage, les services applicatifs, les ports JSON/PostgreSQL, la CLI, l’API HTTP, les contrats d’erreur et les branches de validation connecteur/média. Le quality gate ne dépend plus d’un moteur Docker et contrôle le runtime serveur natif.
+
+
+## Contrôles ajoutés en v0.17.0
+
+La v0.17.0 conserve le seuil bloquant `>= 98 %`, corrige le déclenchement GitHub Actions et ajoute les contrôles P04 / EPIC-0406 suivants :
+
+```bash
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0014_dcim_energy_cooling_foundation --root migrations/postgresql >/tmp/openinfra-0014.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli dcim define-power-device --tenant default --code PDU-A --kind pdu --site PAR1 --building BAT-A --room MMR1 --rack R01 --side A --capacity-watts 8000
+PYTHONPATH=src python -m openinfra.interfaces.cli dcim define-power-circuit --tenant default --circuit-id CIR-A-01 --source-device PDU-A --site PAR1 --building BAT-A --room MMR1 --rack R01 --side A --capacity-watts 4000 --breaker-rating-amps 16
+PYTHONPATH=src python -m openinfra.interfaces.cli dcim define-cooling-zone --tenant default --site PAR1 --building BAT-A --room MMR1 --zone Z1 --role cold_aisle --cooling-capacity-watts 12000 --supply-temperature-c 18 --return-temperature-c 30
+PYTHONPATH=src python -m openinfra.interfaces.cli dcim reserve-power --tenant default --asset-tag SRV-001 --circuit-id CIR-A-01 --expected-watts 1200
+PYTHONPATH=src python -m openinfra.interfaces.cli dcim energy-cooling-capacity --tenant default --site PAR1 --building BAT-A --room MMR1 --rack R01
+```
+
+Les tests couvrent le domaine énergie/refroidissement, les services applicatifs, les ports JSON/PostgreSQL, la CLI, l’API HTTP authentifiée et non authentifiée, les contrats d’erreur, la correction du workflow GitHub Actions et les branches de capacité source/circuit/rack/refroidissement.

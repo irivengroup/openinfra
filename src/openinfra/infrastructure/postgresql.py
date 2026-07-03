@@ -51,6 +51,8 @@ from openinfra.domain.common import (
 )
 from openinfra.domain.dcim import (
     Building,
+    CoolingRole,
+    CoolingZone,
     DcimCable,
     DcimCableMedium,
     DcimCablePathSegment,
@@ -63,7 +65,12 @@ from openinfra.domain.dcim import (
     EquipmentLocation,
     Floor,
     PatchPanel,
+    PowerCircuit,
+    PowerDevice,
+    PowerDeviceKind,
+    PowerFeedSide,
     Rack,
+    RackPowerReservation,
     RackFace,
     Room,
     RoomZone,
@@ -928,6 +935,124 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             },
         )
 
+    def add_power_device(self, power_device: PowerDevice) -> None:
+        self._ensure_tenant(power_device.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO dcim_power_devices (
+                id, tenant_id, code, kind, site_code, building_code, room_code, rack_code,
+                side, capacity_watts, derating_percent, input_source, output_voltage, label
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(code)s, %(kind)s, %(site_code)s, %(building_code)s,
+                %(room_code)s, %(rack_code)s, %(side)s, %(capacity_watts)s,
+                %(derating_percent)s, %(input_source)s, %(output_voltage)s, %(label)s
+            )
+            """,
+            {
+                "id": power_device.id.value,
+                "tenant_id": power_device.tenant_id.value,
+                "code": power_device.code.value,
+                "kind": power_device.kind.value,
+                "site_code": power_device.site_code.value,
+                "building_code": power_device.building_code.value,
+                "room_code": power_device.room_code.value,
+                "rack_code": power_device.rack_code.value if power_device.rack_code else None,
+                "side": power_device.side.value if power_device.side else None,
+                "capacity_watts": power_device.capacity_watts,
+                "derating_percent": power_device.derating_percent,
+                "input_source": power_device.input_source,
+                "output_voltage": power_device.output_voltage,
+                "label": power_device.label,
+            },
+        )
+
+    def add_power_circuit(self, circuit: PowerCircuit) -> None:
+        self._ensure_tenant(circuit.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO dcim_power_circuits (
+                id, tenant_id, circuit_id, source_device_code, site_code, building_code,
+                room_code, rack_code, side, capacity_watts, breaker_rating_amps,
+                redundancy_group, label
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(circuit_id)s, %(source_device_code)s,
+                %(site_code)s, %(building_code)s, %(room_code)s, %(rack_code)s, %(side)s,
+                %(capacity_watts)s, %(breaker_rating_amps)s, %(redundancy_group)s, %(label)s
+            )
+            """,
+            {
+                "id": circuit.id.value,
+                "tenant_id": circuit.tenant_id.value,
+                "circuit_id": circuit.circuit_id.value,
+                "source_device_code": circuit.source_device_code.value,
+                "site_code": circuit.site_code.value,
+                "building_code": circuit.building_code.value,
+                "room_code": circuit.room_code.value,
+                "rack_code": circuit.rack_code.value,
+                "side": circuit.side.value,
+                "capacity_watts": circuit.capacity_watts,
+                "breaker_rating_amps": circuit.breaker_rating_amps,
+                "redundancy_group": circuit.redundancy_group,
+                "label": circuit.label,
+            },
+        )
+
+    def add_cooling_zone(self, cooling_zone: CoolingZone) -> None:
+        self._ensure_tenant(cooling_zone.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO dcim_cooling_zones (
+                id, tenant_id, site_code, building_code, room_code, zone_code, role,
+                cooling_capacity_watts, supply_temperature_c, return_temperature_c, label
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(site_code)s, %(building_code)s, %(room_code)s,
+                %(zone_code)s, %(role)s, %(cooling_capacity_watts)s,
+                %(supply_temperature_c)s, %(return_temperature_c)s, %(label)s
+            )
+            """,
+            {
+                "id": cooling_zone.id.value,
+                "tenant_id": cooling_zone.tenant_id.value,
+                "site_code": cooling_zone.site_code.value,
+                "building_code": cooling_zone.building_code.value,
+                "room_code": cooling_zone.room_code.value,
+                "zone_code": cooling_zone.zone_code.value,
+                "role": cooling_zone.role.value,
+                "cooling_capacity_watts": cooling_zone.cooling_capacity_watts,
+                "supply_temperature_c": cooling_zone.supply_temperature_c,
+                "return_temperature_c": cooling_zone.return_temperature_c,
+                "label": cooling_zone.label,
+            },
+        )
+
+    def add_power_reservation(self, reservation: RackPowerReservation) -> None:
+        self._ensure_tenant(reservation.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO dcim_power_reservations (
+                id, tenant_id, asset_tag, circuit_id, side, site_code, building_code,
+                room_code, rack_code, expected_watts, label
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(asset_tag)s, %(circuit_id)s, %(side)s,
+                %(site_code)s, %(building_code)s, %(room_code)s, %(rack_code)s,
+                %(expected_watts)s, %(label)s
+            )
+            """,
+            {
+                "id": reservation.id.value,
+                "tenant_id": reservation.tenant_id.value,
+                "asset_tag": reservation.asset_tag.value,
+                "circuit_id": reservation.circuit_id.value,
+                "side": reservation.side.value,
+                "site_code": reservation.site_code.value,
+                "building_code": reservation.building_code.value,
+                "room_code": reservation.room_code.value,
+                "rack_code": reservation.rack_code.value,
+                "expected_watts": reservation.expected_watts,
+                "label": reservation.label,
+            },
+        )
+
     def find_site(self, tenant_id: TenantId, site: str) -> Site | None:
         row = self._fetch_one(
             """
@@ -1168,6 +1293,65 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
         )
         return self._equipment_from_row(row) if row else None
 
+    def find_power_device(self, tenant_id: TenantId, code: str) -> PowerDevice | None:
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, code, kind, site_code, building_code, room_code,
+                   rack_code, side, capacity_watts, derating_percent, input_source,
+                   output_voltage, label
+            FROM dcim_power_devices
+            WHERE tenant_id = %(tenant_id)s AND code = %(code)s
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "code": Code.from_value(code, "power device code").value,
+            },
+        )
+        return self._power_device_from_row(row) if row else None
+
+    def find_power_circuit(self, tenant_id: TenantId, circuit_id: str) -> PowerCircuit | None:
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, circuit_id, source_device_code, site_code, building_code,
+                   room_code, rack_code, side, capacity_watts, breaker_rating_amps,
+                   redundancy_group, label
+            FROM dcim_power_circuits
+            WHERE tenant_id = %(tenant_id)s AND circuit_id = %(circuit_id)s
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "circuit_id": Code.from_value(circuit_id, "power circuit id").value,
+            },
+        )
+        return self._power_circuit_from_row(row) if row else None
+
+    def find_cooling_zone(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+        zone: str,
+    ) -> CoolingZone | None:
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, site_code, building_code, room_code, zone_code, role,
+                   cooling_capacity_watts, supply_temperature_c, return_temperature_c, label
+            FROM dcim_cooling_zones
+            WHERE tenant_id = %(tenant_id)s AND site_code = %(site_code)s
+              AND building_code = %(building_code)s AND room_code = %(room_code)s
+              AND zone_code = %(zone_code)s
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "site_code": Code.from_value(site, "site code").value,
+                "building_code": Code.from_value(building, "building code").value,
+                "room_code": Code.from_value(room, "room code").value,
+                "zone_code": Code.from_value(zone, "zone code").value,
+            },
+        )
+        return self._cooling_zone_from_row(row) if row else None
+
     def list_equipment_in_rack(
         self,
         tenant_id: TenantId,
@@ -1336,6 +1520,104 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
         )
         return tuple(self._equipment_from_row(row) for row in rows)
 
+    def list_power_circuits_by_source(
+        self,
+        tenant_id: TenantId,
+        source_device: str,
+    ) -> tuple[PowerCircuit, ...]:
+        rows = self._fetch_all(
+            """
+            SELECT id, tenant_id, circuit_id, source_device_code, site_code, building_code,
+                   room_code, rack_code, side, capacity_watts, breaker_rating_amps,
+                   redundancy_group, label
+            FROM dcim_power_circuits
+            WHERE tenant_id = %(tenant_id)s AND source_device_code = %(source_device_code)s
+            ORDER BY circuit_id
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "source_device_code": Code.from_value(source_device, "power device code").value,
+            },
+        )
+        return tuple(self._power_circuit_from_row(row) for row in rows)
+
+    def list_power_circuits_for_rack(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+        rack: str,
+    ) -> tuple[PowerCircuit, ...]:
+        rows = self._fetch_all(
+            """
+            SELECT id, tenant_id, circuit_id, source_device_code, site_code, building_code,
+                   room_code, rack_code, side, capacity_watts, breaker_rating_amps,
+                   redundancy_group, label
+            FROM dcim_power_circuits
+            WHERE tenant_id = %(tenant_id)s AND site_code = %(site_code)s
+              AND building_code = %(building_code)s AND room_code = %(room_code)s
+              AND rack_code = %(rack_code)s
+            ORDER BY side, circuit_id
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "site_code": Code.from_value(site, "site code").value,
+                "building_code": Code.from_value(building, "building code").value,
+                "room_code": Code.from_value(room, "room code").value,
+                "rack_code": Code.from_value(rack, "rack code").value,
+            },
+        )
+        return tuple(self._power_circuit_from_row(row) for row in rows)
+
+    def list_power_reservations_for_circuit(
+        self,
+        tenant_id: TenantId,
+        circuit_id: str,
+    ) -> tuple[RackPowerReservation, ...]:
+        rows = self._fetch_all(
+            """
+            SELECT id, tenant_id, asset_tag, circuit_id, side, site_code, building_code,
+                   room_code, rack_code, expected_watts, label
+            FROM dcim_power_reservations
+            WHERE tenant_id = %(tenant_id)s AND circuit_id = %(circuit_id)s
+            ORDER BY asset_tag, side
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "circuit_id": Code.from_value(circuit_id, "power circuit id").value,
+            },
+        )
+        return tuple(self._power_reservation_from_row(row) for row in rows)
+
+    def list_power_reservations_for_rack(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+        rack: str,
+    ) -> tuple[RackPowerReservation, ...]:
+        rows = self._fetch_all(
+            """
+            SELECT id, tenant_id, asset_tag, circuit_id, side, site_code, building_code,
+                   room_code, rack_code, expected_watts, label
+            FROM dcim_power_reservations
+            WHERE tenant_id = %(tenant_id)s AND site_code = %(site_code)s
+              AND building_code = %(building_code)s AND room_code = %(room_code)s
+              AND rack_code = %(rack_code)s
+            ORDER BY side, asset_tag
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "site_code": Code.from_value(site, "site code").value,
+                "building_code": Code.from_value(building, "building code").value,
+                "room_code": Code.from_value(room, "room code").value,
+                "rack_code": Code.from_value(rack, "rack code").value,
+            },
+        )
+        return tuple(self._power_reservation_from_row(row) for row in rows)
+
     def _site_from_row(self, row: Mapping[str, object]) -> Site:
         return Site(
             id=EntityId.from_value(str(row["id"])),
@@ -1467,6 +1749,71 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             asset_tag=Code.from_value(str(row["asset_tag"]), "asset tag"),
             name=Name.from_value(str(row["name"]), "equipment name"),
             location=location,
+        )
+
+    def _power_device_from_row(self, row: Mapping[str, object]) -> PowerDevice:
+        return PowerDevice(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            code=Code.from_value(str(row["code"]), "power device code"),
+            kind=PowerDeviceKind.from_value(str(row["kind"])),
+            site_code=Code.from_value(str(row["site_code"]), "site code"),
+            building_code=Code.from_value(str(row["building_code"]), "building code"),
+            room_code=Code.from_value(str(row["room_code"]), "room code"),
+            rack_code=Code.from_value(str(row["rack_code"]), "rack code") if row.get("rack_code") is not None else None,
+            side=PowerFeedSide.from_value(str(row["side"])) if row.get("side") is not None else None,
+            capacity_watts=int(row["capacity_watts"]),
+            derating_percent=int(row["derating_percent"]),
+            input_source=str(row["input_source"]),
+            output_voltage=int(row["output_voltage"]),
+            label=str(row.get("label") or ""),
+        )
+
+    def _power_circuit_from_row(self, row: Mapping[str, object]) -> PowerCircuit:
+        return PowerCircuit(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            circuit_id=Code.from_value(str(row["circuit_id"]), "power circuit id"),
+            source_device_code=Code.from_value(str(row["source_device_code"]), "power device code"),
+            site_code=Code.from_value(str(row["site_code"]), "site code"),
+            building_code=Code.from_value(str(row["building_code"]), "building code"),
+            room_code=Code.from_value(str(row["room_code"]), "room code"),
+            rack_code=Code.from_value(str(row["rack_code"]), "rack code"),
+            side=PowerFeedSide.from_value(str(row["side"])),
+            capacity_watts=int(row["capacity_watts"]),
+            breaker_rating_amps=int(row["breaker_rating_amps"]),
+            redundancy_group=str(row["redundancy_group"]),
+            label=str(row.get("label") or ""),
+        )
+
+    def _cooling_zone_from_row(self, row: Mapping[str, object]) -> CoolingZone:
+        return CoolingZone(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            site_code=Code.from_value(str(row["site_code"]), "site code"),
+            building_code=Code.from_value(str(row["building_code"]), "building code"),
+            room_code=Code.from_value(str(row["room_code"]), "room code"),
+            zone_code=Code.from_value(str(row["zone_code"]), "zone code"),
+            role=CoolingRole.from_value(str(row["role"])),
+            cooling_capacity_watts=int(row["cooling_capacity_watts"]),
+            supply_temperature_c=float(row["supply_temperature_c"]),
+            return_temperature_c=float(row["return_temperature_c"]),
+            label=str(row.get("label") or ""),
+        )
+
+    def _power_reservation_from_row(self, row: Mapping[str, object]) -> RackPowerReservation:
+        return RackPowerReservation(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            asset_tag=Code.from_value(str(row["asset_tag"]), "asset tag"),
+            circuit_id=Code.from_value(str(row["circuit_id"]), "power circuit id"),
+            side=PowerFeedSide.from_value(str(row["side"])),
+            site_code=Code.from_value(str(row["site_code"]), "site code"),
+            building_code=Code.from_value(str(row["building_code"]), "building code"),
+            room_code=Code.from_value(str(row["room_code"]), "room code"),
+            rack_code=Code.from_value(str(row["rack_code"]), "rack code"),
+            expected_watts=int(row["expected_watts"]),
+            label=str(row.get("label") or ""),
         )
 
     def _float_or_none(self, value: object) -> float | None:

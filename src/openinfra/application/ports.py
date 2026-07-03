@@ -12,10 +12,14 @@ from openinfra.domain.dcim import (
     DcimCable,
     DcimPort,
     DcimPortEndpoint,
+    CoolingZone,
     Equipment,
     Floor,
     PatchPanel,
+    PowerCircuit,
+    PowerDevice,
     Rack,
+    RackPowerReservation,
     Room,
     RoomZone,
     Site,
@@ -156,6 +160,22 @@ class DcimRepository(ABC):
         raise TypeError("adapter contract invoked directly")
 
     @abstractmethod
+    def add_power_device(self, power_device: PowerDevice) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def add_power_circuit(self, circuit: PowerCircuit) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def add_cooling_zone(self, cooling_zone: CoolingZone) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def add_power_reservation(self, reservation: RackPowerReservation) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
     def find_site(self, tenant_id: TenantId, site: str) -> Site | None:
         raise TypeError("adapter contract invoked directly")
 
@@ -236,6 +256,25 @@ class DcimRepository(ABC):
         raise TypeError("adapter contract invoked directly")
 
     @abstractmethod
+    def find_power_device(self, tenant_id: TenantId, code: str) -> PowerDevice | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_power_circuit(self, tenant_id: TenantId, circuit_id: str) -> PowerCircuit | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_cooling_zone(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+        zone: str,
+    ) -> CoolingZone | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
     def list_equipment_in_rack(
         self,
         tenant_id: TenantId,
@@ -292,6 +331,44 @@ class DcimRepository(ABC):
         building: str,
         room: str,
     ) -> tuple[Equipment, ...]:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_power_circuits_by_source(
+        self,
+        tenant_id: TenantId,
+        source_device: str,
+    ) -> tuple[PowerCircuit, ...]:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_power_circuits_for_rack(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+        rack: str,
+    ) -> tuple[PowerCircuit, ...]:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_power_reservations_for_circuit(
+        self,
+        tenant_id: TenantId,
+        circuit_id: str,
+    ) -> tuple[RackPowerReservation, ...]:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_power_reservations_for_rack(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+        rack: str,
+    ) -> tuple[RackPowerReservation, ...]:
         raise TypeError("adapter contract invoked directly")
 
 

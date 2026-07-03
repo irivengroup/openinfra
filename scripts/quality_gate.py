@@ -66,6 +66,60 @@ class NativeRuntimeGuard:
             raise QualityGateError("local .env must not be packaged or committed")
 
 
+class CiWorkflowTriggerGuard:
+    def __init__(self, project_root: Path) -> None:
+        self._project_root = project_root
+
+    def assert_push_triggers_are_not_branch_locked(self) -> None:
+        workflow = self._project_root / ".github/workflows/ci.yml"
+        if not workflow.is_file():
+            raise QualityGateError("missing GitHub Actions workflow: .github/workflows/ci.yml")
+        content = workflow.read_text(encoding="utf-8")
+        if "workflow_dispatch:" not in content:
+            raise QualityGateError("CI workflow must expose a manual workflow_dispatch trigger")
+        forbidden = ("branches: [main]", "branches: ['main']", 'branches: ["main"]')
+        if any(pattern in content for pattern in forbidden):
+            raise QualityGateError("CI workflow push/pull_request triggers must not be locked to main only")
+        if "branches: ['**']" not in content:
+            raise QualityGateError("CI workflow must run on every branch push and pull request")
+
+
+class CompletionMarkerGuard:
+    _encoded_markers = (
+        ("T", "O", "D", "O"),
+        ("F", "I", "X", "M", "E"),
+        ("s", "t", "u", "b"),
+        ("p", "l", "a", "c", "e", "h", "o", "l", "d", "e", "r"),
+        ("d", "u", "m", "m", "y"),
+        ("N", "o", "t", "I", "m", "p", "l", "e", "m", "e", "n", "t", "e", "d"),
+    )
+    _roots = ("src", "tests", "scripts", "docker", "deploy", ".github", "migrations")
+
+    def __init__(self, project_root: Path) -> None:
+        self._project_root = project_root
+
+    def _markers(self) -> tuple[str, ...]:
+        return tuple("".join(parts) for parts in self._encoded_markers)
+
+    def assert_clean_sources(self) -> None:
+        violations: list[str] = []
+        for root_name in self._roots:
+            root = self._project_root / root_name
+            if not root.exists():
+                continue
+            for path in sorted(root.rglob("*")):
+                if path.is_dir() or "__pycache__" in path.parts or path.suffix == ".pyc":
+                    continue
+                if path.suffix not in (".py", ".yml", ".yaml", ".sql", ".md", ".service"):
+                    continue
+                content = path.read_text(encoding="utf-8")
+                for marker in self._markers():
+                    if marker in content:
+                        violations.append(f"{path}:{marker}")
+        if violations:
+            raise QualityGateError("disallowed completion markers detected: " + ", ".join(violations))
+
+
 class CommandRunner:
     def run(self, command: list[str]) -> None:
         completed = subprocess.run(command, check=False, text=True)
@@ -81,6 +135,8 @@ class QualityGate:
         ModuleFunctionGuard(self._project_root / "src/openinfra").assert_no_module_level_functions()
         ContractFileGuard(self._project_root).assert_sources_present()
         NativeRuntimeGuard(self._project_root).assert_runtime_environment_present()
+        CiWorkflowTriggerGuard(self._project_root).assert_push_triggers_are_not_branch_locked()
+        CompletionMarkerGuard(self._project_root).assert_clean_sources()
         CommandRunner().run([sys.executable, "-m", "pytest"])
 
 

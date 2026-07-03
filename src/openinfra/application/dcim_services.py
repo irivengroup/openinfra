@@ -25,8 +25,13 @@ from openinfra.domain.dcim import (
     EquipmentScanProof,
     Floor,
     PatchPanel,
+    PowerCircuit,
+    PowerDevice,
     Rack,
     RackCapacityReport,
+    RackEnergyCoolingReport,
+    RackPowerReservation,
+    CoolingZone,
     RackElevation,
     RackFace,
     Room,
@@ -173,6 +178,77 @@ class TraceDcimCableCommand:
     tenant_id: str
     actor: str
     cable_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class DefinePowerDeviceCommand:
+    tenant_id: str
+    actor: str
+    code: str
+    kind: str
+    site: str
+    building: str
+    room: str
+    capacity_watts: int
+    rack: str | None = None
+    side: str | None = None
+    derating_percent: int = 80
+    input_source: str = "utility"
+    output_voltage: int = 230
+    label: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class DefinePowerCircuitCommand:
+    tenant_id: str
+    actor: str
+    circuit_id: str
+    source_device: str
+    site: str
+    building: str
+    room: str
+    rack: str
+    side: str
+    capacity_watts: int
+    breaker_rating_amps: int
+    redundancy_group: str = "default"
+    label: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class DefineCoolingZoneCommand:
+    tenant_id: str
+    actor: str
+    site: str
+    building: str
+    room: str
+    zone: str
+    role: str
+    cooling_capacity_watts: int
+    supply_temperature_c: float
+    return_temperature_c: float
+    label: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class ReserveEquipmentPowerCommand:
+    tenant_id: str
+    actor: str
+    asset_tag: str
+    circuit_id: str
+    expected_watts: int
+    label: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class RackEnergyCoolingCapacityCommand:
+    tenant_id: str
+    actor: str
+    site: str
+    building: str
+    room: str
+    rack: str
+
 
 @dataclass(frozen=True, slots=True)
 class GenerateEquipmentLocatorCommand:
@@ -892,6 +968,308 @@ class DcimVisualizationService:
                 )
             )
             unit_of_work.commit()
+
+
+
+class DcimEnvironmentService:
+    def __init__(
+        self,
+        dcim_repository: DcimRepository,
+        audit_repository: AuditRepository,
+        transaction_manager: TransactionManager,
+    ) -> None:
+        self._dcim_repository = dcim_repository
+        self._audit_repository = audit_repository
+        self._transaction_manager = transaction_manager
+
+    def define_power_device(self, command: DefinePowerDeviceCommand) -> dict[str, object]:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        room = self._dcim_repository.find_room(tenant_id, command.site, command.building, command.room)
+        if room is None:
+            raise NotFoundError("room must exist before defining a power device")
+        if command.rack is not None:
+            rack = self._dcim_repository.find_rack(
+                tenant_id, command.site, command.building, command.room, command.rack
+            )
+            if rack is None:
+                raise NotFoundError("rack must exist before defining a rack power device")
+        device = PowerDevice.create(
+            tenant_id=tenant_id,
+            code=command.code,
+            kind=command.kind,
+            site=command.site,
+            building=command.building,
+            room=command.room,
+            rack=command.rack,
+            side=command.side,
+            capacity_watts=command.capacity_watts,
+            derating_percent=command.derating_percent,
+            input_source=command.input_source,
+            output_voltage=command.output_voltage,
+            label=command.label,
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            self._dcim_repository.add_power_device(device)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=command.actor,
+                    action="dcim.power-device.defined",
+                    target_type="power_device",
+                    target_id=device.code.value,
+                    metadata=device.as_dict(),
+                )
+            )
+            unit_of_work.commit()
+        return device.as_dict()
+
+    def define_power_circuit(self, command: DefinePowerCircuitCommand) -> dict[str, object]:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        source = self._dcim_repository.find_power_device(tenant_id, command.source_device)
+        if source is None:
+            raise NotFoundError("source power device must exist before defining a circuit")
+        rack = self._dcim_repository.find_rack(
+            tenant_id, command.site, command.building, command.room, command.rack
+        )
+        if rack is None:
+            raise NotFoundError("rack must exist before defining a power circuit")
+        circuit = PowerCircuit.create(
+            tenant_id=tenant_id,
+            circuit_id=command.circuit_id,
+            source_device_code=source.code.value,
+            site=command.site,
+            building=command.building,
+            room=command.room,
+            rack=command.rack,
+            side=command.side,
+            capacity_watts=command.capacity_watts,
+            breaker_rating_amps=command.breaker_rating_amps,
+            redundancy_group=command.redundancy_group,
+            label=command.label,
+        )
+        if source.side is not None and source.side != circuit.side:
+            raise ValidationError("power circuit side must match the source power device side")
+        if source.site_code != circuit.site_code or source.building_code != circuit.building_code:
+            raise ValidationError("power circuit source must be in the same site and building")
+        if source.room_code != circuit.room_code:
+            raise ValidationError("power circuit source must be in the same room")
+        allocated = sum(
+            item.capacity_watts
+            for item in self._dcim_repository.list_power_circuits_by_source(tenant_id, source.code.value)
+        )
+        if allocated + circuit.capacity_watts > source.derated_capacity_watts:
+            raise ConflictError("power circuit allocation exceeds source derated capacity")
+        if rack.power_capacity_watts is not None:
+            rack_capacity = sum(
+                item.capacity_watts
+                for item in self._dcim_repository.list_power_circuits_for_rack(
+                    tenant_id, command.site, command.building, command.room, command.rack
+                )
+            )
+            if rack_capacity + circuit.capacity_watts > rack.power_capacity_watts:
+                raise ConflictError("power circuit allocation exceeds rack power capacity")
+        with self._transaction_manager.begin() as unit_of_work:
+            self._dcim_repository.add_power_circuit(circuit)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=command.actor,
+                    action="dcim.power-circuit.defined",
+                    target_type="power_circuit",
+                    target_id=circuit.circuit_id.value,
+                    metadata=circuit.as_dict(),
+                )
+            )
+            unit_of_work.commit()
+        return circuit.as_dict()
+
+    def define_cooling_zone(self, command: DefineCoolingZoneCommand) -> dict[str, object]:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        zone = self._dcim_repository.find_zone(
+            tenant_id, command.site, command.building, command.room, command.zone
+        )
+        if zone is None:
+            raise NotFoundError("room zone must exist before defining a cooling zone")
+        cooling_zone = CoolingZone.create(
+            tenant_id=tenant_id,
+            site=command.site,
+            building=command.building,
+            room=command.room,
+            zone=command.zone,
+            role=command.role,
+            cooling_capacity_watts=command.cooling_capacity_watts,
+            supply_temperature_c=command.supply_temperature_c,
+            return_temperature_c=command.return_temperature_c,
+            label=command.label,
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            self._dcim_repository.add_cooling_zone(cooling_zone)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=command.actor,
+                    action="dcim.cooling-zone.defined",
+                    target_type="cooling_zone",
+                    target_id=cooling_zone.zone_code.value,
+                    metadata=cooling_zone.as_dict(),
+                )
+            )
+            unit_of_work.commit()
+        return cooling_zone.as_dict()
+
+    def reserve_equipment_power(self, command: ReserveEquipmentPowerCommand) -> dict[str, object]:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        equipment = self._dcim_repository.find_equipment(tenant_id, command.asset_tag)
+        if equipment is None:
+            raise NotFoundError("equipment must exist before reserving power")
+        if equipment.location.rack_code is None:
+            raise ValidationError("equipment must be rack-mounted before reserving rack power")
+        circuit = self._dcim_repository.find_power_circuit(tenant_id, command.circuit_id)
+        if circuit is None:
+            raise NotFoundError("power circuit must exist before reserving power")
+        if circuit.rack_code != equipment.location.rack_code:
+            raise ValidationError("power reservation circuit must target the equipment rack")
+        reservation = RackPowerReservation.create(
+            tenant_id=tenant_id,
+            asset_tag=equipment.asset_tag.value,
+            circuit_id=circuit.circuit_id.value,
+            side=circuit.side.value,
+            site=equipment.location.site_code.value,
+            building=equipment.location.building_code.value,
+            room=equipment.location.room_code.value,
+            rack=equipment.location.rack_code.value,
+            expected_watts=command.expected_watts,
+            label=command.label,
+        )
+        self._assert_power_capacity(tenant_id, reservation, circuit)
+        self._assert_cooling_capacity(tenant_id, reservation, equipment)
+        with self._transaction_manager.begin() as unit_of_work:
+            self._dcim_repository.add_power_reservation(reservation)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=command.actor,
+                    action="dcim.power-reservation.created",
+                    target_type="equipment",
+                    target_id=reservation.asset_tag.value,
+                    metadata=reservation.as_dict(),
+                )
+            )
+            unit_of_work.commit()
+        return reservation.as_dict()
+
+    def rack_energy_cooling_capacity(
+        self,
+        command: RackEnergyCoolingCapacityCommand,
+    ) -> RackEnergyCoolingReport:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        rack = self._dcim_repository.find_rack(
+            tenant_id, command.site, command.building, command.room, command.rack
+        )
+        if rack is None:
+            raise NotFoundError("rack does not exist")
+        cooling_zone = None
+        if rack.zone_code is not None:
+            cooling_zone = self._dcim_repository.find_cooling_zone(
+                tenant_id, command.site, command.building, command.room, rack.zone_code.value
+            )
+        report = RackEnergyCoolingReport(
+            rack=rack,
+            circuits=self._dcim_repository.list_power_circuits_for_rack(
+                tenant_id, command.site, command.building, command.room, command.rack
+            ),
+            reservations=self._dcim_repository.list_power_reservations_for_rack(
+                tenant_id, command.site, command.building, command.room, command.rack
+            ),
+            cooling_zone=cooling_zone,
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=command.actor,
+                    action="dcim.energy-cooling-capacity.reported",
+                    target_type="rack",
+                    target_id=rack.code.value,
+                    metadata={"rack": rack.code.value},
+                )
+            )
+            unit_of_work.commit()
+        return report
+
+    def _assert_power_capacity(
+        self,
+        tenant_id: TenantId,
+        reservation: RackPowerReservation,
+        circuit: PowerCircuit,
+    ) -> None:
+        circuit_reservations = self._dcim_repository.list_power_reservations_for_circuit(
+            tenant_id, circuit.circuit_id.value
+        )
+        circuit_load = sum(item.expected_watts for item in circuit_reservations)
+        if circuit_load + reservation.expected_watts > circuit.capacity_watts:
+            raise ConflictError("power reservation exceeds circuit capacity")
+        rack = self._dcim_repository.find_rack(
+            tenant_id,
+            reservation.site_code.value,
+            reservation.building_code.value,
+            reservation.room_code.value,
+            reservation.rack_code.value,
+        )
+        if rack is not None and rack.power_capacity_watts is not None:
+            rack_reservations = self._dcim_repository.list_power_reservations_for_rack(
+                tenant_id,
+                reservation.site_code.value,
+                reservation.building_code.value,
+                reservation.room_code.value,
+                reservation.rack_code.value,
+            )
+            rack_load = sum(item.expected_watts for item in rack_reservations)
+            if rack_load + reservation.expected_watts > rack.power_capacity_watts:
+                raise ConflictError("power reservation exceeds rack declared power capacity")
+
+    def _assert_cooling_capacity(
+        self,
+        tenant_id: TenantId,
+        reservation: RackPowerReservation,
+        equipment: Equipment,
+    ) -> None:
+        if equipment.location.zone_code is None:
+            return
+        cooling_zone = self._dcim_repository.find_cooling_zone(
+            tenant_id,
+            equipment.location.site_code.value,
+            equipment.location.building_code.value,
+            equipment.location.room_code.value,
+            equipment.location.zone_code.value,
+        )
+        if cooling_zone is None:
+            return
+        zone_load = self._zone_power_load(tenant_id, cooling_zone)
+        if zone_load + reservation.expected_watts > cooling_zone.cooling_capacity_watts:
+            raise ConflictError("power reservation exceeds cooling zone capacity")
+
+    def _zone_power_load(self, tenant_id: TenantId, cooling_zone: CoolingZone) -> int:
+        total = 0
+        for rack in self._dcim_repository.list_racks_in_room(
+            tenant_id,
+            cooling_zone.site_code.value,
+            cooling_zone.building_code.value,
+            cooling_zone.room_code.value,
+        ):
+            if rack.zone_code != cooling_zone.zone_code:
+                continue
+            total += sum(
+                item.expected_watts
+                for item in self._dcim_repository.list_power_reservations_for_rack(
+                    tenant_id,
+                    rack.site_code.value,
+                    rack.building_code.value,
+                    rack.room_code.value,
+                    rack.code.value,
+                )
+            )
+        return total
 
 
 class DcimFieldOperationService:

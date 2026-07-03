@@ -50,6 +50,8 @@ from openinfra.domain.common import (
 )
 from openinfra.domain.dcim import (
     Building,
+    CoolingRole,
+    CoolingZone,
     DcimCable,
     DcimCableMedium,
     DcimCablePathSegment,
@@ -62,7 +64,12 @@ from openinfra.domain.dcim import (
     EquipmentLocation,
     Floor,
     PatchPanel,
+    PowerCircuit,
+    PowerDevice,
+    PowerDeviceKind,
+    PowerFeedSide,
     Rack,
+    RackPowerReservation,
     RackFace,
     Room,
     RoomZone,
@@ -162,6 +169,10 @@ class JsonDocumentStore:
             "patch_panels": {},
             "dcim_ports": {},
             "dcim_cables": {},
+            "power_devices": {},
+            "power_circuits": {},
+            "cooling_zones": {},
+            "power_reservations": {},
             "equipment": {},
             "vrfs": {},
             "prefixes": {},
@@ -209,6 +220,10 @@ class JsonReadinessProbe(ReadinessProbe):
                     "patch_panels",
                     "dcim_ports",
                     "dcim_cables",
+                    "power_devices",
+                    "power_circuits",
+                    "cooling_zones",
+                    "power_reservations",
                     "equipment",
                     "vrfs",
                     "prefixes",
@@ -344,6 +359,33 @@ class JsonDcimRepository(DcimRepository):
         self._store.data["equipment"][key] = self._equipment_to_dict(equipment)
         self._store.mark_dirty()
 
+    def add_power_device(self, power_device: PowerDevice) -> None:
+        key = self._key(power_device.tenant_id, power_device.code.value)
+        self._put_unique("power_devices", key, self._power_device_to_dict(power_device))
+
+    def add_power_circuit(self, circuit: PowerCircuit) -> None:
+        key = self._key(circuit.tenant_id, circuit.circuit_id.value)
+        self._put_unique("power_circuits", key, self._power_circuit_to_dict(circuit))
+
+    def add_cooling_zone(self, cooling_zone: CoolingZone) -> None:
+        key = self._key(
+            cooling_zone.tenant_id,
+            cooling_zone.site_code.value,
+            cooling_zone.building_code.value,
+            cooling_zone.room_code.value,
+            cooling_zone.zone_code.value,
+        )
+        self._put_unique("cooling_zones", key, self._cooling_zone_to_dict(cooling_zone))
+
+    def add_power_reservation(self, reservation: RackPowerReservation) -> None:
+        key = self._key(
+            reservation.tenant_id,
+            reservation.asset_tag.value,
+            reservation.side.value,
+            reservation.circuit_id.value,
+        )
+        self._put_unique("power_reservations", key, self._power_reservation_to_dict(reservation))
+
     def find_site(self, tenant_id: TenantId, site: str) -> Site | None:
         key = self._key(tenant_id, Code.from_value(site, "site code").value)
         item = self._store.data["sites"].get(key)
@@ -472,6 +514,34 @@ class JsonDcimRepository(DcimRepository):
         item = self._store.data["equipment"].get(key)
         return self._equipment_from_dict(item) if item else None
 
+    def find_power_device(self, tenant_id: TenantId, code: str) -> PowerDevice | None:
+        key = self._key(tenant_id, Code.from_value(code, "power device code").value)
+        item = self._store.data["power_devices"].get(key)
+        return self._power_device_from_dict(item) if item else None
+
+    def find_power_circuit(self, tenant_id: TenantId, circuit_id: str) -> PowerCircuit | None:
+        key = self._key(tenant_id, Code.from_value(circuit_id, "power circuit id").value)
+        item = self._store.data["power_circuits"].get(key)
+        return self._power_circuit_from_dict(item) if item else None
+
+    def find_cooling_zone(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+        zone: str,
+    ) -> CoolingZone | None:
+        key = self._key(
+            tenant_id,
+            Code.from_value(site, "site code").value,
+            Code.from_value(building, "building code").value,
+            Code.from_value(room, "room code").value,
+            Code.from_value(zone, "zone code").value,
+        )
+        item = self._store.data["cooling_zones"].get(key)
+        return self._cooling_zone_from_dict(item) if item else None
+
     def list_equipment_in_rack(
         self,
         tenant_id: TenantId,
@@ -597,6 +667,210 @@ class JsonDcimRepository(DcimRepository):
             ):
                 matching.append(self._equipment_from_dict(value))
         return tuple(sorted(matching, key=lambda item: item.asset_tag.value))
+
+    def list_power_circuits_by_source(
+        self,
+        tenant_id: TenantId,
+        source_device: str,
+    ) -> tuple[PowerCircuit, ...]:
+        normalized_source = Code.from_value(source_device, "power device code").value
+        matching = [
+            self._power_circuit_from_dict(value)
+            for value in self._store.data["power_circuits"].values()
+            if value.get("tenant_id") == tenant_id.value
+            and value.get("source_device_code") == normalized_source
+        ]
+        return tuple(sorted(matching, key=lambda item: item.circuit_id.value))
+
+    def list_power_circuits_for_rack(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+        rack: str,
+    ) -> tuple[PowerCircuit, ...]:
+        normalized_site = Code.from_value(site, "site code").value
+        normalized_building = Code.from_value(building, "building code").value
+        normalized_room = Code.from_value(room, "room code").value
+        normalized_rack = Code.from_value(rack, "rack code").value
+        matching = [
+            self._power_circuit_from_dict(value)
+            for value in self._store.data["power_circuits"].values()
+            if value.get("tenant_id") == tenant_id.value
+            and value.get("site_code") == normalized_site
+            and value.get("building_code") == normalized_building
+            and value.get("room_code") == normalized_room
+            and value.get("rack_code") == normalized_rack
+        ]
+        return tuple(sorted(matching, key=lambda item: (item.side.value, item.circuit_id.value)))
+
+    def list_power_reservations_for_circuit(
+        self,
+        tenant_id: TenantId,
+        circuit_id: str,
+    ) -> tuple[RackPowerReservation, ...]:
+        normalized_circuit = Code.from_value(circuit_id, "power circuit id").value
+        matching = [
+            self._power_reservation_from_dict(value)
+            for value in self._store.data["power_reservations"].values()
+            if value.get("tenant_id") == tenant_id.value
+            and value.get("circuit_id") == normalized_circuit
+        ]
+        return tuple(sorted(matching, key=lambda item: (item.asset_tag.value, item.side.value)))
+
+    def list_power_reservations_for_rack(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+        rack: str,
+    ) -> tuple[RackPowerReservation, ...]:
+        normalized_site = Code.from_value(site, "site code").value
+        normalized_building = Code.from_value(building, "building code").value
+        normalized_room = Code.from_value(room, "room code").value
+        normalized_rack = Code.from_value(rack, "rack code").value
+        matching = [
+            self._power_reservation_from_dict(value)
+            for value in self._store.data["power_reservations"].values()
+            if value.get("tenant_id") == tenant_id.value
+            and value.get("site_code") == normalized_site
+            and value.get("building_code") == normalized_building
+            and value.get("room_code") == normalized_room
+            and value.get("rack_code") == normalized_rack
+        ]
+        return tuple(sorted(matching, key=lambda item: (item.side.value, item.asset_tag.value)))
+
+    def _power_device_to_dict(self, power_device: PowerDevice) -> dict[str, Any]:
+        return {
+            "id": power_device.id.value,
+            "tenant_id": power_device.tenant_id.value,
+            "code": power_device.code.value,
+            "kind": power_device.kind.value,
+            "site_code": power_device.site_code.value,
+            "building_code": power_device.building_code.value,
+            "room_code": power_device.room_code.value,
+            "rack_code": power_device.rack_code.value if power_device.rack_code else None,
+            "side": power_device.side.value if power_device.side else None,
+            "capacity_watts": power_device.capacity_watts,
+            "derating_percent": power_device.derating_percent,
+            "input_source": power_device.input_source,
+            "output_voltage": power_device.output_voltage,
+            "label": power_device.label,
+        }
+
+    def _power_device_from_dict(self, value: dict[str, Any]) -> PowerDevice:
+        return PowerDevice(
+            id=EntityId.from_value(value["id"]),
+            tenant_id=TenantId.from_value(value["tenant_id"]),
+            code=Code.from_value(value["code"], "power device code"),
+            kind=PowerDeviceKind.from_value(value["kind"]),
+            site_code=Code.from_value(value["site_code"], "site code"),
+            building_code=Code.from_value(value["building_code"], "building code"),
+            room_code=Code.from_value(value["room_code"], "room code"),
+            rack_code=Code.from_value(value["rack_code"], "rack code") if value.get("rack_code") else None,
+            side=PowerFeedSide.from_value(value["side"]) if value.get("side") else None,
+            capacity_watts=int(value["capacity_watts"]),
+            derating_percent=int(value["derating_percent"]),
+            input_source=str(value["input_source"]),
+            output_voltage=int(value["output_voltage"]),
+            label=str(value.get("label", "")),
+        )
+
+    def _power_circuit_to_dict(self, circuit: PowerCircuit) -> dict[str, Any]:
+        return {
+            "id": circuit.id.value,
+            "tenant_id": circuit.tenant_id.value,
+            "circuit_id": circuit.circuit_id.value,
+            "source_device_code": circuit.source_device_code.value,
+            "site_code": circuit.site_code.value,
+            "building_code": circuit.building_code.value,
+            "room_code": circuit.room_code.value,
+            "rack_code": circuit.rack_code.value,
+            "side": circuit.side.value,
+            "capacity_watts": circuit.capacity_watts,
+            "breaker_rating_amps": circuit.breaker_rating_amps,
+            "redundancy_group": circuit.redundancy_group,
+            "label": circuit.label,
+        }
+
+    def _power_circuit_from_dict(self, value: dict[str, Any]) -> PowerCircuit:
+        return PowerCircuit(
+            id=EntityId.from_value(value["id"]),
+            tenant_id=TenantId.from_value(value["tenant_id"]),
+            circuit_id=Code.from_value(value["circuit_id"], "power circuit id"),
+            source_device_code=Code.from_value(value["source_device_code"], "power device code"),
+            site_code=Code.from_value(value["site_code"], "site code"),
+            building_code=Code.from_value(value["building_code"], "building code"),
+            room_code=Code.from_value(value["room_code"], "room code"),
+            rack_code=Code.from_value(value["rack_code"], "rack code"),
+            side=PowerFeedSide.from_value(value["side"]),
+            capacity_watts=int(value["capacity_watts"]),
+            breaker_rating_amps=int(value["breaker_rating_amps"]),
+            redundancy_group=str(value["redundancy_group"]),
+            label=str(value.get("label", "")),
+        )
+
+    def _cooling_zone_to_dict(self, cooling_zone: CoolingZone) -> dict[str, Any]:
+        return {
+            "id": cooling_zone.id.value,
+            "tenant_id": cooling_zone.tenant_id.value,
+            "site_code": cooling_zone.site_code.value,
+            "building_code": cooling_zone.building_code.value,
+            "room_code": cooling_zone.room_code.value,
+            "zone_code": cooling_zone.zone_code.value,
+            "role": cooling_zone.role.value,
+            "cooling_capacity_watts": cooling_zone.cooling_capacity_watts,
+            "supply_temperature_c": cooling_zone.supply_temperature_c,
+            "return_temperature_c": cooling_zone.return_temperature_c,
+            "label": cooling_zone.label,
+        }
+
+    def _cooling_zone_from_dict(self, value: dict[str, Any]) -> CoolingZone:
+        return CoolingZone(
+            id=EntityId.from_value(value["id"]),
+            tenant_id=TenantId.from_value(value["tenant_id"]),
+            site_code=Code.from_value(value["site_code"], "site code"),
+            building_code=Code.from_value(value["building_code"], "building code"),
+            room_code=Code.from_value(value["room_code"], "room code"),
+            zone_code=Code.from_value(value["zone_code"], "zone code"),
+            role=CoolingRole.from_value(value["role"]),
+            cooling_capacity_watts=int(value["cooling_capacity_watts"]),
+            supply_temperature_c=float(value["supply_temperature_c"]),
+            return_temperature_c=float(value["return_temperature_c"]),
+            label=str(value.get("label", "")),
+        )
+
+    def _power_reservation_to_dict(self, reservation: RackPowerReservation) -> dict[str, Any]:
+        return {
+            "id": reservation.id.value,
+            "tenant_id": reservation.tenant_id.value,
+            "asset_tag": reservation.asset_tag.value,
+            "circuit_id": reservation.circuit_id.value,
+            "side": reservation.side.value,
+            "site_code": reservation.site_code.value,
+            "building_code": reservation.building_code.value,
+            "room_code": reservation.room_code.value,
+            "rack_code": reservation.rack_code.value,
+            "expected_watts": reservation.expected_watts,
+            "label": reservation.label,
+        }
+
+    def _power_reservation_from_dict(self, value: dict[str, Any]) -> RackPowerReservation:
+        return RackPowerReservation(
+            id=EntityId.from_value(value["id"]),
+            tenant_id=TenantId.from_value(value["tenant_id"]),
+            asset_tag=Code.from_value(value["asset_tag"], "asset tag"),
+            circuit_id=Code.from_value(value["circuit_id"], "power circuit id"),
+            side=PowerFeedSide.from_value(value["side"]),
+            site_code=Code.from_value(value["site_code"], "site code"),
+            building_code=Code.from_value(value["building_code"], "building code"),
+            room_code=Code.from_value(value["room_code"], "room code"),
+            rack_code=Code.from_value(value["rack_code"], "rack code"),
+            expected_watts=int(value["expected_watts"]),
+            label=str(value.get("label", "")),
+        )
 
     def _put_unique(self, collection: str, key: str, value: dict[str, Any]) -> None:
         if key in self._store.data[collection]:

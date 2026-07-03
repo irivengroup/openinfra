@@ -1,65 +1,72 @@
-# OpenInfra Python POO v0.19.0 — Rapport de validation
+# OpenInfra Python POO v0.20.0 — Rapport de validation
 
 Date : 2026-07-03
 
 ## Synthèse
 
-- Version livrée : OpenInfra Python POO v0.19.0
-- Roadmap : P05 / EPIC-0502 — Allocation IP transactionnelle
-- Seuil couverture global obligatoire : >= 98 %
-- Runtime production : serveur natif Linux + Python virtualenv + systemd + PostgreSQL, sans dépendance Docker
-- Docker : lab/smoke facultatif uniquement
+- Version livrée : OpenInfra Python POO v0.20.0
+- Roadmap : P05 / EPIC-0503 — VLAN/VXLAN/ASN/BGP fondation
+- Baseline : OpenInfra Python POO v0.19.0
+- Runtime production : serveur Linux natif, virtualenv Python, systemd, PostgreSQL
+- Docker : environnement facultatif de lab/smoke uniquement, non requis en production
+- Seuil officiel de couverture : >= 98 %
+- Couverture obtenue : 98.08 %
+- Résultat global : conforme
 
-## Périmètre livré
+## Fonctionnalités livrées
 
-La version v0.19.0 durcit l’allocation IP transactionnelle introduite dans le socle IPAM. L’allocation `next available` tient compte du tenant, du VRF, du préfixe, des plages d’allocation, des plages de réservation/exclusion et des adresses déjà enregistrées. Elle reste idempotente par clé métier et produit un événement d’audit structuré lors d’une création effective.
+- Domaine IPAM réseau : `VlanGroup`, `Vlan`, `VxlanVni`, `AutonomousSystem`, `BgpPeer`, `NetworkIdentifierPolicy`.
+- Services applicatifs : définition des groupes VLAN, VNI/VXLAN, VLAN, ASN, pairs BGP et rapport d’attachements réseau.
+- Règles métier :
+  - VLAN ID borné à 1..4094 ;
+  - VNI borné à 1..16777215 ;
+  - ASN borné à 1..4294967295 ;
+  - route targets normalisées au format `ASN:NUMBER` ;
+  - VNI unique par tenant ;
+  - VLAN attaché à un VNI obligatoirement dans le même VRF ;
+  - ASN local et distant distincts pour un pair BGP ;
+  - pair BGP IPv4/IPv6 cohérent avec l’adresse du voisin.
+- Backends : JSON atomique et PostgreSQL alignés sur les ports applicatifs.
+- Migration PostgreSQL : `0017_ipam_networking_foundation.sql` partitionnée par `tenant_id`.
+- CLI : `define-vlan-group`, `define-vxlan-vni`, `define-vlan`, `define-asn`, `define-bgp-peer`, `network-bindings`.
+- API HTTP : endpoints IPAM réseau ajoutés dans OpenAPI.
+- CI GitHub Actions : rendu migration `0017` et smoke IPAM réseau ajoutés ; sécurité bloquante conservée.
+- Documentation : README, architecture, runbooks, OpenAPI, changelog et traçabilité mis à jour.
 
-## Changements techniques
+## Validations exécutées
 
-- Domaine IPAM : enrichissement de `IpRange` avec bornes entières et test d’appartenance ; sélection déterministe dans `IpAllocationPolicy`.
-- Application : `IpamAllocationService` acquiert un verrou logique, charge réservations/adresses/ranges et évite les collisions.
-- Port : ajout de `IpamRepository.acquire_allocation_lock`.
-- Backend JSON : verrou transactionnel existant conservé et validé par 100 allocations concurrentes.
-- Backend PostgreSQL : `pg_advisory_xact_lock` par `tenant/VRF/prefixe`, contraintes uniques conservées.
-- Migration PostgreSQL : `0016_ipam_transactional_allocation.sql`.
-- CLI/API : `openinfra ipam allocate` et `POST /api/v1/ipam/allocate` restent compatibles, mais avec comportement transactionnel durci.
-- CI : rendu migration `0016` et smoke IPAM transactionnel.
-
-## Validations
-
-| Contrôle | Résultat |
+| Validation | Résultat |
 | --- | --- |
 | `python3 -m ruff format --check src tests scripts docker` | Réussi |
 | `python3 -m ruff check src tests scripts docker` | Réussi |
 | `python3 -m mypy src/openinfra` | Réussi |
 | `python3 -m bandit -q -r src/openinfra` | Réussi |
 | `PYTHONPATH=src python3 scripts/security_gate.py --project-root .` | Réussi |
-| `PYTHONPATH=src python3 -m pytest -q` | Réussi |
-| Couverture globale | 98.09 % |
-| Seuil obligatoire | >= 98 % |
+| `python3 -m pip_audit --strict --requirement requirements/security-audit.txt --progress-spinner off --dry-run` | Réussi |
+| `PYTHONPATH=src python3 -m pytest -q` | 189 tests réussis |
+| Couverture globale | 98.08 % |
 | `PYTHONPATH=src python3 scripts/quality_gate.py` | Réussi |
 | `PYTHONPATH=src python3 -m compileall -q src tests scripts docker` | Réussi |
-| `PYTHONPATH=src python3 -m openinfra.interfaces.cli version` | 0.19.0 |
-| Validation CDC/SFG/STG | Réussi |
-| Rendu migrations PostgreSQL 0001 à 0016 | Réussi |
-| Rendu migration `0016_ipam_transactional_allocation` | Réussi |
-| Smoke CLI IPAM transactionnel JSON | Réussi |
-| Smoke runtime natif | Réussi |
-| Build wheel et vérification artefact | Réussi |
-| Archive nettoyée | Réussi |
+| `PYTHONPATH=src python3 -m openinfra.interfaces.cli version` | 0.20.0 |
+| `PYTHONPATH=src python3 -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4` | Réussi |
+| Rendu migrations PostgreSQL 0001 à 0017 | Réussi |
+| Rendu migration `0017_ipam_networking_foundation` | Réussi |
+| Smoke CLI IPAM VLAN/VXLAN/ASN/BGP JSON | Réussi |
+| `python3 scripts/native_runtime_smoke.py` | Réussi |
+| Validation YAML GitHub Actions / OpenAPI | Réussi |
+| `python3 -m build` | Réussi |
+| `python3 scripts/verify_artifact.py dist/*.whl` | Réussi |
 
-## Tests métier ajoutés
+## Contrôles non exécutés localement
 
-- Allocation respectant plages `allocation`, `exclusion` et adresses déjà enregistrées.
-- Plages `reservation` considérées comme capacité bloquée par le moteur d’allocation.
-- 100 allocations concurrentes sans collision sur backend JSON.
-- Verrou PostgreSQL simulé via `pg_advisory_xact_lock` dans le flux d’allocation.
-- Non-régression idempotence existante.
-
-## Non exécuté localement
-
-- Matrice GitHub complète Python `3.11`, `3.12`, `3.13`, `3.14` : seul Python `3.13.5` était disponible localement.
-- CodeQL et Dependency Review : exécutables uniquement côté GitHub Actions.
-- Audit `pip-audit` réseau complet : dépend de l’accès à PyPI côté CI.
+- Matrice GitHub Actions complète Python 3.11, 3.12, 3.13 et 3.14 : seul Python 3.13.5 était disponible localement.
+- CodeQL et Dependency Review : exécutables côté GitHub Actions uniquement.
+- Audit `pip-audit` réseau complet : non exécuté localement ; la configuration d’audit par fichier `requirements/security-audit.txt` est validée en `--dry-run` et intégrée à la CI.
 - Docker Compose réel : non exécuté, Docker n’est pas requis en production.
 - PostgreSQL réel : non exécuté, aucun serveur PostgreSQL local disponible.
+
+## Risques résiduels
+
+- La validation PostgreSQL réelle doit être exécutée dans l’environnement d’intégration disposant d’un cluster PostgreSQL.
+- La matrice Python 3.14 dépend de la disponibilité de Python 3.14 dans GitHub Actions.
+- Les scans CodeQL/Dependency Review doivent être confirmés côté GitHub après push.

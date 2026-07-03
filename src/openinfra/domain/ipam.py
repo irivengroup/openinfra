@@ -8,6 +8,285 @@ from typing import Self
 from openinfra.domain.common import Code, EntityId, Name, TenantId, ValidationError
 
 
+class BgpAddressFamily(StrEnum):
+    IPV4 = "ipv4"
+    IPV6 = "ipv6"
+
+    @classmethod
+    def from_value(cls, value: str) -> Self:
+        normalized = value.strip().lower()
+        try:
+            return cls(normalized)
+        except ValueError as exc:
+            raise ValidationError("bgp address family must be ipv4 or ipv6") from exc
+
+
+class NetworkIdentifierPolicy:
+    @staticmethod
+    def validate_vlan_id(value: int) -> int:
+        if not 1 <= value <= 4094:
+            raise ValidationError("vlan id must be between 1 and 4094")
+        return value
+
+    @staticmethod
+    def validate_vni(value: int) -> int:
+        if not 1 <= value <= 16777215:
+            raise ValidationError("vxlan vni must be between 1 and 16777215")
+        return value
+
+    @staticmethod
+    def validate_asn(value: int) -> int:
+        if not 1 <= value <= 4294967295:
+            raise ValidationError("asn must be between 1 and 4294967295")
+        return value
+
+    @staticmethod
+    def normalize_route_targets(values: tuple[str, ...]) -> tuple[str, ...]:
+        normalized: list[str] = []
+        for value in values:
+            candidate = value.strip()
+            pieces = candidate.split(":")
+            if len(pieces) != 2 or not pieces[0].isdigit() or not pieces[1].isdigit():
+                raise ValidationError("route target must use ASN:NUMBER format")
+            asn = NetworkIdentifierPolicy.validate_asn(int(pieces[0]))
+            number = int(pieces[1])
+            if not 0 <= number <= 4294967295:
+                raise ValidationError("route target number must be between 0 and 4294967295")
+            normalized.append(f"{asn}:{number}")
+        return tuple(dict.fromkeys(normalized))
+
+
+@dataclass(frozen=True, slots=True)
+class VlanGroup:
+    id: EntityId
+    tenant_id: TenantId
+    name: Name
+    scope: Code | None
+    description: str
+
+    @classmethod
+    def create(
+        cls,
+        tenant_id: TenantId,
+        name: str,
+        scope: str | None = None,
+        description: str = "",
+    ) -> Self:
+        normalized_scope = Code.from_value(scope, "vlan group scope") if scope else None
+        return cls(
+            id=EntityId.new(),
+            tenant_id=tenant_id,
+            name=Name.from_value(name, "vlan group name"),
+            scope=normalized_scope,
+            description=description.strip(),
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "tenant_id": self.tenant_id.value,
+            "name": self.name.value,
+            "scope": self.scope.value if self.scope else None,
+            "description": self.description,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class VxlanVni:
+    id: EntityId
+    tenant_id: TenantId
+    vni: int
+    name: Name
+    vrf_name: Name
+    route_targets_import: tuple[str, ...]
+    route_targets_export: tuple[str, ...]
+    description: str
+
+    @classmethod
+    def create(
+        cls,
+        tenant_id: TenantId,
+        vni: int,
+        name: str,
+        vrf_name: str,
+        route_targets_import: tuple[str, ...] = (),
+        route_targets_export: tuple[str, ...] = (),
+        description: str = "",
+    ) -> Self:
+        return cls(
+            id=EntityId.new(),
+            tenant_id=tenant_id,
+            vni=NetworkIdentifierPolicy.validate_vni(vni),
+            name=Name.from_value(name, "vni name"),
+            vrf_name=Name.from_value(vrf_name, "vrf name"),
+            route_targets_import=NetworkIdentifierPolicy.normalize_route_targets(
+                route_targets_import
+            ),
+            route_targets_export=NetworkIdentifierPolicy.normalize_route_targets(
+                route_targets_export
+            ),
+            description=description.strip(),
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "tenant_id": self.tenant_id.value,
+            "vni": self.vni,
+            "name": self.name.value,
+            "vrf": self.vrf_name.value,
+            "route_targets_import": list(self.route_targets_import),
+            "route_targets_export": list(self.route_targets_export),
+            "description": self.description,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class Vlan:
+    id: EntityId
+    tenant_id: TenantId
+    group_name: Name
+    vlan_id: int
+    name: Name
+    vrf_name: Name | None
+    vni: int | None
+    description: str
+
+    @classmethod
+    def create(
+        cls,
+        tenant_id: TenantId,
+        group_name: str,
+        vlan_id: int,
+        name: str,
+        vrf_name: str | None = None,
+        vni: int | None = None,
+        description: str = "",
+    ) -> Self:
+        normalized_vrf = Name.from_value(vrf_name, "vrf name") if vrf_name else None
+        normalized_vni = NetworkIdentifierPolicy.validate_vni(vni) if vni is not None else None
+        if normalized_vni is not None and normalized_vrf is None:
+            raise ValidationError("vlan with vni must be attached to a vrf")
+        return cls(
+            id=EntityId.new(),
+            tenant_id=tenant_id,
+            group_name=Name.from_value(group_name, "vlan group name"),
+            vlan_id=NetworkIdentifierPolicy.validate_vlan_id(vlan_id),
+            name=Name.from_value(name, "vlan name"),
+            vrf_name=normalized_vrf,
+            vni=normalized_vni,
+            description=description.strip(),
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "tenant_id": self.tenant_id.value,
+            "group": self.group_name.value,
+            "vlan_id": self.vlan_id,
+            "name": self.name.value,
+            "vrf": self.vrf_name.value if self.vrf_name else None,
+            "vni": self.vni,
+            "description": self.description,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class AutonomousSystem:
+    id: EntityId
+    tenant_id: TenantId
+    number: int
+    name: Name
+    description: str
+
+    @classmethod
+    def create(cls, tenant_id: TenantId, number: int, name: str, description: str = "") -> Self:
+        return cls(
+            id=EntityId.new(),
+            tenant_id=tenant_id,
+            number=NetworkIdentifierPolicy.validate_asn(number),
+            name=Name.from_value(name, "asn name"),
+            description=description.strip(),
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "tenant_id": self.tenant_id.value,
+            "asn": self.number,
+            "name": self.name.value,
+            "description": self.description,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class BgpPeer:
+    id: EntityId
+    tenant_id: TenantId
+    vrf_name: Name
+    local_asn: int
+    remote_asn: int
+    peer_address: ipaddress.IPv4Address | ipaddress.IPv6Address
+    address_family: BgpAddressFamily
+    route_targets_import: tuple[str, ...]
+    route_targets_export: tuple[str, ...]
+    description: str
+
+    @classmethod
+    def create(
+        cls,
+        tenant_id: TenantId,
+        vrf_name: str,
+        local_asn: int,
+        remote_asn: int,
+        peer_address: str,
+        address_family: str | None = None,
+        route_targets_import: tuple[str, ...] = (),
+        route_targets_export: tuple[str, ...] = (),
+        description: str = "",
+    ) -> Self:
+        local = NetworkIdentifierPolicy.validate_asn(local_asn)
+        remote = NetworkIdentifierPolicy.validate_asn(remote_asn)
+        if local == remote:
+            raise ValidationError("bgp local and remote asn must be distinct")
+        try:
+            parsed_address = ipaddress.ip_address(peer_address.strip())
+        except ValueError as exc:
+            raise ValidationError("invalid bgp peer address") from exc
+        family = BgpAddressFamily.from_value(
+            address_family if address_family else f"ipv{parsed_address.version}"
+        )
+        if (family == BgpAddressFamily.IPV4 and parsed_address.version != 4) or (
+            family == BgpAddressFamily.IPV6 and parsed_address.version != 6
+        ):
+            raise ValidationError("bgp address family must match peer address")
+        return cls(
+            id=EntityId.new(),
+            tenant_id=tenant_id,
+            vrf_name=Name.from_value(vrf_name, "vrf name"),
+            local_asn=local,
+            remote_asn=remote,
+            peer_address=parsed_address,
+            address_family=family,
+            route_targets_import=NetworkIdentifierPolicy.normalize_route_targets(
+                route_targets_import
+            ),
+            route_targets_export=NetworkIdentifierPolicy.normalize_route_targets(
+                route_targets_export
+            ),
+            description=description.strip(),
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "tenant_id": self.tenant_id.value,
+            "vrf": self.vrf_name.value,
+            "local_asn": self.local_asn,
+            "remote_asn": self.remote_asn,
+            "peer_address": str(self.peer_address),
+            "address_family": self.address_family.value,
+            "route_targets_import": list(self.route_targets_import),
+            "route_targets_export": list(self.route_targets_export),
+            "description": self.description,
+        }
+
+
 class IpRangePurpose(StrEnum):
     ALLOCATION = "allocation"
     RESERVATION = "reservation"

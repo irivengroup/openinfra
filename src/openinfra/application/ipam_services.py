@@ -4,17 +4,22 @@ import ipaddress
 from dataclasses import dataclass
 
 from openinfra.application.ports import AuditRepository, IpamRepository, TransactionManager
-from openinfra.domain.common import AuditEvent, ConflictError, TenantId
+from openinfra.domain.common import AuditEvent, ConflictError, NotFoundError, TenantId
 from openinfra.domain.ipam import (
     AllocationRequest,
     AllocationResult,
+    AutonomousSystem,
+    BgpPeer,
     IpAddressRecord,
     IpAggregate,
     IpAllocationPolicy,
     IpRange,
     IpReservation,
     Prefix,
+    Vlan,
+    VlanGroup,
     Vrf,
+    VxlanVni,
 )
 
 
@@ -170,6 +175,97 @@ class IpamCapacityCommand:
     tenant_id: str
     vrf: str
     prefix: str
+
+
+@dataclass(frozen=True, slots=True)
+class DefineVlanGroupCommand:
+    tenant_id: str
+    actor: str
+    name: str
+    scope: str | None = None
+    description: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class DefineVxlanVniCommand:
+    tenant_id: str
+    actor: str
+    vni: int
+    name: str
+    vrf: str
+    route_targets_import: tuple[str, ...] = ()
+    route_targets_export: tuple[str, ...] = ()
+    description: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class DefineVlanCommand:
+    tenant_id: str
+    actor: str
+    group: str
+    vlan_id: int
+    name: str
+    vrf: str | None = None
+    vni: int | None = None
+    description: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class DefineAsnCommand:
+    tenant_id: str
+    actor: str
+    asn: int
+    name: str
+    description: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class DefineBgpPeerCommand:
+    tenant_id: str
+    actor: str
+    vrf: str
+    local_asn: int
+    remote_asn: int
+    peer_address: str
+    address_family: str | None = None
+    route_targets_import: tuple[str, ...] = ()
+    route_targets_export: tuple[str, ...] = ()
+    description: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class IpamNetworkBindingsCommand:
+    tenant_id: str
+    vrf: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class IpamNetworkBindingsReport:
+    tenant_id: str
+    vrf: str | None
+    vlan_groups: tuple[dict[str, object], ...]
+    vlans: tuple[dict[str, object], ...]
+    vxlan_vnis: tuple[dict[str, object], ...]
+    asns: tuple[dict[str, object], ...]
+    bgp_peers: tuple[dict[str, object], ...]
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "tenant_id": self.tenant_id,
+            "vrf": self.vrf,
+            "counts": {
+                "vlan_groups": len(self.vlan_groups),
+                "vlans": len(self.vlans),
+                "vxlan_vnis": len(self.vxlan_vnis),
+                "asns": len(self.asns),
+                "bgp_peers": len(self.bgp_peers),
+            },
+            "vlan_groups": list(self.vlan_groups),
+            "vlans": list(self.vlans),
+            "vxlan_vnis": list(self.vxlan_vnis),
+            "asns": list(self.asns),
+            "bgp_peers": list(self.bgp_peers),
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -358,6 +454,169 @@ class IpamModelService:
             reserved_addresses=reserved,
             free_addresses=max(usable - reserved, 0),
             range_count=len(ranges),
+        )
+
+    def define_vlan_group(self, command: DefineVlanGroupCommand) -> dict[str, object]:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        group = VlanGroup.create(tenant_id, command.name, command.scope, command.description)
+        with self._transaction_manager.begin() as unit_of_work:
+            stored = self._ipam_repository.add_vlan_group(group)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=command.actor,
+                    action="ipam.vlan_group.defined",
+                    target_type="ipam_vlan_group",
+                    target_id=stored.name.value,
+                    metadata={"scope": stored.scope.value if stored.scope else None},
+                )
+            )
+            unit_of_work.commit()
+        return stored.as_dict()
+
+    def define_vxlan_vni(self, command: DefineVxlanVniCommand) -> dict[str, object]:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        vni = VxlanVni.create(
+            tenant_id,
+            command.vni,
+            command.name,
+            command.vrf,
+            command.route_targets_import,
+            command.route_targets_export,
+            command.description,
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            self._ipam_repository.add_or_get_vrf(Vrf.create(tenant_id, command.vrf))
+            existing = self._ipam_repository.find_vxlan_vni(tenant_id, vni.vni)
+            if existing is not None and existing.vrf_name != vni.vrf_name:
+                raise ConflictError("vxlan vni is already attached to another VRF")
+            stored = self._ipam_repository.add_vxlan_vni(vni)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=command.actor,
+                    action="ipam.vxlan_vni.defined",
+                    target_type="ipam_vxlan_vni",
+                    target_id=str(stored.vni),
+                    metadata={"vrf": stored.vrf_name.value},
+                )
+            )
+            unit_of_work.commit()
+        return stored.as_dict()
+
+    def define_vlan(self, command: DefineVlanCommand) -> dict[str, object]:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        vlan = Vlan.create(
+            tenant_id,
+            command.group,
+            command.vlan_id,
+            command.name,
+            command.vrf,
+            command.vni,
+            command.description,
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            self._ipam_repository.add_vlan_group(VlanGroup.create(tenant_id, command.group))
+            if vlan.vrf_name is not None:
+                self._ipam_repository.add_or_get_vrf(Vrf.create(tenant_id, vlan.vrf_name.value))
+            if vlan.vni is not None:
+                existing_vni = self._ipam_repository.find_vxlan_vni(tenant_id, vlan.vni)
+                if existing_vni is None:
+                    raise NotFoundError("vxlan vni must be defined before VLAN attachment")
+                if vlan.vrf_name is None or existing_vni.vrf_name != vlan.vrf_name:
+                    raise ConflictError("vlan VRF must match attached vxlan vni VRF")
+            stored = self._ipam_repository.add_vlan(vlan)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=command.actor,
+                    action="ipam.vlan.defined",
+                    target_type="ipam_vlan",
+                    target_id=f"{stored.group_name.value}:{stored.vlan_id}",
+                    metadata={
+                        "vrf": stored.vrf_name.value if stored.vrf_name else None,
+                        "vni": stored.vni,
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return stored.as_dict()
+
+    def define_asn(self, command: DefineAsnCommand) -> dict[str, object]:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        autonomous_system = AutonomousSystem.create(
+            tenant_id,
+            command.asn,
+            command.name,
+            command.description,
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            stored = self._ipam_repository.add_asn(autonomous_system)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=command.actor,
+                    action="ipam.asn.defined",
+                    target_type="ipam_asn",
+                    target_id=str(stored.number),
+                    metadata={"name": stored.name.value},
+                )
+            )
+            unit_of_work.commit()
+        return stored.as_dict()
+
+    def define_bgp_peer(self, command: DefineBgpPeerCommand) -> dict[str, object]:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        peer = BgpPeer.create(
+            tenant_id,
+            command.vrf,
+            command.local_asn,
+            command.remote_asn,
+            command.peer_address,
+            command.address_family,
+            command.route_targets_import,
+            command.route_targets_export,
+            command.description,
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            self._ipam_repository.add_or_get_vrf(Vrf.create(tenant_id, command.vrf))
+            if self._ipam_repository.find_asn(tenant_id, peer.local_asn) is None:
+                raise NotFoundError("local ASN must be defined before BGP peer")
+            if self._ipam_repository.find_asn(tenant_id, peer.remote_asn) is None:
+                raise NotFoundError("remote ASN must be defined before BGP peer")
+            stored = self._ipam_repository.add_bgp_peer(peer)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=command.actor,
+                    action="ipam.bgp_peer.defined",
+                    target_type="ipam_bgp_peer",
+                    target_id=f"{stored.vrf_name.value}:{stored.peer_address}",
+                    metadata={"local_asn": stored.local_asn, "remote_asn": stored.remote_asn},
+                )
+            )
+            unit_of_work.commit()
+        return stored.as_dict()
+
+    def network_bindings(self, command: IpamNetworkBindingsCommand) -> IpamNetworkBindingsReport:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        vrf = command.vrf.strip() if command.vrf else None
+        return IpamNetworkBindingsReport(
+            tenant_id=tenant_id.value,
+            vrf=vrf,
+            vlan_groups=tuple(
+                group.as_dict() for group in self._ipam_repository.list_vlan_groups(tenant_id)
+            ),
+            vlans=tuple(
+                vlan.as_dict() for vlan in self._ipam_repository.list_vlans(tenant_id, vrf)
+            ),
+            vxlan_vnis=tuple(
+                vni.as_dict() for vni in self._ipam_repository.list_vxlan_vnis(tenant_id, vrf)
+            ),
+            asns=tuple(asn.as_dict() for asn in self._ipam_repository.list_asns(tenant_id)),
+            bgp_peers=tuple(
+                peer.as_dict() for peer in self._ipam_repository.list_bgp_peers(tenant_id, vrf)
+            ),
         )
 
     def list_prefixes(self, tenant_id: str, vrf: str) -> tuple[dict[str, str | int], ...]:

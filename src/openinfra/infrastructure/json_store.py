@@ -83,7 +83,20 @@ from openinfra.domain.identity import (
     IdentitySubject,
     IdentityUser,
 )
-from openinfra.domain.ipam import IpAddressRecord, IpAggregate, IpRange, IpReservation, Prefix, Vrf
+from openinfra.domain.ipam import (
+    AutonomousSystem,
+    BgpAddressFamily,
+    BgpPeer,
+    IpAddressRecord,
+    IpAggregate,
+    IpRange,
+    IpReservation,
+    Prefix,
+    Vlan,
+    VlanGroup,
+    Vrf,
+    VxlanVni,
+)
 from openinfra.domain.security import ApiTokenCredential, Permission
 from openinfra.domain.source_governance import SourceGovernanceRule, SourceGovernanceRulePage
 from openinfra.domain.source_of_truth import (
@@ -179,6 +192,11 @@ class JsonDocumentStore:
             "ip_ranges": {},
             "ip_address_records": {},
             "ip_reservations": {},
+            "vlan_groups": {},
+            "vlans": {},
+            "vxlan_vnis": {},
+            "autonomous_systems": {},
+            "bgp_peers": {},
             "audit_events": [],
             "security_tokens": {},
             "identity_users": {},
@@ -1372,6 +1390,106 @@ class JsonIpamRepository(IpamRepository):
         self._store.data["ip_reservations"][key] = self._reservation_to_dict(reservation)
         self._store.mark_dirty()
 
+    def add_vlan_group(self, group: VlanGroup) -> VlanGroup:
+        key = self._key(group.tenant_id, group.name.value)
+        existing = self._store.data["vlan_groups"].get(key)
+        if existing:
+            return self._vlan_group_from_dict(existing)
+        self._store.data["vlan_groups"][key] = self._vlan_group_to_dict(group)
+        self._store.mark_dirty()
+        return group
+
+    def list_vlan_groups(self, tenant_id: TenantId) -> tuple[VlanGroup, ...]:
+        return tuple(
+            self._vlan_group_from_dict(value)
+            for value in self._store.data["vlan_groups"].values()
+            if value["tenant_id"] == tenant_id.value
+        )
+
+    def add_vlan(self, vlan: Vlan) -> Vlan:
+        key = self._key(vlan.tenant_id, vlan.group_name.value, str(vlan.vlan_id))
+        existing = self._store.data["vlans"].get(key)
+        if existing:
+            return self._vlan_from_dict(existing)
+        self._store.data["vlans"][key] = self._vlan_to_dict(vlan)
+        self._store.mark_dirty()
+        return vlan
+
+    def list_vlans(self, tenant_id: TenantId, vrf_name: str | None = None) -> tuple[Vlan, ...]:
+        normalized_vrf = Name.from_value(vrf_name, "vrf name").value if vrf_name else None
+        return tuple(
+            self._vlan_from_dict(value)
+            for value in self._store.data["vlans"].values()
+            if value["tenant_id"] == tenant_id.value
+            and (normalized_vrf is None or value.get("vrf_name") == normalized_vrf)
+        )
+
+    def add_vxlan_vni(self, vni: VxlanVni) -> VxlanVni:
+        key = self._key(vni.tenant_id, str(vni.vni))
+        existing = self._store.data["vxlan_vnis"].get(key)
+        if existing:
+            return self._vxlan_vni_from_dict(existing)
+        self._store.data["vxlan_vnis"][key] = self._vxlan_vni_to_dict(vni)
+        self._store.mark_dirty()
+        return vni
+
+    def find_vxlan_vni(self, tenant_id: TenantId, vni: int) -> VxlanVni | None:
+        item = self._store.data["vxlan_vnis"].get(self._key(tenant_id, str(vni)))
+        return self._vxlan_vni_from_dict(item) if item else None
+
+    def list_vxlan_vnis(
+        self, tenant_id: TenantId, vrf_name: str | None = None
+    ) -> tuple[VxlanVni, ...]:
+        normalized_vrf = Name.from_value(vrf_name, "vrf name").value if vrf_name else None
+        return tuple(
+            self._vxlan_vni_from_dict(value)
+            for value in self._store.data["vxlan_vnis"].values()
+            if value["tenant_id"] == tenant_id.value
+            and (normalized_vrf is None or value["vrf_name"] == normalized_vrf)
+        )
+
+    def add_asn(self, asn: AutonomousSystem) -> AutonomousSystem:
+        key = self._key(asn.tenant_id, str(asn.number))
+        existing = self._store.data["autonomous_systems"].get(key)
+        if existing:
+            return self._asn_from_dict(existing)
+        self._store.data["autonomous_systems"][key] = self._asn_to_dict(asn)
+        self._store.mark_dirty()
+        return asn
+
+    def find_asn(self, tenant_id: TenantId, number: int) -> AutonomousSystem | None:
+        item = self._store.data["autonomous_systems"].get(self._key(tenant_id, str(number)))
+        return self._asn_from_dict(item) if item else None
+
+    def list_asns(self, tenant_id: TenantId) -> tuple[AutonomousSystem, ...]:
+        return tuple(
+            self._asn_from_dict(value)
+            for value in self._store.data["autonomous_systems"].values()
+            if value["tenant_id"] == tenant_id.value
+        )
+
+    def add_bgp_peer(self, peer: BgpPeer) -> BgpPeer:
+        key = self._key(
+            peer.tenant_id, peer.vrf_name.value, str(peer.local_asn), str(peer.peer_address)
+        )
+        existing = self._store.data["bgp_peers"].get(key)
+        if existing:
+            return self._bgp_peer_from_dict(existing)
+        self._store.data["bgp_peers"][key] = self._bgp_peer_to_dict(peer)
+        self._store.mark_dirty()
+        return peer
+
+    def list_bgp_peers(
+        self, tenant_id: TenantId, vrf_name: str | None = None
+    ) -> tuple[BgpPeer, ...]:
+        normalized_vrf = Name.from_value(vrf_name, "vrf name").value if vrf_name else None
+        return tuple(
+            self._bgp_peer_from_dict(value)
+            for value in self._store.data["bgp_peers"].values()
+            if value["tenant_id"] == tenant_id.value
+            and (normalized_vrf is None or value["vrf_name"] == normalized_vrf)
+        )
+
     def _key(self, tenant_id: TenantId, *parts: str) -> str:
         return ":".join((tenant_id.value, *parts))
 
@@ -1542,6 +1660,122 @@ class JsonIpamRepository(IpamRepository):
             address=reservation.address,
             hostname=reservation.hostname,
             idempotency_key=reservation.idempotency_key,
+        )
+
+    def _vlan_group_to_dict(self, group: VlanGroup) -> dict[str, Any]:
+        return {
+            "id": group.id.value,
+            "tenant_id": group.tenant_id.value,
+            "name": group.name.value,
+            "scope": group.scope.value if group.scope else None,
+            "description": group.description,
+        }
+
+    def _vlan_group_from_dict(self, value: dict[str, Any]) -> VlanGroup:
+        return VlanGroup(
+            id=EntityId.from_value(value["id"]),
+            tenant_id=TenantId.from_value(value["tenant_id"]),
+            name=Name.from_value(value["name"], "vlan group name"),
+            scope=Code.from_value(value["scope"], "vlan group scope")
+            if value.get("scope")
+            else None,
+            description=str(value.get("description", "")),
+        )
+
+    def _vlan_to_dict(self, vlan: Vlan) -> dict[str, Any]:
+        return {
+            "id": vlan.id.value,
+            "tenant_id": vlan.tenant_id.value,
+            "group_name": vlan.group_name.value,
+            "vlan_id": vlan.vlan_id,
+            "name": vlan.name.value,
+            "vrf_name": vlan.vrf_name.value if vlan.vrf_name else None,
+            "vni": vlan.vni,
+            "description": vlan.description,
+        }
+
+    def _vlan_from_dict(self, value: dict[str, Any]) -> Vlan:
+        return Vlan(
+            id=EntityId.from_value(value["id"]),
+            tenant_id=TenantId.from_value(value["tenant_id"]),
+            group_name=Name.from_value(value["group_name"], "vlan group name"),
+            vlan_id=int(value["vlan_id"]),
+            name=Name.from_value(value["name"], "vlan name"),
+            vrf_name=Name.from_value(value["vrf_name"], "vrf name")
+            if value.get("vrf_name")
+            else None,
+            vni=int(value["vni"]) if value.get("vni") is not None else None,
+            description=str(value.get("description", "")),
+        )
+
+    def _vxlan_vni_to_dict(self, vni: VxlanVni) -> dict[str, Any]:
+        return {
+            "id": vni.id.value,
+            "tenant_id": vni.tenant_id.value,
+            "vni": vni.vni,
+            "name": vni.name.value,
+            "vrf_name": vni.vrf_name.value,
+            "route_targets_import": list(vni.route_targets_import),
+            "route_targets_export": list(vni.route_targets_export),
+            "description": vni.description,
+        }
+
+    def _vxlan_vni_from_dict(self, value: dict[str, Any]) -> VxlanVni:
+        return VxlanVni(
+            id=EntityId.from_value(value["id"]),
+            tenant_id=TenantId.from_value(value["tenant_id"]),
+            vni=int(value["vni"]),
+            name=Name.from_value(value["name"], "vni name"),
+            vrf_name=Name.from_value(value["vrf_name"], "vrf name"),
+            route_targets_import=tuple(str(item) for item in value.get("route_targets_import", [])),
+            route_targets_export=tuple(str(item) for item in value.get("route_targets_export", [])),
+            description=str(value.get("description", "")),
+        )
+
+    def _asn_to_dict(self, asn: AutonomousSystem) -> dict[str, Any]:
+        return {
+            "id": asn.id.value,
+            "tenant_id": asn.tenant_id.value,
+            "number": asn.number,
+            "name": asn.name.value,
+            "description": asn.description,
+        }
+
+    def _asn_from_dict(self, value: dict[str, Any]) -> AutonomousSystem:
+        return AutonomousSystem(
+            id=EntityId.from_value(value["id"]),
+            tenant_id=TenantId.from_value(value["tenant_id"]),
+            number=int(value["number"]),
+            name=Name.from_value(value["name"], "asn name"),
+            description=str(value.get("description", "")),
+        )
+
+    def _bgp_peer_to_dict(self, peer: BgpPeer) -> dict[str, Any]:
+        return {
+            "id": peer.id.value,
+            "tenant_id": peer.tenant_id.value,
+            "vrf_name": peer.vrf_name.value,
+            "local_asn": peer.local_asn,
+            "remote_asn": peer.remote_asn,
+            "peer_address": str(peer.peer_address),
+            "address_family": peer.address_family.value,
+            "route_targets_import": list(peer.route_targets_import),
+            "route_targets_export": list(peer.route_targets_export),
+            "description": peer.description,
+        }
+
+    def _bgp_peer_from_dict(self, value: dict[str, Any]) -> BgpPeer:
+        return BgpPeer(
+            id=EntityId.from_value(value["id"]),
+            tenant_id=TenantId.from_value(value["tenant_id"]),
+            vrf_name=Name.from_value(value["vrf_name"], "vrf name"),
+            local_asn=int(value["local_asn"]),
+            remote_asn=int(value["remote_asn"]),
+            peer_address=ipaddress.ip_address(str(value["peer_address"])),
+            address_family=BgpAddressFamily.from_value(str(value["address_family"])),
+            route_targets_import=tuple(str(item) for item in value.get("route_targets_import", [])),
+            route_targets_export=tuple(str(item) for item in value.get("route_targets_export", [])),
+            description=str(value.get("description", "")),
         )
 
 

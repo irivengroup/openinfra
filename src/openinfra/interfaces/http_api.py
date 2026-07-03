@@ -51,11 +51,17 @@ from openinfra.application.identity_services import (
 )
 from openinfra.application.ipam_services import (
     AllocateIpCommand,
+    DefineAsnCommand,
+    DefineBgpPeerCommand,
     DefineIpAggregateCommand,
     DefineIpPrefixCommand,
     DefineIpRangeCommand,
+    DefineVlanCommand,
+    DefineVlanGroupCommand,
     DefineVrfCommand,
+    DefineVxlanVniCommand,
     IpamCapacityCommand,
+    IpamNetworkBindingsCommand,
     RegisterIpAddressCommand,
 )
 from openinfra.application.security_services import (
@@ -483,6 +489,19 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         tenant_id=self._first_query_value(query, "tenant_id"),
                         vrf=self._first_query_value(query, "vrf"),
                         prefix=self._first_query_value(query, "prefix"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, report.as_dict())
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/ipam/network-bindings":
+            try:
+                query = parse_qs(parsed.query)
+                report = self.server.application.ipam_model_service.network_bindings(
+                    IpamNetworkBindingsCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        vrf=query.get("vrf", [None])[0],
                     )
                 )
                 responder.send(HTTPStatus.OK, report.as_dict())
@@ -1186,6 +1205,11 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             "/api/v1/ipam/prefixes",
             "/api/v1/ipam/ranges",
             "/api/v1/ipam/addresses",
+            "/api/v1/ipam/vlan-groups",
+            "/api/v1/ipam/vxlan-vnis",
+            "/api/v1/ipam/vlans",
+            "/api/v1/ipam/asns",
+            "/api/v1/ipam/bgp-peers",
         ):
             try:
                 payload = self._read_json_body()
@@ -1237,7 +1261,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                             description=str(payload.get("description", "")),
                         )
                     )
-                else:
+                elif route == "/api/v1/ipam/addresses":
                     result = self.server.application.ipam_model_service.register_address(
                         RegisterIpAddressCommand(
                             tenant_id=tenant_id,
@@ -1252,6 +1276,79 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                                 else None
                             ),
                             status=str(payload.get("status", "reserved")),
+                        )
+                    )
+                elif route == "/api/v1/ipam/vlan-groups":
+                    result = self.server.application.ipam_model_service.define_vlan_group(
+                        DefineVlanGroupCommand(
+                            tenant_id=tenant_id,
+                            actor=actor,
+                            name=str(payload["name"]),
+                            scope=str(payload["scope"]) if payload.get("scope") else None,
+                            description=str(payload.get("description", "")),
+                        )
+                    )
+                elif route == "/api/v1/ipam/vxlan-vnis":
+                    result = self.server.application.ipam_model_service.define_vxlan_vni(
+                        DefineVxlanVniCommand(
+                            tenant_id=tenant_id,
+                            actor=actor,
+                            vni=int(payload["vni"]),
+                            name=str(payload["name"]),
+                            vrf=str(payload["vrf"]),
+                            route_targets_import=self._tuple_payload(
+                                payload, "route_targets_import", ()
+                            ),
+                            route_targets_export=self._tuple_payload(
+                                payload, "route_targets_export", ()
+                            ),
+                            description=str(payload.get("description", "")),
+                        )
+                    )
+                elif route == "/api/v1/ipam/vlans":
+                    result = self.server.application.ipam_model_service.define_vlan(
+                        DefineVlanCommand(
+                            tenant_id=tenant_id,
+                            actor=actor,
+                            group=str(payload["group"]),
+                            vlan_id=int(payload["vlan_id"]),
+                            name=str(payload["name"]),
+                            vrf=str(payload["vrf"]) if payload.get("vrf") else None,
+                            vni=int(payload["vni"]) if payload.get("vni") is not None else None,
+                            description=str(payload.get("description", "")),
+                        )
+                    )
+                elif route == "/api/v1/ipam/asns":
+                    result = self.server.application.ipam_model_service.define_asn(
+                        DefineAsnCommand(
+                            tenant_id=tenant_id,
+                            actor=actor,
+                            asn=int(payload["asn"]),
+                            name=str(payload["name"]),
+                            description=str(payload.get("description", "")),
+                        )
+                    )
+                else:
+                    result = self.server.application.ipam_model_service.define_bgp_peer(
+                        DefineBgpPeerCommand(
+                            tenant_id=tenant_id,
+                            actor=actor,
+                            vrf=str(payload["vrf"]),
+                            local_asn=int(payload["local_asn"]),
+                            remote_asn=int(payload["remote_asn"]),
+                            peer_address=str(payload["peer_address"]),
+                            address_family=(
+                                str(payload["address_family"])
+                                if payload.get("address_family")
+                                else None
+                            ),
+                            route_targets_import=self._tuple_payload(
+                                payload, "route_targets_import", ()
+                            ),
+                            route_targets_export=self._tuple_payload(
+                                payload, "route_targets_export", ()
+                            ),
+                            description=str(payload.get("description", "")),
                         )
                     )
                 responder.send(HTTPStatus.CREATED, result)

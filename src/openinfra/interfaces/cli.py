@@ -49,11 +49,17 @@ from openinfra.application.identity_services import (
 )
 from openinfra.application.ipam_services import (
     AllocateIpCommand,
+    DefineAsnCommand,
+    DefineBgpPeerCommand,
     DefineIpAggregateCommand,
     DefineIpPrefixCommand,
     DefineIpRangeCommand,
+    DefineVlanCommand,
+    DefineVlanGroupCommand,
     DefineVrfCommand,
+    DefineVxlanVniCommand,
     IpamCapacityCommand,
+    IpamNetworkBindingsCommand,
     RegisterIpAddressCommand,
 )
 from openinfra.application.security_services import (
@@ -583,6 +589,78 @@ class OpenInfraCLI:
         capacity.add_argument("--vrf", required=True)
         capacity.add_argument("--prefix", required=True)
         capacity.set_defaults(handler=self._handle_ipam_capacity)
+
+        define_vlan_group = ipam_subparsers.add_parser(
+            "define-vlan-group", help="define an IPAM VLAN group"
+        )
+        self._add_backend_arguments(define_vlan_group)
+        define_vlan_group.add_argument("--tenant", required=True)
+        define_vlan_group.add_argument("--actor", default="cli")
+        define_vlan_group.add_argument("--name", required=True)
+        define_vlan_group.add_argument("--scope")
+        define_vlan_group.add_argument("--description", default="")
+        define_vlan_group.set_defaults(handler=self._handle_ipam_define_vlan_group)
+
+        define_vxlan_vni = ipam_subparsers.add_parser(
+            "define-vxlan-vni", help="define a VXLAN VNI attached to an IPAM VRF"
+        )
+        self._add_backend_arguments(define_vxlan_vni)
+        define_vxlan_vni.add_argument("--tenant", required=True)
+        define_vxlan_vni.add_argument("--actor", default="cli")
+        define_vxlan_vni.add_argument("--vni", type=int, required=True)
+        define_vxlan_vni.add_argument("--name", required=True)
+        define_vxlan_vni.add_argument("--vrf", required=True)
+        define_vxlan_vni.add_argument("--route-target-import", action="append", default=[])
+        define_vxlan_vni.add_argument("--route-target-export", action="append", default=[])
+        define_vxlan_vni.add_argument("--description", default="")
+        define_vxlan_vni.set_defaults(handler=self._handle_ipam_define_vxlan_vni)
+
+        define_vlan = ipam_subparsers.add_parser(
+            "define-vlan", help="define a VLAN and optionally bind it to a VRF/VNI"
+        )
+        self._add_backend_arguments(define_vlan)
+        define_vlan.add_argument("--tenant", required=True)
+        define_vlan.add_argument("--actor", default="cli")
+        define_vlan.add_argument("--group", required=True)
+        define_vlan.add_argument("--vlan-id", type=int, required=True)
+        define_vlan.add_argument("--name", required=True)
+        define_vlan.add_argument("--vrf")
+        define_vlan.add_argument("--vni", type=int)
+        define_vlan.add_argument("--description", default="")
+        define_vlan.set_defaults(handler=self._handle_ipam_define_vlan)
+
+        define_asn = ipam_subparsers.add_parser("define-asn", help="define an autonomous system")
+        self._add_backend_arguments(define_asn)
+        define_asn.add_argument("--tenant", required=True)
+        define_asn.add_argument("--actor", default="cli")
+        define_asn.add_argument("--asn", type=int, required=True)
+        define_asn.add_argument("--name", required=True)
+        define_asn.add_argument("--description", default="")
+        define_asn.set_defaults(handler=self._handle_ipam_define_asn)
+
+        define_bgp_peer = ipam_subparsers.add_parser(
+            "define-bgp-peer", help="define a BGP peer attached to a VRF and existing ASNs"
+        )
+        self._add_backend_arguments(define_bgp_peer)
+        define_bgp_peer.add_argument("--tenant", required=True)
+        define_bgp_peer.add_argument("--actor", default="cli")
+        define_bgp_peer.add_argument("--vrf", required=True)
+        define_bgp_peer.add_argument("--local-asn", type=int, required=True)
+        define_bgp_peer.add_argument("--remote-asn", type=int, required=True)
+        define_bgp_peer.add_argument("--peer-address", required=True)
+        define_bgp_peer.add_argument("--address-family")
+        define_bgp_peer.add_argument("--route-target-import", action="append", default=[])
+        define_bgp_peer.add_argument("--route-target-export", action="append", default=[])
+        define_bgp_peer.add_argument("--description", default="")
+        define_bgp_peer.set_defaults(handler=self._handle_ipam_define_bgp_peer)
+
+        network_bindings = ipam_subparsers.add_parser(
+            "network-bindings", help="render coherent VRF/VLAN/VNI/ASN/BGP bindings"
+        )
+        self._add_backend_arguments(network_bindings)
+        network_bindings.add_argument("--tenant", required=True)
+        network_bindings.add_argument("--vrf")
+        network_bindings.set_defaults(handler=self._handle_ipam_network_bindings)
 
     def _add_dcim_commands(self, subparsers: Any) -> None:
         dcim = subparsers.add_parser("dcim", help="dcim operations")
@@ -1470,6 +1548,83 @@ class OpenInfraCLI:
             IpamCapacityCommand(args.tenant, args.vrf, args.prefix)
         )
         print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_ipam_define_vlan_group(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.ipam_model_service.define_vlan_group(
+            DefineVlanGroupCommand(args.tenant, args.actor, args.name, args.scope, args.description)
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_ipam_define_vxlan_vni(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.ipam_model_service.define_vxlan_vni(
+            DefineVxlanVniCommand(
+                args.tenant,
+                args.actor,
+                args.vni,
+                args.name,
+                args.vrf,
+                tuple(args.route_target_import),
+                tuple(args.route_target_export),
+                args.description,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_ipam_define_vlan(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.ipam_model_service.define_vlan(
+            DefineVlanCommand(
+                args.tenant,
+                args.actor,
+                args.group,
+                args.vlan_id,
+                args.name,
+                args.vrf,
+                args.vni,
+                args.description,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_ipam_define_asn(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.ipam_model_service.define_asn(
+            DefineAsnCommand(args.tenant, args.actor, args.asn, args.name, args.description)
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_ipam_define_bgp_peer(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.ipam_model_service.define_bgp_peer(
+            DefineBgpPeerCommand(
+                args.tenant,
+                args.actor,
+                args.vrf,
+                args.local_asn,
+                args.remote_asn,
+                args.peer_address,
+                args.address_family,
+                tuple(args.route_target_import),
+                tuple(args.route_target_export),
+                args.description,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_ipam_network_bindings(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        report = application.ipam_model_service.network_bindings(
+            IpamNetworkBindingsCommand(args.tenant, args.vrf)
+        )
+        print(json.dumps(report.as_dict(), sort_keys=True))
         return 0
 
     def _handle_dcim_define_room(self, args: argparse.Namespace) -> int:

@@ -214,3 +214,18 @@ Règles appliquées :
 - le backend JSON utilise le verrou réentrant du document store pendant toute l’unité de travail.
 
 Cette conception couvre l’acceptation EPIC-0502 : 100 allocations concurrentes dans un même préfixe ne produisent aucune collision.
+
+
+## v0.20.0 — P05 EPIC-0503 VLAN/VXLAN/ASN/BGP fondation
+
+La version 0.20.0 étend le bounded context IPAM avec les identifiants réseau utilisés par les fabrics modernes : groupes VLAN, VLAN, VNI/VXLAN, ASN et pairs BGP. L'objectif est de relier l'adressage IP aux plans réseau L2/L3 sans introduire de dépendance à un contrôleur externe.
+
+Frontières conservées :
+
+- domaine : `NetworkIdentifierPolicy`, `VlanGroup`, `Vlan`, `VxlanVni`, `AutonomousSystem` et `BgpPeer` portent les validations de VLAN ID, VNI, ASN, adresse BGP et route targets ;
+- application : `IpamModelService` orchestre les écritures, vérifie la cohérence VRF/VLAN/VNI/ASN et produit l'audit métier ;
+- ports : `IpamRepository` expose les écritures et lectures réseau sans coupler le domaine au stockage ;
+- infrastructure : JSON atomique et PostgreSQL implémentent les mêmes contrats, avec contraintes SQL et index adaptés aux recherches par tenant, VRF, VLAN, VNI et ASN ;
+- interfaces : CLI `openinfra ipam define-*` et endpoints `/api/v1/ipam/*` exposent un inventaire auditable et scriptable.
+
+Les invariants principaux sont : VNI unique par tenant, VLAN attaché à un VNI dans le même VRF, ASN local et distant distincts pour un pair BGP, et route targets normalisées au format `ASN:NUMBER`. La migration `0017_ipam_networking_foundation.sql` est additive et préserve les migrations IPAM précédentes.

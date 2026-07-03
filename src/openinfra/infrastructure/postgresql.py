@@ -85,7 +85,20 @@ from openinfra.domain.identity import (
     IdentitySubject,
     IdentityUser,
 )
-from openinfra.domain.ipam import IpAddressRecord, IpAggregate, IpRange, IpReservation, Prefix, Vrf
+from openinfra.domain.ipam import (
+    AutonomousSystem,
+    BgpAddressFamily,
+    BgpPeer,
+    IpAddressRecord,
+    IpAggregate,
+    IpRange,
+    IpReservation,
+    Prefix,
+    Vlan,
+    VlanGroup,
+    Vrf,
+    VxlanVni,
+)
 from openinfra.domain.security import ApiTokenCredential, Permission
 from openinfra.domain.source_governance import SourceGovernanceRule, SourceGovernanceRulePage
 from openinfra.domain.source_of_truth import (
@@ -2254,6 +2267,318 @@ class PostgreSQLIpamRepository(PostgreSQLRepositoryBase, IpamRepository):
             raise ConflictError(
                 f"duplicate or invalid ip reservation: {reservation.address}"
             ) from exc
+
+    def add_vlan_group(self, group: VlanGroup) -> VlanGroup:
+        self._ensure_tenant(group.tenant_id)
+        row = self._fetch_one(
+            """
+            INSERT INTO ipam_vlan_groups (id, tenant_id, name, scope, description)
+            VALUES (%(id)s, %(tenant_id)s, %(name)s, %(scope)s, %(description)s)
+            ON CONFLICT (tenant_id, name)
+            DO UPDATE SET description = ipam_vlan_groups.description
+            RETURNING id, tenant_id, name, scope, description
+            """,
+            {
+                "id": group.id.value,
+                "tenant_id": group.tenant_id.value,
+                "name": group.name.value,
+                "scope": group.scope.value if group.scope else None,
+                "description": group.description,
+            },
+        )
+        if row is None:
+            raise OpenInfraError("postgresql did not return VLAN group after upsert")
+        return self._vlan_group_from_row(row)
+
+    def list_vlan_groups(self, tenant_id: TenantId) -> tuple[VlanGroup, ...]:
+        rows = self._fetch_all(
+            """
+            SELECT id, tenant_id, name, scope, description
+            FROM ipam_vlan_groups
+            WHERE tenant_id = %(tenant_id)s
+            ORDER BY name
+            """,
+            {"tenant_id": tenant_id.value},
+        )
+        return tuple(self._vlan_group_from_row(row) for row in rows)
+
+    def add_vlan(self, vlan: Vlan) -> Vlan:
+        self._ensure_tenant(vlan.tenant_id)
+        row = self._fetch_one(
+            """
+            INSERT INTO ipam_vlans (
+                id, tenant_id, group_name, vlan_id, name, vrf_name, vni, description
+            )
+            VALUES (
+                %(id)s, %(tenant_id)s, %(group_name)s, %(vlan_id)s,
+                %(name)s, %(vrf_name)s, %(vni)s, %(description)s
+            )
+            ON CONFLICT (tenant_id, group_name, vlan_id)
+            DO UPDATE SET description = ipam_vlans.description
+            RETURNING id, tenant_id, group_name, vlan_id, name, vrf_name, vni, description
+            """,
+            {
+                "id": vlan.id.value,
+                "tenant_id": vlan.tenant_id.value,
+                "group_name": vlan.group_name.value,
+                "vlan_id": vlan.vlan_id,
+                "name": vlan.name.value,
+                "vrf_name": vlan.vrf_name.value if vlan.vrf_name else None,
+                "vni": vlan.vni,
+                "description": vlan.description,
+            },
+        )
+        if row is None:
+            raise OpenInfraError("postgresql did not return VLAN after upsert")
+        return self._vlan_from_row(row)
+
+    def list_vlans(self, tenant_id: TenantId, vrf_name: str | None = None) -> tuple[Vlan, ...]:
+        rows = self._fetch_all(
+            """
+            SELECT id, tenant_id, group_name, vlan_id, name, vrf_name, vni, description
+            FROM ipam_vlans
+            WHERE tenant_id = %(tenant_id)s
+              AND (%(vrf_name)s IS NULL OR vrf_name = %(vrf_name)s)
+            ORDER BY group_name, vlan_id
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "vrf_name": Name.from_value(vrf_name, "vrf name").value if vrf_name else None,
+            },
+        )
+        return tuple(self._vlan_from_row(row) for row in rows)
+
+    def add_vxlan_vni(self, vni: VxlanVni) -> VxlanVni:
+        self._ensure_tenant(vni.tenant_id)
+        row = self._fetch_one(
+            """
+            INSERT INTO ipam_vxlan_vnis (
+                id, tenant_id, vni, name, vrf_name, route_targets_import,
+                route_targets_export, description
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(vni)s, %(name)s, %(vrf_name)s,
+                %(route_targets_import)s, %(route_targets_export)s, %(description)s
+            )
+            ON CONFLICT (tenant_id, vni)
+            DO UPDATE SET description = ipam_vxlan_vnis.description
+            RETURNING id, tenant_id, vni, name, vrf_name, route_targets_import,
+                route_targets_export, description
+            """,
+            {
+                "id": vni.id.value,
+                "tenant_id": vni.tenant_id.value,
+                "vni": vni.vni,
+                "name": vni.name.value,
+                "vrf_name": vni.vrf_name.value,
+                "route_targets_import": list(vni.route_targets_import),
+                "route_targets_export": list(vni.route_targets_export),
+                "description": vni.description,
+            },
+        )
+        if row is None:
+            raise OpenInfraError("postgresql did not return VXLAN VNI after upsert")
+        return self._vxlan_vni_from_row(row)
+
+    def find_vxlan_vni(self, tenant_id: TenantId, vni: int) -> VxlanVni | None:
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, vni, name, vrf_name, route_targets_import,
+                route_targets_export, description
+            FROM ipam_vxlan_vnis
+            WHERE tenant_id = %(tenant_id)s AND vni = %(vni)s
+            """,
+            {"tenant_id": tenant_id.value, "vni": vni},
+        )
+        return self._vxlan_vni_from_row(row) if row else None
+
+    def list_vxlan_vnis(
+        self, tenant_id: TenantId, vrf_name: str | None = None
+    ) -> tuple[VxlanVni, ...]:
+        rows = self._fetch_all(
+            """
+            SELECT id, tenant_id, vni, name, vrf_name, route_targets_import,
+                route_targets_export, description
+            FROM ipam_vxlan_vnis
+            WHERE tenant_id = %(tenant_id)s
+              AND (%(vrf_name)s IS NULL OR vrf_name = %(vrf_name)s)
+            ORDER BY vni
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "vrf_name": Name.from_value(vrf_name, "vrf name").value if vrf_name else None,
+            },
+        )
+        return tuple(self._vxlan_vni_from_row(row) for row in rows)
+
+    def add_asn(self, asn: AutonomousSystem) -> AutonomousSystem:
+        self._ensure_tenant(asn.tenant_id)
+        row = self._fetch_one(
+            """
+            INSERT INTO ipam_autonomous_systems (id, tenant_id, asn, name, description)
+            VALUES (%(id)s, %(tenant_id)s, %(asn)s, %(name)s, %(description)s)
+            ON CONFLICT (tenant_id, asn)
+            DO UPDATE SET description = ipam_autonomous_systems.description
+            RETURNING id, tenant_id, asn, name, description
+            """,
+            {
+                "id": asn.id.value,
+                "tenant_id": asn.tenant_id.value,
+                "asn": asn.number,
+                "name": asn.name.value,
+                "description": asn.description,
+            },
+        )
+        if row is None:
+            raise OpenInfraError("postgresql did not return ASN after upsert")
+        return self._asn_from_row(row)
+
+    def find_asn(self, tenant_id: TenantId, number: int) -> AutonomousSystem | None:
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, asn, name, description
+            FROM ipam_autonomous_systems
+            WHERE tenant_id = %(tenant_id)s AND asn = %(asn)s
+            """,
+            {"tenant_id": tenant_id.value, "asn": number},
+        )
+        return self._asn_from_row(row) if row else None
+
+    def list_asns(self, tenant_id: TenantId) -> tuple[AutonomousSystem, ...]:
+        rows = self._fetch_all(
+            """
+            SELECT id, tenant_id, asn, name, description
+            FROM ipam_autonomous_systems
+            WHERE tenant_id = %(tenant_id)s
+            ORDER BY asn
+            """,
+            {"tenant_id": tenant_id.value},
+        )
+        return tuple(self._asn_from_row(row) for row in rows)
+
+    def add_bgp_peer(self, peer: BgpPeer) -> BgpPeer:
+        self._ensure_tenant(peer.tenant_id)
+        row = self._fetch_one(
+            """
+            INSERT INTO ipam_bgp_peers (
+                id, tenant_id, vrf_name, local_asn, remote_asn, peer_address,
+                address_family, route_targets_import, route_targets_export, description
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(vrf_name)s, %(local_asn)s, %(remote_asn)s,
+                %(peer_address)s, %(address_family)s, %(route_targets_import)s,
+                %(route_targets_export)s, %(description)s
+            )
+            ON CONFLICT (tenant_id, vrf_name, local_asn, peer_address)
+            DO UPDATE SET description = ipam_bgp_peers.description
+            RETURNING id, tenant_id, vrf_name, local_asn, remote_asn, peer_address,
+                address_family, route_targets_import, route_targets_export, description
+            """,
+            {
+                "id": peer.id.value,
+                "tenant_id": peer.tenant_id.value,
+                "vrf_name": peer.vrf_name.value,
+                "local_asn": peer.local_asn,
+                "remote_asn": peer.remote_asn,
+                "peer_address": str(peer.peer_address),
+                "address_family": peer.address_family.value,
+                "route_targets_import": list(peer.route_targets_import),
+                "route_targets_export": list(peer.route_targets_export),
+                "description": peer.description,
+            },
+        )
+        if row is None:
+            raise OpenInfraError("postgresql did not return BGP peer after upsert")
+        return self._bgp_peer_from_row(row)
+
+    def list_bgp_peers(
+        self, tenant_id: TenantId, vrf_name: str | None = None
+    ) -> tuple[BgpPeer, ...]:
+        rows = self._fetch_all(
+            """
+            SELECT id, tenant_id, vrf_name, local_asn, remote_asn, peer_address,
+                address_family, route_targets_import, route_targets_export, description
+            FROM ipam_bgp_peers
+            WHERE tenant_id = %(tenant_id)s
+              AND (%(vrf_name)s IS NULL OR vrf_name = %(vrf_name)s)
+            ORDER BY vrf_name, local_asn, peer_address
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "vrf_name": Name.from_value(vrf_name, "vrf name").value if vrf_name else None,
+            },
+        )
+        return tuple(self._bgp_peer_from_row(row) for row in rows)
+
+    def _vlan_group_from_row(self, row: Mapping[str, object]) -> VlanGroup:
+        return VlanGroup(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            name=Name.from_value(str(row["name"]), "vlan group name"),
+            scope=(
+                None
+                if row.get("scope") is None
+                else Code.from_value(str(row["scope"]), "vlan group scope")
+            ),
+            description=str(row.get("description") or ""),
+        )
+
+    def _vlan_from_row(self, row: Mapping[str, object]) -> Vlan:
+        return Vlan(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            group_name=Name.from_value(str(row["group_name"]), "vlan group name"),
+            vlan_id=int(str(row["vlan_id"])),
+            name=Name.from_value(str(row["name"]), "vlan name"),
+            vrf_name=(
+                None
+                if row.get("vrf_name") is None
+                else Name.from_value(str(row["vrf_name"]), "vrf name")
+            ),
+            vni=None if row.get("vni") is None else int(str(row["vni"])),
+            description=str(row.get("description") or ""),
+        )
+
+    def _vxlan_vni_from_row(self, row: Mapping[str, object]) -> VxlanVni:
+        return VxlanVni(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            vni=int(str(row["vni"])),
+            name=Name.from_value(str(row["name"]), "vni name"),
+            vrf_name=Name.from_value(str(row["vrf_name"]), "vrf name"),
+            route_targets_import=tuple(
+                str(value) for value in cast(Sequence[object], row["route_targets_import"])
+            ),
+            route_targets_export=tuple(
+                str(value) for value in cast(Sequence[object], row["route_targets_export"])
+            ),
+            description=str(row.get("description") or ""),
+        )
+
+    def _asn_from_row(self, row: Mapping[str, object]) -> AutonomousSystem:
+        return AutonomousSystem(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            number=int(str(row["asn"])),
+            name=Name.from_value(str(row["name"]), "asn name"),
+            description=str(row.get("description") or ""),
+        )
+
+    def _bgp_peer_from_row(self, row: Mapping[str, object]) -> BgpPeer:
+        return BgpPeer(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            vrf_name=Name.from_value(str(row["vrf_name"]), "vrf name"),
+            local_asn=int(str(row["local_asn"])),
+            remote_asn=int(str(row["remote_asn"])),
+            peer_address=ipaddress.ip_address(str(row["peer_address"])),
+            address_family=BgpAddressFamily.from_value(str(row["address_family"])),
+            route_targets_import=tuple(
+                str(value) for value in cast(Sequence[object], row["route_targets_import"])
+            ),
+            route_targets_export=tuple(
+                str(value) for value in cast(Sequence[object], row["route_targets_export"])
+            ),
+            description=str(row.get("description") or ""),
+        )
 
     def _vrf_from_row(self, row: Mapping[str, object]) -> Vrf:
         return Vrf(

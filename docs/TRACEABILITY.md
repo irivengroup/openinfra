@@ -1,3 +1,16 @@
+## v0.20.0 — P05 / EPIC-0503 VLAN/VXLAN/ASN/BGP fondation
+
+- Roadmap : P05 / EPIC-0503.
+- Domaine : `VlanGroup`, `Vlan`, `VxlanVni`, `AutonomousSystem`, `BgpPeer`, `NetworkIdentifierPolicy`.
+- Application : `IpamModelService.define_vlan_group`, `define_vxlan_vni`, `define_vlan`, `define_asn`, `define_bgp_peer`, `network_bindings`.
+- Ports : extension `IpamRepository` pour inventaire VLAN/VXLAN/ASN/BGP.
+- Infrastructure : `JsonIpamRepository`, `PostgreSQLIpamRepository`.
+- Interfaces : commandes `openinfra ipam define-vlan-group`, `define-vxlan-vni`, `define-vlan`, `define-asn`, `define-bgp-peer`, `network-bindings`.
+- API : `/api/v1/ipam/vlan-groups`, `/vxlan-vnis`, `/vlans`, `/asns`, `/bgp-peers`, `/network-bindings`.
+- Migration : `migrations/postgresql/0017_ipam_networking_foundation.sql`.
+- Tests : domaine réseau IPAM, cohérence VRF/VLAN/VNI/ASN, persistance JSON, mapping PostgreSQL, CLI/API et non-régression CI.
+- Production : runtime serveur natif inchangé ; Docker reste facultatif pour smoke local.
+
 ## v0.19.0 — P05 / EPIC-0502 Allocation IP transactionnelle
 
 - Roadmap : P05 / EPIC-0502.

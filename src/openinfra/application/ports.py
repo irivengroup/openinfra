@@ -30,7 +30,19 @@ from openinfra.domain.identity import (
     IdentityGroup,
     IdentityUser,
 )
-from openinfra.domain.ipam import IpAddressRecord, IpAggregate, IpRange, IpReservation, Prefix, Vrf
+from openinfra.domain.ipam import (
+    AutonomousSystem,
+    BgpPeer,
+    IpAddressRecord,
+    IpAggregate,
+    IpRange,
+    IpReservation,
+    Prefix,
+    Vlan,
+    VlanGroup,
+    Vrf,
+    VxlanVni,
+)
 from openinfra.domain.security import ApiTokenCredential, Permission
 from openinfra.domain.source_governance import SourceGovernanceRule, SourceGovernanceRulePage
 from openinfra.domain.source_of_truth import (
@@ -456,6 +468,58 @@ class IpamRepository(ABC):
 
     @abstractmethod
     def add_reservation(self, reservation: IpReservation) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def add_vlan_group(self, group: VlanGroup) -> VlanGroup:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_vlan_groups(self, tenant_id: TenantId) -> tuple[VlanGroup, ...]:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def add_vlan(self, vlan: Vlan) -> Vlan:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_vlans(self, tenant_id: TenantId, vrf_name: str | None = None) -> tuple[Vlan, ...]:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def add_vxlan_vni(self, vni: VxlanVni) -> VxlanVni:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_vxlan_vni(self, tenant_id: TenantId, vni: int) -> VxlanVni | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_vxlan_vnis(
+        self, tenant_id: TenantId, vrf_name: str | None = None
+    ) -> tuple[VxlanVni, ...]:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def add_asn(self, asn: AutonomousSystem) -> AutonomousSystem:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_asn(self, tenant_id: TenantId, number: int) -> AutonomousSystem | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_asns(self, tenant_id: TenantId) -> tuple[AutonomousSystem, ...]:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def add_bgp_peer(self, peer: BgpPeer) -> BgpPeer:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_bgp_peers(
+        self, tenant_id: TenantId, vrf_name: str | None = None
+    ) -> tuple[BgpPeer, ...]:
         raise TypeError("adapter contract invoked directly")
 
 

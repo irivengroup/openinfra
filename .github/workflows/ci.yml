@@ -87,6 +87,7 @@ jobs:
           openinfra database render-migration --name 0014_dcim_energy_cooling_foundation --root migrations/postgresql >/tmp/openinfra-0014.sql
           openinfra database render-migration --name 0015_ipam_enterprise_foundation --root migrations/postgresql >/tmp/openinfra-0015.sql
           openinfra database render-migration --name 0016_ipam_transactional_allocation --root migrations/postgresql >/tmp/openinfra-0016.sql
+          openinfra database render-migration --name 0017_ipam_networking_foundation --root migrations/postgresql >/tmp/openinfra-0017.sql
 
       - name: Smoke JSON IPAM transactional allocation
         run: |
@@ -131,6 +132,20 @@ jobs:
           openinfra ipam define-range --data "$tmpdir/state.json" --tenant default --vrf prod --prefix 10.128.10.0/24 --start 10.128.10.10 --end 10.128.10.20
           openinfra ipam register-address --data "$tmpdir/state.json" --tenant default --vrf prod --prefix 10.128.10.0/24 --address 10.128.10.10 --hostname ci-ipam-model --interface-name eth0
           openinfra ipam capacity --data "$tmpdir/state.json" --tenant default --vrf prod --prefix 10.128.10.0/24
+
+
+      - name: Smoke JSON IPAM networking foundation
+        run: |
+          tmpdir="$(mktemp -d)"
+          openinfra ipam define-vrf --data "$tmpdir/state.json" --tenant default --name prod --route-distinguisher 65000:1
+          openinfra ipam define-vlan-group --data "$tmpdir/state.json" --tenant default --name fabric --scope dc1
+          openinfra ipam define-vxlan-vni --data "$tmpdir/state.json" --tenant default --vni 100100 --name prod-servers --vrf prod --route-target-import 65000:100 --route-target-export 65000:100
+          openinfra ipam define-vlan --data "$tmpdir/state.json" --tenant default --group fabric --vlan-id 100 --name servers --vrf prod --vni 100100
+          openinfra ipam define-asn --data "$tmpdir/state.json" --tenant default --asn 65000 --name local-fabric
+          openinfra ipam define-asn --data "$tmpdir/state.json" --tenant default --asn 65100 --name upstream
+          openinfra ipam define-bgp-peer --data "$tmpdir/state.json" --tenant default --vrf prod --local-asn 65000 --remote-asn 65100 --peer-address 192.0.2.1 --route-target-import 65000:100 --route-target-export 65000:100
+          openinfra ipam network-bindings --data "$tmpdir/state.json" --tenant default --vrf prod > "$tmpdir/bindings.json"
+          python -c 'import json, pathlib, sys; data=json.loads(pathlib.Path(sys.argv[1]).read_text()); assert data["counts"]["vlan_groups"] == 1; assert data["counts"]["vlans"] == 1; assert data["counts"]["vxlan_vnis"] == 1; assert data["counts"]["asns"] == 2; assert data["counts"]["bgp_peers"] == 1' "$tmpdir/bindings.json"
 
       - name: Smoke JSON security token
         run: |

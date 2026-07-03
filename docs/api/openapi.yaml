@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.19.0
+  version: 0.20.0
 components:
   securitySchemes:
     bearerToken:
@@ -1450,4 +1450,131 @@ paths:
         - {name: prefix, in: query, required: true, schema: {type: string}}
       responses:
         '200': {description: Prefix capacity report}
+        '400': {description: Validation error}
+  /api/v1/ipam/vlan-groups:
+    post:
+      summary: Define a tenant-scoped VLAN group
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, name]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                name: {type: string}
+                scope: {type: string}
+                description: {type: string}
+      responses:
+        '201': {description: VLAN group persisted}
+        '400': {description: Validation error}
+  /api/v1/ipam/vxlan-vnis:
+    post:
+      summary: Define a tenant-scoped VNI attached to one VRF
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, vni, name, vrf]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                vni: {type: integer, minimum: 1, maximum: 16777215}
+                name: {type: string}
+                vrf: {type: string}
+                route_targets_import:
+                  type: array
+                  items: {type: string}
+                route_targets_export:
+                  type: array
+                  items: {type: string}
+                description: {type: string}
+      responses:
+        '201': {description: VNI persisted}
+        '400': {description: Validation error}
+        '409': {description: VNI already attached to another VRF}
+  /api/v1/ipam/vlans:
+    post:
+      summary: Define a VLAN and optional VRF/VNI attachment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, group, vlan_id, name]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                group: {type: string}
+                vlan_id: {type: integer, minimum: 1, maximum: 4094}
+                name: {type: string}
+                vrf: {type: string}
+                vni: {type: integer, minimum: 1, maximum: 16777215}
+                description: {type: string}
+      responses:
+        '201': {description: VLAN persisted}
+        '400': {description: Validation error}
+        '404': {description: Referenced VNI is not defined}
+        '409': {description: VLAN/VNI/VRF relation is incoherent}
+  /api/v1/ipam/asns:
+    post:
+      summary: Define an autonomous system number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, asn, name]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                asn: {type: integer, minimum: 1, maximum: 4294967295}
+                name: {type: string}
+                description: {type: string}
+      responses:
+        '201': {description: ASN persisted}
+        '400': {description: Validation error}
+  /api/v1/ipam/bgp-peers:
+    post:
+      summary: Define a BGP peer inside a VRF
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, vrf, local_asn, remote_asn, peer_address]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                vrf: {type: string}
+                local_asn: {type: integer, minimum: 1, maximum: 4294967295}
+                remote_asn: {type: integer, minimum: 1, maximum: 4294967295}
+                peer_address: {type: string}
+                address_family: {type: string, enum: [ipv4, ipv6]}
+                route_targets_import:
+                  type: array
+                  items: {type: string}
+                route_targets_export:
+                  type: array
+                  items: {type: string}
+                description: {type: string}
+      responses:
+        '201': {description: BGP peer persisted}
+        '400': {description: Validation error}
+        '404': {description: Local or remote ASN is not defined}
+  /api/v1/ipam/network-bindings:
+    get:
+      summary: Report VRF/VLAN/VNI/ASN/BGP bindings for one tenant
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: vrf, in: query, required: false, schema: {type: string}}
+      responses:
+        '200': {description: Network binding inventory}
         '400': {description: Validation error}

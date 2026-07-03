@@ -330,3 +330,21 @@ PYTHONPATH=src python -m openinfra.interfaces.cli ipam capacity --data "$tmpdir/
 ```
 
 Les tests automatisés incluent un scénario de 100 allocations concurrentes sur backend JSON, la vérification des plages d’allocation/exclusion/réservation, la prise en compte des adresses enregistrées et le verrou PostgreSQL simulé `pg_advisory_xact_lock`.
+
+
+## Contrôles ajoutés en v0.20.0
+
+```bash
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0017_ipam_networking_foundation --root migrations/postgresql >/tmp/openinfra-0017.sql
+tmpdir="$(mktemp -d)"
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam define-vrf --data "$tmpdir/state.json" --tenant default --name prod --route-distinguisher 65000:1
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam define-vlan-group --data "$tmpdir/state.json" --tenant default --name fabric --scope dc1
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam define-vxlan-vni --data "$tmpdir/state.json" --tenant default --vni 100100 --name prod-servers --vrf prod --route-target-import 65000:100 --route-target-export 65000:100
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam define-vlan --data "$tmpdir/state.json" --tenant default --group fabric --vlan-id 100 --name servers --vrf prod --vni 100100
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam define-asn --data "$tmpdir/state.json" --tenant default --asn 65000 --name local-fabric
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam define-asn --data "$tmpdir/state.json" --tenant default --asn 65100 --name upstream
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam define-bgp-peer --data "$tmpdir/state.json" --tenant default --vrf prod --local-asn 65000 --remote-asn 65100 --peer-address 192.0.2.1 --route-target-import 65000:100 --route-target-export 65000:100
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam network-bindings --data "$tmpdir/state.json" --tenant default --vrf prod
+```
+
+Les tests automatisés couvrent la cohérence VRF/VLAN/VNI/ASN, l’unicité VNI par tenant, les route targets, les pairs BGP IPv4/IPv6, les adaptateurs JSON/PostgreSQL, la CLI et les contrats API HTTP.

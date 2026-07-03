@@ -1,3 +1,14 @@
+## 0.20.0 - 2026-07-03
+
+- Roadmap : P05 / EPIC-0503 — VLAN/VXLAN/ASN/BGP fondation.
+- Ajout du domaine IPAM réseau : `VlanGroup`, `Vlan`, `VxlanVni`, `AutonomousSystem`, `BgpPeer` et politique de validation `NetworkIdentifierPolicy`.
+- Ajout du service applicatif `IpamModelService` pour définir VLAN groups, VNI/VXLAN, VLAN attachés à VRF/VNI, ASN et pairs BGP.
+- Cohérence métier : VLAN attaché à un VNI doit référencer le même VRF ; VNI unique par tenant ; ASN local et distant distincts ; route targets validées au format `ASN:NUMBER`.
+- Ajout des commandes `openinfra ipam define-vlan-group`, `define-vxlan-vni`, `define-vlan`, `define-asn`, `define-bgp-peer` et `network-bindings`.
+- Ajout des endpoints `POST /api/v1/ipam/vlan-groups`, `POST /api/v1/ipam/vxlan-vnis`, `POST /api/v1/ipam/vlans`, `POST /api/v1/ipam/asns`, `POST /api/v1/ipam/bgp-peers` et `GET /api/v1/ipam/network-bindings`.
+- Ajout de la migration PostgreSQL `0017_ipam_networking_foundation.sql` avec contraintes VRF/VLAN/VNI/ASN et index d’audit opérationnel.
+- CI, OpenAPI, README, runbooks, traçabilité et tests mis à jour avec couverture globale `>= 98 %`.
+
 ## 0.19.0 - 2026-07-03
 
 - Roadmap : P05 / EPIC-0502 — Allocation IP transactionnelle.

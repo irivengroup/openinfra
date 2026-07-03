@@ -1003,6 +1003,63 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
         )
         return tuple(self._equipment_from_row(row) for row in rows)
 
+    def list_racks_in_room(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+    ) -> tuple[Rack, ...]:
+        rows = self._fetch_all(
+            """
+            SELECT id, tenant_id, site_code, building_code, floor_code, room_code, code,
+                   row_code, column_code, zone_code, units,
+                   coordinate_x, coordinate_y, coordinate_z, usable_faces,
+                   max_weight_kg, power_capacity_watts
+            FROM racks
+            WHERE tenant_id = %(tenant_id)s
+              AND site_code = %(site_code)s
+              AND building_code = %(building_code)s
+              AND room_code = %(room_code)s
+            ORDER BY row_code, column_code, code
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "site_code": Code.from_value(site, "site code").value,
+                "building_code": Code.from_value(building, "building code").value,
+                "room_code": Code.from_value(room, "room code").value,
+            },
+        )
+        return tuple(self._rack_from_row(row) for row in rows)
+
+    def list_equipment_in_room(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+    ) -> tuple[Equipment, ...]:
+        rows = self._fetch_all(
+            """
+            SELECT id, tenant_id, asset_tag, name, site_code, building_code, floor_code, room_code,
+                   row_code, column_code, zone_code, rack_code, u_position, rack_face, u_height,
+                   coordinate_x, coordinate_y, coordinate_z
+            FROM equipment
+            WHERE tenant_id = %(tenant_id)s
+              AND site_code = %(site_code)s
+              AND building_code = %(building_code)s
+              AND room_code = %(room_code)s
+            ORDER BY row_code, column_code, rack_code NULLS FIRST, asset_tag
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "site_code": Code.from_value(site, "site code").value,
+                "building_code": Code.from_value(building, "building code").value,
+                "room_code": Code.from_value(room, "room code").value,
+            },
+        )
+        return tuple(self._equipment_from_row(row) for row in rows)
+
     def _site_from_row(self, row: Mapping[str, object]) -> Site:
         return Site(
             id=EntityId.from_value(str(row["id"])),

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.14.0
+  version: 0.15.0
 components:
   securitySchemes:
     bearerToken:
@@ -720,6 +720,76 @@ paths:
         '200': {description: Locator sheet in JSON or HTML wrapper}
         '400': {description: Validation error}
         '401': {description: Missing or invalid DCIM identification token}
+  /api/v1/dcim/room-plan:
+    get:
+      summary: Render a deterministic 2D room plan with rows, columns, racks and floor equipment
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: {type: string}
+        - name: site
+          in: query
+          required: true
+          schema: {type: string}
+        - name: building
+          in: query
+          required: true
+          schema: {type: string}
+        - name: room
+          in: query
+          required: true
+          schema: {type: string}
+        - name: format
+          in: query
+          required: false
+          schema: {type: string, enum: [json, svg, html]}
+      responses:
+        '200': {description: Room plan in JSON or SVG/HTML wrapper}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM locator token}
+        '404': {description: Room not found}
+  /api/v1/dcim/rack-elevation:
+    get:
+      summary: Render a rack elevation for a selected face with U occupancy and free units
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: {type: string}
+        - name: site
+          in: query
+          required: true
+          schema: {type: string}
+        - name: building
+          in: query
+          required: true
+          schema: {type: string}
+        - name: room
+          in: query
+          required: true
+          schema: {type: string}
+        - name: rack
+          in: query
+          required: true
+          schema: {type: string}
+        - name: face
+          in: query
+          required: false
+          schema: {type: string, enum: [front, rear]}
+        - name: format
+          in: query
+          required: false
+          schema: {type: string, enum: [json, svg, html]}
+      responses:
+        '200': {description: Rack elevation in JSON or SVG/HTML wrapper}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM locator token}
+        '404': {description: Rack not found}
   /api/v1/dcim/verify-scan:
     post:
       summary: Verify a field QR scan payload against the expected equipment locator

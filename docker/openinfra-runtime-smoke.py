@@ -60,6 +60,7 @@ class RuntimeSmokeScenario:
         self._assert_source_governance_lifecycle()
         self._assert_dcim_physical_model()
         self._assert_dcim_field_operations()
+        self._assert_dcim_visualization()
         self._assert_access_policy_lifecycle()
         self._assert_api_ipam_idempotency()
         self._assert_cli_ipam_transaction()
@@ -86,7 +87,7 @@ class RuntimeSmokeScenario:
 
     def _assert_version(self) -> None:
         version = self._client.get("/api/v1/version")
-        if version.get("version") != "0.14.0":
+        if version.get("version") != "0.15.0":
             raise SmokeError("unexpected version response: " + json.dumps(version, sort_keys=True))
 
     def _assert_schema_status(self) -> None:
@@ -403,6 +404,33 @@ class RuntimeSmokeScenario:
         front = capacity.get("faces_capacity", {}).get("front", {})
         if front.get("used_units") != [10, 11]:
             raise SmokeError("DCIM rack capacity failed: " + json.dumps(capacity, sort_keys=True))
+
+    def _assert_dcim_visualization(self) -> None:
+        room_plan = self._client.get(
+            "/api/v1/dcim/room-plan?tenant_id=default&site=PAR1&building=BAT-A&room=MMR1"
+        )
+        room_svg = self._client.get(
+            "/api/v1/dcim/room-plan?tenant_id=default&site=PAR1"
+            "&building=BAT-A&room=MMR1&format=svg"
+        )
+        elevation = self._client.get(
+            "/api/v1/dcim/rack-elevation?tenant_id=default&site=PAR1"
+            "&building=BAT-A&room=MMR1&rack=R01&face=front"
+        )
+        elevation_html = self._client.get(
+            "/api/v1/dcim/rack-elevation?tenant_id=default&site=PAR1"
+            "&building=BAT-A&room=MMR1&rack=R01&face=front&format=html"
+        )
+        if room_plan.get("type") != "room_plan_2d" or room_plan.get("rack_count") != 1:
+            raise SmokeError("DCIM room plan failed: " + json.dumps(room_plan, sort_keys=True))
+        if not str(room_svg.get("svg", "")).startswith("<svg"):
+            raise SmokeError("DCIM room plan SVG failed: " + json.dumps(room_svg, sort_keys=True))
+        if elevation.get("type") != "rack_elevation" or elevation.get("used_units") != [10, 11]:
+            raise SmokeError("DCIM rack elevation failed: " + json.dumps(elevation, sort_keys=True))
+        if not str(elevation_html.get("html", "")).startswith("<!doctype html>"):
+            raise SmokeError(
+                "DCIM rack elevation HTML failed: " + json.dumps(elevation_html, sort_keys=True)
+            )
 
     def _assert_access_policy_lifecycle(self) -> None:
         rule = self._client.post(

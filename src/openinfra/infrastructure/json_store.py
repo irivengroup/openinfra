@@ -415,6 +415,49 @@ class JsonDcimRepository(DcimRepository):
                 matching.append(self._equipment_from_dict(value))
         return tuple(sorted(matching, key=lambda item: item.asset_tag.value))
 
+    def list_racks_in_room(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+    ) -> tuple[Rack, ...]:
+        normalized_site = Code.from_value(site, "site code").value
+        normalized_building = Code.from_value(building, "building code").value
+        normalized_room = Code.from_value(room, "room code").value
+        matching: list[Rack] = []
+        for value in self._store.data["racks"].values():
+            if (
+                value.get("tenant_id") == tenant_id.value
+                and value.get("site_code") == normalized_site
+                and value.get("building_code") == normalized_building
+                and value.get("room_code") == normalized_room
+            ):
+                matching.append(self._rack_from_dict(value))
+        return tuple(sorted(matching, key=lambda item: (item.row, item.column, item.code.value)))
+
+    def list_equipment_in_room(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+    ) -> tuple[Equipment, ...]:
+        normalized_site = Code.from_value(site, "site code").value
+        normalized_building = Code.from_value(building, "building code").value
+        normalized_room = Code.from_value(room, "room code").value
+        matching: list[Equipment] = []
+        for value in self._store.data["equipment"].values():
+            location = value.get("location", {})
+            if (
+                value.get("tenant_id") == tenant_id.value
+                and location.get("site_code") == normalized_site
+                and location.get("building_code") == normalized_building
+                and location.get("room_code") == normalized_room
+            ):
+                matching.append(self._equipment_from_dict(value))
+        return tuple(sorted(matching, key=lambda item: item.asset_tag.value))
+
     def _put_unique(self, collection: str, key: str, value: dict[str, Any]) -> None:
         if key in self._store.data[collection]:
             raise ConflictError(f"duplicate {collection} key: {key}")

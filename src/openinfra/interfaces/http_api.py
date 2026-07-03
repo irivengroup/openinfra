@@ -28,6 +28,8 @@ from openinfra.application.dcim_services import (
     DefineRackCommand,
     GenerateEquipmentLocatorCommand,
     RackCapacityCommand,
+    RenderRackElevationCommand,
+    RenderRoomPlanCommand,
     VerifyEquipmentScanCommand,
 )
 from openinfra.application.identity_services import (
@@ -314,6 +316,68 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     responder.send(HTTPStatus.OK, {"html": sheet.html_document()})
                 else:
                     responder.send(HTTPStatus.OK, sheet.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/dcim/room-plan":
+            try:
+                query = parse_qs(parsed.query)
+                tenant_id = self._first_query_value(query, "tenant_id")
+                actor = "api"
+                if self.server.auth_required:
+                    principal = self._authenticate(tenant_id, Permission.DCIM_LOCATE)
+                    actor = principal.subject
+                output_format = self._first_query_value(query, "format", "json")
+                plan = self.server.application.dcim_visualization_service.room_plan(
+                    RenderRoomPlanCommand(
+                        tenant_id=tenant_id,
+                        actor=actor,
+                        site=self._first_query_value(query, "site"),
+                        building=self._first_query_value(query, "building"),
+                        room=self._first_query_value(query, "room"),
+                        output_format=output_format,
+                    )
+                )
+                if output_format == "svg":
+                    responder.send(HTTPStatus.OK, {"svg": plan.svg_document()})
+                elif output_format == "html":
+                    responder.send(HTTPStatus.OK, {"html": plan.html_document()})
+                else:
+                    responder.send(HTTPStatus.OK, plan.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/dcim/rack-elevation":
+            try:
+                query = parse_qs(parsed.query)
+                tenant_id = self._first_query_value(query, "tenant_id")
+                actor = "api"
+                if self.server.auth_required:
+                    principal = self._authenticate(tenant_id, Permission.DCIM_LOCATE)
+                    actor = principal.subject
+                output_format = self._first_query_value(query, "format", "json")
+                elevation = self.server.application.dcim_visualization_service.rack_elevation(
+                    RenderRackElevationCommand(
+                        tenant_id=tenant_id,
+                        actor=actor,
+                        site=self._first_query_value(query, "site"),
+                        building=self._first_query_value(query, "building"),
+                        room=self._first_query_value(query, "room"),
+                        rack=self._first_query_value(query, "rack"),
+                        face=self._first_query_value(query, "face", "front"),
+                        output_format=output_format,
+                    )
+                )
+                if output_format == "svg":
+                    responder.send(HTTPStatus.OK, {"svg": elevation.svg_document()})
+                elif output_format == "html":
+                    responder.send(HTTPStatus.OK, {"html": elevation.html_document()})
+                else:
+                    responder.send(HTTPStatus.OK, elevation.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (ValueError, OpenInfraError) as exc:

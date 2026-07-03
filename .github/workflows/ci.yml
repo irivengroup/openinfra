@@ -74,6 +74,7 @@ jobs:
           openinfra database render-migration --name 0009_dcim_physical_model --root migrations/postgresql >/tmp/openinfra-0009.sql
           openinfra database render-migration --name 0010_dcim_rack_capacity --root migrations/postgresql >/tmp/openinfra-0010.sql
           openinfra database render-migration --name 0011_dcim_field_operations --root migrations/postgresql >/tmp/openinfra-0011.sql
+          openinfra database render-migration --name 0012_dcim_visualization_indexes --root migrations/postgresql >/tmp/openinfra-0012.sql
 
       - name: Smoke JSON IPAM allocation
         run: |
@@ -342,6 +343,75 @@ jobs:
             --tenant default \
             --asset-tag CI-SRV-QR-01 \
             --payload "$payload"
+          openinfra dcim define-rack \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --site PAR1 \
+            --building BAT-A \
+            --floor F01 \
+            --room MMR1 \
+            --rack R01 \
+            --row A \
+            --column 01 \
+            --units 8 \
+            --face front \
+            --face rear
+          openinfra dcim locate \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --asset-tag CI-SRV-VIZ-01 \
+            --equipment-name "CI Visualization Server" \
+            --site PAR1 \
+            --building BAT-A \
+            --floor F01 \
+            --room MMR1 \
+            --row A \
+            --column 01 \
+            --rack R01 \
+            --u-position 2 \
+            --u-height 2 \
+            --rack-face front
+          openinfra dcim room-plan \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --site PAR1 \
+            --building BAT-A \
+            --room MMR1 \
+            --format json > "$tmpdir/room-plan.json"
+          openinfra dcim room-plan \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --site PAR1 \
+            --building BAT-A \
+            --room MMR1 \
+            --format svg > "$tmpdir/room-plan.svg"
+          openinfra dcim rack-elevation \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --site PAR1 \
+            --building BAT-A \
+            --room MMR1 \
+            --rack R01 \
+            --face front \
+            --format json > "$tmpdir/rack-elevation.json"
+          openinfra dcim rack-elevation \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --site PAR1 \
+            --building BAT-A \
+            --room MMR1 \
+            --rack R01 \
+            --face front \
+            --format html > "$tmpdir/rack-elevation.html"
+          python - "$tmpdir/room-plan.json" "$tmpdir/rack-elevation.json" <<'PYSMOKE'
+import json
+import sys
+room_plan = json.load(open(sys.argv[1], encoding="utf-8"))
+rack_elevation = json.load(open(sys.argv[2], encoding="utf-8"))
+assert room_plan["type"] == "room_plan_2d"
+assert rack_elevation["type"] == "rack_elevation"
+assert rack_elevation["used_units"] == [2, 3]
+PYSMOKE
 
       - name: Internal quality gate
         run: python scripts/quality_gate.py

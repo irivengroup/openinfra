@@ -168,3 +168,14 @@ python scripts/docker_environment.py init
 python scripts/docker_environment.py validate
 python scripts/docker_environment.py reset
 ```
+
+
+## Smoke runtime v0.15.0 — plans 2D salle et rack elevation
+
+Le smoke test Docker v0.15.0 prolonge le scénario DCIM P04 contre l’API authentifiée et le backend PostgreSQL : après création de la salle, définition du rack et localisation en rack, il appelle `GET /api/v1/dcim/room-plan` en JSON/SVG puis `GET /api/v1/dcim/rack-elevation` en JSON/HTML. Le contrôle vérifie que le plan contient le rack attendu, que le SVG est rendu, que l’occupation U correspond à la localisation et que la fiche HTML est produite.
+
+```bash
+python scripts/docker_environment.py init
+python scripts/docker_environment.py validate
+python scripts/docker_environment.py reset
+```

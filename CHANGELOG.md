@@ -1,3 +1,13 @@
+## 0.15.0 - 2026-07-03
+
+- Roadmap : P04 / EPIC-0404 — Plans 2D salle et rack elevation.
+- Ajout des objets domaine `RoomPlan2D`, `RoomPlanCell`, `RackElevation` et `RackElevationUnit`.
+- Ajout du service applicatif `DcimVisualizationService` et des lectures repository `list_racks_in_room` / `list_equipment_in_room`.
+- Ajout des commandes `openinfra dcim room-plan` et `openinfra dcim rack-elevation` avec sorties JSON, SVG et HTML.
+- Ajout des endpoints `GET /api/v1/dcim/room-plan` et `GET /api/v1/dcim/rack-elevation`.
+- Ajout de la migration PostgreSQL `0012_dcim_visualization_indexes.sql` pour les chemins de lecture visualisation.
+- Extension de l’OpenAPI, de la CI, du smoke Docker, de la documentation et des tests pour conserver une couverture globale `>= 98 %`.
+
 ## 0.14.0 - 2026-07-03
 
 - Roadmap : P04 / EPIC-0403 — QR codes, fiches de localisation et chemins d’intervention terrain.

@@ -156,3 +156,12 @@ La migration `0010_dcim_rack_capacity.sql` est additive. Elle ajoute les colonne
 La version 0.14.0 ajoute les opérations terrain DCIM. Le domaine construit un payload QR compact dérivé du tenant, de l’asset tag et du chemin physique, génère un document SVG déterministe, assemble une fiche de localisation JSON/HTML et vérifie les scans par comparaison stricte du payload attendu. L’application expose `DcimFieldOperationService`, les interfaces ajoutent `openinfra dcim locator-sheet`, `openinfra dcim verify-scan`, `GET /api/v1/dcim/locator-sheet` et `POST /api/v1/dcim/verify-scan`.
 
 L’invariant principal est opérationnel : la fiche terrain doit contenir le chemin complet site → bâtiment → étage → salle → zone → rack → face → position U, afin de réduire les erreurs de manipulation. La permission `dcim.identify` protège les opérations d’identification lorsque l’API authentifiée est activée.
+
+
+## v0.15.0 — P04 EPIC-0404 Plans 2D salle et rack elevation
+
+La version 0.15.0 ajoute la couche de visualisation DCIM sans déplacer la logique métier hors du domaine. Les objets `RoomPlan2D`, `RoomPlanCell`, `RackElevation` et `RackElevationUnit` agrègent les salles, racks et équipements déjà persistés pour produire des représentations JSON, SVG et HTML déterministes. Le service applicatif `DcimVisualizationService` orchestre les lectures via `DcimRepository`, applique les mêmes invariants de tenant/site/bâtiment/salle/rack et journalise chaque rendu dans l’audit.
+
+Les ports restent hexagonaux : le magasin JSON et l’adaptateur PostgreSQL exposent les méthodes de lecture `list_racks_in_room` et `list_equipment_in_room`, sans dépendance de l’application à un format de stockage. Les interfaces ajoutent `openinfra dcim room-plan`, `openinfra dcim rack-elevation`, `GET /api/v1/dcim/room-plan` et `GET /api/v1/dcim/rack-elevation`.
+
+La migration `0012_dcim_visualization_indexes.sql` est additive. Elle ajoute uniquement des index de lecture pour les grilles salle, les occupations rack et l’audit des rendus, sans modifier la forme des données existantes.

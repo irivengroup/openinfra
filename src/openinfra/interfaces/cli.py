@@ -26,6 +26,8 @@ from openinfra.application.dcim_services import (
     GenerateEquipmentLocatorCommand,
     LocateEquipmentCommand,
     RackCapacityCommand,
+    RenderRackElevationCommand,
+    RenderRoomPlanCommand,
     VerifyEquipmentScanCommand,
 )
 from openinfra.application.identity_services import (
@@ -621,6 +623,38 @@ class OpenInfraCLI:
         verify_scan.add_argument("--asset-tag", required=True)
         verify_scan.add_argument("--payload", required=True)
         verify_scan.set_defaults(handler=self._handle_dcim_verify_scan)
+
+        room_plan = dcim_subparsers.add_parser(
+            "room-plan",
+            help="render a 2D room grid with racks and equipment occupancy",
+        )
+        room_plan.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        room_plan.add_argument("--data", type=Path, default=Path(".openinfra.json"))
+        room_plan.add_argument("--postgres-dsn")
+        room_plan.add_argument("--tenant", default="default")
+        room_plan.add_argument("--actor", default="cli")
+        room_plan.add_argument("--site", required=True)
+        room_plan.add_argument("--building", required=True)
+        room_plan.add_argument("--room", required=True)
+        room_plan.add_argument("--format", choices=("json", "svg", "html"), default="json")
+        room_plan.set_defaults(handler=self._handle_dcim_room_plan)
+
+        rack_elevation = dcim_subparsers.add_parser(
+            "rack-elevation",
+            help="render rack U occupation for one rack face",
+        )
+        rack_elevation.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        rack_elevation.add_argument("--data", type=Path, default=Path(".openinfra.json"))
+        rack_elevation.add_argument("--postgres-dsn")
+        rack_elevation.add_argument("--tenant", default="default")
+        rack_elevation.add_argument("--actor", default="cli")
+        rack_elevation.add_argument("--site", required=True)
+        rack_elevation.add_argument("--building", required=True)
+        rack_elevation.add_argument("--room", required=True)
+        rack_elevation.add_argument("--rack", required=True)
+        rack_elevation.add_argument("--face", choices=("front", "rear"), default="front")
+        rack_elevation.add_argument("--format", choices=("json", "svg", "html"), default="json")
+        rack_elevation.set_defaults(handler=self._handle_dcim_rack_elevation)
 
     def _handle_version(self, args: argparse.Namespace) -> int:
         print(__version__)
@@ -1220,6 +1254,48 @@ class OpenInfraCLI:
             )
         )
         print(json.dumps(proof.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_dcim_room_plan(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        plan = application.dcim_visualization_service.room_plan(
+            RenderRoomPlanCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                site=args.site,
+                building=args.building,
+                room=args.room,
+                output_format=args.format,
+            )
+        )
+        if args.format == "svg":
+            print(plan.svg_document())
+        elif args.format == "html":
+            print(plan.html_document())
+        else:
+            print(json.dumps(plan.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_dcim_rack_elevation(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        elevation = application.dcim_visualization_service.rack_elevation(
+            RenderRackElevationCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                site=args.site,
+                building=args.building,
+                room=args.room,
+                rack=args.rack,
+                face=args.face,
+                output_format=args.format,
+            )
+        )
+        if args.format == "svg":
+            print(elevation.svg_document())
+        elif args.format == "html":
+            print(elevation.html_document())
+        else:
+            print(json.dumps(elevation.as_dict(), sort_keys=True))
         return 0
 
     def _create_migration_executor(self, args: argparse.Namespace) -> PostgreSQLMigrationExecutor:

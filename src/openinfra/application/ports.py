@@ -190,6 +190,26 @@ class DcimRepository(ABC):
     ) -> tuple[Equipment, ...]:
         raise TypeError("adapter contract invoked directly")
 
+    @abstractmethod
+    def list_racks_in_room(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+    ) -> tuple[Rack, ...]:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_equipment_in_room(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+    ) -> tuple[Equipment, ...]:
+        raise TypeError("adapter contract invoked directly")
+
 
 class IpamRepository(ABC):
     @abstractmethod

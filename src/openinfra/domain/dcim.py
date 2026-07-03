@@ -560,6 +560,326 @@ class RackCapacityReport:
 
 
 @dataclass(frozen=True, slots=True)
+class RoomPlanCell:
+    row: str
+    column: str
+    racks: tuple[Rack, ...]
+    equipment: tuple[Equipment, ...]
+
+    @property
+    def occupied(self) -> bool:
+        return bool(self.racks or self.equipment)
+
+    @property
+    def status(self) -> str:
+        if self.racks and self.equipment:
+            return "rack_occupied"
+        if self.racks:
+            return "rack_empty"
+        if self.equipment:
+            return "floor_occupied"
+        return "empty"
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "row": self.row,
+            "column": self.column,
+            "status": self.status,
+            "occupied": self.occupied,
+            "rack_codes": [rack.code.value for rack in self.racks],
+            "equipment": [
+                {
+                    "asset_tag": item.asset_tag.value,
+                    "name": item.name.value,
+                    "rack": item.location.rack_code.value if item.location.rack_code else None,
+                    "rack_face": (
+                        item.location.effective_rack_face().value
+                        if item.location.effective_rack_face()
+                        else None
+                    ),
+                    "u_position": item.location.u_position,
+                    "u_height": item.location.effective_u_height(),
+                }
+                for item in self.equipment
+            ],
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class RoomPlan2D:
+    room: Room
+    racks: tuple[Rack, ...]
+    equipment: tuple[Equipment, ...]
+
+    @classmethod
+    def create(
+        cls,
+        room: Room,
+        racks: tuple[Rack, ...],
+        equipment: tuple[Equipment, ...],
+    ) -> Self:
+        for rack in racks:
+            if rack.room_code != room.code or rack.site_code != room.site_code:
+                raise ValidationError("rack does not belong to the requested room plan")
+            room.assert_cell_exists(rack.row, rack.column)
+        for item in equipment:
+            location = item.location
+            if location.room_code != room.code or location.site_code != room.site_code:
+                raise ValidationError("equipment does not belong to the requested room plan")
+            room.assert_cell_exists(location.row, location.column)
+        return cls(
+            room,
+            tuple(sorted(racks, key=lambda item: item.code.value)),
+            tuple(sorted(equipment, key=lambda item: item.asset_tag.value)),
+        )
+
+    def cells(self) -> tuple[RoomPlanCell, ...]:
+        result: list[RoomPlanCell] = []
+        for row in self.room.rows:
+            for column in self.room.columns:
+                result.append(
+                    RoomPlanCell(
+                        row=row,
+                        column=column,
+                        racks=tuple(
+                            rack
+                            for rack in self.racks
+                            if rack.row == row and rack.column == column
+                        ),
+                        equipment=tuple(
+                            item
+                            for item in self.equipment
+                            if item.location.row == row and item.location.column == column
+                        ),
+                    )
+                )
+        return tuple(result)
+
+    def as_dict(self) -> dict[str, object]:
+        cells = self.cells()
+        return {
+            "type": "room_plan_2d",
+            "tenant_id": self.room.tenant_id.value,
+            "site": self.room.site_code.value,
+            "building": self.room.building_code.value,
+            "floor": self.room.floor_code.value if self.room.floor_code else None,
+            "room": self.room.code.value,
+            "rows": list(self.room.rows),
+            "columns": list(self.room.columns),
+            "coordinates": self.room.coordinates.as_dict() if self.room.coordinates else None,
+            "rack_count": len(self.racks),
+            "equipment_count": len(self.equipment),
+            "grid": [cell.as_dict() for cell in cells],
+        }
+
+    def svg_document(self, cell_size: int = 90) -> str:
+        size = int(cell_size)
+        if not 48 <= size <= 180:
+            raise ValidationError("room plan cell size must be between 48 and 180 pixels")
+        margin = 60
+        width = margin + len(self.room.columns) * size + 20
+        height = margin + len(self.room.rows) * size + 40
+        elements = [
+            f'<svg xmlns="http://www.w3.org/2000/svg" role="img" '
+            f'aria-label="OpenInfra room plan {html.escape(self.room.code.value)}" '
+            f'viewBox="0 0 {width} {height}" width="{width}" height="{height}">',
+            '<rect width="100%" height="100%" fill="#fff"/>',
+            f'<text x="20" y="28" font-size="16">Salle {html.escape(self.room.code.value)}</text>',
+        ]
+        for column_index, column in enumerate(self.room.columns):
+            x = margin + column_index * size + size // 2
+            elements.append(
+                f'<text x="{x}" y="52" text-anchor="middle" font-size="12">'
+                f'{html.escape(column)}</text>'
+            )
+        for row_index, row in enumerate(self.room.rows):
+            y = margin + row_index * size + size // 2
+            elements.append(
+                f'<text x="36" y="{y}" text-anchor="middle" font-size="12">'
+                f'{html.escape(row)}</text>'
+            )
+        for cell in self.cells():
+            row_index = self.room.rows.index(cell.row)
+            column_index = self.room.columns.index(cell.column)
+            x = margin + column_index * size
+            y = margin + row_index * size
+            fill = "#e8f5e9" if cell.occupied else "#f8f8f8"
+            label = ",".join(rack.code.value for rack in cell.racks) or str(len(cell.equipment))
+            elements.append(
+                f'<rect x="{x}" y="{y}" width="{size}" height="{size}" '
+                f'fill="{fill}" stroke="#444"/>'
+            )
+            elements.append(
+                f'<text x="{x + size // 2}" y="{y + size // 2}" text-anchor="middle" '
+                f'font-size="11">{html.escape(label)}</text>'
+            )
+        elements.append("</svg>")
+        return "".join(elements)
+
+    def html_document(self) -> str:
+        rows = []
+        for row in self.room.rows:
+            cells = [cell for cell in self.cells() if cell.row == row]
+            row_html = "".join(
+                "<td>"
+                + html.escape(cell.status)
+                + "<br>"
+                + html.escape(", ".join(rack.code.value for rack in cell.racks))
+                + "<br>"
+                + html.escape(", ".join(item.asset_tag.value for item in cell.equipment))
+                + "</td>"
+                for cell in cells
+            )
+            rows.append(f"<tr><th>{html.escape(row)}</th>{row_html}</tr>")
+        header = "".join(f"<th>{html.escape(column)}</th>" for column in self.room.columns)
+        return (
+            '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
+            "<title>OpenInfra plan salle 2D</title></head><body>"
+            f"<h1>Plan 2D — {html.escape(self.room.code.value)}</h1>"
+            f"<p>{html.escape(self.room.physical_path())}</p>"
+            f"<section>{self.svg_document()}</section>"
+            f"<table><thead><tr><th>Ligne/Colonne</th>{header}</tr></thead>"
+            f"<tbody>{''.join(rows)}</tbody></table>"
+            "</body></html>"
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class RackElevationUnit:
+    u: int
+    face: RackFace
+    equipment: tuple[Equipment, ...]
+
+    @property
+    def occupied(self) -> bool:
+        return bool(self.equipment)
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "u": self.u,
+            "face": self.face.value,
+            "occupied": self.occupied,
+            "equipment": [
+                {
+                    "asset_tag": item.asset_tag.value,
+                    "name": item.name.value,
+                    "u_position": item.location.u_position,
+                    "u_height": item.location.effective_u_height(),
+                }
+                for item in self.equipment
+            ],
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class RackElevation:
+    rack: Rack
+    face: RackFace
+    equipment: tuple[Equipment, ...]
+
+    @classmethod
+    def create(cls, rack: Rack, equipment: tuple[Equipment, ...], face: str | RackFace) -> Self:
+        rack_face = face if isinstance(face, RackFace) else RackFace.from_value(face)
+        if rack_face is None:
+            raise ValidationError("rack elevation face is mandatory")
+        rack.assert_face_supported(rack_face)
+        filtered = tuple(
+            sorted(
+                (item for item in equipment if item.location.effective_rack_face() == rack_face),
+                key=lambda item: (item.location.u_position or 0, item.asset_tag.value),
+            )
+        )
+        return cls(rack, rack_face, filtered)
+
+    def units(self) -> tuple[RackElevationUnit, ...]:
+        result: list[RackElevationUnit] = []
+        for unit in range(self.rack.units, 0, -1):
+            mounted = tuple(
+                item for item in self.equipment if unit in item.location.occupied_units()
+            )
+            result.append(RackElevationUnit(unit, self.face, mounted))
+        return tuple(result)
+
+    def as_dict(self) -> dict[str, object]:
+        used_units = sorted(
+            {unit for item in self.equipment for unit in item.location.occupied_units()}
+        )
+        return {
+            "type": "rack_elevation",
+            "tenant_id": self.rack.tenant_id.value,
+            "site": self.rack.site_code.value,
+            "building": self.rack.building_code.value,
+            "floor": self.rack.floor_code.value if self.rack.floor_code else None,
+            "room": self.rack.room_code.value,
+            "zone": self.rack.zone_code.value if self.rack.zone_code else None,
+            "rack": self.rack.code.value,
+            "face": self.face.value,
+            "units_total": self.rack.units,
+            "used_units": used_units,
+            "free_units": self.rack.units - len(used_units),
+            "occupancy_percent": round((len(used_units) / self.rack.units) * 100, 2),
+            "elevation": [unit.as_dict() for unit in self.units()],
+        }
+
+    def svg_document(self, unit_height: int = 22) -> str:
+        height_per_unit = int(unit_height)
+        if not 12 <= height_per_unit <= 48:
+            raise ValidationError("rack elevation unit height must be between 12 and 48 pixels")
+        width = 320
+        top = 50
+        height = top + self.rack.units * height_per_unit + 20
+        elements = [
+            f'<svg xmlns="http://www.w3.org/2000/svg" role="img" '
+            f'aria-label="OpenInfra rack elevation {html.escape(self.rack.code.value)}" '
+            f'viewBox="0 0 {width} {height}" width="{width}" height="{height}">',
+            '<rect width="100%" height="100%" fill="#fff"/>',
+            (
+                f'<text x="20" y="28" font-size="16">Rack '
+                f'{html.escape(self.rack.code.value)} — {self.face.value}</text>'
+            ),
+        ]
+        for index, unit in enumerate(self.units()):
+            y = top + index * height_per_unit
+            fill = "#e3f2fd" if unit.occupied else "#f8f8f8"
+            label = ", ".join(item.asset_tag.value for item in unit.equipment)
+            elements.append(
+                f'<rect x="60" y="{y}" width="220" height="{height_per_unit}" '
+                f'fill="{fill}" stroke="#444"/>'
+            )
+            elements.append(
+                f'<text x="35" y="{y + height_per_unit - 5}" text-anchor="middle" '
+                f'font-size="10">U{unit.u}</text>'
+            )
+            elements.append(
+                f'<text x="70" y="{y + height_per_unit - 5}" font-size="10">'
+                f'{html.escape(label)}</text>'
+            )
+        elements.append("</svg>")
+        return "".join(elements)
+
+    def html_document(self) -> str:
+        rows = "".join(
+            "<tr><td>"
+            + str(unit.u)
+            + "</td><td>"
+            + html.escape(unit.face.value)
+            + "</td><td>"
+            + html.escape(", ".join(item.asset_tag.value for item in unit.equipment))
+            + "</td></tr>"
+            for unit in self.units()
+        )
+        return (
+            '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
+            "<title>OpenInfra rack elevation</title></head><body>"
+            f"<h1>Rack elevation — {html.escape(self.rack.code.value)} — {self.face.value}</h1>"
+            f"<section>{self.svg_document()}</section>"
+            "<table><thead><tr><th>U</th><th>Face</th><th>Équipement</th></tr></thead>"
+            f"<tbody>{rows}</tbody></table>"
+            "</body></html>"
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class InterventionRouteStep:
     order: int
     title: str
@@ -636,7 +956,9 @@ class QrCodeSvgDocument:
         self._matrix: list[list[bool | None]] = [
             [None for _ in range(self.SIZE)] for _ in range(self.SIZE)
         ]
-        self._function: list[list[bool]] = [[False for _ in range(self.SIZE)] for _ in range(self.SIZE)]
+        self._function: list[list[bool]] = [
+            [False for _ in range(self.SIZE)] for _ in range(self.SIZE)
+        ]
 
     @classmethod
     def from_payload(cls, payload: str) -> Self:
@@ -735,7 +1057,11 @@ class QrCodeSvgDocument:
             self._set_function(8, self.SIZE - 15 + index, self._bit(bits, index))
 
     def _draw_codewords(self, codewords: tuple[int, ...]) -> None:
-        bits = tuple((codeword >> shift) & 1 for codeword in codewords for shift in range(7, -1, -1))
+        bits = tuple(
+            (codeword >> shift) & 1
+            for codeword in codewords
+            for shift in range(7, -1, -1)
+        )
         bit_index = 0
         upward = True
         col = self.SIZE - 1
@@ -940,7 +1266,10 @@ class EquipmentLocatorSheet:
             InterventionRouteStep.create(
                 order,
                 "Identification terrain",
-                "Scanner le QR OpenInfra et comparer l'asset tag affiché avec l'étiquette physique.",
+                (
+                    "Scanner le QR OpenInfra et comparer l'asset tag affiché "
+                    "avec l'étiquette physique."
+                ),
             )
         )
         return tuple(steps)

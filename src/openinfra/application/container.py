@@ -11,6 +11,7 @@ from openinfra.application.dcim_services import (
     DcimLocationService,
     DcimRackService,
     DcimTopologyService,
+    DcimVisualizationService,
 )
 from openinfra.application.identity_services import IdentityService
 from openinfra.application.ipam_services import IpamAllocationService
@@ -71,6 +72,7 @@ class OpenInfraApplication:
     dcim_topology_service: DcimTopologyService
     dcim_rack_service: DcimRackService
     dcim_field_operation_service: DcimFieldOperationService
+    dcim_visualization_service: DcimVisualizationService
     ipam_service: IpamAllocationService
     dcim_repository: DcimRepository
     ipam_repository: IpamRepository
@@ -218,6 +220,11 @@ class ApplicationFactory:
                 transaction_manager,
             ),
             dcim_field_operation_service=DcimFieldOperationService(
+                dcim_repository,
+                audit_repository,
+                transaction_manager,
+            ),
+            dcim_visualization_service=DcimVisualizationService(
                 dcim_repository,
                 audit_repository,
                 transaction_manager,

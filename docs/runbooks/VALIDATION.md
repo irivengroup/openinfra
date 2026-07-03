@@ -16,6 +16,9 @@ PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --na
 PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0007_source_of_truth_core --root migrations/postgresql >/tmp/openinfra-0007.sql
 PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0008_source_governance --root migrations/postgresql >/tmp/openinfra-0008.sql
 PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0009_dcim_physical_model --root migrations/postgresql >/tmp/openinfra-0009.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0010_dcim_rack_capacity --root migrations/postgresql >/tmp/openinfra-0010.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0011_dcim_field_operations --root migrations/postgresql >/tmp/openinfra-0011.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0012_dcim_visualization_indexes --root migrations/postgresql >/tmp/openinfra-0012.sql
 PYTHONPATH=src python -m openinfra.interfaces.cli ipam allocate --data /tmp/openinfra-state.json --tenant default --vrf default --prefix 10.99.0.0/30 --hostname validation --idempotency-key validation-1
 ```
 
@@ -167,3 +170,18 @@ PYTHONPATH=src python3 -m pytest -q
 ```
 
 Le périmètre de couverture locale exclut l’adaptateur PostgreSQL bas niveau, qui reste couvert par tests d’intégration simulés et par le runtime Docker/Compose lorsqu’un moteur PostgreSQL réel est disponible. Les validations fonctionnelles locales couvrent les domaines, services applicatifs, CLI/API, magasin JSON, contrats HTTP et scénarios QR terrain.
+
+
+## Contrôles ajoutés en v0.15.0
+
+La v0.15.0 conserve le seuil bloquant `>= 98 %` et ajoute les contrôles P04 / EPIC-0404 suivants :
+
+```bash
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0012_dcim_visualization_indexes --root migrations/postgresql >/tmp/openinfra-0012.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli dcim room-plan --tenant default --site PAR1 --building BAT-A --room MMR1 --format json
+PYTHONPATH=src python -m openinfra.interfaces.cli dcim room-plan --tenant default --site PAR1 --building BAT-A --room MMR1 --format svg
+PYTHONPATH=src python -m openinfra.interfaces.cli dcim rack-elevation --tenant default --site PAR1 --building BAT-A --room MMR1 --rack R01 --face front --format json
+PYTHONPATH=src python -m openinfra.interfaces.cli dcim rack-elevation --tenant default --site PAR1 --building BAT-A --room MMR1 --rack R01 --face front --format html
+```
+
+Les tests couvrent le domaine de visualisation, les services applicatifs, les ports JSON/PostgreSQL, la CLI, l’API HTTP et les contrats d’erreur. Les endpoints `GET /api/v1/dcim/room-plan` et `GET /api/v1/dcim/rack-elevation` sont protégés par les mêmes règles d’authentification DCIM que la localisation terrain.

@@ -21,7 +21,9 @@ from openinfra.domain.dcim import (
     EquipmentLocatorSheet,
     EquipmentScanProof,
     RackCapacityReport,
+    RackElevation,
     Room,
+    RoomPlan2D,
     RoomZone,
     Site,
 )
@@ -82,6 +84,28 @@ class RackCapacityCommand:
     building: str
     room: str
     rack: str
+
+
+@dataclass(frozen=True, slots=True)
+class RenderRoomPlanCommand:
+    tenant_id: str
+    actor: str
+    site: str
+    building: str
+    room: str
+    output_format: str = "json"
+
+
+@dataclass(frozen=True, slots=True)
+class RenderRackElevationCommand:
+    tenant_id: str
+    actor: str
+    site: str
+    building: str
+    room: str
+    rack: str
+    face: str = "front"
+    output_format: str = "json"
 
 
 @dataclass(frozen=True, slots=True)
@@ -403,6 +427,115 @@ class DcimRackService:
         zone.assert_within_room(room)
         zone.assert_cell_exists(command.row, command.column)
         return zone
+
+
+class DcimVisualizationService:
+    def __init__(
+        self,
+        dcim_repository: DcimRepository,
+        audit_repository: AuditRepository,
+        transaction_manager: TransactionManager,
+    ) -> None:
+        self._dcim_repository = dcim_repository
+        self._audit_repository = audit_repository
+        self._transaction_manager = transaction_manager
+
+    def room_plan(self, command: RenderRoomPlanCommand) -> RoomPlan2D:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        output_format = self._normalize_output_format(command.output_format)
+        room = self._dcim_repository.find_room(
+            tenant_id,
+            command.site,
+            command.building,
+            command.room,
+        )
+        if room is None:
+            raise NotFoundError("room does not exist")
+        plan = RoomPlan2D.create(
+            room,
+            self._dcim_repository.list_racks_in_room(
+                tenant_id,
+                command.site,
+                command.building,
+                command.room,
+            ),
+            self._dcim_repository.list_equipment_in_room(
+                tenant_id,
+                command.site,
+                command.building,
+                command.room,
+            ),
+        )
+        self._record_visualization_audit(
+            tenant_id,
+            command.actor,
+            "dcim.room-plan.rendered",
+            "room",
+            room.code.value,
+            output_format,
+        )
+        return plan
+
+    def rack_elevation(self, command: RenderRackElevationCommand) -> RackElevation:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        output_format = self._normalize_output_format(command.output_format)
+        rack = self._dcim_repository.find_rack(
+            tenant_id,
+            command.site,
+            command.building,
+            command.room,
+            command.rack,
+        )
+        if rack is None:
+            raise NotFoundError("rack does not exist")
+        elevation = RackElevation.create(
+            rack,
+            self._dcim_repository.list_equipment_in_rack(
+                tenant_id,
+                command.site,
+                command.building,
+                command.room,
+                command.rack,
+            ),
+            command.face,
+        )
+        self._record_visualization_audit(
+            tenant_id,
+            command.actor,
+            "dcim.rack-elevation.rendered",
+            "rack",
+            rack.code.value,
+            output_format,
+        )
+        return elevation
+
+    def _normalize_output_format(self, value: str) -> str:
+        output_format = value.strip().lower()
+        if output_format not in ("json", "svg", "html"):
+            raise ValidationError("visualization format must be json, svg or html")
+        return output_format
+
+    def _record_visualization_audit(
+        self,
+        tenant_id: TenantId,
+        actor: str,
+        action: str,
+        target_type: str,
+        target_id: str,
+        output_format: str,
+    ) -> None:
+        with self._transaction_manager.begin() as unit_of_work:
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=actor,
+                    action=action,
+                    target_type=target_type,
+                    target_id=target_id,
+                    metadata={"format": output_format},
+                )
+            )
+            unit_of_work.commit()
 
 
 class DcimFieldOperationService:

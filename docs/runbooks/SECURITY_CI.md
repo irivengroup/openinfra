@@ -7,7 +7,7 @@ La CI OpenInfra doit bloquer un `push` ou une pull request lorsqu'une faiblesse 
 ## Contrôles actifs
 
 - `bandit -q -r src/openinfra` : analyse statique sécurité du code Python applicatif.
-- `python -m pip_audit --strict --skip-editable --progress-spinner off` : audit des dépendances installées contre les bases de vulnérabilités Python ; `--skip-editable` évite de traiter le package local `openinfra` comme une dépendance publiée sur PyPI.
+- `python -m pip_audit --strict --requirement requirements/security-audit.txt --progress-spinner off` : audit des dépendances installées contre les bases de vulnérabilités Python ; `requirements/security-audit.txt` évite d'auditer l'environnement editable et limite le contrôle aux dépendances tierces.
 - `python scripts/security_gate.py --project-root .` : scan déterministe des secrets committés et vérification du durcissement GitHub Actions.
 - CodeQL : analyse de sécurité et de qualité avec les suites `security-extended` et `security-and-quality`.
 - Dependency Review : blocage des pull requests introduisant des dépendances vulnérables à sévérité au moins modérée.
@@ -47,7 +47,7 @@ openinfra security revoke-token --target-token "$worker_token" --admin-token "$s
 La CI installe le projet avec `pip install -e .[postgresql,dev]`. Le package local `openinfra` ne doit pas être résolu sur PyPI pendant l’audit. Le job de sécurité utilise donc :
 
 ```bash
-python -m pip_audit --strict --skip-editable --progress-spinner off
+python -m pip_audit --strict --requirement requirements/security-audit.txt --progress-spinner off
 ```
 
-Le `security_gate.py` vérifie la présence de `pip_audit` et `--skip-editable` dans le workflow pour éviter toute régression similaire.
+Le `security_gate.py` vérifie la présence de `pip_audit` et `requirements/security-audit.txt` dans le workflow pour éviter toute régression similaire.

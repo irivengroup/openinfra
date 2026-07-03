@@ -615,7 +615,7 @@ jobs:
         run: bandit -q -r src/openinfra
 
       - name: Pip audit - known vulnerable dependencies
-        run: python -m pip_audit --strict --skip-editable --progress-spinner off
+        run: python -m pip_audit --strict --requirement requirements/security-audit.txt --progress-spinner off
 
   dependency-review:
     name: Dependency review / PR vulnerability gate

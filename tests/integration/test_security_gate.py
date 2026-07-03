@@ -28,6 +28,9 @@ class TestSecurityGate:
         workflow = tmp_path / ".github/workflows/ci.yml"
         workflow.parent.mkdir(parents=True)
         self._write_dependabot_policy(tmp_path)
+        requirements = tmp_path / "requirements/security-audit.txt"
+        requirements.parent.mkdir(parents=True, exist_ok=True)
+        requirements.write_text("pytest>=8.0\n", encoding="utf-8")
         workflow.write_text(
             "\n".join(
                 (
@@ -40,7 +43,7 @@ class TestSecurityGate:
                     "jobs:",
                     "  blocking-security:",
                     "    steps:",
-                    "      - run: python -m pip_audit --strict --skip-editable",
+                    "      - run: python -m pip_audit --strict --requirement requirements/security-audit.txt",
                     "      - run: bandit -q -r src/openinfra",
                     "      - run: python scripts/security_gate.py --project-root .",
                     "      - uses: github/codeql-action/init@v4",
@@ -58,6 +61,9 @@ class TestSecurityGate:
         workflow = tmp_path / ".github/workflows/ci.yml"
         workflow.parent.mkdir(parents=True)
         self._write_dependabot_policy(tmp_path)
+        requirements = tmp_path / "requirements/security-audit.txt"
+        requirements.parent.mkdir(parents=True, exist_ok=True)
+        requirements.write_text("pytest>=8.0\n", encoding="utf-8")
         workflow.write_text(
             "\n".join(
                 (
@@ -66,7 +72,7 @@ class TestSecurityGate:
                     "security-events: write",
                     "blocking-security:",
                     "pip_audit",
-                    "--skip-editable",
+                    "--requirement requirements/security-audit.txt",
                     "bandit -q -r src/openinfra",
                     "scripts/security_gate.py --project-root .",
                     "github/codeql-action/init",
@@ -89,6 +95,79 @@ class TestSecurityGate:
             assert "potential committed credentials" in str(exc)
         else:
             raise AssertionError("security gate accepted a committed credential")
+
+    def test_security_gate_rejects_environment_pip_audit_on_editable_install(
+        self, tmp_path: Path
+    ) -> None:
+        workflow = tmp_path / ".github/workflows/ci.yml"
+        workflow.parent.mkdir(parents=True)
+        self._write_dependabot_policy(tmp_path)
+        requirements = tmp_path / "requirements/security-audit.txt"
+        requirements.parent.mkdir(parents=True, exist_ok=True)
+        requirements.write_text("pytest>=8.0\n", encoding="utf-8")
+        workflow.write_text(
+            "\n".join(
+                (
+                    "branches: ['**']",
+                    "workflow_dispatch:",
+                    "security-events: write",
+                    "blocking-security:",
+                    "pip_audit",
+                    "--requirement requirements/security-audit.txt",
+                    "python -m pip_audit --strict --skip-editable --progress-spinner off",
+                    "bandit -q -r src/openinfra",
+                    "scripts/security_gate.py --project-root .",
+                    "github/codeql-action/init",
+                    "github/codeql-action/analyze",
+                    "actions/dependency-review-action",
+                    "'3.13'",
+                    "'3.14'",
+                )
+            ),
+            encoding="utf-8",
+        )
+        try:
+            SecurityGate(tmp_path).run()
+        except SecurityGateError as exc:
+            assert "unsafe trigger configuration" in str(exc)
+        else:
+            raise AssertionError("security gate accepted an environment pip-audit command")
+
+    def test_security_gate_rejects_local_package_in_audit_requirements(
+        self, tmp_path: Path
+    ) -> None:
+        workflow = tmp_path / ".github/workflows/ci.yml"
+        workflow.parent.mkdir(parents=True)
+        self._write_dependabot_policy(tmp_path)
+        requirements = tmp_path / "requirements/security-audit.txt"
+        requirements.parent.mkdir(parents=True, exist_ok=True)
+        requirements.write_text("openinfra==0.17.4\n", encoding="utf-8")
+        workflow.write_text(
+            "\n".join(
+                (
+                    "branches: ['**']",
+                    "workflow_dispatch:",
+                    "security-events: write",
+                    "blocking-security:",
+                    "pip_audit",
+                    "--requirement requirements/security-audit.txt",
+                    "bandit -q -r src/openinfra",
+                    "scripts/security_gate.py --project-root .",
+                    "github/codeql-action/init",
+                    "github/codeql-action/analyze",
+                    "actions/dependency-review-action",
+                    "'3.13'",
+                    "'3.14'",
+                )
+            ),
+            encoding="utf-8",
+        )
+        try:
+            SecurityGate(tmp_path).run()
+        except SecurityGateError as exc:
+            assert "must not reference local package openinfra" in str(exc)
+        else:
+            raise AssertionError("security gate accepted local package audit input")
 
     def test_secret_scanner_accepts_runtime_generated_shell_tokens(self, tmp_path: Path) -> None:
         script = tmp_path / "ci.yml"

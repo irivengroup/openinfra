@@ -502,15 +502,21 @@ La migration PostgreSQL `0013_dcim_cabling_foundation.sql` ajoute les tables par
 Production : le runtime officiel est désormais documenté comme déploiement serveur natif via `systemd`, virtualenv Python et PostgreSQL. Docker reste un lab optionnel de test/smoke et n’est pas une dépendance de production.
 
 
+## v0.17.4 — Correctif CI audit vulnérabilités editable
+
+La v0.17.4 est une livraison corrective sans nouveau jalon métier. Elle corrige l'échec GitHub Actions `distribution marked as editable` rencontré par `pip-audit` lorsque l'environnement CI contient le package projet installé en mode editable.
+
+Le job sécurité bloquant n'audite plus l'environnement Python complet. Il exécute désormais :
+
+```bash
+python -m pip_audit --strict --requirement requirements/security-audit.txt --progress-spinner off
+```
+
+Le fichier `requirements/security-audit.txt` contient uniquement les dépendances tierces à auditer. Le package projet local est volontairement exclu, car il n'est pas une dépendance PyPI tierce et ne doit pas être résolu comme telle pendant l'audit de vulnérabilités.
+
 ## v0.17.3 — Correctif CI audit vulnérabilités et runtime PostgreSQL
 
-La v0.17.3 est une livraison corrective sans nouveau jalon métier. Elle corrige l'échec GitHub Actions où `pip-audit` tentait d'auditer le package local `openinfra` installé en editable et échouait car ce package n'est pas publié sur PyPI.
-
-Corrections CI sécurité :
-
-- le job `blocking-security` exécute maintenant `python -m pip_audit --strict --skip-editable --progress-spinner off` ;
-- `scripts/security_gate.py` vérifie explicitement la présence de `--skip-editable` dans le workflow ;
-- les tests de sécurité CI couvrent cette exigence pour éviter une régression.
+La v0.17.3 est une livraison corrective sans nouveau jalon métier. Elle corrige le runtime PostgreSQL et initie la correction de l'audit GitHub Actions lié au package projet installé en editable. La v0.17.4 finalise cette correction en passant à un fichier d'audit dédié aux dépendances tierces.
 
 Correction PostgreSQL runtime :
 
@@ -528,7 +534,7 @@ Chaîne CI renforcée :
 - matrice Python `3.11`, `3.12`, `3.13` et `3.14` ;
 - job `blocking-security` exécuté sur `push`, pull request, tag `v*` et lancement manuel ;
 - `bandit -q -r src/openinfra` pour l'analyse statique sécurité Python ;
-- `python -m pip_audit --strict --skip-editable --progress-spinner off` pour bloquer les dépendances connues vulnérables ;
+- `python -m pip_audit --strict --requirement requirements/security-audit.txt --progress-spinner off` pour bloquer les dépendances connues vulnérables ;
 - `scripts/security_gate.py` pour détecter des secrets committés et vérifier le durcissement workflow ;
 - CodeQL avec les suites `security-extended` et `security-and-quality` ;
 - `dependency-review-action` sur pull requests ;

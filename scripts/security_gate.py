@@ -171,7 +171,7 @@ class GitHubWorkflowSecurityGuard:
             "security-events: write",
             "blocking-security:",
             "pip_audit",
-            "--skip-editable",
+            "--requirement requirements/security-audit.txt",
             "bandit -q -r src/openinfra",
             "scripts/security_gate.py --project-root .",
             "github/codeql-action/init",
@@ -185,11 +185,33 @@ class GitHubWorkflowSecurityGuard:
             raise SecurityGateError(
                 "CI workflow missing required security controls: " + ", ".join(missing)
             )
-        forbidden_fragments = ("pull_request_target:", "branches: ['main']", 'branches: ["main"]')
+        forbidden_fragments = (
+            "pull_request_target:",
+            "branches: ['main']",
+            'branches: ["main"]',
+            "python -m pip_audit --strict --skip-editable --progress-spinner off",
+        )
         forbidden = [fragment for fragment in forbidden_fragments if fragment in content]
         if forbidden:
             raise SecurityGateError(
                 "CI workflow contains unsafe trigger configuration: " + ", ".join(forbidden)
+            )
+        audit_requirements = self._workflow.parent.parent.parent / "requirements/security-audit.txt"
+        if not audit_requirements.is_file():
+            raise SecurityGateError(
+                "missing pip-audit requirement input: requirements/security-audit.txt"
+            )
+        audit_lines = (
+            line.strip().lower()
+            for line in audit_requirements.read_text(encoding="utf-8").splitlines()
+        )
+        if any(
+            line.startswith("openinfra")
+            for line in audit_lines
+            if line and not line.startswith("#")
+        ):
+            raise SecurityGateError(
+                "pip-audit requirement input must not reference local package openinfra"
             )
         dependabot_required = ("package-ecosystem: pip", "package-ecosystem: github-actions")
         missing_dependabot = [

@@ -1,55 +1,54 @@
-# OpenInfra Python POO v0.17.3 — Rapport de validation
-
-Date : 2026-07-03
+# OpenInfra Python POO v0.17.4 — Rapport de validation
 
 ## Synthèse
 
-- Release : `0.17.3`
-- Type : correctif CI / sécurité / runtime PostgreSQL, sans nouveau jalon fonctionnel
+- Release : `0.17.4`
+- Type : correctif CI sécurité / audit vulnérabilités
 - Baseline fonctionnelle : `0.17.0` — P04 / EPIC-0406 — Énergie et refroidissement fondation
-- Bug corrigé : `pip-audit` échouait en CI car le package local editable `openinfra` n'est pas publié sur PyPI
-- Bug corrigé : `PostgreSQLDriver.connect()` laissait fuiter une exception `psycopg.OperationalError` lors d'un échec DNS/connexion
-- Production : déploiement serveur natif, indépendant de Docker
-- Docker : environnement de test/smoke facultatif uniquement
-- Seuil officiel de couverture : `>= 98 %`
+- Nouveau jalon métier : aucun
+- Exigence production : runtime serveur natif, sans dépendance Docker
+- Seuil couverture obligatoire : `>= 98 %`
 - Couverture mesurée : `98.10 %`
-- Résultat global local : réussi
 
-## Impact
+## Bug corrigé
 
-Cette livraison ne poursuit pas le jalon suivant. Elle corrige uniquement la chaîne CI sécurité et le contrat d'erreur PostgreSQL runtime.
+Le job GitHub Actions échouait avec :
 
-Aucune commande publique, aucun endpoint HTTP, aucune migration métier et aucun comportement DCIM/IPAM/SOT existant n'ont été supprimés.
+```bash
+python -m pip_audit --strict --skip-editable --progress-spinner off
+ERROR:pip_audit._cli:openinfra: distribution marked as editable
+```
 
-## Corrections livrées
+Cause : le job installait le projet avec `pip install -e '.[postgresql,dev]'`, puis lançait `pip-audit` sur l'environnement Python complet. Avec `--strict`, la distribution projet installée en editable restait un cas bloquant.
 
-- `.github/workflows/ci.yml` : remplacement de `python -m pip_audit --strict --progress-spinner off` par `python -m pip_audit --strict --skip-editable --progress-spinner off`.
-- `scripts/security_gate.py` : le gate CI vérifie désormais que `pip_audit` et `--skip-editable` sont présents dans le workflow.
-- `tests/integration/test_security_gate.py` : ajout de la couverture de non-régression sur `--skip-editable`.
-- `src/openinfra/infrastructure/postgresql.py` : encapsulation des exceptions de connexion `psycopg` en `OpenInfraError`.
-- Documentation mise à jour : README, changelog, validation, sécurité CI et traçabilité.
-- Version mise à jour : `VERSION`, `pyproject.toml`, `src/openinfra/__init__.py`, OpenAPI et tests de version.
+Correction : le job sécurité n'audite plus l'environnement complet. Il audite un fichier explicite de dépendances tierces :
 
-## Fichiers principalement concernés
+```bash
+python -m pip_audit --strict --requirement requirements/security-audit.txt --progress-spinner off
+```
+
+## Fichiers modifiés ou ajoutés
 
 - `.github/workflows/ci.yml`
-- `pyproject.toml`
-- `VERSION`
-- `src/openinfra/__init__.py`
-- `src/openinfra/infrastructure/postgresql.py`
+  - Remplacement de l'audit d'environnement par l'audit `requirements/security-audit.txt`.
+- `requirements/security-audit.txt`
+  - Nouvelle entrée d'audit dédiée aux dépendances tierces.
 - `scripts/security_gate.py`
+  - Vérification de la présence du fichier d'audit.
+  - Rejet d'un workflow qui revient à l'audit d'environnement editable.
+  - Rejet d'un fichier d'audit qui référence le package projet local.
 - `tests/integration/test_security_gate.py`
-- `tests/integration/test_cli.py`
-- `tests/integration/test_http_api.py`
-- `docs/api/openapi.yaml`
-- `docs/runbooks/SECURITY_CI.md`
-- `docs/runbooks/VALIDATION.md`
-- `docs/TRACEABILITY.md`
-- `README.md`
-- `CHANGELOG.md`
-- `VALIDATION-REPORT.md`
+  - Tests de non-régression sur l'audit par fichier de dépendances.
+  - Test de rejet du retour à `pip-audit` sur environnement editable.
+  - Test de rejet d'une référence au package local dans l'entrée d'audit.
+- `VERSION`, `pyproject.toml`, `src/openinfra/__init__.py`, `docs/api/openapi.yaml`
+  - Version mise à jour en `0.17.4`.
+- `README.md`, `CHANGELOG.md`, `docs/TRACEABILITY.md`, `docs/runbooks/SECURITY_CI.md`, `docs/runbooks/VALIDATION.md`
+  - Documentation corrective mise à jour.
 
-## Validations exécutées localement
+## Validations exécutées
+
+### Format Ruff
 
 ```bash
 python3 -m ruff format --check src tests scripts docker
@@ -57,11 +56,15 @@ python3 -m ruff format --check src tests scripts docker
 
 Résultat : réussi, `71 files already formatted`.
 
+### Lint Ruff
+
 ```bash
 python3 -m ruff check src tests scripts docker
 ```
 
 Résultat : réussi.
+
+### Typage statique
 
 ```bash
 python3 -m mypy src/openinfra
@@ -69,25 +72,31 @@ python3 -m mypy src/openinfra
 
 Résultat : réussi, `Success: no issues found in 29 source files`.
 
+### Scan sécurité Bandit
+
 ```bash
 python3 -m bandit -q -r src/openinfra
 ```
 
 Résultat : réussi.
 
+### Gate sécurité interne
+
 ```bash
-python3 scripts/security_gate.py --project-root .
+PYTHONPATH=. python3 scripts/security_gate.py --project-root .
 ```
 
 Résultat : réussi.
 
+### Pip audit — collecte locale sans réseau
+
 ```bash
-python3 -m pip_audit --strict --skip-editable --progress-spinner off --dry-run
+python3 -m pip_audit --strict --requirement requirements/security-audit.txt --progress-spinner off --dry-run
 ```
 
-Résultat : réussi ; collecte validée, `would have audited 511 packages`.
+Résultat : réussi, `Dry run: would have audited 47 packages`.
 
-Note : le mode `--dry-run` a été utilisé localement pour éviter une dépendance au réseau externe dans cet environnement. La CI GitHub exécute le même audit sans `--dry-run`.
+### Tests automatisés et couverture
 
 ```bash
 PYTHONPATH=src python3 -m pytest -q
@@ -95,15 +104,19 @@ PYTHONPATH=src python3 -m pytest -q
 
 Résultat :
 
-- `166 passed`
+- `168 passed`
 - couverture globale : `98.10 %`
 - seuil obligatoire : `>= 98 %`
+
+### Quality gate
 
 ```bash
 PYTHONPATH=src python3 scripts/quality_gate.py
 ```
 
-Résultat : réussi, avec `166 passed` et couverture `98.10 %`.
+Résultat : réussi, `168 passed`, couverture `98.10 %`.
+
+### Compilation Python
 
 ```bash
 PYTHONPATH=src python3 -m compileall -q src tests scripts docker
@@ -111,11 +124,15 @@ PYTHONPATH=src python3 -m compileall -q src tests scripts docker
 
 Résultat : réussi.
 
+### CLI version
+
 ```bash
 PYTHONPATH=src python3 -m openinfra.interfaces.cli version
 ```
 
-Résultat : `0.17.3`.
+Résultat : `0.17.4`.
+
+### Validation CDC/SFG/STG
 
 ```bash
 PYTHONPATH=src python3 -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4
@@ -128,49 +145,62 @@ Résultat :
 - `requirements=488`
 - `tests=310`
 
+### Migrations PostgreSQL
+
+```bash
+for f in migrations/postgresql/*.sql; do
+  n="$(basename "$f" .sql)"
+  PYTHONPATH=src python3 -m openinfra.interfaces.cli database render-migration --name "$n" --root migrations/postgresql >/tmp/openinfra-${n}.sql
+done
+```
+
+Résultat : migrations `0001` à `0014` rendues avec succès.
+
+Validation ciblée demandée :
+
 ```bash
 PYTHONPATH=src python3 -m openinfra.interfaces.cli database render-migration --name 0014_dcim_energy_cooling_foundation --root migrations/postgresql
 ```
 
-Résultat : réussi. Aucune nouvelle migration métier n'est ajoutée en v0.17.3.
+Résultat : réussi.
+
+### Smoke runtime natif
 
 ```bash
-python3 scripts/native_runtime_smoke.py --project-root .
+python3 scripts/native_runtime_smoke.py
 ```
 
 Résultat : réussi.
 
+### Build packaging
+
 ```bash
-python3 -m build
+python3 -m build --no-isolation
 python3 scripts/verify_artifact.py dist/*.whl
 ```
 
-Résultat : réussi. Wheel générée : `openinfra-0.17.3-py3-none-any.whl`.
+Résultat : réussi, wheel générée `openinfra-0.17.4-py3-none-any.whl`.
 
-## Points non exécutés localement
+## Validations non exécutées localement
 
-- Matrice Python complète GitHub Actions `3.11`, `3.12`, `3.13`, `3.14` : seul Python `3.13.5` était disponible localement.
-- CodeQL GitHub : non exécutable hors GitHub Actions.
-- Dependency Review GitHub : non exécutable hors contexte pull request GitHub.
-- Audit `pip-audit` réseau complet : non exécuté localement ; la collecte a été validée en `--dry-run`, l'audit complet reste exécuté dans GitHub Actions.
-- Docker Compose réel : non exécuté, Docker n'est pas requis pour la production.
-- PostgreSQL réel : non exécuté, aucun serveur PostgreSQL local disponible.
+- Audit complet `pip-audit` réseau : non exécutable localement à cause d'une résolution DNS impossible vers `pypi.org`. Le `--dry-run` prouve que la collecte utilise bien `requirements/security-audit.txt` et n'inclut plus le package editable local.
+- Matrice GitHub complète Python `3.11`, `3.12`, `3.13`, `3.14` : seul Python `3.13.5` était disponible localement.
+- CodeQL et Dependency Review : exécutables uniquement dans GitHub Actions.
+- Docker Compose réel : non exécuté ; Docker n'est pas requis pour la production.
+- PostgreSQL réel : non exécuté ; aucun serveur PostgreSQL local disponible.
 
-## Condition pour rendre les checks réellement bloquants dans GitHub
+## Contrôle archive
 
-Le workflow contient les jobs bloquants. Pour empêcher un merge malgré échec CI, configurer les règles de protection de branche GitHub avec les checks requis suivants :
+L'archive source livrée exclut :
 
-- `Quality / Python 3.11`
-- `Quality / Python 3.12`
-- `Quality / Python 3.13`
-- `Quality / Python 3.14`
-- `Blocking security checks / Python 3.11`
-- `Blocking security checks / Python 3.12`
-- `Blocking security checks / Python 3.13`
-- `Blocking security checks / Python 3.14`
-- `CodeQL security analysis`
-- `Dependency review / PR vulnerability gate` pour les pull requests
+- `__pycache__`
+- `.pytest_cache`
+- `.mypy_cache`
+- `.ruff_cache`
+- `build`
+- `dist`
+- `*.egg-info`
 
 ## Conclusion
 
-La livraison `0.17.3` corrige les bugs CI signalés et tout le même type de régression locale identifiable : audit d'un package editable non publié, absence de garde-fou CI sur ce point, et fuite d'exception tierce PostgreSQL hors contrat OpenInfra. Le prochain jalon roadmap peut reprendre uniquement après validation GitHub Actions sur la branche cible.
+La livraison `0.17.4` corrige l'échec CI `distribution marked as editable` et ajoute des garde-fous contre les régressions similaires. Le prochain jalon roadmap peut reprendre après validation GitHub Actions sur la branche cible.

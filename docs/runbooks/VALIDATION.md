@@ -203,9 +203,19 @@ PYTHONPATH=src python scripts/native_runtime_smoke.py --project-root .
 Les tests couvrent le domaine de câblage, les services applicatifs, les ports JSON/PostgreSQL, la CLI, l’API HTTP, les contrats d’erreur et les branches de validation connecteur/média. Le quality gate ne dépend plus d’un moteur Docker et contrôle le runtime serveur natif.
 
 
+## Correctif CI audit vulnérabilités v0.17.4
+
+Le contrôle `pip-audit` bloquant doit auditer le fichier `requirements/security-audit.txt` :
+
+```bash
+python -m pip_audit --strict --requirement requirements/security-audit.txt --progress-spinner off
+```
+
+Il ne doit pas auditer directement l'environnement Python complet lorsque le package projet est installé en editable pour les tests CI. Ce mode provoque un échec non métier `distribution marked as editable` et masque l'objectif réel du contrôle : l'audit des dépendances tierces vulnérables.
+
 ## Correctif CI sécurité v0.17.2 et v0.17.3
 
-La v0.17.2 corrige la CI pour intégrer des contrôles sécurité bloquants sur `push` et pull request. La v0.17.3 corrige l’audit de vulnérabilités pour ignorer le package local editable `openinfra` et maintenir l’audit sur les dépendances installées. Le workflow couvre Python `3.11`, `3.12`, `3.13` et `3.14`.
+La v0.17.2 corrige la CI pour intégrer des contrôles sécurité bloquants sur `push` et pull request. La v0.17.4 corrige définitivement l’audit de vulnérabilités en utilisant une entrée dédiée aux dépendances tierces. Le workflow couvre Python `3.11`, `3.12`, `3.13` et `3.14`.
 
 Commandes locales de référence :
 
@@ -234,15 +244,15 @@ La correction RBAC du smoke sécurité impose un jeton `security:admin` pour `se
 La commande CI d’audit de vulnérabilités est :
 
 ```bash
-python -m pip_audit --strict --skip-editable --progress-spinner off
+python -m pip_audit --strict --requirement requirements/security-audit.txt --progress-spinner off
 ```
 
-`--skip-editable` est obligatoire parce que la CI installe OpenInfra avec `pip install -e .[postgresql,dev]`. Le package local `openinfra` n’est pas publié sur PyPI ; l’audit doit donc porter sur les dépendances installées et non échouer sur le projet local.
+`requirements/security-audit.txt` est obligatoire parce que la CI installe OpenInfra avec `pip install -e .[postgresql,dev]`. Le package projet n’est pas une dépendance tierce ; l’audit doit donc porter sur une entrée de dépendances explicite et non échouer sur l'installation editable du projet.
 
 Le test local sans accès réseau complet peut valider la collecte avec :
 
 ```bash
-python3 -m pip_audit --strict --skip-editable --progress-spinner off --dry-run
+python3 -m pip_audit --strict --requirement requirements/security-audit.txt --progress-spinner off --dry-run
 ```
 
 ## Contrôles ajoutés en v0.17.0

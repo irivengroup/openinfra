@@ -1,3 +1,9 @@
+## v0.17.4 — Correctif CI audit vulnérabilités editable
+
+- Exigence qualité : la CI doit auditer les dépendances tierces sans échouer sur le package projet installé en editable.
+- Implémentation : `requirements/security-audit.txt`, workflow GitHub Actions mis à jour, garde-fou `security_gate.py`.
+- Tests : `tests/integration/test_security_gate.py` vérifie que le workflow utilise l'entrée d'audit dédiée et rejette le retour à l'audit d'environnement editable.
+
 # Traçabilité initiale code ↔ exigences source
 
 | Exigence source | Implémentation livrée | Preuve |
@@ -17,8 +23,8 @@
 ## v0.17.3 — Correctif CI audit vulnérabilités et runtime PostgreSQL
 
 - Exigence : la CI sécurité doit auditer les dépendances sans échouer sur le package local non publié `openinfra`.
-- Implémentation : `pip-audit` est exécuté avec `--skip-editable` dans le job `blocking-security`.
-- Garde-fou : `scripts/security_gate.py` rejette un workflow qui conserve `pip_audit` sans `--skip-editable`.
+- Implémentation : `pip-audit` est exécuté avec `requirements/security-audit.txt` dans le job `blocking-security`.
+- Garde-fou : `scripts/security_gate.py` rejette un workflow qui conserve `pip_audit` sans l'entrée `requirements/security-audit.txt`.
 - Exigence : les erreurs PostgreSQL runtime doivent rester dans le contrat d'erreur OpenInfra.
 - Implémentation : `PostgreSQLDriver.connect()` transforme les erreurs de connexion `psycopg` en `OpenInfraError`.
 - Roadmap : aucun nouveau jalon métier ; P04 / EPIC-0406 reste inchangé.

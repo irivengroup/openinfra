@@ -12,7 +12,7 @@ class TestOpenInfraCli:
         captured = capsys.readouterr()
 
         assert code == 0
-        assert captured.out.strip() == "0.11.0"
+        assert captured.out.strip() == "0.12.0"
 
     def test_spec_validate_command(self, capsys: object) -> None:
         root = Path("docs/specifications/OpenInfra-CDC-SFG-STG-v4")
@@ -460,7 +460,7 @@ class TestOpenInfraAccessPolicyCli:
             "--vrf",
             "default",
             "--prefix",
-            "10.11.0.0/30",
+            "10.12.0.0/30",
             "--hostname",
             "srv-abac",
             "--idempotency-key",
@@ -483,7 +483,7 @@ class TestOpenInfraAccessPolicyCli:
             "--vrf",
             "default",
             "--prefix",
-            "10.11.0.0/30",
+            "10.12.0.0/30",
             "--hostname",
             "srv-denied",
             "--idempotency-key",
@@ -511,7 +511,7 @@ class TestOpenInfraAccessPolicyCli:
         assert evaluate_code == 0
         assert allowed["allowed"] is True
         assert ipam_code == 0
-        assert allocation["address"] == "10.11.0.1"
+        assert allocation["address"] == "10.12.0.1"
         assert denied_code == 2
         assert "access policy denies" in denied.err
         assert deactivate_code == 0
@@ -634,3 +634,93 @@ class TestOpenInfraAccessPolicyCli:
         assert code == 0
         assert "previous_hash" in captured.out
         assert "idx_audit_events_integrity_chain" in captured.out
+
+    def test_dcim_define_room_command_and_locate_with_floor_zone(self, tmp_path: Path, capsys: object) -> None:
+        data = tmp_path / "state.json"
+        define_code = OpenInfraCLI().run([
+            "dcim",
+            "define-room",
+            "--data",
+            str(data),
+            "--tenant",
+            "default",
+            "--site-code",
+            "MAR1",
+            "--site-name",
+            "Marseille 1",
+            "--country",
+            "FR",
+            "--region",
+            "PACA",
+            "--city",
+            "Marseille",
+            "--building-code",
+            "BAT-M",
+            "--building-name",
+            "Building M",
+            "--floor-code",
+            "F01",
+            "--floor-name",
+            "First floor",
+            "--floor-index",
+            "1",
+            "--room-code",
+            "MDF1",
+            "--room-name",
+            "MDF Marseille",
+            "--row",
+            "A",
+            "--row",
+            "B",
+            "--column",
+            "01",
+            "--column",
+            "02",
+            "--zone-code",
+            "Z1",
+            "--zone-name",
+            "Zone 1",
+            "--zone-row",
+            "B",
+            "--zone-column",
+            "02",
+        ])
+        defined = json.loads(capsys.readouterr().out)
+        locate_code = OpenInfraCLI().run([
+            "dcim",
+            "locate",
+            "--data",
+            str(data),
+            "--asset-tag",
+            "MAR-SRV-1",
+            "--equipment-name",
+            "Marseille Server",
+            "--site",
+            "MAR1",
+            "--building",
+            "BAT-M",
+            "--floor",
+            "F01",
+            "--room",
+            "MDF1",
+            "--zone",
+            "Z1",
+            "--row",
+            "B",
+            "--column",
+            "02",
+            "--x",
+            "1.0",
+            "--y",
+            "2.0",
+            "--z",
+            "0.5",
+        ])
+        located = capsys.readouterr().out
+
+        assert define_code == 0
+        assert locate_code == 0
+        assert defined["path"] == "site=MAR1 | building=BAT-M | floor=F01 | room=MDF1"
+        assert "floor=F01" in located
+        assert "zone=Z1" in located
+        assert "xyz=1.00/2.00/0.50" in located

@@ -58,6 +58,7 @@ class RuntimeSmokeScenario:
         self._assert_identity_lifecycle()
         self._assert_source_of_truth_lifecycle()
         self._assert_source_governance_lifecycle()
+        self._assert_dcim_physical_model()
         self._assert_access_policy_lifecycle()
         self._assert_api_ipam_idempotency()
         self._assert_cli_ipam_transaction()
@@ -84,7 +85,7 @@ class RuntimeSmokeScenario:
 
     def _assert_version(self) -> None:
         version = self._client.get("/api/v1/version")
-        if version.get("version") != "0.11.0":
+        if version.get("version") != "0.12.0":
             raise SmokeError("unexpected version response: " + json.dumps(version, sort_keys=True))
 
     def _assert_schema_status(self) -> None:
@@ -189,6 +190,62 @@ class RuntimeSmokeScenario:
 
 
 
+
+    def _assert_source_of_truth_lifecycle(self) -> None:
+        device = self._client.post(
+            "/api/v1/sot/objects",
+            {
+                "tenant_id": "default",
+                "actor": "docker-smoke",
+                "key": "device/runtime-srv-001",
+                "kind": "device",
+                "display_name": "Runtime Server 001",
+                "attributes": {"serial": "DISC-001", "site": "PAR1"},
+                "tags": ["runtime", "dcim"],
+                "source": "discovery",
+            },
+        )
+        application = self._client.post(
+            "/api/v1/sot/objects",
+            {
+                "tenant_id": "default",
+                "actor": "docker-smoke",
+                "key": "application/runtime-app-001",
+                "kind": "application",
+                "display_name": "Runtime Application 001",
+                "attributes": {"tier": "backend"},
+                "tags": ["runtime"],
+                "source": "manual",
+            },
+        )
+        relation = self._client.post(
+            "/api/v1/sot/relations",
+            {
+                "tenant_id": "default",
+                "actor": "docker-smoke",
+                "relation_type": "runs_on",
+                "source_key": "application/runtime-app-001",
+                "target_key": "device/runtime-srv-001",
+                "provenance": "docker-smoke",
+            },
+        )
+        listed = self._client.get("/api/v1/sot/objects?tenant_id=default&limit=20&kind=device")
+        version = self._client.get(
+            "/api/v1/sot/object-versions?tenant_id=default&key=device/runtime-srv-001&version=1"
+        )
+        if device.get("key") != "device/runtime-srv-001":
+            raise SmokeError("source object creation failed: " + json.dumps(device, sort_keys=True))
+        if application.get("kind") != "application":
+            raise SmokeError(
+                "source application creation failed: " + json.dumps(application, sort_keys=True)
+            )
+        if relation.get("relation_type") != "runs_on":
+            raise SmokeError("source relation failed: " + json.dumps(relation, sort_keys=True))
+        if not listed.get("items"):
+            raise SmokeError("source object listing failed: " + json.dumps(listed, sort_keys=True))
+        if version.get("version") != 1:
+            raise SmokeError("source version lookup failed: " + json.dumps(version, sort_keys=True))
+
     def _assert_source_governance_lifecycle(self) -> None:
         rule = self._client.post(
             "/api/v1/sot/governance-rules",
@@ -229,6 +286,82 @@ class RuntimeSmokeScenario:
             raise SmokeError(
                 "source governance evaluation failed: " + json.dumps(evaluated, sort_keys=True)
             )
+
+
+    def _assert_dcim_physical_model(self) -> None:
+        room = self._client.post(
+            "/api/v1/dcim/rooms",
+            {
+                "tenant_id": "default",
+                "actor": "docker-smoke",
+                "site_code": "PAR1",
+                "site_name": "Paris Datacenter 1",
+                "country": "FR",
+                "region": "IDF",
+                "city": "Paris",
+                "building_code": "BAT-A",
+                "building_name": "Building A",
+                "floor_code": "F01",
+                "floor_name": "First floor",
+                "floor_index": 1,
+                "room_code": "MMR1",
+                "room_name": "Main Meet Me Room",
+                "rows": ["A", "B"],
+                "columns": ["01", "02"],
+                "zone_code": "Z1",
+                "zone_name": "Critical Zone",
+                "zone_rows": ["A"],
+                "zone_columns": ["01"],
+                "x": 1.0,
+                "y": 2.0,
+                "z": 0.0,
+            },
+        )
+        expected_path = "site=PAR1 | building=BAT-A | floor=F01 | room=MMR1 | xyz=1.00/2.00/0.00"
+        if room.get("path") != expected_path:
+            raise SmokeError("DCIM room definition failed: " + json.dumps(room, sort_keys=True))
+        command = [
+            "openinfra",
+            "dcim",
+            "locate",
+            "--backend",
+            "postgresql",
+            "--postgres-dsn",
+            self._database_dsn,
+            "--tenant",
+            "default",
+            "--asset-tag",
+            "RUNTIME-SRV-DCIM-001",
+            "--equipment-name",
+            "Runtime DCIM Server",
+            "--site",
+            "PAR1",
+            "--building",
+            "BAT-A",
+            "--floor",
+            "F01",
+            "--room",
+            "MMR1",
+            "--zone",
+            "Z1",
+            "--row",
+            "A",
+            "--column",
+            "01",
+            "--x",
+            "1.0",
+            "--y",
+            "2.0",
+            "--z",
+            "0.0",
+        ]
+        completed = subprocess.run(command, check=False, capture_output=True, text=True)
+        if completed.returncode != 0:
+            raise SmokeError("DCIM CLI location failed: " + completed.stderr.strip())
+        output = completed.stdout.strip()
+        expected = "site=PAR1 | building=BAT-A | floor=F01 | room=MMR1 | row=A | column=01 | zone=Z1 | xyz=1.00/2.00/0.00"
+        if output != expected:
+            raise SmokeError("DCIM physical path failed: " + output)
 
     def _assert_access_policy_lifecycle(self) -> None:
         rule = self._client.post(

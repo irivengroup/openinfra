@@ -128,3 +128,17 @@ Frontières conservées :
 
 Le comportement reste compatible : sans règle active applicable, les mises à jour SOT gardent le comportement v0.10.0. Une règle active peut refuser une modification non autoritative avec `reject`, ou l'accepter avec signalement auditable via `accept_with_audit`. La migration `0008_source_governance.sql` est additive, partitionnée par `tenant_id` et ne modifie aucun schéma antérieur.
 
+
+## v0.12.0 — P04 EPIC-0401 Modèle physique DCIM
+
+La version 0.12.0 démarre le jalon P04 de la roadmap avec le modèle physique DCIM. Le domaine représente site, bâtiment, étage, salle et zone de salle avec une grille obligatoire ligne/colonne. Les coordonnées X/Y/Z sont optionnelles mais validées comme triplet complet lorsqu’elles sont fournies.
+
+Frontières conservées :
+
+- domaine : `Site`, `Building`, `Floor`, `Room`, `RoomZone`, `Rack`, `EquipmentLocation` et invariants de grille ;
+- application : `DcimTopologyService` pour définir la hiérarchie physique, `DcimLocationService` pour localiser un équipement et vérifier les conflits ;
+- ports : extension de `DcimRepository` avec lecture/écriture de floors et zones ;
+- infrastructure : adaptateurs JSON et PostgreSQL alignés sur le même contrat ;
+- interfaces : `openinfra dcim define-room`, `openinfra dcim locate --floor --zone` et `POST /api/v1/dcim/rooms`.
+
+La migration `0009_dcim_physical_model.sql` est additive. Elle conserve les données DCIM existantes, ajoute les étages, zones, coordonnées et index de recherche physique sans modifier les migrations précédentes.

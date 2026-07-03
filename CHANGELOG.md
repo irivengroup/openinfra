@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.12.0 - 2026-07-03
+
+- Réalignement maintenu sur la roadmap avec P04 / EPIC-0401 Modèle physique DCIM.
+- Ajout du modèle pays, région, ville, site, bâtiment, étage, salle et zone de salle.
+- Extension de la localisation équipement avec étage, zone et coordonnées X/Y/Z.
+- Ajout de validations de grille ligne/colonne, zone incluse dans salle, conflits rack/U, cohérence étage et zone.
+- Ajout du service `DcimTopologyService` pour définir une salle physique idempotente et auditée.
+- Ajout de la commande `openinfra dcim define-room` et extension de `openinfra dcim locate` avec `--floor` et `--zone`.
+- Ajout de l’endpoint `POST /api/v1/dcim/rooms` avec contrôle `dcim.write` en mode API authentifié.
+- Ajout de la migration PostgreSQL `0009_dcim_physical_model.sql` avec tables et index DCIM physiques.
+- Extension du runtime Docker smoke, OpenAPI, README, architecture, runbooks, CI et tests.
+
 ## 0.11.0 - 2026-07-03
 
 - Réalignement maintenu sur REL-01/P03 avec EPIC-0306 Gouvernance minimale des sources.

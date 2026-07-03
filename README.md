@@ -2,20 +2,20 @@
 
 OpenInfra est un socle Python orienté objet pour construire une solution open source de Source of Truth, DCIM, ITAM, Discovery, Dependency Mapping et IPAM Enterprise++ sans fonction ITSM intégrée.
 
-Cette livraison correspond au socle exécutable de démarrage aligné avec la roadmap P01/P02 puis REL-01/P03 : architecture hexagonale, modèle domaine, CLI, API HTTP standard library, migrations PostgreSQL applicatives, adaptateur PostgreSQL runtime, sécurité API par jetons hachés avec expiration, révocation et rotation, IAM utilisateurs/groupes avec rôles effectifs, ABAC contextuel site/environnement, audit trail consultable/exportable avec intégrité chaînée, Source of Truth P03 objets/relations/historique, gouvernance minimale des sources autoritatives, environnement d’exécution Docker, tests, documentation et CI.
+Cette livraison correspond au socle exécutable de démarrage aligné avec la roadmap P01/P02 puis REL-01/P03 : architecture hexagonale, modèle domaine, CLI, API HTTP standard library, migrations PostgreSQL applicatives, adaptateur PostgreSQL runtime, sécurité API par jetons hachés avec expiration, révocation et rotation, IAM utilisateurs/groupes avec rôles effectifs, ABAC contextuel site/environnement, audit trail consultable/exportable avec intégrité chaînée, Source of Truth P03 objets/relations/historique, gouvernance minimale des sources autoritatives, DCIM P04 modèle physique pays/région/ville/site/bâtiment/étage/salle/zone/grille, environnement d’exécution Docker, tests, documentation et CI.
 
 ## Garanties de cette itération
 
 - Code produit en Python POO : les comportements sont portés par des classes de domaine, services applicatifs, ports et adaptateurs.
 - Séparation stricte `domain / application / infrastructure / interfaces`.
-- Localisation DCIM univoque : site, bâtiment, salle, ligne, colonne, coordonnées X/Y/Z facultatives, rack et unité U.
+- Localisation DCIM univoque : pays, région, ville, site, bâtiment, étage, salle, zone, ligne, colonne, coordonnées X/Y/Z facultatives, rack et unité U.
 - IPAM IPv4/IPv6 : VRF, préfixe, allocation transactionnelle côté service applicatif, idempotence par clé métier, détection de conflit.
 - Persistance locale JSON atomique pour développement et tests reproductibles.
 - Persistance PostgreSQL runtime optionnelle via `psycopg`, DSN explicite et transactions courtes.
 - Migration PostgreSQL initiale avec tables partitionnées, index, contraintes et audit append-only.
 - Moteur de migrations PostgreSQL applicatif : statut, dry-run, application idempotente, historique `openinfra_schema_migrations` et checksum SHA-256.
-- CLI exploitable : `openinfra version`, `openinfra spec validate`, `openinfra dcim locate`, `openinfra ipam allocate`, `openinfra security bootstrap-token`, `openinfra security whoami`, `openinfra security list-tokens`, `openinfra security revoke-token`, `openinfra security rotate-token`, `openinfra identity create-user`, `openinfra identity create-group`, `openinfra identity add-user-to-group`, `openinfra identity grant-user-role`, `openinfra identity grant-group-role`, `openinfra identity effective`, `openinfra access create-rule`, `openinfra access list-rules`, `openinfra access evaluate`, `openinfra access deactivate-rule`, `openinfra audit list`, `openinfra audit export`, `openinfra audit verify-integrity`, `openinfra sot upsert-object`, `openinfra sot get-object`, `openinfra sot list-objects`, `openinfra sot get-object-version`, `openinfra sot create-relation`, `openinfra sot list-relations`, `openinfra sot create-governance-rule`, `openinfra sot list-governance-rules`, `openinfra sot evaluate-governance`, `openinfra sot deactivate-governance-rule`, `openinfra database render-migration`, `openinfra database status`, `openinfra database apply-migrations`.
-- API HTTP légère : `/health`, `/ready`, `/api/v1/version`, `/api/v1/database/schema`, `/api/v1/security/whoami`, `/api/v1/security/tokens`, `/api/v1/security/revoke-token`, `/api/v1/security/rotate-token`, `/api/v1/identity/users`, `/api/v1/identity/groups`, `/api/v1/identity/group-memberships`, `/api/v1/identity/user-roles`, `/api/v1/identity/group-roles`, `/api/v1/identity/effective`, `/api/v1/access/rules`, `/api/v1/access/evaluate`, `/api/v1/access/deactivate-rule`, `/api/v1/audit/events`, `/api/v1/audit/export`, `/api/v1/audit/integrity`, `/api/v1/sot/objects`, `/api/v1/sot/object-versions`, `/api/v1/sot/relations`, `/api/v1/sot/governance-rules`, `/api/v1/sot/governance/evaluate`, `/api/v1/sot/governance/deactivate-rule`, `/api/v1/ipam/allocate`.
+- CLI exploitable : `openinfra version`, `openinfra spec validate`, `openinfra dcim define-room`, `openinfra dcim locate`, `openinfra ipam allocate`, `openinfra security bootstrap-token`, `openinfra security whoami`, `openinfra security list-tokens`, `openinfra security revoke-token`, `openinfra security rotate-token`, `openinfra identity create-user`, `openinfra identity create-group`, `openinfra identity add-user-to-group`, `openinfra identity grant-user-role`, `openinfra identity grant-group-role`, `openinfra identity effective`, `openinfra access create-rule`, `openinfra access list-rules`, `openinfra access evaluate`, `openinfra access deactivate-rule`, `openinfra audit list`, `openinfra audit export`, `openinfra audit verify-integrity`, `openinfra sot upsert-object`, `openinfra sot get-object`, `openinfra sot list-objects`, `openinfra sot get-object-version`, `openinfra sot create-relation`, `openinfra sot list-relations`, `openinfra sot create-governance-rule`, `openinfra sot list-governance-rules`, `openinfra sot evaluate-governance`, `openinfra sot deactivate-governance-rule`, `openinfra database render-migration`, `openinfra database status`, `openinfra database apply-migrations`.
+- API HTTP légère : `/health`, `/ready`, `/api/v1/version`, `/api/v1/database/schema`, `/api/v1/security/whoami`, `/api/v1/security/tokens`, `/api/v1/security/revoke-token`, `/api/v1/security/rotate-token`, `/api/v1/identity/users`, `/api/v1/identity/groups`, `/api/v1/identity/group-memberships`, `/api/v1/identity/user-roles`, `/api/v1/identity/group-roles`, `/api/v1/identity/effective`, `/api/v1/access/rules`, `/api/v1/access/evaluate`, `/api/v1/access/deactivate-rule`, `/api/v1/audit/events`, `/api/v1/audit/export`, `/api/v1/audit/integrity`, `/api/v1/sot/objects`, `/api/v1/sot/object-versions`, `/api/v1/sot/relations`, `/api/v1/sot/governance-rules`, `/api/v1/sot/governance/evaluate`, `/api/v1/sot/governance/deactivate-rule`, `/api/v1/ipam/allocate`, `/api/v1/dcim/rooms`.
 - GitHub Actions complète : format, lint, types, tests, couverture, sécurité, build, smoke tests CLI/API et runtime Docker authentifié.
 
 ## Installation développeur
@@ -78,12 +78,37 @@ PYTHONPATH=src python -m openinfra.interfaces.cli ipam allocate \
 ## Exemple DCIM
 
 ```bash
+PYTHONPATH=src python -m openinfra.interfaces.cli dcim define-room \
+  --data .openinfra.json \
+  --tenant default \
+  --site-code PAR1 \
+  --site-name "Paris Datacenter 1" \
+  --country FR \
+  --region IDF \
+  --city Paris \
+  --building-code BAT-A \
+  --building-name "Bâtiment A" \
+  --floor-code F01 \
+  --floor-name "Niveau 1" \
+  --floor-index 1 \
+  --room-code MMR1 \
+  --room-name "Salle MMR" \
+  --row A \
+  --row B \
+  --column 01 \
+  --column 02 \
+  --zone-code Z1 \
+  --zone-name "Zone critique" \
+  --zone-row A \
+  --zone-column 01
 PYTHONPATH=src python -m openinfra.interfaces.cli dcim locate \
   --asset-tag SRV-0001 \
   --site PAR1 \
   --building BAT-A \
+  --floor F01 \
   --room MMR1 \
-  --row B \
+  --zone Z1 \
+  --row A \
   --column 12 \
   --rack R42 \
   --u-position 18
@@ -373,3 +398,22 @@ PYTHONPATH=src python -m openinfra.interfaces.cli sot evaluate-governance \
 ```
 
 La migration PostgreSQL `0008_source_governance.sql` crée la table partitionnée `source_governance_rules`, ses contraintes métier et ses index de recherche par type d’objet, chemin d’attribut, source autoritative et audit `sot.governance.%`. Les adaptateurs JSON et PostgreSQL implémentent le même port `SourceGovernanceRepository`.
+
+
+## DCIM P04 : modèle physique et localisation univoque
+
+La v0.12.0 démarre le jalon roadmap P04 avec EPIC-0401. Elle ajoute le modèle physique pays, région, ville, site, bâtiment, étage, salle et zone. Une salle déclare une grille stricte de lignes et colonnes ; une zone de salle ne peut référencer que des lignes et colonnes existantes. La localisation d’un équipement vérifie la salle, l’étage, la zone, la cellule ligne/colonne, les coordonnées X/Y/Z et les conflits de position rack/U lorsque ces informations sont fournies.
+
+Rôle dédié :
+
+- `dcim:operator` : création du modèle physique DCIM et localisation d’équipements ;
+- `admin` : toutes les permissions.
+
+Commandes principales :
+
+```bash
+PYTHONPATH=src python -m openinfra.interfaces.cli dcim define-room --data .openinfra.json --tenant default --site-code PAR1 --site-name "Paris Datacenter 1" --country FR --region IDF --city Paris --building-code BAT-A --building-name "Bâtiment A" --floor-code F01 --floor-name "Niveau 1" --floor-index 1 --room-code MMR1 --room-name "Salle MMR" --row A --column 01 --zone-code Z1 --zone-name "Zone critique" --zone-row A --zone-column 01
+PYTHONPATH=src python -m openinfra.interfaces.cli dcim locate --data .openinfra.json --tenant default --asset-tag SRV-0001 --equipment-name "Server 0001" --site PAR1 --building BAT-A --floor F01 --room MMR1 --zone Z1 --row A --column 01 --x 1 --y 2 --z 0
+```
+
+La migration PostgreSQL `0009_dcim_physical_model.sql` étend le schéma DCIM avec `floors`, `room_zones`, `sites.region`, `rooms.floor_code`, `rooms.zone_codes`, coordonnées X/Y/Z, `racks.floor_code`, `racks.zone_code`, `equipment.floor_code` et `equipment.zone_code`. Les adaptateurs JSON et PostgreSQL implémentent le même port `DcimRepository`.

@@ -7,7 +7,7 @@ from typing import Generic, TypeVar
 from openinfra.domain.access_policy import AccessPolicyRule
 from openinfra.domain.audit import AuditEventFilter, AuditEventPage, AuditIntegrityReport
 from openinfra.domain.common import AuditEvent, Pagination, TenantId
-from openinfra.domain.dcim import Building, Equipment, Rack, Room, Site
+from openinfra.domain.dcim import Building, Equipment, Floor, Rack, Room, RoomZone, Site
 from openinfra.domain.identity import (
     EffectiveIdentity,
     GroupMembership,
@@ -112,7 +112,15 @@ class DcimRepository(ABC):
         raise TypeError("adapter contract invoked directly")
 
     @abstractmethod
+    def add_floor(self, floor: Floor) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
     def add_room(self, room: Room) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def add_zone(self, zone: RoomZone) -> None:
         raise TypeError("adapter contract invoked directly")
 
     @abstractmethod
@@ -124,7 +132,36 @@ class DcimRepository(ABC):
         raise TypeError("adapter contract invoked directly")
 
     @abstractmethod
+    def find_site(self, tenant_id: TenantId, site: str) -> Site | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_building(self, tenant_id: TenantId, site: str, building: str) -> Building | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_floor(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        floor: str,
+    ) -> Floor | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
     def find_room(self, tenant_id: TenantId, site: str, building: str, room: str) -> Room | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_zone(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+        zone: str,
+    ) -> RoomZone | None:
         raise TypeError("adapter contract invoked directly")
 
     @abstractmethod

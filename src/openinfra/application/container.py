@@ -6,7 +6,7 @@ from typing import Any
 
 from openinfra.application.access_policy_services import AccessPolicyService
 from openinfra.application.audit_services import AuditTrailService
-from openinfra.application.dcim_services import DcimLocationService
+from openinfra.application.dcim_services import DcimLocationService, DcimTopologyService
 from openinfra.application.identity_services import IdentityService
 from openinfra.application.ipam_services import IpamAllocationService
 from openinfra.application.ports import (
@@ -63,6 +63,7 @@ from openinfra.infrastructure.postgresql import (
 class OpenInfraApplication:
     store: Any
     dcim_service: DcimLocationService
+    dcim_topology_service: DcimTopologyService
     ipam_service: IpamAllocationService
     dcim_repository: DcimRepository
     ipam_repository: IpamRepository
@@ -195,6 +196,11 @@ class ApplicationFactory:
         return OpenInfraApplication(
             store=store,
             dcim_service=DcimLocationService(
+                dcim_repository,
+                audit_repository,
+                transaction_manager,
+            ),
+            dcim_topology_service=DcimTopologyService(
                 dcim_repository,
                 audit_repository,
                 transaction_manager,

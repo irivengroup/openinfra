@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.11.0
+  version: 0.12.0
 components:
   securitySchemes:
     bearerToken:
@@ -580,6 +580,55 @@ paths:
           description: Validation error
         '401':
           description: Missing or invalid audit reader token
+
+  /api/v1/dcim/rooms:
+    post:
+      summary: Define a physical DCIM room hierarchy with floor, grid, optional zone and coordinates
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, site_code, site_name, country, city, building_code, building_name, floor_code, floor_name, floor_index, room_code, room_name, rows, columns]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                site_code: {type: string}
+                site_name: {type: string}
+                country: {type: string}
+                region: {type: string}
+                city: {type: string}
+                building_code: {type: string}
+                building_name: {type: string}
+                floor_code: {type: string}
+                floor_name: {type: string}
+                floor_index: {type: integer}
+                room_code: {type: string}
+                room_name: {type: string}
+                rows:
+                  type: array
+                  items: {type: string}
+                columns:
+                  type: array
+                  items: {type: string}
+                zone_code: {type: string}
+                zone_name: {type: string}
+                zone_rows:
+                  type: array
+                  items: {type: string}
+                zone_columns:
+                  type: array
+                  items: {type: string}
+                x: {type: number}
+                y: {type: number}
+                z: {type: number}
+      responses:
+        '201': {description: Physical room hierarchy persisted}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM operator token}
   /api/v1/ipam/allocate:
     post:
       summary: Allocate an IP address with idempotency

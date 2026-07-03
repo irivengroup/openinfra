@@ -144,3 +144,13 @@ python scripts/docker_environment.py validate
 python scripts/docker_environment.py reset
 ```
 
+
+## Validation runtime DCIM physique P04
+
+Le smoke test Docker v0.12.0 vérifie le modèle physique DCIM contre l’API authentifiée et le backend PostgreSQL : création d’une salle avec étage, grille, zone et coordonnées, puis localisation CLI d’un équipement dans cette salle avec étage, zone, ligne, colonne et coordonnées X/Y/Z.
+
+```bash
+python scripts/docker_environment.py init
+python scripts/docker_environment.py validate
+python scripts/docker_environment.py reset
+```

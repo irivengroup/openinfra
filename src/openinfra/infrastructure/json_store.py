@@ -48,7 +48,7 @@ from openinfra.domain.common import (
     TenantId,
     ValidationError,
 )
-from openinfra.domain.dcim import Building, Equipment, EquipmentLocation, Rack, Room, Site
+from openinfra.domain.dcim import Building, Equipment, EquipmentLocation, Floor, Rack, Room, RoomZone, Site
 from openinfra.domain.identity import (
     EffectiveIdentity,
     GroupMembership,
@@ -136,7 +136,9 @@ class JsonDocumentStore:
         return {
             "sites": {},
             "buildings": {},
+            "floors": {},
             "rooms": {},
+            "room_zones": {},
             "racks": {},
             "equipment": {},
             "vrfs": {},
@@ -178,7 +180,9 @@ class JsonReadinessProbe(ReadinessProbe):
                 for key in (
                     "sites",
                     "buildings",
+                    "floors",
                     "rooms",
+                    "room_zones",
                     "racks",
                     "equipment",
                     "vrfs",
@@ -252,6 +256,15 @@ class JsonDcimRepository(DcimRepository):
         key = self._key(building.tenant_id, building.site_code.value, building.code.value)
         self._put_unique("buildings", key, self._building_to_dict(building))
 
+    def add_floor(self, floor: Floor) -> None:
+        key = self._key(
+            floor.tenant_id,
+            floor.site_code.value,
+            floor.building_code.value,
+            floor.code.value,
+        )
+        self._put_unique("floors", key, self._floor_to_dict(floor))
+
     def add_room(self, room: Room) -> None:
         key = self._key(
             room.tenant_id,
@@ -260,6 +273,16 @@ class JsonDcimRepository(DcimRepository):
             room.code.value,
         )
         self._put_unique("rooms", key, self._room_to_dict(room))
+
+    def add_zone(self, zone: RoomZone) -> None:
+        key = self._key(
+            zone.tenant_id,
+            zone.site_code.value,
+            zone.building_code.value,
+            zone.room_code.value,
+            zone.code.value,
+        )
+        self._put_unique("room_zones", key, self._zone_to_dict(zone))
 
     def add_rack(self, rack: Rack) -> None:
         key = self._key(
@@ -276,6 +299,36 @@ class JsonDcimRepository(DcimRepository):
         self._store.data["equipment"][key] = self._equipment_to_dict(equipment)
         self._store.mark_dirty()
 
+    def find_site(self, tenant_id: TenantId, site: str) -> Site | None:
+        key = self._key(tenant_id, Code.from_value(site, "site code").value)
+        item = self._store.data["sites"].get(key)
+        return self._site_from_dict(item) if item else None
+
+    def find_building(self, tenant_id: TenantId, site: str, building: str) -> Building | None:
+        key = self._key(
+            tenant_id,
+            Code.from_value(site, "site code").value,
+            Code.from_value(building, "building code").value,
+        )
+        item = self._store.data["buildings"].get(key)
+        return self._building_from_dict(item) if item else None
+
+    def find_floor(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        floor: str,
+    ) -> Floor | None:
+        key = self._key(
+            tenant_id,
+            Code.from_value(site, "site code").value,
+            Code.from_value(building, "building code").value,
+            Code.from_value(floor, "floor code").value,
+        )
+        item = self._store.data["floors"].get(key)
+        return self._floor_from_dict(item) if item else None
+
     def find_room(self, tenant_id: TenantId, site: str, building: str, room: str) -> Room | None:
         key = self._key(
             tenant_id,
@@ -285,6 +338,24 @@ class JsonDcimRepository(DcimRepository):
         )
         item = self._store.data["rooms"].get(key)
         return self._room_from_dict(item) if item else None
+
+    def find_zone(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+        zone: str,
+    ) -> RoomZone | None:
+        key = self._key(
+            tenant_id,
+            Code.from_value(site, "site code").value,
+            Code.from_value(building, "building code").value,
+            Code.from_value(room, "room code").value,
+            Code.from_value(zone, "zone code").value,
+        )
+        item = self._store.data["room_zones"].get(key)
+        return self._zone_from_dict(item) if item else None
 
     def find_rack(
         self,
@@ -326,6 +397,7 @@ class JsonDcimRepository(DcimRepository):
             "name": site.name.value,
             "country": site.country,
             "city": site.city,
+            "region": site.region,
         }
 
     def _site_from_dict(self, value: dict[str, Any]) -> Site:
@@ -336,6 +408,7 @@ class JsonDcimRepository(DcimRepository):
             name=Name.from_value(value["name"]),
             country=value["country"],
             city=value["city"],
+            region=value.get("region", ""),
         )
 
     def _building_to_dict(self, building: Building) -> dict[str, Any]:
@@ -356,6 +429,28 @@ class JsonDcimRepository(DcimRepository):
             name=Name.from_value(value["name"]),
         )
 
+    def _floor_to_dict(self, floor: Floor) -> dict[str, Any]:
+        return {
+            "id": floor.id.value,
+            "tenant_id": floor.tenant_id.value,
+            "site_code": floor.site_code.value,
+            "building_code": floor.building_code.value,
+            "code": floor.code.value,
+            "name": floor.name.value,
+            "level_index": floor.level_index,
+        }
+
+    def _floor_from_dict(self, value: dict[str, Any]) -> Floor:
+        return Floor(
+            id=EntityId.from_value(value["id"]),
+            tenant_id=TenantId.from_value(value["tenant_id"]),
+            site_code=Code.from_value(value["site_code"]),
+            building_code=Code.from_value(value["building_code"]),
+            code=Code.from_value(value["code"]),
+            name=Name.from_value(value["name"]),
+            level_index=int(value["level_index"]),
+        )
+
     def _room_to_dict(self, room: Room) -> dict[str, Any]:
         return {
             "id": room.id.value,
@@ -366,14 +461,49 @@ class JsonDcimRepository(DcimRepository):
             "name": room.name.value,
             "rows": list(room.rows),
             "columns": list(room.columns),
+            "floor_code": room.floor_code.value if room.floor_code else None,
+            "zone_codes": [zone.value for zone in room.zone_codes],
+            "coordinates": room.coordinates.as_dict() if room.coordinates else None,
         }
 
     def _room_from_dict(self, value: dict[str, Any]) -> Room:
+        coordinates = value.get("coordinates")
         return Room(
             id=EntityId.from_value(value["id"]),
             tenant_id=TenantId.from_value(value["tenant_id"]),
             site_code=Code.from_value(value["site_code"]),
             building_code=Code.from_value(value["building_code"]),
+            code=Code.from_value(value["code"]),
+            name=Name.from_value(value["name"]),
+            rows=tuple(value["rows"]),
+            columns=tuple(value["columns"]),
+            floor_code=Code.from_value(value["floor_code"]) if value.get("floor_code") else None,
+            zone_codes=tuple(Code.from_value(zone) for zone in value.get("zone_codes", [])),
+            coordinates=Coordinates3D.from_values(**coordinates) if coordinates else None,
+        )
+
+    def _zone_to_dict(self, zone: RoomZone) -> dict[str, Any]:
+        return {
+            "id": zone.id.value,
+            "tenant_id": zone.tenant_id.value,
+            "site_code": zone.site_code.value,
+            "building_code": zone.building_code.value,
+            "floor_code": zone.floor_code.value,
+            "room_code": zone.room_code.value,
+            "code": zone.code.value,
+            "name": zone.name.value,
+            "rows": list(zone.rows),
+            "columns": list(zone.columns),
+        }
+
+    def _zone_from_dict(self, value: dict[str, Any]) -> RoomZone:
+        return RoomZone(
+            id=EntityId.from_value(value["id"]),
+            tenant_id=TenantId.from_value(value["tenant_id"]),
+            site_code=Code.from_value(value["site_code"]),
+            building_code=Code.from_value(value["building_code"]),
+            floor_code=Code.from_value(value["floor_code"]),
+            room_code=Code.from_value(value["room_code"]),
             code=Code.from_value(value["code"]),
             name=Name.from_value(value["name"]),
             rows=tuple(value["rows"]),
@@ -392,6 +522,8 @@ class JsonDcimRepository(DcimRepository):
             "column": rack.column,
             "units": rack.units,
             "coordinates": rack.coordinates.as_dict() if rack.coordinates else None,
+            "floor_code": rack.floor_code.value if rack.floor_code else None,
+            "zone_code": rack.zone_code.value if rack.zone_code else None,
         }
 
     def _rack_from_dict(self, value: dict[str, Any]) -> Rack:
@@ -407,6 +539,8 @@ class JsonDcimRepository(DcimRepository):
             column=value["column"],
             units=int(value["units"]),
             coordinates=Coordinates3D.from_values(**coordinates) if coordinates else None,
+            floor_code=Code.from_value(value["floor_code"]) if value.get("floor_code") else None,
+            zone_code=Code.from_value(value["zone_code"]) if value.get("zone_code") else None,
         )
 
     def _equipment_to_dict(self, equipment: Equipment) -> dict[str, Any]:
@@ -425,6 +559,8 @@ class JsonDcimRepository(DcimRepository):
                 "rack_code": location.rack_code.value if location.rack_code else None,
                 "u_position": location.u_position,
                 "coordinates": location.coordinates.as_dict() if location.coordinates else None,
+                "floor_code": location.floor_code.value if location.floor_code else None,
+                "zone_code": location.zone_code.value if location.zone_code else None,
             },
         }
 
@@ -445,6 +581,8 @@ class JsonDcimRepository(DcimRepository):
                 rack_code=location["rack_code"],
                 u_position=location["u_position"],
                 coordinates=Coordinates3D.from_values(**coordinates) if coordinates else None,
+                floor_code=location.get("floor_code"),
+                zone_code=location.get("zone_code"),
             ),
         )
 
@@ -1397,6 +1535,9 @@ class SeedDataFactory:
         self._dcim_repository.add_building(
             Building.create(tenant_id, "PAR1", "BAT-A", "Building A")
         )
+        self._dcim_repository.add_floor(
+            Floor.create(tenant_id, "PAR1", "BAT-A", "F01", "First floor", 1)
+        )
         self._dcim_repository.add_room(
             Room.create(
                 tenant_id,
@@ -1406,6 +1547,7 @@ class SeedDataFactory:
                 "Main Meet-Me Room",
                 rows=("A", "B", "C"),
                 columns=("01", "02", "12"),
+                floor_code="F01",
             )
         )
         self._dcim_repository.add_rack(
@@ -1419,6 +1561,7 @@ class SeedDataFactory:
                 "12",
                 42,
                 Coordinates3D.from_values(12.0, 4.0, 0.0),
+                floor_code="F01",
             )
         )
 

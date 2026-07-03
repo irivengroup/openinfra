@@ -12,6 +12,7 @@ from openinfra.domain.common import EntityId, TenantId, ValidationError
 class Permission(StrEnum):
     IPAM_ALLOCATE = "ipam.allocate"
     DCIM_LOCATE = "dcim.locate"
+    DCIM_WRITE = "dcim.write"
     SCHEMA_READ = "database.schema.read"
     SECURITY_ADMIN = "security.admin"
     ACCESS_POLICY_ADMIN = "access.policy.admin"

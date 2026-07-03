@@ -71,6 +71,7 @@ jobs:
           openinfra database render-migration --name 0006_audit_trail_integrity --root migrations/postgresql >/tmp/openinfra-0006.sql
           openinfra database render-migration --name 0007_source_of_truth_core --root migrations/postgresql >/tmp/openinfra-0007.sql
           openinfra database render-migration --name 0008_source_governance --root migrations/postgresql >/tmp/openinfra-0008.sql
+          openinfra database render-migration --name 0009_dcim_physical_model --root migrations/postgresql >/tmp/openinfra-0009.sql
 
       - name: Smoke JSON IPAM allocation
         run: |
@@ -271,6 +272,47 @@ jobs:
             --tenant default \
             --admin-token "$admin_token" \
             --name ci-serial-authority
+
+
+      - name: Smoke JSON DCIM physical model
+        run: |
+          tmpdir="$(mktemp -d)"
+          openinfra dcim define-room \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --site-code CI1 \
+            --site-name "CI Datacenter" \
+            --country FR \
+            --region IDF \
+            --city Paris \
+            --building-code BAT-CI \
+            --building-name "CI Building" \
+            --floor-code F01 \
+            --floor-name "First Floor" \
+            --floor-index 1 \
+            --room-code MMR-CI \
+            --room-name "CI Room" \
+            --row A \
+            --column 01 \
+            --zone-code Z1 \
+            --zone-name "Critical Zone" \
+            --zone-row A \
+            --zone-column 01
+          openinfra dcim locate \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --asset-tag CI-SRV-DCIM-01 \
+            --equipment-name "CI Server" \
+            --site CI1 \
+            --building BAT-CI \
+            --floor F01 \
+            --room MMR-CI \
+            --zone Z1 \
+            --row A \
+            --column 01 \
+            --x 1 \
+            --y 2 \
+            --z 0
 
       - name: Internal quality gate
         run: python scripts/quality_gate.py

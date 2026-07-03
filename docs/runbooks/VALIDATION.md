@@ -13,6 +13,9 @@ PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --na
 PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0004_identity_users_groups --root migrations/postgresql >/tmp/openinfra-0004.sql
 PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0005_access_policy_abac --root migrations/postgresql >/tmp/openinfra-0005.sql
 PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0006_audit_trail_integrity --root migrations/postgresql >/tmp/openinfra-0006.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0007_source_of_truth_core --root migrations/postgresql >/tmp/openinfra-0007.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0008_source_governance --root migrations/postgresql >/tmp/openinfra-0008.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0009_dcim_physical_model --root migrations/postgresql >/tmp/openinfra-0009.sql
 PYTHONPATH=src python -m openinfra.interfaces.cli ipam allocate --data /tmp/openinfra-state.json --tenant default --vrf default --prefix 10.99.0.0/30 --hostname validation --idempotency-key validation-1
 ```
 
@@ -135,3 +138,12 @@ La CI exécute également un smoke test JSON audit et le runtime Docker valide `
 - Tests adaptateur PostgreSQL simulé : persistance, lecture paginée et évaluation via `PostgreSQLSourceGovernanceRepository`.
 - Smoke runtime Docker : scénario gouvernance SOT contre API authentifiée et backend PostgreSQL.
 
+
+## Contrôles ajoutés en v0.12.0
+
+- Tests unitaires du domaine DCIM physique : région de site, étage, zone et invariants de grille.
+- Tests d’intégration JSON : définition idempotente de salle, zone incluse dans grille, localisation avec étage/zone/coordonnées et rejets métier.
+- Tests CLI : `openinfra dcim define-room` puis `openinfra dcim locate --floor --zone`.
+- Tests API HTTP : `POST /api/v1/dcim/rooms` protégé par `dcim.write` lorsque l’API authentifiée est activée.
+- Tests adaptateur PostgreSQL simulé : persistance des nouveaux champs DCIM et rendu de `0009_dcim_physical_model.sql`.
+- Smoke runtime Docker : création de salle DCIM physique et localisation équipement contre PostgreSQL.

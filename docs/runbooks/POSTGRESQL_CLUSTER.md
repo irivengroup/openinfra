@@ -124,3 +124,19 @@ PYTHONPATH=src python -m openinfra.interfaces.cli database apply-migrations \
 
 Les index couvrent la recherche par type d'objet, chemin d'attribut, source autoritative et audit `sot.governance.%`. Les opérations applicatives doivent rester transactionnelles avec la mise à jour SOT afin d'éviter toute divergence entre décision de gouvernance, versionnement et audit.
 
+
+## Migration 0009 Modèle physique DCIM
+
+La migration `0009_dcim_physical_model.sql` ajoute la fondation P04 / EPIC-0401 : région de site, étages, zones de salle, rattachement des salles à un étage, coordonnées X/Y/Z et rattachement étage/zone pour racks et équipements.
+
+Validation :
+
+```bash
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration \
+  --name 0009_dcim_physical_model \
+  --root migrations/postgresql
+PYTHONPATH=src python -m openinfra.interfaces.cli database apply-migrations \
+  --postgres-dsn "$OPENINFRA_DATABASE_DSN"
+```
+
+Les index couvrent la recherche par site/région/ville, étage, salle, zone, grille et localisation équipement. Les écritures DCIM restent transactionnelles via le `UnitOfWork` applicatif.

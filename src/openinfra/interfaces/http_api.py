@@ -23,6 +23,7 @@ from openinfra.application.audit_services import (
     VerifyAuditIntegrityCommand,
 )
 from openinfra.application.container import ApplicationFactory, OpenInfraApplication
+from openinfra.application.dcim_services import DefinePhysicalRoomCommand
 from openinfra.application.identity_services import (
     AddUserToGroupCommand,
     CreateGroupCommand,
@@ -289,6 +290,48 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         responder = JsonHttpResponder(self)
         route = urlparse(self.path).path
+
+        if route == "/api/v1/dcim/rooms":
+            try:
+                payload = self._read_json_body()
+                tenant_id = str(payload["tenant_id"])
+                actor = str(payload.get("actor", "api"))
+                if self.server.auth_required:
+                    principal = self._authenticate(tenant_id, Permission.DCIM_WRITE)
+                    actor = principal.subject
+                result = self.server.application.dcim_topology_service.define_room(
+                    DefinePhysicalRoomCommand(
+                        tenant_id=tenant_id,
+                        actor=actor,
+                        site_code=str(payload["site_code"]),
+                        site_name=str(payload["site_name"]),
+                        country=str(payload["country"]),
+                        region=str(payload.get("region", "")),
+                        city=str(payload["city"]),
+                        building_code=str(payload["building_code"]),
+                        building_name=str(payload["building_name"]),
+                        floor_code=str(payload["floor_code"]),
+                        floor_name=str(payload["floor_name"]),
+                        floor_index=int(payload["floor_index"]),
+                        room_code=str(payload["room_code"]),
+                        room_name=str(payload["room_name"]),
+                        rows=self._tuple_payload(payload, "rows", ()),
+                        columns=self._tuple_payload(payload, "columns", ()),
+                        zone_code=(str(payload["zone_code"]) if payload.get("zone_code") else None),
+                        zone_name=(str(payload["zone_name"]) if payload.get("zone_name") else None),
+                        zone_rows=self._tuple_payload(payload, "zone_rows", ()),
+                        zone_columns=self._tuple_payload(payload, "zone_columns", ()),
+                        x=(float(payload["x"]) if payload.get("x") is not None else None),
+                        y=(float(payload["y"]) if payload.get("y") is not None else None),
+                        z=(float(payload["z"]) if payload.get("z") is not None else None),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
 
         if route == "/api/v1/sot/governance-rules":
             try:

@@ -49,7 +49,7 @@ from openinfra.domain.common import (
     TenantId,
     ValidationError,
 )
-from openinfra.domain.dcim import Building, Equipment, EquipmentLocation, Rack, Room, Site
+from openinfra.domain.dcim import Building, Equipment, EquipmentLocation, Floor, Rack, Room, RoomZone, Site
 from openinfra.domain.identity import (
     EffectiveIdentity,
     GroupMembership,
@@ -607,8 +607,12 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
         self._ensure_tenant(site.tenant_id)
         self._execute_without_result(
             """
-            INSERT INTO sites (id, tenant_id, code, name, country, city)
-            VALUES (%(id)s, %(tenant_id)s, %(code)s, %(name)s, %(country)s, %(city)s)
+            INSERT INTO sites (id, tenant_id, code, name, country, city, region)
+            VALUES (
+                %(id)s, %(tenant_id)s, %(code)s, %(name)s, %(country)s,
+                %(city)s, %(region)s
+            )
+            ON CONFLICT (tenant_id, code) DO NOTHING
             """,
             {
                 "id": site.id.value,
@@ -617,6 +621,7 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
                 "name": site.name.value,
                 "country": site.country,
                 "city": site.city,
+                "region": site.region,
             },
         )
 
@@ -626,6 +631,7 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             """
             INSERT INTO buildings (id, tenant_id, site_code, code, name)
             VALUES (%(id)s, %(tenant_id)s, %(site_code)s, %(code)s, %(name)s)
+            ON CONFLICT (tenant_id, site_code, code) DO NOTHING
             """,
             {
                 "id": building.id.value,
@@ -636,25 +642,84 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             },
         )
 
-    def add_room(self, room: Room) -> None:
-        self._ensure_tenant(room.tenant_id)
+    def add_floor(self, floor: Floor) -> None:
+        self._ensure_tenant(floor.tenant_id)
         self._execute_without_result(
             """
-            INSERT INTO rooms (id, tenant_id, site_code, building_code, code, name, rows, columns)
+            INSERT INTO floors (id, tenant_id, site_code, building_code, code, name, level_index)
             VALUES (
-                %(id)s, %(tenant_id)s, %(site_code)s, %(building_code)s, %(code)s,
-                %(name)s, %(rows)s, %(columns)s
+                %(id)s, %(tenant_id)s, %(site_code)s, %(building_code)s,
+                %(code)s, %(name)s, %(level_index)s
             )
+            ON CONFLICT (tenant_id, site_code, building_code, code) DO NOTHING
+            """,
+            {
+                "id": floor.id.value,
+                "tenant_id": floor.tenant_id.value,
+                "site_code": floor.site_code.value,
+                "building_code": floor.building_code.value,
+                "code": floor.code.value,
+                "name": floor.name.value,
+                "level_index": floor.level_index,
+            },
+        )
+
+    def add_room(self, room: Room) -> None:
+        self._ensure_tenant(room.tenant_id)
+        coordinates = room.coordinates
+        self._execute_without_result(
+            """
+            INSERT INTO rooms (
+                id, tenant_id, site_code, building_code, floor_code, code, name, rows, columns,
+                zone_codes, coordinate_x, coordinate_y, coordinate_z
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(site_code)s, %(building_code)s, %(floor_code)s,
+                %(code)s, %(name)s, %(rows)s, %(columns)s, %(zone_codes)s,
+                %(coordinate_x)s, %(coordinate_y)s, %(coordinate_z)s
+            )
+            ON CONFLICT (tenant_id, site_code, building_code, code) DO NOTHING
             """,
             {
                 "id": room.id.value,
                 "tenant_id": room.tenant_id.value,
                 "site_code": room.site_code.value,
                 "building_code": room.building_code.value,
+                "floor_code": room.floor_code.value if room.floor_code else None,
                 "code": room.code.value,
                 "name": room.name.value,
                 "rows": list(room.rows),
                 "columns": list(room.columns),
+                "zone_codes": [zone.value for zone in room.zone_codes],
+                "coordinate_x": coordinates.x if coordinates else None,
+                "coordinate_y": coordinates.y if coordinates else None,
+                "coordinate_z": coordinates.z if coordinates else None,
+            },
+        )
+
+    def add_zone(self, zone: RoomZone) -> None:
+        self._ensure_tenant(zone.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO room_zones (
+                id, tenant_id, site_code, building_code, floor_code, room_code, code,
+                name, rows, columns
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(site_code)s, %(building_code)s, %(floor_code)s,
+                %(room_code)s, %(code)s, %(name)s, %(rows)s, %(columns)s
+            )
+            ON CONFLICT (tenant_id, site_code, building_code, room_code, code) DO NOTHING
+            """,
+            {
+                "id": zone.id.value,
+                "tenant_id": zone.tenant_id.value,
+                "site_code": zone.site_code.value,
+                "building_code": zone.building_code.value,
+                "floor_code": zone.floor_code.value,
+                "room_code": zone.room_code.value,
+                "code": zone.code.value,
+                "name": zone.name.value,
+                "rows": list(zone.rows),
+                "columns": list(zone.columns),
             },
         )
 
@@ -664,12 +729,12 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
         self._execute_without_result(
             """
             INSERT INTO racks (
-                id, tenant_id, site_code, building_code, room_code, code, row_code, column_code,
-                units, coordinate_x, coordinate_y, coordinate_z
+                id, tenant_id, site_code, building_code, floor_code, room_code, code,
+                row_code, column_code, zone_code, units, coordinate_x, coordinate_y, coordinate_z
             ) VALUES (
-                %(id)s, %(tenant_id)s, %(site_code)s, %(building_code)s, %(room_code)s, %(code)s,
-                %(row_code)s, %(column_code)s, %(units)s, %(coordinate_x)s,
-                %(coordinate_y)s, %(coordinate_z)s
+                %(id)s, %(tenant_id)s, %(site_code)s, %(building_code)s, %(floor_code)s,
+                %(room_code)s, %(code)s, %(row_code)s, %(column_code)s, %(zone_code)s,
+                %(units)s, %(coordinate_x)s, %(coordinate_y)s, %(coordinate_z)s
             )
             """,
             {
@@ -681,6 +746,8 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
                 "code": rack.code.value,
                 "row_code": rack.row,
                 "column_code": rack.column,
+                "floor_code": rack.floor_code.value if rack.floor_code else None,
+                "zone_code": rack.zone_code.value if rack.zone_code else None,
                 "units": rack.units,
                 "coordinate_x": coordinates.x if coordinates else None,
                 "coordinate_y": coordinates.y if coordinates else None,
@@ -695,20 +762,23 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
         self._execute_without_result(
             """
             INSERT INTO equipment (
-                id, tenant_id, asset_tag, name, site_code, building_code, room_code, row_code,
-                column_code, rack_code, u_position, coordinate_x, coordinate_y, coordinate_z
+                id, tenant_id, asset_tag, name, site_code, building_code, floor_code, room_code,
+                row_code, column_code, zone_code, rack_code, u_position, coordinate_x,
+                coordinate_y, coordinate_z
             ) VALUES (
                 %(id)s, %(tenant_id)s, %(asset_tag)s, %(name)s, %(site_code)s, %(building_code)s,
-                %(room_code)s, %(row_code)s, %(column_code)s, %(rack_code)s, %(u_position)s,
-                %(coordinate_x)s, %(coordinate_y)s, %(coordinate_z)s
+                %(floor_code)s, %(room_code)s, %(row_code)s, %(column_code)s, %(zone_code)s,
+                %(rack_code)s, %(u_position)s, %(coordinate_x)s, %(coordinate_y)s, %(coordinate_z)s
             )
             ON CONFLICT (tenant_id, asset_tag) DO UPDATE SET
                 name = EXCLUDED.name,
                 site_code = EXCLUDED.site_code,
                 building_code = EXCLUDED.building_code,
+                floor_code = EXCLUDED.floor_code,
                 room_code = EXCLUDED.room_code,
                 row_code = EXCLUDED.row_code,
                 column_code = EXCLUDED.column_code,
+                zone_code = EXCLUDED.zone_code,
                 rack_code = EXCLUDED.rack_code,
                 u_position = EXCLUDED.u_position,
                 coordinate_x = EXCLUDED.coordinate_x,
@@ -724,9 +794,11 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
                 "name": equipment.name.value,
                 "site_code": location.site_code.value,
                 "building_code": location.building_code.value,
+                "floor_code": location.floor_code.value if location.floor_code else None,
                 "room_code": location.room_code.value,
                 "row_code": location.row,
                 "column_code": location.column,
+                "zone_code": location.zone_code.value if location.zone_code else None,
                 "rack_code": location.rack_code.value if location.rack_code else None,
                 "u_position": location.u_position,
                 "coordinate_x": coordinates.x if coordinates else None,
@@ -735,10 +807,64 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             },
         )
 
+    def find_site(self, tenant_id: TenantId, site: str) -> Site | None:
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, code, name, country, city, region
+            FROM sites
+            WHERE tenant_id = %(tenant_id)s AND code = %(code)s
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "code": Code.from_value(site, "site code").value,
+            },
+        )
+        return self._site_from_row(row) if row else None
+
+    def find_building(self, tenant_id: TenantId, site: str, building: str) -> Building | None:
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, site_code, code, name
+            FROM buildings
+            WHERE tenant_id = %(tenant_id)s AND site_code = %(site_code)s
+              AND code = %(code)s
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "site_code": Code.from_value(site, "site code").value,
+                "code": Code.from_value(building, "building code").value,
+            },
+        )
+        return self._building_from_row(row) if row else None
+
+    def find_floor(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        floor: str,
+    ) -> Floor | None:
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, site_code, building_code, code, name, level_index
+            FROM floors
+            WHERE tenant_id = %(tenant_id)s AND site_code = %(site_code)s
+              AND building_code = %(building_code)s AND code = %(code)s
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "site_code": Code.from_value(site, "site code").value,
+                "building_code": Code.from_value(building, "building code").value,
+                "code": Code.from_value(floor, "floor code").value,
+            },
+        )
+        return self._floor_from_row(row) if row else None
+
     def find_room(self, tenant_id: TenantId, site: str, building: str, room: str) -> Room | None:
         row = self._fetch_one(
             """
-            SELECT id, tenant_id, site_code, building_code, code, name, rows, columns
+            SELECT id, tenant_id, site_code, building_code, floor_code, code, name, rows, columns,
+                   zone_codes, coordinate_x, coordinate_y, coordinate_z
             FROM rooms
             WHERE tenant_id = %(tenant_id)s AND site_code = %(site_code)s
               AND building_code = %(building_code)s AND code = %(code)s
@@ -752,6 +878,34 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
         )
         return self._room_from_row(row) if row else None
 
+    def find_zone(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+        zone: str,
+    ) -> RoomZone | None:
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, site_code, building_code, floor_code, room_code, code,
+                   name, rows, columns
+            FROM room_zones
+            WHERE tenant_id = %(tenant_id)s AND site_code = %(site_code)s
+              AND building_code = %(building_code)s
+              AND room_code = %(room_code)s
+              AND code = %(code)s
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "site_code": Code.from_value(site, "site code").value,
+                "building_code": Code.from_value(building, "building code").value,
+                "room_code": Code.from_value(room, "room code").value,
+                "code": Code.from_value(zone, "zone code").value,
+            },
+        )
+        return self._zone_from_row(row) if row else None
+
     def find_rack(
         self,
         tenant_id: TenantId,
@@ -762,8 +916,8 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
     ) -> Rack | None:
         row = self._fetch_one(
             """
-            SELECT id, tenant_id, site_code, building_code, room_code, code, row_code, column_code,
-                   units, coordinate_x, coordinate_y, coordinate_z
+            SELECT id, tenant_id, site_code, building_code, floor_code, room_code, code,
+                   row_code, column_code, zone_code, units, coordinate_x, coordinate_y, coordinate_z
             FROM racks
             WHERE tenant_id = %(tenant_id)s AND site_code = %(site_code)s
               AND building_code = %(building_code)s
@@ -783,8 +937,8 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
     def find_equipment(self, tenant_id: TenantId, asset_tag: str) -> Equipment | None:
         row = self._fetch_one(
             """
-            SELECT id, tenant_id, asset_tag, name, site_code, building_code, room_code, row_code,
-                   column_code, rack_code, u_position, coordinate_x, coordinate_y, coordinate_z
+            SELECT id, tenant_id, asset_tag, name, site_code, building_code, floor_code, room_code,
+                   row_code, column_code, zone_code, rack_code, u_position, coordinate_x, coordinate_y, coordinate_z
             FROM equipment
             WHERE tenant_id = %(tenant_id)s AND asset_tag = %(asset_tag)s
             """,
@@ -795,7 +949,44 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
         )
         return self._equipment_from_row(row) if row else None
 
+    def _site_from_row(self, row: Mapping[str, object]) -> Site:
+        return Site(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            code=Code.from_value(str(row["code"]), "site code"),
+            name=Name.from_value(str(row["name"]), "site name"),
+            country=str(row["country"]),
+            city=str(row["city"]),
+            region=str(row.get("region") or ""),
+        )
+
+    def _building_from_row(self, row: Mapping[str, object]) -> Building:
+        return Building(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            site_code=Code.from_value(str(row["site_code"]), "site code"),
+            code=Code.from_value(str(row["code"]), "building code"),
+            name=Name.from_value(str(row["name"]), "building name"),
+        )
+
+    def _floor_from_row(self, row: Mapping[str, object]) -> Floor:
+        return Floor(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            site_code=Code.from_value(str(row["site_code"]), "site code"),
+            building_code=Code.from_value(str(row["building_code"]), "building code"),
+            code=Code.from_value(str(row["code"]), "floor code"),
+            name=Name.from_value(str(row["name"]), "floor name"),
+            level_index=int(row["level_index"]),
+        )
+
     def _room_from_row(self, row: Mapping[str, object]) -> Room:
+        coordinates = Coordinates3D.from_values(
+            self._float_or_none(row.get("coordinate_x")),
+            self._float_or_none(row.get("coordinate_y")),
+            self._float_or_none(row.get("coordinate_z")),
+        )
+        zone_values = row.get("zone_codes") or []
         return Room(
             id=EntityId.from_value(str(row["id"])),
             tenant_id=TenantId.from_value(str(row["tenant_id"])),
@@ -803,6 +994,27 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             building_code=Code.from_value(str(row["building_code"]), "building code"),
             code=Code.from_value(str(row["code"]), "room code"),
             name=Name.from_value(str(row["name"]), "room name"),
+            rows=tuple(str(value) for value in cast(Sequence[object], row["rows"])),
+            columns=tuple(str(value) for value in cast(Sequence[object], row["columns"])),
+            floor_code=(
+                Code.from_value(str(row["floor_code"]), "floor code")
+                if row.get("floor_code") is not None
+                else None
+            ),
+            zone_codes=tuple(Code.from_value(str(value), "zone code") for value in zone_values),
+            coordinates=coordinates,
+        )
+
+    def _zone_from_row(self, row: Mapping[str, object]) -> RoomZone:
+        return RoomZone(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            site_code=Code.from_value(str(row["site_code"]), "site code"),
+            building_code=Code.from_value(str(row["building_code"]), "building code"),
+            floor_code=Code.from_value(str(row["floor_code"]), "floor code"),
+            room_code=Code.from_value(str(row["room_code"]), "room code"),
+            code=Code.from_value(str(row["code"]), "zone code"),
+            name=Name.from_value(str(row["name"]), "zone name"),
             rows=tuple(str(value) for value in cast(Sequence[object], row["rows"])),
             columns=tuple(str(value) for value in cast(Sequence[object], row["columns"])),
         )
@@ -824,6 +1036,8 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             column=str(row["column_code"]),
             units=int(row["units"]),
             coordinates=coordinates,
+            floor_code=str(row["floor_code"]) if row.get("floor_code") is not None else None,
+            zone_code=str(row["zone_code"]) if row.get("zone_code") is not None else None,
         )
 
     def _equipment_from_row(self, row: Mapping[str, object]) -> Equipment:
@@ -841,6 +1055,8 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             rack_code=str(row["rack_code"]) if row["rack_code"] is not None else None,
             u_position=int(row["u_position"]) if row["u_position"] is not None else None,
             coordinates=coordinates,
+            floor_code=str(row["floor_code"]) if row.get("floor_code") is not None else None,
+            zone_code=str(row["zone_code"]) if row.get("zone_code") is not None else None,
         )
         return Equipment(
             id=EntityId.from_value(str(row["id"])),

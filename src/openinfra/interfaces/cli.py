@@ -20,7 +20,7 @@ from openinfra.application.audit_services import (
     VerifyAuditIntegrityCommand,
 )
 from openinfra.application.container import ApplicationFactory, OpenInfraApplication
-from openinfra.application.dcim_services import LocateEquipmentCommand
+from openinfra.application.dcim_services import DefinePhysicalRoomCommand, LocateEquipmentCommand
 from openinfra.application.identity_services import (
     AddUserToGroupCommand,
     CreateGroupCommand,
@@ -492,6 +492,38 @@ class OpenInfraCLI:
     def _add_dcim_commands(self, subparsers: Any) -> None:
         dcim = subparsers.add_parser("dcim", help="dcim operations")
         dcim_subparsers = dcim.add_subparsers(dest="dcim_command", required=True)
+        define_room = dcim_subparsers.add_parser(
+            "define-room",
+            help="define a physical DCIM room hierarchy",
+        )
+        define_room.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        define_room.add_argument("--data", type=Path, default=Path(".openinfra.json"))
+        define_room.add_argument("--postgres-dsn")
+        define_room.add_argument("--tenant", default="default")
+        define_room.add_argument("--actor", default="cli")
+        define_room.add_argument("--site-code", required=True)
+        define_room.add_argument("--site-name", required=True)
+        define_room.add_argument("--country", required=True)
+        define_room.add_argument("--region", default="")
+        define_room.add_argument("--city", required=True)
+        define_room.add_argument("--building-code", required=True)
+        define_room.add_argument("--building-name", required=True)
+        define_room.add_argument("--floor-code", required=True)
+        define_room.add_argument("--floor-name", required=True)
+        define_room.add_argument("--floor-index", type=int, required=True)
+        define_room.add_argument("--room-code", required=True)
+        define_room.add_argument("--room-name", required=True)
+        define_room.add_argument("--row", action="append", required=True)
+        define_room.add_argument("--column", action="append", required=True)
+        define_room.add_argument("--zone-code")
+        define_room.add_argument("--zone-name")
+        define_room.add_argument("--zone-row", action="append", default=[])
+        define_room.add_argument("--zone-column", action="append", default=[])
+        define_room.add_argument("--x", type=float)
+        define_room.add_argument("--y", type=float)
+        define_room.add_argument("--z", type=float)
+        define_room.set_defaults(handler=self._handle_dcim_define_room)
+
         locate = dcim_subparsers.add_parser("locate", help="locate equipment physically")
         locate.add_argument("--backend", choices=("json", "postgresql"), default="json")
         locate.add_argument("--data", type=Path, default=Path(".openinfra.json"))
@@ -502,7 +534,9 @@ class OpenInfraCLI:
         locate.add_argument("--equipment-name", default="Unnamed equipment")
         locate.add_argument("--site", required=True)
         locate.add_argument("--building", required=True)
+        locate.add_argument("--floor")
         locate.add_argument("--room", required=True)
+        locate.add_argument("--zone")
         locate.add_argument("--row", required=True)
         locate.add_argument("--column", required=True)
         locate.add_argument("--rack")
@@ -982,6 +1016,38 @@ class OpenInfraCLI:
         print(json.dumps(result.as_dict(), sort_keys=True))
         return 0
 
+    def _handle_dcim_define_room(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_topology_service.define_room(
+            DefinePhysicalRoomCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                site_code=args.site_code,
+                site_name=args.site_name,
+                country=args.country,
+                region=args.region,
+                city=args.city,
+                building_code=args.building_code,
+                building_name=args.building_name,
+                floor_code=args.floor_code,
+                floor_name=args.floor_name,
+                floor_index=args.floor_index,
+                room_code=args.room_code,
+                room_name=args.room_name,
+                rows=tuple(args.row),
+                columns=tuple(args.column),
+                zone_code=args.zone_code,
+                zone_name=args.zone_name,
+                zone_rows=tuple(args.zone_row),
+                zone_columns=tuple(args.zone_column),
+                x=args.x,
+                y=args.y,
+                z=args.z,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
     def _handle_dcim_locate(self, args: argparse.Namespace) -> int:
         application = self._create_application(args)
         equipment = application.dcim_service.locate_equipment(
@@ -993,6 +1059,8 @@ class OpenInfraCLI:
                 site=args.site,
                 building=args.building,
                 room=args.room,
+                floor=args.floor,
+                zone=args.zone,
                 row=args.row,
                 column=args.column,
                 rack=args.rack,

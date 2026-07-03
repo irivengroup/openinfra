@@ -47,3 +47,40 @@ class TestDcimDomain:
         assert Coordinates3D.from_values(None, None, None) is None
         with pytest.raises(ValidationError):
             Coordinates3D.from_values(1.0, None, 2.0)
+
+    def test_site_region_floor_and_zone_invariants(self) -> None:
+        from openinfra.domain.dcim import Floor, RoomZone, Site
+
+        tenant = TenantId.from_value("default")
+        site = Site.create(tenant, "lon1", "London 1", "gb", "London", "England")
+        floor = Floor.create(tenant, "LON1", "BAT-A", "F10", "Tenth floor", 10)
+        room = Room.create(
+            tenant,
+            "LON1",
+            "BAT-A",
+            "ROOM1",
+            "Room 1",
+            rows=("A", "A", "B"),
+            columns=("01", "02"),
+            floor_code="F10",
+            zone_codes=("Z1",),
+        )
+        zone = RoomZone.create(
+            tenant,
+            "LON1",
+            "BAT-A",
+            "F10",
+            "ROOM1",
+            "Z1",
+            "Zone 1",
+            rows=("A",),
+            columns=("01",),
+        )
+
+        zone.assert_within_room(room)
+        zone.assert_cell_exists("A", "01")
+        assert site.country == "GB"
+        assert site.region == "England"
+        assert floor.level_index == 10
+        assert room.rows == ("A", "B")
+        assert room.physical_path() == "site=LON1 | building=BAT-A | floor=F10 | room=ROOM1"

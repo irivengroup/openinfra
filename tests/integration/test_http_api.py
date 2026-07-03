@@ -38,7 +38,7 @@ class TestHttpApi:
             assert health["status"] == "ok"
             assert ready["ready"] is True
             assert ready["component"] == "json"
-            assert version["version"] == "0.11.0"
+            assert version["version"] == "0.12.0"
             assert allocation["address"] == "10.6.0.1"
         finally:
             server.shutdown()
@@ -603,6 +603,74 @@ class TestSourceGovernanceHttpApi:
             assert evaluated["accepted"] is False
             assert evaluated["conflicts"][0]["authoritative_source"] == "discovery"
             assert deactivated["deactivated"] is True
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def test_dcim_define_room_api_requires_dcim_write_when_authenticated(self, tmp_path: Path) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json", seed=False)
+        viewer_token = "v" * 40
+        dcim_token = "m" * 40
+        app.security_service.bootstrap_token(
+            BootstrapTokenCommand(
+                tenant_id="default",
+                actor="pytest",
+                subject="viewer-api-client",
+                roles=("viewer",),
+                token=viewer_token,
+            )
+        )
+        app.security_service.bootstrap_token(
+            BootstrapTokenCommand(
+                tenant_id="default",
+                actor="pytest",
+                subject="dcim-api-client",
+                roles=("dcim:operator",),
+                token=dcim_token,
+            )
+        )
+        server = OpenInfraThreadingServer(("127.0.0.1", 0), app, auth_required=True)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base_url = f"http://127.0.0.1:{server.server_port}"
+            payload = {
+                "tenant_id": "default",
+                "site_code": "TLS1",
+                "site_name": "Toulouse 1",
+                "country": "FR",
+                "region": "Occitanie",
+                "city": "Toulouse",
+                "building_code": "BAT-T",
+                "building_name": "Building T",
+                "floor_code": "F01",
+                "floor_name": "First floor",
+                "floor_index": 1,
+                "room_code": "MDF1",
+                "room_name": "MDF Toulouse",
+                "rows": ["A", "B"],
+                "columns": ["01", "02"],
+                "zone_code": "Z1",
+                "zone_name": "Zone 1",
+                "zone_rows": ["A"],
+                "zone_columns": ["01"],
+            }
+            helper = TestHttpApi()
+            try:
+                helper._post_json(base_url + "/api/v1/dcim/rooms", payload, token=viewer_token)
+            except urllib.error.HTTPError as exc:
+                assert exc.code == 401
+            created = helper._post_json(
+                base_url + "/api/v1/dcim/rooms",
+                payload,
+                token=dcim_token,
+            )
+
+            assert created["site"] == "TLS1"
+            assert created["floor"] == "F01"
+            assert created["zone"] == "Z1"
+            assert created["created"]["room"] is True
         finally:
             server.shutdown()
             server.server_close()

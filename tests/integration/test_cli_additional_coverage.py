@@ -6,7 +6,9 @@ from pathlib import Path
 from openinfra.interfaces.cli import OpenInfraCLI
 
 
-def test_cli_database_handlers_and_additional_identity_sot_paths(monkeypatch, capsys, tmp_path: Path) -> None:
+def test_cli_database_handlers_and_additional_identity_sot_paths(
+    monkeypatch, capsys, tmp_path: Path
+) -> None:
     cli = OpenInfraCLI()
 
     class FakeStatus:
@@ -29,10 +31,144 @@ def test_cli_database_handlers_and_additional_identity_sot_paths(monkeypatch, ca
 
     data = tmp_path / "state.json"
     admin_token = "t" * 40
-    assert cli.run(["security", "bootstrap-token", "--data", str(data), "--tenant", "default", "--subject", "admin-cli", "--token", admin_token, "--role", "admin"]) == 0
-    assert cli.run(["identity", "create-user", "--data", str(data), "--tenant", "default", "--admin-token", admin_token, "--username", "cli-user", "--display-name", "CLI User", "--email", "cli-user@example.org", "--role", "viewer"]) == 0
-    assert cli.run(["identity", "create-group", "--data", str(data), "--tenant", "default", "--admin-token", admin_token, "--name", "cli-group", "--display-name", "CLI Group", "--role", "sot:reader"]) == 0
-    assert cli.run(["identity", "grant-user-role", "--data", str(data), "--tenant", "default", "--admin-token", admin_token, "--username", "cli-user", "--role", "dcim:operator"]) == 0
-    assert cli.run(["identity", "grant-group-role", "--data", str(data), "--tenant", "default", "--admin-token", admin_token, "--group", "cli-group", "--role", "ipam:operator"]) == 0
-    assert cli.run(["sot", "upsert-object", "--data", str(data), "--tenant", "default", "--admin-token", admin_token, "--key", "device/cli-srv", "--kind", "device", "--display-name", "CLI Server", "--source", "manual"]) == 0
-    assert cli.run(["sot", "get-object", "--data", str(data), "--tenant", "default", "--admin-token", admin_token, "--key", "device/cli-srv"]) == 0
+    assert (
+        cli.run(
+            [
+                "security",
+                "bootstrap-token",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--subject",
+                "admin-cli",
+                "--token",
+                admin_token,
+                "--role",
+                "admin",
+            ]
+        )
+        == 0
+    )
+    assert (
+        cli.run(
+            [
+                "identity",
+                "create-user",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                admin_token,
+                "--username",
+                "cli-user",
+                "--display-name",
+                "CLI User",
+                "--email",
+                "cli-user@example.org",
+                "--role",
+                "viewer",
+            ]
+        )
+        == 0
+    )
+    assert (
+        cli.run(
+            [
+                "identity",
+                "create-group",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                admin_token,
+                "--name",
+                "cli-group",
+                "--display-name",
+                "CLI Group",
+                "--role",
+                "sot:reader",
+            ]
+        )
+        == 0
+    )
+    assert (
+        cli.run(
+            [
+                "identity",
+                "grant-user-role",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                admin_token,
+                "--username",
+                "cli-user",
+                "--role",
+                "dcim:operator",
+            ]
+        )
+        == 0
+    )
+    assert (
+        cli.run(
+            [
+                "identity",
+                "grant-group-role",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                admin_token,
+                "--group",
+                "cli-group",
+                "--role",
+                "ipam:operator",
+            ]
+        )
+        == 0
+    )
+    assert (
+        cli.run(
+            [
+                "sot",
+                "upsert-object",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                admin_token,
+                "--key",
+                "device/cli-srv",
+                "--kind",
+                "device",
+                "--display-name",
+                "CLI Server",
+                "--source",
+                "manual",
+            ]
+        )
+        == 0
+    )
+    assert (
+        cli.run(
+            [
+                "sot",
+                "get-object",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                admin_token,
+                "--key",
+                "device/cli-srv",
+            ]
+        )
+        == 0
+    )

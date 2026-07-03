@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import ipaddress
 import json
-import os
 import threading
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Any
+from typing import Any, cast
 
 from openinfra.application.ports import (
     AccessPolicyRepository,
@@ -69,8 +68,8 @@ from openinfra.domain.dcim import (
     PowerDeviceKind,
     PowerFeedSide,
     Rack,
-    RackPowerReservation,
     RackFace,
+    RackPowerReservation,
     Room,
     RoomZone,
     Site,
@@ -134,11 +133,11 @@ class JsonDocumentStore:
             handle.write(payload)
             handle.write("\n")
             temporary = Path(handle.name)
-        os.replace(temporary, self._path)
+        temporary.replace(self._path)
         self._state.dirty = False
 
     def snapshot(self) -> dict[str, Any]:
-        return json.loads(json.dumps(self._state.data))
+        return cast(dict[str, Any], json.loads(json.dumps(self._state.data)))
 
     def restore(self, snapshot: dict[str, Any]) -> None:
         self._state = _JsonState(data=snapshot, dirty=False)
@@ -240,9 +239,7 @@ class JsonReadinessProbe(ReadinessProbe):
                 )
             )
         detail = (
-            "json document store is writable"
-            if collections_ready
-            else "json schema is incomplete"
+            "json document store is writable" if collections_ready else "json schema is incomplete"
         )
         return ReadinessStatus("json", collections_ready, detail)
 
@@ -333,7 +330,6 @@ class JsonDcimRepository(DcimRepository):
             rack.code.value,
         )
         self._put_unique("racks", key, self._rack_to_dict(rack))
-
 
     def add_patch_panel(self, patch_panel: PatchPanel) -> None:
         key = self._key(
@@ -462,7 +458,6 @@ class JsonDcimRepository(DcimRepository):
         item = self._store.data["racks"].get(key)
         return self._rack_from_dict(item) if item else None
 
-
     def find_patch_panel(
         self,
         tenant_id: TenantId,
@@ -587,7 +582,6 @@ class JsonDcimRepository(DcimRepository):
             ):
                 matching.append(self._rack_from_dict(value))
         return tuple(sorted(matching, key=lambda item: (item.row, item.column, item.code.value)))
-
 
     def list_patch_panels_in_rack(
         self,
@@ -769,7 +763,9 @@ class JsonDcimRepository(DcimRepository):
             site_code=Code.from_value(value["site_code"], "site code"),
             building_code=Code.from_value(value["building_code"], "building code"),
             room_code=Code.from_value(value["room_code"], "room code"),
-            rack_code=Code.from_value(value["rack_code"], "rack code") if value.get("rack_code") else None,
+            rack_code=Code.from_value(value["rack_code"], "rack code")
+            if value.get("rack_code")
+            else None,
             side=PowerFeedSide.from_value(value["side"]) if value.get("side") else None,
             capacity_watts=int(value["capacity_watts"]),
             derating_percent=int(value["derating_percent"]),
@@ -1097,7 +1093,6 @@ class JsonDcimRepository(DcimRepository):
             ),
         )
 
-
     def _patch_panel_to_dict(self, patch_panel: PatchPanel) -> dict[str, Any]:
         return {
             "id": patch_panel.id.value,
@@ -1201,6 +1196,7 @@ class JsonDcimRepository(DcimRepository):
             length_m=(float(value["length_m"]) if value.get("length_m") is not None else None),
             label=str(value.get("label", "")),
         )
+
 
 class JsonIpamRepository(IpamRepository):
     def __init__(self, store: JsonDocumentStore) -> None:
@@ -1374,7 +1370,7 @@ class JsonIdentityRepository(IdentityRepository):
         if value is None:
             raise ValidationError("identity user must exist before granting a role")
         role_name = IdentityRoleSet.from_names((role,))[0].name
-        roles = set(str(item) for item in value.get("roles", []))
+        roles = {str(item) for item in value.get("roles", [])}
         changed = role_name not in roles
         roles.add(role_name)
         value["roles"] = sorted(roles)
@@ -1387,7 +1383,7 @@ class JsonIdentityRepository(IdentityRepository):
         if value is None:
             raise ValidationError("identity group must exist before granting a role")
         role_name = IdentityRoleSet.from_names((role,))[0].name
-        roles = set(str(item) for item in value.get("roles", []))
+        roles = {str(item) for item in value.get("roles", [])}
         changed = role_name not in roles
         roles.add(role_name)
         value["roles"] = sorted(roles)
@@ -1716,7 +1712,8 @@ class JsonSourceGovernanceRepository(SourceGovernanceRepository):
             rules = [rule for rule in rules if rule.active]
         if normalized_kind:
             rules = [
-                rule for rule in rules
+                rule
+                for rule in rules
                 if rule.object_kind is None or rule.object_kind.value == normalized_kind
             ]
         rules.sort(key=lambda item: (-item.priority, item.name.value, item.id.value))
@@ -1739,7 +1736,8 @@ class JsonSourceGovernanceRepository(SourceGovernanceRepository):
             if value.get("tenant_id") == tenant_id.value and bool(value.get("active", True))
         ]
         rules = [
-            rule for rule in rules
+            rule
+            for rule in rules
             if rule.object_kind is None or rule.object_kind.value == normalized_kind
         ]
         rules.sort(key=lambda item: (-item.priority, item.name.value, item.id.value))
@@ -1856,8 +1854,7 @@ class JsonAuditRepository(AuditRepository):
 
     def list_events(self) -> tuple[AuditEvent, ...]:
         return tuple(
-            self._record_from_dict(value).event
-            for value in self._store.data["audit_events"]
+            self._record_from_dict(value).event for value in self._store.data["audit_events"]
         )
 
     def _latest_hash(self, tenant_id: TenantId) -> str:
@@ -1883,9 +1880,9 @@ class JsonAuditRepository(AuditRepository):
             return False
         if event_filter.created_from is not None and event.created_at < event_filter.created_from:
             return False
-        if event_filter.created_to is not None and event.created_at > event_filter.created_to:
-            return False
-        return True
+        return not (
+            event_filter.created_to is not None and event.created_at > event_filter.created_to
+        )
 
     def _record_to_dict(self, record: AuditEventRecord) -> dict[str, Any]:
         event = record.event
@@ -1964,9 +1961,7 @@ class JsonSourceOfTruthRepository(SourceOfTruthRepository):
         self._store.mark_dirty()
 
     def find_object(self, tenant_id: TenantId, key: str) -> SourceOfTruthObject | None:
-        item = self._store.data["source_objects"].get(
-            self._key(tenant_id, key.strip().lower())
-        )
+        item = self._store.data["source_objects"].get(self._key(tenant_id, key.strip().lower()))
         return self._object_from_dict(item) if item else None
 
     def list_objects(

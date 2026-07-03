@@ -36,12 +36,18 @@ class TestAccessPolicyDomain:
         assert rule.site_codes == ("PAR1",)
         assert rule.environments == ("prod",)
         assert rule.applies_to_principal(principal) is True
-        assert rule.matches_context(
-            AccessRequestContext.create(tenant, Permission.IPAM_ALLOCATE, "PAR1", "prod")
-        ) is True
-        assert rule.matches_context(
-            AccessRequestContext.create(tenant, Permission.IPAM_ALLOCATE, "LON1", "prod")
-        ) is False
+        assert (
+            rule.matches_context(
+                AccessRequestContext.create(tenant, Permission.IPAM_ALLOCATE, "PAR1", "prod")
+            )
+            is True
+        )
+        assert (
+            rule.matches_context(
+                AccessRequestContext.create(tenant, Permission.IPAM_ALLOCATE, "LON1", "prod")
+            )
+            is False
+        )
 
     def test_wildcards_and_validation_are_explicit(self) -> None:
         tenant = TenantId.from_value("default")

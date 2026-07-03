@@ -90,15 +90,38 @@ def test_http_api_error_contracts_cover_all_routes(tmp_path: Path) -> None:
             assert code in {400, 401}
             assert "error" in payload
         assert _request_json(base + "/api/v1/dcim/rack-capacity?tenant_id=default", "GET")[0] == 400
-        assert _request_json(base + "/api/v1/dcim/locator-sheet?tenant_id=default", "GET", token=dcim_token)[0] == 400
-        assert _request_json(
-            base + "/api/v1/dcim/locator-sheet?tenant_id=default&asset_tag=ERR-QR-1&format=pdf",
-            "GET",
-            token=dcim_token,
-        )[0] == 400
-        assert _request_json(base + "/api/v1/dcim/room-plan?tenant_id=default", "GET", token=dcim_token)[0] == 400
-        assert _request_json(base + "/api/v1/dcim/rack-elevation?tenant_id=default", "GET", token=dcim_token)[0] == 400
-        assert _request_json(base + "/api/v1/dcim/cable-trace?tenant_id=default", "GET", token=dcim_token)[0] == 400
+        assert (
+            _request_json(
+                base + "/api/v1/dcim/locator-sheet?tenant_id=default", "GET", token=dcim_token
+            )[0]
+            == 400
+        )
+        assert (
+            _request_json(
+                base + "/api/v1/dcim/locator-sheet?tenant_id=default&asset_tag=ERR-QR-1&format=pdf",
+                "GET",
+                token=dcim_token,
+            )[0]
+            == 400
+        )
+        assert (
+            _request_json(
+                base + "/api/v1/dcim/room-plan?tenant_id=default", "GET", token=dcim_token
+            )[0]
+            == 400
+        )
+        assert (
+            _request_json(
+                base + "/api/v1/dcim/rack-elevation?tenant_id=default", "GET", token=dcim_token
+            )[0]
+            == 400
+        )
+        assert (
+            _request_json(
+                base + "/api/v1/dcim/cable-trace?tenant_id=default", "GET", token=dcim_token
+            )[0]
+            == 400
+        )
         # Authenticated positive locator keeps success path under the same test.
         locator_code, locator = _request_json(
             base + "/api/v1/dcim/locator-sheet?tenant_id=default&asset_tag=ERR-QR-1&format=html",
@@ -110,12 +133,21 @@ def test_http_api_error_contracts_cover_all_routes(tmp_path: Path) -> None:
 
         # POST not found, content-length and JSON shape validation.
         assert _request_json(base + "/api/v1/not-there", "POST", {})[0] == 404
-        request = urllib.request.Request(base + "/api/v1/security/whoami", data=b"[]", headers={"Content-Type": "application/json"}, method="POST")
+        request = urllib.request.Request(
+            base + "/api/v1/security/whoami",
+            data=b"[]",
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
         try:
             urllib.request.urlopen(request, timeout=5)
         except urllib.error.HTTPError as exc:
             assert exc.code == 400
-        request = urllib.request.Request(base + "/api/v1/security/whoami", headers={"Content-Type": "application/json"}, method="POST")
+        request = urllib.request.Request(
+            base + "/api/v1/security/whoami",
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
         try:
             urllib.request.urlopen(request, timeout=5)
         except urllib.error.HTTPError as exc:
@@ -127,7 +159,11 @@ def test_http_api_error_contracts_cover_all_routes(tmp_path: Path) -> None:
             ("/api/v1/dcim/patch-panels", {}, dcim_token),
             ("/api/v1/dcim/ports", {}, dcim_token),
             ("/api/v1/dcim/cables", {"tenant_id": "default", "path_segments": "bad"}, dcim_token),
-            ("/api/v1/dcim/verify-scan", {"tenant_id": "default", "asset_tag": "ERR-QR-1", "payload": "bad"}, dcim_token),
+            (
+                "/api/v1/dcim/verify-scan",
+                {"tenant_id": "default", "asset_tag": "ERR-QR-1", "payload": "bad"},
+                dcim_token,
+            ),
             ("/api/v1/sot/governance-rules", {}, admin_token),
             ("/api/v1/sot/governance/evaluate", {}, admin_token),
             ("/api/v1/sot/governance/deactivate-rule", {}, admin_token),
@@ -136,7 +172,11 @@ def test_http_api_error_contracts_cover_all_routes(tmp_path: Path) -> None:
             ("/api/v1/audit/export", {"tenant_id": "default", "format": "bad"}, admin_token),
             ("/api/v1/security/whoami", {"tenant_id": "default", "token": "bad"}, admin_token),
             ("/api/v1/security/revoke-token", {}, admin_token),
-            ("/api/v1/security/rotate-token", {"tenant_id": "default", "current_token": admin_token, "roles": "bad"}, admin_token),
+            (
+                "/api/v1/security/rotate-token",
+                {"tenant_id": "default", "current_token": admin_token, "roles": "bad"},
+                admin_token,
+            ),
             ("/api/v1/access/rules", {"tenant_id": "default", "subjects": "bad"}, admin_token),
             ("/api/v1/access/deactivate-rule", {}, admin_token),
             ("/api/v1/access/evaluate", {}, admin_token),
@@ -151,22 +191,32 @@ def test_http_api_error_contracts_cover_all_routes(tmp_path: Path) -> None:
             code, response = _request_json(base + route, "POST", body, token=token)
             assert code in {400, 401}
             assert "error" in response
-        assert _request_json(
-            base + "/api/v1/identity/users",
-            "POST",
-            {"tenant_id": "default", "username": "x", "display_name": "X", "email": "x@example.org", "roles": ["viewer"]},
-        )[0] == 401
+        assert (
+            _request_json(
+                base + "/api/v1/identity/users",
+                "POST",
+                {
+                    "tenant_id": "default",
+                    "username": "x",
+                    "display_name": "X",
+                    "email": "x@example.org",
+                    "roles": ["viewer"],
+                },
+            )[0]
+            == 401
+        )
     finally:
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
 
 
-def test_http_api_authenticated_bad_request_branches_and_entrypoint(tmp_path: Path, monkeypatch) -> None:
+def test_http_api_authenticated_bad_request_branches_and_entrypoint(
+    tmp_path: Path, monkeypatch
+) -> None:
     import sys
     from argparse import Namespace
 
-    from openinfra.domain.common import OpenInfraError
     from openinfra.interfaces import http_api
     from openinfra.interfaces.http_api import OpenInfraApiEntrypoint
 
@@ -225,12 +275,36 @@ def test_http_api_authenticated_bad_request_branches_and_entrypoint(tmp_path: Pa
             self.closed = True
 
     monkeypatch.setattr(http_api, "OpenInfraThreadingServer", FakeServer)
-    monkeypatch.setattr(sys, "argv", ["openinfra-api", "--backend", "json", "--data", str(tmp_path / "entry.json"), "--host", "127.0.0.1", "--port", "0", "--auth-required"])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "openinfra-api",
+            "--backend",
+            "json",
+            "--data",
+            str(tmp_path / "entry.json"),
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "0",
+            "--auth-required",
+        ],
+    )
     assert OpenInfraApiEntrypoint.main() == 0
     assert FakeServer.created[0][2] is True
 
     entrypoint = OpenInfraApiEntrypoint()
     sentinel = object()
-    monkeypatch.setattr(http_api.ApplicationFactory, "create_postgresql_application", lambda self, dsn, seed=False: sentinel)
+    monkeypatch.setattr(
+        http_api.ApplicationFactory,
+        "create_postgresql_application",
+        lambda self, dsn, seed=False: sentinel,
+    )
     monkeypatch.setenv("OPENINFRA_DATABASE_DSN", "postgresql://openinfra@db/openinfra")
-    assert entrypoint._create_application(Namespace(backend="postgresql", data=tmp_path / "ignored.json", postgres_dsn=None)) is sentinel
+    assert (
+        entrypoint._create_application(
+            Namespace(backend="postgresql", data=tmp_path / "ignored.json", postgres_dsn=None)
+        )
+        is sentinel
+    )

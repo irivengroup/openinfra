@@ -203,6 +203,10 @@ PYTHONPATH=src python scripts/native_runtime_smoke.py --project-root .
 Les tests couvrent le domaine de câblage, les services applicatifs, les ports JSON/PostgreSQL, la CLI, l’API HTTP, les contrats d’erreur et les branches de validation connecteur/média. Le quality gate ne dépend plus d’un moteur Docker et contrôle le runtime serveur natif.
 
 
+## Correctif CI v0.17.1
+
+La v0.17.1 corrige le blocage GitHub Actions sur `ruff format --check src tests scripts docker`. Le workflow conserve les étapes format, lint, type-check, tests, couverture, compile, sécurité, build, artefact et smoke tests. Docker reste un laboratoire facultatif, jamais une dépendance de production.
+
 ## Contrôles ajoutés en v0.17.0
 
 La v0.17.0 conserve le seuil bloquant `>= 98 %`, corrige le déclenchement GitHub Actions et ajoute les contrôles P04 / EPIC-0406 suivants :

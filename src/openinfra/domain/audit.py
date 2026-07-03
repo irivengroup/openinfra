@@ -5,7 +5,7 @@ import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Any, Self
+from typing import Self
 
 from openinfra.domain.common import AuditEvent, Pagination, Severity, TenantId, ValidationError
 
@@ -184,9 +184,7 @@ class AuditIntegrityHasher:
     @classmethod
     def normalize_hash(cls, value: str, label: str) -> str:
         normalized = value.strip().lower()
-        has_invalid_character = any(
-            character not in "0123456789abcdef" for character in normalized
-        )
+        has_invalid_character = any(character not in "0123456789abcdef" for character in normalized)
         if len(normalized) != 64 or has_invalid_character:
             raise ValidationError(label + " must be a sha256 hex digest")
         return normalized

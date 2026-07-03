@@ -18,6 +18,7 @@ from openinfra.application.dcim_services import (
     RackEnergyCoolingCapacityCommand,
     ReserveEquipmentPowerCommand,
 )
+from openinfra.application.security_services import BootstrapTokenCommand
 from openinfra.domain.common import ConflictError, NotFoundError, TenantId, ValidationError
 from openinfra.domain.dcim import (
     CoolingRole,
@@ -28,7 +29,6 @@ from openinfra.domain.dcim import (
     PowerFeedSide,
     RackPowerReservation,
 )
-from openinfra.application.security_services import BootstrapTokenCommand
 from openinfra.interfaces.cli import OpenInfraCLI
 from openinfra.interfaces.http_api import OpenInfraThreadingServer
 
@@ -235,28 +235,64 @@ class TestDcimEnergyCoolingServices:
             )
         app.dcim_environment_service.define_power_device(
             DefinePowerDeviceCommand(
-                "default", "pytest", "PDU-A", "pdu", "PWR1", "BAT-P", "MMR-P", 1500,
-                rack="R01", side="A", derating_percent=80,
+                "default",
+                "pytest",
+                "PDU-A",
+                "pdu",
+                "PWR1",
+                "BAT-P",
+                "MMR-P",
+                1500,
+                rack="R01",
+                side="A",
+                derating_percent=80,
             )
         )
         with pytest.raises(ValidationError):
             app.dcim_environment_service.define_power_circuit(
                 DefinePowerCircuitCommand(
-                    "default", "pytest", "CIR-BAD", "PDU-A", "PWR1", "BAT-P", "MMR-P",
-                    "R01", "B", 500, 16,
+                    "default",
+                    "pytest",
+                    "CIR-BAD",
+                    "PDU-A",
+                    "PWR1",
+                    "BAT-P",
+                    "MMR-P",
+                    "R01",
+                    "B",
+                    500,
+                    16,
                 )
             )
         with pytest.raises(ConflictError):
             app.dcim_environment_service.define_power_circuit(
                 DefinePowerCircuitCommand(
-                    "default", "pytest", "CIR-HIGH", "PDU-A", "PWR1", "BAT-P", "MMR-P",
-                    "R01", "A", 1300, 16,
+                    "default",
+                    "pytest",
+                    "CIR-HIGH",
+                    "PDU-A",
+                    "PWR1",
+                    "BAT-P",
+                    "MMR-P",
+                    "R01",
+                    "A",
+                    1300,
+                    16,
                 )
             )
         app.dcim_environment_service.define_power_circuit(
             DefinePowerCircuitCommand(
-                "default", "pytest", "CIR-A-OK", "PDU-A", "PWR1", "BAT-P", "MMR-P",
-                "R01", "A", 1000, 16,
+                "default",
+                "pytest",
+                "CIR-A-OK",
+                "PDU-A",
+                "PWR1",
+                "BAT-P",
+                "MMR-P",
+                "R01",
+                "A",
+                1000,
+                16,
             )
         )
         app.dcim_environment_service.define_cooling_zone(
@@ -270,7 +306,9 @@ class TestDcimEnergyCoolingServices:
             )
         with pytest.raises(NotFoundError):
             app.dcim_environment_service.rack_energy_cooling_capacity(
-                RackEnergyCoolingCapacityCommand("default", "pytest", "PWR1", "BAT-P", "MMR-P", "R404")
+                RackEnergyCoolingCapacityCommand(
+                    "default", "pytest", "PWR1", "BAT-P", "MMR-P", "R404"
+                )
             )
 
     def test_power_domain_validation_edges(self) -> None:
@@ -301,59 +339,248 @@ class TestDcimEnergyCoolingServices:
     def test_cli_energy_cooling_commands(self, tmp_path: Path, capsys: object) -> None:
         data = tmp_path / "state.json"
         cli = OpenInfraCLI()
-        cli.run([
-            "dcim", "define-room", "--data", str(data), "--tenant", "default",
-            "--site-code", "PWRCLI", "--site-name", "Power CLI", "--country", "FR",
-            "--city", "Paris", "--building-code", "BAT", "--building-name", "Building",
-            "--floor-code", "F01", "--floor-name", "Floor 1", "--floor-index", "1",
-            "--room-code", "MMR", "--room-name", "Main room", "--row", "A",
-            "--column", "01", "--zone-code", "Z1", "--zone-name", "Zone 1",
-            "--zone-row", "A", "--zone-column", "01",
-        ])
+        cli.run(
+            [
+                "dcim",
+                "define-room",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--site-code",
+                "PWRCLI",
+                "--site-name",
+                "Power CLI",
+                "--country",
+                "FR",
+                "--city",
+                "Paris",
+                "--building-code",
+                "BAT",
+                "--building-name",
+                "Building",
+                "--floor-code",
+                "F01",
+                "--floor-name",
+                "Floor 1",
+                "--floor-index",
+                "1",
+                "--room-code",
+                "MMR",
+                "--room-name",
+                "Main room",
+                "--row",
+                "A",
+                "--column",
+                "01",
+                "--zone-code",
+                "Z1",
+                "--zone-name",
+                "Zone 1",
+                "--zone-row",
+                "A",
+                "--zone-column",
+                "01",
+            ]
+        )
         capsys.readouterr()
-        cli.run([
-            "dcim", "define-rack", "--data", str(data), "--tenant", "default",
-            "--site", "PWRCLI", "--building", "BAT", "--floor", "F01", "--room", "MMR",
-            "--rack", "R01", "--row", "A", "--column", "01", "--zone", "Z1",
-            "--units", "12", "--power-capacity-watts", "5000",
-        ])
+        cli.run(
+            [
+                "dcim",
+                "define-rack",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--site",
+                "PWRCLI",
+                "--building",
+                "BAT",
+                "--floor",
+                "F01",
+                "--room",
+                "MMR",
+                "--rack",
+                "R01",
+                "--row",
+                "A",
+                "--column",
+                "01",
+                "--zone",
+                "Z1",
+                "--units",
+                "12",
+                "--power-capacity-watts",
+                "5000",
+            ]
+        )
         capsys.readouterr()
-        cli.run([
-            "dcim", "locate", "--data", str(data), "--tenant", "default",
-            "--asset-tag", "SRV-CLI-PWR", "--equipment-name", "CLI powered",
-            "--site", "PWRCLI", "--building", "BAT", "--floor", "F01", "--room", "MMR",
-            "--zone", "Z1", "--row", "A", "--column", "01", "--rack", "R01", "--u-position", "5",
-        ])
+        cli.run(
+            [
+                "dcim",
+                "locate",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--asset-tag",
+                "SRV-CLI-PWR",
+                "--equipment-name",
+                "CLI powered",
+                "--site",
+                "PWRCLI",
+                "--building",
+                "BAT",
+                "--floor",
+                "F01",
+                "--room",
+                "MMR",
+                "--zone",
+                "Z1",
+                "--row",
+                "A",
+                "--column",
+                "01",
+                "--rack",
+                "R01",
+                "--u-position",
+                "5",
+            ]
+        )
         capsys.readouterr()
-        assert cli.run([
-            "dcim", "define-power-device", "--data", str(data), "--tenant", "default",
-            "--code", "PDU-A", "--kind", "pdu", "--site", "PWRCLI", "--building", "BAT",
-            "--room", "MMR", "--rack", "R01", "--side", "A", "--capacity-watts", "5000",
-        ]) == 0
+        assert (
+            cli.run(
+                [
+                    "dcim",
+                    "define-power-device",
+                    "--data",
+                    str(data),
+                    "--tenant",
+                    "default",
+                    "--code",
+                    "PDU-A",
+                    "--kind",
+                    "pdu",
+                    "--site",
+                    "PWRCLI",
+                    "--building",
+                    "BAT",
+                    "--room",
+                    "MMR",
+                    "--rack",
+                    "R01",
+                    "--side",
+                    "A",
+                    "--capacity-watts",
+                    "5000",
+                ]
+            )
+            == 0
+        )
         capsys.readouterr()
-        assert cli.run([
-            "dcim", "define-power-circuit", "--data", str(data), "--tenant", "default",
-            "--circuit-id", "CIR-A", "--source-device", "PDU-A", "--site", "PWRCLI",
-            "--building", "BAT", "--room", "MMR", "--rack", "R01", "--side", "A",
-            "--capacity-watts", "2500", "--breaker-rating-amps", "16",
-        ]) == 0
+        assert (
+            cli.run(
+                [
+                    "dcim",
+                    "define-power-circuit",
+                    "--data",
+                    str(data),
+                    "--tenant",
+                    "default",
+                    "--circuit-id",
+                    "CIR-A",
+                    "--source-device",
+                    "PDU-A",
+                    "--site",
+                    "PWRCLI",
+                    "--building",
+                    "BAT",
+                    "--room",
+                    "MMR",
+                    "--rack",
+                    "R01",
+                    "--side",
+                    "A",
+                    "--capacity-watts",
+                    "2500",
+                    "--breaker-rating-amps",
+                    "16",
+                ]
+            )
+            == 0
+        )
         capsys.readouterr()
-        assert cli.run([
-            "dcim", "define-cooling-zone", "--data", str(data), "--tenant", "default",
-            "--site", "PWRCLI", "--building", "BAT", "--room", "MMR", "--zone", "Z1",
-            "--role", "cold_aisle", "--cooling-capacity-watts", "3000",
-            "--supply-temperature-c", "18", "--return-temperature-c", "30",
-        ]) == 0
+        assert (
+            cli.run(
+                [
+                    "dcim",
+                    "define-cooling-zone",
+                    "--data",
+                    str(data),
+                    "--tenant",
+                    "default",
+                    "--site",
+                    "PWRCLI",
+                    "--building",
+                    "BAT",
+                    "--room",
+                    "MMR",
+                    "--zone",
+                    "Z1",
+                    "--role",
+                    "cold_aisle",
+                    "--cooling-capacity-watts",
+                    "3000",
+                    "--supply-temperature-c",
+                    "18",
+                    "--return-temperature-c",
+                    "30",
+                ]
+            )
+            == 0
+        )
         capsys.readouterr()
-        assert cli.run([
-            "dcim", "reserve-power", "--data", str(data), "--tenant", "default",
-            "--asset-tag", "SRV-CLI-PWR", "--circuit-id", "CIR-A", "--expected-watts", "700",
-        ]) == 0
+        assert (
+            cli.run(
+                [
+                    "dcim",
+                    "reserve-power",
+                    "--data",
+                    str(data),
+                    "--tenant",
+                    "default",
+                    "--asset-tag",
+                    "SRV-CLI-PWR",
+                    "--circuit-id",
+                    "CIR-A",
+                    "--expected-watts",
+                    "700",
+                ]
+            )
+            == 0
+        )
         capsys.readouterr()
-        assert cli.run([
-            "dcim", "energy-cooling-capacity", "--data", str(data), "--tenant", "default",
-            "--site", "PWRCLI", "--building", "BAT", "--room", "MMR", "--rack", "R01",
-        ]) == 0
+        assert (
+            cli.run(
+                [
+                    "dcim",
+                    "energy-cooling-capacity",
+                    "--data",
+                    str(data),
+                    "--tenant",
+                    "default",
+                    "--site",
+                    "PWRCLI",
+                    "--building",
+                    "BAT",
+                    "--room",
+                    "MMR",
+                    "--rack",
+                    "R01",
+                ]
+            )
+            == 0
+        )
         report = json.loads(capsys.readouterr().out)
         assert report["sides"]["A"]["reserved_watts"] == 700
         assert report["cooling"]["remaining_watts"] == 2300
@@ -365,25 +592,58 @@ class TestDcimEnergyCoolingServices:
         thread.start()
         try:
             base_url = f"http://127.0.0.1:{server.server_port}"
-            self._post_json(base_url + "/api/v1/dcim/power-devices", {
-                "tenant_id": "default", "code": "PDU-A", "kind": "pdu", "site": "PWR1",
-                "building": "BAT-P", "room": "MMR-P", "rack": "R01", "side": "A",
-                "capacity_watts": 5000,
-            })
-            self._post_json(base_url + "/api/v1/dcim/power-circuits", {
-                "tenant_id": "default", "circuit_id": "CIR-A", "source_device": "PDU-A",
-                "site": "PWR1", "building": "BAT-P", "room": "MMR-P", "rack": "R01",
-                "side": "A", "capacity_watts": 2000, "breaker_rating_amps": 16,
-            })
-            self._post_json(base_url + "/api/v1/dcim/cooling-zones", {
-                "tenant_id": "default", "site": "PWR1", "building": "BAT-P", "room": "MMR-P",
-                "zone": "Z1", "role": "cold_aisle", "cooling_capacity_watts": 3000,
-                "supply_temperature_c": 18, "return_temperature_c": 30,
-            })
-            reservation = self._post_json(base_url + "/api/v1/dcim/power-reservations", {
-                "tenant_id": "default", "asset_tag": "SRV-PWR-01", "circuit_id": "CIR-A",
-                "expected_watts": 600,
-            })
+            self._post_json(
+                base_url + "/api/v1/dcim/power-devices",
+                {
+                    "tenant_id": "default",
+                    "code": "PDU-A",
+                    "kind": "pdu",
+                    "site": "PWR1",
+                    "building": "BAT-P",
+                    "room": "MMR-P",
+                    "rack": "R01",
+                    "side": "A",
+                    "capacity_watts": 5000,
+                },
+            )
+            self._post_json(
+                base_url + "/api/v1/dcim/power-circuits",
+                {
+                    "tenant_id": "default",
+                    "circuit_id": "CIR-A",
+                    "source_device": "PDU-A",
+                    "site": "PWR1",
+                    "building": "BAT-P",
+                    "room": "MMR-P",
+                    "rack": "R01",
+                    "side": "A",
+                    "capacity_watts": 2000,
+                    "breaker_rating_amps": 16,
+                },
+            )
+            self._post_json(
+                base_url + "/api/v1/dcim/cooling-zones",
+                {
+                    "tenant_id": "default",
+                    "site": "PWR1",
+                    "building": "BAT-P",
+                    "room": "MMR-P",
+                    "zone": "Z1",
+                    "role": "cold_aisle",
+                    "cooling_capacity_watts": 3000,
+                    "supply_temperature_c": 18,
+                    "return_temperature_c": 30,
+                },
+            )
+            reservation = self._post_json(
+                base_url + "/api/v1/dcim/power-reservations",
+                {
+                    "tenant_id": "default",
+                    "asset_tag": "SRV-PWR-01",
+                    "circuit_id": "CIR-A",
+                    "expected_watts": 600,
+                },
+            )
             report = self._get_json(
                 base_url + "/api/v1/dcim/energy-cooling-capacity?tenant_id=default"
                 "&site=PWR1&building=BAT-P&room=MMR-P&rack=R01"
@@ -396,87 +656,210 @@ class TestDcimEnergyCoolingServices:
             server.server_close()
             thread.join(timeout=5)
 
-
     def test_additional_energy_error_branches_and_auth_api(self, tmp_path: Path) -> None:
         app = self._prepared_app(tmp_path)
         with pytest.raises(NotFoundError):
             app.dcim_environment_service.define_power_device(
                 DefinePowerDeviceCommand(
-                    "default", "pytest", "PDU-R404", "pdu", "PWR1", "BAT-P", "MMR-P", 1000,
-                    rack="R404", side="A",
+                    "default",
+                    "pytest",
+                    "PDU-R404",
+                    "pdu",
+                    "PWR1",
+                    "BAT-P",
+                    "MMR-P",
+                    1000,
+                    rack="R404",
+                    side="A",
                 )
             )
         with pytest.raises(NotFoundError):
             app.dcim_environment_service.define_power_circuit(
                 DefinePowerCircuitCommand(
-                    "default", "pytest", "CIR-MISS-SRC", "PDU404", "PWR1", "BAT-P", "MMR-P",
-                    "R01", "A", 100, 16,
+                    "default",
+                    "pytest",
+                    "CIR-MISS-SRC",
+                    "PDU404",
+                    "PWR1",
+                    "BAT-P",
+                    "MMR-P",
+                    "R01",
+                    "A",
+                    100,
+                    16,
                 )
             )
         app.dcim_environment_service.define_power_device(
             DefinePowerDeviceCommand(
-                "default", "pytest", "PDU-A", "pdu", "PWR1", "BAT-P", "MMR-P", 20000,
-                rack="R01", side="A", derating_percent=100,
+                "default",
+                "pytest",
+                "PDU-A",
+                "pdu",
+                "PWR1",
+                "BAT-P",
+                "MMR-P",
+                20000,
+                rack="R01",
+                side="A",
+                derating_percent=100,
             )
         )
         app.dcim_environment_service.define_power_device(
             DefinePowerDeviceCommand(
-                "default", "pytest", "PDU-ROOMLESS", "pdu", "PWR1", "BAT-P", "MMR-P", 2000,
-                side=None, derating_percent=100,
+                "default",
+                "pytest",
+                "PDU-ROOMLESS",
+                "pdu",
+                "PWR1",
+                "BAT-P",
+                "MMR-P",
+                2000,
+                side=None,
+                derating_percent=100,
             )
         )
         with pytest.raises(NotFoundError):
             app.dcim_environment_service.define_power_circuit(
                 DefinePowerCircuitCommand(
-                    "default", "pytest", "CIR-MISS-RACK", "PDU-A", "PWR1", "BAT-P", "MMR-P",
-                    "R404", "A", 100, 16,
+                    "default",
+                    "pytest",
+                    "CIR-MISS-RACK",
+                    "PDU-A",
+                    "PWR1",
+                    "BAT-P",
+                    "MMR-P",
+                    "R404",
+                    "A",
+                    100,
+                    16,
                 )
             )
         app.dcim_topology_service.define_room(
             DefinePhysicalRoomCommand(
-                "default", "pytest", "OTHER", "Other", "FR", "IDF", "Paris",
-                "BAT-P", "Other Building", "F01", "Floor 1", 1, "MMR-P", "Other Room",
-                ("A",), ("01",), "Z1", "Zone", ("A",), ("01",),
+                "default",
+                "pytest",
+                "OTHER",
+                "Other",
+                "FR",
+                "IDF",
+                "Paris",
+                "BAT-P",
+                "Other Building",
+                "F01",
+                "Floor 1",
+                1,
+                "MMR-P",
+                "Other Room",
+                ("A",),
+                ("01",),
+                "Z1",
+                "Zone",
+                ("A",),
+                ("01",),
             )
         )
         app.dcim_rack_service.define_rack(
             DefineRackCommand(
-                "default", "pytest", "OTHER", "BAT-P", "MMR-P", "R01", "A", "01", 12,
-                floor="F01", zone="Z1", power_capacity_watts=12000,
+                "default",
+                "pytest",
+                "OTHER",
+                "BAT-P",
+                "MMR-P",
+                "R01",
+                "A",
+                "01",
+                12,
+                floor="F01",
+                zone="Z1",
+                power_capacity_watts=12000,
             )
         )
         app.dcim_topology_service.define_room(
             DefinePhysicalRoomCommand(
-                "default", "pytest", "PWR1", "Power DC", "FR", "IDF", "Paris",
-                "BAT-P", "Power Building", "F02", "Floor 2", 2, "MMR-X", "Other Room",
-                ("A",), ("01",), "Z1", "Zone", ("A",), ("01",),
+                "default",
+                "pytest",
+                "PWR1",
+                "Power DC",
+                "FR",
+                "IDF",
+                "Paris",
+                "BAT-P",
+                "Power Building",
+                "F02",
+                "Floor 2",
+                2,
+                "MMR-X",
+                "Other Room",
+                ("A",),
+                ("01",),
+                "Z1",
+                "Zone",
+                ("A",),
+                ("01",),
             )
         )
         app.dcim_rack_service.define_rack(
             DefineRackCommand(
-                "default", "pytest", "PWR1", "BAT-P", "MMR-X", "R01", "A", "01", 12,
-                floor="F02", zone="Z1", power_capacity_watts=12000,
+                "default",
+                "pytest",
+                "PWR1",
+                "BAT-P",
+                "MMR-X",
+                "R01",
+                "A",
+                "01",
+                12,
+                floor="F02",
+                zone="Z1",
+                power_capacity_watts=12000,
             )
         )
         with pytest.raises(ValidationError):
             app.dcim_environment_service.define_power_circuit(
                 DefinePowerCircuitCommand(
-                    "default", "pytest", "CIR-SITE", "PDU-A", "OTHER", "BAT-P", "MMR-P",
-                    "R01", "A", 100, 16,
+                    "default",
+                    "pytest",
+                    "CIR-SITE",
+                    "PDU-A",
+                    "OTHER",
+                    "BAT-P",
+                    "MMR-P",
+                    "R01",
+                    "A",
+                    100,
+                    16,
                 )
             )
         with pytest.raises(ValidationError):
             app.dcim_environment_service.define_power_circuit(
                 DefinePowerCircuitCommand(
-                    "default", "pytest", "CIR-ROOM", "PDU-A", "PWR1", "BAT-P", "MMR-X",
-                    "R01", "A", 100, 16,
+                    "default",
+                    "pytest",
+                    "CIR-ROOM",
+                    "PDU-A",
+                    "PWR1",
+                    "BAT-P",
+                    "MMR-X",
+                    "R01",
+                    "A",
+                    100,
+                    16,
                 )
             )
         with pytest.raises(ConflictError):
             app.dcim_environment_service.define_power_circuit(
                 DefinePowerCircuitCommand(
-                    "default", "pytest", "CIR-RACK-CAP", "PDU-A", "PWR1", "BAT-P", "MMR-P",
-                    "R01", "A", 10001, 16,
+                    "default",
+                    "pytest",
+                    "CIR-RACK-CAP",
+                    "PDU-A",
+                    "PWR1",
+                    "BAT-P",
+                    "MMR-P",
+                    "R01",
+                    "A",
+                    10001,
+                    16,
                 )
             )
         with pytest.raises(NotFoundError):
@@ -496,14 +879,33 @@ class TestDcimEnergyCoolingServices:
 
         app.dcim_rack_service.define_rack(
             DefineRackCommand(
-                "default", "pytest", "PWR1", "BAT-P", "MMR-P", "R02", "A", "02", 12,
-                floor="F01", zone="Z1", power_capacity_watts=12000,
+                "default",
+                "pytest",
+                "PWR1",
+                "BAT-P",
+                "MMR-P",
+                "R02",
+                "A",
+                "02",
+                12,
+                floor="F01",
+                zone="Z1",
+                power_capacity_watts=12000,
             )
         )
         app.dcim_environment_service.define_power_circuit(
             DefinePowerCircuitCommand(
-                "default", "pytest", "CIR-R02", "PDU-ROOMLESS", "PWR1", "BAT-P", "MMR-P",
-                "R02", "A", 500, 16,
+                "default",
+                "pytest",
+                "CIR-R02",
+                "PDU-ROOMLESS",
+                "PWR1",
+                "BAT-P",
+                "MMR-P",
+                "R02",
+                "A",
+                500,
+                16,
             )
         )
         with pytest.raises(ValidationError):
@@ -512,7 +914,17 @@ class TestDcimEnergyCoolingServices:
             )
         app.dcim_environment_service.define_power_circuit(
             DefinePowerCircuitCommand(
-                "default", "pytest", "CIR-A", "PDU-A", "PWR1", "BAT-P", "MMR-P", "R01", "A", 1000, 16
+                "default",
+                "pytest",
+                "CIR-A",
+                "PDU-A",
+                "PWR1",
+                "BAT-P",
+                "MMR-P",
+                "R01",
+                "A",
+                1000,
+                16,
             )
         )
         with pytest.raises(ConflictError):
@@ -535,25 +947,62 @@ class TestDcimEnergyCoolingServices:
         thread.start()
         try:
             base_url = f"http://127.0.0.1:{server.server_port}"
-            self._post_json(base_url + "/api/v1/dcim/power-devices", {
-                "tenant_id": "default", "code": "PDU-B", "kind": "pdu", "site": "PWR1",
-                "building": "BAT-P", "room": "MMR-P", "rack": "R01", "side": "B",
-                "capacity_watts": 2000,
-            }, token=token)
-            self._post_json(base_url + "/api/v1/dcim/power-circuits", {
-                "tenant_id": "default", "circuit_id": "CIR-B", "source_device": "PDU-B",
-                "site": "PWR1", "building": "BAT-P", "room": "MMR-P", "rack": "R01",
-                "side": "B", "capacity_watts": 1000, "breaker_rating_amps": 16,
-            }, token=token)
-            self._post_json(base_url + "/api/v1/dcim/cooling-zones", {
-                "tenant_id": "default", "site": "PWR1", "building": "BAT-P", "room": "MMR-P",
-                "zone": "Z1", "role": "hot_aisle", "cooling_capacity_watts": 5000,
-                "supply_temperature_c": 20, "return_temperature_c": 35,
-            }, token=token)
-            self._post_json(base_url + "/api/v1/dcim/power-reservations", {
-                "tenant_id": "default", "asset_tag": "SRV-PWR-01", "circuit_id": "CIR-B",
-                "expected_watts": 300,
-            }, token=token)
+            self._post_json(
+                base_url + "/api/v1/dcim/power-devices",
+                {
+                    "tenant_id": "default",
+                    "code": "PDU-B",
+                    "kind": "pdu",
+                    "site": "PWR1",
+                    "building": "BAT-P",
+                    "room": "MMR-P",
+                    "rack": "R01",
+                    "side": "B",
+                    "capacity_watts": 2000,
+                },
+                token=token,
+            )
+            self._post_json(
+                base_url + "/api/v1/dcim/power-circuits",
+                {
+                    "tenant_id": "default",
+                    "circuit_id": "CIR-B",
+                    "source_device": "PDU-B",
+                    "site": "PWR1",
+                    "building": "BAT-P",
+                    "room": "MMR-P",
+                    "rack": "R01",
+                    "side": "B",
+                    "capacity_watts": 1000,
+                    "breaker_rating_amps": 16,
+                },
+                token=token,
+            )
+            self._post_json(
+                base_url + "/api/v1/dcim/cooling-zones",
+                {
+                    "tenant_id": "default",
+                    "site": "PWR1",
+                    "building": "BAT-P",
+                    "room": "MMR-P",
+                    "zone": "Z1",
+                    "role": "hot_aisle",
+                    "cooling_capacity_watts": 5000,
+                    "supply_temperature_c": 20,
+                    "return_temperature_c": 35,
+                },
+                token=token,
+            )
+            self._post_json(
+                base_url + "/api/v1/dcim/power-reservations",
+                {
+                    "tenant_id": "default",
+                    "asset_tag": "SRV-PWR-01",
+                    "circuit_id": "CIR-B",
+                    "expected_watts": 300,
+                },
+                token=token,
+            )
             for path in (
                 "/api/v1/dcim/power-devices",
                 "/api/v1/dcim/power-circuits",
@@ -579,11 +1028,15 @@ class TestDcimEnergyCoolingServices:
         with pytest.raises(ValidationError):
             PowerDevice.create(tenant, "PD1", "pdu", "S", "B", "R", None, None, 1, 80, "src", 47)
         with pytest.raises(ValidationError):
-            PowerDevice.create(tenant, "PD1", "pdu", "S", "B", "R", None, None, 1, 80, "src", 230, "x" * 161)
+            PowerDevice.create(
+                tenant, "PD1", "pdu", "S", "B", "R", None, None, 1, 80, "src", 230, "x" * 161
+            )
         with pytest.raises(ValidationError):
             PowerCircuit.create(tenant, "C1", "PD1", "S", "B", "R", "RK", "A", 1, 16, "")
         with pytest.raises(ValidationError):
-            PowerCircuit.create(tenant, "C1", "PD1", "S", "B", "R", "RK", "A", 1, 16, "g", "x" * 161)
+            PowerCircuit.create(
+                tenant, "C1", "PD1", "S", "B", "R", "RK", "A", 1, 16, "g", "x" * 161
+            )
         with pytest.raises(ValidationError):
             CoolingZone.create(tenant, "S", "B", "R", "Z", "cold_aisle", 1, 4, 30)
         with pytest.raises(ValidationError):

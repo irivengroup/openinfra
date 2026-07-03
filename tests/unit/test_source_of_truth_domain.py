@@ -91,6 +91,7 @@ class TestSourceOfTruthDomain:
         with pytest.raises(ValidationError):
             SourceObjectKey.from_value("device//srv")
         from openinfra.domain.source_of_truth import RelationType, SourceSystem
+
         with pytest.raises(ValidationError):
             SourceSystem.from_value("1bad")
         with pytest.raises(ValidationError):

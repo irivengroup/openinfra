@@ -339,86 +339,166 @@ class TestDcimVisualizationServices:
         room.assert_zone_known(None)
         with pytest.raises(ValidationError):
             EntityId.from_value("   ")
-        assert QrCodeSvgDocument.from_payload("A").to_svg(
-            module_size=2,
-            border=0,
-        ).startswith("<svg")
+        assert (
+            QrCodeSvgDocument.from_payload("A")
+            .to_svg(
+                module_size=2,
+                border=0,
+            )
+            .startswith("<svg")
+        )
 
     def test_visualization_cli_commands(self, tmp_path: Path, capsys: object) -> None:
         data = tmp_path / "state.json"
         app = self._prepared_app(tmp_path)
         app.store.flush()
 
-        assert OpenInfraCLI().run([
-            "dcim", "room-plan",
-            "--data", str(data),
-            "--tenant", "default",
-            "--site", "VIS1",
-            "--building", "BAT-V",
-            "--room", "ROOM-V",
-        ]) == 0
+        assert (
+            OpenInfraCLI().run(
+                [
+                    "dcim",
+                    "room-plan",
+                    "--data",
+                    str(data),
+                    "--tenant",
+                    "default",
+                    "--site",
+                    "VIS1",
+                    "--building",
+                    "BAT-V",
+                    "--room",
+                    "ROOM-V",
+                ]
+            )
+            == 0
+        )
         plan_payload = json.loads(capsys.readouterr().out)
         assert plan_payload["type"] == "room_plan_2d"
 
-        assert OpenInfraCLI().run([
-            "dcim", "room-plan",
-            "--data", str(data),
-            "--tenant", "default",
-            "--site", "VIS1",
-            "--building", "BAT-V",
-            "--room", "ROOM-V",
-            "--format", "svg",
-        ]) == 0
+        assert (
+            OpenInfraCLI().run(
+                [
+                    "dcim",
+                    "room-plan",
+                    "--data",
+                    str(data),
+                    "--tenant",
+                    "default",
+                    "--site",
+                    "VIS1",
+                    "--building",
+                    "BAT-V",
+                    "--room",
+                    "ROOM-V",
+                    "--format",
+                    "svg",
+                ]
+            )
+            == 0
+        )
         assert capsys.readouterr().out.startswith("<svg")
 
-        assert OpenInfraCLI().run([
-            "dcim", "room-plan",
-            "--data", str(data),
-            "--tenant", "default",
-            "--site", "VIS1",
-            "--building", "BAT-V",
-            "--room", "ROOM-V",
-            "--format", "html",
-        ]) == 0
+        assert (
+            OpenInfraCLI().run(
+                [
+                    "dcim",
+                    "room-plan",
+                    "--data",
+                    str(data),
+                    "--tenant",
+                    "default",
+                    "--site",
+                    "VIS1",
+                    "--building",
+                    "BAT-V",
+                    "--room",
+                    "ROOM-V",
+                    "--format",
+                    "html",
+                ]
+            )
+            == 0
+        )
         assert "Plan 2D" in capsys.readouterr().out
 
-        assert OpenInfraCLI().run([
-            "dcim", "rack-elevation",
-            "--data", str(data),
-            "--tenant", "default",
-            "--site", "VIS1",
-            "--building", "BAT-V",
-            "--room", "ROOM-V",
-            "--rack", "R01",
-            "--face", "front",
-        ]) == 0
+        assert (
+            OpenInfraCLI().run(
+                [
+                    "dcim",
+                    "rack-elevation",
+                    "--data",
+                    str(data),
+                    "--tenant",
+                    "default",
+                    "--site",
+                    "VIS1",
+                    "--building",
+                    "BAT-V",
+                    "--room",
+                    "ROOM-V",
+                    "--rack",
+                    "R01",
+                    "--face",
+                    "front",
+                ]
+            )
+            == 0
+        )
         rack_json = json.loads(capsys.readouterr().out)
         assert rack_json["type"] == "rack_elevation"
 
-        assert OpenInfraCLI().run([
-            "dcim", "rack-elevation",
-            "--data", str(data),
-            "--tenant", "default",
-            "--site", "VIS1",
-            "--building", "BAT-V",
-            "--room", "ROOM-V",
-            "--rack", "R01",
-            "--face", "front",
-            "--format", "svg",
-        ]) == 0
+        assert (
+            OpenInfraCLI().run(
+                [
+                    "dcim",
+                    "rack-elevation",
+                    "--data",
+                    str(data),
+                    "--tenant",
+                    "default",
+                    "--site",
+                    "VIS1",
+                    "--building",
+                    "BAT-V",
+                    "--room",
+                    "ROOM-V",
+                    "--rack",
+                    "R01",
+                    "--face",
+                    "front",
+                    "--format",
+                    "svg",
+                ]
+            )
+            == 0
+        )
         assert capsys.readouterr().out.startswith("<svg")
 
-        assert OpenInfraCLI().run([
-            "dcim", "rack-elevation",
-            "--data", str(data),
-            "--tenant", "default",
-            "--site", "VIS1",
-            "--building", "BAT-V",
-            "--room", "ROOM-V",
-            "--rack", "R01",
-            "--face", "front",
-            "--format", "html",
-        ]) == 0
+        assert (
+            OpenInfraCLI().run(
+                [
+                    "dcim",
+                    "rack-elevation",
+                    "--data",
+                    str(data),
+                    "--tenant",
+                    "default",
+                    "--site",
+                    "VIS1",
+                    "--building",
+                    "BAT-V",
+                    "--room",
+                    "ROOM-V",
+                    "--rack",
+                    "R01",
+                    "--face",
+                    "front",
+                    "--format",
+                    "html",
+                ]
+            )
+            == 0
+        )
         assert "Rack elevation" in capsys.readouterr().out
 
     def test_visualization_http_api(self, tmp_path: Path) -> None:

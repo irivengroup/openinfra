@@ -23,7 +23,7 @@ class TestHttpApi:
             health = self._get_json(base_url + "/health")
             ready = self._get_json(base_url + "/ready")
             version = self._get_json(base_url + "/api/v1/version")
-            schema = self._get_json(base_url + "/api/v1/database/schema")
+            self._get_json(base_url + "/api/v1/database/schema")
             allocation = self._post_json(
                 base_url + "/api/v1/ipam/allocate",
                 {
@@ -38,13 +38,12 @@ class TestHttpApi:
             assert health["status"] == "ok"
             assert ready["ready"] is True
             assert ready["component"] == "json"
-            assert version["version"] == "0.17.0"
+            assert version["version"] == "0.17.1"
             assert allocation["address"] == "10.6.0.1"
         finally:
             server.shutdown()
             server.server_close()
             thread.join(timeout=5)
-
 
     def test_authenticated_ipam_allocation_requires_valid_bearer_token(
         self,
@@ -454,6 +453,7 @@ class TestAuditHttpApi:
             server.server_close()
             thread.join(timeout=5)
 
+
 class TestSourceOfTruthHttpApi:
     def test_sot_api_objects_relations_and_versions(self, tmp_path: Path) -> None:
         helper = TestHttpApi()
@@ -543,6 +543,7 @@ class TestSourceOfTruthHttpApi:
             server.shutdown()
             server.server_close()
             thread.join(timeout=5)
+
 
 class TestSourceGovernanceHttpApi:
     def test_governance_api_rules_evaluation_and_deactivation(self, tmp_path: Path) -> None:
@@ -743,6 +744,7 @@ class TestSourceGovernanceHttpApi:
             server.shutdown()
             server.server_close()
             thread.join(timeout=5)
+
 
 def test_dcim_locator_sheet_and_scan_api_endpoint(tmp_path: Path) -> None:
     from openinfra.application.dcim_services import LocateEquipmentCommand

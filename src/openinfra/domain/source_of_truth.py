@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any, Self
 
-from openinfra.domain.common import EntityId, Pagination, TenantId, ValidationError
+from openinfra.domain.common import EntityId, TenantId, ValidationError
 
 
 class SourceObjectKind(StrEnum):
@@ -364,8 +364,10 @@ class SourceRelation:
 
     def is_valid_at(self, at: datetime) -> bool:
         normalized = SourceOfTruthObject._normalize_datetime(at, "as_of")
-        return self.active and self.valid_from <= normalized and (
-            self.valid_to is None or normalized < self.valid_to
+        return (
+            self.active
+            and self.valid_from <= normalized
+            and (self.valid_to is None or normalized < self.valid_to)
         )
 
     def as_dict(self) -> dict[str, object]:

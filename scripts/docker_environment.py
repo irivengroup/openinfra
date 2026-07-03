@@ -102,16 +102,18 @@ class DockerRuntimeEnvironmentCli:
             runner.run(["up", "--build", "-d", "postgres", "migrate", "api"])
             return
         if action == "validate":
-            runner.run([
-                "--profile",
-                "validation",
-                "up",
-                "--build",
-                "--abort-on-container-exit",
-                "--exit-code-from",
-                "smoke",
-                "smoke",
-            ])
+            runner.run(
+                [
+                    "--profile",
+                    "validation",
+                    "up",
+                    "--build",
+                    "--abort-on-container-exit",
+                    "--exit-code-from",
+                    "smoke",
+                    "smoke",
+                ]
+            )
             return
         if action == "status":
             runner.run(["ps"])

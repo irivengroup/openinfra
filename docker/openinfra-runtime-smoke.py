@@ -95,7 +95,6 @@ class RuntimeSmokeScenario:
         if schema.get("backend") != "postgresql" or schema.get("ready") is not True:
             raise SmokeError("unexpected schema status: " + json.dumps(schema, sort_keys=True))
 
-
     def _assert_security_lifecycle(self) -> None:
         worker_token = secrets.token_urlsafe(48)
         bootstrap_command = [
@@ -141,7 +140,6 @@ class RuntimeSmokeScenario:
             raise SmokeError(
                 "security token revocation failed: " + json.dumps(revoked, sort_keys=True)
             )
-
 
     def _assert_identity_lifecycle(self) -> None:
         user = self._client.post(
@@ -189,9 +187,6 @@ class RuntimeSmokeScenario:
             raise SmokeError(
                 "identity effective roles failed: " + json.dumps(effective, sort_keys=True)
             )
-
-
-
 
     def _assert_source_of_truth_lifecycle(self) -> None:
         device = self._client.post(
@@ -288,7 +283,6 @@ class RuntimeSmokeScenario:
             raise SmokeError(
                 "source governance evaluation failed: " + json.dumps(evaluated, sort_keys=True)
             )
-
 
     def _assert_dcim_physical_model(self) -> None:
         room = self._client.post(
@@ -410,8 +404,7 @@ class RuntimeSmokeScenario:
             "/api/v1/dcim/room-plan?tenant_id=default&site=PAR1&building=BAT-A&room=MMR1"
         )
         room_svg = self._client.get(
-            "/api/v1/dcim/room-plan?tenant_id=default&site=PAR1"
-            "&building=BAT-A&room=MMR1&format=svg"
+            "/api/v1/dcim/room-plan?tenant_id=default&site=PAR1&building=BAT-A&room=MMR1&format=svg"
         )
         elevation = self._client.get(
             "/api/v1/dcim/rack-elevation?tenant_id=default&site=PAR1"

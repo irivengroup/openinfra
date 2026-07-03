@@ -70,8 +70,8 @@ from openinfra.domain.dcim import (
     PowerDeviceKind,
     PowerFeedSide,
     Rack,
-    RackPowerReservation,
     RackFace,
+    RackPowerReservation,
     Room,
     RoomZone,
     Site,
@@ -381,11 +381,10 @@ class PostgreSQLDriver:
             rows = importlib.import_module("psycopg.rows")
         except ModuleNotFoundError as exc:
             raise OpenInfraError(
-                "postgresql backend requires optional dependency: "
-                "pip install openinfra[postgresql]"
+                "postgresql backend requires optional dependency: pip install openinfra[postgresql]"
             ) from exc
-        connect = cast(Callable[..., ConnectionProtocol], getattr(psycopg, "connect"))
-        row_factory = getattr(rows, "dict_row")
+        connect = cast(Callable[..., ConnectionProtocol], psycopg.connect)
+        row_factory = rows.dict_row
         return connect(
             dsn,
             autocommit=False,
@@ -431,7 +430,7 @@ class PostgreSQLSessionRegistry:
         connection = getattr(self._local, "connection", None)
         if connection is None:
             raise OpenInfraError("postgresql operation requires an active unit of work")
-        return connection
+        return cast(ConnectionProtocol, connection)
 
 
 class PostgreSQLUnitOfWork(UnitOfWork):
@@ -519,14 +518,11 @@ class PostgreSQLReadinessProbe(ReadinessProbe):
         )
         row = cursor.fetchone()
         if row is None or row.get("migration_table") is None:
-            pending = tuple(
-                catalog.load(name)
-                for name in catalog.list_names()
-            )
+            missing_history_pending = tuple(catalog.load(name) for name in catalog.list_names())
             return PostgreSQLSchemaStatus(
                 False,
                 (),
-                pending,
+                missing_history_pending,
                 "postgresql schema history is missing; run openinfra database apply-migrations",
             )
         cursor.execute(
@@ -626,6 +622,28 @@ class PostgreSQLRepositoryBase:
             """,
             {"tenant_id": tenant_id.value, "display_name": tenant_id.value},
         )
+
+    def _row_int(self, row: Mapping[str, object], key: str) -> int:
+        return int(str(row[key]))
+
+    def _row_int_or_default(self, row: Mapping[str, object], key: str, default: int) -> int:
+        value = row.get(key)
+        return default if value is None else int(str(value))
+
+    def _row_float(self, row: Mapping[str, object], key: str) -> float:
+        return float(str(row[key]))
+
+    def _row_sequence(self, row: Mapping[str, object], key: str) -> Sequence[object]:
+        return cast(Sequence[object], row[key])
+
+    def _row_optional_sequence(
+        self,
+        row: Mapping[str, object],
+        key: str,
+        default: Sequence[object],
+    ) -> Sequence[object]:
+        value = row.get(key)
+        return default if value is None else cast(Sequence[object], value)
 
 
 class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
@@ -785,7 +803,6 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
                 "power_capacity_watts": rack.power_capacity_watts,
             },
         )
-
 
     def add_patch_panel(self, patch_panel: PatchPanel) -> None:
         self._ensure_tenant(patch_panel.tenant_id)
@@ -1182,7 +1199,6 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
         )
         return self._rack_from_row(row) if row else None
 
-
     def find_patch_panel(
         self,
         tenant_id: TenantId,
@@ -1411,7 +1427,6 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             },
         )
         return tuple(self._rack_from_row(row) for row in rows)
-
 
     def list_patch_panels_in_rack(
         self,
@@ -1646,7 +1661,7 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             building_code=Code.from_value(str(row["building_code"]), "building code"),
             code=Code.from_value(str(row["code"]), "floor code"),
             name=Name.from_value(str(row["name"]), "floor name"),
-            level_index=int(row["level_index"]),
+            level_index=self._row_int(row, "level_index"),
         )
 
     def _room_from_row(self, row: Mapping[str, object]) -> Room:
@@ -1655,7 +1670,7 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             self._float_or_none(row.get("coordinate_y")),
             self._float_or_none(row.get("coordinate_z")),
         )
-        zone_values = row.get("zone_codes") or []
+        zone_values = self._row_optional_sequence(row, "zone_codes", ())
         return Room(
             id=EntityId.from_value(str(row["id"])),
             tenant_id=TenantId.from_value(str(row["tenant_id"])),
@@ -1663,8 +1678,8 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             building_code=Code.from_value(str(row["building_code"]), "building code"),
             code=Code.from_value(str(row["code"]), "room code"),
             name=Name.from_value(str(row["name"]), "room name"),
-            rows=tuple(str(value) for value in cast(Sequence[object], row["rows"])),
-            columns=tuple(str(value) for value in cast(Sequence[object], row["columns"])),
+            rows=tuple(str(value) for value in self._row_sequence(row, "rows")),
+            columns=tuple(str(value) for value in self._row_sequence(row, "columns")),
             floor_code=(
                 Code.from_value(str(row["floor_code"]), "floor code")
                 if row.get("floor_code") is not None
@@ -1684,8 +1699,8 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             room_code=Code.from_value(str(row["room_code"]), "room code"),
             code=Code.from_value(str(row["code"]), "zone code"),
             name=Name.from_value(str(row["name"]), "zone name"),
-            rows=tuple(str(value) for value in cast(Sequence[object], row["rows"])),
-            columns=tuple(str(value) for value in cast(Sequence[object], row["columns"])),
+            rows=tuple(str(value) for value in self._row_sequence(row, "rows")),
+            columns=tuple(str(value) for value in self._row_sequence(row, "columns")),
         )
 
     def _rack_from_row(self, row: Mapping[str, object]) -> Rack:
@@ -1703,13 +1718,21 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             code=Code.from_value(str(row["code"]), "rack code"),
             row=str(row["row_code"]),
             column=str(row["column_code"]),
-            units=int(row["units"]),
+            units=self._row_int(row, "units"),
             coordinates=coordinates,
-            floor_code=str(row["floor_code"]) if row.get("floor_code") is not None else None,
-            zone_code=str(row["zone_code"]) if row.get("zone_code") is not None else None,
+            floor_code=(
+                Code.from_value(str(row["floor_code"]), "floor code")
+                if row.get("floor_code") is not None
+                else None
+            ),
+            zone_code=(
+                Code.from_value(str(row["zone_code"]), "zone code")
+                if row.get("zone_code") is not None
+                else None
+            ),
             usable_faces=tuple(
                 RackFace.from_value(str(face)) or RackFace.FRONT
-                for face in cast(Sequence[object], row.get("usable_faces") or ["front"])
+                for face in self._row_optional_sequence(row, "usable_faces", ("front",))
             ),
             max_weight_kg=(
                 self._float_or_none(row.get("max_weight_kg"))
@@ -1717,7 +1740,7 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
                 else None
             ),
             power_capacity_watts=(
-                int(row["power_capacity_watts"])
+                self._row_int(row, "power_capacity_watts")
                 if row.get("power_capacity_watts") is not None
                 else None
             ),
@@ -1736,12 +1759,12 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             row=str(row["row_code"]),
             column=str(row["column_code"]),
             rack_code=str(row["rack_code"]) if row["rack_code"] is not None else None,
-            u_position=int(row["u_position"]) if row["u_position"] is not None else None,
+            u_position=self._row_int(row, "u_position") if row["u_position"] is not None else None,
             coordinates=coordinates,
             floor_code=str(row["floor_code"]) if row.get("floor_code") is not None else None,
             zone_code=str(row["zone_code"]) if row.get("zone_code") is not None else None,
             rack_face=str(row["rack_face"]) if row.get("rack_face") is not None else None,
-            u_height=int(row["u_height"]) if row.get("u_height") is not None else None,
+            u_height=self._row_int(row, "u_height") if row.get("u_height") is not None else None,
         )
         return Equipment(
             id=EntityId.from_value(str(row["id"])),
@@ -1749,6 +1772,82 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             asset_tag=Code.from_value(str(row["asset_tag"]), "asset tag"),
             name=Name.from_value(str(row["name"]), "equipment name"),
             location=location,
+        )
+
+    def _patch_panel_from_row(self, row: Mapping[str, object]) -> PatchPanel:
+        rack_face = RackFace.from_value(str(row["rack_face"]))
+        if rack_face is None:
+            raise ValidationError("postgresql patch panel row has no rack face")
+        return PatchPanel(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            site_code=Code.from_value(str(row["site_code"]), "site code"),
+            building_code=Code.from_value(str(row["building_code"]), "building code"),
+            room_code=Code.from_value(str(row["room_code"]), "room code"),
+            rack_code=Code.from_value(str(row["rack_code"]), "rack code"),
+            code=Code.from_value(str(row["code"]), "patch panel code"),
+            rack_face=rack_face,
+            u_position=self._row_int(row, "u_position"),
+            u_height=self._row_int(row, "u_height"),
+            port_count=self._row_int(row, "port_count"),
+            connector=DcimConnectorType.from_value(str(row["connector"])),
+            medium=DcimCableMedium.from_value(str(row["medium"])),
+            label=str(row.get("label") or ""),
+        )
+
+    def _dcim_port_from_row(self, row: Mapping[str, object]) -> DcimPort:
+        return DcimPort(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            endpoint=DcimPortEndpoint.create(
+                str(row["owner_type"]),
+                str(row["owner_code"]),
+                str(row["port_name"]),
+            ),
+            site_code=Code.from_value(str(row["site_code"]), "site code"),
+            building_code=Code.from_value(str(row["building_code"]), "building code"),
+            room_code=Code.from_value(str(row["room_code"]), "room code"),
+            connector=DcimConnectorType.from_value(str(row["connector"])),
+            medium=DcimCableMedium.from_value(str(row["medium"])),
+            enabled=bool(row["enabled"]),
+        )
+
+    def _dcim_cable_from_row(self, row: Mapping[str, object]) -> DcimCable:
+        return DcimCable(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            cable_id=Code.from_value(str(row["cable_id"]), "cable id"),
+            a_endpoint=DcimPortEndpoint.create(
+                str(row["a_owner_type"]),
+                str(row["a_owner_code"]),
+                str(row["a_port_name"]),
+            ),
+            b_endpoint=DcimPortEndpoint.create(
+                str(row["b_owner_type"]),
+                str(row["b_owner_code"]),
+                str(row["b_port_name"]),
+            ),
+            medium=DcimCableMedium.from_value(str(row["medium"])),
+            status=DcimCableStatus.from_value(str(row["status"])),
+            path=self._dcim_cable_path_from_row(row),
+            length_m=self._float_or_none(row.get("length_m")),
+            label=str(row.get("label") or ""),
+        )
+
+    def _dcim_cable_path_from_row(
+        self,
+        row: Mapping[str, object],
+    ) -> tuple[DcimCablePathSegment, ...]:
+        raw_path = row.get("path_segments")
+        decoded = json.loads(raw_path) if isinstance(raw_path, str) else raw_path
+        path_items = cast(Sequence[Mapping[str, object]], decoded or ())
+        return tuple(
+            DcimCablePathSegment.create(
+                order=self._row_int(item, "order"),
+                kind=str(item.get("kind") or "path"),
+                label=str(item["label"]),
+            )
+            for item in path_items
         )
 
     def _power_device_from_row(self, row: Mapping[str, object]) -> PowerDevice:
@@ -1760,12 +1859,16 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             site_code=Code.from_value(str(row["site_code"]), "site code"),
             building_code=Code.from_value(str(row["building_code"]), "building code"),
             room_code=Code.from_value(str(row["room_code"]), "room code"),
-            rack_code=Code.from_value(str(row["rack_code"]), "rack code") if row.get("rack_code") is not None else None,
-            side=PowerFeedSide.from_value(str(row["side"])) if row.get("side") is not None else None,
-            capacity_watts=int(row["capacity_watts"]),
-            derating_percent=int(row["derating_percent"]),
+            rack_code=Code.from_value(str(row["rack_code"]), "rack code")
+            if row.get("rack_code") is not None
+            else None,
+            side=PowerFeedSide.from_value(str(row["side"]))
+            if row.get("side") is not None
+            else None,
+            capacity_watts=self._row_int(row, "capacity_watts"),
+            derating_percent=self._row_int(row, "derating_percent"),
             input_source=str(row["input_source"]),
-            output_voltage=int(row["output_voltage"]),
+            output_voltage=self._row_int(row, "output_voltage"),
             label=str(row.get("label") or ""),
         )
 
@@ -1780,8 +1883,8 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             room_code=Code.from_value(str(row["room_code"]), "room code"),
             rack_code=Code.from_value(str(row["rack_code"]), "rack code"),
             side=PowerFeedSide.from_value(str(row["side"])),
-            capacity_watts=int(row["capacity_watts"]),
-            breaker_rating_amps=int(row["breaker_rating_amps"]),
+            capacity_watts=self._row_int(row, "capacity_watts"),
+            breaker_rating_amps=self._row_int(row, "breaker_rating_amps"),
             redundancy_group=str(row["redundancy_group"]),
             label=str(row.get("label") or ""),
         )
@@ -1795,9 +1898,9 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             room_code=Code.from_value(str(row["room_code"]), "room code"),
             zone_code=Code.from_value(str(row["zone_code"]), "zone code"),
             role=CoolingRole.from_value(str(row["role"])),
-            cooling_capacity_watts=int(row["cooling_capacity_watts"]),
-            supply_temperature_c=float(row["supply_temperature_c"]),
-            return_temperature_c=float(row["return_temperature_c"]),
+            cooling_capacity_watts=self._row_int(row, "cooling_capacity_watts"),
+            supply_temperature_c=self._row_float(row, "supply_temperature_c"),
+            return_temperature_c=self._row_float(row, "return_temperature_c"),
             label=str(row.get("label") or ""),
         )
 
@@ -1812,12 +1915,12 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             building_code=Code.from_value(str(row["building_code"]), "building code"),
             room_code=Code.from_value(str(row["room_code"]), "room code"),
             rack_code=Code.from_value(str(row["rack_code"]), "rack code"),
-            expected_watts=int(row["expected_watts"]),
+            expected_watts=self._row_int(row, "expected_watts"),
             label=str(row.get("label") or ""),
         )
 
     def _float_or_none(self, value: object) -> float | None:
-        return None if value is None else float(value)
+        return None if value is None else float(str(value))
 
 
 class PostgreSQLIpamRepository(PostgreSQLRepositoryBase, IpamRepository):
@@ -2246,24 +2349,26 @@ class PostgreSQLSecurityRepository(PostgreSQLRepositoryBase, SecurityRepository)
             raise ValidationError("pagination cursor must be a numeric offset") from exc
         if cursor_offset < 0:
             raise ValidationError("pagination cursor must be positive")
-        predicate = "tenant_id = %(tenant_id)s"
-        if not include_inactive:
-            predicate += (
-                " AND active = true"
-                " AND revoked_at IS NULL"
-                " AND (expires_at IS NULL OR expires_at > now())"
-            )
         rows = self._fetch_all(
-            f"""
+            """
             SELECT id, tenant_id, subject, token_hash, token_prefix, roles, active, created_at,
                    expires_at, revoked_at, revoked_by, last_used_at, use_count
             FROM api_tokens
-            WHERE {predicate}
+            WHERE tenant_id = %(tenant_id)s
+              AND (
+                %(include_inactive)s
+                OR (
+                    active = true
+                    AND revoked_at IS NULL
+                    AND (expires_at IS NULL OR expires_at > now())
+                )
+              )
             ORDER BY created_at ASC, id ASC
             LIMIT %(limit)s OFFSET %(offset)s
             """,
             {
                 "tenant_id": tenant_id.value,
+                "include_inactive": include_inactive,
                 "limit": pagination.limit + 1,
                 "offset": cursor_offset,
             },
@@ -2300,7 +2405,7 @@ class PostgreSQLSecurityRepository(PostgreSQLRepositoryBase, SecurityRepository)
             revoked_at=self._row_optional_datetime(row.get("revoked_at")),
             revoked_by=str(row["revoked_by"]) if row.get("revoked_by") is not None else None,
             last_used_at=self._row_optional_datetime(row.get("last_used_at")),
-            use_count=int(row.get("use_count", 0)),
+            use_count=self._row_int_or_default(row, "use_count", 0),
         )
 
     def _row_datetime(self, value: object) -> datetime:
@@ -2365,20 +2470,19 @@ class PostgreSQLAccessPolicyRepository(PostgreSQLRepositoryBase, AccessPolicyRep
             raise ValidationError("pagination cursor must be a numeric offset") from exc
         if cursor_offset < 0:
             raise ValidationError("pagination cursor must be positive")
-        predicate = "tenant_id = %(tenant_id)s"
-        if not include_inactive:
-            predicate += " AND active = true"
         rows = self._fetch_all(
-            f"""
+            """
             SELECT id, tenant_id, name, permission, effect, subjects, roles, site_codes,
                    environments, active, created_at
             FROM access_policy_rules
-            WHERE {predicate}
+            WHERE tenant_id = %(tenant_id)s
+              AND (%(include_inactive)s OR active = true)
             ORDER BY name ASC, id ASC
             LIMIT %(limit)s OFFSET %(offset)s
             """,
             {
                 "tenant_id": tenant_id.value,
+                "include_inactive": include_inactive,
                 "limit": pagination.limit + 1,
                 "offset": cursor_offset,
             },
@@ -2439,9 +2543,7 @@ class PostgreSQLAccessPolicyRepository(PostgreSQLRepositoryBase, AccessPolicyRep
             subjects=tuple(str(item) for item in cast(Sequence[object], row["subjects"])),
             roles=tuple(str(item) for item in cast(Sequence[object], row["roles"])),
             site_codes=tuple(str(item) for item in cast(Sequence[object], row["site_codes"])),
-            environments=tuple(
-                str(item) for item in cast(Sequence[object], row["environments"])
-            ),
+            environments=tuple(str(item) for item in cast(Sequence[object], row["environments"])),
             active=bool(row["active"]),
             created_at=self._row_datetime(row["created_at"]),
         )
@@ -2498,27 +2600,28 @@ class PostgreSQLSourceGovernanceRepository(PostgreSQLRepositoryBase, SourceGover
         object_kind: str | None = None,
     ) -> SourceGovernanceRulePage:
         offset = self._offset(pagination.cursor)
-        conditions = ["tenant_id = %(tenant_id)s"]
-        params: dict[str, object] = {
-            "tenant_id": tenant_id.value,
-            "limit": pagination.limit + 1,
-            "offset": offset,
-        }
-        if not include_inactive:
-            conditions.append("active IS TRUE")
-        if object_kind is not None:
-            conditions.append("(object_kind IS NULL OR object_kind = %(object_kind)s)")
-            params["object_kind"] = object_kind.strip().lower()
         rows = self._fetch_all(
             """
             SELECT id, tenant_id, name, object_kind, attribute_path, authoritative_source,
                    priority, freshness_seconds, conflict_strategy, active, created_at
             FROM source_governance_rules
-            WHERE """ + " AND ".join(conditions) + """
+            WHERE tenant_id = %(tenant_id)s
+              AND (%(include_inactive)s OR active IS TRUE)
+              AND (
+                %(object_kind)s IS NULL
+                OR object_kind IS NULL
+                OR object_kind = %(object_kind)s
+              )
             ORDER BY priority DESC, name ASC, id ASC
             LIMIT %(limit)s OFFSET %(offset)s
             """,
-            params,
+            {
+                "tenant_id": tenant_id.value,
+                "include_inactive": include_inactive,
+                "object_kind": object_kind.strip().lower() if object_kind is not None else None,
+                "limit": pagination.limit + 1,
+                "offset": offset,
+            },
         )
         selected = tuple(rows[: pagination.limit])
         next_cursor = str(offset + pagination.limit) if len(rows) > pagination.limit else None
@@ -2590,9 +2693,9 @@ class PostgreSQLSourceGovernanceRepository(PostgreSQLRepositoryBase, SourceGover
             object_kind=(str(row["object_kind"]) if row.get("object_kind") else None),
             attribute_path=str(row["attribute_path"]),
             authoritative_source=str(row["authoritative_source"]),
-            priority=int(row["priority"]),
+            priority=self._row_int(row, "priority"),
             freshness_seconds=(
-                int(row["freshness_seconds"])
+                self._row_int(row, "freshness_seconds")
                 if row.get("freshness_seconds") is not None
                 else None
             ),
@@ -2699,28 +2802,24 @@ class PostgreSQLSourceOfTruthRepository(PostgreSQLRepositoryBase, SourceOfTruthR
         tag: str | None = None,
     ) -> SourceObjectPage:
         offset = self._offset(pagination.cursor)
-        conditions = ["tenant_id = %(tenant_id)s"]
-        params: dict[str, object] = {
-            "tenant_id": tenant_id.value,
-            "limit": pagination.limit + 1,
-            "offset": offset,
-        }
-        if kind is not None:
-            conditions.append("kind = %(kind)s")
-            params["kind"] = kind.strip().lower()
-        if tag is not None:
-            conditions.append("tags @> %(tag)s")
-            params["tag"] = [tag.strip().lower()]
         rows = self._fetch_all(
             """
             SELECT id, tenant_id, object_key, kind, display_name, attributes, tags, source_system,
                    version, status, created_at, updated_at
             FROM source_objects
-            WHERE """ + " AND ".join(conditions) + """
+            WHERE tenant_id = %(tenant_id)s
+              AND (%(kind)s IS NULL OR kind = %(kind)s)
+              AND (%(tag)s IS NULL OR tags @> %(tag)s)
             ORDER BY object_key ASC
             LIMIT %(limit)s OFFSET %(offset)s
             """,
-            params,
+            {
+                "tenant_id": tenant_id.value,
+                "kind": kind.strip().lower() if kind is not None else None,
+                "tag": [tag.strip().lower()] if tag is not None else None,
+                "limit": pagination.limit + 1,
+                "offset": offset,
+            },
         )
         selected = tuple(rows[: pagination.limit])
         next_cursor = str(offset + pagination.limit) if len(rows) > pagination.limit else None
@@ -2784,31 +2883,28 @@ class PostgreSQLSourceOfTruthRepository(PostgreSQLRepositoryBase, SourceOfTruthR
         relation_type: str | None = None,
     ) -> SourceRelationPage:
         offset = self._offset(pagination.cursor)
-        conditions = ["tenant_id = %(tenant_id)s"]
-        params: dict[str, object] = {
-            "tenant_id": tenant_id.value,
-            "limit": pagination.limit + 1,
-            "offset": offset,
-        }
-        if source_key is not None:
-            conditions.append("source_key = %(source_key)s")
-            params["source_key"] = source_key.strip().lower()
-        if target_key is not None:
-            conditions.append("target_key = %(target_key)s")
-            params["target_key"] = target_key.strip().lower()
-        if relation_type is not None:
-            conditions.append("relation_type = %(relation_type)s")
-            params["relation_type"] = relation_type.strip().lower()
         rows = self._fetch_all(
             """
             SELECT id, tenant_id, relation_type, source_key, target_key, provenance,
                    valid_from, valid_to, active, created_at
             FROM source_relations
-            WHERE """ + " AND ".join(conditions) + """
+            WHERE tenant_id = %(tenant_id)s
+              AND (%(source_key)s IS NULL OR source_key = %(source_key)s)
+              AND (%(target_key)s IS NULL OR target_key = %(target_key)s)
+              AND (%(relation_type)s IS NULL OR relation_type = %(relation_type)s)
             ORDER BY created_at DESC, id DESC
             LIMIT %(limit)s OFFSET %(offset)s
             """,
-            params,
+            {
+                "tenant_id": tenant_id.value,
+                "source_key": source_key.strip().lower() if source_key is not None else None,
+                "target_key": target_key.strip().lower() if target_key is not None else None,
+                "relation_type": relation_type.strip().lower()
+                if relation_type is not None
+                else None,
+                "limit": pagination.limit + 1,
+                "offset": offset,
+            },
         )
         selected = tuple(rows[: pagination.limit])
         next_cursor = str(offset + pagination.limit) if len(rows) > pagination.limit else None
@@ -2854,9 +2950,9 @@ class PostgreSQLSourceOfTruthRepository(PostgreSQLRepositoryBase, SourceOfTruthR
                 if isinstance(attributes, str)
                 else dict(cast(Mapping[str, Any], attributes))
             ),
-            tags=tuple(str(item) for item in cast(Sequence[object], row["tags"])),
+            tags=tuple(str(item) for item in self._row_sequence(row, "tags")),
             source=str(row["source_system"]),
-            version=int(row["version"]),
+            version=self._row_int(row, "version"),
             status=str(row["status"]),
             created_at=self._row_datetime(row["created_at"]),
             updated_at=self._row_datetime(row["updated_at"]),
@@ -2869,7 +2965,7 @@ class PostgreSQLSourceOfTruthRepository(PostgreSQLRepositoryBase, SourceOfTruthR
             tenant_id=TenantId.from_value(str(row["tenant_id"])),
             object_key=str(row["object_key"]),
             object_id=EntityId.from_value(str(row["object_id"])),
-            version=int(row["version"]),
+            version=self._row_int(row, "version"),
             payload=(
                 json.loads(str(payload))
                 if isinstance(payload, str)
@@ -2937,40 +3033,34 @@ class PostgreSQLAuditRepository(PostgreSQLRepositoryBase, AuditRepository):
             raise ValidationError("pagination cursor must be a numeric offset") from exc
         if offset < 0:
             raise ValidationError("pagination cursor must be positive")
-        conditions = ["tenant_id = %(tenant_id)s"]
-        params: dict[str, object] = {
-            "tenant_id": event_filter.tenant_id.value,
-            "limit": event_filter.pagination.limit + 1,
-            "offset": offset,
-        }
-        if event_filter.actor is not None:
-            conditions.append("actor = %(actor)s")
-            params["actor"] = event_filter.actor
-        if event_filter.action is not None:
-            conditions.append("action = %(action)s")
-            params["action"] = event_filter.action
-        if event_filter.target_type is not None:
-            conditions.append("target_type = %(target_type)s")
-            params["target_type"] = event_filter.target_type
-        if event_filter.severity is not None:
-            conditions.append("severity = %(severity)s")
-            params["severity"] = event_filter.severity.value
-        if event_filter.created_from is not None:
-            conditions.append("created_at >= %(created_from)s")
-            params["created_from"] = event_filter.created_from
-        if event_filter.created_to is not None:
-            conditions.append("created_at <= %(created_to)s")
-            params["created_to"] = event_filter.created_to
         rows = self._fetch_all(
             """
             SELECT id, tenant_id, actor, action, target_type, target_id, severity,
                    metadata, created_at, previous_hash, record_hash
             FROM audit_events
-            WHERE """ + " AND ".join(conditions) + """
+            WHERE tenant_id = %(tenant_id)s
+              AND (%(actor)s IS NULL OR actor = %(actor)s)
+              AND (%(action)s IS NULL OR action = %(action)s)
+              AND (%(target_type)s IS NULL OR target_type = %(target_type)s)
+              AND (%(severity)s IS NULL OR severity = %(severity)s)
+              AND (%(created_from)s IS NULL OR created_at >= %(created_from)s)
+              AND (%(created_to)s IS NULL OR created_at <= %(created_to)s)
             ORDER BY created_at DESC, id DESC
             LIMIT %(limit)s OFFSET %(offset)s
             """,
-            params,
+            {
+                "tenant_id": event_filter.tenant_id.value,
+                "actor": event_filter.actor,
+                "action": event_filter.action,
+                "target_type": event_filter.target_type,
+                "severity": event_filter.severity.value
+                if event_filter.severity is not None
+                else None,
+                "created_from": event_filter.created_from,
+                "created_to": event_filter.created_to,
+                "limit": event_filter.pagination.limit + 1,
+                "offset": offset,
+            },
         )
         records = tuple(self._record_from_row(row) for row in rows[: event_filter.pagination.limit])
         next_cursor = (
@@ -3062,9 +3152,7 @@ class PostgreSQLAuditRepository(PostgreSQLRepositoryBase, AuditRepository):
             target_id=str(row["target_id"]),
             severity=Severity(str(row["severity"])),
             created_at=(
-                created_at
-                if created_at.tzinfo is not None
-                else created_at.replace(tzinfo=UTC)
+                created_at if created_at.tzinfo is not None else created_at.replace(tzinfo=UTC)
             ),
             metadata=(
                 json.loads(str(metadata))

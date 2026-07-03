@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any, Self
 
-from openinfra.domain.common import EntityId, Pagination, TenantId, ValidationError
+from openinfra.domain.common import EntityId, TenantId, ValidationError
 from openinfra.domain.source_of_truth import SourceObjectKind, SourceSystem
 
 
@@ -43,11 +43,7 @@ class GovernedAttributePath:
 
     def matches(self, changed_path: str) -> bool:
         normalized = changed_path.strip().lower()
-        return (
-            self.value == "*"
-            or self.value == normalized
-            or normalized.startswith(self.value + ".")
-        )
+        return self.value in ("*", normalized) or normalized.startswith(self.value + ".")
 
 
 @dataclass(frozen=True, slots=True)
@@ -333,9 +329,7 @@ class SourceGovernanceEvaluator:
     def changed_paths(self, existing: dict[str, Any], incoming: dict[str, Any]) -> tuple[str, ...]:
         paths = sorted(set(self._flatten(existing)) | set(self._flatten(incoming)))
         return tuple(
-            path
-            for path in paths
-            if self.value_at(existing, path) != self.value_at(incoming, path)
+            path for path in paths if self.value_at(existing, path) != self.value_at(incoming, path)
         )
 
     def value_at(self, payload: dict[str, Any], path: str) -> Any:

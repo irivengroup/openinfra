@@ -305,10 +305,10 @@ class SourceOfTruthService:
             rules=rules,
         )
         blocking = [
-            conflict for conflict in evaluation.conflicts
+            conflict
+            for conflict in evaluation.conflicts
             if conflict.strategy == SourceConflictStrategy.REJECT
         ]
         if blocking:
             paths = ", ".join(conflict.attribute_path.value for conflict in blocking)
             raise ConflictError("source governance rejected non-authoritative overwrite: " + paths)
-

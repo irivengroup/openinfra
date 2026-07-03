@@ -96,7 +96,7 @@ Le smoke natif valide les actifs de déploiement et, lorsque `--base-url` est fo
 
 ## Règles de production
 
-1. Docker ne fait pas partie de la chaîne d’exécution production.
+1. Docker ne fait pas partie de la chaine d'execution production.
 2. Le backend PostgreSQL est la persistance de référence pour la production.
 3. Les migrations sont exécutées avant activation de la version applicative.
 4. Les secrets sont gérés hors dépôt et hors image applicative.

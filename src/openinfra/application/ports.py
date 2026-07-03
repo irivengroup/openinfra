@@ -9,10 +9,10 @@ from openinfra.domain.audit import AuditEventFilter, AuditEventPage, AuditIntegr
 from openinfra.domain.common import AuditEvent, Pagination, TenantId
 from openinfra.domain.dcim import (
     Building,
+    CoolingZone,
     DcimCable,
     DcimPort,
     DcimPortEndpoint,
-    CoolingZone,
     Equipment,
     Floor,
     PatchPanel,
@@ -404,7 +404,6 @@ class IpamRepository(ABC):
         raise TypeError("adapter contract invoked directly")
 
 
-
 class IdentityRepository(ABC):
     @abstractmethod
     def upsert_user(self, user: IdentityUser) -> None:
@@ -433,6 +432,7 @@ class IdentityRepository(ABC):
         subject: str,
     ) -> EffectiveIdentity:
         raise TypeError("adapter contract invoked directly")
+
 
 class SecurityRepository(ABC):
     @abstractmethod

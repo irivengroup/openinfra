@@ -502,6 +502,10 @@ La migration PostgreSQL `0013_dcim_cabling_foundation.sql` ajoute les tables par
 Production : le runtime officiel est désormais documenté comme déploiement serveur natif via `systemd`, virtualenv Python et PostgreSQL. Docker reste un lab optionnel de test/smoke et n’est pas une dépendance de production.
 
 
+## v0.17.1 — Correctif CI Ruff
+
+La v0.17.1 est une livraison corrective sans nouveau jalon métier. Elle corrige le blocage GitHub Actions observé sur `ruff format --check src tests scripts docker`, applique le formatage Ruff à l'ensemble du périmètre contrôlé et stabilise la politique `ruff check` pour que la CI exécute réellement toute la chaîne qualité après un push.
+
 ## v0.17.0 — P04 EPIC-0406 Énergie et refroidissement DCIM
 
 La v0.17.0 poursuit strictement le jalon roadmap P04 avec la fondation énergie/refroidissement. Elle permet de déclarer des PDU/UPS, circuits A/B, zones de refroidissement, réservations de puissance par équipement et rapports de capacité rack. Les contrôles applicatifs empêchent la surallocation des sources électriques, circuits, capacités déclarées du rack et zones froides/chaudes.

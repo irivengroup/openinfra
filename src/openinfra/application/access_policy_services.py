@@ -195,9 +195,7 @@ class AccessPolicyService:
         context_matches = tuple(rule for rule in applicable if rule.matches_context(context))
         if any(rule.effect == AccessPolicyEffect.DENY for rule in context_matches):
             return False
-        if any(rule.effect == AccessPolicyEffect.ALLOW for rule in context_matches):
-            return True
-        return False
+        return bool(any(rule.effect == AccessPolicyEffect.ALLOW for rule in context_matches))
 
     def _authenticate_admin(self, tenant_id: str, token: str) -> AuthenticatedPrincipal:
         return self._security_service.authenticate_token(

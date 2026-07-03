@@ -14,6 +14,7 @@ from openinfra.domain.common import (
 )
 from openinfra.domain.dcim import (
     Building,
+    CoolingZone,
     DcimCable,
     DcimCablePathSegment,
     DcimPort,
@@ -29,11 +30,9 @@ from openinfra.domain.dcim import (
     PowerDevice,
     Rack,
     RackCapacityReport,
+    RackElevation,
     RackEnergyCoolingReport,
     RackPowerReservation,
-    CoolingZone,
-    RackElevation,
-    RackFace,
     Room,
     RoomPlan2D,
     RoomZone,
@@ -118,7 +117,6 @@ class RenderRackElevationCommand:
     rack: str
     face: str = "front"
     output_format: str = "json"
-
 
 
 @dataclass(frozen=True, slots=True)
@@ -419,36 +417,49 @@ class DcimTopologyService:
         if self._dcim_repository.find_site(site.tenant_id, site.code.value) is None:
             self._dcim_repository.add_site(site)
             created["site"] = True
-        if self._dcim_repository.find_building(
-            building.tenant_id,
-            building.site_code.value,
-            building.code.value,
-        ) is None:
+        if (
+            self._dcim_repository.find_building(
+                building.tenant_id,
+                building.site_code.value,
+                building.code.value,
+            )
+            is None
+        ):
             self._dcim_repository.add_building(building)
             created["building"] = True
-        if self._dcim_repository.find_floor(
-            floor.tenant_id,
-            floor.site_code.value,
-            floor.building_code.value,
-            floor.code.value,
-        ) is None:
+        if (
+            self._dcim_repository.find_floor(
+                floor.tenant_id,
+                floor.site_code.value,
+                floor.building_code.value,
+                floor.code.value,
+            )
+            is None
+        ):
             self._dcim_repository.add_floor(floor)
             created["floor"] = True
-        if self._dcim_repository.find_room(
-            room.tenant_id,
-            room.site_code.value,
-            room.building_code.value,
-            room.code.value,
-        ) is None:
+        if (
+            self._dcim_repository.find_room(
+                room.tenant_id,
+                room.site_code.value,
+                room.building_code.value,
+                room.code.value,
+            )
+            is None
+        ):
             self._dcim_repository.add_room(room)
             created["room"] = True
-        if zone is not None and self._dcim_repository.find_zone(
-            zone.tenant_id,
-            zone.site_code.value,
-            zone.building_code.value,
-            zone.room_code.value,
-            zone.code.value,
-        ) is None:
+        if (
+            zone is not None
+            and self._dcim_repository.find_zone(
+                zone.tenant_id,
+                zone.site_code.value,
+                zone.building_code.value,
+                zone.room_code.value,
+                zone.code.value,
+            )
+            is None
+        ):
             self._dcim_repository.add_zone(zone)
             created["zone"] = True
         return created
@@ -544,9 +555,12 @@ class DcimRackService:
         return RackCapacityReport(rack, equipment)
 
     def _validate_rack_context(self, command: DefineRackCommand, room: Room) -> None:
-        if command.floor is not None and room.floor_code is not None:
-            if command.floor.strip().upper() != room.floor_code.value:
-                raise ValidationError("rack floor does not match room floor")
+        if (
+            command.floor is not None
+            and room.floor_code is not None
+            and command.floor.strip().upper() != room.floor_code.value
+        ):
+            raise ValidationError("rack floor does not match room floor")
         room.assert_cell_exists(command.row, command.column)
 
     def _resolve_zone(
@@ -569,7 +583,6 @@ class DcimRackService:
         zone.assert_within_room(room)
         zone.assert_cell_exists(command.row, command.column)
         return zone
-
 
 
 class DcimCablingService:
@@ -806,9 +819,10 @@ class DcimCablingService:
             patch_panel.room_code.value,
             patch_panel.rack_code.value,
         ):
-            if item.location.effective_rack_face() == patch_panel.rack_face:
-                if set(occupied_units).intersection(item.location.occupied_units()):
-                    raise ConflictError("patch panel interval overlaps existing rack equipment")
+            if item.location.effective_rack_face() == patch_panel.rack_face and set(
+                occupied_units
+            ).intersection(item.location.occupied_units()):
+                raise ConflictError("patch panel interval overlaps existing rack equipment")
         for existing in self._dcim_repository.list_patch_panels_in_rack(
             tenant_id,
             patch_panel.site_code.value,
@@ -970,7 +984,6 @@ class DcimVisualizationService:
             unit_of_work.commit()
 
 
-
 class DcimEnvironmentService:
     def __init__(
         self,
@@ -984,7 +997,9 @@ class DcimEnvironmentService:
 
     def define_power_device(self, command: DefinePowerDeviceCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        room = self._dcim_repository.find_room(tenant_id, command.site, command.building, command.room)
+        room = self._dcim_repository.find_room(
+            tenant_id, command.site, command.building, command.room
+        )
         if room is None:
             raise NotFoundError("room must exist before defining a power device")
         if command.rack is not None:
@@ -1055,7 +1070,9 @@ class DcimEnvironmentService:
             raise ValidationError("power circuit source must be in the same room")
         allocated = sum(
             item.capacity_watts
-            for item in self._dcim_repository.list_power_circuits_by_source(tenant_id, source.code.value)
+            for item in self._dcim_repository.list_power_circuits_by_source(
+                tenant_id, source.code.value
+            )
         )
         if allocated + circuit.capacity_watts > source.derated_capacity_watts:
             raise ConflictError("power circuit allocation exceeds source derated capacity")
@@ -1446,12 +1463,18 @@ class DcimLocationService:
             raise NotFoundError("rack must exist before rack-mounted equipment location")
         if rack.row != command.row.strip().upper() or rack.column != command.column.strip().upper():
             raise ValidationError("rack row and column do not match equipment location")
-        if command.floor is not None and rack.floor_code is not None:
-            if command.floor.strip().upper() != rack.floor_code.value:
-                raise ValidationError("rack floor does not match equipment location")
-        if command.zone is not None and rack.zone_code is not None:
-            if command.zone.strip().upper() != rack.zone_code.value:
-                raise ValidationError("rack zone does not match equipment location")
+        if (
+            command.floor is not None
+            and rack.floor_code is not None
+            and command.floor.strip().upper() != rack.floor_code.value
+        ):
+            raise ValidationError("rack floor does not match equipment location")
+        if (
+            command.zone is not None
+            and rack.zone_code is not None
+            and command.zone.strip().upper() != rack.zone_code.value
+        ):
+            raise ValidationError("rack zone does not match equipment location")
         return rack
 
     def _assert_no_rack_overlap(

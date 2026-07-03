@@ -172,14 +172,16 @@ class TestCommonDomainEdges:
         assert report.valid is False
         assert "missing required spec file" in report.as_text()
 
-        code = OpenInfraCLI().run([
-            "database",
-            "render-migration",
-            "--name",
-            "missing",
-            "--root",
-            str(tmp_path),
-        ])
+        code = OpenInfraCLI().run(
+            [
+                "database",
+                "render-migration",
+                "--name",
+                "missing",
+                "--root",
+                str(tmp_path),
+            ]
+        )
         captured = capsys.readouterr()
         assert code == 2
         assert "migration not found" in captured.err

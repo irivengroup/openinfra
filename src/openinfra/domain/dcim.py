@@ -4,7 +4,7 @@ import hashlib
 import html
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Self
+from typing import Any, Self
 
 from openinfra.domain.common import Code, Coordinates3D, EntityId, Name, TenantId, ValidationError
 
@@ -593,8 +593,8 @@ class RoomPlanCell:
                     "name": item.name.value,
                     "rack": item.location.rack_code.value if item.location.rack_code else None,
                     "rack_face": (
-                        item.location.effective_rack_face().value
-                        if item.location.effective_rack_face()
+                        face.value
+                        if (face := item.location.effective_rack_face()) is not None
                         else None
                     ),
                     "u_position": item.location.u_position,
@@ -642,9 +642,7 @@ class RoomPlan2D:
                         row=row,
                         column=column,
                         racks=tuple(
-                            rack
-                            for rack in self.racks
-                            if rack.row == row and rack.column == column
+                            rack for rack in self.racks if rack.row == row and rack.column == column
                         ),
                         equipment=tuple(
                             item
@@ -690,13 +688,13 @@ class RoomPlan2D:
             x = margin + column_index * size + size // 2
             elements.append(
                 f'<text x="{x}" y="52" text-anchor="middle" font-size="12">'
-                f'{html.escape(column)}</text>'
+                f"{html.escape(column)}</text>"
             )
         for row_index, row in enumerate(self.room.rows):
             y = margin + row_index * size + size // 2
             elements.append(
                 f'<text x="36" y="{y}" text-anchor="middle" font-size="12">'
-                f'{html.escape(row)}</text>'
+                f"{html.escape(row)}</text>"
             )
         for cell in self.cells():
             row_index = self.room.rows.index(cell.row)
@@ -835,7 +833,7 @@ class RackElevation:
             '<rect width="100%" height="100%" fill="#fff"/>',
             (
                 f'<text x="20" y="28" font-size="16">Rack '
-                f'{html.escape(self.rack.code.value)} — {self.face.value}</text>'
+                f"{html.escape(self.rack.code.value)} — {self.face.value}</text>"
             ),
         ]
         for index, unit in enumerate(self.units()):
@@ -852,7 +850,7 @@ class RackElevation:
             )
             elements.append(
                 f'<text x="70" y="{y + height_per_unit - 5}" font-size="10">'
-                f'{html.escape(label)}</text>'
+                f"{html.escape(label)}</text>"
             )
         elements.append("</svg>")
         return "".join(elements)
@@ -877,8 +875,6 @@ class RackElevation:
             f"<tbody>{rows}</tbody></table>"
             "</body></html>"
         )
-
-
 
 
 class DcimCableMedium(StrEnum):
@@ -1029,7 +1025,9 @@ class PatchPanel:
         return tuple(range(self.u_position, self.u_position + self.u_height))
 
     def overlaps(self, face: RackFace, occupied_units: tuple[int, ...]) -> bool:
-        return self.rack_face == face and bool(set(self.occupied_units()).intersection(occupied_units))
+        return self.rack_face == face and bool(
+            set(self.occupied_units()).intersection(occupied_units)
+        )
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -1442,7 +1440,9 @@ class PowerCircuit:
         )
 
     def remaining_watts(self, reservations: tuple[RackPowerReservation, ...]) -> int:
-        used = sum(item.expected_watts for item in reservations if item.circuit_id == self.circuit_id)
+        used = sum(
+            item.expected_watts for item in reservations if item.circuit_id == self.circuit_id
+        )
         return self.capacity_watts - used
 
     def as_dict(self) -> dict[str, object]:
@@ -1607,7 +1607,7 @@ class RackEnergyCoolingReport:
     cooling_zone: CoolingZone | None
 
     def as_dict(self) -> dict[str, object]:
-        side_capacity: dict[str, dict[str, object]] = {}
+        side_capacity: dict[str, dict[str, Any]] = {}
         for side in PowerFeedSide:
             side_circuits = tuple(circuit for circuit in self.circuits if circuit.side == side)
             side_reservations = tuple(item for item in self.reservations if item.side == side)
@@ -1628,7 +1628,9 @@ class RackEnergyCoolingReport:
             else self.rack.power_capacity_watts - reserved_total
         )
         cooling_remaining = (
-            None if self.cooling_zone is None else self.cooling_zone.remaining_watts(self.reservations)
+            None
+            if self.cooling_zone is None
+            else self.cooling_zone.remaining_watts(self.reservations)
         )
         return {
             "type": "rack_energy_cooling_report",
@@ -1642,18 +1644,26 @@ class RackEnergyCoolingReport:
             "rack_reserved_watts": reserved_total,
             "rack_remaining_watts": rack_limit_remaining,
             "rack_power_status": (
-                "unbounded" if rack_limit_remaining is None else "over_capacity" if rack_limit_remaining < 0 else "ok"
+                "unbounded"
+                if rack_limit_remaining is None
+                else "over_capacity"
+                if rack_limit_remaining < 0
+                else "ok"
             ),
             "redundant_power_ready": (
                 side_capacity[PowerFeedSide.A.value]["capacity_watts"] > 0
                 and side_capacity[PowerFeedSide.B.value]["capacity_watts"] > 0
             ),
             "sides": side_capacity,
-            "cooling": None if self.cooling_zone is None else {
+            "cooling": None
+            if self.cooling_zone is None
+            else {
                 **self.cooling_zone.as_dict(),
                 "reserved_watts": reserved_total,
                 "remaining_watts": cooling_remaining,
-                "status": "over_capacity" if cooling_remaining is not None and cooling_remaining < 0 else "ok",
+                "status": "over_capacity"
+                if cooling_remaining is not None and cooling_remaining < 0
+                else "ok",
             },
             "reservations": [reservation.as_dict() for reservation in self.reservations],
         }
@@ -1696,7 +1706,7 @@ class EquipmentLocatorPayload:
             raise ValidationError("locator tenant does not match equipment tenant")
         path = equipment.location.human_readable()
         digest = hashlib.sha256(
-            f"{tenant_id.value}|{equipment.asset_tag.value}|{path}".encode("utf-8")
+            f"{tenant_id.value}|{equipment.asset_tag.value}|{path}".encode()
         ).hexdigest()
         token = digest[:20].upper()
         payload = f"oi:loc:{digest[:32].upper()}"
@@ -1838,9 +1848,7 @@ class QrCodeSvgDocument:
 
     def _draw_codewords(self, codewords: tuple[int, ...]) -> None:
         bits = tuple(
-            (codeword >> shift) & 1
-            for codeword in codewords
-            for shift in range(7, -1, -1)
+            (codeword >> shift) & 1 for codeword in codewords for shift in range(7, -1, -1)
         )
         bit_index = 0
         upward = True
@@ -2060,13 +2068,11 @@ class EquipmentLocatorSheet:
         human_path = html.escape(self.equipment.location.human_readable())
         payload = html.escape(self.locator_payload.payload)
         rows = "".join(
-            "<li>"
-            + html.escape(f"{step.order}. {step.title} — {step.instruction}")
-            + "</li>"
+            "<li>" + html.escape(f"{step.order}. {step.title} — {step.instruction}") + "</li>"
             for step in self.intervention_steps
         )
         return (
-            "<!doctype html><html lang=\"fr\"><head><meta charset=\"utf-8\">"
+            '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
             "<title>OpenInfra fiche localisation</title></head><body>"
             f"<h1>{asset_tag} — {equipment_name}</h1>"
             f"<section>{self.qr_svg}</section>"
@@ -2077,7 +2083,7 @@ class EquipmentLocatorSheet:
         )
 
     def as_dict(self, include_svg: bool = True) -> dict[str, object]:
-        payload = {
+        payload: dict[str, object] = {
             "tenant_id": self.equipment.tenant_id.value,
             "asset_tag": self.equipment.asset_tag.value,
             "equipment_name": self.equipment.name.value,

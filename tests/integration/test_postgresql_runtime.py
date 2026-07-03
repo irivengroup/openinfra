@@ -3,7 +3,6 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -17,6 +16,12 @@ from openinfra.application.identity_services import (
     GrantUserRoleCommand,
 )
 from openinfra.application.ipam_services import AllocateIpCommand
+from openinfra.application.security_services import (
+    AuthenticateTokenCommand,
+    BootstrapTokenCommand,
+    ListTokensCommand,
+    RevokeTokenCommand,
+)
 from openinfra.application.source_governance_services import (
     CreateSourceGovernanceRuleCommand,
     EvaluateSourceGovernanceCommand,
@@ -28,12 +33,6 @@ from openinfra.application.source_of_truth_services import (
     ListSourceObjectsCommand,
     ListSourceRelationsCommand,
     UpsertSourceObjectCommand,
-)
-from openinfra.application.security_services import (
-    AuthenticateTokenCommand,
-    BootstrapTokenCommand,
-    ListTokensCommand,
-    RevokeTokenCommand,
 )
 from openinfra.domain.common import (
     AuditEvent,
@@ -51,8 +50,8 @@ from openinfra.infrastructure.postgresql import (
     PostgreSQLAuditRepository,
     PostgreSQLClusterProfile,
     PostgreSQLConnectionFactory,
-    PostgreSQLDriver,
     PostgreSQLDcimRepository,
+    PostgreSQLDriver,
     PostgreSQLIdentityRepository,
     PostgreSQLIpamRepository,
     PostgreSQLMigrationCatalog,
@@ -249,7 +248,8 @@ class FakeCursor(CursorProtocol):
         elif "FROM access_policy_rules" in query:
             permission = str(effective.get("permission", ""))
             self._rows = [
-                rule for rule in self._connection.access_policy_rules.values()
+                rule
+                for rule in self._connection.access_policy_rules.values()
                 if not permission or rule["permission"] == permission
             ]
         elif "UPDATE access_policy_rules" in query:
@@ -280,10 +280,7 @@ class FakeCursor(CursorProtocol):
             if "active IS TRUE" in query:
                 rows = [row for row in rows if bool(row.get("active", True))]
             if object_kind is not None:
-                rows = [
-                    row for row in rows
-                    if row.get("object_kind") in (None, str(object_kind))
-                ]
+                rows = [row for row in rows if row.get("object_kind") in (None, str(object_kind))]
             rows.sort(key=lambda row: (-int(row["priority"]), str(row["name"])))
             self._rows = rows
         elif "UPDATE source_governance_rules" in query:
@@ -308,16 +305,18 @@ class FakeCursor(CursorProtocol):
                 "updated_at": effective.get("updated_at", datetime.now(UTC)),
             }
         elif "INSERT INTO source_object_snapshots" in query:
-            self._connection.source_object_snapshots.append({
-                "id": str(effective["id"]),
-                "tenant_id": str(effective["tenant_id"]),
-                "object_key": str(effective["object_key"]),
-                "object_id": str(effective["object_id"]),
-                "version": int(effective["version"]),
-                "payload": effective["payload"],
-                "changed_by": str(effective["changed_by"]),
-                "changed_at": effective.get("changed_at", datetime.now(UTC)),
-            })
+            self._connection.source_object_snapshots.append(
+                {
+                    "id": str(effective["id"]),
+                    "tenant_id": str(effective["tenant_id"]),
+                    "object_key": str(effective["object_key"]),
+                    "object_id": str(effective["object_id"]),
+                    "version": int(effective["version"]),
+                    "payload": effective["payload"],
+                    "changed_by": str(effective["changed_by"]),
+                    "changed_at": effective.get("changed_at", datetime.now(UTC)),
+                }
+            )
         elif "FROM source_objects" in query and "ORDER BY object_key" in query:
             self._rows = list(self._connection.source_objects.values())
         elif "FROM source_objects" in query:
@@ -325,25 +324,26 @@ class FakeCursor(CursorProtocol):
         elif "FROM source_object_snapshots" in query:
             self._row = None
             for snapshot in self._connection.source_object_snapshots:
-                if (
-                    snapshot["object_key"] == str(effective["object_key"])
-                    and int(snapshot["version"]) == int(effective["version"])
-                ):
+                if snapshot["object_key"] == str(effective["object_key"]) and int(
+                    snapshot["version"]
+                ) == int(effective["version"]):
                     self._row = snapshot
                     break
         elif "INSERT INTO source_relations" in query:
-            self._connection.source_relations.append({
-                "id": str(effective["id"]),
-                "tenant_id": str(effective["tenant_id"]),
-                "relation_type": str(effective["relation_type"]),
-                "source_key": str(effective["source_key"]),
-                "target_key": str(effective["target_key"]),
-                "provenance": str(effective["provenance"]),
-                "valid_from": effective.get("valid_from", datetime.now(UTC)),
-                "valid_to": effective.get("valid_to"),
-                "active": bool(effective["active"]),
-                "created_at": effective.get("created_at", datetime.now(UTC)),
-            })
+            self._connection.source_relations.append(
+                {
+                    "id": str(effective["id"]),
+                    "tenant_id": str(effective["tenant_id"]),
+                    "relation_type": str(effective["relation_type"]),
+                    "source_key": str(effective["source_key"]),
+                    "target_key": str(effective["target_key"]),
+                    "provenance": str(effective["provenance"]),
+                    "valid_from": effective.get("valid_from", datetime.now(UTC)),
+                    "valid_to": effective.get("valid_to"),
+                    "active": bool(effective["active"]),
+                    "created_at": effective.get("created_at", datetime.now(UTC)),
+                }
+            )
         elif "FROM source_relations" in query:
             self._rows = list(self._connection.source_relations)
         elif "SELECT record_hash" in query and "FROM audit_events" in query:
@@ -482,8 +482,7 @@ class TestPostgreSQLRuntime:
         assert connector.connection.rollbacks == 0
         assert connector.connection.closed is True
         assert any(
-            "INSERT INTO prefixes" in statement[0]
-            for statement in connector.connection.statements
+            "INSERT INTO prefixes" in statement[0] for statement in connector.connection.statements
         )
         assert any(
             "INSERT INTO ip_reservations" in statement[0]
@@ -493,7 +492,6 @@ class TestPostgreSQLRuntime:
             "INSERT INTO audit_events" in statement[0]
             for statement in connector.connection.statements
         )
-
 
     def test_security_repository_bootstraps_and_authenticates_postgresql_token(self) -> None:
         connector = FakeConnector()
@@ -545,8 +543,7 @@ class TestPostgreSQLRuntime:
             for statement in connector.connection.statements
         )
         assert any(
-            "UPDATE api_tokens" in statement[0]
-            for statement in connector.connection.statements
+            "UPDATE api_tokens" in statement[0] for statement in connector.connection.statements
         )
 
     def test_postgresql_repository_requires_active_unit_of_work(self) -> None:
@@ -564,22 +561,24 @@ class TestPostgreSQLRuntime:
         with pytest.raises(ValidationError):
             PostgreSQLConnectionFactory(" ")
 
-        code = OpenInfraCLI().run([
-            "ipam",
-            "allocate",
-            "--backend",
-            "postgresql",
-            "--tenant",
-            "default",
-            "--vrf",
-            "default",
-            "--prefix",
-            "10.0.0.0/30",
-            "--hostname",
-            "srv",
-            "--idempotency-key",
-            "req",
-        ])
+        code = OpenInfraCLI().run(
+            [
+                "ipam",
+                "allocate",
+                "--backend",
+                "postgresql",
+                "--tenant",
+                "default",
+                "--vrf",
+                "default",
+                "--prefix",
+                "10.0.0.0/30",
+                "--hostname",
+                "srv",
+                "--idempotency-key",
+                "req",
+            ]
+        )
         captured = capsys.readouterr()
 
         assert code == 2
@@ -803,8 +802,7 @@ class TestPostgreSQLRuntime:
         assert status.ready is True
         assert status.component == "postgresql"
         assert any(
-            "SELECT 1 AS ready" in statement[0]
-            for statement in connector.connection.statements
+            "SELECT 1 AS ready" in statement[0] for statement in connector.connection.statements
         )
         assert connector.connection.closed is True
 
@@ -816,6 +814,7 @@ class TestPostgreSQLRuntime:
 
         assert app.ipam_service is not None
         assert isinstance(app.transaction_manager, PostgreSQLTransactionManager)
+
 
 class TestPostgreSQLSecurityLifecycle:
     def test_postgresql_security_repository_lists_and_revokes_tokens(self) -> None:
@@ -882,8 +881,7 @@ class TestPostgreSQLSecurityLifecycle:
             for statement in connector.connection.statements
         )
         assert any(
-            "SET active = false" in statement[0]
-            for statement in connector.connection.statements
+            "SET active = false" in statement[0] for statement in connector.connection.statements
         )
 
 
@@ -964,6 +962,7 @@ class TestPostgreSQLIdentityRuntime:
             "UPDATE identity_groups" in statement[0]
             for statement in connector.connection.statements
         )
+
 
 class TestPostgreSQLAccessPolicyRuntime:
     def test_postgresql_access_policy_repository_and_service_evaluate_context(self) -> None:
@@ -1142,7 +1141,7 @@ class TestPostgreSQLSourceOfTruth:
                 key="application/pg-app",
                 kind="application",
                 display_name="PG App",
-                attributes_json='{}',
+                attributes_json="{}",
                 tags=("prod",),
                 source="manual",
             )

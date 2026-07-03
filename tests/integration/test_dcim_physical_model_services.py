@@ -70,8 +70,7 @@ class TestDcimPhysicalModelServices:
             "zone": False,
         }
         assert first["path"] == (
-            "site=PAR2 | building=BAT-B | floor=F02 | room=MDF1 | "
-            "xyz=10.00/5.50/2.00"
+            "site=PAR2 | building=BAT-B | floor=F02 | room=MDF1 | xyz=10.00/5.50/2.00"
         )
         assert first["rows"] == ["A", "B"]
         assert room is not None
@@ -238,16 +237,14 @@ class TestDcimPhysicalModelServices:
                 DefinePhysicalRoomCommand(**base, zone_name="Missing code")
             )
         with pytest.raises(ValidationError):
-            app.dcim_topology_service.define_room(
-                DefinePhysicalRoomCommand(**base, zone_code="Z1")
-            )
+            app.dcim_topology_service.define_room(DefinePhysicalRoomCommand(**base, zone_code="Z1"))
 
     def test_locate_rejects_floor_mismatch_and_missing_zone_repository(
         self,
         tmp_path: Path,
     ) -> None:
-        from openinfra.domain.dcim import Building, Floor, Room, Site
         from openinfra.domain.common import TenantId
+        from openinfra.domain.dcim import Building, Floor, Room, Site
 
         app = ApplicationFactory().create_json_application(tmp_path / "state.json", seed=False)
         tenant = TenantId.from_value("default")

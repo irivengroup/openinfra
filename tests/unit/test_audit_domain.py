@@ -10,7 +10,7 @@ from openinfra.domain.audit import (
     AuditExportFormat,
     AuditIntegrityHasher,
 )
-from openinfra.domain.common import AuditEvent, Pagination, Severity, TenantId, ValidationError
+from openinfra.domain.common import AuditEvent, Pagination, TenantId, ValidationError
 
 
 class TestAuditDomain:

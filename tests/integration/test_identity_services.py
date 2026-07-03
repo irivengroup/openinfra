@@ -118,6 +118,7 @@ class TestIdentityServices:
             app.identity_service.grant_user_role(
                 GrantUserRoleCommand("default", "pytest", admin_token, "missing", "viewer")
             )
+
     def test_group_membership_requires_existing_user_and_group(self, tmp_path: Path) -> None:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json")
         admin_token = "m" * 40
@@ -136,4 +137,3 @@ class TestIdentityServices:
             app.identity_service.add_user_to_group(
                 AddUserToGroupCommand("default", "pytest", admin_token, "missing", "missing-group")
             )
-

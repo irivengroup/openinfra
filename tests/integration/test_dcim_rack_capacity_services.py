@@ -149,21 +149,21 @@ class TestDcimRackCapacityServices:
                 usable_faces=("front",),
             )
         )
-        base = dict(
-            tenant_id="default",
-            actor="pytest",
-            site="PAR4",
-            building="BAT-D",
-            floor="F01",
-            room="MMR4",
-            zone="Z1",
-            row="A",
-            column="02",
-            rack="R02",
-            x=None,
-            y=None,
-            z=None,
-        )
+        base = {
+            "tenant_id": "default",
+            "actor": "pytest",
+            "site": "PAR4",
+            "building": "BAT-D",
+            "floor": "F01",
+            "room": "MMR4",
+            "zone": "Z1",
+            "row": "A",
+            "column": "02",
+            "rack": "R02",
+            "x": None,
+            "y": None,
+            "z": None,
+        }
         app.dcim_service.locate_equipment(
             LocateEquipmentCommand(
                 **base,
@@ -307,24 +307,24 @@ class TestDcimRackCapacityServices:
 
     def test_zone_added_to_existing_room_can_host_rack(self, tmp_path: Path) -> None:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json", seed=False)
-        base = dict(
-            tenant_id="default",
-            actor="pytest",
-            site_code="LYO1",
-            site_name="Lyon 1",
-            country="FR",
-            region="Auvergne-Rhone-Alpes",
-            city="Lyon",
-            building_code="BAT-L",
-            building_name="Building L",
-            floor_code="F01",
-            floor_name="First floor",
-            floor_index=1,
-            room_code="MMR-L",
-            room_name="MMR Lyon",
-            rows=("A", "B"),
-            columns=("01", "02"),
-        )
+        base = {
+            "tenant_id": "default",
+            "actor": "pytest",
+            "site_code": "LYO1",
+            "site_name": "Lyon 1",
+            "country": "FR",
+            "region": "Auvergne-Rhone-Alpes",
+            "city": "Lyon",
+            "building_code": "BAT-L",
+            "building_name": "Building L",
+            "floor_code": "F01",
+            "floor_name": "First floor",
+            "floor_index": 1,
+            "room_code": "MMR-L",
+            "room_name": "MMR Lyon",
+            "rows": ("A", "B"),
+            "columns": ("01", "02"),
+        }
         app.dcim_topology_service.define_room(DefinePhysicalRoomCommand(**base))
         app.dcim_topology_service.define_room(
             DefinePhysicalRoomCommand(

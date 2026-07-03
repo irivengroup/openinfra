@@ -182,34 +182,99 @@ class TestSourceGovernanceServices:
     def test_cli_governance_lifecycle(self, tmp_path: Path, capsys: object) -> None:
         data = tmp_path / "state.json"
         token = "j" * 40
-        assert OpenInfraCLI().run([
-            "security", "bootstrap-token", "--data", str(data), "--tenant", "default",
-            "--subject", "gov-cli", "--role", "sot:governance-admin", "--token", token,
-        ]) == 0
+        assert (
+            OpenInfraCLI().run(
+                [
+                    "security",
+                    "bootstrap-token",
+                    "--data",
+                    str(data),
+                    "--tenant",
+                    "default",
+                    "--subject",
+                    "gov-cli",
+                    "--role",
+                    "sot:governance-admin",
+                    "--token",
+                    token,
+                ]
+            )
+            == 0
+        )
         capsys.readouterr()
-        create_code = OpenInfraCLI().run([
-            "sot", "create-governance-rule", "--data", str(data), "--tenant", "default",
-            "--admin-token", token, "--name", "cli-serial", "--object-kind", "device",
-            "--attribute-path", "serial", "--authoritative-source", "discovery",
-            "--priority", "300",
-        ])
+        create_code = OpenInfraCLI().run(
+            [
+                "sot",
+                "create-governance-rule",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--name",
+                "cli-serial",
+                "--object-kind",
+                "device",
+                "--attribute-path",
+                "serial",
+                "--authoritative-source",
+                "discovery",
+                "--priority",
+                "300",
+            ]
+        )
         created = json.loads(capsys.readouterr().out)
-        list_code = OpenInfraCLI().run([
-            "sot", "list-governance-rules", "--data", str(data), "--tenant", "default",
-            "--admin-token", token, "--object-kind", "device",
-        ])
+        list_code = OpenInfraCLI().run(
+            [
+                "sot",
+                "list-governance-rules",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--object-kind",
+                "device",
+            ]
+        )
         listed = json.loads(capsys.readouterr().out)
-        eval_code = OpenInfraCLI().run([
-            "sot", "evaluate-governance", "--data", str(data), "--tenant", "default",
-            "--admin-token", token, "--object-kind", "device", "--incoming-source", "manual",
-            "--existing-attributes-json", '{"serial":"A"}',
-            "--incoming-attributes-json", '{"serial":"B"}',
-        ])
+        eval_code = OpenInfraCLI().run(
+            [
+                "sot",
+                "evaluate-governance",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--object-kind",
+                "device",
+                "--incoming-source",
+                "manual",
+                "--existing-attributes-json",
+                '{"serial":"A"}',
+                "--incoming-attributes-json",
+                '{"serial":"B"}',
+            ]
+        )
         evaluated = json.loads(capsys.readouterr().out)
-        deactivate_code = OpenInfraCLI().run([
-            "sot", "deactivate-governance-rule", "--data", str(data), "--tenant", "default",
-            "--admin-token", token, "--name", "cli-serial",
-        ])
+        deactivate_code = OpenInfraCLI().run(
+            [
+                "sot",
+                "deactivate-governance-rule",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--name",
+                "cli-serial",
+            ]
+        )
         deactivated = json.loads(capsys.readouterr().out)
 
         assert create_code == list_code == eval_code == deactivate_code == 0
@@ -247,6 +312,7 @@ class TestSourceGovernanceDomain:
         assert evaluation.accepted is False
         assert evaluation.conflicts[0].existing_value == "ops"
 
+
 def test_source_governance_evaluate_rejects_invalid_json(tmp_path: Path) -> None:
     app = ApplicationFactory().create_json_application(tmp_path / "state.json")
     token = "n" * 40
@@ -264,6 +330,7 @@ def test_source_governance_evaluate_rejects_invalid_json(tmp_path: Path) -> None
                 "{}",
             )
         )
+
 
 def test_source_governance_evaluate_rejects_non_object_json(tmp_path: Path) -> None:
     app = ApplicationFactory().create_json_application(tmp_path / "state.json")

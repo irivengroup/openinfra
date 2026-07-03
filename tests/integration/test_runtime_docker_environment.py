@@ -26,7 +26,7 @@ class TestRuntimeEnvironment:
         assert "NoNewPrivileges=true" in unit
         assert "ProtectSystem=strict" in unit
         assert "OPENINFRA_DATABASE_DSN" in runbook
-        assert "Docker ne fait pas partie de la chaîne d’exécution production" in runbook
+        assert "Docker ne fait pas partie de la chaine d'execution production" in runbook
         assert payload["assets"]["systemd_unit"].endswith("deploy/systemd/openinfra-api.service")
 
     def test_optional_docker_assets_remain_test_only(self) -> None:

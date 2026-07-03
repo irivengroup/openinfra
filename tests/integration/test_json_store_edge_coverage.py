@@ -83,17 +83,35 @@ def test_json_store_repository_edge_paths(tmp_path: Path) -> None:
         identity.grant_group_role(tenant, "unknown", "viewer")
 
     security = JsonSecurityRepository(store)
-    credential = ApiTokenCredential.create(tenant, "alice", "a" * 64, "aaaaaaaaaaaa", ("viewer",), expires_at=datetime.now(UTC) + timedelta(hours=1))
+    credential = ApiTokenCredential.create(
+        tenant,
+        "alice",
+        "a" * 64,
+        "aaaaaaaaaaaa",
+        ("viewer",),
+        expires_at=datetime.now(UTC) + timedelta(hours=1),
+    )
     security.upsert_token(credential)
     assert security.find_active_token_by_hash(tenant, "a" * 64) is not None
-    assert security.list_tokens(tenant, Pagination.from_values(1), include_inactive=False).next_cursor is None
+    assert (
+        security.list_tokens(tenant, Pagination.from_values(1), include_inactive=False).next_cursor
+        is None
+    )
     assert security.record_token_used(tenant, "a" * 64) is None
     assert security.revoke_token(tenant, "a" * 64, "pytest") is True
     assert security.revoke_token(tenant, "b" * 64, "pytest") is False
     assert security.find_active_token_by_hash(tenant, "a" * 64) is None
 
     access = JsonAccessPolicyRepository(store)
-    rule = AccessPolicyRule.create(tenant, "rule-a", Permission.IPAM_ALLOCATE, AccessPolicyEffect.ALLOW.value, subjects=("alice",), site_codes=("PAR1",), environments=("prod",))
+    rule = AccessPolicyRule.create(
+        tenant,
+        "rule-a",
+        Permission.IPAM_ALLOCATE,
+        AccessPolicyEffect.ALLOW.value,
+        subjects=("alice",),
+        site_codes=("PAR1",),
+        environments=("prod",),
+    )
     access.upsert_rule(rule)
     access.upsert_rule(rule)
     assert access.list_rules(tenant, Pagination.from_values(1), include_inactive=True).items
@@ -105,7 +123,9 @@ def test_json_store_repository_edge_paths(tmp_path: Path) -> None:
         access.list_rules(tenant, Pagination.from_values(1, "bad"), include_inactive=True)
 
     governance = JsonSourceGovernanceRepository(store)
-    gov_rule = SourceGovernanceRule.create(tenant, "serial-authority", "device", "serial", "discovery", 100, None, "reject")
+    gov_rule = SourceGovernanceRule.create(
+        tenant, "serial-authority", "device", "serial", "discovery", 100, None, "reject"
+    )
     governance.upsert_rule(gov_rule)
     assert governance.find_rule(tenant, "serial-authority") is not None
     assert governance.list_rules(tenant, Pagination.from_values(1), object_kind="device").items
@@ -117,13 +137,29 @@ def test_json_store_repository_edge_paths(tmp_path: Path) -> None:
 
     audit = JsonAuditRepository(store)
     first = AuditEvent.record(tenant, "pytest", "audit.first", "unit", "1")
-    second = AuditEvent.record(tenant, "pytest", "audit.second", "unit", "2", severity=Severity.WARNING)
+    second = AuditEvent.record(
+        tenant, "pytest", "audit.second", "unit", "2", severity=Severity.WARNING
+    )
     audit.append(first)
     audit.append(second)
-    assert audit.list_records(AuditEventFilter.create(tenant, Pagination.from_values(1), actor="pytest")).next_cursor == "1"
-    assert audit.list_records(AuditEventFilter.create(tenant, Pagination.from_values(10), action="none")).items == ()
-    assert audit.list_records(AuditEventFilter.create(tenant, Pagination.from_values(10), target_type="unit")).items
-    assert audit.list_records(AuditEventFilter.create(tenant, Pagination.from_values(10), severity="warning")).items
+    assert (
+        audit.list_records(
+            AuditEventFilter.create(tenant, Pagination.from_values(1), actor="pytest")
+        ).next_cursor
+        == "1"
+    )
+    assert (
+        audit.list_records(
+            AuditEventFilter.create(tenant, Pagination.from_values(10), action="none")
+        ).items
+        == ()
+    )
+    assert audit.list_records(
+        AuditEventFilter.create(tenant, Pagination.from_values(10), target_type="unit")
+    ).items
+    assert audit.list_records(
+        AuditEventFilter.create(tenant, Pagination.from_values(10), severity="warning")
+    ).items
     assert audit.verify_integrity(tenant).valid is True
     with pytest.raises(ValidationError):
         audit.list_records(AuditEventFilter.create(tenant, Pagination.from_values(1, "bad")))
@@ -131,17 +167,36 @@ def test_json_store_repository_edge_paths(tmp_path: Path) -> None:
         audit.list_records(AuditEventFilter.create(tenant, Pagination.from_values(1, "-1")))
 
     sot = JsonSourceOfTruthRepository(store)
-    obj1 = SourceOfTruthObject.create(tenant, "device/srv-a", "device", "Srv A", {"serial": "A"}, ("prod",), "manual")
-    obj2 = SourceOfTruthObject.create(tenant, "application/app-a", "application", "App A", {}, ("prod",), "manual")
-    sot.create_object(tenant, "device/srv-a", "device", "Srv A", {"serial": "A"}, ("prod",), "manual", "pytest")
+    obj1 = SourceOfTruthObject.create(
+        tenant, "device/srv-a", "device", "Srv A", {"serial": "A"}, ("prod",), "manual"
+    )
+    SourceOfTruthObject.create(
+        tenant, "application/app-a", "application", "App A", {}, ("prod",), "manual"
+    )
+    sot.create_object(
+        tenant, "device/srv-a", "device", "Srv A", {"serial": "A"}, ("prod",), "manual", "pytest"
+    )
     sot.upsert_object(obj1.revise(None, {"serial": "B"}, None, "manual"), "pytest")
-    sot.create_object(tenant, "application/app-a", "application", "App A", {}, ("prod",), "manual", "pytest")
-    relation = SourceRelation.create(tenant, "runs_on", "application/app-a", "device/srv-a", "manual")
+    sot.create_object(
+        tenant, "application/app-a", "application", "App A", {}, ("prod",), "manual", "pytest"
+    )
+    relation = SourceRelation.create(
+        tenant, "runs_on", "application/app-a", "device/srv-a", "manual"
+    )
     sot.add_relation(relation)
     assert sot.find_object(tenant, "device/srv-a") is not None
     assert sot.find_object_version(tenant, "device/srv-a", 1) is not None
-    assert sot.list_objects(tenant, Pagination.from_values(1), kind="device", tag="prod").next_cursor is None
-    assert sot.list_relations(tenant, Pagination.from_values(1), source_key="application/app-a", target_key="device/srv-a", relation_type="runs_on").items
+    assert (
+        sot.list_objects(tenant, Pagination.from_values(1), kind="device", tag="prod").next_cursor
+        is None
+    )
+    assert sot.list_relations(
+        tenant,
+        Pagination.from_values(1),
+        source_key="application/app-a",
+        target_key="device/srv-a",
+        relation_type="runs_on",
+    ).items
     with pytest.raises(ValidationError):
         sot.list_objects(tenant, Pagination.from_values(1, "bad"))
     with pytest.raises(ValidationError):

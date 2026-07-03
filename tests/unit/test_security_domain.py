@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from openinfra.application.container import ApplicationFactory
 from openinfra.application.security_services import (
     AuthenticateTokenCommand,
     BootstrapTokenCommand,
@@ -11,7 +12,6 @@ from openinfra.application.security_services import (
     RevokeTokenCommand,
     RotateTokenCommand,
 )
-from openinfra.application.container import ApplicationFactory
 from openinfra.domain.common import AccessDeniedError, ValidationError
 from openinfra.domain.security import Permission
 

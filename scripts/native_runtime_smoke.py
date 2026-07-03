@@ -44,7 +44,9 @@ class NativeRuntimeAssetChecker:
         unit_text = unit.read_text(encoding="utf-8")
         runbook_text = runbook.read_text(encoding="utf-8")
         if "ExecStart=/opt/openinfra/venv/bin/openinfra-api" not in unit_text:
-            raise NativeRuntimeSmokeError("systemd unit must launch the native openinfra-api command")
+            raise NativeRuntimeSmokeError(
+                "systemd unit must launch the native openinfra-api command"
+            )
         if "OPENINFRA_DATABASE_DSN" not in runbook_text:
             raise NativeRuntimeSmokeError("native runbook must document OPENINFRA_DATABASE_DSN")
         if "commande docker obligatoire" in runbook_text.lower():
@@ -86,7 +88,9 @@ class NativeHttpSmokeClient:
 class NativeRuntimeSmokeCli:
     @classmethod
     def main(cls) -> int:
-        parser = argparse.ArgumentParser(description="Validate OpenInfra native server runtime assets")
+        parser = argparse.ArgumentParser(
+            description="Validate OpenInfra native server runtime assets"
+        )
         parser.add_argument("--project-root", type=Path, default=Path.cwd())
         parser.add_argument("--base-url")
         args = parser.parse_args()

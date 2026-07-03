@@ -158,71 +158,79 @@ class TestSourceOfTruthServices:
     def test_cli_source_of_truth_lifecycle(self, tmp_path: Path, capsys: object) -> None:
         data = tmp_path / "state.json"
         token = "q" * 40
-        OpenInfraCLI().run([
-            "security",
-            "bootstrap-token",
-            "--data",
-            str(data),
-            "--tenant",
-            "default",
-            "--subject",
-            "sot-cli-admin",
-            "--role",
-            "sot:operator",
-            "--token",
-            token,
-        ])
+        OpenInfraCLI().run(
+            [
+                "security",
+                "bootstrap-token",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--subject",
+                "sot-cli-admin",
+                "--role",
+                "sot:operator",
+                "--token",
+                token,
+            ]
+        )
         capsys.readouterr()
-        create_code = OpenInfraCLI().run([
-            "sot",
-            "upsert-object",
-            "--data",
-            str(data),
-            "--tenant",
-            "default",
-            "--admin-token",
-            token,
-            "--key",
-            "device/srv-cli",
-            "--kind",
-            "device",
-            "--display-name",
-            "CLI Server",
-            "--attributes-json",
-            '{"serial":"CLI"}',
-            "--tag",
-            "prod",
-            "--source",
-            "manual",
-        ])
+        create_code = OpenInfraCLI().run(
+            [
+                "sot",
+                "upsert-object",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--key",
+                "device/srv-cli",
+                "--kind",
+                "device",
+                "--display-name",
+                "CLI Server",
+                "--attributes-json",
+                '{"serial":"CLI"}',
+                "--tag",
+                "prod",
+                "--source",
+                "manual",
+            ]
+        )
         created = json.loads(capsys.readouterr().out)
-        list_code = OpenInfraCLI().run([
-            "sot",
-            "list-objects",
-            "--data",
-            str(data),
-            "--tenant",
-            "default",
-            "--admin-token",
-            token,
-            "--kind",
-            "device",
-        ])
+        list_code = OpenInfraCLI().run(
+            [
+                "sot",
+                "list-objects",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--kind",
+                "device",
+            ]
+        )
         listed = json.loads(capsys.readouterr().out)
-        version_code = OpenInfraCLI().run([
-            "sot",
-            "get-object-version",
-            "--data",
-            str(data),
-            "--tenant",
-            "default",
-            "--admin-token",
-            token,
-            "--key",
-            "device/srv-cli",
-            "--version",
-            "1",
-        ])
+        version_code = OpenInfraCLI().run(
+            [
+                "sot",
+                "get-object-version",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--key",
+                "device/srv-cli",
+                "--version",
+                "1",
+            ]
+        )
         version = json.loads(capsys.readouterr().out)
 
         assert create_code == 0
@@ -235,29 +243,80 @@ class TestSourceOfTruthServices:
     def test_cli_source_relation_lifecycle(self, tmp_path: Path, capsys: object) -> None:
         data = tmp_path / "state.json"
         token = "u" * 40
-        OpenInfraCLI().run([
-            "security", "bootstrap-token", "--data", str(data), "--tenant", "default",
-            "--subject", "sot-cli-admin-2", "--role", "sot:operator", "--token", token,
-        ])
+        OpenInfraCLI().run(
+            [
+                "security",
+                "bootstrap-token",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--subject",
+                "sot-cli-admin-2",
+                "--role",
+                "sot:operator",
+                "--token",
+                token,
+            ]
+        )
         capsys.readouterr()
         for key, kind in (("application/app-cli", "application"), ("service/svc-cli", "service")):
-            OpenInfraCLI().run([
-                "sot", "upsert-object", "--data", str(data), "--tenant", "default",
-                "--admin-token", token, "--key", key, "--kind", kind,
-                "--display-name", key, "--source", "manual",
-            ])
+            OpenInfraCLI().run(
+                [
+                    "sot",
+                    "upsert-object",
+                    "--data",
+                    str(data),
+                    "--tenant",
+                    "default",
+                    "--admin-token",
+                    token,
+                    "--key",
+                    key,
+                    "--kind",
+                    kind,
+                    "--display-name",
+                    key,
+                    "--source",
+                    "manual",
+                ]
+            )
             capsys.readouterr()
-        relation_code = OpenInfraCLI().run([
-            "sot", "create-relation", "--data", str(data), "--tenant", "default",
-            "--admin-token", token, "--relation-type", "depends_on",
-            "--source-key", "application/app-cli", "--target-key", "service/svc-cli",
-            "--provenance", "manual",
-        ])
+        relation_code = OpenInfraCLI().run(
+            [
+                "sot",
+                "create-relation",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--relation-type",
+                "depends_on",
+                "--source-key",
+                "application/app-cli",
+                "--target-key",
+                "service/svc-cli",
+                "--provenance",
+                "manual",
+            ]
+        )
         relation = json.loads(capsys.readouterr().out)
-        list_code = OpenInfraCLI().run([
-            "sot", "list-relations", "--data", str(data), "--tenant", "default",
-            "--admin-token", token, "--source-key", "application/app-cli",
-        ])
+        list_code = OpenInfraCLI().run(
+            [
+                "sot",
+                "list-relations",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--source-key",
+                "application/app-cli",
+            ]
+        )
         listed = json.loads(capsys.readouterr().out)
 
         assert relation_code == 0

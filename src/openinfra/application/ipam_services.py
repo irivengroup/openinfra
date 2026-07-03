@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from openinfra.application.ports import AuditRepository, IpamRepository, TransactionManager
-from openinfra.domain.common import AuditEvent, TenantId
+from openinfra.domain.common import AuditEvent
 from openinfra.domain.ipam import (
     AllocationRequest,
     AllocationResult,

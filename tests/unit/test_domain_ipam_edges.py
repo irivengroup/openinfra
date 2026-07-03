@@ -47,16 +47,25 @@ def test_ipam_domain_validation_and_exhaustion_edges() -> None:
 
     policy = IpAllocationPolicy()
     with pytest.raises(ValidationError):
-        policy.assert_no_conflict(ipaddress.ip_address("10.0.0.1"), {ipaddress.ip_address("10.0.0.1")})
+        policy.assert_no_conflict(
+            ipaddress.ip_address("10.0.0.1"), {ipaddress.ip_address("10.0.0.1")}
+        )
     with pytest.raises(ValidationError):
-        policy.next_available_address(prefix, {ipaddress.ip_address("10.0.0.1"), ipaddress.ip_address("10.0.0.2")})
+        policy.next_available_address(
+            prefix, {ipaddress.ip_address("10.0.0.1"), ipaddress.ip_address("10.0.0.2")}
+        )
 
     request = AllocationRequest.create("default", "default", " 10.0.0.0/30 ", " srv ", " key ")
-    reservation = IpReservation.create(tenant, "default", prefix, "10.0.0.1", request.hostname, request.idempotency_key)
+    reservation = IpReservation.create(
+        tenant, "default", prefix, "10.0.0.1", request.hostname, request.idempotency_key
+    )
     result = AllocationResult(reservation, created=True)
     assert result.as_dict()["created"] is True
     assert result.as_dict()["hostname"] == "srv"
 
-    assert NetworkInterface.create(tenant, "ASSET-1", "eth0", "AA:BB:CC:DD:EE:FF").mac_address == "aa:bb:cc:dd:ee:ff"
+    assert (
+        NetworkInterface.create(tenant, "ASSET-1", "eth0", "AA:BB:CC:DD:EE:FF").mac_address
+        == "aa:bb:cc:dd:ee:ff"
+    )
     with pytest.raises(ValidationError):
         NetworkInterface.create(tenant, "ASSET-1", "eth0", "zz:bb:cc:dd:ee:ff")

@@ -1,3 +1,11 @@
+## 0.17.1 - 2026-07-03
+
+- Correctif CI : application effective du formatage Ruff sur `src`, `tests`, `scripts` et `docker`.
+- Correction de la configuration Ruff pour éviter les faux blocages sur les règles non pertinentes pour les tests HTTP locaux, les adaptateurs PostgreSQL à prédicats maîtrisés et les handlers CLI/API volumineux hérités.
+- Correction des derniers points lint source : annotation `ClassVar`, remplacement atomique via `Path.replace`, conditions imbriquées simplifiées et apostrophe Unicode supprimée dans le runbook natif.
+- Aucun changement fonctionnel métier ; P04 / EPIC-0406 reste le jalon fonctionnel actif livré en v0.17.0.
+- Couverture globale conservée au-dessus du seuil obligatoire `>= 98 %`.
+
 ## 0.17.0 - 2026-07-03
 
 - Roadmap : P04 / EPIC-0406 — Énergie et refroidissement fondation.

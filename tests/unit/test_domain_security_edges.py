@@ -30,17 +30,52 @@ def test_security_domain_validation_and_public_serialization_edges() -> None:
     with pytest.raises(ValidationError):
         ApiTokenCredential.create(tenant, "subject", "a" * 64, "abcdefgh", ())
     with pytest.raises(ValidationError):
-        ApiTokenCredential.create(tenant, "subject", "a" * 64, "abcdefgh", ("viewer",), expires_at=past)
+        ApiTokenCredential.create(
+            tenant, "subject", "a" * 64, "abcdefgh", ("viewer",), expires_at=past
+        )
     with pytest.raises(ValidationError):
-        ApiTokenCredential.restore(EntityId.new(), tenant, "subject", "a" * 64, "abcdefgh", (), True, created_at)
+        ApiTokenCredential.restore(
+            EntityId.new(), tenant, "subject", "a" * 64, "abcdefgh", (), True, created_at
+        )
     with pytest.raises(ValidationError):
-        ApiTokenCredential.restore(EntityId.new(), tenant, "subject", "a" * 64, "abcdefgh", ("viewer",), True, datetime(2026, 1, 1))
+        ApiTokenCredential.restore(
+            EntityId.new(),
+            tenant,
+            "subject",
+            "a" * 64,
+            "abcdefgh",
+            ("viewer",),
+            True,
+            datetime(2026, 1, 1),
+        )
     with pytest.raises(ValidationError):
-        ApiTokenCredential.restore(EntityId.new(), tenant, "subject", "a" * 64, "abcdefgh", ("viewer",), True, created_at, revoked_by=" ")
+        ApiTokenCredential.restore(
+            EntityId.new(),
+            tenant,
+            "subject",
+            "a" * 64,
+            "abcdefgh",
+            ("viewer",),
+            True,
+            created_at,
+            revoked_by=" ",
+        )
     with pytest.raises(ValidationError):
-        ApiTokenCredential.restore(EntityId.new(), tenant, "subject", "a" * 64, "abcdefgh", ("viewer",), True, created_at, use_count=-1)
+        ApiTokenCredential.restore(
+            EntityId.new(),
+            tenant,
+            "subject",
+            "a" * 64,
+            "abcdefgh",
+            ("viewer",),
+            True,
+            created_at,
+            use_count=-1,
+        )
 
-    credential = ApiTokenCredential.create(tenant, "Subject.User", "A" * 64, "ABCdef12", ("viewer",), expires_at=future)
+    credential = ApiTokenCredential.create(
+        tenant, "Subject.User", "A" * 64, "ABCdef12", ("viewer",), expires_at=future
+    )
     assert credential.subject == "subject.user"
     assert credential.token_hash == "a" * 64
     assert credential.role_names() == ("viewer",)
@@ -53,7 +88,9 @@ def test_security_domain_validation_and_public_serialization_edges() -> None:
     assert public["revoked_by"] == "security-admin"
     assert "token_hash" not in public
 
-    principal = AuthenticatedPrincipal(tenant, "subject", (SecurityRole.from_value("viewer"),), frozenset({Permission.SCHEMA_READ}))
+    principal = AuthenticatedPrincipal(
+        tenant, "subject", (SecurityRole.from_value("viewer"),), frozenset({Permission.SCHEMA_READ})
+    )
     principal.require(Permission.SCHEMA_READ)
     with pytest.raises(ValidationError):
         principal.require(Permission.IPAM_ALLOCATE)

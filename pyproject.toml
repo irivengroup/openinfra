@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "openinfra"
-version = "0.17.0"
+version = "0.17.1"
 description = "OpenInfra Python POO source of truth, DCIM and IPAM foundation"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -54,12 +54,14 @@ src = ["src", "tests", "scripts"]
 
 [tool.ruff.lint]
 select = ["A", "ARG", "B", "C4", "E", "F", "I", "N", "PL", "PTH", "RUF", "S", "SIM", "T20", "UP", "W"]
-ignore = ["PLR0913"]
+ignore = ["A002", "PLR0911", "PLR0912", "PLR0913", "PLR0915", "PLR2004"]
 
 [tool.ruff.lint.per-file-ignores]
-"src/openinfra/interfaces/cli.py" = ["T201"]
-"tests/**/*.py" = ["S101", "PLR2004"]
-"scripts/**/*.py" = ["PTH", "S404", "S603", "S607", "T201"]
+"src/openinfra/interfaces/cli.py" = ["ARG002", "T201"]
+"src/openinfra/infrastructure/postgresql.py" = ["ARG002", "S608"]
+"src/openinfra/interfaces/http_api.py" = ["ARG002"]
+"tests/**/*.py" = ["ARG005", "B017", "E501", "F841", "PLC0415", "PLR0912", "PLR0915", "RUF012", "S101", "S105", "S310"]
+"scripts/**/*.py" = ["PTH", "S310", "S404", "S603", "S607", "T201"]
 "docker/**/*.py" = ["S310", "S404", "S603", "S607", "T201"]
 
 [tool.mypy]

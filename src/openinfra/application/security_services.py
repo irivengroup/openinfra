@@ -5,6 +5,7 @@ import hmac
 import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import ClassVar
 
 from openinfra.application.ports import (
     AuditRepository,
@@ -110,35 +111,41 @@ class RevokeTokenResult:
 
 
 class BuiltinRolePolicy:
-    _ROLE_PERMISSIONS: dict[str, frozenset[Permission]] = {
+    _ROLE_PERMISSIONS: ClassVar[dict[str, frozenset[Permission]]] = {
         "admin": frozenset(Permission),
         "ipam:operator": frozenset((Permission.IPAM_ALLOCATE, Permission.SCHEMA_READ)),
-        "dcim:operator": frozenset((
-            Permission.DCIM_LOCATE,
-            Permission.DCIM_WRITE,
-            Permission.DCIM_IDENTIFY,
-            Permission.SCHEMA_READ,
-        )),
+        "dcim:operator": frozenset(
+            (
+                Permission.DCIM_LOCATE,
+                Permission.DCIM_WRITE,
+                Permission.DCIM_IDENTIFY,
+                Permission.SCHEMA_READ,
+            )
+        ),
         "viewer": frozenset((Permission.SCHEMA_READ, Permission.SOT_READ)),
-        "security:admin": frozenset((
-            Permission.SECURITY_ADMIN,
-            Permission.SCHEMA_READ,
-            Permission.AUDIT_READ,
-        )),
+        "security:admin": frozenset(
+            (
+                Permission.SECURITY_ADMIN,
+                Permission.SCHEMA_READ,
+                Permission.AUDIT_READ,
+            )
+        ),
         "access:admin": frozenset((Permission.ACCESS_POLICY_ADMIN, Permission.SCHEMA_READ)),
         "audit:reader": frozenset((Permission.AUDIT_READ, Permission.SCHEMA_READ)),
         "sot:reader": frozenset((Permission.SOT_READ, Permission.SCHEMA_READ)),
         "sot:operator": frozenset(
             (Permission.SOT_READ, Permission.SOT_WRITE, Permission.SCHEMA_READ)
         ),
-        "sot:governance-admin": frozenset((
-            Permission.SOT_READ,
-            Permission.SOT_WRITE,
-            Permission.SOT_GOVERNANCE_READ,
-            Permission.SOT_GOVERNANCE_WRITE,
-            Permission.SCHEMA_READ,
-            Permission.AUDIT_READ,
-        )),
+        "sot:governance-admin": frozenset(
+            (
+                Permission.SOT_READ,
+                Permission.SOT_WRITE,
+                Permission.SOT_GOVERNANCE_READ,
+                Permission.SOT_GOVERNANCE_WRITE,
+                Permission.SCHEMA_READ,
+                Permission.AUDIT_READ,
+            )
+        ),
     }
 
     def permissions_for(self, roles: tuple[SecurityRole, ...]) -> frozenset[Permission]:
@@ -268,7 +275,6 @@ class SecurityService:
             roles=effective_roles,
             permissions=permissions,
         )
-
 
     def _effective_roles_for_credential(
         self,

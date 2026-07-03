@@ -48,6 +48,13 @@ from openinfra.application.identity_services import (
     GrantUserRoleCommand,
 )
 from openinfra.application.ipam_services import AllocateIpCommand
+from openinfra.application.security_services import (
+    AuthenticateTokenCommand,
+    BootstrapTokenCommand,
+    ListTokensCommand,
+    RevokeTokenCommand,
+    RotateTokenCommand,
+)
 from openinfra.application.source_governance_services import (
     CreateSourceGovernanceRuleCommand,
     DeactivateSourceGovernanceRuleCommand,
@@ -61,13 +68,6 @@ from openinfra.application.source_of_truth_services import (
     ListSourceObjectsCommand,
     ListSourceRelationsCommand,
     UpsertSourceObjectCommand,
-)
-from openinfra.application.security_services import (
-    AuthenticateTokenCommand,
-    BootstrapTokenCommand,
-    ListTokensCommand,
-    RevokeTokenCommand,
-    RotateTokenCommand,
 )
 from openinfra.domain.access_policy import AccessRequestContext
 from openinfra.domain.common import OpenInfraError
@@ -281,7 +281,6 @@ class OpenInfraCLI:
         effective.add_argument("--subject", required=True)
         effective.set_defaults(handler=self._handle_identity_effective)
 
-
     def _add_access_policy_commands(self, subparsers: Any) -> None:
         access = subparsers.add_parser("access", help="attribute-based access policy operations")
         access_subparsers = access.add_subparsers(dest="access_command", required=True)
@@ -357,7 +356,6 @@ class OpenInfraCLI:
         verify.add_argument("--admin-token", required=True)
         verify.add_argument("--limit", type=int, default=500)
         verify.set_defaults(handler=self._handle_audit_verify_integrity)
-
 
     def _add_sot_commands(self, subparsers: Any) -> None:
         sot = subparsers.add_parser("sot", help="source of truth objects and relations")
@@ -606,7 +604,6 @@ class OpenInfraCLI:
         locate.add_argument("--z", type=float)
         locate.set_defaults(handler=self._handle_dcim_locate)
 
-
         define_patch_panel = dcim_subparsers.add_parser(
             "define-patch-panel",
             help="define a rack-mounted patch panel and generate its ports",
@@ -640,7 +637,9 @@ class OpenInfraCLI:
         define_port.add_argument("--postgres-dsn")
         define_port.add_argument("--tenant", default="default")
         define_port.add_argument("--actor", default="cli")
-        define_port.add_argument("--owner-type", choices=("equipment", "patch_panel"), required=True)
+        define_port.add_argument(
+            "--owner-type", choices=("equipment", "patch_panel"), required=True
+        )
         define_port.add_argument("--owner-code", required=True)
         define_port.add_argument("--port-name", required=True)
         define_port.add_argument("--connector", required=True)
@@ -661,14 +660,20 @@ class OpenInfraCLI:
         connect_cable.add_argument("--tenant", default="default")
         connect_cable.add_argument("--actor", default="cli")
         connect_cable.add_argument("--cable-id", required=True)
-        connect_cable.add_argument("--a-owner-type", choices=("equipment", "patch_panel"), required=True)
+        connect_cable.add_argument(
+            "--a-owner-type", choices=("equipment", "patch_panel"), required=True
+        )
         connect_cable.add_argument("--a-owner-code", required=True)
         connect_cable.add_argument("--a-port-name", required=True)
-        connect_cable.add_argument("--b-owner-type", choices=("equipment", "patch_panel"), required=True)
+        connect_cable.add_argument(
+            "--b-owner-type", choices=("equipment", "patch_panel"), required=True
+        )
         connect_cable.add_argument("--b-owner-code", required=True)
         connect_cable.add_argument("--b-port-name", required=True)
         connect_cable.add_argument("--medium", required=True)
-        connect_cable.add_argument("--status", choices=("planned", "installed", "retired"), default="installed")
+        connect_cable.add_argument(
+            "--status", choices=("planned", "installed", "retired"), default="installed"
+        )
         connect_cable.add_argument("--path", action="append", required=True)
         connect_cable.add_argument("--length-m", type=float)
         connect_cable.add_argument("--label", default="")
@@ -685,7 +690,6 @@ class OpenInfraCLI:
         cable_trace.add_argument("--actor", default="cli")
         cable_trace.add_argument("--cable-id", required=True)
         cable_trace.set_defaults(handler=self._handle_dcim_cable_trace)
-
 
         locator_sheet = dcim_subparsers.add_parser(
             "locator-sheet",
@@ -745,12 +749,13 @@ class OpenInfraCLI:
         rack_elevation.add_argument("--format", choices=("json", "svg", "html"), default="json")
         rack_elevation.set_defaults(handler=self._handle_dcim_rack_elevation)
 
-
         define_power_device = dcim_subparsers.add_parser(
             "define-power-device",
             help="define a DCIM PDU or UPS power source",
         )
-        define_power_device.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        define_power_device.add_argument(
+            "--backend", choices=("json", "postgresql"), default="json"
+        )
         define_power_device.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         define_power_device.add_argument("--postgres-dsn")
         define_power_device.add_argument("--tenant", default="default")
@@ -773,7 +778,9 @@ class OpenInfraCLI:
             "define-power-circuit",
             help="define an A/B power circuit from a power source to a rack",
         )
-        define_power_circuit.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        define_power_circuit.add_argument(
+            "--backend", choices=("json", "postgresql"), default="json"
+        )
         define_power_circuit.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         define_power_circuit.add_argument("--postgres-dsn")
         define_power_circuit.add_argument("--tenant", default="default")
@@ -795,7 +802,9 @@ class OpenInfraCLI:
             "define-cooling-zone",
             help="define a hot/cold aisle cooling capacity zone",
         )
-        define_cooling_zone.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        define_cooling_zone.add_argument(
+            "--backend", choices=("json", "postgresql"), default="json"
+        )
         define_cooling_zone.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         define_cooling_zone.add_argument("--postgres-dsn")
         define_cooling_zone.add_argument("--tenant", default="default")
@@ -804,7 +813,9 @@ class OpenInfraCLI:
         define_cooling_zone.add_argument("--building", required=True)
         define_cooling_zone.add_argument("--room", required=True)
         define_cooling_zone.add_argument("--zone", required=True)
-        define_cooling_zone.add_argument("--role", choices=("cold_aisle", "hot_aisle", "neutral"), required=True)
+        define_cooling_zone.add_argument(
+            "--role", choices=("cold_aisle", "hot_aisle", "neutral"), required=True
+        )
         define_cooling_zone.add_argument("--cooling-capacity-watts", type=int, required=True)
         define_cooling_zone.add_argument("--supply-temperature-c", type=float, required=True)
         define_cooling_zone.add_argument("--return-temperature-c", type=float, required=True)
@@ -865,7 +876,6 @@ class OpenInfraCLI:
         status = executor.apply_all(dry_run=bool(args.dry_run))
         print(json.dumps(status.as_dict(), sort_keys=True))
         return 0
-
 
     def _handle_security_bootstrap_token(self, args: argparse.Namespace) -> int:
         application = self._create_application(args)
@@ -931,7 +941,6 @@ class OpenInfraCLI:
         )
         print(json.dumps(page.as_dict(), sort_keys=True))
         return 0
-
 
     def _handle_identity_create_user(self, args: argparse.Namespace) -> int:
         application = self._create_application(args)
@@ -1018,7 +1027,6 @@ class OpenInfraCLI:
         )
         print(json.dumps(identity.as_dict(), sort_keys=True))
         return 0
-
 
     def _handle_access_create_rule(self, args: argparse.Namespace) -> int:
         application = self._create_application(args)
@@ -1127,7 +1135,6 @@ class OpenInfraCLI:
         )
         print(json.dumps(report.as_dict(), sort_keys=True))
         return 0
-
 
     def _handle_sot_upsert_object(self, args: argparse.Namespace) -> int:
         application = self._create_application(args)
@@ -1410,8 +1417,6 @@ class OpenInfraCLI:
         )
         print(equipment.location.human_readable())
         return 0
-
-
 
     def _handle_dcim_define_patch_panel(self, args: argparse.Namespace) -> int:
         application = self._create_application(args)

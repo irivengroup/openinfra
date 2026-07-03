@@ -7,13 +7,16 @@ from datetime import datetime
 from openinfra.application.ports import (
     AuditRepository,
     SourceGovernanceRepository,
-    SourceGovernanceRulePage,
     TransactionManager,
 )
 from openinfra.application.security_services import AuthenticateTokenCommand, SecurityService
 from openinfra.domain.common import AuditEvent, NotFoundError, Pagination, TenantId, ValidationError
 from openinfra.domain.security import Permission
-from openinfra.domain.source_governance import SourceGovernanceEvaluator, SourceGovernanceRule
+from openinfra.domain.source_governance import (
+    SourceGovernanceEvaluator,
+    SourceGovernanceRule,
+    SourceGovernanceRulePage,
+)
 from openinfra.domain.source_of_truth import SourceObjectKind, SourceSystem
 
 

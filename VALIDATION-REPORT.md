@@ -1,76 +1,94 @@
-# OpenInfra Python POO v0.17.0 — Rapport de validation
+# OpenInfra Python POO v0.17.1 — Rapport de validation
 
 Date : 2026-07-03
 
 ## Synthèse
 
-- Release : `0.17.0`
-- Roadmap : P04
-- Jalon livré : EPIC-0406 — Énergie et refroidissement fondation
-- Correction prioritaire : déclenchement GitHub Actions après `push`
+- Release : `0.17.1`
+- Type : correctif CI sans nouveau jalon fonctionnel
+- Baseline fonctionnelle : `0.17.0` — P04 / EPIC-0406 — Énergie et refroidissement fondation
+- Bug corrigé : échec GitHub Actions sur `ruff format --check src tests scripts docker`
+- Correctifs associés : `ruff check`, typage `mypy`, scan `bandit`, configuration qualité CI
 - Production : déploiement serveur natif, indépendant de Docker
+- Docker : environnement de test/smoke facultatif uniquement
 - Seuil officiel de couverture : `>= 98 %`
-- Couverture mesurée : `98.09 %`
+- Couverture mesurée : `98.10 %`
 - Résultat global local : réussi
 
-## Correction CI GitHub Actions
+## Impact
 
-Le workflow `.github/workflows/ci.yml` était verrouillé sur `branches: [main]`. Un `push` vers `master`, `develop`, une branche de fonctionnalité ou toute branche différente de `main` ne déclenchait donc pas la CI.
+Cette livraison ne poursuit pas le jalon suivant. Elle corrige uniquement la chaîne qualité afin que la CI GitHub Actions passe de nouveau après un `push`.
 
-Correction livrée :
+Aucune commande publique, aucun endpoint HTTP, aucune migration métier et aucun comportement DCIM/IPAM/SOT existant n’ont été supprimés.
 
-```yaml
-on:
-  push:
-    branches: ['**']
-    tags: ['v*']
-  pull_request:
-    branches: ['**']
-  workflow_dispatch:
-```
+## Corrections livrées
 
-Contrôle ajouté dans `scripts/quality_gate.py` :
+- Reformattage Ruff complet des répertoires contrôlés : `src`, `tests`, `scripts`, `docker`.
+- Stabilisation de `ruff check` sur la base existante : imports, annotations, simplifications de conditions et règles de sécurité pertinentes.
+- Correction `mypy` sur le typage strict : `ClassVar`, `Any`, `cast`, conversions `Mapping[str, object]`, types DCIM PostgreSQL et retours HTTP/API.
+- Correction `bandit` : suppression des fragments SQL dynamiques détectés B608 et remplacement par des requêtes SQL statiques entièrement paramétrées.
+- Conservation du runtime natif hors Docker : `systemd`, runbook serveur et smoke natif restent la voie de production.
+- Mise à jour version : `VERSION`, `pyproject.toml`, `src/openinfra/__init__.py`, `docs/api/openapi.yaml`, tests de version.
+- Mise à jour documentation : `README.md`, `CHANGELOG.md`, `docs/runbooks/VALIDATION.md`.
 
-- présence obligatoire de `.github/workflows/ci.yml` ;
-- présence obligatoire de `workflow_dispatch` ;
-- refus d’un verrouillage strict sur `main` ;
-- exigence d’un déclenchement sur toutes les branches.
+## Fichiers principalement concernés
 
-## Implémentation livrée
-
-- Domaine POO : `PowerDevice`, `PowerCircuit`, `CoolingZone`, `RackPowerReservation`, `RackEnergyCoolingReport`, `PowerFeedSide`, `PowerDeviceKind`, `CoolingRole`.
-- Service applicatif : `DcimEnvironmentService` pour déclarer les sources électriques, circuits A/B, zones de refroidissement, réservations de puissance et rapports de capacité.
-- Ports applicatifs : extension de `DcimRepository` pour les lectures/écritures énergie/refroidissement.
-- Backend JSON : collections `power_devices`, `power_circuits`, `cooling_zones`, `power_reservations` avec sérialisation complète.
-- Backend PostgreSQL : repository aligné sur le port applicatif pour PDU/UPS, circuits, zones froides/chaudes et réservations.
-- Migration PostgreSQL : `0014_dcim_energy_cooling_foundation.sql` avec tables partitionnées HASH par `tenant_id` et index de lecture source/rack/circuit/zone.
-- CLI : `openinfra dcim define-power-device`, `define-power-circuit`, `define-cooling-zone`, `reserve-power`, `energy-cooling-capacity`.
-- API HTTP : `/api/v1/dcim/power-devices`, `/api/v1/dcim/power-circuits`, `/api/v1/dcim/cooling-zones`, `/api/v1/dcim/power-reservations`, `/api/v1/dcim/energy-cooling-capacity`.
-- OpenAPI : version `0.17.0`, endpoints énergie/refroidissement documentés.
-- CI GitHub Actions : triggers corrigés, migration 0014, smoke CLI énergie/refroidissement, quality gate interne.
-- Documentation : README, architecture, validation, traçabilité, changelog et runbooks mis à jour.
-
-## Invariants métier ajoutés
-
-- Une source électrique ne peut pas être surallouée au-delà de sa capacité déclassée.
-- Un circuit A/B ne peut pas dépasser sa capacité nominale.
-- Une réservation équipement ne peut pas dépasser la capacité du circuit, du rack ou de la zone de refroidissement.
-- Le rapport rack expose les capacités A/B, la capacité restante, les réservations, l’état de redondance et l’état de refroidissement.
-- Les localisations DCIM existantes ligne/colonne/X/Y/Z, rack, face et U restent rétrocompatibles.
+- `.github/workflows/ci.yml`
+- `pyproject.toml`
+- `VERSION`
+- `src/openinfra/__init__.py`
+- `src/openinfra/application/dcim_services.py`
+- `src/openinfra/application/security_services.py`
+- `src/openinfra/application/source_governance_services.py`
+- `src/openinfra/domain/dcim.py`
+- `src/openinfra/infrastructure/json_store.py`
+- `src/openinfra/infrastructure/postgresql.py`
+- `src/openinfra/interfaces/http_api.py`
+- `tests/architecture/test_architecture.py`
+- `tests/integration/test_cli.py`
+- `tests/integration/test_http_api.py`
+- `tests/integration/test_runtime_docker_environment.py`
+- `README.md`
+- `CHANGELOG.md`
+- `docs/runbooks/VALIDATION.md`
 
 ## Validations exécutées localement
+
+```bash
+python3 -m ruff format --check src tests scripts docker
+```
+
+Résultat : réussi — `69 files already formatted`.
+
+```bash
+python3 -m ruff check src tests scripts docker
+```
+
+Résultat : réussi — `All checks passed!`.
+
+```bash
+python3 -m mypy src/openinfra
+```
+
+Résultat : réussi — `Success: no issues found in 29 source files`.
+
+```bash
+python3 -m bandit -q -r src/openinfra
+```
+
+Résultat : réussi.
 
 ```bash
 PYTHONPATH=src python3 -m pytest -q
 ```
 
-Résultat : `163 passed`, couverture globale `98.09 %`, seuil `>= 98 %` atteint.
+Résultat : `163 passed`, couverture globale `98.10 %`, seuil `>= 98 %` atteint.
 
 ```bash
 PYTHONPATH=src python3 scripts/quality_gate.py
 ```
 
-Résultat : réussi. Le quality gate vérifie l’architecture POO, les sources contractuelles, le runtime natif, les triggers CI, les marqueurs d’implémentation incomplète et relance la suite de tests avec couverture.
+Résultat : réussi — `163 passed`, couverture globale `98.10 %`.
 
 ```bash
 PYTHONPATH=src python3 -m compileall -q src tests scripts docker
@@ -82,7 +100,7 @@ Résultat : réussi.
 PYTHONPATH=src python3 -m openinfra.interfaces.cli version
 ```
 
-Résultat : `0.17.0`.
+Résultat : `0.17.1`.
 
 ```bash
 PYTHONPATH=src python3 -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4
@@ -94,13 +112,20 @@ Résultat : `status=valid`, version CDC `4.0.0`, `488` exigences, `310` tests.
 PYTHONPATH=src python3 -m openinfra.interfaces.cli database render-migration --name 0014_dcim_energy_cooling_foundation --root migrations/postgresql
 ```
 
-Résultat : réussi. La migration 0014 est rendue et validée par le validateur PostgreSQL interne.
+Résultat : réussi. La migration 0014 reste celle du jalon v0.17.0, sans nouvelle migration corrective en v0.17.1.
 
 ```bash
-PYTHONPATH=src python3 scripts/native_runtime_smoke.py --project-root .
+python3 scripts/native_runtime_smoke.py
 ```
 
 Résultat : réussi. Les actifs de production natifs sont présents et cohérents.
+
+```bash
+python3 -m build
+python3 scripts/verify_artifact.py dist/*.whl
+```
+
+Résultat : réussi. Wheel et sdist générés puis retirés de l’archive finale conformément à la règle d’archive nettoyée.
 
 ```bash
 python3 - <<'PY'
@@ -113,41 +138,39 @@ PY
 
 Résultat : réussi pour les fichiers YAML contrôlés.
 
-```bash
-for f in migrations/postgresql/*.sql; do
-  name="$(basename "$f" .sql)"
-  PYTHONPATH=src python3 -m openinfra.interfaces.cli database render-migration --name "$name" --root migrations/postgresql >/tmp/openinfra-migration.sql
-done
-```
+## Contrôle couverture
 
-Résultat : `14` migrations rendues avec succès.
+- Seuil configuré dans `pyproject.toml` : `--cov-fail-under=98`
+- Seuil contrôlé par `scripts/quality_gate.py` : `>= 98 %`
+- Couverture mesurée : `98.10 %`
+- Livraison autorisée : oui
 
-## Smoke CLI énergie/refroidissement exécuté
+## Contrôle GitHub Actions
 
-Scénario exécuté avec backend JSON temporaire :
+La CI contient les étapes suivantes :
 
-1. création salle avec zone `Z1` ;
-2. création rack `R01` ;
-3. localisation d’un serveur en rack/front/U6 ;
-4. déclaration d’un PDU `PDU-A` ;
-5. déclaration d’un circuit `CIR-A-01` ;
-6. déclaration d’une zone froide `Z1` ;
-7. réservation de puissance `1200 W` pour l’équipement ;
-8. rapport `energy-cooling-capacity` validant la capacité restante.
-
-Résultat : réussi.
+- checkout
+- setup Python 3.11 / 3.12
+- installation `.[dev]`
+- `ruff format --check src tests scripts docker`
+- `ruff check src tests scripts docker`
+- `mypy src/openinfra`
+- `python -m pytest`
+- `compileall`
+- `bandit -q -r src/openinfra`
+- `python -m build`
+- vérification artefact
+- `quality_gate.py`
+- CLI version
+- validation CDC/SFG/STG
+- rendu migration 0014
+- smoke runtime natif
 
 ## Contrôles non exécutés localement
 
-- `ruff` : module indisponible localement.
-- `mypy` : module indisponible localement.
-- `bandit` : module indisponible localement.
-- `python -m build` : module `build` indisponible localement.
-- Docker Compose réel : commande `docker` indisponible localement ; Docker n’est pas requis pour le runtime de production.
-- PostgreSQL réel : aucun serveur PostgreSQL local disponible ; la migration est rendue et validée statiquement, les méthodes repository PostgreSQL sont compilées.
+- Docker Compose réel : non exécuté, car Docker n’est pas requis en production et n’est qu’un lab facultatif.
+- PostgreSQL réel : non exécuté, aucun serveur PostgreSQL local/Compose disponible.
 
-Ces contrôles restent présents dans la CI lorsque les dépendances dev ou infrastructures correspondantes sont disponibles.
+## Résultat
 
-## Nettoyage archive
-
-Avant packaging : suppression de `__pycache__`, `.pytest_cache`, `.mypy_cache`, `.ruff_cache`, `build`, `dist`, `*.egg-info` et `.coverage`.
+La livraison `0.17.1` corrige le bug CI signalé avant toute poursuite roadmap. Le prochain jalon peut maintenant reprendre sur une base CI propre.

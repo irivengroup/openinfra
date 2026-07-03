@@ -52,16 +52,24 @@ class NativeRuntimeGuard:
         missing = [name for name in required if not (self._project_root / name).is_file()]
         if missing:
             raise QualityGateError("missing native runtime assets: " + ", ".join(missing))
-        unit = (self._project_root / "deploy/systemd/openinfra-api.service").read_text(encoding="utf-8")
-        runbook = (self._project_root / "docs/runbooks/RUNTIME_NATIVE.md").read_text(encoding="utf-8")
+        unit = (self._project_root / "deploy/systemd/openinfra-api.service").read_text(
+            encoding="utf-8"
+        )
+        runbook = (self._project_root / "docs/runbooks/RUNTIME_NATIVE.md").read_text(
+            encoding="utf-8"
+        )
         if "ExecStart=/opt/openinfra/venv/bin/openinfra-api" not in unit:
-            raise QualityGateError("native systemd service must start openinfra-api from virtualenv")
+            raise QualityGateError(
+                "native systemd service must start openinfra-api from virtualenv"
+            )
         if "User=openinfra" not in unit or "NoNewPrivileges=true" not in unit:
             raise QualityGateError("native systemd service must run with a hardened openinfra user")
         if "OPENINFRA_DATABASE_DSN" not in runbook:
             raise QualityGateError("native runbook must document the PostgreSQL DSN")
-        if "Docker ne fait pas partie de la chaîne d’exécution production" not in runbook:
-            raise QualityGateError("native runbook must state that Docker is not part of production runtime")
+        if "Docker ne fait pas partie de la chaine d'execution production" not in runbook:
+            raise QualityGateError(
+                "native runbook must state that Docker is not part of production runtime"
+            )
         if (self._project_root / ".env").exists():
             raise QualityGateError("local .env must not be packaged or committed")
 
@@ -79,7 +87,9 @@ class CiWorkflowTriggerGuard:
             raise QualityGateError("CI workflow must expose a manual workflow_dispatch trigger")
         forbidden = ("branches: [main]", "branches: ['main']", 'branches: ["main"]')
         if any(pattern in content for pattern in forbidden):
-            raise QualityGateError("CI workflow push/pull_request triggers must not be locked to main only")
+            raise QualityGateError(
+                "CI workflow push/pull_request triggers must not be locked to main only"
+            )
         if "branches: ['**']" not in content:
             raise QualityGateError("CI workflow must run on every branch push and pull request")
 
@@ -117,7 +127,9 @@ class CompletionMarkerGuard:
                     if marker in content:
                         violations.append(f"{path}:{marker}")
         if violations:
-            raise QualityGateError("disallowed completion markers detected: " + ", ".join(violations))
+            raise QualityGateError(
+                "disallowed completion markers detected: " + ", ".join(violations)
+            )
 
 
 class CommandRunner:

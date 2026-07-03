@@ -50,6 +50,12 @@ from openinfra.application.identity_services import (
     GrantUserRoleCommand,
 )
 from openinfra.application.ipam_services import AllocateIpCommand
+from openinfra.application.security_services import (
+    AuthenticateTokenCommand,
+    ListTokensCommand,
+    RevokeTokenCommand,
+    RotateTokenCommand,
+)
 from openinfra.application.source_governance_services import (
     CreateSourceGovernanceRuleCommand,
     DeactivateSourceGovernanceRuleCommand,
@@ -63,12 +69,6 @@ from openinfra.application.source_of_truth_services import (
     ListSourceObjectsCommand,
     ListSourceRelationsCommand,
     UpsertSourceObjectCommand,
-)
-from openinfra.application.security_services import (
-    AuthenticateTokenCommand,
-    ListTokensCommand,
-    RevokeTokenCommand,
-    RotateTokenCommand,
 )
 from openinfra.domain.access_policy import AccessRequestContext
 from openinfra.domain.common import AccessDeniedError, OpenInfraError
@@ -97,6 +97,10 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         responder = JsonHttpResponder(self)
         parsed = urlparse(self.path)
+        status: Any
+        page: Any
+        report: Any
+        result: Any
         route = parsed.path
         if route == "/health":
             responder.send(HTTPStatus.OK, {"status": "ok"})
@@ -125,8 +129,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         limit=int(self._first_query_value(query, "limit", "100")),
                         cursor=query.get("cursor", [None])[0],
                         include_inactive=(
-                            self._first_query_value(query, "include_inactive", "false")
-                            == "true"
+                            self._first_query_value(query, "include_inactive", "false") == "true"
                         ),
                     )
                 )
@@ -146,8 +149,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         limit=int(self._first_query_value(query, "limit", "100")),
                         cursor=query.get("cursor", [None])[0],
                         include_inactive=(
-                            self._first_query_value(query, "include_inactive", "false")
-                            == "true"
+                            self._first_query_value(query, "include_inactive", "false") == "true"
                         ),
                     )
                 )
@@ -195,7 +197,6 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
-
         if route == "/api/v1/sot/governance-rules":
             try:
                 query = parse_qs(parsed.query)
@@ -206,8 +207,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         limit=int(self._first_query_value(query, "limit", "100")),
                         cursor=query.get("cursor", [None])[0],
                         include_inactive=(
-                            self._first_query_value(query, "include_inactive", "false")
-                            == "true"
+                            self._first_query_value(query, "include_inactive", "false") == "true"
                         ),
                         object_kind=query.get("object_kind", [None])[0],
                     )
@@ -421,14 +421,16 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 if self.server.auth_required:
                     principal = self._authenticate(tenant_id, Permission.DCIM_LOCATE)
                     actor = principal.subject
-                report = self.server.application.dcim_environment_service.rack_energy_cooling_capacity(
-                    RackEnergyCoolingCapacityCommand(
-                        tenant_id=tenant_id,
-                        actor=actor,
-                        site=self._first_query_value(query, "site"),
-                        building=self._first_query_value(query, "building"),
-                        room=self._first_query_value(query, "room"),
-                        rack=self._first_query_value(query, "rack"),
+                report = (
+                    self.server.application.dcim_environment_service.rack_energy_cooling_capacity(
+                        RackEnergyCoolingCapacityCommand(
+                            tenant_id=tenant_id,
+                            actor=actor,
+                            site=self._first_query_value(query, "site"),
+                            building=self._first_query_value(query, "building"),
+                            room=self._first_query_value(query, "room"),
+                            rack=self._first_query_value(query, "rack"),
+                        )
                     )
                 )
                 responder.send(HTTPStatus.OK, report.as_dict())
@@ -459,6 +461,8 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         responder = JsonHttpResponder(self)
         route = urlparse(self.path).path
+        result: Any
+        rule: Any
 
         if route == "/api/v1/dcim/rooms":
             try:
@@ -545,7 +549,6 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
-
 
         if route == "/api/v1/dcim/patch-panels":
             try:
@@ -650,7 +653,6 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
-
 
         if route == "/api/v1/dcim/power-devices":
             try:
@@ -805,9 +807,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         admin_token=self._bearer_token(),
                         name=str(payload["name"]),
                         object_kind=(
-                            str(payload["object_kind"])
-                            if payload.get("object_kind")
-                            else None
+                            str(payload["object_kind"]) if payload.get("object_kind") else None
                         ),
                         attribute_path=str(payload["attribute_path"]),
                         authoritative_source=str(payload["authoritative_source"]),
@@ -959,9 +959,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         actor=str(payload.get("actor", "api")),
                         target_token=str(payload["target_token"]),
                         admin_token=(
-                            str(payload["admin_token"])
-                            if payload.get("admin_token")
-                            else None
+                            str(payload["admin_token"]) if payload.get("admin_token") else None
                         ),
                     )
                 )
@@ -986,9 +984,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         roles=tuple(str(role) for role in roles_payload),
                         token=str(payload["token"]) if payload.get("token") else None,
                         ttl_seconds=(
-                            int(payload["ttl_seconds"])
-                            if payload.get("ttl_seconds")
-                            else None
+                            int(payload["ttl_seconds"]) if payload.get("ttl_seconds") else None
                         ),
                     )
                 )
@@ -1218,8 +1214,6 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 required_permission=permission,
             )
         )
-
-
 
     def _tuple_payload(
         self,

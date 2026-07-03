@@ -20,9 +20,12 @@ class TestArchitecture:
         for path in sorted(Path("src/openinfra/domain").rglob("*.py")):
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
             for node in ast.walk(tree):
-                if isinstance(node, ast.ImportFrom) and node.module:
-                    if node.module.startswith(("openinfra.infrastructure", "openinfra.interfaces")):
-                        violations.append(f"{path}:{node.lineno}:{node.module}")
+                if (
+                    isinstance(node, ast.ImportFrom)
+                    and node.module
+                    and node.module.startswith(("openinfra.infrastructure", "openinfra.interfaces"))
+                ):
+                    violations.append(f"{path}:{node.lineno}:{node.module}")
 
         assert violations == []
 

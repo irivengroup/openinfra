@@ -77,9 +77,7 @@ class TestAuditTrailServices:
         assert exported_jsonl.content_type == "application/x-ndjson"
         assert exported_jsonl.head_hash
         with pytest.raises(AccessDeniedError):
-            app.audit_service.list_events(
-                ListAuditEventsCommand("default", viewer_token, limit=10)
-            )
+            app.audit_service.list_events(ListAuditEventsCommand("default", viewer_token, limit=10))
         app.store.data["audit_events"][0]["record_hash"] = "f" * 64
         tampered = app.audit_service.verify_integrity(
             VerifyAuditIntegrityCommand("default", admin_token, limit=100)
@@ -94,9 +92,7 @@ class TestAuditTrailServices:
             BootstrapTokenCommand("default", "pytest", "audit-admin", ("admin",), admin_token)
         )
         with pytest.raises(ValidationError):
-            app.audit_service.list_events(
-                ListAuditEventsCommand("default", admin_token, limit=0)
-            )
+            app.audit_service.list_events(ListAuditEventsCommand("default", admin_token, limit=0))
         with pytest.raises(ValueError):
             app.audit_service.export_events(
                 ExportAuditEventsCommand("default", admin_token, format="csv", limit=10)

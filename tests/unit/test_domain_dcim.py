@@ -3,7 +3,16 @@ from __future__ import annotations
 import pytest
 
 from openinfra.domain.common import Coordinates3D, TenantId, ValidationError
-from openinfra.domain.dcim import DcimGridValidator, EquipmentLocation, Floor, Rack, RackFace, Room, RoomZone, Site
+from openinfra.domain.dcim import (
+    DcimGridValidator,
+    EquipmentLocation,
+    Floor,
+    Rack,
+    RackFace,
+    Room,
+    RoomZone,
+    Site,
+)
 
 
 class TestDcimDomain:
@@ -148,17 +157,41 @@ class TestDcimDomain:
 
         with pytest.raises(ValidationError):
             Rack.create(
-                tenant, "PAR1", "BAT-A", "MMR1", "R11", "A", "01", 10, None,
+                tenant,
+                "PAR1",
+                "BAT-A",
+                "MMR1",
+                "R11",
+                "A",
+                "01",
+                10,
+                None,
                 usable_faces=("side",),
             )
         with pytest.raises(ValidationError):
             Rack.create(
-                tenant, "PAR1", "BAT-A", "MMR1", "R12", "A", "01", 10, None,
+                tenant,
+                "PAR1",
+                "BAT-A",
+                "MMR1",
+                "R12",
+                "A",
+                "01",
+                10,
+                None,
                 max_weight_kg=0,
             )
         with pytest.raises(ValidationError):
             Rack.create(
-                tenant, "PAR1", "BAT-A", "MMR1", "R13", "A", "01", 10, None,
+                tenant,
+                "PAR1",
+                "BAT-A",
+                "MMR1",
+                "R13",
+                "A",
+                "01",
+                10,
+                None,
                 power_capacity_watts=0,
             )
         with pytest.raises(ValidationError):
@@ -252,12 +285,22 @@ def test_dcim_domain_validation_edges_for_release_gate() -> None:
         lambda: Floor.create(tenant, "PAR1", "BAT-A", "F999", "Too High", 301),
         lambda: RackFace.from_value("side"),
         lambda: Rack.create(tenant, "PAR1", "BAT-A", "MMR1", "R01", "A", "01", 0, None),
-        lambda: Rack.create(tenant, "PAR1", "BAT-A", "MMR1", "R01", "A", "01", 42, None, usable_faces=()),
-        lambda: Rack.create(tenant, "PAR1", "BAT-A", "MMR1", "R01", "A", "01", 42, None, max_weight_kg=0),
-        lambda: Rack.create(tenant, "PAR1", "BAT-A", "MMR1", "R01", "A", "01", 42, None, power_capacity_watts=0),
+        lambda: Rack.create(
+            tenant, "PAR1", "BAT-A", "MMR1", "R01", "A", "01", 42, None, usable_faces=()
+        ),
+        lambda: Rack.create(
+            tenant, "PAR1", "BAT-A", "MMR1", "R01", "A", "01", 42, None, max_weight_kg=0
+        ),
+        lambda: Rack.create(
+            tenant, "PAR1", "BAT-A", "MMR1", "R01", "A", "01", 42, None, power_capacity_watts=0
+        ),
         lambda: EquipmentLocation.create("PAR1", "BAT-A", "MMR1", "A", "01", None, 1),
-        lambda: EquipmentLocation.create("PAR1", "BAT-A", "MMR1", "A", "01", None, None, u_height=2),
-        lambda: EquipmentLocation.create("PAR1", "BAT-A", "MMR1", "A", "01", None, None, rack_face="front"),
+        lambda: EquipmentLocation.create(
+            "PAR1", "BAT-A", "MMR1", "A", "01", None, None, u_height=2
+        ),
+        lambda: EquipmentLocation.create(
+            "PAR1", "BAT-A", "MMR1", "A", "01", None, None, rack_face="front"
+        ),
         lambda: EquipmentLocation.create("PAR1", "BAT-A", "MMR1", "A", "01", "R01", 61),
         lambda: EquipmentLocation.create("PAR1", "BAT-A", "MMR1", "A", "01", "R01", 1, u_height=61),
     ):
@@ -288,8 +331,12 @@ def test_dcim_domain_validation_edges_for_release_gate() -> None:
     zone = RoomZone.create(tenant, "PAR1", "BAT-A", "F02", "MMR1", "Z9", "Bad", ("B",), ("99",))
     for callable_ in (
         lambda: zone.assert_within_room(room),
-        lambda: RoomZone.create(tenant, "PAR1", "BAT-A", "F01", "MMR1", "Z1", "Z", ("A",), ("01",)).assert_cell_exists("B", "01"),
-        lambda: RoomZone.create(tenant, "PAR1", "BAT-A", "F01", "MMR1", "Z1", "Z", ("A",), ("01",)).assert_cell_exists("A", "02"),
+        lambda: RoomZone.create(
+            tenant, "PAR1", "BAT-A", "F01", "MMR1", "Z1", "Z", ("A",), ("01",)
+        ).assert_cell_exists("B", "01"),
+        lambda: RoomZone.create(
+            tenant, "PAR1", "BAT-A", "F01", "MMR1", "Z1", "Z", ("A",), ("01",)
+        ).assert_cell_exists("A", "02"),
     ):
         with pytest.raises(ValidationError):
             callable_()
@@ -304,9 +351,15 @@ def test_dcim_domain_validation_edges_for_release_gate() -> None:
             callable_()
     assert rack.as_capacity_seed()["rack"] == "R01"
     loose = EquipmentLocation.create("PAR1", "BAT-A", "MMR1", "A", "01")
-    rack_a = EquipmentLocation.create("PAR1", "BAT-A", "MMR1", "A", "01", "R01", 1, rack_face="front", u_height=2)
-    rack_b = EquipmentLocation.create("PAR1", "BAT-A", "MMR1", "A", "01", "R02", 1, rack_face="front", u_height=2)
-    rack_c = EquipmentLocation.create("PAR1", "BAT-A", "MMR1", "A", "01", "R01", 1, rack_face="rear", u_height=2)
+    rack_a = EquipmentLocation.create(
+        "PAR1", "BAT-A", "MMR1", "A", "01", "R01", 1, rack_face="front", u_height=2
+    )
+    rack_b = EquipmentLocation.create(
+        "PAR1", "BAT-A", "MMR1", "A", "01", "R02", 1, rack_face="front", u_height=2
+    )
+    rack_c = EquipmentLocation.create(
+        "PAR1", "BAT-A", "MMR1", "A", "01", "R01", 1, rack_face="rear", u_height=2
+    )
     assert loose.effective_rack_face() is None
     assert loose.effective_u_height() is None
     assert loose.occupied_units() == ()

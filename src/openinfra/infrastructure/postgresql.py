@@ -2167,6 +2167,23 @@ class PostgreSQLIpamRepository(PostgreSQLRepositoryBase, IpamRepository):
         )
         return tuple(self._address_record_from_row(row) for row in rows)
 
+    def acquire_allocation_lock(
+        self,
+        tenant_id: TenantId,
+        vrf_name: str,
+        prefix_cidr: str,
+    ) -> None:
+        normalized_vrf = Name.from_value(vrf_name, "vrf name").value
+        normalized_prefix = str(ipaddress.ip_network(prefix_cidr.strip(), strict=True))
+        self._execute_without_result(
+            """
+            SELECT pg_advisory_xact_lock(
+                hashtextextended(%(lock_scope)s, 0)
+            )
+            """,
+            {"lock_scope": f"ipam:{tenant_id.value}:{normalized_vrf}:{normalized_prefix}"},
+        )
+
     def find_reservation_by_key(
         self,
         tenant_id: TenantId,

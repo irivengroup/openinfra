@@ -428,6 +428,15 @@ class IpamRepository(ABC):
         raise TypeError("adapter contract invoked directly")
 
     @abstractmethod
+    def acquire_allocation_lock(
+        self,
+        tenant_id: TenantId,
+        vrf_name: str,
+        prefix_cidr: str,
+    ) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
     def find_reservation_by_key(
         self,
         tenant_id: TenantId,

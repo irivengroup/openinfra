@@ -1,31 +1,31 @@
-# OpenInfra Python POO v0.18.0 — Rapport de validation
+# OpenInfra Python POO v0.19.0 — Rapport de validation
+
+Date : 2026-07-03
 
 ## Synthèse
 
-- Version source : OpenInfra Python POO v0.17.6
-- Version livrée : OpenInfra Python POO v0.18.0
-- Roadmap : P05 / EPIC-0501 — Modèle IPAM IPv4/IPv6/VRF
-- Date : 2026-07-03
-- Runtime production : serveur natif Linux, virtualenv Python, systemd, PostgreSQL externe ou cluster
-- Docker : lab facultatif uniquement, non requis en production
+- Version livrée : OpenInfra Python POO v0.19.0
+- Roadmap : P05 / EPIC-0502 — Allocation IP transactionnelle
+- Seuil couverture global obligatoire : >= 98 %
+- Runtime production : serveur natif Linux + Python virtualenv + systemd + PostgreSQL, sans dépendance Docker
+- Docker : lab/smoke facultatif uniquement
 
-## Objectif métier livré
+## Périmètre livré
 
-La version v0.18.0 introduit le socle IPAM entreprise permettant de gérer les VRF, agrégats IPv4/IPv6, préfixes, plages d'allocation/réservation/exclusion et enregistrements d'adresses IP avec hostname et interface. Le modèle interdit les chevauchements dans une même VRF et autorise les plans d'adressage identiques dans des VRF distinctes.
+La version v0.19.0 durcit l’allocation IP transactionnelle introduite dans le socle IPAM. L’allocation `next available` tient compte du tenant, du VRF, du préfixe, des plages d’allocation, des plages de réservation/exclusion et des adresses déjà enregistrées. Elle reste idempotente par clé métier et produit un événement d’audit structuré lors d’une création effective.
 
-## Changements fonctionnels
+## Changements techniques
 
-- Domaine IPAM POO : `IpAggregate`, `IpRange`, `IpAddressRecord`, statuts d'adresse, usages de plage.
-- Services applicatifs : `IpamModelService` avec transactions, audit trail et règles anti-overlap.
-- Ports applicatifs : extension de `IpamRepository` pour le modèle IPAM complet.
-- Backends : persistance JSON complète et adaptateur PostgreSQL aligné.
-- CLI : `define-vrf`, `define-aggregate`, `define-prefix`, `define-range`, `register-address`, `list-prefixes`, `capacity`.
-- API HTTP : endpoints IPAM VRF, agrégats, préfixes, ranges, adresses et capacité.
-- Migration PostgreSQL : `0015_ipam_enterprise_foundation.sql`.
-- CI : rendu migration 0015 et smoke JSON IPAM.
-- Documentation : README, architecture, runbooks, OpenAPI, changelog et traçabilité.
+- Domaine IPAM : enrichissement de `IpRange` avec bornes entières et test d’appartenance ; sélection déterministe dans `IpAllocationPolicy`.
+- Application : `IpamAllocationService` acquiert un verrou logique, charge réservations/adresses/ranges et évite les collisions.
+- Port : ajout de `IpamRepository.acquire_allocation_lock`.
+- Backend JSON : verrou transactionnel existant conservé et validé par 100 allocations concurrentes.
+- Backend PostgreSQL : `pg_advisory_xact_lock` par `tenant/VRF/prefixe`, contraintes uniques conservées.
+- Migration PostgreSQL : `0016_ipam_transactional_allocation.sql`.
+- CLI/API : `openinfra ipam allocate` et `POST /api/v1/ipam/allocate` restent compatibles, mais avec comportement transactionnel durci.
+- CI : rendu migration `0016` et smoke IPAM transactionnel.
 
-## Validations exécutées localement
+## Validations
 
 | Contrôle | Résultat |
 | --- | --- |
@@ -35,61 +35,31 @@ La version v0.18.0 introduit le socle IPAM entreprise permettant de gérer les V
 | `python3 -m bandit -q -r src/openinfra` | Réussi |
 | `PYTHONPATH=src python3 scripts/security_gate.py --project-root .` | Réussi |
 | `PYTHONPATH=src python3 -m pytest -q` | Réussi |
-| Couverture globale | 98.10 % |
+| Couverture globale | 98.09 % |
 | Seuil obligatoire | >= 98 % |
-| Tests automatisés | 180 réussis |
 | `PYTHONPATH=src python3 scripts/quality_gate.py` | Réussi |
 | `PYTHONPATH=src python3 -m compileall -q src tests scripts docker` | Réussi |
-| `PYTHONPATH=src python3 -m openinfra.interfaces.cli version` | 0.18.0 |
-| `spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4` | Réussi : 488 exigences, 310 tests |
-| Rendu migrations PostgreSQL 0001 à 0015 | Réussi |
-| Rendu migration `0015_ipam_enterprise_foundation` | Réussi |
-| Smoke CLI IPAM JSON | Réussi |
-| YAML OpenAPI / Compose / GitHub Actions | Réussi |
-| `python3 scripts/native_runtime_smoke.py` | Réussi |
-| `python3 -m build` | Réussi |
-| `python3 scripts/verify_artifact.py dist/*.whl` | Réussi |
-| `python3 -m pip_audit --strict --requirement requirements/security-audit.txt --progress-spinner off --dry-run` | Réussi : 47 paquets, aucune vulnérabilité connue en dry-run |
+| `PYTHONPATH=src python3 -m openinfra.interfaces.cli version` | 0.19.0 |
+| Validation CDC/SFG/STG | Réussi |
+| Rendu migrations PostgreSQL 0001 à 0016 | Réussi |
+| Rendu migration `0016_ipam_transactional_allocation` | Réussi |
+| Smoke CLI IPAM transactionnel JSON | Réussi |
+| Smoke runtime natif | Réussi |
+| Build wheel et vérification artefact | Réussi |
+| Archive nettoyée | Réussi |
 
-## Contrôles IPAM exécutés
+## Tests métier ajoutés
 
-```bash
-PYTHONPATH=src python3 -m openinfra.interfaces.cli ipam define-vrf --data "$STATE" --tenant default --name prod --route-distinguisher 65000:10
-PYTHONPATH=src python3 -m openinfra.interfaces.cli ipam define-aggregate --data "$STATE" --tenant default --vrf prod --cidr 10.0.0.0/8 --description production
-PYTHONPATH=src python3 -m openinfra.interfaces.cli ipam define-prefix --data "$STATE" --tenant default --vrf prod --cidr 10.20.0.0/24 --description servers
-PYTHONPATH=src python3 -m openinfra.interfaces.cli ipam define-range --data "$STATE" --tenant default --vrf prod --prefix 10.20.0.0/24 --start 10.20.0.10 --end 10.20.0.50 --purpose allocation
-PYTHONPATH=src python3 -m openinfra.interfaces.cli ipam register-address --data "$STATE" --tenant default --vrf prod --prefix 10.20.0.0/24 --address 10.20.0.10 --hostname srv01 --interface-name eth0 --status active
-PYTHONPATH=src python3 -m openinfra.interfaces.cli ipam capacity --data "$STATE" --tenant default --vrf prod --prefix 10.20.0.0/24
-```
+- Allocation respectant plages `allocation`, `exclusion` et adresses déjà enregistrées.
+- Plages `reservation` considérées comme capacité bloquée par le moteur d’allocation.
+- 100 allocations concurrentes sans collision sur backend JSON.
+- Verrou PostgreSQL simulé via `pg_advisory_xact_lock` dans le flux d’allocation.
+- Non-régression idempotence existante.
 
-## Couverture
+## Non exécuté localement
 
-- Total statements : 6996
-- Statements manquants : 133
-- Couverture globale : 98.10 %
-- Seuil officiel : 98 %
-
-## Points non exécutés localement
-
-- Matrice GitHub Actions complète Python 3.11, 3.12, 3.13 et 3.14 : seul Python 3.13.5 est disponible localement.
+- Matrice GitHub complète Python `3.11`, `3.12`, `3.13`, `3.14` : seul Python `3.13.5` était disponible localement.
 - CodeQL et Dependency Review : exécutables uniquement côté GitHub Actions.
-- Audit `pip-audit` réseau complet : non requis localement pour l'archive ; le dry-run et la configuration CI bloquante sont validés.
-- Docker Compose réel : non exécuté, Docker n'est pas requis en production.
+- Audit `pip-audit` réseau complet : dépend de l’accès à PyPI côté CI.
+- Docker Compose réel : non exécuté, Docker n’est pas requis en production.
 - PostgreSQL réel : non exécuté, aucun serveur PostgreSQL local disponible.
-
-## Nettoyage archive
-
-L'archive livrée exclut les éléments suivants :
-
-- `__pycache__`
-- `.pytest_cache`
-- `.mypy_cache`
-- `.ruff_cache`
-- `build`
-- `dist`
-- `*.egg-info`
-- fichiers temporaires de test
-
-## Statut
-
-Livraison acceptée localement : oui.

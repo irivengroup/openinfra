@@ -1316,6 +1316,17 @@ class JsonIpamRepository(IpamRepository):
             and value["prefix"] == prefix_cidr
         )
 
+    def acquire_allocation_lock(
+        self,
+        tenant_id: TenantId,
+        vrf_name: str,
+        prefix_cidr: str,
+    ) -> None:
+        TenantId.from_value(tenant_id.value)
+        Name.from_value(vrf_name, "vrf name")
+        if not prefix_cidr.strip():
+            raise ValidationError("allocation prefix is mandatory")
+
     def find_reservation_by_key(
         self,
         tenant_id: TenantId,

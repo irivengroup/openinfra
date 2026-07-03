@@ -86,17 +86,41 @@ jobs:
           openinfra database render-migration --name 0013_dcim_cabling_foundation --root migrations/postgresql >/tmp/openinfra-0013.sql
           openinfra database render-migration --name 0014_dcim_energy_cooling_foundation --root migrations/postgresql >/tmp/openinfra-0014.sql
           openinfra database render-migration --name 0015_ipam_enterprise_foundation --root migrations/postgresql >/tmp/openinfra-0015.sql
+          openinfra database render-migration --name 0016_ipam_transactional_allocation --root migrations/postgresql >/tmp/openinfra-0016.sql
 
-      - name: Smoke JSON IPAM allocation
+      - name: Smoke JSON IPAM transactional allocation
         run: |
           tmpdir="$(mktemp -d)"
+          openinfra ipam define-range \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --vrf default \
+            --prefix 10.250.0.0/24 \
+            --start 10.250.0.10 \
+            --end 10.250.0.20
+          openinfra ipam define-range \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --vrf default \
+            --prefix 10.250.0.0/24 \
+            --start 10.250.0.10 \
+            --end 10.250.0.12 \
+            --purpose exclusion
           openinfra ipam allocate \
             --data "$tmpdir/state.json" \
             --tenant default \
             --vrf default \
-            --prefix 10.250.0.0/30 \
-            --hostname ci-smoke \
-            --idempotency-key ci-smoke-1
+            --prefix 10.250.0.0/24 \
+            --hostname ci-smoke-a \
+            --idempotency-key ci-smoke-1 > "$tmpdir/first.json"
+          openinfra ipam allocate \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --vrf default \
+            --prefix 10.250.0.0/24 \
+            --hostname ci-smoke-b \
+            --idempotency-key ci-smoke-2 > "$tmpdir/second.json"
+          python -c 'import json, pathlib, sys; first=json.loads(pathlib.Path(sys.argv[1]).read_text()); second=json.loads(pathlib.Path(sys.argv[2]).read_text()); assert first["address"] == "10.250.0.13"; assert second["address"] == "10.250.0.14"' "$tmpdir/first.json" "$tmpdir/second.json"
 
       - name: Smoke JSON IPAM model foundation
         run: |

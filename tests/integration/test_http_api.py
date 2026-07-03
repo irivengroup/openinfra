@@ -38,7 +38,7 @@ class TestHttpApi:
             assert health["status"] == "ok"
             assert ready["ready"] is True
             assert ready["component"] == "json"
-            assert version["version"] == "0.18.0"
+            assert version["version"] == "0.19.0"
             assert allocation["address"] == "10.6.0.1"
         finally:
             server.shutdown()

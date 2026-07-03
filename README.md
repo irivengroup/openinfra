@@ -1,18 +1,18 @@
 # OpenInfra Python Foundation
 
-**Version courante : 0.18.0 — P05 / EPIC-0501 : modèle IPAM IPv4/IPv6/VRF.**
+**Version courante : 0.19.0 — P05 / EPIC-0502 : allocation IP transactionnelle.**
 
 
 OpenInfra est un socle Python orienté objet pour construire une solution open source de Source of Truth, DCIM, ITAM, Discovery, Dependency Mapping et IPAM Enterprise++ sans fonction ITSM intégrée.
 
-Cette livraison correspond au socle exécutable de démarrage aligné avec la roadmap P01/P02 puis REL-01/P03/P04/P05 : architecture hexagonale, modèle domaine, CLI, API HTTP standard library, migrations PostgreSQL applicatives, adaptateur PostgreSQL runtime, sécurité API par jetons hachés avec expiration, révocation et rotation, IAM utilisateurs/groupes avec rôles effectifs, ABAC contextuel site/environnement, audit trail consultable/exportable avec intégrité chaînée, Source of Truth P03 objets/relations/historique, gouvernance minimale des sources autoritatives, DCIM P04 modèle physique pays/région/ville/site/bâtiment/étage/salle/zone/grille, racks, QR terrain, plans 2D et rack elevation, et IPAM P05 modèle IPv4/IPv6/VRF, runtime serveur natif, lab Docker facultatif, tests, documentation et CI.
+Cette livraison correspond au socle exécutable de démarrage aligné avec la roadmap P01/P02 puis REL-01/P03/P04/P05 : architecture hexagonale, modèle domaine, CLI, API HTTP standard library, migrations PostgreSQL applicatives, adaptateur PostgreSQL runtime, sécurité API par jetons hachés avec expiration, révocation et rotation, IAM utilisateurs/groupes avec rôles effectifs, ABAC contextuel site/environnement, audit trail consultable/exportable avec intégrité chaînée, Source of Truth P03 objets/relations/historique, gouvernance minimale des sources autoritatives, DCIM P04 modèle physique pays/région/ville/site/bâtiment/étage/salle/zone/grille, racks, QR terrain, plans 2D et rack elevation, et IPAM P05 modèle IPv4/IPv6/VRF et allocation transactionnelle, runtime serveur natif, lab Docker facultatif, tests, documentation et CI.
 
 ## Garanties de cette itération
 
 - Code produit en Python POO : les comportements sont portés par des classes de domaine, services applicatifs, ports et adaptateurs.
 - Séparation stricte `domain / application / infrastructure / interfaces`.
 - Localisation DCIM univoque : pays, région, ville, site, bâtiment, étage, salle, zone, ligne, colonne, coordonnées X/Y/Z facultatives, rack, face, unité U, plan 2D salle et rack elevation.
-- IPAM IPv4/IPv6 : VRF, agrégats, préfixes, plages, adresses suivies, capacité de préfixe, allocation transactionnelle côté service applicatif, idempotence par clé métier et détection de chevauchement par VRF.
+- IPAM IPv4/IPv6 : VRF, agrégats, préfixes, plages, adresses suivies, capacité de préfixe, allocation transactionnelle next-available, idempotence par clé métier, plages d’allocation/exclusion/réservation, verrouillage fin PostgreSQL et détection de chevauchement par VRF.
 - Persistance locale JSON atomique pour développement et tests reproductibles.
 - Persistance PostgreSQL runtime optionnelle via `psycopg`, DSN explicite et transactions courtes.
 - Migration PostgreSQL initiale avec tables partitionnées, index, contraintes et audit append-only.

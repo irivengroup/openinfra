@@ -198,3 +198,19 @@ Le workflow GitHub Actions se déclenche sur toutes les branches en `push`, sur 
 Le modèle IPAM est séparé du moteur d'allocation transactionnelle. `IpamModelService` gouverne les objets stables : VRF, agrégats IPv4/IPv6, préfixes, plages d'allocation/réservation/exclusion, adresses suivies et capacité de préfixe. Les adaptateurs JSON et PostgreSQL implémentent le même port `IpamRepository`, ce qui conserve l'indépendance des cas d'usage vis-à-vis de la persistance.
 
 Les chevauchements sont contrôlés par tenant et VRF. Un chevauchement de préfixe ou d'agrégat est refusé dans le même VRF afin de préserver l'unicité opérationnelle, tandis que le même espace d'adressage reste autorisé dans des VRF distincts. PostgreSQL reçoit des tables partitionnées par `tenant_id` et des index par VRF/prefixe/adresse pour rester compatible avec les objectifs très grand volume.
+
+
+## IPAM P05 / EPIC-0502
+
+L’allocation IP transactionnelle est portée par `IpamAllocationService` et reste indépendante de la persistance. Le service ouvre une unité de travail courte, acquiert un verrou logique par tenant/VRF/prefixe via le port `IpamRepository.acquire_allocation_lock`, lit les réservations, les adresses suivies et les plages IPAM, puis délègue la sélection déterministe à `IpAllocationPolicy`.
+
+Règles appliquées :
+
+- l’idempotency key retourne la réservation existante sans créer de doublon ;
+- les plages `allocation` restreignent le pool candidat lorsqu’elles existent ;
+- les plages `reservation` et `exclusion` bloquent l’allocation automatique ;
+- les adresses déjà réservées ou enregistrées sont traitées comme occupées ;
+- PostgreSQL utilise un `pg_advisory_xact_lock` calculé sur `tenant/VRF/prefixe`, complété par des contraintes uniques ;
+- le backend JSON utilise le verrou réentrant du document store pendant toute l’unité de travail.
+
+Cette conception couvre l’acceptation EPIC-0502 : 100 allocations concurrentes dans un même préfixe ne produisent aucune collision.

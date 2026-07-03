@@ -6,7 +6,11 @@ import pytest
 
 from openinfra.application.container import ApplicationFactory
 from openinfra.application.dcim_services import LocateEquipmentCommand
-from openinfra.application.ipam_services import AllocateIpCommand
+from openinfra.application.ipam_services import (
+    AllocateIpCommand,
+    DefineIpRangeCommand,
+    RegisterIpAddressCommand,
+)
 from openinfra.domain.common import NotFoundError, ValidationError
 
 
@@ -112,3 +116,61 @@ class TestApplicationServices:
                     z=None,
                 )
             )
+
+
+def test_ipam_allocation_honors_ranges_exclusions_and_registered_addresses(tmp_path: Path) -> None:
+    app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+    app.ipam_model_service.define_range(
+        DefineIpRangeCommand(
+            "default", "test", "default", "10.44.0.0/24", "10.44.0.10", "10.44.0.20"
+        )
+    )
+    app.ipam_model_service.define_range(
+        DefineIpRangeCommand(
+            "default",
+            "test",
+            "default",
+            "10.44.0.0/24",
+            "10.44.0.10",
+            "10.44.0.12",
+            "exclusion",
+        )
+    )
+    app.ipam_model_service.register_address(
+        RegisterIpAddressCommand(
+            "default", "test", "default", "10.44.0.0/24", "10.44.0.13", "preexisting"
+        )
+    )
+
+    result = app.ipam_service.allocate(
+        AllocateIpCommand("default", "test", "default", "10.44.0.0/24", "srv-ranged", "req-range")
+    )
+
+    assert str(result.reservation.address) == "10.44.0.14"
+
+
+def test_ipam_allocation_is_safe_for_100_concurrent_json_requests(tmp_path: Path) -> None:
+    from concurrent.futures import ThreadPoolExecutor
+
+    app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+
+    def reserve(index: int) -> str:
+        result = app.ipam_service.allocate(
+            AllocateIpCommand(
+                "default",
+                "pytest",
+                "default",
+                "10.45.0.0/24",
+                f"srv-{index:03d}",
+                f"req-{index:03d}",
+            )
+        )
+        return str(result.reservation.address)
+
+    with ThreadPoolExecutor(max_workers=20) as executor:
+        addresses = tuple(executor.map(reserve, range(100)))
+
+    assert len(addresses) == 100
+    assert len(set(addresses)) == 100
+    assert addresses[0] == "10.45.0.1"
+    assert "10.45.0.100" in addresses

@@ -1,3 +1,12 @@
+## 0.19.0 - 2026-07-03
+
+- Roadmap : P05 / EPIC-0502 — Allocation IP transactionnelle.
+- Allocation `openinfra ipam allocate` durcie : sélection next-available tenant/VRF/prefixe, idempotence par clé métier, prise en compte des adresses suivies, plages d’allocation, réservations et exclusions.
+- Verrou fin côté PostgreSQL via `pg_advisory_xact_lock` par tenant/VRF/prefixe afin d’éviter les collisions inter-processus pendant le calcul + insertion.
+- Backend JSON protégé par transaction atomique et test de concurrence 100 allocations sans collision.
+- Migration PostgreSQL `0016_ipam_transactional_allocation.sql` ajoutant les index transactionnels de scan allocation/ranges/adresses.
+- CI, OpenAPI, documentation, runbooks et validation mis à jour.
+
 ## 0.18.0 - 2026-07-03
 
 - Roadmap : P05 / EPIC-0501 — Modèle IPAM IPv4/IPv6/VRF.

@@ -482,6 +482,9 @@ class TestPostgreSQLRuntime:
         assert connector.connection.rollbacks == 0
         assert connector.connection.closed is True
         assert any(
+            "pg_advisory_xact_lock" in statement[0] for statement in connector.connection.statements
+        )
+        assert any(
             "INSERT INTO prefixes" in statement[0] for statement in connector.connection.statements
         )
         assert any(

@@ -50,6 +50,11 @@ class IpamAllocationService:
             idempotency_key=command.idempotency_key,
         )
         with self._transaction_manager.begin() as unit_of_work:
+            self._ipam_repository.acquire_allocation_lock(
+                request.tenant_id,
+                request.vrf_name.value,
+                request.prefix_cidr,
+            )
             prefix = self._ipam_repository.get_or_create_prefix(
                 Prefix.create(request.tenant_id, request.vrf_name.value, request.prefix_cidr)
             )
@@ -66,9 +71,21 @@ class IpamAllocationService:
                 vrf_name=request.vrf_name.value,
                 prefix_cidr=str(prefix.network),
             )
+            address_records = self._ipam_repository.list_address_records(
+                tenant_id=request.tenant_id,
+                vrf_name=request.vrf_name.value,
+                prefix_cidr=str(prefix.network),
+            )
+            ranges = self._ipam_repository.list_ranges(
+                tenant_id=request.tenant_id,
+                vrf_name=request.vrf_name.value,
+                prefix_cidr=str(prefix.network),
+            )
             next_address = self._allocation_policy.next_available_address(
                 prefix,
-                {reservation.address for reservation in reservations},
+                {reservation.address for reservation in reservations}
+                | {record.address for record in address_records},
+                ranges,
             )
             reservation = IpReservation.create(
                 tenant_id=request.tenant_id,
@@ -90,6 +107,7 @@ class IpamAllocationService:
                         "vrf": reservation.vrf_name.value,
                         "prefix": reservation.prefix,
                         "hostname": reservation.hostname,
+                        "idempotency_key": reservation.idempotency_key,
                     },
                 )
             )
@@ -268,7 +286,7 @@ class IpamModelService:
             for existing in self._ipam_repository.list_ranges(
                 tenant_id, command.vrf, str(prefix.network)
             ):
-                if ip_range.overlaps(existing):
+                if ip_range.overlaps(existing) and not self._is_pool_overlay(ip_range, existing):
                     raise ConflictError(
                         "ip range overlaps an existing range in this VRF and prefix"
                     )
@@ -348,6 +366,10 @@ class IpamModelService:
             self._prefix_as_dict(prefix)
             for prefix in self._ipam_repository.list_prefixes(tenant, vrf)
         )
+
+    def _is_pool_overlay(self, first: IpRange, second: IpRange) -> bool:
+        purposes = {first.purpose.value, second.purpose.value}
+        return "allocation" in purposes and purposes != {"allocation"}
 
     def _assert_network_does_not_overlap(
         self,

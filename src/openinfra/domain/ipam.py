@@ -127,12 +127,23 @@ class IpRange:
             description=description.strip(),
         )
 
+    @property
+    def start_int(self) -> int:
+        return int(self.start)
+
+    @property
+    def end_int(self) -> int:
+        return int(self.end)
+
+    def contains_int(self, address: int) -> bool:
+        return self.start_int <= address <= self.end_int
+
     def overlaps(self, other: Self) -> bool:
         if self.tenant_id != other.tenant_id or self.vrf_name != other.vrf_name:
             return False
         if self.prefix != other.prefix:
             return False
-        return int(self.start) <= int(other.end) and int(other.start) <= int(self.end)
+        return self.start_int <= other.end_int and other.start_int <= self.end_int
 
 
 @dataclass(frozen=True, slots=True)
@@ -354,14 +365,42 @@ class IpAllocationPolicy:
         self,
         prefix: Prefix,
         allocated_addresses: set[ipaddress.IPv4Address | ipaddress.IPv6Address],
+        ranges: tuple[IpRange, ...] = (),
     ) -> ipaddress.IPv4Address | ipaddress.IPv6Address:
         allocated_ints = {int(address) for address in allocated_addresses}
-        current = prefix.first_usable_int
-        while current <= prefix.last_usable_int:
-            if current not in allocated_ints:
-                return ipaddress.ip_address(current)
-            current += 1
+        allocation_ranges = tuple(
+            ip_range for ip_range in ranges if ip_range.purpose == IpRangePurpose.ALLOCATION
+        )
+        blocked_ranges = tuple(
+            ip_range
+            for ip_range in ranges
+            if ip_range.purpose in (IpRangePurpose.RESERVATION, IpRangePurpose.EXCLUSION)
+        )
+        for start, end in self._candidate_windows(prefix, allocation_ranges):
+            current = start
+            while current <= end:
+                if current not in allocated_ints and not self._is_blocked(current, blocked_ranges):
+                    return ipaddress.ip_address(current)
+                current += 1
         raise ValidationError(f"prefix is exhausted: {prefix.network}")
+
+    def _candidate_windows(
+        self,
+        prefix: Prefix,
+        allocation_ranges: tuple[IpRange, ...],
+    ) -> tuple[tuple[int, int], ...]:
+        if not allocation_ranges:
+            return ((prefix.first_usable_int, prefix.last_usable_int),)
+        windows: list[tuple[int, int]] = []
+        for ip_range in sorted(allocation_ranges, key=lambda item: item.start_int):
+            start = max(prefix.first_usable_int, ip_range.start_int)
+            end = min(prefix.last_usable_int, ip_range.end_int)
+            if start <= end:
+                windows.append((start, end))
+        return tuple(windows)
+
+    def _is_blocked(self, address: int, blocked_ranges: tuple[IpRange, ...]) -> bool:
+        return any(ip_range.contains_int(address) for ip_range in blocked_ranges)
 
     def assert_no_conflict(
         self,

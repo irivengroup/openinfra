@@ -316,3 +316,17 @@ PYTHONPATH=src python -m openinfra.interfaces.cli ipam capacity --tenant default
 ```
 
 Les tests automatisés couvrent le domaine IPAM IPv4/IPv6, les services applicatifs, les adaptateurs JSON/PostgreSQL simulés, les commandes CLI, les endpoints API HTTP et la règle de non-chevauchement par VRF.
+
+
+## Contrôles ajoutés en v0.19.0
+
+```bash
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0016_ipam_transactional_allocation --root migrations/postgresql >/tmp/openinfra-0016.sql
+tmpdir="$(mktemp -d)"
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam define-range --data "$tmpdir/state.json" --tenant default --vrf prod --prefix 10.60.0.0/24 --start 10.60.0.10 --end 10.60.0.20
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam define-range --data "$tmpdir/state.json" --tenant default --vrf prod --prefix 10.60.0.0/24 --start 10.60.0.10 --end 10.60.0.12 --purpose exclusion
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam allocate --data "$tmpdir/state.json" --tenant default --vrf prod --prefix 10.60.0.0/24 --hostname validation --idempotency-key validation-1
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam capacity --data "$tmpdir/state.json" --tenant default --vrf prod --prefix 10.60.0.0/24
+```
+
+Les tests automatisés incluent un scénario de 100 allocations concurrentes sur backend JSON, la vérification des plages d’allocation/exclusion/réservation, la prise en compte des adresses enregistrées et le verrou PostgreSQL simulé `pg_advisory_xact_lock`.

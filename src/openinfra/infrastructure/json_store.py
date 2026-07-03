@@ -83,7 +83,7 @@ from openinfra.domain.identity import (
     IdentitySubject,
     IdentityUser,
 )
-from openinfra.domain.ipam import IpReservation, Prefix, Vrf
+from openinfra.domain.ipam import IpAddressRecord, IpAggregate, IpRange, IpReservation, Prefix, Vrf
 from openinfra.domain.security import ApiTokenCredential, Permission
 from openinfra.domain.source_governance import SourceGovernanceRule, SourceGovernanceRulePage
 from openinfra.domain.source_of_truth import (
@@ -174,7 +174,10 @@ class JsonDocumentStore:
             "power_reservations": {},
             "equipment": {},
             "vrfs": {},
+            "ip_aggregates": {},
             "prefixes": {},
+            "ip_ranges": {},
+            "ip_address_records": {},
             "ip_reservations": {},
             "audit_events": [],
             "security_tokens": {},
@@ -225,7 +228,10 @@ class JsonReadinessProbe(ReadinessProbe):
                     "power_reservations",
                     "equipment",
                     "vrfs",
+                    "ip_aggregates",
                     "prefixes",
+                    "ip_ranges",
+                    "ip_address_records",
                     "ip_reservations",
                     "audit_events",
                     "security_tokens",
@@ -1206,15 +1212,44 @@ class JsonIpamRepository(IpamRepository):
         key = self._key(vrf.tenant_id, vrf.name.value)
         if key in self._store.data["vrfs"]:
             raise ConflictError(f"duplicate vrf: {key}")
-        self._store.data["vrfs"][key] = {
-            "id": vrf.id.value,
-            "tenant_id": vrf.tenant_id.value,
-            "name": vrf.name.value,
-            "route_distinguisher": vrf.route_distinguisher,
-        }
+        self._store.data["vrfs"][key] = self._vrf_to_dict(vrf)
         self._store.mark_dirty()
 
+    def add_or_get_vrf(self, vrf: Vrf) -> Vrf:
+        key = self._key(vrf.tenant_id, vrf.name.value)
+        existing = self._store.data["vrfs"].get(key)
+        if existing:
+            return self._vrf_from_dict(existing)
+        self._store.data["vrfs"][key] = self._vrf_to_dict(vrf)
+        self._store.mark_dirty()
+        return vrf
+
+    def list_vrfs(self, tenant_id: TenantId) -> tuple[Vrf, ...]:
+        return tuple(
+            self._vrf_from_dict(value)
+            for value in self._store.data["vrfs"].values()
+            if value["tenant_id"] == tenant_id.value
+        )
+
+    def add_aggregate(self, aggregate: IpAggregate) -> IpAggregate:
+        self.add_or_get_vrf(Vrf.create(aggregate.tenant_id, aggregate.vrf_name.value))
+        key = self._key(aggregate.tenant_id, aggregate.vrf_name.value, str(aggregate.network))
+        if key in self._store.data["ip_aggregates"]:
+            return self._aggregate_from_dict(self._store.data["ip_aggregates"][key])
+        self._store.data["ip_aggregates"][key] = self._aggregate_to_dict(aggregate)
+        self._store.mark_dirty()
+        return aggregate
+
+    def list_aggregates(self, tenant_id: TenantId, vrf_name: str) -> tuple[IpAggregate, ...]:
+        normalized_vrf = Name.from_value(vrf_name, "vrf name").value
+        return tuple(
+            self._aggregate_from_dict(value)
+            for value in self._store.data["ip_aggregates"].values()
+            if value["tenant_id"] == tenant_id.value and value["vrf_name"] == normalized_vrf
+        )
+
     def get_or_create_prefix(self, prefix: Prefix) -> Prefix:
+        self.add_or_get_vrf(Vrf.create(prefix.tenant_id, prefix.vrf_name.value))
         key = self._key(prefix.tenant_id, prefix.vrf_name.value, str(prefix.network))
         existing = self._store.data["prefixes"].get(key)
         if existing:
@@ -1222,6 +1257,64 @@ class JsonIpamRepository(IpamRepository):
         self._store.data["prefixes"][key] = self._prefix_to_dict(prefix)
         self._store.mark_dirty()
         return prefix
+
+    def list_prefixes(self, tenant_id: TenantId, vrf_name: str) -> tuple[Prefix, ...]:
+        normalized_vrf = Name.from_value(vrf_name, "vrf name").value
+        return tuple(
+            self._prefix_from_dict(value)
+            for value in self._store.data["prefixes"].values()
+            if value["tenant_id"] == tenant_id.value and value["vrf_name"] == normalized_vrf
+        )
+
+    def add_range(self, ip_range: IpRange) -> IpRange:
+        key = self._key(
+            ip_range.tenant_id,
+            ip_range.vrf_name.value,
+            ip_range.prefix,
+            str(ip_range.start),
+            str(ip_range.end),
+        )
+        if key in self._store.data["ip_ranges"]:
+            return self._range_from_dict(self._store.data["ip_ranges"][key])
+        self._store.data["ip_ranges"][key] = self._range_to_dict(ip_range)
+        self._store.mark_dirty()
+        return ip_range
+
+    def list_ranges(
+        self,
+        tenant_id: TenantId,
+        vrf_name: str,
+        prefix_cidr: str,
+    ) -> tuple[IpRange, ...]:
+        normalized_vrf = Name.from_value(vrf_name, "vrf name").value
+        return tuple(
+            self._range_from_dict(value)
+            for value in self._store.data["ip_ranges"].values()
+            if value["tenant_id"] == tenant_id.value
+            and value["vrf_name"] == normalized_vrf
+            and value["prefix"] == prefix_cidr
+        )
+
+    def upsert_address_record(self, record: IpAddressRecord) -> IpAddressRecord:
+        key = self._key(record.tenant_id, record.vrf_name.value, str(record.address))
+        self._store.data["ip_address_records"][key] = self._address_record_to_dict(record)
+        self._store.mark_dirty()
+        return record
+
+    def list_address_records(
+        self,
+        tenant_id: TenantId,
+        vrf_name: str,
+        prefix_cidr: str,
+    ) -> tuple[IpAddressRecord, ...]:
+        normalized_vrf = Name.from_value(vrf_name, "vrf name").value
+        return tuple(
+            self._address_record_from_dict(value)
+            for value in self._store.data["ip_address_records"].values()
+            if value["tenant_id"] == tenant_id.value
+            and value["vrf_name"] == normalized_vrf
+            and value["prefix"] == prefix_cidr
+        )
 
     def find_reservation_by_key(
         self,
@@ -1271,6 +1364,46 @@ class JsonIpamRepository(IpamRepository):
     def _key(self, tenant_id: TenantId, *parts: str) -> str:
         return ":".join((tenant_id.value, *parts))
 
+    def _vrf_to_dict(self, vrf: Vrf) -> dict[str, Any]:
+        return {
+            "id": vrf.id.value,
+            "tenant_id": vrf.tenant_id.value,
+            "name": vrf.name.value,
+            "route_distinguisher": vrf.route_distinguisher,
+        }
+
+    def _vrf_from_dict(self, value: dict[str, Any]) -> Vrf:
+        return Vrf(
+            id=EntityId.from_value(value["id"]),
+            tenant_id=TenantId.from_value(value["tenant_id"]),
+            name=Name.from_value(value["name"], "vrf name"),
+            route_distinguisher=value.get("route_distinguisher"),
+        )
+
+    def _aggregate_to_dict(self, aggregate: IpAggregate) -> dict[str, Any]:
+        return {
+            "id": aggregate.id.value,
+            "tenant_id": aggregate.tenant_id.value,
+            "vrf_name": aggregate.vrf_name.value,
+            "network": str(aggregate.network),
+            "description": aggregate.description,
+        }
+
+    def _aggregate_from_dict(self, value: dict[str, Any]) -> IpAggregate:
+        aggregate = IpAggregate.create(
+            TenantId.from_value(value["tenant_id"]),
+            value["vrf_name"],
+            value["network"],
+            value["description"],
+        )
+        return IpAggregate(
+            id=EntityId.from_value(value["id"]),
+            tenant_id=aggregate.tenant_id,
+            vrf_name=aggregate.vrf_name,
+            network=aggregate.network,
+            description=aggregate.description,
+        )
+
     def _prefix_to_dict(self, prefix: Prefix) -> dict[str, Any]:
         return {
             "id": prefix.id.value,
@@ -1287,6 +1420,82 @@ class JsonIpamRepository(IpamRepository):
             vrf_name=Name.from_value(value["vrf_name"]),
             network=ipaddress.ip_network(value["network"], strict=True),
             description=value["description"],
+        )
+
+    def _range_to_dict(self, ip_range: IpRange) -> dict[str, Any]:
+        return {
+            "id": ip_range.id.value,
+            "tenant_id": ip_range.tenant_id.value,
+            "vrf_name": ip_range.vrf_name.value,
+            "prefix": ip_range.prefix,
+            "start": str(ip_range.start),
+            "end": str(ip_range.end),
+            "purpose": ip_range.purpose.value,
+            "description": ip_range.description,
+        }
+
+    def _range_from_dict(self, value: dict[str, Any]) -> IpRange:
+        prefix = Prefix.create(
+            TenantId.from_value(value["tenant_id"]),
+            value["vrf_name"],
+            value["prefix"],
+        )
+        ip_range = IpRange.create(
+            TenantId.from_value(value["tenant_id"]),
+            value["vrf_name"],
+            prefix,
+            value["start"],
+            value["end"],
+            value["purpose"],
+            value["description"],
+        )
+        return IpRange(
+            id=EntityId.from_value(value["id"]),
+            tenant_id=ip_range.tenant_id,
+            vrf_name=ip_range.vrf_name,
+            prefix=ip_range.prefix,
+            start=ip_range.start,
+            end=ip_range.end,
+            purpose=ip_range.purpose,
+            description=ip_range.description,
+        )
+
+    def _address_record_to_dict(self, record: IpAddressRecord) -> dict[str, Any]:
+        return {
+            "id": record.id.value,
+            "tenant_id": record.tenant_id.value,
+            "vrf_name": record.vrf_name.value,
+            "prefix": record.prefix,
+            "address": str(record.address),
+            "hostname": record.hostname,
+            "interface_name": record.interface_name.value if record.interface_name else None,
+            "status": record.status.value,
+        }
+
+    def _address_record_from_dict(self, value: dict[str, Any]) -> IpAddressRecord:
+        prefix = Prefix.create(
+            TenantId.from_value(value["tenant_id"]),
+            value["vrf_name"],
+            value["prefix"],
+        )
+        record = IpAddressRecord.create(
+            TenantId.from_value(value["tenant_id"]),
+            value["vrf_name"],
+            prefix,
+            value["address"],
+            value["hostname"],
+            value.get("interface_name"),
+            value["status"],
+        )
+        return IpAddressRecord(
+            id=EntityId.from_value(value["id"]),
+            tenant_id=record.tenant_id,
+            vrf_name=record.vrf_name,
+            prefix=record.prefix,
+            address=record.address,
+            hostname=record.hostname,
+            interface_name=record.interface_name,
+            status=record.status,
         )
 
     def _reservation_to_dict(self, reservation: IpReservation) -> dict[str, Any]:

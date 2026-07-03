@@ -1,3 +1,14 @@
+## 0.18.0 - 2026-07-03
+
+- Roadmap : P05 / EPIC-0501 — Modèle IPAM IPv4/IPv6/VRF.
+- Ajout du domaine `IpAggregate`, `IpRange`, `IpAddressRecord`, `IpRangePurpose` et `IpAddressStatus`.
+- Ajout du service applicatif `IpamModelService` pour définir VRF, agrégats, préfixes, plages IP, adresses suivies et capacité de préfixe.
+- Ajout des commandes `openinfra ipam define-vrf`, `define-aggregate`, `define-prefix`, `define-range`, `register-address`, `list-prefixes` et `capacity`.
+- Ajout des endpoints `POST /api/v1/ipam/vrfs`, `POST /api/v1/ipam/aggregates`, `POST /api/v1/ipam/prefixes`, `POST /api/v1/ipam/ranges`, `POST /api/v1/ipam/addresses`, `GET /api/v1/ipam/prefixes` et `GET /api/v1/ipam/capacity`.
+- Ajout de la migration PostgreSQL `0015_ipam_enterprise_foundation.sql` avec tables partitionnées pour agrégats, ranges et adresses suivies, index par tenant/VRF/prefixe/adresse et contraintes IPv4/IPv6.
+- Règle métier EPIC-0501 : les chevauchements de préfixes et agrégats sont refusés dans un même VRF et autorisés entre VRF distincts.
+- CI, OpenAPI, README, architecture, runbook et tests mis à jour avec couverture globale `>= 98 %`.
+
 ## 0.17.6 - 2026-07-03
 
 - Correctif CI Python 3.13 : les jetons générés dans les smoke tests GitHub Actions sont désormais préfixés par `ci_` afin qu'aucune valeur aléatoire commençant par `-` ne soit interprétée par `argparse` comme une option au lieu d'un argument de `--token`.

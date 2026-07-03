@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.17.6
+  version: 0.18.0
 components:
   securitySchemes:
     bearerToken:
@@ -1329,3 +1329,125 @@ paths:
         '200': {description: Rack energy and cooling capacity report}
         '400': {description: Validation error}
         '401': {description: Missing or invalid DCIM locate token}
+
+  /api/v1/ipam/vrfs:
+    post:
+      summary: Define or retrieve an IPAM VRF scoped to a tenant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, name]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                name: {type: string}
+                route_distinguisher: {type: string}
+      responses:
+        '201': {description: VRF persisted or returned idempotently}
+        '400': {description: Validation error}
+  /api/v1/ipam/aggregates:
+    post:
+      summary: Define an IPv4 or IPv6 aggregate inside one VRF
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, vrf, cidr]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                vrf: {type: string}
+                cidr: {type: string, example: 10.0.0.0/8}
+                description: {type: string}
+      responses:
+        '201': {description: Aggregate persisted}
+        '400': {description: Validation error}
+        '409': {description: Aggregate overlaps an existing aggregate in the same VRF}
+  /api/v1/ipam/prefixes:
+    get:
+      summary: List IPv4 and IPv6 prefixes for one tenant and VRF
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: vrf, in: query, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Prefix list}
+        '400': {description: Validation error}
+    post:
+      summary: Define an IPv4 or IPv6 prefix inside one VRF
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, vrf, cidr]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                vrf: {type: string}
+                cidr: {type: string, example: 10.20.0.0/24}
+                description: {type: string}
+      responses:
+        '201': {description: Prefix persisted or returned idempotently}
+        '400': {description: Validation error}
+        '409': {description: Prefix overlaps an existing prefix in the same VRF}
+  /api/v1/ipam/ranges:
+    post:
+      summary: Define an allocation, reservation or exclusion range inside a prefix
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, vrf, prefix, start, end]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                vrf: {type: string}
+                prefix: {type: string, example: 10.20.0.0/24}
+                start: {type: string, example: 10.20.0.10}
+                end: {type: string, example: 10.20.0.50}
+                purpose: {type: string, enum: [allocation, reservation, exclusion]}
+                description: {type: string}
+      responses:
+        '201': {description: Range persisted}
+        '400': {description: Validation error}
+        '409': {description: Range overlaps an existing range in the same VRF and prefix}
+  /api/v1/ipam/addresses:
+    post:
+      summary: Register an IP address and optional interface binding inside a prefix
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, vrf, prefix, address]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                vrf: {type: string}
+                prefix: {type: string, example: 10.20.0.0/24}
+                address: {type: string, example: 10.20.0.10}
+                hostname: {type: string}
+                interface_name: {type: string}
+                status: {type: string, enum: [planned, reserved, active, deprecated]}
+      responses:
+        '201': {description: Address record upserted}
+        '400': {description: Validation error}
+  /api/v1/ipam/capacity:
+    get:
+      summary: Report usable, reserved and free address capacity for one prefix
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: vrf, in: query, required: true, schema: {type: string}}
+        - {name: prefix, in: query, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Prefix capacity report}
+        '400': {description: Validation error}

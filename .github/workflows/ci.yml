@@ -85,6 +85,7 @@ jobs:
           openinfra database render-migration --name 0012_dcim_visualization_indexes --root migrations/postgresql >/tmp/openinfra-0012.sql
           openinfra database render-migration --name 0013_dcim_cabling_foundation --root migrations/postgresql >/tmp/openinfra-0013.sql
           openinfra database render-migration --name 0014_dcim_energy_cooling_foundation --root migrations/postgresql >/tmp/openinfra-0014.sql
+          openinfra database render-migration --name 0015_ipam_enterprise_foundation --root migrations/postgresql >/tmp/openinfra-0015.sql
 
       - name: Smoke JSON IPAM allocation
         run: |
@@ -96,6 +97,16 @@ jobs:
             --prefix 10.250.0.0/30 \
             --hostname ci-smoke \
             --idempotency-key ci-smoke-1
+
+      - name: Smoke JSON IPAM model foundation
+        run: |
+          tmpdir="$(mktemp -d)"
+          openinfra ipam define-vrf --data "$tmpdir/state.json" --tenant default --name prod --route-distinguisher 65000:1
+          openinfra ipam define-aggregate --data "$tmpdir/state.json" --tenant default --vrf prod --cidr 10.128.0.0/12
+          openinfra ipam define-prefix --data "$tmpdir/state.json" --tenant default --vrf prod --cidr 10.128.10.0/24
+          openinfra ipam define-range --data "$tmpdir/state.json" --tenant default --vrf prod --prefix 10.128.10.0/24 --start 10.128.10.10 --end 10.128.10.20
+          openinfra ipam register-address --data "$tmpdir/state.json" --tenant default --vrf prod --prefix 10.128.10.0/24 --address 10.128.10.10 --hostname ci-ipam-model --interface-name eth0
+          openinfra ipam capacity --data "$tmpdir/state.json" --tenant default --vrf prod --prefix 10.128.10.0/24
 
       - name: Smoke JSON security token
         run: |

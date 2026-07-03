@@ -19,6 +19,9 @@ PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --na
 PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0010_dcim_rack_capacity --root migrations/postgresql >/tmp/openinfra-0010.sql
 PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0011_dcim_field_operations --root migrations/postgresql >/tmp/openinfra-0011.sql
 PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0012_dcim_visualization_indexes --root migrations/postgresql >/tmp/openinfra-0012.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0013_dcim_cabling_foundation --root migrations/postgresql >/tmp/openinfra-0013.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0014_dcim_energy_cooling_foundation --root migrations/postgresql >/tmp/openinfra-0014.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0015_ipam_enterprise_foundation --root migrations/postgresql >/tmp/openinfra-0015.sql
 PYTHONPATH=src python -m openinfra.interfaces.cli ipam allocate --data /tmp/openinfra-state.json --tenant default --vrf default --prefix 10.99.0.0/30 --hostname validation --idempotency-key validation-1
 ```
 
@@ -46,7 +49,7 @@ python scripts/verify_artifact.py dist/*.whl
 python scripts/quality_gate.py
 ```
 
-## Validation de l’environnement d’exécution Docker
+## Validation facultative du lab Docker
 
 ```bash
 python scripts/docker_environment.py init
@@ -54,7 +57,7 @@ python scripts/docker_environment.py validate
 python scripts/docker_environment.py reset
 ```
 
-Cette validation démarre PostgreSQL, applique les migrations avec `openinfra database apply-migrations`, lance l’API avec backend PostgreSQL et exécute les smoke tests API/CLI. Elle nécessite Docker Compose disponible sur le poste ou le runner CI.
+Cette validation démarre PostgreSQL dans un lab, applique les migrations avec `openinfra database apply-migrations`, lance l’API avec backend PostgreSQL et exécute les smoke tests API/CLI. Elle est facultative : le runtime de production officiel reste le déploiement serveur natif avec virtualenv Python, systemd et PostgreSQL externe/cluster.
 
 ## Critères bloquants
 
@@ -65,7 +68,7 @@ Cette validation démarre PostgreSQL, applique les migrations avec `openinfra da
 - Fichier source contractuel v4 absent.
 - Commande CLI documentée mais non testée.
 - Fonction publique module-level dans `src/openinfra`, car le code produit doit rester orienté objet.
-- Environnement Docker incomplet ou incapable d’orchestrer PostgreSQL, migration, API et smoke tests.
+- Runtime serveur natif incomplet ou incapable de lancer l’API, charger la configuration et exécuter les smoke tests.
 
 ## Validations sécurité v0.7.0
 
@@ -83,7 +86,7 @@ PY
 PYTHONPATH=src python -m pytest tests/unit/test_security_domain.py tests/integration/test_http_api.py
 ```
 
-La CI exécute aussi le runtime Docker authentifié via `python scripts/docker_environment.py validate`, incluant inventaire et révocation de jeton temporaire.
+La CI exécute aussi le smoke runtime natif authentifié, incluant inventaire et révocation de jeton temporaire. Le lab Docker reste facultatif.
 
 ## Validation IAM v0.7.0
 
@@ -107,7 +110,7 @@ PYTHONPATH=src python -m openinfra.interfaces.cli access evaluate --data /tmp/op
 PYTHONPATH=src python -m pytest -q tests/unit/test_access_policy_domain.py tests/integration/test_access_policy_services.py
 ```
 
-La CI exécute également un smoke test JSON ABAC et le runtime Docker couvre le scénario PostgreSQL/API/CLI.
+La CI exécute également un smoke test JSON ABAC. Les scénarios PostgreSQL/API/CLI sont couverts par le runtime natif et peuvent être rejoués dans le lab Docker facultatif.
 
 
 ## Validation Audit Trail v0.9.0
@@ -122,7 +125,7 @@ PYTHONPATH=src python -m openinfra.interfaces.cli audit verify-integrity --data 
 PYTHONPATH=src python -m pytest -q tests/unit/test_audit_domain.py tests/integration/test_audit_trail_services.py
 ```
 
-La CI exécute également un smoke test JSON audit et le runtime Docker valide `/api/v1/audit/events`, `/api/v1/audit/export` et `/api/v1/audit/integrity` en backend PostgreSQL.
+La CI exécute également un smoke test JSON audit et le runtime natif valide les contrats API/CLI. Les endpoints `/api/v1/audit/events`, `/api/v1/audit/export` et `/api/v1/audit/integrity` peuvent être rejoués contre PostgreSQL dans le lab Docker facultatif.
 
 ## Contrôles ajoutés en v0.10.0
 
@@ -139,7 +142,7 @@ La CI exécute également un smoke test JSON audit et le runtime Docker valide `
 - Tests CLI : `openinfra sot create-governance-rule`, `list-governance-rules`, `evaluate-governance`, `deactivate-governance-rule`.
 - Tests API HTTP : `/api/v1/sot/governance-rules`, `/api/v1/sot/governance/evaluate`, `/api/v1/sot/governance/deactivate-rule`.
 - Tests adaptateur PostgreSQL simulé : persistance, lecture paginée et évaluation via `PostgreSQLSourceGovernanceRepository`.
-- Smoke runtime Docker : scénario gouvernance SOT contre API authentifiée et backend PostgreSQL.
+- Smoke runtime natif : scénario gouvernance SOT contre API authentifiée. Le backend PostgreSQL réel peut être testé dans le lab Docker facultatif ou sur un serveur PostgreSQL dédié.
 
 
 ## Contrôles ajoutés en v0.12.0
@@ -149,7 +152,7 @@ La CI exécute également un smoke test JSON audit et le runtime Docker valide `
 - Tests CLI : `openinfra dcim define-room` puis `openinfra dcim locate --floor --zone`.
 - Tests API HTTP : `POST /api/v1/dcim/rooms` protégé par `dcim.write` lorsque l’API authentifiée est activée.
 - Tests adaptateur PostgreSQL simulé : persistance des nouveaux champs DCIM et rendu de `0009_dcim_physical_model.sql`.
-- Smoke runtime Docker : création de salle DCIM physique et localisation équipement contre PostgreSQL.
+- Smoke runtime natif : création de salle DCIM physique et localisation équipement. PostgreSQL réel est validable sur serveur dédié ou dans le lab Docker facultatif.
 
 ## Contrôles ajoutés en v0.13.0
 
@@ -159,7 +162,7 @@ PYTHONPATH=src python -m openinfra.interfaces.cli dcim define-rack --tenant defa
 PYTHONPATH=src python -m openinfra.interfaces.cli dcim rack-capacity --tenant default --site PAR1 --building BAT-A --room MMR1 --rack R01
 ```
 
-Les tests ajoutés couvrent le domaine rack, le service de capacité, le rejet des chevauchements U, la CLI, l'API HTTP et le smoke runtime Docker.
+Les tests ajoutés couvrent le domaine rack, le service de capacité, le rejet des chevauchements U, la CLI, l'API HTTP et le smoke runtime natif.
 
 ## Contrôles ajoutés en v0.14.0
 
@@ -178,6 +181,9 @@ La v0.15.0 conserve le seuil bloquant `>= 98 %` et ajoute les contrôles P04 / E
 
 ```bash
 PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0012_dcim_visualization_indexes --root migrations/postgresql >/tmp/openinfra-0012.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0013_dcim_cabling_foundation --root migrations/postgresql >/tmp/openinfra-0013.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0014_dcim_energy_cooling_foundation --root migrations/postgresql >/tmp/openinfra-0014.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0015_ipam_enterprise_foundation --root migrations/postgresql >/tmp/openinfra-0015.sql
 PYTHONPATH=src python -m openinfra.interfaces.cli dcim room-plan --tenant default --site PAR1 --building BAT-A --room MMR1 --format json
 PYTHONPATH=src python -m openinfra.interfaces.cli dcim room-plan --tenant default --site PAR1 --building BAT-A --room MMR1 --format svg
 PYTHONPATH=src python -m openinfra.interfaces.cli dcim rack-elevation --tenant default --site PAR1 --building BAT-A --room MMR1 --rack R01 --face front --format json
@@ -295,3 +301,18 @@ Contrôle attendu :
 ```bash
 PYTHONPATH=src python3 scripts/security_gate.py --project-root .
 ```
+
+
+## Contrôles ajoutés en v0.18.0
+
+```bash
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0015_ipam_enterprise_foundation --root migrations/postgresql >/tmp/openinfra-0015.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam define-vrf --tenant default --name prod --route-distinguisher 65000:1
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam define-aggregate --tenant default --vrf prod --cidr 10.0.0.0/8
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam define-prefix --tenant default --vrf prod --cidr 10.10.0.0/24
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam define-range --tenant default --vrf prod --prefix 10.10.0.0/24 --start 10.10.0.10 --end 10.10.0.200
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam register-address --tenant default --vrf prod --prefix 10.10.0.0/24 --address 10.10.0.10 --hostname validation --interface-name eth0
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam capacity --tenant default --vrf prod --prefix 10.10.0.0/24
+```
+
+Les tests automatisés couvrent le domaine IPAM IPv4/IPv6, les services applicatifs, les adaptateurs JSON/PostgreSQL simulés, les commandes CLI, les endpoints API HTTP et la règle de non-chevauchement par VRF.

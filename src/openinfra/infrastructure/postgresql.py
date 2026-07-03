@@ -85,7 +85,7 @@ from openinfra.domain.identity import (
     IdentitySubject,
     IdentityUser,
 )
-from openinfra.domain.ipam import IpReservation, Prefix, Vrf
+from openinfra.domain.ipam import IpAddressRecord, IpAggregate, IpRange, IpReservation, Prefix, Vrf
 from openinfra.domain.security import ApiTokenCredential, Permission
 from openinfra.domain.source_governance import SourceGovernanceRule, SourceGovernanceRulePage
 from openinfra.domain.source_of_truth import (
@@ -1943,6 +1943,78 @@ class PostgreSQLIpamRepository(PostgreSQLRepositoryBase, IpamRepository):
             },
         )
 
+    def add_or_get_vrf(self, vrf: Vrf) -> Vrf:
+        self._ensure_tenant(vrf.tenant_id)
+        row = self._fetch_one(
+            """
+            INSERT INTO vrfs (id, tenant_id, name, route_distinguisher)
+            VALUES (%(id)s, %(tenant_id)s, %(name)s, %(route_distinguisher)s)
+            ON CONFLICT (tenant_id, name)
+            DO UPDATE SET route_distinguisher = COALESCE(
+                vrfs.route_distinguisher,
+                EXCLUDED.route_distinguisher
+            )
+            RETURNING id, tenant_id, name, route_distinguisher
+            """,
+            {
+                "id": vrf.id.value,
+                "tenant_id": vrf.tenant_id.value,
+                "name": vrf.name.value,
+                "route_distinguisher": vrf.route_distinguisher,
+            },
+        )
+        if row is None:
+            raise OpenInfraError("postgresql did not return vrf after upsert")
+        return self._vrf_from_row(row)
+
+    def list_vrfs(self, tenant_id: TenantId) -> tuple[Vrf, ...]:
+        rows = self._fetch_all(
+            """
+            SELECT id, tenant_id, name, route_distinguisher
+            FROM vrfs
+            WHERE tenant_id = %(tenant_id)s
+            ORDER BY name
+            """,
+            {"tenant_id": tenant_id.value},
+        )
+        return tuple(self._vrf_from_row(row) for row in rows)
+
+    def add_aggregate(self, aggregate: IpAggregate) -> IpAggregate:
+        self._ensure_tenant(aggregate.tenant_id)
+        self.add_vrf(Vrf.create(aggregate.tenant_id, aggregate.vrf_name.value))
+        row = self._fetch_one(
+            """
+            INSERT INTO ip_aggregates (id, tenant_id, vrf_name, cidr, family, description)
+            VALUES (%(id)s, %(tenant_id)s, %(vrf_name)s, %(cidr)s, %(family)s, %(description)s)
+            ON CONFLICT (tenant_id, vrf_name, cidr)
+            DO UPDATE SET description = ip_aggregates.description
+            RETURNING id, tenant_id, vrf_name, cidr, description
+            """,
+            {
+                "id": aggregate.id.value,
+                "tenant_id": aggregate.tenant_id.value,
+                "vrf_name": aggregate.vrf_name.value,
+                "cidr": str(aggregate.network),
+                "family": aggregate.network.version,
+                "description": aggregate.description,
+            },
+        )
+        if row is None:
+            raise OpenInfraError("postgresql did not return aggregate after upsert")
+        return self._aggregate_from_row(row)
+
+    def list_aggregates(self, tenant_id: TenantId, vrf_name: str) -> tuple[IpAggregate, ...]:
+        rows = self._fetch_all(
+            """
+            SELECT id, tenant_id, vrf_name, cidr, description
+            FROM ip_aggregates
+            WHERE tenant_id = %(tenant_id)s AND vrf_name = %(vrf_name)s
+            ORDER BY cidr
+            """,
+            {"tenant_id": tenant_id.value, "vrf_name": Name.from_value(vrf_name, "vrf name").value},
+        )
+        return tuple(self._aggregate_from_row(row) for row in rows)
+
     def get_or_create_prefix(self, prefix: Prefix) -> Prefix:
         self._ensure_tenant(prefix.tenant_id)
         self.add_vrf(Vrf.create(prefix.tenant_id, prefix.vrf_name.value))
@@ -1972,6 +2044,128 @@ class PostgreSQLIpamRepository(PostgreSQLRepositoryBase, IpamRepository):
         if row is None:
             raise OpenInfraError("postgresql did not return prefix after upsert")
         return self._prefix_from_row(row)
+
+    def list_prefixes(self, tenant_id: TenantId, vrf_name: str) -> tuple[Prefix, ...]:
+        rows = self._fetch_all(
+            """
+            SELECT id, tenant_id, vrf_name, cidr, description
+            FROM prefixes
+            WHERE tenant_id = %(tenant_id)s AND vrf_name = %(vrf_name)s
+            ORDER BY cidr
+            """,
+            {"tenant_id": tenant_id.value, "vrf_name": Name.from_value(vrf_name, "vrf name").value},
+        )
+        return tuple(self._prefix_from_row(row) for row in rows)
+
+    def add_range(self, ip_range: IpRange) -> IpRange:
+        row = self._fetch_one(
+            """
+            INSERT INTO ip_ranges (
+                id, tenant_id, vrf_name, prefix_cidr, start_address, end_address,
+                purpose, description
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(vrf_name)s, %(prefix_cidr)s, %(start_address)s,
+                %(end_address)s, %(purpose)s, %(description)s
+            )
+            ON CONFLICT (tenant_id, vrf_name, prefix_cidr, start_address, end_address)
+            DO UPDATE SET description = ip_ranges.description
+            RETURNING id, tenant_id, vrf_name, prefix_cidr, start_address, end_address,
+                purpose, description
+            """,
+            {
+                "id": ip_range.id.value,
+                "tenant_id": ip_range.tenant_id.value,
+                "vrf_name": ip_range.vrf_name.value,
+                "prefix_cidr": ip_range.prefix,
+                "start_address": str(ip_range.start),
+                "end_address": str(ip_range.end),
+                "purpose": ip_range.purpose.value,
+                "description": ip_range.description,
+            },
+        )
+        if row is None:
+            raise OpenInfraError("postgresql did not return range after upsert")
+        return self._range_from_row(row)
+
+    def list_ranges(
+        self,
+        tenant_id: TenantId,
+        vrf_name: str,
+        prefix_cidr: str,
+    ) -> tuple[IpRange, ...]:
+        rows = self._fetch_all(
+            """
+            SELECT id, tenant_id, vrf_name, prefix_cidr, start_address, end_address,
+                purpose, description
+            FROM ip_ranges
+            WHERE tenant_id = %(tenant_id)s
+              AND vrf_name = %(vrf_name)s
+              AND prefix_cidr = %(prefix_cidr)s
+            ORDER BY start_address
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "vrf_name": Name.from_value(vrf_name, "vrf name").value,
+                "prefix_cidr": prefix_cidr,
+            },
+        )
+        return tuple(self._range_from_row(row) for row in rows)
+
+    def upsert_address_record(self, record: IpAddressRecord) -> IpAddressRecord:
+        row = self._fetch_one(
+            """
+            INSERT INTO ip_address_records (
+                id, tenant_id, vrf_name, prefix_cidr, address, hostname, interface_name, status
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(vrf_name)s, %(prefix_cidr)s, %(address)s,
+                %(hostname)s, %(interface_name)s, %(status)s
+            )
+            ON CONFLICT (tenant_id, vrf_name, address)
+            DO UPDATE SET
+                prefix_cidr = EXCLUDED.prefix_cidr,
+                hostname = EXCLUDED.hostname,
+                interface_name = EXCLUDED.interface_name,
+                status = EXCLUDED.status
+            RETURNING id, tenant_id, vrf_name, prefix_cidr, address, hostname,
+                interface_name, status
+            """,
+            {
+                "id": record.id.value,
+                "tenant_id": record.tenant_id.value,
+                "vrf_name": record.vrf_name.value,
+                "prefix_cidr": record.prefix,
+                "address": str(record.address),
+                "hostname": record.hostname,
+                "interface_name": record.interface_name.value if record.interface_name else None,
+                "status": record.status.value,
+            },
+        )
+        if row is None:
+            raise OpenInfraError("postgresql did not return address record after upsert")
+        return self._address_record_from_row(row)
+
+    def list_address_records(
+        self,
+        tenant_id: TenantId,
+        vrf_name: str,
+        prefix_cidr: str,
+    ) -> tuple[IpAddressRecord, ...]:
+        rows = self._fetch_all(
+            """
+            SELECT id, tenant_id, vrf_name, prefix_cidr, address, hostname, interface_name, status
+            FROM ip_address_records
+            WHERE tenant_id = %(tenant_id)s
+              AND vrf_name = %(vrf_name)s
+              AND prefix_cidr = %(prefix_cidr)s
+            ORDER BY address
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "vrf_name": Name.from_value(vrf_name, "vrf name").value,
+                "prefix_cidr": prefix_cidr,
+            },
+        )
+        return tuple(self._address_record_from_row(row) for row in rows)
 
     def find_reservation_by_key(
         self,
@@ -2044,6 +2238,25 @@ class PostgreSQLIpamRepository(PostgreSQLRepositoryBase, IpamRepository):
                 f"duplicate or invalid ip reservation: {reservation.address}"
             ) from exc
 
+    def _vrf_from_row(self, row: Mapping[str, object]) -> Vrf:
+        return Vrf(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            name=Name.from_value(str(row["name"]), "vrf name"),
+            route_distinguisher=(
+                None if row.get("route_distinguisher") is None else str(row["route_distinguisher"])
+            ),
+        )
+
+    def _aggregate_from_row(self, row: Mapping[str, object]) -> IpAggregate:
+        return IpAggregate(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            vrf_name=Name.from_value(str(row["vrf_name"]), "vrf name"),
+            network=ipaddress.ip_network(str(row["cidr"]), strict=True),
+            description=str(row["description"] or ""),
+        )
+
     def _prefix_from_row(self, row: Mapping[str, object]) -> Prefix:
         return Prefix(
             id=EntityId.from_value(str(row["id"])),
@@ -2051,6 +2264,58 @@ class PostgreSQLIpamRepository(PostgreSQLRepositoryBase, IpamRepository):
             vrf_name=Name.from_value(str(row["vrf_name"]), "vrf name"),
             network=ipaddress.ip_network(str(row["cidr"]), strict=True),
             description=str(row["description"] or ""),
+        )
+
+    def _range_from_row(self, row: Mapping[str, object]) -> IpRange:
+        prefix = Prefix.create(
+            TenantId.from_value(str(row["tenant_id"])),
+            str(row["vrf_name"]),
+            str(row["prefix_cidr"]),
+        )
+        ip_range = IpRange.create(
+            TenantId.from_value(str(row["tenant_id"])),
+            str(row["vrf_name"]),
+            prefix,
+            str(row["start_address"]),
+            str(row["end_address"]),
+            str(row["purpose"]),
+            str(row["description"] or ""),
+        )
+        return IpRange(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=ip_range.tenant_id,
+            vrf_name=ip_range.vrf_name,
+            prefix=ip_range.prefix,
+            start=ip_range.start,
+            end=ip_range.end,
+            purpose=ip_range.purpose,
+            description=ip_range.description,
+        )
+
+    def _address_record_from_row(self, row: Mapping[str, object]) -> IpAddressRecord:
+        prefix = Prefix.create(
+            TenantId.from_value(str(row["tenant_id"])),
+            str(row["vrf_name"]),
+            str(row["prefix_cidr"]),
+        )
+        record = IpAddressRecord.create(
+            TenantId.from_value(str(row["tenant_id"])),
+            str(row["vrf_name"]),
+            prefix,
+            str(row["address"]),
+            str(row["hostname"]),
+            None if row.get("interface_name") is None else str(row["interface_name"]),
+            str(row["status"]),
+        )
+        return IpAddressRecord(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=record.tenant_id,
+            vrf_name=record.vrf_name,
+            prefix=record.prefix,
+            address=record.address,
+            hostname=record.hostname,
+            interface_name=record.interface_name,
+            status=record.status,
         )
 
     def _reservation_from_row(self, row: Mapping[str, object]) -> IpReservation:

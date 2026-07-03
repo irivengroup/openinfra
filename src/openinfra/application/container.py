@@ -16,7 +16,7 @@ from openinfra.application.dcim_services import (
     DcimVisualizationService,
 )
 from openinfra.application.identity_services import IdentityService
-from openinfra.application.ipam_services import IpamAllocationService
+from openinfra.application.ipam_services import IpamAllocationService, IpamModelService
 from openinfra.application.ports import (
     AccessPolicyRepository,
     AuditRepository,
@@ -78,6 +78,7 @@ class OpenInfraApplication:
     dcim_cabling_service: DcimCablingService
     dcim_environment_service: DcimEnvironmentService
     ipam_service: IpamAllocationService
+    ipam_model_service: IpamModelService
     dcim_repository: DcimRepository
     ipam_repository: IpamRepository
     security_service: SecurityService
@@ -244,6 +245,11 @@ class ApplicationFactory:
                 transaction_manager,
             ),
             ipam_service=IpamAllocationService(
+                ipam_repository,
+                audit_repository,
+                transaction_manager,
+            ),
+            ipam_model_service=IpamModelService(
                 ipam_repository,
                 audit_repository,
                 transaction_manager,

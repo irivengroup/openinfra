@@ -1,3 +1,12 @@
+## v0.18.0 — P05 / EPIC-0501 IPAM IPv4/IPv6/VRF
+
+- Roadmap : P05 / EPIC-0501.
+- Code : `src/openinfra/domain/ipam.py`, `src/openinfra/application/ipam_services.py`, `src/openinfra/application/ports.py`, `src/openinfra/infrastructure/json_store.py`, `src/openinfra/infrastructure/postgresql.py`, `src/openinfra/interfaces/cli.py`, `src/openinfra/interfaces/http_api.py`.
+- Migration : `migrations/postgresql/0015_ipam_enterprise_foundation.sql`.
+- API : `docs/api/openapi.yaml`.
+- Tests : `tests/unit/test_domain_ipam_enterprise_model.py`, `tests/integration/test_ipam_enterprise_model_services.py`, tests CLI/API existants mis à jour.
+- Critère : les chevauchements sont refusés dans un même VRF et acceptés entre VRF distincts.
+
 ## v0.17.6 — Correctif CI Python 3.13 jetons sûrs
 
 - Exigence : la matrice CI Python 3.13/3.14 ne doit pas échouer aléatoirement lors des smoke tests sécurité.

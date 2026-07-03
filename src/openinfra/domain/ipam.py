@@ -2,9 +2,200 @@ from __future__ import annotations
 
 import ipaddress
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Self
 
 from openinfra.domain.common import Code, EntityId, Name, TenantId, ValidationError
+
+
+class IpRangePurpose(StrEnum):
+    ALLOCATION = "allocation"
+    RESERVATION = "reservation"
+    EXCLUSION = "exclusion"
+
+    @classmethod
+    def from_value(cls, value: str) -> Self:
+        normalized = value.strip().lower()
+        try:
+            return cls(normalized)
+        except ValueError as exc:
+            raise ValidationError(
+                "ip range purpose must be allocation, reservation or exclusion"
+            ) from exc
+
+
+class IpAddressStatus(StrEnum):
+    PLANNED = "planned"
+    RESERVED = "reserved"
+    ACTIVE = "active"
+    DEPRECATED = "deprecated"
+
+    @classmethod
+    def from_value(cls, value: str) -> Self:
+        normalized = value.strip().lower()
+        try:
+            return cls(normalized)
+        except ValueError as exc:
+            raise ValidationError("ip address status is invalid") from exc
+
+
+@dataclass(frozen=True, slots=True)
+class IpAggregate:
+    id: EntityId
+    tenant_id: TenantId
+    vrf_name: Name
+    network: ipaddress.IPv4Network | ipaddress.IPv6Network
+    description: str
+
+    @classmethod
+    def create(cls, tenant_id: TenantId, vrf_name: str, cidr: str, description: str = "") -> Self:
+        try:
+            network = ipaddress.ip_network(cidr.strip(), strict=True)
+        except ValueError as exc:
+            raise ValidationError(f"invalid aggregate: {cidr}") from exc
+        if network.prefixlen == network.max_prefixlen:
+            raise ValidationError("aggregate must contain more than one address")
+        return cls(
+            id=EntityId.new(),
+            tenant_id=tenant_id,
+            vrf_name=Name.from_value(vrf_name, "vrf name"),
+            network=network,
+            description=description.strip(),
+        )
+
+    def contains_network(self, network: ipaddress.IPv4Network | ipaddress.IPv6Network) -> bool:
+        if isinstance(self.network, ipaddress.IPv4Network) and isinstance(
+            network, ipaddress.IPv4Network
+        ):
+            return network.subnet_of(self.network)
+        if isinstance(self.network, ipaddress.IPv6Network) and isinstance(
+            network, ipaddress.IPv6Network
+        ):
+            return network.subnet_of(self.network)
+        return False
+
+
+@dataclass(frozen=True, slots=True)
+class IpRange:
+    id: EntityId
+    tenant_id: TenantId
+    vrf_name: Name
+    prefix: str
+    start: ipaddress.IPv4Address | ipaddress.IPv6Address
+    end: ipaddress.IPv4Address | ipaddress.IPv6Address
+    purpose: IpRangePurpose
+    description: str
+
+    @classmethod
+    def create(
+        cls,
+        tenant_id: TenantId,
+        vrf_name: str,
+        prefix: Prefix,
+        start: str,
+        end: str,
+        purpose: str = "allocation",
+        description: str = "",
+    ) -> Self:
+        try:
+            start_address = ipaddress.ip_address(start.strip())
+            end_address = ipaddress.ip_address(end.strip())
+        except ValueError as exc:
+            raise ValidationError("invalid ip range boundary") from exc
+        if (
+            start_address.version != prefix.network.version
+            or end_address.version != prefix.network.version
+        ):
+            raise ValidationError("ip range address family must match prefix family")
+        if int(start_address) > int(end_address):
+            raise ValidationError("ip range start must be lower than or equal to end")
+        if not prefix.contains(start_address) or not prefix.contains(end_address):
+            raise ValidationError("ip range must stay inside prefix")
+        if (
+            int(start_address) < prefix.first_usable_int
+            or int(end_address) > prefix.last_usable_int
+        ):
+            raise ValidationError("ip range must use usable prefix addresses")
+        return cls(
+            id=EntityId.new(),
+            tenant_id=tenant_id,
+            vrf_name=Name.from_value(vrf_name, "vrf name"),
+            prefix=str(prefix.network),
+            start=start_address,
+            end=end_address,
+            purpose=IpRangePurpose.from_value(purpose),
+            description=description.strip(),
+        )
+
+    def overlaps(self, other: Self) -> bool:
+        if self.tenant_id != other.tenant_id or self.vrf_name != other.vrf_name:
+            return False
+        if self.prefix != other.prefix:
+            return False
+        return int(self.start) <= int(other.end) and int(other.start) <= int(self.end)
+
+
+@dataclass(frozen=True, slots=True)
+class IpAddressRecord:
+    id: EntityId
+    tenant_id: TenantId
+    vrf_name: Name
+    prefix: str
+    address: ipaddress.IPv4Address | ipaddress.IPv6Address
+    hostname: str
+    interface_name: Name | None
+    status: IpAddressStatus
+
+    @classmethod
+    def create(
+        cls,
+        tenant_id: TenantId,
+        vrf_name: str,
+        prefix: Prefix,
+        address: str,
+        hostname: str,
+        interface_name: str | None = None,
+        status: str = "reserved",
+    ) -> Self:
+        try:
+            ip_address = ipaddress.ip_address(address.strip())
+        except ValueError as exc:
+            raise ValidationError(f"invalid ip address: {address}") from exc
+        normalized_hostname = hostname.strip().lower()
+        if not normalized_hostname:
+            raise ValidationError("hostname is mandatory")
+        if ip_address.version != prefix.network.version:
+            raise ValidationError("address family does not match prefix family")
+        if not prefix.contains(ip_address):
+            raise ValidationError("address does not belong to prefix")
+        if not prefix.first_usable_int <= int(ip_address) <= prefix.last_usable_int:
+            raise ValidationError("address is not usable in prefix")
+        normalized_interface = (
+            Name.from_value(interface_name, "interface name")
+            if interface_name is not None
+            else None
+        )
+        return cls(
+            id=EntityId.new(),
+            tenant_id=tenant_id,
+            vrf_name=Name.from_value(vrf_name, "vrf name"),
+            prefix=str(prefix.network),
+            address=ip_address,
+            hostname=normalized_hostname,
+            interface_name=normalized_interface,
+            status=IpAddressStatus.from_value(status),
+        )
+
+    def as_dict(self) -> dict[str, str]:
+        return {
+            "tenant_id": self.tenant_id.value,
+            "vrf": self.vrf_name.value,
+            "prefix": self.prefix,
+            "address": str(self.address),
+            "hostname": self.hostname,
+            "interface_name": self.interface_name.value if self.interface_name else "",
+            "status": self.status.value,
+        }
 
 
 @dataclass(frozen=True, slots=True)

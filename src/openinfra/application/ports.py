@@ -30,7 +30,7 @@ from openinfra.domain.identity import (
     IdentityGroup,
     IdentityUser,
 )
-from openinfra.domain.ipam import IpReservation, Prefix, Vrf
+from openinfra.domain.ipam import IpAddressRecord, IpAggregate, IpRange, IpReservation, Prefix, Vrf
 from openinfra.domain.security import ApiTokenCredential, Permission
 from openinfra.domain.source_governance import SourceGovernanceRule, SourceGovernanceRulePage
 from openinfra.domain.source_of_truth import (
@@ -378,7 +378,53 @@ class IpamRepository(ABC):
         raise TypeError("adapter contract invoked directly")
 
     @abstractmethod
+    def add_or_get_vrf(self, vrf: Vrf) -> Vrf:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_vrfs(self, tenant_id: TenantId) -> tuple[Vrf, ...]:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def add_aggregate(self, aggregate: IpAggregate) -> IpAggregate:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_aggregates(self, tenant_id: TenantId, vrf_name: str) -> tuple[IpAggregate, ...]:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
     def get_or_create_prefix(self, prefix: Prefix) -> Prefix:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_prefixes(self, tenant_id: TenantId, vrf_name: str) -> tuple[Prefix, ...]:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def add_range(self, ip_range: IpRange) -> IpRange:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_ranges(
+        self,
+        tenant_id: TenantId,
+        vrf_name: str,
+        prefix_cidr: str,
+    ) -> tuple[IpRange, ...]:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def upsert_address_record(self, record: IpAddressRecord) -> IpAddressRecord:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_address_records(
+        self,
+        tenant_id: TenantId,
+        vrf_name: str,
+        prefix_cidr: str,
+    ) -> tuple[IpAddressRecord, ...]:
         raise TypeError("adapter contract invoked directly")
 
     @abstractmethod

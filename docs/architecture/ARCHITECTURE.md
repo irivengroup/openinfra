@@ -16,7 +16,7 @@ Le socle est un modular monolith Python strictement orienté objet. Il applique 
 
 - Pas d'ITSM intégré ; l'intégration ITSM restera externe par connecteurs.
 - Les opérations DCIM imposent ligne et colonne pour toute localisation en salle.
-- Les opérations IPAM passent par un service transactionnel et une clé d'idempotence.
+- Les opérations IPAM passent par des services transactionnels : modèle VRF/agrégats/préfixes/ranges/adresses et allocation idempotente.
 - Toute écriture importante produit un audit event.
 - La migration PostgreSQL utilise partitionnement, contraintes, index et tables d'audit.
 - Les migrations runtime sont exécutées par l'application, suivies dans `openinfra_schema_migrations` et contrôlées par checksum SHA-256.
@@ -191,3 +191,10 @@ Frontières conservées :
 La migration `0014_dcim_energy_cooling_foundation.sql` est additive, partitionnée par `tenant_id`, indexée par source, rack, circuit et zone. Elle ne modifie aucune migration précédente. Le runtime de production reste serveur natif ; Docker n’est pas requis pour exécuter OpenInfra en production.
 
 Le workflow GitHub Actions se déclenche sur toutes les branches en `push`, sur toutes les pull requests et via `workflow_dispatch`, afin d’éviter les non-exécutions observées lorsque les pushes ne ciblent pas `main`.
+
+
+## IPAM P05 / EPIC-0501
+
+Le modèle IPAM est séparé du moteur d'allocation transactionnelle. `IpamModelService` gouverne les objets stables : VRF, agrégats IPv4/IPv6, préfixes, plages d'allocation/réservation/exclusion, adresses suivies et capacité de préfixe. Les adaptateurs JSON et PostgreSQL implémentent le même port `IpamRepository`, ce qui conserve l'indépendance des cas d'usage vis-à-vis de la persistance.
+
+Les chevauchements sont contrôlés par tenant et VRF. Un chevauchement de préfixe ou d'agrégat est refusé dans le même VRF afin de préserver l'unicité opérationnelle, tandis que le même espace d'adressage reste autorisé dans des VRF distincts. PostgreSQL reçoit des tables partitionnées par `tenant_id` et des index par VRF/prefixe/adresse pour rester compatible avec les objectifs très grand volume.

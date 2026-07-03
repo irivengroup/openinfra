@@ -1,21 +1,24 @@
 # OpenInfra Python Foundation
 
+**Version courante : 0.18.0 — P05 / EPIC-0501 : modèle IPAM IPv4/IPv6/VRF.**
+
+
 OpenInfra est un socle Python orienté objet pour construire une solution open source de Source of Truth, DCIM, ITAM, Discovery, Dependency Mapping et IPAM Enterprise++ sans fonction ITSM intégrée.
 
-Cette livraison correspond au socle exécutable de démarrage aligné avec la roadmap P01/P02 puis REL-01/P03 : architecture hexagonale, modèle domaine, CLI, API HTTP standard library, migrations PostgreSQL applicatives, adaptateur PostgreSQL runtime, sécurité API par jetons hachés avec expiration, révocation et rotation, IAM utilisateurs/groupes avec rôles effectifs, ABAC contextuel site/environnement, audit trail consultable/exportable avec intégrité chaînée, Source of Truth P03 objets/relations/historique, gouvernance minimale des sources autoritatives, DCIM P04 modèle physique pays/région/ville/site/bâtiment/étage/salle/zone/grille, racks, QR terrain, plans 2D et rack elevation, runtime serveur natif, lab Docker facultatif, tests, documentation et CI.
+Cette livraison correspond au socle exécutable de démarrage aligné avec la roadmap P01/P02 puis REL-01/P03/P04/P05 : architecture hexagonale, modèle domaine, CLI, API HTTP standard library, migrations PostgreSQL applicatives, adaptateur PostgreSQL runtime, sécurité API par jetons hachés avec expiration, révocation et rotation, IAM utilisateurs/groupes avec rôles effectifs, ABAC contextuel site/environnement, audit trail consultable/exportable avec intégrité chaînée, Source of Truth P03 objets/relations/historique, gouvernance minimale des sources autoritatives, DCIM P04 modèle physique pays/région/ville/site/bâtiment/étage/salle/zone/grille, racks, QR terrain, plans 2D et rack elevation, et IPAM P05 modèle IPv4/IPv6/VRF, runtime serveur natif, lab Docker facultatif, tests, documentation et CI.
 
 ## Garanties de cette itération
 
 - Code produit en Python POO : les comportements sont portés par des classes de domaine, services applicatifs, ports et adaptateurs.
 - Séparation stricte `domain / application / infrastructure / interfaces`.
 - Localisation DCIM univoque : pays, région, ville, site, bâtiment, étage, salle, zone, ligne, colonne, coordonnées X/Y/Z facultatives, rack, face, unité U, plan 2D salle et rack elevation.
-- IPAM IPv4/IPv6 : VRF, préfixe, allocation transactionnelle côté service applicatif, idempotence par clé métier, détection de conflit.
+- IPAM IPv4/IPv6 : VRF, agrégats, préfixes, plages, adresses suivies, capacité de préfixe, allocation transactionnelle côté service applicatif, idempotence par clé métier et détection de chevauchement par VRF.
 - Persistance locale JSON atomique pour développement et tests reproductibles.
 - Persistance PostgreSQL runtime optionnelle via `psycopg`, DSN explicite et transactions courtes.
 - Migration PostgreSQL initiale avec tables partitionnées, index, contraintes et audit append-only.
 - Moteur de migrations PostgreSQL applicatif : statut, dry-run, application idempotente, historique `openinfra_schema_migrations` et checksum SHA-256.
-- CLI exploitable : `openinfra version`, `openinfra spec validate`, `openinfra dcim define-room`, `openinfra dcim locate`, `openinfra dcim define-rack`, `openinfra dcim rack-capacity`, `openinfra dcim locator-sheet`, `openinfra dcim verify-scan`, `openinfra dcim room-plan`, `openinfra dcim rack-elevation`, `openinfra ipam allocate`, `openinfra security bootstrap-token`, `openinfra security whoami`, `openinfra security list-tokens`, `openinfra security revoke-token`, `openinfra security rotate-token`, `openinfra identity create-user`, `openinfra identity create-group`, `openinfra identity add-user-to-group`, `openinfra identity grant-user-role`, `openinfra identity grant-group-role`, `openinfra identity effective`, `openinfra access create-rule`, `openinfra access list-rules`, `openinfra access evaluate`, `openinfra access deactivate-rule`, `openinfra audit list`, `openinfra audit export`, `openinfra audit verify-integrity`, `openinfra sot upsert-object`, `openinfra sot get-object`, `openinfra sot list-objects`, `openinfra sot get-object-version`, `openinfra sot create-relation`, `openinfra sot list-relations`, `openinfra sot create-governance-rule`, `openinfra sot list-governance-rules`, `openinfra sot evaluate-governance`, `openinfra sot deactivate-governance-rule`, `openinfra database render-migration`, `openinfra database status`, `openinfra database apply-migrations`.
-- API HTTP légère : `/health`, `/ready`, `/api/v1/version`, `/api/v1/database/schema`, `/api/v1/security/whoami`, `/api/v1/security/tokens`, `/api/v1/security/revoke-token`, `/api/v1/security/rotate-token`, `/api/v1/identity/users`, `/api/v1/identity/groups`, `/api/v1/identity/group-memberships`, `/api/v1/identity/user-roles`, `/api/v1/identity/group-roles`, `/api/v1/identity/effective`, `/api/v1/access/rules`, `/api/v1/access/evaluate`, `/api/v1/access/deactivate-rule`, `/api/v1/audit/events`, `/api/v1/audit/export`, `/api/v1/audit/integrity`, `/api/v1/sot/objects`, `/api/v1/sot/object-versions`, `/api/v1/sot/relations`, `/api/v1/sot/governance-rules`, `/api/v1/sot/governance/evaluate`, `/api/v1/sot/governance/deactivate-rule`, `/api/v1/ipam/allocate`, `/api/v1/dcim/rooms`, `/api/v1/dcim/racks`, `/api/v1/dcim/rack-capacity`, `/api/v1/dcim/locator-sheet`, `/api/v1/dcim/verify-scan`, `/api/v1/dcim/room-plan`, `/api/v1/dcim/rack-elevation`.
+- CLI exploitable : `openinfra version`, `openinfra spec validate`, `openinfra dcim define-room`, `openinfra dcim locate`, `openinfra dcim define-rack`, `openinfra dcim rack-capacity`, `openinfra dcim locator-sheet`, `openinfra dcim verify-scan`, `openinfra dcim room-plan`, `openinfra dcim rack-elevation`, `openinfra ipam define-vrf`, `openinfra ipam define-aggregate`, `openinfra ipam define-prefix`, `openinfra ipam define-range`, `openinfra ipam register-address`, `openinfra ipam list-prefixes`, `openinfra ipam capacity`, `openinfra ipam allocate`, `openinfra security bootstrap-token`, `openinfra security whoami`, `openinfra security list-tokens`, `openinfra security revoke-token`, `openinfra security rotate-token`, `openinfra identity create-user`, `openinfra identity create-group`, `openinfra identity add-user-to-group`, `openinfra identity grant-user-role`, `openinfra identity grant-group-role`, `openinfra identity effective`, `openinfra access create-rule`, `openinfra access list-rules`, `openinfra access evaluate`, `openinfra access deactivate-rule`, `openinfra audit list`, `openinfra audit export`, `openinfra audit verify-integrity`, `openinfra sot upsert-object`, `openinfra sot get-object`, `openinfra sot list-objects`, `openinfra sot get-object-version`, `openinfra sot create-relation`, `openinfra sot list-relations`, `openinfra sot create-governance-rule`, `openinfra sot list-governance-rules`, `openinfra sot evaluate-governance`, `openinfra sot deactivate-governance-rule`, `openinfra database render-migration`, `openinfra database status`, `openinfra database apply-migrations`.
+- API HTTP légère : `/health`, `/ready`, `/api/v1/version`, `/api/v1/database/schema`, `/api/v1/security/whoami`, `/api/v1/security/tokens`, `/api/v1/security/revoke-token`, `/api/v1/security/rotate-token`, `/api/v1/identity/users`, `/api/v1/identity/groups`, `/api/v1/identity/group-memberships`, `/api/v1/identity/user-roles`, `/api/v1/identity/group-roles`, `/api/v1/identity/effective`, `/api/v1/access/rules`, `/api/v1/access/evaluate`, `/api/v1/access/deactivate-rule`, `/api/v1/audit/events`, `/api/v1/audit/export`, `/api/v1/audit/integrity`, `/api/v1/sot/objects`, `/api/v1/sot/object-versions`, `/api/v1/sot/relations`, `/api/v1/sot/governance-rules`, `/api/v1/sot/governance/evaluate`, `/api/v1/sot/governance/deactivate-rule`, `/api/v1/ipam/vrfs`, `/api/v1/ipam/aggregates`, `/api/v1/ipam/prefixes`, `/api/v1/ipam/ranges`, `/api/v1/ipam/addresses`, `/api/v1/ipam/capacity`, `/api/v1/ipam/allocate`, `/api/v1/dcim/rooms`, `/api/v1/dcim/racks`, `/api/v1/dcim/rack-capacity`, `/api/v1/dcim/locator-sheet`, `/api/v1/dcim/verify-scan`, `/api/v1/dcim/room-plan`, `/api/v1/dcim/rack-elevation`.
 - GitHub Actions complète : format, lint, types, tests, couverture, sécurité, build, smoke tests CLI/API et runtime serveur natif et lab Docker authentifié facultatif.
 
 ## Installation développeur
@@ -66,13 +69,40 @@ PYTHONPATH=src python -m openinfra.interfaces.http_api --host 127.0.0.1 --port 8
 ## Exemple IPAM
 
 ```bash
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam define-vrf \
+  --data .openinfra.json \
+  --tenant default \
+  --name prod \
+  --route-distinguisher 65000:1
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam define-aggregate \
+  --data .openinfra.json \
+  --tenant default \
+  --vrf prod \
+  --cidr 10.0.0.0/8
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam define-prefix \
+  --data .openinfra.json \
+  --tenant default \
+  --vrf prod \
+  --cidr 10.10.0.0/24
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam define-range \
+  --data .openinfra.json \
+  --tenant default \
+  --vrf prod \
+  --prefix 10.10.0.0/24 \
+  --start 10.10.0.10 \
+  --end 10.10.0.200
 PYTHONPATH=src python -m openinfra.interfaces.cli ipam allocate \
   --data .openinfra.json \
   --tenant default \
-  --vrf default \
+  --vrf prod \
   --prefix 10.10.0.0/24 \
   --hostname srv-app-01 \
   --idempotency-key req-0001
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam capacity \
+  --data .openinfra.json \
+  --tenant default \
+  --vrf prod \
+  --prefix 10.10.0.0/24
 ```
 
 ## Exemple DCIM

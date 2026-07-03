@@ -49,7 +49,15 @@ from openinfra.application.identity_services import (
     GrantGroupRoleCommand,
     GrantUserRoleCommand,
 )
-from openinfra.application.ipam_services import AllocateIpCommand
+from openinfra.application.ipam_services import (
+    AllocateIpCommand,
+    DefineIpAggregateCommand,
+    DefineIpPrefixCommand,
+    DefineIpRangeCommand,
+    DefineVrfCommand,
+    IpamCapacityCommand,
+    RegisterIpAddressCommand,
+)
 from openinfra.application.security_services import (
     AuthenticateTokenCommand,
     ListTokensCommand,
@@ -453,6 +461,31 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.OK, identity.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/ipam/prefixes":
+            try:
+                query = parse_qs(parsed.query)
+                items = self.server.application.ipam_model_service.list_prefixes(
+                    self._first_query_value(query, "tenant_id"),
+                    self._first_query_value(query, "vrf"),
+                )
+                responder.send(HTTPStatus.OK, {"items": list(items)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/ipam/capacity":
+            try:
+                query = parse_qs(parsed.query)
+                report = self.server.application.ipam_model_service.capacity(
+                    IpamCapacityCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        vrf=self._first_query_value(query, "vrf"),
+                        prefix=self._first_query_value(query, "prefix"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, report.as_dict())
             except (ValueError, OpenInfraError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
@@ -1145,6 +1178,84 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (KeyError, json.JSONDecodeError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route in (
+            "/api/v1/ipam/vrfs",
+            "/api/v1/ipam/aggregates",
+            "/api/v1/ipam/prefixes",
+            "/api/v1/ipam/ranges",
+            "/api/v1/ipam/addresses",
+        ):
+            try:
+                payload = self._read_json_body()
+                tenant_id = str(payload["tenant_id"])
+                actor = str(payload.get("actor", "api"))
+                if route == "/api/v1/ipam/vrfs":
+                    result = self.server.application.ipam_model_service.define_vrf(
+                        DefineVrfCommand(
+                            tenant_id=tenant_id,
+                            actor=actor,
+                            name=str(payload["name"]),
+                            route_distinguisher=(
+                                str(payload["route_distinguisher"])
+                                if payload.get("route_distinguisher")
+                                else None
+                            ),
+                        )
+                    )
+                elif route == "/api/v1/ipam/aggregates":
+                    result = self.server.application.ipam_model_service.define_aggregate(
+                        DefineIpAggregateCommand(
+                            tenant_id=tenant_id,
+                            actor=actor,
+                            vrf=str(payload["vrf"]),
+                            cidr=str(payload["cidr"]),
+                            description=str(payload.get("description", "")),
+                        )
+                    )
+                elif route == "/api/v1/ipam/prefixes":
+                    result = self.server.application.ipam_model_service.define_prefix(
+                        DefineIpPrefixCommand(
+                            tenant_id=tenant_id,
+                            actor=actor,
+                            vrf=str(payload["vrf"]),
+                            cidr=str(payload["cidr"]),
+                            description=str(payload.get("description", "")),
+                        )
+                    )
+                elif route == "/api/v1/ipam/ranges":
+                    result = self.server.application.ipam_model_service.define_range(
+                        DefineIpRangeCommand(
+                            tenant_id=tenant_id,
+                            actor=actor,
+                            vrf=str(payload["vrf"]),
+                            prefix=str(payload["prefix"]),
+                            start=str(payload["start"]),
+                            end=str(payload["end"]),
+                            purpose=str(payload.get("purpose", "allocation")),
+                            description=str(payload.get("description", "")),
+                        )
+                    )
+                else:
+                    result = self.server.application.ipam_model_service.register_address(
+                        RegisterIpAddressCommand(
+                            tenant_id=tenant_id,
+                            actor=actor,
+                            vrf=str(payload["vrf"]),
+                            prefix=str(payload["prefix"]),
+                            address=str(payload["address"]),
+                            hostname=str(payload["hostname"]),
+                            interface_name=(
+                                str(payload["interface_name"])
+                                if payload.get("interface_name")
+                                else None
+                            ),
+                            status=str(payload.get("status", "reserved")),
+                        )
+                    )
+                responder.send(HTTPStatus.CREATED, result)
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
         if route != "/api/v1/ipam/allocate":

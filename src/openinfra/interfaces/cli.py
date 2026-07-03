@@ -47,7 +47,15 @@ from openinfra.application.identity_services import (
     GrantGroupRoleCommand,
     GrantUserRoleCommand,
 )
-from openinfra.application.ipam_services import AllocateIpCommand
+from openinfra.application.ipam_services import (
+    AllocateIpCommand,
+    DefineIpAggregateCommand,
+    DefineIpPrefixCommand,
+    DefineIpRangeCommand,
+    DefineVrfCommand,
+    IpamCapacityCommand,
+    RegisterIpAddressCommand,
+)
 from openinfra.application.security_services import (
     AuthenticateTokenCommand,
     BootstrapTokenCommand,
@@ -504,6 +512,77 @@ class OpenInfraCLI:
         allocate.add_argument("--site-code")
         allocate.add_argument("--environment")
         allocate.set_defaults(handler=self._handle_ipam_allocate)
+
+        define_vrf = ipam_subparsers.add_parser("define-vrf", help="define an IPAM VRF")
+        self._add_backend_arguments(define_vrf)
+        define_vrf.add_argument("--tenant", required=True)
+        define_vrf.add_argument("--actor", default="cli")
+        define_vrf.add_argument("--name", required=True)
+        define_vrf.add_argument("--route-distinguisher")
+        define_vrf.set_defaults(handler=self._handle_ipam_define_vrf)
+
+        define_aggregate = ipam_subparsers.add_parser(
+            "define-aggregate", help="define an IPAM IPv4/IPv6 aggregate"
+        )
+        self._add_backend_arguments(define_aggregate)
+        define_aggregate.add_argument("--tenant", required=True)
+        define_aggregate.add_argument("--actor", default="cli")
+        define_aggregate.add_argument("--vrf", required=True)
+        define_aggregate.add_argument("--cidr", required=True)
+        define_aggregate.add_argument("--description", default="")
+        define_aggregate.set_defaults(handler=self._handle_ipam_define_aggregate)
+
+        define_prefix = ipam_subparsers.add_parser(
+            "define-prefix", help="define a non-overlapping IPAM prefix inside a VRF"
+        )
+        self._add_backend_arguments(define_prefix)
+        define_prefix.add_argument("--tenant", required=True)
+        define_prefix.add_argument("--actor", default="cli")
+        define_prefix.add_argument("--vrf", required=True)
+        define_prefix.add_argument("--cidr", required=True)
+        define_prefix.add_argument("--description", default="")
+        define_prefix.set_defaults(handler=self._handle_ipam_define_prefix)
+
+        define_range = ipam_subparsers.add_parser(
+            "define-range", help="define an allocation, reservation or exclusion range"
+        )
+        self._add_backend_arguments(define_range)
+        define_range.add_argument("--tenant", required=True)
+        define_range.add_argument("--actor", default="cli")
+        define_range.add_argument("--vrf", required=True)
+        define_range.add_argument("--prefix", required=True)
+        define_range.add_argument("--start", required=True)
+        define_range.add_argument("--end", required=True)
+        define_range.add_argument("--purpose", default="allocation")
+        define_range.add_argument("--description", default="")
+        define_range.set_defaults(handler=self._handle_ipam_define_range)
+
+        register_address = ipam_subparsers.add_parser(
+            "register-address", help="register or update a tracked IP address record"
+        )
+        self._add_backend_arguments(register_address)
+        register_address.add_argument("--tenant", required=True)
+        register_address.add_argument("--actor", default="cli")
+        register_address.add_argument("--vrf", required=True)
+        register_address.add_argument("--prefix", required=True)
+        register_address.add_argument("--address", required=True)
+        register_address.add_argument("--hostname", required=True)
+        register_address.add_argument("--interface-name")
+        register_address.add_argument("--status", default="reserved")
+        register_address.set_defaults(handler=self._handle_ipam_register_address)
+
+        list_prefixes = ipam_subparsers.add_parser("list-prefixes", help="list prefixes for a VRF")
+        self._add_backend_arguments(list_prefixes)
+        list_prefixes.add_argument("--tenant", required=True)
+        list_prefixes.add_argument("--vrf", required=True)
+        list_prefixes.set_defaults(handler=self._handle_ipam_list_prefixes)
+
+        capacity = ipam_subparsers.add_parser("capacity", help="report IPAM prefix capacity")
+        self._add_backend_arguments(capacity)
+        capacity.add_argument("--tenant", required=True)
+        capacity.add_argument("--vrf", required=True)
+        capacity.add_argument("--prefix", required=True)
+        capacity.set_defaults(handler=self._handle_ipam_capacity)
 
     def _add_dcim_commands(self, subparsers: Any) -> None:
         dcim = subparsers.add_parser("dcim", help="dcim operations")
@@ -1314,6 +1393,81 @@ class OpenInfraCLI:
                 hostname=args.hostname,
                 idempotency_key=args.idempotency_key,
             )
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_ipam_define_vrf(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.ipam_model_service.define_vrf(
+            DefineVrfCommand(args.tenant, args.actor, args.name, args.route_distinguisher)
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_ipam_define_aggregate(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.ipam_model_service.define_aggregate(
+            DefineIpAggregateCommand(args.tenant, args.actor, args.vrf, args.cidr, args.description)
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_ipam_define_prefix(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.ipam_model_service.define_prefix(
+            DefineIpPrefixCommand(args.tenant, args.actor, args.vrf, args.cidr, args.description)
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_ipam_define_range(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.ipam_model_service.define_range(
+            DefineIpRangeCommand(
+                args.tenant,
+                args.actor,
+                args.vrf,
+                args.prefix,
+                args.start,
+                args.end,
+                args.purpose,
+                args.description,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_ipam_register_address(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.ipam_model_service.register_address(
+            RegisterIpAddressCommand(
+                args.tenant,
+                args.actor,
+                args.vrf,
+                args.prefix,
+                args.address,
+                args.hostname,
+                args.interface_name,
+                args.status,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_ipam_list_prefixes(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        print(
+            json.dumps(
+                application.ipam_model_service.list_prefixes(args.tenant, args.vrf), sort_keys=True
+            )
+        )
+        return 0
+
+    def _handle_ipam_capacity(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.ipam_model_service.capacity(
+            IpamCapacityCommand(args.tenant, args.vrf, args.prefix)
         )
         print(json.dumps(result.as_dict(), sort_keys=True))
         return 0

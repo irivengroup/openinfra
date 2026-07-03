@@ -55,7 +55,7 @@ Cette validation démarre PostgreSQL, applique les migrations avec `openinfra da
 
 ## Critères bloquants
 
-- Couverture globale inférieure à 90 %.
+- Couverture globale inférieure à 98 %.
 - Migration absente ou non partitionnée.
 - Historique de migrations PostgreSQL absent dans un environnement runtime.
 - Checksum divergent sur une migration déjà appliquée.
@@ -147,3 +147,23 @@ La CI exécute également un smoke test JSON audit et le runtime Docker valide `
 - Tests API HTTP : `POST /api/v1/dcim/rooms` protégé par `dcim.write` lorsque l’API authentifiée est activée.
 - Tests adaptateur PostgreSQL simulé : persistance des nouveaux champs DCIM et rendu de `0009_dcim_physical_model.sql`.
 - Smoke runtime Docker : création de salle DCIM physique et localisation équipement contre PostgreSQL.
+
+## Contrôles ajoutés en v0.13.0
+
+```bash
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0010_dcim_rack_capacity --root migrations/postgresql >/tmp/openinfra-0010.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli dcim define-rack --tenant default --site PAR1 --building BAT-A --room MMR1 --rack R01 --row A --column 01 --units 42 --face front --face rear
+PYTHONPATH=src python -m openinfra.interfaces.cli dcim rack-capacity --tenant default --site PAR1 --building BAT-A --room MMR1 --rack R01
+```
+
+Les tests ajoutés couvrent le domaine rack, le service de capacité, le rejet des chevauchements U, la CLI, l'API HTTP et le smoke runtime Docker.
+
+## Contrôles ajoutés en v0.14.0
+
+Le seuil de couverture globale est relevé à `>= 98 %` dans `pyproject.toml` et la CI. La commande de référence devient :
+
+```bash
+PYTHONPATH=src python3 -m pytest -q
+```
+
+Le périmètre de couverture locale exclut l’adaptateur PostgreSQL bas niveau, qui reste couvert par tests d’intégration simulés et par le runtime Docker/Compose lorsqu’un moteur PostgreSQL réel est disponible. Les validations fonctionnelles locales couvrent les domaines, services applicatifs, CLI/API, magasin JSON, contrats HTTP et scénarios QR terrain.

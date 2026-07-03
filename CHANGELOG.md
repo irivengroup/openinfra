@@ -1,4 +1,29 @@
+## 0.14.0 - 2026-07-03
+
+- Roadmap : P04 / EPIC-0403 — QR codes, fiches de localisation et chemins d’intervention terrain.
+- Ajout du domaine `EquipmentLocatorPayload`, `QrCodeSvgDocument`, `EquipmentLocatorSheet`, `EquipmentScanProof` et `InterventionRouteStep`.
+- Ajout du service `DcimFieldOperationService` pour générer une fiche terrain JSON/HTML et vérifier une preuve de scan QR.
+- Ajout de la permission `dcim.identify` au rôle `dcim:operator`.
+- Ajout des commandes `openinfra dcim locator-sheet` et `openinfra dcim verify-scan`.
+- Ajout des endpoints `GET /api/v1/dcim/locator-sheet` et `POST /api/v1/dcim/verify-scan`.
+- Ajout de la migration PostgreSQL `0011_dcim_field_operations.sql` préparant l’historique partitionné des preuves terrain.
+- Extension du runtime Docker smoke avec génération de fiche, QR compact et validation de scan.
+- Relèvement du seuil de couverture globale à `>= 98 %` avec tests unitaires, intégration, CLI et API supplémentaires.
+
 # Changelog
+
+## 0.13.0 - 2026-07-03
+
+- Roadmap : P04 / EPIC-0402 — Racks, unités U, faces, capacité et occupation.
+- Ajout du domaine `RackFace` et `RackCapacityReport`.
+- Extension de `Rack` avec faces utilisables, capacité U, poids maximal et capacité électrique.
+- Extension de `EquipmentLocation` avec `rack_face`, `u_height`, calcul des unités U occupées et contrôle de chevauchement.
+- Ajout du service `DcimRackService` et extension de `DcimLocationService`.
+- Ajout de la commande `openinfra dcim define-rack` et `openinfra dcim rack-capacity`.
+- Extension de `openinfra dcim locate` avec `--rack-face` et `--u-height`.
+- Ajout des endpoints `POST /api/v1/dcim/racks` et `GET /api/v1/dcim/rack-capacity`.
+- Ajout de la migration PostgreSQL `0010_dcim_rack_capacity.sql`.
+- Extension du runtime Docker smoke avec scénario rack complet.
 
 ## 0.12.0 - 2026-07-03
 

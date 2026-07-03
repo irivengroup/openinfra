@@ -154,3 +154,17 @@ python scripts/docker_environment.py init
 python scripts/docker_environment.py validate
 python scripts/docker_environment.py reset
 ```
+
+## Smoke runtime v0.13.0 — capacité rack
+
+Le smoke test Docker v0.13.0 vérifie le scénario rack complet contre l'API authentifiée et le backend PostgreSQL : création d'une salle physique, définition d'un rack double face, localisation CLI d'un équipement en face avant avec hauteur U, puis consultation de l'occupation du rack via `GET /api/v1/dcim/rack-capacity`.
+
+## Smoke runtime v0.14.0 — QR terrain et preuve de scan
+
+Le smoke test Docker v0.14.0 vérifie le scénario terrain complet dans l’environnement d’exécution OpenInfra : équipement localisé en rack, génération de fiche de localisation via l’API authentifiée, extraction du payload QR compact, vérification du scan via `POST /api/v1/dcim/verify-scan`, puis contrôle CLI `openinfra dcim verify-scan` contre le backend PostgreSQL.
+
+```bash
+python scripts/docker_environment.py init
+python scripts/docker_environment.py validate
+python scripts/docker_environment.py reset
+```

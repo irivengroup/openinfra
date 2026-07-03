@@ -12,7 +12,7 @@ class TestOpenInfraCli:
         captured = capsys.readouterr()
 
         assert code == 0
-        assert captured.out.strip() == "0.12.0"
+        assert captured.out.strip() == "0.14.0"
 
     def test_spec_validate_command(self, capsys: object) -> None:
         root = Path("docs/specifications/OpenInfra-CDC-SFG-STG-v4")
@@ -635,7 +635,9 @@ class TestOpenInfraAccessPolicyCli:
         assert "previous_hash" in captured.out
         assert "idx_audit_events_integrity_chain" in captured.out
 
-    def test_dcim_define_room_command_and_locate_with_floor_zone(self, tmp_path: Path, capsys: object) -> None:
+    def test_dcim_define_room_command_and_locate_with_floor_zone(
+        self, tmp_path: Path, capsys: object
+    ) -> None:
         data = tmp_path / "state.json"
         define_code = OpenInfraCLI().run([
             "dcim",
@@ -724,3 +726,154 @@ class TestOpenInfraAccessPolicyCli:
         assert "floor=F01" in located
         assert "zone=Z1" in located
         assert "xyz=1.00/2.00/0.50" in located
+
+    def test_dcim_define_rack_capacity_and_rack_mounted_location_cli(
+        self,
+        tmp_path: Path,
+        capsys: object,
+    ) -> None:
+        data = tmp_path / "state.json"
+        define_room_code = OpenInfraCLI().run([
+            "dcim", "define-room",
+            "--data", str(data),
+            "--tenant", "default",
+            "--site-code", "NIC1",
+            "--site-name", "Nice 1",
+            "--country", "FR",
+            "--region", "PACA",
+            "--city", "Nice",
+            "--building-code", "BAT-N",
+            "--building-name", "Building N",
+            "--floor-code", "F01",
+            "--floor-name", "First floor",
+            "--floor-index", "1",
+            "--room-code", "MDF1",
+            "--room-name", "MDF Nice",
+            "--row", "A",
+            "--column", "01",
+            "--zone-code", "Z1",
+            "--zone-name", "Zone 1",
+            "--zone-row", "A",
+            "--zone-column", "01",
+        ])
+        capsys.readouterr()
+        define_rack_code = OpenInfraCLI().run([
+            "dcim", "define-rack",
+            "--data", str(data),
+            "--tenant", "default",
+            "--site", "NIC1",
+            "--building", "BAT-N",
+            "--floor", "F01",
+            "--room", "MDF1",
+            "--zone", "Z1",
+            "--rack", "R01",
+            "--row", "A",
+            "--column", "01",
+            "--units", "24",
+            "--face", "front",
+            "--face", "rear",
+            "--max-weight-kg", "750",
+            "--power-capacity-watts", "12000",
+        ])
+        rack = json.loads(capsys.readouterr().out)
+        locate_code = OpenInfraCLI().run([
+            "dcim", "locate",
+            "--data", str(data),
+            "--asset-tag", "NIC-SRV-1",
+            "--equipment-name", "Nice Server",
+            "--site", "NIC1",
+            "--building", "BAT-N",
+            "--floor", "F01",
+            "--room", "MDF1",
+            "--zone", "Z1",
+            "--row", "A",
+            "--column", "01",
+            "--rack", "R01",
+            "--u-position", "3",
+            "--u-height", "2",
+            "--rack-face", "front",
+        ])
+        located = capsys.readouterr().out
+        capacity_code = OpenInfraCLI().run([
+            "dcim", "rack-capacity",
+            "--data", str(data),
+            "--tenant", "default",
+            "--site", "NIC1",
+            "--building", "BAT-N",
+            "--room", "MDF1",
+            "--rack", "R01",
+        ])
+        capacity = json.loads(capsys.readouterr().out)
+
+        assert define_room_code == 0
+        assert define_rack_code == 0
+        assert locate_code == 0
+        assert capacity_code == 0
+        assert rack["faces"] == ["front", "rear"]
+        assert "face=front" in located
+        assert "height_u=2" in located
+        assert capacity["faces_capacity"]["front"]["used_units"] == [3, 4]
+        assert capacity["faces_capacity"]["rear"]["free_count"] == 24
+
+    def test_dcim_locator_sheet_and_verify_scan_cli(self, tmp_path: Path, capsys: object) -> None:
+        data = tmp_path / "state.json"
+        assert OpenInfraCLI().run([
+            "dcim", "define-room",
+            "--data", str(data),
+            "--tenant", "default",
+            "--site-code", "QR1",
+            "--site-name", "QR Site",
+            "--country", "FR",
+            "--city", "Paris",
+            "--building-code", "BAT-Q",
+            "--building-name", "Building QR",
+            "--floor-code", "F01",
+            "--floor-name", "First floor",
+            "--floor-index", "1",
+            "--room-code", "ROOM-Q",
+            "--room-name", "QR Room",
+            "--row", "A",
+            "--column", "01",
+        ]) == 0
+        capsys.readouterr()
+        assert OpenInfraCLI().run([
+            "dcim", "locate",
+            "--data", str(data),
+            "--asset-tag", "QR-SRV-1",
+            "--equipment-name", "QR Server",
+            "--site", "QR1",
+            "--building", "BAT-Q",
+            "--floor", "F01",
+            "--room", "ROOM-Q",
+            "--row", "A",
+            "--column", "01",
+        ]) == 0
+        capsys.readouterr()
+        assert OpenInfraCLI().run([
+            "dcim", "locator-sheet",
+            "--data", str(data),
+            "--tenant", "default",
+            "--asset-tag", "QR-SRV-1",
+        ]) == 0
+        sheet = json.loads(capsys.readouterr().out)
+        assert sheet["asset_tag"] == "QR-SRV-1"
+        assert sheet["qr_svg"].startswith("<svg")
+        payload = sheet["locator"]["payload"]
+        assert OpenInfraCLI().run([
+            "dcim", "verify-scan",
+            "--data", str(data),
+            "--tenant", "default",
+            "--asset-tag", "QR-SRV-1",
+            "--payload", payload,
+        ]) == 0
+        proof = json.loads(capsys.readouterr().out)
+        assert proof["verified"] is True
+        assert OpenInfraCLI().run([
+            "dcim", "locator-sheet",
+            "--data", str(data),
+            "--tenant", "default",
+            "--asset-tag", "QR-SRV-1",
+            "--format", "html",
+        ]) == 0
+        html = capsys.readouterr().out
+        assert "OpenInfra fiche localisation" in html

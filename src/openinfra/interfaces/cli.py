@@ -20,7 +20,14 @@ from openinfra.application.audit_services import (
     VerifyAuditIntegrityCommand,
 )
 from openinfra.application.container import ApplicationFactory, OpenInfraApplication
-from openinfra.application.dcim_services import DefinePhysicalRoomCommand, LocateEquipmentCommand
+from openinfra.application.dcim_services import (
+    DefinePhysicalRoomCommand,
+    DefineRackCommand,
+    GenerateEquipmentLocatorCommand,
+    LocateEquipmentCommand,
+    RackCapacityCommand,
+    VerifyEquipmentScanCommand,
+)
 from openinfra.application.identity_services import (
     AddUserToGroupCommand,
     CreateGroupCommand,
@@ -524,6 +531,46 @@ class OpenInfraCLI:
         define_room.add_argument("--z", type=float)
         define_room.set_defaults(handler=self._handle_dcim_define_room)
 
+        define_rack = dcim_subparsers.add_parser(
+            "define-rack",
+            help="define a rack with U capacity and usable mounting faces",
+        )
+        define_rack.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        define_rack.add_argument("--data", type=Path, default=Path(".openinfra.json"))
+        define_rack.add_argument("--postgres-dsn")
+        define_rack.add_argument("--tenant", default="default")
+        define_rack.add_argument("--actor", default="cli")
+        define_rack.add_argument("--site", required=True)
+        define_rack.add_argument("--building", required=True)
+        define_rack.add_argument("--floor")
+        define_rack.add_argument("--room", required=True)
+        define_rack.add_argument("--zone")
+        define_rack.add_argument("--rack", required=True)
+        define_rack.add_argument("--row", required=True)
+        define_rack.add_argument("--column", required=True)
+        define_rack.add_argument("--units", type=int, required=True)
+        define_rack.add_argument("--face", action="append", default=[])
+        define_rack.add_argument("--max-weight-kg", type=float)
+        define_rack.add_argument("--power-capacity-watts", type=int)
+        define_rack.add_argument("--x", type=float)
+        define_rack.add_argument("--y", type=float)
+        define_rack.add_argument("--z", type=float)
+        define_rack.set_defaults(handler=self._handle_dcim_define_rack)
+
+        rack_capacity = dcim_subparsers.add_parser(
+            "rack-capacity",
+            help="report rack U occupation by face",
+        )
+        rack_capacity.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        rack_capacity.add_argument("--data", type=Path, default=Path(".openinfra.json"))
+        rack_capacity.add_argument("--postgres-dsn")
+        rack_capacity.add_argument("--tenant", default="default")
+        rack_capacity.add_argument("--site", required=True)
+        rack_capacity.add_argument("--building", required=True)
+        rack_capacity.add_argument("--room", required=True)
+        rack_capacity.add_argument("--rack", required=True)
+        rack_capacity.set_defaults(handler=self._handle_dcim_rack_capacity)
+
         locate = dcim_subparsers.add_parser("locate", help="locate equipment physically")
         locate.add_argument("--backend", choices=("json", "postgresql"), default="json")
         locate.add_argument("--data", type=Path, default=Path(".openinfra.json"))
@@ -541,10 +588,39 @@ class OpenInfraCLI:
         locate.add_argument("--column", required=True)
         locate.add_argument("--rack")
         locate.add_argument("--u-position", type=int)
+        locate.add_argument("--u-height", type=int)
+        locate.add_argument("--rack-face", choices=("front", "rear"))
         locate.add_argument("--x", type=float)
         locate.add_argument("--y", type=float)
         locate.add_argument("--z", type=float)
         locate.set_defaults(handler=self._handle_dcim_locate)
+
+
+        locator_sheet = dcim_subparsers.add_parser(
+            "locator-sheet",
+            help="generate QR-backed field locator sheet for an equipment",
+        )
+        locator_sheet.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        locator_sheet.add_argument("--data", type=Path, default=Path(".openinfra.json"))
+        locator_sheet.add_argument("--postgres-dsn")
+        locator_sheet.add_argument("--tenant", default="default")
+        locator_sheet.add_argument("--actor", default="cli")
+        locator_sheet.add_argument("--asset-tag", required=True)
+        locator_sheet.add_argument("--format", choices=("json", "html"), default="json")
+        locator_sheet.set_defaults(handler=self._handle_dcim_locator_sheet)
+
+        verify_scan = dcim_subparsers.add_parser(
+            "verify-scan",
+            help="verify a field QR payload against the current equipment location",
+        )
+        verify_scan.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        verify_scan.add_argument("--data", type=Path, default=Path(".openinfra.json"))
+        verify_scan.add_argument("--postgres-dsn")
+        verify_scan.add_argument("--tenant", default="default")
+        verify_scan.add_argument("--actor", default="cli")
+        verify_scan.add_argument("--asset-tag", required=True)
+        verify_scan.add_argument("--payload", required=True)
+        verify_scan.set_defaults(handler=self._handle_dcim_verify_scan)
 
     def _handle_version(self, args: argparse.Namespace) -> int:
         print(__version__)
@@ -1048,6 +1124,47 @@ class OpenInfraCLI:
         print(json.dumps(result, sort_keys=True))
         return 0
 
+    def _handle_dcim_define_rack(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        faces = tuple(args.face) if args.face else ("front",)
+        result = application.dcim_rack_service.define_rack(
+            DefineRackCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                site=args.site,
+                building=args.building,
+                floor=args.floor,
+                room=args.room,
+                zone=args.zone,
+                rack=args.rack,
+                row=args.row,
+                column=args.column,
+                units=args.units,
+                usable_faces=faces,
+                max_weight_kg=args.max_weight_kg,
+                power_capacity_watts=args.power_capacity_watts,
+                x=args.x,
+                y=args.y,
+                z=args.z,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_rack_capacity(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        report = application.dcim_rack_service.capacity(
+            RackCapacityCommand(
+                tenant_id=args.tenant,
+                site=args.site,
+                building=args.building,
+                room=args.room,
+                rack=args.rack,
+            )
+        )
+        print(json.dumps(report.as_dict(), sort_keys=True))
+        return 0
+
     def _handle_dcim_locate(self, args: argparse.Namespace) -> int:
         application = self._create_application(args)
         equipment = application.dcim_service.locate_equipment(
@@ -1065,12 +1182,44 @@ class OpenInfraCLI:
                 column=args.column,
                 rack=args.rack,
                 u_position=args.u_position,
+                rack_face=args.rack_face,
+                u_height=args.u_height,
                 x=args.x,
                 y=args.y,
                 z=args.z,
             )
         )
         print(equipment.location.human_readable())
+        return 0
+
+
+    def _handle_dcim_locator_sheet(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        sheet = application.dcim_field_operation_service.locator_sheet(
+            GenerateEquipmentLocatorCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                asset_tag=args.asset_tag,
+                output_format=args.format,
+            )
+        )
+        if args.format == "html":
+            print(sheet.html_document())
+        else:
+            print(json.dumps(sheet.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_dcim_verify_scan(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        proof = application.dcim_field_operation_service.verify_scan(
+            VerifyEquipmentScanCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                asset_tag=args.asset_tag,
+                payload=args.payload,
+            )
+        )
+        print(json.dumps(proof.as_dict(), sort_keys=True))
         return 0
 
     def _create_migration_executor(self, args: argparse.Namespace) -> PostgreSQLMigrationExecutor:

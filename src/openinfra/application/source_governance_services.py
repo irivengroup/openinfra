@@ -210,7 +210,11 @@ class SourceGovernanceService:
                 )
             )
             unit_of_work.commit()
-        return {"tenant_id": tenant_id.value, "name": command.name.strip().lower(), "deactivated": deactivated}
+        return {
+            "tenant_id": tenant_id.value,
+            "name": command.name.strip().lower(),
+            "deactivated": deactivated,
+        }
 
     def _attributes_from_json(self, payload: str) -> dict[str, object]:
         try:

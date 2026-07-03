@@ -23,7 +23,13 @@ from openinfra.application.audit_services import (
     VerifyAuditIntegrityCommand,
 )
 from openinfra.application.container import ApplicationFactory, OpenInfraApplication
-from openinfra.application.dcim_services import DefinePhysicalRoomCommand
+from openinfra.application.dcim_services import (
+    DefinePhysicalRoomCommand,
+    DefineRackCommand,
+    GenerateEquipmentLocatorCommand,
+    RackCapacityCommand,
+    VerifyEquipmentScanCommand,
+)
 from openinfra.application.identity_services import (
     AddUserToGroupCommand,
     CreateGroupCommand,
@@ -178,6 +184,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
+
         if route == "/api/v1/sot/governance-rules":
             try:
                 query = parse_qs(parsed.query)
@@ -268,6 +275,50 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except (ValueError, OpenInfraError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
+        if route == "/api/v1/dcim/rack-capacity":
+            try:
+                query = parse_qs(parsed.query)
+                report = self.server.application.dcim_rack_service.capacity(
+                    RackCapacityCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        site=self._first_query_value(query, "site"),
+                        building=self._first_query_value(query, "building"),
+                        room=self._first_query_value(query, "room"),
+                        rack=self._first_query_value(query, "rack"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, report.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/dcim/locator-sheet":
+            try:
+                query = parse_qs(parsed.query)
+                tenant_id = self._first_query_value(query, "tenant_id")
+                actor = "api"
+                if self.server.auth_required:
+                    principal = self._authenticate(tenant_id, Permission.DCIM_IDENTIFY)
+                    actor = principal.subject
+                sheet = self.server.application.dcim_field_operation_service.locator_sheet(
+                    GenerateEquipmentLocatorCommand(
+                        tenant_id=tenant_id,
+                        actor=actor,
+                        asset_tag=self._first_query_value(query, "asset_tag"),
+                        output_format=self._first_query_value(query, "format", "json"),
+                    )
+                )
+                if self._first_query_value(query, "format", "json") == "html":
+                    responder.send(HTTPStatus.OK, {"html": sheet.html_document()})
+                else:
+                    responder.send(HTTPStatus.OK, sheet.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
         if route == "/api/v1/identity/effective":
             try:
                 query = parse_qs(parsed.query)
@@ -333,6 +384,74 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
+        if route == "/api/v1/dcim/racks":
+            try:
+                payload = self._read_json_body()
+                tenant_id = str(payload["tenant_id"])
+                actor = str(payload.get("actor", "api"))
+                if self.server.auth_required:
+                    principal = self._authenticate(tenant_id, Permission.DCIM_WRITE)
+                    actor = principal.subject
+                result = self.server.application.dcim_rack_service.define_rack(
+                    DefineRackCommand(
+                        tenant_id=tenant_id,
+                        actor=actor,
+                        site=str(payload["site"]),
+                        building=str(payload["building"]),
+                        floor=(str(payload["floor"]) if payload.get("floor") else None),
+                        room=str(payload["room"]),
+                        zone=(str(payload["zone"]) if payload.get("zone") else None),
+                        rack=str(payload["rack"]),
+                        row=str(payload["row"]),
+                        column=str(payload["column"]),
+                        units=int(payload["units"]),
+                        usable_faces=self._tuple_payload(payload, "faces", ("front",)),
+                        max_weight_kg=(
+                            float(payload["max_weight_kg"])
+                            if payload.get("max_weight_kg") is not None
+                            else None
+                        ),
+                        power_capacity_watts=(
+                            int(payload["power_capacity_watts"])
+                            if payload.get("power_capacity_watts") is not None
+                            else None
+                        ),
+                        x=(float(payload["x"]) if payload.get("x") is not None else None),
+                        y=(float(payload["y"]) if payload.get("y") is not None else None),
+                        z=(float(payload["z"]) if payload.get("z") is not None else None),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+
+        if route == "/api/v1/dcim/verify-scan":
+            try:
+                payload = self._read_json_body()
+                tenant_id = str(payload["tenant_id"])
+                actor = str(payload.get("actor", "api"))
+                if self.server.auth_required:
+                    principal = self._authenticate(tenant_id, Permission.DCIM_IDENTIFY)
+                    actor = principal.subject
+                proof = self.server.application.dcim_field_operation_service.verify_scan(
+                    VerifyEquipmentScanCommand(
+                        tenant_id=tenant_id,
+                        actor=actor,
+                        asset_tag=str(payload["asset_tag"]),
+                        payload=str(payload["payload"]),
+                    )
+                )
+                responder.send(HTTPStatus.OK, proof.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
         if route == "/api/v1/sot/governance-rules":
             try:
                 payload = self._read_json_body()
@@ -342,7 +461,11 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         actor=str(payload.get("actor", "api")),
                         admin_token=self._bearer_token(),
                         name=str(payload["name"]),
-                        object_kind=(str(payload["object_kind"]) if payload.get("object_kind") else None),
+                        object_kind=(
+                            str(payload["object_kind"])
+                            if payload.get("object_kind")
+                            else None
+                        ),
                         attribute_path=str(payload["attribute_path"]),
                         authoritative_source=str(payload["authoritative_source"]),
                         priority=int(payload.get("priority", 100)),

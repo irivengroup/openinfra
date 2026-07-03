@@ -48,7 +48,17 @@ from openinfra.domain.common import (
     TenantId,
     ValidationError,
 )
-from openinfra.domain.dcim import Building, Equipment, EquipmentLocation, Floor, Rack, Room, RoomZone, Site
+from openinfra.domain.dcim import (
+    Building,
+    Equipment,
+    EquipmentLocation,
+    Floor,
+    Rack,
+    RackFace,
+    Room,
+    RoomZone,
+    Site,
+)
 from openinfra.domain.identity import (
     EffectiveIdentity,
     GroupMembership,
@@ -380,6 +390,31 @@ class JsonDcimRepository(DcimRepository):
         item = self._store.data["equipment"].get(key)
         return self._equipment_from_dict(item) if item else None
 
+    def list_equipment_in_rack(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+        rack: str,
+    ) -> tuple[Equipment, ...]:
+        normalized_site = Code.from_value(site, "site code").value
+        normalized_building = Code.from_value(building, "building code").value
+        normalized_room = Code.from_value(room, "room code").value
+        normalized_rack = Code.from_value(rack, "rack code").value
+        matching: list[Equipment] = []
+        for value in self._store.data["equipment"].values():
+            location = value.get("location", {})
+            if (
+                value.get("tenant_id") == tenant_id.value
+                and location.get("site_code") == normalized_site
+                and location.get("building_code") == normalized_building
+                and location.get("room_code") == normalized_room
+                and location.get("rack_code") == normalized_rack
+            ):
+                matching.append(self._equipment_from_dict(value))
+        return tuple(sorted(matching, key=lambda item: item.asset_tag.value))
+
     def _put_unique(self, collection: str, key: str, value: dict[str, Any]) -> None:
         if key in self._store.data[collection]:
             raise ConflictError(f"duplicate {collection} key: {key}")
@@ -524,6 +559,9 @@ class JsonDcimRepository(DcimRepository):
             "coordinates": rack.coordinates.as_dict() if rack.coordinates else None,
             "floor_code": rack.floor_code.value if rack.floor_code else None,
             "zone_code": rack.zone_code.value if rack.zone_code else None,
+            "usable_faces": [face.value for face in rack.usable_faces],
+            "max_weight_kg": rack.max_weight_kg,
+            "power_capacity_watts": rack.power_capacity_watts,
         }
 
     def _rack_from_dict(self, value: dict[str, Any]) -> Rack:
@@ -541,6 +579,18 @@ class JsonDcimRepository(DcimRepository):
             coordinates=Coordinates3D.from_values(**coordinates) if coordinates else None,
             floor_code=Code.from_value(value["floor_code"]) if value.get("floor_code") else None,
             zone_code=Code.from_value(value["zone_code"]) if value.get("zone_code") else None,
+            usable_faces=tuple(
+                RackFace.from_value(face) or RackFace.FRONT
+                for face in value.get("usable_faces", ["front"])
+            ),
+            max_weight_kg=(
+                float(value["max_weight_kg"]) if value.get("max_weight_kg") is not None else None
+            ),
+            power_capacity_watts=(
+                int(value["power_capacity_watts"])
+                if value.get("power_capacity_watts") is not None
+                else None
+            ),
         )
 
     def _equipment_to_dict(self, equipment: Equipment) -> dict[str, Any]:
@@ -561,6 +611,8 @@ class JsonDcimRepository(DcimRepository):
                 "coordinates": location.coordinates.as_dict() if location.coordinates else None,
                 "floor_code": location.floor_code.value if location.floor_code else None,
                 "zone_code": location.zone_code.value if location.zone_code else None,
+                "rack_face": location.rack_face.value if location.rack_face else None,
+                "u_height": location.u_height,
             },
         }
 
@@ -583,6 +635,8 @@ class JsonDcimRepository(DcimRepository):
                 coordinates=Coordinates3D.from_values(**coordinates) if coordinates else None,
                 floor_code=location.get("floor_code"),
                 zone_code=location.get("zone_code"),
+                rack_face=location.get("rack_face"),
+                u_height=location.get("u_height"),
             ),
         )
 
@@ -1079,7 +1133,8 @@ class JsonSourceGovernanceRepository(SourceGovernanceRepository):
         self._store.mark_dirty()
 
     def find_rule(self, tenant_id: TenantId, name: str) -> SourceGovernanceRule | None:
-        value = self._store.data["source_governance_rules"].get(self._key(tenant_id, name.strip().lower()))
+        key = self._key(tenant_id, name.strip().lower())
+        value = self._store.data["source_governance_rules"].get(key)
         return self._rule_from_dict(value) if value else None
 
     def list_rules(

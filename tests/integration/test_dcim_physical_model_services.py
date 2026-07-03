@@ -69,7 +69,10 @@ class TestDcimPhysicalModelServices:
             "room": False,
             "zone": False,
         }
-        assert first["path"] == "site=PAR2 | building=BAT-B | floor=F02 | room=MDF1 | xyz=10.00/5.50/2.00"
+        assert first["path"] == (
+            "site=PAR2 | building=BAT-B | floor=F02 | room=MDF1 | "
+            "xyz=10.00/5.50/2.00"
+        )
         assert first["rows"] == ["A", "B"]
         assert room is not None
         assert room.floor_code is not None
@@ -319,7 +322,9 @@ class TestDcimPhysicalModelServices:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json", seed=False)
         tenant = TenantId.from_value("default")
         with app.transaction_manager.begin() as unit_of_work:
-            app.dcim_repository.add_site(Site.create(tenant, "BOR1", "Bordeaux 1", "FR", "Bordeaux"))
+            app.dcim_repository.add_site(
+                Site.create(tenant, "BOR1", "Bordeaux 1", "FR", "Bordeaux")
+            )
             app.dcim_repository.add_building(Building.create(tenant, "BOR1", "BAT-B", "Building B"))
             app.dcim_repository.add_floor(Floor.create(tenant, "BOR1", "BAT-B", "F01", "First", 1))
             app.dcim_repository.add_room(

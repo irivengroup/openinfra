@@ -49,7 +49,17 @@ from openinfra.domain.common import (
     TenantId,
     ValidationError,
 )
-from openinfra.domain.dcim import Building, Equipment, EquipmentLocation, Floor, Rack, Room, RoomZone, Site
+from openinfra.domain.dcim import (
+    Building,
+    Equipment,
+    EquipmentLocation,
+    Floor,
+    Rack,
+    RackFace,
+    Room,
+    RoomZone,
+    Site,
+)
 from openinfra.domain.identity import (
     EffectiveIdentity,
     GroupMembership,
@@ -730,11 +740,13 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             """
             INSERT INTO racks (
                 id, tenant_id, site_code, building_code, floor_code, room_code, code,
-                row_code, column_code, zone_code, units, coordinate_x, coordinate_y, coordinate_z
+                row_code, column_code, zone_code, units, coordinate_x, coordinate_y, coordinate_z,
+                usable_faces, max_weight_kg, power_capacity_watts
             ) VALUES (
                 %(id)s, %(tenant_id)s, %(site_code)s, %(building_code)s, %(floor_code)s,
                 %(room_code)s, %(code)s, %(row_code)s, %(column_code)s, %(zone_code)s,
-                %(units)s, %(coordinate_x)s, %(coordinate_y)s, %(coordinate_z)s
+                %(units)s, %(coordinate_x)s, %(coordinate_y)s, %(coordinate_z)s,
+                %(usable_faces)s, %(max_weight_kg)s, %(power_capacity_watts)s
             )
             """,
             {
@@ -752,6 +764,9 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
                 "coordinate_x": coordinates.x if coordinates else None,
                 "coordinate_y": coordinates.y if coordinates else None,
                 "coordinate_z": coordinates.z if coordinates else None,
+                "usable_faces": [face.value for face in rack.usable_faces],
+                "max_weight_kg": rack.max_weight_kg,
+                "power_capacity_watts": rack.power_capacity_watts,
             },
         )
 
@@ -763,12 +778,13 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             """
             INSERT INTO equipment (
                 id, tenant_id, asset_tag, name, site_code, building_code, floor_code, room_code,
-                row_code, column_code, zone_code, rack_code, u_position, coordinate_x,
-                coordinate_y, coordinate_z
+                row_code, column_code, zone_code, rack_code, u_position, rack_face, u_height,
+                coordinate_x, coordinate_y, coordinate_z
             ) VALUES (
                 %(id)s, %(tenant_id)s, %(asset_tag)s, %(name)s, %(site_code)s, %(building_code)s,
                 %(floor_code)s, %(room_code)s, %(row_code)s, %(column_code)s, %(zone_code)s,
-                %(rack_code)s, %(u_position)s, %(coordinate_x)s, %(coordinate_y)s, %(coordinate_z)s
+                %(rack_code)s, %(u_position)s, %(rack_face)s, %(u_height)s,
+                %(coordinate_x)s, %(coordinate_y)s, %(coordinate_z)s
             )
             ON CONFLICT (tenant_id, asset_tag) DO UPDATE SET
                 name = EXCLUDED.name,
@@ -781,6 +797,8 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
                 zone_code = EXCLUDED.zone_code,
                 rack_code = EXCLUDED.rack_code,
                 u_position = EXCLUDED.u_position,
+                rack_face = EXCLUDED.rack_face,
+                u_height = EXCLUDED.u_height,
                 coordinate_x = EXCLUDED.coordinate_x,
                 coordinate_y = EXCLUDED.coordinate_y,
                 coordinate_z = EXCLUDED.coordinate_z,
@@ -801,6 +819,8 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
                 "zone_code": location.zone_code.value if location.zone_code else None,
                 "rack_code": location.rack_code.value if location.rack_code else None,
                 "u_position": location.u_position,
+                "rack_face": location.rack_face.value if location.rack_face else None,
+                "u_height": location.u_height,
                 "coordinate_x": coordinates.x if coordinates else None,
                 "coordinate_y": coordinates.y if coordinates else None,
                 "coordinate_z": coordinates.z if coordinates else None,
@@ -917,7 +937,9 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
         row = self._fetch_one(
             """
             SELECT id, tenant_id, site_code, building_code, floor_code, room_code, code,
-                   row_code, column_code, zone_code, units, coordinate_x, coordinate_y, coordinate_z
+                   row_code, column_code, zone_code, units,
+                   coordinate_x, coordinate_y, coordinate_z, usable_faces,
+                   max_weight_kg, power_capacity_watts
             FROM racks
             WHERE tenant_id = %(tenant_id)s AND site_code = %(site_code)s
               AND building_code = %(building_code)s
@@ -938,7 +960,8 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
         row = self._fetch_one(
             """
             SELECT id, tenant_id, asset_tag, name, site_code, building_code, floor_code, room_code,
-                   row_code, column_code, zone_code, rack_code, u_position, coordinate_x, coordinate_y, coordinate_z
+                   row_code, column_code, zone_code, rack_code, u_position, rack_face, u_height,
+                   coordinate_x, coordinate_y, coordinate_z
             FROM equipment
             WHERE tenant_id = %(tenant_id)s AND asset_tag = %(asset_tag)s
             """,
@@ -948,6 +971,37 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             },
         )
         return self._equipment_from_row(row) if row else None
+
+    def list_equipment_in_rack(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+        rack: str,
+    ) -> tuple[Equipment, ...]:
+        rows = self._fetch_all(
+            """
+            SELECT id, tenant_id, asset_tag, name, site_code, building_code, floor_code, room_code,
+                   row_code, column_code, zone_code, rack_code, u_position, rack_face, u_height,
+                   coordinate_x, coordinate_y, coordinate_z
+            FROM equipment
+            WHERE tenant_id = %(tenant_id)s
+              AND site_code = %(site_code)s
+              AND building_code = %(building_code)s
+              AND room_code = %(room_code)s
+              AND rack_code = %(rack_code)s
+            ORDER BY rack_face NULLS FIRST, u_position NULLS FIRST, asset_tag
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "site_code": Code.from_value(site, "site code").value,
+                "building_code": Code.from_value(building, "building code").value,
+                "room_code": Code.from_value(room, "room code").value,
+                "rack_code": Code.from_value(rack, "rack code").value,
+            },
+        )
+        return tuple(self._equipment_from_row(row) for row in rows)
 
     def _site_from_row(self, row: Mapping[str, object]) -> Site:
         return Site(
@@ -1038,6 +1092,20 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             coordinates=coordinates,
             floor_code=str(row["floor_code"]) if row.get("floor_code") is not None else None,
             zone_code=str(row["zone_code"]) if row.get("zone_code") is not None else None,
+            usable_faces=tuple(
+                RackFace.from_value(str(face)) or RackFace.FRONT
+                for face in cast(Sequence[object], row.get("usable_faces") or ["front"])
+            ),
+            max_weight_kg=(
+                self._float_or_none(row.get("max_weight_kg"))
+                if row.get("max_weight_kg") is not None
+                else None
+            ),
+            power_capacity_watts=(
+                int(row["power_capacity_watts"])
+                if row.get("power_capacity_watts") is not None
+                else None
+            ),
         )
 
     def _equipment_from_row(self, row: Mapping[str, object]) -> Equipment:
@@ -1057,6 +1125,8 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             coordinates=coordinates,
             floor_code=str(row["floor_code"]) if row.get("floor_code") is not None else None,
             zone_code=str(row["zone_code"]) if row.get("zone_code") is not None else None,
+            rack_face=str(row["rack_face"]) if row.get("rack_face") is not None else None,
+            u_height=int(row["u_height"]) if row.get("u_height") is not None else None,
         )
         return Equipment(
             id=EntityId.from_value(str(row["id"])),
@@ -1772,7 +1842,10 @@ class PostgreSQLSourceGovernanceRepository(PostgreSQLRepositoryBase, SourceGover
         )
         selected = tuple(rows[: pagination.limit])
         next_cursor = str(offset + pagination.limit) if len(rows) > pagination.limit else None
-        return SourceGovernanceRulePage(tuple(self._rule_from_row(row) for row in selected), next_cursor)
+        return SourceGovernanceRulePage(
+            tuple(self._rule_from_row(row) for row in selected),
+            next_cursor,
+        )
 
     def find_active_rules_for_kind(
         self,

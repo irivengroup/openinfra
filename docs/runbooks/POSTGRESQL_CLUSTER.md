@@ -140,3 +140,17 @@ PYTHONPATH=src python -m openinfra.interfaces.cli database apply-migrations \
 ```
 
 Les index couvrent la recherche par site/région/ville, étage, salle, zone, grille et localisation équipement. Les écritures DCIM restent transactionnelles via le `UnitOfWork` applicatif.
+
+## Migration 0010 Capacité rack DCIM
+
+La migration `0010_dcim_rack_capacity.sql` ajoute le support P04 / EPIC-0402 : faces utilisables, capacité poids, capacité électrique, face de montage équipement, hauteur U et index d'occupation.
+
+Validation SQL :
+
+```bash
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration \
+  --name 0010_dcim_rack_capacity \
+  --root migrations/postgresql >/tmp/openinfra-0010.sql
+```
+
+Après application, les appels applicatifs doivent continuer à passer par l'API ou la CLI afin de bénéficier du contrôle de chevauchement des intervalles U.

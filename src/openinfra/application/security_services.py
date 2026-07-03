@@ -113,7 +113,12 @@ class BuiltinRolePolicy:
     _ROLE_PERMISSIONS: dict[str, frozenset[Permission]] = {
         "admin": frozenset(Permission),
         "ipam:operator": frozenset((Permission.IPAM_ALLOCATE, Permission.SCHEMA_READ)),
-        "dcim:operator": frozenset((Permission.DCIM_LOCATE, Permission.DCIM_WRITE, Permission.SCHEMA_READ)),
+        "dcim:operator": frozenset((
+            Permission.DCIM_LOCATE,
+            Permission.DCIM_WRITE,
+            Permission.DCIM_IDENTIFY,
+            Permission.SCHEMA_READ,
+        )),
         "viewer": frozenset((Permission.SCHEMA_READ, Permission.SOT_READ)),
         "security:admin": frozenset((
             Permission.SECURITY_ADMIN,

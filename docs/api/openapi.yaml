@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.12.0
+  version: 0.14.0
 components:
   securitySchemes:
     bearerToken:
@@ -629,6 +629,119 @@ paths:
         '201': {description: Physical room hierarchy persisted}
         '400': {description: Validation error}
         '401': {description: Missing or invalid DCIM operator token}
+  /api/v1/dcim/racks:
+    post:
+      summary: Define a rack with U capacity, usable faces and physical placement
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, site, building, room, rack, row, column, units]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                site: {type: string}
+                building: {type: string}
+                floor: {type: string}
+                room: {type: string}
+                zone: {type: string}
+                rack: {type: string}
+                row: {type: string}
+                column: {type: string}
+                units:
+                  type: integer
+                  minimum: 1
+                  maximum: 60
+                faces:
+                  type: array
+                  items:
+                    type: string
+                    enum: [front, rear]
+                max_weight_kg: {type: number}
+                power_capacity_watts: {type: integer}
+                x: {type: number}
+                y: {type: number}
+                z: {type: number}
+      responses:
+        '201': {description: Rack capacity definition persisted}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM operator token}
+  /api/v1/dcim/rack-capacity:
+    get:
+      summary: Return rack U occupation by face
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: {type: string}
+        - name: site
+          in: query
+          required: true
+          schema: {type: string}
+        - name: building
+          in: query
+          required: true
+          schema: {type: string}
+        - name: room
+          in: query
+          required: true
+          schema: {type: string}
+        - name: rack
+          in: query
+          required: true
+          schema: {type: string}
+      responses:
+        '200': {description: Rack capacity report}
+        '400': {description: Validation error}
+
+  /api/v1/dcim/locator-sheet:
+    get:
+      summary: Generate a field locator sheet with compact QR payload and human intervention path
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: {type: string}
+        - name: asset_tag
+          in: query
+          required: true
+          schema: {type: string}
+        - name: format
+          in: query
+          required: false
+          schema: {type: string, enum: [json, html]}
+      responses:
+        '200': {description: Locator sheet in JSON or HTML wrapper}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM identification token}
+  /api/v1/dcim/verify-scan:
+    post:
+      summary: Verify a field QR scan payload against the expected equipment locator
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, asset_tag, payload]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                asset_tag: {type: string}
+                payload: {type: string}
+      responses:
+        '200': {description: Scan proof and verification result}
+        '400': {description: Validation error or QR mismatch}
+        '401': {description: Missing or invalid DCIM identification token}
+
   /api/v1/ipam/allocate:
     post:
       summary: Allocate an IP address with idempotency

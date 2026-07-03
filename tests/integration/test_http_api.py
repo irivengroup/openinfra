@@ -38,7 +38,7 @@ class TestHttpApi:
             assert health["status"] == "ok"
             assert ready["ready"] is True
             assert ready["component"] == "json"
-            assert version["version"] == "0.12.0"
+            assert version["version"] == "0.14.0"
             assert allocation["address"] == "10.6.0.1"
         finally:
             server.shutdown()
@@ -608,7 +608,9 @@ class TestSourceGovernanceHttpApi:
             server.server_close()
             thread.join(timeout=5)
 
-    def test_dcim_define_room_api_requires_dcim_write_when_authenticated(self, tmp_path: Path) -> None:
+    def test_dcim_define_room_api_requires_dcim_write_when_authenticated(
+        self, tmp_path: Path
+    ) -> None:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json", seed=False)
         viewer_token = "v" * 40
         dcim_token = "m" * 40
@@ -675,3 +677,144 @@ class TestSourceGovernanceHttpApi:
             server.shutdown()
             server.server_close()
             thread.join(timeout=5)
+
+    def test_dcim_rack_runtime_api_endpoints(self, tmp_path: Path) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+        server = OpenInfraThreadingServer(("127.0.0.1", 0), app)
+        helper = TestHttpApi()
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base_url = f"http://127.0.0.1:{server.server_port}"
+            room = helper._post_json(
+                base_url + "/api/v1/dcim/rooms",
+                {
+                    "tenant_id": "default",
+                    "site_code": "BOR1",
+                    "site_name": "Bordeaux 1",
+                    "country": "FR",
+                    "region": "Nouvelle-Aquitaine",
+                    "city": "Bordeaux",
+                    "building_code": "BAT-B",
+                    "building_name": "Building B",
+                    "floor_code": "F01",
+                    "floor_name": "First floor",
+                    "floor_index": 1,
+                    "room_code": "MDF1",
+                    "room_name": "MDF Bordeaux",
+                    "rows": ["A"],
+                    "columns": ["01"],
+                    "zone_code": "Z1",
+                    "zone_name": "Zone 1",
+                    "zone_rows": ["A"],
+                    "zone_columns": ["01"],
+                },
+            )
+            rack = helper._post_json(
+                base_url + "/api/v1/dcim/racks",
+                {
+                    "tenant_id": "default",
+                    "site": "BOR1",
+                    "building": "BAT-B",
+                    "floor": "F01",
+                    "room": "MDF1",
+                    "zone": "Z1",
+                    "rack": "R01",
+                    "row": "A",
+                    "column": "01",
+                    "units": 48,
+                    "faces": ["front", "rear"],
+                    "max_weight_kg": 900,
+                    "power_capacity_watts": 24000,
+                },
+            )
+            capacity = helper._get_json(
+                base_url
+                + "/api/v1/dcim/rack-capacity?tenant_id=default"
+                + "&site=BOR1&building=BAT-B&room=MDF1&rack=R01"
+            )
+
+            assert room["room"] == "MDF1"
+            assert rack["rack"] == "R01"
+            assert rack["faces"] == ["front", "rear"]
+            assert capacity["units"] == 48
+            assert capacity["faces_capacity"]["front"]["free_count"] == 48
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+def test_dcim_locator_sheet_and_scan_api_endpoint(tmp_path: Path) -> None:
+    from openinfra.application.dcim_services import LocateEquipmentCommand
+
+    app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+    app.dcim_service.locate_equipment(
+        LocateEquipmentCommand(
+            tenant_id="default",
+            actor="pytest",
+            asset_tag="API-QR-1",
+            equipment_name="API QR Server",
+            site="PAR1",
+            building="BAT-A",
+            floor="F01",
+            room="MMR1",
+            zone=None,
+            row="A",
+            column="01",
+            rack=None,
+            u_position=None,
+            rack_face=None,
+            u_height=None,
+            x=None,
+            y=None,
+            z=None,
+        )
+    )
+    token = "e" * 40
+    app.security_service.bootstrap_token(
+        BootstrapTokenCommand(
+            tenant_id="default",
+            actor="pytest",
+            subject="dcim-qr-client",
+            roles=("dcim:operator",),
+            token=token,
+        )
+    )
+    server = OpenInfraThreadingServer(("127.0.0.1", 0), app, auth_required=True)
+    helper = TestHttpApi()
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        base_url = f"http://127.0.0.1:{server.server_port}"
+        sheet = helper._get_json(
+            base_url + "/api/v1/dcim/locator-sheet?tenant_id=default&asset_tag=API-QR-1",
+            token=token,
+        )
+        payload = str(sheet["locator"]["payload"])
+        proof = helper._post_json(
+            base_url + "/api/v1/dcim/verify-scan",
+            {"tenant_id": "default", "asset_tag": "API-QR-1", "payload": payload},
+            token=token,
+        )
+        html = helper._get_json(
+            base_url
+            + "/api/v1/dcim/locator-sheet?tenant_id=default&asset_tag=API-QR-1&format=html",
+            token=token,
+        )
+        try:
+            helper._post_json(
+                base_url + "/api/v1/dcim/verify-scan",
+                {"tenant_id": "default", "asset_tag": "API-QR-1", "payload": "bad"},
+                token=token,
+            )
+        except urllib.error.HTTPError as exc:
+            assert exc.code == 400
+
+        assert sheet["asset_tag"] == "API-QR-1"
+        assert str(sheet["qr_svg"]).startswith("<svg")
+        assert proof["verified"] is True
+        assert "OpenInfra fiche localisation" in str(html["html"])
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)

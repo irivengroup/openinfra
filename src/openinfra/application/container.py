@@ -6,7 +6,12 @@ from typing import Any
 
 from openinfra.application.access_policy_services import AccessPolicyService
 from openinfra.application.audit_services import AuditTrailService
-from openinfra.application.dcim_services import DcimLocationService, DcimTopologyService
+from openinfra.application.dcim_services import (
+    DcimFieldOperationService,
+    DcimLocationService,
+    DcimRackService,
+    DcimTopologyService,
+)
 from openinfra.application.identity_services import IdentityService
 from openinfra.application.ipam_services import IpamAllocationService
 from openinfra.application.ports import (
@@ -64,6 +69,8 @@ class OpenInfraApplication:
     store: Any
     dcim_service: DcimLocationService
     dcim_topology_service: DcimTopologyService
+    dcim_rack_service: DcimRackService
+    dcim_field_operation_service: DcimFieldOperationService
     ipam_service: IpamAllocationService
     dcim_repository: DcimRepository
     ipam_repository: IpamRepository
@@ -201,6 +208,16 @@ class ApplicationFactory:
                 transaction_manager,
             ),
             dcim_topology_service=DcimTopologyService(
+                dcim_repository,
+                audit_repository,
+                transaction_manager,
+            ),
+            dcim_rack_service=DcimRackService(
+                dcim_repository,
+                audit_repository,
+                transaction_manager,
+            ),
+            dcim_field_operation_service=DcimFieldOperationService(
                 dcim_repository,
                 audit_repository,
                 transaction_manager,

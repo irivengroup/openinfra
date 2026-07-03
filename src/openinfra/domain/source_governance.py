@@ -36,13 +36,18 @@ class GovernedAttributePath:
         normalized = value.strip().lower()
         if normalized == "*":
             return cls(normalized)
-        if not re.fullmatch(r"[a-z0-9][a-z0-9_:-]{0,63}(\.[a-z0-9][a-z0-9_:-]{0,63}){0,7}", normalized):
+        pattern = r"[a-z0-9][a-z0-9_:-]{0,63}(\.[a-z0-9][a-z0-9_:-]{0,63}){0,7}"
+        if not re.fullmatch(pattern, normalized):
             raise ValidationError("governed attribute path must be '*' or a safe dotted path")
         return cls(normalized)
 
     def matches(self, changed_path: str) -> bool:
         normalized = changed_path.strip().lower()
-        return self.value == "*" or self.value == normalized or normalized.startswith(self.value + ".")
+        return (
+            self.value == "*"
+            or self.value == normalized
+            or normalized.startswith(self.value + ".")
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,7 +142,11 @@ class SourceGovernanceRule:
         return normalized
 
     def applies_to(self, object_kind: SourceObjectKind, changed_path: str) -> bool:
-        return self.active and (self.object_kind is None or self.object_kind == object_kind) and self.attribute_path.matches(changed_path)
+        return (
+            self.active
+            and (self.object_kind is None or self.object_kind == object_kind)
+            and self.attribute_path.matches(changed_path)
+        )
 
     def is_authoritative(self, source: SourceSystem) -> bool:
         return self.authoritative_source == source
@@ -251,7 +260,9 @@ class SourceGovernanceEvaluation:
             incoming_source=incoming_source,
             accepted=not blocking_conflicts,
             changed_paths=tuple(GovernedAttributePath.from_value(path) for path in changed_paths),
-            stale_rule_names=tuple(GovernanceRuleName.from_value(name) for name in stale_rule_names),
+            stale_rule_names=tuple(
+                GovernanceRuleName.from_value(name) for name in stale_rule_names
+            ),
             conflicts=conflicts,
         )
 
@@ -321,7 +332,11 @@ class SourceGovernanceEvaluator:
 
     def changed_paths(self, existing: dict[str, Any], incoming: dict[str, Any]) -> tuple[str, ...]:
         paths = sorted(set(self._flatten(existing)) | set(self._flatten(incoming)))
-        return tuple(path for path in paths if self.value_at(existing, path) != self.value_at(incoming, path))
+        return tuple(
+            path
+            for path in paths
+            if self.value_at(existing, path) != self.value_at(incoming, path)
+        )
 
     def value_at(self, payload: dict[str, Any], path: str) -> Any:
         current: Any = payload

@@ -59,6 +59,7 @@ class RuntimeSmokeScenario:
         self._assert_source_of_truth_lifecycle()
         self._assert_source_governance_lifecycle()
         self._assert_dcim_physical_model()
+        self._assert_dcim_field_operations()
         self._assert_access_policy_lifecycle()
         self._assert_api_ipam_idempotency()
         self._assert_cli_ipam_transaction()
@@ -85,7 +86,7 @@ class RuntimeSmokeScenario:
 
     def _assert_version(self) -> None:
         version = self._client.get("/api/v1/version")
-        if version.get("version") != "0.12.0":
+        if version.get("version") != "0.14.0":
             raise SmokeError("unexpected version response: " + json.dumps(version, sort_keys=True))
 
     def _assert_schema_status(self) -> None:
@@ -320,6 +321,27 @@ class RuntimeSmokeScenario:
         expected_path = "site=PAR1 | building=BAT-A | floor=F01 | room=MMR1 | xyz=1.00/2.00/0.00"
         if room.get("path") != expected_path:
             raise SmokeError("DCIM room definition failed: " + json.dumps(room, sort_keys=True))
+        rack = self._client.post(
+            "/api/v1/dcim/racks",
+            {
+                "tenant_id": "default",
+                "actor": "docker-smoke",
+                "site": "PAR1",
+                "building": "BAT-A",
+                "floor": "F01",
+                "room": "MMR1",
+                "zone": "Z1",
+                "rack": "R01",
+                "row": "A",
+                "column": "01",
+                "units": 42,
+                "faces": ["front", "rear"],
+                "max_weight_kg": 1200,
+                "power_capacity_watts": 16000,
+            },
+        )
+        if rack.get("rack") != "R01" or rack.get("faces") != ["front", "rear"]:
+            raise SmokeError("DCIM rack definition failed: " + json.dumps(rack, sort_keys=True))
         command = [
             "openinfra",
             "dcim",
@@ -348,6 +370,14 @@ class RuntimeSmokeScenario:
             "A",
             "--column",
             "01",
+            "--rack",
+            "R01",
+            "--u-position",
+            "10",
+            "--u-height",
+            "2",
+            "--rack-face",
+            "front",
             "--x",
             "1.0",
             "--y",
@@ -359,9 +389,20 @@ class RuntimeSmokeScenario:
         if completed.returncode != 0:
             raise SmokeError("DCIM CLI location failed: " + completed.stderr.strip())
         output = completed.stdout.strip()
-        expected = "site=PAR1 | building=BAT-A | floor=F01 | room=MMR1 | row=A | column=01 | zone=Z1 | xyz=1.00/2.00/0.00"
+        expected = (
+            "site=PAR1 | building=BAT-A | floor=F01 | room=MMR1 | row=A | "
+            "column=01 | zone=Z1 | rack=R01 | U=10 | face=front | height_u=2 | "
+            "xyz=1.00/2.00/0.00"
+        )
         if output != expected:
             raise SmokeError("DCIM physical path failed: " + output)
+        capacity = self._client.get(
+            "/api/v1/dcim/rack-capacity?tenant_id=default"
+            "&site=PAR1&building=BAT-A&room=MMR1&rack=R01"
+        )
+        front = capacity.get("faces_capacity", {}).get("front", {})
+        if front.get("used_units") != [10, 11]:
+            raise SmokeError("DCIM rack capacity failed: " + json.dumps(capacity, sort_keys=True))
 
     def _assert_access_policy_lifecycle(self) -> None:
         rule = self._client.post(

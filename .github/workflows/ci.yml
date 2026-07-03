@@ -72,6 +72,8 @@ jobs:
           openinfra database render-migration --name 0007_source_of_truth_core --root migrations/postgresql >/tmp/openinfra-0007.sql
           openinfra database render-migration --name 0008_source_governance --root migrations/postgresql >/tmp/openinfra-0008.sql
           openinfra database render-migration --name 0009_dcim_physical_model --root migrations/postgresql >/tmp/openinfra-0009.sql
+          openinfra database render-migration --name 0010_dcim_rack_capacity --root migrations/postgresql >/tmp/openinfra-0010.sql
+          openinfra database render-migration --name 0011_dcim_field_operations --root migrations/postgresql >/tmp/openinfra-0011.sql
 
       - name: Smoke JSON IPAM allocation
         run: |
@@ -313,6 +315,33 @@ jobs:
             --x 1 \
             --y 2 \
             --z 0
+
+
+      - name: Smoke JSON DCIM field operations
+        run: |
+          tmpdir="$(mktemp -d)"
+          openinfra dcim locate \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --asset-tag CI-SRV-QR-01 \
+            --equipment-name "CI QR Server" \
+            --site PAR1 \
+            --building BAT-A \
+            --floor F01 \
+            --room MMR1 \
+            --row A \
+            --column 01
+          openinfra dcim locator-sheet \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --asset-tag CI-SRV-QR-01 \
+            --format json > "$tmpdir/sheet.json"
+          payload="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["locator"]["payload"])' "$tmpdir/sheet.json")"
+          openinfra dcim verify-scan \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --asset-tag CI-SRV-QR-01 \
+            --payload "$payload"
 
       - name: Internal quality gate
         run: python scripts/quality_gate.py

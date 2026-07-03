@@ -417,3 +417,29 @@ PYTHONPATH=src python -m openinfra.interfaces.cli dcim locate --data .openinfra.
 ```
 
 La migration PostgreSQL `0009_dcim_physical_model.sql` étend le schéma DCIM avec `floors`, `room_zones`, `sites.region`, `rooms.floor_code`, `rooms.zone_codes`, coordonnées X/Y/Z, `racks.floor_code`, `racks.zone_code`, `equipment.floor_code` et `equipment.zone_code`. Les adaptateurs JSON et PostgreSQL implémentent le même port `DcimRepository`.
+
+
+## v0.14.0 — P04 EPIC-0403 QR codes et chemins d’intervention
+
+La v0.14.0 poursuit le jalon roadmap P04 avec EPIC-0403. Elle ajoute l’identification terrain des équipements : génération d’un payload QR compact, fiche de localisation JSON ou HTML, chemin d’intervention humain depuis le site jusqu’au rack/U, et vérification auditée d’un scan QR.
+
+Commandes principales :
+
+```bash
+openinfra dcim locator-sheet \
+  --tenant default \
+  --asset-tag SRV-001 \
+  --format json
+
+openinfra dcim verify-scan \
+  --tenant default \
+  --asset-tag SRV-001 \
+  --payload "oi:loc:<payload>"
+```
+
+API ajoutées :
+
+- `GET /api/v1/dcim/locator-sheet` : retourne la fiche terrain en JSON ou HTML encapsulé ;
+- `POST /api/v1/dcim/verify-scan` : vérifie la preuve de scan et journalise l’opération.
+
+Qualité : le seuil de couverture global de la CI passe désormais à `>= 98 %`. Les tests ajoutés couvrent le domaine QR, le service terrain, la CLI, l’API HTTP, les contrats d’erreur, les magasins JSON et les validations métier.

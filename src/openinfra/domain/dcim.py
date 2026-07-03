@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import hashlib
+import html
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Self
 
 from openinfra.domain.common import Code, Coordinates3D, EntityId, Name, TenantId, ValidationError
@@ -13,6 +16,21 @@ class DcimGridValidator:
         if not normalized:
             raise ValidationError(f"{label} must contain at least one value")
         return normalized
+
+
+class RackFace(StrEnum):
+    FRONT = "front"
+    REAR = "rear"
+
+    @classmethod
+    def from_value(cls, value: str | None, default: RackFace | None = None) -> RackFace | None:
+        if value is None:
+            return default
+        normalized = value.strip().lower()
+        for face in cls:
+            if normalized == face.value:
+                return face
+        raise ValidationError("rack face must be either front or rear")
 
 
 @dataclass(frozen=True, slots=True)
@@ -251,6 +269,9 @@ class Rack:
     coordinates: Coordinates3D | None
     floor_code: Code | None = None
     zone_code: Code | None = None
+    usable_faces: tuple[RackFace, ...] = (RackFace.FRONT,)
+    max_weight_kg: float | None = None
+    power_capacity_watts: int | None = None
 
     @classmethod
     def create(
@@ -266,10 +287,16 @@ class Rack:
         coordinates: Coordinates3D | None,
         floor_code: str | None = None,
         zone_code: str | None = None,
+        usable_faces: tuple[str, ...] = ("front",),
+        max_weight_kg: float | None = None,
+        power_capacity_watts: int | None = None,
     ) -> Self:
         normalized_row = Code.from_value(row, "rack row").value
         normalized_column = Code.from_value(column, "rack column").value
-        if not 1 <= units <= 60:
+        normalized_faces = cls._normalize_faces(usable_faces)
+        normalized_weight = cls._normalize_weight(max_weight_kg)
+        normalized_power = cls._normalize_power(power_capacity_watts)
+        if not 1 <= int(units) <= 60:
             raise ValidationError("rack units must be between 1 and 60")
         return cls(
             id=EntityId.new(),
@@ -280,11 +307,68 @@ class Rack:
             code=Code.from_value(code, "rack code"),
             row=normalized_row,
             column=normalized_column,
-            units=units,
+            units=int(units),
             coordinates=coordinates,
             floor_code=Code.from_value(floor_code, "floor code") if floor_code else None,
             zone_code=Code.from_value(zone_code, "zone code") if zone_code else None,
+            usable_faces=normalized_faces,
+            max_weight_kg=normalized_weight,
+            power_capacity_watts=normalized_power,
         )
+
+    @classmethod
+    def _normalize_faces(cls, values: tuple[str, ...]) -> tuple[RackFace, ...]:
+        if not values:
+            raise ValidationError("rack must expose at least one usable face")
+        faces: list[RackFace] = []
+        for value in values:
+            face = RackFace.from_value(value)
+            if face is not None and face not in faces:
+                faces.append(face)
+        if not faces:
+            raise ValidationError("rack must expose at least one usable face")
+        return tuple(faces)
+
+    @classmethod
+    def _normalize_weight(cls, value: float | None) -> float | None:
+        if value is None:
+            return None
+        normalized = float(value)
+        if not 1 <= normalized <= 10_000:
+            raise ValidationError("rack max weight must be between 1 and 10000 kg")
+        return normalized
+
+    @classmethod
+    def _normalize_power(cls, value: int | None) -> int | None:
+        if value is None:
+            return None
+        normalized = int(value)
+        if not 1 <= normalized <= 1_000_000:
+            raise ValidationError("rack power capacity must be between 1 and 1000000 watts")
+        return normalized
+
+    def assert_face_supported(self, face: RackFace) -> None:
+        if face not in self.usable_faces:
+            raise ValidationError(
+                f"rack face is not enabled on rack {self.code.value}: {face.value}"
+            )
+
+    def assert_unit_interval(self, start_u: int, height_u: int) -> None:
+        if not 1 <= start_u <= self.units:
+            raise ValidationError("rack unit position exceeds rack capacity")
+        if not 1 <= height_u <= self.units:
+            raise ValidationError("rack unit height exceeds rack capacity")
+        if start_u + height_u - 1 > self.units:
+            raise ValidationError("rack unit interval exceeds rack capacity")
+
+    def as_capacity_seed(self) -> dict[str, object]:
+        return {
+            "rack": self.code.value,
+            "units": self.units,
+            "faces": [face.value for face in self.usable_faces],
+            "max_weight_kg": self.max_weight_kg,
+            "power_capacity_watts": self.power_capacity_watts,
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -299,6 +383,8 @@ class EquipmentLocation:
     coordinates: Coordinates3D | None
     floor_code: Code | None = None
     zone_code: Code | None = None
+    rack_face: RackFace | None = None
+    u_height: int | None = None
 
     @classmethod
     def create(
@@ -313,13 +399,32 @@ class EquipmentLocation:
         coordinates: Coordinates3D | None = None,
         floor_code: str | None = None,
         zone_code: str | None = None,
+        rack_face: str | None = None,
+        u_height: int | None = None,
     ) -> Self:
         normalized_row = Code.from_value(row, "equipment location row").value
         normalized_column = Code.from_value(column, "equipment location column").value
-        if u_position is not None and not 1 <= u_position <= 60:
+        normalized_u_position = int(u_position) if u_position is not None else None
+        normalized_height = int(u_height) if u_height is not None else None
+        normalized_face = RackFace.from_value(rack_face) if rack_face is not None else None
+        if normalized_u_position is not None and not 1 <= normalized_u_position <= 60:
             raise ValidationError("rack unit position must be between 1 and 60")
-        if rack_code is None and u_position is not None:
+        if normalized_height is not None and not 1 <= normalized_height <= 60:
+            raise ValidationError("rack unit height must be between 1 and 60")
+        if rack_code is None and normalized_u_position is not None:
             raise ValidationError("rack code is mandatory when a rack unit is provided")
+        if rack_code is None and normalized_height is not None:
+            raise ValidationError("rack code is mandatory when a rack unit height is provided")
+        if rack_code is None and normalized_face is not None:
+            raise ValidationError("rack code is mandatory when a rack face is provided")
+        if normalized_height is not None and normalized_u_position is None:
+            raise ValidationError(
+                "rack unit position is mandatory when a rack unit height is provided"
+            )
+        if normalized_face is not None and normalized_u_position is None:
+            raise ValidationError("rack unit position is mandatory when a rack face is provided")
+        if normalized_u_position is not None and normalized_height is None:
+            normalized_height = 1
         return cls(
             site_code=Code.from_value(site_code, "site code"),
             building_code=Code.from_value(building_code, "building code"),
@@ -327,11 +432,38 @@ class EquipmentLocation:
             row=normalized_row,
             column=normalized_column,
             rack_code=Code.from_value(rack_code, "rack code") if rack_code else None,
-            u_position=u_position,
+            u_position=normalized_u_position,
             coordinates=coordinates,
             floor_code=Code.from_value(floor_code, "floor code") if floor_code else None,
             zone_code=Code.from_value(zone_code, "zone code") if zone_code else None,
+            rack_face=normalized_face,
+            u_height=normalized_height,
         )
+
+    def effective_rack_face(self) -> RackFace | None:
+        if self.rack_code is None or self.u_position is None:
+            return None
+        return self.rack_face or RackFace.FRONT
+
+    def effective_u_height(self) -> int | None:
+        if self.rack_code is None or self.u_position is None:
+            return None
+        return self.u_height or 1
+
+    def occupied_units(self) -> tuple[int, ...]:
+        height = self.effective_u_height()
+        if self.u_position is None or height is None:
+            return ()
+        return tuple(range(self.u_position, self.u_position + height))
+
+    def overlaps(self, other: EquipmentLocation) -> bool:
+        if self.rack_code is None or other.rack_code is None:
+            return False
+        if self.rack_code != other.rack_code:
+            return False
+        if self.effective_rack_face() != other.effective_rack_face():
+            return False
+        return bool(set(self.occupied_units()).intersection(other.occupied_units()))
 
     def human_readable(self) -> str:
         parts = [
@@ -353,6 +485,10 @@ class EquipmentLocation:
             parts.append(f"rack={self.rack_code.value}")
         if self.u_position is not None:
             parts.append(f"U={self.u_position}")
+        if self.rack_face:
+            parts.append(f"face={self.rack_face.value}")
+        if self.u_height is not None and self.u_height != 1:
+            parts.append(f"height_u={self.u_height}")
         if self.coordinates:
             parts.append(
                 f"xyz={self.coordinates.x:.2f}/{self.coordinates.y:.2f}/{self.coordinates.z:.2f}"
@@ -383,3 +519,493 @@ class Equipment:
             name=Name.from_value(name, "equipment name"),
             location=location,
         )
+
+
+@dataclass(frozen=True, slots=True)
+class RackCapacityReport:
+    rack: Rack
+    equipment: tuple[Equipment, ...]
+
+    def as_dict(self) -> dict[str, object]:
+        by_face: dict[str, dict[str, object]] = {}
+        for face in self.rack.usable_faces:
+            occupied_units: set[int] = set()
+            mounted_items: list[dict[str, object]] = []
+            for item in self.equipment:
+                location = item.location
+                if location.effective_rack_face() != face:
+                    continue
+                units = location.occupied_units()
+                occupied_units.update(units)
+                mounted_items.append(
+                    {
+                        "asset_tag": item.asset_tag.value,
+                        "name": item.name.value,
+                        "u_position": location.u_position,
+                        "u_height": location.effective_u_height(),
+                        "rack_face": face.value,
+                        "units": list(units),
+                    }
+                )
+            by_face[face.value] = {
+                "used_units": sorted(occupied_units),
+                "used_count": len(occupied_units),
+                "free_count": self.rack.units - len(occupied_units),
+                "occupancy_percent": round((len(occupied_units) / self.rack.units) * 100, 2),
+                "equipment": mounted_items,
+            }
+        payload = self.rack.as_capacity_seed()
+        payload["faces_capacity"] = by_face
+        return payload
+
+
+@dataclass(frozen=True, slots=True)
+class InterventionRouteStep:
+    order: int
+    title: str
+    instruction: str
+
+    @classmethod
+    def create(cls, order: int, title: str, instruction: str) -> Self:
+        normalized_order = int(order)
+        normalized_title = " ".join(title.strip().split())
+        normalized_instruction = " ".join(instruction.strip().split())
+        if not 1 <= normalized_order <= 50:
+            raise ValidationError("intervention route step order must be between 1 and 50")
+        if not 1 <= len(normalized_title) <= 80:
+            raise ValidationError("intervention route step title must contain 1 to 80 characters")
+        if not 1 <= len(normalized_instruction) <= 500:
+            raise ValidationError("intervention route instruction must contain 1 to 500 characters")
+        return cls(normalized_order, normalized_title, normalized_instruction)
+
+    def as_dict(self) -> dict[str, object]:
+        return {"order": self.order, "title": self.title, "instruction": self.instruction}
+
+
+@dataclass(frozen=True, slots=True)
+class EquipmentLocatorPayload:
+    tenant_id: TenantId
+    asset_tag: Code
+    payload: str
+    token: str
+    checksum: str
+
+    @classmethod
+    def create(cls, tenant_id: TenantId, equipment: Equipment) -> Self:
+        if tenant_id != equipment.tenant_id:
+            raise ValidationError("locator tenant does not match equipment tenant")
+        path = equipment.location.human_readable()
+        digest = hashlib.sha256(
+            f"{tenant_id.value}|{equipment.asset_tag.value}|{path}".encode("utf-8")
+        ).hexdigest()
+        token = digest[:20].upper()
+        payload = f"oi:loc:{digest[:32].upper()}"
+        if len(payload.encode("utf-8")) > QrCodeSvgDocument.MAX_BYTE_CAPACITY:
+            raise ValidationError("locator payload exceeds supported QR byte capacity")
+        return cls(
+            tenant_id=tenant_id,
+            asset_tag=equipment.asset_tag,
+            payload=payload,
+            token=token,
+            checksum=digest,
+        )
+
+    def verify_payload(self, candidate: str) -> bool:
+        return candidate.strip() == self.payload
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "tenant_id": self.tenant_id.value,
+            "asset_tag": self.asset_tag.value,
+            "payload": self.payload,
+            "token": self.token,
+            "checksum": self.checksum,
+        }
+
+
+class QrCodeSvgDocument:
+    VERSION = 3
+    SIZE = 29
+    DATA_CODEWORDS = 55
+    ERROR_CODEWORDS = 15
+    MAX_BYTE_CAPACITY = 53
+    FORMAT_BITS_L_MASK_0 = 0b111011111000100
+
+    def __init__(self, payload: str) -> None:
+        self._payload = payload
+        self._matrix: list[list[bool | None]] = [
+            [None for _ in range(self.SIZE)] for _ in range(self.SIZE)
+        ]
+        self._function: list[list[bool]] = [[False for _ in range(self.SIZE)] for _ in range(self.SIZE)]
+
+    @classmethod
+    def from_payload(cls, payload: str) -> Self:
+        normalized = payload.strip()
+        if not normalized:
+            raise ValidationError("QR payload cannot be empty")
+        if len(normalized.encode("utf-8")) > cls.MAX_BYTE_CAPACITY:
+            raise ValidationError("QR payload exceeds version 3-L byte capacity")
+        document = cls(normalized)
+        document._draw_function_patterns()
+        document._draw_codewords(document._final_codewords())
+        document._draw_format_bits()
+        return document
+
+    def to_svg(self, module_size: int = 8, border: int = 4) -> str:
+        if not 2 <= int(module_size) <= 32:
+            raise ValidationError("QR module size must be between 2 and 32 pixels")
+        if not 0 <= int(border) <= 16:
+            raise ValidationError("QR border must be between 0 and 16 modules")
+        size = (self.SIZE + border * 2) * module_size
+        rects = [
+            f'<rect width="{size}" height="{size}" fill="#fff"/>',
+        ]
+        for row in range(self.SIZE):
+            for col in range(self.SIZE):
+                if self._matrix[row][col]:
+                    x = (col + border) * module_size
+                    y = (row + border) * module_size
+                    rects.append(
+                        f'<rect x="{x}" y="{y}" width="{module_size}" '
+                        f'height="{module_size}" fill="#000"/>'
+                    )
+        return (
+            f'<svg xmlns="http://www.w3.org/2000/svg" role="img" '
+            f'aria-label="OpenInfra equipment locator QR" viewBox="0 0 {size} {size}" '
+            f'width="{size}" height="{size}">' + "".join(rects) + "</svg>"
+        )
+
+    def _draw_function_patterns(self) -> None:
+        self._draw_finder(0, 0)
+        self._draw_finder(self.SIZE - 7, 0)
+        self._draw_finder(0, self.SIZE - 7)
+        self._draw_alignment(22, 22)
+        for index in range(8, self.SIZE - 8):
+            self._set_function(6, index, index % 2 == 0)
+            self._set_function(index, 6, index % 2 == 0)
+        self._set_function(4 * self.VERSION + 9, 8, True)
+        self._reserve_format_areas()
+
+    def _draw_finder(self, left: int, top: int) -> None:
+        for row_offset in range(-1, 8):
+            for col_offset in range(-1, 8):
+                row = top + row_offset
+                col = left + col_offset
+                if not 0 <= row < self.SIZE or not 0 <= col < self.SIZE:
+                    continue
+                if 0 <= row_offset <= 6 and 0 <= col_offset <= 6:
+                    is_black = (
+                        row_offset in (0, 6)
+                        or col_offset in (0, 6)
+                        or (2 <= row_offset <= 4 and 2 <= col_offset <= 4)
+                    )
+                else:
+                    is_black = False
+                self._set_function(row, col, is_black)
+
+    def _draw_alignment(self, center_row: int, center_col: int) -> None:
+        for row_offset in range(-2, 3):
+            for col_offset in range(-2, 3):
+                row = center_row + row_offset
+                col = center_col + col_offset
+                distance = max(abs(row_offset), abs(col_offset))
+                self._set_function(row, col, distance != 1)
+
+    def _reserve_format_areas(self) -> None:
+        for index in range(9):
+            if index != 6:
+                self._mark_function(8, index)
+                self._mark_function(index, 8)
+        for index in range(8):
+            self._mark_function(self.SIZE - 1 - index, 8)
+            self._mark_function(8, self.SIZE - 1 - index)
+
+    def _draw_format_bits(self) -> None:
+        bits = self.FORMAT_BITS_L_MASK_0
+        for index in range(6):
+            self._set_function(8, index, self._bit(bits, index))
+        self._set_function(8, 7, self._bit(bits, 6))
+        self._set_function(8, 8, self._bit(bits, 7))
+        self._set_function(7, 8, self._bit(bits, 8))
+        for index in range(9, 15):
+            self._set_function(14 - index, 8, self._bit(bits, index))
+        for index in range(8):
+            self._set_function(self.SIZE - 1 - index, 8, self._bit(bits, index))
+        for index in range(8, 15):
+            self._set_function(8, self.SIZE - 15 + index, self._bit(bits, index))
+
+    def _draw_codewords(self, codewords: tuple[int, ...]) -> None:
+        bits = tuple((codeword >> shift) & 1 for codeword in codewords for shift in range(7, -1, -1))
+        bit_index = 0
+        upward = True
+        col = self.SIZE - 1
+        while col > 0:
+            if col == 6:
+                col -= 1
+            row_range = range(self.SIZE - 1, -1, -1) if upward else range(self.SIZE)
+            for row in row_range:
+                for current_col in (col, col - 1):
+                    if self._function[row][current_col]:
+                        continue
+                    bit = bits[bit_index] if bit_index < len(bits) else 0
+                    bit_index += 1
+                    masked = bool(bit) ^ ((row + current_col) % 2 == 0)
+                    self._matrix[row][current_col] = masked
+            upward = not upward
+            col -= 2
+
+    def _final_codewords(self) -> tuple[int, ...]:
+        data = self._data_codewords()
+        return data + self._reed_solomon_remainder(data, self.ERROR_CODEWORDS)
+
+    def _data_codewords(self) -> tuple[int, ...]:
+        payload_bytes = self._payload.encode("utf-8")
+        bits: list[int] = []
+        self._append_bits(bits, 0b0100, 4)
+        self._append_bits(bits, len(payload_bytes), 8)
+        for value in payload_bytes:
+            self._append_bits(bits, value, 8)
+        remaining = self.DATA_CODEWORDS * 8 - len(bits)
+        self._append_bits(bits, 0, min(4, remaining))
+        while len(bits) % 8 != 0:
+            bits.append(0)
+        codewords = [
+            int("".join(str(bit) for bit in bits[index : index + 8]), 2)
+            for index in range(0, len(bits), 8)
+        ]
+        pad = (0xEC, 0x11)
+        pad_index = 0
+        while len(codewords) < self.DATA_CODEWORDS:
+            codewords.append(pad[pad_index % 2])
+            pad_index += 1
+        return tuple(codewords)
+
+    @staticmethod
+    def _append_bits(bits: list[int], value: int, length: int) -> None:
+        for shift in range(length - 1, -1, -1):
+            bits.append((value >> shift) & 1)
+
+    @classmethod
+    def _reed_solomon_remainder(cls, data: tuple[int, ...], degree: int) -> tuple[int, ...]:
+        generator = cls._reed_solomon_generator(degree)
+        result = [0] * degree
+        for value in data:
+            factor = value ^ result.pop(0)
+            result.append(0)
+            for index in range(degree):
+                result[index] ^= cls._gf_multiply(generator[index + 1], factor)
+        return tuple(result)
+
+    @classmethod
+    def _reed_solomon_generator(cls, degree: int) -> tuple[int, ...]:
+        generator = [1]
+        for index in range(degree):
+            generator = cls._poly_multiply(generator, [1, cls._gf_power(index)])
+        return tuple(generator)
+
+    @classmethod
+    def _poly_multiply(cls, left: list[int], right: list[int]) -> list[int]:
+        result = [0] * (len(left) + len(right) - 1)
+        for left_index, left_value in enumerate(left):
+            for right_index, right_value in enumerate(right):
+                result[left_index + right_index] ^= cls._gf_multiply(left_value, right_value)
+        return result
+
+    @staticmethod
+    def _gf_power(power: int) -> int:
+        value = 1
+        for _ in range(power):
+            value <<= 1
+            if value & 0x100:
+                value ^= 0x11D
+        return value
+
+    @classmethod
+    def _gf_multiply(cls, left: int, right: int) -> int:
+        result = 0
+        a = left
+        b = right
+        while b:
+            if b & 1:
+                result ^= a
+            a <<= 1
+            if a & 0x100:
+                a ^= 0x11D
+            b >>= 1
+        return result & 0xFF
+
+    @staticmethod
+    def _bit(value: int, index: int) -> bool:
+        return ((value >> index) & 1) != 0
+
+    def _set_function(self, row: int, col: int, black: bool) -> None:
+        self._matrix[row][col] = black
+        self._function[row][col] = True
+
+    def _mark_function(self, row: int, col: int) -> None:
+        self._function[row][col] = True
+
+
+@dataclass(frozen=True, slots=True)
+class EquipmentLocatorSheet:
+    equipment: Equipment
+    locator_payload: EquipmentLocatorPayload
+    qr_svg: str
+    intervention_steps: tuple[InterventionRouteStep, ...]
+
+    @classmethod
+    def create(cls, equipment: Equipment) -> Self:
+        payload = EquipmentLocatorPayload.create(equipment.tenant_id, equipment)
+        qr_svg = QrCodeSvgDocument.from_payload(payload.payload).to_svg()
+        return cls(
+            equipment=equipment,
+            locator_payload=payload,
+            qr_svg=qr_svg,
+            intervention_steps=cls._build_steps(equipment),
+        )
+
+    @classmethod
+    def _build_steps(cls, equipment: Equipment) -> tuple[InterventionRouteStep, ...]:
+        location = equipment.location
+        steps = [
+            InterventionRouteStep.create(
+                1,
+                "Site",
+                f"Se rendre sur le site {location.site_code.value}.",
+            ),
+            InterventionRouteStep.create(
+                2,
+                "Bâtiment",
+                f"Entrer dans le bâtiment {location.building_code.value}.",
+            ),
+        ]
+        order = 3
+        if location.floor_code:
+            steps.append(
+                InterventionRouteStep.create(
+                    order,
+                    "Étage",
+                    f"Rejoindre l'étage {location.floor_code.value}.",
+                )
+            )
+            order += 1
+        steps.append(
+            InterventionRouteStep.create(
+                order,
+                "Salle",
+                f"Accéder à la salle {location.room_code.value}.",
+            )
+        )
+        order += 1
+        steps.append(
+            InterventionRouteStep.create(
+                order,
+                "Grille",
+                f"Repérer la cellule ligne {location.row}, colonne {location.column}.",
+            )
+        )
+        order += 1
+        if location.zone_code:
+            steps.append(
+                InterventionRouteStep.create(
+                    order,
+                    "Zone",
+                    f"Contrôler la zone {location.zone_code.value}.",
+                )
+            )
+            order += 1
+        if location.rack_code:
+            rack_instruction = f"Identifier le rack {location.rack_code.value}"
+            if location.rack_face:
+                rack_instruction += f", face {location.rack_face.value}"
+            if location.u_position is not None:
+                rack_instruction += f", position U {location.u_position}"
+            if location.u_height is not None and location.u_height != 1:
+                rack_instruction += f" sur {location.u_height} U"
+            rack_instruction += "."
+            steps.append(InterventionRouteStep.create(order, "Rack", rack_instruction))
+            order += 1
+        if location.coordinates:
+            coordinates = location.coordinates
+            steps.append(
+                InterventionRouteStep.create(
+                    order,
+                    "Coordonnées",
+                    "Vérifier le point X/Y/Z "
+                    f"{coordinates.x:.2f}/{coordinates.y:.2f}/{coordinates.z:.2f}.",
+                )
+            )
+            order += 1
+        steps.append(
+            InterventionRouteStep.create(
+                order,
+                "Identification terrain",
+                "Scanner le QR OpenInfra et comparer l'asset tag affiché avec l'étiquette physique.",
+            )
+        )
+        return tuple(steps)
+
+    def html_document(self) -> str:
+        equipment_name = html.escape(self.equipment.name.value)
+        asset_tag = html.escape(self.equipment.asset_tag.value)
+        human_path = html.escape(self.equipment.location.human_readable())
+        payload = html.escape(self.locator_payload.payload)
+        rows = "".join(
+            "<li>"
+            + html.escape(f"{step.order}. {step.title} — {step.instruction}")
+            + "</li>"
+            for step in self.intervention_steps
+        )
+        return (
+            "<!doctype html><html lang=\"fr\"><head><meta charset=\"utf-8\">"
+            "<title>OpenInfra fiche localisation</title></head><body>"
+            f"<h1>{asset_tag} — {equipment_name}</h1>"
+            f"<section>{self.qr_svg}</section>"
+            f"<p><strong>Chemin physique :</strong> {human_path}</p>"
+            f"<p><strong>Payload QR :</strong> <code>{payload}</code></p>"
+            f"<ol>{rows}</ol>"
+            "</body></html>"
+        )
+
+    def as_dict(self, include_svg: bool = True) -> dict[str, object]:
+        payload = {
+            "tenant_id": self.equipment.tenant_id.value,
+            "asset_tag": self.equipment.asset_tag.value,
+            "equipment_name": self.equipment.name.value,
+            "human_path": self.equipment.location.human_readable(),
+            "locator": self.locator_payload.as_dict(),
+            "intervention_steps": [step.as_dict() for step in self.intervention_steps],
+        }
+        if include_svg:
+            payload["qr_svg"] = self.qr_svg
+        return payload
+
+
+@dataclass(frozen=True, slots=True)
+class EquipmentScanProof:
+    tenant_id: TenantId
+    asset_tag: Code
+    verified: bool
+    expected_payload: str
+    received_payload: str
+
+    @classmethod
+    def create(cls, equipment: Equipment, received_payload: str) -> Self:
+        locator = EquipmentLocatorPayload.create(equipment.tenant_id, equipment)
+        normalized_received = received_payload.strip()
+        return cls(
+            tenant_id=equipment.tenant_id,
+            asset_tag=equipment.asset_tag,
+            verified=locator.verify_payload(normalized_received),
+            expected_payload=locator.payload,
+            received_payload=normalized_received,
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "tenant_id": self.tenant_id.value,
+            "asset_tag": self.asset_tag.value,
+            "verified": self.verified,
+            "expected_payload": self.expected_payload,
+            "received_payload": self.received_payload,
+        }

@@ -142,3 +142,17 @@ Frontières conservées :
 - interfaces : `openinfra dcim define-room`, `openinfra dcim locate --floor --zone` et `POST /api/v1/dcim/rooms`.
 
 La migration `0009_dcim_physical_model.sql` est additive. Elle conserve les données DCIM existantes, ajoute les étages, zones, coordonnées et index de recherche physique sans modifier les migrations précédentes.
+
+## v0.13.0 — P04 EPIC-0402 Racks, faces et capacité U
+
+La version 0.13.0 poursuit P04 avec le modèle rack exploitable. Le domaine DCIM ajoute `RackFace`, `RackCapacityReport`, les faces rack `front` / `rear`, la capacité U, le poids maximal et la capacité électrique. `EquipmentLocation` porte désormais la face de montage et la hauteur U. Le service applicatif `DcimRackService` centralise la définition des racks et les rapports de capacité.
+
+L'invariant métier principal est transactionnel côté application : deux équipements ne peuvent pas occuper le même intervalle U sur la même face d'un même rack. Les deux faces d'un rack sont indépendantes : une unité U occupée en face avant peut être libre en face arrière. Cette modélisation reste compatible avec les localisations historiques, qui sont interprétées en face avant et hauteur 1 lorsque seule une position U existe.
+
+La migration `0010_dcim_rack_capacity.sql` est additive. Elle ajoute les colonnes rack/équipement, les contraintes de validité et les index d'occupation sans modifier les migrations précédentes ni invalider les données existantes.
+
+## v0.14.0 — P04 EPIC-0403 QR codes et chemins d’intervention
+
+La version 0.14.0 ajoute les opérations terrain DCIM. Le domaine construit un payload QR compact dérivé du tenant, de l’asset tag et du chemin physique, génère un document SVG déterministe, assemble une fiche de localisation JSON/HTML et vérifie les scans par comparaison stricte du payload attendu. L’application expose `DcimFieldOperationService`, les interfaces ajoutent `openinfra dcim locator-sheet`, `openinfra dcim verify-scan`, `GET /api/v1/dcim/locator-sheet` et `POST /api/v1/dcim/verify-scan`.
+
+L’invariant principal est opérationnel : la fiche terrain doit contenir le chemin complet site → bâtiment → étage → salle → zone → rack → face → position U, afin de réduire les erreurs de manipulation. La permission `dcim.identify` protège les opérations d’identification lorsque l’API authentifiée est activée.

@@ -179,6 +179,17 @@ class DcimRepository(ABC):
     def find_equipment(self, tenant_id: TenantId, asset_tag: str) -> Equipment | None:
         raise TypeError("adapter contract invoked directly")
 
+    @abstractmethod
+    def list_equipment_in_rack(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+        rack: str,
+    ) -> tuple[Equipment, ...]:
+        raise TypeError("adapter contract invoked directly")
+
 
 class IpamRepository(ABC):
     @abstractmethod

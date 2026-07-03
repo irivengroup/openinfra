@@ -91,3 +91,36 @@ openinfra audit list --backend postgresql --tenant default --admin-token "$ADMIN
 openinfra audit export --backend postgresql --tenant default --admin-token "$ADMIN_TOKEN" --format jsonl
 openinfra audit verify-integrity --backend postgresql --tenant default --admin-token "$ADMIN_TOKEN"
 ```
+
+## Migration 0007 Source of Truth
+
+La migration `0007_source_of_truth_core.sql` ajoute les tables partitionnées `source_objects`, `source_object_snapshots` et `source_relations`. Elle doit être appliquée avec le moteur de migrations OpenInfra afin de conserver l'historique `openinfra_schema_migrations` et les checksums SHA-256.
+
+Validation :
+
+```bash
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration \
+  --name 0007_source_of_truth_core \
+  --root migrations/postgresql
+PYTHONPATH=src python -m openinfra.interfaces.cli database apply-migrations \
+  --postgres-dsn "$OPENINFRA_DATABASE_DSN"
+```
+
+Les index principaux couvrent la recherche par type, tags, attributs JSONB, versions historiques et relations entrantes/sortantes. Les opérations applicatives doivent utiliser la pagination pour éviter toute lecture non bornée.
+
+## Migration 0008 Gouvernance des sources SOT
+
+La migration `0008_source_governance.sql` ajoute la table partitionnée `source_governance_rules`. Elle stocke les règles de source autoritative par tenant, type d'objet optionnel, chemin d'attribut, priorité, fraîcheur optionnelle et stratégie de conflit.
+
+Validation :
+
+```bash
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration \
+  --name 0008_source_governance \
+  --root migrations/postgresql
+PYTHONPATH=src python -m openinfra.interfaces.cli database apply-migrations \
+  --postgres-dsn "$OPENINFRA_DATABASE_DSN"
+```
+
+Les index couvrent la recherche par type d'objet, chemin d'attribut, source autoritative et audit `sot.governance.%`. Les opérations applicatives doivent rester transactionnelles avec la mise à jour SOT afin d'éviter toute divergence entre décision de gouvernance, versionnement et audit.
+

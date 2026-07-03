@@ -18,9 +18,13 @@ from openinfra.application.ports import (
     ReadinessProbe,
     SchemaStatusProvider,
     SecurityRepository,
+    SourceGovernanceRepository,
+    SourceOfTruthRepository,
     TransactionManager,
 )
 from openinfra.application.security_services import SecurityService
+from openinfra.application.source_governance_services import SourceGovernanceService
+from openinfra.application.source_of_truth_services import SourceOfTruthService
 from openinfra.infrastructure.json_store import (
     JsonAccessPolicyRepository,
     JsonAuditRepository,
@@ -31,6 +35,8 @@ from openinfra.infrastructure.json_store import (
     JsonReadinessProbe,
     JsonSchemaStatusProvider,
     JsonSecurityRepository,
+    JsonSourceGovernanceRepository,
+    JsonSourceOfTruthRepository,
     JsonTransactionManager,
     SeedDataFactory,
 )
@@ -47,6 +53,8 @@ from openinfra.infrastructure.postgresql import (
     PostgreSQLReadinessProbe,
     PostgreSQLSecurityRepository,
     PostgreSQLSessionRegistry,
+    PostgreSQLSourceGovernanceRepository,
+    PostgreSQLSourceOfTruthRepository,
     PostgreSQLTransactionManager,
 )
 
@@ -62,10 +70,14 @@ class OpenInfraApplication:
     identity_service: IdentityService
     access_policy_service: AccessPolicyService
     audit_service: AuditTrailService
+    source_of_truth_service: SourceOfTruthService
+    source_governance_service: SourceGovernanceService
     identity_repository: IdentityRepository
     security_repository: SecurityRepository
     access_policy_repository: AccessPolicyRepository
     audit_repository: AuditRepository
+    source_of_truth_repository: SourceOfTruthRepository
+    source_governance_repository: SourceGovernanceRepository
     transaction_manager: TransactionManager
     readiness_probe: ReadinessProbe
     schema_status_provider: SchemaStatusProvider
@@ -81,6 +93,8 @@ class ApplicationFactory:
         security_repository = JsonSecurityRepository(store)
         identity_repository = JsonIdentityRepository(store)
         access_policy_repository = JsonAccessPolicyRepository(store)
+        source_of_truth_repository = JsonSourceOfTruthRepository(store)
+        source_governance_repository = JsonSourceGovernanceRepository(store)
         readiness_probe = JsonReadinessProbe(store)
         schema_status_provider = JsonSchemaStatusProvider()
         if seed:
@@ -96,6 +110,8 @@ class ApplicationFactory:
             security_repository=security_repository,
             identity_repository=identity_repository,
             access_policy_repository=access_policy_repository,
+            source_of_truth_repository=source_of_truth_repository,
+            source_governance_repository=source_governance_repository,
             transaction_manager=transaction_manager,
             readiness_probe=readiness_probe,
             schema_status_provider=schema_status_provider,
@@ -116,6 +132,8 @@ class ApplicationFactory:
         security_repository = PostgreSQLSecurityRepository(registry)
         identity_repository = PostgreSQLIdentityRepository(registry)
         access_policy_repository = PostgreSQLAccessPolicyRepository(registry)
+        source_of_truth_repository = PostgreSQLSourceOfTruthRepository(registry)
+        source_governance_repository = PostgreSQLSourceGovernanceRepository(registry)
         migration_catalog = PostgreSQLMigrationCatalog.from_project_root()
         readiness_probe = PostgreSQLReadinessProbe(registry, migration_catalog)
         schema_status_provider = PostgreSQLMigrationExecutor(registry, migration_catalog)
@@ -132,6 +150,8 @@ class ApplicationFactory:
             security_repository=security_repository,
             identity_repository=identity_repository,
             access_policy_repository=access_policy_repository,
+            source_of_truth_repository=source_of_truth_repository,
+            source_governance_repository=source_governance_repository,
             transaction_manager=transaction_manager,
             readiness_probe=readiness_probe,
             schema_status_provider=schema_status_provider,
@@ -149,7 +169,23 @@ class ApplicationFactory:
         transaction_manager: TransactionManager,
         readiness_probe: ReadinessProbe,
         schema_status_provider: SchemaStatusProvider,
+        source_of_truth_repository: SourceOfTruthRepository | None = None,
+        source_governance_repository: SourceGovernanceRepository | None = None,
     ) -> OpenInfraApplication:
+        if source_of_truth_repository is None:
+            if hasattr(store, "data"):
+                source_of_truth_repository = JsonSourceOfTruthRepository(store)
+                if source_governance_repository is None:
+                    source_governance_repository = JsonSourceGovernanceRepository(store)
+            else:
+                source_of_truth_repository = PostgreSQLSourceOfTruthRepository(store)
+                if source_governance_repository is None:
+                    source_governance_repository = PostgreSQLSourceGovernanceRepository(store)
+        if source_governance_repository is None:
+            if hasattr(store, "data"):
+                source_governance_repository = JsonSourceGovernanceRepository(store)
+            else:
+                source_governance_repository = PostgreSQLSourceGovernanceRepository(store)
         security_service = SecurityService(
             security_repository,
             audit_repository,
@@ -175,6 +211,19 @@ class ApplicationFactory:
                 transaction_manager,
                 security_service,
             ),
+            source_of_truth_service=SourceOfTruthService(
+                source_of_truth_repository,
+                audit_repository,
+                transaction_manager,
+                security_service,
+                source_governance_repository,
+            ),
+            source_governance_service=SourceGovernanceService(
+                source_governance_repository,
+                audit_repository,
+                transaction_manager,
+                security_service,
+            ),
             access_policy_service=AccessPolicyService(
                 access_policy_repository,
                 audit_repository,
@@ -191,6 +240,8 @@ class ApplicationFactory:
             ipam_repository=ipam_repository,
             security_repository=security_repository,
             access_policy_repository=access_policy_repository,
+            source_of_truth_repository=source_of_truth_repository,
+            source_governance_repository=source_governance_repository,
             audit_repository=audit_repository,
             transaction_manager=transaction_manager,
             readiness_probe=readiness_probe,

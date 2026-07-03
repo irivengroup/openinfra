@@ -12,7 +12,7 @@ class TestOpenInfraCli:
         captured = capsys.readouterr()
 
         assert code == 0
-        assert captured.out.strip() == "0.9.0"
+        assert captured.out.strip() == "0.11.0"
 
     def test_spec_validate_command(self, capsys: object) -> None:
         root = Path("docs/specifications/OpenInfra-CDC-SFG-STG-v4")
@@ -460,7 +460,7 @@ class TestOpenInfraAccessPolicyCli:
             "--vrf",
             "default",
             "--prefix",
-            "10.9.0.0/30",
+            "10.11.0.0/30",
             "--hostname",
             "srv-abac",
             "--idempotency-key",
@@ -483,7 +483,7 @@ class TestOpenInfraAccessPolicyCli:
             "--vrf",
             "default",
             "--prefix",
-            "10.9.0.0/30",
+            "10.11.0.0/30",
             "--hostname",
             "srv-denied",
             "--idempotency-key",
@@ -511,7 +511,7 @@ class TestOpenInfraAccessPolicyCli:
         assert evaluate_code == 0
         assert allowed["allowed"] is True
         assert ipam_code == 0
-        assert allocation["address"] == "10.9.0.1"
+        assert allocation["address"] == "10.11.0.1"
         assert denied_code == 2
         assert "access policy denies" in denied.err
         assert deactivate_code == 0

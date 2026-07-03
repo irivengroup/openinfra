@@ -30,6 +30,20 @@ from openinfra.application.identity_services import (
     GrantUserRoleCommand,
 )
 from openinfra.application.ipam_services import AllocateIpCommand
+from openinfra.application.source_governance_services import (
+    CreateSourceGovernanceRuleCommand,
+    DeactivateSourceGovernanceRuleCommand,
+    EvaluateSourceGovernanceCommand,
+    ListSourceGovernanceRulesCommand,
+)
+from openinfra.application.source_of_truth_services import (
+    CreateSourceRelationCommand,
+    GetSourceObjectCommand,
+    GetSourceObjectVersionCommand,
+    ListSourceObjectsCommand,
+    ListSourceRelationsCommand,
+    UpsertSourceObjectCommand,
+)
 from openinfra.application.security_services import (
     AuthenticateTokenCommand,
     BootstrapTokenCommand,
@@ -73,6 +87,7 @@ class OpenInfraCLI:
         self._add_identity_commands(subparsers)
         self._add_access_policy_commands(subparsers)
         self._add_audit_commands(subparsers)
+        self._add_sot_commands(subparsers)
         self._add_ipam_commands(subparsers)
         self._add_dcim_commands(subparsers)
         return parser
@@ -324,6 +339,129 @@ class OpenInfraCLI:
         verify.add_argument("--admin-token", required=True)
         verify.add_argument("--limit", type=int, default=500)
         verify.set_defaults(handler=self._handle_audit_verify_integrity)
+
+
+    def _add_sot_commands(self, subparsers: Any) -> None:
+        sot = subparsers.add_parser("sot", help="source of truth objects and relations")
+        sot_subparsers = sot.add_subparsers(dest="sot_command", required=True)
+        upsert = sot_subparsers.add_parser("upsert-object", help="create or update a SOT object")
+        self._add_backend_arguments(upsert)
+        upsert.add_argument("--tenant", required=True)
+        upsert.add_argument("--actor", default="cli")
+        upsert.add_argument("--admin-token", required=True)
+        upsert.add_argument("--key", required=True)
+        upsert.add_argument(
+            "--kind",
+            choices=("generic", "device", "interface", "service", "application"),
+            required=True,
+        )
+        upsert.add_argument("--display-name", required=True)
+        upsert.add_argument("--attributes-json", default="{}")
+        upsert.add_argument("--tag", action="append", default=[])
+        upsert.add_argument("--source", required=True)
+        upsert.set_defaults(handler=self._handle_sot_upsert_object)
+        get_object = sot_subparsers.add_parser("get-object", help="get a SOT object by key")
+        self._add_backend_arguments(get_object)
+        get_object.add_argument("--tenant", required=True)
+        get_object.add_argument("--admin-token", required=True)
+        get_object.add_argument("--key", required=True)
+        get_object.set_defaults(handler=self._handle_sot_get_object)
+        list_objects = sot_subparsers.add_parser("list-objects", help="list SOT objects")
+        self._add_backend_arguments(list_objects)
+        list_objects.add_argument("--tenant", required=True)
+        list_objects.add_argument("--admin-token", required=True)
+        list_objects.add_argument("--limit", type=int, default=100)
+        list_objects.add_argument("--cursor")
+        list_objects.add_argument("--kind")
+        list_objects.add_argument("--tag")
+        list_objects.set_defaults(handler=self._handle_sot_list_objects)
+        get_version = sot_subparsers.add_parser(
+            "get-object-version", help="get a SOT object historical version"
+        )
+        self._add_backend_arguments(get_version)
+        get_version.add_argument("--tenant", required=True)
+        get_version.add_argument("--admin-token", required=True)
+        get_version.add_argument("--key", required=True)
+        get_version.add_argument("--version", type=int, required=True)
+        get_version.set_defaults(handler=self._handle_sot_get_object_version)
+        create_relation = sot_subparsers.add_parser(
+            "create-relation", help="create a typed SOT relation"
+        )
+        self._add_backend_arguments(create_relation)
+        create_relation.add_argument("--tenant", required=True)
+        create_relation.add_argument("--actor", default="cli")
+        create_relation.add_argument("--admin-token", required=True)
+        create_relation.add_argument("--relation-type", required=True)
+        create_relation.add_argument("--source-key", required=True)
+        create_relation.add_argument("--target-key", required=True)
+        create_relation.add_argument("--provenance", required=True)
+        create_relation.set_defaults(handler=self._handle_sot_create_relation)
+        list_relations = sot_subparsers.add_parser(
+            "list-relations", help="list typed SOT relations"
+        )
+        self._add_backend_arguments(list_relations)
+        list_relations.add_argument("--tenant", required=True)
+        list_relations.add_argument("--admin-token", required=True)
+        list_relations.add_argument("--limit", type=int, default=100)
+        list_relations.add_argument("--cursor")
+        list_relations.add_argument("--source-key")
+        list_relations.add_argument("--target-key")
+        list_relations.add_argument("--relation-type")
+        list_relations.set_defaults(handler=self._handle_sot_list_relations)
+        governance_create = sot_subparsers.add_parser(
+            "create-governance-rule",
+            help="create or update a SOT authoritative source governance rule",
+        )
+        self._add_backend_arguments(governance_create)
+        governance_create.add_argument("--tenant", required=True)
+        governance_create.add_argument("--actor", default="cli")
+        governance_create.add_argument("--admin-token", required=True)
+        governance_create.add_argument("--name", required=True)
+        governance_create.add_argument("--object-kind")
+        governance_create.add_argument("--attribute-path", required=True)
+        governance_create.add_argument("--authoritative-source", required=True)
+        governance_create.add_argument("--priority", type=int, default=100)
+        governance_create.add_argument("--freshness-seconds", type=int)
+        governance_create.add_argument(
+            "--conflict-strategy",
+            choices=("reject", "accept_with_audit"),
+            default="reject",
+        )
+        governance_create.set_defaults(handler=self._handle_sot_create_governance_rule)
+        governance_list = sot_subparsers.add_parser(
+            "list-governance-rules",
+            help="list SOT governance rules with pagination",
+        )
+        self._add_backend_arguments(governance_list)
+        governance_list.add_argument("--tenant", required=True)
+        governance_list.add_argument("--admin-token", required=True)
+        governance_list.add_argument("--limit", type=int, default=100)
+        governance_list.add_argument("--cursor")
+        governance_list.add_argument("--include-inactive", action="store_true")
+        governance_list.add_argument("--object-kind")
+        governance_list.set_defaults(handler=self._handle_sot_list_governance_rules)
+        governance_eval = sot_subparsers.add_parser(
+            "evaluate-governance",
+            help="evaluate a source update against SOT governance rules",
+        )
+        self._add_backend_arguments(governance_eval)
+        governance_eval.add_argument("--tenant", required=True)
+        governance_eval.add_argument("--admin-token", required=True)
+        governance_eval.add_argument("--object-kind", required=True)
+        governance_eval.add_argument("--incoming-source", required=True)
+        governance_eval.add_argument("--existing-attributes-json", default="{}")
+        governance_eval.add_argument("--incoming-attributes-json", default="{}")
+        governance_eval.set_defaults(handler=self._handle_sot_evaluate_governance)
+        governance_deactivate = sot_subparsers.add_parser(
+            "deactivate-governance-rule",
+            help="deactivate a SOT governance rule",
+        )
+        self._add_backend_arguments(governance_deactivate)
+        governance_deactivate.add_argument("--tenant", required=True)
+        governance_deactivate.add_argument("--actor", default="cli")
+        governance_deactivate.add_argument("--admin-token", required=True)
+        governance_deactivate.add_argument("--name", required=True)
+        governance_deactivate.set_defaults(handler=self._handle_sot_deactivate_governance_rule)
 
     def _add_backend_arguments(self, parser: Any) -> None:
         parser.add_argument("--backend", choices=("json", "postgresql"), default="json")
@@ -659,6 +797,159 @@ class OpenInfraCLI:
             )
         )
         print(json.dumps(report.as_dict(), sort_keys=True))
+        return 0
+
+
+    def _handle_sot_upsert_object(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.source_of_truth_service.upsert_object(
+            UpsertSourceObjectCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                key=args.key,
+                kind=args.kind,
+                display_name=args.display_name,
+                attributes_json=args.attributes_json,
+                tags=tuple(args.tag),
+                source=args.source,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_sot_get_object(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.source_of_truth_service.get_object(
+            GetSourceObjectCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                key=args.key,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_sot_list_objects(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        page = application.source_of_truth_service.list_objects(
+            ListSourceObjectsCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                limit=args.limit,
+                cursor=args.cursor,
+                kind=args.kind,
+                tag=args.tag,
+            )
+        )
+        print(json.dumps(page.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_sot_get_object_version(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.source_of_truth_service.get_object_version(
+            GetSourceObjectVersionCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                key=args.key,
+                version=args.version,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_sot_create_relation(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.source_of_truth_service.create_relation(
+            CreateSourceRelationCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                relation_type=args.relation_type,
+                source_key=args.source_key,
+                target_key=args.target_key,
+                provenance=args.provenance,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_sot_list_relations(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        page = application.source_of_truth_service.list_relations(
+            ListSourceRelationsCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                limit=args.limit,
+                cursor=args.cursor,
+                source_key=args.source_key,
+                target_key=args.target_key,
+                relation_type=args.relation_type,
+            )
+        )
+        print(json.dumps(page.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_sot_create_governance_rule(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        rule = application.source_governance_service.create_rule(
+            CreateSourceGovernanceRuleCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                name=args.name,
+                object_kind=args.object_kind,
+                attribute_path=args.attribute_path,
+                authoritative_source=args.authoritative_source,
+                priority=args.priority,
+                freshness_seconds=args.freshness_seconds,
+                conflict_strategy=args.conflict_strategy,
+            )
+        )
+        print(json.dumps(rule.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_sot_list_governance_rules(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        page = application.source_governance_service.list_rules(
+            ListSourceGovernanceRulesCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                limit=args.limit,
+                cursor=args.cursor,
+                include_inactive=bool(args.include_inactive),
+                object_kind=args.object_kind,
+            )
+        )
+        print(json.dumps(page.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_sot_evaluate_governance(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.source_governance_service.evaluate(
+            EvaluateSourceGovernanceCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                object_kind=args.object_kind,
+                incoming_source=args.incoming_source,
+                existing_attributes_json=args.existing_attributes_json,
+                incoming_attributes_json=args.incoming_attributes_json,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_sot_deactivate_governance_rule(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.source_governance_service.deactivate_rule(
+            DeactivateSourceGovernanceRuleCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                name=args.name,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
         return 0
 
     def _handle_ipam_allocate(self, args: argparse.Namespace) -> int:

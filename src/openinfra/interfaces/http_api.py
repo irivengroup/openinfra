@@ -32,6 +32,20 @@ from openinfra.application.identity_services import (
     GrantUserRoleCommand,
 )
 from openinfra.application.ipam_services import AllocateIpCommand
+from openinfra.application.source_governance_services import (
+    CreateSourceGovernanceRuleCommand,
+    DeactivateSourceGovernanceRuleCommand,
+    EvaluateSourceGovernanceCommand,
+    ListSourceGovernanceRulesCommand,
+)
+from openinfra.application.source_of_truth_services import (
+    CreateSourceRelationCommand,
+    GetSourceObjectCommand,
+    GetSourceObjectVersionCommand,
+    ListSourceObjectsCommand,
+    ListSourceRelationsCommand,
+    UpsertSourceObjectCommand,
+)
 from openinfra.application.security_services import (
     AuthenticateTokenCommand,
     ListTokensCommand,
@@ -162,6 +176,97 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except (ValueError, OpenInfraError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
+
+        if route == "/api/v1/sot/governance-rules":
+            try:
+                query = parse_qs(parsed.query)
+                page = self.server.application.source_governance_service.list_rules(
+                    ListSourceGovernanceRulesCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        include_inactive=(
+                            self._first_query_value(query, "include_inactive", "false")
+                            == "true"
+                        ),
+                        object_kind=query.get("object_kind", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, page.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/sot/objects":
+            try:
+                query = parse_qs(parsed.query)
+                key = query.get("key", [None])[0]
+                if key:
+                    result = self.server.application.source_of_truth_service.get_object(
+                        GetSourceObjectCommand(
+                            tenant_id=self._first_query_value(query, "tenant_id"),
+                            admin_token=self._bearer_token(),
+                            key=key,
+                        )
+                    )
+                    responder.send(HTTPStatus.OK, result)
+                else:
+                    page = self.server.application.source_of_truth_service.list_objects(
+                        ListSourceObjectsCommand(
+                            tenant_id=self._first_query_value(query, "tenant_id"),
+                            admin_token=self._bearer_token(),
+                            limit=int(self._first_query_value(query, "limit", "100")),
+                            cursor=query.get("cursor", [None])[0],
+                            kind=query.get("kind", [None])[0],
+                            tag=query.get("tag", [None])[0],
+                        )
+                    )
+                    responder.send(HTTPStatus.OK, page.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/sot/object-versions":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.source_of_truth_service.get_object_version(
+                    GetSourceObjectVersionCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        key=self._first_query_value(query, "key"),
+                        version=int(self._first_query_value(query, "version")),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/sot/relations":
+            try:
+                query = parse_qs(parsed.query)
+                page = self.server.application.source_of_truth_service.list_relations(
+                    ListSourceRelationsCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        source_key=query.get("source_key", [None])[0],
+                        target_key=query.get("target_key", [None])[0],
+                        relation_type=query.get("relation_type", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, page.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
         if route == "/api/v1/identity/effective":
             try:
                 query = parse_qs(parsed.query)
@@ -184,6 +289,121 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         responder = JsonHttpResponder(self)
         route = urlparse(self.path).path
+
+        if route == "/api/v1/sot/governance-rules":
+            try:
+                payload = self._read_json_body()
+                rule = self.server.application.source_governance_service.create_rule(
+                    CreateSourceGovernanceRuleCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        name=str(payload["name"]),
+                        object_kind=(str(payload["object_kind"]) if payload.get("object_kind") else None),
+                        attribute_path=str(payload["attribute_path"]),
+                        authoritative_source=str(payload["authoritative_source"]),
+                        priority=int(payload.get("priority", 100)),
+                        freshness_seconds=(
+                            int(payload["freshness_seconds"])
+                            if payload.get("freshness_seconds") is not None
+                            else None
+                        ),
+                        conflict_strategy=str(payload.get("conflict_strategy", "reject")),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, rule.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/sot/governance/evaluate":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.source_governance_service.evaluate(
+                    EvaluateSourceGovernanceCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        admin_token=self._bearer_token(),
+                        object_kind=str(payload["object_kind"]),
+                        incoming_source=str(payload["incoming_source"]),
+                        existing_attributes_json=json.dumps(
+                            payload.get("existing_attributes", {}),
+                            sort_keys=True,
+                        ),
+                        incoming_attributes_json=json.dumps(
+                            payload.get("incoming_attributes", {}),
+                            sort_keys=True,
+                        ),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/sot/governance/deactivate-rule":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.source_governance_service.deactivate_rule(
+                    DeactivateSourceGovernanceRuleCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        name=str(payload["name"]),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/sot/objects":
+            try:
+                payload = self._read_json_body()
+                tags_payload = payload.get("tags", [])
+                if not isinstance(tags_payload, list):
+                    raise OpenInfraError("tags must be a list")
+                result = self.server.application.source_of_truth_service.upsert_object(
+                    UpsertSourceObjectCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        key=str(payload["key"]),
+                        kind=str(payload["kind"]),
+                        display_name=str(payload["display_name"]),
+                        attributes_json=json.dumps(payload.get("attributes", {}), sort_keys=True),
+                        tags=tuple(str(tag) for tag in tags_payload),
+                        source=str(payload["source"]),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/sot/relations":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.source_of_truth_service.create_relation(
+                    CreateSourceRelationCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        relation_type=str(payload["relation_type"]),
+                        source_key=str(payload["source_key"]),
+                        target_key=str(payload["target_key"]),
+                        provenance=str(payload["provenance"]),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
         if route == "/api/v1/audit/export":
             try:
                 payload = self._read_json_body()

@@ -117,3 +117,21 @@ PYTHONPATH=src python -m pytest -q tests/unit/test_audit_domain.py tests/integra
 ```
 
 La CI exécute également un smoke test JSON audit et le runtime Docker valide `/api/v1/audit/events`, `/api/v1/audit/export` et `/api/v1/audit/integrity` en backend PostgreSQL.
+
+## Contrôles ajoutés en v0.10.0
+
+- Tests unitaires du domaine Source of Truth : clés sûres, tags, source, relation, snapshots et erreurs contrôlées.
+- Tests d'intégration JSON : objet, mise à jour versionnée, relation, liste paginée, restitution de version et erreurs d'autorisation.
+- Tests CLI : `openinfra sot upsert-object`, `list-objects`, `get-object-version`, `create-relation`, `list-relations`.
+- Tests API HTTP : `/api/v1/sot/objects`, `/api/v1/sot/object-versions`, `/api/v1/sot/relations`.
+- Tests adaptateur PostgreSQL simulé : insert/update objet, snapshot, relation et requêtes paginées.
+
+## Contrôles ajoutés en v0.11.0
+
+- Tests unitaires du domaine Source Governance : validation des chemins, wildcard, priorité, fraîcheur et détection de modifications imbriquées.
+- Tests d'intégration JSON : création de règle, inventaire, évaluation, désactivation et enforcement dans `SourceOfTruthService`.
+- Tests CLI : `openinfra sot create-governance-rule`, `list-governance-rules`, `evaluate-governance`, `deactivate-governance-rule`.
+- Tests API HTTP : `/api/v1/sot/governance-rules`, `/api/v1/sot/governance/evaluate`, `/api/v1/sot/governance/deactivate-rule`.
+- Tests adaptateur PostgreSQL simulé : persistance, lecture paginée et évaluation via `PostgreSQLSourceGovernanceRepository`.
+- Smoke runtime Docker : scénario gouvernance SOT contre API authentifiée et backend PostgreSQL.
+

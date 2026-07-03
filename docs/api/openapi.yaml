@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.9.0
+  version: 0.11.0
 components:
   securitySchemes:
     bearerToken:
@@ -619,3 +619,241 @@ paths:
           description: Validation error
         '401':
           description: Missing or invalid Bearer token when authentication is enabled
+
+  /api/v1/sot/objects:
+    get:
+      summary: Get or list Source of Truth objects
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: {type: string}
+        - name: key
+          in: query
+          required: false
+          schema: {type: string}
+        - name: kind
+          in: query
+          required: false
+          schema: {type: string, enum: [generic, device, interface, service, application]}
+        - name: tag
+          in: query
+          required: false
+          schema: {type: string}
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer, minimum: 1, maximum: 500}
+        - name: cursor
+          in: query
+          required: false
+          schema: {type: string}
+      responses:
+        '200': {description: Source of Truth object or paginated objects}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid SOT reader token}
+    post:
+      summary: Create or update a Source of Truth object with history
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, key, kind, display_name, source]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                key: {type: string}
+                kind: {type: string, enum: [generic, device, interface, service, application]}
+                display_name: {type: string}
+                attributes: {type: object}
+                tags:
+                  type: array
+                  items: {type: string}
+                source: {type: string}
+      responses:
+        '201': {description: Source of Truth object persisted}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid SOT writer token}
+  /api/v1/sot/object-versions:
+    get:
+      summary: Retrieve a historical Source of Truth object snapshot
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: {type: string}
+        - name: key
+          in: query
+          required: true
+          schema: {type: string}
+        - name: version
+          in: query
+          required: true
+          schema: {type: integer, minimum: 1}
+      responses:
+        '200': {description: Historical object snapshot}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid SOT reader token}
+  /api/v1/sot/relations:
+    get:
+      summary: List Source of Truth typed relations
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: {type: string}
+        - name: source_key
+          in: query
+          required: false
+          schema: {type: string}
+        - name: target_key
+          in: query
+          required: false
+          schema: {type: string}
+        - name: relation_type
+          in: query
+          required: false
+          schema: {type: string}
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer, minimum: 1, maximum: 500}
+        - name: cursor
+          in: query
+          required: false
+          schema: {type: string}
+      responses:
+        '200': {description: Paginated typed relations}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid SOT reader token}
+    post:
+      summary: Create a typed Source of Truth relation
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, relation_type, source_key, target_key, provenance]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                relation_type: {type: string}
+                source_key: {type: string}
+                target_key: {type: string}
+                provenance: {type: string}
+      responses:
+        '201': {description: Source of Truth relation persisted}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid SOT writer token}
+
+  /api/v1/sot/governance-rules:
+    get:
+      summary: List Source of Truth governance rules
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: {type: string}
+        - name: object_kind
+          in: query
+          required: false
+          schema: {type: string, enum: [generic, device, interface, service, application]}
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer, minimum: 1, maximum: 500}
+        - name: cursor
+          in: query
+          required: false
+          schema: {type: string}
+        - name: include_inactive
+          in: query
+          required: false
+          schema: {type: boolean}
+      responses:
+        '200': {description: Paginated governance rules}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid SOT governance token}
+    post:
+      summary: Create or update a Source of Truth authoritative source rule
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, name, attribute_path, authoritative_source]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                name: {type: string}
+                object_kind: {type: string, enum: [generic, device, interface, service, application]}
+                attribute_path: {type: string}
+                authoritative_source: {type: string}
+                priority: {type: integer}
+                freshness_seconds: {type: integer}
+                conflict_strategy: {type: string, enum: [reject, accept_with_audit]}
+      responses:
+        '201': {description: Governance rule persisted}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid SOT governance token}
+  /api/v1/sot/governance/evaluate:
+    post:
+      summary: Evaluate a Source of Truth update against authoritative source rules
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, object_kind, incoming_source, existing_attributes, incoming_attributes]
+              properties:
+                tenant_id: {type: string}
+                object_kind: {type: string}
+                incoming_source: {type: string}
+                existing_attributes: {type: object}
+                incoming_attributes: {type: object}
+      responses:
+        '200': {description: Governance evaluation result}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid SOT governance token}
+  /api/v1/sot/governance/deactivate-rule:
+    post:
+      summary: Deactivate a Source of Truth governance rule
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, name]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                name: {type: string}
+      responses:
+        '200': {description: Governance rule deactivated}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid SOT governance token}
+

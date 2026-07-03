@@ -2,7 +2,7 @@
 
 OpenInfra est un socle Python orienté objet pour construire une solution open source de Source of Truth, DCIM, ITAM, Discovery, Dependency Mapping et IPAM Enterprise++ sans fonction ITSM intégrée.
 
-Cette livraison correspond au socle exécutable de démarrage aligné avec la roadmap P01/P02/P04/P05 : architecture hexagonale, modèle domaine, CLI, API HTTP standard library, migrations PostgreSQL applicatives, adaptateur PostgreSQL runtime, sécurité API par jetons hachés avec expiration, révocation et rotation, IAM utilisateurs/groupes avec rôles effectifs, ABAC contextuel site/environnement, audit trail consultable/exportable avec intégrité chaînée, environnement d’exécution Docker, tests, documentation et CI.
+Cette livraison correspond au socle exécutable de démarrage aligné avec la roadmap P01/P02 puis REL-01/P03 : architecture hexagonale, modèle domaine, CLI, API HTTP standard library, migrations PostgreSQL applicatives, adaptateur PostgreSQL runtime, sécurité API par jetons hachés avec expiration, révocation et rotation, IAM utilisateurs/groupes avec rôles effectifs, ABAC contextuel site/environnement, audit trail consultable/exportable avec intégrité chaînée, Source of Truth P03 objets/relations/historique, gouvernance minimale des sources autoritatives, environnement d’exécution Docker, tests, documentation et CI.
 
 ## Garanties de cette itération
 
@@ -14,8 +14,8 @@ Cette livraison correspond au socle exécutable de démarrage aligné avec la ro
 - Persistance PostgreSQL runtime optionnelle via `psycopg`, DSN explicite et transactions courtes.
 - Migration PostgreSQL initiale avec tables partitionnées, index, contraintes et audit append-only.
 - Moteur de migrations PostgreSQL applicatif : statut, dry-run, application idempotente, historique `openinfra_schema_migrations` et checksum SHA-256.
-- CLI exploitable : `openinfra version`, `openinfra spec validate`, `openinfra dcim locate`, `openinfra ipam allocate`, `openinfra security bootstrap-token`, `openinfra security whoami`, `openinfra security list-tokens`, `openinfra security revoke-token`, `openinfra security rotate-token`, `openinfra identity create-user`, `openinfra identity create-group`, `openinfra identity add-user-to-group`, `openinfra identity grant-user-role`, `openinfra identity grant-group-role`, `openinfra identity effective`, `openinfra access create-rule`, `openinfra access list-rules`, `openinfra access evaluate`, `openinfra access deactivate-rule`, `openinfra audit list`, `openinfra audit export`, `openinfra audit verify-integrity`, `openinfra database render-migration`, `openinfra database status`, `openinfra database apply-migrations`.
-- API HTTP légère : `/health`, `/ready`, `/api/v1/version`, `/api/v1/database/schema`, `/api/v1/security/whoami`, `/api/v1/security/tokens`, `/api/v1/security/revoke-token`, `/api/v1/security/rotate-token`, `/api/v1/identity/users`, `/api/v1/identity/groups`, `/api/v1/identity/group-memberships`, `/api/v1/identity/user-roles`, `/api/v1/identity/group-roles`, `/api/v1/identity/effective`, `/api/v1/access/rules`, `/api/v1/access/evaluate`, `/api/v1/access/deactivate-rule`, `/api/v1/audit/events`, `/api/v1/audit/export`, `/api/v1/audit/integrity`, `/api/v1/ipam/allocate`.
+- CLI exploitable : `openinfra version`, `openinfra spec validate`, `openinfra dcim locate`, `openinfra ipam allocate`, `openinfra security bootstrap-token`, `openinfra security whoami`, `openinfra security list-tokens`, `openinfra security revoke-token`, `openinfra security rotate-token`, `openinfra identity create-user`, `openinfra identity create-group`, `openinfra identity add-user-to-group`, `openinfra identity grant-user-role`, `openinfra identity grant-group-role`, `openinfra identity effective`, `openinfra access create-rule`, `openinfra access list-rules`, `openinfra access evaluate`, `openinfra access deactivate-rule`, `openinfra audit list`, `openinfra audit export`, `openinfra audit verify-integrity`, `openinfra sot upsert-object`, `openinfra sot get-object`, `openinfra sot list-objects`, `openinfra sot get-object-version`, `openinfra sot create-relation`, `openinfra sot list-relations`, `openinfra sot create-governance-rule`, `openinfra sot list-governance-rules`, `openinfra sot evaluate-governance`, `openinfra sot deactivate-governance-rule`, `openinfra database render-migration`, `openinfra database status`, `openinfra database apply-migrations`.
+- API HTTP légère : `/health`, `/ready`, `/api/v1/version`, `/api/v1/database/schema`, `/api/v1/security/whoami`, `/api/v1/security/tokens`, `/api/v1/security/revoke-token`, `/api/v1/security/rotate-token`, `/api/v1/identity/users`, `/api/v1/identity/groups`, `/api/v1/identity/group-memberships`, `/api/v1/identity/user-roles`, `/api/v1/identity/group-roles`, `/api/v1/identity/effective`, `/api/v1/access/rules`, `/api/v1/access/evaluate`, `/api/v1/access/deactivate-rule`, `/api/v1/audit/events`, `/api/v1/audit/export`, `/api/v1/audit/integrity`, `/api/v1/sot/objects`, `/api/v1/sot/object-versions`, `/api/v1/sot/relations`, `/api/v1/sot/governance-rules`, `/api/v1/sot/governance/evaluate`, `/api/v1/sot/governance/deactivate-rule`, `/api/v1/ipam/allocate`.
 - GitHub Actions complète : format, lint, types, tests, couverture, sécurité, build, smoke tests CLI/API et runtime Docker authentifié.
 
 ## Installation développeur
@@ -290,3 +290,86 @@ L’adaptateur PostgreSQL couvre les référentiels DCIM, IPAM et audit alignés
 ## Limites explicites de cette itération
 
 Cette archive ne prétend pas livrer toute la cible Device42-like/OpenInfra GA. Elle livre un socle industriel complet et validable pour démarrer le développement, avec les premières capacités DCIM/IPAM intégrées, testées et documentées. Les modules Discovery distribuée, graphes de dépendances avancés, UI web complète, RBAC avancé, imports massifs et jobs distribués seront développés par releases successives sur ce socle.
+
+
+## Source of Truth P03 : objets, relations et historique
+
+La v0.10.0 réaligne le développement sur la roadmap REL-01/P03. Elle ajoute le référentiel Source of Truth initial : objets typés (`generic`, `device`, `interface`, `service`, `application`), attributs JSON contrôlés, tags, source d’autorité déclarée, relations typées et snapshots de versions. Chaque création ou mise à jour produit une version historisée permettant une restitution time-travel initiale.
+
+Rôles dédiés :
+
+- `sot:reader` : lecture des objets, relations et versions SOT ;
+- `sot:operator` : lecture et écriture SOT ;
+- `sot:governance-admin` : administration des règles de source autoritative ;
+- `admin` : toutes les permissions.
+
+Exemple local :
+
+```bash
+PYTHONPATH=src python -m openinfra.interfaces.cli security bootstrap-token \
+  --data .openinfra.json \
+  --tenant default \
+  --subject sot-admin \
+  --role sot:operator \
+  --token "$ADMIN_TOKEN"
+PYTHONPATH=src python -m openinfra.interfaces.cli sot upsert-object \
+  --data .openinfra.json \
+  --tenant default \
+  --admin-token "$ADMIN_TOKEN" \
+  --key device/srv-001 \
+  --kind device \
+  --display-name "Server 001" \
+  --attributes-json '{"serial":"ABC","site":"PAR1"}' \
+  --tag prod \
+  --tag linux \
+  --source manual
+PYTHONPATH=src python -m openinfra.interfaces.cli sot get-object-version \
+  --data .openinfra.json \
+  --tenant default \
+  --admin-token "$ADMIN_TOKEN" \
+  --key device/srv-001 \
+  --version 1
+```
+
+La migration PostgreSQL `0007_source_of_truth_core.sql` crée des tables partitionnées pour `source_objects`, `source_object_snapshots` et `source_relations`, avec index par type, tags, attributs JSONB, lookup historique et relations entrantes/sortantes.
+
+
+## Gouvernance minimale des sources SOT
+
+La v0.11.0 poursuit le jalon roadmap REL-01/P03 avec EPIC-0306. Le module de gouvernance empêche une source non autoritative d’écraser silencieusement des attributs certifiés du Source of Truth. Une règle définit le type d’objet concerné, le chemin d’attribut gouverné, la source autoritative, la priorité, la fraîcheur optionnelle et la stratégie de conflit.
+
+Deux stratégies sont disponibles :
+
+- `reject` : refuse la modification non autoritative ;
+- `accept_with_audit` : accepte la modification mais retourne un conflit auditables dans l’évaluation.
+
+Exemple local :
+
+```bash
+PYTHONPATH=src python -m openinfra.interfaces.cli security bootstrap-token \
+  --data .openinfra.json \
+  --tenant default \
+  --subject sot-governance-admin \
+  --role sot:governance-admin \
+  --token "$ADMIN_TOKEN"
+PYTHONPATH=src python -m openinfra.interfaces.cli sot create-governance-rule \
+  --data .openinfra.json \
+  --tenant default \
+  --admin-token "$ADMIN_TOKEN" \
+  --name serial-from-discovery \
+  --object-kind device \
+  --attribute-path serial \
+  --authoritative-source discovery \
+  --priority 500 \
+  --conflict-strategy reject
+PYTHONPATH=src python -m openinfra.interfaces.cli sot evaluate-governance \
+  --data .openinfra.json \
+  --tenant default \
+  --admin-token "$ADMIN_TOKEN" \
+  --object-kind device \
+  --incoming-source manual \
+  --existing-attributes-json '{"serial":"ABC"}' \
+  --incoming-attributes-json '{"serial":"XYZ"}'
+```
+
+La migration PostgreSQL `0008_source_governance.sql` crée la table partitionnée `source_governance_rules`, ses contraintes métier et ses index de recherche par type d’objet, chemin d’attribut, source autoritative et audit `sot.governance.%`. Les adaptateurs JSON et PostgreSQL implémentent le même port `SourceGovernanceRepository`.

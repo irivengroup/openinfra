@@ -38,7 +38,7 @@ class TestHttpApi:
             assert health["status"] == "ok"
             assert ready["ready"] is True
             assert ready["component"] == "json"
-            assert version["version"] == "0.9.0"
+            assert version["version"] == "0.11.0"
             assert allocation["address"] == "10.6.0.1"
         finally:
             server.shutdown()
@@ -449,6 +449,160 @@ class TestAuditHttpApi:
             assert exported["content_type"] == "application/json"
             assert exported["count"] >= 1
             assert verified["valid"] is True
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+class TestSourceOfTruthHttpApi:
+    def test_sot_api_objects_relations_and_versions(self, tmp_path: Path) -> None:
+        helper = TestHttpApi()
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+        token = "y" * 40
+        app.security_service.bootstrap_token(
+            BootstrapTokenCommand(
+                tenant_id="default",
+                actor="pytest",
+                subject="sot-api-admin",
+                roles=("sot:operator",),
+                token=token,
+            )
+        )
+        server = OpenInfraThreadingServer(("127.0.0.1", 0), app, auth_required=True)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base_url = f"http://127.0.0.1:{server.server_port}"
+            device = helper._post_json(
+                base_url + "/api/v1/sot/objects",
+                {
+                    "tenant_id": "default",
+                    "key": "device/api-srv-1",
+                    "kind": "device",
+                    "display_name": "API Server 1",
+                    "attributes": {"serial": "API1"},
+                    "tags": ["prod", "api"],
+                    "source": "manual",
+                },
+                token=token,
+            )
+            helper._post_json(
+                base_url + "/api/v1/sot/objects",
+                {
+                    "tenant_id": "default",
+                    "key": "application/api-app",
+                    "kind": "application",
+                    "display_name": "API App",
+                    "attributes": {"owner": "platform"},
+                    "tags": ["prod"],
+                    "source": "manual",
+                },
+                token=token,
+            )
+            relation = helper._post_json(
+                base_url + "/api/v1/sot/relations",
+                {
+                    "tenant_id": "default",
+                    "relation_type": "runs_on",
+                    "source_key": "application/api-app",
+                    "target_key": "device/api-srv-1",
+                    "provenance": "manual",
+                },
+                token=token,
+            )
+            listed = helper._get_json(
+                base_url + "/api/v1/sot/objects?tenant_id=default&kind=device&tag=api",
+                token=token,
+            )
+            fetched = helper._get_json(
+                base_url + "/api/v1/sot/objects?tenant_id=default&key=device/api-srv-1",
+                token=token,
+            )
+            version = helper._get_json(
+                base_url
+                + "/api/v1/sot/object-versions?tenant_id=default"
+                + "&key=device/api-srv-1&version=1",
+                token=token,
+            )
+            relations = helper._get_json(
+                base_url + "/api/v1/sot/relations?tenant_id=default&source_key=application/api-app",
+                token=token,
+            )
+            try:
+                helper._get_json(base_url + "/api/v1/sot/objects?tenant_id=default")
+            except urllib.error.HTTPError as exc:
+                assert exc.code == 401
+
+            assert device["version"] == 1
+            assert fetched["key"] == "device/api-srv-1"
+            assert listed["items"][0]["key"] == "device/api-srv-1"
+            assert version["payload"]["display_name"] == "API Server 1"
+            assert relation["relation_type"] == "runs_on"
+            assert relations["items"][0]["target_key"] == "device/api-srv-1"
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+class TestSourceGovernanceHttpApi:
+    def test_governance_api_rules_evaluation_and_deactivation(self, tmp_path: Path) -> None:
+        helper = TestHttpApi()
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+        token = "k" * 40
+        app.security_service.bootstrap_token(
+            BootstrapTokenCommand(
+                tenant_id="default",
+                actor="pytest",
+                subject="governance-api-admin",
+                roles=("sot:governance-admin",),
+                token=token,
+            )
+        )
+        server = OpenInfraThreadingServer(("127.0.0.1", 0), app, auth_required=True)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base_url = f"http://127.0.0.1:{server.server_port}"
+            created = helper._post_json(
+                base_url + "/api/v1/sot/governance-rules",
+                {
+                    "tenant_id": "default",
+                    "name": "api-serial-authority",
+                    "object_kind": "device",
+                    "attribute_path": "serial",
+                    "authoritative_source": "discovery",
+                    "priority": 700,
+                    "freshness_seconds": 3600,
+                    "conflict_strategy": "reject",
+                },
+                token=token,
+            )
+            listed = helper._get_json(
+                base_url + "/api/v1/sot/governance-rules?tenant_id=default&object_kind=device",
+                token=token,
+            )
+            evaluated = helper._post_json(
+                base_url + "/api/v1/sot/governance/evaluate",
+                {
+                    "tenant_id": "default",
+                    "object_kind": "device",
+                    "incoming_source": "manual",
+                    "existing_attributes": {"serial": "S1"},
+                    "incoming_attributes": {"serial": "S2"},
+                },
+                token=token,
+            )
+            deactivated = helper._post_json(
+                base_url + "/api/v1/sot/governance/deactivate-rule",
+                {"tenant_id": "default", "name": "api-serial-authority"},
+                token=token,
+            )
+
+            assert created["name"] == "api-serial-authority"
+            assert listed["items"][0]["attribute_path"] == "serial"
+            assert evaluated["accepted"] is False
+            assert evaluated["conflicts"][0]["authoritative_source"] == "discovery"
+            assert deactivated["deactivated"] is True
         finally:
             server.shutdown()
             server.server_close()

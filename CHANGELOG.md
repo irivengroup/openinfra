@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.11.0 - 2026-07-03
+
+- Réalignement maintenu sur REL-01/P03 avec EPIC-0306 Gouvernance minimale des sources.
+- Ajout du domaine `SourceGovernanceRule`, `SourceGovernanceEvaluation` et `SourceGovernanceEvaluator`.
+- Ajout du service applicatif `SourceGovernanceService` : création, inventaire paginé, évaluation et désactivation des règles.
+- Intégration de la gouvernance dans `SourceOfTruthService` pour refuser les écrasements non autoritatifs selon la stratégie `reject`.
+- Ajout du rôle `sot:governance-admin` et des permissions `sot.governance.read` / `sot.governance.write`.
+- Ajout des référentiels JSON et PostgreSQL `SourceGovernanceRepository`.
+- Ajout de la migration PostgreSQL `0008_source_governance.sql` avec table partitionnée, contraintes et index métier.
+- Ajout des commandes `openinfra sot create-governance-rule`, `list-governance-rules`, `evaluate-governance` et `deactivate-governance-rule`.
+- Ajout des endpoints `/api/v1/sot/governance-rules`, `/api/v1/sot/governance/evaluate` et `/api/v1/sot/governance/deactivate-rule`.
+- Extension du runtime Docker smoke, OpenAPI, README, architecture, runbooks, CI et tests de non-régression.
+
+## 0.10.0 - 2026-07-03
+
+- Réalignement roadmap sur REL-01/P03 Source of Truth avant poursuite des briques P14.
+- Ajout du domaine SOT : objets typés, clés sûres, tags, attributs JSON contrôlés, source déclarée, version et statut.
+- Ajout des relations typées transactionnelles entre objets SOT avec provenance et validité temporelle.
+- Ajout des snapshots `SourceObjectSnapshot` pour restitution time-travel initiale par version.
+- Ajout du service applicatif `SourceOfTruthService` avec contrôle `sot.read` / `sot.write` et audit.
+- Ajout des référentiels JSON et PostgreSQL `SourceOfTruthRepository`.
+- Ajout de la migration PostgreSQL `0007_source_of_truth_core.sql` avec tables partitionnées et index type/tags/JSONB/relations.
+- Ajout des commandes `openinfra sot upsert-object`, `get-object`, `list-objects`, `get-object-version`, `create-relation`, `list-relations`.
+- Ajout des endpoints `/api/v1/sot/objects`, `/api/v1/sot/object-versions` et `/api/v1/sot/relations`.
+- Extension du runtime Docker smoke, OpenAPI, README, architecture, runbooks, CI et tests de non-régression.
+
 ## 0.9.0 - 2026-07-03
 
 - Ajout du domaine d’audit exploitable : filtres sûrs, export JSON/JSONL, page d’événements et rapport d’intégrité.

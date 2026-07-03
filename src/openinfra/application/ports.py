@@ -16,6 +16,14 @@ from openinfra.domain.identity import (
 )
 from openinfra.domain.ipam import IpReservation, Prefix, Vrf
 from openinfra.domain.security import ApiTokenCredential, Permission
+from openinfra.domain.source_governance import SourceGovernanceRule, SourceGovernanceRulePage
+from openinfra.domain.source_of_truth import (
+    SourceObjectPage,
+    SourceObjectSnapshot,
+    SourceOfTruthObject,
+    SourceRelation,
+    SourceRelationPage,
+)
 
 T = TypeVar("T")
 
@@ -248,6 +256,96 @@ class AccessPolicyRepository(ABC):
         tenant_id: TenantId,
         permission: Permission,
     ) -> tuple[AccessPolicyRule, ...]:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def deactivate_rule(self, tenant_id: TenantId, name: str) -> bool:
+        raise TypeError("adapter contract invoked directly")
+
+
+class SourceOfTruthRepository(ABC):
+    @abstractmethod
+    def create_object(
+        self,
+        tenant_id: TenantId,
+        key: str,
+        kind: str,
+        display_name: str,
+        attributes: dict[str, object],
+        tags: tuple[str, ...],
+        source: str,
+        actor: str,
+    ) -> SourceOfTruthObject:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def upsert_object(self, source_object: SourceOfTruthObject, actor: str) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_object(self, tenant_id: TenantId, key: str) -> SourceOfTruthObject | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_objects(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        kind: str | None = None,
+        tag: str | None = None,
+    ) -> SourceObjectPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_object_version(
+        self,
+        tenant_id: TenantId,
+        key: str,
+        version: int,
+    ) -> SourceObjectSnapshot | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def add_relation(self, relation: SourceRelation) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_relations(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        source_key: str | None = None,
+        target_key: str | None = None,
+        relation_type: str | None = None,
+    ) -> SourceRelationPage:
+        raise TypeError("adapter contract invoked directly")
+
+
+class SourceGovernanceRepository(ABC):
+    @abstractmethod
+    def upsert_rule(self, rule: SourceGovernanceRule) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_rule(self, tenant_id: TenantId, name: str) -> SourceGovernanceRule | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_rules(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        include_inactive: bool = False,
+        object_kind: str | None = None,
+    ) -> SourceGovernanceRulePage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_active_rules_for_kind(
+        self,
+        tenant_id: TenantId,
+        object_kind: str,
+    ) -> tuple[SourceGovernanceRule, ...]:
         raise TypeError("adapter contract invoked directly")
 
     @abstractmethod

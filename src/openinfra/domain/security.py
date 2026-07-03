@@ -16,6 +16,10 @@ class Permission(StrEnum):
     SECURITY_ADMIN = "security.admin"
     ACCESS_POLICY_ADMIN = "access.policy.admin"
     AUDIT_READ = "audit.read"
+    SOT_READ = "sot.read"
+    SOT_WRITE = "sot.write"
+    SOT_GOVERNANCE_READ = "sot.governance.read"
+    SOT_GOVERNANCE_WRITE = "sot.governance.write"
 
 
 @dataclass(frozen=True, slots=True)

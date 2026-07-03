@@ -17,6 +17,18 @@ from openinfra.application.identity_services import (
     GrantUserRoleCommand,
 )
 from openinfra.application.ipam_services import AllocateIpCommand
+from openinfra.application.source_governance_services import (
+    CreateSourceGovernanceRuleCommand,
+    EvaluateSourceGovernanceCommand,
+    ListSourceGovernanceRulesCommand,
+)
+from openinfra.application.source_of_truth_services import (
+    CreateSourceRelationCommand,
+    GetSourceObjectVersionCommand,
+    ListSourceObjectsCommand,
+    ListSourceRelationsCommand,
+    UpsertSourceObjectCommand,
+)
 from openinfra.application.security_services import (
     AuthenticateTokenCommand,
     BootstrapTokenCommand,
@@ -48,6 +60,8 @@ from openinfra.infrastructure.postgresql import (
     PostgreSQLReadinessProbe,
     PostgreSQLSecurityRepository,
     PostgreSQLSessionRegistry,
+    PostgreSQLSourceGovernanceRepository,
+    PostgreSQLSourceOfTruthRepository,
     PostgreSQLTransactionManager,
 )
 from openinfra.interfaces.cli import OpenInfraCLI
@@ -244,6 +258,94 @@ class FakeCursor(CursorProtocol):
                 updated = dict(rule)
                 updated["active"] = False
                 self._connection.access_policy_rules[str(effective["name"])] = updated
+        elif "INSERT INTO source_governance_rules" in query:
+            self._connection.source_governance_rules[str(effective["name"])] = {
+                "id": str(effective["id"]),
+                "tenant_id": str(effective["tenant_id"]),
+                "name": str(effective["name"]),
+                "object_kind": effective.get("object_kind"),
+                "attribute_path": str(effective["attribute_path"]),
+                "authoritative_source": str(effective["authoritative_source"]),
+                "priority": int(effective["priority"]),
+                "freshness_seconds": effective.get("freshness_seconds"),
+                "conflict_strategy": str(effective["conflict_strategy"]),
+                "active": bool(effective["active"]),
+                "created_at": effective.get("created_at", datetime.now(UTC)),
+            }
+        elif "FROM source_governance_rules" in query and "name =" in query:
+            self._row = self._connection.source_governance_rules.get(str(effective["name"]))
+        elif "FROM source_governance_rules" in query:
+            object_kind = effective.get("object_kind")
+            rows = list(self._connection.source_governance_rules.values())
+            if "active IS TRUE" in query:
+                rows = [row for row in rows if bool(row.get("active", True))]
+            if object_kind is not None:
+                rows = [
+                    row for row in rows
+                    if row.get("object_kind") in (None, str(object_kind))
+                ]
+            rows.sort(key=lambda row: (-int(row["priority"]), str(row["name"])))
+            self._rows = rows
+        elif "UPDATE source_governance_rules" in query:
+            rule = self._connection.source_governance_rules.get(str(effective["name"]))
+            if rule is not None:
+                updated = dict(rule)
+                updated["active"] = False
+                self._connection.source_governance_rules[str(effective["name"])] = updated
+        elif "INSERT INTO source_objects" in query:
+            self._connection.source_objects[str(effective["object_key"])] = {
+                "id": str(effective["id"]),
+                "tenant_id": str(effective["tenant_id"]),
+                "object_key": str(effective["object_key"]),
+                "kind": str(effective["kind"]),
+                "display_name": str(effective["display_name"]),
+                "attributes": effective["attributes"],
+                "tags": list(effective["tags"]),
+                "source_system": str(effective["source_system"]),
+                "version": int(effective["version"]),
+                "status": str(effective["status"]),
+                "created_at": effective.get("created_at", datetime.now(UTC)),
+                "updated_at": effective.get("updated_at", datetime.now(UTC)),
+            }
+        elif "INSERT INTO source_object_snapshots" in query:
+            self._connection.source_object_snapshots.append({
+                "id": str(effective["id"]),
+                "tenant_id": str(effective["tenant_id"]),
+                "object_key": str(effective["object_key"]),
+                "object_id": str(effective["object_id"]),
+                "version": int(effective["version"]),
+                "payload": effective["payload"],
+                "changed_by": str(effective["changed_by"]),
+                "changed_at": effective.get("changed_at", datetime.now(UTC)),
+            })
+        elif "FROM source_objects" in query and "ORDER BY object_key" in query:
+            self._rows = list(self._connection.source_objects.values())
+        elif "FROM source_objects" in query:
+            self._row = self._connection.source_objects.get(str(effective["object_key"]))
+        elif "FROM source_object_snapshots" in query:
+            self._row = None
+            for snapshot in self._connection.source_object_snapshots:
+                if (
+                    snapshot["object_key"] == str(effective["object_key"])
+                    and int(snapshot["version"]) == int(effective["version"])
+                ):
+                    self._row = snapshot
+                    break
+        elif "INSERT INTO source_relations" in query:
+            self._connection.source_relations.append({
+                "id": str(effective["id"]),
+                "tenant_id": str(effective["tenant_id"]),
+                "relation_type": str(effective["relation_type"]),
+                "source_key": str(effective["source_key"]),
+                "target_key": str(effective["target_key"]),
+                "provenance": str(effective["provenance"]),
+                "valid_from": effective.get("valid_from", datetime.now(UTC)),
+                "valid_to": effective.get("valid_to"),
+                "active": bool(effective["active"]),
+                "created_at": effective.get("created_at", datetime.now(UTC)),
+            })
+        elif "FROM source_relations" in query:
+            self._rows = list(self._connection.source_relations)
         elif "SELECT record_hash" in query and "FROM audit_events" in query:
             if self._connection.audit_events:
                 self._row = {"record_hash": self._connection.audit_events[-1].get("record_hash")}
@@ -299,6 +401,10 @@ class FakeConnection(ConnectionProtocol):
         self.identity_groups: dict[str, Mapping[str, object]] = {}
         self.identity_memberships: list[Mapping[str, object]] = []
         self.access_policy_rules: dict[str, Mapping[str, object]] = {}
+        self.source_objects: dict[str, Mapping[str, object]] = {}
+        self.source_object_snapshots: list[Mapping[str, object]] = []
+        self.source_relations: list[Mapping[str, object]] = []
+        self.source_governance_rules: dict[str, Mapping[str, object]] = {}
         self.commits = 0
         self.rollbacks = 0
         self.closed = False
@@ -978,3 +1084,162 @@ class TestPostgreSQLAccessPolicyRuntime:
         assert page.items[0].record_hash
         assert report.valid is True
         assert connector.connection.commits >= 3
+
+
+class TestPostgreSQLSourceOfTruth:
+    def test_postgresql_source_of_truth_repository_lifecycle(self) -> None:
+        connector = FakeConnector()
+        registry = PostgreSQLSessionRegistry(
+            PostgreSQLConnectionFactory(
+                "postgresql://openinfra@db/openinfra",
+                connector=connector.connect,
+            )
+        )
+        app = ApplicationFactory()._build_application(
+            store=registry,
+            dcim_repository=PostgreSQLDcimRepository(registry),
+            ipam_repository=PostgreSQLIpamRepository(registry),
+            security_repository=PostgreSQLSecurityRepository(registry),
+            identity_repository=PostgreSQLIdentityRepository(registry),
+            audit_repository=PostgreSQLAuditRepository(registry),
+            access_policy_repository=PostgreSQLAccessPolicyRepository(registry),
+            source_of_truth_repository=PostgreSQLSourceOfTruthRepository(registry),
+            transaction_manager=PostgreSQLTransactionManager(registry),
+            readiness_probe=PostgreSQLReadinessProbe(registry),
+            schema_status_provider=PostgreSQLMigrationExecutor(
+                registry,
+                PostgreSQLMigrationCatalog(Path("migrations/postgresql")),
+            ),
+        )
+        token = "x" * 40
+        app.security_service.bootstrap_token(
+            BootstrapTokenCommand(
+                tenant_id="default",
+                actor="pytest",
+                subject="pg-sot-admin",
+                roles=("sot:operator",),
+                token=token,
+            )
+        )
+        created = app.source_of_truth_service.upsert_object(
+            UpsertSourceObjectCommand(
+                tenant_id="default",
+                actor="pytest",
+                admin_token=token,
+                key="device/pg-srv-1",
+                kind="device",
+                display_name="PG Server 1",
+                attributes_json='{"serial":"PG1"}',
+                tags=("prod",),
+                source="manual",
+            )
+        )
+        app.source_of_truth_service.upsert_object(
+            UpsertSourceObjectCommand(
+                tenant_id="default",
+                actor="pytest",
+                admin_token=token,
+                key="application/pg-app",
+                kind="application",
+                display_name="PG App",
+                attributes_json='{}',
+                tags=("prod",),
+                source="manual",
+            )
+        )
+        relation = app.source_of_truth_service.create_relation(
+            CreateSourceRelationCommand(
+                tenant_id="default",
+                actor="pytest",
+                admin_token=token,
+                relation_type="runs_on",
+                source_key="application/pg-app",
+                target_key="device/pg-srv-1",
+                provenance="manual",
+            )
+        )
+        listed = app.source_of_truth_service.list_objects(
+            ListSourceObjectsCommand("default", token, limit=10)
+        )
+        version = app.source_of_truth_service.get_object_version(
+            GetSourceObjectVersionCommand("default", token, "device/pg-srv-1", 1)
+        )
+        relations = app.source_of_truth_service.list_relations(
+            ListSourceRelationsCommand("default", token, limit=10)
+        )
+
+        assert created["key"] == "device/pg-srv-1"
+        assert relation["source_key"] == "application/pg-app"
+        assert len(listed.items) >= 2
+        assert version["payload"]["display_name"] == "PG Server 1"
+        assert relations.items[0].relation_type.value == "runs_on"
+        assert any(
+            "INSERT INTO source_objects" in statement[0]
+            for statement in connector.connection.statements
+        )
+        assert any(
+            "INSERT INTO source_relations" in statement[0]
+            for statement in connector.connection.statements
+        )
+
+    def test_source_governance_repository_persists_and_evaluates_rules(self) -> None:
+        connector = FakeConnector()
+        registry = PostgreSQLSessionRegistry(
+            PostgreSQLConnectionFactory(
+                "postgresql://openinfra@db/openinfra",
+                connector=connector.connect,
+            )
+        )
+        app = ApplicationFactory()._build_application(
+            store=registry,
+            dcim_repository=PostgreSQLDcimRepository(registry),
+            ipam_repository=PostgreSQLIpamRepository(registry),
+            security_repository=PostgreSQLSecurityRepository(registry),
+            identity_repository=PostgreSQLIdentityRepository(registry),
+            audit_repository=PostgreSQLAuditRepository(registry),
+            access_policy_repository=PostgreSQLAccessPolicyRepository(registry),
+            source_governance_repository=PostgreSQLSourceGovernanceRepository(registry),
+            transaction_manager=PostgreSQLTransactionManager(registry),
+            readiness_probe=PostgreSQLReadinessProbe(registry),
+            schema_status_provider=PostgreSQLMigrationExecutor(
+                registry,
+                PostgreSQLMigrationCatalog(Path("migrations/postgresql")),
+            ),
+        )
+        token = "m" * 40
+        app.security_service.bootstrap_token(
+            BootstrapTokenCommand("default", "pytest", "pg-governance", ("admin",), token)
+        )
+
+        rule = app.source_governance_service.create_rule(
+            CreateSourceGovernanceRuleCommand(
+                "default",
+                "pytest",
+                token,
+                "pg-serial-authority",
+                "device",
+                "serial",
+                "discovery",
+            )
+        )
+        page = app.source_governance_service.list_rules(
+            ListSourceGovernanceRulesCommand("default", token, object_kind="device")
+        )
+        evaluation = app.source_governance_service.evaluate(
+            EvaluateSourceGovernanceCommand(
+                "default",
+                token,
+                "device",
+                "manual",
+                '{"serial":"A"}',
+                '{"serial":"B"}',
+            )
+        )
+
+        assert rule.name.value == "pg-serial-authority"
+        assert page.items[0].authoritative_source.value == "discovery"
+        assert evaluation["accepted"] is False
+        assert any(
+            "INSERT INTO source_governance_rules" in statement[0]
+            for statement in connector.connection.statements
+        )

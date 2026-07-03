@@ -69,6 +69,8 @@ jobs:
           openinfra database render-migration --name 0004_identity_users_groups --root migrations/postgresql >/tmp/openinfra-0004.sql
           openinfra database render-migration --name 0005_access_policy_abac --root migrations/postgresql >/tmp/openinfra-0005.sql
           openinfra database render-migration --name 0006_audit_trail_integrity --root migrations/postgresql >/tmp/openinfra-0006.sql
+          openinfra database render-migration --name 0007_source_of_truth_core --root migrations/postgresql >/tmp/openinfra-0007.sql
+          openinfra database render-migration --name 0008_source_governance --root migrations/postgresql >/tmp/openinfra-0008.sql
 
       - name: Smoke JSON IPAM allocation
         run: |
@@ -230,6 +232,45 @@ jobs:
             --data "$tmpdir/state.json" \
             --tenant default \
             --admin-token "$admin_token"
+
+
+      - name: Smoke JSON Source of Truth governance
+        run: |
+          tmpdir="$(mktemp -d)"
+          admin_token="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+          openinfra security bootstrap-token \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --subject ci-sot-governance \
+            --role sot:governance-admin \
+            --token "$admin_token"
+          openinfra sot create-governance-rule \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --admin-token "$admin_token" \
+            --name ci-serial-authority \
+            --object-kind device \
+            --attribute-path serial \
+            --authoritative-source discovery \
+            --priority 500
+          openinfra sot list-governance-rules \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --admin-token "$admin_token" \
+            --object-kind device
+          openinfra sot evaluate-governance \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --admin-token "$admin_token" \
+            --object-kind device \
+            --incoming-source manual \
+            --existing-attributes-json '{"serial":"A"}' \
+            --incoming-attributes-json '{"serial":"B"}'
+          openinfra sot deactivate-governance-rule \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --admin-token "$admin_token" \
+            --name ci-serial-authority
 
       - name: Internal quality gate
         run: python scripts/quality_gate.py

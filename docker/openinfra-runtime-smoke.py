@@ -56,6 +56,8 @@ class RuntimeSmokeScenario:
         self._assert_schema_status()
         self._assert_security_lifecycle()
         self._assert_identity_lifecycle()
+        self._assert_source_of_truth_lifecycle()
+        self._assert_source_governance_lifecycle()
         self._assert_access_policy_lifecycle()
         self._assert_api_ipam_idempotency()
         self._assert_cli_ipam_transaction()
@@ -82,7 +84,7 @@ class RuntimeSmokeScenario:
 
     def _assert_version(self) -> None:
         version = self._client.get("/api/v1/version")
-        if version.get("version") != "0.9.0":
+        if version.get("version") != "0.11.0":
             raise SmokeError("unexpected version response: " + json.dumps(version, sort_keys=True))
 
     def _assert_schema_status(self) -> None:
@@ -185,6 +187,48 @@ class RuntimeSmokeScenario:
                 "identity effective roles failed: " + json.dumps(effective, sort_keys=True)
             )
 
+
+
+    def _assert_source_governance_lifecycle(self) -> None:
+        rule = self._client.post(
+            "/api/v1/sot/governance-rules",
+            {
+                "tenant_id": "default",
+                "actor": "docker-smoke",
+                "name": "runtime-serial-authority",
+                "object_kind": "device",
+                "attribute_path": "serial",
+                "authoritative_source": "discovery",
+                "priority": 800,
+                "freshness_seconds": 3600,
+                "conflict_strategy": "reject",
+            },
+        )
+        listed = self._client.get(
+            "/api/v1/sot/governance-rules?tenant_id=default&object_kind=device&limit=20"
+        )
+        evaluated = self._client.post(
+            "/api/v1/sot/governance/evaluate",
+            {
+                "tenant_id": "default",
+                "object_kind": "device",
+                "incoming_source": "manual",
+                "existing_attributes": {"serial": "DISC-001"},
+                "incoming_attributes": {"serial": "MAN-002"},
+            },
+        )
+        if rule.get("name") != "runtime-serial-authority":
+            raise SmokeError(
+                "source governance rule creation failed: " + json.dumps(rule, sort_keys=True)
+            )
+        if not listed.get("items"):
+            raise SmokeError(
+                "source governance listing failed: " + json.dumps(listed, sort_keys=True)
+            )
+        if evaluated.get("accepted") is not False:
+            raise SmokeError(
+                "source governance evaluation failed: " + json.dumps(evaluated, sort_keys=True)
+            )
 
     def _assert_access_policy_lifecycle(self) -> None:
         rule = self._client.post(

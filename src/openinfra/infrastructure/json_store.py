@@ -23,6 +23,8 @@ from openinfra.application.ports import (
     SchemaStatusProvider,
     SecurityRepository,
     SecurityTokenPage,
+    SourceGovernanceRepository,
+    SourceOfTruthRepository,
     TransactionManager,
     UnitOfWork,
 )
@@ -58,6 +60,14 @@ from openinfra.domain.identity import (
 )
 from openinfra.domain.ipam import IpReservation, Prefix, Vrf
 from openinfra.domain.security import ApiTokenCredential, Permission
+from openinfra.domain.source_governance import SourceGovernanceRule, SourceGovernanceRulePage
+from openinfra.domain.source_of_truth import (
+    SourceObjectPage,
+    SourceObjectSnapshot,
+    SourceOfTruthObject,
+    SourceRelation,
+    SourceRelationPage,
+)
 
 
 @dataclass(slots=True)
@@ -138,6 +148,10 @@ class JsonDocumentStore:
             "identity_groups": {},
             "identity_memberships": {},
             "access_policy_rules": {},
+            "source_objects": {},
+            "source_object_snapshots": [],
+            "source_relations": {},
+            "source_governance_rules": {},
         }
 
 
@@ -176,6 +190,9 @@ class JsonReadinessProbe(ReadinessProbe):
                     "identity_groups",
                     "identity_memberships",
                     "access_policy_rules",
+                    "source_objects",
+                    "source_object_snapshots",
+                    "source_relations",
                 )
             )
         detail = (
@@ -909,6 +926,116 @@ class JsonAccessPolicyRepository(AccessPolicyRepository):
         return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
 
 
+class JsonSourceGovernanceRepository(SourceGovernanceRepository):
+    def __init__(self, store: JsonDocumentStore) -> None:
+        self._store = store
+
+    def upsert_rule(self, rule: SourceGovernanceRule) -> None:
+        key = self._key(rule.tenant_id, rule.name.value)
+        previous = self._store.data["source_governance_rules"].get(key, {})
+        payload = rule.as_dict()
+        if previous.get("created_at") is not None:
+            payload["created_at"] = previous["created_at"]
+            payload["id"] = previous["id"]
+        self._store.data["source_governance_rules"][key] = payload
+        self._store.mark_dirty()
+
+    def find_rule(self, tenant_id: TenantId, name: str) -> SourceGovernanceRule | None:
+        value = self._store.data["source_governance_rules"].get(self._key(tenant_id, name.strip().lower()))
+        return self._rule_from_dict(value) if value else None
+
+    def list_rules(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        include_inactive: bool = False,
+        object_kind: str | None = None,
+    ) -> SourceGovernanceRulePage:
+        start = self._cursor_offset(pagination.cursor)
+        normalized_kind = object_kind.strip().lower() if object_kind else None
+        rules = [
+            self._rule_from_dict(value)
+            for value in self._store.data["source_governance_rules"].values()
+            if value.get("tenant_id") == tenant_id.value
+        ]
+        if not include_inactive:
+            rules = [rule for rule in rules if rule.active]
+        if normalized_kind:
+            rules = [
+                rule for rule in rules
+                if rule.object_kind is None or rule.object_kind.value == normalized_kind
+            ]
+        rules.sort(key=lambda item: (-item.priority, item.name.value, item.id.value))
+        selected = tuple(rules[start : start + pagination.limit])
+        next_index = start + len(selected)
+        return SourceGovernanceRulePage(
+            selected,
+            str(next_index) if next_index < len(rules) else None,
+        )
+
+    def find_active_rules_for_kind(
+        self,
+        tenant_id: TenantId,
+        object_kind: str,
+    ) -> tuple[SourceGovernanceRule, ...]:
+        normalized_kind = object_kind.strip().lower()
+        rules = [
+            self._rule_from_dict(value)
+            for value in self._store.data["source_governance_rules"].values()
+            if value.get("tenant_id") == tenant_id.value and bool(value.get("active", True))
+        ]
+        rules = [
+            rule for rule in rules
+            if rule.object_kind is None or rule.object_kind.value == normalized_kind
+        ]
+        rules.sort(key=lambda item: (-item.priority, item.name.value, item.id.value))
+        return tuple(rules)
+
+    def deactivate_rule(self, tenant_id: TenantId, name: str) -> bool:
+        key = self._key(tenant_id, name.strip().lower())
+        value = self._store.data["source_governance_rules"].get(key)
+        if value is None or bool(value.get("active")) is False:
+            return False
+        value["active"] = False
+        self._store.mark_dirty()
+        return True
+
+    def _cursor_offset(self, cursor: str | None) -> int:
+        try:
+            offset = int(cursor or "0")
+        except ValueError as exc:
+            raise ValidationError("pagination cursor must be a numeric offset") from exc
+        if offset < 0:
+            raise ValidationError("pagination cursor must be positive")
+        return offset
+
+    def _key(self, tenant_id: TenantId, name: str) -> str:
+        return ":".join((tenant_id.value, name))
+
+    def _rule_from_dict(self, value: dict[str, Any]) -> SourceGovernanceRule:
+        created_at = datetime.fromisoformat(value["created_at"])
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=UTC)
+        object_kind = value.get("object_kind")
+        return SourceGovernanceRule.restore(
+            id=EntityId.from_value(value["id"]),
+            tenant_id=TenantId.from_value(value["tenant_id"]),
+            name=value["name"],
+            object_kind=None if object_kind in (None, "*") else str(object_kind),
+            attribute_path=value["attribute_path"],
+            authoritative_source=value["authoritative_source"],
+            priority=int(value["priority"]),
+            freshness_seconds=(
+                int(value["freshness_seconds"])
+                if value.get("freshness_seconds") is not None
+                else None
+            ),
+            conflict_strategy=value["conflict_strategy"],
+            active=bool(value.get("active", True)),
+            created_at=created_at,
+        )
+
+
 class JsonAuditRepository(AuditRepository):
     def __init__(self, store: JsonDocumentStore) -> None:
         self._store = store
@@ -1044,6 +1171,206 @@ class JsonAuditRepository(AuditRepository):
             severity=Severity(value["severity"]),
             created_at=created_at,
             metadata=value["metadata"],
+        )
+
+
+class JsonSourceOfTruthRepository(SourceOfTruthRepository):
+    def __init__(self, store: JsonDocumentStore) -> None:
+        self._store = store
+
+    def create_object(
+        self,
+        tenant_id: TenantId,
+        key: str,
+        kind: str,
+        display_name: str,
+        attributes: dict[str, object],
+        tags: tuple[str, ...],
+        source: str,
+        actor: str,
+    ) -> SourceOfTruthObject:
+        source_object = SourceOfTruthObject.create(
+            tenant_id=tenant_id,
+            key=key,
+            kind=kind,
+            display_name=display_name,
+            attributes=attributes,
+            tags=tags,
+            source=source,
+        )
+        self.upsert_object(source_object, actor)
+        return source_object
+
+    def upsert_object(self, source_object: SourceOfTruthObject, actor: str) -> None:
+        key = self._key(source_object.tenant_id, source_object.key.value)
+        self._store.data["source_objects"][key] = self._object_to_dict(source_object)
+        self._store.data["source_object_snapshots"].append(
+            self._snapshot_to_dict(SourceObjectSnapshot.create(source_object, actor))
+        )
+        self._store.mark_dirty()
+
+    def find_object(self, tenant_id: TenantId, key: str) -> SourceOfTruthObject | None:
+        item = self._store.data["source_objects"].get(
+            self._key(tenant_id, key.strip().lower())
+        )
+        return self._object_from_dict(item) if item else None
+
+    def list_objects(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        kind: str | None = None,
+        tag: str | None = None,
+    ) -> SourceObjectPage:
+        start = self._cursor_offset(pagination.cursor)
+        normalized_kind = kind.strip().lower() if kind else None
+        normalized_tag = tag.strip().lower() if tag else None
+        objects = [
+            self._object_from_dict(value)
+            for value in self._store.data["source_objects"].values()
+            if value.get("tenant_id") == tenant_id.value
+        ]
+        if normalized_kind:
+            objects = [item for item in objects if item.kind.value == normalized_kind]
+        if normalized_tag:
+            objects = [
+                item for item in objects if normalized_tag in {tag.value for tag in item.tags}
+            ]
+        objects.sort(key=lambda item: item.key.value)
+        selected = tuple(objects[start : start + pagination.limit])
+        next_index = start + len(selected)
+        next_cursor = str(next_index) if next_index < len(objects) else None
+        return SourceObjectPage(selected, next_cursor)
+
+    def find_object_version(
+        self,
+        tenant_id: TenantId,
+        key: str,
+        version: int,
+    ) -> SourceObjectSnapshot | None:
+        normalized_key = key.strip().lower()
+        for value in self._store.data["source_object_snapshots"]:
+            if (
+                value.get("tenant_id") == tenant_id.value
+                and value.get("object_key") == normalized_key
+                and int(value.get("version", 0)) == int(version)
+            ):
+                return self._snapshot_from_dict(value)
+        return None
+
+    def add_relation(self, relation: SourceRelation) -> None:
+        key = self._key(relation.tenant_id, relation.id.value)
+        self._store.data["source_relations"][key] = self._relation_to_dict(relation)
+        self._store.mark_dirty()
+
+    def list_relations(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        source_key: str | None = None,
+        target_key: str | None = None,
+        relation_type: str | None = None,
+    ) -> SourceRelationPage:
+        start = self._cursor_offset(pagination.cursor)
+        normalized_source = source_key.strip().lower() if source_key else None
+        normalized_target = target_key.strip().lower() if target_key else None
+        normalized_type = relation_type.strip().lower() if relation_type else None
+        relations = [
+            self._relation_from_dict(value)
+            for value in self._store.data["source_relations"].values()
+            if value.get("tenant_id") == tenant_id.value
+        ]
+        if normalized_source:
+            relations = [item for item in relations if item.source_key.value == normalized_source]
+        if normalized_target:
+            relations = [item for item in relations if item.target_key.value == normalized_target]
+        if normalized_type:
+            relations = [item for item in relations if item.relation_type.value == normalized_type]
+        relations.sort(key=lambda item: (item.created_at.isoformat(), item.id.value), reverse=True)
+        selected = tuple(relations[start : start + pagination.limit])
+        next_index = start + len(selected)
+        next_cursor = str(next_index) if next_index < len(relations) else None
+        return SourceRelationPage(selected, next_cursor)
+
+    def _cursor_offset(self, cursor: str | None) -> int:
+        try:
+            offset = int(cursor or "0")
+        except ValueError as exc:
+            raise ValidationError("pagination cursor must be a numeric offset") from exc
+        if offset < 0:
+            raise ValidationError("pagination cursor must be positive")
+        return offset
+
+    def _key(self, tenant_id: TenantId, *parts: str) -> str:
+        return ":".join((tenant_id.value, *parts))
+
+    def _object_to_dict(self, source_object: SourceOfTruthObject) -> dict[str, Any]:
+        return source_object.as_dict()
+
+    def _object_from_dict(self, value: dict[str, Any]) -> SourceOfTruthObject:
+        created_at = datetime.fromisoformat(value["created_at"])
+        updated_at = datetime.fromisoformat(value["updated_at"])
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=UTC)
+        if updated_at.tzinfo is None:
+            updated_at = updated_at.replace(tzinfo=UTC)
+        return SourceOfTruthObject.restore(
+            id=EntityId.from_value(value["id"]),
+            tenant_id=TenantId.from_value(value["tenant_id"]),
+            key=value["key"],
+            kind=value["kind"],
+            display_name=value["display_name"],
+            attributes=dict(value["attributes"]),
+            tags=tuple(value["tags"]),
+            source=value["source"],
+            version=int(value["version"]),
+            status=value["status"],
+            created_at=created_at,
+            updated_at=updated_at,
+        )
+
+    def _snapshot_to_dict(self, snapshot: SourceObjectSnapshot) -> dict[str, Any]:
+        return snapshot.as_dict()
+
+    def _snapshot_from_dict(self, value: dict[str, Any]) -> SourceObjectSnapshot:
+        changed_at = datetime.fromisoformat(value["changed_at"])
+        if changed_at.tzinfo is None:
+            changed_at = changed_at.replace(tzinfo=UTC)
+        return SourceObjectSnapshot.restore(
+            id=EntityId.from_value(value["id"]),
+            tenant_id=TenantId.from_value(value["tenant_id"]),
+            object_key=value["object_key"],
+            object_id=EntityId.from_value(value["object_id"]),
+            version=int(value["version"]),
+            payload=dict(value["payload"]),
+            changed_by=value["changed_by"],
+            changed_at=changed_at,
+        )
+
+    def _relation_to_dict(self, relation: SourceRelation) -> dict[str, Any]:
+        return relation.as_dict()
+
+    def _relation_from_dict(self, value: dict[str, Any]) -> SourceRelation:
+        valid_from = datetime.fromisoformat(value["valid_from"])
+        created_at = datetime.fromisoformat(value["created_at"])
+        valid_to = datetime.fromisoformat(value["valid_to"]) if value.get("valid_to") else None
+        if valid_from.tzinfo is None:
+            valid_from = valid_from.replace(tzinfo=UTC)
+        if valid_to is not None and valid_to.tzinfo is None:
+            valid_to = valid_to.replace(tzinfo=UTC)
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=UTC)
+        return SourceRelation.restore(
+            id=EntityId.from_value(value["id"]),
+            tenant_id=TenantId.from_value(value["tenant_id"]),
+            relation_type=value["relation_type"],
+            source_key=value["source_key"],
+            target_key=value["target_key"],
+            provenance=value["provenance"],
+            valid_from=valid_from,
+            valid_to=valid_to,
+            active=bool(value["active"]),
+            created_at=created_at,
         )
 
 

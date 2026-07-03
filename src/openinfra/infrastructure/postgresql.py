@@ -23,6 +23,8 @@ from openinfra.application.ports import (
     SchemaStatusProvider,
     SecurityRepository,
     SecurityTokenPage,
+    SourceGovernanceRepository,
+    SourceOfTruthRepository,
     TransactionManager,
     UnitOfWork,
 )
@@ -59,6 +61,14 @@ from openinfra.domain.identity import (
 )
 from openinfra.domain.ipam import IpReservation, Prefix, Vrf
 from openinfra.domain.security import ApiTokenCredential, Permission
+from openinfra.domain.source_governance import SourceGovernanceRule, SourceGovernanceRulePage
+from openinfra.domain.source_of_truth import (
+    SourceObjectPage,
+    SourceObjectSnapshot,
+    SourceOfTruthObject,
+    SourceRelation,
+    SourceRelationPage,
+)
 
 
 class CursorProtocol(Protocol):
@@ -1466,6 +1476,450 @@ class PostgreSQLAccessPolicyRepository(PostgreSQLRepositoryBase, AccessPolicyRep
             environments=tuple(
                 str(item) for item in cast(Sequence[object], row["environments"])
             ),
+            active=bool(row["active"]),
+            created_at=self._row_datetime(row["created_at"]),
+        )
+
+    def _row_datetime(self, value: object) -> datetime:
+        if isinstance(value, datetime):
+            return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
+        parsed = datetime.fromisoformat(str(value))
+        return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
+
+
+class PostgreSQLSourceGovernanceRepository(PostgreSQLRepositoryBase, SourceGovernanceRepository):
+    def upsert_rule(self, rule: SourceGovernanceRule) -> None:
+        self._ensure_tenant(rule.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO source_governance_rules (
+                id, tenant_id, name, object_kind, attribute_path, authoritative_source,
+                priority, freshness_seconds, conflict_strategy, active, created_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(name)s, %(object_kind)s, %(attribute_path)s,
+                %(authoritative_source)s, %(priority)s, %(freshness_seconds)s,
+                %(conflict_strategy)s, %(active)s, %(created_at)s
+            )
+            ON CONFLICT (tenant_id, name) DO UPDATE SET
+                object_kind = EXCLUDED.object_kind,
+                attribute_path = EXCLUDED.attribute_path,
+                authoritative_source = EXCLUDED.authoritative_source,
+                priority = EXCLUDED.priority,
+                freshness_seconds = EXCLUDED.freshness_seconds,
+                conflict_strategy = EXCLUDED.conflict_strategy,
+                active = EXCLUDED.active
+            """,
+            self._rule_params(rule),
+        )
+
+    def find_rule(self, tenant_id: TenantId, name: str) -> SourceGovernanceRule | None:
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, name, object_kind, attribute_path, authoritative_source,
+                   priority, freshness_seconds, conflict_strategy, active, created_at
+            FROM source_governance_rules
+            WHERE tenant_id = %(tenant_id)s AND name = %(name)s
+            """,
+            {"tenant_id": tenant_id.value, "name": name.strip().lower()},
+        )
+        return self._rule_from_row(row) if row else None
+
+    def list_rules(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        include_inactive: bool = False,
+        object_kind: str | None = None,
+    ) -> SourceGovernanceRulePage:
+        offset = self._offset(pagination.cursor)
+        conditions = ["tenant_id = %(tenant_id)s"]
+        params: dict[str, object] = {
+            "tenant_id": tenant_id.value,
+            "limit": pagination.limit + 1,
+            "offset": offset,
+        }
+        if not include_inactive:
+            conditions.append("active IS TRUE")
+        if object_kind is not None:
+            conditions.append("(object_kind IS NULL OR object_kind = %(object_kind)s)")
+            params["object_kind"] = object_kind.strip().lower()
+        rows = self._fetch_all(
+            """
+            SELECT id, tenant_id, name, object_kind, attribute_path, authoritative_source,
+                   priority, freshness_seconds, conflict_strategy, active, created_at
+            FROM source_governance_rules
+            WHERE """ + " AND ".join(conditions) + """
+            ORDER BY priority DESC, name ASC, id ASC
+            LIMIT %(limit)s OFFSET %(offset)s
+            """,
+            params,
+        )
+        selected = tuple(rows[: pagination.limit])
+        next_cursor = str(offset + pagination.limit) if len(rows) > pagination.limit else None
+        return SourceGovernanceRulePage(tuple(self._rule_from_row(row) for row in selected), next_cursor)
+
+    def find_active_rules_for_kind(
+        self,
+        tenant_id: TenantId,
+        object_kind: str,
+    ) -> tuple[SourceGovernanceRule, ...]:
+        rows = self._fetch_all(
+            """
+            SELECT id, tenant_id, name, object_kind, attribute_path, authoritative_source,
+                   priority, freshness_seconds, conflict_strategy, active, created_at
+            FROM source_governance_rules
+            WHERE tenant_id = %(tenant_id)s
+              AND active IS TRUE
+              AND (object_kind IS NULL OR object_kind = %(object_kind)s)
+            ORDER BY priority DESC, name ASC, id ASC
+            """,
+            {"tenant_id": tenant_id.value, "object_kind": object_kind.strip().lower()},
+        )
+        return tuple(self._rule_from_row(row) for row in rows)
+
+    def deactivate_rule(self, tenant_id: TenantId, name: str) -> bool:
+        cursor = self._execute_without_result(
+            """
+            UPDATE source_governance_rules
+            SET active = FALSE
+            WHERE tenant_id = %(tenant_id)s AND name = %(name)s AND active IS TRUE
+            """,
+            {"tenant_id": tenant_id.value, "name": name.strip().lower()},
+        )
+        rowcount = getattr(cursor, "rowcount", None)
+        return True if rowcount is None else int(rowcount) > 0
+
+    def _rule_params(self, rule: SourceGovernanceRule) -> dict[str, object]:
+        return {
+            "id": rule.id.value,
+            "tenant_id": rule.tenant_id.value,
+            "name": rule.name.value,
+            "object_kind": rule.object_kind.value if rule.object_kind else None,
+            "attribute_path": rule.attribute_path.value,
+            "authoritative_source": rule.authoritative_source.value,
+            "priority": rule.priority,
+            "freshness_seconds": rule.freshness_seconds,
+            "conflict_strategy": rule.conflict_strategy.value,
+            "active": rule.active,
+            "created_at": rule.created_at,
+        }
+
+    def _offset(self, cursor: str | None) -> int:
+        try:
+            offset = int(cursor or "0")
+        except ValueError as exc:
+            raise ValidationError("pagination cursor must be a numeric offset") from exc
+        if offset < 0:
+            raise ValidationError("pagination cursor must be positive")
+        return offset
+
+    def _rule_from_row(self, row: Mapping[str, object]) -> SourceGovernanceRule:
+        return SourceGovernanceRule.restore(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            name=str(row["name"]),
+            object_kind=(str(row["object_kind"]) if row.get("object_kind") else None),
+            attribute_path=str(row["attribute_path"]),
+            authoritative_source=str(row["authoritative_source"]),
+            priority=int(row["priority"]),
+            freshness_seconds=(
+                int(row["freshness_seconds"])
+                if row.get("freshness_seconds") is not None
+                else None
+            ),
+            conflict_strategy=str(row["conflict_strategy"]),
+            active=bool(row["active"]),
+            created_at=self._row_datetime(row["created_at"]),
+        )
+
+    def _row_datetime(self, value: object) -> datetime:
+        if isinstance(value, datetime):
+            return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
+        parsed = datetime.fromisoformat(str(value))
+        return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
+
+
+class PostgreSQLSourceOfTruthRepository(PostgreSQLRepositoryBase, SourceOfTruthRepository):
+    def create_object(
+        self,
+        tenant_id: TenantId,
+        key: str,
+        kind: str,
+        display_name: str,
+        attributes: dict[str, object],
+        tags: tuple[str, ...],
+        source: str,
+        actor: str,
+    ) -> SourceOfTruthObject:
+        source_object = SourceOfTruthObject.create(
+            tenant_id=tenant_id,
+            key=key,
+            kind=kind,
+            display_name=display_name,
+            attributes=attributes,
+            tags=tags,
+            source=source,
+        )
+        self.upsert_object(source_object, actor)
+        return source_object
+
+    def upsert_object(self, source_object: SourceOfTruthObject, actor: str) -> None:
+        self._ensure_tenant(source_object.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO source_objects (
+                id, tenant_id, object_key, kind, display_name, attributes, tags, source_system,
+                version, status, created_at, updated_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(object_key)s, %(kind)s, %(display_name)s,
+                %(attributes)s, %(tags)s, %(source_system)s, %(version)s, %(status)s,
+                %(created_at)s, %(updated_at)s
+            )
+            ON CONFLICT (tenant_id, object_key) DO UPDATE SET
+                kind = EXCLUDED.kind,
+                display_name = EXCLUDED.display_name,
+                attributes = EXCLUDED.attributes,
+                tags = EXCLUDED.tags,
+                source_system = EXCLUDED.source_system,
+                version = EXCLUDED.version,
+                status = EXCLUDED.status,
+                updated_at = EXCLUDED.updated_at
+            """,
+            self._object_params(source_object),
+        )
+        snapshot = SourceObjectSnapshot.create(source_object, actor)
+        self._execute_without_result(
+            """
+            INSERT INTO source_object_snapshots (
+                id, tenant_id, object_key, object_id, version, payload, changed_by, changed_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(object_key)s, %(object_id)s, %(version)s,
+                %(payload)s, %(changed_by)s, %(changed_at)s
+            )
+            ON CONFLICT (tenant_id, object_key, version) DO NOTHING
+            """,
+            {
+                "id": snapshot.id.value,
+                "tenant_id": snapshot.tenant_id.value,
+                "object_key": snapshot.object_key.value,
+                "object_id": snapshot.object_id.value,
+                "version": snapshot.version,
+                "payload": json.dumps(snapshot.payload, sort_keys=True),
+                "changed_by": snapshot.changed_by,
+                "changed_at": snapshot.changed_at,
+            },
+        )
+
+    def find_object(self, tenant_id: TenantId, key: str) -> SourceOfTruthObject | None:
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, object_key, kind, display_name, attributes, tags, source_system,
+                   version, status, created_at, updated_at
+            FROM source_objects
+            WHERE tenant_id = %(tenant_id)s AND object_key = %(object_key)s
+            """,
+            {"tenant_id": tenant_id.value, "object_key": key.strip().lower()},
+        )
+        return self._object_from_row(row) if row else None
+
+    def list_objects(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        kind: str | None = None,
+        tag: str | None = None,
+    ) -> SourceObjectPage:
+        offset = self._offset(pagination.cursor)
+        conditions = ["tenant_id = %(tenant_id)s"]
+        params: dict[str, object] = {
+            "tenant_id": tenant_id.value,
+            "limit": pagination.limit + 1,
+            "offset": offset,
+        }
+        if kind is not None:
+            conditions.append("kind = %(kind)s")
+            params["kind"] = kind.strip().lower()
+        if tag is not None:
+            conditions.append("tags @> %(tag)s")
+            params["tag"] = [tag.strip().lower()]
+        rows = self._fetch_all(
+            """
+            SELECT id, tenant_id, object_key, kind, display_name, attributes, tags, source_system,
+                   version, status, created_at, updated_at
+            FROM source_objects
+            WHERE """ + " AND ".join(conditions) + """
+            ORDER BY object_key ASC
+            LIMIT %(limit)s OFFSET %(offset)s
+            """,
+            params,
+        )
+        selected = tuple(rows[: pagination.limit])
+        next_cursor = str(offset + pagination.limit) if len(rows) > pagination.limit else None
+        return SourceObjectPage(tuple(self._object_from_row(row) for row in selected), next_cursor)
+
+    def find_object_version(
+        self,
+        tenant_id: TenantId,
+        key: str,
+        version: int,
+    ) -> SourceObjectSnapshot | None:
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, object_key, object_id, version,
+                   payload, changed_by, changed_at
+            FROM source_object_snapshots
+            WHERE tenant_id = %(tenant_id)s
+              AND object_key = %(object_key)s
+              AND version = %(version)s
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "object_key": key.strip().lower(),
+                "version": int(version),
+            },
+        )
+        return self._snapshot_from_row(row) if row else None
+
+    def add_relation(self, relation: SourceRelation) -> None:
+        self._ensure_tenant(relation.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO source_relations (
+                id, tenant_id, relation_type, source_key, target_key, provenance,
+                valid_from, valid_to, active, created_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(relation_type)s, %(source_key)s, %(target_key)s,
+                %(provenance)s, %(valid_from)s, %(valid_to)s, %(active)s, %(created_at)s
+            )
+            """,
+            {
+                "id": relation.id.value,
+                "tenant_id": relation.tenant_id.value,
+                "relation_type": relation.relation_type.value,
+                "source_key": relation.source_key.value,
+                "target_key": relation.target_key.value,
+                "provenance": relation.provenance.value,
+                "valid_from": relation.valid_from,
+                "valid_to": relation.valid_to,
+                "active": relation.active,
+                "created_at": relation.created_at,
+            },
+        )
+
+    def list_relations(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        source_key: str | None = None,
+        target_key: str | None = None,
+        relation_type: str | None = None,
+    ) -> SourceRelationPage:
+        offset = self._offset(pagination.cursor)
+        conditions = ["tenant_id = %(tenant_id)s"]
+        params: dict[str, object] = {
+            "tenant_id": tenant_id.value,
+            "limit": pagination.limit + 1,
+            "offset": offset,
+        }
+        if source_key is not None:
+            conditions.append("source_key = %(source_key)s")
+            params["source_key"] = source_key.strip().lower()
+        if target_key is not None:
+            conditions.append("target_key = %(target_key)s")
+            params["target_key"] = target_key.strip().lower()
+        if relation_type is not None:
+            conditions.append("relation_type = %(relation_type)s")
+            params["relation_type"] = relation_type.strip().lower()
+        rows = self._fetch_all(
+            """
+            SELECT id, tenant_id, relation_type, source_key, target_key, provenance,
+                   valid_from, valid_to, active, created_at
+            FROM source_relations
+            WHERE """ + " AND ".join(conditions) + """
+            ORDER BY created_at DESC, id DESC
+            LIMIT %(limit)s OFFSET %(offset)s
+            """,
+            params,
+        )
+        selected = tuple(rows[: pagination.limit])
+        next_cursor = str(offset + pagination.limit) if len(rows) > pagination.limit else None
+        return SourceRelationPage(
+            tuple(self._relation_from_row(row) for row in selected), next_cursor
+        )
+
+    def _object_params(self, source_object: SourceOfTruthObject) -> dict[str, object]:
+        return {
+            "id": source_object.id.value,
+            "tenant_id": source_object.tenant_id.value,
+            "object_key": source_object.key.value,
+            "kind": source_object.kind.value,
+            "display_name": source_object.display_name,
+            "attributes": json.dumps(source_object.attributes, sort_keys=True),
+            "tags": [tag.value for tag in source_object.tags],
+            "source_system": source_object.source.value,
+            "version": source_object.version,
+            "status": source_object.status.value,
+            "created_at": source_object.created_at,
+            "updated_at": source_object.updated_at,
+        }
+
+    def _offset(self, cursor: str | None) -> int:
+        try:
+            offset = int(cursor or "0")
+        except ValueError as exc:
+            raise ValidationError("pagination cursor must be a numeric offset") from exc
+        if offset < 0:
+            raise ValidationError("pagination cursor must be positive")
+        return offset
+
+    def _object_from_row(self, row: Mapping[str, object]) -> SourceOfTruthObject:
+        attributes = row["attributes"]
+        return SourceOfTruthObject.restore(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            key=str(row["object_key"]),
+            kind=str(row["kind"]),
+            display_name=str(row["display_name"]),
+            attributes=(
+                json.loads(str(attributes))
+                if isinstance(attributes, str)
+                else dict(cast(Mapping[str, Any], attributes))
+            ),
+            tags=tuple(str(item) for item in cast(Sequence[object], row["tags"])),
+            source=str(row["source_system"]),
+            version=int(row["version"]),
+            status=str(row["status"]),
+            created_at=self._row_datetime(row["created_at"]),
+            updated_at=self._row_datetime(row["updated_at"]),
+        )
+
+    def _snapshot_from_row(self, row: Mapping[str, object]) -> SourceObjectSnapshot:
+        payload = row["payload"]
+        return SourceObjectSnapshot.restore(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            object_key=str(row["object_key"]),
+            object_id=EntityId.from_value(str(row["object_id"])),
+            version=int(row["version"]),
+            payload=(
+                json.loads(str(payload))
+                if isinstance(payload, str)
+                else dict(cast(Mapping[str, Any], payload))
+            ),
+            changed_by=str(row["changed_by"]),
+            changed_at=self._row_datetime(row["changed_at"]),
+        )
+
+    def _relation_from_row(self, row: Mapping[str, object]) -> SourceRelation:
+        return SourceRelation.restore(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            relation_type=str(row["relation_type"]),
+            source_key=str(row["source_key"]),
+            target_key=str(row["target_key"]),
+            provenance=str(row["provenance"]),
+            valid_from=self._row_datetime(row["valid_from"]),
+            valid_to=(self._row_datetime(row["valid_to"]) if row.get("valid_to") else None),
             active=bool(row["active"]),
             created_at=self._row_datetime(row["created_at"]),
         )

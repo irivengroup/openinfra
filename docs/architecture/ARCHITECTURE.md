@@ -100,3 +100,31 @@ La persistance PostgreSQL est ajoutée par `0005_access_policy_abac.sql` avec pa
 ## v0.9.0 — Audit trail exploitable et intégrité chaînée
 
 La v0.9.0 ajoute une couche applicative d’audit consultable indépendamment des modules métier. Les services existants continuent d’écrire des `AuditEvent`; les adaptateurs JSON et PostgreSQL les enrichissent avec `previous_hash` et `record_hash`. Le service `AuditTrailService` expose la liste paginée, l’export JSON/JSONL et la vérification de chaîne avec permission `audit.read`. L’architecture reste hexagonale : le domaine contient les objets d’intégrité, l’application orchestre les cas d’usage, l’infrastructure persiste et calcule le chaînage au plus près de l’écriture transactionnelle, et les interfaces CLI/API exposent des contrats stables.
+
+## v0.10.0 — Alignement roadmap REL-01/P03 Source of Truth
+
+La version 0.10.0 reprend l'ordre de la roadmap et livre le premier incrément P03 avant de poursuivre les extensions P14. Le module Source of Truth introduit un agrégat `SourceOfTruthObject` pour les objets génériques et spécialisés, un agrégat `SourceRelation` pour les relations typées et un snapshot `SourceObjectSnapshot` pour l'historisation initiale.
+
+Frontières conservées :
+
+- domaine : invariants clés sûres, type d'objet, tags, attributs JSON, version, relation et validité temporelle ;
+- application : `SourceOfTruthService`, contrôle `sot.read` / `sot.write`, audit et transactions ;
+- infrastructure : `JsonSourceOfTruthRepository` et `PostgreSQLSourceOfTruthRepository` ;
+- interfaces : commandes `openinfra sot *` et endpoints `/api/v1/sot/*`.
+
+La migration `0007_source_of_truth_core.sql` reste additive et partitionnée par `tenant_id`. Elle ne modifie pas les migrations existantes et préserve la compatibilité des modules IPAM, DCIM, IAM, ABAC et audit.
+
+## v0.11.0 — REL-01/P03 EPIC-0306 Gouvernance minimale des sources
+
+La version 0.11.0 poursuit le jalon P03 avec une gouvernance minimale des sources autoritatives. Le domaine `SourceGovernanceRule` définit quel système est autoritatif pour un type d'objet SOT et un chemin d'attribut donné. L'évaluateur compare les attributs existants et entrants, détecte les chemins modifiés et produit une décision déterministe.
+
+Frontières conservées :
+
+- domaine : `SourceGovernanceRule`, chemins d'attribut gouvernés, stratégie `reject` ou `accept_with_audit`, évaluation des conflits ;
+- application : `SourceGovernanceService` et enforcement dans `SourceOfTruthService` avant versionnement d'un objet existant ;
+- ports : `SourceGovernanceRepository` ;
+- infrastructure : `JsonSourceGovernanceRepository` et `PostgreSQLSourceGovernanceRepository` ;
+- interfaces : commandes `openinfra sot *-governance-*` et endpoints `/api/v1/sot/governance*`.
+
+Le comportement reste compatible : sans règle active applicable, les mises à jour SOT gardent le comportement v0.10.0. Une règle active peut refuser une modification non autoritative avec `reject`, ou l'accepter avec signalement auditable via `accept_with_audit`. La migration `0008_source_governance.sql` est additive, partitionnée par `tenant_id` et ne modifie aucun schéma antérieur.
+

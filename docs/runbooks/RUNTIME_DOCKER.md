@@ -123,3 +123,24 @@ Le smoke test Docker vérifie désormais le journal d’audit dans l’environne
 - `POST /api/v1/audit/export` produit un export JSONL sans secret applicatif.
 
 Ces contrôles s’exécutent après les scénarios sécurité, IAM, ABAC, IPAM API et IPAM CLI afin de vérifier que les événements issus des flux réels sont consultables et intègres en backend PostgreSQL.
+
+## Validation runtime Source of Truth
+
+Le smoke test Docker v0.10.0 vérifie également le module Source of Truth : création d'un objet device, création d'une application, relation `runs_on`, lecture paginée, récupération de la version 1 et appel CLI `openinfra sot list-relations` contre le backend PostgreSQL du lab.
+
+```bash
+python scripts/docker_environment.py init
+python scripts/docker_environment.py validate
+python scripts/docker_environment.py reset
+```
+
+## Validation runtime Gouvernance des sources SOT
+
+Le smoke test Docker v0.11.0 vérifie que l'environnement d'exécution applique la gouvernance des sources : création d'une règle autoritative sur l'attribut `serial`, évaluation d'une mise à jour non autoritative, refus attendu avec stratégie `reject`, et vérification que les endpoints authentifiés restent protégés par RBAC.
+
+```bash
+python scripts/docker_environment.py init
+python scripts/docker_environment.py validate
+python scripts/docker_environment.py reset
+```
+

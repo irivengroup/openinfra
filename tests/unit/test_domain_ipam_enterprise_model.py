@@ -12,9 +12,13 @@ from openinfra.domain.ipam import (
     IpAddressRecord,
     IpAddressStatus,
     IpAggregate,
+    IpamConflict,
+    IpamConflictType,
     IpRange,
     IpRangePurpose,
     NetworkIdentifierPolicy,
+    ObservedDhcpLease,
+    ObservedDnsRecord,
     Prefix,
     Vlan,
     VlanGroup,
@@ -82,22 +86,22 @@ class TestEnterpriseIpamDomain:
 
     def test_range_overlap_is_vrf_and_prefix_scoped(self) -> None:
         tenant = TenantId.from_value("default")
-        prefix = Prefix.create(tenant, "prod", "10.20.0.0/24")
-        first = IpRange.create(tenant, "prod", prefix, "10.20.0.10", "10.20.0.20")
-        overlap = IpRange.create(tenant, "prod", prefix, "10.20.0.15", "10.20.0.30")
+        prefix = Prefix.create(tenant, "prod", "10.21.0.0/24")
+        first = IpRange.create(tenant, "prod", prefix, "10.21.0.10", "10.21.0.20")
+        overlap = IpRange.create(tenant, "prod", prefix, "10.21.0.15", "10.21.0.30")
         other_prefix = IpRange.create(
             tenant,
             "prod",
-            Prefix.create(tenant, "prod", "10.21.0.0/24"),
-            "10.21.0.15",
-            "10.21.0.30",
+            Prefix.create(tenant, "prod", "10.21.1.0/24"),
+            "10.21.1.15",
+            "10.21.1.30",
         )
         other_vrf = IpRange.create(
             tenant,
             "lab",
-            Prefix.create(tenant, "lab", "10.20.0.0/24"),
-            "10.20.0.15",
-            "10.20.0.30",
+            Prefix.create(tenant, "lab", "10.21.0.0/24"),
+            "10.21.0.15",
+            "10.21.0.30",
         )
 
         assert first.overlaps(overlap) is True
@@ -159,3 +163,71 @@ class TestIpamNetworkingDomain:
             BgpPeer.create(tenant, "prod", 65000, 65100, "192.0.2.1", "ipv6")
         with pytest.raises(ValidationError):
             BgpAddressFamily.from_value("evpn")
+
+
+class TestIpamConflictDomain:
+    def test_conflict_and_observations_are_normalized(self) -> None:
+        tenant = TenantId.from_value("default")
+        conflict = IpamConflict.create(
+            "duplicate_address",
+            "critical",
+            tenant,
+            "prod",
+            " address/10.0.0.10 ",
+            ("  owner-a  ", "owner-b"),
+            "  reconcile source of truth  ",
+        )
+        dns = ObservedDnsRecord.create(
+            tenant,
+            "prod",
+            "Srv01.Example.Net.",
+            "10.0.0.10",
+            "Srv01.Example.Net.",
+            "Discovery",
+        )
+        lease = ObservedDhcpLease.create(
+            tenant,
+            "prod",
+            "10.0.0.0/24",
+            "10.0.0.20",
+            "AA-BB-CC-00-00-20",
+            "Lease01.Example.Net.",
+            "Dhcp",
+        )
+
+        assert (
+            IpamConflictType.from_value("DUPLICATE_ADDRESS") is IpamConflictType.DUPLICATE_ADDRESS
+        )
+        assert (
+            conflict.fingerprint
+            == "default|prod|duplicate_address|address/10.0.0.10|owner-a;owner-b"
+        )
+        assert conflict.as_dict()["severity"] == "critical"
+        assert dns.as_dict()["hostname"] == "srv01.example.net"
+        assert dns.as_dict()["ptr_hostname"] == "srv01.example.net"
+        assert lease.mac_address == "aa:bb:cc:00:00:20"
+        assert lease.address_belongs_to_prefix() is True
+        assert lease.as_dict()["active"] is True
+
+    def test_conflict_observation_validation_rejects_invalid_values(self) -> None:
+        tenant = TenantId.from_value("default")
+        with pytest.raises(ValidationError):
+            IpamConflictType.from_value("unknown")
+        with pytest.raises(ValidationError):
+            IpamConflict.create("duplicate_address", "error", tenant, "prod", " ", ("x",), "fix")
+        with pytest.raises(ValidationError):
+            IpamConflict.create("duplicate_address", "error", tenant, "prod", "ip", (), "fix")
+        with pytest.raises(ValidationError):
+            IpamConflict.create("duplicate_address", "error", tenant, "prod", "ip", ("x",), " ")
+        with pytest.raises(ValidationError):
+            ObservedDnsRecord.create(tenant, "prod", "bad host", "10.0.0.10")
+        with pytest.raises(ValidationError):
+            ObservedDnsRecord.create(tenant, "prod", "srv", "bad-ip")
+        with pytest.raises(ValidationError):
+            ObservedDnsRecord.create(tenant, "prod", "srv", "10.0.0.10", source=" ")
+        with pytest.raises(ValidationError):
+            ObservedDhcpLease.create(tenant, "prod", "bad-prefix", "10.0.0.10", "aa", "lease")
+        with pytest.raises(ValidationError):
+            ObservedDhcpLease.create(tenant, "prod", "10.0.0.0/24", "10.0.0.10", " ", "lease")
+        with pytest.raises(ValidationError):
+            ObservedDhcpLease.create(tenant, "prod", "10.0.0.0/24", "2001:db8::1", "aa", "lease")

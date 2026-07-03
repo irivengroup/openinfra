@@ -91,6 +91,8 @@ from openinfra.domain.ipam import (
     IpAggregate,
     IpRange,
     IpReservation,
+    ObservedDhcpLease,
+    ObservedDnsRecord,
     Prefix,
     Vlan,
     VlanGroup,
@@ -197,6 +199,8 @@ class JsonDocumentStore:
             "vxlan_vnis": {},
             "autonomous_systems": {},
             "bgp_peers": {},
+            "dns_observations": {},
+            "dhcp_leases": {},
             "audit_events": [],
             "security_tokens": {},
             "identity_users": {},
@@ -1390,6 +1394,49 @@ class JsonIpamRepository(IpamRepository):
         self._store.data["ip_reservations"][key] = self._reservation_to_dict(reservation)
         self._store.mark_dirty()
 
+    def add_dns_observation(self, record: ObservedDnsRecord) -> ObservedDnsRecord:
+        key = self._key(
+            record.tenant_id, record.vrf_name.value, record.hostname, str(record.address)
+        )
+        self._store.data["dns_observations"][key] = self._dns_observation_to_dict(record)
+        self._store.mark_dirty()
+        return record
+
+    def list_dns_observations(
+        self, tenant_id: TenantId, vrf_name: str | None = None
+    ) -> tuple[ObservedDnsRecord, ...]:
+        normalized_vrf = Name.from_value(vrf_name, "vrf name").value if vrf_name else None
+        return tuple(
+            self._dns_observation_from_dict(value)
+            for value in self._store.data["dns_observations"].values()
+            if value["tenant_id"] == tenant_id.value
+            and (normalized_vrf is None or value["vrf_name"] == normalized_vrf)
+        )
+
+    def add_dhcp_lease(self, lease: ObservedDhcpLease) -> ObservedDhcpLease:
+        key = self._key(
+            lease.tenant_id,
+            lease.vrf_name.value,
+            lease.prefix,
+            str(lease.address),
+            lease.mac_address,
+        )
+        self._store.data["dhcp_leases"][key] = self._dhcp_lease_to_dict(lease)
+        self._store.mark_dirty()
+        return lease
+
+    def list_dhcp_leases(
+        self, tenant_id: TenantId, vrf_name: str | None = None, active_only: bool = True
+    ) -> tuple[ObservedDhcpLease, ...]:
+        normalized_vrf = Name.from_value(vrf_name, "vrf name").value if vrf_name else None
+        return tuple(
+            self._dhcp_lease_from_dict(value)
+            for value in self._store.data["dhcp_leases"].values()
+            if value["tenant_id"] == tenant_id.value
+            and (normalized_vrf is None or value["vrf_name"] == normalized_vrf)
+            and (not active_only or bool(value.get("active", True)))
+        )
+
     def add_vlan_group(self, group: VlanGroup) -> VlanGroup:
         key = self._key(group.tenant_id, group.name.value)
         existing = self._store.data["vlan_groups"].get(key)
@@ -1660,6 +1707,72 @@ class JsonIpamRepository(IpamRepository):
             address=reservation.address,
             hostname=reservation.hostname,
             idempotency_key=reservation.idempotency_key,
+        )
+
+    def _dns_observation_to_dict(self, record: ObservedDnsRecord) -> dict[str, Any]:
+        return {
+            "id": record.id.value,
+            "tenant_id": record.tenant_id.value,
+            "vrf_name": record.vrf_name.value,
+            "hostname": record.hostname,
+            "address": str(record.address),
+            "ptr_hostname": record.ptr_hostname,
+            "source": record.source,
+        }
+
+    def _dns_observation_from_dict(self, value: dict[str, Any]) -> ObservedDnsRecord:
+        record = ObservedDnsRecord.create(
+            TenantId.from_value(value["tenant_id"]),
+            value["vrf_name"],
+            value["hostname"],
+            value["address"],
+            value.get("ptr_hostname"),
+            value.get("source", "manual"),
+        )
+        return ObservedDnsRecord(
+            id=EntityId.from_value(value["id"]),
+            tenant_id=record.tenant_id,
+            vrf_name=record.vrf_name,
+            hostname=record.hostname,
+            address=record.address,
+            ptr_hostname=record.ptr_hostname,
+            source=record.source,
+        )
+
+    def _dhcp_lease_to_dict(self, lease: ObservedDhcpLease) -> dict[str, Any]:
+        return {
+            "id": lease.id.value,
+            "tenant_id": lease.tenant_id.value,
+            "vrf_name": lease.vrf_name.value,
+            "prefix": lease.prefix,
+            "address": str(lease.address),
+            "mac_address": lease.mac_address,
+            "hostname": lease.hostname,
+            "source": lease.source,
+            "active": lease.active,
+        }
+
+    def _dhcp_lease_from_dict(self, value: dict[str, Any]) -> ObservedDhcpLease:
+        lease = ObservedDhcpLease.create(
+            TenantId.from_value(value["tenant_id"]),
+            value["vrf_name"],
+            value["prefix"],
+            value["address"],
+            value["mac_address"],
+            str(value.get("hostname", "")),
+            str(value.get("source", "manual")),
+            bool(value.get("active", True)),
+        )
+        return ObservedDhcpLease(
+            id=EntityId.from_value(value["id"]),
+            tenant_id=lease.tenant_id,
+            vrf_name=lease.vrf_name,
+            prefix=lease.prefix,
+            address=lease.address,
+            mac_address=lease.mac_address,
+            hostname=lease.hostname,
+            source=lease.source,
+            active=lease.active,
         )
 
     def _vlan_group_to_dict(self, group: VlanGroup) -> dict[str, Any]:

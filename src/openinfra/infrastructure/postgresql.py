@@ -93,6 +93,8 @@ from openinfra.domain.ipam import (
     IpAggregate,
     IpRange,
     IpReservation,
+    ObservedDhcpLease,
+    ObservedDnsRecord,
     Prefix,
     Vlan,
     VlanGroup,
@@ -2268,6 +2270,110 @@ class PostgreSQLIpamRepository(PostgreSQLRepositoryBase, IpamRepository):
                 f"duplicate or invalid ip reservation: {reservation.address}"
             ) from exc
 
+    def add_dns_observation(self, record: ObservedDnsRecord) -> ObservedDnsRecord:
+        self._ensure_tenant(record.tenant_id)
+        row = self._fetch_one(
+            """
+            INSERT INTO ipam_dns_observations (
+                id, tenant_id, vrf_name, hostname, address, ptr_hostname, source
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(vrf_name)s, %(hostname)s, %(address)s,
+                %(ptr_hostname)s, %(source)s
+            )
+            ON CONFLICT (tenant_id, vrf_name, hostname, address) DO UPDATE SET
+                ptr_hostname = EXCLUDED.ptr_hostname,
+                source = EXCLUDED.source
+            RETURNING id, tenant_id, vrf_name, hostname, address, ptr_hostname, source
+            """,
+            {
+                "id": record.id.value,
+                "tenant_id": record.tenant_id.value,
+                "vrf_name": record.vrf_name.value,
+                "hostname": record.hostname,
+                "address": str(record.address),
+                "ptr_hostname": record.ptr_hostname,
+                "source": record.source,
+            },
+        )
+        if row is None:
+            raise OpenInfraError("postgresql did not return DNS observation after upsert")
+        return self._dns_observation_from_row(row)
+
+    def list_dns_observations(
+        self, tenant_id: TenantId, vrf_name: str | None = None
+    ) -> tuple[ObservedDnsRecord, ...]:
+        rows = self._fetch_all(
+            """
+            SELECT id, tenant_id, vrf_name, hostname, address, ptr_hostname, source
+            FROM ipam_dns_observations
+            WHERE tenant_id = %(tenant_id)s
+              AND (%(vrf_name)s IS NULL OR vrf_name = %(vrf_name)s)
+            ORDER BY vrf_name, hostname, address
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "vrf_name": Name.from_value(vrf_name, "vrf name").value if vrf_name else None,
+            },
+        )
+        return tuple(self._dns_observation_from_row(row) for row in rows)
+
+    def add_dhcp_lease(self, lease: ObservedDhcpLease) -> ObservedDhcpLease:
+        self._ensure_tenant(lease.tenant_id)
+        row = self._fetch_one(
+            """
+            INSERT INTO ipam_dhcp_leases (
+                id, tenant_id, vrf_name, prefix_cidr, address,
+                mac_address, hostname, source, active
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(vrf_name)s, %(prefix_cidr)s, %(address)s,
+                %(mac_address)s, %(hostname)s, %(source)s, %(active)s
+            )
+            ON CONFLICT (tenant_id, vrf_name, prefix_cidr, address, mac_address) DO UPDATE SET
+                hostname = EXCLUDED.hostname,
+                source = EXCLUDED.source,
+                active = EXCLUDED.active
+            RETURNING
+                id, tenant_id, vrf_name, prefix_cidr, address,
+                mac_address, hostname, source, active
+            """,
+            {
+                "id": lease.id.value,
+                "tenant_id": lease.tenant_id.value,
+                "vrf_name": lease.vrf_name.value,
+                "prefix_cidr": lease.prefix,
+                "address": str(lease.address),
+                "mac_address": lease.mac_address,
+                "hostname": lease.hostname,
+                "source": lease.source,
+                "active": lease.active,
+            },
+        )
+        if row is None:
+            raise OpenInfraError("postgresql did not return DHCP lease after upsert")
+        return self._dhcp_lease_from_row(row)
+
+    def list_dhcp_leases(
+        self, tenant_id: TenantId, vrf_name: str | None = None, active_only: bool = True
+    ) -> tuple[ObservedDhcpLease, ...]:
+        rows = self._fetch_all(
+            """
+            SELECT
+                id, tenant_id, vrf_name, prefix_cidr, address,
+                mac_address, hostname, source, active
+            FROM ipam_dhcp_leases
+            WHERE tenant_id = %(tenant_id)s
+              AND (%(vrf_name)s IS NULL OR vrf_name = %(vrf_name)s)
+              AND (%(active_only)s = false OR active = true)
+            ORDER BY vrf_name, address, mac_address
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "vrf_name": Name.from_value(vrf_name, "vrf name").value if vrf_name else None,
+                "active_only": active_only,
+            },
+        )
+        return tuple(self._dhcp_lease_from_row(row) for row in rows)
+
     def add_vlan_group(self, group: VlanGroup) -> VlanGroup:
         self._ensure_tenant(group.tenant_id)
         row = self._fetch_one(
@@ -2507,6 +2613,48 @@ class PostgreSQLIpamRepository(PostgreSQLRepositoryBase, IpamRepository):
             },
         )
         return tuple(self._bgp_peer_from_row(row) for row in rows)
+
+    def _dns_observation_from_row(self, row: Mapping[str, object]) -> ObservedDnsRecord:
+        record = ObservedDnsRecord.create(
+            TenantId.from_value(str(row["tenant_id"])),
+            str(row["vrf_name"]),
+            str(row["hostname"]),
+            str(row["address"]),
+            str(row["ptr_hostname"]) if row.get("ptr_hostname") is not None else None,
+            str(row.get("source", "postgresql")),
+        )
+        return ObservedDnsRecord(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=record.tenant_id,
+            vrf_name=record.vrf_name,
+            hostname=record.hostname,
+            address=record.address,
+            ptr_hostname=record.ptr_hostname,
+            source=record.source,
+        )
+
+    def _dhcp_lease_from_row(self, row: Mapping[str, object]) -> ObservedDhcpLease:
+        lease = ObservedDhcpLease.create(
+            TenantId.from_value(str(row["tenant_id"])),
+            str(row["vrf_name"]),
+            str(row["prefix_cidr"]),
+            str(row["address"]),
+            str(row["mac_address"]),
+            str(row["hostname"]),
+            str(row.get("source", "postgresql")),
+            bool(row.get("active", True)),
+        )
+        return ObservedDhcpLease(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=lease.tenant_id,
+            vrf_name=lease.vrf_name,
+            prefix=lease.prefix,
+            address=lease.address,
+            mac_address=lease.mac_address,
+            hostname=lease.hostname,
+            source=lease.source,
+            active=lease.active,
+        )
 
     def _vlan_group_from_row(self, row: Mapping[str, object]) -> VlanGroup:
         return VlanGroup(

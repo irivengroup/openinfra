@@ -13,8 +13,11 @@ from openinfra.domain.ipam import (
     IpAddressRecord,
     IpAggregate,
     IpAllocationPolicy,
+    IpamConflict,
     IpRange,
     IpReservation,
+    ObservedDhcpLease,
+    ObservedDnsRecord,
     Prefix,
     Vlan,
     VlanGroup,
@@ -266,6 +269,340 @@ class IpamNetworkBindingsReport:
             "asns": list(self.asns),
             "bgp_peers": list(self.bgp_peers),
         }
+
+
+@dataclass(frozen=True, slots=True)
+class ObserveDnsRecordCommand:
+    tenant_id: str
+    actor: str
+    vrf: str
+    hostname: str
+    address: str
+    ptr_hostname: str | None = None
+    source: str = "manual"
+
+
+@dataclass(frozen=True, slots=True)
+class ObserveDhcpLeaseCommand:
+    tenant_id: str
+    actor: str
+    vrf: str
+    prefix: str
+    address: str
+    mac_address: str
+    hostname: str
+    source: str = "manual"
+    active: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class DetectIpamConflictsCommand:
+    tenant_id: str
+    actor: str
+    vrf: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class IpamConflictReport:
+    tenant_id: str
+    vrf: str | None
+    total: int
+    by_severity: dict[str, int]
+    conflicts: tuple[dict[str, object], ...]
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "tenant_id": self.tenant_id,
+            "vrf": self.vrf,
+            "total": self.total,
+            "by_severity": self.by_severity,
+            "conflicts": list(self.conflicts),
+        }
+
+
+class IpamConflictService:
+    def __init__(
+        self,
+        ipam_repository: IpamRepository,
+        audit_repository: AuditRepository,
+        transaction_manager: TransactionManager,
+    ) -> None:
+        self._ipam_repository = ipam_repository
+        self._audit_repository = audit_repository
+        self._transaction_manager = transaction_manager
+
+    def observe_dns(self, command: ObserveDnsRecordCommand) -> dict[str, str | None]:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        record = ObservedDnsRecord.create(
+            tenant_id,
+            command.vrf,
+            command.hostname,
+            command.address,
+            command.ptr_hostname,
+            command.source,
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            stored = self._ipam_repository.add_dns_observation(record)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=command.actor,
+                    action="ipam.dns_observation.recorded",
+                    target_type="ipam_dns_observation",
+                    target_id=f"{stored.hostname}:{stored.address}",
+                    metadata={"vrf": stored.vrf_name.value, "source": stored.source},
+                )
+            )
+            unit_of_work.commit()
+        return stored.as_dict()
+
+    def observe_dhcp_lease(self, command: ObserveDhcpLeaseCommand) -> dict[str, str | bool]:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        lease = ObservedDhcpLease.create(
+            tenant_id,
+            command.vrf,
+            command.prefix,
+            command.address,
+            command.mac_address,
+            command.hostname,
+            command.source,
+            command.active,
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            stored = self._ipam_repository.add_dhcp_lease(lease)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=command.actor,
+                    action="ipam.dhcp_lease.observed",
+                    target_type="ipam_dhcp_lease",
+                    target_id=f"{stored.vrf_name.value}:{stored.address}",
+                    metadata={"mac_address": stored.mac_address, "source": stored.source},
+                )
+            )
+            unit_of_work.commit()
+        return stored.as_dict()
+
+    def detect(self, command: DetectIpamConflictsCommand) -> IpamConflictReport:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        selected_vrf = command.vrf.strip() if command.vrf else None
+        vrfs = self._target_vrfs(tenant_id, selected_vrf)
+        conflicts: list[IpamConflict] = []
+        for vrf in vrfs:
+            prefixes = self._ipam_repository.list_prefixes(tenant_id, vrf)
+            conflicts.extend(self._detect_prefix_overlaps(tenant_id, vrf, prefixes))
+            conflicts.extend(self._detect_range_overlaps(tenant_id, vrf, prefixes))
+            conflicts.extend(self._detect_duplicate_addresses(tenant_id, vrf, prefixes))
+            conflicts.extend(self._detect_dns_ptr_divergences(tenant_id, vrf, prefixes))
+            conflicts.extend(self._detect_dhcp_lease_conflicts(tenant_id, vrf, prefixes))
+        ordered = tuple(sorted(conflicts, key=lambda item: item.fingerprint))
+        by_severity: dict[str, int] = {}
+        for conflict in ordered:
+            by_severity[conflict.severity.value] = by_severity.get(conflict.severity.value, 0) + 1
+        self._audit_repository.append(
+            AuditEvent.record(
+                tenant_id=tenant_id,
+                actor=command.actor,
+                action="ipam.conflicts.detected",
+                target_type="ipam_conflict_scan",
+                target_id=selected_vrf or "*",
+                metadata={"total": len(ordered), "vrf": selected_vrf},
+            )
+        )
+        return IpamConflictReport(
+            tenant_id=tenant_id.value,
+            vrf=selected_vrf,
+            total=len(ordered),
+            by_severity=by_severity,
+            conflicts=tuple(conflict.as_dict() for conflict in ordered),
+        )
+
+    def _target_vrfs(self, tenant_id: TenantId, requested_vrf: str | None) -> tuple[str, ...]:
+        if requested_vrf:
+            return (requested_vrf,)
+        names = {vrf.name.value for vrf in self._ipam_repository.list_vrfs(tenant_id)}
+        names.update(
+            record.vrf_name.value
+            for record in self._ipam_repository.list_dns_observations(tenant_id)
+        )
+        names.update(
+            lease.vrf_name.value for lease in self._ipam_repository.list_dhcp_leases(tenant_id)
+        )
+        return tuple(sorted(names))
+
+    def _detect_prefix_overlaps(
+        self, tenant_id: TenantId, vrf: str, prefixes: tuple[Prefix, ...]
+    ) -> list[IpamConflict]:
+        conflicts: list[IpamConflict] = []
+        for index, first in enumerate(prefixes):
+            for second in prefixes[index + 1 :]:
+                if first.network.version == second.network.version and first.network.overlaps(
+                    second.network
+                ):
+                    conflicts.append(
+                        IpamConflict.create(
+                            "prefix_overlap",
+                            "critical",
+                            tenant_id,
+                            vrf,
+                            f"prefix:{first.network}",
+                            (f"{first.network} overlaps {second.network}",),
+                            "Split, resize or move one prefix to another VRF before allocation.",
+                        )
+                    )
+        return conflicts
+
+    def _detect_range_overlaps(
+        self, tenant_id: TenantId, vrf: str, prefixes: tuple[Prefix, ...]
+    ) -> list[IpamConflict]:
+        conflicts: list[IpamConflict] = []
+        for prefix in prefixes:
+            ranges = self._ipam_repository.list_ranges(tenant_id, vrf, str(prefix.network))
+            for index, first in enumerate(ranges):
+                for second in ranges[index + 1 :]:
+                    if first.overlaps(second) and not self._is_pool_overlay(first, second):
+                        conflicts.append(
+                            IpamConflict.create(
+                                "range_overlap",
+                                "error",
+                                tenant_id,
+                                vrf,
+                                f"range:{first.start}-{first.end}",
+                                (
+                                    f"{first.purpose.value} range {first.start}-{first.end} "
+                                    f"overlaps {second.purpose.value} range "
+                                    f"{second.start}-{second.end}",
+                                ),
+                                (
+                                    "Adjust range boundaries or mark the smaller pool as "
+                                    "exclusion/reservation."
+                                ),
+                            )
+                        )
+        return conflicts
+
+    def _detect_duplicate_addresses(
+        self, tenant_id: TenantId, vrf: str, prefixes: tuple[Prefix, ...]
+    ) -> list[IpamConflict]:
+        claims: dict[str, list[str]] = {}
+        for prefix in prefixes:
+            prefix_cidr = str(prefix.network)
+            for record in self._ipam_repository.list_address_records(tenant_id, vrf, prefix_cidr):
+                claims.setdefault(str(record.address), []).append(
+                    f"address-record:{record.hostname}:{record.status.value}"
+                )
+            for reservation in self._ipam_repository.list_reservations(tenant_id, vrf, prefix_cidr):
+                claims.setdefault(str(reservation.address), []).append(
+                    f"reservation:{reservation.hostname}:{reservation.idempotency_key}"
+                )
+        for lease in self._ipam_repository.list_dhcp_leases(tenant_id, vrf):
+            if lease.active:
+                claims.setdefault(str(lease.address), []).append(
+                    f"dhcp-lease:{lease.hostname}:{lease.mac_address}"
+                )
+        conflicts: list[IpamConflict] = []
+        for address, owners in claims.items():
+            unique = tuple(dict.fromkeys(owners))
+            if len(unique) > 1:
+                conflicts.append(
+                    IpamConflict.create(
+                        "duplicate_address",
+                        "critical",
+                        tenant_id,
+                        vrf,
+                        f"ip:{address}",
+                        unique,
+                        (
+                            "Keep a single authoritative owner or move conflicting claims "
+                            "to distinct VRFs."
+                        ),
+                    )
+                )
+        return conflicts
+
+    def _detect_dns_ptr_divergences(
+        self, tenant_id: TenantId, vrf: str, prefixes: tuple[Prefix, ...]
+    ) -> list[IpamConflict]:
+        conflicts: list[IpamConflict] = []
+        for record in self._ipam_repository.list_dns_observations(tenant_id, vrf):
+            if record.ptr_hostname and record.ptr_hostname != record.hostname:
+                conflicts.append(
+                    IpamConflict.create(
+                        "dns_ptr_divergence",
+                        "warning",
+                        tenant_id,
+                        vrf,
+                        f"dns:{record.hostname}",
+                        (
+                            f"A/AAAA {record.hostname} -> {record.address}",
+                            f"PTR {record.address} -> {record.ptr_hostname}",
+                        ),
+                        "Align forward and reverse DNS ownership before publishing DDI changes.",
+                    )
+                )
+            if prefixes and not any(record.address in prefix.network for prefix in prefixes):
+                conflicts.append(
+                    IpamConflict.create(
+                        "address_out_of_prefix",
+                        "error",
+                        tenant_id,
+                        vrf,
+                        f"dns:{record.address}",
+                        (
+                            f"observed DNS address {record.address} is outside "
+                            "all known VRF prefixes",
+                        ),
+                        "Create the containing prefix or move the DNS record to the correct VRF.",
+                    )
+                )
+        return conflicts
+
+    def _detect_dhcp_lease_conflicts(
+        self, tenant_id: TenantId, vrf: str, prefixes: tuple[Prefix, ...]
+    ) -> list[IpamConflict]:
+        conflicts: list[IpamConflict] = []
+        known_prefixes = {str(prefix.network) for prefix in prefixes}
+        for lease in self._ipam_repository.list_dhcp_leases(tenant_id, vrf):
+            if not lease.active:
+                continue
+            if lease.prefix not in known_prefixes or not lease.address_belongs_to_prefix():
+                conflicts.append(
+                    IpamConflict.create(
+                        "address_out_of_prefix",
+                        "error",
+                        tenant_id,
+                        vrf,
+                        f"lease:{lease.address}",
+                        (f"DHCP lease {lease.address} is outside managed prefix {lease.prefix}",),
+                        "Correct the DHCP scope or create the missing managed prefix.",
+                    )
+                )
+            records = self._ipam_repository.list_address_records(tenant_id, vrf, lease.prefix)
+            reservations = self._ipam_repository.list_reservations(tenant_id, vrf, lease.prefix)
+            authoritative_names = {str(record.address): record.hostname for record in records} | {
+                str(reservation.address): reservation.hostname for reservation in reservations
+            }
+            expected = authoritative_names.get(str(lease.address))
+            if expected is not None and expected != lease.hostname:
+                conflicts.append(
+                    IpamConflict.create(
+                        "lease_conflict",
+                        "critical",
+                        tenant_id,
+                        vrf,
+                        f"lease:{lease.address}",
+                        (
+                            f"lease hostname {lease.hostname} with MAC {lease.mac_address}",
+                            f"authoritative owner {expected}",
+                        ),
+                        "Reclaim the lease, update reservation ownership or quarantine the client.",
+                    )
+                )
+        return conflicts
+
+    def _is_pool_overlay(self, first: IpRange, second: IpRange) -> bool:
+        purposes = {first.purpose.value, second.purpose.value}
+        return "allocation" in purposes and purposes != {"allocation"}
 
 
 @dataclass(frozen=True, slots=True)

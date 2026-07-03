@@ -1,6 +1,6 @@
 # OpenInfra Python Foundation
 
-**Version courante : 0.20.0 — P05 / EPIC-0503 : VLAN/VXLAN/ASN/BGP fondation.**
+**Version courante : 0.21.0 — P05 / EPIC-0504 : Détection conflits IPAM.**
 
 
 OpenInfra est un socle Python orienté objet pour construire une solution open source de Source of Truth, DCIM, ITAM, Discovery, Dependency Mapping et IPAM Enterprise++ sans fonction ITSM intégrée.
@@ -657,3 +657,15 @@ openinfra dcim energy-cooling-capacity --data .openinfra.json --tenant default \
 ```
 
 Correction CI : `.github/workflows/ci.yml` déclenche désormais les validations sur toutes les branches en `push`, toutes les pull requests et en lancement manuel. L’ancien verrouillage sur `main` pouvait empêcher l’exécution après un push sur `master`, `develop` ou une branche de fonctionnalité.
+
+## v0.21.0 — P05 / EPIC-0504 Détection conflits IPAM
+
+OpenInfra ajoute un moteur de détection de conflits IPAM auditable couvrant les chevauchements de préfixes et de plages, les doublons d'adresses, les leases DHCP observés en conflit avec la source de vérité, les adresses observées hors préfixe géré et les divergences DNS/PTR. Les observations DNS et DHCP peuvent être ingérées par CLI/API, puis analysées par tenant et VRF avec un rapport typé, sévérité, preuves et action recommandée.
+
+Commandes principales :
+
+```bash
+openinfra ipam observe-dns --tenant default --vrf prod --hostname srv.example.net --address 10.0.0.10 --ptr-hostname old.example.net
+openinfra ipam observe-dhcp-lease --tenant default --vrf prod --prefix 10.0.0.0/24 --address 10.0.0.10 --mac-address aa:bb:cc:00:00:10 --hostname rogue
+openinfra ipam detect-conflicts --tenant default --vrf prod
+```

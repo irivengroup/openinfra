@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.20.0
+  version: 0.21.0
 components:
   securitySchemes:
     bearerToken:
@@ -1390,7 +1390,7 @@ paths:
                 tenant_id: {type: string}
                 actor: {type: string}
                 vrf: {type: string}
-                cidr: {type: string, example: 10.20.0.0/24}
+                cidr: {type: string, example: 10.21.0.0/24}
                 description: {type: string}
       responses:
         '201': {description: Prefix persisted or returned idempotently}
@@ -1410,9 +1410,9 @@ paths:
                 tenant_id: {type: string}
                 actor: {type: string}
                 vrf: {type: string}
-                prefix: {type: string, example: 10.20.0.0/24}
-                start: {type: string, example: 10.20.0.10}
-                end: {type: string, example: 10.20.0.50}
+                prefix: {type: string, example: 10.21.0.0/24}
+                start: {type: string, example: 10.21.0.10}
+                end: {type: string, example: 10.21.0.50}
                 purpose: {type: string, enum: [allocation, reservation, exclusion]}
                 description: {type: string}
       responses:
@@ -1433,8 +1433,8 @@ paths:
                 tenant_id: {type: string}
                 actor: {type: string}
                 vrf: {type: string}
-                prefix: {type: string, example: 10.20.0.0/24}
-                address: {type: string, example: 10.20.0.10}
+                prefix: {type: string, example: 10.21.0.0/24}
+                address: {type: string, example: 10.21.0.10}
                 hostname: {type: string}
                 interface_name: {type: string}
                 status: {type: string, enum: [planned, reserved, active, deprecated]}
@@ -1577,4 +1577,57 @@ paths:
         - {name: vrf, in: query, required: false, schema: {type: string}}
       responses:
         '200': {description: Network binding inventory}
+        '400': {description: Validation error}
+  /api/v1/ipam/dns-observations:
+    post:
+      summary: Record an observed DNS/PTR fact for IPAM conflict detection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, vrf, hostname, address]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                vrf: {type: string}
+                hostname: {type: string}
+                address: {type: string}
+                ptr_hostname: {type: string}
+                source: {type: string}
+      responses:
+        '201': {description: DNS observation persisted}
+        '400': {description: Validation error}
+  /api/v1/ipam/dhcp-leases:
+    post:
+      summary: Record an observed DHCP lease for IPAM conflict detection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, vrf, prefix, address, mac_address, hostname]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                vrf: {type: string}
+                prefix: {type: string}
+                address: {type: string}
+                mac_address: {type: string}
+                hostname: {type: string}
+                source: {type: string}
+                active: {type: boolean}
+      responses:
+        '201': {description: DHCP lease observation persisted}
+        '400': {description: Validation error}
+  /api/v1/ipam/conflicts:
+    get:
+      summary: Detect IPAM conflicts and observed DNS/DHCP divergences
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: vrf, in: query, required: false, schema: {type: string}}
+      responses:
+        '200': {description: Conflict report}
         '400': {description: Validation error}

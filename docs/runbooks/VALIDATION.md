@@ -348,3 +348,18 @@ PYTHONPATH=src python -m openinfra.interfaces.cli ipam network-bindings --data "
 ```
 
 Les tests automatisés couvrent la cohérence VRF/VLAN/VNI/ASN, l’unicité VNI par tenant, les route targets, les pairs BGP IPv4/IPv6, les adaptateurs JSON/PostgreSQL, la CLI et les contrats API HTTP.
+
+## Contrôles ajoutés en v0.21.0
+
+```bash
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0018_ipam_conflict_detection --root migrations/postgresql >/tmp/openinfra-0018.sql
+
+tmpdir="$(mktemp -d)"
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam define-prefix --data "$tmpdir/state.json" --tenant default --vrf prod --cidr 10.251.0.0/24
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam register-address --data "$tmpdir/state.json" --tenant default --vrf prod --prefix 10.251.0.0/24 --address 10.251.0.10 --hostname ci-owner
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam observe-dhcp-lease --data "$tmpdir/state.json" --tenant default --vrf prod --prefix 10.251.0.0/24 --address 10.251.0.10 --mac-address aa:bb:cc:25:10:10 --hostname ci-rogue --source dhcp
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam observe-dns --data "$tmpdir/state.json" --tenant default --vrf prod --hostname ci-owner.example.net --address 10.251.0.10 --ptr-hostname old.example.net --source dns
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam detect-conflicts --data "$tmpdir/state.json" --tenant default --vrf prod
+```
+
+Critères attendus : rapport JSON contenant au minimum `duplicate_address`, `lease_conflict` et `dns_ptr_divergence`; couverture globale maintenue au seuil `>= 98 %`; CI sans étape security smoke dupliquée.

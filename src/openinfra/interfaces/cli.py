@@ -58,8 +58,11 @@ from openinfra.application.ipam_services import (
     DefineVlanGroupCommand,
     DefineVrfCommand,
     DefineVxlanVniCommand,
+    DetectIpamConflictsCommand,
     IpamCapacityCommand,
     IpamNetworkBindingsCommand,
+    ObserveDhcpLeaseCommand,
+    ObserveDnsRecordCommand,
     RegisterIpAddressCommand,
 )
 from openinfra.application.security_services import (
@@ -661,6 +664,43 @@ class OpenInfraCLI:
         network_bindings.add_argument("--tenant", required=True)
         network_bindings.add_argument("--vrf")
         network_bindings.set_defaults(handler=self._handle_ipam_network_bindings)
+
+        observe_dns = ipam_subparsers.add_parser(
+            "observe-dns", help="record an observed forward/reverse DNS binding for conflict scans"
+        )
+        self._add_backend_arguments(observe_dns)
+        observe_dns.add_argument("--tenant", required=True)
+        observe_dns.add_argument("--actor", default="cli")
+        observe_dns.add_argument("--vrf", required=True)
+        observe_dns.add_argument("--hostname", required=True)
+        observe_dns.add_argument("--address", required=True)
+        observe_dns.add_argument("--ptr-hostname")
+        observe_dns.add_argument("--source", default="manual")
+        observe_dns.set_defaults(handler=self._handle_ipam_observe_dns)
+
+        observe_dhcp = ipam_subparsers.add_parser(
+            "observe-dhcp-lease", help="record an observed DHCP lease for conflict scans"
+        )
+        self._add_backend_arguments(observe_dhcp)
+        observe_dhcp.add_argument("--tenant", required=True)
+        observe_dhcp.add_argument("--actor", default="cli")
+        observe_dhcp.add_argument("--vrf", required=True)
+        observe_dhcp.add_argument("--prefix", required=True)
+        observe_dhcp.add_argument("--address", required=True)
+        observe_dhcp.add_argument("--mac-address", required=True)
+        observe_dhcp.add_argument("--hostname", required=True)
+        observe_dhcp.add_argument("--source", default="manual")
+        observe_dhcp.add_argument("--inactive", action="store_true")
+        observe_dhcp.set_defaults(handler=self._handle_ipam_observe_dhcp_lease)
+
+        detect_conflicts = ipam_subparsers.add_parser(
+            "detect-conflicts", help="detect IPAM overlaps, duplicate IPs and DNS/DHCP divergences"
+        )
+        self._add_backend_arguments(detect_conflicts)
+        detect_conflicts.add_argument("--tenant", required=True)
+        detect_conflicts.add_argument("--actor", default="cli")
+        detect_conflicts.add_argument("--vrf")
+        detect_conflicts.set_defaults(handler=self._handle_ipam_detect_conflicts)
 
     def _add_dcim_commands(self, subparsers: Any) -> None:
         dcim = subparsers.add_parser("dcim", help="dcim operations")
@@ -1623,6 +1663,48 @@ class OpenInfraCLI:
         application = self._create_application(args)
         report = application.ipam_model_service.network_bindings(
             IpamNetworkBindingsCommand(args.tenant, args.vrf)
+        )
+        print(json.dumps(report.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_ipam_observe_dns(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.ipam_conflict_service.observe_dns(
+            ObserveDnsRecordCommand(
+                args.tenant,
+                args.actor,
+                args.vrf,
+                args.hostname,
+                args.address,
+                args.ptr_hostname,
+                args.source,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_ipam_observe_dhcp_lease(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.ipam_conflict_service.observe_dhcp_lease(
+            ObserveDhcpLeaseCommand(
+                args.tenant,
+                args.actor,
+                args.vrf,
+                args.prefix,
+                args.address,
+                args.mac_address,
+                args.hostname,
+                args.source,
+                not args.inactive,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_ipam_detect_conflicts(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        report = application.ipam_conflict_service.detect(
+            DetectIpamConflictsCommand(args.tenant, args.actor, args.vrf)
         )
         print(json.dumps(report.as_dict(), sort_keys=True))
         return 0

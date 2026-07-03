@@ -1,3 +1,13 @@
+## 0.21.0 - 2026-07-03
+
+- Ajout du jalon P05 / EPIC-0504 : moteur de détection conflits IPAM.
+- Détection des overlaps de préfixes, overlaps de ranges, doublons d'adresses, leases DHCP conflictuels, adresses observées hors préfixe et divergences DNS/PTR.
+- Ajout des observations DNS/DHCP dans les backends JSON et PostgreSQL.
+- Ajout de la migration PostgreSQL `0018_ipam_conflict_detection.sql`.
+- Ajout des commandes `observe-dns`, `observe-dhcp-lease` et `detect-conflicts`.
+- Ajout des endpoints API `/api/v1/ipam/dns-observations`, `/api/v1/ipam/dhcp-leases` et `/api/v1/ipam/conflicts`.
+- CI mise à jour avec rendu migration `0018`, smoke IPAM conflits et correction d'une étape security smoke dupliquée.
+
 ## 0.20.0 - 2026-07-03
 
 - Roadmap : P05 / EPIC-0503 — VLAN/VXLAN/ASN/BGP fondation.

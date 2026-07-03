@@ -38,7 +38,7 @@ class TestHttpApi:
             assert health["status"] == "ok"
             assert ready["ready"] is True
             assert ready["component"] == "json"
-            assert version["version"] == "0.20.0"
+            assert version["version"] == "0.21.0"
             assert allocation["address"] == "10.6.0.1"
         finally:
             server.shutdown()
@@ -407,6 +407,72 @@ class TestAccessPolicyHttpApi:
 
 
 class TestAuditHttpApi:
+    def test_ipam_conflict_detection_api_routes(self, tmp_path: Path) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+        server = OpenInfraThreadingServer(("127.0.0.1", 0), app)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            helper = TestHttpApi()
+            base_url = f"http://127.0.0.1:{server.server_port}"
+            helper._post_json(
+                base_url + "/api/v1/ipam/prefixes",
+                {
+                    "tenant_id": "default",
+                    "vrf": "prod",
+                    "cidr": "10.77.0.0/24",
+                    "description": "api conflict scope",
+                },
+            )
+            helper._post_json(
+                base_url + "/api/v1/ipam/addresses",
+                {
+                    "tenant_id": "default",
+                    "vrf": "prod",
+                    "prefix": "10.77.0.0/24",
+                    "address": "10.77.0.10",
+                    "hostname": "api-owner",
+                },
+            )
+            lease = helper._post_json(
+                base_url + "/api/v1/ipam/dhcp-leases",
+                {
+                    "tenant_id": "default",
+                    "vrf": "prod",
+                    "prefix": "10.77.0.0/24",
+                    "address": "10.77.0.10",
+                    "mac_address": "aa:bb:cc:77:00:10",
+                    "hostname": "api-rogue",
+                    "source": "dhcp",
+                },
+            )
+            dns = helper._post_json(
+                base_url + "/api/v1/ipam/dns-observations",
+                {
+                    "tenant_id": "default",
+                    "vrf": "prod",
+                    "hostname": "ApiOwner.Example.Net.",
+                    "address": "10.77.0.10",
+                    "ptr_hostname": "old.example.net",
+                    "source": "dns",
+                },
+            )
+            report = helper._get_json(
+                base_url + "/api/v1/ipam/conflicts?tenant_id=default&vrf=prod"
+            )
+
+            conflict_types = {item["type"] for item in report["conflicts"]}
+            assert lease["mac_address"] == "aa:bb:cc:77:00:10"
+            assert dns["hostname"] == "apiowner.example.net"
+            assert report["total"] >= 3
+            assert "duplicate_address" in conflict_types
+            assert "lease_conflict" in conflict_types
+            assert "dns_ptr_divergence" in conflict_types
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
     def test_audit_api_lists_exports_and_verifies_chain(self, tmp_path: Path) -> None:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json")
         admin_token = "i" * 40

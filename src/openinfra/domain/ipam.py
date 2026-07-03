@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Self
 
-from openinfra.domain.common import Code, EntityId, Name, TenantId, ValidationError
+from openinfra.domain.common import Code, EntityId, Name, Severity, TenantId, ValidationError
 
 
 class BgpAddressFamily(StrEnum):
@@ -284,6 +284,217 @@ class BgpPeer:
             "route_targets_import": list(self.route_targets_import),
             "route_targets_export": list(self.route_targets_export),
             "description": self.description,
+        }
+
+
+class IpamConflictType(StrEnum):
+    PREFIX_OVERLAP = "prefix_overlap"
+    RANGE_OVERLAP = "range_overlap"
+    DUPLICATE_ADDRESS = "duplicate_address"
+    ADDRESS_OUT_OF_PREFIX = "address_out_of_prefix"
+    LEASE_CONFLICT = "lease_conflict"
+    DNS_PTR_DIVERGENCE = "dns_ptr_divergence"
+
+    @classmethod
+    def from_value(cls, value: str) -> Self:
+        normalized = value.strip().lower()
+        try:
+            return cls(normalized)
+        except ValueError as exc:
+            raise ValidationError("ipam conflict type is invalid") from exc
+
+
+@dataclass(frozen=True, slots=True)
+class IpamConflict:
+    conflict_type: IpamConflictType
+    severity: Severity
+    tenant_id: TenantId
+    vrf_name: Name
+    impacted_object: str
+    evidence: tuple[str, ...]
+    recommended_action: str
+
+    @classmethod
+    def create(
+        cls,
+        conflict_type: str,
+        severity: str,
+        tenant_id: TenantId,
+        vrf_name: str,
+        impacted_object: str,
+        evidence: tuple[str, ...],
+        recommended_action: str,
+    ) -> Self:
+        normalized_object = impacted_object.strip()
+        normalized_action = " ".join(recommended_action.strip().split())
+        normalized_evidence = tuple(
+            item.strip() for item in evidence if item is not None and item.strip()
+        )
+        if not normalized_object:
+            raise ValidationError("ipam conflict impacted object is mandatory")
+        if not normalized_evidence:
+            raise ValidationError("ipam conflict evidence is mandatory")
+        if not normalized_action:
+            raise ValidationError("ipam conflict recommended action is mandatory")
+        return cls(
+            conflict_type=IpamConflictType.from_value(conflict_type),
+            severity=Severity(severity.strip().lower()),
+            tenant_id=tenant_id,
+            vrf_name=Name.from_value(vrf_name, "vrf name"),
+            impacted_object=normalized_object,
+            evidence=normalized_evidence,
+            recommended_action=normalized_action,
+        )
+
+    @property
+    def fingerprint(self) -> str:
+        return "|".join(
+            (
+                self.tenant_id.value,
+                self.vrf_name.value,
+                self.conflict_type.value,
+                self.impacted_object,
+                ";".join(self.evidence),
+            )
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "fingerprint": self.fingerprint,
+            "type": self.conflict_type.value,
+            "severity": self.severity.value,
+            "tenant_id": self.tenant_id.value,
+            "vrf": self.vrf_name.value,
+            "impacted_object": self.impacted_object,
+            "evidence": list(self.evidence),
+            "recommended_action": self.recommended_action,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ObservedDnsRecord:
+    id: EntityId
+    tenant_id: TenantId
+    vrf_name: Name
+    hostname: str
+    address: ipaddress.IPv4Address | ipaddress.IPv6Address
+    ptr_hostname: str | None
+    source: str
+
+    @classmethod
+    def create(
+        cls,
+        tenant_id: TenantId,
+        vrf_name: str,
+        hostname: str,
+        address: str,
+        ptr_hostname: str | None = None,
+        source: str = "manual",
+    ) -> Self:
+        normalized_hostname = cls._normalize_hostname(hostname, "dns hostname")
+        normalized_ptr = (
+            cls._normalize_hostname(ptr_hostname, "ptr hostname") if ptr_hostname else None
+        )
+        normalized_source = cls._normalize_source(source)
+        try:
+            parsed_address = ipaddress.ip_address(address.strip())
+        except ValueError as exc:
+            raise ValidationError("invalid observed DNS address") from exc
+        return cls(
+            id=EntityId.new(),
+            tenant_id=tenant_id,
+            vrf_name=Name.from_value(vrf_name, "vrf name"),
+            hostname=normalized_hostname,
+            address=parsed_address,
+            ptr_hostname=normalized_ptr,
+            source=normalized_source,
+        )
+
+    @staticmethod
+    def _normalize_hostname(value: str, label: str) -> str:
+        normalized = value.strip().lower().rstrip(".")
+        if not 1 <= len(normalized) <= 253 or " " in normalized:
+            raise ValidationError(f"{label} is invalid")
+        return normalized
+
+    @staticmethod
+    def _normalize_source(value: str) -> str:
+        normalized = value.strip().lower()
+        if not 1 <= len(normalized) <= 64:
+            raise ValidationError("observation source must contain 1 to 64 characters")
+        return normalized
+
+    def as_dict(self) -> dict[str, str | None]:
+        return {
+            "tenant_id": self.tenant_id.value,
+            "vrf": self.vrf_name.value,
+            "hostname": self.hostname,
+            "address": str(self.address),
+            "ptr_hostname": self.ptr_hostname,
+            "source": self.source,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ObservedDhcpLease:
+    id: EntityId
+    tenant_id: TenantId
+    vrf_name: Name
+    prefix: str
+    address: ipaddress.IPv4Address | ipaddress.IPv6Address
+    mac_address: str
+    hostname: str
+    source: str
+    active: bool
+
+    @classmethod
+    def create(
+        cls,
+        tenant_id: TenantId,
+        vrf_name: str,
+        prefix: str,
+        address: str,
+        mac_address: str,
+        hostname: str,
+        source: str = "manual",
+        active: bool = True,
+    ) -> Self:
+        try:
+            network = ipaddress.ip_network(prefix.strip(), strict=True)
+            parsed_address = ipaddress.ip_address(address.strip())
+        except ValueError as exc:
+            raise ValidationError("invalid observed DHCP lease address or prefix") from exc
+        normalized_mac = mac_address.strip().lower().replace("-", ":")
+        if not normalized_mac:
+            raise ValidationError("DHCP lease MAC address is mandatory")
+        normalized_hostname = ObservedDnsRecord._normalize_hostname(hostname, "lease hostname")
+        if parsed_address.version != network.version:
+            raise ValidationError("DHCP lease address family must match prefix")
+        return cls(
+            id=EntityId.new(),
+            tenant_id=tenant_id,
+            vrf_name=Name.from_value(vrf_name, "vrf name"),
+            prefix=str(network),
+            address=parsed_address,
+            mac_address=normalized_mac,
+            hostname=normalized_hostname,
+            source=ObservedDnsRecord._normalize_source(source),
+            active=bool(active),
+        )
+
+    def address_belongs_to_prefix(self) -> bool:
+        return self.address in ipaddress.ip_network(self.prefix, strict=True)
+
+    def as_dict(self) -> dict[str, str | bool]:
+        return {
+            "tenant_id": self.tenant_id.value,
+            "vrf": self.vrf_name.value,
+            "prefix": self.prefix,
+            "address": str(self.address),
+            "mac_address": self.mac_address,
+            "hostname": self.hostname,
+            "source": self.source,
+            "active": self.active,
         }
 
 

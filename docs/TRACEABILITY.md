@@ -1,3 +1,15 @@
+## v0.21.0 — P05 / EPIC-0504 Détection conflits IPAM
+
+- Roadmap : P05 / EPIC-0504.
+- Domaine : `IpamConflict`, `ObservedDnsRecord`, `ObservedDhcpLease`.
+- Service : `IpamConflictService`.
+- Ports : observations DNS/DHCP et lecture des faits observés.
+- Backends : JSON et PostgreSQL.
+- Migration : `migrations/postgresql/0018_ipam_conflict_detection.sql`.
+- CLI : `observe-dns`, `observe-dhcp-lease`, `detect-conflicts`.
+- API : `/api/v1/ipam/dns-observations`, `/api/v1/ipam/dhcp-leases`, `/api/v1/ipam/conflicts`.
+- Tests : `tests/integration/test_ipam_conflict_services.py`, routes HTTP IPAM conflits, validations domaine IPAM conflits.
+
 ## v0.20.0 — P05 / EPIC-0503 VLAN/VXLAN/ASN/BGP fondation
 
 - Roadmap : P05 / EPIC-0503.

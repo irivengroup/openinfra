@@ -229,3 +229,11 @@ Frontières conservées :
 - interfaces : CLI `openinfra ipam define-*` et endpoints `/api/v1/ipam/*` exposent un inventaire auditable et scriptable.
 
 Les invariants principaux sont : VNI unique par tenant, VLAN attaché à un VNI dans le même VRF, ASN local et distant distincts pour un pair BGP, et route targets normalisées au format `ASN:NUMBER`. La migration `0017_ipam_networking_foundation.sql` est additive et préserve les migrations IPAM précédentes.
+
+## v0.21.0 — P05 EPIC-0504 Détection conflits IPAM
+
+La version 0.21.0 introduit un sous-domaine de contrôle IPAM centré sur la détection de divergences entre la source de vérité OpenInfra et les faits observés sur le réseau. Le modèle reste strictement transactionnel et POO : les objets `ObservedDnsRecord`, `ObservedDhcpLease` et `IpamConflict` encapsulent les règles de normalisation, de preuve et de sévérité.
+
+Le service `IpamConflictService` agrège les données gérées et observées par tenant/VRF puis produit un rapport déterministe : chevauchements de préfixes, chevauchements de plages, doublons IP, leases actifs hors préfixe, conflit lease/réservation, et divergence DNS/PTR. Les résultats ne modifient pas la source de vérité ; ils sont auditables et exploitables par API/CLI pour déclencher une remédiation contrôlée.
+
+La persistance PostgreSQL est additive via `0018_ipam_conflict_detection.sql`, avec tables partitionnées par `tenant_id` et index sur adresses observées, PTR et leases actifs.

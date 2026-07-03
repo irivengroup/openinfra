@@ -88,6 +88,7 @@ jobs:
           openinfra database render-migration --name 0015_ipam_enterprise_foundation --root migrations/postgresql >/tmp/openinfra-0015.sql
           openinfra database render-migration --name 0016_ipam_transactional_allocation --root migrations/postgresql >/tmp/openinfra-0016.sql
           openinfra database render-migration --name 0017_ipam_networking_foundation --root migrations/postgresql >/tmp/openinfra-0017.sql
+          openinfra database render-migration --name 0018_ipam_conflict_detection --root migrations/postgresql >/tmp/openinfra-0018.sql
 
       - name: Smoke JSON IPAM transactional allocation
         run: |
@@ -146,6 +147,16 @@ jobs:
           openinfra ipam define-bgp-peer --data "$tmpdir/state.json" --tenant default --vrf prod --local-asn 65000 --remote-asn 65100 --peer-address 192.0.2.1 --route-target-import 65000:100 --route-target-export 65000:100
           openinfra ipam network-bindings --data "$tmpdir/state.json" --tenant default --vrf prod > "$tmpdir/bindings.json"
           python -c 'import json, pathlib, sys; data=json.loads(pathlib.Path(sys.argv[1]).read_text()); assert data["counts"]["vlan_groups"] == 1; assert data["counts"]["vlans"] == 1; assert data["counts"]["vxlan_vnis"] == 1; assert data["counts"]["asns"] == 2; assert data["counts"]["bgp_peers"] == 1' "$tmpdir/bindings.json"
+
+      - name: Smoke JSON IPAM conflict detection
+        run: |
+          tmpdir="$(mktemp -d)"
+          openinfra ipam define-prefix --data "$tmpdir/state.json" --tenant default --vrf prod --cidr 10.251.0.0/24
+          openinfra ipam register-address --data "$tmpdir/state.json" --tenant default --vrf prod --prefix 10.251.0.0/24 --address 10.251.0.10 --hostname ci-owner
+          openinfra ipam observe-dhcp-lease --data "$tmpdir/state.json" --tenant default --vrf prod --prefix 10.251.0.0/24 --address 10.251.0.10 --mac-address aa:bb:cc:25:10:10 --hostname ci-rogue --source dhcp
+          openinfra ipam observe-dns --data "$tmpdir/state.json" --tenant default --vrf prod --hostname ci-owner.example.net --address 10.251.0.10 --ptr-hostname old.example.net --source dns
+          openinfra ipam detect-conflicts --data "$tmpdir/state.json" --tenant default --vrf prod > "$tmpdir/conflicts.json"
+          python -c 'import json, pathlib, sys; data=json.loads(pathlib.Path(sys.argv[1]).read_text()); types={item["type"] for item in data["conflicts"]}; assert data["total"] >= 3; assert {"duplicate_address", "lease_conflict", "dns_ptr_divergence"}.issubset(types)' "$tmpdir/conflicts.json"
 
       - name: Smoke JSON security token
         run: |

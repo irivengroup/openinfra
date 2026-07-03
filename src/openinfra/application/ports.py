@@ -37,6 +37,8 @@ from openinfra.domain.ipam import (
     IpAggregate,
     IpRange,
     IpReservation,
+    ObservedDhcpLease,
+    ObservedDnsRecord,
     Prefix,
     Vlan,
     VlanGroup,
@@ -468,6 +470,26 @@ class IpamRepository(ABC):
 
     @abstractmethod
     def add_reservation(self, reservation: IpReservation) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def add_dns_observation(self, record: ObservedDnsRecord) -> ObservedDnsRecord:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_dns_observations(
+        self, tenant_id: TenantId, vrf_name: str | None = None
+    ) -> tuple[ObservedDnsRecord, ...]:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def add_dhcp_lease(self, lease: ObservedDhcpLease) -> ObservedDhcpLease:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_dhcp_leases(
+        self, tenant_id: TenantId, vrf_name: str | None = None, active_only: bool = True
+    ) -> tuple[ObservedDhcpLease, ...]:
         raise TypeError("adapter contract invoked directly")
 
     @abstractmethod

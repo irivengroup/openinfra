@@ -60,8 +60,11 @@ from openinfra.application.ipam_services import (
     DefineVlanGroupCommand,
     DefineVrfCommand,
     DefineVxlanVniCommand,
+    DetectIpamConflictsCommand,
     IpamCapacityCommand,
     IpamNetworkBindingsCommand,
+    ObserveDhcpLeaseCommand,
+    ObserveDnsRecordCommand,
     RegisterIpAddressCommand,
 )
 from openinfra.application.security_services import (
@@ -501,6 +504,21 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 report = self.server.application.ipam_model_service.network_bindings(
                     IpamNetworkBindingsCommand(
                         tenant_id=self._first_query_value(query, "tenant_id"),
+                        vrf=query.get("vrf", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, report.as_dict())
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/ipam/conflicts":
+            try:
+                query = parse_qs(parsed.query)
+                report = self.server.application.ipam_conflict_service.detect(
+                    DetectIpamConflictsCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        actor="api",
                         vrf=query.get("vrf", [None])[0],
                     )
                 )
@@ -1210,6 +1228,8 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             "/api/v1/ipam/vlans",
             "/api/v1/ipam/asns",
             "/api/v1/ipam/bgp-peers",
+            "/api/v1/ipam/dns-observations",
+            "/api/v1/ipam/dhcp-leases",
         ):
             try:
                 payload = self._read_json_body()
@@ -1328,7 +1348,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                             description=str(payload.get("description", "")),
                         )
                     )
-                else:
+                elif route == "/api/v1/ipam/bgp-peers":
                     result = self.server.application.ipam_model_service.define_bgp_peer(
                         DefineBgpPeerCommand(
                             tenant_id=tenant_id,
@@ -1349,6 +1369,36 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                                 payload, "route_targets_export", ()
                             ),
                             description=str(payload.get("description", "")),
+                        )
+                    )
+                elif route == "/api/v1/ipam/dns-observations":
+                    result = self.server.application.ipam_conflict_service.observe_dns(
+                        ObserveDnsRecordCommand(
+                            tenant_id=tenant_id,
+                            actor=actor,
+                            vrf=str(payload["vrf"]),
+                            hostname=str(payload["hostname"]),
+                            address=str(payload["address"]),
+                            ptr_hostname=(
+                                str(payload["ptr_hostname"])
+                                if payload.get("ptr_hostname")
+                                else None
+                            ),
+                            source=str(payload.get("source", "api")),
+                        )
+                    )
+                else:
+                    result = self.server.application.ipam_conflict_service.observe_dhcp_lease(
+                        ObserveDhcpLeaseCommand(
+                            tenant_id=tenant_id,
+                            actor=actor,
+                            vrf=str(payload["vrf"]),
+                            prefix=str(payload["prefix"]),
+                            address=str(payload["address"]),
+                            mac_address=str(payload["mac_address"]),
+                            hostname=str(payload["hostname"]),
+                            source=str(payload.get("source", "api")),
+                            active=bool(payload.get("active", True)),
                         )
                     )
                 responder.send(HTTPStatus.CREATED, result)

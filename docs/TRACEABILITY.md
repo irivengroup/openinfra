@@ -1,3 +1,10 @@
+## v0.25.1 — Correctif CI/DevSecOps import XLSX sécurisé
+
+- Trace `CI-FIX-0251-RUFF` : Ruff format/check validés sur `src`, `tests`, `scripts`, `docker`.
+- Trace `CI-FIX-0251-BANDIT` : parsing XML XLSX migré vers `defusedxml`, alertes Bandit `B405/B314` corrigées sans `# nosec`.
+- Trace `CI-FIX-0251-MYPY` : typage strict restauré sur services import, stockage JSON/PostgreSQL et API HTTP bulk.
+- Trace `CI-FIX-0251-REGRESSION` : test de rejet des payloads XML à entités externes dans les fichiers XLSX.
+
 ## v0.25.0 — P06 / EPIC-0602 Import massif scalable
 
 | Élément | Traçabilité |

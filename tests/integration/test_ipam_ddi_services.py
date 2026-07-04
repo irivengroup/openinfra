@@ -121,20 +121,65 @@ class TestIpamDdiServices:
     def test_cli_ddi_preview_smoke(self, tmp_path: Path, capsys: object) -> None:
         state = tmp_path / "state.json"
         cli = OpenInfraCLI()
-        assert cli.run([
-            "ipam", "define-prefix", "--data", str(state), "--tenant", "default",
-            "--vrf", "prod", "--cidr", "10.23.3.0/29",
-        ]) == 0
-        assert cli.run([
-            "ipam", "allocate", "--data", str(state), "--tenant", "default",
-            "--vrf", "prod", "--prefix", "10.23.3.0/29", "--hostname", "srv-cli-ddi",
-            "--idempotency-key", "ddi-cli-1",
-        ]) == 0
-        assert cli.run([
-            "ipam", "ddi-preview", "--data", str(state), "--tenant", "default",
-            "--vrf", "prod", "--idempotency-key", "ddi-cli-1", "--provider", "bind",
-            "--dns-zone", "example.net",
-        ]) == 0
+        assert (
+            cli.run(
+                [
+                    "ipam",
+                    "define-prefix",
+                    "--data",
+                    str(state),
+                    "--tenant",
+                    "default",
+                    "--vrf",
+                    "prod",
+                    "--cidr",
+                    "10.23.3.0/29",
+                ]
+            )
+            == 0
+        )
+        assert (
+            cli.run(
+                [
+                    "ipam",
+                    "allocate",
+                    "--data",
+                    str(state),
+                    "--tenant",
+                    "default",
+                    "--vrf",
+                    "prod",
+                    "--prefix",
+                    "10.23.3.0/29",
+                    "--hostname",
+                    "srv-cli-ddi",
+                    "--idempotency-key",
+                    "ddi-cli-1",
+                ]
+            )
+            == 0
+        )
+        assert (
+            cli.run(
+                [
+                    "ipam",
+                    "ddi-preview",
+                    "--data",
+                    str(state),
+                    "--tenant",
+                    "default",
+                    "--vrf",
+                    "prod",
+                    "--idempotency-key",
+                    "ddi-cli-1",
+                    "--provider",
+                    "bind",
+                    "--dns-zone",
+                    "example.net",
+                ]
+            )
+            == 0
+        )
 
         captured = capsys.readouterr()
         assert '"providers": ["bind"]' in captured.out

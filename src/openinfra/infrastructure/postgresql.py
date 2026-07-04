@@ -3032,7 +3032,6 @@ class PostgreSQLImportRepository(PostgreSQLRepositoryBase, ImportRepository):
             return None
         return self._report_from_row(row)
 
-
     def save_bulk_import_report(self, report: BulkImportReport) -> None:
         self._ensure_tenant(report.tenant_id)
         payload = report.as_dict()
@@ -3082,9 +3081,7 @@ class PostgreSQLImportRepository(PostgreSQLRepositoryBase, ImportRepository):
             },
         )
 
-    def get_bulk_import_report(
-        self, tenant_id: TenantId, job_id: str
-    ) -> BulkImportReport | None:
+    def get_bulk_import_report(self, tenant_id: TenantId, job_id: str) -> BulkImportReport | None:
         row = self._fetch_one(
             """
             SELECT id, tenant_id, import_format, dry_run, status, total_rows, valid_rows,
@@ -3148,7 +3145,9 @@ class PostgreSQLImportRepository(PostgreSQLRepositoryBase, ImportRepository):
         mapping_payload = self._json_object(row["mapping"])
         impacts_payload = self._json_list(row["impacts"])
         dlq_payload = self._json_list(row["dlq"])
-        mapping = ImportMapping.from_dict({str(key): str(value) for key, value in mapping_payload.items()})
+        mapping = ImportMapping.from_dict(
+            {str(key): str(value) for key, value in mapping_payload.items()}
+        )
         impacts = tuple(
             ImportRowImpact.create(
                 int(item["row_number"]),
@@ -3174,13 +3173,12 @@ class PostgreSQLImportRepository(PostgreSQLRepositoryBase, ImportRepository):
             import_format=ImportFormat.from_value(str(row["import_format"])),
             dry_run=bool(row["dry_run"]),
             mapping=mapping,
-            total_rows=int(row["total_rows"]),
+            total_rows=int(str(row["total_rows"])),
             impacts=impacts,
             dlq=issues,
             status=ImportJobStatus(str(row["status"])),
             job_id=EntityId.from_value(str(row["id"])),
         )
-
 
     def _bulk_report_from_row(self, row: Mapping[str, object]) -> BulkImportReport:
         mapping_payload = self._json_object(row["mapping"])
@@ -3192,14 +3190,14 @@ class PostgreSQLImportRepository(PostgreSQLRepositoryBase, ImportRepository):
             {str(key): str(value) for key, value in mapping_payload.items()}
         )
         metrics = BulkImportMetrics.create(
-            batch_size=int(metrics_payload["batch_size"]),
-            checkpoint_interval=int(metrics_payload["checkpoint_interval"]),
-            batches_completed=int(metrics_payload["batches_completed"]),
+            batch_size=int(str(metrics_payload["batch_size"])),
+            checkpoint_interval=int(str(metrics_payload["checkpoint_interval"])),
+            batches_completed=int(str(metrics_payload["batches_completed"])),
             copy_strategy=str(metrics_payload["copy_strategy"]),
             resumed_from_row=(
                 None
                 if metrics_payload.get("resumed_from_row") is None
-                else int(metrics_payload["resumed_from_row"])
+                else int(str(metrics_payload["resumed_from_row"]))
             ),
         )
         checkpoint = self._checkpoint_from_row(checkpoint_payload)
@@ -3228,11 +3226,11 @@ class PostgreSQLImportRepository(PostgreSQLRepositoryBase, ImportRepository):
             import_format=ImportFormat.from_value(str(row["import_format"])),
             dry_run=bool(row["dry_run"]),
             status=ImportJobStatus(str(row["status"])),
-            total_rows=int(row["total_rows"]),
-            valid_rows=int(row["valid_rows"]),
-            invalid_rows=int(row["invalid_rows"]),
-            create_count=int(row["create_count"]),
-            update_count=int(row["update_count"]),
+            total_rows=int(str(row["total_rows"])),
+            valid_rows=int(str(row["valid_rows"])),
+            invalid_rows=int(str(row["invalid_rows"])),
+            create_count=int(str(row["create_count"])),
+            update_count=int(str(row["update_count"])),
             mapping=mapping,
             metrics=metrics,
             checkpoint=checkpoint,
@@ -3247,13 +3245,13 @@ class PostgreSQLImportRepository(PostgreSQLRepositoryBase, ImportRepository):
             raise ValidationError("stored bulk import checkpoint job id is invalid")
         return BulkImportCheckpoint.create(
             tenant_id=TenantId.from_value(str(row["tenant_id"])),
-            next_row_number=int(row["next_row_number"]),
-            total_rows=int(row["total_rows"]),
-            valid_rows=int(row["valid_rows"]),
-            invalid_rows=int(row["invalid_rows"]),
-            create_count=int(row["create_count"]),
-            update_count=int(row["update_count"]),
-            batches_completed=int(row["batches_completed"]),
+            next_row_number=int(str(row["next_row_number"])),
+            total_rows=int(str(row["total_rows"])),
+            valid_rows=int(str(row["valid_rows"])),
+            invalid_rows=int(str(row["invalid_rows"])),
+            create_count=int(str(row["create_count"])),
+            update_count=int(str(row["update_count"])),
+            batches_completed=int(str(row["batches_completed"])),
             status=ImportJobStatus(str(row["status"])),
             job_id=EntityId.from_value(str(job_value)),
         )

@@ -275,9 +275,9 @@ La version 0.23.1 ajoute une route racine explicite `GET /` et une route d’ent
 
 L’entrypoint `openinfra-api` écrit également un événement JSON unique sur stdout au démarrage. Cette trace reste volontairement minimale et ne contient aucun secret ; elle facilite le diagnostic `docker logs openinfra-api` dans le lab Compose et le suivi systemd en runtime natif.
 
-## v0.25.0 — P06 EPIC-0602 Import massif scalable
+## v0.25.1 — P06 EPIC-0602 Import massif scalable
 
-La version 0.25.0 ajoute une capacité d’import massif sans modifier le contrat atomique du framework générique livré en 0.24.0. L’architecture reste hexagonale : le domaine décrit les rapports bulk, checkpoints et métriques ; l’application orchestre l’autorisation `sot.write`, le parsing streaming, les batches, la persistance d’avancement et l’écriture Source of Truth ; l’infrastructure fournit les parseurs et les référentiels JSON/PostgreSQL.
+La version 0.25.1 ajoute une capacité d’import massif sans modifier le contrat atomique du framework générique livré en 0.24.0. L’architecture reste hexagonale : le domaine décrit les rapports bulk, checkpoints et métriques ; l’application orchestre l’autorisation `sot.write`, le parsing streaming, les batches, la persistance d’avancement et l’écriture Source of Truth ; l’infrastructure fournit les parseurs et les référentiels JSON/PostgreSQL.
 
 Le flux CSV bulk utilise `ImportDatasetParser.iter_rows` pour produire les lignes une par une. Les batches sont bornés par `batch_size`, les checkpoints sont persistés selon `checkpoint_interval`, et la reprise par `resume_job_id` redémarre au `next_row_number` du dernier checkpoint. Les impacts et DLQ restent échantillonnés pour éviter les rapports non bornés sur très gros datasets.
 

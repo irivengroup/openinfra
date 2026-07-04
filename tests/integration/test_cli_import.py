@@ -26,58 +26,67 @@ def test_cli_import_dataset_dry_run_and_report(tmp_path: Path, capsys: object) -
         }
     )
 
-    assert OpenInfraCLI().run(
-        [
-            "security",
-            "bootstrap-token",
-            "--data",
-            str(data),
-            "--tenant",
-            "default",
-            "--subject",
-            "import-cli",
-            "--role",
-            "sot:operator",
-            "--token",
-            token,
-        ]
-    ) == 0
+    assert (
+        OpenInfraCLI().run(
+            [
+                "security",
+                "bootstrap-token",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--subject",
+                "import-cli",
+                "--role",
+                "sot:operator",
+                "--token",
+                token,
+            ]
+        )
+        == 0
+    )
     capsys.readouterr()
 
-    assert OpenInfraCLI().run(
-        [
-            "import",
-            "dataset",
-            "--data",
-            str(data),
-            "--tenant",
-            "default",
-            "--admin-token",
-            token,
-            "--file",
-            str(csv_file),
-            "--format",
-            "csv",
-            "--mapping-json",
-            mapping,
-        ]
-    ) == 0
+    assert (
+        OpenInfraCLI().run(
+            [
+                "import",
+                "dataset",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--file",
+                str(csv_file),
+                "--format",
+                "csv",
+                "--mapping-json",
+                mapping,
+            ]
+        )
+        == 0
+    )
     created = json.loads(capsys.readouterr().out)
 
     assert created["status"] == "validated"
     assert created["dry_run"] is True
-    assert OpenInfraCLI().run(
-        [
-            "import",
-            "report",
-            "--data",
-            str(data),
-            "--tenant",
-            "default",
-            "--job-id",
-            str(created["job_id"]),
-        ]
-    ) == 0
+    assert (
+        OpenInfraCLI().run(
+            [
+                "import",
+                "report",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--job-id",
+                str(created["job_id"]),
+            ]
+        )
+        == 0
+    )
     report = json.loads(capsys.readouterr().out)
     assert report["create_count"] == 1
 
@@ -103,75 +112,87 @@ def test_cli_bulk_import_dataset_report_and_checkpoint(tmp_path: Path, capsys: o
         }
     )
 
-    assert OpenInfraCLI().run(
-        [
-            "security",
-            "bootstrap-token",
-            "--data",
-            str(data),
-            "--tenant",
-            "default",
-            "--subject",
-            "bulk-import-cli",
-            "--role",
-            "sot:operator",
-            "--token",
-            token,
-        ]
-    ) == 0
+    assert (
+        OpenInfraCLI().run(
+            [
+                "security",
+                "bootstrap-token",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--subject",
+                "bulk-import-cli",
+                "--role",
+                "sot:operator",
+                "--token",
+                token,
+            ]
+        )
+        == 0
+    )
     capsys.readouterr()
 
-    assert OpenInfraCLI().run(
-        [
-            "import",
-            "bulk-dataset",
-            "--data",
-            str(data),
-            "--tenant",
-            "default",
-            "--admin-token",
-            token,
-            "--file",
-            str(csv_file),
-            "--format",
-            "csv",
-            "--mapping-json",
-            mapping,
-            "--batch-size",
-            "1",
-            "--checkpoint-interval",
-            "1",
-        ]
-    ) == 0
+    assert (
+        OpenInfraCLI().run(
+            [
+                "import",
+                "bulk-dataset",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--file",
+                str(csv_file),
+                "--format",
+                "csv",
+                "--mapping-json",
+                mapping,
+                "--batch-size",
+                "1",
+                "--checkpoint-interval",
+                "1",
+            ]
+        )
+        == 0
+    )
     created = json.loads(capsys.readouterr().out)
 
     assert created["status"] == "validated"
     assert created["metrics"]["batches_completed"] == 2
-    assert OpenInfraCLI().run(
-        [
-            "import",
-            "bulk-report",
-            "--data",
-            str(data),
-            "--tenant",
-            "default",
-            "--job-id",
-            str(created["job_id"]),
-        ]
-    ) == 0
+    assert (
+        OpenInfraCLI().run(
+            [
+                "import",
+                "bulk-report",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--job-id",
+                str(created["job_id"]),
+            ]
+        )
+        == 0
+    )
     report = json.loads(capsys.readouterr().out)
     assert report["job_id"] == created["job_id"]
-    assert OpenInfraCLI().run(
-        [
-            "import",
-            "bulk-checkpoint",
-            "--data",
-            str(data),
-            "--tenant",
-            "default",
-            "--job-id",
-            str(created["job_id"]),
-        ]
-    ) == 0
+    assert (
+        OpenInfraCLI().run(
+            [
+                "import",
+                "bulk-checkpoint",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--job-id",
+                str(created["job_id"]),
+            ]
+        )
+        == 0
+    )
     checkpoint = json.loads(capsys.readouterr().out)
     assert checkpoint["next_row_number"] == 3

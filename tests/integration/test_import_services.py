@@ -12,9 +12,8 @@ from openinfra.application.import_services import BulkImportDatasetCommand, Impo
 from openinfra.application.security_services import BootstrapTokenCommand
 from openinfra.application.source_of_truth_services import GetSourceObjectCommand
 from openinfra.domain.common import NotFoundError, TenantId, ValidationError
-from openinfra.infrastructure.import_parsers import ImportDatasetParser
 from openinfra.domain.data_import import BulkImportCheckpoint, ImportFormat, ImportJobStatus
-
+from openinfra.infrastructure.import_parsers import ImportDatasetParser
 
 _MAPPING = json.dumps(
     {
@@ -206,8 +205,7 @@ def test_import_service_rejects_limits_and_reports_row_mapping_errors(tmp_path: 
     token = _bootstrap(app)
     csv_file = tmp_path / "bad-mapping.csv"
     csv_file.write_text(
-        "asset_key,kind,name,source,empty_attr\n"
-        "device/bad-1,device,Bad 1,csv_import,\n",
+        "asset_key,kind,name,source,empty_attr\n" "device/bad-1,device,Bad 1,csv_import,\n",
         encoding="utf-8",
     )
 
@@ -368,9 +366,7 @@ def test_bulk_import_rejects_invalid_controls(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="batch size"):
         app.import_service.bulk_import_dataset(
-            BulkImportDatasetCommand(
-                "default", "pytest", token, csv_file, "csv", _MAPPING, True, 0
-            )
+            BulkImportDatasetCommand("default", "pytest", token, csv_file, "csv", _MAPPING, True, 0)
         )
     with pytest.raises(ValidationError, match="checkpoint interval"):
         app.import_service.bulk_import_dataset(
@@ -444,9 +440,7 @@ def test_bulk_import_update_resume_errors_limits_and_mapping_edges(tmp_path: Pat
     with pytest.raises(ValidationError, match="bulk import job not found"):
         app.import_service.get_bulk_report("default", "00000000-0000-0000-0000-000000000000")
     with pytest.raises(ValidationError, match="bulk import checkpoint not found"):
-        app.import_service.get_bulk_checkpoint(
-            "default", "00000000-0000-0000-0000-000000000000"
-        )
+        app.import_service.get_bulk_checkpoint("default", "00000000-0000-0000-0000-000000000000")
     with pytest.raises(ValidationError, match="bulk import checkpoint not found"):
         app.import_service.bulk_import_dataset(
             BulkImportDatasetCommand(

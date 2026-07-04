@@ -1,7 +1,11 @@
 # OpenInfra Python Foundation
 
-**Version courante : 0.25.0 — P06 / EPIC-0602 Import massif scalable.**
+**Version courante : 0.25.1 — P06 / EPIC-0602 Import massif scalable.**
 
+
+## Correctif v0.25.1
+
+La version `0.25.1` est une livraison corrective CI/DevSecOps du jalon `0.25.0`. Elle conserve l'import massif scalable et corrige les échecs Ruff/Bandit/MyPy signalés par la CI Python 3.12 : formatage, parsing XML XLSX sécurisé via `defusedxml`, typage des rapports bulk et garde-fous associés. Aucun endpoint, commande CLI ou comportement métier du jalon `0.25.0` n'est supprimé.
 
 OpenInfra est un socle Python orienté objet pour construire une solution open source de Source of Truth, DCIM, ITAM, Discovery, Dependency Mapping et IPAM Enterprise++ sans fonction ITSM intégrée.
 
@@ -25,7 +29,7 @@ Cette livraison correspond au socle exécutable aligné avec la roadmap P01/P02 
 
 ## Import massif scalable P06 / EPIC-0602
 
-La version `0.25.0` ajoute un mode d’import massif distinct de l’import générique atomique livré en `0.24.0`. Ce mode est conçu pour les gros fichiers opérationnels : lecture CSV en streaming, traitement par batches bornés, checkpoint persistant, reprise par `job_id`, métriques d’exécution, échantillons d’impact et DLQ limitée afin de ne pas charger l’intégralité du dataset en mémoire.
+La version `0.25.1` ajoute un mode d’import massif distinct de l’import générique atomique livré en `0.24.0`. Ce mode est conçu pour les gros fichiers opérationnels : lecture CSV en streaming, traitement par batches bornés, checkpoint persistant, reprise par `job_id`, métriques d’exécution, échantillons d’impact et DLQ limitée afin de ne pas charger l’intégralité du dataset en mémoire.
 
 Le contrat est volontairement explicite :
 

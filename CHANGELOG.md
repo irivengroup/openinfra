@@ -1,3 +1,13 @@
+## 0.25.1 - 2026-07-04
+
+- Correctif CI/DevSecOps sans nouveau jalon fonctionnel : conservation intégrale du jalon P06 / EPIC-0602 livré en `0.25.0`.
+- Correction du formatage Ruff sur les fichiers modifiés par le jalon import massif.
+- Sécurisation du parsing XLSX : remplacement de `xml.etree.ElementTree` par `defusedxml.ElementTree`, ajout de la dépendance runtime `defusedxml>=0.7.1` et test de non-régression contre les payloads XML à entités externes.
+- Correction des alertes Bandit `B405` et `B314` sur `src/openinfra/infrastructure/import_parsers.py`.
+- Correction des alertes Ruff similaires détectées après formatage : imports, arguments de protocole, `isinstance` moderne, méthodes HTTP héritées `do_GET`/`do_POST` et smoke subprocess contrôlé.
+- Correction des erreurs MyPy introduites autour des rapports bulk, des mappings JSON/PostgreSQL et du typage `DdiChange.compensating`.
+- Maintien des garanties existantes : couverture globale supérieure à 98 %, Swagger/ReDoc/OpenAPI, pgAdmin `admin@openinfra.tld`, migrations PostgreSQL `0001` à `0020` et lab Docker.
+
 ## 0.25.0 - 2026-07-04
 
 - Roadmap : P06 / EPIC-0602 — Import massif scalable.

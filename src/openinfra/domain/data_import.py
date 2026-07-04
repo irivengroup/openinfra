@@ -4,7 +4,7 @@ import json
 import re
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any, Self
+from typing import Self
 
 from openinfra.domain.common import EntityId, Severity, TenantId, ValidationError
 from openinfra.domain.source_of_truth import SourceObjectKind, SourceSystem
@@ -301,7 +301,9 @@ class BulkImportCheckpoint:
             ("batches completed", batches_completed),
         ):
             if value < 0:
-                raise ValidationError("bulk import checkpoint " + field_name + " cannot be negative")
+                raise ValidationError(
+                    "bulk import checkpoint " + field_name + " cannot be negative"
+                )
         if valid_rows + invalid_rows != total_rows:
             raise ValidationError("bulk import checkpoint row counters are inconsistent")
         if create_count + update_count > valid_rows:

@@ -4,14 +4,14 @@ build-backend = "hatchling.build"
 
 [project]
 name = "openinfra"
-version = "0.25.0"
+version = "0.25.1"
 description = "OpenInfra Python POO source of truth, DCIM and IPAM foundation"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "AGPL-3.0-or-later"
 authors = [{ name = "OpenInfra Project" }]
 keywords = ["dcim", "itam", "ipam", "source-of-truth", "postgresql", "openinfra"]
-dependencies = []
+dependencies = ["defusedxml>=0.7.1"]
 
 [project.optional-dependencies]
 postgresql = ["psycopg[binary]>=3.2"]
@@ -60,8 +60,8 @@ ignore = ["A002", "PLR0911", "PLR0912", "PLR0913", "PLR0915", "PLR2004"]
 [tool.ruff.lint.per-file-ignores]
 "src/openinfra/interfaces/cli.py" = ["ARG002", "T201"]
 "src/openinfra/infrastructure/postgresql.py" = ["ARG002", "S608"]
-"src/openinfra/interfaces/http_api.py" = ["ARG002"]
-"tests/**/*.py" = ["ARG005", "B017", "E501", "F841", "PLC0415", "PLR0912", "PLR0915", "RUF012", "S101", "S105", "S310"]
+"src/openinfra/interfaces/http_api.py" = ["ARG002", "N802"]
+"tests/**/*.py" = ["ARG005", "B017", "E501", "F841", "PLC0415", "PLR0912", "PLR0915", "RUF012", "S101", "S105", "S310", "S603"]
 "scripts/**/*.py" = ["PTH", "S310", "S404", "S603", "S607", "T201"]
 "docker/**/*.py" = ["S310", "S404", "S603", "S607", "T201"]
 
@@ -75,3 +75,7 @@ packages = ["openinfra"]
 [tool.bandit]
 skips = ["B101"]
 exclude_dirs = ["tests"]
+
+[[tool.mypy.overrides]]
+module = ["defusedxml", "defusedxml.*"]
+ignore_missing_imports = true

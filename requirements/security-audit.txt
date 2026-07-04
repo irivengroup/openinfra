@@ -2,6 +2,7 @@
 # The project package is excluded because CI installs it in editable mode for tests.
 hatchling>=1.25
 psycopg[binary]>=3.2
+defusedxml>=0.7.1
 pytest>=8.0
 pytest-cov>=5.0
 ruff>=0.5

@@ -15,9 +15,9 @@ class TestImportParsers:
     def test_json_parser_accepts_plain_list_and_stringifies_values(self, tmp_path: Path) -> None:
         path = tmp_path / "rows.json"
         path.write_text(
-            json.dumps([
-                {"name": "srv", "enabled": True, "metadata": {"serial": "A"}, "empty": None}
-            ]),
+            json.dumps(
+                [{"name": "srv", "enabled": True, "metadata": {"serial": "A"}, "empty": None}]
+            ),
             encoding="utf-8",
         )
 
@@ -156,6 +156,22 @@ def test_parser_edge_cases_for_empty_csv_and_blank_xlsx(tmp_path: Path) -> None:
 </sheetData></worksheet>""",
         )
     assert ImportDatasetParser().parse(gap, ImportFormat.XLSX) == ({"name": "Gap Server"},)
+
+
+def test_xlsx_parser_rejects_xml_entity_payloads(tmp_path: Path) -> None:
+    malicious = tmp_path / "malicious.xlsx"
+    with zipfile.ZipFile(malicious, "w") as workbook:
+        workbook.writestr(
+            "xl/worksheets/sheet1.xml",
+            """<?xml version="1.0"?>
+<!DOCTYPE worksheet [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<sheetData><row><c r="A1" t="inlineStr"><is><t>&xxe;</t></is></c></row></sheetData>
+</worksheet>""",
+        )
+
+    with pytest.raises(ValidationError, match="worksheet XML is invalid"):
+        ImportDatasetParser().parse(malicious, ImportFormat.XLSX)
 
 
 def test_csv_iter_rows_streams_without_materializing_tuple(tmp_path: Path) -> None:

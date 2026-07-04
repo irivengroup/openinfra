@@ -106,8 +106,7 @@ class RuntimeSmokeScenario:
         }
         if root.get("documentation") != expected_documentation:
             raise SmokeError(
-                "unexpected documentation discovery response: "
-                + json.dumps(root, sort_keys=True)
+                "unexpected documentation discovery response: " + json.dumps(root, sort_keys=True)
             )
         if api_index.get("api") != expected_api:
             raise SmokeError(

@@ -202,21 +202,15 @@ def test_bulk_import_validation_errors_are_explicit(factory: object, message: st
 def test_bulk_import_additional_validation_branches() -> None:
     tenant = TenantId.from_value("default")
     mapping = _mapping()
-    checkpoint = BulkImportCheckpoint.create(
-        tenant, 2, 1, 1, 0, 1, 0, 1, ImportJobStatus.VALIDATED
-    )
+    checkpoint = BulkImportCheckpoint.create(tenant, 2, 1, 1, 0, 1, 0, 1, ImportJobStatus.VALIDATED)
     metrics = BulkImportMetrics.create(1, 1, 1, "json")
 
     with pytest.raises(ValidationError, match="object kind"):
         ImportRowImpact.create(1, "create", "device/a", "unknown")
     with pytest.raises(ValidationError, match="cannot be negative"):
-        BulkImportCheckpoint.create(
-            tenant, 1, -1, 0, 0, 0, 0, 0, ImportJobStatus.QUEUED
-        )
+        BulkImportCheckpoint.create(tenant, 1, -1, 0, 0, 0, 0, 0, ImportJobStatus.QUEUED)
     with pytest.raises(ValidationError, match="impact counters"):
-        BulkImportCheckpoint.create(
-            tenant, 1, 1, 1, 0, 2, 0, 0, ImportJobStatus.QUEUED
-        )
+        BulkImportCheckpoint.create(tenant, 1, 1, 1, 0, 2, 0, 0, ImportJobStatus.QUEUED)
     with pytest.raises(ValidationError, match="resumed row"):
         BulkImportMetrics.create(1, 1, 0, "json", 0)
     with pytest.raises(ValidationError, match="cannot be negative"):

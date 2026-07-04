@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.25.0
+  version: 0.25.1
 components:
   securitySchemes:
     bearerToken:
@@ -1436,7 +1436,7 @@ paths:
                 tenant_id: {type: string}
                 actor: {type: string}
                 vrf: {type: string}
-                cidr: {type: string, example: 10.25.0.0/24}
+                cidr: {type: string, example: 10.25.1.0/24}
                 description: {type: string}
       responses:
         '201': {description: Prefix persisted or returned idempotently}
@@ -1456,9 +1456,9 @@ paths:
                 tenant_id: {type: string}
                 actor: {type: string}
                 vrf: {type: string}
-                prefix: {type: string, example: 10.25.0.0/24}
-                start: {type: string, example: 10.25.0.10}
-                end: {type: string, example: 10.25.0.50}
+                prefix: {type: string, example: 10.25.1.0/24}
+                start: {type: string, example: 10.25.1.10}
+                end: {type: string, example: 10.25.1.50}
                 purpose: {type: string, enum: [allocation, reservation, exclusion]}
                 description: {type: string}
       responses:
@@ -1479,8 +1479,8 @@ paths:
                 tenant_id: {type: string}
                 actor: {type: string}
                 vrf: {type: string}
-                prefix: {type: string, example: 10.25.0.0/24}
-                address: {type: string, example: 10.25.0.10}
+                prefix: {type: string, example: 10.25.1.0/24}
+                address: {type: string, example: 10.25.1.10}
                 hostname: {type: string}
                 interface_name: {type: string}
                 status: {type: string, enum: [planned, reserved, active, deprecated]}

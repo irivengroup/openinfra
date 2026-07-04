@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from collections.abc import Iterator
 from typing import Protocol
 
 from openinfra.application.ports import (
@@ -31,12 +31,10 @@ from openinfra.domain.security import Permission
 
 
 class DatasetParser(Protocol):
-    def parse(self, path: Path, import_format: ImportFormat) -> tuple[dict[str, str], ...]:
+    def parse(self, _path: Path, _import_format: ImportFormat) -> tuple[dict[str, str], ...]:
         raise TypeError("adapter contract invoked directly")
 
-    def iter_rows(
-        self, path: Path, import_format: ImportFormat
-    ) -> Iterator[dict[str, str]]:
+    def iter_rows(self, _path: Path, _import_format: ImportFormat) -> Iterator[dict[str, str]]:
         raise TypeError("adapter contract invoked directly")
 
 

@@ -4,10 +4,12 @@ import csv
 import json
 import re
 import zipfile
-from pathlib import Path
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
-from xml.etree import ElementTree
+
+from defusedxml import ElementTree
+from defusedxml.common import DefusedXmlException
 
 from openinfra.domain.common import ValidationError
 from openinfra.domain.data_import import ImportFormat
@@ -76,7 +78,7 @@ class ImportDatasetParser:
                 xml = workbook.read(sheet_name)
         except (KeyError, zipfile.BadZipFile) as exc:
             raise ValidationError("XLSX import file is invalid") from exc
-        worksheet = ElementTree.fromstring(xml)
+        worksheet = self._parse_xml(xml, "XLSX worksheet XML is invalid")
         rows = self._xlsx_rows(worksheet, shared_strings)
         if not rows:
             raise ValidationError("XLSX import requires a header row")
@@ -99,13 +101,19 @@ class ImportDatasetParser:
             xml = workbook.read("xl/sharedStrings.xml")
         except KeyError:
             return ()
-        root = ElementTree.fromstring(xml)
+        root = self._parse_xml(xml, "XLSX shared strings XML is invalid")
         values: list[str] = []
         for item in root.iter():
             if item.tag.endswith("}si") or item.tag == "si":
                 pieces = [node.text or "" for node in item.iter() if node.tag.endswith("}t")]
                 values.append("".join(pieces))
         return tuple(values)
+
+    def _parse_xml(self, payload: bytes, error_message: str) -> Any:
+        try:
+            return ElementTree.fromstring(payload)
+        except (ElementTree.ParseError, DefusedXmlException) as exc:
+            raise ValidationError(error_message) from exc
 
     def _first_sheet_name(self, workbook: zipfile.ZipFile) -> str:
         names = sorted(
@@ -119,7 +127,7 @@ class ImportDatasetParser:
 
     def _xlsx_rows(
         self,
-        worksheet: ElementTree.Element,
+        worksheet: Any,
         shared_strings: tuple[str, ...],
     ) -> list[list[str]]:
         parsed_rows: list[list[str]] = []
@@ -134,9 +142,7 @@ class ImportDatasetParser:
                 parsed_rows.append(values)
         return parsed_rows
 
-    def _children(
-        self, node: ElementTree.Element, local_name: str
-    ) -> tuple[ElementTree.Element, ...]:
+    def _children(self, node: Any, local_name: str) -> tuple[Any, ...]:
         return tuple(
             child
             for child in node.iter()
@@ -145,7 +151,7 @@ class ImportDatasetParser:
 
     def _xlsx_cell_value(
         self,
-        cell: ElementTree.Element,
+        cell: Any,
         shared_strings: tuple[str, ...],
     ) -> str:
         cell_type = cell.attrib.get("t")
@@ -160,11 +166,11 @@ class ImportDatasetParser:
         if raw_value is None:
             return ""
         if cell_type == "s":
-            index = int(raw_value)
+            index = int(str(raw_value))
             if index >= len(shared_strings):
                 raise ValidationError("XLSX shared string index is invalid")
             return shared_strings[index]
-        return raw_value
+        return str(raw_value)
 
     def _column_index(self, reference: str) -> int:
         letters = "".join(char for char in reference if char.isalpha()).upper()
@@ -181,6 +187,6 @@ class ImportDatasetParser:
     def _stringify(self, value: object) -> str:
         if value is None:
             return ""
-        if isinstance(value, (dict, list)):
+        if isinstance(value, dict | list):
             return json.dumps(value, sort_keys=True)
         return str(value)

@@ -412,9 +412,9 @@ La v0.23.1 ajoute les contrôles de non-régression suivants :
 - le smoke Docker compare `/api/v1/version` avec `openinfra.__version__` au lieu d’une ancienne version codée en dur ;
 - l’entrypoint API écrit un événement JSON `openinfra_api_started` visible dans stdout et donc dans `docker logs openinfra-api`.
 
-## Contrôles ajoutés en v0.25.0
+## Contrôles ajoutés en v0.25.1
 
-La v0.25.0 ajoute les contrôles P06 / EPIC-0602 suivants :
+La v0.25.1 ajoute les contrôles P06 / EPIC-0602 suivants :
 
 ```bash
 tmpdir="$(mktemp -d)"
@@ -431,6 +431,6 @@ PYTHONPATH=src python -m pytest -q --no-cov tests/unit/test_data_import_domain.p
 Les tests vérifient le streaming CSV, les batches bornés, les checkpoints, la reprise, la DLQ, le rapport bulk, la persistance JSON/PostgreSQL et la non-régression de l’import générique atomique livré en v0.24.0.
 
 
-## Documentation API runtime v0.25.0
+## Documentation API runtime v0.25.1
 
 Le point d’entrée `GET /` et `GET /api/v1` publie les liens de documentation `Swagger UI` (`/docs` et `/swagger`), `ReDoc` (`/redoc`) et le contrat OpenAPI YAML (`/openapi.yaml` et `/api/v1/openapi.yaml`). Les smoke tests HTTP vérifient ces routes afin d’éviter une régression de découvrabilité API.

@@ -243,9 +243,9 @@ def _assert_index_columns_exist(statement: str, schema: Mapping[str, set[str]]) 
             r"\s+(ASC|DESC|NULLS\s+(FIRST|LAST))\b", "", expression, flags=re.I
         ).strip()
         if re.fullmatch(_IDENTIFIER, normalized):
-            assert normalized.lower() in schema[table], (
-                f"INDEX on {table} references unknown column {normalized}"
-            )
+            assert (
+                normalized.lower() in schema[table]
+            ), f"INDEX on {table} references unknown column {normalized}"
     where_match = re.search(r"\bWHERE\b(.+);?$", statement, re.I | re.S)
     if where_match is not None:
         missing = _referenced_identifiers(where_match.group(1)) - schema[table]

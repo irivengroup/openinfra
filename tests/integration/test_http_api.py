@@ -44,7 +44,7 @@ class TestHttpApi:
             )
 
             assert root["service"] == "openinfra-api"
-            assert root["version"] == "0.25.0"
+            assert root["version"] == "0.25.1"
             assert root["health"] == "/health"
             assert root["readiness"] == "/ready"
             assert root["api"] == api_index["api"]
@@ -70,7 +70,7 @@ class TestHttpApi:
             assert health["status"] == "ok"
             assert ready["ready"] is True
             assert ready["component"] == "json"
-            assert version["version"] == "0.25.0"
+            assert version["version"] == "0.25.1"
             assert allocation["address"] == "10.6.0.1"
         finally:
             server.shutdown()
@@ -178,7 +178,6 @@ class TestHttpApi:
             server.server_close()
             thread.join(timeout=5)
 
-
     def test_import_dataset_api_endpoints(self, tmp_path: Path) -> None:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json")
         token = "m" * 40
@@ -244,7 +243,6 @@ class TestHttpApi:
             server.shutdown()
             server.server_close()
             thread.join(timeout=5)
-
 
     def test_bulk_import_api_endpoints(self, tmp_path: Path) -> None:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json")

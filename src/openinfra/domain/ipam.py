@@ -497,6 +497,7 @@ class ObservedDhcpLease:
             "active": self.active,
         }
 
+
 class DdiProvider(StrEnum):
     BIND = "bind"
     POWERDNS = "powerdns"
@@ -590,7 +591,7 @@ class DdiChange:
             metadata=normalized_metadata,
         )
 
-    def compensating(self) -> Self:
+    def compensating(self) -> DdiChange:
         rollback_action = DdiAction.DELETE if self.action == DdiAction.UPSERT else DdiAction.UPSERT
         return DdiChange(
             provider=self.provider,

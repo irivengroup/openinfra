@@ -41,7 +41,6 @@ from openinfra.application.dcim_services import (
     TraceDcimCableCommand,
     VerifyEquipmentScanCommand,
 )
-from openinfra.application.import_services import BulkImportDatasetCommand, ImportDatasetCommand
 from openinfra.application.identity_services import (
     AddUserToGroupCommand,
     CreateGroupCommand,
@@ -50,6 +49,7 @@ from openinfra.application.identity_services import (
     GrantGroupRoleCommand,
     GrantUserRoleCommand,
 )
+from openinfra.application.import_services import BulkImportDatasetCommand, ImportDatasetCommand
 from openinfra.application.ipam_services import (
     AllocateIpCommand,
     DefineAsnCommand,
@@ -324,7 +324,6 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except (ValueError, OpenInfraError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
-
 
         if route == "/api/v1/imports/report":
             try:
@@ -1434,7 +1433,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         if route == "/api/v1/imports/bulk-datasets":
             try:
                 payload = self._read_json_body()
-                report = self.server.application.import_service.bulk_import_dataset(
+                bulk_report = self.server.application.import_service.bulk_import_dataset(
                     BulkImportDatasetCommand(
                         tenant_id=str(payload["tenant_id"]),
                         actor=str(payload.get("actor", "api")),
@@ -1446,15 +1445,13 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         batch_size=int(payload.get("batch_size", 5_000)),
                         checkpoint_interval=int(payload.get("checkpoint_interval", 25_000)),
                         resume_job_id=(
-                            str(payload["resume_job_id"])
-                            if payload.get("resume_job_id")
-                            else None
+                            str(payload["resume_job_id"]) if payload.get("resume_job_id") else None
                         ),
                         sample_limit=int(payload.get("sample_limit", 100)),
                     )
                 )
-                status = HTTPStatus.OK if report.dry_run else HTTPStatus.CREATED
-                responder.send(status, report.as_dict())
+                status = HTTPStatus.OK if bulk_report.dry_run else HTTPStatus.CREATED
+                responder.send(status, bulk_report.as_dict())
             except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return

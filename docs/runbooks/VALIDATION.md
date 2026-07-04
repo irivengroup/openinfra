@@ -411,3 +411,23 @@ La v0.23.1 ajoute les contrôles de non-régression suivants :
 - `GET /api/v1` retourne le même contrat d’entrée pour la version courante ;
 - le smoke Docker compare `/api/v1/version` avec `openinfra.__version__` au lieu d’une ancienne version codée en dur ;
 - l’entrypoint API écrit un événement JSON `openinfra_api_started` visible dans stdout et donc dans `docker logs openinfra-api`.
+
+## Contrôles ajoutés en v0.24.0
+
+La v0.24.0 ajoute les contrôles P06 / EPIC-0601 suivants :
+
+```bash
+tmpdir="$(mktemp -d)"
+PYTHONPATH=src python -m openinfra.interfaces.cli security bootstrap-admin --data "$tmpdir/state.json" --tenant default --principal import-admin > "$tmpdir/token.json"
+token="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["token"])' "$tmpdir/token.json")"
+printf 'asset_key,kind,name,source,serial\ndevice/srv-001,device,Server 001,csv_import,SN001\n' > "$tmpdir/devices.csv"
+PYTHONPATH=src python -m openinfra.interfaces.cli import dataset --data "$tmpdir/state.json" --tenant default --actor import-admin --admin-token "$token" --file "$tmpdir/devices.csv" --format csv --mapping-json '{"key":"asset_key","kind":"kind","display_name":"name","source":"source","attributes.serial":"serial"}'
+PYTHONPATH=src python -m pytest -q --no-cov tests/unit/test_data_import_domain.py tests/unit/test_import_parsers.py tests/integration/test_import_services.py tests/integration/test_cli_import.py
+```
+
+Les tests vérifient le parsing CSV/JSON/XLSX, le mapping contrôlé vers Source of Truth, le dry-run sans mutation, l’application atomique, la DLQ et la persistance des rapports d’import.
+
+
+## Documentation API runtime v0.24.0
+
+Le point d’entrée `GET /` et `GET /api/v1` publie les liens de documentation `Swagger UI` (`/docs` et `/swagger`), `ReDoc` (`/redoc`) et le contrat OpenAPI YAML (`/openapi.yaml` et `/api/v1/openapi.yaml`). Les smoke tests HTTP vérifient ces routes afin d’éviter une régression de découvrabilité API.

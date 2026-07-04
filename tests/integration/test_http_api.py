@@ -9,7 +9,8 @@ from pathlib import Path
 from openinfra.application.container import ApplicationFactory
 from openinfra.application.ipam_services import AllocateIpCommand
 from openinfra.application.security_services import BootstrapTokenCommand
-from openinfra.interfaces.http_api import OpenInfraThreadingServer
+from openinfra.domain.common import OpenInfraError
+from openinfra.interfaces.http_api import OpenApiDocumentProvider, OpenInfraThreadingServer
 
 
 class TestHttpApi:
@@ -22,6 +23,11 @@ class TestHttpApi:
             base_url = f"http://127.0.0.1:{server.server_port}"
             root = self._get_json(base_url + "/")
             api_index = self._get_json(base_url + "/api/v1")
+            swagger = self._get_text(base_url + "/docs")
+            swagger_alias = self._get_text(base_url + "/swagger")
+            redoc = self._get_text(base_url + "/redoc")
+            openapi = self._get_text(base_url + "/openapi.yaml")
+            versioned_openapi = self._get_text(base_url + "/api/v1/openapi.yaml")
             health = self._get_json(base_url + "/health")
             ready = self._get_json(base_url + "/ready")
             version = self._get_json(base_url + "/api/v1/version")
@@ -38,7 +44,7 @@ class TestHttpApi:
             )
 
             assert root["service"] == "openinfra-api"
-            assert root["version"] == "0.23.1"
+            assert root["version"] == "0.24.0"
             assert root["health"] == "/health"
             assert root["readiness"] == "/ready"
             assert root["api"] == api_index["api"]
@@ -47,12 +53,56 @@ class TestHttpApi:
                 "base_path": "/api/v1",
                 "version_url": "/api/v1/version",
                 "schema_url": "/api/v1/database/schema",
+                "openapi_url": "/openapi.yaml",
             }
+            assert root["documentation"] == {
+                "swagger_ui": "/docs",
+                "swagger_alias": "/swagger",
+                "redoc": "/redoc",
+                "openapi_yaml": "/openapi.yaml",
+                "versioned_openapi_yaml": "/api/v1/openapi.yaml",
+            }
+            assert "SwaggerUIBundle" in swagger
+            assert "SwaggerUIBundle" in swagger_alias
+            assert "redoc.standalone.js" in redoc
+            assert openapi.startswith("openapi: 3.1.0")
+            assert versioned_openapi == openapi
             assert health["status"] == "ok"
             assert ready["ready"] is True
             assert ready["component"] == "json"
-            assert version["version"] == "0.23.1"
+            assert version["version"] == "0.24.0"
             assert allocation["address"] == "10.6.0.1"
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def test_openapi_provider_and_unavailable_document_branch(self, tmp_path: Path) -> None:
+        configured_openapi = tmp_path / "configured-openapi.yaml"
+        configured_openapi.write_text("openapi: 3.1.0\ninfo:\n  title: Test\n", encoding="utf-8")
+        provider = OpenApiDocumentProvider(str(configured_openapi))
+        missing_provider = OpenApiDocumentProvider()
+        missing_provider._candidate_paths = lambda: (tmp_path / "missing-openapi.yaml",)  # type: ignore[method-assign]
+
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+        server = OpenInfraThreadingServer(("127.0.0.1", 0), app)
+        server.openapi_document_provider = missing_provider
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            assert provider.read_yaml().startswith("openapi: 3.1.0")
+            try:
+                missing_provider.read_yaml()
+            except OpenInfraError as exc:
+                assert "OpenAPI document is unavailable" in str(exc)
+            try:
+                urllib.request.urlopen(
+                    f"http://127.0.0.1:{server.server_port}/openapi.yaml", timeout=5
+                )
+            except urllib.error.HTTPError as exc:
+                payload = json.loads(exc.read().decode("utf-8"))
+                assert exc.code == 503
+                assert "OpenAPI document is unavailable" in str(payload["error"])
         finally:
             server.shutdown()
             server.server_close()
@@ -128,6 +178,73 @@ class TestHttpApi:
             server.server_close()
             thread.join(timeout=5)
 
+
+    def test_import_dataset_api_endpoints(self, tmp_path: Path) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+        token = "m" * 40
+        csv_file = tmp_path / "api-import.csv"
+        csv_file.write_text(
+            "asset_key,kind,name,source,tags,serial\n"
+            "device/api-601,device,API 601,api_import,prod,SN601\n",
+            encoding="utf-8",
+        )
+        app.security_service.bootstrap_token(
+            BootstrapTokenCommand(
+                tenant_id="default",
+                actor="pytest",
+                subject="api-import-admin",
+                roles=("sot:operator",),
+                token=token,
+            )
+        )
+        server = OpenInfraThreadingServer(("127.0.0.1", 0), app)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base_url = f"http://127.0.0.1:{server.server_port}"
+            report = self._post_json(
+                base_url + "/api/v1/imports/datasets",
+                {
+                    "tenant_id": "default",
+                    "actor": "pytest",
+                    "admin_token": token,
+                    "file_path": str(csv_file),
+                    "format": "csv",
+                    "mapping": {
+                        "key": "asset_key",
+                        "kind": "kind",
+                        "display_name": "name",
+                        "source": "source",
+                        "tags": "tags",
+                        "attributes.serial": "serial",
+                    },
+                    "batch_size": 100,
+                },
+            )
+            persisted = self._get_json(
+                base_url
+                + "/api/v1/imports/report?tenant_id=default&job_id="
+                + str(report["job_id"])
+            )
+            bad_request = urllib.request.Request(
+                base_url + "/api/v1/imports/datasets",
+                data=b"{}",
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            try:
+                urllib.request.urlopen(bad_request, timeout=5)
+            except urllib.error.HTTPError as exc:
+                assert exc.code == 400
+
+            assert report["status"] == "validated"
+            assert persisted["job_id"] == report["job_id"]
+            assert persisted["create_count"] == 1
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
     def _get_json(self, url: str, token: str | None = None) -> dict[str, object]:
         headers = {}
         if token is not None:
@@ -135,6 +252,11 @@ class TestHttpApi:
         request = urllib.request.Request(url, headers=headers, method="GET")
         with urllib.request.urlopen(request, timeout=5) as response:
             return json.loads(response.read().decode("utf-8"))
+
+    def _get_text(self, url: str) -> str:
+        request = urllib.request.Request(url, method="GET")
+        with urllib.request.urlopen(request, timeout=5) as response:
+            return response.read().decode("utf-8")
 
     def _post_json(
         self,

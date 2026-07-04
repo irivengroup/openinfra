@@ -17,6 +17,7 @@ from openinfra.application.ports import (
     AuditRepository,
     DcimRepository,
     IdentityRepository,
+    ImportRepository,
     IpamRepository,
     ReadinessProbe,
     ReadinessStatus,
@@ -48,6 +49,14 @@ from openinfra.domain.common import (
     Severity,
     TenantId,
     ValidationError,
+)
+from openinfra.domain.data_import import (
+    ImportFormat,
+    ImportJobStatus,
+    ImportMapping,
+    ImportReport,
+    ImportRowImpact,
+    ImportRowIssue,
 )
 from openinfra.domain.dcim import (
     Building,
@@ -2964,6 +2973,114 @@ class PostgreSQLIpamRepository(PostgreSQLRepositoryBase, IpamRepository):
             hostname=reservation.hostname,
             idempotency_key=reservation.idempotency_key,
         )
+
+
+class PostgreSQLImportRepository(PostgreSQLRepositoryBase, ImportRepository):
+    def save_import_report(self, report: ImportReport) -> None:
+        self._ensure_tenant(report.tenant_id)
+        payload = report.as_dict()
+        self._execute_without_result(
+            """
+            INSERT INTO import_jobs (
+                id, tenant_id, import_format, dry_run, status, total_rows, valid_rows,
+                invalid_rows, mapping, impacts, dlq, created_at, updated_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(import_format)s, %(dry_run)s, %(status)s,
+                %(total_rows)s, %(valid_rows)s, %(invalid_rows)s, %(mapping)s,
+                %(impacts)s, %(dlq)s, now(), now()
+            )
+            ON CONFLICT (tenant_id, id) DO UPDATE SET
+                dry_run = EXCLUDED.dry_run,
+                status = EXCLUDED.status,
+                total_rows = EXCLUDED.total_rows,
+                valid_rows = EXCLUDED.valid_rows,
+                invalid_rows = EXCLUDED.invalid_rows,
+                mapping = EXCLUDED.mapping,
+                impacts = EXCLUDED.impacts,
+                dlq = EXCLUDED.dlq,
+                updated_at = now()
+            """,
+            {
+                "id": report.job_id.value,
+                "tenant_id": report.tenant_id.value,
+                "import_format": report.format.value,
+                "dry_run": report.dry_run,
+                "status": report.status.value,
+                "total_rows": report.total_rows,
+                "valid_rows": report.valid_rows,
+                "invalid_rows": report.invalid_rows,
+                "mapping": json.dumps(payload["mapping"], sort_keys=True),
+                "impacts": json.dumps(payload["impacts"], sort_keys=True),
+                "dlq": json.dumps(payload["dlq"], sort_keys=True),
+            },
+        )
+
+    def get_import_report(self, tenant_id: TenantId, job_id: str) -> ImportReport | None:
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, import_format, dry_run, status, total_rows, valid_rows,
+                   invalid_rows, mapping, impacts, dlq
+            FROM import_jobs
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s
+            """,
+            {"tenant_id": tenant_id.value, "id": job_id.strip()},
+        )
+        if row is None:
+            return None
+        return self._report_from_row(row)
+
+    def _report_from_row(self, row: Mapping[str, object]) -> ImportReport:
+        mapping_payload = self._json_object(row["mapping"])
+        impacts_payload = self._json_list(row["impacts"])
+        dlq_payload = self._json_list(row["dlq"])
+        mapping = ImportMapping.from_dict({str(key): str(value) for key, value in mapping_payload.items()})
+        impacts = tuple(
+            ImportRowImpact.create(
+                int(item["row_number"]),
+                str(item["action"]),
+                str(item["object_key"]),
+                str(item["object_kind"]),
+            )
+            for item in impacts_payload
+            if isinstance(item, dict)
+        )
+        issues = tuple(
+            ImportRowIssue.create(
+                int(item["row_number"]),
+                str(item["field"]),
+                str(item["message"]),
+                Severity(str(item["severity"])),
+            )
+            for item in dlq_payload
+            if isinstance(item, dict)
+        )
+        return ImportReport.create(
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            import_format=ImportFormat.from_value(str(row["import_format"])),
+            dry_run=bool(row["dry_run"]),
+            mapping=mapping,
+            total_rows=int(row["total_rows"]),
+            impacts=impacts,
+            dlq=issues,
+            status=ImportJobStatus(str(row["status"])),
+            job_id=EntityId.from_value(str(row["id"])),
+        )
+
+    def _json_object(self, value: object) -> dict[str, object]:
+        if isinstance(value, dict):
+            return cast(dict[str, object], value)
+        loaded = json.loads(str(value))
+        if not isinstance(loaded, dict):
+            raise ValidationError("stored import JSON object is invalid")
+        return cast(dict[str, object], loaded)
+
+    def _json_list(self, value: object) -> list[object]:
+        if isinstance(value, list):
+            return value
+        loaded = json.loads(str(value))
+        if not isinstance(loaded, list):
+            raise ValidationError("stored import JSON list is invalid")
+        return loaded
 
 
 class PostgreSQLIdentityRepository(PostgreSQLRepositoryBase, IdentityRepository):

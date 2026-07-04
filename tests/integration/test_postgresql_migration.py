@@ -321,7 +321,7 @@ class TestPostgreSQLMigration:
         )
 
         assert status.ready is True
-        assert len(connector.connection.applied) == 18
+        assert len(connector.connection.applied) == 19
         assert connector.connection.commits == 1
         assert connector.connection.rollbacks == 0
         assert add_family_index < update_family_index < not_null_index
@@ -331,7 +331,7 @@ class TestPostgreSQLMigration:
         migration_paths = sorted(Path("migrations/postgresql").glob("*.sql"))
 
         assert [path.name[:4] for path in migration_paths] == [
-            f"{index:04d}" for index in range(1, 19)
+            f"{index:04d}" for index in range(1, 20)
         ]
         for path in migration_paths:
             for statement in _migration_statements(path):
@@ -344,3 +344,4 @@ class TestPostgreSQLMigration:
         assert "family" in schema["prefixes"]
         assert "family" in schema["ip_aggregates"]
         assert "address_family" in schema["ipam_bgp_peers"]
+        assert "dlq" in schema["import_jobs"]

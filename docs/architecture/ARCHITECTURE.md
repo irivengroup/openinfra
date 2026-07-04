@@ -274,3 +274,11 @@ Les adaptateurs `BindDdiConnector`, `PowerDnsDdiConnector` et `KeaDdiConnector` 
 La version 0.23.1 ajoute une route racine explicite `GET /` et une route d’entrée versionnée `GET /api/v1`. Ces routes retournent un document JSON déterministe contenant l’identité du service, la version applicative, les URLs `/health`, `/ready`, `/api/v1/version` et `/api/v1/database/schema`. Le changement n’altère pas les contrats API existants ; il supprime uniquement l’ambiguïté opérationnelle observée lorsqu’un administrateur ouvre l’URL racine du conteneur API dans un navigateur.
 
 L’entrypoint `openinfra-api` écrit également un événement JSON unique sur stdout au démarrage. Cette trace reste volontairement minimale et ne contient aucun secret ; elle facilite le diagnostic `docker logs openinfra-api` dans le lab Compose et le suivi systemd en runtime natif.
+
+## v0.24.0 — P06 EPIC-0601 Import framework générique
+
+La version 0.24.0 introduit une frontière d’import dédiée sans coupler le parsing aux services métier. Le domaine `data_import` décrit les formats acceptés, le mapping source→cible, les candidats Source of Truth, les impacts et les lignes rejetées. L’application orchestre l’authentification `sot.write`, le parsing, la validation complète, le dry-run et l’application atomique vers `SourceOfTruthService`.
+
+Les adaptateurs de parsing acceptent CSV, JSON et XLSX. Le lecteur XLSX s’appuie uniquement sur la bibliothèque standard Python et le format OOXML afin d’éviter une dépendance lourde pour ce jalon. La persistance JSON et PostgreSQL stocke les rapports d’import, y compris mapping, impact report et DLQ. Côté PostgreSQL, `import_jobs` est partitionnée par tenant et indexée pour les recherches par statut, format, date et DLQ JSONB.
+
+Le contrat d’acceptation est strict : si une seule ligne est invalide, aucune écriture Source of Truth n’est appliquée. Le rapport persisté contient les causes de rejet et permet une reprise manuelle ou automatisée.

@@ -39,6 +39,7 @@ from openinfra.application.dcim_services import (
     TraceDcimCableCommand,
     VerifyEquipmentScanCommand,
 )
+from openinfra.application.import_services import ImportDatasetCommand
 from openinfra.application.identity_services import (
     AddUserToGroupCommand,
     CreateGroupCommand,
@@ -126,6 +127,7 @@ class OpenInfraCLI:
         self._add_identity_commands(subparsers)
         self._add_access_policy_commands(subparsers)
         self._add_audit_commands(subparsers)
+        self._add_import_commands(subparsers)
         self._add_sot_commands(subparsers)
         self._add_ipam_commands(subparsers)
         self._add_dcim_commands(subparsers)
@@ -377,6 +379,31 @@ class OpenInfraCLI:
         verify.add_argument("--admin-token", required=True)
         verify.add_argument("--limit", type=int, default=500)
         verify.set_defaults(handler=self._handle_audit_verify_integrity)
+
+
+    def _add_import_commands(self, subparsers: Any) -> None:
+        imports = subparsers.add_parser("import", help="generic data import operations")
+        import_subparsers = imports.add_subparsers(dest="import_command", required=True)
+        dataset = import_subparsers.add_parser(
+            "dataset",
+            help="validate or apply a mapped CSV, JSON or XLSX dataset into Source of Truth",
+        )
+        self._add_backend_arguments(dataset)
+        dataset.add_argument("--tenant", required=True)
+        dataset.add_argument("--actor", default="cli")
+        dataset.add_argument("--admin-token", required=True)
+        dataset.add_argument("--file", type=Path, required=True)
+        dataset.add_argument("--format", choices=("csv", "json", "xlsx"), required=True)
+        dataset.add_argument("--mapping-json", required=True)
+        dataset.add_argument("--apply", action="store_true")
+        dataset.add_argument("--batch-size", type=int, default=500)
+        dataset.set_defaults(handler=self._handle_import_dataset)
+
+        report = import_subparsers.add_parser("report", help="read a persisted import report")
+        self._add_backend_arguments(report)
+        report.add_argument("--tenant", required=True)
+        report.add_argument("--job-id", required=True)
+        report.set_defaults(handler=self._handle_import_report)
 
     def _add_sot_commands(self, subparsers: Any) -> None:
         sot = subparsers.add_parser("sot", help="source of truth objects and relations")
@@ -1389,6 +1416,30 @@ class OpenInfraCLI:
             )
         )
         print(json.dumps(report.as_dict(), sort_keys=True))
+        return 0
+
+
+    def _handle_import_dataset(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        report = app.import_service.import_dataset(
+            ImportDatasetCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                file_path=args.file,
+                format=args.format,
+                mapping_json=args.mapping_json,
+                dry_run=not bool(args.apply),
+                batch_size=args.batch_size,
+            )
+        )
+        print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_import_report(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        report = app.import_service.get_report(args.tenant, args.job_id)
+        print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
         return 0
 
     def _handle_sot_upsert_object(self, args: argparse.Namespace) -> int:

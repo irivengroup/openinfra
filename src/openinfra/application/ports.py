@@ -7,6 +7,7 @@ from typing import Any, Generic, TypeVar
 from openinfra.domain.access_policy import AccessPolicyRule
 from openinfra.domain.audit import AuditEventFilter, AuditEventPage, AuditIntegrityReport
 from openinfra.domain.common import AuditEvent, Pagination, TenantId
+from openinfra.domain.data_import import ImportReport
 from openinfra.domain.dcim import (
     Building,
     CoolingZone,
@@ -565,6 +566,16 @@ class DdiConnector(ABC):
     def build_preview_changes(
         self, reservation: IpReservation, context: DdiPreviewContext
     ) -> tuple[DdiChange, ...]:
+        raise TypeError("adapter contract invoked directly")
+
+
+class ImportRepository(ABC):
+    @abstractmethod
+    def save_import_report(self, report: ImportReport) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_import_report(self, tenant_id: TenantId, job_id: str) -> ImportReport | None:
         raise TypeError("adapter contract invoked directly")
 
 

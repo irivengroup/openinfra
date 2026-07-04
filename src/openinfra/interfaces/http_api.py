@@ -41,6 +41,7 @@ from openinfra.application.dcim_services import (
     TraceDcimCableCommand,
     VerifyEquipmentScanCommand,
 )
+from openinfra.application.import_services import ImportDatasetCommand
 from openinfra.application.identity_services import (
     AddUserToGroupCommand,
     CreateGroupCommand,
@@ -109,17 +110,82 @@ class JsonHttpResponder:
         self._handler.wfile.write(body)
 
 
-class HtmlHttpResponder:
+class TextHttpResponder:
     def __init__(self, handler: BaseHTTPRequestHandler) -> None:
         self._handler = handler
 
-    def send(self, status: HTTPStatus, body: str) -> None:
+    def send(self, status: HTTPStatus, body: str, content_type: str) -> None:
         payload = body.encode("utf-8")
         self._handler.send_response(status.value)
-        self._handler.send_header("Content-Type", "text/html; charset=utf-8")
+        self._handler.send_header("Content-Type", content_type)
         self._handler.send_header("Content-Length", str(len(payload)))
         self._handler.end_headers()
         self._handler.wfile.write(payload)
+
+
+class OpenApiDocumentProvider:
+    def __init__(self, explicit_path: str | None = None) -> None:
+        self._explicit_path = explicit_path
+
+    def read_yaml(self) -> str:
+        for candidate in self._candidate_paths():
+            if candidate.is_file():
+                return candidate.read_text(encoding="utf-8")
+        raise OpenInfraError("OpenAPI document is unavailable; expected docs/api/openapi.yaml")
+
+    def _candidate_paths(self) -> tuple[Path, ...]:
+        configured = self._explicit_path or os.environ.get("OPENINFRA_OPENAPI_PATH")
+        candidates: list[Path] = []
+        if configured:
+            candidates.append(Path(configured))
+        candidates.extend(
+            (
+                Path.cwd() / "docs/api/openapi.yaml",
+                Path(__file__).resolve().parents[3] / "docs/api/openapi.yaml",
+            )
+        )
+        return tuple(candidates)
+
+
+class ApiDocumentationRenderer:
+    @staticmethod
+    def swagger_html(openapi_url: str) -> str:
+        return f"""<!doctype html>
+<html lang=\"en\">
+<head>
+  <meta charset=\"utf-8\">
+  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+  <title>OpenInfra API - Swagger UI</title>
+  <link rel=\"stylesheet\" href=\"https://unpkg.com/swagger-ui-dist@5/swagger-ui.css\">
+</head>
+<body>
+  <div id=\"swagger-ui\"></div>
+  <script src=\"https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js\"></script>
+  <script>
+    window.ui = SwaggerUIBundle({{
+      url: \"{openapi_url}\",
+      dom_id: '#swagger-ui',
+      deepLinking: true,
+      layout: 'BaseLayout'
+    }});
+  </script>
+</body>
+</html>"""
+
+    @staticmethod
+    def redoc_html(openapi_url: str) -> str:
+        return f"""<!doctype html>
+<html lang=\"en\">
+<head>
+  <meta charset=\"utf-8\">
+  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+  <title>OpenInfra API - ReDoc</title>
+</head>
+<body>
+  <redoc spec-url=\"{openapi_url}\"></redoc>
+  <script src=\"https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js\"></script>
+</body>
+</html>"""
 
 
 class OpenInfraRequestHandler(BaseHTTPRequestHandler):
@@ -130,7 +196,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         responder = JsonHttpResponder(self)
-        html_responder = HtmlHttpResponder(self)
+        text_responder = TextHttpResponder(self)
         parsed = urlparse(self.path)
         status: Any
         page: Any
@@ -138,22 +204,31 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         result: Any
         route = parsed.path
         if route in ("/", "/api/v1"):
-            responder.send(
+            responder.send(HTTPStatus.OK, self.server.discovery_document())
+            return
+        if route in ("/docs", "/swagger"):
+            text_responder.send(
                 HTTPStatus.OK,
-                {
-                    "service": "openinfra-api",
-                    "version": __version__,
-                    "status": "ok",
-                    "health": "/health",
-                    "readiness": "/ready",
-                    "api": {
-                        "version": "v1",
-                        "base_path": "/api/v1",
-                        "version_url": "/api/v1/version",
-                        "schema_url": "/api/v1/database/schema",
-                    },
-                },
+                ApiDocumentationRenderer.swagger_html("/openapi.yaml"),
+                "text/html; charset=utf-8",
             )
+            return
+        if route == "/redoc":
+            text_responder.send(
+                HTTPStatus.OK,
+                ApiDocumentationRenderer.redoc_html("/openapi.yaml"),
+                "text/html; charset=utf-8",
+            )
+            return
+        if route in ("/openapi.yaml", "/api/v1/openapi.yaml"):
+            try:
+                text_responder.send(
+                    HTTPStatus.OK,
+                    self.server.openapi_document_provider.read_yaml(),
+                    "application/yaml; charset=utf-8",
+                )
+            except OpenInfraError as exc:
+                responder.send(HTTPStatus.SERVICE_UNAVAILABLE, {"error": str(exc)})
             return
         if route == "/health":
             responder.send(HTTPStatus.OK, {"status": "ok"})
@@ -246,6 +321,19 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.OK, report.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+
+        if route == "/api/v1/imports/report":
+            try:
+                query = parse_qs(parsed.query)
+                report = self.server.application.import_service.get_report(
+                    self._first_query_value(query, "tenant_id"),
+                    self._first_query_value(query, "job_id"),
+                )
+                responder.send(HTTPStatus.OK, report.as_dict())
             except (ValueError, OpenInfraError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
@@ -520,7 +608,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         vrf=query.get("vrf", [None])[0],
                     )
                 )
-                html_responder.send(HTTPStatus.OK, html)
+                text_responder.send(HTTPStatus.OK, html, "text/html; charset=utf-8")
             except (ValueError, OpenInfraError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
@@ -1297,6 +1385,28 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except (KeyError, json.JSONDecodeError, OpenInfraError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
+
+        if route == "/api/v1/imports/datasets":
+            try:
+                payload = self._read_json_body()
+                report = self.server.application.import_service.import_dataset(
+                    ImportDatasetCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=str(payload["admin_token"]),
+                        file_path=Path(str(payload["file_path"])),
+                        format=str(payload["format"]),
+                        mapping_json=json.dumps(payload["mapping"], sort_keys=True),
+                        dry_run=not bool(payload.get("apply", False)),
+                        batch_size=int(payload.get("batch_size", 500)),
+                    )
+                )
+                status = HTTPStatus.OK if report.dry_run else HTTPStatus.CREATED
+                responder.send(status, report.as_dict())
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
         if route in (
             "/api/v1/ipam/vrfs",
             "/api/v1/ipam/aggregates",
@@ -1638,10 +1748,35 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
         server_address: tuple[str, int],
         application: OpenInfraApplication,
         auth_required: bool = False,
+        openapi_path: str | None = None,
     ) -> None:
         super().__init__(server_address, OpenInfraRequestHandler)
         self.application = application
         self.auth_required = auth_required
+        self.openapi_document_provider = OpenApiDocumentProvider(openapi_path)
+
+    def discovery_document(self) -> dict[str, object]:
+        return {
+            "service": "openinfra-api",
+            "version": __version__,
+            "status": "ok",
+            "health": "/health",
+            "readiness": "/ready",
+            "api": {
+                "version": "v1",
+                "base_path": "/api/v1",
+                "version_url": "/api/v1/version",
+                "schema_url": "/api/v1/database/schema",
+                "openapi_url": "/openapi.yaml",
+            },
+            "documentation": {
+                "swagger_ui": "/docs",
+                "swagger_alias": "/swagger",
+                "redoc": "/redoc",
+                "openapi_yaml": "/openapi.yaml",
+                "versioned_openapi_yaml": "/api/v1/openapi.yaml",
+            },
+        }
 
 
 class OpenInfraApiEntrypoint:
@@ -1681,6 +1816,9 @@ class OpenInfraApiEntrypoint:
                     "health_url": "/health",
                     "readiness_url": "/ready",
                     "version_url": "/api/v1/version",
+                    "swagger_url": "/docs",
+                    "redoc_url": "/redoc",
+                    "openapi_url": "/openapi.yaml",
                 },
                 sort_keys=True,
             )

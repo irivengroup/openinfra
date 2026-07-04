@@ -16,6 +16,7 @@ from openinfra.application.ports import (
     AuditRepository,
     DcimRepository,
     IdentityRepository,
+    ImportRepository,
     IpamRepository,
     ReadinessProbe,
     ReadinessStatus,
@@ -46,6 +47,14 @@ from openinfra.domain.common import (
     Severity,
     TenantId,
     ValidationError,
+)
+from openinfra.domain.data_import import (
+    ImportFormat,
+    ImportJobStatus,
+    ImportMapping,
+    ImportReport,
+    ImportRowImpact,
+    ImportRowIssue,
 )
 from openinfra.domain.dcim import (
     Building,
@@ -211,7 +220,69 @@ class JsonDocumentStore:
             "source_object_snapshots": [],
             "source_relations": {},
             "source_governance_rules": {},
+            "import_jobs": {},
         }
+
+
+class JsonImportRepository(ImportRepository):
+    def __init__(self, store: JsonDocumentStore) -> None:
+        self._store = store
+
+    def save_import_report(self, report: ImportReport) -> None:
+        with self._store.lock:
+            self._store.data["import_jobs"][self._key(report.tenant_id, report.job_id.value)] = report.as_dict()
+            self._store.mark_dirty()
+
+    def get_import_report(self, tenant_id: TenantId, job_id: str) -> ImportReport | None:
+        with self._store.lock:
+            payload = self._store.data["import_jobs"].get(self._key(tenant_id, job_id))
+            if payload is None:
+                return None
+            return self._report_from_payload(payload)
+
+    def _key(self, tenant_id: TenantId, job_id: str) -> str:
+        return tenant_id.value + ":" + job_id.strip()
+
+    def _report_from_payload(self, payload: dict[str, object]) -> ImportReport:
+        mapping_payload = payload.get("mapping", {})
+        if not isinstance(mapping_payload, dict):
+            raise ValidationError("stored import mapping is invalid")
+        impacts_payload = payload.get("impacts", [])
+        dlq_payload = payload.get("dlq", [])
+        if not isinstance(impacts_payload, list) or not isinstance(dlq_payload, list):
+            raise ValidationError("stored import report rows are invalid")
+        mapping = ImportMapping.from_dict({str(k): str(v) for k, v in mapping_payload.items()})
+        impacts = tuple(
+            ImportRowImpact.create(
+                int(item["row_number"]),
+                str(item["action"]),
+                str(item["object_key"]),
+                str(item["object_kind"]),
+            )
+            for item in impacts_payload
+            if isinstance(item, dict)
+        )
+        issues = tuple(
+            ImportRowIssue.create(
+                int(item["row_number"]),
+                str(item["field"]),
+                str(item["message"]),
+                Severity(str(item["severity"])),
+            )
+            for item in dlq_payload
+            if isinstance(item, dict)
+        )
+        return ImportReport.create(
+            tenant_id=TenantId.from_value(str(payload["tenant_id"])),
+            import_format=ImportFormat.from_value(str(payload["format"])),
+            dry_run=bool(payload["dry_run"]),
+            mapping=mapping,
+            total_rows=int(payload["total_rows"]),
+            impacts=impacts,
+            dlq=issues,
+            status=ImportJobStatus(str(payload["status"])),
+            job_id=EntityId.from_value(str(payload["job_id"])),
+        )
 
 
 class JsonSchemaStatusProvider(SchemaStatusProvider):

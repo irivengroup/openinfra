@@ -1,0 +1,257 @@
+from __future__ import annotations
+
+import json
+import re
+from dataclasses import dataclass
+from enum import StrEnum
+from typing import Any, Self
+
+from openinfra.domain.common import EntityId, Severity, TenantId, ValidationError
+from openinfra.domain.source_of_truth import SourceObjectKind, SourceSystem
+
+
+class ImportFormat(StrEnum):
+    CSV = "csv"
+    JSON = "json"
+    XLSX = "xlsx"
+
+    @classmethod
+    def from_value(cls, value: str) -> Self:
+        normalized = value.strip().lower().lstrip(".")
+        try:
+            return cls(normalized)
+        except ValueError as exc:
+            raise ValidationError("import format must be csv, json or xlsx") from exc
+
+
+class ImportJobStatus(StrEnum):
+    QUEUED = "queued"
+    VALIDATED = "validated"
+    APPLIED = "applied"
+    FAILED = "failed"
+
+
+@dataclass(frozen=True, slots=True)
+class ImportFieldMapping:
+    target_field: str
+    source_field: str
+
+    @classmethod
+    def create(cls, target_field: str, source_field: str) -> Self:
+        normalized_target = target_field.strip()
+        normalized_source = source_field.strip()
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}", normalized_target):
+            raise ValidationError("import target field is invalid")
+        if not normalized_source:
+            raise ValidationError("import source field cannot be empty")
+        return cls(target_field=normalized_target, source_field=normalized_source)
+
+    def as_dict(self) -> dict[str, str]:
+        return {"target_field": self.target_field, "source_field": self.source_field}
+
+
+@dataclass(frozen=True, slots=True)
+class ImportMapping:
+    fields: tuple[ImportFieldMapping, ...]
+
+    @classmethod
+    def from_json(cls, value: str) -> Self:
+        try:
+            payload = json.loads(value)
+        except json.JSONDecodeError as exc:
+            raise ValidationError("import mapping must be valid JSON") from exc
+        if not isinstance(payload, dict):
+            raise ValidationError("import mapping must be a JSON object")
+        return cls.from_dict(payload)
+
+    @classmethod
+    def from_dict(cls, payload: dict[str, object]) -> Self:
+        fields = tuple(
+            ImportFieldMapping.create(str(target), str(source))
+            for target, source in sorted(payload.items())
+        )
+        targets = {field.target_field for field in fields}
+        for required in ("key", "kind", "display_name", "source"):
+            if required not in targets:
+                raise ValidationError("import mapping requires target field: " + required)
+        return cls(fields=fields)
+
+    def source_fields(self) -> tuple[str, ...]:
+        return tuple(field.source_field for field in self.fields)
+
+    def as_dict(self) -> dict[str, str]:
+        return {field.target_field: field.source_field for field in self.fields}
+
+
+@dataclass(frozen=True, slots=True)
+class ImportRowIssue:
+    row_number: int
+    field: str
+    severity: Severity
+    message: str
+
+    @classmethod
+    def create(
+        cls,
+        row_number: int,
+        field: str,
+        message: str,
+        severity: Severity = Severity.ERROR,
+    ) -> Self:
+        if row_number < 1:
+            raise ValidationError("import issue row number must be positive")
+        normalized_field = field.strip() or "row"
+        normalized_message = " ".join(message.strip().split())
+        if not normalized_message:
+            raise ValidationError("import issue message is mandatory")
+        return cls(
+            row_number=row_number,
+            field=normalized_field,
+            severity=severity,
+            message=normalized_message,
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "row_number": self.row_number,
+            "field": self.field,
+            "severity": self.severity.value,
+            "message": self.message,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ImportRowImpact:
+    row_number: int
+    action: str
+    object_key: str
+    object_kind: str
+
+    @classmethod
+    def create(cls, row_number: int, action: str, object_key: str, object_kind: str) -> Self:
+        normalized_action = action.strip().lower()
+        if normalized_action not in {"create", "update"}:
+            raise ValidationError("import impact action must be create or update")
+        SourceObjectKind(object_kind.strip().lower())
+        if row_number < 1:
+            raise ValidationError("import impact row number must be positive")
+        if not object_key.strip():
+            raise ValidationError("import impact object key is mandatory")
+        return cls(
+            row_number=row_number,
+            action=normalized_action,
+            object_key=object_key.strip().lower(),
+            object_kind=object_kind.strip().lower(),
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "row_number": self.row_number,
+            "action": self.action,
+            "object_key": self.object_key,
+            "object_kind": self.object_kind,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ImportCandidate:
+    row_number: int
+    key: str
+    kind: str
+    display_name: str
+    source: str
+    tags: tuple[str, ...]
+    attributes: dict[str, object]
+
+    @classmethod
+    def create(
+        cls,
+        row_number: int,
+        key: str,
+        kind: str,
+        display_name: str,
+        source: str,
+        tags: tuple[str, ...],
+        attributes: dict[str, object],
+    ) -> Self:
+        SourceObjectKind(kind.strip().lower())
+        SourceSystem.from_value(source)
+        json.dumps(attributes, sort_keys=True)
+        if row_number < 1:
+            raise ValidationError("import candidate row number must be positive")
+        return cls(
+            row_number=row_number,
+            key=key.strip().lower(),
+            kind=kind.strip().lower(),
+            display_name=" ".join(display_name.strip().split()),
+            source=source.strip().lower(),
+            tags=tuple(tag.strip().lower() for tag in tags if tag.strip()),
+            attributes=dict(attributes),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class ImportReport:
+    job_id: EntityId
+    tenant_id: TenantId
+    format: ImportFormat
+    dry_run: bool
+    status: ImportJobStatus
+    total_rows: int
+    valid_rows: int
+    invalid_rows: int
+    mapping: ImportMapping
+    impacts: tuple[ImportRowImpact, ...]
+    dlq: tuple[ImportRowIssue, ...]
+
+    @classmethod
+    def create(
+        cls,
+        tenant_id: TenantId,
+        import_format: ImportFormat,
+        dry_run: bool,
+        mapping: ImportMapping,
+        total_rows: int,
+        impacts: tuple[ImportRowImpact, ...],
+        dlq: tuple[ImportRowIssue, ...],
+        status: ImportJobStatus,
+        job_id: EntityId | None = None,
+    ) -> Self:
+        if total_rows < 0:
+            raise ValidationError("import total rows cannot be negative")
+        invalid_rows = len({issue.row_number for issue in dlq if issue.severity == Severity.ERROR})
+        valid_rows = total_rows - invalid_rows
+        if valid_rows < 0:
+            raise ValidationError("import invalid row count exceeds total rows")
+        if status in {ImportJobStatus.VALIDATED, ImportJobStatus.APPLIED} and invalid_rows:
+            raise ValidationError("validated or applied imports cannot contain invalid rows")
+        return cls(
+            job_id=job_id or EntityId.new(),
+            tenant_id=tenant_id,
+            format=import_format,
+            dry_run=bool(dry_run),
+            status=status,
+            total_rows=total_rows,
+            valid_rows=valid_rows,
+            invalid_rows=invalid_rows,
+            mapping=mapping,
+            impacts=impacts,
+            dlq=dlq,
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "job_id": self.job_id.value,
+            "tenant_id": self.tenant_id.value,
+            "format": self.format.value,
+            "dry_run": self.dry_run,
+            "status": self.status.value,
+            "total_rows": self.total_rows,
+            "valid_rows": self.valid_rows,
+            "invalid_rows": self.invalid_rows,
+            "create_count": sum(1 for impact in self.impacts if impact.action == "create"),
+            "update_count": sum(1 for impact in self.impacts if impact.action == "update"),
+            "mapping": self.mapping.as_dict(),
+            "impacts": [impact.as_dict() for impact in self.impacts],
+            "dlq": [issue.as_dict() for issue in self.dlq],
+        }

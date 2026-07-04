@@ -1,11 +1,11 @@
 # OpenInfra Python Foundation
 
-**Version courante : 0.23.1 — P05 / EPIC-0506 DDI intégration baseline.**
+**Version courante : 0.24.0 — P06 / EPIC-0601 Import framework générique.**
 
 
 OpenInfra est un socle Python orienté objet pour construire une solution open source de Source of Truth, DCIM, ITAM, Discovery, Dependency Mapping et IPAM Enterprise++ sans fonction ITSM intégrée.
 
-Cette livraison correspond au socle exécutable de démarrage aligné avec la roadmap P01/P02 puis REL-01/P03/P04/P05 : architecture hexagonale, modèle domaine, CLI, API HTTP standard library, migrations PostgreSQL applicatives, adaptateur PostgreSQL runtime, sécurité API par jetons hachés avec expiration, révocation et rotation, IAM utilisateurs/groupes avec rôles effectifs, ABAC contextuel site/environnement, audit trail consultable/exportable avec intégrité chaînée, Source of Truth P03 objets/relations/historique, gouvernance minimale des sources autoritatives, DCIM P04 modèle physique pays/région/ville/site/bâtiment/étage/salle/zone/grille, racks, QR terrain, plans 2D et rack elevation, et IPAM P05 modèle IPv4/IPv6/VRF, allocation transactionnelle et fondation réseau VLAN/VXLAN/ASN/BGP, runtime serveur natif, lab Docker facultatif, tests, documentation et CI.
+Cette livraison correspond au socle exécutable aligné avec la roadmap P01/P02 puis REL-01/P03/P04/P05/P06 : architecture hexagonale, modèle domaine, CLI, API HTTP standard library, migrations PostgreSQL applicatives, adaptateur PostgreSQL runtime, sécurité API par jetons hachés avec expiration, révocation et rotation, IAM utilisateurs/groupes avec rôles effectifs, ABAC contextuel site/environnement, audit trail consultable/exportable avec intégrité chaînée, Source of Truth P03 objets/relations/historique, gouvernance minimale des sources autoritatives, DCIM P04 modèle physique pays/région/ville/site/bâtiment/étage/salle/zone/grille, racks, QR terrain, plans 2D et rack elevation, IPAM P05 modèle IPv4/IPv6/VRF, allocation transactionnelle, fondation réseau VLAN/VXLAN/ASN/BGP et intégration DDI baseline, puis P06 import générique CSV/JSON/XLSX avec mapping, dry-run, rapport d’impact et DLQ. Le runtime production reste natif serveur Linux + virtualenv + systemd + PostgreSQL ; Docker reste uniquement un lab/smoke/test facultatif.
 
 ## Garanties de cette itération
 
@@ -18,9 +18,36 @@ Cette livraison correspond au socle exécutable de démarrage aligné avec la ro
 - Migration PostgreSQL initiale avec tables partitionnées, index, contraintes et audit append-only.
 - Moteur de migrations PostgreSQL applicatif : statut, dry-run, application idempotente, historique `openinfra_schema_migrations` et checksum SHA-256.
 - CLI exploitable : `openinfra version`, `openinfra spec validate`, `openinfra dcim define-room`, `openinfra dcim locate`, `openinfra dcim define-rack`, `openinfra dcim rack-capacity`, `openinfra dcim locator-sheet`, `openinfra dcim verify-scan`, `openinfra dcim room-plan`, `openinfra dcim rack-elevation`, `openinfra ipam define-vrf`, `openinfra ipam define-aggregate`, `openinfra ipam define-prefix`, `openinfra ipam define-range`, `openinfra ipam register-address`, `openinfra ipam list-prefixes`, `openinfra ipam capacity`, `openinfra ipam allocate`, `openinfra ipam define-vlan-group`, `openinfra ipam define-vxlan-vni`, `openinfra ipam define-vlan`, `openinfra ipam define-asn`, `openinfra ipam define-bgp-peer`, `openinfra ipam network-bindings`, `openinfra ipam observe-dns`, `openinfra ipam observe-dhcp-lease`, `openinfra ipam detect-conflicts`, `openinfra ipam ui-dashboard`, `openinfra ipam ui-search`, `openinfra ipam reservation-wizard`, `openinfra ipam ddi-preview`, `openinfra security bootstrap-token`, `openinfra security whoami`, `openinfra security list-tokens`, `openinfra security revoke-token`, `openinfra security rotate-token`, `openinfra identity create-user`, `openinfra identity create-group`, `openinfra identity add-user-to-group`, `openinfra identity grant-user-role`, `openinfra identity grant-group-role`, `openinfra identity effective`, `openinfra access create-rule`, `openinfra access list-rules`, `openinfra access evaluate`, `openinfra access deactivate-rule`, `openinfra audit list`, `openinfra audit export`, `openinfra audit verify-integrity`, `openinfra sot upsert-object`, `openinfra sot get-object`, `openinfra sot list-objects`, `openinfra sot get-object-version`, `openinfra sot create-relation`, `openinfra sot list-relations`, `openinfra sot create-governance-rule`, `openinfra sot list-governance-rules`, `openinfra sot evaluate-governance`, `openinfra sot deactivate-governance-rule`, `openinfra database render-migration`, `openinfra database status`, `openinfra database apply-migrations`.
-- API HTTP légère : `/`, `/api/v1`, `/health`, `/ready`, `/api/v1/version`, `/api/v1/database/schema`, `/api/v1/security/whoami`, `/api/v1/security/tokens`, `/api/v1/security/revoke-token`, `/api/v1/security/rotate-token`, `/api/v1/identity/users`, `/api/v1/identity/groups`, `/api/v1/identity/group-memberships`, `/api/v1/identity/user-roles`, `/api/v1/identity/group-roles`, `/api/v1/identity/effective`, `/api/v1/access/rules`, `/api/v1/access/evaluate`, `/api/v1/access/deactivate-rule`, `/api/v1/audit/events`, `/api/v1/audit/export`, `/api/v1/audit/integrity`, `/api/v1/sot/objects`, `/api/v1/sot/object-versions`, `/api/v1/sot/relations`, `/api/v1/sot/governance-rules`, `/api/v1/sot/governance/evaluate`, `/api/v1/sot/governance/deactivate-rule`, `/api/v1/ipam/vrfs`, `/api/v1/ipam/aggregates`, `/api/v1/ipam/prefixes`, `/api/v1/ipam/ranges`, `/api/v1/ipam/addresses`, `/api/v1/ipam/capacity`, `/api/v1/ipam/allocate`, `/api/v1/ipam/vlan-groups`, `/api/v1/ipam/vxlan-vnis`, `/api/v1/ipam/vlans`, `/api/v1/ipam/asns`, `/api/v1/ipam/bgp-peers`, `/api/v1/ipam/network-bindings`, `/api/v1/ipam/conflicts`, `/api/v1/ipam/ui-dashboard`, `/api/v1/ipam/ui-search`, `/api/v1/ipam/reservation-wizard`, `/api/v1/ipam/ddi-preview`, `/ui/ipam`, `/api/v1/dcim/rooms`, `/api/v1/dcim/racks`, `/api/v1/dcim/rack-capacity`, `/api/v1/dcim/locator-sheet`, `/api/v1/dcim/verify-scan`, `/api/v1/dcim/room-plan`, `/api/v1/dcim/rack-elevation`.
+- API HTTP légère : `/`, `/api/v1`, `/health`, `/ready`, `/api/v1/version`, `/api/v1/database/schema`, `/api/v1/security/whoami`, `/api/v1/security/tokens`, `/api/v1/security/revoke-token`, `/api/v1/security/rotate-token`, `/api/v1/identity/users`, `/api/v1/identity/groups`, `/api/v1/identity/group-memberships`, `/api/v1/identity/user-roles`, `/api/v1/identity/group-roles`, `/api/v1/identity/effective`, `/api/v1/access/rules`, `/api/v1/access/evaluate`, `/api/v1/access/deactivate-rule`, `/api/v1/audit/events`, `/api/v1/audit/export`, `/api/v1/audit/integrity`, `/api/v1/sot/objects`, `/api/v1/sot/object-versions`, `/api/v1/sot/relations`, `/api/v1/sot/governance-rules`, `/api/v1/sot/governance/evaluate`, `/api/v1/sot/governance/deactivate-rule`, `/api/v1/ipam/vrfs`, `/api/v1/ipam/aggregates`, `/api/v1/ipam/prefixes`, `/api/v1/ipam/ranges`, `/api/v1/ipam/addresses`, `/api/v1/ipam/capacity`, `/api/v1/ipam/allocate`, `/api/v1/ipam/vlan-groups`, `/api/v1/ipam/vxlan-vnis`, `/api/v1/ipam/vlans`, `/api/v1/ipam/asns`, `/api/v1/ipam/bgp-peers`, `/api/v1/ipam/network-bindings`, `/api/v1/ipam/conflicts`, `/api/v1/ipam/ui-dashboard`, `/api/v1/ipam/ui-search`, `/api/v1/ipam/reservation-wizard`, `/api/v1/ipam/ddi-preview`, `/api/v1/imports/datasets`, `/api/v1/imports/report`, `/docs`, `/swagger`, `/redoc`, `/openapi.yaml`, `/api/v1/openapi.yaml`, `/ui/ipam`, `/api/v1/dcim/rooms`, `/api/v1/dcim/racks`, `/api/v1/dcim/rack-capacity`, `/api/v1/dcim/locator-sheet`, `/api/v1/dcim/verify-scan`, `/api/v1/dcim/room-plan`, `/api/v1/dcim/rack-elevation`.
 - GitHub Actions complète : format, lint, types, tests, couverture, sécurité, build, smoke tests CLI/API et runtime serveur natif et lab Docker authentifié facultatif.
 
+
+
+## Import framework générique P06 / EPIC-0601
+
+La version `0.24.0` introduit un framework d’import générique exploitable pour alimenter la Source of Truth depuis des jeux de données CSV, JSON ou XLSX. L’import ne modifie jamais les données en dry-run et applique les écritures uniquement si toutes les lignes sont valides. En cas d’erreur, le rapport contient une DLQ, ou Dead Letter Queue, c’est-à-dire la liste exploitable des lignes rejetées avec leur numéro, leur champ et la cause précise du rejet.
+
+Exemple CLI en dry-run :
+
+```bash
+tmpdir="$(mktemp -d)"
+token="$(python - <<'PY'
+print("i" * 40)
+PY
+)"
+PYTHONPATH=src python -m openinfra.interfaces.cli security bootstrap-token --data "$tmpdir/state.json" --tenant default --subject import-admin --role sot:operator --token "$token" >/dev/null
+printf 'asset_key,kind,name,source,serial\ndevice/srv-001,device,Server 001,csv_import,SN001\n' > "$tmpdir/devices.csv"
+PYTHONPATH=src python -m openinfra.interfaces.cli import dataset \
+  --data "$tmpdir/state.json" \
+  --tenant default \
+  --actor import-admin \
+  --admin-token "$token" \
+  --file "$tmpdir/devices.csv" \
+  --format csv \
+  --mapping-json '{"key":"asset_key","kind":"kind","display_name":"name","source":"source","attributes.serial":"serial"}'
+```
+
+Pour appliquer réellement l’import, ajouter `--apply`. La commande `openinfra import report --tenant default --job-id <uuid>` relit le rapport persisté. L’API expose les mêmes contrats avec `POST /api/v1/imports/datasets` et `GET /api/v1/imports/report`.
 
 ## Point d’entrée API
 
@@ -36,12 +63,20 @@ Cette livraison correspond au socle exécutable de démarrage aligné avec la ro
     "version": "v1",
     "base_path": "/api/v1",
     "version_url": "/api/v1/version",
-    "schema_url": "/api/v1/database/schema"
+    "schema_url": "/api/v1/database/schema",
+    "openapi_url": "/openapi.yaml"
+  },
+  "documentation": {
+    "swagger_ui": "/docs",
+    "swagger_alias": "/swagger",
+    "redoc": "/redoc",
+    "openapi_yaml": "/openapi.yaml",
+    "versioned_openapi_yaml": "/api/v1/openapi.yaml"
   }
 }
 ```
 
-`GET /api/v1` expose le même document d’entrée pour la version courante de l’API. Au démarrage, `openinfra-api` écrit aussi un événement JSON `openinfra_api_started` sur stdout, visible via `docker logs openinfra-api` dans le lab Docker.
+`GET /api/v1` expose le même document d’entrée pour la version courante de l’API. Le document inclut aussi les liens de documentation : Swagger UI sur `/docs`, alias Swagger sur `/swagger`, ReDoc sur `/redoc`, contrat OpenAPI YAML sur `/openapi.yaml` et alias versionné sur `/api/v1/openapi.yaml`. Au démarrage, `openinfra-api` écrit aussi un événement JSON `openinfra_api_started` sur stdout, visible via `docker logs openinfra-api` dans le lab Docker.
 
 ## Installation développeur
 

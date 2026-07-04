@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.23.1
+  version: 0.24.0
 components:
   securitySchemes:
     bearerToken:
@@ -21,6 +21,40 @@ paths:
       responses:
         '200':
           description: API v1 base path and operational endpoint links
+  /docs:
+    get:
+      summary: Swagger UI documentation
+      responses:
+        '200':
+          description: Interactive Swagger UI backed by /openapi.yaml
+  /swagger:
+    get:
+      summary: Swagger UI documentation alias
+      responses:
+        '200':
+          description: Alias for the interactive Swagger UI
+  /redoc:
+    get:
+      summary: ReDoc documentation
+      responses:
+        '200':
+          description: ReDoc documentation backed by /openapi.yaml
+  /openapi.yaml:
+    get:
+      summary: Canonical OpenAPI YAML document
+      responses:
+        '200':
+          description: OpenAPI 3.1 YAML document
+        '503':
+          description: OpenAPI document is not available in the runtime filesystem
+  /api/v1/openapi.yaml:
+    get:
+      summary: Versioned OpenAPI YAML document alias
+      responses:
+        '200':
+          description: OpenAPI 3.1 YAML document
+        '503':
+          description: OpenAPI document is not available in the runtime filesystem
   /health:
     get:
       summary: Health check
@@ -1402,7 +1436,7 @@ paths:
                 tenant_id: {type: string}
                 actor: {type: string}
                 vrf: {type: string}
-                cidr: {type: string, example: 10.23.1.0/24}
+                cidr: {type: string, example: 10.24.0.0/24}
                 description: {type: string}
       responses:
         '201': {description: Prefix persisted or returned idempotently}
@@ -1422,9 +1456,9 @@ paths:
                 tenant_id: {type: string}
                 actor: {type: string}
                 vrf: {type: string}
-                prefix: {type: string, example: 10.23.1.0/24}
-                start: {type: string, example: 10.23.1.10}
-                end: {type: string, example: 10.23.1.50}
+                prefix: {type: string, example: 10.24.0.0/24}
+                start: {type: string, example: 10.24.0.10}
+                end: {type: string, example: 10.24.0.50}
                 purpose: {type: string, enum: [allocation, reservation, exclusion]}
                 description: {type: string}
       responses:
@@ -1445,8 +1479,8 @@ paths:
                 tenant_id: {type: string}
                 actor: {type: string}
                 vrf: {type: string}
-                prefix: {type: string, example: 10.23.1.0/24}
-                address: {type: string, example: 10.23.1.10}
+                prefix: {type: string, example: 10.24.0.0/24}
+                address: {type: string, example: 10.24.0.10}
                 hostname: {type: string}
                 interface_name: {type: string}
                 status: {type: string, enum: [planned, reserved, active, deprecated]}
@@ -1689,6 +1723,48 @@ paths:
       responses:
         '200': {description: DDI dry-run plan with changes, divergences and rollback changes}
         '400': {description: Validation error or missing reservation}
+  /api/v1/imports/datasets:
+    post:
+      summary: Validate or apply a mapped CSV, JSON or XLSX dataset into Source of Truth
+      description: "Performs a dry-run by default. When apply is true, the import is atomic: any invalid row prevents all Source of Truth mutations and produces a DLQ report."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, admin_token, file_path, format, mapping]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                admin_token: {type: string}
+                file_path: {type: string}
+                format: {type: string, enum: [csv, json, xlsx]}
+                apply: {type: boolean, default: false}
+                batch_size: {type: integer, minimum: 1, default: 500}
+                mapping:
+                  type: object
+                  additionalProperties: {type: string}
+                  example:
+                    key: asset_key
+                    kind: kind
+                    display_name: name
+                    source: source
+                    attributes.serial: serial
+      responses:
+        '200': {description: Dry-run import report with impacts and DLQ}
+        '201': {description: Applied import report}
+        '400': {description: Validation error, access error or invalid dataset}
+  /api/v1/imports/report:
+    get:
+      summary: Read a persisted import report
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: job_id, in: query, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Persisted import report}
+        '400': {description: Validation error or unknown report}
+
   /api/v1/ipam/reservation-wizard:
     post:
       summary: Preview or execute a traced IPAM reservation workflow

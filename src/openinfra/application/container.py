@@ -16,6 +16,7 @@ from openinfra.application.dcim_services import (
     DcimVisualizationService,
 )
 from openinfra.application.identity_services import IdentityService
+from openinfra.application.import_services import GenericImportService
 from openinfra.application.ipam_services import (
     IpamAllocationService,
     IpamConflictService,
@@ -28,6 +29,7 @@ from openinfra.application.ports import (
     AuditRepository,
     DcimRepository,
     IdentityRepository,
+    ImportRepository,
     IpamRepository,
     ReadinessProbe,
     SchemaStatusProvider,
@@ -40,12 +42,14 @@ from openinfra.application.security_services import SecurityService
 from openinfra.application.source_governance_services import SourceGovernanceService
 from openinfra.application.source_of_truth_services import SourceOfTruthService
 from openinfra.infrastructure.ddi_connectors import DdiConnectorFactory
+from openinfra.infrastructure.import_parsers import ImportDatasetParser
 from openinfra.infrastructure.json_store import (
     JsonAccessPolicyRepository,
     JsonAuditRepository,
     JsonDcimRepository,
     JsonDocumentStore,
     JsonIdentityRepository,
+    JsonImportRepository,
     JsonIpamRepository,
     JsonReadinessProbe,
     JsonSchemaStatusProvider,
@@ -62,6 +66,7 @@ from openinfra.infrastructure.postgresql import (
     PostgreSQLConnectionFactory,
     PostgreSQLDcimRepository,
     PostgreSQLIdentityRepository,
+    PostgreSQLImportRepository,
     PostgreSQLIpamRepository,
     PostgreSQLMigrationCatalog,
     PostgreSQLMigrationExecutor,
@@ -89,8 +94,10 @@ class OpenInfraApplication:
     ipam_conflict_service: IpamConflictService
     ipam_ui_service: IpamUiService
     ipam_ddi_service: IpamDdiService
+    import_service: GenericImportService
     dcim_repository: DcimRepository
     ipam_repository: IpamRepository
+    import_repository: ImportRepository
     security_service: SecurityService
     identity_service: IdentityService
     access_policy_service: AccessPolicyService
@@ -120,6 +127,7 @@ class ApplicationFactory:
         access_policy_repository = JsonAccessPolicyRepository(store)
         source_of_truth_repository = JsonSourceOfTruthRepository(store)
         source_governance_repository = JsonSourceGovernanceRepository(store)
+        import_repository = JsonImportRepository(store)
         readiness_probe = JsonReadinessProbe(store)
         schema_status_provider = JsonSchemaStatusProvider()
         if seed:
@@ -137,6 +145,7 @@ class ApplicationFactory:
             access_policy_repository=access_policy_repository,
             source_of_truth_repository=source_of_truth_repository,
             source_governance_repository=source_governance_repository,
+            import_repository=import_repository,
             transaction_manager=transaction_manager,
             readiness_probe=readiness_probe,
             schema_status_provider=schema_status_provider,
@@ -159,6 +168,7 @@ class ApplicationFactory:
         access_policy_repository = PostgreSQLAccessPolicyRepository(registry)
         source_of_truth_repository = PostgreSQLSourceOfTruthRepository(registry)
         source_governance_repository = PostgreSQLSourceGovernanceRepository(registry)
+        import_repository = PostgreSQLImportRepository(registry)
         migration_catalog = PostgreSQLMigrationCatalog.from_project_root()
         readiness_probe = PostgreSQLReadinessProbe(registry, migration_catalog)
         schema_status_provider = PostgreSQLMigrationExecutor(registry, migration_catalog)
@@ -177,6 +187,7 @@ class ApplicationFactory:
             access_policy_repository=access_policy_repository,
             source_of_truth_repository=source_of_truth_repository,
             source_governance_repository=source_governance_repository,
+            import_repository=import_repository,
             transaction_manager=transaction_manager,
             readiness_probe=readiness_probe,
             schema_status_provider=schema_status_provider,
@@ -196,21 +207,23 @@ class ApplicationFactory:
         schema_status_provider: SchemaStatusProvider,
         source_of_truth_repository: SourceOfTruthRepository | None = None,
         source_governance_repository: SourceGovernanceRepository | None = None,
+        import_repository: ImportRepository | None = None,
     ) -> OpenInfraApplication:
         if source_of_truth_repository is None:
             if hasattr(store, "data"):
                 source_of_truth_repository = JsonSourceOfTruthRepository(store)
-                if source_governance_repository is None:
-                    source_governance_repository = JsonSourceGovernanceRepository(store)
             else:
                 source_of_truth_repository = PostgreSQLSourceOfTruthRepository(store)
-                if source_governance_repository is None:
-                    source_governance_repository = PostgreSQLSourceGovernanceRepository(store)
         if source_governance_repository is None:
             if hasattr(store, "data"):
                 source_governance_repository = JsonSourceGovernanceRepository(store)
             else:
                 source_governance_repository = PostgreSQLSourceGovernanceRepository(store)
+        if import_repository is None:
+            if hasattr(store, "data"):
+                import_repository = JsonImportRepository(store)
+            else:
+                import_repository = PostgreSQLImportRepository(store)
         security_service = SecurityService(
             security_repository,
             audit_repository,
@@ -226,6 +239,20 @@ class ApplicationFactory:
             ipam_repository,
             audit_repository,
             transaction_manager,
+        )
+        ipam_ddi_service = IpamDdiService(
+            ipam_repository,
+            audit_repository,
+            transaction_manager,
+            DdiConnectorFactory.default(),
+        )
+        import_service = GenericImportService(
+            import_repository,
+            source_of_truth_repository,
+            audit_repository,
+            transaction_manager,
+            security_service,
+            ImportDatasetParser(),
         )
         return OpenInfraApplication(
             store=store,
@@ -271,12 +298,8 @@ class ApplicationFactory:
                 transaction_manager,
             ),
             ipam_conflict_service=ipam_conflict_service,
-            ipam_ddi_service=IpamDdiService(
-                ipam_repository,
-                audit_repository,
-                transaction_manager,
-                DdiConnectorFactory.default(),
-            ),
+            ipam_ddi_service=ipam_ddi_service,
+            import_service=import_service,
             ipam_ui_service=IpamUiService(
                 ipam_repository,
                 audit_repository,
@@ -318,6 +341,7 @@ class ApplicationFactory:
             dcim_repository=dcim_repository,
             identity_repository=identity_repository,
             ipam_repository=ipam_repository,
+            import_repository=import_repository,
             security_repository=security_repository,
             access_policy_repository=access_policy_repository,
             source_of_truth_repository=source_of_truth_repository,

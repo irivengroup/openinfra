@@ -91,10 +91,23 @@ class RuntimeSmokeScenario:
             "base_path": "/api/v1",
             "version_url": "/api/v1/version",
             "schema_url": "/api/v1/database/schema",
+            "openapi_url": "/openapi.yaml",
         }
         if root.get("service") != "openinfra-api" or root.get("api") != expected_api:
             raise SmokeError(
                 "unexpected root discovery response: " + json.dumps(root, sort_keys=True)
+            )
+        expected_documentation = {
+            "swagger_ui": "/docs",
+            "swagger_alias": "/swagger",
+            "redoc": "/redoc",
+            "openapi_yaml": "/openapi.yaml",
+            "versioned_openapi_yaml": "/api/v1/openapi.yaml",
+        }
+        if root.get("documentation") != expected_documentation:
+            raise SmokeError(
+                "unexpected documentation discovery response: "
+                + json.dumps(root, sort_keys=True)
             )
         if api_index.get("api") != expected_api:
             raise SmokeError(

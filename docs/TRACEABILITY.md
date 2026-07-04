@@ -1,3 +1,16 @@
+## v0.24.0 — P06 / EPIC-0601 Import framework générique
+
+| Élément | Traçabilité |
+| --- | --- |
+| Roadmap | P06 / EPIC-0601 — Import framework générique. |
+| Domaine | `ImportFormat`, `ImportMapping`, `ImportCandidate`, `ImportReport`, `ImportRowIssue`, `ImportRowImpact`. |
+| Application | `GenericImportService.import_dataset` avec dry-run, application atomique et rapport persisté. |
+| Infrastructure | `ImportDatasetParser`, `JsonImportRepository`, `PostgreSQLImportRepository`. |
+| PostgreSQL | `0019_import_framework.sql`, table `import_jobs` partitionnée par hash tenant, JSONB mapping/impacts/DLQ. |
+| Interfaces | `openinfra import dataset`, `openinfra import report`, `POST /api/v1/imports/datasets`, `GET /api/v1/imports/report`. |
+| Acceptation | Un import invalide ne modifie aucune donnée et produit une DLQ exploitable. |
+| Tests | `tests/unit/test_data_import_domain.py`, `tests/unit/test_import_parsers.py`, `tests/integration/test_import_services.py`, `tests/integration/test_cli_import.py`, `tests/integration/test_http_api.py`, `tests/integration/test_postgresql_migration.py`. |
+
 ## v0.21.0 — P05 / EPIC-0504 Détection conflits IPAM
 
 - Roadmap : P05 / EPIC-0504.

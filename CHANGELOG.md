@@ -1,3 +1,17 @@
+## 0.24.0 - 2026-07-04
+
+- Roadmap : P06 / EPIC-0601 — Import framework générique.
+- Ajout du domaine `data_import` : formats CSV/JSON/XLSX, mapping contrôlé, impacts, rapports et DLQ.
+- Ajout du service applicatif `GenericImportService` avec dry-run, validation globale, application atomique et audit `import.dataset.*`.
+- Ajout des parseurs CSV/JSON/XLSX sans dépendance lourde supplémentaire ; le lecteur XLSX utilise le format OOXML via bibliothèque standard.
+- Ajout des référentiels JSON et PostgreSQL `ImportRepository`.
+- Ajout de la migration PostgreSQL `0019_import_framework.sql` avec table `import_jobs` partitionnée par tenant, JSONB mapping/impacts/DLQ et index opérationnels.
+- Ajout des commandes `openinfra import dataset` et `openinfra import report`.
+- Ajout des endpoints `/api/v1/imports/datasets` et `/api/v1/imports/report`.
+- Ajout de la documentation API runtime : liens Swagger UI/ReDoc dans `/` et `/api/v1`, routes `/docs`, `/swagger`, `/redoc`, `/openapi.yaml` et `/api/v1/openapi.yaml`.
+- Ajout de tests domaine, parseurs, service, CLI, API, migration et non-régression atomique : un import invalide ne modifie aucune donnée.
+- Conservation des correctifs v0.22.3/v0.23.1 : migrations PostgreSQL IPAM, pgAdmin `admin@openinfra.tld`, route racine API et logs runtime.
+
 ## 0.23.1 - 2026-07-04
 
 - Correctif API runtime : `GET /` ne retourne plus `{"error": "not_found"}` mais un document JSON de découverte du service.

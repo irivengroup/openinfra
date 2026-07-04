@@ -158,6 +158,25 @@ class GitHubWorkflowSecurityGuard:
         self._workflow = project_root / ".github/workflows/ci.yml"
         self._dependency_review_workflow = project_root / ".github/workflows/dependency-review.yml"
 
+    @staticmethod
+    def _requirement_payload_lines(path: Path) -> tuple[str, ...]:
+        return tuple(
+            line.strip().lower()
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.strip().startswith("#")
+        )
+
+    @staticmethod
+    def _requirement_package_name(line: str) -> str:
+        if line.startswith("-r ") or line.startswith("--requirement "):
+            return line
+        normalized = line.split(";", 1)[0].split("[", 1)[0]
+        for separator in ("==", ">=", "<=", "~=", "!=", ">", "<"):
+            if separator in normalized:
+                normalized = normalized.split(separator, 1)[0]
+                break
+        return normalized.strip().replace("_", "-")
+
     def assert_hardened(self) -> None:
         if not self._workflow.is_file():
             raise SecurityGateError("missing CI workflow")
@@ -186,6 +205,7 @@ class GitHubWorkflowSecurityGuard:
             "Blocking push vulnerability gate",
             "pip_audit",
             "--requirement requirements/security-audit.txt",
+            "--requirement requirements/dev.txt",
             "bandit -q -r src/openinfra",
             "scripts/security_gate.py --project-root .",
             "github/codeql-action/init",
@@ -248,22 +268,71 @@ class GitHubWorkflowSecurityGuard:
                 "dependency review workflow must remain pull-request only: "
                 + ", ".join(dependency_review_forbidden_found)
             )
-        audit_requirements = self._workflow.parent.parent.parent / "requirements/security-audit.txt"
-        if not audit_requirements.is_file():
-            raise SecurityGateError(
-                "missing pip-audit requirement input: requirements/security-audit.txt"
-            )
-        audit_lines = (
-            line.strip().lower()
-            for line in audit_requirements.read_text(encoding="utf-8").splitlines()
+        requirements_root = self._workflow.parent.parent.parent / "requirements"
+        audit_requirements = requirements_root / "security-audit.txt"
+        runtime_requirements = requirements_root / "runtime.txt"
+        postgresql_requirements = requirements_root / "postgresql.txt"
+        dev_requirements = requirements_root / "dev.txt"
+        required_requirement_files = (
+            audit_requirements,
+            runtime_requirements,
+            postgresql_requirements,
+            dev_requirements,
         )
-        if any(
-            line.startswith("openinfra")
-            for line in audit_lines
-            if line and not line.startswith("#")
-        ):
+        missing_requirement_files = [
+            str(item.relative_to(requirements_root.parent))
+            for item in required_requirement_files
+            if not item.is_file()
+        ]
+        if missing_requirement_files:
+            raise SecurityGateError(
+                "missing pip-audit requirement input: " + ", ".join(missing_requirement_files)
+            )
+        audit_lines = self._requirement_payload_lines(audit_requirements)
+        if any(line.startswith("openinfra") for line in audit_lines):
             raise SecurityGateError(
                 "pip-audit requirement input must not reference local package openinfra"
+            )
+        required_audit_includes = ("-r runtime.txt", "-r postgresql.txt", "-r dev.txt")
+        missing_audit_includes = [
+            item for item in required_audit_includes if item not in audit_lines
+        ]
+        if missing_audit_includes:
+            raise SecurityGateError(
+                "pip-audit requirement input must preserve runtime/dev separation: "
+                + ", ".join(missing_audit_includes)
+            )
+        runtime_lines = self._requirement_payload_lines(runtime_requirements)
+        postgresql_lines = self._requirement_payload_lines(postgresql_requirements)
+        dev_lines = self._requirement_payload_lines(dev_requirements)
+        dev_only_packages = (
+            "bandit",
+            "build",
+            "hatchling",
+            "mypy",
+            "pip-audit",
+            "pytest",
+            "pytest-cov",
+            "ruff",
+        )
+        forbidden_runtime = [
+            line
+            for line in (*runtime_lines, *postgresql_lines)
+            if self._requirement_package_name(line) in dev_only_packages
+        ]
+        if forbidden_runtime:
+            raise SecurityGateError(
+                "production requirements contain dev-only packages: " + ", ".join(forbidden_runtime)
+            )
+        missing_dev_tools = [
+            package
+            for package in dev_only_packages
+            if package not in {self._requirement_package_name(line) for line in dev_lines}
+        ]
+        if missing_dev_tools:
+            raise SecurityGateError(
+                "development requirements missing mandatory CI tools: "
+                + ", ".join(missing_dev_tools)
             )
         dependabot_required = ("package-ecosystem: pip", "package-ecosystem: github-actions")
         missing_dependabot = [

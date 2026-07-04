@@ -44,7 +44,7 @@ class TestHttpApi:
             )
 
             assert root["service"] == "openinfra-api"
-            assert root["version"] == "0.25.1"
+            assert root["version"] == "0.25.2"
             assert root["health"] == "/health"
             assert root["readiness"] == "/ready"
             assert root["api"] == api_index["api"]
@@ -70,7 +70,7 @@ class TestHttpApi:
             assert health["status"] == "ok"
             assert ready["ready"] is True
             assert ready["component"] == "json"
-            assert version["version"] == "0.25.1"
+            assert version["version"] == "0.25.2"
             assert allocation["address"] == "10.6.0.1"
         finally:
             server.shutdown()

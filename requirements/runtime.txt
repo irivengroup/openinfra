@@ -1,0 +1,3 @@
+# Production runtime dependencies required by OpenInfra core.
+# Dev/test/CI-only tools are forbidden in this file.
+defusedxml>=0.7.1

@@ -1,3 +1,10 @@
+## 0.25.2 - 2026-07-04
+
+- Correctif CI/DevSecOps sans nouveau jalon fonctionnel : conservation intégrale du jalon P06 / EPIC-0602 livré en `0.25.0` et des corrections `0.25.1`.
+- Correction du formatage Ruff restant sur `tests/integration/test_import_services.py` et `tests/integration/test_postgresql_migration.py`.
+- Séparation stricte des requirements : `runtime.txt` pour les dépendances production cœur, `postgresql.txt` pour le backend PostgreSQL production optionnel, `dev.txt` pour les outils développement/test/CI, et `security-audit.txt` comme agrégat explicite d'audit.
+- Renforcement du `security_gate.py` pour refuser les outils dev dans les requirements runtime/PostgreSQL et refuser un fichier d'audit non séparé.
+
 ## 0.25.1 - 2026-07-04
 
 - Correctif CI/DevSecOps sans nouveau jalon fonctionnel : conservation intégrale du jalon P06 / EPIC-0602 livré en `0.25.0`.

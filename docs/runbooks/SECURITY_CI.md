@@ -50,7 +50,7 @@ La CI installe le projet avec `pip install -e .[postgresql,dev]`. Le package loc
 python -m pip_audit --strict --requirement requirements/security-audit.txt --progress-spinner off
 ```
 
-Le `security_gate.py` vérifie la présence de `pip_audit` et `requirements/security-audit.txt` dans le workflow pour éviter toute régression similaire.
+Le `security_gate.py` vérifie la présence de `pip_audit`, de `requirements/security-audit.txt`, et de la séparation `runtime.txt` / `postgresql.txt` / `dev.txt`. Les outils dev/CI sont interdits dans les requirements de production.
 
 ## Séparation push / pull request
 

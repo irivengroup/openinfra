@@ -205,7 +205,7 @@ def test_import_service_rejects_limits_and_reports_row_mapping_errors(tmp_path: 
     token = _bootstrap(app)
     csv_file = tmp_path / "bad-mapping.csv"
     csv_file.write_text(
-        "asset_key,kind,name,source,empty_attr\n" "device/bad-1,device,Bad 1,csv_import,\n",
+        "asset_key,kind,name,source,empty_attr\ndevice/bad-1,device,Bad 1,csv_import,\n",
         encoding="utf-8",
     )
 

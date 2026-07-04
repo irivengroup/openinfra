@@ -1,3 +1,9 @@
+## v0.25.2 — Correctif CI requirements séparés
+
+- Corrige le formatage Ruff restant sur deux tests d'intégration.
+- Ajoute la séparation requirements production/dev/CI et les garde-fous `security_gate.py` associés.
+- Conserve sans modification fonctionnelle le jalon P06 / EPIC-0602.
+
 ## v0.25.1 — Correctif CI/DevSecOps import XLSX sécurisé
 
 - Trace `CI-FIX-0251-RUFF` : Ruff format/check validés sur `src`, `tests`, `scripts`, `docker`.

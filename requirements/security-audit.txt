@@ -1,12 +1,5 @@
-# Vulnerability audit input for third-party packages only.
-# The project package is excluded because CI installs it in editable mode for tests.
-hatchling>=1.25
-psycopg[binary]>=3.2
-defusedxml>=0.7.1
-pytest>=8.0
-pytest-cov>=5.0
-ruff>=0.5
-mypy>=1.10
-bandit>=1.7
-pip-audit>=2.7
-build>=1.2
+# Vulnerability audit aggregate for third-party dependencies only.
+# Keep production/runtime dependencies separated from dev/CI-only tools.
+-r runtime.txt
+-r postgresql.txt
+-r dev.txt

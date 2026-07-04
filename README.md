@@ -1,7 +1,11 @@
 # OpenInfra Python Foundation
 
-**Version courante : 0.25.1 — P06 / EPIC-0602 Import massif scalable.**
+**Version courante : 0.25.2 — P06 / EPIC-0602 Import massif scalable.**
 
+
+## Correctif v0.25.2
+
+La version `0.25.2` est une livraison corrective CI/DevSecOps sans nouveau jalon fonctionnel. Elle conserve l'import massif scalable, corrige le formatage Ruff restant sur deux tests d'intégration et formalise la séparation des requirements : production runtime, production PostgreSQL optionnelle et outils dev/test/CI. Le garde de sécurité refuse désormais les outils de développement dans les requirements de production et vérifie que l'audit `pip-audit` reste un agrégat explicite de fichiers séparés.
 
 ## Correctif v0.25.1
 
@@ -29,7 +33,7 @@ Cette livraison correspond au socle exécutable aligné avec la roadmap P01/P02 
 
 ## Import massif scalable P06 / EPIC-0602
 
-La version `0.25.1` ajoute un mode d’import massif distinct de l’import générique atomique livré en `0.24.0`. Ce mode est conçu pour les gros fichiers opérationnels : lecture CSV en streaming, traitement par batches bornés, checkpoint persistant, reprise par `job_id`, métriques d’exécution, échantillons d’impact et DLQ limitée afin de ne pas charger l’intégralité du dataset en mémoire.
+La version `0.25.0` a introduit un mode d’import massif distinct de l’import générique atomique livré en `0.24.0`. Ce mode est conçu pour les gros fichiers opérationnels : lecture CSV en streaming, traitement par batches bornés, checkpoint persistant, reprise par `job_id`, métriques d’exécution, échantillons d’impact et DLQ limitée afin de ne pas charger l’intégralité du dataset en mémoire.
 
 Le contrat est volontairement explicite :
 
@@ -126,9 +130,11 @@ Pour appliquer réellement l’import, ajouter `--apply`. La commande `openinfra
 python3.11 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e '.[dev]'
+python -m pip install -e .
+python -m pip install --requirement requirements/dev.txt
 # Avec backend PostgreSQL runtime :
-python -m pip install -e '.[dev,postgresql]'
+python -m pip install -e '.[postgresql]'
+python -m pip install --requirement requirements/dev.txt
 ```
 
 ## Commandes de validation
@@ -707,7 +713,7 @@ Le job sécurité bloquant n'audite plus l'environnement Python complet. Il exé
 python -m pip_audit --strict --requirement requirements/security-audit.txt --progress-spinner off
 ```
 
-Le fichier `requirements/security-audit.txt` contient uniquement les dépendances tierces à auditer. Le package projet local est volontairement exclu, car il n'est pas une dépendance PyPI tierce et ne doit pas être résolu comme telle pendant l'audit de vulnérabilités.
+Les fichiers `requirements/runtime.txt`, `requirements/postgresql.txt` et `requirements/dev.txt` séparent les dépendances production et dev/CI. `requirements/security-audit.txt` agrège explicitement ces fichiers pour auditer uniquement des dépendances tierces. Le package projet local est volontairement exclu, car il n'est pas une dépendance PyPI tierce et ne doit pas être résolu comme telle pendant l'audit de vulnérabilités.
 
 ## v0.17.3 — Correctif CI audit vulnérabilités et runtime PostgreSQL
 

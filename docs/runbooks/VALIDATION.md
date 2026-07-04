@@ -434,3 +434,14 @@ Les tests vérifient le streaming CSV, les batches bornés, les checkpoints, la 
 ## Documentation API runtime v0.25.1
 
 Le point d’entrée `GET /` et `GET /api/v1` publie les liens de documentation `Swagger UI` (`/docs` et `/swagger`), `ReDoc` (`/redoc`) et le contrat OpenAPI YAML (`/openapi.yaml` et `/api/v1/openapi.yaml`). Les smoke tests HTTP vérifient ces routes afin d’éviter une régression de découvrabilité API.
+## Contrôles ajoutés en v0.25.2
+
+La v0.25.2 ajoute un contrôle de séparation des requirements :
+
+- `requirements/runtime.txt` : dépendances indispensables au runtime OpenInfra cœur ;
+- `requirements/postgresql.txt` : dépendances production optionnelles du backend PostgreSQL ;
+- `requirements/dev.txt` : outils développement, test, sécurité, packaging et CI uniquement ;
+- `requirements/security-audit.txt` : agrégat d'audit `pip-audit` référençant explicitement les trois fichiers précédents.
+
+Le `security_gate.py` bloque tout outil dev/CI placé dans les requirements production et tout fichier d'audit qui ne préserve pas cette séparation.
+

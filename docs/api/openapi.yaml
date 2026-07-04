@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.26.0
+  version: 0.27.0
 components:
   securitySchemes:
     bearerToken:
@@ -1881,6 +1881,47 @@ paths:
       responses:
         '200': {description: Persisted bulk import checkpoint}
         '400': {description: Validation error or unknown bulk checkpoint}
+
+
+  /api/v1/imports/migration-template:
+    get:
+      summary: Read a built-in legacy migration mapping template
+      parameters:
+        - {name: source, in: query, required: true, schema: {type: string, enum: [device42, netbox, nautobot, glpi, csv]}}
+      responses:
+        '200': {description: Built-in mapping template and expected columns}
+        '400': {description: Validation error or unsupported source}
+  /api/v1/imports/migration-plans:
+    post:
+      summary: Simulate a legacy inventory migration without mutating Source of Truth
+      description: "Runs a dry-run migration using a built-in Device42, NetBox, Nautobot, GLPI or generic CSV template, persists a gap report and returns a resume strategy for bulk execution."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, admin_token, source, file_path, format]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                admin_token: {type: string}
+                source: {type: string, enum: [device42, netbox, nautobot, glpi, csv]}
+                file_path: {type: string}
+                format: {type: string, enum: [csv, json, xlsx]}
+                sample_limit: {type: integer, minimum: 0, maximum: 10000, default: 100}
+      responses:
+        '200': {description: Persisted migration dry-run plan and gap report}
+        '400': {description: Validation error, access error or invalid dataset}
+  /api/v1/imports/migration-report:
+    get:
+      summary: Read a persisted legacy migration plan report
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: job_id, in: query, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Persisted legacy migration gap report}
+        '400': {description: Validation error or unknown migration plan}
 
   /api/v1/ipam/reservation-wizard:
     post:

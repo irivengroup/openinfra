@@ -31,6 +31,208 @@ class ImportJobStatus(StrEnum):
     FAILED = "failed"
 
 
+class LegacyMigrationSource(StrEnum):
+    DEVICE42 = "device42"
+    NETBOX = "netbox"
+    NAUTOBOT = "nautobot"
+    GLPI = "glpi"
+    CSV = "csv"
+
+    @classmethod
+    def from_value(cls, value: str) -> Self:
+        normalized = value.strip().lower().replace("_", "-")
+        aliases = {
+            "device-42": "device42",
+            "generic-csv": "csv",
+            "generic": "csv",
+        }
+        normalized = aliases.get(normalized, normalized)
+        try:
+            return cls(normalized)
+        except ValueError as exc:
+            raise ValidationError(
+                "migration source must be device42, netbox, nautobot, glpi or csv"
+            ) from exc
+
+
+@dataclass(frozen=True, slots=True)
+class MigrationGap:
+    category: str
+    field: str
+    severity: Severity
+    message: str
+
+    @classmethod
+    def create(
+        cls,
+        category: str,
+        field: str,
+        message: str,
+        severity: Severity = Severity.WARNING,
+    ) -> Self:
+        normalized_category = category.strip().lower().replace("_", "-")
+        if normalized_category not in {"missing-required", "unmapped-source", "mapping-warning"}:
+            raise ValidationError("migration gap category is invalid")
+        normalized_field = field.strip()
+        normalized_message = " ".join(message.strip().split())
+        if not normalized_field:
+            raise ValidationError("migration gap field is mandatory")
+        if not normalized_message:
+            raise ValidationError("migration gap message is mandatory")
+        return cls(
+            category=normalized_category,
+            field=normalized_field,
+            severity=severity,
+            message=normalized_message,
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "category": self.category,
+            "field": self.field,
+            "severity": self.severity.value,
+            "message": self.message,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class MigrationTemplate:
+    source: LegacyMigrationSource
+    name: str
+    version: str
+    mapping: ImportMapping
+    required_columns: tuple[str, ...]
+    recommended_columns: tuple[str, ...]
+    notes: tuple[str, ...]
+
+    @classmethod
+    def create(
+        cls,
+        source: LegacyMigrationSource,
+        name: str,
+        version: str,
+        mapping: ImportMapping,
+        required_columns: tuple[str, ...],
+        recommended_columns: tuple[str, ...] = (),
+        notes: tuple[str, ...] = (),
+    ) -> Self:
+        normalized_name = " ".join(name.strip().split())
+        normalized_version = version.strip()
+        if not normalized_name:
+            raise ValidationError("migration template name is mandatory")
+        if not normalized_version:
+            raise ValidationError("migration template version is mandatory")
+        normalized_required = tuple(
+            dict.fromkeys(column.strip() for column in required_columns if column.strip())
+        )
+        if not normalized_required:
+            raise ValidationError("migration template requires at least one source column")
+        normalized_recommended = tuple(
+            dict.fromkeys(column.strip() for column in recommended_columns if column.strip())
+        )
+        normalized_notes = tuple(" ".join(note.strip().split()) for note in notes if note.strip())
+        return cls(
+            source=source,
+            name=normalized_name,
+            version=normalized_version,
+            mapping=mapping,
+            required_columns=normalized_required,
+            recommended_columns=normalized_recommended,
+            notes=normalized_notes,
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "source": self.source.value,
+            "name": self.name,
+            "version": self.version,
+            "mapping": self.mapping.as_dict(),
+            "required_columns": list(self.required_columns),
+            "recommended_columns": list(self.recommended_columns),
+            "notes": list(self.notes),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class MigrationPlanReport:
+    job_id: EntityId
+    tenant_id: TenantId
+    source: LegacyMigrationSource
+    format: ImportFormat
+    status: ImportJobStatus
+    template: MigrationTemplate
+    total_rows: int
+    valid_rows: int
+    invalid_rows: int
+    create_count: int
+    update_count: int
+    gaps: tuple[MigrationGap, ...]
+    import_report: ImportReport
+    resume_strategy: str
+
+    @classmethod
+    def create(
+        cls,
+        tenant_id: TenantId,
+        source: LegacyMigrationSource,
+        import_format: ImportFormat,
+        template: MigrationTemplate,
+        gaps: tuple[MigrationGap, ...],
+        import_report: ImportReport,
+        resume_strategy: str,
+        job_id: EntityId | None = None,
+    ) -> Self:
+        normalized_resume = " ".join(resume_strategy.strip().split())
+        if not normalized_resume:
+            raise ValidationError("migration resume strategy is mandatory")
+        if import_report.tenant_id != tenant_id:
+            raise ValidationError("migration plan import report tenant mismatch")
+        if import_report.format != import_format:
+            raise ValidationError("migration plan import report format mismatch")
+        if not import_report.dry_run:
+            raise ValidationError("migration plan must be based on a dry-run import report")
+        blocking_gaps = any(gap.severity == Severity.ERROR for gap in gaps)
+        status = (
+            ImportJobStatus.FAILED
+            if blocking_gaps or import_report.invalid_rows
+            else ImportJobStatus.VALIDATED
+        )
+        return cls(
+            job_id=job_id or EntityId.new(),
+            tenant_id=tenant_id,
+            source=source,
+            format=import_format,
+            status=status,
+            template=template,
+            total_rows=import_report.total_rows,
+            valid_rows=import_report.valid_rows,
+            invalid_rows=import_report.invalid_rows,
+            create_count=sum(1 for impact in import_report.impacts if impact.action == "create"),
+            update_count=sum(1 for impact in import_report.impacts if impact.action == "update"),
+            gaps=gaps,
+            import_report=import_report,
+            resume_strategy=normalized_resume,
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "job_id": self.job_id.value,
+            "tenant_id": self.tenant_id.value,
+            "source": self.source.value,
+            "format": self.format.value,
+            "status": self.status.value,
+            "template": self.template.as_dict(),
+            "total_rows": self.total_rows,
+            "valid_rows": self.valid_rows,
+            "invalid_rows": self.invalid_rows,
+            "create_count": self.create_count,
+            "update_count": self.update_count,
+            "gaps": [gap.as_dict() for gap in self.gaps],
+            "import_report": self.import_report.as_dict(),
+            "resume_strategy": self.resume_strategy,
+        }
+
+
 @dataclass(frozen=True, slots=True)
 class ImportFieldMapping:
     target_field: str

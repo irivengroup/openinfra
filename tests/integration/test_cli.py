@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from openinfra import __version__
 from openinfra.interfaces.cli import OpenInfraCLI
 
 
@@ -12,7 +13,7 @@ class TestOpenInfraCli:
         captured = capsys.readouterr()
 
         assert code == 0
-        assert captured.out.strip() == "0.26.0"
+        assert captured.out.strip() == __version__
 
     def test_spec_validate_command(self, capsys: object) -> None:
         root = Path("docs/specifications/OpenInfra-CDC-SFG-STG-v4")

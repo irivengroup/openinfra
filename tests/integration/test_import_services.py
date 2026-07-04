@@ -8,7 +8,12 @@ from typing import Any
 import pytest
 
 from openinfra.application.container import ApplicationFactory
-from openinfra.application.import_services import BulkImportDatasetCommand, ImportDatasetCommand
+from openinfra.application.import_services import (
+    BulkImportDatasetCommand,
+    ImportDatasetCommand,
+    MigrationTemplateCommand,
+    PlanMigrationCommand,
+)
 from openinfra.application.security_services import BootstrapTokenCommand
 from openinfra.application.source_of_truth_services import GetSourceObjectCommand
 from openinfra.domain.common import NotFoundError, TenantId, ValidationError
@@ -493,3 +498,91 @@ def test_bulk_import_update_resume_errors_limits_and_mapping_edges(tmp_path: Pat
             )
         )
     app.import_service._MAX_ROWS = 1_000_000
+
+
+def test_legacy_migration_plan_uses_template_and_reports_gaps(tmp_path: Path) -> None:
+    app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+    token = _bootstrap(app)
+    csv_file = tmp_path / "netbox.csv"
+    csv_file.write_text(
+        "name,status,serial,extra\nsw-01,active,SN-SW01,ignored\n",
+        encoding="utf-8",
+    )
+
+    template = app.import_service.get_migration_template(MigrationTemplateCommand("netbox"))
+    report = app.import_service.plan_migration(
+        PlanMigrationCommand(
+            tenant_id="default",
+            actor="pytest",
+            admin_token=token,
+            source="netbox",
+            file_path=csv_file,
+            format="csv",
+            sample_limit=10,
+        )
+    )
+    persisted = app.import_service.get_migration_plan("default", report.job_id.value)
+
+    assert template.as_dict()["mapping"]["source"] == "literal:netbox_migration"
+    assert report.status.value == "validated"
+    assert report.total_rows == 1
+    assert report.import_report.impacts[0].object_key == "sw-01"
+    assert any(gap.field == "extra" for gap in report.gaps)
+    assert persisted.as_dict()["resume_strategy"].startswith("Run import bulk-dataset")
+    with pytest.raises(NotFoundError, match="source object not found"):
+        app.source_of_truth_service.get_object(GetSourceObjectCommand("default", token, "sw-01"))
+
+
+def test_legacy_migration_plan_fails_on_missing_required_source_column(tmp_path: Path) -> None:
+    app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+    token = _bootstrap(app)
+    csv_file = tmp_path / "device42-missing.csv"
+    csv_file.write_text("serial_no,asset_no\nSN1,A1\n", encoding="utf-8")
+
+    report = app.import_service.plan_migration(
+        PlanMigrationCommand(
+            tenant_id="default",
+            actor="pytest",
+            admin_token=token,
+            source="device42",
+            file_path=csv_file,
+            format="csv",
+        )
+    )
+
+    assert report.status.value == "failed"
+    assert any(gap.category == "missing-required" for gap in report.gaps)
+    assert report.import_report.invalid_rows == 1
+
+
+def test_legacy_migration_plan_limit_not_found_and_corrupt_store_errors(tmp_path: Path) -> None:
+    app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+    token = _bootstrap(app)
+    csv_file = tmp_path / "netbox-limit.csv"
+    csv_file.write_text("name\nsw-limit\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="migration plan not found"):
+        app.import_service.get_migration_plan("default", "missing")
+
+    app.import_service._MAX_ROWS = 0
+    with pytest.raises(ValidationError, match="migration dataset exceeds"):
+        app.import_service.plan_migration(
+            PlanMigrationCommand("default", "pytest", token, "netbox", csv_file, "csv")
+        )
+    app.import_service._MAX_ROWS = 1_000_000
+
+    report = app.import_service.plan_migration(
+        PlanMigrationCommand("default", "pytest", token, "netbox", csv_file, "csv", sample_limit=0)
+    )
+    key = "default:" + report.job_id.value
+    app.store.data["migration_plans"][key]["template"]["mapping"] = []
+    with pytest.raises(ValidationError, match="template mapping"):
+        app.import_service.get_migration_plan("default", report.job_id.value)
+    app.store.data["migration_plans"][key]["template"]["mapping"] = {"key": "name"}
+    app.store.data["migration_plans"][key]["template"]["required_columns"] = "name"
+    with pytest.raises(ValidationError, match="required columns"):
+        app.import_service.get_migration_plan("default", report.job_id.value)
+    app.store.data["migration_plans"][key]["template"]["required_columns"] = ["name"]
+    app.store.data["migration_plans"][key]["gaps"] = {}
+    with pytest.raises(ValidationError, match="plan details"):
+        app.import_service.get_migration_plan("default", report.job_id.value)

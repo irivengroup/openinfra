@@ -296,3 +296,9 @@ Le module d’export suit la séparation hexagonale existante. Le domaine `data_
 La clé de signature n’est pas codée en dur : elle est créée et persistée par le backend via `ExportRepository.get_or_create_export_signing_secret`. L’adaptateur JSON la stocke dans le document d’état local de test, tandis que l’adaptateur PostgreSQL utilise `export_signing_keys`. Les tables `export_jobs` et `export_artifacts` sont partitionnées par hash du tenant afin de rester alignées avec la stratégie multi-tenant et forte volumétrie du socle PostgreSQL.
 
 Les interfaces restent fines : le CLI expose `openinfra export request`, `run`, `report` et `artifact`; l’API expose `POST/GET /api/v1/exports/jobs`, `POST /api/v1/exports/run` et `GET /api/v1/exports/artifact`. Aucun appel réseau externe ni stockage objet externe n’est imposé dans cette baseline ; le design isole déjà le stockage d’artefacts derrière le port repository pour permettre une évolution compatible.
+
+
+## v0.27.0 — P06 EPIC-0604 Migration depuis référentiels existants
+
+Le framework de migration legacy reste dans le bounded context import afin de réutiliser les parseurs CSV/JSON/XLSX, le mapping contrôlé, la DLQ et l’audit existants. La couche domaine porte les concepts `LegacyMigrationSource`, `MigrationTemplate`, `MigrationGap` et `MigrationPlanReport`. La couche application orchestre le dry-run sans effet de bord et persiste le rapport via le port `ImportRepository`. Les adaptateurs JSON/PostgreSQL stockent les plans, PostgreSQL utilisant la table partitionnée `migration_plan_reports` par hash du tenant pour conserver la scalabilité multi-tenant.
+

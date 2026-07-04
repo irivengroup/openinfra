@@ -15,6 +15,10 @@ from openinfra.domain.data_import import (
     ImportReport,
     ImportRowImpact,
     ImportRowIssue,
+    LegacyMigrationSource,
+    MigrationGap,
+    MigrationPlanReport,
+    MigrationTemplate,
 )
 
 
@@ -302,4 +306,147 @@ def test_bulk_import_additional_validation_branches() -> None:
             (),
             (),
             job_id=checkpoint.job_id,
+        )
+
+
+def test_legacy_migration_template_and_plan_are_serializable() -> None:
+    mapping = ImportMapping.from_dict(
+        {
+            "key": "name",
+            "kind": "literal:device",
+            "display_name": "name",
+            "source": "literal:netbox_migration",
+        }
+    )
+    template = MigrationTemplate.create(
+        LegacyMigrationSource.from_value("netbox"),
+        "NetBox devices",
+        "1.0",
+        mapping,
+        ("name",),
+        ("serial",),
+        ("Use name as stable key.",),
+    )
+    import_report = ImportReport.create(
+        TenantId.from_value("default"),
+        ImportFormat.CSV,
+        True,
+        mapping,
+        1,
+        (ImportRowImpact.create(1, "create", "srv-1", "device"),),
+        (),
+        ImportJobStatus.VALIDATED,
+    )
+    plan = MigrationPlanReport.create(
+        TenantId.from_value("default"),
+        LegacyMigrationSource.NETBOX,
+        ImportFormat.CSV,
+        template,
+        (MigrationGap.create("unmapped-source", "extra", "not mapped"),),
+        import_report,
+        "Run the bulk import with checkpoints.",
+    )
+
+    payload = plan.as_dict()
+
+    assert payload["source"] == "netbox"
+    assert payload["status"] == "validated"
+    assert payload["gaps"][0]["category"] == "unmapped-source"
+    assert payload["template"]["mapping"]["kind"] == "literal:device"
+
+
+@pytest.mark.parametrize(
+    ("factory", "message"),
+    [
+        (lambda: LegacyMigrationSource.from_value("unknown"), "migration source"),
+        (
+            lambda: MigrationGap.create("bad", "field", "message"),
+            "category",
+        ),
+        (
+            lambda: MigrationTemplate.create(
+                LegacyMigrationSource.CSV,
+                " ",
+                "1.0",
+                _mapping(),
+                ("key",),
+            ),
+            "name",
+        ),
+        (
+            lambda: MigrationTemplate.create(
+                LegacyMigrationSource.CSV,
+                "CSV",
+                " ",
+                _mapping(),
+                ("key",),
+            ),
+            "version",
+        ),
+    ],
+)
+def test_legacy_migration_validation_errors(factory: object, message: str) -> None:
+    with pytest.raises(ValidationError, match=message):
+        factory()
+
+
+def test_legacy_migration_plan_validation_guards() -> None:
+    tenant = TenantId.from_value("default")
+    other = TenantId.from_value("other")
+    mapping = _mapping()
+    template = MigrationTemplate.create(
+        LegacyMigrationSource.CSV,
+        "CSV",
+        "1.0",
+        mapping,
+        ("key",),
+    )
+    dry_report = ImportReport.create(
+        tenant,
+        ImportFormat.CSV,
+        True,
+        mapping,
+        0,
+        (),
+        (),
+        ImportJobStatus.VALIDATED,
+    )
+    applied_report = ImportReport.create(
+        tenant,
+        ImportFormat.CSV,
+        False,
+        mapping,
+        0,
+        (),
+        (),
+        ImportJobStatus.APPLIED,
+    )
+
+    with pytest.raises(ValidationError, match="field is mandatory"):
+        MigrationGap.create("unmapped-source", " ", "message")
+    with pytest.raises(ValidationError, match="message is mandatory"):
+        MigrationGap.create("unmapped-source", "field", " ")
+    with pytest.raises(ValidationError, match="at least one source column"):
+        MigrationTemplate.create(LegacyMigrationSource.CSV, "CSV", "1.0", mapping, ())
+    with pytest.raises(ValidationError, match="resume strategy"):
+        MigrationPlanReport.create(
+            tenant, LegacyMigrationSource.CSV, ImportFormat.CSV, template, (), dry_report, " "
+        )
+    with pytest.raises(ValidationError, match="tenant mismatch"):
+        MigrationPlanReport.create(
+            other, LegacyMigrationSource.CSV, ImportFormat.CSV, template, (), dry_report, "Resume"
+        )
+    with pytest.raises(ValidationError, match="format mismatch"):
+        MigrationPlanReport.create(
+            tenant, LegacyMigrationSource.CSV, ImportFormat.JSON, template, (), dry_report, "Resume"
+        )
+    with pytest.raises(ValidationError, match="dry-run"):
+        MigrationPlanReport.create(
+            tenant,
+            LegacyMigrationSource.CSV,
+            ImportFormat.CSV,
+            template,
+            (),
+            applied_report,
+            "Resume",
         )

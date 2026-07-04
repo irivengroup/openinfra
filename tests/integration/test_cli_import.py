@@ -196,3 +196,93 @@ def test_cli_bulk_import_dataset_report_and_checkpoint(tmp_path: Path, capsys: o
     )
     checkpoint = json.loads(capsys.readouterr().out)
     assert checkpoint["next_row_number"] == 3
+
+
+def test_cli_import_migration_template_plan_and_report(tmp_path: Path, capsys: object) -> None:
+    data = tmp_path / "state.json"
+    token = "m" * 40
+    csv_file = tmp_path / "glpi.csv"
+    csv_file.write_text(
+        "name,serial,inventory_number,location,status,user,groups\npc-01,SN-PC01,INV1,Paris,active,alice,desktop\n",
+        encoding="utf-8",
+    )
+
+    assert (
+        OpenInfraCLI().run(
+            [
+                "security",
+                "bootstrap-token",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--subject",
+                "migration-cli",
+                "--role",
+                "sot:operator",
+                "--token",
+                token,
+            ]
+        )
+        == 0
+    )
+    capsys.readouterr()
+
+    assert (
+        OpenInfraCLI().run(
+            [
+                "import",
+                "migration-template",
+                "--data",
+                str(data),
+                "--source",
+                "glpi",
+            ]
+        )
+        == 0
+    )
+    template = json.loads(capsys.readouterr().out)
+    assert template["source"] == "glpi"
+    assert template["mapping"]["source"] == "literal:glpi_migration"
+
+    assert (
+        OpenInfraCLI().run(
+            [
+                "import",
+                "migration-plan",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--source",
+                "glpi",
+                "--file",
+                str(csv_file),
+                "--format",
+                "csv",
+            ]
+        )
+        == 0
+    )
+    report = json.loads(capsys.readouterr().out)
+    assert report["status"] == "validated"
+
+    assert (
+        OpenInfraCLI().run(
+            [
+                "import",
+                "migration-report",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--job-id",
+                report["job_id"],
+            ]
+        )
+        == 0
+    )
+    persisted = json.loads(capsys.readouterr().out)
+    assert persisted["job_id"] == report["job_id"]

@@ -55,7 +55,12 @@ from openinfra.application.identity_services import (
     GrantGroupRoleCommand,
     GrantUserRoleCommand,
 )
-from openinfra.application.import_services import BulkImportDatasetCommand, ImportDatasetCommand
+from openinfra.application.import_services import (
+    BulkImportDatasetCommand,
+    ImportDatasetCommand,
+    MigrationTemplateCommand,
+    PlanMigrationCommand,
+)
 from openinfra.application.ipam_services import (
     AllocateIpCommand,
     DefineAsnCommand,
@@ -383,6 +388,29 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     self._first_query_value(query, "job_id"),
                 )
                 responder.send(HTTPStatus.OK, checkpoint.as_dict())
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/imports/migration-template":
+            try:
+                query = parse_qs(parsed.query)
+                template = self.server.application.import_service.get_migration_template(
+                    MigrationTemplateCommand(self._first_query_value(query, "source"))
+                )
+                responder.send(HTTPStatus.OK, template.as_dict())
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/imports/migration-report":
+            try:
+                query = parse_qs(parsed.query)
+                report = self.server.application.import_service.get_migration_plan(
+                    self._first_query_value(query, "tenant_id"),
+                    self._first_query_value(query, "job_id"),
+                )
+                responder.send(HTTPStatus.OK, report.as_dict())
             except (ValueError, OpenInfraError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
@@ -1477,6 +1505,25 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
+        if route == "/api/v1/imports/migration-plans":
+            try:
+                payload = self._read_json_body()
+                migration_report = self.server.application.import_service.plan_migration(
+                    PlanMigrationCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=str(payload["admin_token"]),
+                        source=str(payload["source"]),
+                        file_path=Path(str(payload["file_path"])),
+                        format=str(payload["format"]),
+                        sample_limit=int(payload.get("sample_limit", 100)),
+                    )
+                )
+                responder.send(HTTPStatus.OK, migration_report.as_dict())
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
         if route == "/api/v1/exports/jobs":
             try:
                 payload = self._read_json_body()
@@ -1521,7 +1568,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         if route == "/api/v1/imports/datasets":
             try:
                 payload = self._read_json_body()
-                report = self.server.application.import_service.import_dataset(
+                import_report = self.server.application.import_service.import_dataset(
                     ImportDatasetCommand(
                         tenant_id=str(payload["tenant_id"]),
                         actor=str(payload.get("actor", "api")),
@@ -1533,8 +1580,8 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         batch_size=int(payload.get("batch_size", 500)),
                     )
                 )
-                status = HTTPStatus.OK if report.dry_run else HTTPStatus.CREATED
-                responder.send(status, report.as_dict())
+                status = HTTPStatus.OK if import_report.dry_run else HTTPStatus.CREATED
+                responder.send(status, import_report.as_dict())
             except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return

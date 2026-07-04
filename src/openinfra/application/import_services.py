@@ -26,6 +26,10 @@ from openinfra.domain.data_import import (
     ImportReport,
     ImportRowImpact,
     ImportRowIssue,
+    LegacyMigrationSource,
+    MigrationGap,
+    MigrationPlanReport,
+    MigrationTemplate,
 )
 from openinfra.domain.security import Permission
 
@@ -65,6 +69,22 @@ class BulkImportDatasetCommand:
     sample_limit: int = 100
 
 
+@dataclass(frozen=True, slots=True)
+class MigrationTemplateCommand:
+    source: str
+
+
+@dataclass(frozen=True, slots=True)
+class PlanMigrationCommand:
+    tenant_id: str
+    actor: str
+    admin_token: str
+    source: str
+    file_path: Path
+    format: str
+    sample_limit: int = 100
+
+
 class GenericImportService:
     _MAX_ROWS = 1_000_000
 
@@ -83,6 +103,83 @@ class GenericImportService:
         self._transaction_manager = transaction_manager
         self._security_service = security_service
         self._parser = parser
+
+    def get_migration_template(self, command: MigrationTemplateCommand) -> MigrationTemplate:
+        return self._migration_template(LegacyMigrationSource.from_value(command.source))
+
+    def plan_migration(self, command: PlanMigrationCommand) -> MigrationPlanReport:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        principal = self._security_service.authenticate_token(
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.SOT_WRITE)
+        )
+        source = LegacyMigrationSource.from_value(command.source)
+        import_format = ImportFormat.from_value(command.format)
+        sample_limit = self._normalize_sample_limit(command.sample_limit)
+        base_template = self._migration_template(source)
+        rows = self._parser.parse(command.file_path, import_format)
+        if len(rows) > self._MAX_ROWS:
+            raise ValidationError("migration dataset exceeds 1,000,000 rows")
+        gaps = self._migration_gaps(rows, base_template)
+        template = self._effective_migration_template(base_template, rows)
+        candidates, issues = self._build_candidates(rows, template.mapping)
+        impacts = self._build_impacts(tenant_id, candidates)
+        if sample_limit:
+            impacts = impacts[:sample_limit]
+            issues = issues[:sample_limit]
+        import_report = ImportReport.create(
+            tenant_id=tenant_id,
+            import_format=import_format,
+            dry_run=True,
+            mapping=template.mapping,
+            total_rows=len(rows),
+            impacts=impacts,
+            dlq=issues,
+            status=ImportJobStatus.FAILED if issues else ImportJobStatus.VALIDATED,
+        )
+        report = MigrationPlanReport.create(
+            tenant_id=tenant_id,
+            source=source,
+            import_format=import_format,
+            template=template,
+            gaps=gaps,
+            import_report=import_report,
+            resume_strategy=(
+                "Run import bulk-dataset with the returned mapping, persist checkpoints, "
+                "fix blocking gaps first, then resume with --resume-job-id when interrupted."
+            ),
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            self._import_repository.save_migration_plan_report(report)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=principal.subject,
+                    action="import.migration_plan." + report.status.value,
+                    target_type="migration_plan",
+                    target_id=report.job_id.value,
+                    metadata={
+                        "declared_actor": command.actor,
+                        "source": source.value,
+                        "format": import_format.value,
+                        "total_rows": report.total_rows,
+                        "valid_rows": report.valid_rows,
+                        "invalid_rows": report.invalid_rows,
+                        "gap_count": len(report.gaps),
+                    },
+                    severity=Severity.ERROR
+                    if report.status == ImportJobStatus.FAILED
+                    else Severity.INFO,
+                )
+            )
+            unit_of_work.commit()
+        return report
+
+    def get_migration_plan(self, tenant_id: str, job_id: str) -> MigrationPlanReport:
+        normalized_tenant = TenantId.from_value(tenant_id)
+        report = self._import_repository.get_migration_plan_report(normalized_tenant, job_id)
+        if report is None:
+            raise ValidationError("migration plan not found: " + job_id)
+        return report
 
     def import_dataset(self, command: ImportDatasetCommand) -> ImportReport:
         tenant_id = TenantId.from_value(command.tenant_id)
@@ -405,6 +502,176 @@ class GenericImportService:
         if remaining > 0:
             sample.extend(items[:remaining])
 
+    def _migration_template(self, source: LegacyMigrationSource) -> MigrationTemplate:
+        templates: dict[
+            LegacyMigrationSource,
+            tuple[str, dict[str, object], tuple[str, ...], tuple[str, ...], tuple[str, ...]],
+        ] = {
+            LegacyMigrationSource.DEVICE42: (
+                "Device42 assets baseline",
+                {
+                    "key": "device_name",
+                    "kind": "literal:device",
+                    "display_name": "device_name",
+                    "source": "literal:device42_migration",
+                    "tags": "tags",
+                    "attributes.serial": "serial_no",
+                    "attributes.asset_no": "asset_no",
+                    "attributes.ip_address": "ip_address",
+                    "attributes.manufacturer": "manufacturer",
+                    "attributes.model": "model",
+                },
+                ("device_name",),
+                ("serial_no", "asset_no", "ip_address", "manufacturer", "model", "tags"),
+                ("Device42 CI and hardware exports should include a stable device_name.",),
+            ),
+            LegacyMigrationSource.NETBOX: (
+                "NetBox devices baseline",
+                {
+                    "key": "name",
+                    "kind": "literal:device",
+                    "display_name": "name",
+                    "source": "literal:netbox_migration",
+                    "tags": "tags",
+                    "attributes.status": "status",
+                    "attributes.role": "role",
+                    "attributes.site": "site",
+                    "attributes.rack": "rack",
+                    "attributes.serial": "serial",
+                },
+                ("name",),
+                ("status", "role", "site", "rack", "serial", "tags"),
+                ("NetBox device exports should preserve name as stable natural key.",),
+            ),
+            LegacyMigrationSource.NAUTOBOT: (
+                "Nautobot devices baseline",
+                {
+                    "key": "name",
+                    "kind": "literal:device",
+                    "display_name": "name",
+                    "source": "literal:nautobot_migration",
+                    "tags": "tags",
+                    "attributes.status": "status",
+                    "attributes.role": "role",
+                    "attributes.location": "location",
+                    "attributes.platform": "platform",
+                    "attributes.serial": "serial",
+                },
+                ("name",),
+                ("status", "role", "location", "platform", "serial", "tags"),
+                (
+                    "Nautobot location and role fields are retained as attributes "
+                    "for reconciliation.",
+                ),
+            ),
+            LegacyMigrationSource.GLPI: (
+                "GLPI computer inventory baseline",
+                {
+                    "key": "name",
+                    "kind": "literal:device",
+                    "display_name": "name",
+                    "source": "literal:glpi_migration",
+                    "tags": "groups",
+                    "attributes.serial": "serial",
+                    "attributes.inventory_number": "inventory_number",
+                    "attributes.location": "location",
+                    "attributes.status": "status",
+                    "attributes.user": "user",
+                },
+                ("name",),
+                ("serial", "inventory_number", "location", "status", "user", "groups"),
+                ("GLPI user ownership is imported as attribute, not as IAM identity.",),
+            ),
+            LegacyMigrationSource.CSV: (
+                "Generic CSV Source of Truth baseline",
+                {
+                    "key": "key",
+                    "kind": "kind",
+                    "display_name": "display_name",
+                    "source": "source",
+                    "tags": "tags",
+                },
+                ("key", "kind", "display_name", "source"),
+                ("tags",),
+                ("Generic CSV keeps explicit source and kind columns under operator control.",),
+            ),
+        }
+        name, mapping_payload, required, recommended, notes = templates[source]
+        return MigrationTemplate.create(
+            source=source,
+            name=name,
+            version="1.0",
+            mapping=ImportMapping.from_dict(mapping_payload),
+            required_columns=required,
+            recommended_columns=recommended,
+            notes=notes,
+        )
+
+    def _effective_migration_template(
+        self, template: MigrationTemplate, rows: tuple[dict[str, str], ...]
+    ) -> MigrationTemplate:
+        columns = set(rows[0].keys()) if rows else set[str]()
+        required = set(template.required_columns)
+        mapping_payload: dict[str, object] = {}
+        for field in template.mapping.fields:
+            if (
+                field.source_field.startswith("literal:")
+                or field.source_field in columns
+                or field.source_field in required
+            ):
+                mapping_payload[field.target_field] = field.source_field
+        return MigrationTemplate.create(
+            source=template.source,
+            name=template.name,
+            version=template.version,
+            mapping=ImportMapping.from_dict(mapping_payload),
+            required_columns=template.required_columns,
+            recommended_columns=template.recommended_columns,
+            notes=template.notes,
+        )
+
+    def _migration_gaps(
+        self, rows: tuple[dict[str, str], ...], template: MigrationTemplate
+    ) -> tuple[MigrationGap, ...]:
+        columns = set(rows[0].keys()) if rows else set[str]()
+        gaps: list[MigrationGap] = []
+        for required in template.required_columns:
+            if required not in columns:
+                gaps.append(
+                    MigrationGap.create(
+                        "missing-required",
+                        required,
+                        "required source column is absent from migration dataset",
+                        Severity.ERROR,
+                    )
+                )
+        mapped_columns = {
+            field.source_field
+            for field in template.mapping.fields
+            if not field.source_field.startswith("literal:")
+        }
+        for column in sorted(columns - mapped_columns):
+            gaps.append(
+                MigrationGap.create(
+                    "unmapped-source",
+                    column,
+                    "source column is not mapped by the selected migration template",
+                    Severity.WARNING,
+                )
+            )
+        for recommended in template.recommended_columns:
+            if recommended not in columns:
+                gaps.append(
+                    MigrationGap.create(
+                        "mapping-warning",
+                        recommended,
+                        "recommended source column is absent; migration can continue "
+                        "with reduced fidelity",
+                        Severity.WARNING,
+                    )
+                )
+        return tuple(gaps)
+
     def _normalize_batch_size(self, value: int) -> int:
         normalized = int(value)
         if not 1 <= normalized <= 10_000:
@@ -434,6 +701,9 @@ class GenericImportService:
         mapped: dict[str, str] = {}
         issues: list[ImportRowIssue] = []
         for field in mapping.fields:
+            if field.source_field.startswith("literal:"):
+                mapped[field.target_field] = field.source_field.removeprefix("literal:").strip()
+                continue
             if field.source_field not in row:
                 issues.append(
                     ImportRowIssue.create(

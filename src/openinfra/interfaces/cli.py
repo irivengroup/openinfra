@@ -53,7 +53,12 @@ from openinfra.application.identity_services import (
     GrantGroupRoleCommand,
     GrantUserRoleCommand,
 )
-from openinfra.application.import_services import BulkImportDatasetCommand, ImportDatasetCommand
+from openinfra.application.import_services import (
+    BulkImportDatasetCommand,
+    ImportDatasetCommand,
+    MigrationTemplateCommand,
+    PlanMigrationCommand,
+)
 from openinfra.application.ipam_services import (
     AllocateIpCommand,
     DefineAsnCommand,
@@ -444,6 +449,46 @@ class OpenInfraCLI:
         bulk_checkpoint.add_argument("--tenant", required=True)
         bulk_checkpoint.add_argument("--job-id", required=True)
         bulk_checkpoint.set_defaults(handler=self._handle_import_bulk_checkpoint)
+
+        migration_template = import_subparsers.add_parser(
+            "migration-template",
+            help=(
+                "print a built-in migration mapping template for Device42, "
+                "NetBox, Nautobot, GLPI or generic CSV"
+            ),
+        )
+        self._add_backend_arguments(migration_template)
+        migration_template.add_argument(
+            "--source", choices=("device42", "netbox", "nautobot", "glpi", "csv"), required=True
+        )
+        migration_template.set_defaults(handler=self._handle_import_migration_template)
+
+        migration_plan = import_subparsers.add_parser(
+            "migration-plan",
+            help=(
+                "simulate a legacy inventory migration and persist a gap report "
+                "without mutating SOT"
+            ),
+        )
+        self._add_backend_arguments(migration_plan)
+        migration_plan.add_argument("--tenant", required=True)
+        migration_plan.add_argument("--actor", default="cli")
+        migration_plan.add_argument("--admin-token", required=True)
+        migration_plan.add_argument(
+            "--source", choices=("device42", "netbox", "nautobot", "glpi", "csv"), required=True
+        )
+        migration_plan.add_argument("--file", type=Path, required=True)
+        migration_plan.add_argument("--format", choices=("csv", "json", "xlsx"), required=True)
+        migration_plan.add_argument("--sample-limit", type=int, default=100)
+        migration_plan.set_defaults(handler=self._handle_import_migration_plan)
+
+        migration_report = import_subparsers.add_parser(
+            "migration-report", help="read a persisted legacy migration gap report"
+        )
+        self._add_backend_arguments(migration_report)
+        migration_report.add_argument("--tenant", required=True)
+        migration_report.add_argument("--job-id", required=True)
+        migration_report.set_defaults(handler=self._handle_import_migration_report)
 
     def _add_export_commands(self, subparsers: Any) -> None:
         exports = subparsers.add_parser("export", help="asynchronous signed export operations")
@@ -1557,6 +1602,36 @@ class OpenInfraCLI:
         app = self._create_application(args)
         checkpoint = app.import_service.get_bulk_checkpoint(args.tenant, args.job_id)
         print(json.dumps(checkpoint.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_import_migration_template(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        template = app.import_service.get_migration_template(
+            MigrationTemplateCommand(source=args.source)
+        )
+        print(json.dumps(template.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_import_migration_plan(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        report = app.import_service.plan_migration(
+            PlanMigrationCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                source=args.source,
+                file_path=args.file,
+                format=args.format,
+                sample_limit=args.sample_limit,
+            )
+        )
+        print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_import_migration_report(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        report = app.import_service.get_migration_plan(args.tenant, args.job_id)
+        print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
         return 0
 
     def _handle_export_request(self, args: argparse.Namespace) -> int:

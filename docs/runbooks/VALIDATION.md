@@ -461,3 +461,9 @@ PYTHONPATH=src python -m pytest -q --no-cov tests/integration/test_export_servic
 ```
 
 Les tests vérifient la file d’export, l’exécution worker, la pagination bornée, la sérialisation CSV/JSON/XLSX, le digest SHA-256, la signature HMAC-SHA256, le rejet des artefacts altérés, l’audit d’échec et la migration PostgreSQL `0021` partitionnée.
+
+
+## Contrôles ajoutés en v0.27.0
+
+La v0.27.0 ajoute les contrôles P06 / EPIC-0604 suivants : templates Device42/NetBox/Nautobot/GLPI/CSV, génération de plan de migration dry-run, rapport d’écarts, persistance du rapport, reprise par `job_id`, validation OpenAPI, smoke CLI migration et migration PostgreSQL `0022_legacy_migration_framework.sql`. Les tests de non-régression vérifient notamment qu’un mapping legacy ne produit aucune écriture en simulation et qu’une colonne requise absente devient un gap bloquant.
+

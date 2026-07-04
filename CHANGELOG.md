@@ -1,3 +1,16 @@
+## 0.27.0 - 2026-07-04
+
+- Roadmap : P06 / EPIC-0604 — Migration depuis référentiels existants.
+- Ajout des templates de migration Device42, NetBox, Nautobot, GLPI et CSV générique vers la Source of Truth.
+- Ajout du domaine de planification `LegacyMigrationSource`, `MigrationTemplate`, `MigrationGap` et `MigrationPlanReport` avec statut, gaps, rapport dry-run et stratégie de reprise.
+- Ajout du service applicatif de migration : sélection de template, mapping contrôlé, simulation sans écriture, rapport d’écarts, audit et persistance du rapport.
+- Ajout du support de mappings littéraux `literal:<valeur>` pour normaliser les champs `kind` et `source` sans exiger de colonnes artificielles dans les exports legacy.
+- Ajout de la migration PostgreSQL `0022_legacy_migration_framework.sql` avec `migration_plan_reports` partitionnée par hash du tenant et index de consultation.
+- Ajout des commandes `openinfra import migration-template`, `openinfra import migration-plan` et `openinfra import migration-report`.
+- Ajout des endpoints `GET /api/v1/imports/migration-template`, `POST /api/v1/imports/migration-plans` et `GET /api/v1/imports/migration-report`.
+- Mise à jour OpenAPI, README, architecture, validation, traçabilité et tests de non-régression.
+- Conservation des garanties précédentes : imports génériques et bulk, exports signés, Swagger/ReDoc/OpenAPI, séparation requirements runtime/dev, pgAdmin `admin@openinfra.tld`, Docker limité au lab/smoke/test et couverture globale `>= 98 %`.
+
 ## 0.26.0 - 2026-07-04
 
 - Roadmap : P06 / EPIC-0603 — Exports asynchrones et signés.

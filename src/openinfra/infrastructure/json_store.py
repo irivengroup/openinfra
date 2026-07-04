@@ -61,6 +61,10 @@ from openinfra.domain.data_import import (
     ImportReport,
     ImportRowImpact,
     ImportRowIssue,
+    LegacyMigrationSource,
+    MigrationGap,
+    MigrationPlanReport,
+    MigrationTemplate,
 )
 from openinfra.domain.dcim import (
     Building,
@@ -229,6 +233,7 @@ class JsonDocumentStore:
             "import_jobs": {},
             "bulk_import_jobs": {},
             "bulk_import_checkpoints": {},
+            "migration_plans": {},
             "export_jobs": {},
             "export_artifacts": {},
             "export_signing_secret": "",
@@ -286,8 +291,75 @@ class JsonImportRepository(ImportRepository):
                 return None
             return self._checkpoint_from_payload(payload)
 
+    def save_migration_plan_report(self, report: MigrationPlanReport) -> None:
+        with self._store.lock:
+            self._store.data["migration_plans"][
+                self._key(report.tenant_id, report.job_id.value)
+            ] = report.as_dict()
+            self._store.mark_dirty()
+
+    def get_migration_plan_report(
+        self, tenant_id: TenantId, job_id: str
+    ) -> MigrationPlanReport | None:
+        with self._store.lock:
+            payload = self._store.data["migration_plans"].get(self._key(tenant_id, job_id))
+            if payload is None:
+                return None
+            if not isinstance(payload, dict):
+                raise ValidationError("stored migration plan is invalid")
+            return self._migration_plan_from_payload(payload)
+
     def bulk_import_strategy_name(self) -> str:
         return "json-streaming-batch-checkpoint"
+
+    def _migration_plan_from_payload(self, payload: dict[str, object]) -> MigrationPlanReport:
+        template_payload = payload.get("template", {})
+        gaps_payload = payload.get("gaps", [])
+        import_payload = payload.get("import_report", {})
+        if not isinstance(template_payload, dict):
+            raise ValidationError("stored migration template is invalid")
+        if not isinstance(gaps_payload, list) or not isinstance(import_payload, dict):
+            raise ValidationError("stored migration plan details are invalid")
+        mapping_payload = template_payload.get("mapping", {})
+        if not isinstance(mapping_payload, dict):
+            raise ValidationError("stored migration template mapping is invalid")
+        source = LegacyMigrationSource.from_value(str(template_payload["source"]))
+        required_columns_payload = template_payload.get("required_columns", [])
+        recommended_columns_payload = template_payload.get("recommended_columns", [])
+        notes_payload = template_payload.get("notes", [])
+        if not isinstance(required_columns_payload, list):
+            raise ValidationError("stored migration template required columns are invalid")
+        if not isinstance(recommended_columns_payload, list) or not isinstance(notes_payload, list):
+            raise ValidationError("stored migration template metadata is invalid")
+        template = MigrationTemplate.create(
+            source=source,
+            name=str(template_payload["name"]),
+            version=str(template_payload["version"]),
+            mapping=ImportMapping.from_dict({str(k): str(v) for k, v in mapping_payload.items()}),
+            required_columns=tuple(str(item) for item in required_columns_payload),
+            recommended_columns=tuple(str(item) for item in recommended_columns_payload),
+            notes=tuple(str(item) for item in notes_payload),
+        )
+        gaps = tuple(
+            MigrationGap.create(
+                str(item["category"]),
+                str(item["field"]),
+                str(item["message"]),
+                Severity(str(item["severity"])),
+            )
+            for item in gaps_payload
+            if isinstance(item, dict)
+        )
+        return MigrationPlanReport.create(
+            tenant_id=TenantId.from_value(str(payload["tenant_id"])),
+            source=LegacyMigrationSource.from_value(str(payload["source"])),
+            import_format=ImportFormat.from_value(str(payload["format"])),
+            template=template,
+            gaps=gaps,
+            import_report=self._report_from_payload(import_payload),
+            resume_strategy=str(payload["resume_strategy"]),
+            job_id=EntityId.from_value(str(payload["job_id"])),
+        )
 
     def _report_from_payload(self, payload: dict[str, object]) -> ImportReport:
         mapping_payload = payload.get("mapping", {})

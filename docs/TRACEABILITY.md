@@ -131,3 +131,9 @@ Traçabilité :
 - infrastructure : `JsonExportRepository`, `PostgreSQLExportRepository`, migration `0021_export_framework.sql` ;
 - interfaces : CLI `export`, API HTTP `/api/v1/exports/*`, OpenAPI YAML ;
 - tests : `tests/integration/test_export_services.py`, `tests/integration/test_cli_export.py`, `tests/integration/test_http_api.py`, `tests/integration/test_postgresql_migration.py`.
+
+
+## v0.27.0 — P06 EPIC-0604 Migration depuis référentiels existants
+
+La v0.27.0 ajoute une simulation de migration depuis Device42, NetBox, Nautobot, GLPI et CSV générique. Les exigences couvertes sont la préparation de mappings contrôlés, le dry-run sans écriture, le rapport d’écarts complet, la persistance du plan et la reprise par `job_id`. Les contrats exposés sont `openinfra import migration-template|migration-plan|migration-report` et `/api/v1/imports/migration-template`, `/api/v1/imports/migration-plans`, `/api/v1/imports/migration-report`.
+

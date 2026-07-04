@@ -63,6 +63,10 @@ from openinfra.domain.data_import import (
     ImportReport,
     ImportRowImpact,
     ImportRowIssue,
+    LegacyMigrationSource,
+    MigrationGap,
+    MigrationPlanReport,
+    MigrationTemplate,
 )
 from openinfra.domain.dcim import (
     Building,
@@ -3287,8 +3291,116 @@ class PostgreSQLImportRepository(PostgreSQLRepositoryBase, ImportRepository):
             return None
         return self._checkpoint_from_row(row)
 
+    def save_migration_plan_report(self, report: MigrationPlanReport) -> None:
+        self._ensure_tenant(report.tenant_id)
+        payload = report.as_dict()
+        self._execute_without_result(
+            """
+            INSERT INTO migration_plan_reports (
+                id, tenant_id, source, import_format, status, template, total_rows,
+                valid_rows, invalid_rows, create_count, update_count, gaps,
+                import_report, resume_strategy, created_at, updated_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(source)s, %(import_format)s, %(status)s,
+                %(template)s, %(total_rows)s, %(valid_rows)s, %(invalid_rows)s,
+                %(create_count)s, %(update_count)s, %(gaps)s, %(import_report)s,
+                %(resume_strategy)s, now(), now()
+            )
+            ON CONFLICT (tenant_id, id) DO UPDATE SET
+                status = EXCLUDED.status,
+                template = EXCLUDED.template,
+                total_rows = EXCLUDED.total_rows,
+                valid_rows = EXCLUDED.valid_rows,
+                invalid_rows = EXCLUDED.invalid_rows,
+                create_count = EXCLUDED.create_count,
+                update_count = EXCLUDED.update_count,
+                gaps = EXCLUDED.gaps,
+                import_report = EXCLUDED.import_report,
+                resume_strategy = EXCLUDED.resume_strategy,
+                updated_at = now()
+            """,
+            {
+                "id": report.job_id.value,
+                "tenant_id": report.tenant_id.value,
+                "source": report.source.value,
+                "import_format": report.format.value,
+                "status": report.status.value,
+                "template": json.dumps(payload["template"], sort_keys=True),
+                "total_rows": report.total_rows,
+                "valid_rows": report.valid_rows,
+                "invalid_rows": report.invalid_rows,
+                "create_count": report.create_count,
+                "update_count": report.update_count,
+                "gaps": json.dumps(payload["gaps"], sort_keys=True),
+                "import_report": json.dumps(payload["import_report"], sort_keys=True),
+                "resume_strategy": report.resume_strategy,
+            },
+        )
+
+    def get_migration_plan_report(
+        self, tenant_id: TenantId, job_id: str
+    ) -> MigrationPlanReport | None:
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, source, import_format, status, template, total_rows,
+                   valid_rows, invalid_rows, create_count, update_count, gaps,
+                   import_report, resume_strategy
+            FROM migration_plan_reports
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s
+            """,
+            {"tenant_id": tenant_id.value, "id": job_id.strip()},
+        )
+        if row is None:
+            return None
+        return self._migration_plan_from_row(row)
+
     def bulk_import_strategy_name(self) -> str:
         return "postgresql-bounded-batch-copy-eligible"
+
+    def _migration_plan_from_row(self, row: Mapping[str, object]) -> MigrationPlanReport:
+        template_payload = self._json_object(row["template"])
+        gaps_payload = self._json_list(row["gaps"])
+        import_payload = self._json_object(row["import_report"])
+        mapping_payload = template_payload.get("mapping", {})
+        if not isinstance(mapping_payload, dict):
+            raise ValidationError("stored migration template mapping is invalid")
+        source = LegacyMigrationSource.from_value(str(template_payload["source"]))
+        required_columns_payload = template_payload.get("required_columns", [])
+        recommended_columns_payload = template_payload.get("recommended_columns", [])
+        notes_payload = template_payload.get("notes", [])
+        if not isinstance(required_columns_payload, list):
+            raise ValidationError("stored migration template required columns are invalid")
+        if not isinstance(recommended_columns_payload, list) or not isinstance(notes_payload, list):
+            raise ValidationError("stored migration template metadata is invalid")
+        template = MigrationTemplate.create(
+            source=source,
+            name=str(template_payload["name"]),
+            version=str(template_payload["version"]),
+            mapping=ImportMapping.from_dict({str(k): str(v) for k, v in mapping_payload.items()}),
+            required_columns=tuple(str(item) for item in required_columns_payload),
+            recommended_columns=tuple(str(item) for item in recommended_columns_payload),
+            notes=tuple(str(item) for item in notes_payload),
+        )
+        gaps = tuple(
+            MigrationGap.create(
+                str(item["category"]),
+                str(item["field"]),
+                str(item["message"]),
+                Severity(str(item["severity"])),
+            )
+            for item in gaps_payload
+            if isinstance(item, dict)
+        )
+        return MigrationPlanReport.create(
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            source=LegacyMigrationSource.from_value(str(row["source"])),
+            import_format=ImportFormat.from_value(str(row["import_format"])),
+            template=template,
+            gaps=gaps,
+            import_report=self._report_from_row(import_payload),
+            resume_strategy=str(row["resume_strategy"]),
+            job_id=EntityId.from_value(str(row["id"])),
+        )
 
     def _report_from_row(self, row: Mapping[str, object]) -> ImportReport:
         mapping_payload = self._json_object(row["mapping"])

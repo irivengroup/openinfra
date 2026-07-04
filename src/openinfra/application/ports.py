@@ -8,7 +8,12 @@ from openinfra.domain.access_policy import AccessPolicyRule
 from openinfra.domain.audit import AuditEventFilter, AuditEventPage, AuditIntegrityReport
 from openinfra.domain.common import AuditEvent, Pagination, TenantId
 from openinfra.domain.data_export import ExportJob
-from openinfra.domain.data_import import BulkImportCheckpoint, BulkImportReport, ImportReport
+from openinfra.domain.data_import import (
+    BulkImportCheckpoint,
+    BulkImportReport,
+    ImportReport,
+    MigrationPlanReport,
+)
 from openinfra.domain.dcim import (
     Building,
     CoolingZone,
@@ -595,6 +600,16 @@ class ImportRepository(ABC):
     def get_bulk_import_checkpoint(
         self, tenant_id: TenantId, job_id: str
     ) -> BulkImportCheckpoint | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_migration_plan_report(self, report: MigrationPlanReport) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_migration_plan_report(
+        self, tenant_id: TenantId, job_id: str
+    ) -> MigrationPlanReport | None:
         raise TypeError("adapter contract invoked directly")
 
     @abstractmethod

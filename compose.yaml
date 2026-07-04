@@ -34,7 +34,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.14.0}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.23.0}
     container_name: openinfra-migrate
     restart: "no"
     depends_on:
@@ -52,7 +52,7 @@ services:
       - openinfra
 
   auth-bootstrap:
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.14.0}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.23.0}
     container_name: openinfra-auth-bootstrap
     restart: "no"
     depends_on:
@@ -81,7 +81,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.14.0}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.23.0}
     container_name: openinfra-api
     restart: unless-stopped
     depends_on:
@@ -101,8 +101,35 @@ services:
     networks:
       - openinfra
 
+  pgadmin:
+    image: ${OPENINFRA_PGADMIN_IMAGE:-dpage/pgadmin4:latest}
+    container_name: openinfra-pgadmin
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${OPENINFRA_PGADMIN_EMAIL:?OPENINFRA_PGADMIN_EMAIL is required}
+      PGADMIN_DEFAULT_PASSWORD: ${OPENINFRA_PGADMIN_PASSWORD:?OPENINFRA_PGADMIN_PASSWORD is required}
+      PGADMIN_DISABLE_POSTFIX: "true"
+      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: "True"
+      PGADMIN_CONFIG_CONSOLE_LOG_LEVEL: "10"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1/misc/ping', timeout=3).read()"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
+    ports:
+      - "${OPENINFRA_PGADMIN_BIND:-127.0.0.1}:${OPENINFRA_PGADMIN_PORT:-5050}:80"
+    volumes:
+      - openinfra-pgadmin-data:/var/lib/pgadmin
+      - ./docker/pgadmin/servers.json:/pgadmin4/servers.json:ro
+    networks:
+      - openinfra
+
   smoke:
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.14.0}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.23.0}
     container_name: openinfra-smoke
     restart: "no"
     depends_on:
@@ -122,6 +149,7 @@ services:
 
 volumes:
   openinfra-postgres-data:
+  openinfra-pgadmin-data:
 
 networks:
   openinfra:

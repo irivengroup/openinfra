@@ -182,7 +182,7 @@ CREATE INDEX IF NOT EXISTS idx_dcim_power_reservations_circuit
 CREATE INDEX IF NOT EXISTS idx_dcim_power_reservations_rack
     ON dcim_power_reservations (tenant_id, site_code, building_code, room_code, rack_code);
 CREATE INDEX IF NOT EXISTS idx_audit_events_dcim_energy_cooling
-    ON audit_events (tenant_id, action, occurred_at DESC)
+    ON audit_events (tenant_id, action, created_at DESC)
     WHERE action IN (
         'dcim.power-device.defined',
         'dcim.power-circuit.defined',

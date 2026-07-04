@@ -68,6 +68,7 @@ from openinfra.application.ipam_services import (
     IpamUiDashboardCommand,
     ObserveDhcpLeaseCommand,
     ObserveDnsRecordCommand,
+    PreviewDdiReservationCommand,
     RegisterIpAddressCommand,
 )
 from openinfra.application.security_services import (
@@ -1463,6 +1464,29 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         )
                     )
                 responder.send(HTTPStatus.CREATED, result)
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/ipam/ddi-preview":
+            try:
+                payload = self._read_json_body()
+                preview = self.server.application.ipam_ddi_service.preview_reservation(
+                    PreviewDdiReservationCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        actor=str(payload.get("actor", "api")),
+                        vrf=str(payload["vrf"]),
+                        idempotency_key=str(payload["idempotency_key"]),
+                        providers=self._tuple_payload(payload, "providers", ("all",)),
+                        dns_zone=str(payload["dns_zone"]) if payload.get("dns_zone") else None,
+                        mac_address=(
+                            str(payload["mac_address"]) if payload.get("mac_address") else None
+                        ),
+                        ttl=int(payload.get("ttl", 300)),
+                        dry_run=not bool(payload.get("apply_preview", False)),
+                    )
+                )
+                responder.send(HTTPStatus.OK, preview.as_dict())
             except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return

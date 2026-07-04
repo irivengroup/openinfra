@@ -145,7 +145,7 @@ CREATE INDEX IF NOT EXISTS idx_dcim_cables_side_b_active
 CREATE INDEX IF NOT EXISTS idx_dcim_cables_trace_gin
     ON dcim_cables USING gin (path_segments);
 CREATE INDEX IF NOT EXISTS idx_audit_events_dcim_cabling
-    ON audit_events (tenant_id, action, occurred_at DESC)
+    ON audit_events (tenant_id, action, created_at DESC)
     WHERE action IN ('dcim.patch-panel.defined', 'dcim.port.defined', 'dcim.cable.connected', 'dcim.cable.traced');
 
 COMMIT;

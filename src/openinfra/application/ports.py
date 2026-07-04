@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 from openinfra.domain.access_policy import AccessPolicyRule
 from openinfra.domain.audit import AuditEventFilter, AuditEventPage, AuditIntegrityReport
@@ -33,6 +33,8 @@ from openinfra.domain.identity import (
 from openinfra.domain.ipam import (
     AutonomousSystem,
     BgpPeer,
+    DdiChange,
+    DdiProvider,
     IpAddressRecord,
     IpAggregate,
     IpRange,
@@ -542,6 +544,27 @@ class IpamRepository(ABC):
     def list_bgp_peers(
         self, tenant_id: TenantId, vrf_name: str | None = None
     ) -> tuple[BgpPeer, ...]:
+        raise TypeError("adapter contract invoked directly")
+
+
+@dataclass(frozen=True, slots=True)
+class DdiPreviewContext:
+    fqdn: str
+    mac_address: str | None
+    ttl: int
+    dns_zone: str | None = None
+
+
+class DdiConnector(ABC):
+    @property
+    @abstractmethod
+    def provider(self) -> DdiProvider:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def build_preview_changes(
+        self, reservation: IpReservation, context: DdiPreviewContext
+    ) -> tuple[DdiChange, ...]:
         raise TypeError("adapter contract invoked directly")
 
 

@@ -163,8 +163,8 @@ CREATE TABLE IF NOT EXISTS ipam_bgp_peers (
     CONSTRAINT ipam_bgp_peers_distinct_asn CHECK (local_asn <> remote_asn),
     CONSTRAINT ipam_bgp_peers_family CHECK (address_family IN ('ipv4', 'ipv6')),
     CONSTRAINT ipam_bgp_peers_family_matches_address CHECK (
-        (address_family = 'ipv4' AND family(peer_address) = 4)
-        OR (address_family = 'ipv6' AND family(peer_address) = 6)
+        (address_family = 'ipv4' AND pg_catalog.family(peer_address) = 4)
+        OR (address_family = 'ipv6' AND pg_catalog.family(peer_address) = 6)
     ),
     UNIQUE (tenant_id, vrf_name, local_asn, peer_address)
 ) PARTITION BY HASH (tenant_id);

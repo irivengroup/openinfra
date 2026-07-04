@@ -372,3 +372,33 @@ Critères attendus : rapport JSON contenant au minimum `duplicate_address`, `lea
 - Vérifier `openinfra ipam ui-search --tenant default --query <ip|hostname>`.
 - Vérifier `openinfra ipam reservation-wizard` en dry-run puis avec `--apply`.
 - Vérifier les endpoints `/api/v1/ipam/ui-dashboard`, `/api/v1/ipam/ui-search`, `/api/v1/ipam/reservation-wizard` et `/ui/ipam`.
+
+
+## Contrôles ajoutés en v0.22.2
+
+- Vérifier qu’aucune migration PostgreSQL ne référence `audit_events.occurred_at`.
+- Vérifier que le `Dockerfile` ne porte pas de `HEALTHCHECK` API global.
+- Vérifier que les tags Docker par défaut `.env.example`, `compose.yaml` et `scripts/docker_environment.py` sont alignés avec la version courante.
+
+
+## Contrôles ajoutés en v0.22.2
+
+- Vérifier que `compose.yaml` contient le service `pgadmin`, le volume `openinfra-pgadmin-data` et le montage `docker/pgadmin/servers.json`.
+- Vérifier que `.env.example` contient les variables `OPENINFRA_PGADMIN_EMAIL`, `OPENINFRA_PGADMIN_PASSWORD`, `OPENINFRA_PGADMIN_BIND`, `OPENINFRA_PGADMIN_PORT` et `OPENINFRA_PGADMIN_IMAGE`.
+- Vérifier que `scripts/docker_environment.py init` génère un mot de passe pgAdmin4 local et que `up` démarre aussi `pgadmin`.
+- Vérifier que `Dockerfile` reste sans `HEALTHCHECK` global et que le runtime production reste natif.
+
+## Contrôles ajoutés en v0.22.3
+
+Le quality gate vérifie que `0015_ipam_enterprise_foundation.sql` ajoute et backfill `prefixes.family` avant la création de l’index IPAM enterprise associé.
+
+## Contrôles ajoutés en v0.23.0
+
+La v0.23.0 conserve le seuil bloquant `>= 98 %` et ajoute les validations P05 / EPIC-0506 suivantes :
+
+```bash
+PYTHONPATH=src python -m openinfra.interfaces.cli ipam ddi-preview --data .openinfra.json --tenant default --vrf prod --idempotency-key req-0001 --provider all --dns-zone example.net --mac-address aa:bb:cc:00:00:01
+PYTHONPATH=src python -m pytest -q --no-cov tests/unit/test_domain_ipam_ddi.py tests/integration/test_ipam_ddi_services.py
+```
+
+Le contrôle vérifie la génération des changements BIND/PowerDNS/Kea, les divergences DNS/PTR/DHCP, l’absence de divergence silencieuse et la présence d’un plan de rollback compensatoire.

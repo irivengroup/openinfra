@@ -181,3 +181,47 @@ python scripts/docker_environment.py init
 python scripts/docker_environment.py validate
 python scripts/docker_environment.py reset
 ```
+
+
+## Correctif v0.22.2
+
+Le healthcheck `/ready` est défini uniquement sur le service `api`. Les services one-shot `migrate`, `auth-bootstrap` et `smoke` ne doivent pas hériter d’un healthcheck API depuis le `Dockerfile`. Si `openinfra-migrate` sort avec le code `1`, consulter d’abord `docker logs openinfra-migrate` : le statut healthcheck n’est plus utilisé comme diagnostic pour les migrations.
+
+## Administration PostgreSQL avec pgAdmin4 — v0.22.2
+
+Le lab Docker Compose inclut le service `pgadmin` pour administrer la base PostgreSQL de test. Après `python scripts/docker_environment.py init`, les variables suivantes sont générées dans `.env` :
+
+```env
+OPENINFRA_PGADMIN_EMAIL=admin@openinfra.tld
+OPENINFRA_PGADMIN_PASSWORD=<valeur generee localement>
+OPENINFRA_PGADMIN_BIND=127.0.0.1
+OPENINFRA_PGADMIN_PORT=5050
+OPENINFRA_PGADMIN_IMAGE=dpage/pgadmin4:latest
+```
+
+Démarrage recommandé :
+
+```bash
+python scripts/docker_environment.py up
+```
+
+Accès local :
+
+```text
+http://127.0.0.1:5050
+```
+
+Le serveur PostgreSQL Compose est préenregistré sous le nom `OpenInfra PostgreSQL` avec l’hôte interne `postgres`, le port `5432`, la base `openinfra` et l’utilisateur `openinfra`. Lors de la première connexion au serveur depuis pgAdmin4, saisir la valeur `OPENINFRA_POSTGRES_PASSWORD` présente dans `.env`. Le volume `openinfra-pgadmin-data` conserve la configuration pgAdmin4 entre deux démarrages.
+
+Pour exposer pgAdmin4 uniquement sur un autre port local :
+
+```env
+OPENINFRA_PGADMIN_BIND=127.0.0.1
+OPENINFRA_PGADMIN_PORT=5051
+```
+
+Ne pas exposer `OPENINFRA_PGADMIN_BIND` sur `0.0.0.0` dans un poste non isolé : ce service est prévu pour l’administration locale du lab.
+
+## Correctif v0.22.3
+
+La migration IPAM enterprise `0015` est compatible avec une base PostgreSQL fraîche créée depuis `0001_bootstrap.sql`. Elle ajoute et renseigne `prefixes.family` avant de créer l’index `idx_prefixes_vrf_family`, ce qui corrige l’erreur `column "family" does not exist` observée dans `openinfra-migrate`.

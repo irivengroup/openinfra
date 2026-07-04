@@ -1,3 +1,36 @@
+## 0.23.0 - 2026-07-04
+
+- Roadmap : P05 / EPIC-0506 — DDI intégration baseline.
+- Ajout du domaine DDI IPAM : providers BIND, PowerDNS et Kea, changements DNS/DHCP typés, divergences et plan de rollback compensatoire.
+- Ajout du service `IpamDdiService` pour générer une prévisualisation DNS/DHCP depuis une réservation IPAM existante, avec dry-run par défaut et audit.
+- Ajout des connecteurs baseline `BindDdiConnector`, `PowerDnsDdiConnector` et `KeaDdiConnector` sans dépendance externe ni appel réseau implicite.
+- Détection explicite des divergences DNS forward/PTR et des conflits DHCP actifs avant application, afin d’éviter toute divergence silencieuse.
+- Ajout de la commande `openinfra ipam ddi-preview` et de l’endpoint `POST /api/v1/ipam/ddi-preview`.
+- Mise à jour README, OpenAPI, architecture, traçabilité et tests avec couverture globale maintenue à `>= 98 %`.
+
+## 0.22.3 - 2026-07-04
+
+- Correctif PostgreSQL runtime : la migration `0015_ipam_enterprise_foundation.sql` ajoute, alimente et contraint désormais `prefixes.family` avant la création de l’index `idx_prefixes_vrf_family`.
+- Correction de l’échec Docker `openinfra-migrate` : `psycopg.errors.UndefinedColumn: column "family" does not exist` sur une base PostgreSQL fraîche.
+- Renforcement de `scripts/quality_gate.py` et ajout d’un test de non-régression pour empêcher toute référence indexée à `prefixes.family` sans backfill préalable.
+- Correctif pgAdmin4 Docker : l’email par défaut est désormais `admin@openinfra.tld`, afin d’éviter le rejet de `admin@openinfra.local` par la validation pgAdmin4 des domaines réservés.
+- Aucun nouveau jalon fonctionnel ; la version reste une corrective runtime Docker/PostgreSQL.
+
+## 0.22.2 - 2026-07-04
+
+- Ajout du service Docker Compose `pgadmin` pour administrer la base PostgreSQL du lab OpenInfra.
+- Ajout des variables `.env.example` et génération automatique dans `scripts/docker_environment.py` : email, mot de passe, bind, port et image pgAdmin4.
+- Ajout d’un volume persistant `openinfra-pgadmin-data` et d’un fichier `docker/pgadmin/servers.json` préconfigurant le serveur PostgreSQL Compose `postgres`.
+- Mise à jour du démarrage Docker assisté : `python scripts/docker_environment.py up` lance désormais `postgres`, `migrate`, `auth-bootstrap`, `api` et `pgadmin`.
+- Ajout de garde-fous qualité et tests pour empêcher une régression du lab pgAdmin4.
+
+## 0.22.1 - 2026-07-04
+
+- Correctif Docker/PostgreSQL : remplacement des index d’audit `occurred_at` par `created_at` dans les migrations `0012`, `0013` et `0014`, afin que `openinfra database apply-migrations` réussisse sur une base PostgreSQL neuve.
+- Correctif Docker Compose : suppression du `HEALTHCHECK` API global du `Dockerfile`, qui était hérité à tort par les conteneurs one-shot `migrate`, `auth-bootstrap` et `smoke`. Le healthcheck applicatif reste défini uniquement sur le service `api`.
+- Correction des tags Docker par défaut : `.env.example`, `compose.yaml` et `scripts/docker_environment.py` utilisent maintenant `0.22.1`.
+- Ajout de garde-fous qualité contre les références à `audit_events.occurred_at`, les healthchecks API hérités et les vieux tags Docker par défaut.
+
 ## 0.22.0 - 2026-07-03
 
 - Ajout de l’UI IPAM opérationnelle P05/EPIC-0505 sous forme de view model applicatif, rendu HTML serveur et workflows CLI/API.

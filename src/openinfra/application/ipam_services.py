@@ -2,9 +2,16 @@ from __future__ import annotations
 
 import html
 import ipaddress
+import re
 from dataclasses import dataclass
 
-from openinfra.application.ports import AuditRepository, IpamRepository, TransactionManager
+from openinfra.application.ports import (
+    AuditRepository,
+    DdiConnector,
+    DdiPreviewContext,
+    IpamRepository,
+    TransactionManager,
+)
 from openinfra.domain.common import (
     AuditEvent,
     ConflictError,
@@ -17,6 +24,9 @@ from openinfra.domain.ipam import (
     AllocationResult,
     AutonomousSystem,
     BgpPeer,
+    DdiDivergence,
+    DdiProvider,
+    DdiReservationPreview,
     IpAddressRecord,
     IpAggregate,
     IpAllocationPolicy,
@@ -351,6 +361,222 @@ class IpamReservationWizardCommand:
     hostname: str
     idempotency_key: str
     dry_run: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class PreviewDdiReservationCommand:
+    tenant_id: str
+    actor: str
+    vrf: str
+    idempotency_key: str
+    providers: tuple[str, ...] = ("all",)
+    dns_zone: str | None = None
+    mac_address: str | None = None
+    ttl: int = 300
+    dry_run: bool = True
+
+
+class IpamDdiService:
+    def __init__(
+        self,
+        ipam_repository: IpamRepository,
+        audit_repository: AuditRepository,
+        transaction_manager: TransactionManager,
+        connectors: tuple[DdiConnector, ...],
+    ) -> None:
+        self._ipam_repository = ipam_repository
+        self._audit_repository = audit_repository
+        self._transaction_manager = transaction_manager
+        self._connectors = {connector.provider: connector for connector in connectors}
+
+    def preview_reservation(self, command: PreviewDdiReservationCommand) -> DdiReservationPreview:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        vrf = command.vrf.strip()
+        providers = self._select_providers(command.providers)
+        reservation = self._ipam_repository.find_reservation_by_key(
+            tenant_id,
+            vrf,
+            command.idempotency_key,
+        )
+        if reservation is None:
+            raise NotFoundError("ip reservation not found for DDI preview")
+        fqdn = self._fqdn_for_reservation(reservation.hostname, command.dns_zone)
+        mac_address = self._normalize_mac(command.mac_address) if command.mac_address else None
+        context = DdiPreviewContext(
+            fqdn=fqdn,
+            mac_address=mac_address,
+            ttl=self._normalize_ttl(command.ttl),
+            dns_zone=self._normalize_zone(command.dns_zone) if command.dns_zone else None,
+        )
+        changes = tuple(
+            change
+            for provider in providers
+            for change in self._connectors[provider].build_preview_changes(reservation, context)
+        )
+        divergences = self._detect_divergences(reservation, fqdn, mac_address, providers)
+        preview = DdiReservationPreview.create(
+            tenant_id=tenant_id,
+            vrf_name=vrf,
+            idempotency_key=reservation.idempotency_key,
+            providers=providers,
+            dry_run=command.dry_run,
+            changes=changes,
+            divergences=divergences,
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=command.actor,
+                    action="ipam.ddi.preview.generated",
+                    target_type="ipam_ddi_preview",
+                    target_id=preview.id.value,
+                    metadata={
+                        "vrf": preview.vrf_name.value,
+                        "idempotency_key": preview.idempotency_key,
+                        "providers": [provider.value for provider in providers],
+                        "changes": len(preview.changes),
+                        "divergences": len(preview.divergences),
+                        "safe_to_apply": preview.safe_to_apply,
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return preview
+
+    def _select_providers(self, providers: tuple[str, ...]) -> tuple[DdiProvider, ...]:
+        requested = tuple(item.strip().lower() for item in providers if item.strip()) or ("all",)
+        if "all" in requested:
+            selected = tuple(sorted(self._connectors, key=lambda item: item.value))
+        else:
+            selected = tuple(dict.fromkeys(DdiProvider.from_value(item) for item in requested))
+        missing = [provider.value for provider in selected if provider not in self._connectors]
+        if missing:
+            raise ValidationError(f"DDI connectors unavailable: {', '.join(missing)}")
+        return selected
+
+    def _fqdn_for_reservation(self, hostname: str, dns_zone: str | None) -> str:
+        normalized = hostname.strip().lower().rstrip(".")
+        if not normalized:
+            raise ValidationError("reservation hostname is mandatory for DDI preview")
+        if "." in normalized:
+            return self._validate_fqdn(normalized)
+        if not dns_zone:
+            raise ValidationError(
+                "dns zone is required when reservation hostname is not fully qualified"
+            )
+        return self._validate_fqdn(f"{normalized}.{self._normalize_zone(dns_zone)}")
+
+    def _normalize_zone(self, dns_zone: str | None) -> str:
+        normalized = (dns_zone or "").strip().lower().rstrip(".")
+        if not normalized:
+            raise ValidationError("dns zone is mandatory for non-FQDN reservation hostnames")
+        return self._validate_fqdn(normalized)
+
+    def _validate_fqdn(self, value: str) -> str:
+        if not 1 <= len(value) <= 253:
+            raise ValidationError("DDI FQDN must contain 1 to 253 characters")
+        labels = value.split(".")
+        pattern = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?")
+        if len(labels) < 2 or any(not pattern.fullmatch(label) for label in labels):
+            raise ValidationError("DDI FQDN is invalid")
+        return value
+
+    def _normalize_mac(self, value: str) -> str:
+        normalized = value.strip().lower().replace("-", ":")
+        if not re.fullmatch(r"[0-9a-f]{2}(:[0-9a-f]{2}){5}", normalized):
+            raise ValidationError("DDI DHCP MAC address is invalid")
+        return normalized
+
+    def _normalize_ttl(self, value: int) -> int:
+        if not 0 <= value <= 86400:
+            raise ValidationError("DDI TTL must be between 0 and 86400 seconds")
+        return value
+
+    def _detect_divergences(
+        self,
+        reservation: IpReservation,
+        fqdn: str,
+        mac_address: str | None,
+        providers: tuple[DdiProvider, ...],
+    ) -> tuple[DdiDivergence, ...]:
+        divergences: list[DdiDivergence] = []
+        address = str(reservation.address)
+        for record in self._ipam_repository.list_dns_observations(
+            reservation.tenant_id, reservation.vrf_name.value
+        ):
+            observed_address = str(record.address)
+            if record.hostname == fqdn and observed_address != address:
+                divergences.append(
+                    DdiDivergence.create(
+                        "critical",
+                        "dns_forward_mismatch",
+                        fqdn,
+                        (f"observed {fqdn} -> {observed_address}, planned {address}",),
+                        "Resolve the existing forward DNS binding before applying DDI changes.",
+                    )
+                )
+            if observed_address == address and record.hostname != fqdn:
+                divergences.append(
+                    DdiDivergence.create(
+                        "error",
+                        "dns_address_owner_mismatch",
+                        address,
+                        (f"observed {address} owned by {record.hostname}, planned {fqdn}",),
+                        "Confirm ownership or rename the reservation hostname before applying.",
+                    )
+                )
+            if observed_address == address and record.ptr_hostname and record.ptr_hostname != fqdn:
+                divergences.append(
+                    DdiDivergence.create(
+                        "error",
+                        "dns_ptr_mismatch",
+                        address,
+                        (f"observed PTR {record.ptr_hostname}, planned {fqdn}",),
+                        "Align reverse DNS with the intended reservation hostname.",
+                    )
+                )
+        if DdiProvider.KEA in providers and mac_address is None:
+            divergences.append(
+                DdiDivergence.create(
+                    "error",
+                    "dhcp_mac_missing",
+                    f"kea:{address}",
+                    ("Kea DHCP reservation preview requires a MAC address.",),
+                    "Provide --mac-address or exclude the Kea provider from this preview.",
+                )
+            )
+        for lease in self._ipam_repository.list_dhcp_leases(
+            reservation.tenant_id, reservation.vrf_name.value
+        ):
+            observed_address = str(lease.address)
+            if observed_address == address and mac_address and lease.mac_address != mac_address:
+                divergences.append(
+                    DdiDivergence.create(
+                        "critical",
+                        "dhcp_address_conflict",
+                        address,
+                        (
+                            f"observed {address} leased to {lease.mac_address}",
+                            f"planned reservation for {mac_address}",
+                        ),
+                        "Release or reconcile the active DHCP lease before applying.",
+                    )
+                )
+            if mac_address and lease.mac_address == mac_address and observed_address != address:
+                divergences.append(
+                    DdiDivergence.create(
+                        "error",
+                        "dhcp_mac_conflict",
+                        mac_address,
+                        (
+                            f"observed {mac_address} leased to {observed_address}",
+                            f"planned reservation for {address}",
+                        ),
+                        "Update the DHCP reservation target or clean the stale lease.",
+                    )
+                )
+        return tuple(divergences)
 
 
 @dataclass(frozen=True, slots=True)

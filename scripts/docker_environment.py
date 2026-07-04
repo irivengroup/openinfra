@@ -34,6 +34,7 @@ class EnvFileManager:
             self._assert_private_permissions()
             return self._config.env_file
         password = secrets.token_urlsafe(32)
+        pgadmin_password = secrets.token_urlsafe(32)
         bootstrap_token = "oi_" + secrets.token_urlsafe(48)
         payload = "\n".join(
             (
@@ -42,8 +43,13 @@ class EnvFileManager:
                 f"OPENINFRA_POSTGRES_PASSWORD={password}",
                 "OPENINFRA_API_BIND=127.0.0.1",
                 "OPENINFRA_API_PORT=8080",
-                "OPENINFRA_IMAGE_TAG=0.14.0",
+                "OPENINFRA_IMAGE_TAG=0.23.0",
                 f"OPENINFRA_BOOTSTRAP_TOKEN={bootstrap_token}",
+                "OPENINFRA_PGADMIN_EMAIL=admin@openinfra.tld",
+                f"OPENINFRA_PGADMIN_PASSWORD={pgadmin_password}",
+                "OPENINFRA_PGADMIN_BIND=127.0.0.1",
+                "OPENINFRA_PGADMIN_PORT=5050",
+                "OPENINFRA_PGADMIN_IMAGE=dpage/pgadmin4:latest",
                 "",
             )
         )
@@ -99,7 +105,9 @@ class DockerRuntimeEnvironmentCli:
         if action in {"up", "validate", "status", "down", "reset"}:
             env_manager.ensure()
         if action == "up":
-            runner.run(["up", "--build", "-d", "postgres", "migrate", "api"])
+            runner.run(
+                ["up", "--build", "-d", "postgres", "migrate", "auth-bootstrap", "api", "pgadmin"]
+            )
             return
         if action == "validate":
             runner.run(

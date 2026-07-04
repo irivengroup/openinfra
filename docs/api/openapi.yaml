@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.22.0
+  version: 0.23.0
 components:
   securitySchemes:
     bearerToken:
@@ -1390,7 +1390,7 @@ paths:
                 tenant_id: {type: string}
                 actor: {type: string}
                 vrf: {type: string}
-                cidr: {type: string, example: 10.22.0.0/24}
+                cidr: {type: string, example: 10.23.0.0/24}
                 description: {type: string}
       responses:
         '201': {description: Prefix persisted or returned idempotently}
@@ -1410,9 +1410,9 @@ paths:
                 tenant_id: {type: string}
                 actor: {type: string}
                 vrf: {type: string}
-                prefix: {type: string, example: 10.22.0.0/24}
-                start: {type: string, example: 10.22.0.10}
-                end: {type: string, example: 10.22.0.50}
+                prefix: {type: string, example: 10.23.0.0/24}
+                start: {type: string, example: 10.23.0.10}
+                end: {type: string, example: 10.23.0.50}
                 purpose: {type: string, enum: [allocation, reservation, exclusion]}
                 description: {type: string}
       responses:
@@ -1433,8 +1433,8 @@ paths:
                 tenant_id: {type: string}
                 actor: {type: string}
                 vrf: {type: string}
-                prefix: {type: string, example: 10.22.0.0/24}
-                address: {type: string, example: 10.22.0.10}
+                prefix: {type: string, example: 10.23.0.0/24}
+                address: {type: string, example: 10.23.0.10}
                 hostname: {type: string}
                 interface_name: {type: string}
                 status: {type: string, enum: [planned, reserved, active, deprecated]}
@@ -1650,6 +1650,33 @@ paths:
       responses:
         '200': {description: Search results}
         '400': {description: Validation error}
+
+  /api/v1/ipam/ddi-preview:
+    post:
+      summary: Preview DNS/DHCP DDI changes for an existing IPAM reservation
+      description: Produces deterministic BIND, PowerDNS and Kea baseline changes, detected divergences and compensating rollback changes. No external DDI system is contacted by this endpoint.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, vrf, idempotency_key]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                vrf: {type: string}
+                idempotency_key: {type: string}
+                providers:
+                  type: array
+                  items: {type: string, enum: [all, bind, powerdns, kea]}
+                dns_zone: {type: string, example: example.net}
+                mac_address: {type: string, example: aa:bb:cc:00:00:01}
+                ttl: {type: integer, minimum: 0, maximum: 86400, default: 300}
+                apply_preview: {type: boolean, default: false}
+      responses:
+        '200': {description: DDI dry-run plan with changes, divergences and rollback changes}
+        '400': {description: Validation error or missing reservation}
   /api/v1/ipam/reservation-wizard:
     post:
       summary: Preview or execute a traced IPAM reservation workflow

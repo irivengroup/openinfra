@@ -19,6 +19,7 @@ from openinfra.application.identity_services import IdentityService
 from openinfra.application.ipam_services import (
     IpamAllocationService,
     IpamConflictService,
+    IpamDdiService,
     IpamModelService,
     IpamUiService,
 )
@@ -38,6 +39,7 @@ from openinfra.application.ports import (
 from openinfra.application.security_services import SecurityService
 from openinfra.application.source_governance_services import SourceGovernanceService
 from openinfra.application.source_of_truth_services import SourceOfTruthService
+from openinfra.infrastructure.ddi_connectors import DdiConnectorFactory
 from openinfra.infrastructure.json_store import (
     JsonAccessPolicyRepository,
     JsonAuditRepository,
@@ -86,6 +88,7 @@ class OpenInfraApplication:
     ipam_model_service: IpamModelService
     ipam_conflict_service: IpamConflictService
     ipam_ui_service: IpamUiService
+    ipam_ddi_service: IpamDdiService
     dcim_repository: DcimRepository
     ipam_repository: IpamRepository
     security_service: SecurityService
@@ -268,6 +271,12 @@ class ApplicationFactory:
                 transaction_manager,
             ),
             ipam_conflict_service=ipam_conflict_service,
+            ipam_ddi_service=IpamDdiService(
+                ipam_repository,
+                audit_repository,
+                transaction_manager,
+                DdiConnectorFactory.default(),
+            ),
             ipam_ui_service=IpamUiService(
                 ipam_repository,
                 audit_repository,

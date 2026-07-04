@@ -13,5 +13,5 @@ CREATE INDEX IF NOT EXISTS idx_equipment_rack_elevation_visualization
     WHERE rack_code IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_audit_events_dcim_visualization
-    ON audit_events (tenant_id, action, occurred_at DESC)
+    ON audit_events (tenant_id, action, created_at DESC)
     WHERE action IN ('dcim.room-plan.rendered', 'dcim.rack-elevation.rendered');

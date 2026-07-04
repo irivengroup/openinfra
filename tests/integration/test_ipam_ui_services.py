@@ -28,23 +28,23 @@ class TestIpamUiServices:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json")
         app.ipam_model_service.define_vrf(DefineVrfCommand("default", "pytest", "prod"))
         app.ipam_model_service.define_prefix(
-            DefineIpPrefixCommand("default", "pytest", "prod", "10.22.0.0/29")
+            DefineIpPrefixCommand("default", "pytest", "prod", "10.22.1.0/29")
         )
         app.ipam_model_service.define_range(
             DefineIpRangeCommand(
                 "default",
                 "pytest",
                 "prod",
-                "10.22.0.0/29",
-                "10.22.0.1",
-                "10.22.0.6",
+                "10.22.1.0/29",
+                "10.22.1.1",
+                "10.22.1.6",
                 "allocation",
             )
         )
 
         preview = app.ipam_ui_service.reservation_wizard(
             IpamReservationWizardCommand(
-                "default", "pytest", "prod", "10.22.0.0/29", "srv-ui-01", "ui-1"
+                "default", "pytest", "prod", "10.22.1.0/29", "srv-ui-01", "ui-1"
             )
         )
         applied = app.ipam_ui_service.reservation_wizard(
@@ -52,7 +52,7 @@ class TestIpamUiServices:
                 "default",
                 "pytest",
                 "prod",
-                "10.22.0.0/29",
+                "10.22.1.0/29",
                 "srv-ui-01",
                 "ui-1",
                 False,
@@ -65,15 +65,15 @@ class TestIpamUiServices:
         )
 
         assert preview["dry_run"] is True
-        assert preview["recommended_address"] == "10.22.0.1"
-        assert applied["address"] == "10.22.0.1"
+        assert preview["recommended_address"] == "10.22.1.1"
+        assert applied["address"] == "10.22.1.1"
         assert applied["operation"] == "allocated"
         assert dashboard.summary["prefixes"] == 1
         assert dashboard.summary["reservations"] == 1
         assert dashboard.as_dict()["actions"]
         assert search["count"] >= 1
         assert "OpenInfra IPAM" in html
-        assert "10.22.0.0/29" in html
+        assert "10.22.1.0/29" in html
 
     def test_search_includes_observed_dns_and_dhcp(self, tmp_path: Path) -> None:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json")

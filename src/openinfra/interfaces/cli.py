@@ -66,6 +66,7 @@ from openinfra.application.ipam_services import (
     IpamUiDashboardCommand,
     ObserveDhcpLeaseCommand,
     ObserveDnsRecordCommand,
+    PreviewDdiReservationCommand,
     RegisterIpAddressCommand,
 )
 from openinfra.application.security_services import (
@@ -737,6 +738,27 @@ class OpenInfraCLI:
         reservation_wizard.add_argument("--idempotency-key", required=True)
         reservation_wizard.add_argument("--apply", action="store_true")
         reservation_wizard.set_defaults(handler=self._handle_ipam_reservation_wizard)
+
+        ddi_preview = ipam_subparsers.add_parser(
+            "ddi-preview",
+            help="preview DNS/DHCP changes for an existing IPAM reservation",
+        )
+        self._add_backend_arguments(ddi_preview)
+        ddi_preview.add_argument("--tenant", required=True)
+        ddi_preview.add_argument("--actor", default="cli")
+        ddi_preview.add_argument("--vrf", required=True)
+        ddi_preview.add_argument("--idempotency-key", required=True)
+        ddi_preview.add_argument(
+            "--provider",
+            choices=("all", "bind", "powerdns", "kea"),
+            action="append",
+            default=[],
+        )
+        ddi_preview.add_argument("--dns-zone")
+        ddi_preview.add_argument("--mac-address")
+        ddi_preview.add_argument("--ttl", type=int, default=300)
+        ddi_preview.add_argument("--apply-preview", action="store_true")
+        ddi_preview.set_defaults(handler=self._handle_ipam_ddi_preview)
 
     def _add_dcim_commands(self, subparsers: Any) -> None:
         dcim = subparsers.add_parser("dcim", help="dcim operations")
@@ -1777,6 +1799,25 @@ class OpenInfraCLI:
             )
         )
         print(json.dumps(result, sort_keys=True))
+        return 0
+
+
+    def _handle_ipam_ddi_preview(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        preview = application.ipam_ddi_service.preview_reservation(
+            PreviewDdiReservationCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                vrf=args.vrf,
+                idempotency_key=args.idempotency_key,
+                providers=tuple(args.provider or ["all"]),
+                dns_zone=args.dns_zone,
+                mac_address=args.mac_address,
+                ttl=args.ttl,
+                dry_run=not args.apply_preview,
+            )
+        )
+        print(json.dumps(preview.as_dict(), sort_keys=True))
         return 0
 
     def _handle_dcim_define_room(self, args: argparse.Namespace) -> int:

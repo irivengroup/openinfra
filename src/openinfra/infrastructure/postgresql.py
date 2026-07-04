@@ -318,7 +318,8 @@ class PostgreSQLMigrationExecutor(SchemaStatusProvider):
                 detail = "dry run completed; no migration was applied"
                 return PostgreSQLSchemaStatus(not pending, tuple(applied.values()), pending, detail)
             for migration in pending:
-                cursor.execute(self._transactional_sql(migration))
+                for statement in self._transactional_statements(migration):
+                    cursor.execute(statement)
                 cursor.execute(
                     """
                     INSERT INTO openinfra_schema_migrations (version, checksum)
@@ -345,13 +346,16 @@ class PostgreSQLMigrationExecutor(SchemaStatusProvider):
             connection.close()
 
     def _transactional_sql(self, migration: PostgreSQLMigration) -> str:
+        return "\n".join(self._transactional_statements(migration)).strip() + "\n"
+
+    def _transactional_statements(self, migration: PostgreSQLMigration) -> tuple[str, ...]:
         retained_lines: list[str] = []
         for line in migration.sql.splitlines():
             normalized = line.strip().upper()
             if normalized in {"BEGIN;", "COMMIT;"}:
                 continue
             retained_lines.append(line)
-        return "\n".join(retained_lines).strip() + "\n"
+        return PostgreSQLStatementSplitter.split("\n".join(retained_lines))
 
     def _ensure_history_table(self, cursor: CursorProtocol) -> None:
         cursor.execute(self._HISTORY_TABLE_SQL)
@@ -387,6 +391,135 @@ class PostgreSQLMigrationExecutor(SchemaStatusProvider):
             if applied_migration.checksum != migration.checksum:
                 raise ValidationError("applied migration checksum mismatch: " + migration.name)
         return tuple(pending)
+
+
+class PostgreSQLStatementSplitter:
+    @classmethod
+    def split(cls, sql: str) -> tuple[str, ...]:
+        statements: list[str] = []
+        buffer: list[str] = []
+        index = 0
+        single_quoted = False
+        double_quoted = False
+        line_comment = False
+        block_comment_depth = 0
+        dollar_quote_tag: str | None = None
+        while index < len(sql):
+            character = sql[index]
+            next_character = sql[index + 1] if index + 1 < len(sql) else ""
+
+            if line_comment:
+                buffer.append(character)
+                if character == "\n":
+                    line_comment = False
+                index += 1
+                continue
+
+            if block_comment_depth:
+                buffer.append(character)
+                if character == "/" and next_character == "*":
+                    buffer.append(next_character)
+                    block_comment_depth += 1
+                    index += 2
+                    continue
+                if character == "*" and next_character == "/":
+                    buffer.append(next_character)
+                    block_comment_depth -= 1
+                    index += 2
+                    continue
+                index += 1
+                continue
+
+            if dollar_quote_tag is not None:
+                if sql.startswith(dollar_quote_tag, index):
+                    buffer.append(dollar_quote_tag)
+                    index += len(dollar_quote_tag)
+                    dollar_quote_tag = None
+                    continue
+                buffer.append(character)
+                index += 1
+                continue
+
+            if single_quoted:
+                buffer.append(character)
+                if character == "'":
+                    if next_character == "'":
+                        buffer.append(next_character)
+                        index += 2
+                        continue
+                    single_quoted = False
+                index += 1
+                continue
+
+            if double_quoted:
+                buffer.append(character)
+                if character == '"':
+                    if next_character == '"':
+                        buffer.append(next_character)
+                        index += 2
+                        continue
+                    double_quoted = False
+                index += 1
+                continue
+
+            if character == "-" and next_character == "-":
+                buffer.append(character)
+                buffer.append(next_character)
+                line_comment = True
+                index += 2
+                continue
+            if character == "/" and next_character == "*":
+                buffer.append(character)
+                buffer.append(next_character)
+                block_comment_depth = 1
+                index += 2
+                continue
+            if character == "'":
+                buffer.append(character)
+                single_quoted = True
+                index += 1
+                continue
+            if character == '"':
+                buffer.append(character)
+                double_quoted = True
+                index += 1
+                continue
+            tag = cls._dollar_quote_tag(sql, index)
+            if tag is not None:
+                buffer.append(tag)
+                dollar_quote_tag = tag
+                index += len(tag)
+                continue
+            if character == ";":
+                buffer.append(character)
+                statement = "".join(buffer).strip()
+                if statement:
+                    statements.append(statement)
+                buffer = []
+                index += 1
+                continue
+            buffer.append(character)
+            index += 1
+
+        trailing = "".join(buffer).strip()
+        if trailing:
+            statements.append(trailing)
+        return tuple(statements)
+
+    @staticmethod
+    def _dollar_quote_tag(sql: str, index: int) -> str | None:
+        if sql[index] != "$":
+            return None
+        closing_index = sql.find("$", index + 1)
+        if closing_index == -1:
+            return None
+        tag_body = sql[index + 1 : closing_index]
+        if tag_body and not (tag_body[0].isalpha() or tag_body[0] == "_"):
+            return None
+        for character in tag_body:
+            if not (character.isalnum() or character == "_"):
+                return None
+        return sql[index : closing_index + 1]
 
 
 class PostgreSQLDriver:

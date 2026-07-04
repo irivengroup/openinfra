@@ -44,3 +44,42 @@
 | Recherche IPAM | `openinfra ipam ui-search`, `/api/v1/ipam/ui-search` | tests CLI/API et smoke CI |
 | Assistant réservation | `openinfra ipam reservation-wizard`, `/api/v1/ipam/reservation-wizard` | dry-run + apply testés |
 | Dashboard capacité/conflits | `openinfra ipam ui-dashboard`, `/ui/ipam` | rendu JSON/HTML testé |
+
+
+## v0.22.2 — Correctif runtime Docker/PostgreSQL
+
+| Élément | Couverture |
+|---|---|
+| Migrations PostgreSQL audit | `0012`, `0013`, `0014` indexent `audit_events.created_at` et non une colonne inexistante. |
+| Runtime Docker facultatif | `Dockerfile` sans healthcheck global ; healthcheck API restreint à `compose.yaml` service `api`. |
+| Tags Docker | `.env.example`, `compose.yaml`, `scripts/docker_environment.py` alignés sur `0.22.2`. |
+
+
+## v0.22.2 — pgAdmin4 lab Docker Compose
+
+| Élément | Couverture |
+|---|---|
+| Administration BDD lab | Service Compose `pgadmin` exposé sur bind local configurable. |
+| Préconfiguration PostgreSQL | `docker/pgadmin/servers.json` référence l’hôte Compose `postgres` et la base `openinfra`. |
+| Secrets lab | `.env.example` expose les clés sans valeur sensible ; `scripts/docker_environment.py` génère les secrets localement. |
+| Persistance | Volume dédié `openinfra-pgadmin-data`. |
+
+## v0.22.3 — Correctif migration IPAM PostgreSQL
+
+| Élément | Traçabilité |
+| --- | --- |
+| Migration `0015` | Ajout/backfill/contrainte `prefixes.family` avant `idx_prefixes_vrf_family`. |
+| Qualité | `scripts/quality_gate.py` et `tests/integration/test_runtime_docker_environment.py` bloquent la régression. |
+
+## v0.23.0 — P05 / EPIC-0506 DDI intégration baseline
+
+| Élément | Traçabilité |
+| --- | --- |
+| Roadmap | P05 / EPIC-0506 — DDI intégration baseline. |
+| Domaine | `DdiProvider`, `DdiChange`, `DdiDivergence`, `DdiReservationPreview`. |
+| Application | `IpamDdiService.preview_reservation`. |
+| Ports | `DdiConnector`, `DdiPreviewContext`. |
+| Infrastructure | `BindDdiConnector`, `PowerDnsDdiConnector`, `KeaDdiConnector`, `DdiConnectorFactory`. |
+| Interfaces | `openinfra ipam ddi-preview`, `POST /api/v1/ipam/ddi-preview`. |
+| Acceptation | Une réservation IPAM génère un plan DNS/DHCP dry-run, les divergences sont visibles et un rollback compensatoire est fourni. |
+| Tests | `tests/unit/test_domain_ipam_ddi.py`, `tests/integration/test_ipam_ddi_services.py`. |

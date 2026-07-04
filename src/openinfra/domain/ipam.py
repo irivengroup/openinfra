@@ -497,6 +497,239 @@ class ObservedDhcpLease:
             "active": self.active,
         }
 
+class DdiProvider(StrEnum):
+    BIND = "bind"
+    POWERDNS = "powerdns"
+    KEA = "kea"
+
+    @classmethod
+    def from_value(cls, value: str) -> Self:
+        normalized = value.strip().lower()
+        try:
+            return cls(normalized)
+        except ValueError as exc:
+            raise ValidationError("DDI provider must be bind, powerdns or kea") from exc
+
+
+class DdiAction(StrEnum):
+    UPSERT = "upsert"
+    DELETE = "delete"
+
+    @classmethod
+    def from_value(cls, value: str) -> Self:
+        normalized = value.strip().lower()
+        try:
+            return cls(normalized)
+        except ValueError as exc:
+            raise ValidationError("DDI action must be upsert or delete") from exc
+
+
+class DdiRecordKind(StrEnum):
+    DNS_FORWARD = "dns_forward"
+    DNS_REVERSE = "dns_reverse"
+    DHCP_RESERVATION = "dhcp_reservation"
+
+    @classmethod
+    def from_value(cls, value: str) -> Self:
+        normalized = value.strip().lower()
+        try:
+            return cls(normalized)
+        except ValueError as exc:
+            raise ValidationError("DDI record kind is invalid") from exc
+
+
+@dataclass(frozen=True, slots=True)
+class DdiChange:
+    provider: DdiProvider
+    action: DdiAction
+    record_kind: DdiRecordKind
+    name: str
+    value: str
+    ttl: int
+    metadata: tuple[tuple[str, str], ...]
+
+    @classmethod
+    def create(
+        cls,
+        provider: str | DdiProvider,
+        action: str | DdiAction,
+        record_kind: str | DdiRecordKind,
+        name: str,
+        value: str,
+        ttl: int = 300,
+        metadata: dict[str, object] | None = None,
+    ) -> Self:
+        normalized_name = " ".join(name.strip().split())
+        normalized_value = " ".join(value.strip().split())
+        if not normalized_name:
+            raise ValidationError("DDI change name is mandatory")
+        if not normalized_value:
+            raise ValidationError("DDI change value is mandatory")
+        if not 0 <= ttl <= 86400:
+            raise ValidationError("DDI TTL must be between 0 and 86400 seconds")
+        normalized_metadata = tuple(
+            sorted(
+                (str(key), str(value))
+                for key, value in (metadata or {}).items()
+                if str(key).strip() and str(value).strip()
+            )
+        )
+        return cls(
+            provider=(
+                provider if isinstance(provider, DdiProvider) else DdiProvider.from_value(provider)
+            ),
+            action=action if isinstance(action, DdiAction) else DdiAction.from_value(action),
+            record_kind=(
+                record_kind
+                if isinstance(record_kind, DdiRecordKind)
+                else DdiRecordKind.from_value(record_kind)
+            ),
+            name=normalized_name,
+            value=normalized_value,
+            ttl=ttl,
+            metadata=normalized_metadata,
+        )
+
+    def compensating(self) -> Self:
+        rollback_action = DdiAction.DELETE if self.action == DdiAction.UPSERT else DdiAction.UPSERT
+        return DdiChange(
+            provider=self.provider,
+            action=rollback_action,
+            record_kind=self.record_kind,
+            name=self.name,
+            value=self.value,
+            ttl=self.ttl,
+            metadata=(*self.metadata, ("compensates", self.action.value)),
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "provider": self.provider.value,
+            "action": self.action.value,
+            "record_kind": self.record_kind.value,
+            "name": self.name,
+            "value": self.value,
+            "ttl": self.ttl,
+            "metadata": dict(self.metadata),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class DdiDivergence:
+    severity: Severity
+    kind: str
+    target: str
+    evidence: tuple[str, ...]
+    recommended_action: str
+
+    @classmethod
+    def create(
+        cls,
+        severity: str | Severity,
+        kind: str,
+        target: str,
+        evidence: tuple[str, ...],
+        recommended_action: str,
+    ) -> Self:
+        normalized_kind = kind.strip().lower()
+        normalized_target = target.strip()
+        normalized_action = " ".join(recommended_action.strip().split())
+        normalized_evidence = tuple(
+            " ".join(item.strip().split()) for item in evidence if item and item.strip()
+        )
+        if not normalized_kind:
+            raise ValidationError("DDI divergence kind is mandatory")
+        if not normalized_target:
+            raise ValidationError("DDI divergence target is mandatory")
+        if not normalized_evidence:
+            raise ValidationError("DDI divergence evidence is mandatory")
+        if not normalized_action:
+            raise ValidationError("DDI divergence recommended action is mandatory")
+        return cls(
+            severity=(
+                severity if isinstance(severity, Severity) else Severity(severity.strip().lower())
+            ),
+            kind=normalized_kind,
+            target=normalized_target,
+            evidence=normalized_evidence,
+            recommended_action=normalized_action,
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "severity": self.severity.value,
+            "kind": self.kind,
+            "target": self.target,
+            "evidence": list(self.evidence),
+            "recommended_action": self.recommended_action,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class DdiReservationPreview:
+    id: EntityId
+    tenant_id: TenantId
+    vrf_name: Name
+    idempotency_key: str
+    providers: tuple[DdiProvider, ...]
+    dry_run: bool
+    changes: tuple[DdiChange, ...]
+    rollback_changes: tuple[DdiChange, ...]
+    divergences: tuple[DdiDivergence, ...]
+
+    @classmethod
+    def create(
+        cls,
+        tenant_id: TenantId,
+        vrf_name: str,
+        idempotency_key: str,
+        providers: tuple[DdiProvider, ...],
+        dry_run: bool,
+        changes: tuple[DdiChange, ...],
+        divergences: tuple[DdiDivergence, ...],
+    ) -> Self:
+        normalized_key = idempotency_key.strip()
+        if not normalized_key:
+            raise ValidationError("DDI preview idempotency key is mandatory")
+        if not providers:
+            raise ValidationError("DDI preview requires at least one provider")
+        rollback = tuple(change.compensating() for change in changes)
+        return cls(
+            id=EntityId.new(),
+            tenant_id=tenant_id,
+            vrf_name=Name.from_value(vrf_name, "vrf name"),
+            idempotency_key=normalized_key,
+            providers=providers,
+            dry_run=bool(dry_run),
+            changes=changes,
+            rollback_changes=rollback,
+            divergences=divergences,
+        )
+
+    @property
+    def safe_to_apply(self) -> bool:
+        blocking = {Severity.ERROR, Severity.CRITICAL}
+        return bool(self.changes) and all(
+            item.severity not in blocking for item in self.divergences
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "id": self.id.value,
+            "tenant_id": self.tenant_id.value,
+            "vrf": self.vrf_name.value,
+            "idempotency_key": self.idempotency_key,
+            "providers": [provider.value for provider in self.providers],
+            "dry_run": self.dry_run,
+            "safe_to_apply": self.safe_to_apply,
+            "change_count": len(self.changes),
+            "rollback_change_count": len(self.rollback_changes),
+            "divergence_count": len(self.divergences),
+            "changes": [change.as_dict() for change in self.changes],
+            "rollback_changes": [change.as_dict() for change in self.rollback_changes],
+            "divergences": [divergence.as_dict() for divergence in self.divergences],
+        }
+
 
 class IpRangePurpose(StrEnum):
     ALLOCATION = "allocation"

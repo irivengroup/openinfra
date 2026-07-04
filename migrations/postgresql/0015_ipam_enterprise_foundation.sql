@@ -2,6 +2,23 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 
+ALTER TABLE prefixes ADD COLUMN IF NOT EXISTS family smallint;
+UPDATE prefixes SET family = pg_catalog.family(prefixes.cidr) WHERE prefixes.family IS NULL;
+ALTER TABLE prefixes ALTER COLUMN family SET NOT NULL;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'prefixes_family_check'
+          AND conrelid = 'prefixes'::regclass
+    ) THEN
+        ALTER TABLE prefixes
+            ADD CONSTRAINT prefixes_family_check CHECK (family IN (4, 6)) NOT VALID;
+    END IF;
+END $$;
+ALTER TABLE prefixes VALIDATE CONSTRAINT prefixes_family_check;
+
 CREATE TABLE IF NOT EXISTS ip_aggregates (
     id uuid NOT NULL,
     tenant_id text NOT NULL REFERENCES tenants(id),
@@ -44,7 +61,7 @@ CREATE TABLE IF NOT EXISTS ip_ranges (
     PRIMARY KEY (tenant_id, id),
     UNIQUE (tenant_id, vrf_name, prefix_cidr, start_address, end_address),
     CHECK (purpose IN ('allocation', 'reservation', 'exclusion')),
-    CHECK (family(start_address) = family(end_address)),
+    CHECK (pg_catalog.family(start_address) = pg_catalog.family(end_address)),
     CHECK (start_address <= end_address)
 ) PARTITION BY HASH (tenant_id);
 CREATE TABLE IF NOT EXISTS ip_ranges_p00 PARTITION OF ip_ranges FOR VALUES WITH (MODULUS 32, REMAINDER 0);

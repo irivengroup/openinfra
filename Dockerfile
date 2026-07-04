@@ -22,7 +22,4 @@ RUN python -m pip install --upgrade pip \
 USER openinfra
 EXPOSE 8080
 
-HEALTHCHECK --interval=10s --timeout=3s --start-period=15s --retries=6 \
-    CMD python -c "import json, urllib.request; json.loads(urllib.request.urlopen('http://127.0.0.1:8080/ready', timeout=2).read().decode('utf-8'))['ready'] or exit(1)"
-
 CMD ["openinfra-api", "--host", "0.0.0.0", "--port", "8080", "--backend", "postgresql"]

@@ -244,3 +244,27 @@ La persistance PostgreSQL est additive via `0018_ipam_conflict_detection.sql`, a
 La version 0.22.0 introduit une couche UI IPAM strictement applicative et sans framework externe. Le service `IpamUiService` agrège les référentiels IPAM existants, le moteur de conflits et l’allocation transactionnelle pour produire un view model stable consommable par CLI, API JSON et rendu HTML serveur.
 
 Le rendu HTML `/ui/ipam` reste volontairement léger : il expose les VRF, la capacité des préfixes, les réservations et les conflits sans créer de dépendance de production supplémentaire. Le workflow de réservation est séparé en deux modes : prévisualisation déterministe de la prochaine adresse disponible et application transactionnelle via le service d’allocation existant.
+
+
+## v0.22.2 — Correctif runtime Docker/PostgreSQL
+
+Le runtime Docker facultatif est corrigé pour respecter la séparation des responsabilités : l’image ne définit plus de healthcheck global, afin que les conteneurs one-shot `migrate` et `auth-bootstrap` n’héritent pas d’un contrôle HTTP réservé au service API. Les migrations PostgreSQL DCIM utilisent toutes la colonne réelle `audit_events.created_at` pour les index temporels.
+
+
+## v0.22.2 — Administration PostgreSQL du lab Docker
+
+Le runtime Docker facultatif ajoute un service `pgadmin` isolé sur le réseau Compose `openinfra`. Il ne participe pas au runtime de production et ne modifie pas les bounded contexts applicatifs. Sa responsabilité est limitée à l’administration manuelle de la base PostgreSQL du lab local.
+
+Les données pgAdmin4 sont portées par le volume `openinfra-pgadmin-data`; le serveur PostgreSQL OpenInfra est préchargé via `docker/pgadmin/servers.json`. Les identifiants pgAdmin4 et PostgreSQL restent dans `.env`, créé localement avec permissions restreintes par `scripts/docker_environment.py`.
+
+## v0.22.3 — Correctif migration IPAM PostgreSQL
+
+La migration IPAM enterprise aligne désormais le schéma historique `prefixes` créé en `0001` avec le modèle P05 enrichi en ajoutant `family`, son backfill depuis `pg_catalog.family(prefixes.cidr)`, sa contrainte `NOT NULL` et son contrôle IPv4/IPv6 avant l’indexation tenant/VRF/famille/CIDR. Le lab Docker conserve pgAdmin4 avec un identifiant par défaut utilisant un domaine publiquement valide afin d’éviter le rejet des domaines réservés par pgAdmin4.
+
+## v0.23.0 — P05 EPIC-0506 DDI intégration baseline
+
+La version 0.23.0 termine la séquence P05 par une intégration DDI de base centrée sur la sécurité opérationnelle : une réservation IPAM existante peut produire une prévisualisation DNS/DHCP déterministe pour BIND, PowerDNS et Kea sans appel réseau implicite. Le domaine introduit des changements typés (`DdiChange`), les providers (`DdiProvider`), les divergences (`DdiDivergence`) et une enveloppe de prévisualisation (`DdiReservationPreview`) contenant aussi le plan compensatoire de rollback.
+
+Le service applicatif `IpamDdiService` orchestre les connecteurs via le port `DdiConnector`, relit la réservation par clé d’idempotence, normalise FQDN, zone DNS, TTL et MAC DHCP, puis compare le plan attendu aux observations DNS/DHCP déjà connues par IPAM. Les divergences bloquantes (`error` ou `critical`) désactivent `safe_to_apply`, ce qui empêche une intégration silencieuse en présence de conflit forward DNS, PTR ou DHCP.
+
+Les adaptateurs `BindDdiConnector`, `PowerDnsDdiConnector` et `KeaDdiConnector` génèrent des changements applicables par des intégrateurs externes ou un futur executor contrôlé. Cette livraison conserve la production indépendante de Docker, ne change pas le schéma PostgreSQL et continue d’utiliser l’audit append-only pour tracer chaque prévisualisation DDI.

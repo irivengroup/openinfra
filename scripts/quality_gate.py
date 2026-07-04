@@ -94,6 +94,127 @@ class CiWorkflowTriggerGuard:
             raise QualityGateError("CI workflow must run on every branch push and pull request")
 
 
+class DockerRuntimeGuard:
+    def __init__(self, project_root: Path) -> None:
+        self._project_root = project_root
+
+    def assert_optional_compose_runtime_is_well_scoped(self) -> None:
+        dockerfile = (self._project_root / "Dockerfile").read_text(encoding="utf-8")
+        compose = (self._project_root / "compose.yaml").read_text(encoding="utf-8")
+        env_example = (self._project_root / ".env.example").read_text(encoding="utf-8")
+        env_manager = (self._project_root / "scripts/docker_environment.py").read_text(
+            encoding="utf-8"
+        )
+        if "HEALTHCHECK" in dockerfile:
+            raise QualityGateError(
+                "Dockerfile must not define an API healthcheck inherited by migrate/auth-bootstrap"
+            )
+        if "openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.23.0}" not in compose:
+            raise QualityGateError("compose.yaml must default to the current OpenInfra image tag")
+        stale_tags = (
+            "OPENINFRA_IMAGE_TAG=0.9.0",
+            "OPENINFRA_IMAGE_TAG=0.14.0",
+            "OPENINFRA_IMAGE_TAG=0.22.1",
+            "OPENINFRA_IMAGE_TAG=0.22.2",
+            "${OPENINFRA_IMAGE_TAG:-0.14.0}",
+            "${OPENINFRA_IMAGE_TAG:-0.22.1}",
+            "${OPENINFRA_IMAGE_TAG:-0.22.2}",
+        )
+        stale = [
+            fragment for fragment in stale_tags if fragment in compose + env_example + env_manager
+        ]
+        if stale:
+            raise QualityGateError("stale Docker image tag defaults detected: " + ", ".join(stale))
+
+        pgadmin_servers = self._project_root / "docker/pgadmin/servers.json"
+        if "  pgadmin:" not in compose:
+            raise QualityGateError(
+                "compose.yaml must include pgAdmin4 service for lab database administration"
+            )
+        pgadmin_required = (
+            "${OPENINFRA_PGADMIN_IMAGE:-dpage/pgadmin4:latest}",
+            "openinfra-pgadmin-data:/var/lib/pgadmin",
+            "./docker/pgadmin/servers.json:/pgadmin4/servers.json:ro",
+            "${OPENINFRA_PGADMIN_BIND:-127.0.0.1}:${OPENINFRA_PGADMIN_PORT:-5050}:80",
+            "PGADMIN_DEFAULT_EMAIL",
+            "PGADMIN_DEFAULT_PASSWORD",
+        )
+        missing_pgadmin = [fragment for fragment in pgadmin_required if fragment not in compose]
+        if missing_pgadmin:
+            raise QualityGateError(
+                "compose pgAdmin4 service is incomplete: " + ", ".join(missing_pgadmin)
+            )
+        if not pgadmin_servers.is_file():
+            raise QualityGateError(
+                "missing pgAdmin4 server registration: docker/pgadmin/servers.json"
+            )
+        pgadmin_content = pgadmin_servers.read_text(encoding="utf-8")
+        if (
+            '"Host": "postgres"' not in pgadmin_content
+            or '"MaintenanceDB": "openinfra"' not in pgadmin_content
+        ):
+            raise QualityGateError(
+                "pgAdmin4 server registration must target the Compose PostgreSQL service"
+            )
+        env_required = (
+            "OPENINFRA_PGADMIN_EMAIL=",
+            "OPENINFRA_PGADMIN_PASSWORD=",
+            "OPENINFRA_PGADMIN_BIND=127.0.0.1",
+            "OPENINFRA_PGADMIN_PORT=5050",
+            "OPENINFRA_PGADMIN_IMAGE=dpage/pgadmin4:latest",
+        )
+        missing_env = [fragment for fragment in env_required if fragment not in env_example]
+        if missing_env:
+            raise QualityGateError(
+                ".env.example missing pgAdmin4 variables: " + ", ".join(missing_env)
+            )
+        if "OPENINFRA_PGADMIN_EMAIL=admin@openinfra.tld" not in env_example:
+            raise QualityGateError(".env.example must use a pgAdmin4 email accepted by pgAdmin4")
+        if "OPENINFRA_PGADMIN_EMAIL=admin@openinfra.tld" not in env_manager:
+            raise QualityGateError(
+                "docker environment manager must generate a pgAdmin4 email accepted by pgAdmin4"
+            )
+        if "admin@openinfra.local" in env_example + env_manager:
+            raise QualityGateError("pgAdmin4 email must not use reserved .local domain")
+        if "OPENINFRA_PGADMIN_PASSWORD=" not in env_manager:
+            raise QualityGateError("docker environment manager must generate pgAdmin4 credentials")
+
+
+class PostgreSQLMigrationSchemaGuard:
+    def __init__(self, project_root: Path) -> None:
+        self._project_root = project_root
+
+    def assert_audit_indexes_use_created_at(self) -> None:
+        payload = "\n".join(
+            path.read_text(encoding="utf-8")
+            for path in sorted((self._project_root / "migrations/postgresql").glob("*.sql"))
+        )
+        if "occurred_at" in payload:
+            raise QualityGateError(
+                "PostgreSQL migrations must not reference missing audit_events.occurred_at"
+            )
+
+    def assert_enterprise_ipam_migration_backfills_prefix_family(self) -> None:
+        migration = (
+            self._project_root / "migrations/postgresql/0015_ipam_enterprise_foundation.sql"
+        ).read_text(encoding="utf-8")
+        required = (
+            "ALTER TABLE prefixes ADD COLUMN IF NOT EXISTS family smallint",
+            (
+                "UPDATE prefixes SET family = pg_catalog.family(prefixes.cidr) "
+                "WHERE prefixes.family IS NULL"
+            ),
+            "ALTER TABLE prefixes ALTER COLUMN family SET NOT NULL",
+            "CREATE INDEX IF NOT EXISTS idx_prefixes_vrf_family",
+        )
+        missing = [fragment for fragment in required if fragment not in migration]
+        if missing:
+            raise QualityGateError(
+                "IPAM migration must backfill prefixes.family before indexing it: "
+                + ", ".join(missing)
+            )
+
+
 class CompletionMarkerGuard:
     _encoded_markers = (
         ("T", "O", "D", "O"),
@@ -148,6 +269,10 @@ class QualityGate:
         ContractFileGuard(self._project_root).assert_sources_present()
         NativeRuntimeGuard(self._project_root).assert_runtime_environment_present()
         CiWorkflowTriggerGuard(self._project_root).assert_push_triggers_are_not_branch_locked()
+        DockerRuntimeGuard(self._project_root).assert_optional_compose_runtime_is_well_scoped()
+        postgres_migration_guard = PostgreSQLMigrationSchemaGuard(self._project_root)
+        postgres_migration_guard.assert_audit_indexes_use_created_at()
+        postgres_migration_guard.assert_enterprise_ipam_migration_backfills_prefix_family()
         CompletionMarkerGuard(self._project_root).assert_clean_sources()
         CommandRunner().run(
             [sys.executable, "scripts/security_gate.py", "--project-root", str(self._project_root)]

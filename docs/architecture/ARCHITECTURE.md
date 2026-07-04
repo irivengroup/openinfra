@@ -288,3 +288,11 @@ Interfaces exposées : `openinfra import bulk-dataset`, `openinfra import bulk-r
 
 La livraison corrective 0.25.2 ne modifie pas le domaine métier. Elle renforce l'industrialisation : les dépendances production, PostgreSQL optionnelles et dev/CI sont séparées dans `requirements/`, tandis que le garde de sécurité CI vérifie que cette séparation reste effective.
 
+
+## v0.26.0 — P06 EPIC-0603 Exports asynchrones et signés
+
+Le module d’export suit la séparation hexagonale existante. Le domaine `data_export` modélise les jobs, statuts, formats, filtres et métadonnées d’artefact. Le service applicatif `ExportService` orchestre l’authentification, l’audit, la création non bloquante du job, l’exécution paginée par worker, la sérialisation CSV/JSON/XLSX, le calcul SHA-256, la signature HMAC-SHA256 et la vérification d’intégrité avant restitution de l’artefact.
+
+La clé de signature n’est pas codée en dur : elle est créée et persistée par le backend via `ExportRepository.get_or_create_export_signing_secret`. L’adaptateur JSON la stocke dans le document d’état local de test, tandis que l’adaptateur PostgreSQL utilise `export_signing_keys`. Les tables `export_jobs` et `export_artifacts` sont partitionnées par hash du tenant afin de rester alignées avec la stratégie multi-tenant et forte volumétrie du socle PostgreSQL.
+
+Les interfaces restent fines : le CLI expose `openinfra export request`, `run`, `report` et `artifact`; l’API expose `POST/GET /api/v1/exports/jobs`, `POST /api/v1/exports/run` et `GET /api/v1/exports/artifact`. Aucun appel réseau externe ni stockage objet externe n’est imposé dans cette baseline ; le design isole déjà le stockage d’artefacts derrière le port repository pour permettre une évolution compatible.

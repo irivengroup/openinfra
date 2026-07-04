@@ -445,3 +445,19 @@ La v0.25.2 ajoute un contrôle de séparation des requirements :
 
 Le `security_gate.py` bloque tout outil dev/CI placé dans les requirements production et tout fichier d'audit qui ne préserve pas cette séparation.
 
+
+## Contrôles ajoutés en v0.26.0
+
+La v0.26.0 ajoute les contrôles P06 / EPIC-0603 suivants :
+
+```bash
+tmpdir="$(mktemp -d)"
+token="$(python -c 'print("x" * 40)')"
+PYTHONPATH=src python -m openinfra.interfaces.cli security bootstrap-token --data "$tmpdir/state.json" --tenant default --subject export-admin --role sot:operator --role audit:reader --token "$token" >/dev/null
+PYTHONPATH=src python -m openinfra.interfaces.cli sot upsert-object --data "$tmpdir/state.json" --tenant default --admin-token "$token" --key device/export-smoke --kind device --display-name "Export Smoke" --attributes-json '{"serial":"EXPORT-SMOKE"}' --tag prod --source smoke >/dev/null
+PYTHONPATH=src python -m openinfra.interfaces.cli export request --data "$tmpdir/state.json" --tenant default --admin-token "$token" --format json --tag prod
+PYTHONPATH=src python -m openinfra.interfaces.cli export run --data "$tmpdir/state.json" --tenant default --admin-token "$token"
+PYTHONPATH=src python -m pytest -q --no-cov tests/integration/test_export_services.py tests/integration/test_cli_export.py tests/integration/test_http_api.py tests/integration/test_postgresql_migration.py
+```
+
+Les tests vérifient la file d’export, l’exécution worker, la pagination bornée, la sérialisation CSV/JSON/XLSX, le digest SHA-256, la signature HMAC-SHA256, le rejet des artefacts altérés, l’audit d’échec et la migration PostgreSQL `0021` partitionnée.

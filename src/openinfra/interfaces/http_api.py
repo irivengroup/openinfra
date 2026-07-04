@@ -41,6 +41,12 @@ from openinfra.application.dcim_services import (
     TraceDcimCableCommand,
     VerifyEquipmentScanCommand,
 )
+from openinfra.application.export_services import (
+    GetExportArtifactCommand,
+    GetExportJobCommand,
+    RequestExportCommand,
+    RunExportJobCommand,
+)
 from openinfra.application.identity_services import (
     AddUserToGroupCommand,
     CreateGroupCommand,
@@ -123,6 +129,25 @@ class TextHttpResponder:
         self._handler.wfile.write(payload)
 
 
+class BinaryHttpResponder:
+    def __init__(self, handler: BaseHTTPRequestHandler) -> None:
+        self._handler = handler
+
+    def send(
+        self,
+        status: HTTPStatus,
+        body: bytes,
+        content_type: str,
+        filename: str,
+    ) -> None:
+        self._handler.send_response(status.value)
+        self._handler.send_header("Content-Type", content_type)
+        self._handler.send_header("Content-Length", str(len(body)))
+        self._handler.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+        self._handler.end_headers()
+        self._handler.wfile.write(body)
+
+
 class OpenApiDocumentProvider:
     def __init__(self, explicit_path: str | None = None) -> None:
         self._explicit_path = explicit_path
@@ -197,6 +222,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         responder = JsonHttpResponder(self)
         text_responder = TextHttpResponder(self)
+        binary_responder = BinaryHttpResponder(self)
         parsed = urlparse(self.path)
         status: Any
         page: Any
@@ -357,6 +383,48 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     self._first_query_value(query, "job_id"),
                 )
                 responder.send(HTTPStatus.OK, checkpoint.as_dict())
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/exports/jobs":
+            try:
+                query = parse_qs(parsed.query)
+                job = self.server.application.export_service.get_export_job(
+                    GetExportJobCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        job_id=self._first_query_value(query, "job_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, job.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/exports/artifact":
+            try:
+                query = parse_qs(parsed.query)
+                download = self.server.application.export_service.get_export_artifact(
+                    GetExportArtifactCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        job_id=self._first_query_value(query, "job_id"),
+                    )
+                )
+                artifact = download.job.artifact
+                if artifact is None:
+                    raise OpenInfraError("export artifact metadata is unavailable")
+                binary_responder.send(
+                    HTTPStatus.OK,
+                    download.content,
+                    artifact.media_type,
+                    artifact.filename,
+                )
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (ValueError, OpenInfraError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
@@ -1409,6 +1477,47 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
+        if route == "/api/v1/exports/jobs":
+            try:
+                payload = self._read_json_body()
+                job = self.server.application.export_service.request_export(
+                    RequestExportCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=str(payload["admin_token"]),
+                        resource=str(payload.get("resource", "source_objects")),
+                        format=str(payload.get("format", "json")),
+                        kind=None if payload.get("kind") is None else str(payload["kind"]),
+                        tag=None if payload.get("tag") is None else str(payload["tag"]),
+                        limit=int(payload.get("limit", 100_000)),
+                    )
+                )
+                responder.send(HTTPStatus.ACCEPTED, job.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/exports/run":
+            try:
+                payload = self._read_json_body()
+                job = self.server.application.export_service.run_export_job(
+                    RunExportJobCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=str(payload["admin_token"]),
+                        job_id=None if payload.get("job_id") is None else str(payload["job_id"]),
+                        page_size=int(payload.get("page_size", 500)),
+                    )
+                )
+                responder.send(HTTPStatus.OK, job.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
         if route == "/api/v1/imports/datasets":
             try:
                 payload = self._read_json_body()
@@ -1824,6 +1933,12 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                 "redoc": "/redoc",
                 "openapi_yaml": "/openapi.yaml",
                 "versioned_openapi_yaml": "/api/v1/openapi.yaml",
+                "exports": {
+                    "request": "/api/v1/exports/jobs",
+                    "run": "/api/v1/exports/run",
+                    "report": "/api/v1/exports/jobs",
+                    "artifact": "/api/v1/exports/artifact",
+                },
             },
         }
 

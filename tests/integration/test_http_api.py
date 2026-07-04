@@ -9,6 +9,7 @@ from pathlib import Path
 from openinfra.application.container import ApplicationFactory
 from openinfra.application.ipam_services import AllocateIpCommand
 from openinfra.application.security_services import BootstrapTokenCommand
+from openinfra.application.source_of_truth_services import UpsertSourceObjectCommand
 from openinfra.domain.common import OpenInfraError
 from openinfra.interfaces.http_api import OpenApiDocumentProvider, OpenInfraThreadingServer
 
@@ -44,7 +45,7 @@ class TestHttpApi:
             )
 
             assert root["service"] == "openinfra-api"
-            assert root["version"] == "0.25.2"
+            assert root["version"] == "0.26.0"
             assert root["health"] == "/health"
             assert root["readiness"] == "/ready"
             assert root["api"] == api_index["api"]
@@ -61,6 +62,12 @@ class TestHttpApi:
                 "redoc": "/redoc",
                 "openapi_yaml": "/openapi.yaml",
                 "versioned_openapi_yaml": "/api/v1/openapi.yaml",
+                "exports": {
+                    "request": "/api/v1/exports/jobs",
+                    "run": "/api/v1/exports/run",
+                    "report": "/api/v1/exports/jobs",
+                    "artifact": "/api/v1/exports/artifact",
+                },
             }
             assert "SwaggerUIBundle" in swagger
             assert "SwaggerUIBundle" in swagger_alias
@@ -70,7 +77,7 @@ class TestHttpApi:
             assert health["status"] == "ok"
             assert ready["ready"] is True
             assert ready["component"] == "json"
-            assert version["version"] == "0.25.2"
+            assert version["version"] == "0.26.0"
             assert allocation["address"] == "10.6.0.1"
         finally:
             server.shutdown()
@@ -319,6 +326,78 @@ class TestHttpApi:
             server.server_close()
             thread.join(timeout=5)
 
+    def test_export_api_endpoints(self, tmp_path: Path) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+        token = "o" * 40
+        app.security_service.bootstrap_token(
+            BootstrapTokenCommand(
+                tenant_id="default",
+                actor="pytest",
+                subject="api-export-admin",
+                roles=("sot:operator",),
+                token=token,
+            )
+        )
+        app.source_of_truth_service.upsert_object(
+            UpsertSourceObjectCommand(
+                tenant_id="default",
+                actor="pytest",
+                admin_token=token,
+                key="device/api-export-801",
+                kind="device",
+                display_name="API Export 801",
+                attributes_json='{"serial":"SN801"}',
+                tags=("prod",),
+                source="api_export",
+            )
+        )
+        server = OpenInfraThreadingServer(("127.0.0.1", 0), app)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base_url = f"http://127.0.0.1:{server.server_port}"
+            queued = self._post_json(
+                base_url + "/api/v1/exports/jobs",
+                {
+                    "tenant_id": "default",
+                    "actor": "pytest",
+                    "admin_token": token,
+                    "resource": "source_objects",
+                    "format": "json",
+                    "kind": "device",
+                    "tag": "prod",
+                },
+            )
+            completed = self._post_json(
+                base_url + "/api/v1/exports/run",
+                {
+                    "tenant_id": "default",
+                    "actor": "pytest",
+                    "admin_token": token,
+                    "job_id": queued["job_id"],
+                    "page_size": 2,
+                },
+            )
+            persisted = self._get_json(
+                base_url + "/api/v1/exports/jobs?tenant_id=default&job_id=" + str(queued["job_id"]),
+                token=token,
+            )
+            artifact = self._get_bytes(
+                base_url
+                + "/api/v1/exports/artifact?tenant_id=default&job_id="
+                + str(queued["job_id"]),
+                token=token,
+            )
+
+            assert queued["status"] == "queued"
+            assert completed["status"] == "completed"
+            assert persisted["artifact"]["signature_algorithm"] == "hmac-sha256"
+            assert json.loads(artifact.decode("utf-8"))[0]["key"] == "device/api-export-801"
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
     def _get_json(self, url: str, token: str | None = None) -> dict[str, object]:
         headers = {}
         if token is not None:
@@ -326,6 +405,14 @@ class TestHttpApi:
         request = urllib.request.Request(url, headers=headers, method="GET")
         with urllib.request.urlopen(request, timeout=5) as response:
             return json.loads(response.read().decode("utf-8"))
+
+    def _get_bytes(self, url: str, token: str | None = None) -> bytes:
+        headers = {}
+        if token is not None:
+            headers["Authorization"] = "Bearer " + token
+        request = urllib.request.Request(url, headers=headers, method="GET")
+        with urllib.request.urlopen(request, timeout=5) as response:
+            return response.read()
 
     def _get_text(self, url: str) -> str:
         request = urllib.request.Request(url, method="GET")

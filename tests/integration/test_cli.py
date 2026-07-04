@@ -12,7 +12,7 @@ class TestOpenInfraCli:
         captured = capsys.readouterr()
 
         assert code == 0
-        assert captured.out.strip() == "0.25.2"
+        assert captured.out.strip() == "0.26.0"
 
     def test_spec_validate_command(self, capsys: object) -> None:
         root = Path("docs/specifications/OpenInfra-CDC-SFG-STG-v4")

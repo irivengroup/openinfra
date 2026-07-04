@@ -118,3 +118,16 @@
 | Route API v1 | `GET /api/v1` expose le point d’entrée canonique de l’API versionnée. |
 | Logs runtime | `openinfra-api` écrit `openinfra_api_started` sur stdout au démarrage. |
 | Tests | `tests/integration/test_http_api.py` et `tests/integration/test_runtime_docker_environment.py` couvrent les nouveaux contrats et empêchent le retour du smoke Docker vers une version codée en dur. |
+
+## v0.26.0 — P06 EPIC-0603 Exports asynchrones et signés
+
+La v0.26.0 ajoute un cycle d’export tracé de bout en bout : job non bloquant, exécution worker séparée, artefact CSV/JSON/XLSX, digest SHA-256, signature HMAC-SHA256 et vérification d’intégrité avant téléchargement. Les contrats exposés sont `openinfra export request|run|report|artifact` et `/api/v1/exports/jobs`, `/api/v1/exports/run`, `/api/v1/exports/artifact`.
+
+Traçabilité :
+
+- domaine : `src/openinfra/domain/data_export.py` ;
+- application : `src/openinfra/application/export_services.py` ;
+- ports : `ExportRepository` ;
+- infrastructure : `JsonExportRepository`, `PostgreSQLExportRepository`, migration `0021_export_framework.sql` ;
+- interfaces : CLI `export`, API HTTP `/api/v1/exports/*`, OpenAPI YAML ;
+- tests : `tests/integration/test_export_services.py`, `tests/integration/test_cli_export.py`, `tests/integration/test_http_api.py`, `tests/integration/test_postgresql_migration.py`.

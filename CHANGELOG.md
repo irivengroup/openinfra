@@ -1,9 +1,14 @@
-## 0.25.2 - 2026-07-04
+## 0.26.0 - 2026-07-04
 
-- Correctif CI/DevSecOps sans nouveau jalon fonctionnel : conservation intégrale du jalon P06 / EPIC-0602 livré en `0.25.0` et des corrections `0.25.1`.
-- Correction du formatage Ruff restant sur `tests/integration/test_import_services.py` et `tests/integration/test_postgresql_migration.py`.
-- Séparation stricte des requirements : `runtime.txt` pour les dépendances production cœur, `postgresql.txt` pour le backend PostgreSQL production optionnel, `dev.txt` pour les outils développement/test/CI, et `security-audit.txt` comme agrégat explicite d'audit.
-- Renforcement du `security_gate.py` pour refuser les outils dev dans les requirements runtime/PostgreSQL et refuser un fichier d'audit non séparé.
+- Roadmap : P06 / EPIC-0603 — Exports asynchrones et signés.
+- Ajout du domaine `data_export` : formats CSV/JSON/XLSX, ressource `source_objects`, filtres, jobs, statuts et métadonnées d’artefact.
+- Ajout du service applicatif `ExportService` : création de job non bloquante, exécution worker séparée, pagination bornée, production d’artefact, SHA-256, signature HMAC-SHA256, audit de succès/échec et vérification d’intégrité avant téléchargement.
+- Ajout des ports et adaptateurs JSON/PostgreSQL `ExportRepository`, avec stockage des jobs, artefacts et clé de signature managée par le backend.
+- Ajout de la migration PostgreSQL `0021_export_framework.sql` avec `export_jobs` et `export_artifacts` partitionnées par hash du tenant, index de queue et index d’audit exports.
+- Ajout des commandes `openinfra export request`, `openinfra export run`, `openinfra export report` et `openinfra export artifact`.
+- Ajout des endpoints `POST /api/v1/exports/jobs`, `GET /api/v1/exports/jobs`, `POST /api/v1/exports/run` et `GET /api/v1/exports/artifact`.
+- Mise à jour OpenAPI, README, architecture, validation, traçabilité et tests de non-régression.
+- Conservation des garanties précédentes : séparation requirements runtime/dev, Swagger/ReDoc/OpenAPI, pgAdmin `admin@openinfra.tld`, Docker limité au lab/smoke/test et couverture globale `>= 98 %`.
 
 ## 0.25.1 - 2026-07-04
 

@@ -39,6 +39,12 @@ from openinfra.application.dcim_services import (
     TraceDcimCableCommand,
     VerifyEquipmentScanCommand,
 )
+from openinfra.application.export_services import (
+    GetExportArtifactCommand,
+    GetExportJobCommand,
+    RequestExportCommand,
+    RunExportJobCommand,
+)
 from openinfra.application.identity_services import (
     AddUserToGroupCommand,
     CreateGroupCommand,
@@ -128,6 +134,7 @@ class OpenInfraCLI:
         self._add_access_policy_commands(subparsers)
         self._add_audit_commands(subparsers)
         self._add_import_commands(subparsers)
+        self._add_export_commands(subparsers)
         self._add_sot_commands(subparsers)
         self._add_ipam_commands(subparsers)
         self._add_dcim_commands(subparsers)
@@ -437,6 +444,52 @@ class OpenInfraCLI:
         bulk_checkpoint.add_argument("--tenant", required=True)
         bulk_checkpoint.add_argument("--job-id", required=True)
         bulk_checkpoint.set_defaults(handler=self._handle_import_bulk_checkpoint)
+
+    def _add_export_commands(self, subparsers: Any) -> None:
+        exports = subparsers.add_parser("export", help="asynchronous signed export operations")
+        export_subparsers = exports.add_subparsers(dest="export_command", required=True)
+
+        request = export_subparsers.add_parser(
+            "request", help="queue a signed asynchronous export job"
+        )
+        self._add_backend_arguments(request)
+        request.add_argument("--tenant", required=True)
+        request.add_argument("--actor", default="cli")
+        request.add_argument("--admin-token", required=True)
+        request.add_argument("--resource", choices=("source_objects",), default="source_objects")
+        request.add_argument("--format", choices=("csv", "json", "xlsx"), default="json")
+        request.add_argument("--kind")
+        request.add_argument("--tag")
+        request.add_argument("--limit", type=int, default=100_000)
+        request.set_defaults(handler=self._handle_export_request)
+
+        run = export_subparsers.add_parser(
+            "run", help="run one queued export job as a worker action"
+        )
+        self._add_backend_arguments(run)
+        run.add_argument("--tenant", required=True)
+        run.add_argument("--actor", default="cli")
+        run.add_argument("--admin-token", required=True)
+        run.add_argument("--job-id")
+        run.add_argument("--page-size", type=int, default=500)
+        run.set_defaults(handler=self._handle_export_run)
+
+        report = export_subparsers.add_parser("report", help="read an export job report")
+        self._add_backend_arguments(report)
+        report.add_argument("--tenant", required=True)
+        report.add_argument("--admin-token", required=True)
+        report.add_argument("--job-id", required=True)
+        report.set_defaults(handler=self._handle_export_report)
+
+        artifact = export_subparsers.add_parser(
+            "artifact", help="download and verify an export artifact"
+        )
+        self._add_backend_arguments(artifact)
+        artifact.add_argument("--tenant", required=True)
+        artifact.add_argument("--admin-token", required=True)
+        artifact.add_argument("--job-id", required=True)
+        artifact.add_argument("--output", type=Path, required=True)
+        artifact.set_defaults(handler=self._handle_export_artifact)
 
     def _add_sot_commands(self, subparsers: Any) -> None:
         sot = subparsers.add_parser("sot", help="source of truth objects and relations")
@@ -1504,6 +1557,63 @@ class OpenInfraCLI:
         app = self._create_application(args)
         checkpoint = app.import_service.get_bulk_checkpoint(args.tenant, args.job_id)
         print(json.dumps(checkpoint.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_export_request(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        job = app.export_service.request_export(
+            RequestExportCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                resource=args.resource,
+                format=args.format,
+                kind=args.kind,
+                tag=args.tag,
+                limit=args.limit,
+            )
+        )
+        print(json.dumps(job.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_export_run(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        job = app.export_service.run_export_job(
+            RunExportJobCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                job_id=args.job_id,
+                page_size=args.page_size,
+            )
+        )
+        print(json.dumps(job.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_export_report(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        job = app.export_service.get_export_job(
+            GetExportJobCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                job_id=args.job_id,
+            )
+        )
+        print(json.dumps(job.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_export_artifact(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        download = app.export_service.get_export_artifact(
+            GetExportArtifactCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                job_id=args.job_id,
+            )
+        )
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_bytes(download.content)
+        print(json.dumps(download.as_dict(), indent=2, sort_keys=True))
         return 0
 
     def _handle_sot_upsert_object(self, args: argparse.Namespace) -> int:

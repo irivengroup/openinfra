@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.25.2
+  version: 0.26.0
 components:
   securitySchemes:
     bearerToken:
@@ -1723,6 +1723,69 @@ paths:
       responses:
         '200': {description: DDI dry-run plan with changes, divergences and rollback changes}
         '400': {description: Validation error or missing reservation}
+  /api/v1/exports/jobs:
+    post:
+      summary: Queue an asynchronous signed export job
+      description: Creates a non-blocking export job for Source of Truth data. The job remains queued until an export worker invokes the run endpoint or CLI command.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, admin_token]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                admin_token: {type: string}
+                resource: {type: string, enum: [source_objects], default: source_objects}
+                format: {type: string, enum: [csv, json, xlsx], default: json}
+                kind: {type: string}
+                tag: {type: string}
+                limit: {type: integer, minimum: 1, maximum: 1000000, default: 100000}
+      responses:
+        '202': {description: Export job queued}
+        '400': {description: Validation error or access error}
+    get:
+      summary: Read an export job status and signed artifact metadata
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: job_id, in: query, required: true, schema: {type: string}}
+        - {name: admin_token, in: query, required: false, schema: {type: string}}
+      responses:
+        '200': {description: Export job report}
+        '400': {description: Validation error or unknown export job}
+  /api/v1/exports/run:
+    post:
+      summary: Run one queued export job and produce a signed artifact
+      description: Executes a queued export in a bounded paginated worker step, stores the artifact, computes SHA-256 and signs the content with HMAC-SHA256.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, admin_token]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api-worker}
+                admin_token: {type: string}
+                job_id: {type: string}
+                page_size: {type: integer, minimum: 1, maximum: 500, default: 500}
+      responses:
+        '200': {description: Completed or failed export job report}
+        '400': {description: Validation error or no runnable queued job}
+  /api/v1/exports/artifact:
+    get:
+      summary: Download a signed export artifact after digest and signature verification
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: job_id, in: query, required: true, schema: {type: string}}
+        - {name: admin_token, in: query, required: false, schema: {type: string}}
+      responses:
+        '200': {description: Binary export artifact}
+        '400': {description: Validation error, unavailable artifact or integrity failure}
+
   /api/v1/imports/datasets:
     post:
       summary: Validate or apply a mapped CSV, JSON or XLSX dataset into Source of Truth

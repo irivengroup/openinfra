@@ -34,7 +34,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.25.2}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.26.0}
     container_name: openinfra-migrate
     restart: "no"
     depends_on:
@@ -52,7 +52,7 @@ services:
       - openinfra
 
   auth-bootstrap:
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.25.2}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.26.0}
     container_name: openinfra-auth-bootstrap
     restart: "no"
     depends_on:
@@ -81,7 +81,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.25.2}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.26.0}
     container_name: openinfra-api
     restart: unless-stopped
     depends_on:
@@ -129,7 +129,7 @@ services:
       - openinfra
 
   smoke:
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.25.2}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.26.0}
     container_name: openinfra-smoke
     restart: "no"
     depends_on:

@@ -7,6 +7,7 @@ from typing import Generic, TypeVar
 from openinfra.domain.access_policy import AccessPolicyRule
 from openinfra.domain.audit import AuditEventFilter, AuditEventPage, AuditIntegrityReport
 from openinfra.domain.common import AuditEvent, Pagination, TenantId
+from openinfra.domain.data_export import ExportJob
 from openinfra.domain.data_import import BulkImportCheckpoint, BulkImportReport, ImportReport
 from openinfra.domain.dcim import (
     Building,
@@ -598,6 +599,36 @@ class ImportRepository(ABC):
 
     @abstractmethod
     def bulk_import_strategy_name(self) -> str:
+        raise TypeError("adapter contract invoked directly")
+
+
+class ExportRepository(ABC):
+    @abstractmethod
+    def save_export_job(self, job: ExportJob) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_export_job(self, tenant_id: TenantId, job_id: str) -> ExportJob | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_next_queued_export_job(self, tenant_id: TenantId) -> ExportJob | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_export_artifact(self, job: ExportJob, content: bytes) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_export_artifact(self, tenant_id: TenantId, job_id: str) -> bytes | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_or_create_export_signing_secret(self) -> bytes:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def export_storage_strategy_name(self) -> str:
         raise TypeError("adapter contract invoked directly")
 
 

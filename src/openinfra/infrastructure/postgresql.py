@@ -4,6 +4,7 @@ import hashlib
 import importlib
 import ipaddress
 import json
+import secrets
 import threading
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -16,6 +17,7 @@ from openinfra.application.ports import (
     AccessPolicyRulePage,
     AuditRepository,
     DcimRepository,
+    ExportRepository,
     IdentityRepository,
     ImportRepository,
     IpamRepository,
@@ -50,6 +52,7 @@ from openinfra.domain.common import (
     TenantId,
     ValidationError,
 )
+from openinfra.domain.data_export import ExportJob
 from openinfra.domain.data_import import (
     BulkImportCheckpoint,
     BulkImportMetrics,
@@ -2976,6 +2979,152 @@ class PostgreSQLIpamRepository(PostgreSQLRepositoryBase, IpamRepository):
             hostname=reservation.hostname,
             idempotency_key=reservation.idempotency_key,
         )
+
+
+class PostgreSQLExportRepository(PostgreSQLRepositoryBase, ExportRepository):
+    def save_export_job(self, job: ExportJob) -> None:
+        self._ensure_tenant(job.tenant_id)
+        payload = job.as_dict()
+        self._execute_without_result(
+            """
+            INSERT INTO export_jobs (
+                id, tenant_id, resource, export_format, status, filter, requested_by,
+                total_rows, artifact, error, created_at, updated_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(resource)s, %(export_format)s, %(status)s,
+                %(filter)s, %(requested_by)s, %(total_rows)s, %(artifact)s, %(error)s,
+                %(created_at)s, %(updated_at)s
+            )
+            ON CONFLICT (tenant_id, id) DO UPDATE SET
+                status = EXCLUDED.status,
+                total_rows = EXCLUDED.total_rows,
+                artifact = EXCLUDED.artifact,
+                error = EXCLUDED.error,
+                updated_at = EXCLUDED.updated_at
+            """,
+            {
+                "id": job.id.value,
+                "tenant_id": job.tenant_id.value,
+                "resource": job.resource.value,
+                "export_format": job.format.value,
+                "status": job.status.value,
+                "filter": json.dumps(payload["filter"], sort_keys=True),
+                "requested_by": job.requested_by,
+                "total_rows": job.total_rows,
+                "artifact": json.dumps(payload["artifact"], sort_keys=True),
+                "error": job.error,
+                "created_at": job.created_at,
+                "updated_at": job.updated_at,
+            },
+        )
+
+    def get_export_job(self, tenant_id: TenantId, job_id: str) -> ExportJob | None:
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, resource, export_format, status, filter, requested_by,
+                   total_rows, artifact, error, created_at, updated_at
+            FROM export_jobs
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s
+            """,
+            {"tenant_id": tenant_id.value, "id": job_id.strip()},
+        )
+        return self._export_job_from_row(row) if row else None
+
+    def get_next_queued_export_job(self, tenant_id: TenantId) -> ExportJob | None:
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, resource, export_format, status, filter, requested_by,
+                   total_rows, artifact, error, created_at, updated_at
+            FROM export_jobs
+            WHERE tenant_id = %(tenant_id)s AND status = 'queued'
+            ORDER BY created_at ASC, id ASC
+            LIMIT 1
+            """,
+            {"tenant_id": tenant_id.value},
+        )
+        return self._export_job_from_row(row) if row else None
+
+    def save_export_artifact(self, job: ExportJob, content: bytes) -> None:
+        self._ensure_tenant(job.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO export_artifacts (job_id, tenant_id, content, created_at)
+            VALUES (%(job_id)s, %(tenant_id)s, %(content)s, now())
+            ON CONFLICT (tenant_id, job_id) DO UPDATE SET
+                content = EXCLUDED.content,
+                created_at = EXCLUDED.created_at
+            """,
+            {"job_id": job.id.value, "tenant_id": job.tenant_id.value, "content": content},
+        )
+
+    def get_export_artifact(self, tenant_id: TenantId, job_id: str) -> bytes | None:
+        row = self._fetch_one(
+            """
+            SELECT content
+            FROM export_artifacts
+            WHERE tenant_id = %(tenant_id)s AND job_id = %(job_id)s
+            """,
+            {"tenant_id": tenant_id.value, "job_id": job_id.strip()},
+        )
+        if row is None:
+            return None
+        value = row["content"]
+        if isinstance(value, bytes):
+            return value
+        if isinstance(value, memoryview):
+            return value.tobytes()
+        raise ValidationError("stored export artifact content is invalid")
+
+    def get_or_create_export_signing_secret(self) -> bytes:
+        row = self._fetch_one("SELECT secret_hex FROM export_signing_keys WHERE id = 'default'")
+        if row is not None:
+            return bytes.fromhex(str(row["secret_hex"]))
+        secret_hex = secrets.token_hex(32)
+        self._execute_without_result(
+            """
+            INSERT INTO export_signing_keys (id, secret_hex, created_at)
+            VALUES ('default', %(secret_hex)s, now())
+            ON CONFLICT (id) DO NOTHING
+            """,
+            {"secret_hex": secret_hex},
+        )
+        row = self._fetch_one("SELECT secret_hex FROM export_signing_keys WHERE id = 'default'")
+        if row is None:
+            raise ValidationError("export signing key could not be initialized")
+        return bytes.fromhex(str(row["secret_hex"]))
+
+    def export_storage_strategy_name(self) -> str:
+        return "postgresql-managed-object-storage"
+
+    def _export_job_from_row(self, row: Mapping[str, object]) -> ExportJob:
+        artifact_value = row.get("artifact")
+        artifact = (
+            self._json_object(artifact_value) if artifact_value not in (None, "null") else None
+        )
+        return ExportJob.from_dict(
+            {
+                "id": row["id"],
+                "tenant_id": row["tenant_id"],
+                "resource": row["resource"],
+                "format": row["export_format"],
+                "status": row["status"],
+                "filter": self._json_object(row["filter"]),
+                "requested_by": row["requested_by"],
+                "total_rows": row["total_rows"],
+                "artifact": artifact,
+                "error": row.get("error"),
+                "created_at": row["created_at"],
+                "updated_at": row["updated_at"],
+            }
+        )
+
+    def _json_object(self, value: object) -> dict[str, object]:
+        if isinstance(value, dict):
+            return cast(dict[str, object], value)
+        loaded = json.loads(str(value))
+        if not isinstance(loaded, dict):
+            raise ValidationError("stored export JSON object is invalid")
+        return cast(dict[str, object], loaded)
 
 
 class PostgreSQLImportRepository(PostgreSQLRepositoryBase, ImportRepository):

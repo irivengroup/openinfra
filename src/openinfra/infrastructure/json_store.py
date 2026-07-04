@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ipaddress
 import json
+import secrets
 import threading
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -15,6 +16,7 @@ from openinfra.application.ports import (
     AccessPolicyRulePage,
     AuditRepository,
     DcimRepository,
+    ExportRepository,
     IdentityRepository,
     ImportRepository,
     IpamRepository,
@@ -48,6 +50,7 @@ from openinfra.domain.common import (
     TenantId,
     ValidationError,
 )
+from openinfra.domain.data_export import ExportJob
 from openinfra.domain.data_import import (
     BulkImportCheckpoint,
     BulkImportMetrics,
@@ -226,6 +229,9 @@ class JsonDocumentStore:
             "import_jobs": {},
             "bulk_import_jobs": {},
             "bulk_import_checkpoints": {},
+            "export_jobs": {},
+            "export_artifacts": {},
+            "export_signing_secret": "",
         }
 
 
@@ -402,6 +408,68 @@ class JsonImportRepository(ImportRepository):
         )
 
 
+class JsonExportRepository(ExportRepository):
+    def __init__(self, store: JsonDocumentStore) -> None:
+        self._store = store
+
+    def save_export_job(self, job: ExportJob) -> None:
+        with self._store.lock:
+            self._store.data["export_jobs"][self._key(job.tenant_id, job.id.value)] = job.as_dict()
+            self._store.mark_dirty()
+
+    def get_export_job(self, tenant_id: TenantId, job_id: str) -> ExportJob | None:
+        with self._store.lock:
+            payload = self._store.data["export_jobs"].get(self._key(tenant_id, job_id))
+            if payload is None:
+                return None
+            if not isinstance(payload, dict):
+                raise ValidationError("stored export job is invalid")
+            return ExportJob.from_dict(payload)
+
+    def get_next_queued_export_job(self, tenant_id: TenantId) -> ExportJob | None:
+        with self._store.lock:
+            jobs = [
+                ExportJob.from_dict(payload)
+                for payload in self._store.data["export_jobs"].values()
+                if isinstance(payload, dict)
+                and payload.get("tenant_id") == tenant_id.value
+                and payload.get("status") == "queued"
+            ]
+            jobs.sort(key=lambda item: (item.created_at, item.id.value))
+            return jobs[0] if jobs else None
+
+    def save_export_artifact(self, job: ExportJob, content: bytes) -> None:
+        with self._store.lock:
+            self._store.data["export_artifacts"][self._key(job.tenant_id, job.id.value)] = {
+                "content_hex": content.hex()
+            }
+            self._store.mark_dirty()
+
+    def get_export_artifact(self, tenant_id: TenantId, job_id: str) -> bytes | None:
+        with self._store.lock:
+            payload = self._store.data["export_artifacts"].get(self._key(tenant_id, job_id))
+            if payload is None:
+                return None
+            if not isinstance(payload, dict):
+                raise ValidationError("stored export artifact is invalid")
+            return bytes.fromhex(str(payload["content_hex"]))
+
+    def get_or_create_export_signing_secret(self) -> bytes:
+        with self._store.lock:
+            value = str(self._store.data.get("export_signing_secret", ""))
+            if not value:
+                value = secrets.token_hex(32)
+                self._store.data["export_signing_secret"] = value
+                self._store.mark_dirty()
+            return bytes.fromhex(value)
+
+    def export_storage_strategy_name(self) -> str:
+        return "json-managed-object-storage"
+
+    def _key(self, tenant_id: TenantId, job_id: str) -> str:
+        return tenant_id.value + ":" + job_id.strip()
+
+
 class JsonSchemaStatusProvider(SchemaStatusProvider):
     def status_as_dict(self) -> dict[str, object]:
         return {
@@ -456,6 +524,8 @@ class JsonReadinessProbe(ReadinessProbe):
                     "import_jobs",
                     "bulk_import_jobs",
                     "bulk_import_checkpoints",
+                    "export_jobs",
+                    "export_artifacts",
                 )
             )
         detail = (

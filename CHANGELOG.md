@@ -1,3 +1,19 @@
+
+## 0.28.0 - 2026-07-04
+
+- Roadmap : P07 / EPIC-0701 — Registry collectors et identité forte.
+- Ajout du domaine Discovery : `CollectorIdentity`, `DiscoveryCollector`, `DiscoveryScope`, `CollectorKind`, `CollectorStatus` et `DiscoveryJobAuthorization`.
+- Ajout d'une identité forte basée sur l'empreinte SHA-256 du certificat mTLS, avec normalisation stricte et rejet des empreintes invalides.
+- Ajout des références Vault `vault://...` pour les secrets collectors ; aucun secret collector n'est stocké en clair dans l'état JSON ou PostgreSQL.
+- Ajout du service applicatif `DiscoveryCollectorService` : enregistrement, heartbeat, liste, désactivation et autorisation/rejet de jobs.
+- Ajout des ports et adaptateurs `DiscoveryRepository`, `JsonDiscoveryRepository` et `PostgreSQLDiscoveryRepository`.
+- Ajout de la migration PostgreSQL `0023_discovery_collector_registry.sql`, partitionnée par hash du tenant, avec contraintes d'identité, scopes JSONB et index opérationnels.
+- Ajout des commandes `openinfra discovery collector-register`, `collector-heartbeat`, `job-authorize`, `collector-disable` et `collector-list`.
+- Ajout des endpoints `POST /api/v1/discovery/collectors`, `GET /api/v1/discovery/collectors`, `POST /api/v1/discovery/collectors/heartbeat`, `POST /api/v1/discovery/jobs/authorize` et `POST /api/v1/discovery/collectors/disable`.
+- Acceptation sécurité : un collector inconnu, désactivé, présenté avec une empreinte différente ou hors scope ne peut recevoir aucun job Discovery.
+- Mise à jour OpenAPI, README, architecture, validation, traçabilité et tests de non-régression avec couverture globale `>= 98 %`.
+- Conservation des garanties précédentes : exports signés, migration legacy dry-run, imports génériques/bulk, Swagger/ReDoc/OpenAPI, séparation requirements runtime/dev/CI, pgAdmin `admin@openinfra.tld` et Docker limité au lab/smoke/test.
+
 ## 0.27.1 - 2026-07-04
 
 ### Fixed

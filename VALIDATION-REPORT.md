@@ -1,99 +1,109 @@
-# OpenInfra Validation Report — v0.27.1
+# OpenInfra v0.28.0 — Validation report
 
-Date: 2026-07-04
-Release: `0.27.1`
-Type: Correctif CI / sécurité
-Base: `0.27.0` — P06 / EPIC-0604 Migration depuis référentiels existants
+## Release
 
-## Résumé
+- Version: `0.28.0`
+- Roadmap: `P07 / EPIC-0701 — Registry collectors et identité forte`
+- Date: 2026-07-04
 
-La version `0.27.1` corrige l'échec Bandit `B105 hardcoded_password_string` signalé par la CI sur l'état initial du backend JSON. La clé de signature des exports n'est plus initialisée avec une chaîne vide dans `_empty_state()`. Elle est désormais absente de l'état initial, générée uniquement à la première exécution d'un export signé, persistée ensuite, puis explicitement conservée au rechargement du document JSON.
+## Delivered scope
 
-Cette correction évite le faux positif Bandit sans `#nosec`, sans affaiblir le modèle de signature HMAC-SHA256, sans casser les exports signés et sans modifier le périmètre fonctionnel livré en `0.27.0`.
+- Discovery collector registry with strong identity based on normalized SHA-256 certificate fingerprint.
+- Collector registration, heartbeat, disablement, listing and job authorization/rejection.
+- Scope-based authorization: no job is delivered to unknown, disabled, fingerprint-mismatched or out-of-scope collectors.
+- Vault reference support via `vault://...`; collector secrets are not stored in OpenInfra state or PostgreSQL.
+- JSON and PostgreSQL repositories for collectors.
+- PostgreSQL migration `0023_discovery_collector_registry.sql`, partitioned by tenant hash.
+- CLI commands: `openinfra discovery collector-register`, `collector-heartbeat`, `job-authorize`, `collector-disable`, `collector-list`.
+- API endpoints: `/api/v1/discovery/collectors`, `/api/v1/discovery/collectors/heartbeat`, `/api/v1/discovery/jobs/authorize`, `/api/v1/discovery/collectors/disable`.
+- OpenAPI, README, architecture, traceability and validation runbook updated.
 
-## Changements livrés
+## Impact analysis
 
-- Suppression de l'entrée initiale `export_signing_secret: ""` dans l'état JSON vide.
-- Ajout d'une clé de stockage interne construite sans littéral de secret codé en dur dans un emplacement déclenchant Bandit.
-- Conservation explicite de la clé de signature export lors du merge entre état JSON chargé et état vide de référence.
-- Maintien de la génération paresseuse de la clé via `secrets.token_hex(32)`.
-- Ajout d'un test de non-régression validant que :
-  - l'état JSON initial ne contient pas de clé de signature export ;
-  - la clé est créée uniquement après exécution d'un export signé ;
-  - un artefact signé reste téléchargeable après rechargement complet du backend JSON.
-- Alignement version `0.27.1` dans `VERSION`, `pyproject.toml`, `src/openinfra/__init__.py`, `compose.yaml`, `.env.example`, OpenAPI, README, tests Docker et quality gate.
-- Conservation de Swagger UI, ReDoc, OpenAPI YAML, imports génériques, imports bulk, exports signés, migration legacy et séparation stricte requirements runtime/dev/CI.
+- Additive release: no existing command, endpoint, migration or table was removed.
+- Existing imports, bulk imports, signed exports, legacy migration dry-run, Swagger/ReDoc/OpenAPI and Docker lab remain available.
+- Production runtime remains native Linux + virtualenv + systemd + PostgreSQL.
+- Docker Compose remains a lab/smoke/test environment only.
+- Requirements separation is preserved: runtime dependencies remain separated from dev/test/CI/security dependencies.
 
-## Fichiers principaux modifiés
+## Validation commands executed
 
-- `src/openinfra/infrastructure/json_store.py`
-- `tests/integration/test_export_services.py`
-- `.env.example`
-- `compose.yaml`
-- `docs/api/openapi.yaml`
-- `pyproject.toml`
-- `src/openinfra/__init__.py`
-- `scripts/docker_environment.py`
-- `scripts/quality_gate.py`
-- `tests/integration/test_runtime_docker_environment.py`
-- `README.md`
-- `CHANGELOG.md`
-- `VERSION`
-
-## Validations exécutées
-
-| Validation | Résultat |
-|---|---:|
-| `python3 -m ruff format --check src tests scripts docker` | PASS |
-| `python3 -m ruff check src tests scripts docker` | PASS |
-| `python3 -m mypy src/openinfra` | PASS |
-| `python3 -m bandit -q -r src/openinfra` | PASS |
-| `python3 scripts/security_gate.py --project-root .` | PASS |
-| `python3 -m pip_audit --strict --requirement requirements/security-audit.txt --progress-spinner off --dry-run` | PASS — 47 packages |
-| `PYTHONPATH=src python3 -m pytest -q` | PASS — 295 tests |
-| Couverture globale | PASS — 98.02 % |
-| `PYTHONPATH=src python3 scripts/quality_gate.py` | PASS — 295 tests, 98.02 % |
-| `PYTHONPATH=src python3 -m compileall -q src tests scripts docker` | PASS |
-| `PYTHONPATH=src python3 -m openinfra.interfaces.cli version` | PASS — 0.27.1 |
-| `PYTHONPATH=src python3 -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4` | PASS — 488 exigences, 310 tests |
-| Rendu migrations PostgreSQL `0001` → `0022` | PASS |
-| `compose.yaml` | YAML valide |
-| `docs/api/openapi.yaml` | YAML valide |
-| `PYTHONPATH=src python3 scripts/native_runtime_smoke.py` | PASS |
-| Smoke CLI migration template/plan/report | Couvert par tests d'intégration |
-| `python3 -m build` | PASS — wheel + sdist |
-| `PYTHONPATH=src python3 scripts/verify_artifact.py dist/openinfra-0.27.1-py3-none-any.whl` | PASS |
-
-## Tests de non-régression ajoutés ou renforcés
-
-- `tests/integration/test_export_services.py::TestExportService::test_json_backend_signing_secret_is_lazy_and_survives_reload`
-- `tests/integration/test_cli_export.py` conserve la validation téléchargement artefact après rechargement CLI.
-- `tests/integration/test_runtime_docker_environment.py` conserve l'alignement du tag Docker par défaut.
-
-## Points non exécutés dans cet environnement
-
-- Docker Compose réel avec PostgreSQL live : non exécuté car le démon Docker n'est pas disponible dans l'environnement courant.
-- Application live des migrations sur un serveur PostgreSQL réel : non exécutée ici pour la même raison. Les migrations ont été validées par rendu CLI, tests structurels et exécution simulée de l'exécuteur.
-
-## Commandes Docker à relancer côté poste
-
-```powershell
-(Get-Content .env) -replace '^OPENINFRA_IMAGE_TAG=.*$', 'OPENINFRA_IMAGE_TAG=0.27.1' | Set-Content .env
-
-docker compose --env-file .env down --volumes --remove-orphans
-python scripts/docker_environment.py init
-docker compose --env-file .env up --build -d postgres
-docker compose --env-file .env up --build migrate
-docker compose --env-file .env up -d auth-bootstrap api pgadmin
-
-docker logs openinfra-api
-
-curl http://127.0.0.1:8080/
-curl http://127.0.0.1:8080/api/v1
-curl http://127.0.0.1:8080/docs
-curl http://127.0.0.1:8080/redoc
-curl http://127.0.0.1:8080/openapi.yaml
-curl http://127.0.0.1:8080/health
-curl http://127.0.0.1:8080/ready
-curl http://127.0.0.1:8080/api/v1/version
+```text
+python -m ruff format --check src tests scripts docker
+python -m ruff check src tests scripts docker
+python -m mypy src/openinfra
+python -m bandit -q -r src/openinfra
+python scripts/security_gate.py --project-root .
+python -m pip_audit --strict --requirement requirements/security-audit.txt --progress-spinner off --dry-run
+PYTHONPATH=src python -m pytest -q
+PYTHONPATH=src python scripts/quality_gate.py
+PYTHONPATH=src python -m compileall -q src tests scripts docker
+PYTHONPATH=src python -m openinfra.interfaces.cli version
+PYTHONPATH=src python -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name <0001..0023> --root migrations/postgresql
+PYTHONPATH=src python scripts/native_runtime_smoke.py
+python -m build
+python scripts/verify_artifact.py dist/openinfra-0.28.0-py3-none-any.whl
 ```
+
+## Results
+
+| Validation | Result |
+| --- | --- |
+| Ruff format | PASS — 93 files already formatted |
+| Ruff check | PASS |
+| MyPy | PASS — no issues in 36 source files |
+| Bandit | PASS |
+| security_gate.py | PASS |
+| pip-audit dry-run | PASS — 47 packages, no known vulnerabilities |
+| Pytest | PASS — 308 tests |
+| Coverage | PASS — 98.03 % |
+| quality_gate.py | PASS — 308 tests, 98.03 % |
+| compileall | PASS |
+| CLI version | PASS — 0.28.0 |
+| Specification validation | PASS — 488 requirements, 310 tests |
+| PostgreSQL migrations | PASS — 0001 to 0023 rendered |
+| Compose YAML | PASS |
+| OpenAPI YAML | PASS |
+| Native runtime smoke | PASS |
+| Discovery CLI smoke | PASS |
+| Build wheel/sdist | PASS |
+| verify_artifact.py | PASS |
+| Archive cleanup | PASS |
+
+## PostgreSQL migrations rendered
+
+```text
+0001_bootstrap
+0002_security_rbac
+0003_security_token_lifecycle
+0004_identity_users_groups
+0005_access_policy_abac
+0006_audit_trail_integrity
+0007_source_of_truth_core
+0008_source_governance
+0009_dcim_physical_model
+0010_dcim_rack_capacity
+0011_dcim_field_operations
+0012_dcim_visualization_indexes
+0013_dcim_cabling_foundation
+0014_dcim_energy_cooling_foundation
+0015_ipam_enterprise_foundation
+0016_ipam_transactional_allocation
+0017_ipam_networking_foundation
+0018_ipam_conflict_detection
+0019_import_framework
+0020_bulk_import_framework
+0021_export_framework
+0022_legacy_migration_framework
+0023_discovery_collector_registry
+```
+
+## Non-executed validations
+
+- Docker Compose live boot with PostgreSQL live was not executed because the Docker daemon is not available in this environment.
+
+## Residual risks
+
+- The mTLS handshake itself is expected to be enforced by the production reverse proxy/API gateway; OpenInfra v0.28.0 validates the resulting SHA-256 certificate fingerprint supplied to the application contract.
+- Real Vault secret retrieval is intentionally not implemented in this registry milestone; the release stores and validates only Vault references.

@@ -1,3 +1,18 @@
+
+## v0.28.0 — P07 / EPIC-0701 Registry collectors et identité forte
+
+| Élément | Traçabilité |
+| --- | --- |
+| Roadmap | P07 / EPIC-0701 — Registry collectors et identité forte. |
+| Domaine | `CollectorIdentity`, `DiscoveryCollector`, `DiscoveryScope`, `DiscoveryJobAuthorization`. |
+| Application | `DiscoveryCollectorService` avec enregistrement, heartbeat, liste, désactivation et autorisation/rejet de jobs. |
+| Infrastructure | `JsonDiscoveryRepository`, `PostgreSQLDiscoveryRepository`, persistance des scopes, empreintes et références Vault. |
+| PostgreSQL | `0023_discovery_collector_registry.sql`, table `discovery_collectors` partitionnée par hash tenant, contraintes fingerprint/Vault/status et index GIN scopes. |
+| Interfaces | CLI `openinfra discovery *`, API `/api/v1/discovery/collectors`, `/heartbeat`, `/jobs/authorize`, OpenAPI YAML. |
+| Sécurité | Aucun secret collector en clair ; seules les références `vault://...` sont persistées ; l'empreinte certificat SHA-256 sert d'identité mTLS. |
+| Acceptation | Un collector non enregistré, désactivé, présenté avec une empreinte différente ou hors scope ne peut recevoir aucun job. |
+| Tests | `tests/unit/test_discovery_domain.py`, `tests/integration/test_discovery_collector_services.py`, `tests/integration/test_cli_discovery.py`, `tests/integration/test_http_api.py`, `tests/integration/test_postgresql_migration.py`. |
+
 ## v0.25.2 — Correctif CI requirements séparés
 
 - Corrige le formatage Ruff restant sur deux tests d'intégration.

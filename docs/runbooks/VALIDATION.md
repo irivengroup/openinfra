@@ -1,5 +1,21 @@
 # Runbook de validation
 
+
+## Validation Discovery collectors v0.28.0
+
+```bash
+PYTHONPATH=src python -m pytest -q tests/unit/test_discovery_domain.py tests/integration/test_discovery_collector_services.py tests/integration/test_cli_discovery.py tests/integration/test_http_api.py
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0023_discovery_collector_registry --root migrations/postgresql >/tmp/openinfra-0023.sql
+```
+
+Contrôles bloquants spécifiques :
+
+- un collector inconnu doit produire `authorized=false` et ne recevoir aucun job ;
+- une empreinte certificat différente doit produire `fingerprint_mismatch` ;
+- un collector désactivé doit produire `collector_not_active` ;
+- un scope non déclaré doit produire `scope_not_authorized` ;
+- aucune valeur secrète collector ne doit être persistée : seules les références `vault://...` sont autorisées.
+
 ## Validation locale minimale
 
 ```bash

@@ -16,6 +16,8 @@ from openinfra.application.ports import (
     AccessPolicyRulePage,
     AuditRepository,
     DcimRepository,
+    DiscoveryCollectorPage,
+    DiscoveryRepository,
     ExportRepository,
     IdentityRepository,
     ImportRepository,
@@ -93,6 +95,7 @@ from openinfra.domain.dcim import (
     RoomZone,
     Site,
 )
+from openinfra.domain.discovery import CollectorStatus, DiscoveryCollector
 from openinfra.domain.identity import (
     EffectiveIdentity,
     GroupMembership,
@@ -238,7 +241,61 @@ class JsonDocumentStore:
             "migration_plans": {},
             "export_jobs": {},
             "export_artifacts": {},
+            "discovery_collectors": {},
         }
+
+
+class JsonDiscoveryRepository(DiscoveryRepository):
+    def __init__(self, store: JsonDocumentStore) -> None:
+        self._store = store
+
+    def save_collector(self, collector: DiscoveryCollector) -> None:
+        with self._store.lock:
+            self._store.data["discovery_collectors"][
+                self._key(collector.tenant_id, collector.id.value)
+            ] = collector.as_dict()
+            self._store.mark_dirty()
+
+    def get_collector(self, tenant_id: TenantId, collector_id: str) -> DiscoveryCollector | None:
+        with self._store.lock:
+            payload = self._store.data["discovery_collectors"].get(
+                self._key(tenant_id, collector_id)
+            )
+            if payload is None:
+                return None
+            return DiscoveryCollector.from_dict(cast(dict[str, object], payload))
+
+    def list_collectors(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        include_inactive: bool,
+    ) -> DiscoveryCollectorPage:
+        with self._store.lock:
+            prefix = tenant_id.value + ":"
+            collectors = [
+                DiscoveryCollector.from_dict(cast(dict[str, object], payload))
+                for key, payload in self._store.data["discovery_collectors"].items()
+                if key.startswith(prefix)
+            ]
+        filtered = tuple(
+            collector
+            for collector in sorted(
+                collectors, key=lambda item: (item.registered_at, item.id.value)
+            )
+            if include_inactive or collector.status is not CollectorStatus.DISABLED
+        )
+        start = 0
+        if pagination.cursor:
+            ids = [collector.id.value for collector in filtered]
+            if pagination.cursor in ids:
+                start = ids.index(pagination.cursor) + 1
+        page = filtered[start : start + pagination.limit]
+        next_cursor = page[-1].id.value if len(page) == pagination.limit else None
+        return DiscoveryCollectorPage(items=page, next_cursor=next_cursor)
+
+    def _key(self, tenant_id: TenantId, collector_id: str) -> str:
+        return tenant_id.value + ":" + collector_id.strip()
 
 
 class JsonImportRepository(ImportRepository):

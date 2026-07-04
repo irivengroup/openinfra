@@ -15,6 +15,7 @@ from openinfra.application.dcim_services import (
     DcimTopologyService,
     DcimVisualizationService,
 )
+from openinfra.application.discovery_services import DiscoveryCollectorService
 from openinfra.application.export_services import ExportService
 from openinfra.application.identity_services import IdentityService
 from openinfra.application.import_services import GenericImportService
@@ -29,6 +30,7 @@ from openinfra.application.ports import (
     AccessPolicyRepository,
     AuditRepository,
     DcimRepository,
+    DiscoveryRepository,
     ExportRepository,
     IdentityRepository,
     ImportRepository,
@@ -49,6 +51,7 @@ from openinfra.infrastructure.json_store import (
     JsonAccessPolicyRepository,
     JsonAuditRepository,
     JsonDcimRepository,
+    JsonDiscoveryRepository,
     JsonDocumentStore,
     JsonExportRepository,
     JsonIdentityRepository,
@@ -68,6 +71,7 @@ from openinfra.infrastructure.postgresql import (
     PostgreSQLClusterProfile,
     PostgreSQLConnectionFactory,
     PostgreSQLDcimRepository,
+    PostgreSQLDiscoveryRepository,
     PostgreSQLExportRepository,
     PostgreSQLIdentityRepository,
     PostgreSQLImportRepository,
@@ -100,10 +104,12 @@ class OpenInfraApplication:
     ipam_ddi_service: IpamDdiService
     import_service: GenericImportService
     export_service: ExportService
+    discovery_service: DiscoveryCollectorService
     dcim_repository: DcimRepository
     ipam_repository: IpamRepository
     import_repository: ImportRepository
     export_repository: ExportRepository
+    discovery_repository: DiscoveryRepository
     security_service: SecurityService
     identity_service: IdentityService
     access_policy_service: AccessPolicyService
@@ -135,6 +141,7 @@ class ApplicationFactory:
         source_governance_repository = JsonSourceGovernanceRepository(store)
         import_repository = JsonImportRepository(store)
         export_repository = JsonExportRepository(store)
+        discovery_repository = JsonDiscoveryRepository(store)
         readiness_probe = JsonReadinessProbe(store)
         schema_status_provider = JsonSchemaStatusProvider()
         if seed:
@@ -154,6 +161,7 @@ class ApplicationFactory:
             source_governance_repository=source_governance_repository,
             import_repository=import_repository,
             export_repository=export_repository,
+            discovery_repository=discovery_repository,
             transaction_manager=transaction_manager,
             readiness_probe=readiness_probe,
             schema_status_provider=schema_status_provider,
@@ -178,6 +186,7 @@ class ApplicationFactory:
         source_governance_repository = PostgreSQLSourceGovernanceRepository(registry)
         import_repository = PostgreSQLImportRepository(registry)
         export_repository = PostgreSQLExportRepository(registry)
+        discovery_repository = PostgreSQLDiscoveryRepository(registry)
         migration_catalog = PostgreSQLMigrationCatalog.from_project_root()
         readiness_probe = PostgreSQLReadinessProbe(registry, migration_catalog)
         schema_status_provider = PostgreSQLMigrationExecutor(registry, migration_catalog)
@@ -198,6 +207,7 @@ class ApplicationFactory:
             source_governance_repository=source_governance_repository,
             import_repository=import_repository,
             export_repository=export_repository,
+            discovery_repository=discovery_repository,
             transaction_manager=transaction_manager,
             readiness_probe=readiness_probe,
             schema_status_provider=schema_status_provider,
@@ -219,6 +229,7 @@ class ApplicationFactory:
         source_governance_repository: SourceGovernanceRepository | None = None,
         import_repository: ImportRepository | None = None,
         export_repository: ExportRepository | None = None,
+        discovery_repository: DiscoveryRepository | None = None,
     ) -> OpenInfraApplication:
         if source_of_truth_repository is None:
             if hasattr(store, "data"):
@@ -240,6 +251,11 @@ class ApplicationFactory:
                 export_repository = JsonExportRepository(store)
             else:
                 export_repository = PostgreSQLExportRepository(store)
+        if discovery_repository is None:
+            if hasattr(store, "data"):
+                discovery_repository = JsonDiscoveryRepository(store)
+            else:
+                discovery_repository = PostgreSQLDiscoveryRepository(store)
         security_service = SecurityService(
             security_repository,
             audit_repository,
@@ -273,6 +289,12 @@ class ApplicationFactory:
         export_service = ExportService(
             export_repository,
             source_of_truth_repository,
+            audit_repository,
+            transaction_manager,
+            security_service,
+        )
+        discovery_service = DiscoveryCollectorService(
+            discovery_repository,
             audit_repository,
             transaction_manager,
             security_service,
@@ -324,6 +346,7 @@ class ApplicationFactory:
             ipam_ddi_service=ipam_ddi_service,
             import_service=import_service,
             export_service=export_service,
+            discovery_service=discovery_service,
             ipam_ui_service=IpamUiService(
                 ipam_repository,
                 audit_repository,
@@ -367,6 +390,7 @@ class ApplicationFactory:
             ipam_repository=ipam_repository,
             import_repository=import_repository,
             export_repository=export_repository,
+            discovery_repository=discovery_repository,
             security_repository=security_repository,
             access_policy_repository=access_policy_repository,
             source_of_truth_repository=source_of_truth_repository,

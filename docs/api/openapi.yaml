@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.27.1
+  version: 0.28.0
 components:
   securitySchemes:
     bearerToken:
@@ -1882,6 +1882,104 @@ paths:
         '200': {description: Persisted bulk import checkpoint}
         '400': {description: Validation error or unknown bulk checkpoint}
 
+
+  /api/v1/discovery/collectors:
+    get:
+      summary: List discovery collectors
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, required: false, schema: {type: string}}
+        - {name: include_inactive, in: query, required: false, schema: {type: boolean, default: false}}
+      responses:
+        '200': {description: Registered collectors page}
+        '401': {description: Security administrator token required}
+        '400': {description: Validation error}
+    post:
+      summary: Register a strongly identified discovery collector
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, name, kind, certificate_fingerprint, scopes, version]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                name: {type: string}
+                kind: {type: string, enum: [snmp, ssh, winrm, vmware, proxmox, hyperv, kubernetes, cloud, generic]}
+                certificate_fingerprint: {type: string, pattern: '^[a-fA-F0-9:]{64,95}$'}
+                scopes: {type: array, minItems: 1, items: {type: string}}
+                version: {type: string}
+                vault_secret_ref: {type: string, nullable: true}
+                endpoint_url: {type: string, nullable: true}
+      responses:
+        '201': {description: Collector registered}
+        '401': {description: Security administrator token required}
+        '400': {description: Validation error}
+  /api/v1/discovery/collectors/heartbeat:
+    post:
+      summary: Record a collector heartbeat using registered certificate fingerprint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, collector_id, certificate_fingerprint, version]
+              properties:
+                tenant_id: {type: string}
+                collector_id: {type: string}
+                certificate_fingerprint: {type: string}
+                version: {type: string}
+                status: {type: string, enum: [ok, degraded, maintenance], default: ok}
+      responses:
+        '200': {description: Collector heartbeat stored}
+        '400': {description: Validation error or unregistered collector}
+  /api/v1/discovery/jobs/authorize:
+    post:
+      summary: Authorize or reject a discovery job for a collector
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, collector_id, certificate_fingerprint, requested_scope, job_type, target]
+              properties:
+                tenant_id: {type: string}
+                collector_id: {type: string}
+                certificate_fingerprint: {type: string}
+                requested_scope: {type: string}
+                job_type: {type: string}
+                target: {type: string}
+      responses:
+        '200': {description: Job authorized}
+        '403': {description: Collector not authorized for this job}
+        '400': {description: Validation error}
+  /api/v1/discovery/collectors/disable:
+    post:
+      summary: Disable a collector and prevent new jobs
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, collector_id, reason]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                collector_id: {type: string}
+                reason: {type: string}
+      responses:
+        '200': {description: Collector disabled}
+        '401': {description: Security administrator token required}
+        '400': {description: Validation error}
 
   /api/v1/imports/migration-template:
     get:

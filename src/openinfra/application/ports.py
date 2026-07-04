@@ -31,6 +31,7 @@ from openinfra.domain.dcim import (
     RoomZone,
     Site,
 )
+from openinfra.domain.discovery import DiscoveryCollector
 from openinfra.domain.identity import (
     EffectiveIdentity,
     GroupMembership,
@@ -87,6 +88,18 @@ class SecurityTokenPage:
     def as_dict(self) -> dict[str, object]:
         return {
             "items": [item.as_public_dict() for item in self.items],
+            "next_cursor": self.next_cursor,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class DiscoveryCollectorPage:
+    items: tuple[DiscoveryCollector, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "items": [item.as_dict() for item in self.items],
             "next_cursor": self.next_cursor,
         }
 
@@ -614,6 +627,25 @@ class ImportRepository(ABC):
 
     @abstractmethod
     def bulk_import_strategy_name(self) -> str:
+        raise TypeError("adapter contract invoked directly")
+
+
+class DiscoveryRepository(ABC):
+    @abstractmethod
+    def save_collector(self, collector: DiscoveryCollector) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_collector(self, tenant_id: TenantId, collector_id: str) -> DiscoveryCollector | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_collectors(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        include_inactive: bool,
+    ) -> DiscoveryCollectorPage:
         raise TypeError("adapter contract invoked directly")
 
 

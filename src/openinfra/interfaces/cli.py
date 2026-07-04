@@ -39,6 +39,13 @@ from openinfra.application.dcim_services import (
     TraceDcimCableCommand,
     VerifyEquipmentScanCommand,
 )
+from openinfra.application.discovery_services import (
+    AuthorizeDiscoveryJobCommand,
+    DisableCollectorCommand,
+    HeartbeatCollectorCommand,
+    ListCollectorsCommand,
+    RegisterCollectorCommand,
+)
 from openinfra.application.export_services import (
     GetExportArtifactCommand,
     GetExportJobCommand,
@@ -140,6 +147,7 @@ class OpenInfraCLI:
         self._add_audit_commands(subparsers)
         self._add_import_commands(subparsers)
         self._add_export_commands(subparsers)
+        self._add_discovery_commands(subparsers)
         self._add_sot_commands(subparsers)
         self._add_ipam_commands(subparsers)
         self._add_dcim_commands(subparsers)
@@ -489,6 +497,73 @@ class OpenInfraCLI:
         migration_report.add_argument("--tenant", required=True)
         migration_report.add_argument("--job-id", required=True)
         migration_report.set_defaults(handler=self._handle_import_migration_report)
+
+    def _add_discovery_commands(self, subparsers: Any) -> None:
+        discovery = subparsers.add_parser(
+            "discovery", help="distributed discovery collector registry operations"
+        )
+        discovery_subparsers = discovery.add_subparsers(dest="discovery_command", required=True)
+
+        register = discovery_subparsers.add_parser(
+            "collector-register", help="register an authorized discovery collector"
+        )
+        self._add_backend_arguments(register)
+        register.add_argument("--tenant", required=True)
+        register.add_argument("--actor", default="cli")
+        register.add_argument("--admin-token", required=True)
+        register.add_argument("--name", required=True)
+        register.add_argument("--kind", required=True)
+        register.add_argument("--certificate-fingerprint", required=True)
+        register.add_argument("--scope", action="append", required=True)
+        register.add_argument("--version", required=True)
+        register.add_argument("--vault-secret-ref")
+        register.add_argument("--endpoint-url")
+        register.set_defaults(handler=self._handle_discovery_collector_register)
+
+        heartbeat = discovery_subparsers.add_parser(
+            "collector-heartbeat", help="record collector heartbeat using strong identity"
+        )
+        self._add_backend_arguments(heartbeat)
+        heartbeat.add_argument("--tenant", required=True)
+        heartbeat.add_argument("--collector-id", required=True)
+        heartbeat.add_argument("--certificate-fingerprint", required=True)
+        heartbeat.add_argument("--version", required=True)
+        heartbeat.add_argument("--status", choices=("ok", "degraded", "maintenance"), default="ok")
+        heartbeat.set_defaults(handler=self._handle_discovery_collector_heartbeat)
+
+        authorize = discovery_subparsers.add_parser(
+            "job-authorize", help="authorize or reject a discovery job for a collector"
+        )
+        self._add_backend_arguments(authorize)
+        authorize.add_argument("--tenant", required=True)
+        authorize.add_argument("--collector-id", required=True)
+        authorize.add_argument("--certificate-fingerprint", required=True)
+        authorize.add_argument("--requested-scope", required=True)
+        authorize.add_argument("--job-type", required=True)
+        authorize.add_argument("--target", required=True)
+        authorize.set_defaults(handler=self._handle_discovery_job_authorize)
+
+        disable = discovery_subparsers.add_parser(
+            "collector-disable", help="disable a discovery collector"
+        )
+        self._add_backend_arguments(disable)
+        disable.add_argument("--tenant", required=True)
+        disable.add_argument("--actor", default="cli")
+        disable.add_argument("--admin-token", required=True)
+        disable.add_argument("--collector-id", required=True)
+        disable.add_argument("--reason", required=True)
+        disable.set_defaults(handler=self._handle_discovery_collector_disable)
+
+        list_collectors = discovery_subparsers.add_parser(
+            "collector-list", help="list registered discovery collectors"
+        )
+        self._add_backend_arguments(list_collectors)
+        list_collectors.add_argument("--tenant", required=True)
+        list_collectors.add_argument("--admin-token", required=True)
+        list_collectors.add_argument("--limit", type=int, default=100)
+        list_collectors.add_argument("--cursor")
+        list_collectors.add_argument("--include-inactive", action="store_true")
+        list_collectors.set_defaults(handler=self._handle_discovery_collector_list)
 
     def _add_export_commands(self, subparsers: Any) -> None:
         exports = subparsers.add_parser("export", help="asynchronous signed export operations")
@@ -1632,6 +1707,82 @@ class OpenInfraCLI:
         app = self._create_application(args)
         report = app.import_service.get_migration_plan(args.tenant, args.job_id)
         print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_discovery_collector_register(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        collector = app.discovery_service.register_collector(
+            RegisterCollectorCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                name=args.name,
+                kind=args.kind,
+                certificate_fingerprint=args.certificate_fingerprint,
+                scopes=tuple(args.scope),
+                version=args.version,
+                vault_secret_ref=args.vault_secret_ref,
+                endpoint_url=args.endpoint_url,
+            )
+        )
+        print(json.dumps(collector.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_discovery_collector_heartbeat(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        collector = app.discovery_service.heartbeat(
+            HeartbeatCollectorCommand(
+                tenant_id=args.tenant,
+                collector_id=args.collector_id,
+                certificate_fingerprint=args.certificate_fingerprint,
+                version=args.version,
+                status=args.status,
+            )
+        )
+        print(json.dumps(collector.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_discovery_job_authorize(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        decision = app.discovery_service.authorize_job(
+            AuthorizeDiscoveryJobCommand(
+                tenant_id=args.tenant,
+                collector_id=args.collector_id,
+                certificate_fingerprint=args.certificate_fingerprint,
+                requested_scope=args.requested_scope,
+                job_type=args.job_type,
+                target=args.target,
+            )
+        )
+        print(json.dumps(decision.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_discovery_collector_disable(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        collector = app.discovery_service.disable_collector(
+            DisableCollectorCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                collector_id=args.collector_id,
+                reason=args.reason,
+            )
+        )
+        print(json.dumps(collector.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_discovery_collector_list(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        page = app.discovery_service.list_collectors(
+            ListCollectorsCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                limit=args.limit,
+                cursor=args.cursor,
+                include_inactive=args.include_inactive,
+            )
+        )
+        print(json.dumps(page.as_dict(), indent=2, sort_keys=True))
         return 0
 
     def _handle_export_request(self, args: argparse.Namespace) -> int:

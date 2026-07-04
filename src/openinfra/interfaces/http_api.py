@@ -41,6 +41,13 @@ from openinfra.application.dcim_services import (
     TraceDcimCableCommand,
     VerifyEquipmentScanCommand,
 )
+from openinfra.application.discovery_services import (
+    AuthorizeDiscoveryJobCommand,
+    DisableCollectorCommand,
+    HeartbeatCollectorCommand,
+    ListCollectorsCommand,
+    RegisterCollectorCommand,
+)
 from openinfra.application.export_services import (
     GetExportArtifactCommand,
     GetExportJobCommand,
@@ -350,6 +357,27 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     )
                 )
                 responder.send(HTTPStatus.OK, report.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/discovery/collectors":
+            try:
+                query = parse_qs(parsed.query)
+                page = self.server.application.discovery_service.list_collectors(
+                    ListCollectorsCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        include_inactive=(
+                            self._first_query_value(query, "include_inactive", "false") == "true"
+                        ),
+                    )
+                )
+                responder.send(HTTPStatus.OK, page.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (ValueError, OpenInfraError) as exc:
@@ -1505,6 +1533,93 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
+        if route == "/api/v1/discovery/collectors":
+            try:
+                payload = self._read_json_body()
+                collector = self.server.application.discovery_service.register_collector(
+                    RegisterCollectorCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        name=str(payload["name"]),
+                        kind=str(payload["kind"]),
+                        certificate_fingerprint=str(payload["certificate_fingerprint"]),
+                        scopes=tuple(str(item) for item in payload["scopes"]),
+                        version=str(payload["version"]),
+                        vault_secret_ref=(
+                            None
+                            if payload.get("vault_secret_ref") is None
+                            else str(payload["vault_secret_ref"])
+                        ),
+                        endpoint_url=(
+                            None
+                            if payload.get("endpoint_url") is None
+                            else str(payload["endpoint_url"])
+                        ),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, collector.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError, TypeError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/discovery/collectors/heartbeat":
+            try:
+                payload = self._read_json_body()
+                collector = self.server.application.discovery_service.heartbeat(
+                    HeartbeatCollectorCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        collector_id=str(payload["collector_id"]),
+                        certificate_fingerprint=str(payload["certificate_fingerprint"]),
+                        version=str(payload["version"]),
+                        status=str(payload.get("status", "ok")),
+                    )
+                )
+                responder.send(HTTPStatus.OK, collector.as_dict())
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/discovery/jobs/authorize":
+            try:
+                payload = self._read_json_body()
+                decision = self.server.application.discovery_service.authorize_job(
+                    AuthorizeDiscoveryJobCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        collector_id=str(payload["collector_id"]),
+                        certificate_fingerprint=str(payload["certificate_fingerprint"]),
+                        requested_scope=str(payload["requested_scope"]),
+                        job_type=str(payload["job_type"]),
+                        target=str(payload["target"]),
+                    )
+                )
+                status = HTTPStatus.OK if decision.authorized else HTTPStatus.FORBIDDEN
+                responder.send(status, decision.as_dict())
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/discovery/collectors/disable":
+            try:
+                payload = self._read_json_body()
+                collector = self.server.application.discovery_service.disable_collector(
+                    DisableCollectorCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        collector_id=str(payload["collector_id"]),
+                        reason=str(payload["reason"]),
+                    )
+                )
+                responder.send(HTTPStatus.OK, collector.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
         if route == "/api/v1/imports/migration-plans":
             try:
                 payload = self._read_json_body()
@@ -1985,6 +2100,11 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "run": "/api/v1/exports/run",
                     "report": "/api/v1/exports/jobs",
                     "artifact": "/api/v1/exports/artifact",
+                },
+                "discovery": {
+                    "collectors": "/api/v1/discovery/collectors",
+                    "heartbeat": "/api/v1/discovery/collectors/heartbeat",
+                    "authorize_job": "/api/v1/discovery/jobs/authorize",
                 },
             },
         }

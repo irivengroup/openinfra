@@ -17,6 +17,8 @@ from openinfra.application.ports import (
     AccessPolicyRulePage,
     AuditRepository,
     DcimRepository,
+    DiscoveryCollectorPage,
+    DiscoveryRepository,
     ExportRepository,
     IdentityRepository,
     ImportRepository,
@@ -95,6 +97,7 @@ from openinfra.domain.dcim import (
     RoomZone,
     Site,
 )
+from openinfra.domain.discovery import DiscoveryCollector
 from openinfra.domain.identity import (
     EffectiveIdentity,
     GroupMembership,
@@ -2982,6 +2985,154 @@ class PostgreSQLIpamRepository(PostgreSQLRepositoryBase, IpamRepository):
             address=reservation.address,
             hostname=reservation.hostname,
             idempotency_key=reservation.idempotency_key,
+        )
+
+
+class PostgreSQLDiscoveryRepository(PostgreSQLRepositoryBase, DiscoveryRepository):
+    def save_collector(self, collector: DiscoveryCollector) -> None:
+        self._ensure_tenant(collector.tenant_id)
+        payload = collector.as_dict()
+        self._execute_without_result(
+            """
+            INSERT INTO discovery_collectors (
+                id, tenant_id, name, kind, certificate_fingerprint, vault_secret_ref,
+                scopes, version, endpoint_url, status, registered_by, registered_at,
+                last_heartbeat_at, last_heartbeat_status, last_seen_version, disabled_reason,
+                updated_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(name)s, %(kind)s, %(certificate_fingerprint)s,
+                %(vault_secret_ref)s, %(scopes)s, %(version)s, %(endpoint_url)s, %(status)s,
+                %(registered_by)s, %(registered_at)s, %(last_heartbeat_at)s,
+                %(last_heartbeat_status)s, %(last_seen_version)s, %(disabled_reason)s, now()
+            )
+            ON CONFLICT (tenant_id, id) DO UPDATE SET
+                name = EXCLUDED.name,
+                kind = EXCLUDED.kind,
+                certificate_fingerprint = EXCLUDED.certificate_fingerprint,
+                vault_secret_ref = EXCLUDED.vault_secret_ref,
+                scopes = EXCLUDED.scopes,
+                version = EXCLUDED.version,
+                endpoint_url = EXCLUDED.endpoint_url,
+                status = EXCLUDED.status,
+                last_heartbeat_at = EXCLUDED.last_heartbeat_at,
+                last_heartbeat_status = EXCLUDED.last_heartbeat_status,
+                last_seen_version = EXCLUDED.last_seen_version,
+                disabled_reason = EXCLUDED.disabled_reason,
+                updated_at = now()
+            """,
+            {
+                "id": payload["id"],
+                "tenant_id": payload["tenant_id"],
+                "name": payload["name"],
+                "kind": payload["kind"],
+                "certificate_fingerprint": payload["certificate_fingerprint"],
+                "vault_secret_ref": payload["vault_secret_ref"],
+                "scopes": json.dumps(payload["scopes"], sort_keys=True),
+                "version": payload["version"],
+                "endpoint_url": payload["endpoint_url"],
+                "status": payload["status"],
+                "registered_by": payload["registered_by"],
+                "registered_at": collector.registered_at,
+                "last_heartbeat_at": collector.last_heartbeat_at,
+                "last_heartbeat_status": payload["last_heartbeat_status"],
+                "last_seen_version": payload["last_seen_version"],
+                "disabled_reason": payload["disabled_reason"],
+            },
+        )
+
+    def get_collector(self, tenant_id: TenantId, collector_id: str) -> DiscoveryCollector | None:
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, name, kind, certificate_fingerprint, vault_secret_ref,
+                   scopes, version, endpoint_url, status, registered_by, registered_at,
+                   last_heartbeat_at, last_heartbeat_status, last_seen_version, disabled_reason
+            FROM discovery_collectors
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s
+            """,
+            {"tenant_id": tenant_id.value, "id": collector_id.strip()},
+        )
+        return self._collector_from_row(row) if row else None
+
+    def list_collectors(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        include_inactive: bool,
+    ) -> DiscoveryCollectorPage:
+        params: dict[str, object] = {"tenant_id": tenant_id.value, "limit": pagination.limit}
+        if pagination.cursor:
+            params["cursor"] = pagination.cursor
+        rows = self._fetch_all(
+            self._collector_list_query(include_inactive, pagination.cursor is not None),
+            params,
+        )
+        collectors = tuple(self._collector_from_row(row) for row in rows)
+        next_cursor = collectors[-1].id.value if len(collectors) == pagination.limit else None
+        return DiscoveryCollectorPage(items=collectors, next_cursor=next_cursor)
+
+    def _collector_list_query(self, include_inactive: bool, has_cursor: bool) -> str:
+        if include_inactive and has_cursor:
+            return """
+            SELECT id, tenant_id, name, kind, certificate_fingerprint, vault_secret_ref,
+                   scopes, version, endpoint_url, status, registered_by, registered_at,
+                   last_heartbeat_at, last_heartbeat_status, last_seen_version, disabled_reason
+            FROM discovery_collectors
+            WHERE tenant_id = %(tenant_id)s AND id > %(cursor)s
+            ORDER BY id ASC
+            LIMIT %(limit)s
+            """
+        if include_inactive:
+            return """
+            SELECT id, tenant_id, name, kind, certificate_fingerprint, vault_secret_ref,
+                   scopes, version, endpoint_url, status, registered_by, registered_at,
+                   last_heartbeat_at, last_heartbeat_status, last_seen_version, disabled_reason
+            FROM discovery_collectors
+            WHERE tenant_id = %(tenant_id)s
+            ORDER BY id ASC
+            LIMIT %(limit)s
+            """
+        if has_cursor:
+            return """
+            SELECT id, tenant_id, name, kind, certificate_fingerprint, vault_secret_ref,
+                   scopes, version, endpoint_url, status, registered_by, registered_at,
+                   last_heartbeat_at, last_heartbeat_status, last_seen_version, disabled_reason
+            FROM discovery_collectors
+            WHERE tenant_id = %(tenant_id)s AND status <> 'disabled' AND id > %(cursor)s
+            ORDER BY id ASC
+            LIMIT %(limit)s
+            """
+        return """
+            SELECT id, tenant_id, name, kind, certificate_fingerprint, vault_secret_ref,
+                   scopes, version, endpoint_url, status, registered_by, registered_at,
+                   last_heartbeat_at, last_heartbeat_status, last_seen_version, disabled_reason
+            FROM discovery_collectors
+            WHERE tenant_id = %(tenant_id)s AND status <> 'disabled'
+            ORDER BY id ASC
+            LIMIT %(limit)s
+            """
+
+    def _collector_from_row(self, row: Mapping[str, object]) -> DiscoveryCollector:
+        scopes_value = row["scopes"]
+        scopes = scopes_value if isinstance(scopes_value, list) else json.loads(str(scopes_value))
+        return DiscoveryCollector.from_dict(
+            {
+                "id": row["id"],
+                "tenant_id": row["tenant_id"],
+                "name": row["name"],
+                "kind": row["kind"],
+                "certificate_fingerprint": row["certificate_fingerprint"],
+                "vault_secret_ref": row.get("vault_secret_ref"),
+                "scopes": scopes,
+                "version": row["version"],
+                "endpoint_url": row.get("endpoint_url"),
+                "status": row["status"],
+                "registered_by": row["registered_by"],
+                "registered_at": row["registered_at"],
+                "last_heartbeat_at": row.get("last_heartbeat_at"),
+                "last_heartbeat_status": row.get("last_heartbeat_status"),
+                "last_seen_version": row.get("last_seen_version"),
+                "disabled_reason": row.get("disabled_reason"),
+            }
         )
 
 

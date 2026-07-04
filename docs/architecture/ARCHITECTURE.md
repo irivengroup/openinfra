@@ -1,5 +1,14 @@
 # Architecture OpenInfra Python
 
+
+## v0.28.0 — Registry collectors et identité forte
+
+La version `0.28.0` introduit la frontière Discovery sans coupler les collectors au moteur d'exécution. Le domaine porte l'identité (`CollectorIdentity`), les scopes (`DiscoveryScope`), l'agrégat collector (`DiscoveryCollector`) et la politique d'autorisation de job (`DiscoveryJobAuthorization`). Le service applicatif `DiscoveryCollectorService` orchestre les cas d'usage et écrit les événements d'audit. Les adaptateurs JSON et PostgreSQL implémentent le port `DiscoveryRepository` sans exposer de détails de stockage aux interfaces.
+
+L'identité forte repose sur l'empreinte SHA-256 du certificat mTLS présenté par le collector. OpenInfra normalise cette empreinte, la compare en temps constant logique au moment de l'autorisation et refuse tout job si le collector est inconnu, désactivé, hors scope ou présenté avec une empreinte différente. Les secrets techniques nécessaires aux probes ne sont pas stockés dans OpenInfra : le registre conserve uniquement une référence Vault `vault://...`, ce qui garde la séparation entre inventaire d'identité et coffre de secrets.
+
+PostgreSQL ajoute `discovery_collectors` via `0023_discovery_collector_registry.sql`, partitionnée par hash de `tenant_id`, avec contraintes explicites sur les statuts, les types de collectors, les scopes JSONB, les empreintes et les références Vault. Les interfaces CLI et HTTP ne contiennent pas de logique métier : elles construisent des commandes applicatives et sérialisent les résultats.
+
 ## Décision de conception
 
 Le socle est un modular monolith Python strictement orienté objet. Il applique une architecture hexagonale : le domaine ne dépend d'aucune technologie d'interface ou de persistance, les services applicatifs orchestrent les cas d'usage, l'infrastructure implémente les ports, et les interfaces exposent CLI/API.

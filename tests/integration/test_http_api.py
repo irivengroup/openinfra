@@ -69,6 +69,11 @@ class TestHttpApi:
                     "report": "/api/v1/exports/jobs",
                     "artifact": "/api/v1/exports/artifact",
                 },
+                "discovery": {
+                    "collectors": "/api/v1/discovery/collectors",
+                    "heartbeat": "/api/v1/discovery/collectors/heartbeat",
+                    "authorize_job": "/api/v1/discovery/jobs/authorize",
+                },
             }
             assert "SwaggerUIBundle" in swagger
             assert "SwaggerUIBundle" in swagger_alias
@@ -80,6 +85,168 @@ class TestHttpApi:
             assert ready["component"] == "json"
             assert version["version"] == __version__
             assert allocation["address"] == "10.6.0.1"
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def test_discovery_collector_registry_http_contract(self, tmp_path: Path) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+        token = "f" * 40
+        fingerprint = "e" * 64
+        app.security_service.bootstrap_token(
+            BootstrapTokenCommand(
+                tenant_id="default",
+                actor="pytest",
+                subject="discovery-admin",
+                roles=("security:admin",),
+                token=token,
+            )
+        )
+        server = OpenInfraThreadingServer(("127.0.0.1", 0), app)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base_url = f"http://127.0.0.1:{server.server_port}"
+            collector = self._post_json(
+                base_url + "/api/v1/discovery/collectors",
+                {
+                    "tenant_id": "default",
+                    "name": "SNMP PAR1",
+                    "kind": "snmp",
+                    "certificate_fingerprint": fingerprint,
+                    "scopes": ["site/par1"],
+                    "version": "1.0.0",
+                    "vault_secret_ref": "vault://openinfra/discovery/snmp/par1",
+                },
+                token=token,
+            )
+            heartbeat = self._post_json(
+                base_url + "/api/v1/discovery/collectors/heartbeat",
+                {
+                    "tenant_id": "default",
+                    "collector_id": collector["id"],
+                    "certificate_fingerprint": fingerprint,
+                    "version": "1.0.1",
+                },
+            )
+            decision = self._post_json(
+                base_url + "/api/v1/discovery/jobs/authorize",
+                {
+                    "tenant_id": "default",
+                    "collector_id": collector["id"],
+                    "certificate_fingerprint": fingerprint,
+                    "requested_scope": "site/par1",
+                    "job_type": "snmp-scan",
+                    "target": "par1-core",
+                },
+            )
+            page = self._get_json(
+                base_url + "/api/v1/discovery/collectors?tenant_id=default", token=token
+            )
+            disabled = self._post_json(
+                base_url + "/api/v1/discovery/collectors/disable",
+                {
+                    "tenant_id": "default",
+                    "collector_id": collector["id"],
+                    "reason": "certificate rotation",
+                },
+                token=token,
+            )
+            try:
+                self._post_json(
+                    base_url + "/api/v1/discovery/jobs/authorize",
+                    {
+                        "tenant_id": "default",
+                        "collector_id": collector["id"],
+                        "certificate_fingerprint": fingerprint,
+                        "requested_scope": "site/par1",
+                        "job_type": "snmp-scan",
+                        "target": "par1-core",
+                    },
+                )
+            except urllib.error.HTTPError as exc:
+                rejected = json.loads(exc.read().decode("utf-8"))
+                assert exc.code == 403
+                assert rejected["reasons"] == ["collector_not_active"]
+
+            assert collector["status"] == "active"
+            assert heartbeat["last_seen_version"] == "1.0.1"
+            assert decision["authorized"] is True
+            assert len(page["items"]) == 1
+            assert disabled["status"] == "disabled"
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def test_discovery_http_error_contracts(self, tmp_path: Path) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+        token = "1" * 40
+        app.security_service.bootstrap_token(
+            BootstrapTokenCommand(
+                tenant_id="default",
+                actor="pytest",
+                subject="discovery-admin",
+                roles=("security:admin",),
+                token=token,
+            )
+        )
+        server = OpenInfraThreadingServer(("127.0.0.1", 0), app)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base_url = f"http://127.0.0.1:{server.server_port}"
+            for url, expected_code in (
+                (base_url + "/api/v1/discovery/collectors?tenant_id=default", 401),
+                (base_url + "/api/v1/discovery/collectors?limit=bad", 400),
+            ):
+                try:
+                    self._get_json(url)
+                except urllib.error.HTTPError as exc:
+                    assert exc.code == expected_code
+
+            for route, payload in (
+                (
+                    "/api/v1/discovery/collectors",
+                    {
+                        "tenant_id": "default",
+                        "name": "x",
+                        "kind": "snmp",
+                        "certificate_fingerprint": "bad",
+                        "scopes": ["site/par1"],
+                        "version": "1.0.0",
+                    },
+                ),
+                (
+                    "/api/v1/discovery/collectors/heartbeat",
+                    {
+                        "tenant_id": "default",
+                        "collector_id": "missing",
+                        "certificate_fingerprint": "bad",
+                        "version": "1.0.0",
+                    },
+                ),
+                (
+                    "/api/v1/discovery/jobs/authorize",
+                    {
+                        "tenant_id": "default",
+                        "collector_id": "missing",
+                        "certificate_fingerprint": "bad",
+                        "requested_scope": "site/par1",
+                        "job_type": "snmp-scan",
+                        "target": "x",
+                    },
+                ),
+                (
+                    "/api/v1/discovery/collectors/disable",
+                    {"tenant_id": "default", "collector_id": "missing", "reason": "x"},
+                ),
+            ):
+                try:
+                    self._post_json(base_url + route, payload, token=token)
+                except urllib.error.HTTPError as exc:
+                    assert exc.code in {400, 401}
         finally:
             server.shutdown()
             server.server_close()

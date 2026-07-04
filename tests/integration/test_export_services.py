@@ -101,6 +101,30 @@ class TestExportService:
         assert payload[0]["key"] == "device/export-001"
         assert download.as_dict()["content_size_bytes"] == len(download.content)
 
+    def test_json_backend_signing_secret_is_lazy_and_survives_reload(self, tmp_path: Path) -> None:
+        state_path = tmp_path / "state.json"
+        app = ApplicationFactory().create_json_application(state_path)
+        token = _bootstrap(app)
+        persisted_state = json.loads(state_path.read_text(encoding="utf-8"))
+        assert "export_signing_secret" not in persisted_state
+        _create_object(app, token, "device/export-reload")
+
+        queued = app.export_service.request_export(
+            RequestExportCommand("default", "pytest", token, format="json")
+        )
+        app.export_service.run_export_job(
+            RunExportJobCommand("default", "pytest", token, queued.id.value)
+        )
+        signed_state = json.loads(state_path.read_text(encoding="utf-8"))
+        assert len(signed_state["export_signing_secret"]) == 64
+
+        reloaded = ApplicationFactory().create_json_application(state_path)
+        download = reloaded.export_service.get_export_artifact(
+            GetExportArtifactCommand("default", token, queued.id.value)
+        )
+        payload = json.loads(download.content.decode("utf-8"))
+        assert payload[0]["key"] == "device/export-reload"
+
     def test_csv_export_uses_queue_order_and_filters(self, tmp_path: Path) -> None:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json")
         token = _bootstrap(app)

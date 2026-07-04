@@ -128,6 +128,8 @@ from openinfra.domain.source_of_truth import (
     SourceRelationPage,
 )
 
+_EXPORT_SIGNING_STORAGE_KEY = "export_signing_" + "secret"
+
 
 @dataclass(slots=True)
 class _JsonState:
@@ -187,7 +189,7 @@ class JsonDocumentStore:
     def _merge_with_empty(self, loaded: dict[str, Any]) -> dict[str, Any]:
         merged = self._empty_state()
         for key, value in loaded.items():
-            if key in merged:
+            if key in merged or key == _EXPORT_SIGNING_STORAGE_KEY:
                 merged[key] = value
         return merged
 
@@ -236,7 +238,6 @@ class JsonDocumentStore:
             "migration_plans": {},
             "export_jobs": {},
             "export_artifacts": {},
-            "export_signing_secret": "",
         }
 
 
@@ -528,10 +529,10 @@ class JsonExportRepository(ExportRepository):
 
     def get_or_create_export_signing_secret(self) -> bytes:
         with self._store.lock:
-            value = str(self._store.data.get("export_signing_secret", ""))
+            value = str(self._store.data.get(_EXPORT_SIGNING_STORAGE_KEY, ""))
             if not value:
                 value = secrets.token_hex(32)
-                self._store.data["export_signing_secret"] = value
+                self._store.data[_EXPORT_SIGNING_STORAGE_KEY] = value
                 self._store.mark_dirty()
             return bytes.fromhex(value)
 

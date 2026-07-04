@@ -1,12 +1,12 @@
 # OpenInfra Python Foundation
 
-**Version courante : 0.27.0 — P06 / EPIC-0604 Migration depuis référentiels existants.**
+**Version courante : 0.27.1 — Correctif sécurité CI Bandit sur l’état JSON des exports signés.**
 
 
 
 ## Migration depuis référentiels existants P06 / EPIC-0604
 
-La version `0.27.0` ajoute une couche de migration contrôlée depuis les référentiels existants. Elle ne charge pas directement les données legacy en production : elle produit d’abord un plan de migration en dry-run, avec mapping effectif, rapport d’impact, lignes invalides, gaps bloquants ou non bloquants et stratégie de reprise. Les sources initiales couvertes sont Device42, NetBox, Nautobot, GLPI et CSV générique.
+La version `0.27.1` corrige le faux positif de sécurité CI Bandit sur l’état JSON des exports signés, sans changer le périmètre fonctionnel livré en `0.27.0`. La version `0.27.0` ajoute une couche de migration contrôlée depuis les référentiels existants. Elle ne charge pas directement les données legacy en production : elle produit d’abord un plan de migration en dry-run, avec mapping effectif, rapport d’impact, lignes invalides, gaps bloquants ou non bloquants et stratégie de reprise. Les sources initiales couvertes sont Device42, NetBox, Nautobot, GLPI et CSV générique.
 
 Contrats exposés :
 

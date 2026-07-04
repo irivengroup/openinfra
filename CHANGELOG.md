@@ -1,3 +1,16 @@
+## 0.27.1 - 2026-07-04
+
+### Fixed
+
+- Corrected a Bandit CI failure caused by the JSON backend default state containing an empty `export_signing_secret` placeholder.
+- Removed the persisted export signing key from the initial empty JSON state; the key remains generated lazily, stored only when first required, and reused afterwards.
+- Audited similar production default-state entries to avoid hardcoded secret/password/token placeholders without using `#nosec`.
+- Preserved the v0.27.0 legacy migration framework and all prior Docker, Swagger/ReDoc, import, bulk import and signed export features.
+
+### Validation
+
+- Ruff format/check, MyPy, Bandit, security gate, pip-audit dry-run, tests, coverage, quality gate, compileall, CLI/spec/migration/API/packaging checks were rerun for the corrective release.
+
 ## 0.27.0 - 2026-07-04
 
 - Roadmap : P06 / EPIC-0604 — Migration depuis référentiels existants.

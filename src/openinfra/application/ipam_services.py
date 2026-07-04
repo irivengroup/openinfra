@@ -1,10 +1,17 @@
 from __future__ import annotations
 
+import html
 import ipaddress
 from dataclasses import dataclass
 
 from openinfra.application.ports import AuditRepository, IpamRepository, TransactionManager
-from openinfra.domain.common import AuditEvent, ConflictError, NotFoundError, TenantId
+from openinfra.domain.common import (
+    AuditEvent,
+    ConflictError,
+    NotFoundError,
+    TenantId,
+    ValidationError,
+)
 from openinfra.domain.ipam import (
     AllocationRequest,
     AllocationResult,
@@ -318,6 +325,365 @@ class IpamConflictReport:
             "by_severity": self.by_severity,
             "conflicts": list(self.conflicts),
         }
+
+
+@dataclass(frozen=True, slots=True)
+class IpamUiDashboardCommand:
+    tenant_id: str
+    actor: str
+    vrf: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class IpamSearchCommand:
+    tenant_id: str
+    actor: str
+    query: str
+    vrf: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class IpamReservationWizardCommand:
+    tenant_id: str
+    actor: str
+    vrf: str
+    prefix: str
+    hostname: str
+    idempotency_key: str
+    dry_run: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class IpamUiViewModel:
+    tenant_id: str
+    vrf: str | None
+    summary: dict[str, int]
+    vrfs: tuple[dict[str, object], ...]
+    prefixes: tuple[dict[str, object], ...]
+    reservations: tuple[dict[str, object], ...]
+    conflicts: tuple[dict[str, object], ...]
+    network_bindings: dict[str, object]
+    actions: tuple[dict[str, str], ...]
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "tenant_id": self.tenant_id,
+            "vrf": self.vrf,
+            "summary": self.summary,
+            "vrfs": list(self.vrfs),
+            "prefixes": list(self.prefixes),
+            "reservations": list(self.reservations),
+            "conflicts": list(self.conflicts),
+            "network_bindings": self.network_bindings,
+            "actions": list(self.actions),
+        }
+
+
+class IpamUiHtmlRenderer:
+    def render(self, view: IpamUiViewModel) -> str:
+        cards = self._cards(view.summary)
+        vrfs = self._rows(view.vrfs, ("name", "route_distinguisher", "prefix_count"))
+        prefixes = self._rows(
+            view.prefixes,
+            ("vrf", "prefix", "family", "usable_addresses", "free_addresses", "utilization_pct"),
+        )
+        conflicts = self._rows(
+            view.conflicts,
+            ("severity", "type", "vrf", "impacted_object", "recommended_action"),
+        )
+        return "".join(
+            (
+                '<!doctype html><html lang="fr"><head><meta charset="utf-8">',
+                "<title>OpenInfra IPAM</title>",
+                "<style>",
+                "body{font-family:system-ui,Arial,sans-serif;margin:2rem;background:#f8fafc;color:#0f172a}",
+                ".grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(12rem,1fr));gap:1rem}",
+                ".card,section{background:white;border:1px solid #e2e8f0;",
+                "border-radius:12px;padding:1rem}",
+                "table{width:100%;border-collapse:collapse}",
+                "th,td{border-bottom:1px solid #e2e8f0;padding:.5rem;text-align:left}",
+                "th{background:#f1f5f9}",
+                "code{background:#e2e8f0;border-radius:4px;padding:.1rem .25rem}",
+                "</style></head><body>",
+                f"<h1>OpenInfra IPAM — {html.escape(view.tenant_id)}</h1>",
+                f"<p>VRF: <code>{html.escape(view.vrf or '*')}</code></p>",
+                f'<div class="grid">{cards}</div>',
+                "<section><h2>VRF</h2>",
+                vrfs,
+                "</section><section><h2>Préfixes et capacité</h2>",
+                prefixes,
+                "</section><section><h2>Conflits actifs</h2>",
+                conflicts,
+                "</section></body></html>",
+            )
+        )
+
+    def _cards(self, summary: dict[str, int]) -> str:
+        return "".join(
+            f'<div class="card"><strong>{html.escape(key)}</strong><br>{value}</div>'
+            for key, value in sorted(summary.items())
+        )
+
+    def _rows(self, items: tuple[object, ...], columns: tuple[str, ...]) -> str:
+        head = "".join(f"<th>{html.escape(column)}</th>" for column in columns)
+        rows: list[str] = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            cells = "".join(
+                f"<td>{html.escape(str(item.get(column, '')))}</td>" for column in columns
+            )
+            rows.append(f"<tr>{cells}</tr>")
+        if not rows:
+            rows.append(f'<tr><td colspan="{len(columns)}">Aucune donnée</td></tr>')
+        return f"<table><thead><tr>{head}</tr></thead><tbody>{''.join(rows)}</tbody></table>"
+
+
+class IpamUiService:
+    def __init__(
+        self,
+        ipam_repository: IpamRepository,
+        audit_repository: AuditRepository,
+        transaction_manager: TransactionManager,
+        allocation_service: IpamAllocationService,
+        conflict_service: IpamConflictService,
+    ) -> None:
+        self._ipam_repository = ipam_repository
+        self._audit_repository = audit_repository
+        self._transaction_manager = transaction_manager
+        self._allocation_service = allocation_service
+        self._conflict_service = conflict_service
+        self._renderer = IpamUiHtmlRenderer()
+
+    def dashboard(self, command: IpamUiDashboardCommand) -> IpamUiViewModel:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        requested_vrf = command.vrf.strip() if command.vrf else None
+        vrfs = self._selected_vrfs(tenant_id, requested_vrf)
+        prefix_rows = self._prefix_rows(tenant_id, vrfs)
+        reservation_rows = self._reservation_rows(tenant_id, vrfs)
+        conflicts = self._conflict_service.detect(
+            DetectIpamConflictsCommand(tenant_id.value, command.actor, requested_vrf)
+        )
+        bindings = IpamModelService(
+            self._ipam_repository, self._audit_repository, self._transaction_manager
+        ).network_bindings(IpamNetworkBindingsCommand(tenant_id.value, requested_vrf))
+        view = IpamUiViewModel(
+            tenant_id=tenant_id.value,
+            vrf=requested_vrf,
+            summary=self._summary(vrfs, prefix_rows, reservation_rows, conflicts.conflicts),
+            vrfs=tuple(self._vrf_row(vrf, prefix_rows) for vrf in vrfs),
+            prefixes=tuple(prefix_rows),
+            reservations=tuple(reservation_rows),
+            conflicts=conflicts.conflicts,
+            network_bindings=bindings.as_dict(),
+            actions=self._actions(requested_vrf),
+        )
+        self._audit_repository.append(
+            AuditEvent.record(
+                tenant_id=tenant_id,
+                actor=command.actor,
+                action="ipam.ui.dashboard.rendered",
+                target_type="ipam_ui_dashboard",
+                target_id=requested_vrf or "*",
+                metadata={"prefixes": len(prefix_rows), "conflicts": len(conflicts.conflicts)},
+            )
+        )
+        return view
+
+    def render_dashboard_html(self, command: IpamUiDashboardCommand) -> str:
+        return self._renderer.render(self.dashboard(command))
+
+    def search(self, command: IpamSearchCommand) -> dict[str, object]:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        query = command.query.strip().lower()
+        if len(query) < 2:
+            raise ValidationError("ipam search query must contain at least 2 characters")
+        vrfs = self._selected_vrfs(tenant_id, command.vrf.strip() if command.vrf else None)
+        matches: list[dict[str, object]] = []
+        for row in self._prefix_rows(tenant_id, vrfs):
+            if self._matches(row, query):
+                matches.append({"kind": "prefix", **row})
+        for row in self._reservation_rows(tenant_id, vrfs):
+            if self._matches(row, query):
+                matches.append({"kind": "reservation", **row})
+        for vrf in vrfs:
+            for record in self._ipam_repository.list_dns_observations(tenant_id, vrf.name.value):
+                dns_row: dict[str, object] = dict(record.as_dict())
+                if self._matches(dns_row, query):
+                    matches.append({"kind": "dns", **dns_row})
+            for lease in self._ipam_repository.list_dhcp_leases(tenant_id, vrf.name.value):
+                dhcp_row: dict[str, object] = dict(lease.as_dict())
+                if self._matches(dhcp_row, query):
+                    matches.append({"kind": "dhcp_lease", **dhcp_row})
+        result = {
+            "tenant_id": tenant_id.value,
+            "query": command.query,
+            "count": len(matches),
+            "items": matches,
+        }
+        self._audit_repository.append(
+            AuditEvent.record(
+                tenant_id=tenant_id,
+                actor=command.actor,
+                action="ipam.ui.search.executed",
+                target_type="ipam_ui_search",
+                target_id=query,
+                metadata={"matches": len(matches)},
+            )
+        )
+        return result
+
+    def reservation_wizard(self, command: IpamReservationWizardCommand) -> dict[str, object]:
+        if command.dry_run:
+            tenant_id = TenantId.from_value(command.tenant_id)
+            prefix = self._ipam_repository.get_or_create_prefix(
+                Prefix.create(tenant_id, command.vrf, command.prefix)
+            )
+            reservations = self._ipam_repository.list_reservations(
+                tenant_id, command.vrf, str(prefix.network)
+            )
+            records = self._ipam_repository.list_address_records(
+                tenant_id, command.vrf, str(prefix.network)
+            )
+            ranges = self._ipam_repository.list_ranges(tenant_id, command.vrf, str(prefix.network))
+            next_ip = IpAllocationPolicy().next_available_address(
+                prefix,
+                {reservation.address for reservation in reservations}
+                | {record.address for record in records},
+                ranges,
+            )
+            return {
+                "tenant_id": tenant_id.value,
+                "vrf": prefix.vrf_name.value,
+                "prefix": str(prefix.network),
+                "hostname": command.hostname,
+                "idempotency_key": command.idempotency_key,
+                "dry_run": True,
+                "recommended_address": str(next_ip),
+                "operation": "preview",
+            }
+        result = self._allocation_service.allocate(
+            AllocateIpCommand(
+                tenant_id=command.tenant_id,
+                actor=command.actor,
+                vrf=command.vrf,
+                prefix=command.prefix,
+                hostname=command.hostname,
+                idempotency_key=command.idempotency_key,
+            )
+        )
+        payload: dict[str, object] = dict(result.as_dict())
+        payload["dry_run"] = False
+        payload["operation"] = "allocated" if result.created else "idempotent_replay"
+        return payload
+
+    def _selected_vrfs(self, tenant_id: TenantId, requested_vrf: str | None) -> tuple[Vrf, ...]:
+        if requested_vrf:
+            return (self._ipam_repository.add_or_get_vrf(Vrf.create(tenant_id, requested_vrf)),)
+        return self._ipam_repository.list_vrfs(tenant_id)
+
+    def _prefix_rows(self, tenant_id: TenantId, vrfs: tuple[Vrf, ...]) -> list[dict[str, object]]:
+        rows: list[dict[str, object]] = []
+        for vrf in vrfs:
+            for prefix in self._ipam_repository.list_prefixes(tenant_id, vrf.name.value):
+                reservations = self._ipam_repository.list_reservations(
+                    tenant_id, vrf.name.value, str(prefix.network)
+                )
+                records = self._ipam_repository.list_address_records(
+                    tenant_id, vrf.name.value, str(prefix.network)
+                )
+                ranges = self._ipam_repository.list_ranges(
+                    tenant_id, vrf.name.value, str(prefix.network)
+                )
+                occupied = {int(item.address) for item in reservations}
+                occupied.update(int(item.address) for item in records)
+                usable = prefix.last_usable_int - prefix.first_usable_int + 1
+                free = max(usable - len(occupied), 0)
+                utilization = round((len(occupied) / usable) * 100, 2) if usable else 100.0
+                rows.append(
+                    {
+                        "vrf": vrf.name.value,
+                        "prefix": str(prefix.network),
+                        "family": prefix.network.version,
+                        "usable_addresses": usable,
+                        "reserved_addresses": len(occupied),
+                        "free_addresses": free,
+                        "utilization_pct": utilization,
+                        "range_count": len(ranges),
+                    }
+                )
+        return rows
+
+    def _reservation_rows(
+        self, tenant_id: TenantId, vrfs: tuple[Vrf, ...]
+    ) -> list[dict[str, object]]:
+        rows: list[dict[str, object]] = []
+        for vrf in vrfs:
+            for prefix in self._ipam_repository.list_prefixes(tenant_id, vrf.name.value):
+                for reservation in self._ipam_repository.list_reservations(
+                    tenant_id, vrf.name.value, str(prefix.network)
+                ):
+                    rows.append(
+                        {
+                            "vrf": vrf.name.value,
+                            "prefix": reservation.prefix,
+                            "address": str(reservation.address),
+                            "hostname": reservation.hostname,
+                            "idempotency_key": reservation.idempotency_key,
+                        }
+                    )
+        return rows
+
+    def _vrf_row(self, vrf: Vrf, prefixes: list[dict[str, object]]) -> dict[str, object]:
+        prefix_count = sum(1 for prefix in prefixes if prefix["vrf"] == vrf.name.value)
+        free = sum(
+            int(str(prefix["free_addresses"]))
+            for prefix in prefixes
+            if prefix["vrf"] == vrf.name.value
+        )
+        return {
+            "name": vrf.name.value,
+            "route_distinguisher": vrf.route_distinguisher,
+            "prefix_count": prefix_count,
+            "free_addresses": free,
+        }
+
+    def _summary(
+        self,
+        vrfs: tuple[Vrf, ...],
+        prefixes: list[dict[str, object]],
+        reservations: list[dict[str, object]],
+        conflicts: tuple[dict[str, object], ...],
+    ) -> dict[str, int]:
+        return {
+            "vrfs": len(vrfs),
+            "prefixes": len(prefixes),
+            "free_addresses": sum(int(str(prefix["free_addresses"])) for prefix in prefixes),
+            "reservations": len(reservations),
+            "conflicts": len(conflicts),
+        }
+
+    def _actions(self, vrf: str | None) -> tuple[dict[str, str], ...]:
+        suffix = f" --vrf {vrf}" if vrf else ""
+        return (
+            {
+                "label": "Rechercher une IP",
+                "command": f"openinfra ipam ui-search --query <ip|host>{suffix}",
+            },
+            {
+                "label": "Réserver une IP",
+                "command": (
+                    f"openinfra ipam reservation-wizard --prefix <cidr> --hostname <host>{suffix}"
+                ),
+            },
+            {
+                "label": "Analyser les conflits",
+                "command": f"openinfra ipam detect-conflicts{suffix}",
+            },
+        )
+
+    def _matches(self, row: dict[str, object], query: str) -> bool:
+        return any(query in str(value).lower() for value in row.values())
 
 
 class IpamConflictService:

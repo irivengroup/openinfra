@@ -34,3 +34,13 @@
 - Migration : `migrations/postgresql/0016_ipam_transactional_allocation.sql`.
 - Tests : allocation idempotente, plages allocation/exclusion/réservation, adresses préexistantes, 100 allocations concurrentes sans collision, verrou PostgreSQL simulé, CLI/API de non-régression.
 - Production : runtime serveur natif inchangé ; Docker reste facultatif pour smoke local.
+
+
+## v0.22.0 — P05 / EPIC-0505 UI IPAM opérationnelle
+
+| Exigence | Implémentation | Validation |
+|---|---|---|
+| UI IPAM opérationnelle | `IpamUiService`, `IpamUiViewModel`, `IpamUiHtmlRenderer` | `tests/integration/test_ipam_ui_services.py` |
+| Recherche IPAM | `openinfra ipam ui-search`, `/api/v1/ipam/ui-search` | tests CLI/API et smoke CI |
+| Assistant réservation | `openinfra ipam reservation-wizard`, `/api/v1/ipam/reservation-wizard` | dry-run + apply testés |
+| Dashboard capacité/conflits | `openinfra ipam ui-dashboard`, `/ui/ipam` | rendu JSON/HTML testé |

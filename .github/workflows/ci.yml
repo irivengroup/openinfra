@@ -158,6 +158,17 @@ jobs:
           openinfra ipam detect-conflicts --data "$tmpdir/state.json" --tenant default --vrf prod > "$tmpdir/conflicts.json"
           python -c 'import json, pathlib, sys; data=json.loads(pathlib.Path(sys.argv[1]).read_text()); types={item["type"] for item in data["conflicts"]}; assert data["total"] >= 3; assert {"duplicate_address", "lease_conflict", "dns_ptr_divergence"}.issubset(types)' "$tmpdir/conflicts.json"
 
+
+      - name: Smoke JSON IPAM UI operational
+        run: |
+          tmpdir="$(mktemp -d)"
+          openinfra ipam define-prefix --data "$tmpdir/state.json" --tenant default --vrf prod --cidr 10.252.0.0/29
+          openinfra ipam reservation-wizard --data "$tmpdir/state.json" --tenant default --vrf prod --prefix 10.252.0.0/29 --hostname ci-ui --idempotency-key ci-ui-1 --apply
+          openinfra ipam ui-search --data "$tmpdir/state.json" --tenant default --query ci-ui > "$tmpdir/search.json"
+          openinfra ipam ui-dashboard --data "$tmpdir/state.json" --tenant default --vrf prod > "$tmpdir/dashboard.json"
+          openinfra ipam ui-dashboard --data "$tmpdir/state.json" --tenant default --vrf prod --format html > "$tmpdir/dashboard.html"
+          python -c 'import json, pathlib, sys; search=json.loads(pathlib.Path(sys.argv[1]).read_text()); dashboard=json.loads(pathlib.Path(sys.argv[2]).read_text()); html=pathlib.Path(sys.argv[3]).read_text(); assert search["count"] >= 1; assert dashboard["summary"]["prefixes"] == 1; assert "OpenInfra IPAM" in html' "$tmpdir/search.json" "$tmpdir/dashboard.json" "$tmpdir/dashboard.html"
+
       - name: Smoke JSON security token
         run: |
           tmpdir="$(mktemp -d)"

@@ -61,6 +61,9 @@ from openinfra.application.ipam_services import (
     DetectIpamConflictsCommand,
     IpamCapacityCommand,
     IpamNetworkBindingsCommand,
+    IpamReservationWizardCommand,
+    IpamSearchCommand,
+    IpamUiDashboardCommand,
     ObserveDhcpLeaseCommand,
     ObserveDnsRecordCommand,
     RegisterIpAddressCommand,
@@ -701,6 +704,39 @@ class OpenInfraCLI:
         detect_conflicts.add_argument("--actor", default="cli")
         detect_conflicts.add_argument("--vrf")
         detect_conflicts.set_defaults(handler=self._handle_ipam_detect_conflicts)
+
+        ui_dashboard = ipam_subparsers.add_parser(
+            "ui-dashboard", help="render the operational IPAM dashboard view model"
+        )
+        self._add_backend_arguments(ui_dashboard)
+        ui_dashboard.add_argument("--tenant", required=True)
+        ui_dashboard.add_argument("--actor", default="cli")
+        ui_dashboard.add_argument("--vrf")
+        ui_dashboard.add_argument("--format", choices=("json", "html"), default="json")
+        ui_dashboard.set_defaults(handler=self._handle_ipam_ui_dashboard)
+
+        ui_search = ipam_subparsers.add_parser(
+            "ui-search", help="search IPAM prefixes, reservations and observed data"
+        )
+        self._add_backend_arguments(ui_search)
+        ui_search.add_argument("--tenant", required=True)
+        ui_search.add_argument("--actor", default="cli")
+        ui_search.add_argument("--query", required=True)
+        ui_search.add_argument("--vrf")
+        ui_search.set_defaults(handler=self._handle_ipam_ui_search)
+
+        reservation_wizard = ipam_subparsers.add_parser(
+            "reservation-wizard", help="preview or execute an IPAM reservation workflow"
+        )
+        self._add_backend_arguments(reservation_wizard)
+        reservation_wizard.add_argument("--tenant", required=True)
+        reservation_wizard.add_argument("--actor", default="cli")
+        reservation_wizard.add_argument("--vrf", required=True)
+        reservation_wizard.add_argument("--prefix", required=True)
+        reservation_wizard.add_argument("--hostname", required=True)
+        reservation_wizard.add_argument("--idempotency-key", required=True)
+        reservation_wizard.add_argument("--apply", action="store_true")
+        reservation_wizard.set_defaults(handler=self._handle_ipam_reservation_wizard)
 
     def _add_dcim_commands(self, subparsers: Any) -> None:
         dcim = subparsers.add_parser("dcim", help="dcim operations")
@@ -1707,6 +1743,40 @@ class OpenInfraCLI:
             DetectIpamConflictsCommand(args.tenant, args.actor, args.vrf)
         )
         print(json.dumps(report.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_ipam_ui_dashboard(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        command = IpamUiDashboardCommand(args.tenant, args.actor, args.vrf)
+        if args.format == "html":
+            print(application.ipam_ui_service.render_dashboard_html(command))
+            return 0
+        view = application.ipam_ui_service.dashboard(command)
+        print(json.dumps(view.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_ipam_ui_search(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.ipam_ui_service.search(
+            IpamSearchCommand(args.tenant, args.actor, args.query, args.vrf)
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_ipam_reservation_wizard(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.ipam_ui_service.reservation_wizard(
+            IpamReservationWizardCommand(
+                args.tenant,
+                args.actor,
+                args.vrf,
+                args.prefix,
+                args.hostname,
+                args.idempotency_key,
+                not args.apply,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
         return 0
 
     def _handle_dcim_define_room(self, args: argparse.Namespace) -> int:

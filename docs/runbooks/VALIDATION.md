@@ -363,3 +363,12 @@ PYTHONPATH=src python -m openinfra.interfaces.cli ipam detect-conflicts --data "
 ```
 
 Critères attendus : rapport JSON contenant au minimum `duplicate_address`, `lease_conflict` et `dns_ptr_divergence`; couverture globale maintenue au seuil `>= 98 %`; CI sans étape security smoke dupliquée.
+
+
+## Contrôles ajoutés en v0.22.0
+
+- Vérifier `openinfra ipam ui-dashboard --tenant default --format json`.
+- Vérifier `openinfra ipam ui-dashboard --tenant default --format html`.
+- Vérifier `openinfra ipam ui-search --tenant default --query <ip|hostname>`.
+- Vérifier `openinfra ipam reservation-wizard` en dry-run puis avec `--apply`.
+- Vérifier les endpoints `/api/v1/ipam/ui-dashboard`, `/api/v1/ipam/ui-search`, `/api/v1/ipam/reservation-wizard` et `/ui/ipam`.

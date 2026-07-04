@@ -1,3 +1,12 @@
+## 0.22.0 - 2026-07-03
+
+- Ajout de l’UI IPAM opérationnelle P05/EPIC-0505 sous forme de view model applicatif, rendu HTML serveur et workflows CLI/API.
+- Ajout du service `IpamUiService` : dashboard VRF/préfixes/capacité/conflits, recherche IP/hostname/DNS/DHCP et assistant de réservation.
+- Ajout des commandes `openinfra ipam ui-dashboard`, `openinfra ipam ui-search` et `openinfra ipam reservation-wizard`.
+- Ajout des endpoints `/api/v1/ipam/ui-dashboard`, `/api/v1/ipam/ui-search`, `/api/v1/ipam/reservation-wizard` et `/ui/ipam`.
+- Extension des smoke tests CI avec un parcours UI IPAM JSON/HTML.
+- Mise à jour README, OpenAPI, architecture, validation, traçabilité et rapport de validation.
+
 ## 0.21.0 - 2026-07-03
 
 - Ajout du jalon P05 / EPIC-0504 : moteur de détection conflits IPAM.

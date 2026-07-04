@@ -20,6 +20,7 @@ from openinfra.application.ipam_services import (
     IpamAllocationService,
     IpamConflictService,
     IpamModelService,
+    IpamUiService,
 )
 from openinfra.application.ports import (
     AccessPolicyRepository,
@@ -84,6 +85,7 @@ class OpenInfraApplication:
     ipam_service: IpamAllocationService
     ipam_model_service: IpamModelService
     ipam_conflict_service: IpamConflictService
+    ipam_ui_service: IpamUiService
     dcim_repository: DcimRepository
     ipam_repository: IpamRepository
     security_service: SecurityService
@@ -212,6 +214,16 @@ class ApplicationFactory:
             transaction_manager,
             identity_repository,
         )
+        ipam_allocation_service = IpamAllocationService(
+            ipam_repository,
+            audit_repository,
+            transaction_manager,
+        )
+        ipam_conflict_service = IpamConflictService(
+            ipam_repository,
+            audit_repository,
+            transaction_manager,
+        )
         return OpenInfraApplication(
             store=store,
             dcim_service=DcimLocationService(
@@ -249,20 +261,19 @@ class ApplicationFactory:
                 audit_repository,
                 transaction_manager,
             ),
-            ipam_service=IpamAllocationService(
-                ipam_repository,
-                audit_repository,
-                transaction_manager,
-            ),
+            ipam_service=ipam_allocation_service,
             ipam_model_service=IpamModelService(
                 ipam_repository,
                 audit_repository,
                 transaction_manager,
             ),
-            ipam_conflict_service=IpamConflictService(
+            ipam_conflict_service=ipam_conflict_service,
+            ipam_ui_service=IpamUiService(
                 ipam_repository,
                 audit_repository,
                 transaction_manager,
+                ipam_allocation_service,
+                ipam_conflict_service,
             ),
             security_service=security_service,
             identity_service=IdentityService(

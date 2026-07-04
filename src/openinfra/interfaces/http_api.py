@@ -63,6 +63,9 @@ from openinfra.application.ipam_services import (
     DetectIpamConflictsCommand,
     IpamCapacityCommand,
     IpamNetworkBindingsCommand,
+    IpamReservationWizardCommand,
+    IpamSearchCommand,
+    IpamUiDashboardCommand,
     ObserveDhcpLeaseCommand,
     ObserveDnsRecordCommand,
     RegisterIpAddressCommand,
@@ -105,6 +108,19 @@ class JsonHttpResponder:
         self._handler.wfile.write(body)
 
 
+class HtmlHttpResponder:
+    def __init__(self, handler: BaseHTTPRequestHandler) -> None:
+        self._handler = handler
+
+    def send(self, status: HTTPStatus, body: str) -> None:
+        payload = body.encode("utf-8")
+        self._handler.send_response(status.value)
+        self._handler.send_header("Content-Type", "text/html; charset=utf-8")
+        self._handler.send_header("Content-Length", str(len(payload)))
+        self._handler.end_headers()
+        self._handler.wfile.write(payload)
+
+
 class OpenInfraRequestHandler(BaseHTTPRequestHandler):
     server: OpenInfraThreadingServer
 
@@ -113,6 +129,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         responder = JsonHttpResponder(self)
+        html_responder = HtmlHttpResponder(self)
         parsed = urlparse(self.path)
         status: Any
         page: Any
@@ -470,6 +487,50 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.OK, identity.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/ui/ipam":
+            try:
+                query = parse_qs(parsed.query)
+                html = self.server.application.ipam_ui_service.render_dashboard_html(
+                    IpamUiDashboardCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id", "default"),
+                        actor="api",
+                        vrf=query.get("vrf", [None])[0],
+                    )
+                )
+                html_responder.send(HTTPStatus.OK, html)
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/ipam/ui-dashboard":
+            try:
+                query = parse_qs(parsed.query)
+                view = self.server.application.ipam_ui_service.dashboard(
+                    IpamUiDashboardCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        actor="api",
+                        vrf=query.get("vrf", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, view.as_dict())
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/ipam/ui-search":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.ipam_ui_service.search(
+                    IpamSearchCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        actor="api",
+                        query=self._first_query_value(query, "query"),
+                        vrf=query.get("vrf", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result)
             except (ValueError, OpenInfraError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
@@ -1403,6 +1464,26 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     )
                 responder.send(HTTPStatus.CREATED, result)
             except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/ipam/reservation-wizard":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.ipam_ui_service.reservation_wizard(
+                    IpamReservationWizardCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        actor=str(payload.get("actor", "api")),
+                        vrf=str(payload["vrf"]),
+                        prefix=str(payload["prefix"]),
+                        hostname=str(payload["hostname"]),
+                        idempotency_key=str(payload["idempotency_key"]),
+                        dry_run=not bool(payload.get("apply", False)),
+                    )
+                )
+                status = HTTPStatus.OK if bool(result.get("dry_run", False)) else HTTPStatus.CREATED
+                responder.send(status, result)
+            except (KeyError, json.JSONDecodeError, OpenInfraError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
         if route != "/api/v1/ipam/allocate":

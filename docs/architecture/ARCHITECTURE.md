@@ -237,3 +237,10 @@ La version 0.21.0 introduit un sous-domaine de contrôle IPAM centré sur la dé
 Le service `IpamConflictService` agrège les données gérées et observées par tenant/VRF puis produit un rapport déterministe : chevauchements de préfixes, chevauchements de plages, doublons IP, leases actifs hors préfixe, conflit lease/réservation, et divergence DNS/PTR. Les résultats ne modifient pas la source de vérité ; ils sont auditables et exploitables par API/CLI pour déclencher une remédiation contrôlée.
 
 La persistance PostgreSQL est additive via `0018_ipam_conflict_detection.sql`, avec tables partitionnées par `tenant_id` et index sur adresses observées, PTR et leases actifs.
+
+
+## v0.22.0 — P05 EPIC-0505 UI IPAM opérationnelle
+
+La version 0.22.0 introduit une couche UI IPAM strictement applicative et sans framework externe. Le service `IpamUiService` agrège les référentiels IPAM existants, le moteur de conflits et l’allocation transactionnelle pour produire un view model stable consommable par CLI, API JSON et rendu HTML serveur.
+
+Le rendu HTML `/ui/ipam` reste volontairement léger : il expose les VRF, la capacité des préfixes, les réservations et les conflits sans créer de dépendance de production supplémentaire. Le workflow de réservation est séparé en deux modes : prévisualisation déterministe de la prochaine adresse disponible et application transactionnelle via le service d’allocation existant.

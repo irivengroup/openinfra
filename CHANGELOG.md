@@ -1,16 +1,16 @@
-## 0.24.0 - 2026-07-04
+## 0.25.0 - 2026-07-04
 
-- Roadmap : P06 / EPIC-0601 — Import framework générique.
-- Ajout du domaine `data_import` : formats CSV/JSON/XLSX, mapping contrôlé, impacts, rapports et DLQ.
-- Ajout du service applicatif `GenericImportService` avec dry-run, validation globale, application atomique et audit `import.dataset.*`.
-- Ajout des parseurs CSV/JSON/XLSX sans dépendance lourde supplémentaire ; le lecteur XLSX utilise le format OOXML via bibliothèque standard.
-- Ajout des référentiels JSON et PostgreSQL `ImportRepository`.
-- Ajout de la migration PostgreSQL `0019_import_framework.sql` avec table `import_jobs` partitionnée par tenant, JSONB mapping/impacts/DLQ et index opérationnels.
-- Ajout des commandes `openinfra import dataset` et `openinfra import report`.
-- Ajout des endpoints `/api/v1/imports/datasets` et `/api/v1/imports/report`.
-- Ajout de la documentation API runtime : liens Swagger UI/ReDoc dans `/` et `/api/v1`, routes `/docs`, `/swagger`, `/redoc`, `/openapi.yaml` et `/api/v1/openapi.yaml`.
-- Ajout de tests domaine, parseurs, service, CLI, API, migration et non-régression atomique : un import invalide ne modifie aucune donnée.
-- Conservation des correctifs v0.22.3/v0.23.1 : migrations PostgreSQL IPAM, pgAdmin `admin@openinfra.tld`, route racine API et logs runtime.
+- Roadmap : P06 / EPIC-0602 — Import massif scalable.
+- Ajout du mode `BulkImportDatasetCommand` sans régression de l’import générique atomique `0.24.0`.
+- Ajout du streaming CSV via `ImportDatasetParser.iter_rows`, avec fallback de parsing complet pour CSV/JSON/XLSX existants.
+- Ajout du traitement par batches bornés, checkpoints persistés, reprise par `resume_job_id`, métriques d’exécution, DLQ échantillonnée et rapport bulk consultable.
+- Ajout des modèles de domaine `BulkImportReport`, `BulkImportCheckpoint` et `BulkImportMetrics`.
+- Ajout de la migration PostgreSQL `0020_bulk_import_framework.sql` avec `bulk_import_jobs` et `bulk_import_checkpoints` partitionnées par tenant et index opérationnels.
+- Extension des backends JSON et PostgreSQL avec persistance des rapports/checkpoints bulk.
+- Ajout des commandes `openinfra import bulk-dataset`, `openinfra import bulk-report` et `openinfra import bulk-checkpoint`.
+- Ajout des endpoints `/api/v1/imports/bulk-datasets`, `/api/v1/imports/bulk-report` et `/api/v1/imports/bulk-checkpoint`.
+- Renforcement des tests domaine, parseurs, service, CLI, API et migrations PostgreSQL `0001` à `0020`.
+- Conservation des correctifs v0.22.3/v0.23.1/v0.24.0 : migrations PostgreSQL IPAM, pgAdmin `admin@openinfra.tld`, route racine API, logs runtime, Swagger UI, ReDoc et OpenAPI YAML.
 
 ## 0.23.1 - 2026-07-04
 

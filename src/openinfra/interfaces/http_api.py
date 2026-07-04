@@ -41,7 +41,7 @@ from openinfra.application.dcim_services import (
     TraceDcimCableCommand,
     VerifyEquipmentScanCommand,
 )
-from openinfra.application.import_services import ImportDatasetCommand
+from openinfra.application.import_services import BulkImportDatasetCommand, ImportDatasetCommand
 from openinfra.application.identity_services import (
     AddUserToGroupCommand,
     CreateGroupCommand,
@@ -334,6 +334,30 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     self._first_query_value(query, "job_id"),
                 )
                 responder.send(HTTPStatus.OK, report.as_dict())
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/imports/bulk-report":
+            try:
+                query = parse_qs(parsed.query)
+                report = self.server.application.import_service.get_bulk_report(
+                    self._first_query_value(query, "tenant_id"),
+                    self._first_query_value(query, "job_id"),
+                )
+                responder.send(HTTPStatus.OK, report.as_dict())
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/imports/bulk-checkpoint":
+            try:
+                query = parse_qs(parsed.query)
+                checkpoint = self.server.application.import_service.get_bulk_checkpoint(
+                    self._first_query_value(query, "tenant_id"),
+                    self._first_query_value(query, "job_id"),
+                )
+                responder.send(HTTPStatus.OK, checkpoint.as_dict())
             except (ValueError, OpenInfraError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
@@ -1399,6 +1423,34 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         mapping_json=json.dumps(payload["mapping"], sort_keys=True),
                         dry_run=not bool(payload.get("apply", False)),
                         batch_size=int(payload.get("batch_size", 500)),
+                    )
+                )
+                status = HTTPStatus.OK if report.dry_run else HTTPStatus.CREATED
+                responder.send(status, report.as_dict())
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/imports/bulk-datasets":
+            try:
+                payload = self._read_json_body()
+                report = self.server.application.import_service.bulk_import_dataset(
+                    BulkImportDatasetCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=str(payload["admin_token"]),
+                        file_path=Path(str(payload["file_path"])),
+                        format=str(payload["format"]),
+                        mapping_json=json.dumps(payload["mapping"], sort_keys=True),
+                        dry_run=not bool(payload.get("apply", False)),
+                        batch_size=int(payload.get("batch_size", 5_000)),
+                        checkpoint_interval=int(payload.get("checkpoint_interval", 25_000)),
+                        resume_job_id=(
+                            str(payload["resume_job_id"])
+                            if payload.get("resume_job_id")
+                            else None
+                        ),
+                        sample_limit=int(payload.get("sample_limit", 100)),
                     )
                 )
                 status = HTTPStatus.OK if report.dry_run else HTTPStatus.CREATED

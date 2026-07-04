@@ -244,6 +244,6 @@ docker logs openinfra-api
 Au démarrage, `openinfra-api` écrit un événement JSON `openinfra_api_started` sur stdout afin que `docker logs openinfra-api` confirme le backend, le port et les URLs opérationnelles exposées par le conteneur.
 
 
-## Documentation API runtime v0.24.0
+## Documentation API runtime v0.25.0
 
 Le point d’entrée `GET /` et `GET /api/v1` publie les liens de documentation `Swagger UI` (`/docs` et `/swagger`), `ReDoc` (`/redoc`) et le contrat OpenAPI YAML (`/openapi.yaml` et `/api/v1/openapi.yaml`). Les smoke tests HTTP vérifient ces routes afin d’éviter une régression de découvrabilité API.

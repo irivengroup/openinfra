@@ -44,7 +44,7 @@ class TestHttpApi:
             )
 
             assert root["service"] == "openinfra-api"
-            assert root["version"] == "0.24.0"
+            assert root["version"] == "0.25.0"
             assert root["health"] == "/health"
             assert root["readiness"] == "/ready"
             assert root["api"] == api_index["api"]
@@ -70,7 +70,7 @@ class TestHttpApi:
             assert health["status"] == "ok"
             assert ready["ready"] is True
             assert ready["component"] == "json"
-            assert version["version"] == "0.24.0"
+            assert version["version"] == "0.25.0"
             assert allocation["address"] == "10.6.0.1"
         finally:
             server.shutdown()
@@ -240,6 +240,82 @@ class TestHttpApi:
             assert report["status"] == "validated"
             assert persisted["job_id"] == report["job_id"]
             assert persisted["create_count"] == 1
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+
+    def test_bulk_import_api_endpoints(self, tmp_path: Path) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+        token = "n" * 40
+        csv_file = tmp_path / "api-bulk-import.csv"
+        csv_file.write_text(
+            "asset_key,kind,name,source,tags,serial\n"
+            "device/api-bulk-701,device,API Bulk 701,api_import,prod,SN701\n"
+            "device/api-bulk-702,device,API Bulk 702,api_import,prod,SN702\n",
+            encoding="utf-8",
+        )
+        app.security_service.bootstrap_token(
+            BootstrapTokenCommand(
+                tenant_id="default",
+                actor="pytest",
+                subject="api-bulk-import-admin",
+                roles=("sot:operator",),
+                token=token,
+            )
+        )
+        server = OpenInfraThreadingServer(("127.0.0.1", 0), app)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base_url = f"http://127.0.0.1:{server.server_port}"
+            report = self._post_json(
+                base_url + "/api/v1/imports/bulk-datasets",
+                {
+                    "tenant_id": "default",
+                    "actor": "pytest",
+                    "admin_token": token,
+                    "file_path": str(csv_file),
+                    "format": "csv",
+                    "mapping": {
+                        "key": "asset_key",
+                        "kind": "kind",
+                        "display_name": "name",
+                        "source": "source",
+                        "tags": "tags",
+                        "attributes.serial": "serial",
+                    },
+                    "batch_size": 1,
+                    "checkpoint_interval": 1,
+                    "sample_limit": 5,
+                },
+            )
+            persisted = self._get_json(
+                base_url
+                + "/api/v1/imports/bulk-report?tenant_id=default&job_id="
+                + str(report["job_id"])
+            )
+            checkpoint = self._get_json(
+                base_url
+                + "/api/v1/imports/bulk-checkpoint?tenant_id=default&job_id="
+                + str(report["job_id"])
+            )
+            bad_request = urllib.request.Request(
+                base_url + "/api/v1/imports/bulk-datasets",
+                data=b"{}",
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            try:
+                urllib.request.urlopen(bad_request, timeout=5)
+            except urllib.error.HTTPError as exc:
+                assert exc.code == 400
+
+            assert report["status"] == "validated"
+            assert report["metrics"]["batches_completed"] == 2
+            assert persisted["job_id"] == report["job_id"]
+            assert checkpoint["next_row_number"] == 3
         finally:
             server.shutdown()
             server.server_close()

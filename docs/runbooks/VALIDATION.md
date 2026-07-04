@@ -412,22 +412,25 @@ La v0.23.1 ajoute les contrôles de non-régression suivants :
 - le smoke Docker compare `/api/v1/version` avec `openinfra.__version__` au lieu d’une ancienne version codée en dur ;
 - l’entrypoint API écrit un événement JSON `openinfra_api_started` visible dans stdout et donc dans `docker logs openinfra-api`.
 
-## Contrôles ajoutés en v0.24.0
+## Contrôles ajoutés en v0.25.0
 
-La v0.24.0 ajoute les contrôles P06 / EPIC-0601 suivants :
+La v0.25.0 ajoute les contrôles P06 / EPIC-0602 suivants :
 
 ```bash
 tmpdir="$(mktemp -d)"
-PYTHONPATH=src python -m openinfra.interfaces.cli security bootstrap-admin --data "$tmpdir/state.json" --tenant default --principal import-admin > "$tmpdir/token.json"
-token="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["token"])' "$tmpdir/token.json")"
-printf 'asset_key,kind,name,source,serial\ndevice/srv-001,device,Server 001,csv_import,SN001\n' > "$tmpdir/devices.csv"
-PYTHONPATH=src python -m openinfra.interfaces.cli import dataset --data "$tmpdir/state.json" --tenant default --actor import-admin --admin-token "$token" --file "$tmpdir/devices.csv" --format csv --mapping-json '{"key":"asset_key","kind":"kind","display_name":"name","source":"source","attributes.serial":"serial"}'
-PYTHONPATH=src python -m pytest -q --no-cov tests/unit/test_data_import_domain.py tests/unit/test_import_parsers.py tests/integration/test_import_services.py tests/integration/test_cli_import.py
+token="$(python - <<'PY'
+print("b" * 40)
+PY
+)"
+PYTHONPATH=src python -m openinfra.interfaces.cli security bootstrap-token --data "$tmpdir/state.json" --tenant default --subject bulk-import-admin --role sot:operator --token "$token" >/dev/null
+printf 'asset_key,kind,name,source,serial\ndevice/bulk-001,device,Bulk 001,csv_import,SN001\ndevice/bulk-002,device,Bulk 002,csv_import,SN002\n' > "$tmpdir/bulk.csv"
+PYTHONPATH=src python -m openinfra.interfaces.cli import bulk-dataset --data "$tmpdir/state.json" --tenant default --actor bulk-import-admin --admin-token "$token" --file "$tmpdir/bulk.csv" --format csv --mapping-json '{"key":"asset_key","kind":"kind","display_name":"name","source":"source","attributes.serial":"serial"}' --batch-size 1000 --checkpoint-interval 1000
+PYTHONPATH=src python -m pytest -q --no-cov tests/unit/test_data_import_domain.py tests/unit/test_import_parsers.py tests/integration/test_import_services.py tests/integration/test_cli_import.py tests/integration/test_http_api.py tests/integration/test_postgresql_migration.py
 ```
 
-Les tests vérifient le parsing CSV/JSON/XLSX, le mapping contrôlé vers Source of Truth, le dry-run sans mutation, l’application atomique, la DLQ et la persistance des rapports d’import.
+Les tests vérifient le streaming CSV, les batches bornés, les checkpoints, la reprise, la DLQ, le rapport bulk, la persistance JSON/PostgreSQL et la non-régression de l’import générique atomique livré en v0.24.0.
 
 
-## Documentation API runtime v0.24.0
+## Documentation API runtime v0.25.0
 
 Le point d’entrée `GET /` et `GET /api/v1` publie les liens de documentation `Swagger UI` (`/docs` et `/swagger`), `ReDoc` (`/redoc`) et le contrat OpenAPI YAML (`/openapi.yaml` et `/api/v1/openapi.yaml`). Les smoke tests HTTP vérifient ces routes afin d’éviter une régression de découvrabilité API.

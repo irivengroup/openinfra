@@ -5,6 +5,7 @@ import json
 import re
 import zipfile
 from pathlib import Path
+from collections.abc import Iterator
 from typing import Any
 from xml.etree import ElementTree
 
@@ -16,13 +17,19 @@ class ImportDatasetParser:
     _MAX_BYTES = 50 * 1024 * 1024
 
     def parse(self, path: Path, import_format: ImportFormat) -> tuple[dict[str, str], ...]:
+        return tuple(self.iter_rows(path, import_format))
+
+    def iter_rows(self, path: Path, import_format: ImportFormat) -> Iterator[dict[str, str]]:
         self._assert_safe_file(path)
         if import_format == ImportFormat.CSV:
-            return self._parse_csv(path)
+            yield from self._iter_csv(path)
+            return
         if import_format == ImportFormat.JSON:
-            return self._parse_json(path)
+            yield from self._parse_json(path)
+            return
         if import_format == ImportFormat.XLSX:
-            return self._parse_xlsx(path)
+            yield from self._parse_xlsx(path)
+            return
         raise ValidationError("unsupported import format")
 
     def _assert_safe_file(self, path: Path) -> None:
@@ -35,11 +42,15 @@ class ImportDatasetParser:
             raise ValidationError("import file exceeds 50 MiB limit")
 
     def _parse_csv(self, path: Path) -> tuple[dict[str, str], ...]:
+        return tuple(self._iter_csv(path))
+
+    def _iter_csv(self, path: Path) -> Iterator[dict[str, str]]:
         with path.open("r", encoding="utf-8-sig", newline="") as handle:
             reader = csv.DictReader(handle)
             if not reader.fieldnames:
                 raise ValidationError("CSV import requires a header row")
-            return tuple(self._normalize_row(row) for row in reader)
+            for row in reader:
+                yield self._normalize_row(row)
 
     def _parse_json(self, path: Path) -> tuple[dict[str, str], ...]:
         payload = json.loads(path.read_text(encoding="utf-8"))

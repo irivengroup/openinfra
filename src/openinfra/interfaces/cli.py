@@ -39,7 +39,7 @@ from openinfra.application.dcim_services import (
     TraceDcimCableCommand,
     VerifyEquipmentScanCommand,
 )
-from openinfra.application.import_services import ImportDatasetCommand
+from openinfra.application.import_services import BulkImportDatasetCommand, ImportDatasetCommand
 from openinfra.application.identity_services import (
     AddUserToGroupCommand,
     CreateGroupCommand,
@@ -399,11 +399,45 @@ class OpenInfraCLI:
         dataset.add_argument("--batch-size", type=int, default=500)
         dataset.set_defaults(handler=self._handle_import_dataset)
 
+        bulk_dataset = import_subparsers.add_parser(
+            "bulk-dataset",
+            help="stream and apply a massive mapped CSV, JSON or XLSX dataset with checkpoints",
+        )
+        self._add_backend_arguments(bulk_dataset)
+        bulk_dataset.add_argument("--tenant", required=True)
+        bulk_dataset.add_argument("--actor", default="cli")
+        bulk_dataset.add_argument("--admin-token", required=True)
+        bulk_dataset.add_argument("--file", type=Path, required=True)
+        bulk_dataset.add_argument("--format", choices=("csv", "json", "xlsx"), required=True)
+        bulk_dataset.add_argument("--mapping-json", required=True)
+        bulk_dataset.add_argument("--apply", action="store_true")
+        bulk_dataset.add_argument("--batch-size", type=int, default=5_000)
+        bulk_dataset.add_argument("--checkpoint-interval", type=int, default=25_000)
+        bulk_dataset.add_argument("--resume-job-id")
+        bulk_dataset.add_argument("--sample-limit", type=int, default=100)
+        bulk_dataset.set_defaults(handler=self._handle_import_bulk_dataset)
+
         report = import_subparsers.add_parser("report", help="read a persisted import report")
         self._add_backend_arguments(report)
         report.add_argument("--tenant", required=True)
         report.add_argument("--job-id", required=True)
         report.set_defaults(handler=self._handle_import_report)
+
+        bulk_report = import_subparsers.add_parser(
+            "bulk-report", help="read a persisted bulk import report"
+        )
+        self._add_backend_arguments(bulk_report)
+        bulk_report.add_argument("--tenant", required=True)
+        bulk_report.add_argument("--job-id", required=True)
+        bulk_report.set_defaults(handler=self._handle_import_bulk_report)
+
+        bulk_checkpoint = import_subparsers.add_parser(
+            "bulk-checkpoint", help="read the latest checkpoint for a bulk import job"
+        )
+        self._add_backend_arguments(bulk_checkpoint)
+        bulk_checkpoint.add_argument("--tenant", required=True)
+        bulk_checkpoint.add_argument("--job-id", required=True)
+        bulk_checkpoint.set_defaults(handler=self._handle_import_bulk_checkpoint)
 
     def _add_sot_commands(self, subparsers: Any) -> None:
         sot = subparsers.add_parser("sot", help="source of truth objects and relations")
@@ -1440,6 +1474,38 @@ class OpenInfraCLI:
         app = self._create_application(args)
         report = app.import_service.get_report(args.tenant, args.job_id)
         print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_import_bulk_dataset(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        report = app.import_service.bulk_import_dataset(
+            BulkImportDatasetCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                file_path=args.file,
+                format=args.format,
+                mapping_json=args.mapping_json,
+                dry_run=not bool(args.apply),
+                batch_size=args.batch_size,
+                checkpoint_interval=args.checkpoint_interval,
+                resume_job_id=args.resume_job_id,
+                sample_limit=args.sample_limit,
+            )
+        )
+        print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_import_bulk_report(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        report = app.import_service.get_bulk_report(args.tenant, args.job_id)
+        print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_import_bulk_checkpoint(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        checkpoint = app.import_service.get_bulk_checkpoint(args.tenant, args.job_id)
+        print(json.dumps(checkpoint.as_dict(), indent=2, sort_keys=True))
         return 0
 
     def _handle_sot_upsert_object(self, args: argparse.Namespace) -> int:

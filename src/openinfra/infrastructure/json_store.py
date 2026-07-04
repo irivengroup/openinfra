@@ -49,6 +49,9 @@ from openinfra.domain.common import (
     ValidationError,
 )
 from openinfra.domain.data_import import (
+    BulkImportCheckpoint,
+    BulkImportMetrics,
+    BulkImportReport,
     ImportFormat,
     ImportJobStatus,
     ImportMapping,
@@ -221,6 +224,8 @@ class JsonDocumentStore:
             "source_relations": {},
             "source_governance_rules": {},
             "import_jobs": {},
+            "bulk_import_jobs": {},
+            "bulk_import_checkpoints": {},
         }
 
 
@@ -230,7 +235,9 @@ class JsonImportRepository(ImportRepository):
 
     def save_import_report(self, report: ImportReport) -> None:
         with self._store.lock:
-            self._store.data["import_jobs"][self._key(report.tenant_id, report.job_id.value)] = report.as_dict()
+            self._store.data["import_jobs"][
+                self._key(report.tenant_id, report.job_id.value)
+            ] = report.as_dict()
             self._store.mark_dirty()
 
     def get_import_report(self, tenant_id: TenantId, job_id: str) -> ImportReport | None:
@@ -242,6 +249,44 @@ class JsonImportRepository(ImportRepository):
 
     def _key(self, tenant_id: TenantId, job_id: str) -> str:
         return tenant_id.value + ":" + job_id.strip()
+
+
+    def save_bulk_import_report(self, report: BulkImportReport) -> None:
+        with self._store.lock:
+            self._store.data["bulk_import_jobs"][
+                self._key(report.tenant_id, report.job_id.value)
+            ] = report.as_dict()
+            self._store.mark_dirty()
+
+    def get_bulk_import_report(
+        self, tenant_id: TenantId, job_id: str
+    ) -> BulkImportReport | None:
+        with self._store.lock:
+            payload = self._store.data["bulk_import_jobs"].get(self._key(tenant_id, job_id))
+            if payload is None:
+                return None
+            return self._bulk_report_from_payload(payload)
+
+    def save_bulk_import_checkpoint(self, checkpoint: BulkImportCheckpoint) -> None:
+        with self._store.lock:
+            self._store.data["bulk_import_checkpoints"][
+                self._key(checkpoint.tenant_id, checkpoint.job_id.value)
+            ] = checkpoint.as_dict()
+            self._store.mark_dirty()
+
+    def get_bulk_import_checkpoint(
+        self, tenant_id: TenantId, job_id: str
+    ) -> BulkImportCheckpoint | None:
+        with self._store.lock:
+            payload = self._store.data["bulk_import_checkpoints"].get(
+                self._key(tenant_id, job_id)
+            )
+            if payload is None:
+                return None
+            return self._checkpoint_from_payload(payload)
+
+    def bulk_import_strategy_name(self) -> str:
+        return "json-streaming-batch-checkpoint"
 
     def _report_from_payload(self, payload: dict[str, object]) -> ImportReport:
         mapping_payload = payload.get("mapping", {})
@@ -280,6 +325,84 @@ class JsonImportRepository(ImportRepository):
             total_rows=int(payload["total_rows"]),
             impacts=impacts,
             dlq=issues,
+            status=ImportJobStatus(str(payload["status"])),
+            job_id=EntityId.from_value(str(payload["job_id"])),
+        )
+
+
+    def _bulk_report_from_payload(self, payload: dict[str, object]) -> BulkImportReport:
+        mapping_payload = payload.get("mapping", {})
+        metrics_payload = payload.get("metrics", {})
+        checkpoint_payload = payload.get("checkpoint", {})
+        impacts_payload = payload.get("impact_sample", [])
+        dlq_payload = payload.get("dlq_sample", [])
+        if not isinstance(mapping_payload, dict):
+            raise ValidationError("stored bulk import mapping is invalid")
+        if not isinstance(metrics_payload, dict) or not isinstance(checkpoint_payload, dict):
+            raise ValidationError("stored bulk import metrics are invalid")
+        if not isinstance(impacts_payload, list) or not isinstance(dlq_payload, list):
+            raise ValidationError("stored bulk import samples are invalid")
+        mapping = ImportMapping.from_dict({str(k): str(v) for k, v in mapping_payload.items()})
+        metrics = BulkImportMetrics.create(
+            batch_size=int(metrics_payload["batch_size"]),
+            checkpoint_interval=int(metrics_payload["checkpoint_interval"]),
+            batches_completed=int(metrics_payload["batches_completed"]),
+            copy_strategy=str(metrics_payload["copy_strategy"]),
+            resumed_from_row=(
+                None
+                if metrics_payload.get("resumed_from_row") is None
+                else int(metrics_payload["resumed_from_row"])
+            ),
+        )
+        checkpoint = self._checkpoint_from_payload(checkpoint_payload)
+        impacts = tuple(
+            ImportRowImpact.create(
+                int(item["row_number"]),
+                str(item["action"]),
+                str(item["object_key"]),
+                str(item["object_kind"]),
+            )
+            for item in impacts_payload
+            if isinstance(item, dict)
+        )
+        issues = tuple(
+            ImportRowIssue.create(
+                int(item["row_number"]),
+                str(item["field"]),
+                str(item["message"]),
+                Severity(str(item["severity"])),
+            )
+            for item in dlq_payload
+            if isinstance(item, dict)
+        )
+        return BulkImportReport.create(
+            tenant_id=TenantId.from_value(str(payload["tenant_id"])),
+            import_format=ImportFormat.from_value(str(payload["format"])),
+            dry_run=bool(payload["dry_run"]),
+            status=ImportJobStatus(str(payload["status"])),
+            total_rows=int(payload["total_rows"]),
+            valid_rows=int(payload["valid_rows"]),
+            invalid_rows=int(payload["invalid_rows"]),
+            create_count=int(payload["create_count"]),
+            update_count=int(payload["update_count"]),
+            mapping=mapping,
+            metrics=metrics,
+            checkpoint=checkpoint,
+            impact_sample=impacts,
+            dlq_sample=issues,
+            job_id=EntityId.from_value(str(payload["job_id"])),
+        )
+
+    def _checkpoint_from_payload(self, payload: dict[str, object]) -> BulkImportCheckpoint:
+        return BulkImportCheckpoint.create(
+            tenant_id=TenantId.from_value(str(payload["tenant_id"])),
+            next_row_number=int(payload["next_row_number"]),
+            total_rows=int(payload["total_rows"]),
+            valid_rows=int(payload["valid_rows"]),
+            invalid_rows=int(payload["invalid_rows"]),
+            create_count=int(payload["create_count"]),
+            update_count=int(payload["update_count"]),
+            batches_completed=int(payload["batches_completed"]),
             status=ImportJobStatus(str(payload["status"])),
             job_id=EntityId.from_value(str(payload["job_id"])),
         )
@@ -335,6 +458,10 @@ class JsonReadinessProbe(ReadinessProbe):
                     "source_objects",
                     "source_object_snapshots",
                     "source_relations",
+                    "source_governance_rules",
+                    "import_jobs",
+                    "bulk_import_jobs",
+                    "bulk_import_checkpoints",
                 )
             )
         detail = (

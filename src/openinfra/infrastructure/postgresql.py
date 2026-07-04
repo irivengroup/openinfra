@@ -51,6 +51,9 @@ from openinfra.domain.common import (
     ValidationError,
 )
 from openinfra.domain.data_import import (
+    BulkImportCheckpoint,
+    BulkImportMetrics,
+    BulkImportReport,
     ImportFormat,
     ImportJobStatus,
     ImportMapping,
@@ -3029,6 +3032,118 @@ class PostgreSQLImportRepository(PostgreSQLRepositoryBase, ImportRepository):
             return None
         return self._report_from_row(row)
 
+
+    def save_bulk_import_report(self, report: BulkImportReport) -> None:
+        self._ensure_tenant(report.tenant_id)
+        payload = report.as_dict()
+        self._execute_without_result(
+            """
+            INSERT INTO bulk_import_jobs (
+                id, tenant_id, import_format, dry_run, status, total_rows, valid_rows,
+                invalid_rows, create_count, update_count, mapping, metrics, checkpoint,
+                impact_sample, dlq_sample, created_at, updated_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(import_format)s, %(dry_run)s, %(status)s,
+                %(total_rows)s, %(valid_rows)s, %(invalid_rows)s, %(create_count)s,
+                %(update_count)s, %(mapping)s, %(metrics)s, %(checkpoint)s,
+                %(impact_sample)s, %(dlq_sample)s, now(), now()
+            )
+            ON CONFLICT (tenant_id, id) DO UPDATE SET
+                dry_run = EXCLUDED.dry_run,
+                status = EXCLUDED.status,
+                total_rows = EXCLUDED.total_rows,
+                valid_rows = EXCLUDED.valid_rows,
+                invalid_rows = EXCLUDED.invalid_rows,
+                create_count = EXCLUDED.create_count,
+                update_count = EXCLUDED.update_count,
+                mapping = EXCLUDED.mapping,
+                metrics = EXCLUDED.metrics,
+                checkpoint = EXCLUDED.checkpoint,
+                impact_sample = EXCLUDED.impact_sample,
+                dlq_sample = EXCLUDED.dlq_sample,
+                updated_at = now()
+            """,
+            {
+                "id": report.job_id.value,
+                "tenant_id": report.tenant_id.value,
+                "import_format": report.format.value,
+                "dry_run": report.dry_run,
+                "status": report.status.value,
+                "total_rows": report.total_rows,
+                "valid_rows": report.valid_rows,
+                "invalid_rows": report.invalid_rows,
+                "create_count": report.create_count,
+                "update_count": report.update_count,
+                "mapping": json.dumps(payload["mapping"], sort_keys=True),
+                "metrics": json.dumps(payload["metrics"], sort_keys=True),
+                "checkpoint": json.dumps(payload["checkpoint"], sort_keys=True),
+                "impact_sample": json.dumps(payload["impact_sample"], sort_keys=True),
+                "dlq_sample": json.dumps(payload["dlq_sample"], sort_keys=True),
+            },
+        )
+
+    def get_bulk_import_report(
+        self, tenant_id: TenantId, job_id: str
+    ) -> BulkImportReport | None:
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, import_format, dry_run, status, total_rows, valid_rows,
+                   invalid_rows, create_count, update_count, mapping, metrics, checkpoint,
+                   impact_sample, dlq_sample
+            FROM bulk_import_jobs
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s
+            """,
+            {"tenant_id": tenant_id.value, "id": job_id.strip()},
+        )
+        if row is None:
+            return None
+        return self._bulk_report_from_row(row)
+
+    def save_bulk_import_checkpoint(self, checkpoint: BulkImportCheckpoint) -> None:
+        self._ensure_tenant(checkpoint.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO bulk_import_checkpoints (
+                job_id, tenant_id, next_row_number, total_rows, valid_rows, invalid_rows,
+                create_count, update_count, batches_completed, status, updated_at
+            ) VALUES (
+                %(job_id)s, %(tenant_id)s, %(next_row_number)s, %(total_rows)s,
+                %(valid_rows)s, %(invalid_rows)s, %(create_count)s, %(update_count)s,
+                %(batches_completed)s, %(status)s, now()
+            )
+            ON CONFLICT (tenant_id, job_id) DO UPDATE SET
+                next_row_number = EXCLUDED.next_row_number,
+                total_rows = EXCLUDED.total_rows,
+                valid_rows = EXCLUDED.valid_rows,
+                invalid_rows = EXCLUDED.invalid_rows,
+                create_count = EXCLUDED.create_count,
+                update_count = EXCLUDED.update_count,
+                batches_completed = EXCLUDED.batches_completed,
+                status = EXCLUDED.status,
+                updated_at = now()
+            """,
+            checkpoint.as_dict(),
+        )
+
+    def get_bulk_import_checkpoint(
+        self, tenant_id: TenantId, job_id: str
+    ) -> BulkImportCheckpoint | None:
+        row = self._fetch_one(
+            """
+            SELECT job_id, tenant_id, next_row_number, total_rows, valid_rows, invalid_rows,
+                   create_count, update_count, batches_completed, status
+            FROM bulk_import_checkpoints
+            WHERE tenant_id = %(tenant_id)s AND job_id = %(job_id)s
+            """,
+            {"tenant_id": tenant_id.value, "job_id": job_id.strip()},
+        )
+        if row is None:
+            return None
+        return self._checkpoint_from_row(row)
+
+    def bulk_import_strategy_name(self) -> str:
+        return "postgresql-bounded-batch-copy-eligible"
+
     def _report_from_row(self, row: Mapping[str, object]) -> ImportReport:
         mapping_payload = self._json_object(row["mapping"])
         impacts_payload = self._json_list(row["impacts"])
@@ -3064,6 +3179,83 @@ class PostgreSQLImportRepository(PostgreSQLRepositoryBase, ImportRepository):
             dlq=issues,
             status=ImportJobStatus(str(row["status"])),
             job_id=EntityId.from_value(str(row["id"])),
+        )
+
+
+    def _bulk_report_from_row(self, row: Mapping[str, object]) -> BulkImportReport:
+        mapping_payload = self._json_object(row["mapping"])
+        metrics_payload = self._json_object(row["metrics"])
+        checkpoint_payload = self._json_object(row["checkpoint"])
+        impacts_payload = self._json_list(row["impact_sample"])
+        dlq_payload = self._json_list(row["dlq_sample"])
+        mapping = ImportMapping.from_dict(
+            {str(key): str(value) for key, value in mapping_payload.items()}
+        )
+        metrics = BulkImportMetrics.create(
+            batch_size=int(metrics_payload["batch_size"]),
+            checkpoint_interval=int(metrics_payload["checkpoint_interval"]),
+            batches_completed=int(metrics_payload["batches_completed"]),
+            copy_strategy=str(metrics_payload["copy_strategy"]),
+            resumed_from_row=(
+                None
+                if metrics_payload.get("resumed_from_row") is None
+                else int(metrics_payload["resumed_from_row"])
+            ),
+        )
+        checkpoint = self._checkpoint_from_row(checkpoint_payload)
+        impacts = tuple(
+            ImportRowImpact.create(
+                int(item["row_number"]),
+                str(item["action"]),
+                str(item["object_key"]),
+                str(item["object_kind"]),
+            )
+            for item in impacts_payload
+            if isinstance(item, dict)
+        )
+        issues = tuple(
+            ImportRowIssue.create(
+                int(item["row_number"]),
+                str(item["field"]),
+                str(item["message"]),
+                Severity(str(item["severity"])),
+            )
+            for item in dlq_payload
+            if isinstance(item, dict)
+        )
+        return BulkImportReport.create(
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            import_format=ImportFormat.from_value(str(row["import_format"])),
+            dry_run=bool(row["dry_run"]),
+            status=ImportJobStatus(str(row["status"])),
+            total_rows=int(row["total_rows"]),
+            valid_rows=int(row["valid_rows"]),
+            invalid_rows=int(row["invalid_rows"]),
+            create_count=int(row["create_count"]),
+            update_count=int(row["update_count"]),
+            mapping=mapping,
+            metrics=metrics,
+            checkpoint=checkpoint,
+            impact_sample=impacts,
+            dlq_sample=issues,
+            job_id=EntityId.from_value(str(row["id"])),
+        )
+
+    def _checkpoint_from_row(self, row: Mapping[str, object]) -> BulkImportCheckpoint:
+        job_value = row.get("job_id", row.get("id"))
+        if job_value is None:
+            raise ValidationError("stored bulk import checkpoint job id is invalid")
+        return BulkImportCheckpoint.create(
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            next_row_number=int(row["next_row_number"]),
+            total_rows=int(row["total_rows"]),
+            valid_rows=int(row["valid_rows"]),
+            invalid_rows=int(row["invalid_rows"]),
+            create_count=int(row["create_count"]),
+            update_count=int(row["update_count"]),
+            batches_completed=int(row["batches_completed"]),
+            status=ImportJobStatus(str(row["status"])),
+            job_id=EntityId.from_value(str(job_value)),
         )
 
     def _json_object(self, value: object) -> dict[str, object]:

@@ -156,3 +156,15 @@ def test_parser_edge_cases_for_empty_csv_and_blank_xlsx(tmp_path: Path) -> None:
 </sheetData></worksheet>""",
         )
     assert ImportDatasetParser().parse(gap, ImportFormat.XLSX) == ({"name": "Gap Server"},)
+
+
+def test_csv_iter_rows_streams_without_materializing_tuple(tmp_path: Path) -> None:
+    path = tmp_path / "stream.csv"
+    path.write_text("name\nsrv-1\nsrv-2\n", encoding="utf-8")
+
+    iterator = ImportDatasetParser().iter_rows(path, ImportFormat.CSV)
+
+    assert next(iterator) == {"name": "srv-1"}
+    assert next(iterator) == {"name": "srv-2"}
+    with pytest.raises(StopIteration):
+        next(iterator)

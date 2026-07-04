@@ -132,7 +132,10 @@ class ImportRowImpact:
         normalized_action = action.strip().lower()
         if normalized_action not in {"create", "update"}:
             raise ValidationError("import impact action must be create or update")
-        SourceObjectKind(object_kind.strip().lower())
+        try:
+            SourceObjectKind(object_kind.strip().lower())
+        except ValueError as exc:
+            raise ValidationError("import impact object kind is invalid") from exc
         if row_number < 1:
             raise ValidationError("import impact row number must be positive")
         if not object_key.strip():
@@ -174,7 +177,10 @@ class ImportCandidate:
         tags: tuple[str, ...],
         attributes: dict[str, object],
     ) -> Self:
-        SourceObjectKind(kind.strip().lower())
+        try:
+            SourceObjectKind(kind.strip().lower())
+        except ValueError as exc:
+            raise ValidationError("import candidate object kind is invalid") from exc
         SourceSystem.from_value(source)
         json.dumps(attributes, sort_keys=True)
         if row_number < 1:
@@ -254,4 +260,214 @@ class ImportReport:
             "mapping": self.mapping.as_dict(),
             "impacts": [impact.as_dict() for impact in self.impacts],
             "dlq": [issue.as_dict() for issue in self.dlq],
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class BulkImportCheckpoint:
+    job_id: EntityId
+    tenant_id: TenantId
+    next_row_number: int
+    total_rows: int
+    valid_rows: int
+    invalid_rows: int
+    create_count: int
+    update_count: int
+    batches_completed: int
+    status: ImportJobStatus
+
+    @classmethod
+    def create(
+        cls,
+        tenant_id: TenantId,
+        next_row_number: int,
+        total_rows: int,
+        valid_rows: int,
+        invalid_rows: int,
+        create_count: int,
+        update_count: int,
+        batches_completed: int,
+        status: ImportJobStatus,
+        job_id: EntityId | None = None,
+    ) -> Self:
+        if next_row_number < 1:
+            raise ValidationError("bulk import checkpoint next row must be positive")
+        for field_name, value in (
+            ("total rows", total_rows),
+            ("valid rows", valid_rows),
+            ("invalid rows", invalid_rows),
+            ("create count", create_count),
+            ("update count", update_count),
+            ("batches completed", batches_completed),
+        ):
+            if value < 0:
+                raise ValidationError("bulk import checkpoint " + field_name + " cannot be negative")
+        if valid_rows + invalid_rows != total_rows:
+            raise ValidationError("bulk import checkpoint row counters are inconsistent")
+        if create_count + update_count > valid_rows:
+            raise ValidationError("bulk import checkpoint impact counters exceed valid rows")
+        return cls(
+            job_id=job_id or EntityId.new(),
+            tenant_id=tenant_id,
+            next_row_number=next_row_number,
+            total_rows=total_rows,
+            valid_rows=valid_rows,
+            invalid_rows=invalid_rows,
+            create_count=create_count,
+            update_count=update_count,
+            batches_completed=batches_completed,
+            status=status,
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "job_id": self.job_id.value,
+            "tenant_id": self.tenant_id.value,
+            "next_row_number": self.next_row_number,
+            "total_rows": self.total_rows,
+            "valid_rows": self.valid_rows,
+            "invalid_rows": self.invalid_rows,
+            "create_count": self.create_count,
+            "update_count": self.update_count,
+            "batches_completed": self.batches_completed,
+            "status": self.status.value,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class BulkImportMetrics:
+    batch_size: int
+    checkpoint_interval: int
+    batches_completed: int
+    copy_strategy: str
+    resumed_from_row: int | None = None
+
+    @classmethod
+    def create(
+        cls,
+        batch_size: int,
+        checkpoint_interval: int,
+        batches_completed: int,
+        copy_strategy: str,
+        resumed_from_row: int | None = None,
+    ) -> Self:
+        if not 1 <= batch_size <= 100_000:
+            raise ValidationError("bulk import batch size must be between 1 and 100000")
+        if not 1 <= checkpoint_interval <= 1_000_000:
+            raise ValidationError("bulk import checkpoint interval must be between 1 and 1000000")
+        if batches_completed < 0:
+            raise ValidationError("bulk import batches completed cannot be negative")
+        normalized_strategy = " ".join(copy_strategy.strip().split())
+        if not normalized_strategy:
+            raise ValidationError("bulk import copy strategy is mandatory")
+        if resumed_from_row is not None and resumed_from_row < 1:
+            raise ValidationError("bulk import resumed row must be positive")
+        return cls(
+            batch_size=batch_size,
+            checkpoint_interval=checkpoint_interval,
+            batches_completed=batches_completed,
+            copy_strategy=normalized_strategy,
+            resumed_from_row=resumed_from_row,
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "batch_size": self.batch_size,
+            "checkpoint_interval": self.checkpoint_interval,
+            "batches_completed": self.batches_completed,
+            "copy_strategy": self.copy_strategy,
+            "resumed_from_row": self.resumed_from_row,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class BulkImportReport:
+    job_id: EntityId
+    tenant_id: TenantId
+    format: ImportFormat
+    dry_run: bool
+    status: ImportJobStatus
+    total_rows: int
+    valid_rows: int
+    invalid_rows: int
+    create_count: int
+    update_count: int
+    mapping: ImportMapping
+    metrics: BulkImportMetrics
+    checkpoint: BulkImportCheckpoint
+    impact_sample: tuple[ImportRowImpact, ...]
+    dlq_sample: tuple[ImportRowIssue, ...]
+
+    @classmethod
+    def create(
+        cls,
+        tenant_id: TenantId,
+        import_format: ImportFormat,
+        dry_run: bool,
+        status: ImportJobStatus,
+        total_rows: int,
+        valid_rows: int,
+        invalid_rows: int,
+        create_count: int,
+        update_count: int,
+        mapping: ImportMapping,
+        metrics: BulkImportMetrics,
+        checkpoint: BulkImportCheckpoint,
+        impact_sample: tuple[ImportRowImpact, ...],
+        dlq_sample: tuple[ImportRowIssue, ...],
+        job_id: EntityId | None = None,
+    ) -> Self:
+        for field_name, value in (
+            ("total rows", total_rows),
+            ("valid rows", valid_rows),
+            ("invalid rows", invalid_rows),
+            ("create count", create_count),
+            ("update count", update_count),
+        ):
+            if value < 0:
+                raise ValidationError("bulk import " + field_name + " cannot be negative")
+        if valid_rows + invalid_rows != total_rows:
+            raise ValidationError("bulk import row counters are inconsistent")
+        if create_count + update_count > valid_rows:
+            raise ValidationError("bulk import impact counters exceed valid rows")
+        resolved_job_id = job_id or checkpoint.job_id
+        if checkpoint.job_id != resolved_job_id:
+            raise ValidationError("bulk import report checkpoint job mismatch")
+        if checkpoint.tenant_id != tenant_id:
+            raise ValidationError("bulk import report checkpoint tenant mismatch")
+        return cls(
+            job_id=resolved_job_id,
+            tenant_id=tenant_id,
+            format=import_format,
+            dry_run=bool(dry_run),
+            status=status,
+            total_rows=total_rows,
+            valid_rows=valid_rows,
+            invalid_rows=invalid_rows,
+            create_count=create_count,
+            update_count=update_count,
+            mapping=mapping,
+            metrics=metrics,
+            checkpoint=checkpoint,
+            impact_sample=impact_sample,
+            dlq_sample=dlq_sample,
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "job_id": self.job_id.value,
+            "tenant_id": self.tenant_id.value,
+            "format": self.format.value,
+            "dry_run": self.dry_run,
+            "status": self.status.value,
+            "total_rows": self.total_rows,
+            "valid_rows": self.valid_rows,
+            "invalid_rows": self.invalid_rows,
+            "create_count": self.create_count,
+            "update_count": self.update_count,
+            "mapping": self.mapping.as_dict(),
+            "metrics": self.metrics.as_dict(),
+            "checkpoint": self.checkpoint.as_dict(),
+            "impact_sample": [impact.as_dict() for impact in self.impact_sample],
+            "dlq_sample": [issue.as_dict() for issue in self.dlq_sample],
         }

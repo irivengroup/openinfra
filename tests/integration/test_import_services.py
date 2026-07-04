@@ -8,12 +8,12 @@ from typing import Any
 import pytest
 
 from openinfra.application.container import ApplicationFactory
-from openinfra.application.import_services import ImportDatasetCommand
+from openinfra.application.import_services import BulkImportDatasetCommand, ImportDatasetCommand
 from openinfra.application.security_services import BootstrapTokenCommand
 from openinfra.application.source_of_truth_services import GetSourceObjectCommand
-from openinfra.domain.common import NotFoundError, ValidationError
+from openinfra.domain.common import NotFoundError, TenantId, ValidationError
 from openinfra.infrastructure.import_parsers import ImportDatasetParser
-from openinfra.domain.data_import import ImportFormat
+from openinfra.domain.data_import import BulkImportCheckpoint, ImportFormat, ImportJobStatus
 
 
 _MAPPING = json.dumps(
@@ -256,3 +256,246 @@ def test_import_service_rejects_limits_and_reports_row_mapping_errors(tmp_path: 
     messages = [issue.message for issue in report.dlq]
     assert "missing source column: missing_tags" in messages
     assert report.status.value == "failed"
+
+
+def test_bulk_import_streams_batches_checkpoints_and_persists_report(tmp_path: Path) -> None:
+    app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+    token = _bootstrap(app)
+    csv_file = tmp_path / "bulk-devices.csv"
+    csv_file.write_text(
+        "asset_key,kind,name,source,tags,serial,critical\n"
+        "device/bulk-001,device,Bulk 001,csv_import,prod,SN001,true\n"
+        "device/bulk-002,device,Bulk 002,csv_import,prod,SN002,true\n"
+        ",device,Bulk Missing,csv_import,prod,SN003,true\n"
+        "device/bulk-004,device,Bulk 004,csv_import,prod,SN004,false\n"
+        "device/bulk-005,device,Bulk 005,csv_import,prod,SN005,false\n",
+        encoding="utf-8",
+    )
+
+    report = app.import_service.bulk_import_dataset(
+        BulkImportDatasetCommand(
+            tenant_id="default",
+            actor="pytest",
+            admin_token=token,
+            file_path=csv_file,
+            format="csv",
+            mapping_json=_MAPPING,
+            dry_run=False,
+            batch_size=2,
+            checkpoint_interval=2,
+            sample_limit=2,
+        )
+    )
+
+    persisted = app.import_service.get_bulk_report("default", report.job_id.value)
+    checkpoint = app.import_service.get_bulk_checkpoint("default", report.job_id.value)
+    created = app.source_of_truth_service.get_object(
+        GetSourceObjectCommand("default", token, "device/bulk-004")
+    )
+
+    assert report.status.value == "failed"
+    assert report.total_rows == 5
+    assert report.valid_rows == 4
+    assert report.invalid_rows == 1
+    assert report.metrics.batch_size == 2
+    assert report.metrics.batches_completed == 2
+    assert report.metrics.copy_strategy == "json-streaming-batch-checkpoint"
+    assert report.checkpoint.next_row_number == 6
+    assert len(report.impact_sample) == 2
+    assert len(report.dlq_sample) == 1
+    assert persisted.as_dict() == report.as_dict()
+    assert checkpoint.next_row_number == 6
+    assert created["attributes"]["serial"] == "SN004"
+
+
+def test_bulk_import_resume_skips_rows_before_checkpoint(tmp_path: Path) -> None:
+    app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+    token = _bootstrap(app)
+    csv_file = tmp_path / "resume.csv"
+    csv_file.write_text(
+        "asset_key,kind,name,source,tags,serial,critical\n"
+        "device/resume-001,device,Resume 001,csv_import,prod,SN001,true\n"
+        "device/resume-002,device,Resume 002,csv_import,prod,SN002,true\n"
+        "device/resume-003,device,Resume 003,csv_import,prod,SN003,false\n"
+        "device/resume-004,device,Resume 004,csv_import,prod,SN004,false\n",
+        encoding="utf-8",
+    )
+    checkpoint = BulkImportCheckpoint.create(
+        tenant_id=TenantId.from_value("default"),
+        next_row_number=3,
+        total_rows=2,
+        valid_rows=2,
+        invalid_rows=0,
+        create_count=2,
+        update_count=0,
+        batches_completed=1,
+        status=ImportJobStatus.QUEUED,
+    )
+    app.import_repository.save_bulk_import_checkpoint(checkpoint)
+
+    report = app.import_service.bulk_import_dataset(
+        BulkImportDatasetCommand(
+            tenant_id="default",
+            actor="pytest",
+            admin_token=token,
+            file_path=csv_file,
+            format="csv",
+            mapping_json=_MAPPING,
+            dry_run=True,
+            batch_size=2,
+            checkpoint_interval=2,
+            resume_job_id=checkpoint.job_id.value,
+            sample_limit=10,
+        )
+    )
+
+    assert report.job_id == checkpoint.job_id
+    assert report.total_rows == 4
+    assert report.valid_rows == 4
+    assert report.metrics.resumed_from_row == 3
+    assert [impact.row_number for impact in report.impact_sample] == [3, 4]
+
+
+def test_bulk_import_rejects_invalid_controls(tmp_path: Path) -> None:
+    app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+    token = _bootstrap(app)
+    csv_file = tmp_path / "one.csv"
+    csv_file.write_text(
+        "asset_key,kind,name,source,tags,serial,critical\n"
+        "device/one,device,One,csv_import,prod,SN001,true\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValidationError, match="batch size"):
+        app.import_service.bulk_import_dataset(
+            BulkImportDatasetCommand(
+                "default", "pytest", token, csv_file, "csv", _MAPPING, True, 0
+            )
+        )
+    with pytest.raises(ValidationError, match="checkpoint interval"):
+        app.import_service.bulk_import_dataset(
+            BulkImportDatasetCommand(
+                "default", "pytest", token, csv_file, "csv", _MAPPING, True, 10, 0
+            )
+        )
+    with pytest.raises(ValidationError, match="sample limit"):
+        app.import_service.bulk_import_dataset(
+            BulkImportDatasetCommand(
+                "default", "pytest", token, csv_file, "csv", _MAPPING, True, 10, 10, None, -1
+            )
+        )
+
+
+def test_bulk_import_update_resume_errors_limits_and_mapping_edges(tmp_path: Path) -> None:
+    app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+    token = _bootstrap(app)
+    csv_file = tmp_path / "update.csv"
+    csv_file.write_text(
+        "asset_key,kind,name,source,tags,serial,critical\n"
+        "device/bulk-update-1,device,Bulk Update 1,csv_import,prod,SN1,true\n",
+        encoding="utf-8",
+    )
+
+    first = app.import_service.bulk_import_dataset(
+        BulkImportDatasetCommand(
+            "default", "pytest", token, csv_file, "csv", _MAPPING, False, 5, 5, None, 5
+        )
+    )
+    second = app.import_service.bulk_import_dataset(
+        BulkImportDatasetCommand(
+            "default", "pytest", token, csv_file, "csv", _MAPPING, False, 5, 5, None, 5
+        )
+    )
+    assert first.create_count == 1
+    assert second.update_count == 1
+    assert second.metrics.batches_completed == 1
+
+    invalid_mapping = json.dumps(
+        {
+            "key": "asset_key",
+            "kind": "kind",
+            "display_name": "name",
+            "source": "source",
+            "attributes.-bad": "serial",
+        }
+    )
+    invalid_report = app.import_service.bulk_import_dataset(
+        BulkImportDatasetCommand(
+            "default", "pytest", token, csv_file, "csv", invalid_mapping, True, 5, 5, None, 5
+        )
+    )
+    assert invalid_report.invalid_rows == 1
+    assert "invalid attribute key" in invalid_report.dlq_sample[0].message
+
+    invalid_kind = tmp_path / "invalid-kind.csv"
+    invalid_kind.write_text(
+        "asset_key,kind,name,source,tags,serial,critical\n"
+        "device/bad-kind,unknown,Bad,csv_import,prod,SN1,true\n",
+        encoding="utf-8",
+    )
+    report = app.import_service.bulk_import_dataset(
+        BulkImportDatasetCommand(
+            "default", "pytest", token, invalid_kind, "csv", _MAPPING, True, 5, 5, None, 5
+        )
+    )
+    assert report.invalid_rows == 1
+    assert "object kind" in report.dlq_sample[0].message
+
+    with pytest.raises(ValidationError, match="bulk import job not found"):
+        app.import_service.get_bulk_report("default", "00000000-0000-0000-0000-000000000000")
+    with pytest.raises(ValidationError, match="bulk import checkpoint not found"):
+        app.import_service.get_bulk_checkpoint(
+            "default", "00000000-0000-0000-0000-000000000000"
+        )
+    with pytest.raises(ValidationError, match="bulk import checkpoint not found"):
+        app.import_service.bulk_import_dataset(
+            BulkImportDatasetCommand(
+                "default",
+                "pytest",
+                token,
+                csv_file,
+                "csv",
+                _MAPPING,
+                True,
+                5,
+                5,
+                "00000000-0000-0000-0000-000000000000",
+            )
+        )
+
+    applied_checkpoint = BulkImportCheckpoint.create(
+        tenant_id=TenantId.from_value("default"),
+        next_row_number=2,
+        total_rows=1,
+        valid_rows=1,
+        invalid_rows=0,
+        create_count=1,
+        update_count=0,
+        batches_completed=1,
+        status=ImportJobStatus.APPLIED,
+    )
+    app.import_repository.save_bulk_import_checkpoint(applied_checkpoint)
+    with pytest.raises(ValidationError, match="already applied"):
+        app.import_service.bulk_import_dataset(
+            BulkImportDatasetCommand(
+                "default",
+                "pytest",
+                token,
+                csv_file,
+                "csv",
+                _MAPPING,
+                True,
+                5,
+                5,
+                applied_checkpoint.job_id.value,
+            )
+        )
+
+    app.import_service._MAX_ROWS = 0
+    with pytest.raises(ValidationError, match="exceeds"):
+        app.import_service.bulk_import_dataset(
+            BulkImportDatasetCommand(
+                "default", "pytest", token, csv_file, "csv", _MAPPING, True, 5, 5, None, 5
+            )
+        )
+    app.import_service._MAX_ROWS = 1_000_000

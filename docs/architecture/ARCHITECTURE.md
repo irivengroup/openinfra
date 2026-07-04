@@ -261,9 +261,9 @@ Les données pgAdmin4 sont portées par le volume `openinfra-pgadmin-data`; le s
 
 La migration IPAM enterprise aligne désormais le schéma historique `prefixes` créé en `0001` avec le modèle P05 enrichi en ajoutant `family`, son backfill depuis `pg_catalog.family(prefixes.cidr)`, sa contrainte `NOT NULL` et son contrôle IPv4/IPv6 avant l’indexation tenant/VRF/famille/CIDR. Le lab Docker conserve pgAdmin4 avec un identifiant par défaut utilisant un domaine publiquement valide afin d’éviter le rejet des domaines réservés par pgAdmin4.
 
-## v0.23.1 — P05 EPIC-0506 DDI intégration baseline
+## v0.23.0 — P05 EPIC-0506 DDI intégration baseline
 
-La version 0.23.1 termine la séquence P05 par une intégration DDI de base centrée sur la sécurité opérationnelle : une réservation IPAM existante peut produire une prévisualisation DNS/DHCP déterministe pour BIND, PowerDNS et Kea sans appel réseau implicite. Le domaine introduit des changements typés (`DdiChange`), les providers (`DdiProvider`), les divergences (`DdiDivergence`) et une enveloppe de prévisualisation (`DdiReservationPreview`) contenant aussi le plan compensatoire de rollback.
+La version 0.23.0 termine la séquence P05 par une intégration DDI de base centrée sur la sécurité opérationnelle : une réservation IPAM existante peut produire une prévisualisation DNS/DHCP déterministe pour BIND, PowerDNS et Kea sans appel réseau implicite. Le domaine introduit des changements typés (`DdiChange`), les providers (`DdiProvider`), les divergences (`DdiDivergence`) et une enveloppe de prévisualisation (`DdiReservationPreview`) contenant aussi le plan compensatoire de rollback.
 
 Le service applicatif `IpamDdiService` orchestre les connecteurs via le port `DdiConnector`, relit la réservation par clé d’idempotence, normalise FQDN, zone DNS, TTL et MAC DHCP, puis compare le plan attendu aux observations DNS/DHCP déjà connues par IPAM. Les divergences bloquantes (`error` ou `critical`) désactivent `safe_to_apply`, ce qui empêche une intégration silencieuse en présence de conflit forward DNS, PTR ou DHCP.
 
@@ -275,10 +275,13 @@ La version 0.23.1 ajoute une route racine explicite `GET /` et une route d’ent
 
 L’entrypoint `openinfra-api` écrit également un événement JSON unique sur stdout au démarrage. Cette trace reste volontairement minimale et ne contient aucun secret ; elle facilite le diagnostic `docker logs openinfra-api` dans le lab Compose et le suivi systemd en runtime natif.
 
-## v0.24.0 — P06 EPIC-0601 Import framework générique
+## v0.25.0 — P06 EPIC-0602 Import massif scalable
 
-La version 0.24.0 introduit une frontière d’import dédiée sans coupler le parsing aux services métier. Le domaine `data_import` décrit les formats acceptés, le mapping source→cible, les candidats Source of Truth, les impacts et les lignes rejetées. L’application orchestre l’authentification `sot.write`, le parsing, la validation complète, le dry-run et l’application atomique vers `SourceOfTruthService`.
+La version 0.25.0 ajoute une capacité d’import massif sans modifier le contrat atomique du framework générique livré en 0.24.0. L’architecture reste hexagonale : le domaine décrit les rapports bulk, checkpoints et métriques ; l’application orchestre l’autorisation `sot.write`, le parsing streaming, les batches, la persistance d’avancement et l’écriture Source of Truth ; l’infrastructure fournit les parseurs et les référentiels JSON/PostgreSQL.
 
-Les adaptateurs de parsing acceptent CSV, JSON et XLSX. Le lecteur XLSX s’appuie uniquement sur la bibliothèque standard Python et le format OOXML afin d’éviter une dépendance lourde pour ce jalon. La persistance JSON et PostgreSQL stocke les rapports d’import, y compris mapping, impact report et DLQ. Côté PostgreSQL, `import_jobs` est partitionnée par tenant et indexée pour les recherches par statut, format, date et DLQ JSONB.
+Le flux CSV bulk utilise `ImportDatasetParser.iter_rows` pour produire les lignes une par une. Les batches sont bornés par `batch_size`, les checkpoints sont persistés selon `checkpoint_interval`, et la reprise par `resume_job_id` redémarre au `next_row_number` du dernier checkpoint. Les impacts et DLQ restent échantillonnés pour éviter les rapports non bornés sur très gros datasets.
 
-Le contrat d’acceptation est strict : si une seule ligne est invalide, aucune écriture Source of Truth n’est appliquée. Le rapport persisté contient les causes de rejet et permet une reprise manuelle ou automatisée.
+Côté PostgreSQL, `bulk_import_jobs` et `bulk_import_checkpoints` sont partitionnées par hash du tenant. Les métriques, mappings et échantillons sont stockés en JSONB afin de conserver un schéma robuste tout en gardant une recherche opérationnelle par tenant, statut, date et job. Cette livraison prépare l’optimisation COPY contrôlée côté PostgreSQL sans introduire de dépendance runtime supplémentaire ni coupler le domaine à psycopg.
+
+Interfaces exposées : `openinfra import bulk-dataset`, `openinfra import bulk-report`, `openinfra import bulk-checkpoint`, `POST /api/v1/imports/bulk-datasets`, `GET /api/v1/imports/bulk-report` et `GET /api/v1/imports/bulk-checkpoint`. Les endpoints Swagger UI, ReDoc et OpenAPI YAML restent exposés par `/docs`, `/swagger`, `/redoc`, `/openapi.yaml` et `/api/v1/openapi.yaml`.
+

@@ -46,11 +46,11 @@ class TestRuntimeEnvironment:
         assert "USER openinfra" in dockerfile
         assert "HEALTHCHECK" not in dockerfile
         assert "OPENINFRA_POSTGRES_PASSWORD=" in env_example
-        assert "OPENINFRA_IMAGE_TAG=0.23.0" in env_example
+        assert "OPENINFRA_IMAGE_TAG=0.23.1" in env_example
         assert "OPENINFRA_PGADMIN_EMAIL=" in env_example
         assert "OPENINFRA_PGADMIN_PASSWORD=" in env_example
         assert "OPENINFRA_PGADMIN_PORT=5050" in env_example
-        assert "openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.23.0}" in compose
+        assert "openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.23.1}" in compose
         assert "${OPENINFRA_PGADMIN_IMAGE:-dpage/pgadmin4:latest}" in compose
         assert "openinfra-pgadmin-data:/var/lib/pgadmin" in compose
         assert "./docker/pgadmin/servers.json:/pgadmin4/servers.json:ro" in compose
@@ -60,7 +60,11 @@ class TestRuntimeEnvironment:
         assert "apply-migrations" in compose
         assert "psql" not in compose
         assert "/ready" in smoke
+        assert "/" in smoke
+        assert "/api/v1" in smoke
         assert "/api/v1/database/schema" in smoke
+        assert 'version.get("version") != __version__' in smoke
+        assert 'version.get("version") != "0.17.6"' not in smoke
         servers = Path("docker/pgadmin/servers.json").read_text(encoding="utf-8")
         assert "OpenInfra PostgreSQL" in servers
         assert '"Host": "postgres"' in servers

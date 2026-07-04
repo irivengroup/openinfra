@@ -225,3 +225,20 @@ Ne pas exposer `OPENINFRA_PGADMIN_BIND` sur `0.0.0.0` dans un poste non isolé :
 ## Correctif v0.22.3
 
 La migration IPAM enterprise `0015` est compatible avec une base PostgreSQL fraîche créée depuis `0001_bootstrap.sql`. Elle ajoute et renseigne `prefixes.family` avant de créer l’index `idx_prefixes_vrf_family`, ce qui corrige l’erreur `column "family" does not exist` observée dans `openinfra-migrate`.
+
+## Correctif v0.23.1 — racine API et logs Docker
+
+`GET /` et `GET /api/v1` retournent un document JSON de découverte du service. L’ouverture de `http://127.0.0.1:8080/` dans un navigateur ne doit donc plus retourner `{"error": "not_found"}`.
+
+Contrôles manuels recommandés après démarrage Compose :
+
+```bash
+curl http://127.0.0.1:8080/
+curl http://127.0.0.1:8080/api/v1
+curl http://127.0.0.1:8080/health
+curl http://127.0.0.1:8080/ready
+curl http://127.0.0.1:8080/api/v1/version
+docker logs openinfra-api
+```
+
+Au démarrage, `openinfra-api` écrit un événement JSON `openinfra_api_started` sur stdout afin que `docker logs openinfra-api` confirme le backend, le port et les URLs opérationnelles exposées par le conteneur.

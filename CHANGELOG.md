@@ -1,3 +1,11 @@
+## 0.23.1 - 2026-07-04
+
+- Correctif API runtime : `GET /` ne retourne plus `{"error": "not_found"}` mais un document JSON de découverte du service.
+- Ajout de `GET /api/v1` pour exposer le point d’entrée canonique de l’API versionnée, ses liens opérationnels et les URLs de santé/préparation.
+- Ajout d’un log de démarrage JSON sur stdout au lancement de `openinfra-api`, afin que `docker logs openinfra-api` confirme explicitement le backend, le port et les endpoints utiles.
+- Mise à jour OpenAPI, tests de non-régression HTTP et documentation runtime.
+- Aucun changement fonctionnel DDI ; le jalon P05 / EPIC-0506 livré en `0.23.0` est conservé intégralement.
+
 ## 0.23.0 - 2026-07-04
 
 - Roadmap : P05 / EPIC-0506 — DDI intégration baseline.

@@ -71,7 +71,7 @@
 | Migration `0015` | Ajout/backfill/contrainte `prefixes.family` avant `idx_prefixes_vrf_family`. |
 | Qualité | `scripts/quality_gate.py` et `tests/integration/test_runtime_docker_environment.py` bloquent la régression. |
 
-## v0.23.0 — P05 / EPIC-0506 DDI intégration baseline
+## v0.23.1 — P05 / EPIC-0506 DDI intégration baseline
 
 | Élément | Traçabilité |
 | --- | --- |
@@ -83,3 +83,12 @@
 | Interfaces | `openinfra ipam ddi-preview`, `POST /api/v1/ipam/ddi-preview`. |
 | Acceptation | Une réservation IPAM génère un plan DNS/DHCP dry-run, les divergences sont visibles et un rollback compensatoire est fourni. |
 | Tests | `tests/unit/test_domain_ipam_ddi.py`, `tests/integration/test_ipam_ddi_services.py`. |
+
+## v0.23.1 — Correctif runtime API discovery
+
+| Élément | Couverture |
+| --- | --- |
+| Route racine | `GET /` retourne un document JSON de découverte au lieu de `not_found`. |
+| Route API v1 | `GET /api/v1` expose le point d’entrée canonique de l’API versionnée. |
+| Logs runtime | `openinfra-api` écrit `openinfra_api_started` sur stdout au démarrage. |
+| Tests | `tests/integration/test_http_api.py` et `tests/integration/test_runtime_docker_environment.py` couvrent les nouveaux contrats et empêchent le retour du smoke Docker vers une version codée en dur. |

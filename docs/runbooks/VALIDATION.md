@@ -392,9 +392,9 @@ Critères attendus : rapport JSON contenant au minimum `duplicate_address`, `lea
 
 Le quality gate vérifie que `0015_ipam_enterprise_foundation.sql` ajoute et backfill `prefixes.family` avant la création de l’index IPAM enterprise associé.
 
-## Contrôles ajoutés en v0.23.0
+## Contrôles ajoutés en v0.23.1
 
-La v0.23.0 conserve le seuil bloquant `>= 98 %` et ajoute les validations P05 / EPIC-0506 suivantes :
+La v0.23.1 conserve le seuil bloquant `>= 98 %` et ajoute les validations P05 / EPIC-0506 suivantes :
 
 ```bash
 PYTHONPATH=src python -m openinfra.interfaces.cli ipam ddi-preview --data .openinfra.json --tenant default --vrf prod --idempotency-key req-0001 --provider all --dns-zone example.net --mac-address aa:bb:cc:00:00:01
@@ -402,3 +402,12 @@ PYTHONPATH=src python -m pytest -q --no-cov tests/unit/test_domain_ipam_ddi.py t
 ```
 
 Le contrôle vérifie la génération des changements BIND/PowerDNS/Kea, les divergences DNS/PTR/DHCP, l’absence de divergence silencieuse et la présence d’un plan de rollback compensatoire.
+
+## Contrôles ajoutés en v0.23.1
+
+La v0.23.1 ajoute les contrôles de non-régression suivants :
+
+- `GET /` retourne `service=openinfra-api`, `status=ok` et les liens `/health`, `/ready`, `/api/v1/version`, `/api/v1/database/schema` ;
+- `GET /api/v1` retourne le même contrat d’entrée pour la version courante ;
+- le smoke Docker compare `/api/v1/version` avec `openinfra.__version__` au lieu d’une ancienne version codée en dur ;
+- l’entrypoint API écrit un événement JSON `openinfra_api_started` visible dans stdout et donc dans `docker logs openinfra-api`.

@@ -1,87 +1,78 @@
-# OpenInfra Validation Report — v0.23.0
+# OpenInfra Validation Report — v0.23.1
 
 Date: 2026-07-04  
-Version: 0.23.0  
-Scope: P05 / EPIC-0506 — DDI integration baseline after v0.22.3 Docker/PostgreSQL corrective release.
+Version: 0.23.1  
+Scope: corrective runtime API release after v0.23.0 DDI integration baseline.
 
 ## Delivered change
 
-OpenInfra v0.23.0 introduces a deterministic DDI preview baseline connected to existing IPAM reservations. The release does not apply changes to external DNS or DHCP systems; it computes auditable dry-run plans, detects known divergences from observed data and emits rollback-compensating operations for later orchestration.
+OpenInfra v0.23.1 fixes the operational behavior observed when opening `http://127.0.0.1:8080/` after Docker Compose startup. The API root now returns a deterministic JSON discovery document instead of `{"error": "not_found"}`. The release also improves runtime observability by writing one JSON startup event to stdout so `docker logs openinfra-api` confirms that the API process started, which backend is active and which operational endpoints are available.
 
-### Functional scope
+No DDI feature delivered in v0.23.0 was removed or changed. pgAdmin4 remains integrated and keeps the default `OPENINFRA_PGADMIN_EMAIL=admin@openinfra.tld`. PostgreSQL migration fixes from v0.22.3 are preserved.
 
-- Added DDI domain objects for providers, record kinds, DNS/DHCP changes, divergences and reservation preview reports.
-- Added baseline DDI connectors for BIND, PowerDNS and Kea.
-- Added `IpamDdiService.preview_reservation()` to build a DNS/DHCP preview from an existing IPAM reservation identified by tenant, VRF and idempotency key.
-- Added DNS forward and reverse PTR change generation for BIND and PowerDNS.
-- Added Kea DHCP reservation preview when a MAC address is provided.
-- Added divergence detection against observed DNS records and DHCP leases already stored in OpenInfra.
-- Added rollback-compensating change generation for all previewed operations.
-- Added CLI command `openinfra ipam ddi-preview`.
-- Added HTTP endpoint `POST /api/v1/ipam/ddi-preview`.
-- Preserved pgAdmin4 lab integration from v0.22.3 with `OPENINFRA_PGADMIN_EMAIL=admin@openinfra.tld`.
-- Preserved v0.22.3 PostgreSQL migration execution safeguards.
+## Functional scope
+
+- Added `GET /` discovery response with service name, version, status and links to `/health`, `/ready`, `/api/v1/version` and `/api/v1/database/schema`.
+- Added `GET /api/v1` discovery response for the versioned API base path.
+- Added JSON startup log event `openinfra_api_started` in `openinfra-api`, emitted on stdout without secrets.
+- Updated Docker runtime smoke validation so it checks the new discovery document.
+- Removed the stale Docker smoke version comparison against `0.17.6`; the smoke now compares `/api/v1/version` with `openinfra.__version__`.
+- Updated OpenAPI, README, architecture notes, runtime runbook, traceability and validation documentation.
+- Bumped project version and Docker image defaults to `0.23.1`.
 
 ## Files changed
 
 - `VERSION`
 - `pyproject.toml`
 - `src/openinfra/__init__.py`
-- `src/openinfra/domain/ipam.py`
-- `src/openinfra/application/ports.py`
-- `src/openinfra/application/ipam_services.py`
-- `src/openinfra/application/container.py`
-- `src/openinfra/infrastructure/ddi_connectors.py`
-- `src/openinfra/interfaces/cli.py`
 - `src/openinfra/interfaces/http_api.py`
-- `tests/unit/test_domain_ipam_ddi.py`
-- `tests/integration/test_ipam_ddi_services.py`
-- `tests/integration/test_cli.py`
+- `docker/openinfra-runtime-smoke.py`
 - `tests/integration/test_http_api.py`
 - `tests/integration/test_runtime_docker_environment.py`
+- `tests/integration/test_cli.py`
+- `tests/integration/test_ipam_ddi_services.py`
+- `.env.example`
+- `compose.yaml`
+- `scripts/docker_environment.py`
+- `scripts/quality_gate.py`
 - `README.md`
 - `CHANGELOG.md`
 - `docs/api/openapi.yaml`
 - `docs/architecture/ARCHITECTURE.md`
 - `docs/TRACEABILITY.md`
+- `docs/runbooks/RUNTIME_DOCKER.md`
 - `docs/runbooks/VALIDATION.md`
-- `compose.yaml`
-- `.env.example`
-- `scripts/docker_environment.py`
-- `scripts/quality_gate.py`
 - `VALIDATION-REPORT.md`
 - `SHA256SUMS.txt`
 
 ## Regression coverage added
 
-- Domain tests validate provider/action/kind serialization, rollback compensation, divergence serialization and `safe_to_apply` semantics.
-- Integration tests validate DDI preview generation for BIND, PowerDNS and Kea from an existing reservation.
-- Integration tests validate dry-run default behavior, rollback change generation and audit event emission.
-- Integration tests validate DNS/PTR divergence detection and unsafe preview classification.
-- Integration tests validate the CLI `ipam ddi-preview` workflow.
-- Integration tests validate the HTTP `/api/v1/ipam/ddi-preview` endpoint.
-- Existing PostgreSQL migration regression tests for `0001` to `0018` remain in place.
-- Existing Docker pgAdmin regression tests keep `admin@openinfra.tld` and block `.local` regression.
+- HTTP integration test validates `GET /` returns `service=openinfra-api`, `version=0.23.1`, `/health`, `/ready` and the API discovery object.
+- HTTP integration test validates `GET /api/v1` returns the same API base-path contract.
+- Docker runtime asset test validates the smoke script includes `/`, `/api/v1`, `/api/v1/database/schema` and no longer compares the runtime version to `0.17.6`.
+- Runtime smoke script validates the discovery document during Docker lab execution.
+- Manual runtime smoke confirms `/`, `/api/v1`, `/health` and `/api/v1/version` return HTTP 200 and that stdout contains the `openinfra_api_started` JSON event.
 
 ## Validation results executed in this environment
 
 | Validation | Result |
 | --- | --- |
 | `python3 scripts/security_gate.py --project-root .` | PASS |
-| `PYTHONPATH=src python3 -m pytest -q` | PASS — 223 passed, coverage 98.03% |
-| `PYTHONPATH=src python3 scripts/quality_gate.py` | PASS — 223 passed, coverage 98.03% |
+| `PYTHONPATH=src python3 -m pytest -q` | PASS — 223 passed, coverage 98.04% |
+| `PYTHONPATH=src python3 scripts/quality_gate.py` | PASS — 223 passed, coverage 98.04% |
+| `PYTHONPATH=src python3 -m pytest -q -o addopts='' tests/integration/test_http_api.py tests/integration/test_runtime_docker_environment.py` | PASS — 19 passed |
 | `PYTHONPATH=src python3 -m compileall -q src tests scripts docker` | PASS |
-| `PYTHONPATH=src python3 -m openinfra.interfaces.cli version` | PASS — `0.23.0` |
+| `PYTHONPATH=src python3 -m openinfra.interfaces.cli version` | PASS — `0.23.1` |
 | `PYTHONPATH=src python3 -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4` | PASS — status valid, version 4.0.0, 488 requirements, 310 tests |
 | CLI render migrations `0001` → `0018` | PASS — 18 migrations rendered in order |
 | Compose YAML parse validation | PASS — `compose.yaml` parsed as a YAML mapping |
 | OpenAPI YAML parse validation | PASS — `docs/api/openapi.yaml` parsed as a YAML mapping |
 | Native runtime smoke | PASS — systemd/runbook/version assets present |
-| DDI CLI smoke | PASS — reservation preview generated 5 changes, 5 rollback changes, no divergences, `safe_to_apply=true` |
+| HTTP root/API manual smoke | PASS — `/`, `/api/v1`, `/health`, `/api/v1/version` returned HTTP 200 with expected payloads |
+| API startup log smoke | PASS — stdout contains `openinfra_api_started` JSON event |
 | Artifact verification | PASS — archive contains required OpenInfra source files |
 | Zip integrity test | PASS — no compressed-data errors detected |
 | Archive cleanup verification | PASS — no `__pycache__`, `.pytest_cache`, `.mypy_cache`, `.ruff_cache`, `build`, `dist`, `*.egg-info`, `.pyc` or `.coverage` entries |
-| Forbidden marker scan | PASS — no project TODO/FIXME/stub/placeholder outside the specification validator forbidden-word list |
 
 ## Requested validations not executable in this environment
 

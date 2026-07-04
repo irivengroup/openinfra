@@ -20,6 +20,8 @@ class TestHttpApi:
         thread.start()
         try:
             base_url = f"http://127.0.0.1:{server.server_port}"
+            root = self._get_json(base_url + "/")
+            api_index = self._get_json(base_url + "/api/v1")
             health = self._get_json(base_url + "/health")
             ready = self._get_json(base_url + "/ready")
             version = self._get_json(base_url + "/api/v1/version")
@@ -35,10 +37,21 @@ class TestHttpApi:
                 },
             )
 
+            assert root["service"] == "openinfra-api"
+            assert root["version"] == "0.23.1"
+            assert root["health"] == "/health"
+            assert root["readiness"] == "/ready"
+            assert root["api"] == api_index["api"]
+            assert api_index["api"] == {
+                "version": "v1",
+                "base_path": "/api/v1",
+                "version_url": "/api/v1/version",
+                "schema_url": "/api/v1/database/schema",
+            }
             assert health["status"] == "ok"
             assert ready["ready"] is True
             assert ready["component"] == "json"
-            assert version["version"] == "0.23.0"
+            assert version["version"] == "0.23.1"
             assert allocation["address"] == "10.6.0.1"
         finally:
             server.shutdown()

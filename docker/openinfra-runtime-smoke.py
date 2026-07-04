@@ -10,6 +10,8 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 
+from openinfra import __version__
+
 
 class SmokeError(Exception):
     """Raised when runtime smoke validation fails."""
@@ -51,6 +53,7 @@ class RuntimeSmokeScenario:
 
     def run(self) -> None:
         self._wait_until_ready()
+        self._assert_discovery_document()
         self._assert_health()
         self._assert_version()
         self._assert_schema_status()
@@ -80,6 +83,24 @@ class RuntimeSmokeScenario:
             time.sleep(2.0)
         raise SmokeError("runtime did not become ready: " + last_error)
 
+    def _assert_discovery_document(self) -> None:
+        root = self._client.get("/")
+        api_index = self._client.get("/api/v1")
+        expected_api = {
+            "version": "v1",
+            "base_path": "/api/v1",
+            "version_url": "/api/v1/version",
+            "schema_url": "/api/v1/database/schema",
+        }
+        if root.get("service") != "openinfra-api" or root.get("api") != expected_api:
+            raise SmokeError(
+                "unexpected root discovery response: " + json.dumps(root, sort_keys=True)
+            )
+        if api_index.get("api") != expected_api:
+            raise SmokeError(
+                "unexpected api discovery response: " + json.dumps(api_index, sort_keys=True)
+            )
+
     def _assert_health(self) -> None:
         health = self._client.get("/health")
         if health.get("status") != "ok":
@@ -87,7 +108,7 @@ class RuntimeSmokeScenario:
 
     def _assert_version(self) -> None:
         version = self._client.get("/api/v1/version")
-        if version.get("version") != "0.17.6":
+        if version.get("version") != __version__:
             raise SmokeError("unexpected version response: " + json.dumps(version, sort_keys=True))
 
     def _assert_schema_status(self) -> None:

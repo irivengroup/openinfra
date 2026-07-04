@@ -261,10 +261,16 @@ Les données pgAdmin4 sont portées par le volume `openinfra-pgadmin-data`; le s
 
 La migration IPAM enterprise aligne désormais le schéma historique `prefixes` créé en `0001` avec le modèle P05 enrichi en ajoutant `family`, son backfill depuis `pg_catalog.family(prefixes.cidr)`, sa contrainte `NOT NULL` et son contrôle IPv4/IPv6 avant l’indexation tenant/VRF/famille/CIDR. Le lab Docker conserve pgAdmin4 avec un identifiant par défaut utilisant un domaine publiquement valide afin d’éviter le rejet des domaines réservés par pgAdmin4.
 
-## v0.23.0 — P05 EPIC-0506 DDI intégration baseline
+## v0.23.1 — P05 EPIC-0506 DDI intégration baseline
 
-La version 0.23.0 termine la séquence P05 par une intégration DDI de base centrée sur la sécurité opérationnelle : une réservation IPAM existante peut produire une prévisualisation DNS/DHCP déterministe pour BIND, PowerDNS et Kea sans appel réseau implicite. Le domaine introduit des changements typés (`DdiChange`), les providers (`DdiProvider`), les divergences (`DdiDivergence`) et une enveloppe de prévisualisation (`DdiReservationPreview`) contenant aussi le plan compensatoire de rollback.
+La version 0.23.1 termine la séquence P05 par une intégration DDI de base centrée sur la sécurité opérationnelle : une réservation IPAM existante peut produire une prévisualisation DNS/DHCP déterministe pour BIND, PowerDNS et Kea sans appel réseau implicite. Le domaine introduit des changements typés (`DdiChange`), les providers (`DdiProvider`), les divergences (`DdiDivergence`) et une enveloppe de prévisualisation (`DdiReservationPreview`) contenant aussi le plan compensatoire de rollback.
 
 Le service applicatif `IpamDdiService` orchestre les connecteurs via le port `DdiConnector`, relit la réservation par clé d’idempotence, normalise FQDN, zone DNS, TTL et MAC DHCP, puis compare le plan attendu aux observations DNS/DHCP déjà connues par IPAM. Les divergences bloquantes (`error` ou `critical`) désactivent `safe_to_apply`, ce qui empêche une intégration silencieuse en présence de conflit forward DNS, PTR ou DHCP.
 
 Les adaptateurs `BindDdiConnector`, `PowerDnsDdiConnector` et `KeaDdiConnector` génèrent des changements applicables par des intégrateurs externes ou un futur executor contrôlé. Cette livraison conserve la production indépendante de Docker, ne change pas le schéma PostgreSQL et continue d’utiliser l’audit append-only pour tracer chaque prévisualisation DDI.
+
+## v0.23.1 — Correctif runtime API discovery
+
+La version 0.23.1 ajoute une route racine explicite `GET /` et une route d’entrée versionnée `GET /api/v1`. Ces routes retournent un document JSON déterministe contenant l’identité du service, la version applicative, les URLs `/health`, `/ready`, `/api/v1/version` et `/api/v1/database/schema`. Le changement n’altère pas les contrats API existants ; il supprime uniquement l’ambiguïté opérationnelle observée lorsqu’un administrateur ouvre l’URL racine du conteneur API dans un navigateur.
+
+L’entrypoint `openinfra-api` écrit également un événement JSON unique sur stdout au démarrage. Cette trace reste volontairement minimale et ne contient aucun secret ; elle facilite le diagnostic `docker logs openinfra-api` dans le lab Compose et le suivi systemd en runtime natif.

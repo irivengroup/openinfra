@@ -23,10 +23,10 @@ class TestIpamDdiServices:
     def test_preview_generates_bind_powerdns_kea_changes_and_rollback(self, tmp_path: Path) -> None:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json")
         app.ipam_model_service.define_prefix(
-            DefineIpPrefixCommand("default", "pytest", "prod", "10.23.0.0/29")
+            DefineIpPrefixCommand("default", "pytest", "prod", "10.23.1.0/29")
         )
         allocation = app.ipam_service.allocate(
-            AllocateIpCommand("default", "pytest", "prod", "10.23.0.0/29", "srv-ddi-01", "ddi-1")
+            AllocateIpCommand("default", "pytest", "prod", "10.23.1.0/29", "srv-ddi-01", "ddi-1")
         )
 
         preview = app.ipam_ddi_service.preview_reservation(

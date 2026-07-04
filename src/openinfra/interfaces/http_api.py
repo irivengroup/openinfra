@@ -137,6 +137,24 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         report: Any
         result: Any
         route = parsed.path
+        if route in ("/", "/api/v1"):
+            responder.send(
+                HTTPStatus.OK,
+                {
+                    "service": "openinfra-api",
+                    "version": __version__,
+                    "status": "ok",
+                    "health": "/health",
+                    "readiness": "/ready",
+                    "api": {
+                        "version": "v1",
+                        "base_path": "/api/v1",
+                        "version_url": "/api/v1/version",
+                        "schema_url": "/api/v1/database/schema",
+                    },
+                },
+            )
+            return
         if route == "/health":
             responder.send(HTTPStatus.OK, {"status": "ok"})
             return
@@ -1640,11 +1658,35 @@ class OpenInfraApiEntrypoint:
         app = cls()._create_application(args)
         auth_required = args.auth_required or os.environ.get("OPENINFRA_AUTH_REQUIRED") == "true"
         server = OpenInfraThreadingServer((args.host, args.port), app, auth_required=auth_required)
+        cls._write_startup_log(args, auth_required)
         try:
             server.serve_forever()
         except KeyboardInterrupt:
             server.server_close()
         return 0
+
+    @staticmethod
+    def _write_startup_log(args: argparse.Namespace, auth_required: bool) -> None:
+        sys.stdout.write(
+            json.dumps(
+                {
+                    "event": "openinfra_api_started",
+                    "service": "openinfra-api",
+                    "version": __version__,
+                    "host": str(args.host),
+                    "port": int(args.port),
+                    "backend": str(args.backend),
+                    "auth_required": auth_required,
+                    "root_url": "/",
+                    "health_url": "/health",
+                    "readiness_url": "/ready",
+                    "version_url": "/api/v1/version",
+                },
+                sort_keys=True,
+            )
+            + "\n"
+        )
+        sys.stdout.flush()
 
     def _create_application(self, args: argparse.Namespace) -> OpenInfraApplication:
         if args.backend == "json":

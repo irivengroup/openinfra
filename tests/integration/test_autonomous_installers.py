@@ -69,10 +69,19 @@ class TestAutonomousScopeInstallers:
             else:
                 assert plan.deploy_migrations is False
                 assert plan.managed_postgresql is False
-            if scope == "agent":
-                assert plan.managed_application_filesystem is False
+            command_labels = {command.label for command in plan.commands}
+            assert plan.managed_application_filesystem is True
+            assert plan.application_filesystem is not None
+            assert "create application logical volume" in command_labels
+            assert "mount application filesystem" in command_labels
+            if scope in {"all-in-one", "server"}:
+                assert plan.postgresql_filesystem is not None
+                assert "create postgresql logical volume" in command_labels
+                assert "create PostgreSQL data symlink" in command_labels
             else:
-                assert plan.managed_application_filesystem is True
+                assert plan.postgresql_filesystem is None
+                assert "create postgresql logical volume" not in command_labels
+                assert "create PostgreSQL data symlink" not in command_labels
 
     def test_execute_to_offline_target_deploys_src_requirements_and_scoped_assets(
         self, tmp_path: Path

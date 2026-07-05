@@ -36,7 +36,7 @@ Les anciens dossiers racine `installers/lite`, `installers/pro` et `installers/e
 | Pro | web | `api`, `auth` | frontend sans PostgreSQL local ni migrations |
 | Enterprise | server | `storage`, `api`, `identity`, `auth` | backend clusterisable, PostgreSQL managé ou cluster local, migrations |
 | Enterprise | web | `api`, `auth` | frontend clusterisable sans PostgreSQL local ni migrations |
-| Enterprise | agent | `api` | agent enrôlé via backend, sans BDD, sans migrations et sans FS/LVM applicatif |
+| Enterprise | agent | `api` | agent enrôlé via backend, FS applicatif `/opt/openinfra/` géré en interne, sans BDD, sans PGDATA et sans migrations |
 
 ## 4. Clés interdites
 
@@ -68,7 +68,7 @@ lvsize = 100GB
 
 L’installateur gère en interne le mountpoint `/data/openinfra/`, le symlink `/opt/openinfra/data -> /data/openinfra/`, le compte système PostgreSQL effectif, les owner/group, les permissions et PGDATA.
 
-Le filesystem applicatif `/opt/openinfra/` est géré en interne pour `lite/all-in-one`, `pro/server`, `pro/web`, `enterprise/server` et `enterprise/web`. Le scope `enterprise/agent` est installé directement sous `/opt/openinfra/` sans création de FS/LVM applicatif.
+Le filesystem applicatif `/opt/openinfra/` est géré en interne pour `lite/all-in-one`, `pro/server`, `pro/web`, `enterprise/server`, `enterprise/web` et `enterprise/agent`. Le scope `enterprise/agent` reste seulement exclu du FS PostgreSQL, de PGDATA, du symlink data et des migrations backend.
 
 ## 6. API, identity et auth
 
@@ -100,5 +100,5 @@ L’installation est acceptée si :
 - les secrets sont uniquement référencés par `env:`, `vault://`, `sops://`, `file://` ou `kms://` ;
 - les migrations backend proviennent uniquement de `installers/migrations/postgresql` ;
 - les scopes `web` et `agent` ne déploient jamais PostgreSQL ni migrations ;
-- l’agent Enterprise ne crée jamais de FS/LVM applicatif et n’accède jamais directement à PostgreSQL ;
+- l’agent Enterprise crée ou valide le FS/LVM applicatif CDC `/opt/openinfra/`, mais n’accède jamais directement à PostgreSQL ;
 - le dry-run affiche un plan complet sans modification système.

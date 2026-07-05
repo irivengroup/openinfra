@@ -63,6 +63,8 @@ class InstallationPlan:
     deploy_migrations: bool
     managed_postgresql: bool
     managed_application_filesystem: bool
+    application_filesystem: Any | None
+    postgresql_filesystem: Any | None
     service_name: str
     requirements_file: str
     actions: tuple[str, ...]
@@ -85,6 +87,16 @@ class InstallationPlan:
             "deploy_migrations": self.deploy_migrations,
             "managed_postgresql": self.managed_postgresql,
             "managed_application_filesystem": self.managed_application_filesystem,
+            "application_filesystem": (
+                self.application_filesystem.as_dict()
+                if self.application_filesystem is not None
+                else None
+            ),
+            "postgresql_filesystem": (
+                self.postgresql_filesystem.as_dict()
+                if self.postgresql_filesystem is not None
+                else None
+            ),
             "service_name": self.service_name,
             "requirements_file": self.requirements_file,
             "actions": list(self.actions),
@@ -335,6 +347,8 @@ class AutonomousInstallerProgram:
             deploy_migrations=report.scope in {"all-in-one", "server"},
             managed_postgresql=report.postgresql_plan is not None,
             managed_application_filesystem=report.managed_application_filesystem,
+            application_filesystem=report.application_filesystem_plan,
+            postgresql_filesystem=report.postgresql_filesystem_plan,
             service_name=report.service,
             requirements_file=requirements_file,
             actions=report.actions,
@@ -349,6 +363,8 @@ class AutonomousInstallerProgram:
         self._assert_prerequisites(plan, skip_service_enable=skip_service_enable)
         journal = InstallationRollbackJournal()
         try:
+            if plan.application_root == Path("/opt/openinfra"):
+                self._prepare_application_filesystem(plan, journal)
             self._create_directory(plan.application_root, journal)
             self._create_directory(plan.configuration_root, journal)
             self._create_directory(plan.systemd_root, journal)
@@ -384,7 +400,7 @@ class AutonomousInstallerProgram:
             )
             self._prepare_python_runtime(plan, journal)
             if plan.managed_postgresql:
-                self._run_postgresql_bootstrap(plan)
+                self._run_postgresql_bootstrap(plan, journal)
                 self.execute_migrations(plan)
             if plan.application_root == Path("/opt/openinfra") and not skip_service_enable:
                 self._run_command(("systemctl", "daemon-reload"))
@@ -417,6 +433,22 @@ class AutonomousInstallerProgram:
     ) -> tuple[InstallationCommand, ...]:
         commands: list[InstallationCommand] = []
         venv_python = application_root / "venv/bin/python"
+        if report.application_filesystem_plan is not None:
+            commands.extend(self._filesystem_commands(report.application_filesystem_plan))
+            commands.append(
+                InstallationCommand(
+                    "ensure OpenInfra system account",
+                    (
+                        "useradd",
+                        "--system",
+                        "--home",
+                        "/opt/openinfra",
+                        "--shell",
+                        "/usr/sbin/nologin",
+                        "openinfra",
+                    ),
+                )
+            )
         commands.extend(
             (
                 InstallationCommand(
@@ -442,6 +474,14 @@ class AutonomousInstallerProgram:
         )
         if report.postgresql_plan is not None:
             postgresql_plan = report.postgresql_plan
+            if report.postgresql_filesystem_plan is not None:
+                commands.extend(self._filesystem_commands(report.postgresql_filesystem_plan))
+                commands.append(
+                    InstallationCommand(
+                        "create PostgreSQL data symlink",
+                        ("ln", "-sfn", "/data/openinfra", "/opt/openinfra/data"),
+                    )
+                )
             commands.extend(
                 (
                     InstallationCommand(
@@ -493,6 +533,21 @@ class AutonomousInstallerProgram:
         ]
         if target_root == Path("/"):
             prerequisites.append(InstallationPrerequisite("systemd service manager", "systemctl"))
+        if target_root == Path("/") and (
+            report.application_filesystem_plan is not None
+            or report.postgresql_filesystem_plan is not None
+        ):
+            prerequisites.extend(
+                (
+                    InstallationPrerequisite("LVM volume group inspection", "vgs"),
+                    InstallationPrerequisite("LVM logical volume inspection", "lvs"),
+                    InstallationPrerequisite("LVM logical volume creation", "lvcreate"),
+                    InstallationPrerequisite("XFS filesystem creation", "mkfs.xfs"),
+                    InstallationPrerequisite("mountpoint inspection", "mountpoint"),
+                    InstallationPrerequisite("filesystem mount", "mount"),
+                    InstallationPrerequisite("ownership management", "chown"),
+                )
+            )
         if report.postgresql_plan is not None:
             package_manager = report.postgresql_plan.os_profile.package_manager
             prerequisites.append(
@@ -500,19 +555,201 @@ class AutonomousInstallerProgram:
             )
         return tuple(prerequisites)
 
-    def _run_postgresql_bootstrap(self, plan: InstallationPlan) -> None:
+    def _filesystem_commands(self, filesystem: Any) -> tuple[InstallationCommand, ...]:
+        return (
+            InstallationCommand(
+                f"verify {filesystem.name} volume group", ("vgs", filesystem.vgname)
+            ),
+            InstallationCommand(
+                f"create {filesystem.name} logical volume",
+                (
+                    "lvcreate",
+                    "-L",
+                    filesystem.lvsize,
+                    "-n",
+                    filesystem.lvname,
+                    filesystem.vgname,
+                ),
+            ),
+            InstallationCommand(
+                f"format {filesystem.name} filesystem",
+                ("mkfs.xfs", "-f", filesystem.lv_path),
+            ),
+            InstallationCommand(
+                f"mount {filesystem.name} filesystem",
+                ("mount", filesystem.lv_path, filesystem.mountpoint),
+            ),
+            InstallationCommand(
+                f"set {filesystem.name} filesystem ownership",
+                ("chown", "-R", f"{filesystem.owner}:{filesystem.group}", filesystem.mountpoint),
+            ),
+        )
+
+    def _prepare_application_filesystem(
+        self, plan: InstallationPlan, journal: InstallationRollbackJournal
+    ) -> None:
+        if plan.application_filesystem is None:
+            return
+        self._ensure_system_account(
+            username="openinfra",
+            home=plan.application_filesystem.mountpoint,
+            login_shell="/usr/sbin/nologin",
+        )
+        self._ensure_lvm_filesystem(plan.application_filesystem, journal)
+
+    def _prepare_postgresql_filesystem(
+        self, plan: InstallationPlan, journal: InstallationRollbackJournal
+    ) -> tuple[str, str] | None:
+        if plan.postgresql_filesystem is None:
+            return None
+        account = self._resolve_or_create_postgresql_account(plan)
+        filesystem = self._with_filesystem_owner(plan.postgresql_filesystem, account[0], account[1])
+        self._ensure_lvm_filesystem(filesystem, journal)
+        self._ensure_data_symlink(Path("/opt/openinfra/data"), Path(filesystem.mountpoint), journal)
+        self._render_postgresql_pgdata_override(filesystem, journal)
+        return account
+
+    def _with_filesystem_owner(self, filesystem: Any, owner: str, group: str) -> Any:
+        return type(filesystem)(
+            name=filesystem.name,
+            vgname=filesystem.vgname,
+            lvname=filesystem.lvname,
+            lvsize=filesystem.lvsize,
+            filesystem=filesystem.filesystem,
+            mountpoint=filesystem.mountpoint,
+            owner=owner,
+            group=group,
+        )
+
+    def _ensure_system_account(self, username: str, home: str, login_shell: str) -> None:
+        if self._command_succeeds(("id", "-u", username)):
+            return
+        self._run_command(("useradd", "--system", "--home", home, "--shell", login_shell, username))
+
+    def _resolve_or_create_postgresql_account(self, plan: InstallationPlan) -> tuple[str, str]:
+        report = self._validator.validate_file(
+            self._location.config_path,
+            edition=plan.edition,
+            scope=plan.scope,
+        )
+        postgresql_plan = report.postgresql_plan
+        if postgresql_plan is None:
+            return ("postgres", "postgres")
+        users = postgresql_plan.os_profile.system_user_candidates
+        groups = postgresql_plan.os_profile.system_group_candidates
+        for username in users:
+            if self._command_succeeds(("id", "-u", username)):
+                group = self._first_existing_group(groups) or username
+                return (username, group)
+        username = users[0]
+        group = groups[0]
+        self._ensure_group(group)
+        self._run_command(
+            (
+                "useradd",
+                "--system",
+                "--gid",
+                group,
+                "--home",
+                "/data/openinfra",
+                "--shell",
+                "/usr/sbin/nologin",
+                username,
+            )
+        )
+        return (username, group)
+
+    def _first_existing_group(self, groups: tuple[str, ...]) -> str | None:
+        for group in groups:
+            if self._command_succeeds(("getent", "group", group)):
+                return group
+        return None
+
+    def _ensure_group(self, group: str) -> None:
+        if self._command_succeeds(("getent", "group", group)):
+            return
+        self._run_command(("groupadd", "--system", group))
+
+    def _ensure_lvm_filesystem(self, filesystem: Any, journal: InstallationRollbackJournal) -> None:
+        self._run_command(("vgs", filesystem.vgname))
+        lv_path = Path(filesystem.lv_path)
+        if not self._command_succeeds(("lvs", filesystem.lv_path)) and not lv_path.exists():
+            self._run_command(
+                (
+                    "lvcreate",
+                    "-L",
+                    filesystem.lvsize,
+                    "-n",
+                    filesystem.lvname,
+                    filesystem.vgname,
+                )
+            )
+        if not self._command_succeeds(("blkid", filesystem.lv_path)):
+            self._run_command(("mkfs.xfs", "-f", filesystem.lv_path))
+        mountpoint = Path(filesystem.mountpoint)
+        self._create_directory(mountpoint, journal)
+        self._ensure_fstab_entry(filesystem, journal)
+        if not self._command_succeeds(("mountpoint", "-q", filesystem.mountpoint)):
+            self._run_command(("mount", filesystem.lv_path, filesystem.mountpoint))
+        self._run_command(
+            ("chown", "-R", f"{filesystem.owner}:{filesystem.group}", filesystem.mountpoint)
+        )
+
+    def _ensure_fstab_entry(self, filesystem: Any, journal: InstallationRollbackJournal) -> None:
+        path = Path("/etc/fstab")
+        current = path.read_text(encoding="utf-8") if path.exists() else ""
+        marker = f"# openinfra:{filesystem.name}:{filesystem.mountpoint}"
+        if marker in current:
+            return
+        line = (
+            f"{filesystem.lv_path} {filesystem.mountpoint} {filesystem.filesystem} "
+            "defaults,nodev,nosuid 0 2"
+        )
+        suffix = "" if current.endswith("\n") or not current else "\n"
+        self._replace_text(path, current + suffix + marker + "\n" + line + "\n", 0o644, journal)
+
+    def _ensure_data_symlink(
+        self, link_path: Path, target: Path, journal: InstallationRollbackJournal
+    ) -> None:
+        if link_path.is_symlink() and link_path.resolve() == target:
+            return
+        if link_path.exists() or link_path.is_symlink():
+            backup = self._backup_existing(link_path)
+            journal.record_replacement(link_path, backup)
+        self._create_directory(link_path.parent, journal)
+        link_path.symlink_to(target)
+        journal.record_replacement(link_path, None)
+
+    def _render_postgresql_pgdata_override(
+        self, filesystem: Any, journal: InstallationRollbackJournal
+    ) -> None:
+        override = Path("/etc/systemd/system/postgresql.service.d/openinfra-pgdata.conf")
+        content = "\n".join(
+            (
+                "[Service]",
+                f"Environment=PGDATA={filesystem.mountpoint}/",
+                "",
+            )
+        )
+        self._replace_text(override, content, 0o644, journal)
+
+    def _run_postgresql_bootstrap(
+        self, plan: InstallationPlan, journal: InstallationRollbackJournal
+    ) -> None:
         if plan.application_root != Path("/opt/openinfra"):
             return
         install_command = self._command_by_label(plan, "install PostgreSQL packages")
         if shutil.which("psql") is None and install_command is not None:
             self._run_command(install_command.command)
+        account = self._prepare_postgresql_filesystem(plan, journal)
         init_command = self._command_by_label(plan, "initialize PostgreSQL cluster")
-        if (
-            init_command is not None
-            and not self._postgresql_cluster_is_initialized(plan)
-            and shutil.which(init_command.command[0]) is not None
-        ):
-            self._run_command(init_command.command)
+        if init_command is not None and not self._postgresql_cluster_is_initialized(plan):
+            if account is not None and shutil.which("initdb") is not None:
+                self._run_command(
+                    ("runuser", "-u", account[0], "--", "initdb", "-D", "/data/openinfra")
+                )
+            elif shutil.which(init_command.command[0]) is not None:
+                self._run_command(init_command.command)
         for label in (
             "enable PostgreSQL service",
             "start PostgreSQL service",
@@ -533,7 +770,7 @@ class AutonomousInstallerProgram:
             ).postgresql_plan
             if profile is None:
                 return True
-            markers = profile.os_profile.cluster_marker_paths
+            markers = ("/data/openinfra/PG_VERSION", *profile.os_profile.cluster_marker_paths)
             return any(Path(marker).exists() for marker in markers)
         return True
 
@@ -706,6 +943,19 @@ class AutonomousInstallerProgram:
             backup = backup_root / f"{destination.name}.{counter}.bak"
         destination.replace(backup)
         return backup
+
+    def _command_succeeds(self, command: tuple[str, ...]) -> bool:
+        executable = shutil.which(command[0]) if "/" not in command[0] else command[0]
+        if executable is None or not Path(executable).exists():
+            return False
+        completed = subprocess.run(
+            (executable, *command[1:]),
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )  # nosec B603
+        return completed.returncode == 0
 
     def _run_command(
         self, command: tuple[str, ...], environment: dict[str, str] | None = None

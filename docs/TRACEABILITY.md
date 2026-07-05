@@ -1,14 +1,14 @@
-## v0.29.5 — Dette P03/P04 installateur autonome
+## v0.29.6 — Dette P05 LVM/PGDATA native
 
 - P03/P04 : moteur d'installation autonome par scope enrichi avec prérequis, rollback transactionnel, runtime Python, installation de requirements production et démarrage systemd effectif.
-- P05 reste à traiter : orchestration LVM/PGDATA native complète avec résolution OS du compte système PostgreSQL.
+- P05 traité : orchestration LVM/PGDATA native avec compte `openinfra`, FS applicatif CDC, compte système PostgreSQL, FS PostgreSQL, PGDATA, symlink data, override systemd et migrations backend.
 
 ## v0.29.3 — FS applicatif interne et exception agent
 
 | Domaine | Alignement |
 |---|---|
-| Installateurs | `managed_application_filesystem` est interne : actif pour all-in-one/server/web, désactivé pour `enterprise/agent`. |
-| Agent | Installation directe sous `/opt/openinfra`, sans création LVM applicative, PostgreSQL, PGDATA, symlink ou migrations. |
+| Installateurs | `managed_application_filesystem` est interne : actif pour all-in-one/server/web/agent. |
+| Agent | FS applicatif `/opt/openinfra` géré comme les autres scopes, sans PostgreSQL, PGDATA, symlink data ou migrations. |
 | CDC | Les dispositions LVM applicatives sont conservées pour les scopes applicatifs, car elles restent compatibles avec une pratique enterprise de cloisonnement, sauvegarde et quota. |
 
 ## v0.29.2 — Correctif installateurs minimaux, systemd rendu et migrations embarquées

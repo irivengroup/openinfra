@@ -1,5 +1,5 @@
 domain,edition,vgname,lvname,mountpoint_or_link,lv_size,owner,notes
-Applicatif,Tous scopes applicatifs hors enterprise/agent,rootvg,openinfra_lv,/opt/openinfra/,2GB défaut,openinfra:openinfra,"Configuration, binaires, logs applicatifs contrôlés; agent installé directement sous /opt/openinfra/."
+Applicatif,Tous scopes applicatifs incluant enterprise/agent,rootvg,openinfra_lv,/opt/openinfra/,2GB défaut,openinfra:openinfra,"Configuration, binaires, logs applicatifs contrôlés; agent sans PostgreSQL ni PGDATA."
 PostgreSQL data,Lite,datavg,openinfradata_lv,/data/openinfra/,2GB,Compte système gestionnaire PostgreSQL,PGDATA réel sous /data/openinfra/.
 PostgreSQL data,Pro,datavg,openinfradata_lv,/data/openinfra/,100GB,Compte système gestionnaire PostgreSQL,PGDATA réel sous /data/openinfra/.
 PostgreSQL data,Entreprise,datavg,openinfradata_lv,/data/openinfra/,1TB,Compte système gestionnaire PostgreSQL,PGDATA réel sous /data/openinfra/.

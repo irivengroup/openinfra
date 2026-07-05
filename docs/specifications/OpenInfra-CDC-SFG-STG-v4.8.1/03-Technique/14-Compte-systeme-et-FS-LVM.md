@@ -27,7 +27,7 @@ Le compte `openinfra` doit :
 
 ## LVM
 
-L'installateur doit préparer le stockage avant le déploiement applicatif pour les scopes applicatifs `lite/all-in-one`, `pro/server`, `pro/web`, `enterprise/server` et `enterprise/web`. Le scope `enterprise/agent` est explicitement exclu de la création de filesystem LVM applicatif et s'installe directement sous `/opt/openinfra/` :
+L'installateur doit préparer le stockage avant le déploiement applicatif pour les scopes applicatifs `lite/all-in-one`, `pro/server`, `pro/web`, `enterprise/server`, `enterprise/web` et `enterprise/agent`. Le scope `enterprise/agent` conserve le filesystem LVM applicatif CDC `/opt/openinfra/`, mais reste explicitement exclu du filesystem PostgreSQL, de PGDATA, du symlink data et des migrations backend :
 
 ```text id="xpovd5"
 VG par défaut       : rootvg
@@ -53,7 +53,7 @@ FS recommandé       : xfs
 12. Démarrage services.
 13. Health checks.
 
-Pour le scope `enterprise/agent`, les étapes VG/LV/filesystem/montage applicatif sont sautées. L'installateur crée uniquement le compte/service nécessaires, déploie l'agent sous `/opt/openinfra/`, configure son enrôlement backend et active `openinfra-agent.service`.
+Pour le scope `enterprise/agent`, les étapes VG/LV/filesystem/montage applicatif `/opt/openinfra/` sont conservées. L'installateur crée le compte/service nécessaires, prépare le FS applicatif, déploie l'agent, configure son enrôlement backend et active `openinfra-agent.service`, sans accès direct à PostgreSQL.
 
 ## Refus obligatoires
 
@@ -67,4 +67,4 @@ L'installateur doit refuser :
 
 ## Exception agent Enterprise
 
-`enterprise/agent` ne doit jamais créer ni modifier un LV applicatif, un LV PostgreSQL, PGDATA ou le symlink `/opt/openinfra/data`. L'agent est installé directement sous `/opt/openinfra/` et communique avec le backend via API et jeton/certificat d'enrôlement.
+`enterprise/agent` doit créer ou valider le LV applicatif `/opt/openinfra/` conformément au CDC. Il ne doit jamais créer ni modifier un LV PostgreSQL, PGDATA ou le symlink `/opt/openinfra/data`. L'agent communique avec le backend via API et jeton/certificat d'enrôlement.

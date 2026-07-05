@@ -1,3 +1,10 @@
+## 0.29.6 - 2026-07-05
+
+- P05 : ajout du plan LVM natif pour le filesystem applicatif `/opt/openinfra/` sur tous les scopes installés, y compris `enterprise/agent`.
+- Ajout du plan LVM PostgreSQL `/data/openinfra/`, du symlink `/opt/openinfra/data`, de l'override PGDATA systemd et de la résolution/création du compte système PostgreSQL pour les scopes backend.
+- Conservation de l'exclusion agent sur PostgreSQL, PGDATA, symlink data et migrations backend.
+- Mise à jour des tests, gates, CDC et roadmap v2 pour supprimer l'ancienne exception FS applicatif agent.
+
 ## 0.29.5 - 2026-07-05
 
 - Durcissement P03/P04 du moteur installateur autonome par scope.
@@ -20,7 +27,7 @@
 
 - Clarification de la politique filesystem applicatif : `/opt/openinfra` reste géré par l’installateur pour les scopes applicatifs, conformément au CDC, mais pas pour l’agent Enterprise.
 - Ajout du flag interne `managed_application_filesystem` dans les politiques installateur.
-- `enterprise/agent` est installé directement sous `/opt/openinfra` sans création LVM applicative, sans stockage PostgreSQL et sans migration backend.
+- `enterprise/agent` conserve maintenant le FS applicatif CDC `/opt/openinfra`, tout en restant sans stockage PostgreSQL, sans PGDATA et sans migration backend.
 - Durcissement des tests et de la validation d’alignement pour bloquer toute réintroduction de FS/LVM sur le scope agent.
 - Mise à jour CDC, runbooks, architecture et traçabilité.
 

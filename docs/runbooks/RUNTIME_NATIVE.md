@@ -20,7 +20,7 @@ OpenInfra est conçu pour être exécuté directement sur des serveurs Linux. Le
 ```
 
 
-Le filesystem applicatif `/opt/openinfra` est créé/validé par LVM pour les scopes applicatifs `all-in-one`, `server` et `web` lorsque l’installateur cible une édition Pro/Enterprise ou la politique CDC applicable. Le scope `enterprise/agent` est installé directement sous `/opt/openinfra` et ne crée aucun LV applicatif, LV PostgreSQL, PGDATA ni symlink data.
+Le filesystem applicatif `/opt/openinfra` est créé/validé par LVM pour les scopes applicatifs `all-in-one`, `server`, `web` et `enterprise/agent` conformément au CDC. Le scope `enterprise/agent` ne crée aucun LV PostgreSQL, aucun PGDATA, aucun symlink data et aucune migration backend.
 
 ## Installation native
 

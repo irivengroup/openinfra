@@ -189,7 +189,9 @@ class TestInstallerConfigDomain:
         assert "openinfra database apply-migrations" not in backend_unit
         assert success.valid is True
 
-    def test_application_filesystem_is_internal_and_skipped_for_agent(self, tmp_path: Path) -> None:
+    def test_application_filesystem_is_internal_for_every_scope_including_agent(
+        self, tmp_path: Path
+    ) -> None:
         validator = InstallerConfigValidator()
 
         server_report = validator.validate_file(
@@ -218,9 +220,9 @@ class TestInstallerConfigDomain:
 
         assert server_report.managed_application_filesystem is True
         assert web_report.managed_application_filesystem is True
-        assert agent_report.managed_application_filesystem is False
+        assert agent_report.managed_application_filesystem is True
         assert server_report.as_dict()["managed_application_filesystem"] is True
-        assert agent_report.as_dict()["managed_application_filesystem"] is False
+        assert agent_report.as_dict()["managed_application_filesystem"] is True
         assert any(
             "application LVM filesystem /opt/openinfra/" in action
             for action in server_report.actions
@@ -228,11 +230,17 @@ class TestInstallerConfigDomain:
         assert any(
             "application LVM filesystem /opt/openinfra/" in action for action in web_report.actions
         )
-        assert any("without creating application LVM" in action for action in agent_report.actions)
+        assert any(
+            "application LVM filesystem /opt/openinfra/" in action
+            for action in agent_report.actions
+        )
+        assert agent_report.as_dict()["application_filesystem"] is not None
         assert any(
             "must not expose PostgreSQL storage settings" in error
             for error in invalid_agent_report.errors
         )
+        assert server_report.as_dict()["postgresql_filesystem"] is not None
+        assert agent_report.as_dict()["postgresql_filesystem"] is None
 
     def test_postgresql_deployment_planner_is_os_aware_and_backend_only(
         self, tmp_path: Path

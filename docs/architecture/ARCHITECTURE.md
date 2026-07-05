@@ -1,6 +1,6 @@
-## v0.29.5 — Moteur installateur transactionnel OS-aware
+## v0.29.6 — P05 LVM/PGDATA natif et FS applicatif CDC
 
-La version `0.29.5` transforme les `installers/setup/**/install.py` en programmes autonomes transactionnels. Chaque plan expose les prérequis, crée le virtualenv applicatif, installe les dépendances de production par scope, déploie le code `src/`, rend l'unité systemd adaptée, applique les migrations backend quand le scope gère PostgreSQL et restaure automatiquement les fichiers remplacés en cas d'échec. Les scopes `web` et `agent` restent exclus de PostgreSQL et des migrations.
+La version `0.29.6` traite P05 : l'installateur orchestre réellement les filesystems LVM, le compte système `openinfra`, le filesystem applicatif CDC `/opt/openinfra/` pour tous les scopes installés y compris `enterprise/agent`, le filesystem PostgreSQL `/data/openinfra/` uniquement pour `lite/all-in-one`, `pro/server` et `enterprise/server`, le symlink `/opt/openinfra/data -> /data/openinfra/`, le compte système PostgreSQL résolu ou créé, l'override PGDATA systemd et les migrations backend. Les scopes `web` et `agent` restent exclus de PostgreSQL, de PGDATA et des migrations.
 
 ## v0.29.4 — Installateurs autonomes par scope
 
@@ -8,7 +8,7 @@ La version `0.29.5` transforme les `installers/setup/**/install.py` en programme
 
 ## v0.29.3 — Politique filesystem applicatif par scope
 
-Le CDC conserve le filesystem applicatif `/opt/openinfra` comme disposition entreprise pour les scopes applicatifs. Le contrôleur installateur distingue désormais explicitement le filesystem applicatif de PostgreSQL : `all-in-one`, `server` et `web` gèrent `/opt/openinfra` en interne, tandis que `enterprise/agent` est installé directement sous `/opt/openinfra` sans création LVM, sans stockage PostgreSQL, sans PGDATA et sans migration backend.
+Le CDC conserve le filesystem applicatif `/opt/openinfra` comme disposition entreprise pour les scopes applicatifs. Le contrôleur installateur distingue explicitement le filesystem applicatif de PostgreSQL : `all-in-one`, `server`, `web` et `enterprise/agent` gèrent `/opt/openinfra` en interne, tandis que PostgreSQL, PGDATA, symlink data et migrations restent strictement réservés aux scopes backend/all-in-one.
 
 ## v0.29.2 — Source unique migrations et bootstrap PostgreSQL backend
 

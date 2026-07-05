@@ -448,10 +448,10 @@ Cette roadmap met à jour la trajectoire de développement OpenInfra pour l’al
 
 - **Stream :** STR-DATA
 - **Priorité :** P1
-- **Résumé :** Créer/valider LV applicatif rootvg/openinfra_lv monté /opt/openinfra/ owner openinfra pour les scopes applicatifs hors enterprise/agent.
+- **Résumé :** Créer/valider LV applicatif rootvg/openinfra_lv monté /opt/openinfra/ owner openinfra pour tous les scopes applicatifs incluant enterprise/agent.
 - **Livrables :** LVM scripts; install.ini; tests.
 - **Dépendances :** P03
-- **Acceptation :** /opt/openinfra/ a owner openinfra:openinfra; enterprise/agent ne crée pas de LV applicatif.
+- **Acceptation :** /opt/openinfra/ a owner openinfra:openinfra; enterprise/agent reste sans PostgreSQL ni PGDATA.
 
 #### EPIC-0502 — FS PostgreSQL /data/openinfra
 
@@ -1401,7 +1401,7 @@ Cette roadmap met à jour la trajectoire de développement OpenInfra pour l’al
 
 | Domaine | Edition | VG | LV | Mountpoint ou lien | Taille | Owner | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Applicatif | Tous scopes applicatifs hors enterprise/agent | rootvg | openinfra_lv | /opt/openinfra/ | 2GB défaut | openinfra:openinfra | Configuration, binaires, logs applicatifs contrôlés; agent installé directement sous /opt/openinfra/. |
+| Applicatif | Tous scopes applicatifs incluant enterprise/agent | rootvg | openinfra_lv | /opt/openinfra/ | 2GB défaut | openinfra:openinfra | Configuration, binaires, logs applicatifs contrôlés; agent sans PostgreSQL ni PGDATA. |
 | PostgreSQL data | Lite | datavg | openinfradata_lv | /data/openinfra/ | 2GB | Compte système gestionnaire PostgreSQL | PGDATA réel sous /data/openinfra/. |
 | PostgreSQL data | Pro | datavg | openinfradata_lv | /data/openinfra/ | 100GB | Compte système gestionnaire PostgreSQL | PGDATA réel sous /data/openinfra/. |
 | PostgreSQL data | Entreprise | datavg | openinfradata_lv | /data/openinfra/ | 1TB | Compte système gestionnaire PostgreSQL | PGDATA réel sous /data/openinfra/. |

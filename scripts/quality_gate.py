@@ -97,13 +97,12 @@ class NativeRuntimeGuard:
             raise QualityGateError("backend installer must deploy PostgreSQL when absent")
         if "managed_application_filesystem" not in installer_config:
             raise QualityGateError("installer must model application filesystem policy per scope")
-        if (
-            "install scope directly under /opt/openinfra without creating application LVM"
-            not in installer_config
-        ):
+        if "application_filesystem_plan" not in installer_config:
             raise QualityGateError(
-                "enterprise agent must be excluded from application LVM creation"
+                "installer must expose application filesystem plans for every installed scope"
             )
+        if "create or validate internal application LVM filesystem" not in installer_config:
+            raise QualityGateError("installer must orchestrate the CDC application filesystem")
         installer_runtime = (
             self._project_root / "installers/setup/installer_runtime.py"
         ).read_text(encoding="utf-8")
@@ -171,7 +170,7 @@ class DockerRuntimeGuard:
             raise QualityGateError(
                 "Dockerfile must not define an API healthcheck inherited by migrate/auth-bootstrap"
             )
-        if "openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.29.5}" not in compose:
+        if "openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.29.6}" not in compose:
             raise QualityGateError("compose.yaml must default to the current OpenInfra image tag")
         stale_tags = (
             "OPENINFRA_IMAGE_TAG=0.9.0",
@@ -187,6 +186,7 @@ class DockerRuntimeGuard:
             "${OPENINFRA_IMAGE_TAG:-0.29.2}",
             "${OPENINFRA_IMAGE_TAG:-0.29.3}",
             "${OPENINFRA_IMAGE_TAG:-0.29.4}",
+            "${OPENINFRA_IMAGE_TAG:-0.29.5}",
         )
         stale = [
             fragment for fragment in stale_tags if fragment in compose + env_example + env_manager

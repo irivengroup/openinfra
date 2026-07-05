@@ -19,6 +19,8 @@ class InstallerOsProfile:
     service: str
     initdb_command: tuple[str, ...]
     cluster_marker_paths: tuple[str, ...]
+    system_user_candidates: tuple[str, ...] = ("postgres", "pgsql")
+    system_group_candidates: tuple[str, ...] = ("postgres", "pgsql")
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -28,6 +30,8 @@ class InstallerOsProfile:
             "service": self.service,
             "initdb_command": list(self.initdb_command),
             "cluster_marker_paths": list(self.cluster_marker_paths),
+            "system_user_candidates": list(self.system_user_candidates),
+            "system_group_candidates": list(self.system_group_candidates),
         }
 
 
@@ -145,6 +149,35 @@ class InstallerPostgreSQLDeploymentPlanner:
 
 
 @dataclass(frozen=True, slots=True)
+class InstallerFilesystemPlan:
+    name: str
+    vgname: str
+    lvname: str
+    lvsize: str
+    filesystem: str
+    mountpoint: str
+    owner: str
+    group: str
+
+    @property
+    def lv_path(self) -> str:
+        return f"/dev/{self.vgname}/{self.lvname}"
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "name": self.name,
+            "vgname": self.vgname,
+            "lvname": self.lvname,
+            "lvsize": self.lvsize,
+            "filesystem": self.filesystem,
+            "mountpoint": self.mountpoint,
+            "owner": self.owner,
+            "group": self.group,
+            "lv_path": self.lv_path,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class InstallerScopePolicy:
     edition: str
     scope: str
@@ -178,6 +211,8 @@ class InstallerConfigReport:
     errors: tuple[str, ...]
     warnings: tuple[str, ...]
     actions: tuple[str, ...]
+    application_filesystem_plan: InstallerFilesystemPlan | None = None
+    postgresql_filesystem_plan: InstallerFilesystemPlan | None = None
     postgresql_plan: InstallerPostgreSQLDeploymentPlan | None = None
 
     @property
@@ -195,6 +230,16 @@ class InstallerConfigReport:
             "errors": list(self.errors),
             "warnings": list(self.warnings),
             "actions": list(self.actions),
+            "application_filesystem": (
+                self.application_filesystem_plan.as_dict()
+                if self.application_filesystem_plan is not None
+                else None
+            ),
+            "postgresql_filesystem": (
+                self.postgresql_filesystem_plan.as_dict()
+                if self.postgresql_filesystem_plan is not None
+                else None
+            ),
             "postgresql_deployment": (
                 self.postgresql_plan.as_dict() if self.postgresql_plan is not None else None
             ),
@@ -341,7 +386,7 @@ class InstallerScopeCatalog:
                     edition="enterprise",
                     scope="agent",
                     service="openinfra-agent.service",
-                    managed_application_filesystem=False,
+                    managed_application_filesystem=True,
                     managed_postgresql=False,
                     apply_backend_migrations=False,
                     postgresql_lvsize_max=None,
@@ -571,17 +616,27 @@ class InstallerConfigValidator:
                 (),
                 (),
             )
+        application_filesystem_plan = self._application_filesystem_plan(policy)
         postgresql_plan = self._postgresql_planner.plan() if policy.managed_postgresql else None
+        postgresql_filesystem_plan = (
+            self._postgresql_filesystem_plan(parser, policy)
+            if parser is not None and postgresql_plan is not None and not errors
+            else None
+        )
         return InstallerConfigReport(
-            path,
-            policy.edition,
-            policy.scope,
-            policy.service,
-            policy.managed_application_filesystem,
-            tuple(errors),
-            tuple(warnings),
-            self._render_actions(policy, postgresql_plan),
-            postgresql_plan,
+            path=path,
+            edition=policy.edition,
+            scope=policy.scope,
+            service=policy.service,
+            managed_application_filesystem=policy.managed_application_filesystem,
+            errors=tuple(errors),
+            warnings=tuple(warnings),
+            actions=self._render_actions(
+                policy, application_filesystem_plan, postgresql_filesystem_plan, postgresql_plan
+            ),
+            application_filesystem_plan=application_filesystem_plan,
+            postgresql_filesystem_plan=postgresql_filesystem_plan,
+            postgresql_plan=postgresql_plan,
         )
 
     def validate_tree(self, root: Path) -> InstallerFleetReport:
@@ -646,6 +701,38 @@ class InstallerConfigValidator:
             errors.append(f"invalid ini syntax: {exc}")
             return None
         return parser
+
+    def _application_filesystem_plan(
+        self, policy: InstallerScopePolicy
+    ) -> InstallerFilesystemPlan | None:
+        if not policy.managed_application_filesystem:
+            return None
+        return InstallerFilesystemPlan(
+            name="application",
+            vgname="rootvg",
+            lvname="openinfra_lv",
+            lvsize="2GB",
+            filesystem="xfs",
+            mountpoint="/opt/openinfra",
+            owner="openinfra",
+            group="openinfra",
+        )
+
+    def _postgresql_filesystem_plan(
+        self, parser: configparser.ConfigParser, policy: InstallerScopePolicy
+    ) -> InstallerFilesystemPlan | None:
+        if not policy.managed_postgresql or not parser.has_section("storage"):
+            return None
+        return InstallerFilesystemPlan(
+            name="postgresql",
+            vgname=parser.get("storage", "vgname").strip(),
+            lvname=parser.get("storage", "lvname").strip(),
+            lvsize=parser.get("storage", "lvsize").strip(),
+            filesystem="xfs",
+            mountpoint="/data/openinfra",
+            owner="postgresql-system-user",
+            group="postgresql-system-group",
+        )
 
     def _validate_schema(
         self, parser: configparser.ConfigParser, policy: InstallerScopePolicy, errors: list[str]
@@ -777,6 +864,8 @@ class InstallerConfigValidator:
     def _render_actions(
         self,
         policy: InstallerScopePolicy,
+        application_filesystem: InstallerFilesystemPlan | None,
+        postgresql_filesystem: InstallerFilesystemPlan | None,
         postgresql_plan: InstallerPostgreSQLDeploymentPlan | None,
     ) -> tuple[str, ...]:
         actions = [
@@ -784,14 +873,10 @@ class InstallerConfigValidator:
             "validate minimal install.ini without edition, scope, service or operations fields",
             f"render adapted systemd unit {policy.service} from installer internals",
         ]
-        if policy.managed_application_filesystem:
+        if application_filesystem is not None:
             actions.append(
                 "create or validate internal application LVM filesystem "
-                "/opt/openinfra/ with openinfra ownership"
-            )
-        else:
-            actions.append(
-                "install scope directly under /opt/openinfra without creating application LVM"
+                f"{application_filesystem.mountpoint}/ with openinfra ownership"
             )
         if policy.managed_postgresql and postgresql_plan is not None:
             actions.extend(
@@ -799,16 +884,22 @@ class InstallerConfigValidator:
                     "detect PostgreSQL client/server availability before backend installation",
                     "install PostgreSQL packages if absent via "
                     + " ".join(postgresql_plan.install_command),
+                    "resolve or create PostgreSQL system account from OS packaging",
+                    "create PostgreSQL LVM filesystem with internal mountpoint /data/openinfra/",
+                    "create internal symlink /opt/openinfra/data -> /data/openinfra/",
+                    "render PostgreSQL systemd PGDATA override under /data/openinfra/",
+                    "initialize PostgreSQL PGDATA under /data/openinfra/",
                     "enable and start internal PostgreSQL service "
                     + postgresql_plan.os_profile.service,
                     "verify PostgreSQL readiness with " + " ".join(postgresql_plan.verify_command),
-                    "resolve PostgreSQL system account from OS packaging",
-                    "create PostgreSQL LVM filesystem with internal mountpoint /data/openinfra/",
-                    "create internal symlink /opt/openinfra/data -> /data/openinfra/",
-                    "initialize PostgreSQL PGDATA under /data/openinfra/",
                     "apply backend migrations from installers/migrations/postgresql "
                     "before service enablement",
                 )
+            )
+        if postgresql_filesystem is not None:
+            actions.append(
+                "enforce PostgreSQL LV maximum from install.ini storage.lvsize "
+                f"for {postgresql_filesystem.mountpoint}/"
             )
         if policy.scope == "all-in-one":
             actions.append(
@@ -818,8 +909,8 @@ class InstallerConfigValidator:
             actions.append("install web frontend without PostgreSQL storage deployment")
         if policy.scope == "agent":
             actions.append(
-                "enroll enterprise discovery agent through backend API "
-                "without direct database access, PostgreSQL storage or filesystem creation"
+                "enroll enterprise discovery agent through backend API without direct database "
+                "access, PostgreSQL storage, PGDATA or backend migrations"
             )
         actions.extend(
             (

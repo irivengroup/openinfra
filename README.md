@@ -1,13 +1,13 @@
-# OpenInfra v0.29.5
+# OpenInfra v0.29.6
 
 Version corrective d’alignement installateur : `installers/` devient un point d’entrée autonome par scope. Chaque programme `install.py` déploie le contenu applicatif `src/`, les requirements de production, les migrations backend lorsque nécessaires et l’unité systemd adaptée.
 
 # OpenInfra Python Foundation
 
-**Version courante : 0.29.5 — moteur installateur autonome OS-aware avec prérequis, runtime Python, rollback transactionnel, migrations backend et services systemd effectifs.**
+**Version courante : 0.29.6 — P05 LVM/PGDATA natif avec FS applicatif CDC, compte PostgreSQL résolu/créé, PGDATA `/data/openinfra/`, symlink data et migrations backend.**
 
 
-## v0.29.5 — Moteur installateur transactionnel
+## v0.29.6 — P05 LVM/PGDATA natif
 
 - Ajout des prérequis exécutables dans les plans `--dry-run --json`.
 - Création du virtualenv `/opt/openinfra/venv` et installation des dépendances de production par scope.
@@ -23,7 +23,7 @@ Les installateurs autonomes copient `src/`, les requirements de production et le
 
 ## v0.29.3 — Correctif FS agent / scopes applicatifs
 
-Cette version durcit la politique installateur : le filesystem applicatif `/opt/openinfra` reste une disposition entreprise pour `lite/all-in-one`, `pro/server`, `pro/web`, `enterprise/server` et `enterprise/web`; le scope `enterprise/agent` est explicitement exclu de toute création LVM applicative et PostgreSQL. L’agent est installé directement sous `/opt/openinfra`, s’enrôle auprès du backend et ne reçoit que son unité `openinfra-agent.service`.
+Cette version durcit la politique installateur : le filesystem applicatif `/opt/openinfra` est une disposition CDC pour `lite/all-in-one`, `pro/server`, `pro/web`, `enterprise/server`, `enterprise/web` et `enterprise/agent`. L’agent s’enrôle auprès du backend, reçoit son unité `openinfra-agent.service`, mais reste exclu de PostgreSQL, PGDATA, symlink data et migrations backend.
 
 ## v0.29.2 — Correctif alignement installateurs / CDC
 

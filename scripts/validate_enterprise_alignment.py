@@ -124,14 +124,15 @@ class EnterpriseAlignmentValidator:
         if len(catalog.policies()) != 6:
             errors.append("installer catalog must expose six edition/scope policies")
         agent_policy = catalog.policy_for("enterprise", "agent")
-        if agent_policy is None or agent_policy.managed_application_filesystem:
-            errors.append("enterprise agent must not create an application LVM filesystem")
+        if agent_policy is None or not agent_policy.managed_application_filesystem:
+            errors.append("enterprise agent must manage application filesystem per CDC")
         for edition, scope in (
             ("lite", "all-in-one"),
             ("pro", "server"),
             ("pro", "web"),
             ("enterprise", "server"),
             ("enterprise", "web"),
+            ("enterprise", "agent"),
         ):
             policy = catalog.policy_for(edition, scope)
             if policy is None or not policy.managed_application_filesystem:

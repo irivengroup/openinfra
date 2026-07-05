@@ -68,7 +68,7 @@ postgresql_password_ref = env:OPENINFRA_POSTGRES_PASSWORD
 
 ### Entreprise — scope `agent`
 
-L'agent s'enregistre auprès du backend via le portail web et transmet ensuite ses observations au backend avec son jeton/certificat d'enrôlement. Il n'a jamais d'accès direct à PostgreSQL. Il est installé directement sous `/opt/openinfra/` et ne crée aucun filesystem LVM applicatif, aucun filesystem PostgreSQL, aucun PGDATA, aucun symlink `/opt/openinfra/data` et aucune migration backend.
+L'agent s'enregistre auprès du backend via le portail web et transmet ensuite ses observations au backend avec son jeton/certificat d'enrôlement. Il n'a jamais d'accès direct à PostgreSQL. Il dispose du filesystem LVM applicatif `/opt/openinfra/` géré en interne par l'installateur, mais ne crée aucun filesystem PostgreSQL, aucun PGDATA, aucun symlink `/opt/openinfra/data` et aucune migration backend.
 
 Section autorisée unique :
 
@@ -82,7 +82,7 @@ enrollment_token_ref = env:OPENINFRA_AGENT_ENROLLMENT_TOKEN
 
 Le filesystem applicatif `/opt/openinfra/` est géré par l’installateur pour les scopes applicatifs `lite/all-in-one`, `pro/server`, `pro/web`, `enterprise/server` et `enterprise/web`. Cette disposition est interne, non configurable dans `install.ini`, et permet de conserver une séparation enterprise des binaires, configurations applicatives, permissions et quotas filesystem.
 
-Le scope `enterprise/agent` est une exception : il est installé directement sous `/opt/openinfra/` sans création de LV applicatif.
+Le scope `enterprise/agent` n'est pas une exception pour le LV applicatif : `/opt/openinfra/` est géré comme pour les autres scopes. Il reste seulement exclu de PostgreSQL, PGDATA, symlink data et migrations backend.
 
 Pour le stockage PostgreSQL des scopes backend, seuls `vgname`, `lvname` et `lvsize` sont exposés. L'installateur gère en interne le déploiement PostgreSQL si absent, le mountpoint `/data/openinfra/`, le symlink `/opt/openinfra/data -> /data/openinfra/`, les owner/group, les permissions, la résolution du compte système PostgreSQL et l'adaptation PGDATA.
 

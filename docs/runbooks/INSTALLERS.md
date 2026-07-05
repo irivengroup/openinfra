@@ -82,7 +82,7 @@ Les scopes backend/all-in-one copient aussi `installers/migrations/postgresql` v
 
 `install.ini` reste volontairement succinct. Il ne porte jamais `edition`, `scope`, `service`, section `[operations]`, ports internes, `mountpoint`, `owner`, `group` ou chemin PGDATA. Le type d’installation est déduit par l’installateur depuis l’arborescence `installers/setup/...`.
 
-Règles stockage : seuls `vgname`, `lvname` et `lvsize` sont exposés pour le stockage PostgreSQL des scopes backend. Le filesystem applicatif `/opt/openinfra` est une politique interne de l’installateur pour `all-in-one`, `server` et `web`; il n’est pas configurable dans `install.ini`. Le scope `enterprise/agent` ne crée aucun FS/LVM et est installé directement sous `/opt/openinfra`.
+Règles stockage : seuls `vgname`, `lvname` et `lvsize` sont exposés pour le stockage PostgreSQL des scopes backend. Le filesystem applicatif `/opt/openinfra` est une politique interne de l’installateur pour `all-in-one`, `server`, `web` et `enterprise/agent`; il n’est pas configurable dans `install.ini`. Le scope `enterprise/agent` crée aussi le FS/LVM applicatif `/opt/openinfra` conformément au CDC, mais ne crée aucun FS/LVM PostgreSQL, aucun PGDATA, aucun symlink data et aucune migration backend.
 
 ## PostgreSQL backend
 

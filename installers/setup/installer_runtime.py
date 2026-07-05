@@ -65,6 +65,7 @@ class InstallationPlan:
     managed_application_filesystem: bool
     application_filesystem: Any | None
     postgresql_filesystem: Any | None
+    postgresql_ha: Any | None
     service_name: str
     requirements_file: str
     actions: tuple[str, ...]
@@ -96,6 +97,9 @@ class InstallationPlan:
                 self.postgresql_filesystem.as_dict()
                 if self.postgresql_filesystem is not None
                 else None
+            ),
+            "postgresql_ha": (
+                self.postgresql_ha.as_dict() if self.postgresql_ha is not None else None
             ),
             "service_name": self.service_name,
             "requirements_file": self.requirements_file,
@@ -349,6 +353,7 @@ class AutonomousInstallerProgram:
             managed_application_filesystem=report.managed_application_filesystem,
             application_filesystem=report.application_filesystem_plan,
             postgresql_filesystem=report.postgresql_filesystem_plan,
+            postgresql_ha=report.postgresql_ha_plan,
             service_name=report.service,
             requirements_file=requirements_file,
             actions=report.actions,
@@ -498,6 +503,18 @@ class AutonomousInstallerProgram:
                         "verify PostgreSQL readiness", postgresql_plan.verify_command
                     ),
                     InstallationCommand(
+                        "render PostgreSQL HA and PITR configuration",
+                        ("openinfra-internal", "postgresql-ha", "render"),
+                    ),
+                    InstallationCommand(
+                        "prepare PostgreSQL PITR archive directory",
+                        ("mkdir", "-p", "/data/openinfra/pitr"),
+                    ),
+                    InstallationCommand(
+                        "prepare PostgreSQL physical backup directory",
+                        ("mkdir", "-p", "/data/openinfra/backups"),
+                    ),
+                    InstallationCommand(
                         "apply backend migrations",
                         (
                             str(application_root / "venv/bin/openinfra"),
@@ -552,6 +569,9 @@ class AutonomousInstallerProgram:
             package_manager = report.postgresql_plan.os_profile.package_manager
             prerequisites.append(
                 InstallationPrerequisite("PostgreSQL package manager", package_manager)
+            )
+            prerequisites.append(
+                InstallationPrerequisite("PostgreSQL backup utility", "pg_basebackup")
             )
         return tuple(prerequisites)
 
@@ -733,6 +753,49 @@ class AutonomousInstallerProgram:
         )
         self._replace_text(override, content, 0o644, journal)
 
+    def _render_postgresql_ha_configuration(
+        self,
+        plan: InstallationPlan,
+        journal: InstallationRollbackJournal,
+        account: tuple[str, str] | None,
+    ) -> None:
+        if plan.postgresql_ha is None:
+            return
+        ha_plan = plan.postgresql_ha
+        pitr = Path(ha_plan.pitr_archive_directory)
+        backups = Path(ha_plan.backup_directory)
+        self._create_directory(pitr, journal)
+        self._create_directory(backups, journal)
+        if account is not None:
+            self._run_command(("chown", "-R", f"{account[0]}:{account[1]}", str(pitr)))
+            self._run_command(("chown", "-R", f"{account[0]}:{account[1]}", str(backups)))
+        payload = json.dumps(ha_plan.as_dict(), sort_keys=True, indent=2) + "\n"
+        self._replace_text(Path("/etc/openinfra/postgresql-ha.json"), payload, 0o640, journal)
+        self._render_postgresql_conf_include(ha_plan, journal)
+
+    def _render_postgresql_conf_include(
+        self, ha_plan: Any, journal: InstallationRollbackJournal
+    ) -> None:
+        conf_dir = Path("/data/openinfra/conf.d")
+        self._create_directory(conf_dir, journal)
+        conf_file = conf_dir / "openinfra-ha.conf"
+        content = "\n".join(ha_plan.postgresql_conf_lines()) + "\n"
+        self._replace_text(conf_file, content, 0o640, journal)
+        postgresql_conf = Path("/data/openinfra/postgresql.conf")
+        if not postgresql_conf.exists():
+            return
+        current = postgresql_conf.read_text(encoding="utf-8")
+        include_line = "include_dir = 'conf.d'"
+        if include_line in current:
+            return
+        suffix = "" if current.endswith("\n") or not current else "\n"
+        self._replace_text(
+            postgresql_conf,
+            current + suffix + "# openinfra managed HA/PITR include\n" + include_line + "\n",
+            0o640,
+            journal,
+        )
+
     def _run_postgresql_bootstrap(
         self, plan: InstallationPlan, journal: InstallationRollbackJournal
     ) -> None:
@@ -750,6 +813,7 @@ class AutonomousInstallerProgram:
                 )
             elif shutil.which(init_command.command[0]) is not None:
                 self._run_command(init_command.command)
+        self._render_postgresql_ha_configuration(plan, journal, account)
         for label in (
             "enable PostgreSQL service",
             "start PostgreSQL service",

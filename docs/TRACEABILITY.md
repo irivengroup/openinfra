@@ -1,3 +1,15 @@
+## v0.29.7 — Dette P06 PostgreSQL HA/PITR
+
+| Élément | Alignement |
+|---|---|
+| Roadmap v2 | P06 PostgreSQL HA, réplication quasi synchrone et sauvegardes traité avant Discovery. |
+| Installateurs | `installers/setup/**/install.py` rend le plan HA/PITR depuis les scopes backend/all-in-one. |
+| Configuration | `install.ini` reste succinct ; `identity.peer_nodes` suffit à activer la topologie cluster. |
+| Stockage | `/data/openinfra/pitr` et `/data/openinfra/backups` sont internes, non exposés dans `install.ini`. |
+| Migrations | `0024_postgresql_ha_backup_registry.sql` ajoute registres HA, backups et failover auditables. |
+| Sécurité | Failover contrôlé opérateur, pas de secret en clair, pas de port exposé dans `install.ini`. |
+| CLI | `openinfra database ha-plan` expose le plan dérivé pour audit. |
+
 ## v0.29.6 — Dette P05 LVM/PGDATA native
 
 - P03/P04 : moteur d'installation autonome par scope enrichi avec prérequis, rollback transactionnel, runtime Python, installation de requirements production et démarrage systemd effectif.

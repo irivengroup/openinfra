@@ -140,3 +140,16 @@ Le domaine EVPN/VXLAN doit supporter l’import/export asynchrone lorsque le vol
 - Toute opération batch doit être découpée et relançable.
 - Les métriques de saturation doivent être exposées.
 - Les dashboards doivent couvrir API, base, workers, files, discovery, imports, IPAM et sécurité.
+
+## Complément v0.29.7 — HA/PITR pilotés par installateur
+
+Le scope backend/all-in-one doit générer un plan PostgreSQL HA/PITR interne. Les paramètres bas niveau PostgreSQL, les ports et les secrets de réplication ne doivent pas être exposés dans `install.ini`.
+
+Règles :
+
+- `identity.peer_nodes` active le mode cluster quasi synchrone pour les scopes `server` ;
+- le mode interne recommandé est `native-postgresql-streaming` ;
+- le failover automatique destructif est interdit sans validation opérateur ;
+- les archives WAL sont stockées sous `/data/openinfra/pitr` ;
+- les backups physiques sont stockés sous `/data/openinfra/backups` ;
+- le plan rendu doit être auditable via CLI et par fichier sous `/etc/openinfra`.

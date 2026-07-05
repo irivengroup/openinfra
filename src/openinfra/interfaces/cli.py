@@ -252,6 +252,16 @@ class OpenInfraCLI:
         apply.add_argument("--root", type=Path, default=Path("installers/migrations/postgresql"))
         apply.add_argument("--dry-run", action="store_true")
         apply.set_defaults(handler=self._handle_database_apply_migrations)
+        ha_plan = database_subparsers.add_parser(
+            "ha-plan",
+            help="render PostgreSQL HA/PITR plan from an autonomous installer scope",
+        )
+        ha_plan.add_argument("--path", type=Path, required=True)
+        ha_plan.add_argument("--edition", choices=("lite", "pro", "enterprise"), required=True)
+        ha_plan.add_argument(
+            "--scope", choices=("all-in-one", "server", "web", "agent"), required=True
+        )
+        ha_plan.set_defaults(handler=self._handle_database_ha_plan)
 
     def _add_security_commands(self, subparsers: Any) -> None:
         security = subparsers.add_parser("security", help="api token and rbac operations")
@@ -1481,6 +1491,24 @@ class OpenInfraCLI:
         status = executor.apply_all(dry_run=bool(args.dry_run))
         print(json.dumps(status.as_dict(), sort_keys=True))
         return 0
+
+    def _handle_database_ha_plan(self, args: argparse.Namespace) -> int:
+        report = InstallerConfigValidator().validate_file(args.path, args.edition, args.scope)
+        if not report.valid:
+            print(json.dumps(report.as_dict(), sort_keys=True, indent=2))
+            return 2
+        payload = {
+            "edition": report.edition,
+            "scope": report.scope,
+            "managed_postgresql": report.postgresql_plan is not None,
+            "postgresql_ha": (
+                report.postgresql_ha_plan.as_dict()
+                if report.postgresql_ha_plan is not None
+                else None
+            ),
+        }
+        print(json.dumps(payload, sort_keys=True, indent=2))
+        return 0 if report.postgresql_ha_plan is not None else 2
 
     def _handle_security_bootstrap_token(self, args: argparse.Namespace) -> int:
         application = self._create_application(args)

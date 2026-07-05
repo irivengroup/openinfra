@@ -126,3 +126,25 @@ PYTHONPATH=src python -m openinfra.interfaces.cli installer dry-run --root insta
 PYTHONPATH=src python scripts/validate_autonomous_installer.py --root installers
 PYTHONPATH=src python -m openinfra.interfaces.cli installer render-systemd --edition enterprise --scope agent
 ```
+
+## PostgreSQL HA/PITR v0.29.7
+
+Les scopes `lite/all-in-one`, `pro/server` et `enterprise/server` produisent désormais un plan PostgreSQL HA/PITR interne. Le fichier `install.ini` ne doit pas contenir de paramètres PostgreSQL bas niveau. Pour les scopes `server`, la présence de `identity.peer_nodes` active le mode cluster quasi synchrone.
+
+Contrôle du plan :
+
+```bash
+PYTHONPATH=src python -m openinfra.interfaces.cli database ha-plan \
+  --path installers/setup/enterprise/server/install.ini \
+  --edition enterprise \
+  --scope server
+```
+
+Artefacts rendus en exécution réelle :
+
+- `/etc/openinfra/postgresql-ha.json` ;
+- `/data/openinfra/conf.d/openinfra-ha.conf` ;
+- `/data/openinfra/pitr` ;
+- `/data/openinfra/backups`.
+
+Le failover est volontairement manuel et auditable. L'installateur prépare les primitives nécessaires, mais ne promeut jamais un standby automatiquement.

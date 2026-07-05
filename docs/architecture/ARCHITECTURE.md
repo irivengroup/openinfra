@@ -1,3 +1,16 @@
+## v0.29.7 — P06 PostgreSQL HA/PITR
+
+La version `0.29.7` ajoute le socle P06 avant reprise Discovery. L'installateur reste la source d'orchestration : les scopes backend/all-in-one déduisent un plan PostgreSQL HA/PITR depuis l'arborescence et le `install.ini` minimaliste. Lorsque `identity.peer_nodes` contient des pairs, le plan passe en topologie `quasi-synchronous-cluster`; sinon il reste en `standalone-managed` avec primitives PITR et backup.
+
+Le plan ne déplace pas de logique dans `src` et ne réintroduit pas `deploy/`. Il rend :
+
+- `/etc/openinfra/postgresql-ha.json` pour audit opérateur ;
+- `/data/openinfra/conf.d/openinfra-ha.conf` pour WAL archiving, hot standby, slots et synchronous commit ;
+- `/data/openinfra/pitr` pour l'archive WAL ;
+- `/data/openinfra/backups` pour les backups physiques.
+
+Le failover n'est pas automatique : la configuration impose une validation opérateur et un précheck avant switchover/failover. Cette décision évite une promotion destructrice en cas de partition réseau.
+
 ## v0.29.6 — P05 LVM/PGDATA natif et FS applicatif CDC
 
 La version `0.29.6` traite P05 : l'installateur orchestre réellement les filesystems LVM, le compte système `openinfra`, le filesystem applicatif CDC `/opt/openinfra/` pour tous les scopes installés y compris `enterprise/agent`, le filesystem PostgreSQL `/data/openinfra/` uniquement pour `lite/all-in-one`, `pro/server` et `enterprise/server`, le symlink `/opt/openinfra/data -> /data/openinfra/`, le compte système PostgreSQL résolu ou créé, l'override PGDATA systemd et les migrations backend. Les scopes `web` et `agent` restent exclus de PostgreSQL, de PGDATA et des migrations.

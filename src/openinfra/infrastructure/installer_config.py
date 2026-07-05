@@ -57,6 +57,90 @@ class InstallerPostgreSQLDeploymentPlan:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class InstallerPostgreSQLHaPlan:
+    replication_enabled: bool
+    topology: str
+    mode: str
+    peer_nodes: tuple[str, ...]
+    vip_endpoint: str | None
+    replication_port: int = 5432
+    cluster_sync_port: int = 2008
+    pitr_archive_directory: str = "/data/openinfra/pitr"
+    backup_directory: str = "/data/openinfra/backups"
+    replication_slot_prefix: str = "openinfra"
+    synchronous_commit: str = "remote_apply"
+
+    @property
+    def synchronous_standby_names(self) -> str:
+        if not self.replication_enabled:
+            return ""
+        names = ",".join(
+            f"{self.replication_slot_prefix}_{index}"
+            for index, _peer in enumerate(self.peer_nodes, start=1)
+        )
+        return f"ANY 1 ({names})"
+
+    @property
+    def archive_command(self) -> str:
+        return (
+            f"test ! -f {self.pitr_archive_directory}/%f && cp %p {self.pitr_archive_directory}/%f"
+        )
+
+    @property
+    def restore_command(self) -> str:
+        return f"cp {self.pitr_archive_directory}/%f %p"
+
+    def postgresql_conf_lines(self) -> tuple[str, ...]:
+        lines = [
+            "# managed by OpenInfra installer",
+            "wal_level = replica",
+            "archive_mode = on",
+            f"archive_command = '{self.archive_command}'",
+            f"restore_command = '{self.restore_command}'",
+            "hot_standby = on",
+            "max_wal_senders = 16",
+            "max_replication_slots = 16",
+            f"synchronous_commit = '{self.synchronous_commit}'",
+        ]
+        if self.synchronous_standby_names:
+            lines.append(f"synchronous_standby_names = '{self.synchronous_standby_names}'")
+        return tuple(lines)
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "enabled": True,
+            "replication_enabled": self.replication_enabled,
+            "topology": self.topology,
+            "mode": self.mode,
+            "peer_nodes": list(self.peer_nodes),
+            "vip_endpoint": self.vip_endpoint,
+            "replication_port": self.replication_port,
+            "cluster_sync_port": self.cluster_sync_port,
+            "pitr_archive_directory": self.pitr_archive_directory,
+            "backup_directory": self.backup_directory,
+            "replication_slot_prefix": self.replication_slot_prefix,
+            "synchronous_commit": self.synchronous_commit,
+            "synchronous_standby_names": self.synchronous_standby_names,
+            "archive_command": self.archive_command,
+            "restore_command": self.restore_command,
+            "postgresql_conf_lines": list(self.postgresql_conf_lines()),
+            "backup_command": [
+                "pg_basebackup",
+                "-D",
+                self.backup_directory,
+                "-Fp",
+                "-Xs",
+                "-P",
+            ],
+            "failover_safety": {
+                "automatic_promotion": False,
+                "requires_operator_confirmation": True,
+                "precheck": "verify last replay timestamp, VIP reachability and peer health",
+            },
+        }
+
+
 class InstallerOsCatalog:
     _profiles: ClassVar[dict[str, InstallerOsProfile]] = {
         "rhel": InstallerOsProfile(
@@ -214,6 +298,7 @@ class InstallerConfigReport:
     application_filesystem_plan: InstallerFilesystemPlan | None = None
     postgresql_filesystem_plan: InstallerFilesystemPlan | None = None
     postgresql_plan: InstallerPostgreSQLDeploymentPlan | None = None
+    postgresql_ha_plan: InstallerPostgreSQLHaPlan | None = None
 
     @property
     def valid(self) -> bool:
@@ -242,6 +327,9 @@ class InstallerConfigReport:
             ),
             "postgresql_deployment": (
                 self.postgresql_plan.as_dict() if self.postgresql_plan is not None else None
+            ),
+            "postgresql_ha": (
+                self.postgresql_ha_plan.as_dict() if self.postgresql_ha_plan is not None else None
             ),
         }
 
@@ -623,6 +711,11 @@ class InstallerConfigValidator:
             if parser is not None and postgresql_plan is not None and not errors
             else None
         )
+        postgresql_ha_plan = (
+            self._postgresql_ha_plan(parser, policy)
+            if parser is not None and postgresql_plan is not None and not errors
+            else None
+        )
         return InstallerConfigReport(
             path=path,
             edition=policy.edition,
@@ -632,11 +725,16 @@ class InstallerConfigValidator:
             errors=tuple(errors),
             warnings=tuple(warnings),
             actions=self._render_actions(
-                policy, application_filesystem_plan, postgresql_filesystem_plan, postgresql_plan
+                policy,
+                application_filesystem_plan,
+                postgresql_filesystem_plan,
+                postgresql_plan,
+                postgresql_ha_plan,
             ),
             application_filesystem_plan=application_filesystem_plan,
             postgresql_filesystem_plan=postgresql_filesystem_plan,
             postgresql_plan=postgresql_plan,
+            postgresql_ha_plan=postgresql_ha_plan,
         )
 
     def validate_tree(self, root: Path) -> InstallerFleetReport:
@@ -733,6 +831,33 @@ class InstallerConfigValidator:
             owner="postgresql-system-user",
             group="postgresql-system-group",
         )
+
+    def _postgresql_ha_plan(
+        self, parser: configparser.ConfigParser, policy: InstallerScopePolicy
+    ) -> InstallerPostgreSQLHaPlan | None:
+        if not policy.managed_postgresql:
+            return None
+        peers = self._identity_peer_nodes(parser)
+        endpoint = (
+            parser.get("api", "backend_endpoint", fallback="").strip()
+            if parser.has_section("api")
+            else None
+        )
+        replication_enabled = policy.scope == "server" and bool(peers)
+        topology = "quasi-synchronous-cluster" if replication_enabled else "standalone-managed"
+        return InstallerPostgreSQLHaPlan(
+            replication_enabled=replication_enabled,
+            topology=topology,
+            mode="native-postgresql-streaming",
+            peer_nodes=peers,
+            vip_endpoint=endpoint or None,
+        )
+
+    def _identity_peer_nodes(self, parser: configparser.ConfigParser) -> tuple[str, ...]:
+        if not parser.has_section("identity"):
+            return ()
+        raw = parser.get("identity", "peer_nodes", fallback="").strip()
+        return tuple(item.strip() for item in raw.split(",") if item.strip())
 
     def _validate_schema(
         self, parser: configparser.ConfigParser, policy: InstallerScopePolicy, errors: list[str]
@@ -867,6 +992,7 @@ class InstallerConfigValidator:
         application_filesystem: InstallerFilesystemPlan | None,
         postgresql_filesystem: InstallerFilesystemPlan | None,
         postgresql_plan: InstallerPostgreSQLDeploymentPlan | None,
+        postgresql_ha_plan: InstallerPostgreSQLHaPlan | None,
     ) -> tuple[str, ...]:
         actions = [
             "infer edition and scope from installer directory",
@@ -896,6 +1022,23 @@ class InstallerConfigValidator:
                     "before service enablement",
                 )
             )
+        if postgresql_ha_plan is not None:
+            actions.extend(
+                (
+                    "render native PostgreSQL HA/PITR configuration under /etc/openinfra",
+                    "enable WAL archiving to /data/openinfra/pitr with idempotent archive command",
+                    "prepare physical backup directory /data/openinfra/backups",
+                )
+            )
+            if postgresql_ha_plan.replication_enabled:
+                actions.append(
+                    "enable quasi-synchronous PostgreSQL streaming replication from "
+                    "identity.peer_nodes with internal ports and operator-controlled failover"
+                )
+            else:
+                actions.append(
+                    "run managed standalone PostgreSQL with PITR-ready backup primitives"
+                )
         if postgresql_filesystem is not None:
             actions.append(
                 "enforce PostgreSQL LV maximum from install.ini storage.lvsize "

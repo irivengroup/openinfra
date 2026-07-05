@@ -37,6 +37,19 @@ class TestInstallerAlignment:
             for item in report.reports
             for action in item.actions
         )
+        enterprise_server = next(
+            item
+            for item in report.reports
+            if item.edition == "enterprise" and item.scope == "server"
+        )
+        assert enterprise_server.postgresql_ha_plan is not None
+        assert enterprise_server.postgresql_ha_plan.replication_enabled is True
+        assert enterprise_server.postgresql_ha_plan.cluster_sync_port == 2008
+        assert "ANY 1" in enterprise_server.postgresql_ha_plan.synchronous_standby_names
+        lite = next(item for item in report.reports if item.edition == "lite")
+        assert lite.postgresql_ha_plan is not None
+        assert lite.postgresql_ha_plan.replication_enabled is False
+        assert lite.postgresql_ha_plan.backup_directory == "/data/openinfra/backups"
 
     def test_installer_validator_rejects_web_scope_storage(self, tmp_path: Path) -> None:
         source = Path("installers/setup/pro/web/install.ini")
@@ -77,6 +90,19 @@ class TestInstallerAlignment:
             ["installer", "render-systemd", "--edition", "enterprise", "--scope", "agent"]
         )
         unit_payload = capsys.readouterr().out
+        ha_code = OpenInfraCLI().run(
+            [
+                "database",
+                "ha-plan",
+                "--path",
+                "installers/setup/enterprise/server/install.ini",
+                "--edition",
+                "enterprise",
+                "--scope",
+                "server",
+            ]
+        )
+        ha_payload = json.loads(capsys.readouterr().out)
 
         assert validate_code == 0
         assert validate_payload["valid"] is True
@@ -84,6 +110,9 @@ class TestInstallerAlignment:
         assert dry_run_payload["dry_run"] is True
         assert dry_run_payload["writes_performed"] is False
         assert render_code == 0
+        assert ha_code == 0
+        assert ha_payload["postgresql_ha"]["replication_enabled"] is True
+        assert ha_payload["postgresql_ha"]["cluster_sync_port"] == 2008
         assert "openinfra-agent.service" in unit_payload
         assert "NoNewPrivileges=true" in unit_payload
         assert "PrivateDevices=true" in unit_payload
@@ -95,9 +124,9 @@ class TestInstallerAlignment:
         combined_requirements = "\n".join(path.read_text(encoding="utf-8") for path in requirements)
 
         assert not Path("migrations").exists()
-        assert len(installer_migrations) == 23
+        assert len(installer_migrations) == 24
         assert installer_migrations[0].name == "0001_bootstrap.sql"
-        assert installer_migrations[-1].name == "0023_discovery_collector_registry.sql"
+        assert installer_migrations[-1].name == "0024_postgresql_ha_backup_registry.sql"
         assert "psycopg[binary]" in combined_requirements
         forbidden_dev_tools = ("pytest", "ruff", "mypy", "bandit", "pip-audit", "build")
         assert not any(tool in combined_requirements for tool in forbidden_dev_tools)

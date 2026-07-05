@@ -1,30 +1,38 @@
-# OpenInfra v0.29.6 — validation report
+# OpenInfra v0.29.7 — validation report
 
-## Objet
+Version complète issue de v0.29.6. Cette livraison traite P06 avant reprise Discovery : PostgreSQL HA/PITR, réplication quasi synchrone dérivée de `identity.peer_nodes`, sauvegardes physiques, archive WAL, migration de registre HA et commande d'audit `database ha-plan`.
 
-Version corrective complète issue de v0.29.5. Cette livraison traite la dette prioritaire P05 avant reprise Discovery : orchestration native LVM/PGDATA, filesystem applicatif CDC `/opt/openinfra/` pour tous les scopes installés y compris `enterprise/agent`, filesystem PostgreSQL `/data/openinfra/` uniquement pour backend/all-in-one, résolution/création du compte système PostgreSQL, symlink data, override systemd PGDATA et migrations backend.
+## Synthèse
+
+- Version CLI : `0.29.7`.
+- Tests automatisés : 345 tests PASS.
+- Couverture globale : 98.01 %, seuil `>=98 %` PASS.
+- CDC actif : `OpenInfra-CDC-SFG-STG-v4.8.1`.
+- Roadmap active : `OpenInfra-Roadmap-Developpement-v2`.
+- Installateurs : 6 profils autonomes PASS.
+- Migrations PostgreSQL : 24 migrations, source unique `installers/migrations/postgresql`.
+- Docker Compose réel avec PostgreSQL live : non exécuté, Docker indisponible dans cet environnement.
 
 ## Changements validés
 
-- `installers/setup/**/install.py` reste le point d'entrée autonome par scope.
-- `enterprise/agent` respecte désormais la disposition CDC : FS/LVM applicatif `/opt/openinfra/` géré par l'installateur.
-- `enterprise/agent` reste sans PostgreSQL, sans PGDATA, sans symlink `/opt/openinfra/data` et sans migrations backend.
-- Ajout d'un plan filesystem applicatif interne : `rootvg/openinfra_lv`, `2GB`, `xfs`, monté sur `/opt/openinfra/`, propriétaire `openinfra:openinfra`.
-- Ajout d'un plan filesystem PostgreSQL depuis `install.ini` : `vgname`, `lvname`, `lvsize`, monté en interne sur `/data/openinfra/`.
-- Le `install.ini` ne révèle toujours pas le mountpoint, le owner/group, le scope, l'édition, le service ou les opérations.
-- Le compte système `openinfra` est créé si absent avant montage/déploiement applicatif.
-- Le compte système PostgreSQL est résolu depuis le packaging OS, puis créé si absent.
-- LVM est orchestré de manière idempotente : validation VG, création LV si absent, formatage XFS si nécessaire, entrée `/etc/fstab`, montage et `chown`.
-- Les scopes backend/all-in-one créent le symlink `/opt/openinfra/data -> /data/openinfra/`.
-- Les scopes backend/all-in-one rendent l'override systemd PostgreSQL `PGDATA=/data/openinfra/`.
-- Les migrations backend restent source unique sous `installers/migrations/postgresql`.
-- CDC v4.8.1 et roadmap v2 mis à jour pour supprimer l'ancienne exception FS applicatif agent.
-- Tests et gates renforcés pour vérifier que tous les scopes ont un `application_filesystem`, et que seuls backend/all-in-one ont un `postgresql_filesystem`.
+- `InstallerPostgreSQLHaPlan` ajouté au validateur installateur.
+- Mode interne `native-postgresql-streaming`.
+- Topologie `quasi-synchronous-cluster` activée lorsque `identity.peer_nodes` est renseigné.
+- Topologie `standalone-managed` conservée pour Lite et serveurs sans peers.
+- Rendu interne :
+  - `/etc/openinfra/postgresql-ha.json` ;
+  - `/data/openinfra/conf.d/openinfra-ha.conf` ;
+  - `/data/openinfra/pitr` ;
+  - `/data/openinfra/backups`.
+- Paramètres PostgreSQL rendus : WAL archiving, `hot_standby`, slots, `synchronous_commit=remote_apply`, `synchronous_standby_names='ANY 1 (...)'` si cluster.
+- Failover automatique destructif interdit : promotion opérateur contrôlée et auditable.
+- Migration `0024_postgresql_ha_backup_registry.sql` ajoutée.
+- CLI `openinfra database ha-plan` ajoutée.
 
 ## Validations exécutées
 
 ```bash
-PYTHONPATH=src:. python -m compileall -q src tests scripts docker installers
+python -m compileall -q src tests scripts docker installers
 python -m ruff format --check src tests scripts docker installers
 python -m ruff check src tests scripts docker installers
 python -m mypy src/openinfra
@@ -40,8 +48,8 @@ PYTHONPATH=src python -m openinfra.interfaces.cli installer dry-run --root insta
 PYTHONPATH=src python scripts/validate_autonomous_installer.py --root installers
 PYTHONPATH=src python scripts/validate_enterprise_alignment.py --project-root .
 PYTHONPATH=src python scripts/native_runtime_smoke.py --project-root .
+PYTHONPATH=src python -m openinfra.interfaces.cli database ha-plan --path installers/setup/enterprise/server/install.ini --edition enterprise --scope server
 python installers/setup/lite/install.py --dry-run --json
-python installers/setup/pro/server/install.py --verify-only --json
 python installers/setup/enterprise/agent/install.py --dry-run --json
 python -m build
 python scripts/verify_artifact.py dist/*.whl
@@ -49,30 +57,40 @@ python scripts/verify_artifact.py dist/*.whl
 
 ## Résultats
 
-- Compileall : PASS.
-- Ruff format : PASS.
-- Ruff lint : PASS.
-- Mypy : PASS, 39 modules.
-- Bandit : PASS.
-- Security gate : PASS.
-- pip-audit dry-run : PASS, 512 packages audités en dry-run, aucune vulnérabilité connue.
-- Pytest : PASS, 344 tests.
-- Couverture globale : PASS, 98.01 % pour un seuil de 98 %.
-- Quality gate : PASS.
-- CLI version : PASS, 0.29.6.
-- CDC v4.8.1 : PASS, 735 exigences, 543 tests.
-- Installateurs : PASS, 6 profils.
-- Enterprise alignment : PASS.
-- Native runtime smoke : PASS.
-- Migrations PostgreSQL : PASS, 23 migrations chargées et validées.
-- YAML compose/openapi : PASS.
-- Build wheel/sdist : PASS.
-- verify_artifact : PASS.
+```text
+ruff format --check : PASS
+ruff check : PASS
+mypy : PASS
+bandit : PASS
+security_gate.py : PASS
+pip-audit --dry-run : PASS — 512 packages audités en dry-run
+pytest : PASS — 345 tests
+coverage : PASS — 98.01 %
+quality_gate.py : PASS
+CLI version : PASS — 0.29.7
+spec validate CDC v4.8.1 : PASS — 735 exigences, 543 tests
+installer validate : PASS — 6 profils
+installer dry-run : PASS — 6 profils
+validate_autonomous_installer.py : PASS
+validate_enterprise_alignment.py : PASS
+native_runtime_smoke.py : PASS
+compose.yaml : YAML valide
+OpenAPI YAML : YAML valide
+build wheel/sdist : PASS
+verify_artifact.py : PASS
+```
 
-## Non exécuté
+## Contrôles d'archive
 
-Docker Compose réel avec PostgreSQL live n'a pas été exécuté : Docker n'est pas disponible dans l'environnement courant.
+```text
+deploy/ absent : PASS
+migrations/ racine absent : PASS
+anciens dossiers installers/lite, installers/pro, installers/enterprise absents : PASS
+installers/setup canonical : PASS
+installers/migrations/postgresql : PASS — 24 migrations
+caches/artefacts temporaires absents : PASS
+```
 
-## Dette restante prioritaire
+## Limite d'exécution
 
-P05 est livré côté moteur installateur natif. La dette suivante avant reprise Discovery est P06 : fondation HA PostgreSQL/cluster initial, uniquement après validation du déploiement live Docker/PostgreSQL ou environnement Linux cible.
+Docker Compose réel avec PostgreSQL live n'a pas été exécuté dans cet environnement, car Docker n'est pas disponible. Les tests applicatifs, installateurs, migrations rendues, OpenAPI, Compose YAML, build et quality gates ont été exécutés localement.

@@ -103,6 +103,20 @@ class NativeRuntimeGuard:
             )
         if "create or validate internal application LVM filesystem" not in installer_config:
             raise QualityGateError("installer must orchestrate the CDC application filesystem")
+        required_ha_fragments = (
+            "InstallerPostgreSQLHaPlan",
+            "native-postgresql-streaming",
+            "quasi-synchronous-cluster",
+            "pitr_archive_directory",
+            "synchronous_commit",
+        )
+        missing_ha = [
+            fragment for fragment in required_ha_fragments if fragment not in installer_config
+        ]
+        if missing_ha:
+            raise QualityGateError(
+                "installer must model PostgreSQL HA/PITR P06: " + ", ".join(missing_ha)
+            )
         installer_runtime = (
             self._project_root / "installers/setup/installer_runtime.py"
         ).read_text(encoding="utf-8")
@@ -117,6 +131,9 @@ class NativeRuntimeGuard:
             "install scope production requirements",
             "restart OpenInfra service",
             "PostgreSQL DSN cannot be resolved; set OPENINFRA_DATABASE_DSN",
+            "_render_postgresql_ha_configuration",
+            "postgresql-ha.json",
+            "openinfra-ha.conf",
         )
         missing_runtime = [
             fragment for fragment in required_runtime_fragments if fragment not in installer_runtime
@@ -170,7 +187,7 @@ class DockerRuntimeGuard:
             raise QualityGateError(
                 "Dockerfile must not define an API healthcheck inherited by migrate/auth-bootstrap"
             )
-        if "openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.29.6}" not in compose:
+        if "openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.29.7}" not in compose:
             raise QualityGateError("compose.yaml must default to the current OpenInfra image tag")
         stale_tags = (
             "OPENINFRA_IMAGE_TAG=0.9.0",
@@ -187,6 +204,7 @@ class DockerRuntimeGuard:
             "${OPENINFRA_IMAGE_TAG:-0.29.3}",
             "${OPENINFRA_IMAGE_TAG:-0.29.4}",
             "${OPENINFRA_IMAGE_TAG:-0.29.5}",
+            "${OPENINFRA_IMAGE_TAG:-0.29.6}",
         )
         stale = [
             fragment for fragment in stale_tags if fragment in compose + env_example + env_manager

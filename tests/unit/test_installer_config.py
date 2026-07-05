@@ -371,3 +371,41 @@ class TestInstallerConfigDomain:
 
         with pytest.raises(ValidationError):
             validator.render_systemd_unit("lite", "agent")
+
+    def test_postgresql_ha_plan_covers_cluster_and_standalone_edges(self) -> None:
+        catalog = InstallerOsCatalog()
+        parsed = catalog.profile_from_os_release(
+            '# comment\n\nID=ubuntu\nBADLINE\nID_LIKE="debian"\n'
+        )
+        validator = InstallerConfigValidator()
+
+        enterprise = validator.validate_file(
+            Path("installers/setup/enterprise/server/install.ini"),
+            edition="enterprise",
+            scope="server",
+        )
+        lite = validator.validate_file(
+            Path("installers/setup/lite/install.ini"), edition="lite", scope="all-in-one"
+        )
+        web = validator.validate_file(
+            Path("installers/setup/enterprise/web/install.ini"),
+            edition="enterprise",
+            scope="web",
+        )
+
+        assert parsed.family == "debian"
+        assert enterprise.postgresql_ha_plan is not None
+        assert enterprise.postgresql_ha_plan.replication_enabled is True
+        assert enterprise.postgresql_ha_plan.topology == "quasi-synchronous-cluster"
+        assert enterprise.postgresql_ha_plan.synchronous_standby_names == (
+            "ANY 1 (openinfra_1,openinfra_2)"
+        )
+        assert "wal_level = replica" in enterprise.postgresql_ha_plan.postgresql_conf_lines()
+        assert (
+            enterprise.as_dict()["postgresql_ha"]["failover_safety"]["automatic_promotion"] is False
+        )
+        assert lite.postgresql_ha_plan is not None
+        assert lite.postgresql_ha_plan.replication_enabled is False
+        assert lite.postgresql_ha_plan.synchronous_standby_names == ""
+        assert web.postgresql_ha_plan is None
+        assert web.as_dict()["postgresql_ha"] is None

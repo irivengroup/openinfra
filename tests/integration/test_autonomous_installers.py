@@ -76,12 +76,23 @@ class TestAutonomousScopeInstallers:
             assert "mount application filesystem" in command_labels
             if scope in {"all-in-one", "server"}:
                 assert plan.postgresql_filesystem is not None
+                assert plan.postgresql_ha is not None
                 assert "create postgresql logical volume" in command_labels
                 assert "create PostgreSQL data symlink" in command_labels
+                assert "render PostgreSQL HA and PITR configuration" in command_labels
+                assert "prepare PostgreSQL PITR archive directory" in command_labels
+                assert "prepare PostgreSQL physical backup directory" in command_labels
+                if edition == "enterprise" and scope == "server":
+                    assert plan.postgresql_ha.replication_enabled is True
+                    assert plan.postgresql_ha.topology == "quasi-synchronous-cluster"
+                else:
+                    assert plan.postgresql_ha.replication_enabled is False
             else:
                 assert plan.postgresql_filesystem is None
+                assert plan.postgresql_ha is None
                 assert "create postgresql logical volume" not in command_labels
                 assert "create PostgreSQL data symlink" not in command_labels
+                assert "render PostgreSQL HA and PITR configuration" not in command_labels
 
     def test_execute_to_offline_target_deploys_src_requirements_and_scoped_assets(
         self, tmp_path: Path
@@ -97,6 +108,9 @@ class TestAutonomousScopeInstallers:
         assert (lite_app / "src/openinfra").is_dir()
         assert (lite_app / "requirements/lite-all-in-one.txt").is_file()
         assert (lite_app / "installers/migrations/postgresql/0001_bootstrap.sql").is_file()
+        assert (
+            lite_app / "installers/migrations/postgresql/0024_postgresql_ha_backup_registry.sql"
+        ).is_file()
         assert (tmp_path / "lite-target/etc/openinfra/install-lite-all-in-one.ini").is_file()
         assert (tmp_path / "lite-target/etc/systemd/system/openinfra.service").is_file()
 

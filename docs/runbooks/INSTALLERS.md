@@ -1,3 +1,13 @@
+## v0.29.10 — P07 authentification LDAP/IPA et RBAC groupes
+
+- Lite reste strictement limité à l'authentification locale `standard`.
+- Pro et Enterprise acceptent une politique LDAP/IPA uniquement côté backend/server.
+- Le frontend ne se connecte jamais directement à LDAP/IPA.
+- Les secrets de bind LDAP/IPA restent des références `env:`, `vault://`, `sops://`, `file://` ou `kms://`.
+- Les groupes externes sont mappés explicitement vers des rôles OpenInfra ; l'annuaire authentifie l'identité mais n'autorise jamais les actions applicatives.
+- L'émission des tokens applicatifs est basée sur les rôles OpenInfra effectifs.
+- Les connexions externes réussies sont auditées sans journaliser les mots de passe, DN utilisateur en clair dans les payloads publics ou secrets de bind.
+
 # Installateurs autonomes OpenInfra
 
 `installers/` est le point d’entrée opérationnel des installations OpenInfra. Il ne contient pas seulement la configuration : il embarque les programmes d’installation par scope, les migrations backend et les dépendances de production nécessaires à l’installation native.
@@ -127,7 +137,7 @@ PYTHONPATH=src python scripts/validate_autonomous_installer.py --root installers
 PYTHONPATH=src python -m openinfra.interfaces.cli installer render-systemd --edition enterprise --scope agent
 ```
 
-## PostgreSQL HA/PITR v0.29.9
+## PostgreSQL HA/PITR v0.29.10
 
 Les scopes `lite/all-in-one`, `pro/server` et `enterprise/server` produisent désormais un plan PostgreSQL HA/PITR interne. Le fichier `install.ini` ne doit pas contenir de paramètres PostgreSQL bas niveau. Pour les scopes `server`, la présence de `identity.peer_nodes` active le mode cluster à synchronisation quasi temps réel.
 

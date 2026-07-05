@@ -2,4 +2,5 @@
 # Keep production/runtime dependencies separated from dev/CI-only tools.
 -r runtime.txt
 -r postgresql.txt
+-r auth-ldap.txt
 -r dev.txt

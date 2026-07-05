@@ -418,3 +418,77 @@ class TestInstallerConfigDomain:
         assert lite.postgresql_ha_plan.replication_slot_names == ()
         assert web.postgresql_ha_plan is None
         assert web.as_dict()["postgresql_ha"] is None
+
+    def test_installer_auth_ldap_ipa_invalid_edges_are_reported(self, tmp_path: Path) -> None:
+        validator = InstallerConfigValidator()
+        server_base = Path("installers/setup/pro/server/install.ini").read_text(encoding="utf-8")
+        invalid_server = tmp_path / "invalid-ldap.ini"
+        invalid_server.write_text(
+            server_base.replace(
+                "mode = standard",
+                "\n".join(
+                    (
+                        "mode = ldap",
+                        "directory_url = ldap://user:pass@ldap.example.net/path",
+                        "base_dn = ou=people",
+                        "user_filter = (uid=*)",
+                        "group_filter = (cn=ops)",
+                        "bind_dn_ref = env:OPENINFRA_LDAP_BIND_DN",
+                        "cache_ttl_seconds = not-int",
+                    )
+                ),
+            ),
+            encoding="utf-8",
+        )
+        standard_with_directory = tmp_path / "standard-directory.ini"
+        standard_with_directory.write_text(
+            server_base + "\ndirectory_url = ldaps://ldap.example.net\n",
+            encoding="utf-8",
+        )
+        lite_ldap = tmp_path / "lite-ldap.ini"
+        lite_ldap.write_text(
+            Path("installers/setup/lite/install.ini").read_text(encoding="utf-8")
+            + "\n[auth]\nmode = ldap\n",
+            encoding="utf-8",
+        )
+        invalid_ttl = tmp_path / "invalid-ttl.ini"
+        invalid_ttl.write_text(
+            server_base.replace(
+                "mode = standard",
+                "\n".join(
+                    (
+                        "mode = ipa",
+                        "directory_url = ldaps://ipa.example.net",
+                        "base_dn = dc=example,dc=net",
+                        "user_filter = (uid={username})",
+                        "group_filter = (member={user_dn})",
+                        "cache_ttl_seconds = 5",
+                    )
+                ),
+            ),
+            encoding="utf-8",
+        )
+
+        invalid_errors = "\n".join(
+            validator.validate_file(invalid_server, edition="pro", scope="server").errors
+        )
+        standard_errors = "\n".join(
+            validator.validate_file(standard_with_directory, edition="pro", scope="server").errors
+        )
+        lite_errors = "\n".join(
+            validator.validate_file(lite_ldap, edition="lite", scope="all-in-one").errors
+        )
+        ttl_errors = "\n".join(
+            validator.validate_file(invalid_ttl, edition="pro", scope="server").errors
+        )
+
+        assert "auth.directory_url must use ldaps:// with a host" in invalid_errors
+        assert "auth.directory_url must not embed credentials" in invalid_errors
+        assert "auth.base_dn must be an LDAP distinguished name" in invalid_errors
+        assert "auth.user_filter must contain {username}" in invalid_errors
+        assert "auth.group_filter must contain {user_dn}" in invalid_errors
+        assert "auth.bind_dn_ref and auth.bind_password_ref" in invalid_errors
+        assert "auth.cache_ttl_seconds must be an integer" in invalid_errors
+        assert "auth.directory_url is only valid for ldap/ipa mode" in standard_errors
+        assert "lite auth.mode must remain standard" in lite_errors
+        assert "auth.cache_ttl_seconds must be between 30 and 3600" in ttl_errors

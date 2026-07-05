@@ -19,6 +19,7 @@ from openinfra.application.audit_services import (
     ListAuditEventsCommand,
     VerifyAuditIntegrityCommand,
 )
+from openinfra.application.authentication_services import AuthProviderPolicyCommand
 from openinfra.application.container import ApplicationFactory, OpenInfraApplication
 from openinfra.application.dcim_services import (
     ConnectDcimCableCommand,
@@ -115,6 +116,7 @@ from openinfra.application.source_of_truth_services import (
     UpsertSourceObjectCommand,
 )
 from openinfra.domain.access_policy import AccessRequestContext
+from openinfra.domain.authentication import ExternalDirectoryConfig
 from openinfra.domain.common import OpenInfraError
 from openinfra.domain.security import Permission
 from openinfra.infrastructure.installer_config import InstallerConfigValidator
@@ -149,6 +151,7 @@ class OpenInfraCLI:
         self._add_installer_commands(subparsers)
         self._add_edition_commands(subparsers)
         self._add_database_commands(subparsers)
+        self._add_auth_commands(subparsers)
         self._add_security_commands(subparsers)
         self._add_identity_commands(subparsers)
         self._add_access_policy_commands(subparsers)
@@ -262,6 +265,26 @@ class OpenInfraCLI:
             "--scope", choices=("all-in-one", "server", "web", "agent"), required=True
         )
         ha_plan.set_defaults(handler=self._handle_database_ha_plan)
+
+    def _add_auth_commands(self, subparsers: Any) -> None:
+        auth = subparsers.add_parser("auth", help="authentication provider policy operations")
+        auth_subparsers = auth.add_subparsers(dest="auth_command", required=True)
+        policy = auth_subparsers.add_parser(
+            "policy",
+            help="validate local, LDAP or IPA authentication policy for an edition",
+        )
+        self._add_backend_arguments(policy)
+        policy.add_argument("--mode", choices=("standard", "ldap", "ipa"), required=True)
+        policy.add_argument("--url")
+        policy.add_argument("--base-dn")
+        policy.add_argument("--user-filter", default="(uid={username})")
+        policy.add_argument("--group-filter", default="(member={user_dn})")
+        policy.add_argument("--bind-dn-ref")
+        policy.add_argument("--bind-password-ref")
+        policy.add_argument("--ca-cert-ref")
+        policy.add_argument("--cache-ttl-seconds", type=int, default=300)
+        policy.add_argument("--no-nested-groups", action="store_true")
+        policy.set_defaults(handler=self._handle_auth_policy)
 
     def _add_security_commands(self, subparsers: Any) -> None:
         security = subparsers.add_parser("security", help="api token and rbac operations")
@@ -1509,6 +1532,34 @@ class OpenInfraCLI:
         }
         print(json.dumps(payload, sort_keys=True, indent=2))
         return 0 if report.postgresql_ha_plan is not None else 2
+
+    def _handle_auth_policy(self, args: argparse.Namespace) -> int:
+        directory_config = None
+        if args.mode in {"ldap", "ipa"}:
+            if not args.url or not args.base_dn:
+                raise OpenInfraError("LDAP/IPA mode requires --url and --base-dn")
+            directory_config = ExternalDirectoryConfig.create(
+                mode=args.mode,
+                url=args.url,
+                base_dn=args.base_dn,
+                user_filter=args.user_filter,
+                group_filter=args.group_filter,
+                bind_dn_ref=args.bind_dn_ref,
+                bind_password_ref=args.bind_password_ref,
+                ca_cert_ref=args.ca_cert_ref,
+                nested_groups=not bool(args.no_nested_groups),
+                cache_ttl_seconds=args.cache_ttl_seconds,
+            )
+        application = self._create_application(args)
+        payload = application.auth_provider_policy_service.validate(
+            AuthProviderPolicyCommand(
+                edition=args.edition,
+                mode=args.mode,
+                directory_config=directory_config,
+            )
+        )
+        print(json.dumps(payload, sort_keys=True, indent=2))
+        return 0
 
     def _handle_security_bootstrap_token(self, args: argparse.Namespace) -> int:
         application = self._create_application(args)

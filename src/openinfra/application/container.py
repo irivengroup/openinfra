@@ -6,6 +6,10 @@ from typing import Any
 
 from openinfra.application.access_policy_services import AccessPolicyService
 from openinfra.application.audit_services import AuditTrailService
+from openinfra.application.authentication_services import (
+    AuthProviderPolicyService,
+    ExternalAuthenticationService,
+)
 from openinfra.application.dcim_services import (
     DcimCablingService,
     DcimEnvironmentService,
@@ -48,6 +52,7 @@ from openinfra.application.security_services import SecurityService
 from openinfra.application.source_governance_services import SourceGovernanceService
 from openinfra.application.source_of_truth_services import SourceOfTruthService
 from openinfra.infrastructure.ddi_connectors import DdiConnectorFactory
+from openinfra.infrastructure.external_identity import LdapIpaDirectoryAuthenticator
 from openinfra.infrastructure.import_parsers import ImportDatasetParser
 from openinfra.infrastructure.json_store import (
     JsonAccessPolicyRepository,
@@ -116,6 +121,8 @@ class OpenInfraApplication:
     discovery_repository: DiscoveryRepository
     security_service: SecurityService
     identity_service: IdentityService
+    external_authentication_service: ExternalAuthenticationService
+    auth_provider_policy_service: AuthProviderPolicyService
     access_policy_service: AccessPolicyService
     audit_service: AuditTrailService
     source_of_truth_service: SourceOfTruthService
@@ -288,6 +295,7 @@ class ApplicationFactory:
             transaction_manager,
             identity_repository,
         )
+        auth_provider_policy_service = AuthProviderPolicyService()
         edition_guard = EditionRuntimeGuard(
             edition,
             runtime_usage_repository,
@@ -333,6 +341,21 @@ class ApplicationFactory:
             transaction_manager,
             security_service,
             edition_guard,
+        )
+        identity_service = IdentityService(
+            identity_repository,
+            audit_repository,
+            transaction_manager,
+            security_service,
+            edition_guard,
+        )
+        external_authentication_service = ExternalAuthenticationService(
+            LdapIpaDirectoryAuthenticator(),
+            identity_service,
+            security_service,
+            audit_repository,
+            transaction_manager,
+            auth_provider_policy_service,
         )
         return OpenInfraApplication(
             store=store,
@@ -392,13 +415,9 @@ class ApplicationFactory:
                 ipam_conflict_service,
             ),
             security_service=security_service,
-            identity_service=IdentityService(
-                identity_repository,
-                audit_repository,
-                transaction_manager,
-                security_service,
-                edition_guard,
-            ),
+            identity_service=identity_service,
+            external_authentication_service=external_authentication_service,
+            auth_provider_policy_service=auth_provider_policy_service,
             source_of_truth_service=SourceOfTruthService(
                 source_of_truth_repository,
                 audit_repository,

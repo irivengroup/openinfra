@@ -368,10 +368,23 @@ class InstallerScopeCatalog:
     _api_options = ("backend_endpoint", "enrollment_token_ref")
     _server_api_options = ("backend_endpoint",)
     _identity_options = ("peer_nodes",)
+    _backend_auth_required_options = (
+        "mode",
+        "postgresql_user_ref",
+        "postgresql_password_ref",
+    )
     _backend_auth_options = (
         "mode",
         "postgresql_user_ref",
         "postgresql_password_ref",
+        "directory_url",
+        "base_dn",
+        "user_filter",
+        "group_filter",
+        "bind_dn_ref",
+        "bind_password_ref",
+        "ca_cert_ref",
+        "cache_ttl_seconds",
     )
     _web_auth_options = (
         "mode",
@@ -408,7 +421,7 @@ class InstallerScopeCatalog:
                     required_options={
                         "storage": self._storage_options,
                         "api": self._server_api_options,
-                        "auth": self._backend_auth_options,
+                        "auth": self._backend_auth_required_options,
                     },
                     allowed_options={
                         "storage": self._storage_options,
@@ -447,7 +460,7 @@ class InstallerScopeCatalog:
                     required_options={
                         "storage": self._storage_options,
                         "api": self._server_api_options,
-                        "auth": self._backend_auth_options,
+                        "auth": self._backend_auth_required_options,
                     },
                     allowed_options={
                         "storage": self._storage_options,
@@ -989,8 +1002,59 @@ class InstallerConfigValidator:
         if not parser.has_section("auth"):
             return
         mode = parser.get("auth", "mode", fallback="").strip().lower()
-        if mode != "standard":
-            errors.append(f"{policy.key} auth.mode must be standard")
+        if mode not in {"standard", "ldap", "ipa"}:
+            errors.append(f"{policy.key} auth.mode must be standard, ldap or ipa")
+            return
+        directory_options = (
+            "directory_url",
+            "base_dn",
+            "user_filter",
+            "group_filter",
+            "bind_dn_ref",
+            "bind_password_ref",
+            "ca_cert_ref",
+            "cache_ttl_seconds",
+        )
+        if mode == "standard":
+            for option in directory_options:
+                if parser.get("auth", option, fallback="").strip():
+                    errors.append(f"{policy.key} auth.{option} is only valid for ldap/ipa mode")
+            return
+        if policy.edition == "lite":
+            errors.append("lite auth.mode must remain standard")
+            return
+        if policy.scope != "server":
+            errors.append(f"{policy.key} must not connect directly to LDAP/IPA")
+            return
+        url = self._required(parser, "auth", "directory_url", errors)
+        base_dn = self._required(parser, "auth", "base_dn", errors)
+        user_filter = self._required(parser, "auth", "user_filter", errors)
+        group_filter = self._required(parser, "auth", "group_filter", errors)
+        if url:
+            parsed = urlparse(url)
+            if parsed.scheme != "ldaps" or not parsed.netloc:
+                errors.append("auth.directory_url must use ldaps:// with a host")
+            if parsed.username or parsed.password:
+                errors.append("auth.directory_url must not embed credentials")
+        if base_dn and not re.search(r"(^|,)dc=[^,]+", base_dn, flags=re.IGNORECASE):
+            errors.append("auth.base_dn must be an LDAP distinguished name")
+        if user_filter and "{username}" not in user_filter:
+            errors.append("auth.user_filter must contain {username}")
+        if group_filter and "{user_dn}" not in group_filter:
+            errors.append("auth.group_filter must contain {user_dn}")
+        bind_dn_ref = parser.get("auth", "bind_dn_ref", fallback="").strip()
+        bind_password_ref = parser.get("auth", "bind_password_ref", fallback="").strip()
+        if bool(bind_dn_ref) != bool(bind_password_ref):
+            errors.append("auth.bind_dn_ref and auth.bind_password_ref must be provided together")
+        ttl = parser.get("auth", "cache_ttl_seconds", fallback="300").strip()
+        if ttl:
+            try:
+                value = int(ttl)
+            except ValueError:
+                errors.append("auth.cache_ttl_seconds must be an integer")
+            else:
+                if not 30 <= value <= 3600:
+                    errors.append("auth.cache_ttl_seconds must be between 30 and 3600")
 
     def _render_actions(
         self,
@@ -1053,6 +1117,10 @@ class InstallerConfigValidator:
         if policy.scope == "all-in-one":
             actions.append(
                 "force local app+database session mode without LDAP, network or API sections"
+            )
+        if policy.scope == "server" and policy.edition in {"pro", "enterprise"}:
+            actions.append(
+                "enforce backend-only LDAP/IPA authentication integration with OpenInfra RBAC"
             )
         if policy.scope == "web":
             actions.append("install web frontend without PostgreSQL storage deployment")

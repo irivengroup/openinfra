@@ -1,0 +1,2 @@
+# Production dependency required only when LDAP/IPA authentication is enabled.
+ldap3>=2.9

@@ -1,4 +1,4 @@
--- OpenInfra v0.29.9 - P06 PostgreSQL HA/PITR registry partition key fix
+-- OpenInfra v0.29.10 - P06 PostgreSQL HA/PITR registry partition key fix
 
 CREATE TABLE IF NOT EXISTS postgresql_ha_nodes (
     id uuid NOT NULL,

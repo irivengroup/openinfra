@@ -1,37 +1,37 @@
-# OpenInfra v0.29.9
+# OpenInfra v0.29.10
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.9 — P06 PostgreSQL HA, synchronisation quasi temps réel PostgreSQL et sauvegardes PITR avant reprise Discovery.**
+**Version courante : 0.29.10 — P07 authentification locale/LDAP/IPA, RBAC externe mappé OpenInfra et audit des permissions avant reprise Discovery.**
 
-## v0.29.9 — Correctif runtime migration PostgreSQL P06
+## v0.29.10 — P07 Authentification, RBAC et audit
 
-Cette livraison suspend P07 et corrige d'abord l'erreur runtime constatée sur `openinfra database apply-migrations` : la table partitionnée `postgresql_backup_runs` inclut désormais `started_at` dans sa clé primaire, comme l'exige PostgreSQL pour les contraintes uniques sur tables partitionnées. Le validateur de migrations bloque aussi toute régression équivalente.
+Cette livraison reprend la roadmap après le correctif runtime PostgreSQL v0.29.9. Elle ne poursuit pas Discovery. Elle traite le socle d'authentification attendu avant reprise fonctionnelle :
 
-Le socle P06 reste inchangé fonctionnellement : HA/PITR géré par les installateurs backend/all-in-one, sans alourdir les `install.ini` :
+- Lite reste strictement en authentification locale `standard` ; LDAP/IPA y est refusé côté backend et installateur.
+- Pro/Enterprise acceptent LDAP/IPA uniquement côté backend `server`.
+- Les scopes `web` et `agent` ne se connectent jamais directement à LDAP/IPA ; ils passent par le backend.
+- L'autorité de permissions reste OpenInfra : les groupes LDAP/IPA externes sont mappés vers des groupes/rôles OpenInfra.
+- Les secrets LDAP/IPA ne sont jamais acceptés en clair : seules les références `env:`, `vault://`, `sops://`, `file://` et `kms://` sont valides dans la configuration.
+- L'adaptateur LDAP/IPA utilise `ldaps://`, validation TLS obligatoire, bind de service optionnel, recherche utilisateur, validation du mot de passe utilisateur et résolution des groupes.
+- Les dépendances LDAP/IPA restent séparées par scope via `installers/requirements/*-server.txt` et l'extra Python `openinfra[ldap]`.
+- Les événements d'authentification externe et de permission sont auditables via la nouvelle migration PostgreSQL `0025_authentication_ldap_ipa_rbac.sql`.
 
-- `identity.peer_nodes` active automatiquement le mode cluster à synchronisation quasi temps réel pour les scopes `server` Pro/Enterprise ;
-- aucun port PostgreSQL, paramètre Patroni ou secret de réplication n'est exposé dans `install.ini` ;
-- le mode interne est `near-real-time-postgresql-streaming` ;
-- le port de synchronisation applicative reste interne sur `2008` ;
-- PostgreSQL conserve son port standard interne `5432` ;
-- WAL archiving est préparé dans `/data/openinfra/pitr` ;
-- les backups physiques sont préparés dans `/data/openinfra/backups` ;
-- `synchronous_commit='local'` est rendu pour éviter un commit bloquant distant ; aucun `synchronous_standby_names` n'est généré par défaut ;
-- le failover reste volontairement contrôlé opérateur, pas automatique et destructif.
-
-Nouvelle commande :
+Nouvelle commande de contrôle :
 
 ```bash
-PYTHONPATH=src python -m openinfra.interfaces.cli database ha-plan \
-  --path installers/setup/enterprise/server/install.ini \
+PYTHONPATH=src python -m openinfra.interfaces.cli auth policy \
   --edition enterprise \
-  --scope server
+  --mode ipa \
+  --url ldaps://ipa.example.net \
+  --base-dn dc=example,dc=net \
+  --bind-dn-ref env:OPENINFRA_IPA_BIND_DN \
+  --bind-password-ref env:OPENINFRA_IPA_BIND_PASSWORD
 ```
 
 ## Installateurs autonomes
 
-Les installateurs sont les points d'entrée d'installation réels :
+Les installateurs restent les points d'entrée d'installation réels :
 
 ```text
 installers/setup/lite/install.py

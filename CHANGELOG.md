@@ -1,10 +1,23 @@
+## 0.29.10 - 2026-07-05
+
+- Livraison P07 avant reprise Discovery : authentification locale/LDAP/IPA, RBAC externe mappé OpenInfra et audit des permissions.
+- Lite reste strictement en mode `standard` local ; LDAP/IPA est rejeté par le backend et par les validations installateur.
+- Pro/Enterprise autorisent LDAP/IPA uniquement sur le scope backend `server`; `web` et `agent` passent exclusivement par le backend.
+- Ajout du domaine `openinfra.domain.authentication` : modes d'authentification, configuration LDAP/IPA sécurisée, mappings groupes externes → rôles OpenInfra et identité authentifiée externe.
+- Ajout du service applicatif `ExternalAuthenticationService` avec émission de token OpenInfra, création/mise à jour utilisateur, groupes RBAC et audit `auth.external.login`.
+- Ajout de l'adaptateur LDAP/IPA optionnel, chargé dynamiquement via `ldap3`, avec `ldaps://`, TLS obligatoire, bind de service optionnel, recherche utilisateur, validation du mot de passe et résolution des groupes.
+- Ajout de `openinfra auth policy` pour valider les politiques d'authentification par édition sans exposer de secret en clair.
+- Ajout de la migration `0025_authentication_ldap_ipa_rbac.sql` pour configurations d'authentification, mappings de groupes et audit permissionnel partitionné.
+- Ajout des requirements LDAP/IPA de production uniquement sur les scopes backend Pro/Enterprise et de l'extra Python `openinfra[ldap]`.
+- Renforcement des tests de non-régression sur les secrets, LDAP/IPA, RBAC, installateurs et migrations.
+
 ## 0.29.9 - 2026-07-05
 
 - Correctif runtime bloquant sur la migration `0024_postgresql_ha_backup_registry.sql`.
 - Correction de la clé primaire de `postgresql_backup_runs`, partitionnée par `started_at` : la contrainte est désormais `PRIMARY KEY (tenant_id, started_at, id)`, conformément aux règles PostgreSQL sur les tables partitionnées.
 - Durcissement du validateur de migrations : les contraintes `PRIMARY KEY` / `UNIQUE` et les index uniques sur tables partitionnées doivent inclure toutes les colonnes de partitionnement.
 - Ajout de tests de non-régression pour empêcher la réintroduction de contraintes uniques incompatibles avec les partitions PostgreSQL.
-- P07 reste suspendu : priorité donnée au correctif runtime de migration.
+- P07 est resté suspendu dans cette version : priorité donnée au correctif runtime de migration.
 
 ## 0.29.8 - 2026-07-05
 

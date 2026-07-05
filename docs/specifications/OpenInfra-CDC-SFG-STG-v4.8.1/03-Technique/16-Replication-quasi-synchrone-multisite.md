@@ -29,6 +29,6 @@ Pro et Entreprise doivent supporter plusieurs sites. L'écart se situe sur le ni
 - Pro : multisite centralisé sans clustering d'agents obligatoire.
 - Entreprise : multisite distribué avec agents régionaux, clustering d'agents et planification régionale.
 
-## Complément v0.29.9 — Déduction depuis les scopes installateur
+## Complément v0.29.10 — Déduction depuis les scopes installateur
 
 La synchronisation quasi temps réel PostgreSQL est déduite du scope `server` et de `identity.peer_nodes`. Le fichier `install.ini` ne doit pas exposer les ports de réplication ni les paramètres `wal_level`, `archive_mode`, `synchronous_commit` ou `paramètres de standby bloquant`. L'installateur les rend en configuration interne contrôlée.

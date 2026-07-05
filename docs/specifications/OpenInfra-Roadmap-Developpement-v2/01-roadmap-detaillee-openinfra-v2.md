@@ -1433,6 +1433,6 @@ La v1 plaçait l’essentiel de l’industrialisation en fin de programme. La v2
 
 Le résultat est une roadmap plus exigeante au début, mais beaucoup plus réaliste pour une solution enterprise : les choix de packaging et d’exploitation ne sont plus ajoutés après les modules fonctionnels, ils structurent les livraisons dès Foundation Alpha.
 
-## Incrément réalisé v0.29.9 — P06
+## Incrément réalisé v0.29.10 — P06
 
 Le jalon P06 est amorcé avant reprise Discovery par le plan installateur PostgreSQL HA/PITR : configuration streaming native, WAL archiving, répertoires PITR/backups, migration de registre HA, commande `database ha-plan` et failover contrôlé opérateur.

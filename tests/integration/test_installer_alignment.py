@@ -125,9 +125,9 @@ class TestInstallerAlignment:
         combined_requirements = "\n".join(path.read_text(encoding="utf-8") for path in requirements)
 
         assert not Path("migrations").exists()
-        assert len(installer_migrations) == 24
+        assert len(installer_migrations) == 25
         assert installer_migrations[0].name == "0001_bootstrap.sql"
-        assert installer_migrations[-1].name == "0024_postgresql_ha_backup_registry.sql"
+        assert installer_migrations[-1].name == "0025_authentication_ldap_ipa_rbac.sql"
         assert "psycopg[binary]" in combined_requirements
         forbidden_dev_tools = ("pytest", "ruff", "mypy", "bandit", "pip-audit", "build")
         assert not any(tool in combined_requirements for tool in forbidden_dev_tools)
@@ -140,3 +140,98 @@ class TestInstallerAlignment:
         )
 
         assert report.valid is True
+
+    def test_installer_auth_policy_allows_ldap_ipa_only_on_backend_scopes(
+        self, tmp_path: Path
+    ) -> None:
+        source = Path("installers/setup/pro/server/install.ini")
+        ldap_server = tmp_path / "server-install.ini"
+        ldap_server.write_text(
+            source.read_text(encoding="utf-8").replace(
+                "mode = standard",
+                "\n".join(
+                    (
+                        "mode = ldap",
+                        "directory_url = ldaps://ldap.example.net:636",
+                        "base_dn = dc=example,dc=net",
+                        "user_filter = (uid={username})",
+                        "group_filter = (member={user_dn})",
+                        "bind_dn_ref = env:OPENINFRA_LDAP_BIND_DN",
+                        "bind_password_ref = env:OPENINFRA_LDAP_BIND_PASSWORD",
+                        "ca_cert_ref = file:///etc/openinfra/ldap-ca.pem",
+                        "cache_ttl_seconds = 300",
+                    )
+                ),
+            ),
+            encoding="utf-8",
+        )
+        ldap_web = tmp_path / "web-install.ini"
+        ldap_web.write_text(
+            Path("installers/setup/pro/web/install.ini")
+            .read_text(encoding="utf-8")
+            .replace(
+                "mode = standard",
+                "mode = ldap\ndirectory_url = ldaps://ldap.example.net",
+            ),
+            encoding="utf-8",
+        )
+
+        server_report = InstallerConfigValidator().validate_file(
+            ldap_server,
+            edition="pro",
+            scope="server",
+        )
+        web_report = InstallerConfigValidator().validate_file(
+            ldap_web,
+            edition="pro",
+            scope="web",
+        )
+
+        assert server_report.valid is True
+        assert any("LDAP/IPA authentication" in action for action in server_report.actions)
+        assert web_report.valid is False
+        assert any("must not connect directly to LDAP/IPA" in error for error in web_report.errors)
+
+    def test_cli_auth_policy_rejects_lite_ldap_and_accepts_enterprise_ipa(
+        self, capsys: object
+    ) -> None:
+        lite_code = OpenInfraCLI().run(
+            [
+                "auth",
+                "policy",
+                "--edition",
+                "lite",
+                "--mode",
+                "ldap",
+                "--url",
+                "ldaps://ldap.example.net",
+                "--base-dn",
+                "dc=example,dc=net",
+            ]
+        )
+        lite_err = capsys.readouterr().err
+        enterprise_code = OpenInfraCLI().run(
+            [
+                "auth",
+                "policy",
+                "--edition",
+                "enterprise",
+                "--mode",
+                "ipa",
+                "--url",
+                "ldaps://ipa.example.net",
+                "--base-dn",
+                "dc=example,dc=net",
+                "--bind-dn-ref",
+                "env:OPENINFRA_IPA_BIND_DN",
+                "--bind-password-ref",
+                "env:OPENINFRA_IPA_BIND_PASSWORD",
+            ]
+        )
+        payload = json.loads(capsys.readouterr().out)
+
+        assert lite_code == 2
+        assert "Lite edition supports local standard authentication only" in lite_err
+        assert enterprise_code == 0
+        assert payload["mode"] == "ipa"
+        assert payload["external_directory_enabled"] is True

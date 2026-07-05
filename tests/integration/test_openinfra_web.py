@@ -111,8 +111,9 @@ class TestOpenInfraWeb:
         assert "openinfra-sidebar" in static_css
         assert "OpenInfraDashboard" in static_js
         assert "Dashboard de pilotage OpenInfra" in static_js
-        assert "Search OpenInfra operations" in static_js
-        assert "Login" in static_js and "Sign-up" in static_js
+        assert "Search OpenInfra operations" not in static_js
+        assert "openinfra-login" not in static_js and "openinfra-signup" not in static_js
+        assert "Login" not in static_js and "Sign-up" not in static_js
         assert "Ressources Inventory" in static_js
         assert "/v1/ri/objects" in static_js
         assert "openinfra-accordion" in static_js + static_css

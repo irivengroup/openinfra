@@ -1,6 +1,13 @@
+## 0.29.17 - 2026-07-06
+
+- `openinfra-web` retire le second bandeau Bootstrap de recherche/actions demandé.
+- Suppression runtime de `openinfra-search`, `openinfra-login`, `openinfra-signup`, `Login` et `Sign-up` dans le header web.
+- Conservation du header sombre principal Bootstrap 5 et de la navigation opérationnelle par accordéons latéraux.
+- CDC v4.8.1 mis à jour avec `REQ-00748` et `TST-WEB-051`.
+
 ## 0.29.16 - 2026-07-05
 
-- `openinfra-web` adopte le thème Bootstrap 5 Dashboard avec header double niveau adapté aux domaines OpenInfra.
+- `openinfra-web` adopte le thème Bootstrap 5 Dashboard avec header principal unique adapté aux domaines OpenInfra.
 - Ajout de `assets/bootstrap.min.css` dans le domaine présentation/rendering pour un runtime sans CDN.
 - Validation frontend renforcée : header, sidebar, recherche, domaines RI/IPAM/DCIM/Discovery/Sécurité et non-exposition des secrets.
 - CDC v4.8.1 mis à jour avec `REQ-00746` et `TST-WEB-049`.

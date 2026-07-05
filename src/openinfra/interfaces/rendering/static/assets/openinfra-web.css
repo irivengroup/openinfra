@@ -156,9 +156,6 @@ body {
   background: #ffc107;
 }
 
-.openinfra-search {
-  min-width: min(100%, 24rem);
-}
 
 @media (max-width: 991.98px) {
   .openinfra-sidebar {
@@ -170,7 +167,7 @@ body {
   }
 }
 
-/* v0.29.16: accordion-driven sidebar and typed business forms. */
+/* v0.29.17: accordion-driven sidebar, typed business forms and single header. */
 .openinfra-sidebar-dashboard,
 .openinfra-accordion-toggle,
 .openinfra-sidebar-operation {

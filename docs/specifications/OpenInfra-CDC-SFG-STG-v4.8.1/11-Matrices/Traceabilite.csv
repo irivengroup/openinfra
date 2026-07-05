@@ -742,3 +742,5 @@ REQ-00740,N1,AUTH,UC-0042,TST-AUTH-045,"Tests RBAC, audit et authentification ex
 REQ-00741,N1,SECURITY,UC-0042,TST-SEC-044,"Tests install.ini, scan sécurité, revue systemd et runbook."
 REQ-00742,N1,SECURITY,UC-0042,TST-SEC-044,Tests négatifs par édition.
 REQ-00746,N1,WEB,UC-0042,TST-WEB-049,"Validation frontend, tests serveur web, inspection des assets Bootstrap et test de non-exposition des secrets."
+REQ-00747,N1,WEB,UC-0042,TST-WEB-050,"Validation frontend, tests serveur web, inspection des assets et tests de non-transmission Authorization navigateur."
+REQ-00748,N1,WEB,UC-0042,TST-WEB-051,Validation frontend et tests intégration serveur web.

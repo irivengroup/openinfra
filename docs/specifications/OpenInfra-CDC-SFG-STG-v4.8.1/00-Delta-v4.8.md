@@ -51,7 +51,7 @@ La phase P09 ajoute la certification qualité RI : score par objet, synthèse te
 
 ## Delta v0.29.15 — openinfra-web Bootstrap 5 Dashboard Theme
 
-Le portail `openinfra-web` adopte le thème officiel Bootstrap 5 Dashboard comme base de rendu et le header double niveau Bootstrap adapté aux domaines OpenInfra. Les items génériques du template sont remplacés par les domaines opérationnels réels : Dashboard, RI, IPAM, DCIM, Discovery et Sécurité/RBAC/Audit.
+Le portail `openinfra-web` adopte le thème officiel Bootstrap 5 Dashboard comme base de rendu et le header principal unique Bootstrap adapté aux domaines OpenInfra. Les items génériques du template sont remplacés par les domaines opérationnels réels : Dashboard, RI, IPAM, DCIM, Discovery et Sécurité/RBAC/Audit.
 
 Les assets Bootstrap 5 sont servis localement depuis `src/openinfra/interfaces/rendering/static/assets/bootstrap.min.css`. Aucun CDN externe n'est requis au runtime, ce qui préserve la politique CSP stricte, l'exploitation offline et l'absence d'exposition de secrets.
 

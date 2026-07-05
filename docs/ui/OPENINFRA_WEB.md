@@ -42,11 +42,9 @@ L'unité `openinfra-web.service` lance `openinfra-web` depuis le virtualenv gér
 
 ## v0.29.16 — Bootstrap 5 Dashboard Theme
 
-Le portail utilise le thème Bootstrap 5 Dashboard comme structure principale : header sombre, second header de recherche/actions, sidebar gauche, métriques runtime et zone centrale d'opérations. Le header Bootstrap est adapté aux domaines OpenInfra : Dashboard, RI, IPAM, DCIM, Discovery et Sécurité.
+Le portail utilise le thème Bootstrap 5 Dashboard comme structure principale : header sombre principal unique, sidebar gauche, métriques runtime et zone centrale d'opérations. Le header Bootstrap est adapté aux domaines OpenInfra : Dashboard, RI, IPAM, DCIM, Discovery et Sécurité.
 
 Les styles Bootstrap sont fournis localement par `src/openinfra/interfaces/rendering/static/assets/bootstrap.min.css`; aucun CDN externe n'est nécessaire. Le fichier `openinfra-web.css` ne contient que les adaptations produit OpenInfra.
-
-Les boutons `Login` et `Sign-up` sont conservés dans la structure du header Bootstrap. Ils sont câblés sans secret : `Login` positionne l'opérateur sur la saisie de jeton applicatif, et `Sign-up` oriente vers le domaine Sécurité/RBAC pour les opérations d'identité et de gouvernance d'accès.
 
 ## v0.29.16 — formulaires métier typés, trust server-side et navigation accordéon
 
@@ -55,3 +53,7 @@ Le dashboard ne présente plus de champ générique `Attributs`. Les formulaires
 L'opérateur ne saisit pas de token API technique dans le navigateur. `openinfra-web` agit comme BFF server-side : il établit le trust applicatif avec le backend, retire tout `Authorization` transmis par le navigateur et utilise exclusivement ses paramètres runtime serveur. Les références DSN/credentials PostgreSQL du service web sont déclarées dans `install.ini` sous `[web_database]`, matérialisées dans `/opt/openinfra/config/openinfra.conf` et jamais exposées dans `/config.json` ni dans les assets statiques.
 
 Le panneau latéral devient le menu principal. `Dashboard` reste une entrée directe ; RI, IPAM, DCIM, Discovery et Sécurité/RBAC/Audit sont des accordéons avec transition `fade`. Les opérations précédemment affichées dans une zone interne de la page sont déplacées dans ces accordéons. L'UI n'affiche pas les méthodes HTTP aux opérateurs.
+
+## v0.29.17 — header principal unique
+
+Le second bandeau Bootstrap de recherche/actions a été retiré du header web. Le dashboard conserve uniquement le header sombre principal et la sidebar accordéon comme navigation opérationnelle. Les boutons `Login` et `Sign-up` ne sont plus affichés dans le header ; l’authentification opérateur reste portée par le flux applicatif web et non par des contrôles techniques visibles dans le bandeau.

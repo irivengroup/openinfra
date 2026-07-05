@@ -25,7 +25,7 @@
 
 ## 0.29.15
 
-- P08 renforcé : `openinfra-web` adopte le thème Bootstrap 5 Dashboard et le header double niveau adapté aux domaines OpenInfra.
+- P08 renforcé : `openinfra-web` adopte le thème Bootstrap 5 Dashboard et le header principal unique adapté aux domaines OpenInfra.
 - Bootstrap 5 est servi localement dans le domaine présentation/rendering, sans CDN runtime.
 - Ajout du test roadmap de parité UI Bootstrap/API-only.
 

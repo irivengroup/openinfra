@@ -204,7 +204,6 @@ class OpenInfraDashboard {
       activeModuleId: "overview",
       selected: OPENINFRA_MODULES[0].operations[0],
       openedModules: new Set(["ri"]),
-      filter: "",
       tenant: "default",
       config: null,
       ready: null,
@@ -241,11 +240,7 @@ class OpenInfraDashboard {
   }
 
   visibleOperations(module) {
-    const filter = this.state.filter.toLowerCase();
-    if (!filter) {
-      return module.operations;
-    }
-    return module.operations.filter((operation) => `${module.label} ${operation.label}`.toLowerCase().includes(filter));
+    return module.operations;
   }
 
   render() {
@@ -267,17 +262,6 @@ class OpenInfraDashboard {
                   </button></li>
                 `).join("")}
               </ul>
-            </div>
-          </div>
-        </div>
-        <div class="px-3 py-2 border-bottom mb-3">
-          <div class="container-fluid d-flex flex-wrap justify-content-center">
-            <form class="col-12 col-lg-auto mb-2 mb-lg-0 me-lg-auto" role="search">
-              <input type="search" id="openinfra-search" class="form-control openinfra-search" placeholder="Search OpenInfra operations..." aria-label="Search" value="${this.escape(this.state.filter)}">
-            </form>
-            <div class="text-end">
-              <button type="button" class="btn btn-light text-dark me-2" id="openinfra-login">Login</button>
-              <button type="button" class="btn btn-primary" id="openinfra-signup">Sign-up</button>
             </div>
           </div>
         </div>
@@ -370,13 +354,7 @@ class OpenInfraDashboard {
   }
 
   bindEvents() {
-    document.getElementById("openinfra-login")?.addEventListener("click", () => this.selectModule("security"));
-    document.getElementById("openinfra-signup")?.addEventListener("click", () => this.selectModule("security"));
     document.getElementById("openinfra-execute")?.addEventListener("click", () => this.executeSelected());
-    document.getElementById("openinfra-search")?.addEventListener("input", (event) => {
-      this.state = { ...this.state, filter: event.target.value };
-      this.render();
-    });
     document.getElementById("openinfra-tenant")?.addEventListener("input", (event) => {
       this.state = { ...this.state, tenant: event.target.value };
     });

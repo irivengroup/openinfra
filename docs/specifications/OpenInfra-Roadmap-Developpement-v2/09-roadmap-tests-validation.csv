@@ -20,5 +20,6 @@ TST-RM-018,P15,Graph performance,Graphe impact 1 niveau sous objectif.,Performan
 TST-RM-019,P17,Multisite DR,Tester perte site et reprise.,Chaos
 TST-RM-020,P18,GA release gate,Toutes validations bloquantes passantes.,Release
 TST-P09-RI-QUALITY,P09,RI Quality & Certification,"Service, CLI, API, dashboard et RBAC","Score, statut de certification et alertes de gouvernance validés."
-TST-P08-WEB-BOOTSTRAP,P08,openinfra-web Bootstrap dashboard,"Valider thème Bootstrap 5 Dashboard, header double niveau, assets locaux et parité API-only.",Frontend/Integration
+TST-P08-WEB-BOOTSTRAP,P08,openinfra-web Bootstrap dashboard,"Valider thème Bootstrap 5 Dashboard, header principal unique, assets locaux et parité API-only.",Frontend/Integration
 TST-P08-WEB-FORMS,P08,openinfra-web typed forms,"Valider formulaires métier, accordéons sidebar, version package et trust server-side sans token opérateur.",Frontend/Security
+TST-P08-WEB-SINGLE-HEADER,P08,openinfra-web header principal unique,Valider absence du second bandeau recherche/actions et des boutons Login/Sign-up dans les assets runtime.,Frontend/Regression

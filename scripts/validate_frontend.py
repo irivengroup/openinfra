@@ -50,7 +50,6 @@ class FrontendContractValidator:
             "from 'react'" not in main_source
             or "bootstrap/dist/css/bootstrap.min.css" not in main_source
             or "openinfra-theme.css" not in main_source
-            or "Search OpenInfra operations" not in main_source
             or "Dashboard de pilotage OpenInfra" not in main_source
             or "openinfra-accordion" not in main_source
             or "Numéro de série" not in main_source
@@ -62,13 +61,23 @@ class FrontendContractValidator:
         for required_header_fragment in (
             "bg-dark text-white",
             "text-small",
-            "Login",
-            "Sign-up",
         ):
             if required_header_fragment not in main_source:
                 raise FrontendValidationError(
-                    "web/src/main.jsx must keep the Bootstrap 5 double-header dashboard theme"
+                    "web/src/main.jsx must keep the Bootstrap 5 single-header dashboard theme"
                 )
+        forbidden_main_source = (
+            "Search OpenInfra operations",
+            "openinfra-search",
+            "Login</button>",
+            "Sign-up",
+        )
+        leaked_main = [fragment for fragment in forbidden_main_source if fragment in main_source]
+        if leaked_main:
+            raise FrontendValidationError(
+                "web/src/main.jsx must not expose the removed secondary header controls: "
+                + ", ".join(leaked_main)
+            )
         compose = (self._project_root / "compose.yaml").read_text(encoding="utf-8")
         compose_required = (
             "  web:",
@@ -113,12 +122,9 @@ class FrontendContractValidator:
         payload = "\n".join((root / name).read_text(encoding="utf-8") for name in required)
         for fragment in (
             "Dashboard de pilotage OpenInfra",
-            "Search OpenInfra operations",
             "bg-dark text-white",
             "openinfra-sidebar",
             "openinfra-accordion",
-            "Login",
-            "Sign-up",
             "Ressources Inventory",
             "agents proxy collectors Enterprise uniquement",
             "Numéro de série",
@@ -131,7 +137,15 @@ class FrontendContractValidator:
         leaked = [fragment for fragment in forbidden if fragment in payload]
         if leaked:
             raise FrontendValidationError("runtime web assets leak forbidden backend data")
-        for forbidden_ui in ("Token API", "openinfra-method"):
+        for forbidden_ui in (
+            "Token API",
+            "openinfra-method",
+            "Search OpenInfra operations",
+            "openinfra-search",
+            "openinfra-login",
+            "openinfra-signup",
+            "Sign-up",
+        ):
             if forbidden_ui in payload:
                 raise FrontendValidationError(
                     "runtime web assets expose a forbidden generic/technical UI fragment: "

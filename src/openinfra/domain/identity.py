@@ -225,6 +225,17 @@ class EffectiveIdentity:
             groups=tuple(sorted({IdentityGroupName.normalize(name) for name in group_names})),
         )
 
+    @property
+    def exists(self) -> bool:
+        return (
+            self.active
+            or self.display_name is not None
+            or self.email is not None
+            or bool(self.direct_roles)
+            or bool(self.group_roles)
+            or bool(self.groups)
+        )
+
     def role_names(self) -> tuple[str, ...]:
         return IdentityRoleSet.unique_names((*self.direct_roles, *self.group_roles))
 

@@ -10,7 +10,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Protocol, Self, cast
+from typing import Any, ClassVar, Protocol, Self, cast
 
 from openinfra.application.ports import (
     AccessPolicyRepository,
@@ -25,6 +25,7 @@ from openinfra.application.ports import (
     IpamRepository,
     ReadinessProbe,
     ReadinessStatus,
+    RuntimeUsageRepository,
     SchemaStatusProvider,
     SecurityRepository,
     SecurityTokenPage,
@@ -98,6 +99,7 @@ from openinfra.domain.dcim import (
     Site,
 )
 from openinfra.domain.discovery import DiscoveryCollector
+from openinfra.domain.editions import QuotaResource
 from openinfra.domain.identity import (
     EffectiveIdentity,
     GroupMembership,
@@ -228,7 +230,7 @@ class PostgreSQLMigrationCatalog:
     @classmethod
     def from_project_root(cls, project_root: Path | None = None) -> Self:
         root = project_root or Path.cwd()
-        return cls(root / "migrations" / "postgresql")
+        return cls(root / "installers" / "migrations" / "postgresql")
 
     def load(self, name: str) -> PostgreSQLMigration:
         safe_name = self._sanitize_name(name)
@@ -817,6 +819,51 @@ class PostgreSQLRepositoryBase:
     ) -> Sequence[object]:
         value = row.get(key)
         return default if value is None else cast(Sequence[object], value)
+
+
+class PostgreSQLRuntimeUsageRepository(PostgreSQLRepositoryBase, RuntimeUsageRepository):
+    _COUNT_QUERIES: ClassVar[dict[QuotaResource, tuple[str, ...]]] = {
+        QuotaResource.EQUIPMENT: (
+            "SELECT COUNT(*) AS total FROM equipment WHERE tenant_id = %(tenant_id)s",
+        ),
+        QuotaResource.SUBNET_VLAN: (
+            "SELECT COUNT(*) AS total FROM prefixes WHERE tenant_id = %(tenant_id)s",
+            "SELECT COUNT(*) AS total FROM ipam_vlans WHERE tenant_id = %(tenant_id)s",
+        ),
+        QuotaResource.IP_DNS_RECORD: (
+            "SELECT COUNT(*) AS total FROM ip_reservations WHERE tenant_id = %(tenant_id)s",
+            "SELECT COUNT(*) AS total FROM ip_address_records WHERE tenant_id = %(tenant_id)s",
+            "SELECT COUNT(*) AS total FROM ipam_dns_observations WHERE tenant_id = %(tenant_id)s",
+        ),
+        QuotaResource.USER: (
+            "SELECT COUNT(*) AS total FROM identity_users WHERE tenant_id = %(tenant_id)s",
+        ),
+        QuotaResource.DISCOVERY_COLLECTOR: (
+            "SELECT COUNT(*) AS total FROM discovery_collectors WHERE tenant_id = %(tenant_id)s",
+        ),
+    }
+
+    def count_resource(self, tenant_id: TenantId, resource: QuotaResource) -> int:
+        try:
+            return self._count_with_active_connection(tenant_id, resource)
+        except OpenInfraError:
+            connection = self._registry.open()
+            self._registry.bind(connection)
+            try:
+                total = self._count_with_active_connection(tenant_id, resource)
+                connection.rollback()
+                return total
+            finally:
+                self._registry.unbind()
+                connection.close()
+
+    def _count_with_active_connection(self, tenant_id: TenantId, resource: QuotaResource) -> int:
+        total = 0
+        for query in self._COUNT_QUERIES[resource]:
+            row = self._fetch_one(query, {"tenant_id": tenant_id.value})
+            if row is not None:
+                total += self._row_int(row, "total")
+        return total
 
 
 class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):

@@ -1,0 +1,2 @@
+# Production dependencies shared by all OpenInfra installer scopes.
+defusedxml>=0.7.1

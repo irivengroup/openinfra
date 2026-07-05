@@ -1,0 +1,747 @@
+from __future__ import annotations
+
+import argparse
+import configparser
+import importlib
+import json
+import os
+import shutil
+import subprocess
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, ClassVar
+from urllib.parse import quote
+
+
+@dataclass(frozen=True, slots=True)
+class InstallerLocation:
+    project_root: Path
+    installers_root: Path
+    setup_root: Path
+    scope_root: Path
+    edition: str
+    edition_directory: str
+    scope: str
+    config_path: Path
+
+
+@dataclass(frozen=True, slots=True)
+class InstallationCommand:
+    label: str
+    command: tuple[str, ...]
+
+    def as_dict(self) -> dict[str, object]:
+        return {"label": self.label, "command": list(self.command)}
+
+
+@dataclass(frozen=True, slots=True)
+class InstallationPrerequisite:
+    label: str
+    executable: str
+    mandatory_on_offline_target: bool = False
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "label": self.label,
+            "executable": self.executable,
+            "mandatory_on_offline_target": self.mandatory_on_offline_target,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class InstallationPlan:
+    edition: str
+    edition_directory: str
+    scope: str
+    config_path: Path
+    application_root: Path
+    configuration_root: Path
+    systemd_root: Path
+    deploy_src: bool
+    deploy_requirements: bool
+    deploy_migrations: bool
+    managed_postgresql: bool
+    managed_application_filesystem: bool
+    service_name: str
+    requirements_file: str
+    actions: tuple[str, ...]
+    commands: tuple[InstallationCommand, ...]
+    prerequisites: tuple[InstallationPrerequisite, ...]
+    transactional_rollback: bool
+    start_service: bool
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "edition": self.edition,
+            "edition_directory": self.edition_directory,
+            "scope": self.scope,
+            "config_path": str(self.config_path),
+            "application_root": str(self.application_root),
+            "configuration_root": str(self.configuration_root),
+            "systemd_root": str(self.systemd_root),
+            "deploy_src": self.deploy_src,
+            "deploy_requirements": self.deploy_requirements,
+            "deploy_migrations": self.deploy_migrations,
+            "managed_postgresql": self.managed_postgresql,
+            "managed_application_filesystem": self.managed_application_filesystem,
+            "service_name": self.service_name,
+            "requirements_file": self.requirements_file,
+            "actions": list(self.actions),
+            "commands": [command.as_dict() for command in self.commands],
+            "prerequisites": [item.as_dict() for item in self.prerequisites],
+            "transactional_rollback": self.transactional_rollback,
+            "start_service": self.start_service,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class RollbackEntry:
+    destination: Path
+    backup: Path | None
+    created_directory: bool
+
+
+class InstallerRuntimeError(RuntimeError):
+    pass
+
+
+class InstallerLocationResolver:
+    def resolve(self, entrypoint: Path) -> InstallerLocation:
+        scope_root = entrypoint.resolve().parent
+        setup_root = self._find_setup_root(scope_root)
+        installers_root = setup_root.parent
+        project_root = installers_root.parent
+        relative = scope_root.relative_to(setup_root)
+        parts = relative.parts
+        if parts == ("lite",):
+            edition_directory = "lite"
+            edition = "lite"
+            scope = "all-in-one"
+        elif len(parts) == 2 and parts[0] in {"pro", "enterprise"}:
+            edition_directory = parts[0]
+            edition = parts[0]
+            scope = parts[1]
+        else:
+            raise InstallerRuntimeError(
+                "installer entrypoint must be under installers/setup/lite, "
+                "installers/setup/pro/<scope> or installers/setup/enterprise/<scope>"
+            )
+        return InstallerLocation(
+            project_root=project_root,
+            installers_root=installers_root,
+            setup_root=setup_root,
+            scope_root=scope_root,
+            edition=edition,
+            edition_directory=edition_directory,
+            scope=scope,
+            config_path=scope_root / "install.ini",
+        )
+
+    def _find_setup_root(self, scope_root: Path) -> Path:
+        for parent in scope_root.parents:
+            if parent.name == "setup" and (parent / "installer_runtime.py").is_file():
+                return parent
+        raise InstallerRuntimeError("cannot locate installers/setup/installer_runtime.py")
+
+
+class OpenInfraImportBootstrap:
+    def prepare(self, project_root: Path) -> None:
+        src = project_root / "src"
+        if not src.is_dir():
+            raise InstallerRuntimeError(f"missing OpenInfra src directory: {src}")
+        src_text = str(src)
+        if src_text not in sys.path:
+            sys.path.insert(0, src_text)
+
+
+class InstallationRollbackJournal:
+    def __init__(self) -> None:
+        self._entries: list[RollbackEntry] = []
+        self._backup_roots: set[Path] = set()
+
+    def record_created_directory(self, path: Path) -> None:
+        self._entries.append(RollbackEntry(path, None, True))
+
+    def record_replacement(self, destination: Path, backup: Path | None) -> None:
+        self._entries.append(RollbackEntry(destination, backup, False))
+        if backup is not None:
+            self._backup_roots.add(backup.parent)
+
+    def rollback(self) -> None:
+        for entry in reversed(self._entries):
+            if entry.created_directory:
+                self._remove_empty_directory(entry.destination)
+            elif entry.backup is None:
+                self._remove_path(entry.destination)
+            else:
+                self._restore_backup(entry.destination, entry.backup)
+        self._cleanup_empty_backup_roots()
+
+    def commit(self) -> None:
+        for entry in self._entries:
+            if entry.backup is not None:
+                self._remove_path(entry.backup)
+        self._cleanup_empty_backup_roots()
+        self._entries.clear()
+
+    def _restore_backup(self, destination: Path, backup: Path) -> None:
+        self._remove_path(destination)
+        if backup.exists():
+            backup.replace(destination)
+
+    def _remove_path(self, path: Path) -> None:
+        if path.is_dir() and not path.is_symlink():
+            shutil.rmtree(path)
+        elif path.exists() or path.is_symlink():
+            path.unlink()
+
+    def _remove_empty_directory(self, path: Path) -> None:
+        try:
+            path.rmdir()
+        except OSError:
+            return
+
+    def _cleanup_empty_backup_roots(self) -> None:
+        for root in sorted(self._backup_roots, key=lambda item: len(item.parts), reverse=True):
+            self._remove_empty_directory(root)
+        self._backup_roots.clear()
+
+
+class RollbackManager:
+    def rollback_target(self, target_root: Path) -> dict[str, object]:
+        roots = (
+            self._target_path(target_root, "/opt/openinfra"),
+            self._target_path(target_root, "/etc/openinfra"),
+            self._target_path(target_root, "/etc/systemd/system"),
+        )
+        restored: list[str] = []
+        for root in roots:
+            if root.is_dir():
+                restored.extend(self._rollback_root(root))
+        return {"rolled_back": restored, "count": len(restored)}
+
+    def _rollback_root(self, root: Path) -> list[str]:
+        restored: list[str] = []
+        for backup_root in sorted(root.rglob(".openinfra-rollback"), reverse=True):
+            for backup in sorted(backup_root.iterdir()):
+                if not backup.name.endswith(".bak"):
+                    continue
+                destination = backup_root.parent / backup.name.removesuffix(".bak")
+                if destination.exists() or destination.is_symlink():
+                    if destination.is_dir() and not destination.is_symlink():
+                        shutil.rmtree(destination)
+                    else:
+                        destination.unlink()
+                backup.replace(destination)
+                restored.append(str(destination))
+            try:
+                backup_root.rmdir()
+            except OSError:
+                continue
+        return restored
+
+    def _target_path(self, target_root: Path, absolute: str) -> Path:
+        normalized = Path(absolute)
+        relative = normalized.relative_to("/")
+        return target_root.resolve() / relative if target_root != Path("/") else normalized
+
+
+class AutonomousInstallerProgram:
+    _requirements_by_scope: ClassVar[dict[tuple[str, str], str]] = {
+        ("lite", "all-in-one"): "lite-all-in-one.txt",
+        ("pro", "server"): "pro-server.txt",
+        ("pro", "web"): "pro-web.txt",
+        ("enterprise", "server"): "enterprise-server.txt",
+        ("enterprise", "web"): "enterprise-web.txt",
+        ("enterprise", "agent"): "enterprise-agent.txt",
+    }
+    _postgresql_bootstrap_labels: ClassVar[set[str]] = {
+        "install PostgreSQL packages",
+        "initialize PostgreSQL cluster",
+        "enable PostgreSQL service",
+        "start PostgreSQL service",
+        "verify PostgreSQL readiness",
+    }
+
+    def __init__(self, entrypoint: Path) -> None:
+        self._location = InstallerLocationResolver().resolve(entrypoint)
+        OpenInfraImportBootstrap().prepare(self._location.project_root)
+        installer_config = importlib.import_module("openinfra.infrastructure.installer_config")
+        self._validator = installer_config.InstallerConfigValidator()
+
+    def main(self, argv: list[str] | None = None) -> int:
+        parser = argparse.ArgumentParser(
+            prog=str(self._location.scope_root / "install.py"),
+            description="OpenInfra autonomous scope installer",
+        )
+        mode = parser.add_mutually_exclusive_group(required=True)
+        mode.add_argument("--dry-run", action="store_true")
+        mode.add_argument("--execute", action="store_true")
+        mode.add_argument("--migrate-only", action="store_true")
+        mode.add_argument("--verify-only", action="store_true")
+        mode.add_argument("--rollback", action="store_true")
+        parser.add_argument("--target-root", type=Path, default=Path("/"))
+        parser.add_argument("--json", action="store_true")
+        parser.add_argument(
+            "--skip-service-enable",
+            action="store_true",
+            help="write files without calling systemctl; intended for offline image assembly",
+        )
+        args = parser.parse_args(argv)
+        try:
+            plan = self.build_plan(args.target_root)
+            if args.dry_run:
+                return self._emit(plan, executed=False, json_output=args.json)
+            if args.verify_only:
+                self._assert_prerequisites(plan, skip_service_enable=True)
+                return self._emit(plan, executed=False, json_output=args.json)
+            if args.rollback:
+                payload = RollbackManager().rollback_target(args.target_root)
+                return self._emit_payload(payload, json_output=args.json)
+            if args.migrate_only:
+                self.execute_migrations(plan)
+                return self._emit(plan, executed=True, json_output=args.json)
+            self.execute(plan, skip_service_enable=bool(args.skip_service_enable))
+            return self._emit(plan, executed=True, json_output=args.json)
+        except InstallerRuntimeError as exc:
+            print(f"openinfra-installer: error: {exc}", file=sys.stderr)
+            return 2
+
+    def build_plan(self, target_root: Path) -> InstallationPlan:
+        report = self._validator.validate_file(
+            self._location.config_path,
+            edition=self._location.edition,
+            scope=self._location.scope,
+        )
+        if not report.valid:
+            raise InstallerRuntimeError("invalid install.ini: " + "; ".join(report.errors))
+        application_root = self._target_path(target_root, "/opt/openinfra")
+        configuration_root = self._target_path(target_root, "/etc/openinfra")
+        systemd_root = self._target_path(target_root, "/etc/systemd/system")
+        requirements_file = self._requirements_by_scope[(report.edition, report.scope)]
+        commands = self._build_commands(report, target_root, application_root, requirements_file)
+        prerequisites = self._build_prerequisites(report, target_root)
+        return InstallationPlan(
+            edition=report.edition,
+            edition_directory=self._location.edition_directory,
+            scope=report.scope,
+            config_path=self._location.config_path,
+            application_root=application_root,
+            configuration_root=configuration_root,
+            systemd_root=systemd_root,
+            deploy_src=True,
+            deploy_requirements=True,
+            deploy_migrations=report.scope in {"all-in-one", "server"},
+            managed_postgresql=report.postgresql_plan is not None,
+            managed_application_filesystem=report.managed_application_filesystem,
+            service_name=report.service,
+            requirements_file=requirements_file,
+            actions=report.actions,
+            commands=commands,
+            prerequisites=prerequisites,
+            transactional_rollback=True,
+            start_service=target_root == Path("/"),
+        )
+
+    def execute(self, plan: InstallationPlan, skip_service_enable: bool) -> None:
+        self._assert_supported_execute_target(plan)
+        self._assert_prerequisites(plan, skip_service_enable=skip_service_enable)
+        journal = InstallationRollbackJournal()
+        try:
+            self._create_directory(plan.application_root, journal)
+            self._create_directory(plan.configuration_root, journal)
+            self._create_directory(plan.systemd_root, journal)
+            self._replace_tree(
+                self._location.project_root / "src", plan.application_root / "src", journal
+            )
+            self._replace_tree(
+                self._location.installers_root / "requirements",
+                plan.application_root / "requirements",
+                journal,
+            )
+            self._replace_file(
+                self._location.config_path,
+                plan.configuration_root / f"install-{plan.edition_directory}-{plan.scope}.ini",
+                mode=0o640,
+                journal=journal,
+            )
+            self._replace_file(
+                self._location.project_root / "pyproject.toml",
+                plan.application_root / "pyproject.toml",
+                mode=0o644,
+                journal=journal,
+            )
+            if plan.deploy_migrations:
+                self._replace_tree(
+                    self._location.installers_root / "migrations" / "postgresql",
+                    plan.application_root / "installers" / "migrations" / "postgresql",
+                    journal,
+                )
+            unit = self._validator.render_systemd_unit(plan.edition, plan.scope)
+            self._replace_text(
+                plan.systemd_root / plan.service_name, unit, mode=0o644, journal=journal
+            )
+            self._prepare_python_runtime(plan, journal)
+            if plan.managed_postgresql:
+                self._run_postgresql_bootstrap(plan)
+                self.execute_migrations(plan)
+            if plan.application_root == Path("/opt/openinfra") and not skip_service_enable:
+                self._run_command(("systemctl", "daemon-reload"))
+                self._run_command(("systemctl", "enable", plan.service_name))
+                self._run_command(("systemctl", "restart", plan.service_name))
+            journal.commit()
+        except Exception:
+            journal.rollback()
+            raise
+
+    def execute_migrations(self, plan: InstallationPlan) -> None:
+        if not plan.deploy_migrations:
+            raise InstallerRuntimeError(f"{plan.edition}/{plan.scope} does not manage migrations")
+        if plan.application_root != Path("/opt/openinfra"):
+            return
+        dsn = self._resolve_database_dsn(plan)
+        self._run_command(
+            (
+                str(plan.application_root / "venv/bin/openinfra"),
+                "database",
+                "apply-migrations",
+                "--root",
+                str(plan.application_root / "installers/migrations/postgresql"),
+            ),
+            environment={"OPENINFRA_DATABASE_DSN": dsn},
+        )
+
+    def _build_commands(
+        self, report: Any, target_root: Path, application_root: Path, requirements_file: str
+    ) -> tuple[InstallationCommand, ...]:
+        commands: list[InstallationCommand] = []
+        venv_python = application_root / "venv/bin/python"
+        commands.extend(
+            (
+                InstallationCommand(
+                    "create Python virtual environment",
+                    ("python3", "-m", "venv", str(application_root / "venv")),
+                ),
+                InstallationCommand(
+                    "install scope production requirements",
+                    (
+                        str(venv_python),
+                        "-m",
+                        "pip",
+                        "install",
+                        "-r",
+                        str(application_root / "requirements" / requirements_file),
+                    ),
+                ),
+                InstallationCommand(
+                    "install OpenInfra application package",
+                    (str(venv_python), "-m", "pip", "install", str(application_root)),
+                ),
+            )
+        )
+        if report.postgresql_plan is not None:
+            postgresql_plan = report.postgresql_plan
+            commands.extend(
+                (
+                    InstallationCommand(
+                        "install PostgreSQL packages", postgresql_plan.install_command
+                    ),
+                    InstallationCommand(
+                        "initialize PostgreSQL cluster", postgresql_plan.os_profile.initdb_command
+                    ),
+                    InstallationCommand(
+                        "enable PostgreSQL service", postgresql_plan.enable_command
+                    ),
+                    InstallationCommand("start PostgreSQL service", postgresql_plan.start_command),
+                    InstallationCommand(
+                        "verify PostgreSQL readiness", postgresql_plan.verify_command
+                    ),
+                    InstallationCommand(
+                        "apply backend migrations",
+                        (
+                            str(application_root / "venv/bin/openinfra"),
+                            "database",
+                            "apply-migrations",
+                            "--root",
+                            str(application_root / "installers/migrations/postgresql"),
+                        ),
+                    ),
+                )
+            )
+        if target_root == Path("/"):
+            commands.extend(
+                (
+                    InstallationCommand("reload systemd", ("systemctl", "daemon-reload")),
+                    InstallationCommand(
+                        "enable OpenInfra service",
+                        ("systemctl", "enable", report.service),
+                    ),
+                    InstallationCommand(
+                        "restart OpenInfra service",
+                        ("systemctl", "restart", report.service),
+                    ),
+                )
+            )
+        return tuple(commands)
+
+    def _build_prerequisites(
+        self, report: Any, target_root: Path
+    ) -> tuple[InstallationPrerequisite, ...]:
+        prerequisites = [
+            InstallationPrerequisite("Python virtualenv support", "python3", True),
+        ]
+        if target_root == Path("/"):
+            prerequisites.append(InstallationPrerequisite("systemd service manager", "systemctl"))
+        if report.postgresql_plan is not None:
+            package_manager = report.postgresql_plan.os_profile.package_manager
+            prerequisites.append(
+                InstallationPrerequisite("PostgreSQL package manager", package_manager)
+            )
+        return tuple(prerequisites)
+
+    def _run_postgresql_bootstrap(self, plan: InstallationPlan) -> None:
+        if plan.application_root != Path("/opt/openinfra"):
+            return
+        install_command = self._command_by_label(plan, "install PostgreSQL packages")
+        if shutil.which("psql") is None and install_command is not None:
+            self._run_command(install_command.command)
+        init_command = self._command_by_label(plan, "initialize PostgreSQL cluster")
+        if (
+            init_command is not None
+            and not self._postgresql_cluster_is_initialized(plan)
+            and shutil.which(init_command.command[0]) is not None
+        ):
+            self._run_command(init_command.command)
+        for label in (
+            "enable PostgreSQL service",
+            "start PostgreSQL service",
+            "verify PostgreSQL readiness",
+        ):
+            command = self._command_by_label(plan, label)
+            if command is not None:
+                self._run_command(command.command)
+
+    def _postgresql_cluster_is_initialized(self, plan: InstallationPlan) -> bool:
+        for command in plan.commands:
+            if command.label != "initialize PostgreSQL cluster":
+                continue
+            profile = self._validator.validate_file(
+                self._location.config_path,
+                edition=plan.edition,
+                scope=plan.scope,
+            ).postgresql_plan
+            if profile is None:
+                return True
+            markers = profile.os_profile.cluster_marker_paths
+            return any(Path(marker).exists() for marker in markers)
+        return True
+
+    def _prepare_python_runtime(
+        self, plan: InstallationPlan, journal: InstallationRollbackJournal
+    ) -> None:
+        if plan.application_root != Path("/opt/openinfra"):
+            return
+        venv = plan.application_root / "venv"
+        if not venv.exists():
+            journal.record_replacement(venv, None)
+        for label in (
+            "create Python virtual environment",
+            "install scope production requirements",
+            "install OpenInfra application package",
+        ):
+            command = self._command_by_label(plan, label)
+            if command is not None:
+                self._run_command(command.command)
+
+    def _command_by_label(self, plan: InstallationPlan, label: str) -> InstallationCommand | None:
+        for command in plan.commands:
+            if command.label == label:
+                return command
+        return None
+
+    def _resolve_database_dsn(self, plan: InstallationPlan) -> str:
+        direct = os.environ.get("OPENINFRA_DATABASE_DSN", "").strip()
+        if direct:
+            return direct
+        parser = configparser.ConfigParser(interpolation=None)
+        parser.read(self._location.config_path, encoding="utf-8")
+        if parser.has_option("auth", "postgresql_dsn_ref"):
+            return self._resolve_secret_reference(parser.get("auth", "postgresql_dsn_ref"))
+        if parser.has_option("auth", "postgresql_user_ref") and parser.has_option(
+            "auth", "postgresql_password_ref"
+        ):
+            username = self._resolve_secret_reference(parser.get("auth", "postgresql_user_ref"))
+            credential_value = self._resolve_secret_reference(
+                parser.get("auth", "postgresql_password_ref")
+            )
+            return (
+                "postgresql://"
+                + quote(username, safe="")
+                + ":"
+                + quote(credential_value, safe="")
+                + "@127.0.0.1:5432/openinfra"
+            )
+        if plan.edition == "lite":
+            return "postgresql:///openinfra"
+        raise InstallerRuntimeError(
+            "PostgreSQL DSN cannot be resolved; set OPENINFRA_DATABASE_DSN "
+            "or env refs from install.ini"
+        )
+
+    def _resolve_secret_reference(self, raw_reference: str) -> str:
+        reference = raw_reference.strip()
+        if reference.startswith("env:"):
+            name = reference.removeprefix("env:").strip()
+            value = os.environ.get(name, "")
+            if not value:
+                raise InstallerRuntimeError("missing environment secret reference: " + name)
+            return value
+        if reference.startswith("file://"):
+            path = Path(reference.removeprefix("file://"))
+            if not path.is_file():
+                raise InstallerRuntimeError("missing file secret reference: " + str(path))
+            return path.read_text(encoding="utf-8").strip()
+        raise InstallerRuntimeError(
+            "unsupported runtime secret reference for autonomous installer: "
+            + reference.split(":", 1)[0]
+        )
+
+    def _assert_supported_execute_target(self, plan: InstallationPlan) -> None:
+        if plan.application_root == Path("/opt/openinfra") and os.geteuid() != 0:
+            raise InstallerRuntimeError("execute mode on / requires root privileges")
+
+    def _assert_prerequisites(self, plan: InstallationPlan, skip_service_enable: bool) -> None:
+        missing_sources = (
+            self._location.project_root / "src",
+            self._location.installers_root / "requirements" / plan.requirements_file,
+            self._location.project_root / "pyproject.toml",
+        )
+        missing = [str(path) for path in missing_sources if not path.exists()]
+        if plan.deploy_migrations:
+            migrations_root = self._location.installers_root / "migrations" / "postgresql"
+            if not migrations_root.is_dir() or not any(migrations_root.glob("*.sql")):
+                missing.append(str(migrations_root))
+        if missing:
+            raise InstallerRuntimeError("missing installer payload: " + ", ".join(missing))
+        for prerequisite in plan.prerequisites:
+            if skip_service_enable and not prerequisite.mandatory_on_offline_target:
+                continue
+            if shutil.which(prerequisite.executable) is None:
+                raise InstallerRuntimeError(
+                    f"missing prerequisite {prerequisite.label}: {prerequisite.executable}"
+                )
+
+    def _target_path(self, target_root: Path, absolute: str) -> Path:
+        normalized = Path(absolute)
+        relative = normalized.relative_to("/")
+        return target_root.resolve() / relative if target_root != Path("/") else normalized
+
+    def _create_directory(self, path: Path, journal: InstallationRollbackJournal) -> None:
+        missing: list[Path] = []
+        current = path
+        while not current.exists():
+            missing.append(current)
+            current = current.parent
+        path.mkdir(parents=True, exist_ok=True)
+        os.chmod(path, 0o750)
+        for created in reversed(missing):
+            journal.record_created_directory(created)
+
+    def _replace_tree(
+        self, source: Path, destination: Path, journal: InstallationRollbackJournal
+    ) -> None:
+        if not source.is_dir():
+            raise InstallerRuntimeError(f"missing source directory: {source}")
+        self._create_directory(destination.parent, journal)
+        temporary = self._temporary_path(destination)
+        backup = self._backup_existing(destination)
+        shutil.copytree(source, temporary)
+        temporary.replace(destination)
+        journal.record_replacement(destination, backup)
+
+    def _replace_file(
+        self, source: Path, destination: Path, mode: int, journal: InstallationRollbackJournal
+    ) -> None:
+        if not source.is_file():
+            raise InstallerRuntimeError(f"missing source file: {source}")
+        self._create_directory(destination.parent, journal)
+        temporary = self._temporary_path(destination)
+        shutil.copy2(source, temporary)
+        os.chmod(temporary, mode)
+        backup = self._backup_existing(destination)
+        temporary.replace(destination)
+        journal.record_replacement(destination, backup)
+
+    def _replace_text(
+        self, destination: Path, content: str, mode: int, journal: InstallationRollbackJournal
+    ) -> None:
+        self._create_directory(destination.parent, journal)
+        temporary = self._temporary_path(destination)
+        temporary.write_text(content, encoding="utf-8")
+        os.chmod(temporary, mode)
+        backup = self._backup_existing(destination)
+        temporary.replace(destination)
+        journal.record_replacement(destination, backup)
+
+    def _temporary_path(self, destination: Path) -> Path:
+        counter = 0
+        while True:
+            candidate = destination.with_name(
+                f".{destination.name}.openinfra-tmp-{os.getpid()}-{counter}"
+            )
+            if not candidate.exists():
+                return candidate
+            counter += 1
+
+    def _backup_existing(self, destination: Path) -> Path | None:
+        if not destination.exists() and not destination.is_symlink():
+            return None
+        backup_root = destination.parent / ".openinfra-rollback"
+        backup_root.mkdir(parents=True, exist_ok=True)
+        backup = backup_root / f"{destination.name}.bak"
+        counter = 0
+        while backup.exists():
+            counter += 1
+            backup = backup_root / f"{destination.name}.{counter}.bak"
+        destination.replace(backup)
+        return backup
+
+    def _run_command(
+        self, command: tuple[str, ...], environment: dict[str, str] | None = None
+    ) -> None:
+        executable = shutil.which(command[0]) if "/" not in command[0] else command[0]
+        if executable is None or not Path(executable).exists():
+            raise InstallerRuntimeError("missing required executable: " + command[0])
+        resolved = (executable, *command[1:])
+        runtime_environment = os.environ.copy()
+        if environment:
+            runtime_environment.update(environment)
+        completed = subprocess.run(resolved, check=False, env=runtime_environment, text=True)  # nosec B603
+        if completed.returncode != 0:
+            raise InstallerRuntimeError("command failed: " + " ".join(command))
+
+    def _emit(self, plan: InstallationPlan, executed: bool, json_output: bool) -> int:
+        payload = {"executed": executed, "plan": plan.as_dict()}
+        if json_output:
+            print(json.dumps(payload, sort_keys=True, indent=2))
+        else:
+            status = "EXECUTED" if executed else "DRY-RUN"
+            print(f"{status} {plan.edition}/{plan.scope} -> {plan.application_root}")
+            for action in plan.actions:
+                print(f"- {action}")
+        return 0
+
+    def _emit_payload(self, payload: dict[str, object], json_output: bool) -> int:
+        if json_output:
+            print(json.dumps(payload, sort_keys=True, indent=2))
+        else:
+            count = payload.get("count", 0)
+            print(f"ROLLBACK restored={count}")
+            for restored in payload.get("rolled_back", []):
+                print(f"- {restored}")
+        return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(AutonomousInstallerProgram(Path(__file__)).main())

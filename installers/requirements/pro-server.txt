@@ -1,0 +1,2 @@
+# Pro backend production dependencies.
+-r backend.txt

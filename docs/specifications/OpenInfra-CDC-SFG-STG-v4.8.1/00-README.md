@@ -1,0 +1,175 @@
+# OpenInfra CDC/SFG/STG v4.8.1 — Correction stockage PostgreSQL et install.ini
+
+Ce dossier consolide le CDC/SFG/STG OpenInfra avec l'alignement enterprise v4.3 et l'exigence v4.4 d'installation autonome des modes cluster.
+
+## Correction v4.8.1
+
+Cette correction met à jour les entrées existantes du CDC sans ajouter de nouveau volume : mountpoint PostgreSQL `/data/openinfra/`, symlink `/opt/openinfra/data -> /data/openinfra/`, PGDATA initialisé sous `/data/openinfra/`, tailles par édition Lite `2GB`, Pro `100GB`, Entreprise `1TB`.
+
+## Ajout v4.4
+
+Les installations cluster backend, frontend, PostgreSQL et agents d'auto discovery doivent être réalisables par un opérateur non expert. L'opérateur fournit uniquement les données réseau obligatoires : FQDN, IP, masque, VIP, passerelle et DNS. Les installateurs gèrent les dépendances, la configuration HA, les certificats, les services systemd, les migrations backend, les vérifications, les rapports et le rollback.
+
+Les installateurs sont placés dans `installers/`, en dehors de `src/`.
+
+## Services systemd canoniques
+
+- `openinfra.service` : backend/API canonique, bootstrap PostgreSQL géré par OpenInfra, orchestration applicative, application des migrations backend ; en édition Lite, ce même service porte le mode all-in-one monolithique.
+- `openinfra-web.service` : frontend React + Bootstrap 5 servant l'interface web.
+- `openinfra-agent.service` : collecteur d'auto discovery pour l'édition Entreprise.
+- `openinfra-worker.service` : traitements asynchrones lorsque le scope worker est séparé.
+- `openinfra-scheduler.service` : planification des jobs.
+- `openinfra-connector.service` : connecteurs externes, dont ITSM externe pour Pro et Entreprise.
+- `openinfra-exporter.service` : métriques Prometheus lorsque le scope observabilité est activé.
+
+Aucun nom de service ne doit contenir `lite`, `pro`, `enterprise` ou `enterprise`. Aucun service backend séparé supplémentaire ne doit être créé lorsque `openinfra.service` couvre déjà le backend, PostgreSQL géré et les migrations.
+
+## Validation documentaire
+
+```bash
+python3 scripts/validate_docs.py
+python3 scripts/validate_enterprise_alignment.py
+python3 scripts/validate_autonomous_installer.py
+```
+
+
+# OpenInfra CDC/SFG/STG v4.3.0 — Dossier consolidé enterprise
+
+Cette version consolide le CDC/SFG/STG OpenInfra v4, les extensions fonctionnelles v4, les éditions Lite/Pro/Entreprise, les règles de packaging, les agents de découverte, l'interface web React + Bootstrap 5, les connecteurs ITSM externes et le support constructeur obligatoire.
+
+Principes non négociables :
+
+- aucun ITSM intégré ;
+- connecteurs ITSM externes uniquement pour Pro et Entreprise ;
+- Lite monolithique avec quotas stricts ;
+- Pro séparé backend/frontend, backend canonique `openinfra.service`, PostgreSQL medium, asynchrone, connecteurs ITSM ;
+- Entreprise distribuée, backend canonique `openinfra.service`, agents, clustering frontend, profil PostgreSQL large ;
+- noms systemd invariants par édition ;
+- backend canonique `openinfra.service` ;
+- agents discovery `openinfra-agent.service` ;
+- frontend `openinfra-web.service`, React + Bootstrap 5, API-only ;
+- support constructeur et garantie constructeur obligatoires et non écrasables par support tiers.
+
+---
+
+
+# OpenInfra — Dossier SFG/STG, CCTP/CdCF et architecture enterprise
+
+**Version :** 4.0.0  
+**Date :** 2026-07-02  
+**Statut :** version enrichie enterprise, prête pour cadrage, consultation d’intégrateurs, lancement de conception détaillée et pilotage de développement.  
+**Périmètre :** Source of Truth, DCIM, ITAM, Discovery, Dependency Mapping, IPAM Enterprise++, sécurité, API, IA/automatisation, administration, qualité.  
+**Exclusion structurante :** aucune fonction ITSM intégrée. Les outils ITSM sont intégrés par connecteurs externes uniquement.
+
+## Contenu du livrable
+
+Ce référentiel documentaire transforme le CDC initial en dossier industriel structuré :
+
+- 12 volumes SFG/STG alignés sur la structure demandée ;
+- CCTP/CdCF exploitable en appel d’offres ;
+- exigences numérotées `REQ-xxxxx` ;
+- cas d’usage `UC-xxxx` ;
+- tests `TST-xxxx` ;
+- matrice de traçabilité exigences → cas d’usage → tests ;
+- modèle de données logique avec plus de 250 entités ;
+- exigences PostgreSQL Cluster, partitionnement, hot/warm/cold et objectifs de performance ;
+- ADR/RFC d’architecture ;
+- diagrammes C4, PlantUML, Mermaid et ERD ;
+- OpenAPI 3.1 et schéma GraphQL de référence ;
+- registre des risques ;
+- critères d’acceptation contractuels.
+
+## Arborescence principale
+
+```text
+OpenInfra-CDC-SFG-STG-v4.8.1/
+├── 00-README.md
+├── 00-Index-general.md
+├── 00-Note-de-cadrage-CCTP-CdCF.md
+├── 01-Vision/
+├── 02-Fonctionnel/
+├── 03-Technique/
+├── 04-Donnees/
+├── 05-Tests/
+├── 06-Exploitation/
+├── 07-Architecture-Entreprise/
+├── 08-RFC-ADR/
+├── 09-API/
+├── 10-Diagrammes/
+├── 11-Matrices/
+├── Volumes/
+├── Annexes/
+└── scripts/
+```
+
+## Règles contractuelles majeures
+
+1. PostgreSQL Cluster est obligatoire comme socle transactionnel principal.
+2. Les tables massives ne doivent jamais être monolithiques non partitionnées.
+3. L’architecture doit supporter plus de 10 milliards d’entrées sans refonte majeure.
+4. Toute lecture volumineuse doit être paginée et bornée.
+5. Tout import/export massif doit être asynchrone.
+6. Toute allocation IP doit être transactionnelle, idempotente et sûre en concurrence.
+7. La localisation physique en salle impose ligne, colonne et coordonnées X/Y/Z lorsque disponibles.
+8. Les opérations critiques doivent être auditées et traçables.
+9. Les exigences N1 sont obligatoires et non négociables.
+10. Les critères d’acceptation et tests associés conditionnent la réception.
+
+## Validation locale du dossier
+
+```bash
+python3 scripts/validate_docs.py
+```
+
+Le script vérifie la présence des documents essentiels, l’unicité des exigences, l’absence de marqueurs de brouillon et la cohérence minimale des matrices.
+
+
+## Extension v4.0.0 — améliorations fonctionnelles enterprise
+
+La version 4.0.0 ajoute douze volumes fonctionnels avancés, sans introduire d’ITSM intégré :
+
+- [Volume 13 — Gouvernance de la donnée et sources autoritatives](Volumes/V13-Gouvernance-de-la-donnee.md)
+- [Volume 14 — Qualité, certification et réconciliation des données](Volumes/V14-Qualite-certification-reconciliation.md)
+- [Volume 15 — Flux réseau, matrices de flux et segmentation](Volumes/V15-Flux-reseau-matrices-flux.md)
+- [Volume 16 — Certificats, PKI et secrets référencés](Volumes/V16-Certificats-PKI-secrets-references.md)
+- [Volume 17 — Conformité réseau et configuration attendue](Volumes/V17-Conformite-reseau-configuration-attendue.md)
+- [Volume 18 — FinOps, coûts, showback et chargeback](Volumes/V18-FinOps-couts-chargeback.md)
+- [Volume 19 — Field Operations et mobilité datacenter](Volumes/V19-Field-Operations-mobilite-datacenter.md)
+- [Volume 20 — Simulation, analyse d’impact et migration planning](Volumes/V20-Simulation-impact-migration-planning.md)
+- [Volume 21 — GreenOps et capacité énergétique](Volumes/V21-GreenOps-capacite-energetique.md)
+- [Volume 22 — SBOM, vulnérabilités et exposition contextualisée](Volumes/V22-SBOM-vulnerabilites-exposition.md)
+- [Volume 23 — Kubernetes avancé et mapping cloud-native](Volumes/V23-Kubernetes-avance-cloud-native-mapping.md)
+- [Volume 24 — Policy Engine et conformité continue](Volumes/V24-Policy-Engine-conformite-continue.md)
+
+Le dossier v4 ajoute également les exigences, entités, cas d’usage, tests, risques et lignes de conformité correspondants dans les matrices contractuelles.
+
+
+## Extension v4.6.0
+
+La version 4.6.0 ajoute le cadrage enterprise suivant :
+
+- LDAP/IPA, groupes et RBAC pour OpenInfra Pro et OpenInfra Entreprise ;
+- compte système `openinfra` créé par root dans toutes les éditions ;
+- filesystem LVM dédié monté sur `/opt/openinfra/` avec `rootvg/openinfra_lv` et taille par défaut `2GB` ;
+- création idempotente des prérequis système par les installateurs ;
+- séparation stricte entre utilisateurs humains authentifiés et compte système de service.
+
+## Addendum v4.7.0
+
+Cette version ajoute le stockage PostgreSQL dédié, la réplication automatique quasi synchrone en mode cluster, le support multisite Pro/Entreprise et la correction des incohérences d'ownership entre application, base de données et symlink.
+
+Décisions structurantes :
+
+- `/opt/openinfra/` appartient au compte applicatif `openinfra`.
+- Les données PostgreSQL backend sont stockées et initialisées dans `/data/openinfra/` sur le LV `datavg/openinfradata_lv`, avec taille par défaut par édition : Lite `2GB`, Pro `100GB`, Entreprise `1TB`.
+- `/opt/openinfra/data` est un symlink vers `/data/openinfra/`, cible possédée par le compte système PostgreSQL résolu par l installateur.
+- Le propriétaire logique du target et du symlink est le compte système gestionnaire PostgreSQL, résolu par l'installateur, sans imposer un nom Unix fixe.
+- En cluster, l'installateur configure automatiquement la réplication et la synchronisation quasi synchrone.
+- Pro et Entreprise supportent le multisite, avec des capacités distinctes documentées.
+
+
+## Addendum v4.8.0 — Configuration installateur `./config/install.ini`
+
+Chaque dossier d'installation OpenInfra doit contenir son propre fichier de configuration canonique `./config/install.ini`.
+Ce fichier est édité par l'opérateur pour adapter l'installation aux caractéristiques du serveur, sans modifier les scripts d'installation.
+L'installateur doit valider ce fichier avant toute action système, produire un dry-run, installer les dépendances, créer les comptes et filesystems, configurer les services et appliquer les migrations backend lorsque le scope le permet.

@@ -24,6 +24,7 @@ from openinfra.application.ports import (
     IpamRepository,
     ReadinessProbe,
     ReadinessStatus,
+    RuntimeUsageRepository,
     SchemaStatusProvider,
     SecurityRepository,
     SecurityTokenPage,
@@ -96,6 +97,7 @@ from openinfra.domain.dcim import (
     Site,
 )
 from openinfra.domain.discovery import CollectorStatus, DiscoveryCollector
+from openinfra.domain.editions import QuotaResource
 from openinfra.domain.identity import (
     EffectiveIdentity,
     GroupMembership,
@@ -243,6 +245,37 @@ class JsonDocumentStore:
             "export_artifacts": {},
             "discovery_collectors": {},
         }
+
+
+class JsonRuntimeUsageRepository(RuntimeUsageRepository):
+    def __init__(self, store: JsonDocumentStore) -> None:
+        self._store = store
+
+    def count_resource(self, tenant_id: TenantId, resource: QuotaResource) -> int:
+        with self._store.lock:
+            if resource is QuotaResource.EQUIPMENT:
+                return self._count_items("equipment", tenant_id)
+            if resource is QuotaResource.SUBNET_VLAN:
+                return self._count_items("prefixes", tenant_id) + self._count_items(
+                    "vlans", tenant_id
+                )
+            if resource is QuotaResource.IP_DNS_RECORD:
+                return (
+                    self._count_items("ip_reservations", tenant_id)
+                    + self._count_items("ip_address_records", tenant_id)
+                    + self._count_items("dns_observations", tenant_id)
+                )
+            if resource is QuotaResource.USER:
+                return self._count_items("identity_users", tenant_id)
+            if resource is QuotaResource.DISCOVERY_COLLECTOR:
+                return self._count_items("discovery_collectors", tenant_id)
+            raise AssertionError(f"unhandled quota resource: {resource}")
+
+    def _count_items(self, bucket: str, tenant_id: TenantId) -> int:
+        values = self._store.data[bucket]
+        if isinstance(values, list):
+            return sum(1 for item in values if item.get("tenant_id") == tenant_id.value)
+        return sum(1 for item in values.values() if item.get("tenant_id") == tenant_id.value)
 
 
 class JsonDiscoveryRepository(DiscoveryRepository):

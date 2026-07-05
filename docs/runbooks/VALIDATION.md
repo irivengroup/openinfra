@@ -1,11 +1,34 @@
+## Validation P02 éditions / feature gates — v0.29.0
+
+```bash
+PYTHONPATH=src:. pytest tests/integration/test_editions_feature_gates.py
+PYTHONPATH=src python -m openinfra.interfaces.cli edition list --data /tmp/openinfra-editions.json
+PYTHONPATH=src python -m openinfra.interfaces.cli edition feature-check --tenant default --edition lite --capability distributed_discovery_agents
+PYTHONPATH=src python -m openinfra.interfaces.cli edition quota-check --data /tmp/openinfra-editions.json --edition lite --tenant default --resource user --increment 1
+```
+
+Ces contrôles garantissent que les éditions Lite/Pro/Enterprise sont appliquées par le backend, que les quotas runtime sont calculés depuis les repositories JSON/PostgreSQL et que les collectors Discovery restent réservés à Enterprise.
+
+## Validation réalignement CDC v4.8.1 / roadmap v2 — v0.28.1
+
+```bash
+PYTHONPATH=src python scripts/validate_autonomous_installer.py --root installers
+PYTHONPATH=src python scripts/validate_enterprise_alignment.py --project-root .
+PYTHONPATH=src python -m openinfra.interfaces.cli installer validate --root installers
+PYTHONPATH=src python -m openinfra.interfaces.cli installer dry-run --root installers
+PYTHONPATH=src python -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1
+```
+
+Ces contrôles garantissent que les installateurs Lite/Pro/Enterprise n'exposent aucun secret en clair, respectent les tailles LVM PostgreSQL attendues, utilisent les services systemd canoniques et restent alignés avec les nouveaux référentiels contractuels.
+
 # Runbook de validation
 
 
-## Validation Discovery collectors v0.28.0
+## Validation Discovery collectors v0.28.1
 
 ```bash
 PYTHONPATH=src python -m pytest -q tests/unit/test_discovery_domain.py tests/integration/test_discovery_collector_services.py tests/integration/test_cli_discovery.py tests/integration/test_http_api.py
-PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0023_discovery_collector_registry --root migrations/postgresql >/tmp/openinfra-0023.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0023_discovery_collector_registry --root installers/migrations/postgresql >/tmp/openinfra-0023.sql
 ```
 
 Contrôles bloquants spécifiques :
@@ -22,22 +45,22 @@ Contrôles bloquants spécifiques :
 PYTHONPATH=src python -m pytest
 PYTHONPATH=src python -m compileall -q src tests scripts docker
 PYTHONPATH=src python -m openinfra.interfaces.cli version
-PYTHONPATH=src python -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4
-PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0001_bootstrap --root migrations/postgresql >/tmp/openinfra-0001.sql
-PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0002_security_rbac --root migrations/postgresql >/tmp/openinfra-0002.sql
-PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0003_security_token_lifecycle --root migrations/postgresql >/tmp/openinfra-0003.sql
-PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0004_identity_users_groups --root migrations/postgresql >/tmp/openinfra-0004.sql
-PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0005_access_policy_abac --root migrations/postgresql >/tmp/openinfra-0005.sql
-PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0006_audit_trail_integrity --root migrations/postgresql >/tmp/openinfra-0006.sql
-PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0007_source_of_truth_core --root migrations/postgresql >/tmp/openinfra-0007.sql
-PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0008_source_governance --root migrations/postgresql >/tmp/openinfra-0008.sql
-PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0009_dcim_physical_model --root migrations/postgresql >/tmp/openinfra-0009.sql
-PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0010_dcim_rack_capacity --root migrations/postgresql >/tmp/openinfra-0010.sql
-PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0011_dcim_field_operations --root migrations/postgresql >/tmp/openinfra-0011.sql
-PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0012_dcim_visualization_indexes --root migrations/postgresql >/tmp/openinfra-0012.sql
-PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0013_dcim_cabling_foundation --root migrations/postgresql >/tmp/openinfra-0013.sql
-PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0014_dcim_energy_cooling_foundation --root migrations/postgresql >/tmp/openinfra-0014.sql
-PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0015_ipam_enterprise_foundation --root migrations/postgresql >/tmp/openinfra-0015.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0001_bootstrap --root installers/migrations/postgresql >/tmp/openinfra-0001.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0002_security_rbac --root installers/migrations/postgresql >/tmp/openinfra-0002.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0003_security_token_lifecycle --root installers/migrations/postgresql >/tmp/openinfra-0003.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0004_identity_users_groups --root installers/migrations/postgresql >/tmp/openinfra-0004.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0005_access_policy_abac --root installers/migrations/postgresql >/tmp/openinfra-0005.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0006_audit_trail_integrity --root installers/migrations/postgresql >/tmp/openinfra-0006.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0007_source_of_truth_core --root installers/migrations/postgresql >/tmp/openinfra-0007.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0008_source_governance --root installers/migrations/postgresql >/tmp/openinfra-0008.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0009_dcim_physical_model --root installers/migrations/postgresql >/tmp/openinfra-0009.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0010_dcim_rack_capacity --root installers/migrations/postgresql >/tmp/openinfra-0010.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0011_dcim_field_operations --root installers/migrations/postgresql >/tmp/openinfra-0011.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0012_dcim_visualization_indexes --root installers/migrations/postgresql >/tmp/openinfra-0012.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0013_dcim_cabling_foundation --root installers/migrations/postgresql >/tmp/openinfra-0013.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0014_dcim_energy_cooling_foundation --root installers/migrations/postgresql >/tmp/openinfra-0014.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0015_ipam_enterprise_foundation --root installers/migrations/postgresql >/tmp/openinfra-0015.sql
 PYTHONPATH=src python -m openinfra.interfaces.cli ipam allocate --data /tmp/openinfra-state.json --tenant default --vrf default --prefix 10.99.0.0/30 --hostname validation --idempotency-key validation-1
 ```
 
@@ -45,9 +68,9 @@ PYTHONPATH=src python -m openinfra.interfaces.cli ipam allocate --data /tmp/open
 
 ```bash
 export OPENINFRA_DATABASE_DSN='postgresql://openinfra:secret@postgres:5432/openinfra'
-PYTHONPATH=src python -m openinfra.interfaces.cli database status --root migrations/postgresql
-PYTHONPATH=src python -m openinfra.interfaces.cli database apply-migrations --root migrations/postgresql --dry-run
-PYTHONPATH=src python -m openinfra.interfaces.cli database apply-migrations --root migrations/postgresql
+PYTHONPATH=src python -m openinfra.interfaces.cli database status --root installers/migrations/postgresql
+PYTHONPATH=src python -m openinfra.interfaces.cli database apply-migrations --root installers/migrations/postgresql --dry-run
+PYTHONPATH=src python -m openinfra.interfaces.cli database apply-migrations --root installers/migrations/postgresql
 ```
 
 ## Validation complète CI
@@ -111,7 +134,7 @@ Les tests automatisés couvrent la création d’utilisateurs, la création de g
 Commandes dédiées :
 
 ```bash
-PYTHONPATH=src python3 -m openinfra.interfaces.cli database render-migration --name 0004_identity_users_groups --root migrations/postgresql
+PYTHONPATH=src python3 -m openinfra.interfaces.cli database render-migration --name 0004_identity_users_groups --root installers/migrations/postgresql
 PYTHONPATH=src python3 -m pytest -q tests/unit/test_identity_domain.py tests/integration/test_identity_services.py
 ```
 
@@ -120,7 +143,7 @@ PYTHONPATH=src python3 -m pytest -q tests/unit/test_identity_domain.py tests/int
 Commandes minimales :
 
 ```bash
-PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0005_access_policy_abac --root migrations/postgresql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0005_access_policy_abac --root installers/migrations/postgresql
 PYTHONPATH=src python -m openinfra.interfaces.cli access create-rule --data /tmp/openinfra.json --tenant default --admin-token "$ADMIN_TOKEN" --name worker-par1-prod --permission ipam.allocate --effect allow --subject worker-client --site-code PAR1 --environment prod
 PYTHONPATH=src python -m openinfra.interfaces.cli access evaluate --data /tmp/openinfra.json --tenant default --token "$WORKER_TOKEN" --permission ipam.allocate --site-code PAR1 --environment prod
 PYTHONPATH=src python -m pytest -q tests/unit/test_access_policy_domain.py tests/integration/test_access_policy_services.py
@@ -134,7 +157,7 @@ La CI exécute également un smoke test JSON ABAC. Les scénarios PostgreSQL/API
 Commandes minimales :
 
 ```bash
-PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0006_audit_trail_integrity --root migrations/postgresql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0006_audit_trail_integrity --root installers/migrations/postgresql
 PYTHONPATH=src python -m openinfra.interfaces.cli audit list --data /tmp/openinfra.json --tenant default --admin-token "$ADMIN_TOKEN" --limit 100
 PYTHONPATH=src python -m openinfra.interfaces.cli audit export --data /tmp/openinfra.json --tenant default --admin-token "$ADMIN_TOKEN" --format jsonl --limit 500
 PYTHONPATH=src python -m openinfra.interfaces.cli audit verify-integrity --data /tmp/openinfra.json --tenant default --admin-token "$ADMIN_TOKEN"
@@ -173,7 +196,7 @@ La CI exécute également un smoke test JSON audit et le runtime natif valide le
 ## Contrôles ajoutés en v0.13.0
 
 ```bash
-PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0010_dcim_rack_capacity --root migrations/postgresql >/tmp/openinfra-0010.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0010_dcim_rack_capacity --root installers/migrations/postgresql >/tmp/openinfra-0010.sql
 PYTHONPATH=src python -m openinfra.interfaces.cli dcim define-rack --tenant default --site PAR1 --building BAT-A --room MMR1 --rack R01 --row A --column 01 --units 42 --face front --face rear
 PYTHONPATH=src python -m openinfra.interfaces.cli dcim rack-capacity --tenant default --site PAR1 --building BAT-A --room MMR1 --rack R01
 ```
@@ -196,10 +219,10 @@ Le périmètre de couverture locale exclut l’adaptateur PostgreSQL bas niveau,
 La v0.15.0 conserve le seuil bloquant `>= 98 %` et ajoute les contrôles P04 / EPIC-0404 suivants :
 
 ```bash
-PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0012_dcim_visualization_indexes --root migrations/postgresql >/tmp/openinfra-0012.sql
-PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0013_dcim_cabling_foundation --root migrations/postgresql >/tmp/openinfra-0013.sql
-PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0014_dcim_energy_cooling_foundation --root migrations/postgresql >/tmp/openinfra-0014.sql
-PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0015_ipam_enterprise_foundation --root migrations/postgresql >/tmp/openinfra-0015.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0012_dcim_visualization_indexes --root installers/migrations/postgresql >/tmp/openinfra-0012.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0013_dcim_cabling_foundation --root installers/migrations/postgresql >/tmp/openinfra-0013.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0014_dcim_energy_cooling_foundation --root installers/migrations/postgresql >/tmp/openinfra-0014.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0015_ipam_enterprise_foundation --root installers/migrations/postgresql >/tmp/openinfra-0015.sql
 PYTHONPATH=src python -m openinfra.interfaces.cli dcim room-plan --tenant default --site PAR1 --building BAT-A --room MMR1 --format json
 PYTHONPATH=src python -m openinfra.interfaces.cli dcim room-plan --tenant default --site PAR1 --building BAT-A --room MMR1 --format svg
 PYTHONPATH=src python -m openinfra.interfaces.cli dcim rack-elevation --tenant default --site PAR1 --building BAT-A --room MMR1 --rack R01 --face front --format json
@@ -214,7 +237,7 @@ Les tests couvrent le domaine de visualisation, les services applicatifs, les po
 La v0.16.0 conserve le seuil bloquant `>= 98 %` et ajoute les contrôles P04 / EPIC-0405 suivants :
 
 ```bash
-PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0013_dcim_cabling_foundation --root migrations/postgresql >/tmp/openinfra-0013.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0013_dcim_cabling_foundation --root installers/migrations/postgresql >/tmp/openinfra-0013.sql
 PYTHONPATH=src python -m openinfra.interfaces.cli dcim define-patch-panel --tenant default --site PAR1 --building BAT-A --room MMR1 --rack R01 --patch-panel PP01 --rack-face front --u-position 2 --port-count 24 --connector rj45 --medium copper
 PYTHONPATH=src python -m openinfra.interfaces.cli dcim define-port --tenant default --owner-type equipment --owner-code SRV-001 --port-name ETH0 --connector rj45 --medium copper
 PYTHONPATH=src python -m openinfra.interfaces.cli dcim connect-cable --tenant default --cable-id CAB-0001 --a-owner-type equipment --a-owner-code SRV-001 --a-port-name ETH0 --b-owner-type patch_panel --b-owner-code PP01 --b-port-name P01 --medium copper --path "Rack R01" --path "Patch panel PP01"
@@ -251,8 +274,8 @@ PYTHONPATH=src python3 -m pytest -q
 PYTHONPATH=src python3 scripts/quality_gate.py
 PYTHONPATH=src python3 -m compileall -q src tests scripts docker
 PYTHONPATH=src python3 -m openinfra.interfaces.cli version
-PYTHONPATH=src python3 -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4
-PYTHONPATH=src python3 -m openinfra.interfaces.cli database render-migration --name 0014_dcim_energy_cooling_foundation --root migrations/postgresql
+PYTHONPATH=src python3 -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1
+PYTHONPATH=src python3 -m openinfra.interfaces.cli database render-migration --name 0014_dcim_energy_cooling_foundation --root installers/migrations/postgresql
 python3 scripts/native_runtime_smoke.py --project-root .
 ```
 
@@ -282,7 +305,7 @@ python3 -m pip_audit --strict --requirement requirements/security-audit.txt --pr
 La v0.17.0 conserve le seuil bloquant `>= 98 %`, corrige le déclenchement GitHub Actions et ajoute les contrôles P04 / EPIC-0406 suivants :
 
 ```bash
-PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0014_dcim_energy_cooling_foundation --root migrations/postgresql >/tmp/openinfra-0014.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0014_dcim_energy_cooling_foundation --root installers/migrations/postgresql >/tmp/openinfra-0014.sql
 PYTHONPATH=src python -m openinfra.interfaces.cli dcim define-power-device --tenant default --code PDU-A --kind pdu --site PAR1 --building BAT-A --room MMR1 --rack R01 --side A --capacity-watts 8000
 PYTHONPATH=src python -m openinfra.interfaces.cli dcim define-power-circuit --tenant default --circuit-id CIR-A-01 --source-device PDU-A --site PAR1 --building BAT-A --room MMR1 --rack R01 --side A --capacity-watts 4000 --breaker-rating-amps 16
 PYTHONPATH=src python -m openinfra.interfaces.cli dcim define-cooling-zone --tenant default --site PAR1 --building BAT-A --room MMR1 --zone Z1 --role cold_aisle --cooling-capacity-watts 12000 --supply-temperature-c 18 --return-temperature-c 30
@@ -322,7 +345,7 @@ PYTHONPATH=src python3 scripts/security_gate.py --project-root .
 ## Contrôles ajoutés en v0.18.0
 
 ```bash
-PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0015_ipam_enterprise_foundation --root migrations/postgresql >/tmp/openinfra-0015.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0015_ipam_enterprise_foundation --root installers/migrations/postgresql >/tmp/openinfra-0015.sql
 PYTHONPATH=src python -m openinfra.interfaces.cli ipam define-vrf --tenant default --name prod --route-distinguisher 65000:1
 PYTHONPATH=src python -m openinfra.interfaces.cli ipam define-aggregate --tenant default --vrf prod --cidr 10.0.0.0/8
 PYTHONPATH=src python -m openinfra.interfaces.cli ipam define-prefix --tenant default --vrf prod --cidr 10.10.0.0/24
@@ -337,7 +360,7 @@ Les tests automatisés couvrent le domaine IPAM IPv4/IPv6, les services applicat
 ## Contrôles ajoutés en v0.19.0
 
 ```bash
-PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0016_ipam_transactional_allocation --root migrations/postgresql >/tmp/openinfra-0016.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0016_ipam_transactional_allocation --root installers/migrations/postgresql >/tmp/openinfra-0016.sql
 tmpdir="$(mktemp -d)"
 PYTHONPATH=src python -m openinfra.interfaces.cli ipam define-range --data "$tmpdir/state.json" --tenant default --vrf prod --prefix 10.60.0.0/24 --start 10.60.0.10 --end 10.60.0.20
 PYTHONPATH=src python -m openinfra.interfaces.cli ipam define-range --data "$tmpdir/state.json" --tenant default --vrf prod --prefix 10.60.0.0/24 --start 10.60.0.10 --end 10.60.0.12 --purpose exclusion
@@ -351,7 +374,7 @@ Les tests automatisés incluent un scénario de 100 allocations concurrentes sur
 ## Contrôles ajoutés en v0.20.0
 
 ```bash
-PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0017_ipam_networking_foundation --root migrations/postgresql >/tmp/openinfra-0017.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0017_ipam_networking_foundation --root installers/migrations/postgresql >/tmp/openinfra-0017.sql
 tmpdir="$(mktemp -d)"
 PYTHONPATH=src python -m openinfra.interfaces.cli ipam define-vrf --data "$tmpdir/state.json" --tenant default --name prod --route-distinguisher 65000:1
 PYTHONPATH=src python -m openinfra.interfaces.cli ipam define-vlan-group --data "$tmpdir/state.json" --tenant default --name fabric --scope dc1
@@ -368,7 +391,7 @@ Les tests automatisés couvrent la cohérence VRF/VLAN/VNI/ASN, l’unicité VNI
 ## Contrôles ajoutés en v0.21.0
 
 ```bash
-PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0018_ipam_conflict_detection --root migrations/postgresql >/tmp/openinfra-0018.sql
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0018_ipam_conflict_detection --root installers/migrations/postgresql >/tmp/openinfra-0018.sql
 
 tmpdir="$(mktemp -d)"
 PYTHONPATH=src python -m openinfra.interfaces.cli ipam define-prefix --data "$tmpdir/state.json" --tenant default --vrf prod --cidr 10.251.0.0/24

@@ -12,7 +12,7 @@ WORKDIR /app
 
 COPY pyproject.toml README.md LICENSE VERSION ./
 COPY src ./src
-COPY migrations ./migrations
+COPY installers ./installers
 COPY docs/api ./docs/api
 
 RUN python -m pip install --upgrade pip \

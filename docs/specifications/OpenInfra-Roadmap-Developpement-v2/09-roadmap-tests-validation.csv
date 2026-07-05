@@ -1,0 +1,21 @@
+id,phase,test_area,objective,test_type
+TST-RM-001,P02,Edition gates,Vérifier limites Lite/Pro/Entreprise et refus propres.,CI multi-editions
+TST-RM-002,P03,install.ini schema,Valider chaque install.ini par scope et valeurs obligatoires.,CI packaging
+TST-RM-003,P03,Auto dependencies,Tester installation dépendances sur OS supportés.,CI/VM
+TST-RM-004,P04,Systemd service names,Vérifier absence ancien service backend obsolète et présence services canoniques.,CI packaging
+TST-RM-005,P05,LVM app storage,Valider /opt/openinfra owner openinfra et absence de création LVM pour enterprise/agent.,Integration
+TST-RM-006,P05,PGDATA data storage,"Valider /data/openinfra, tailles 2GB/100GB/1TB et symlink.",Integration
+TST-RM-007,P05,Backend migrations,Valider migrations appliquées par openinfra.service et jamais par web/agent.,Integration
+TST-RM-008,P06,PostgreSQL failover,Bascule primaire sous charge.,Chaos
+TST-RM-009,P06,Quasi-sync lag,"Mesurer lag, alertes et comportement seuil.",Performance
+TST-RM-010,P07,LDAP/IPA RBAC,"Tester login, groupes, mapping, refus et audit.",Security
+TST-RM-011,P08,UI API-only,Scanner frontend pour accès DB interdit.,Architecture
+TST-RM-012,P09,Data governance conflict,Tester conflit sans écrasement silencieux.,Functional
+TST-RM-013,P10,DCIM location constraints,Valider ligne/colonne/X/Y/Z obligatoires.,Functional
+TST-RM-014,P11,IPAM concurrent allocation,100 allocations concurrentes sans collision.,Performance
+TST-RM-015,P12,Manufacturer support preservation,Support tiers ne remplace pas constructeur.,Regression
+TST-RM-016,P13,ITSM external only,Vérifier connecteurs Pro/Entreprise et absence ticketing natif.,Compliance
+TST-RM-017,P14,Agent no DB direct,Vérifier agent via API/mTLS uniquement.,Security
+TST-RM-018,P15,Graph performance,Graphe impact 1 niveau sous objectif.,Performance
+TST-RM-019,P17,Multisite DR,Tester perte site et reprise.,Chaos
+TST-RM-020,P18,GA release gate,Toutes validations bloquantes passantes.,Release

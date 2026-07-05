@@ -1,0 +1,14 @@
+key,default_value,scope,override_allowed,validation
+storage.vgname,datavg,backend,oui,Nom LVM sûr uniquement
+storage.lvname,openinfradata_lv,backend,oui,Nom LVM sûr uniquement
+storage.lvsize,lite=2GB;pro=100GB;enterprise=unlimited,backend,oui,Lite <=2GB; Pro <=100GB; Entreprise sans limite applicative
+api.backend_endpoint,https://backend.example.com,server/web/agent,oui,URL HTTPS origin sans credentials ni chemin
+identity.peer_nodes,,server,oui,Liste optionnelle sans protocole ni port; port interne 2008
+identity.replication_protocol,internal,server,non,Protocole choisi par l'installateur pour robustesse performance résilience
+auth.mode,standard,server/web,non,Mode standard app+BDD par défaut
+auth.postgresql_user_ref,env:OPENINFRA_POSTGRES_USER,server/web,oui,Référence de secret uniquement
+auth.postgresql_password_ref,env:OPENINFRA_POSTGRES_PASSWORD,server/web,oui,Référence de secret uniquement
+auth.postgresql_dsn_ref,env:OPENINFRA_POSTGRES_DSN,web,oui,Référence de secret uniquement
+api.enrollment_token_ref,env:OPENINFRA_AGENT_ENROLLMENT_TOKEN,agent,oui,Référence de secret uniquement
+systemd.source,installer,all,non,Aucun dossier deploy livré; rendu par installateur
+migrations.source,installers/migrations/postgresql,backend,non,Déploiement complet BDD par installateur backend

@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from openinfra.application.edition_services import EditionRuntimeGuard
 from openinfra.application.ports import AuditRepository, DcimRepository, TransactionManager
 from openinfra.domain.common import (
     AuditEvent,
@@ -38,6 +39,7 @@ from openinfra.domain.dcim import (
     RoomZone,
     Site,
 )
+from openinfra.domain.editions import QuotaResource
 
 
 @dataclass(frozen=True, slots=True)
@@ -1359,13 +1361,26 @@ class DcimLocationService:
         dcim_repository: DcimRepository,
         audit_repository: AuditRepository,
         transaction_manager: TransactionManager,
+        edition_guard: EditionRuntimeGuard | None = None,
     ) -> None:
         self._dcim_repository = dcim_repository
         self._audit_repository = audit_repository
         self._transaction_manager = transaction_manager
+        self._edition_guard = edition_guard
 
     def locate_equipment(self, command: LocateEquipmentCommand) -> Equipment:
         tenant_id = TenantId.from_value(command.tenant_id)
+        if self._edition_guard is not None and self._edition_guard.limited_runtime:
+            existing = self._dcim_repository.find_equipment(tenant_id, command.asset_tag)
+            if existing is None:
+                self._edition_guard.require_quota(
+                    tenant_id,
+                    QuotaResource.EQUIPMENT,
+                    1,
+                    command.actor,
+                    "equipment",
+                    command.asset_tag,
+                )
         room = self._dcim_repository.find_room(
             tenant_id=tenant_id,
             site=command.site,

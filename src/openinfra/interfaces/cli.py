@@ -46,6 +46,11 @@ from openinfra.application.discovery_services import (
     ListCollectorsCommand,
     RegisterCollectorCommand,
 )
+from openinfra.application.edition_services import (
+    CheckFeatureCommand,
+    CheckQuotaCommand,
+    EditionPolicyService,
+)
 from openinfra.application.export_services import (
     GetExportArtifactCommand,
     GetExportJobCommand,
@@ -112,6 +117,7 @@ from openinfra.application.source_of_truth_services import (
 from openinfra.domain.access_policy import AccessRequestContext
 from openinfra.domain.common import OpenInfraError
 from openinfra.domain.security import Permission
+from openinfra.infrastructure.installer_config import InstallerConfigValidator
 from openinfra.infrastructure.postgresql import (
     PostgreSQLConnectionFactory,
     PostgreSQLMigrationCatalog,
@@ -140,6 +146,8 @@ class OpenInfraCLI:
         subparsers = parser.add_subparsers(dest="command", required=True)
         self._add_version_command(subparsers)
         self._add_spec_commands(subparsers)
+        self._add_installer_commands(subparsers)
+        self._add_edition_commands(subparsers)
         self._add_database_commands(subparsers)
         self._add_security_commands(subparsers)
         self._add_identity_commands(subparsers)
@@ -164,6 +172,61 @@ class OpenInfraCLI:
         validate.add_argument("--root", type=Path, required=True)
         validate.set_defaults(handler=self._handle_spec_validate)
 
+    def _add_installer_commands(self, subparsers: Any) -> None:
+        installer = subparsers.add_parser("installer", help="autonomous installer validation")
+        installer_subparsers = installer.add_subparsers(dest="installer_command", required=True)
+        validate = installer_subparsers.add_parser("validate", help="validate install.ini files")
+        validate.add_argument("--root", type=Path, default=Path("installers"))
+        validate.add_argument("--path", type=Path)
+        validate.add_argument("--edition", choices=("lite", "pro", "enterprise"))
+        validate.add_argument("--scope", choices=("all-in-one", "server", "web", "agent"))
+        validate.set_defaults(handler=self._handle_installer_validate)
+        dry_run = installer_subparsers.add_parser("dry-run", help="render installer impact plan")
+        dry_run.add_argument("--root", type=Path, default=Path("installers"))
+        dry_run.add_argument("--path", type=Path)
+        dry_run.add_argument("--edition", choices=("lite", "pro", "enterprise"))
+        dry_run.add_argument("--scope", choices=("all-in-one", "server", "web", "agent"))
+        dry_run.set_defaults(handler=self._handle_installer_dry_run)
+        render_systemd = installer_subparsers.add_parser(
+            "render-systemd", help="render the systemd unit managed by an installer scope"
+        )
+        render_systemd.add_argument(
+            "--edition", choices=("lite", "pro", "enterprise"), required=True
+        )
+        render_systemd.add_argument(
+            "--scope", choices=("all-in-one", "server", "web", "agent"), required=True
+        )
+        render_systemd.set_defaults(handler=self._handle_installer_render_systemd)
+
+    def _add_edition_commands(self, subparsers: Any) -> None:
+        edition = subparsers.add_parser("edition", help="runtime edition gates and quotas")
+        edition_subparsers = edition.add_subparsers(dest="edition_command", required=True)
+
+        list_policies = edition_subparsers.add_parser(
+            "list", help="list Lite, Pro and Enterprise capabilities and quotas"
+        )
+        self._add_backend_arguments(list_policies)
+        list_policies.set_defaults(handler=self._handle_edition_list)
+
+        feature_check = edition_subparsers.add_parser(
+            "feature-check", help="check whether an edition allows a feature capability"
+        )
+        feature_check.add_argument("--tenant", default="default")
+        feature_check.add_argument(
+            "--edition", choices=("lite", "pro", "enterprise"), required=True
+        )
+        feature_check.add_argument("--capability", required=True)
+        feature_check.set_defaults(handler=self._handle_edition_feature_check)
+
+        quota_check = edition_subparsers.add_parser(
+            "quota-check", help="check tenant runtime usage against an edition quota"
+        )
+        self._add_backend_arguments(quota_check)
+        quota_check.add_argument("--tenant", required=True)
+        quota_check.add_argument("--resource", required=True)
+        quota_check.add_argument("--increment", type=int, default=1)
+        quota_check.set_defaults(handler=self._handle_edition_quota_check)
+
     def _add_database_commands(self, subparsers: Any) -> None:
         database = subparsers.add_parser("database", help="database operations")
         database_subparsers = database.add_subparsers(dest="database_command", required=True)
@@ -172,21 +235,21 @@ class OpenInfraCLI:
             help="render a versioned migration",
         )
         render.add_argument("--name", required=True)
-        render.add_argument("--root", type=Path, default=Path("migrations/postgresql"))
+        render.add_argument("--root", type=Path, default=Path("installers/migrations/postgresql"))
         render.set_defaults(handler=self._handle_database_render_migration)
         status = database_subparsers.add_parser(
             "status",
             help="report PostgreSQL schema migration status",
         )
         status.add_argument("--postgres-dsn")
-        status.add_argument("--root", type=Path, default=Path("migrations/postgresql"))
+        status.add_argument("--root", type=Path, default=Path("installers/migrations/postgresql"))
         status.set_defaults(handler=self._handle_database_status)
         apply = database_subparsers.add_parser(
             "apply-migrations",
             help="apply PostgreSQL migrations idempotently",
         )
         apply.add_argument("--postgres-dsn")
-        apply.add_argument("--root", type=Path, default=Path("migrations/postgresql"))
+        apply.add_argument("--root", type=Path, default=Path("installers/migrations/postgresql"))
         apply.add_argument("--dry-run", action="store_true")
         apply.set_defaults(handler=self._handle_database_apply_migrations)
 
@@ -737,6 +800,11 @@ class OpenInfraCLI:
         parser.add_argument("--backend", choices=("json", "postgresql"), default="json")
         parser.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         parser.add_argument("--postgres-dsn")
+        parser.add_argument(
+            "--edition",
+            choices=("lite", "pro", "enterprise"),
+            default=os.environ.get("OPENINFRA_EDITION", "enterprise"),
+        )
 
     def _add_ipam_commands(self, subparsers: Any) -> None:
         ipam = subparsers.add_parser("ipam", help="ipam operations")
@@ -1348,6 +1416,55 @@ class OpenInfraCLI:
         report = ContractualSpecValidator().assert_valid(args.root)
         print(report.as_text())
         return 0
+
+    def _handle_installer_validate(self, args: argparse.Namespace) -> int:
+        validator = InstallerConfigValidator()
+        if args.path:
+            file_report = validator.validate_file(args.path, args.edition, args.scope)
+            print(json.dumps(file_report.as_dict(), sort_keys=True, indent=2))
+            return 0 if file_report.valid else 2
+        fleet_report = validator.validate_tree(args.root)
+        print(json.dumps(fleet_report.as_dict(), sort_keys=True, indent=2))
+        return 0 if fleet_report.valid else 2
+
+    def _handle_installer_dry_run(self, args: argparse.Namespace) -> int:
+        validator = InstallerConfigValidator()
+        reports = (
+            (validator.validate_file(args.path, args.edition, args.scope),)
+            if args.path
+            else validator.validate_tree(args.root).reports
+        )
+        payload = {
+            "dry_run": True,
+            "installers": [report.as_dict() for report in reports],
+            "writes_performed": False,
+        }
+        print(json.dumps(payload, sort_keys=True, indent=2))
+        return 0 if all(report.valid for report in reports) else 2
+
+    def _handle_installer_render_systemd(self, args: argparse.Namespace) -> int:
+        unit = InstallerConfigValidator().render_systemd_unit(args.edition, args.scope)
+        print(unit)
+        return 0
+
+    def _handle_edition_list(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        print(json.dumps(app.edition_query_service.policies(), sort_keys=True, indent=2))
+        return 0
+
+    def _handle_edition_feature_check(self, args: argparse.Namespace) -> int:
+        command = CheckFeatureCommand(args.tenant, args.edition, args.capability)
+        decision = EditionPolicyService().check_feature(command.edition, command.capability)
+        print(json.dumps(decision.as_dict(), sort_keys=True, indent=2))
+        return 0 if decision.allowed else 2
+
+    def _handle_edition_quota_check(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        decision = app.edition_query_service.quota_decision(
+            CheckQuotaCommand(args.tenant, args.edition, args.resource, args.increment)
+        )
+        print(json.dumps(decision.as_dict(), sort_keys=True, indent=2))
+        return 0 if decision.allowed else 2
 
     def _handle_database_render_migration(self, args: argparse.Namespace) -> int:
         migration = PostgreSQLMigrationCatalog(args.root).load(args.name)
@@ -2626,14 +2743,15 @@ class OpenInfraCLI:
 
     def _create_application(self, args: argparse.Namespace) -> OpenInfraApplication:
         backend = str(args.backend)
+        edition = getattr(args, "edition", os.environ.get("OPENINFRA_EDITION", "enterprise"))
         if backend == "json":
-            return ApplicationFactory().create_json_application(args.data)
+            return ApplicationFactory().create_json_application(args.data, edition=edition)
         dsn = args.postgres_dsn or os.environ.get("OPENINFRA_DATABASE_DSN", "")
         if not dsn:
             raise OpenInfraError(
                 "--postgres-dsn or OPENINFRA_DATABASE_DSN is required for postgresql backend"
             )
-        return ApplicationFactory().create_postgresql_application(dsn, seed=False)
+        return ApplicationFactory().create_postgresql_application(dsn, seed=False, edition=edition)
 
     def fail_fast(self, message: str) -> NoReturn:
         raise OpenInfraError(message)

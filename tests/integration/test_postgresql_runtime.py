@@ -461,7 +461,7 @@ class TestPostgreSQLRuntime:
             readiness_probe=PostgreSQLReadinessProbe(registry),
             schema_status_provider=PostgreSQLMigrationExecutor(
                 registry,
-                PostgreSQLMigrationCatalog(Path("migrations/postgresql")),
+                PostgreSQLMigrationCatalog(Path("installers/migrations/postgresql")),
             ),
         )
 
@@ -516,7 +516,7 @@ class TestPostgreSQLRuntime:
             readiness_probe=PostgreSQLReadinessProbe(registry),
             schema_status_provider=PostgreSQLMigrationExecutor(
                 registry,
-                PostgreSQLMigrationCatalog(Path("migrations/postgresql")),
+                PostgreSQLMigrationCatalog(Path("installers/migrations/postgresql")),
             ),
         )
         token = "p" * 40
@@ -840,7 +840,7 @@ class TestPostgreSQLSecurityLifecycle:
             readiness_probe=PostgreSQLReadinessProbe(registry),
             schema_status_provider=PostgreSQLMigrationExecutor(
                 registry,
-                PostgreSQLMigrationCatalog(Path("migrations/postgresql")),
+                PostgreSQLMigrationCatalog(Path("installers/migrations/postgresql")),
             ),
         )
         admin_token = "g" * 40
@@ -909,7 +909,7 @@ class TestPostgreSQLIdentityRuntime:
             readiness_probe=PostgreSQLReadinessProbe(registry),
             schema_status_provider=PostgreSQLMigrationExecutor(
                 registry,
-                PostgreSQLMigrationCatalog(Path("migrations/postgresql")),
+                PostgreSQLMigrationCatalog(Path("installers/migrations/postgresql")),
             ),
         )
         admin_token = "j" * 40
@@ -994,7 +994,7 @@ class TestPostgreSQLAccessPolicyRuntime:
             readiness_probe=PostgreSQLReadinessProbe(registry),
             schema_status_provider=PostgreSQLMigrationExecutor(
                 registry,
-                PostgreSQLMigrationCatalog(Path("migrations/postgresql")),
+                PostgreSQLMigrationCatalog(Path("installers/migrations/postgresql")),
             ),
         )
         admin_token = "q" * 40
@@ -1067,7 +1067,7 @@ class TestPostgreSQLAccessPolicyRuntime:
             readiness_probe=PostgreSQLReadinessProbe(registry),
             schema_status_provider=PostgreSQLMigrationExecutor(
                 registry,
-                PostgreSQLMigrationCatalog(Path("migrations/postgresql")),
+                PostgreSQLMigrationCatalog(Path("installers/migrations/postgresql")),
             ),
         )
         token = "j" * 40
@@ -1110,7 +1110,7 @@ class TestPostgreSQLSourceOfTruth:
             readiness_probe=PostgreSQLReadinessProbe(registry),
             schema_status_provider=PostgreSQLMigrationExecutor(
                 registry,
-                PostgreSQLMigrationCatalog(Path("migrations/postgresql")),
+                PostgreSQLMigrationCatalog(Path("installers/migrations/postgresql")),
             ),
         )
         token = "x" * 40
@@ -1205,7 +1205,7 @@ class TestPostgreSQLSourceOfTruth:
             readiness_probe=PostgreSQLReadinessProbe(registry),
             schema_status_provider=PostgreSQLMigrationExecutor(
                 registry,
-                PostgreSQLMigrationCatalog(Path("migrations/postgresql")),
+                PostgreSQLMigrationCatalog(Path("installers/migrations/postgresql")),
             ),
         )
         token = "m" * 40

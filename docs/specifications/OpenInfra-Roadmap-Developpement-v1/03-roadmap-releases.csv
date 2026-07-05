@@ -1,7 +1,0 @@
-id,release,phases,periode_relative,objectif,livrables_majeurs
-REL-00,Foundation Alpha,P00-P02,T0 à T0+5 mois,"Socle architecture, CI/CD, PostgreSQL HA, modèles core, API baseline.",Environnements prêts; cluster DB; quality gates; API baseline; migrations.
-REL-01,MVP SOT/DCIM/IPAM,P03-P05,T0+3 à T0+10 mois,"Référentiel, localisation, DCIM fondation, IPAM transactionnel, UI exploitant.",SOT; DCIM localisation; IPAM VRF IPv4/IPv6; audit; RBAC initial.
-REL-02,Beta Discovery & Imports,P06-P07,T0+7 à T0+14 mois,"Imports massifs, discovery distribuée, réconciliation, conflits et preuves.",Import async; collectors; matching; score confiance; dashboards jobs.
-REL-03,Beta Dependency/ITAM/Security,P08-P10,T0+10 à T0+18 mois,"Dépendances, flux, ITAM, licences, contrats, sécurité enterprise, policy engine.",Graphes; matrices flux; lifecycle; SSO/MFA; Vault; audit avancé.
-REL-04,Enterprise Extensions,P11-P13,T0+14 à T0+26 mois,"Field ops, simulation, FinOps, GreenOps, SBOM, exposition, IA/RAG gouvernée.",Mobile/offline; simulations; coûts; SBOM; RAG permission-aware.
-REL-05,GA Enterprise Scale,P14,T0+20 à T0+30 mois,"Industrialisation production, performance, chaos, HA, PRA/PCA, documentation et support.",Benchmarks; chaos; Helm; observabilité; runbooks; Go/No-Go GA.

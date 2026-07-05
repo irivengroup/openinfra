@@ -1,0 +1,2 @@
+# Production dependencies for Enterprise discovery agent scope.
+-r common.txt

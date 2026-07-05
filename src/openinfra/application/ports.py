@@ -32,6 +32,7 @@ from openinfra.domain.dcim import (
     Site,
 )
 from openinfra.domain.discovery import DiscoveryCollector
+from openinfra.domain.editions import QuotaResource
 from openinfra.domain.identity import (
     EffectiveIdentity,
     GroupMembership,
@@ -676,6 +677,12 @@ class ExportRepository(ABC):
 
     @abstractmethod
     def export_storage_strategy_name(self) -> str:
+        raise TypeError("adapter contract invoked directly")
+
+
+class RuntimeUsageRepository(ABC):
+    @abstractmethod
+    def count_resource(self, tenant_id: TenantId, resource: QuotaResource) -> int:
         raise TypeError("adapter contract invoked directly")
 
 

@@ -16,14 +16,14 @@ class TestOpenInfraCli:
         assert captured.out.strip() == __version__
 
     def test_spec_validate_command(self, capsys: object) -> None:
-        root = Path("docs/specifications/OpenInfra-CDC-SFG-STG-v4")
+        root = Path("docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1")
 
         code = OpenInfraCLI().run(["spec", "validate", "--root", str(root)])
         captured = capsys.readouterr()
 
         assert code == 0
         assert "status=valid" in captured.out
-        assert "version=4.0.0" in captured.out
+        assert "version=4.8.1" in captured.out
 
     def test_database_render_migration_command(self, capsys: object) -> None:
         code = OpenInfraCLI().run(
@@ -33,7 +33,7 @@ class TestOpenInfraCli:
                 "--name",
                 "0001_bootstrap",
                 "--root",
-                "migrations/postgresql",
+                "installers/migrations/postgresql",
             ]
         )
         captured = capsys.readouterr()
@@ -48,7 +48,7 @@ class TestOpenInfraCli:
                 "database",
                 "status",
                 "--root",
-                "migrations/postgresql",
+                "installers/migrations/postgresql",
             ]
         )
         captured = capsys.readouterr()
@@ -263,7 +263,7 @@ class TestOpenInfraCli:
                 "--name",
                 "0003_security_token_lifecycle",
                 "--root",
-                "migrations/postgresql",
+                "installers/migrations/postgresql",
             ]
         )
         captured = capsys.readouterr()
@@ -382,7 +382,7 @@ class TestOpenInfraCli:
                 "--name",
                 "0004_identity_users_groups",
                 "--root",
-                "migrations/postgresql",
+                "installers/migrations/postgresql",
             ]
         )
         captured = capsys.readouterr()
@@ -578,7 +578,7 @@ class TestOpenInfraAccessPolicyCli:
                 "--name",
                 "0005_access_policy_abac",
                 "--root",
-                "migrations/postgresql",
+                "installers/migrations/postgresql",
             ]
         )
         captured = capsys.readouterr()
@@ -693,7 +693,7 @@ class TestOpenInfraAccessPolicyCli:
                 "--name",
                 "0006_audit_trail_integrity",
                 "--root",
-                "migrations/postgresql",
+                "installers/migrations/postgresql",
             ]
         )
         captured = capsys.readouterr()

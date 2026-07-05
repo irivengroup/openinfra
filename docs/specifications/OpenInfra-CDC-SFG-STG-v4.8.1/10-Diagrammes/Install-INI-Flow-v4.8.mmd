@@ -1,0 +1,12 @@
+flowchart TD
+    A[Opérateur édite ./config/install.ini] --> B[install.sh validate]
+    B -->|OK| C[install.sh plan]
+    B -->|Erreur| E[Arrêt avant changement système]
+    C --> D[install.sh apply]
+    D --> F[Installation dépendances]
+    F --> G[Compte système openinfra]
+    G --> H[Filesystems LVM]
+    H --> I[PostgreSQL si backend]
+    I --> J[Migrations backend si scope autorisé]
+    J --> K[Services systemd]
+    K --> L[Health checks et rapport]

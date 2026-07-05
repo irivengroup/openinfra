@@ -104,6 +104,17 @@ class TestSecurityGate:
         )
         SecurityGate(tmp_path).run()
 
+    def test_security_gate_accepts_referenced_installer_secret(self, tmp_path: Path) -> None:
+        config = tmp_path / "install.ini"
+        config.write_text(
+            "[auth]\nbind_password_ref = env:OPENINFRA_LDAP_BIND_PASSWORD\n",
+            encoding="utf-8",
+        )
+
+        findings = RepositorySecretScanner(tmp_path).scan()
+
+        assert findings == []
+
     def test_security_gate_rejects_known_token_pattern(self, tmp_path: Path) -> None:
         workflow = tmp_path / ".github/workflows/ci.yml"
         workflow.parent.mkdir(parents=True)

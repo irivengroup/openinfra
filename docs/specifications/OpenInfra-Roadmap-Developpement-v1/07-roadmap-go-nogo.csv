@@ -1,9 +1,0 @@
-id,gate,phase,criteres_go,criteres_no_go
-GATE-00,Cadrage validé,P00,"Backlog priorisé, exigences N1 identifiées, gouvernance active, risques initiaux acceptés.","Bloquer P01 si absence de responsable produit, architecte, DBA/SRE ou QA lead."
-GATE-01,Engineering ready,P01,"CI verte, packaging reproductible, standards code/tests/docs actifs, environments créés.",Bloquer P02/P03 si pipeline non bloquant ou absence de tests automatisés.
-GATE-02,Data ready,P02,"PostgreSQL HA, PITR, migrations, partitionnement, observabilité SQL validés.",Bloquer données massives si partitionnement ou PITR non validés.
-GATE-03,MVP operational,P05,"SOT, DCIM localisation, IPAM réservation et audit utilisables par API/UI.",Bloquer discovery si SOT/IPAM non stables.
-GATE-04,Discovery safe,P07,"Collectors mTLS, secrets, rate limiting, réconciliation, conflits et preuves validés.",Bloquer scans larges si gouvernance sources incomplète.
-GATE-05,Enterprise beta,P10,"Graphes, flux, ITAM, SSO/MFA, Vault, RBAC/ABAC, policy engine disponibles.",Bloquer extensions avancées si sécurité ou audit insuffisants.
-GATE-06,RC hardening,P13,"Extensions enterprise terminées, tests e2e, docs utilisateur, risques résiduels maîtrisés.","Bloquer GA si performance, chaos ou docs d’exploitation non passants."
-GATE-07,GA signed,P14,"Sécurité, performance, résilience, PRA/PCA, observabilité, documentation et support validés.",Aucune GA avec exigence N1 non passée sans dérogation signée.

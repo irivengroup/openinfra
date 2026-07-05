@@ -9,20 +9,24 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from openinfra.infrastructure.installer_config import InstallerConfigValidator
+
 
 @dataclass(frozen=True, slots=True)
 class NativeRuntimeAssetReport:
     project_root: Path
-    systemd_unit: Path
     runbook: Path
     version_file: Path
+    rendered_units: tuple[str, ...]
 
-    def as_dict(self) -> dict[str, str]:
+    def as_dict(self) -> dict[str, object]:
         return {
             "project_root": str(self.project_root),
-            "systemd_unit": str(self.systemd_unit),
             "runbook": str(self.runbook),
             "version_file": str(self.version_file),
+            "rendered_units": list(self.rendered_units),
         }
 
 
@@ -35,23 +39,43 @@ class NativeRuntimeAssetChecker:
         self._project_root = project_root.resolve()
 
     def check(self) -> NativeRuntimeAssetReport:
-        unit = self._project_root / "deploy/systemd/openinfra-api.service"
         runbook = self._project_root / "docs/runbooks/RUNTIME_NATIVE.md"
         version = self._project_root / "VERSION"
-        missing = [str(path) for path in (unit, runbook, version) if not path.is_file()]
+        missing = [str(path) for path in (runbook, version) if not path.is_file()]
         if missing:
             raise NativeRuntimeSmokeError("missing native runtime asset: " + ", ".join(missing))
-        unit_text = unit.read_text(encoding="utf-8")
+        if (self._project_root / "deploy").exists():
+            raise NativeRuntimeSmokeError("deploy directory must not be packaged")
         runbook_text = runbook.read_text(encoding="utf-8")
-        if "ExecStart=/opt/openinfra/venv/bin/openinfra-api" not in unit_text:
-            raise NativeRuntimeSmokeError(
-                "systemd unit must launch the native openinfra-api command"
-            )
         if "OPENINFRA_DATABASE_DSN" not in runbook_text:
             raise NativeRuntimeSmokeError("native runbook must document OPENINFRA_DATABASE_DSN")
         if "commande docker obligatoire" in runbook_text.lower():
             raise NativeRuntimeSmokeError("native runbook must not require a container runtime")
-        return NativeRuntimeAssetReport(self._project_root, unit, runbook, version)
+        validator = InstallerConfigValidator()
+        rendered = (
+            validator.render_systemd_unit("lite", "all-in-one"),
+            validator.render_systemd_unit("pro", "web"),
+            validator.render_systemd_unit("enterprise", "agent"),
+        )
+        required_fragments = (
+            "ExecStart=/opt/openinfra/venv/bin/openinfra-api",
+            "ExecStart=/opt/openinfra/venv/bin/python -m http.server 2006",
+            "openinfra-agent.service",
+            "NoNewPrivileges=true",
+            "ProtectSystem=strict",
+        )
+        payload = "\n".join(rendered)
+        missing_fragments = [fragment for fragment in required_fragments if fragment not in payload]
+        if missing_fragments:
+            raise NativeRuntimeSmokeError(
+                "installer-rendered systemd units are incomplete: " + ", ".join(missing_fragments)
+            )
+        return NativeRuntimeAssetReport(
+            self._project_root,
+            runbook,
+            version,
+            ("openinfra.service", "openinfra-web.service", "openinfra-agent.service"),
+        )
 
 
 class NativeHttpSmokeClient:

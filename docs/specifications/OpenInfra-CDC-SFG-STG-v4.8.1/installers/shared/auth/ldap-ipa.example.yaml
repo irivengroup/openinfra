@@ -1,0 +1,18 @@
+auth:
+  ldap_ipa:
+    enabled: true
+    url: ldaps://ipa.example.net:636
+    base_dn: dc=example,dc=net
+    bind_dn: uid=openinfra-bind,cn=users,cn=accounts,dc=example,dc=net
+    bind_secret_ref: vault://openinfra/auth/ldap_bind_password
+    user_filter: "(uid={username})"
+    group_filter: "(member={user_dn})"
+    nested_groups: true
+    tls_required: true
+    ca_certificate_path: /etc/openinfra/trust/ipa-ca.pem
+rbac:
+  group_mappings:
+    - external_group: cn=openinfra-admins,cn=groups,cn=accounts,dc=example,dc=net
+      role: OpenInfra-Admin
+    - external_group: cn=openinfra-readonly,cn=groups,cn=accounts,dc=example,dc=net
+      role: OpenInfra-ReadOnly

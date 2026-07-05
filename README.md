@@ -1,11 +1,75 @@
+# OpenInfra v0.29.5
+
+Version corrective d’alignement installateur : `installers/` devient un point d’entrée autonome par scope. Chaque programme `install.py` déploie le contenu applicatif `src/`, les requirements de production, les migrations backend lorsque nécessaires et l’unité systemd adaptée.
+
 # OpenInfra Python Foundation
 
-**Version courante : 0.28.0 — Registry collectors et identité forte P07 / EPIC-0701.**
+**Version courante : 0.29.5 — moteur installateur autonome OS-aware avec prérequis, runtime Python, rollback transactionnel, migrations backend et services systemd effectifs.**
 
+
+## v0.29.5 — Moteur installateur transactionnel
+
+- Ajout des prérequis exécutables dans les plans `--dry-run --json`.
+- Création du virtualenv `/opt/openinfra/venv` et installation des dépendances de production par scope.
+- Rollback transactionnel automatique sur échec après écriture de fichiers.
+- Modes autonomes supplémentaires : `--verify-only`, `--migrate-only`, `--rollback`.
+- Démarrage effectif du service systemd via `systemctl restart` après validation.
+
+## v0.29.4 — Installateurs autonomes par scope
+
+Cette version transforme `installers/` en vrai point d’entrée d’installation autonome. Les configurations sont réorganisées sous `installers/setup/...` et chaque scope dispose d’un programme `install.py` exécutable depuis son répertoire. Les anciens dossiers racine `installers/lite`, `installers/pro` et `installers/enterprise` sont interdits.
+
+Les installateurs autonomes copient `src/`, les requirements de production et le `pyproject.toml` vers `/opt/openinfra`. Les scopes backend/all-in-one embarquent et appliquent les migrations depuis `installers/migrations/postgresql`; les scopes `web` et `agent` ne copient ni n’appliquent aucune migration.
+
+## v0.29.3 — Correctif FS agent / scopes applicatifs
+
+Cette version durcit la politique installateur : le filesystem applicatif `/opt/openinfra` reste une disposition entreprise pour `lite/all-in-one`, `pro/server`, `pro/web`, `enterprise/server` et `enterprise/web`; le scope `enterprise/agent` est explicitement exclu de toute création LVM applicative et PostgreSQL. L’agent est installé directement sous `/opt/openinfra`, s’enrôle auprès du backend et ne reçoit que son unité `openinfra-agent.service`.
+
+## v0.29.2 — Correctif alignement installateurs / CDC
+
+Cette version corrige l'alignement de `install.ini` demandé après v0.29.0, sans reprendre Discovery. Les installateurs deviennent la source de vérité opérationnelle : le dossier `deploy/` est retiré, les unités systemd sont rendues par l'installateur selon l'édition et le scope, les migrations backend sont embarquées sous `installers/migrations/postgresql`, et les dépendances de production installateur sont séparées par scope sous `installers/requirements`.
+
+Règles importantes :
+
+- Lite `all-in-one` : `install.ini` contient uniquement `[storage]` avec `vgname`, `lvname`, `lvsize`; pas d'API, pas de réseau, pas de LDAP/IPA, pas de cluster.
+- Pro/Enterprise `server` : sections `[storage]`, `[api]`, `[identity]`, `[auth]`; `backend_endpoint` désigne le backend ou la VIP; `peer_nodes` ne déclare aucun port.
+- Pro/Enterprise `web` : sections `[api]` et `[auth]`; aucune section `storage`; DSN et credentials PostgreSQL fournis par références.
+- Enterprise `agent` : section `[api]` uniquement; enrôlement via token/certificat référencé; aucun accès direct à PostgreSQL.
+- Les champs `edition`, `scope`, `service`, `operations`, `central_endpoint`, `mountpoint`, `owner`, `group` et ports internes sont rejetés.
+
+Commandes ajoutées/alignées :
+
+```bash
+PYTHONPATH=src python -m openinfra.interfaces.cli installer validate --root installers
+PYTHONPATH=src python -m openinfra.interfaces.cli installer dry-run --root installers
+PYTHONPATH=src python -m openinfra.interfaces.cli installer render-systemd --edition enterprise --scope agent
+PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration --name 0001_bootstrap --root installers/migrations/postgresql
+```
+
+
+## P02 — Éditions Lite / Pro / Enterprise, feature gates et quotas runtime
+
+La version `0.29.0` traite la dette P02 avant toute reprise de Discovery. Les éditions ne sont plus seulement des profils d'installation : elles sont appliquées par le backend applicatif via `EditionRuntimeGuard`, exposées par la CLI `openinfra edition` et propagées à l'API par `OPENINFRA_EDITION` ou `openinfra-api --edition`.
+
+Règles runtime effectives :
+
+- Lite : 200 équipements, 20 subnets/VLAN, 200 IP/DNS, 5 utilisateurs, 0 collector Discovery ;
+- Pro : 5000 équipements, 100 subnets/VLAN, 5000 IP/DNS, 100 utilisateurs, 0 collector Discovery ;
+- Enterprise : quotas illimités par défaut, collectors Discovery et scope agent autorisés.
+
+Dette Discovery corrigée : les opérations collectors (`collector-register`, heartbeat, autorisation de jobs, désactivation et listing) sont refusées côté backend en Lite et Pro via la capability `distributed_discovery_agents`. Le rejet intervient avant persistance afin d'éviter tout collector orphelin ou contournement par API/CLI.
+
+Commandes de contrôle :
+
+```bash
+PYTHONPATH=src python -m openinfra.interfaces.cli edition list --data /tmp/openinfra-editions.json
+PYTHONPATH=src python -m openinfra.interfaces.cli edition feature-check --tenant default --edition lite --capability distributed_discovery_agents
+PYTHONPATH=src python -m openinfra.interfaces.cli edition quota-check --data /tmp/openinfra-editions.json --edition lite --tenant default --resource user --increment 1
+```
 
 ## Registry collectors et identité forte P07 / EPIC-0701
 
-La version `0.28.0` démarre le chantier Discovery P07 avec un registre de collectors exploitable en production. Chaque collector dispose d'une identité forte représentée par l'empreinte SHA-256 de son certificat mTLS, d'un type technique, d'une version déclarée, de scopes autorisés et d'une référence Vault pour ses secrets. OpenInfra ne stocke pas de secret en clair : seul le pointeur `vault://...` est persistant.
+La version `0.28.1` ne poursuit pas un nouveau jalon fonctionnel : elle réaligne le code déjà produit sur le CDC `v4.8.1` et la roadmap de développement `v2`. Les validations contractuelles, les installateurs `installers/<edition>/<scope>/config/install.ini`, la CLI `openinfra installer`, le service systemd backend canonique `openinfra.service` et les règles de stockage `/opt/openinfra` / `/data/openinfra` sont désormais contrôlés par tests et quality gate.
 
 Contrats exposés :
 
@@ -212,7 +276,7 @@ python -m pip install --requirement requirements/dev.txt
 python scripts/quality_gate.py
 python -m pytest
 python -m openinfra.interfaces.cli version
-python -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4
+python -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1
 python -m compileall -q src tests scripts docker
 ```
 
@@ -400,7 +464,7 @@ Les commandes `revoke-token` et `rotate-token` permettent de retirer un jeton co
 
 ## IAM utilisateurs, groupes et rôles effectifs
 
-La v0.8.0 ajoute un socle IAM persistant : utilisateurs, groupes, appartenance utilisateur/groupe, rôles directs et rôles hérités des groupes. L’authentification par jeton conserve les rôles embarqués dans le jeton et agrège, lorsque le sujet du jeton correspond à un utilisateur IAM actif, les rôles directs et les rôles des groupes actifs. Cette compatibilité évite de casser les jetons existants tout en permettant une administration plus proche des standards entreprise.
+La v0.8.0 ajoute un socle IAM persistant : utilisateurs, groupes, appartenance utilisateur/groupe, rôles directs et rôles hérités des groupes. L’authentification par jeton conserve les rôles embarqués dans le jeton et agrège, lorsque le sujet du jeton correspond à un utilisateur IAM actif, les rôles directs et les rôles des groupes actifs. Cette compatibilité évite de casser les jetons existants tout en permettant une administration plus proche des standards enterprise.
 
 Exemple local avec un jeton administrateur existant :
 
@@ -530,9 +594,9 @@ Le script `init` génère un `.env` local non versionné avec un mot de passe al
 
 ```bash
 export OPENINFRA_DATABASE_DSN='postgresql://openinfra@postgres/openinfra'
-PYTHONPATH=src python -m openinfra.interfaces.cli database status --root migrations/postgresql
-PYTHONPATH=src python -m openinfra.interfaces.cli database apply-migrations --root migrations/postgresql --dry-run
-PYTHONPATH=src python -m openinfra.interfaces.cli database apply-migrations --root migrations/postgresql
+PYTHONPATH=src python -m openinfra.interfaces.cli database status --root installers/migrations/postgresql
+PYTHONPATH=src python -m openinfra.interfaces.cli database apply-migrations --root installers/migrations/postgresql --dry-run
+PYTHONPATH=src python -m openinfra.interfaces.cli database apply-migrations --root installers/migrations/postgresql
 ```
 
 Le moteur applique uniquement les migrations absentes, maintient l'historique `openinfra_schema_migrations` et refuse toute divergence de checksum sur une migration déjà appliquée. `/ready` et `/api/v1/database/schema` utilisent cet état pour exposer un statut opérationnel fiable.

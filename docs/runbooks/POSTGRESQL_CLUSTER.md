@@ -19,9 +19,9 @@ Aucun secret ne doit être stocké dans le code, les migrations ou les fichiers 
 Les migrations sont appliquées par OpenInfra et non par un appel manuel `psql` dans le runtime Docker.
 
 ```bash
-openinfra database status --root migrations/postgresql
-openinfra database apply-migrations --root migrations/postgresql --dry-run
-openinfra database apply-migrations --root migrations/postgresql
+openinfra database status --root installers/migrations/postgresql
+openinfra database apply-migrations --root installers/migrations/postgresql --dry-run
+openinfra database apply-migrations --root installers/migrations/postgresql
 ```
 
 Le moteur applique les migrations versionnées `0001_bootstrap.sql` à `0006_audit_trail_integrity.sql`. Il maintient `openinfra_schema_migrations` avec :
@@ -49,9 +49,9 @@ Ces limites évitent les requêtes bloquées durablement et facilitent l'observa
 ## Validation
 
 ```bash
-openinfra database status --root migrations/postgresql
-openinfra database apply-migrations --root migrations/postgresql --dry-run
-openinfra database apply-migrations --root migrations/postgresql
+openinfra database status --root installers/migrations/postgresql
+openinfra database apply-migrations --root installers/migrations/postgresql --dry-run
+openinfra database apply-migrations --root installers/migrations/postgresql
 openinfra ipam allocate --backend postgresql --tenant default --vrf default --prefix 10.10.0.0/29 --hostname srv --idempotency-key validation-1
 ```
 
@@ -70,10 +70,10 @@ La migration `0005_access_policy_abac.sql` ajoute `access_policy_rules`, partiti
 Commandes de validation :
 
 ```bash
-openinfra database render-migration --name 0005_access_policy_abac --root migrations/postgresql
-openinfra database apply-migrations --root migrations/postgresql --dry-run
-openinfra database apply-migrations --root migrations/postgresql
-openinfra database status --root migrations/postgresql
+openinfra database render-migration --name 0005_access_policy_abac --root installers/migrations/postgresql
+openinfra database apply-migrations --root installers/migrations/postgresql --dry-run
+openinfra database apply-migrations --root installers/migrations/postgresql
+openinfra database status --root installers/migrations/postgresql
 ```
 
 Les index GIN accélèrent la recherche par sujets, rôles, sites et environnements. L’index `idx_audit_events_access_policy` facilite l’audit des actions `access.policy.%`.
@@ -86,7 +86,7 @@ La migration `0006_audit_trail_integrity.sql` ajoute `previous_hash` et `record_
 Commandes de validation :
 
 ```bash
-openinfra database render-migration --name 0006_audit_trail_integrity --root migrations/postgresql
+openinfra database render-migration --name 0006_audit_trail_integrity --root installers/migrations/postgresql
 openinfra audit list --backend postgresql --tenant default --admin-token "$ADMIN_TOKEN"
 openinfra audit export --backend postgresql --tenant default --admin-token "$ADMIN_TOKEN" --format jsonl
 openinfra audit verify-integrity --backend postgresql --tenant default --admin-token "$ADMIN_TOKEN"
@@ -101,7 +101,7 @@ Validation :
 ```bash
 PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration \
   --name 0007_source_of_truth_core \
-  --root migrations/postgresql
+  --root installers/migrations/postgresql
 PYTHONPATH=src python -m openinfra.interfaces.cli database apply-migrations \
   --postgres-dsn "$OPENINFRA_DATABASE_DSN"
 ```
@@ -117,7 +117,7 @@ Validation :
 ```bash
 PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration \
   --name 0008_source_governance \
-  --root migrations/postgresql
+  --root installers/migrations/postgresql
 PYTHONPATH=src python -m openinfra.interfaces.cli database apply-migrations \
   --postgres-dsn "$OPENINFRA_DATABASE_DSN"
 ```
@@ -134,7 +134,7 @@ Validation :
 ```bash
 PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration \
   --name 0009_dcim_physical_model \
-  --root migrations/postgresql
+  --root installers/migrations/postgresql
 PYTHONPATH=src python -m openinfra.interfaces.cli database apply-migrations \
   --postgres-dsn "$OPENINFRA_DATABASE_DSN"
 ```
@@ -150,7 +150,7 @@ Validation SQL :
 ```bash
 PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration \
   --name 0010_dcim_rack_capacity \
-  --root migrations/postgresql >/tmp/openinfra-0010.sql
+  --root installers/migrations/postgresql >/tmp/openinfra-0010.sql
 ```
 
 Après application, les appels applicatifs doivent continuer à passer par l'API ou la CLI afin de bénéficier du contrôle de chevauchement des intervalles U.

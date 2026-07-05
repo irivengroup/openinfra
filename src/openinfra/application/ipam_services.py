@@ -5,6 +5,7 @@ import ipaddress
 import re
 from dataclasses import dataclass
 
+from openinfra.application.edition_services import EditionRuntimeGuard
 from openinfra.application.ports import (
     AuditRepository,
     DdiConnector,
@@ -19,6 +20,7 @@ from openinfra.domain.common import (
     TenantId,
     ValidationError,
 )
+from openinfra.domain.editions import QuotaResource
 from openinfra.domain.ipam import (
     AllocationRequest,
     AllocationResult,
@@ -60,11 +62,13 @@ class IpamAllocationService:
         audit_repository: AuditRepository,
         transaction_manager: TransactionManager,
         allocation_policy: IpAllocationPolicy | None = None,
+        edition_guard: EditionRuntimeGuard | None = None,
     ) -> None:
         self._ipam_repository = ipam_repository
         self._audit_repository = audit_repository
         self._transaction_manager = transaction_manager
         self._allocation_policy = allocation_policy or IpAllocationPolicy()
+        self._edition_guard = edition_guard
 
     def allocate(self, command: AllocateIpCommand) -> AllocationResult:
         request = AllocationRequest.create(
@@ -74,6 +78,15 @@ class IpamAllocationService:
             hostname=command.hostname,
             idempotency_key=command.idempotency_key,
         )
+        if self._edition_guard is not None and self._edition_guard.limited_runtime:
+            self._edition_guard.require_quota(
+                request.tenant_id,
+                QuotaResource.IP_DNS_RECORD,
+                1,
+                command.actor,
+                "ip_reservation",
+                request.idempotency_key,
+            )
         with self._transaction_manager.begin() as unit_of_work:
             self._ipam_repository.acquire_allocation_lock(
                 request.tenant_id,
@@ -1227,10 +1240,12 @@ class IpamModelService:
         ipam_repository: IpamRepository,
         audit_repository: AuditRepository,
         transaction_manager: TransactionManager,
+        edition_guard: EditionRuntimeGuard | None = None,
     ) -> None:
         self._ipam_repository = ipam_repository
         self._audit_repository = audit_repository
         self._transaction_manager = transaction_manager
+        self._edition_guard = edition_guard
 
     def define_vrf(self, command: DefineVrfCommand) -> dict[str, str | None]:
         tenant_id = TenantId.from_value(command.tenant_id)
@@ -1276,6 +1291,15 @@ class IpamModelService:
     def define_prefix(self, command: DefineIpPrefixCommand) -> dict[str, str | int]:
         tenant_id = TenantId.from_value(command.tenant_id)
         prefix = Prefix.create(tenant_id, command.vrf, command.cidr, command.description)
+        if self._edition_guard is not None and self._edition_guard.limited_runtime:
+            self._edition_guard.require_quota(
+                tenant_id,
+                QuotaResource.SUBNET_VLAN,
+                1,
+                command.actor,
+                "ipam_prefix",
+                str(prefix.network),
+            )
         with self._transaction_manager.begin() as unit_of_work:
             existing = self._ipam_repository.list_prefixes(tenant_id, command.vrf)
             self._assert_network_does_not_overlap(prefix.network, existing, "prefix")
@@ -1331,6 +1355,15 @@ class IpamModelService:
 
     def register_address(self, command: RegisterIpAddressCommand) -> dict[str, str]:
         tenant_id = TenantId.from_value(command.tenant_id)
+        if self._edition_guard is not None and self._edition_guard.limited_runtime:
+            self._edition_guard.require_quota(
+                tenant_id,
+                QuotaResource.IP_DNS_RECORD,
+                1,
+                command.actor,
+                "ipam_address",
+                command.address,
+            )
         with self._transaction_manager.begin() as unit_of_work:
             prefix = self._ipam_repository.get_or_create_prefix(
                 Prefix.create(tenant_id, command.vrf, command.prefix)
@@ -1435,6 +1468,22 @@ class IpamModelService:
 
     def define_vlan(self, command: DefineVlanCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
+        if self._edition_guard is not None and self._edition_guard.limited_runtime:
+            existing_vlans = self._ipam_repository.list_vlans(tenant_id)
+            exists = any(
+                item.group_name.value == command.group.strip().upper()
+                and item.vlan_id == command.vlan_id
+                for item in existing_vlans
+            )
+            if not exists:
+                self._edition_guard.require_quota(
+                    tenant_id,
+                    QuotaResource.SUBNET_VLAN,
+                    1,
+                    command.actor,
+                    "ipam_vlan",
+                    f"{command.group}:{command.vlan_id}",
+                )
         vlan = Vlan.create(
             tenant_id,
             command.group,

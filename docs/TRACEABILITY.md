@@ -1,5 +1,49 @@
+## v0.29.5 — Dette P03/P04 installateur autonome
 
-## v0.28.0 — P07 / EPIC-0701 Registry collectors et identité forte
+- P03/P04 : moteur d'installation autonome par scope enrichi avec prérequis, rollback transactionnel, runtime Python, installation de requirements production et démarrage systemd effectif.
+- P05 reste à traiter : orchestration LVM/PGDATA native complète avec résolution OS du compte système PostgreSQL.
+
+## v0.29.3 — FS applicatif interne et exception agent
+
+| Domaine | Alignement |
+|---|---|
+| Installateurs | `managed_application_filesystem` est interne : actif pour all-in-one/server/web, désactivé pour `enterprise/agent`. |
+| Agent | Installation directe sous `/opt/openinfra`, sans création LVM applicative, PostgreSQL, PGDATA, symlink ou migrations. |
+| CDC | Les dispositions LVM applicatives sont conservées pour les scopes applicatifs, car elles restent compatibles avec une pratique enterprise de cloisonnement, sauvegarde et quota. |
+
+## v0.29.2 — Correctif installateurs minimaux, systemd rendu et migrations embarquées
+
+| Axe | Alignement effectif |
+|---|---|
+| Installateurs | `install.ini` ne contient plus édition, scope, service, opérations, réseau, mountpoint, owner/group ni ports internes. |
+| Systemd | `deploy/` est supprimé ; `InstallerSystemdUnitRenderer` rend les unités selon le scope. |
+| Base de données | Les migrations backend sont embarquées sous `installers/migrations/postgresql`. |
+| Requirements | `installers/requirements` contient uniquement les dépendances de production par scope. |
+| CDC | Matrices `install.ini` et pages technique/exploitation mises à jour. |
+
+## v0.29.0 — P02 Éditions, feature gates et quotas runtime
+
+| Axe | Alignement réalisé |
+| --- | --- |
+| Roadmap v2 | Dette P02 traitée avant reprise de Discovery. |
+| Domaine | `OpenInfraEdition`, `FeatureCapability`, `QuotaResource`, `EditionPolicyCatalog`. |
+| Application | `EditionRuntimeGuard`, `EditionQueryService`, injection dans Discovery, IAM, IPAM et DCIM. |
+| Infrastructure | `RuntimeUsageRepository`, `JsonRuntimeUsageRepository`, `PostgreSQLRuntimeUsageRepository`. |
+| Interfaces | `openinfra edition list`, `feature-check`, `quota-check`, `OPENINFRA_EDITION`, `openinfra-api --edition`. |
+| Acceptation | Lite/Pro ne peuvent pas enregistrer ni utiliser d'agents collectors Discovery ; les quotas Lite/Pro sont vérifiés avant persistance. |
+| Tests | `tests/integration/test_editions_feature_gates.py` et non-régressions existantes PostgreSQL/IPAM/Discovery. |
+
+## v0.28.1 — Réalignement CDC v4.8.1 / roadmap v2
+
+- Source contractuelle active : `docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1`.
+- Roadmap active : `docs/specifications/OpenInfra-Roadmap-Developpement-v2`.
+- Dette prioritaire traitée : les gates, la documentation, les installateurs et le runtime natif ne référencent plus l'ancien contrat v4/v1.
+- Nouveaux contrôles : `scripts/validate_autonomous_installer.py`, `scripts/validate_enterprise_alignment.py`, `openinfra installer validate`, `openinfra installer dry-run`.
+- Installateurs contrôlés : Lite all-in-one, Pro server/web, Enterprise server/web/agent.
+- Systemd canonique : unités rendues par l'installateur ; le dossier `deploy/` est explicitement rejeté par la quality gate.
+
+
+## v0.28.1 — P07 / EPIC-0701 Registry collectors et identité forte
 
 | Élément | Traçabilité |
 | --- | --- |
@@ -46,7 +90,7 @@
 - Service : `IpamConflictService`.
 - Ports : observations DNS/DHCP et lecture des faits observés.
 - Backends : JSON et PostgreSQL.
-- Migration : `migrations/postgresql/0018_ipam_conflict_detection.sql`.
+- Migration : `installers/migrations/postgresql/0018_ipam_conflict_detection.sql`.
 - CLI : `observe-dns`, `observe-dhcp-lease`, `detect-conflicts`.
 - API : `/api/v1/ipam/dns-observations`, `/api/v1/ipam/dhcp-leases`, `/api/v1/ipam/conflicts`.
 - Tests : `tests/integration/test_ipam_conflict_services.py`, routes HTTP IPAM conflits, validations domaine IPAM conflits.
@@ -60,7 +104,7 @@
 - Infrastructure : `JsonIpamRepository`, `PostgreSQLIpamRepository`.
 - Interfaces : commandes `openinfra ipam define-vlan-group`, `define-vxlan-vni`, `define-vlan`, `define-asn`, `define-bgp-peer`, `network-bindings`.
 - API : `/api/v1/ipam/vlan-groups`, `/vxlan-vnis`, `/vlans`, `/asns`, `/bgp-peers`, `/network-bindings`.
-- Migration : `migrations/postgresql/0017_ipam_networking_foundation.sql`.
+- Migration : `installers/migrations/postgresql/0017_ipam_networking_foundation.sql`.
 - Tests : domaine réseau IPAM, cohérence VRF/VLAN/VNI/ASN, persistance JSON, mapping PostgreSQL, CLI/API et non-régression CI.
 - Production : runtime serveur natif inchangé ; Docker reste facultatif pour smoke local.
 
@@ -72,7 +116,7 @@
 - Ports : `IpamRepository.acquire_allocation_lock`, réservations, plages, adresses suivies et audit.
 - Infrastructure : `JsonIpamRepository`, `PostgreSQLIpamRepository`.
 - Interfaces : `openinfra ipam allocate`, `POST /api/v1/ipam/allocate`.
-- Migration : `migrations/postgresql/0016_ipam_transactional_allocation.sql`.
+- Migration : `installers/migrations/postgresql/0016_ipam_transactional_allocation.sql`.
 - Tests : allocation idempotente, plages allocation/exclusion/réservation, adresses préexistantes, 100 allocations concurrentes sans collision, verrou PostgreSQL simulé, CLI/API de non-régression.
 - Production : runtime serveur natif inchangé ; Docker reste facultatif pour smoke local.
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from openinfra.application.edition_services import EditionRuntimeGuard
 from openinfra.application.ports import (
     AuditRepository,
     DiscoveryCollectorPage,
@@ -17,6 +18,7 @@ from openinfra.domain.discovery import (
     DiscoveryJobAuthorization,
     DiscoveryScope,
 )
+from openinfra.domain.editions import FeatureCapability, QuotaResource
 from openinfra.domain.security import Permission
 
 
@@ -78,11 +80,13 @@ class DiscoveryCollectorService:
         audit_repository: AuditRepository,
         transaction_manager: TransactionManager,
         security_service: SecurityService,
+        edition_guard: EditionRuntimeGuard | None = None,
     ) -> None:
         self._discovery_repository = discovery_repository
         self._audit_repository = audit_repository
         self._transaction_manager = transaction_manager
         self._security_service = security_service
+        self._edition_guard = edition_guard
 
     def register_collector(self, command: RegisterCollectorCommand) -> DiscoveryCollector:
         tenant_id = TenantId.from_value(command.tenant_id)
@@ -91,6 +95,22 @@ class DiscoveryCollectorService:
                 tenant_id.value, command.admin_token, Permission.SECURITY_ADMIN
             )
         )
+        if self._edition_guard is not None and self._edition_guard.limited_runtime:
+            self._edition_guard.require_feature(
+                tenant_id,
+                FeatureCapability.DISTRIBUTED_DISCOVERY_AGENTS,
+                principal.subject,
+                "discovery_collector",
+                command.name,
+            )
+            self._edition_guard.require_quota(
+                tenant_id,
+                QuotaResource.DISCOVERY_COLLECTOR,
+                1,
+                principal.subject,
+                "discovery_collector",
+                command.name,
+            )
         collector = DiscoveryCollector.register(
             tenant_id=tenant_id,
             name=command.name,
@@ -126,6 +146,14 @@ class DiscoveryCollectorService:
 
     def heartbeat(self, command: HeartbeatCollectorCommand) -> DiscoveryCollector:
         tenant_id = TenantId.from_value(command.tenant_id)
+        if self._edition_guard is not None and self._edition_guard.limited_runtime:
+            self._edition_guard.require_feature(
+                tenant_id,
+                FeatureCapability.DISTRIBUTED_DISCOVERY_AGENTS,
+                "collector:" + command.collector_id.strip(),
+                "discovery_collector",
+                command.collector_id,
+            )
         collector = self._discovery_repository.get_collector(tenant_id, command.collector_id)
         if collector is None:
             raise ValidationError("collector is not registered")
@@ -154,6 +182,14 @@ class DiscoveryCollectorService:
 
     def authorize_job(self, command: AuthorizeDiscoveryJobCommand) -> DiscoveryJobAuthorization:
         tenant_id = TenantId.from_value(command.tenant_id)
+        if self._edition_guard is not None and self._edition_guard.limited_runtime:
+            self._edition_guard.require_feature(
+                tenant_id,
+                FeatureCapability.DISTRIBUTED_DISCOVERY_AGENTS,
+                "collector:" + command.collector_id.strip(),
+                "discovery_job",
+                command.collector_id,
+            )
         collector = self._discovery_repository.get_collector(tenant_id, command.collector_id)
         decision = DiscoveryJobAuthorization.decide(
             tenant_id=tenant_id,
@@ -189,6 +225,14 @@ class DiscoveryCollectorService:
                 tenant_id.value, command.admin_token, Permission.SECURITY_ADMIN
             )
         )
+        if self._edition_guard is not None and self._edition_guard.limited_runtime:
+            self._edition_guard.require_feature(
+                tenant_id,
+                FeatureCapability.DISTRIBUTED_DISCOVERY_AGENTS,
+                principal.subject,
+                "discovery_collector",
+                command.collector_id,
+            )
         collector = self._discovery_repository.get_collector(tenant_id, command.collector_id)
         if collector is None:
             raise ValidationError("collector is not registered")
@@ -213,11 +257,19 @@ class DiscoveryCollectorService:
 
     def list_collectors(self, command: ListCollectorsCommand) -> DiscoveryCollectorPage:
         tenant_id = TenantId.from_value(command.tenant_id)
-        self._security_service.authenticate_token(
+        principal = self._security_service.authenticate_token(
             AuthenticateTokenCommand(
                 tenant_id.value, command.admin_token, Permission.SECURITY_ADMIN
             )
         )
+        if self._edition_guard is not None and self._edition_guard.limited_runtime:
+            self._edition_guard.require_feature(
+                tenant_id,
+                FeatureCapability.DISTRIBUTED_DISCOVERY_AGENTS,
+                principal.subject,
+                "discovery_collector",
+                tenant_id.value,
+            )
         pagination = Pagination.from_values(command.limit, command.cursor)
         return self._discovery_repository.list_collectors(
             tenant_id,

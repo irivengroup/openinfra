@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from openinfra.application.edition_services import EditionRuntimeGuard
 from openinfra.application.ports import AuditRepository, IdentityRepository, TransactionManager
 from openinfra.application.security_services import (
     AuthenticateTokenCommand,
@@ -9,6 +10,7 @@ from openinfra.application.security_services import (
     SecurityService,
 )
 from openinfra.domain.common import AuditEvent, TenantId
+from openinfra.domain.editions import QuotaResource
 from openinfra.domain.identity import (
     EffectiveIdentity,
     GroupMembership,
@@ -81,17 +83,28 @@ class IdentityService:
         audit_repository: AuditRepository,
         transaction_manager: TransactionManager,
         security_service: SecurityService,
+        edition_guard: EditionRuntimeGuard | None = None,
     ) -> None:
         self._identity_repository = identity_repository
         self._audit_repository = audit_repository
         self._transaction_manager = transaction_manager
         self._security_service = security_service
         self._role_policy = BuiltinRolePolicy()
+        self._edition_guard = edition_guard
 
     def create_user(self, command: CreateUserCommand) -> IdentityUser:
         tenant_id = TenantId.from_value(command.tenant_id)
         principal = self._require_security_admin(command.tenant_id, command.admin_token)
         self._role_policy.assert_roles_supported(command.roles)
+        if self._edition_guard is not None and self._edition_guard.limited_runtime:
+            self._edition_guard.require_quota(
+                tenant_id,
+                QuotaResource.USER,
+                1,
+                principal.subject,
+                "identity_user",
+                command.username,
+            )
         user = IdentityUser.create(
             tenant_id=tenant_id,
             username=command.username,

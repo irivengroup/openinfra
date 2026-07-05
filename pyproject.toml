@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "openinfra"
-version = "0.28.0"
+version = "0.29.5"
 description = "OpenInfra Python POO source of truth, DCIM and IPAM foundation"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -51,7 +51,7 @@ exclude_lines = ['if TYPE_CHECKING:', 'raise TypeError\("adapter contract invoke
 [tool.ruff]
 target-version = "py311"
 line-length = 100
-src = ["src", "tests", "scripts"]
+src = ["src", "tests", "scripts", "installers"]
 
 [tool.ruff.lint]
 select = ["A", "ARG", "B", "C4", "E", "F", "I", "N", "PL", "PTH", "RUF", "S", "SIM", "T20", "UP", "W"]
@@ -64,6 +64,7 @@ ignore = ["A002", "PLR0911", "PLR0912", "PLR0913", "PLR0915", "PLR2004"]
 "tests/**/*.py" = ["ARG005", "B017", "E501", "F841", "PLC0415", "PLR0912", "PLR0915", "RUF012", "S101", "S105", "S310", "S603"]
 "scripts/**/*.py" = ["PTH", "S310", "S404", "S603", "S607", "T201"]
 "docker/**/*.py" = ["S310", "S404", "S603", "S607", "T201"]
+"installers/**/*.py" = ["PTH", "S103", "S404", "S603", "S607", "T201"]
 
 [tool.mypy]
 python_version = "3.11"

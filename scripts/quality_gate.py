@@ -31,8 +31,10 @@ class ContractFileGuard:
 
     def assert_sources_present(self) -> None:
         required = (
-            self._project_root / "docs/specifications/OpenInfra-CDC-SFG-STG-v4/VERSION",
-            self._project_root / "docs/specifications/OpenInfra-Roadmap-Developpement-v1/VERSION",
+            self._project_root / "docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1/VERSION",
+            self._project_root / "docs/specifications/OpenInfra-Roadmap-Developpement-v2/VERSION",
+            self._project_root
+            / "docs/specifications/OpenInfra-Roadmap-Developpement-v2/14-alignement-cdc-v4.8.1.csv",
         )
         missing = [str(path) for path in required if not path.is_file()]
         if missing:
@@ -45,25 +47,85 @@ class NativeRuntimeGuard:
 
     def assert_runtime_environment_present(self) -> None:
         required = (
-            "deploy/systemd/openinfra-api.service",
             "docs/runbooks/RUNTIME_NATIVE.md",
             "scripts/native_runtime_smoke.py",
+            "scripts/validate_autonomous_installer.py",
+            "scripts/validate_enterprise_alignment.py",
+            "installers/migrations/postgresql/0001_bootstrap.sql",
+            "installers/requirements/common.txt",
+            "installers/requirements/backend.txt",
+            "installers/requirements/web.txt",
+            "installers/requirements/agent.txt",
+            "installers/setup/installer_runtime.py",
+            "installers/setup/lite/install.py",
+            "installers/setup/lite/install.ini",
+            "installers/setup/pro/server/install.py",
+            "installers/setup/pro/server/install.ini",
+            "installers/setup/pro/web/install.py",
+            "installers/setup/pro/web/install.ini",
+            "installers/setup/enterprise/server/install.py",
+            "installers/setup/enterprise/server/install.ini",
+            "installers/setup/enterprise/web/install.py",
+            "installers/setup/enterprise/web/install.ini",
+            "installers/setup/enterprise/agent/install.py",
+            "installers/setup/enterprise/agent/install.ini",
         )
         missing = [name for name in required if not (self._project_root / name).is_file()]
         if missing:
             raise QualityGateError("missing native runtime assets: " + ", ".join(missing))
-        unit = (self._project_root / "deploy/systemd/openinfra-api.service").read_text(
-            encoding="utf-8"
-        )
+        if (self._project_root / "deploy").exists():
+            raise QualityGateError(
+                "deploy directory must not be packaged; systemd units are rendered by installer"
+            )
+        if (self._project_root / "migrations").exists():
+            raise QualityGateError(
+                "root migrations directory must not be packaged; "
+                "use installers/migrations/postgresql"
+            )
+        for forbidden in ("installers/lite", "installers/pro", "installers/enterprise"):
+            if (self._project_root / forbidden).exists():
+                raise QualityGateError("legacy installer root must not be packaged: " + forbidden)
         runbook = (self._project_root / "docs/runbooks/RUNTIME_NATIVE.md").read_text(
             encoding="utf-8"
         )
-        if "ExecStart=/opt/openinfra/venv/bin/openinfra-api" not in unit:
+        installer_config = (
+            self._project_root / "src/openinfra/infrastructure/installer_config.py"
+        ).read_text(encoding="utf-8")
+        if "InstallerSystemdUnitRenderer" not in installer_config:
+            raise QualityGateError("installer must render systemd units internally")
+        if "InstallerPostgreSQLDeploymentPlanner" not in installer_config:
+            raise QualityGateError("backend installer must deploy PostgreSQL when absent")
+        if "managed_application_filesystem" not in installer_config:
+            raise QualityGateError("installer must model application filesystem policy per scope")
+        if (
+            "install scope directly under /opt/openinfra without creating application LVM"
+            not in installer_config
+        ):
             raise QualityGateError(
-                "native systemd service must start openinfra-api from virtualenv"
+                "enterprise agent must be excluded from application LVM creation"
             )
-        if "User=openinfra" not in unit or "NoNewPrivileges=true" not in unit:
-            raise QualityGateError("native systemd service must run with a hardened openinfra user")
+        installer_runtime = (
+            self._project_root / "installers/setup/installer_runtime.py"
+        ).read_text(encoding="utf-8")
+        required_runtime_fragments = (
+            "InstallationPrerequisite",
+            "InstallationRollbackJournal",
+            "RollbackManager",
+            "--verify-only",
+            "--migrate-only",
+            "--rollback",
+            "create Python virtual environment",
+            "install scope production requirements",
+            "restart OpenInfra service",
+            "PostgreSQL DSN cannot be resolved; set OPENINFRA_DATABASE_DSN",
+        )
+        missing_runtime = [
+            fragment for fragment in required_runtime_fragments if fragment not in installer_runtime
+        ]
+        if missing_runtime:
+            raise QualityGateError(
+                "autonomous installer runtime is incomplete: " + ", ".join(missing_runtime)
+            )
         if "OPENINFRA_DATABASE_DSN" not in runbook:
             raise QualityGateError("native runbook must document the PostgreSQL DSN")
         if "Docker ne fait pas partie de la chaine d'execution production" not in runbook:
@@ -109,16 +171,22 @@ class DockerRuntimeGuard:
             raise QualityGateError(
                 "Dockerfile must not define an API healthcheck inherited by migrate/auth-bootstrap"
             )
-        if "openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.28.0}" not in compose:
+        if "openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.29.5}" not in compose:
             raise QualityGateError("compose.yaml must default to the current OpenInfra image tag")
         stale_tags = (
             "OPENINFRA_IMAGE_TAG=0.9.0",
             "OPENINFRA_IMAGE_TAG=0.14.0",
             "OPENINFRA_IMAGE_TAG=0.22.1",
             "OPENINFRA_IMAGE_TAG=0.22.2",
+            "OPENINFRA_IMAGE_TAG=0.28.1",
             "${OPENINFRA_IMAGE_TAG:-0.14.0}",
             "${OPENINFRA_IMAGE_TAG:-0.22.1}",
             "${OPENINFRA_IMAGE_TAG:-0.22.2}",
+            "${OPENINFRA_IMAGE_TAG:-0.28.1}",
+            "${OPENINFRA_IMAGE_TAG:-0.29.1}",
+            "${OPENINFRA_IMAGE_TAG:-0.29.2}",
+            "${OPENINFRA_IMAGE_TAG:-0.29.3}",
+            "${OPENINFRA_IMAGE_TAG:-0.29.4}",
         )
         stale = [
             fragment for fragment in stale_tags if fragment in compose + env_example + env_manager
@@ -187,7 +255,9 @@ class PostgreSQLMigrationSchemaGuard:
     def assert_audit_indexes_use_created_at(self) -> None:
         payload = "\n".join(
             path.read_text(encoding="utf-8")
-            for path in sorted((self._project_root / "migrations/postgresql").glob("*.sql"))
+            for path in sorted(
+                (self._project_root / "installers/migrations/postgresql").glob("*.sql")
+            )
         )
         if "occurred_at" in payload:
             raise QualityGateError(
@@ -196,7 +266,8 @@ class PostgreSQLMigrationSchemaGuard:
 
     def assert_enterprise_ipam_migration_backfills_prefix_family(self) -> None:
         migration = (
-            self._project_root / "migrations/postgresql/0015_ipam_enterprise_foundation.sql"
+            self._project_root
+            / "installers/migrations/postgresql/0015_ipam_enterprise_foundation.sql"
         ).read_text(encoding="utf-8")
         required = (
             "ALTER TABLE prefixes ADD COLUMN IF NOT EXISTS family smallint",
@@ -224,7 +295,7 @@ class CompletionMarkerGuard:
         ("d", "u", "m", "m", "y"),
         ("N", "o", "t", "I", "m", "p", "l", "e", "m", "e", "n", "t", "e", "d"),
     )
-    _roots = ("src", "tests", "scripts", "docker", "deploy", ".github", "migrations")
+    _roots = ("src", "tests", "scripts", "docker", ".github", "installers")
 
     def __init__(self, project_root: Path) -> None:
         self._project_root = project_root
@@ -270,6 +341,17 @@ class QualityGate:
         NativeRuntimeGuard(self._project_root).assert_runtime_environment_present()
         CiWorkflowTriggerGuard(self._project_root).assert_push_triggers_are_not_branch_locked()
         DockerRuntimeGuard(self._project_root).assert_optional_compose_runtime_is_well_scoped()
+        CommandRunner().run(
+            [sys.executable, "scripts/validate_autonomous_installer.py", "--root", "installers"]
+        )
+        CommandRunner().run(
+            [
+                sys.executable,
+                "scripts/validate_enterprise_alignment.py",
+                "--project-root",
+                str(self._project_root),
+            ]
+        )
         postgres_migration_guard = PostgreSQLMigrationSchemaGuard(self._project_root)
         postgres_migration_guard.assert_audit_indexes_use_created_at()
         postgres_migration_guard.assert_enterprise_ipam_migration_backfills_prefix_family()
@@ -277,7 +359,11 @@ class QualityGate:
         CommandRunner().run(
             [sys.executable, "scripts/security_gate.py", "--project-root", str(self._project_root)]
         )
-        CommandRunner().run([sys.executable, "-m", "pytest"])
+        if not (self._project_root / ".coverage").is_file():
+            raise QualityGateError(
+                "coverage data is missing; run python -m pytest before quality_gate.py"
+            )
+        CommandRunner().run([sys.executable, "-m", "coverage", "report", "--fail-under=98"])
 
 
 class QualityGateCli:

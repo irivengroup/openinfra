@@ -1,0 +1,22 @@
+cdc_decision_id,decision,phase,epic,release,validation
+CDC-ED-001,Trois éditions Lite/Pro/Entreprise,P02,EPIC-0201,REL-01,Matrice capacités et tests édition.
+CDC-ED-002,Quotas Lite/Pro/Entreprise,P02,EPIC-0204,REL-01,Quota service et tests.
+CDC-ED-003,Pro/Entreprise subscriptions/licences,P02,EPIC-0202,REL-01,Feature gates et audit.
+CDC-SVC-001,openinfra.service backend canonique,P04,EPIC-0401,REL-02,Test absence ancien service backend obsolète.
+CDC-SVC-002,openinfra-web.service frontend React Bootstrap 5,P04/P08,EPIC-0402; EPIC-0801,REL-02/REL-03,Service et UI API-only.
+CDC-SVC-003,openinfra-agent.service collecteur,P04/P14,EPIC-0403; EPIC-1402,REL-02/REL-05,Agent mTLS et sans DB direct.
+CDC-INST-001,installers/ hors src,P03,EPIC-0301,REL-02,Validation arborescence.
+CDC-INST-002,config/install.ini par scope,P03,EPIC-0302,REL-02,Schema et templates.
+CDC-INST-003,Installateur installe dépendances,P03,EPIC-0303,REL-02,Tests multi-OS.
+CDC-INST-004,Cluster autonome avec FQDN/IP/mask/VIP/GW/DNS,P03/P06,EPIC-0305; EPIC-0601,REL-02,Cluster bootstrap.
+CDC-STO-001,/opt/openinfra owner openinfra,P05,EPIC-0501,REL-02,LVM applicatif hors scope enterprise/agent.
+CDC-STO-002,PGDATA /data/openinfra,P05,EPIC-0503,REL-02,PostgreSQL data path.
+CDC-STO-003,Tailles PGDATA Lite=2GB Pro=100GB Enterprise=1TB,P05,EPIC-0502,REL-02,LVM sizing.
+CDC-STO-004,Symlink /opt/openinfra/data -> /data/openinfra,P05,EPIC-0504,REL-02,Validation symlink.
+CDC-STO-005,pgsql user = compte gestionnaire PostgreSQL logique,P05,EPIC-0505,REL-02,Resolver OS/package.
+CDC-DB-001,Réplication quasi synchrone cluster,P06,EPIC-0602,REL-02/REL-05,Tests lag/failover.
+CDC-AUTH-001,LDAP/IPA Pro/Entreprise,P07,EPIC-0702; EPIC-0703,REL-04,Connecteurs annuaire.
+CDC-AUTH-002,RBAC par groupes,P07,EPIC-0704,REL-04,Mapping groupes→rôles.
+CDC-ITSM-001,Pas d’ITSM intégré,P13,EPIC-1303; EPIC-1304,REL-04,Connecteurs externes seulement.
+CDC-MSITE-001,Multisite Pro/Entreprise,P17,EPIC-1701; EPIC-1702,REL-05/REL-07,Topologies Pro/Entreprise.
+CDC-SUP-001,Garantie/support constructeur obligatoires,P12,EPIC-1202; EPIC-1203,REL-06,Tests non-écrasement.

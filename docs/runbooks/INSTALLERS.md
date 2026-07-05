@@ -1,0 +1,128 @@
+# Installateurs autonomes OpenInfra
+
+`installers/` est le point d’entrée opérationnel des installations OpenInfra. Il ne contient pas seulement la configuration : il embarque les programmes d’installation par scope, les migrations backend et les dépendances de production nécessaires à l’installation native.
+
+## Arborescence canonique
+
+```text
+installers/
+├── migrations/postgresql/*.sql
+├── requirements/*.txt
+└── setup/
+    ├── lite/
+    │   ├── install.ini
+    │   └── install.py
+    ├── pro/
+    │   ├── server/
+    │   │   ├── install.ini
+    │   │   └── install.py
+    │   └── web/
+    │       ├── install.ini
+    │       └── install.py
+    └── enterprise/
+        ├── server/
+        │   ├── install.ini
+        │   └── install.py
+        ├── web/
+        │   ├── install.ini
+        │   └── install.py
+        └── agent/
+            ├── install.ini
+            └── install.py
+```
+
+Les anciens chemins racine `installers/lite`, `installers/pro` et `installers/enterprise` sont interdits. Le dossier Enterprise conserve le nom canonique anglais `enterprise`.
+
+## Matrice des scopes
+
+| Édition | Scope | Sections `install.ini` | Service | FS applicatif interne | PostgreSQL | Migrations |
+|---|---|---|---|---:|---:|---:|
+| Lite | all-in-one | storage | openinfra.service | oui | oui | oui |
+| Pro | server | storage, api, identity, auth | openinfra.service | oui | oui | oui |
+| Pro | web | api, auth | openinfra-web.service | oui | non | non |
+| Enterprise | server | storage, api, identity, auth | openinfra.service | oui | oui | oui |
+| Enterprise | web | api, auth | openinfra-web.service | oui | non | non |
+| Enterprise | agent | api | openinfra-agent.service | non | non | non |
+
+## Exécution autonome
+
+Chaque scope s’installe depuis son propre programme :
+
+```bash
+python installers/setup/lite/install.py --dry-run --json
+python installers/setup/pro/server/install.py --dry-run --json
+python installers/setup/enterprise/agent/install.py --dry-run --json
+```
+
+Pour une installation effective native :
+
+```bash
+sudo python installers/setup/pro/server/install.py --execute
+```
+
+`--target-root` permet de préparer une image offline sans écrire dans `/` :
+
+```bash
+python installers/setup/enterprise/server/install.py --execute --target-root /tmp/openinfra-image --skip-service-enable
+```
+
+## Règles de déploiement
+
+Tous les programmes `install.py` déploient :
+
+- `src/` vers `/opt/openinfra/src` ;
+- `pyproject.toml` vers `/opt/openinfra/pyproject.toml` ;
+- `installers/requirements` vers `/opt/openinfra/requirements` ;
+- l’unité systemd adaptée sous `/etc/systemd/system` ;
+- la configuration validée sous `/etc/openinfra/install-<edition>-<scope>.ini`.
+
+Les scopes backend/all-in-one copient aussi `installers/migrations/postgresql` vers `/opt/openinfra/installers/migrations/postgresql`, puis appliquent les migrations après bootstrap PostgreSQL. Les scopes `web` et `agent` ne copient pas les migrations et n’ont aucun accès direct à PostgreSQL.
+
+## Règles `install.ini`
+
+`install.ini` reste volontairement succinct. Il ne porte jamais `edition`, `scope`, `service`, section `[operations]`, ports internes, `mountpoint`, `owner`, `group` ou chemin PGDATA. Le type d’installation est déduit par l’installateur depuis l’arborescence `installers/setup/...`.
+
+Règles stockage : seuls `vgname`, `lvname` et `lvsize` sont exposés pour le stockage PostgreSQL des scopes backend. Le filesystem applicatif `/opt/openinfra` est une politique interne de l’installateur pour `all-in-one`, `server` et `web`; il n’est pas configurable dans `install.ini`. Le scope `enterprise/agent` ne crée aucun FS/LVM et est installé directement sous `/opt/openinfra`.
+
+## PostgreSQL backend
+
+Pour les scopes `lite/all-in-one`, `pro/server` et `enterprise/server`, l’installateur gère PostgreSQL en interne : détection de la famille Linux via `/etc/os-release`, choix de `dnf`, `apt-get` ou `zypper`, installation si `psql` est absent, activation/démarrage de `postgresql.service`, vérification `pg_isready`, initialisation PGDATA sous `/data/openinfra/`, puis application des migrations depuis `installers/migrations/postgresql`.
+
+
+## Moteur transactionnel v0.29.5
+
+Les programmes `install.py` ne sont pas de simples validateurs. En mode `--execute`, ils réalisent une installation transactionnelle :
+
+- validation stricte de `install.ini`;
+- vérification des prérequis locaux (`python3`, `systemctl` en installation native, gestionnaire de paquets PostgreSQL pour backend/all-in-one);
+- copie de `src/`, `pyproject.toml`, `installers/requirements` et, pour backend/all-in-one, `installers/migrations/postgresql`;
+- création de `/opt/openinfra/venv`;
+- installation des dépendances de production du scope;
+- installation du package applicatif OpenInfra dans le virtualenv;
+- rendu de l'unité systemd adaptée;
+- bootstrap PostgreSQL si nécessaire pour `lite/all-in-one`, `pro/server` et `enterprise/server`;
+- application des migrations backend avec DSN résolu depuis `OPENINFRA_DATABASE_DSN`, `postgresql_dsn_ref` ou les références `postgresql_user_ref` / `postgresql_password_ref`;
+- `systemctl daemon-reload`, `enable` et `restart` du service OpenInfra en installation native.
+
+Toute erreur après écriture déclenche un rollback automatique des fichiers et dossiers remplacés ou créés par l'installateur courant. Le mode manuel `--rollback` restaure également les sauvegardes `.openinfra-rollback` résiduelles d'une installation interrompue brutalement.
+
+Modes disponibles :
+
+```bash
+python installers/setup/pro/server/install.py --dry-run --json
+python installers/setup/pro/server/install.py --verify-only --json
+sudo OPENINFRA_DATABASE_DSN='postgresql://openinfra:***@127.0.0.1:5432/openinfra' \
+  python installers/setup/pro/server/install.py --execute
+sudo python installers/setup/pro/server/install.py --rollback
+```
+
+`--migrate-only` est réservé aux scopes backend/all-in-one et refuse les scopes `web` ou `agent`.
+
+## Validations
+
+```bash
+PYTHONPATH=src python -m openinfra.interfaces.cli installer validate --root installers
+PYTHONPATH=src python -m openinfra.interfaces.cli installer dry-run --root installers
+PYTHONPATH=src python scripts/validate_autonomous_installer.py --root installers
+PYTHONPATH=src python -m openinfra.interfaces.cli installer render-systemd --edition enterprise --scope agent
+```

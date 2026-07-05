@@ -1,3 +1,70 @@
+## 0.29.5 - 2026-07-05
+
+- Durcissement P03/P04 du moteur installateur autonome par scope.
+- Ajout des prérequis OS-aware dans les plans d'installation.
+- Ajout d'un rollback transactionnel automatique pour les fichiers et dossiers remplacés.
+- Ajout des modes `--verify-only`, `--migrate-only` et `--rollback` aux installateurs `installers/setup/**/install.py`.
+- Création du virtualenv applicatif `/opt/openinfra/venv` et installation des requirements de production par scope.
+- Démarrage effectif des unités systemd par `systemctl restart` après installation réussie.
+
+## 0.29.4 - 2026-07-05
+
+- Transformation de `installers/` en point d’entrée autonome par scope avec un `install.py` exécutable pour Lite, Pro server/web et Enterprise server/web/agent.
+- Réorganisation des configurations sous `installers/setup/...` et suppression/interdiction des anciens dossiers racine `installers/lite`, `installers/pro` et `installers/enterprise`.
+- Déploiement autonome de `src/`, du `pyproject.toml`, des requirements de production et des unités systemd rendues par l’installateur.
+- Déploiement des migrations PostgreSQL uniquement pour les scopes backend/all-in-one depuis `installers/migrations/postgresql`.
+- Conservation de `enterprise` comme nom canonique du dossier Enterprise.
+- Ajout de tests et gates anti-régression sur l’arborescence `installers/setup` et sur l’absence des anciens dossiers.
+
+## 0.29.3 - 2026-07-05
+
+- Clarification de la politique filesystem applicatif : `/opt/openinfra` reste géré par l’installateur pour les scopes applicatifs, conformément au CDC, mais pas pour l’agent Enterprise.
+- Ajout du flag interne `managed_application_filesystem` dans les politiques installateur.
+- `enterprise/agent` est installé directement sous `/opt/openinfra` sans création LVM applicative, sans stockage PostgreSQL et sans migration backend.
+- Durcissement des tests et de la validation d’alignement pour bloquer toute réintroduction de FS/LVM sur le scope agent.
+- Mise à jour CDC, runbooks, architecture et traçabilité.
+
+## 0.29.2 - 2026-07-05
+
+- Suppression définitive du dossier racine `migrations/` : la source unique des migrations backend est `installers/migrations/postgresql`.
+- Correction du catalogue PostgreSQL : `PostgreSQLMigrationCatalog.from_project_root()` résout désormais `installers/migrations/postgresql`.
+- Correction Docker : l’image runtime copie `installers/` au lieu de l’ancien dossier `migrations/`.
+- Durcissement des unités systemd rendues par l’installateur : capacités Linux supprimées, `PrivateDevices`, protections noyau/cgroups, restriction SUID/temps réel et architecture syscall native.
+- Ajout d’un plan de déploiement PostgreSQL OS-aware côté installateur backend/all-in-one : détection, installation paquetaire si absent, activation, démarrage, vérification readiness, PGDATA et migrations.
+- Renforcement des quality gates : interdiction de `deploy/` et `migrations/` à la racine du projet.
+
+## 0.29.1 - 2026-07-05
+
+- Correctif d'alignement installateurs/CDC après v0.29.0, sans reprise Discovery.
+- Suppression du dossier `deploy/` : les unités `openinfra.service`, `openinfra-web.service` et `openinfra-agent.service` sont rendues par l'installateur.
+- Refonte des `install.ini` pour supprimer `edition`, `scope`, `service`, `operations`, `central_endpoint`, `network`, `mountpoint`, `owner`, `group` et ports internes.
+- Lite `all-in-one` réduit à la seule section `[storage]`; Pro/Enterprise `server`, `web` et `agent` disposent uniquement des sections nécessaires.
+- Ajout de `installers/migrations/postgresql` pour embarquer toutes les migrations backend avec les installateurs.
+- Ajout de `installers/requirements` avec dépendances de production séparées par scope et sans outil dev/CI.
+- Ajout de `openinfra installer render-systemd` et contrôle quality gate associé.
+- Mise à jour CDC v4.8.1 : configuration `install.ini`, matrices sections/scopes/defaults et runbook exploitation.
+
+## 0.29.0 - 2026-07-05
+
+- Roadmap v2 : traitement prioritaire de la dette P02 avant reprise de Discovery.
+- Ajout du domaine `openinfra.domain.editions` : éditions Lite, Pro, Enterprise, capabilities et quotas contractualisés.
+- Ajout du service applicatif `EditionRuntimeGuard` et du service de requête `EditionQueryService` pour appliquer les gates et quotas côté backend.
+- Ajout du port `RuntimeUsageRepository` et des adaptateurs JSON/PostgreSQL de comptage runtime.
+- Verrouillage backend des collectors Discovery : la capability `distributed_discovery_agents` est réservée à Enterprise ; Lite/Pro rejettent register, heartbeat, job-authorize, disable et list avant persistance.
+- Application des quotas Lite/Pro aux utilisateurs IAM, aux ressources IP/DNS, aux subnets/VLAN et aux équipements localisés.
+- Ajout de `openinfra edition list`, `feature-check` et `quota-check`; ajout de `OPENINFRA_EDITION` et `openinfra-api --edition` pour l'API.
+- Mise à jour des tests de non-régression P02 avec couverture globale `>= 98 %`.
+
+## 0.28.1 - 2026-07-04
+
+- Correctif de réalignement programme sur le CDC `OpenInfra-CDC-SFG-STG-v4.8.1` et la roadmap `OpenInfra-Roadmap-Developpement-v2`, sans nouveau jalon Discovery.
+- Intégration des nouveaux référentiels contractuels dans `docs/specifications/` et bascule des validations vers le CDC v4.8.1.
+- Ajout du validateur installateurs `InstallerConfigValidator`, des commandes `openinfra installer validate` et `openinfra installer dry-run`, et des scripts `validate_autonomous_installer.py` / `validate_enterprise_alignment.py`.
+- Ajout des configurations `installers/<edition>/<scope>/config/install.ini` pour Lite all-in-one, Pro server/web et Enterprise server/web/agent.
+- Alignement des services systemd sur le contrat v4.8.1 : service backend canonique `openinfra.service`, rejet de l'ancien `openinfra-api.service`, préparation `openinfra-web.service` et `openinfra-agent.service` via les profils installateurs.
+- Alignement stockage installateur : application `/opt/openinfra/`, données PostgreSQL `/data/openinfra/`, symlink `/opt/openinfra/data`, tailles LVM Lite `2GB`, Pro `100GB`, Enterprise `1TB`, propriétaire logique `openinfra`.
+- Renforcement de `security_gate.py` pour accepter uniquement les références de secrets (`env:`, `vault://`, `sops://`, `file://`, `kms://`) dans les fichiers `install.ini`; aucun secret en clair n'est accepté.
+- Ajout de tests de non-régression sur l'alignement CDC/roadmap, les installateurs, la CLI installateur et les guards CI.
 
 ## 0.28.0 - 2026-07-04
 

@@ -19,6 +19,9 @@ OpenInfra est conçu pour être exécuté directement sur des serveurs Linux. Le
 /var/log/openinfra          journaux du service si redirection fichier activée
 ```
 
+
+Le filesystem applicatif `/opt/openinfra` est créé/validé par LVM pour les scopes applicatifs `all-in-one`, `server` et `web` lorsque l’installateur cible une édition Pro/Enterprise ou la politique CDC applicable. Le scope `enterprise/agent` est installé directement sous `/opt/openinfra` et ne crée aucun LV applicatif, LV PostgreSQL, PGDATA ni symlink data.
+
 ## Installation native
 
 ```bash
@@ -54,24 +57,25 @@ sudo chmod 0640 /etc/openinfra/openinfra.env
 
 ## Service `systemd`
 
-Le fichier livré `deploy/systemd/openinfra-api.service` lance l’API native :
+Les unités sont rendues par l’installateur selon l’édition et le scope. Aucun fichier statique `deploy/systemd` n’est livré. Exemple de rendu backend :
 
 ```bash
-sudo install -o root -g root -m 0644 deploy/systemd/openinfra-api.service /etc/systemd/system/openinfra-api.service
+PYTHONPATH=src python -m openinfra.interfaces.cli installer render-systemd --edition enterprise --scope server \
+  | sudo tee /etc/systemd/system/openinfra.service >/dev/null
 sudo systemctl daemon-reload
-sudo systemctl enable --now openinfra-api.service
-sudo systemctl status openinfra-api.service
+sudo systemctl enable --now openinfra.service
+sudo systemctl status openinfra.service
 ```
 
-La commande de démarrage utilise directement le binaire Python installé dans `/opt/openinfra/venv/bin/openinfra-api`. Les protections `systemd` limitent l’accès au système de fichiers, bloquent les privilèges additionnels et n’autorisent l’écriture que dans `/var/lib/openinfra`, `/var/log/openinfra` et `/etc/openinfra`.
+La commande de démarrage utilise directement le binaire Python installé dans `/opt/openinfra/venv/bin/openinfra-api`. Les protections `systemd` sont rendues par l’installateur, limitent l’accès au système de fichiers et bloquent les privilèges additionnels.
 
 ## Migrations PostgreSQL
 
 Avant ouverture du service aux utilisateurs :
 
 ```bash
-/opt/openinfra/venv/bin/openinfra database render-migration --name 0014_dcim_energy_cooling_foundation --root /opt/openinfra/migrations/postgresql >/tmp/openinfra-0014.sql
-/opt/openinfra/venv/bin/openinfra database apply-migrations --postgres-dsn "$OPENINFRA_DATABASE_DSN" --root /opt/openinfra/migrations/postgresql
+/opt/openinfra/venv/bin/openinfra database render-migration --name 0014_dcim_energy_cooling_foundation --root /opt/openinfra/installers/migrations/postgresql >/tmp/openinfra-0014.sql
+/opt/openinfra/venv/bin/openinfra database apply-migrations --postgres-dsn "$OPENINFRA_DATABASE_DSN" --root /opt/openinfra/installers/migrations/postgresql
 ```
 
 La migration `0014_dcim_energy_cooling_foundation` ajoute les tables partitionnées pour PDU/UPS, circuits électriques, zones de refroidissement et réservations de puissance, ainsi que les index de recherche et d’audit.
@@ -88,10 +92,10 @@ Le smoke natif valide les actifs de déploiement et, lorsque `--base-url` est fo
 
 ## Exploitation
 
-- Supervision : `systemctl is-active openinfra-api.service`, `/ready`, métriques externes et logs journald.
-- Redémarrage : `sudo systemctl restart openinfra-api.service`.
-- Arrêt contrôlé : `sudo systemctl stop openinfra-api.service`.
-- Journal : `journalctl -u openinfra-api.service -f`.
+- Supervision : `systemctl is-active openinfra.service`, `/ready`, métriques externes et logs journald.
+- Redémarrage : `sudo systemctl restart openinfra.service`.
+- Arrêt contrôlé : `sudo systemctl stop openinfra.service`.
+- Journal : `journalctl -u openinfra.service -f`.
 - Mise à jour : installer la nouvelle roue Python, appliquer les migrations, puis redémarrer le service.
 
 ## Règles de production

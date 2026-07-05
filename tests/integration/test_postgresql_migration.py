@@ -276,7 +276,7 @@ class TestPostgreSQLMigration:
 
     def test_statement_splitter_preserves_plpgsql_blocks_and_splits_dependent_ddl(self) -> None:
         statements = _migration_statements(
-            Path("migrations/postgresql/0015_ipam_enterprise_foundation.sql")
+            Path("installers/migrations/postgresql/0015_ipam_enterprise_foundation.sql")
         )
 
         assert any(statement.startswith("DO $$") for statement in statements)
@@ -322,7 +322,7 @@ class TestPostgreSQLMigration:
 
         assert status.ready is True
         assert len(connector.connection.applied) == len(
-            tuple(Path("migrations/postgresql").glob("*.sql"))
+            tuple(Path("installers/migrations/postgresql").glob("*.sql"))
         )
         assert connector.connection.commits == 1
         assert connector.connection.rollbacks == 0
@@ -330,7 +330,7 @@ class TestPostgreSQLMigration:
 
     def test_all_postgresql_migrations_reference_known_columns_in_order(self) -> None:
         schema: dict[str, set[str]] = {}
-        migration_paths = sorted(Path("migrations/postgresql").glob("*.sql"))
+        migration_paths = sorted(Path("installers/migrations/postgresql").glob("*.sql"))
 
         assert [path.name[:4] for path in migration_paths] == [
             f"{index:04d}" for index in range(1, len(migration_paths) + 1)

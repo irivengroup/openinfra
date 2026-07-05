@@ -11,7 +11,6 @@ from pathlib import Path
 
 class TestRuntimeEnvironment:
     def test_native_runtime_assets_are_present_and_hardened(self) -> None:
-        unit = Path("deploy/systemd/openinfra-api.service").read_text(encoding="utf-8")
         runbook = Path("docs/runbooks/RUNTIME_NATIVE.md").read_text(encoding="utf-8")
         smoke = subprocess.run(
             [sys.executable, "scripts/native_runtime_smoke.py", "--project-root", "."],
@@ -20,14 +19,31 @@ class TestRuntimeEnvironment:
             text=True,
         )
         payload = json.loads(smoke.stdout)
+        from openinfra.infrastructure.installer_config import InstallerConfigValidator
 
-        assert "ExecStart=/opt/openinfra/venv/bin/openinfra-api" in unit
-        assert "User=openinfra" in unit
-        assert "NoNewPrivileges=true" in unit
-        assert "ProtectSystem=strict" in unit
+        validator = InstallerConfigValidator()
+        backend_unit = validator.render_systemd_unit("enterprise", "server")
+        web_unit = validator.render_systemd_unit("pro", "web")
+        agent_unit = validator.render_systemd_unit("enterprise", "agent")
+
+        assert not Path("deploy").exists()
+        assert "ExecStart=/opt/openinfra/venv/bin/openinfra-api" in backend_unit
+        assert "User=openinfra" in backend_unit
+        assert "NoNewPrivileges=true" in backend_unit
+        assert "ProtectSystem=strict" in backend_unit
+        assert "PrivateDevices=true" in backend_unit
+        assert "ProtectKernelTunables=true" in backend_unit
+        assert "RestrictSUIDSGID=true" in backend_unit
+        assert "openinfra database apply-migrations" not in backend_unit
+        assert "openinfra-web.service" in web_unit
+        assert "openinfra-agent.service" in agent_unit
         assert "OPENINFRA_DATABASE_DSN" in runbook
         assert "Docker ne fait pas partie de la chaine d'execution production" in runbook
-        assert payload["assets"]["systemd_unit"].endswith("deploy/systemd/openinfra-api.service")
+        assert payload["assets"]["rendered_units"] == [
+            "openinfra.service",
+            "openinfra-web.service",
+            "openinfra-agent.service",
+        ]
 
     def test_optional_docker_assets_remain_test_only(self) -> None:
         compose = Path("compose.yaml").read_text(encoding="utf-8")
@@ -46,11 +62,11 @@ class TestRuntimeEnvironment:
         assert "USER openinfra" in dockerfile
         assert "HEALTHCHECK" not in dockerfile
         assert "OPENINFRA_POSTGRES_PASSWORD=" in env_example
-        assert "OPENINFRA_IMAGE_TAG=0.28.0" in env_example
+        assert "OPENINFRA_IMAGE_TAG=0.29.5" in env_example
         assert "OPENINFRA_PGADMIN_EMAIL=" in env_example
         assert "OPENINFRA_PGADMIN_PASSWORD=" in env_example
         assert "OPENINFRA_PGADMIN_PORT=5050" in env_example
-        assert "openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.28.0}" in compose
+        assert "openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.29.5}" in compose
         assert "${OPENINFRA_PGADMIN_IMAGE:-dpage/pgadmin4:latest}" in compose
         assert "openinfra-pgadmin-data:/var/lib/pgadmin" in compose
         assert "./docker/pgadmin/servers.json:/pgadmin4/servers.json:ro" in compose
@@ -98,16 +114,16 @@ class TestRuntimeEnvironment:
     def test_postgresql_migrations_use_existing_audit_timestamp_column(self) -> None:
         migration_payload = "\n".join(
             path.read_text(encoding="utf-8")
-            for path in sorted(Path("migrations/postgresql").glob("*.sql"))
+            for path in sorted(Path("installers/migrations/postgresql").glob("*.sql"))
         )
 
         assert "created_at timestamptz NOT NULL" in migration_payload
         assert "occurred_at" not in migration_payload
 
     def test_ipam_enterprise_migration_backfills_legacy_prefix_family_column(self) -> None:
-        migration = Path("migrations/postgresql/0015_ipam_enterprise_foundation.sql").read_text(
-            encoding="utf-8"
-        )
+        migration = Path(
+            "installers/migrations/postgresql/0015_ipam_enterprise_foundation.sql"
+        ).read_text(encoding="utf-8")
 
         assert "ALTER TABLE prefixes ADD COLUMN IF NOT EXISTS family smallint" in migration
         assert (

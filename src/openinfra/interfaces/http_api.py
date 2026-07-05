@@ -2119,6 +2119,7 @@ class OpenInfraApiEntrypoint:
         parser.add_argument("--backend", choices=("json", "postgresql"), default="json")
         parser.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         parser.add_argument("--postgres-dsn")
+        parser.add_argument("--edition", default=os.environ.get("OPENINFRA_EDITION", "enterprise"))
         parser.add_argument("--auth-required", action="store_true")
         args = parser.parse_args(sys.argv[1:])
         app = cls()._create_application(args)
@@ -2142,6 +2143,7 @@ class OpenInfraApiEntrypoint:
                     "host": str(args.host),
                     "port": int(args.port),
                     "backend": str(args.backend),
+                    "edition": str(args.edition),
                     "auth_required": auth_required,
                     "root_url": "/",
                     "health_url": "/health",
@@ -2158,14 +2160,17 @@ class OpenInfraApiEntrypoint:
         sys.stdout.flush()
 
     def _create_application(self, args: argparse.Namespace) -> OpenInfraApplication:
+        edition = getattr(args, "edition", os.environ.get("OPENINFRA_EDITION", "enterprise"))
         if args.backend == "json":
-            return ApplicationFactory().create_json_application(args.data)
+            return ApplicationFactory().create_json_application(args.data, edition=edition)
         dsn = args.postgres_dsn or os.environ.get("OPENINFRA_DATABASE_DSN", "")
         if not dsn:
             raise OpenInfraError(
                 "--postgres-dsn or OPENINFRA_DATABASE_DSN is required for postgresql backend"
             )
-        return ApplicationFactory().create_postgresql_application(dsn, seed=False)
+        if edition == "enterprise":
+            return ApplicationFactory().create_postgresql_application(dsn, seed=False)
+        return ApplicationFactory().create_postgresql_application(dsn, seed=False, edition=edition)
 
 
 if __name__ == "__main__":

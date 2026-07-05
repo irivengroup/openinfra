@@ -1,9 +1,35 @@
+## v0.29.5 — Moteur installateur transactionnel OS-aware
+
+La version `0.29.5` transforme les `installers/setup/**/install.py` en programmes autonomes transactionnels. Chaque plan expose les prérequis, crée le virtualenv applicatif, installe les dépendances de production par scope, déploie le code `src/`, rend l'unité systemd adaptée, applique les migrations backend quand le scope gère PostgreSQL et restaure automatiquement les fichiers remplacés en cas d'échec. Les scopes `web` et `agent` restent exclus de PostgreSQL et des migrations.
+
+## v0.29.4 — Installateurs autonomes par scope
+
+`installers/` est désormais un point d’entrée autonome : chaque scope dispose d’un `install.py` sous `installers/setup/...`. Ces programmes déploient `src/`, les requirements de production, `pyproject.toml`, l’unité systemd rendue et, pour les scopes backend/all-in-one, les migrations PostgreSQL. Les anciens dossiers racine `installers/lite`, `installers/pro` et `installers/enterprise` sont interdits.
+
+## v0.29.3 — Politique filesystem applicatif par scope
+
+Le CDC conserve le filesystem applicatif `/opt/openinfra` comme disposition entreprise pour les scopes applicatifs. Le contrôleur installateur distingue désormais explicitement le filesystem applicatif de PostgreSQL : `all-in-one`, `server` et `web` gèrent `/opt/openinfra` en interne, tandis que `enterprise/agent` est installé directement sous `/opt/openinfra` sans création LVM, sans stockage PostgreSQL, sans PGDATA et sans migration backend.
+
+## v0.29.2 — Source unique migrations et bootstrap PostgreSQL backend
+
+La version `0.29.2` supprime le dossier racine `migrations/`. Le catalogue applicatif `PostgreSQLMigrationCatalog.from_project_root()` et le runtime Docker utilisent exclusivement `installers/migrations/postgresql`. Les scopes backend (`lite/all-in-one`, `pro/server`, `enterprise/server`) rendent aussi un plan de déploiement PostgreSQL OS-aware : détection, installation paquetaire si absent, activation systemd, démarrage, readiness, initialisation PGDATA et application des migrations.
+
+## v0.29.2 — Installateurs comme source de vérité opérationnelle
+
+La version `0.29.2` retire le dossier `deploy/` : les unités systemd ne sont plus livrées comme fichiers statiques. L'installateur déduit l'édition et le scope depuis `installers/setup/...`, valide un `install.ini` minimal, rend `openinfra.service`, `openinfra-web.service` ou `openinfra-agent.service`, puis applique les migrations backend depuis `installers/migrations/postgresql` lorsque le scope gère PostgreSQL.
+
+## v0.29.0 — Éditions et garde-fous runtime
+
+La version `0.29.0` ajoute une frontière domaine/application dédiée aux éditions OpenInfra. Le domaine `openinfra.domain.editions` définit `OpenInfraEdition`, `FeatureCapability`, `QuotaResource` et `EditionPolicyCatalog`. L'application expose `EditionRuntimeGuard`, injecté dans les services Discovery, IAM, IPAM et DCIM afin que les règles Lite/Pro/Enterprise soient appliquées avant persistance.
+
+Le comptage runtime est porté par le port `RuntimeUsageRepository`, implémenté en JSON et PostgreSQL. Les requêtes PostgreSQL utilisent des statements statiques par ressource afin d'éviter toute construction SQL dynamique. L'édition active est fournie à la factory applicative via CLI, API ou `OPENINFRA_EDITION`; Enterprise reste la valeur par défaut pour préserver la compatibilité ascendante.
+
 # Architecture OpenInfra Python
 
 
-## v0.28.0 — Registry collectors et identité forte
+## v0.28.1 — Registry collectors et identité forte
 
-La version `0.28.0` introduit la frontière Discovery sans coupler les collectors au moteur d'exécution. Le domaine porte l'identité (`CollectorIdentity`), les scopes (`DiscoveryScope`), l'agrégat collector (`DiscoveryCollector`) et la politique d'autorisation de job (`DiscoveryJobAuthorization`). Le service applicatif `DiscoveryCollectorService` orchestre les cas d'usage et écrit les événements d'audit. Les adaptateurs JSON et PostgreSQL implémentent le port `DiscoveryRepository` sans exposer de détails de stockage aux interfaces.
+La version `0.28.1` introduit la frontière Discovery sans coupler les collectors au moteur d'exécution. Le domaine porte l'identité (`CollectorIdentity`), les scopes (`DiscoveryScope`), l'agrégat collector (`DiscoveryCollector`) et la politique d'autorisation de job (`DiscoveryJobAuthorization`). Le service applicatif `DiscoveryCollectorService` orchestre les cas d'usage et écrit les événements d'audit. Les adaptateurs JSON et PostgreSQL implémentent le port `DiscoveryRepository` sans exposer de détails de stockage aux interfaces.
 
 L'identité forte repose sur l'empreinte SHA-256 du certificat mTLS présenté par le collector. OpenInfra normalise cette empreinte, la compare en temps constant logique au moment de l'autorisation et refuse tout job si le collector est inconnu, désactivé, hors scope ou présenté avec une empreinte différente. Les secrets techniques nécessaires aux probes ne sont pas stockés dans OpenInfra : le registre conserve uniquement une référence Vault `vault://...`, ce qui garde la séparation entre inventaire d'identité et coffre de secrets.
 
@@ -43,7 +69,7 @@ L'adaptateur PostgreSQL implémente les référentiels DCIM, IPAM et audit sur l
 
 ## Migrations PostgreSQL
 
-Le moteur `PostgreSQLMigrationExecutor` charge les fichiers `migrations/postgresql/*.sql`, vérifie leur structure minimale, calcule un checksum SHA-256, applique uniquement les migrations absentes et refuse une migration déjà appliquée dont le contenu a changé. La CLI expose :
+Le moteur `PostgreSQLMigrationExecutor` charge par défaut les fichiers `installers/migrations/postgresql/*.sql`, vérifie leur structure minimale, calcule un checksum SHA-256, applique uniquement les migrations absentes et refuse une migration déjà appliquée dont le contenu a changé. La CLI expose :
 
 ```bash
 openinfra database status
@@ -182,7 +208,7 @@ La version 0.16.0 ajoute une frontière métier dédiée au câblage sans diluer
 
 Le service applicatif `DcimCablingService` orchestre la création de panneaux, la génération déterministe des ports, la création des ports équipements, la connexion des câbles et la restitution de trace. Les repositories JSON et PostgreSQL implémentent le même port `DcimRepository`, ce qui conserve l’architecture hexagonale et la compatibilité des interfaces CLI/API.
 
-La production est indépendante de Docker : le chemin de déploiement supporté est un service `systemd` natif démarrant `openinfra-api` depuis un virtualenv Python. Les actifs Docker existants sont conservés comme lab facultatif pour smoke local, mais le quality gate vérifie les actifs natifs `deploy/systemd/openinfra-api.service`, `docs/runbooks/RUNTIME_NATIVE.md` et `scripts/native_runtime_smoke.py`.
+La production est indépendante de Docker : le chemin de déploiement supporté est un service `systemd` natif démarrant `openinfra-api` depuis un virtualenv Python. Les actifs Docker existants sont conservés comme lab facultatif pour smoke local, mais le quality gate vérifie les actifs natifs `docs/runbooks/RUNTIME_NATIVE.md`, le rendu systemd installateur et `scripts/native_runtime_smoke.py`.
 
 
 ## v0.17.0 — P04 EPIC-0406 Énergie et refroidissement fondation

@@ -16,6 +16,7 @@ from openinfra.application.dcim_services import (
     DcimVisualizationService,
 )
 from openinfra.application.discovery_services import DiscoveryCollectorService
+from openinfra.application.edition_services import EditionQueryService, EditionRuntimeGuard
 from openinfra.application.export_services import ExportService
 from openinfra.application.identity_services import IdentityService
 from openinfra.application.import_services import GenericImportService
@@ -36,6 +37,7 @@ from openinfra.application.ports import (
     ImportRepository,
     IpamRepository,
     ReadinessProbe,
+    RuntimeUsageRepository,
     SchemaStatusProvider,
     SecurityRepository,
     SourceGovernanceRepository,
@@ -58,6 +60,7 @@ from openinfra.infrastructure.json_store import (
     JsonImportRepository,
     JsonIpamRepository,
     JsonReadinessProbe,
+    JsonRuntimeUsageRepository,
     JsonSchemaStatusProvider,
     JsonSecurityRepository,
     JsonSourceGovernanceRepository,
@@ -79,6 +82,7 @@ from openinfra.infrastructure.postgresql import (
     PostgreSQLMigrationCatalog,
     PostgreSQLMigrationExecutor,
     PostgreSQLReadinessProbe,
+    PostgreSQLRuntimeUsageRepository,
     PostgreSQLSecurityRepository,
     PostgreSQLSessionRegistry,
     PostgreSQLSourceGovernanceRepository,
@@ -125,10 +129,18 @@ class OpenInfraApplication:
     transaction_manager: TransactionManager
     readiness_probe: ReadinessProbe
     schema_status_provider: SchemaStatusProvider
+    edition_guard: EditionRuntimeGuard
+    edition_query_service: EditionQueryService
+    runtime_usage_repository: RuntimeUsageRepository
 
 
 class ApplicationFactory:
-    def create_json_application(self, data_path: Path, seed: bool = True) -> OpenInfraApplication:
+    def create_json_application(
+        self,
+        data_path: Path,
+        seed: bool = True,
+        edition: str = "enterprise",
+    ) -> OpenInfraApplication:
         store = JsonDocumentStore(data_path)
         transaction_manager = JsonTransactionManager(store)
         dcim_repository = JsonDcimRepository(store)
@@ -144,6 +156,7 @@ class ApplicationFactory:
         discovery_repository = JsonDiscoveryRepository(store)
         readiness_probe = JsonReadinessProbe(store)
         schema_status_provider = JsonSchemaStatusProvider()
+        runtime_usage_repository = JsonRuntimeUsageRepository(store)
         if seed:
             SeedDataFactory(
                 dcim_repository,
@@ -165,6 +178,8 @@ class ApplicationFactory:
             transaction_manager=transaction_manager,
             readiness_probe=readiness_probe,
             schema_status_provider=schema_status_provider,
+            runtime_usage_repository=runtime_usage_repository,
+            edition=edition,
         )
 
     def create_postgresql_application(
@@ -172,6 +187,7 @@ class ApplicationFactory:
         dsn: str,
         seed: bool = False,
         profile: PostgreSQLClusterProfile | None = None,
+        edition: str = "enterprise",
     ) -> OpenInfraApplication:
         connection_factory = PostgreSQLConnectionFactory(dsn, profile=profile)
         registry = PostgreSQLSessionRegistry(connection_factory)
@@ -190,6 +206,7 @@ class ApplicationFactory:
         migration_catalog = PostgreSQLMigrationCatalog.from_project_root()
         readiness_probe = PostgreSQLReadinessProbe(registry, migration_catalog)
         schema_status_provider = PostgreSQLMigrationExecutor(registry, migration_catalog)
+        runtime_usage_repository = PostgreSQLRuntimeUsageRepository(registry)
         if seed:
             SeedDataFactory(
                 dcim_repository,
@@ -211,6 +228,8 @@ class ApplicationFactory:
             transaction_manager=transaction_manager,
             readiness_probe=readiness_probe,
             schema_status_provider=schema_status_provider,
+            runtime_usage_repository=runtime_usage_repository,
+            edition=edition,
         )
 
     def _build_application(
@@ -225,6 +244,8 @@ class ApplicationFactory:
         transaction_manager: TransactionManager,
         readiness_probe: ReadinessProbe,
         schema_status_provider: SchemaStatusProvider,
+        runtime_usage_repository: RuntimeUsageRepository | None = None,
+        edition: str = "enterprise",
         source_of_truth_repository: SourceOfTruthRepository | None = None,
         source_governance_repository: SourceGovernanceRepository | None = None,
         import_repository: ImportRepository | None = None,
@@ -256,16 +277,29 @@ class ApplicationFactory:
                 discovery_repository = JsonDiscoveryRepository(store)
             else:
                 discovery_repository = PostgreSQLDiscoveryRepository(store)
+        if runtime_usage_repository is None:
+            if hasattr(store, "data"):
+                runtime_usage_repository = JsonRuntimeUsageRepository(store)
+            else:
+                runtime_usage_repository = PostgreSQLRuntimeUsageRepository(store)
         security_service = SecurityService(
             security_repository,
             audit_repository,
             transaction_manager,
             identity_repository,
         )
+        edition_guard = EditionRuntimeGuard(
+            edition,
+            runtime_usage_repository,
+            audit_repository,
+            transaction_manager,
+        )
+        edition_query_service = EditionQueryService(runtime_usage_repository)
         ipam_allocation_service = IpamAllocationService(
             ipam_repository,
             audit_repository,
             transaction_manager,
+            edition_guard=edition_guard,
         )
         ipam_conflict_service = IpamConflictService(
             ipam_repository,
@@ -298,6 +332,7 @@ class ApplicationFactory:
             audit_repository,
             transaction_manager,
             security_service,
+            edition_guard,
         )
         return OpenInfraApplication(
             store=store,
@@ -305,6 +340,7 @@ class ApplicationFactory:
                 dcim_repository,
                 audit_repository,
                 transaction_manager,
+                edition_guard,
             ),
             dcim_topology_service=DcimTopologyService(
                 dcim_repository,
@@ -341,6 +377,7 @@ class ApplicationFactory:
                 ipam_repository,
                 audit_repository,
                 transaction_manager,
+                edition_guard,
             ),
             ipam_conflict_service=ipam_conflict_service,
             ipam_ddi_service=ipam_ddi_service,
@@ -360,6 +397,7 @@ class ApplicationFactory:
                 audit_repository,
                 transaction_manager,
                 security_service,
+                edition_guard,
             ),
             source_of_truth_service=SourceOfTruthService(
                 source_of_truth_repository,
@@ -399,4 +437,7 @@ class ApplicationFactory:
             transaction_manager=transaction_manager,
             readiness_probe=readiness_probe,
             schema_status_provider=schema_status_provider,
+            edition_guard=edition_guard,
+            edition_query_service=edition_query_service,
+            runtime_usage_repository=runtime_usage_repository,
         )

@@ -1,0 +1,14 @@
+domaine,pratique,exigence_liee,preuve_attendue
+Architecture,API-first et séparation backend/frontend/agent/worker,REQ-00493;REQ-00494,Diagrammes et tests API/UI
+Sécurité,OWASP ASVS pour web/API,REQ-00500,Tests sécurité et revue ASVS
+Gouvernance,NIST CSF Govern/Identify/Protect/Detect/Respond/Recover alignement,REQ-00508,Matrice de conformité et registre risques
+API,OpenAPI 3.1 pour REST,REQ-00504,Spécification OpenAPI validée
+Données,PostgreSQL partitionné hot/warm/cold,REQ-00001;REQ-00002;REQ-00003,DDL et benchmarks
+Exploitation,Systemd invariant par édition,REQ-00490,Tests unit files
+Packaging,Installateurs par scope pour Pro/Entreprise,REQ-00502,Smoke tests installateurs
+ITSM,Connecteurs externes sans ITSM intégré,REQ-00495;REQ-00496,Tests absence ticketing + connecteurs
+Frontend,React + Bootstrap 5 API-only,REQ-00493,Tests E2E et analyse build
+ITAM,Support constructeur non écrasable,REQ-00498;REQ-00499,Tests import/API/UI
+Qualité,CI multi-éditions,REQ-00503,Pipeline matrix Lite/Pro/Entreprise
+Observabilité,Métriques agents/connecteurs/services,REQ-00506,Dashboards et alertes
+

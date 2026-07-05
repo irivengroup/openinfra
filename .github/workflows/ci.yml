@@ -68,28 +68,28 @@ jobs:
         run: openinfra version
 
       - name: Smoke specification validation
-        run: openinfra spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4
+        run: openinfra spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1
+
+      - name: Smoke installer validation
+        run: |
+          python scripts/validate_autonomous_installer.py --root installers
+          python scripts/validate_enterprise_alignment.py --project-root .
+          openinfra installer validate --root installers >/tmp/openinfra-installers.json
+          openinfra installer dry-run --root installers >/tmp/openinfra-installers-dry-run.json
 
       - name: Smoke migration rendering
         run: |
-          openinfra database render-migration --name 0001_bootstrap --root migrations/postgresql >/tmp/openinfra-0001.sql
-          openinfra database render-migration --name 0002_security_rbac --root migrations/postgresql >/tmp/openinfra-0002.sql
-          openinfra database render-migration --name 0003_security_token_lifecycle --root migrations/postgresql >/tmp/openinfra-0003.sql
-          openinfra database render-migration --name 0004_identity_users_groups --root migrations/postgresql >/tmp/openinfra-0004.sql
-          openinfra database render-migration --name 0005_access_policy_abac --root migrations/postgresql >/tmp/openinfra-0005.sql
-          openinfra database render-migration --name 0006_audit_trail_integrity --root migrations/postgresql >/tmp/openinfra-0006.sql
-          openinfra database render-migration --name 0007_source_of_truth_core --root migrations/postgresql >/tmp/openinfra-0007.sql
-          openinfra database render-migration --name 0008_source_governance --root migrations/postgresql >/tmp/openinfra-0008.sql
-          openinfra database render-migration --name 0009_dcim_physical_model --root migrations/postgresql >/tmp/openinfra-0009.sql
-          openinfra database render-migration --name 0010_dcim_rack_capacity --root migrations/postgresql >/tmp/openinfra-0010.sql
-          openinfra database render-migration --name 0011_dcim_field_operations --root migrations/postgresql >/tmp/openinfra-0011.sql
-          openinfra database render-migration --name 0012_dcim_visualization_indexes --root migrations/postgresql >/tmp/openinfra-0012.sql
-          openinfra database render-migration --name 0013_dcim_cabling_foundation --root migrations/postgresql >/tmp/openinfra-0013.sql
-          openinfra database render-migration --name 0014_dcim_energy_cooling_foundation --root migrations/postgresql >/tmp/openinfra-0014.sql
-          openinfra database render-migration --name 0015_ipam_enterprise_foundation --root migrations/postgresql >/tmp/openinfra-0015.sql
-          openinfra database render-migration --name 0016_ipam_transactional_allocation --root migrations/postgresql >/tmp/openinfra-0016.sql
-          openinfra database render-migration --name 0017_ipam_networking_foundation --root migrations/postgresql >/tmp/openinfra-0017.sql
-          openinfra database render-migration --name 0018_ipam_conflict_detection --root migrations/postgresql >/tmp/openinfra-0018.sql
+          set -euo pipefail
+          count=0
+          for migration in installers/migrations/postgresql/*.sql; do
+            name="$(basename "$migration" .sql)"
+            openinfra database render-migration \
+              --name "$name" \
+              --root installers/migrations/postgresql \
+              > "/tmp/openinfra-${name}.sql"
+            count=$((count + 1))
+          done
+          test "$count" -eq 23
 
       - name: Smoke JSON IPAM transactional allocation
         run: |

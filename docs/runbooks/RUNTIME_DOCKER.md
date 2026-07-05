@@ -51,9 +51,9 @@ Le scénario de validation vérifie :
 ## Commandes de migration PostgreSQL
 
 ```bash
-openinfra database status --postgres-dsn "$OPENINFRA_DATABASE_DSN" --root migrations/postgresql
-openinfra database apply-migrations --postgres-dsn "$OPENINFRA_DATABASE_DSN" --root migrations/postgresql
-openinfra database apply-migrations --postgres-dsn "$OPENINFRA_DATABASE_DSN" --root migrations/postgresql --dry-run
+openinfra database status --postgres-dsn "$OPENINFRA_DATABASE_DSN" --root installers/migrations/postgresql
+openinfra database apply-migrations --postgres-dsn "$OPENINFRA_DATABASE_DSN" --root installers/migrations/postgresql
+openinfra database apply-migrations --postgres-dsn "$OPENINFRA_DATABASE_DSN" --root installers/migrations/postgresql --dry-run
 ```
 
 Le moteur maintient `openinfra_schema_migrations`, enregistre le checksum SHA-256 de chaque migration et bloque l'exécution si une migration déjà appliquée diverge du fichier source.

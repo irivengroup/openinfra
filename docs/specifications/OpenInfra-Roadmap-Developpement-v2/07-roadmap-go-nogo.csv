@@ -4,6 +4,6 @@ GATE-01,Go Foundation Alpha,P01-P02,CI verte; édition model testé; API baselin
 GATE-02,Go Installer Alpha,P03-P06,install.ini validé; dépendances installées; PGDATA /data/openinfra; openinfra.service; failover DB démontré.,Autorise MVP Lite/Pro.
 GATE-03,Go Lite MVP,P07-P11,Limits Lite respectées; all-in-one opérationnel; UI/API/CLI SOT/DCIM/IPAM.,Autorise pilote Lite.
 GATE-04,Go Pro MVP,P07-P13,Backend/web séparés; LDAP/IPA; RBAC groupes; connecteurs ITSM externes; quotas Pro.,Autorise pilote Pro.
-GATE-05,Go Enterprise Foundation,P14-P17,"Agents, multisite, réplication quasi synchrone, cluster frontend/backend, DR testé.",Autorise pilote Entreprise.
+GATE-05,Go Enterprise Foundation,P14-P17,"Agents, multisite, synchronisation quasi temps réel, cluster frontend/backend, DR testé.",Autorise pilote Entreprise.
 GATE-06,Go RC,P16-P18,Modules avancés; sécurité; performance; docs; migrations et rollback validés.,Autorise release candidate.
 GATE-07,Go GA,P18,Benchmarks; chaos; PITR; failover; sécurité; packaging; support; runbooks validés.,Autorise GA Enterprise Scale.

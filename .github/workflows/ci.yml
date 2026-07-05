@@ -89,7 +89,8 @@ jobs:
               > "/tmp/openinfra-${name}.sql"
             count=$((count + 1))
           done
-          test "$count" -eq 23
+          expected="$(find installers/migrations/postgresql -maxdepth 1 -name '*.sql' | wc -l | tr -d ' ')"
+          test "$count" -eq "$expected"
 
       - name: Smoke JSON IPAM transactional allocation
         run: |

@@ -105,17 +105,18 @@ class NativeRuntimeGuard:
             raise QualityGateError("installer must orchestrate the CDC application filesystem")
         required_ha_fragments = (
             "InstallerPostgreSQLHaPlan",
-            "native-postgresql-streaming",
-            "quasi-synchronous-cluster",
+            "near-real-time-postgresql-streaming",
+            "near-real-time-streaming-cluster",
             "pitr_archive_directory",
-            "synchronous_commit",
+            "local_commit_non_blocking",
         )
         missing_ha = [
             fragment for fragment in required_ha_fragments if fragment not in installer_config
         ]
         if missing_ha:
             raise QualityGateError(
-                "installer must model PostgreSQL HA/PITR P06: " + ", ".join(missing_ha)
+                "installer must model PostgreSQL near-real-time HA/PITR P06: "
+                + ", ".join(missing_ha)
             )
         installer_runtime = (
             self._project_root / "installers/setup/installer_runtime.py"
@@ -187,7 +188,7 @@ class DockerRuntimeGuard:
             raise QualityGateError(
                 "Dockerfile must not define an API healthcheck inherited by migrate/auth-bootstrap"
             )
-        if "openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.29.7}" not in compose:
+        if "openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.29.8}" not in compose:
             raise QualityGateError("compose.yaml must default to the current OpenInfra image tag")
         stale_tags = (
             "OPENINFRA_IMAGE_TAG=0.9.0",

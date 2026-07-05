@@ -1,8 +1,8 @@
-# Delta v4.7.0 — Stockage PostgreSQL dédié, cluster quasi synchrone et multisite
+# Delta v4.7.0 — Stockage PostgreSQL dédié, cluster à synchronisation quasi temps réel et multisite
 
 ## 1. Objectif
 
-La version v4.7.0 consolide les exigences d'installation et d'exploitation en séparant proprement le stockage applicatif OpenInfra du stockage PostgreSQL backend, en formalisant la réplication automatique quasi synchrone en mode cluster et en ajoutant le support multisite pour les éditions Pro et Entreprise.
+La version v4.7.0 consolide les exigences d'installation et d'exploitation en séparant proprement le stockage applicatif OpenInfra du stockage PostgreSQL backend, en formalisant la réplication automatique quasi temps réel en mode cluster et en ajoutant le support multisite pour les éditions Pro et Entreprise.
 
 ## 2. Décisions obligatoires
 
@@ -38,7 +38,7 @@ Le symlink obligatoire est :
 
 L'ownership du symlink et du répertoire cible doit suivre le compte système PostgreSQL résolu. Le compte applicatif `openinfra` ne doit pas écrire directement dans les fichiers internes PostgreSQL.
 
-### 2.5 Cluster PostgreSQL quasi synchrone
+### 2.5 Cluster PostgreSQL quasi temps réel
 
 En mode cluster, l'installateur doit configurer automatiquement :
 
@@ -46,14 +46,14 @@ En mode cluster, l'installateur doit configurer automatiquement :
 - création ou rattachement des réplicas ;
 - réplication streaming ;
 - sélection du ou des standbys synchrones ;
-- mode quasi synchrone par défaut ;
+- mode quasi temps réel par défaut ;
 - bascule contrôlée ;
 - health checks ;
 - supervision du replication lag ;
 - sauvegardes et WAL archiving ;
 - validation post-installation.
 
-Le mode quasi synchrone cible un accusé de réception par au moins un standby éligible avant confirmation applicative, sans imposer par défaut une synchronisation WAN pénalisante entre sites distants.
+Le mode quasi temps réel cible un accusé de réception par au moins un standby éligible avant confirmation applicative, sans imposer par défaut une synchronisation WAN pénalisante entre sites distants.
 
 ### 2.6 Multisite Pro et Entreprise
 

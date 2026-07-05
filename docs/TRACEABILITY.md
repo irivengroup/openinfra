@@ -1,8 +1,8 @@
-## v0.29.7 — Dette P06 PostgreSQL HA/PITR
+## v0.29.8 — Dette P06 PostgreSQL HA/PITR
 
 | Élément | Alignement |
 |---|---|
-| Roadmap v2 | P06 PostgreSQL HA, réplication quasi synchrone et sauvegardes traité avant Discovery. |
+| Roadmap v2 | P06 PostgreSQL HA, synchronisation quasi temps réel et sauvegardes traité avant Discovery. |
 | Installateurs | `installers/setup/**/install.py` rend le plan HA/PITR depuis les scopes backend/all-in-one. |
 | Configuration | `install.ini` reste succinct ; `identity.peer_nodes` suffit à activer la topologie cluster. |
 | Stockage | `/data/openinfra/pitr` et `/data/openinfra/backups` sont internes, non exposés dans `install.ini`. |

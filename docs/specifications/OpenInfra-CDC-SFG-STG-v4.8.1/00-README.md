@@ -156,7 +156,7 @@ La version 4.6.0 ajoute le cadrage enterprise suivant :
 
 ## Addendum v4.7.0
 
-Cette version ajoute le stockage PostgreSQL dédié, la réplication automatique quasi synchrone en mode cluster, le support multisite Pro/Entreprise et la correction des incohérences d'ownership entre application, base de données et symlink.
+Cette version ajoute le stockage PostgreSQL dédié, la réplication automatique quasi temps réel en mode cluster, le support multisite Pro/Entreprise et la correction des incohérences d'ownership entre application, base de données et symlink.
 
 Décisions structurantes :
 
@@ -164,7 +164,7 @@ Décisions structurantes :
 - Les données PostgreSQL backend sont stockées et initialisées dans `/data/openinfra/` sur le LV `datavg/openinfradata_lv`, avec taille par défaut par édition : Lite `2GB`, Pro `100GB`, Entreprise `1TB`.
 - `/opt/openinfra/data` est un symlink vers `/data/openinfra/`, cible possédée par le compte système PostgreSQL résolu par l installateur.
 - Le propriétaire logique du target et du symlink est le compte système gestionnaire PostgreSQL, résolu par l'installateur, sans imposer un nom Unix fixe.
-- En cluster, l'installateur configure automatiquement la réplication et la synchronisation quasi synchrone.
+- En cluster, l'installateur configure automatiquement la réplication et la synchronisation quasi temps réel.
 - Pro et Entreprise supportent le multisite, avec des capacités distinctes documentées.
 
 

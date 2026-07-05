@@ -155,9 +155,9 @@ PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration \
 
 Après application, les appels applicatifs doivent continuer à passer par l'API ou la CLI afin de bénéficier du contrôle de chevauchement des intervalles U.
 
-## v0.29.7 — Plan HA/PITR généré par les installateurs
+## v0.29.8 — Plan HA/PITR généré par les installateurs
 
-Le plan HA/PITR est généré par les scopes backend/all-in-one. En Pro/Enterprise server, `identity.peer_nodes` déclenche la topologie `quasi-synchronous-cluster`. Le plan ne lit aucun port ni paramètre PostgreSQL dans `install.ini`; les valeurs internes restent gérées par l'installateur pour éviter les contournements et les divergences.
+Le plan HA/PITR est généré par les scopes backend/all-in-one. En Pro/Enterprise server, `identity.peer_nodes` déclenche la topologie `near-real-time-streaming-cluster`. Le plan ne lit aucun port ni paramètre PostgreSQL dans `install.ini`; les valeurs internes restent gérées par l'installateur pour éviter les contournements et les divergences.
 
 Commande d'audit :
 
@@ -176,7 +176,7 @@ Paramètres rendus :
 - `hot_standby=on` ;
 - `max_wal_senders=16` ;
 - `max_replication_slots=16` ;
-- `synchronous_commit=remote_apply` ;
-- `synchronous_standby_names='ANY 1 (...)'` si des peers existent.
+- `synchronous_commit='local'` pour un commit local non bloquant ;
+- aucun `synchronous_standby_names` par défaut, même lorsque des peers existent ;
 
 Le failover reste manuel : OpenInfra prépare le socle technique et l'audit, mais ne promeut jamais automatiquement un standby.

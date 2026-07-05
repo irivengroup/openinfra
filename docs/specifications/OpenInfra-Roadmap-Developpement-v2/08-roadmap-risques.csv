@@ -3,7 +3,7 @@ RSK-001,Incohérence éditions/feature gates,High,Tests de conformité éditions
 RSK-002,Installateur trop complexe pour opérateur non expert,High,"install.ini strict, dry-run, messages explicites, rollback, auto-dépendances.",STR-PKG
 RSK-003,Erreur PGDATA ou ownership PostgreSQL,High,Validation LVM/symlink/PGDATA; résolution gestionnaire PostgreSQL; tests multi-OS.,STR-DATA
 RSK-004,ancien service backend obsolète réintroduit,Medium,Test bloquant de noms systemd; grep artefacts et packages.,STR-SRE
-RSK-005,Réplication quasi synchrone dégrade les performances,High,"Mode strict optionnel, seuils lag, benchmarks, tuning par édition.",STR-DATA
+RSK-005,Synchronisation quasi temps réel dégrade les performances,High,"Mode strict optionnel, seuils lag, benchmarks, tuning par édition.",STR-DATA
 RSK-006,LDAP/IPA mal mappé vers RBAC,High,"Tests groupes, refus, audit, cache et expiration sessions.",STR-SEC
 RSK-007,Frontend contourne API backend,High,Architecture tests; interdiction dépendances DB; revue code.,STR-FE
 RSK-008,ITSM intégré par dérive fonctionnelle,Medium,Connecteurs uniquement; tests absence objets tickets natifs.,STR-PROD

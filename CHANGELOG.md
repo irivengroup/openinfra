@@ -1,8 +1,8 @@
-## 0.29.7 - 2026-07-05
+## 0.29.8 - 2026-07-05
 
-- Livraison P06 avant reprise Discovery : PostgreSQL HA/PITR, réplication quasi synchrone et sauvegardes.
+- Livraison P06 avant reprise Discovery : PostgreSQL HA/PITR, synchronisation quasi temps réel et sauvegardes.
 - Ajout du modèle interne `InstallerPostgreSQLHaPlan` pour les scopes backend/all-in-one.
-- Activation automatique du mode cluster quasi synchrone lorsque `identity.peer_nodes` est renseigné.
+- Activation automatique du mode cluster à synchronisation quasi temps réel lorsque `identity.peer_nodes` est renseigné.
 - Ajout du rendu interne `/etc/openinfra/postgresql-ha.json` et de l'include PostgreSQL `/data/openinfra/conf.d/openinfra-ha.conf`.
 - Préparation des répertoires `/data/openinfra/pitr` et `/data/openinfra/backups` avec ownership PostgreSQL.
 - Ajout de la migration `0024_postgresql_ha_backup_registry.sql` pour noeuds HA, backups et événements de failover.

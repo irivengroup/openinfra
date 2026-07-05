@@ -163,14 +163,14 @@ Cette version conserve le périmètre v2 : Source of Truth, DCIM, ITAM, Discover
 - Les droits élevés sont limités aux commandes et wrappers OpenInfra nécessaires.
 - Les secrets LDAP/IPA sont stockés via le mécanisme de secret retenu par l'édition et jamais en clair dans les logs.
 
-## v4.7.0 — Stockage PostgreSQL dédié, réplication quasi synchrone et multisite
+## v4.7.0 — Stockage PostgreSQL dédié, synchronisation quasi temps réel et multisite
 
 ### Ajouté
 - Séparation stricte entre le filesystem applicatif `/opt/openinfra/` et les données PostgreSQL backend.
 - Définition du LV PostgreSQL par défaut : `vgname=datavg`, `lvname=openinfradata_lv`, `mountpoint=/data/openinfra/`, `lv_size=Lite 2GB / Pro 100GB / Entreprise 1TB`.
 - Création du symlink `/opt/openinfra/data -> /data/openinfra/` avec propriétaire logique PostgreSQL résolu par l'installateur.
 - Clarification : le terme `pgsql user` désigne le compte système gestionnaire du service PostgreSQL, il ne fixe pas un nom Unix imposé.
-- Installation cluster backend avec réplication et synchronisation automatique quasi synchrone.
+- Installation cluster backend avec réplication et synchronisation automatique quasi temps réel.
 - Support multisite pour les éditions Pro et Entreprise.
 - Correction des recommandations incohérentes entre stockage applicatif, stockage PostgreSQL, ownership, symlink, migrations backend et cluster HA.
 

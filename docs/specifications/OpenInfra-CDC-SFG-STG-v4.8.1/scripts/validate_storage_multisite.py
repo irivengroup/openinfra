@@ -37,7 +37,7 @@ for term in [
     "100GB",
     "1TB",
     "postgresql_service_account",
-    "quasi synchrone",
+    "quasi temps réel",
     "multisite",
 ]:
     if term not in text:
@@ -87,10 +87,10 @@ with (ROOT / "11-Matrices/Matrice-replication-quasi-synchrone-v4.7.csv").open(
     encoding="utf-8", newline=""
 ) as f:
     repl = {r["edition"]: r for r in csv.DictReader(f)}
-if repl.get("pro", {}).get("sync_mode_default") != "local_quasi_sync":
-    errors.append("Pro cluster default must be local_quasi_sync")
-if repl.get("enterprise", {}).get("sync_mode_default") != "local_quasi_sync":
-    errors.append("Entreprise cluster default must be local_quasi_sync")
+if repl.get("pro", {}).get("sync_mode_default") != "near_real_time_streaming":
+    errors.append("Pro cluster default must be near_real_time_streaming")
+if repl.get("enterprise", {}).get("sync_mode_default") != "near_real_time_streaming":
+    errors.append("Entreprise cluster default must be near_real_time_streaming")
 if repl.get("lite", {}).get("replication") != "non":
     errors.append("Lite must not enable replication")
 

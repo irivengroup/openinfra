@@ -14,7 +14,7 @@ CDC-STO-002,PGDATA /data/openinfra,P05,EPIC-0503,REL-02,PostgreSQL data path.
 CDC-STO-003,Tailles PGDATA Lite=2GB Pro=100GB Enterprise=1TB,P05,EPIC-0502,REL-02,LVM sizing.
 CDC-STO-004,Symlink /opt/openinfra/data -> /data/openinfra,P05,EPIC-0504,REL-02,Validation symlink.
 CDC-STO-005,pgsql user = compte gestionnaire PostgreSQL logique,P05,EPIC-0505,REL-02,Resolver OS/package.
-CDC-DB-001,Réplication quasi synchrone cluster,P06,EPIC-0602,REL-02/REL-05,Tests lag/failover.
+CDC-DB-001,Synchronisation quasi temps réel cluster,P06,EPIC-0602,REL-02/REL-05,Tests lag/failover.
 CDC-AUTH-001,LDAP/IPA Pro/Entreprise,P07,EPIC-0702; EPIC-0703,REL-04,Connecteurs annuaire.
 CDC-AUTH-002,RBAC par groupes,P07,EPIC-0704,REL-04,Mapping groupes→rôles.
 CDC-ITSM-001,Pas d’ITSM intégré,P13,EPIC-1303; EPIC-1304,REL-04,Connecteurs externes seulement.

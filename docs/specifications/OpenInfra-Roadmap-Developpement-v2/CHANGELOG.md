@@ -3,7 +3,7 @@
 ## v2.0.0
 
 - Alignement sur OpenInfra CDC/SFG/STG v4.8.1 corrigé.
-- Ajout des phases dédiées éditions, installateurs, systemd, LVM/PGDATA, LDAP/IPA, multisite et réplication quasi synchrone.
+- Ajout des phases dédiées éditions, installateurs, systemd, LVM/PGDATA, LDAP/IPA, multisite et synchronisation quasi temps réel.
 - Mise à jour des releases macro.
 - Ajout de 114 epics.
 - Ajout de la matrice `14-alignement-cdc-v4.8.1.csv`.

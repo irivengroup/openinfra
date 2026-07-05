@@ -11,4 +11,4 @@ STR-QA,QA/Validation,"Tests unitaires, intégration, fonctionnels, sécurité, p
 STR-DOC,Documentation & enablement,"SFG/STG, guides admin, API, runbooks, formation, migration, notes de release."
 STR-ED,Editions & licensing,"OpenInfra Lite/Pro/Entreprise, quotas, feature gates, abonnement/licence, conformité éditions."
 STR-PKG,Packaging & installateurs,"Dossier installers hors src, install.ini, dépendances OS, migrations backend, validation et rollback."
-STR-MSITE,Multisite & HA,"Topologies multisites, réplication quasi synchrone, VIP, agents régionaux, DR et tests de bascule."
+STR-MSITE,Multisite & HA,"Topologies multisites, synchronisation quasi temps réel, VIP, agents régionaux, DR et tests de bascule."

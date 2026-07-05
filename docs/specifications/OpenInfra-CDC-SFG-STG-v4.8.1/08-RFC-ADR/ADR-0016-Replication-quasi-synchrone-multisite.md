@@ -1,4 +1,4 @@
-# ADR-0016 — Réplication quasi synchrone et multisite
+# ADR-0016 — Synchronisation quasi temps réel et multisite
 
 ## Statut
 
@@ -10,7 +10,7 @@ Les éditions Pro et Entreprise peuvent être déployées en cluster. L'opérate
 
 ## Décision
 
-L'installateur backend configure automatiquement la réplication quasi synchrone en cluster. Le mode par défaut privilégie un standby synchrone local ou proche réseau. Le multisite est supporté pour Pro et Entreprise, avec un modèle centralisé pour Pro et distribué pour Entreprise.
+L'installateur backend configure automatiquement la synchronisation quasi temps réel en cluster. Le mode par défaut privilégie un standby local ou proche réseau alimenté en continu, sans commit distant bloquant. Le multisite est supporté pour Pro et Entreprise, avec un modèle centralisé pour Pro et distribué pour Entreprise.
 
 ## Conséquences
 

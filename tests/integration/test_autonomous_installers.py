@@ -84,7 +84,7 @@ class TestAutonomousScopeInstallers:
                 assert "prepare PostgreSQL physical backup directory" in command_labels
                 if edition == "enterprise" and scope == "server":
                     assert plan.postgresql_ha.replication_enabled is True
-                    assert plan.postgresql_ha.topology == "quasi-synchronous-cluster"
+                    assert plan.postgresql_ha.topology == "near-real-time-streaming-cluster"
                 else:
                     assert plan.postgresql_ha.replication_enabled is False
             else:

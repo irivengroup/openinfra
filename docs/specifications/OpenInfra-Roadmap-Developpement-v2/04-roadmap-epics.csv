@@ -36,7 +36,7 @@ EPIC-0504,P05,STR-DATA,P1,Symlink /opt/openinfra/data,Créer /opt/openinfra/data
 EPIC-0505,P05,STR-DATA,P1,Compte système PostgreSQL logique,Résoudre ou créer le compte système gestionnaire PostgreSQL selon OS/package sans imposer un nom.,Resolver; docs; tests.,P05,Le nom effectif est détecté et audité.
 EPIC-0506,P05,STR-DATA,P1,Migrations backend automatiques,Appliquer toutes les migrations backend dans le scope openinfra.service avant démarrage final.,Migration runner; locks; rollback.,P05,Frontend/agent ne peuvent pas appliquer de migrations.
 EPIC-0601,P06,STR-DATA,P1,Cluster PostgreSQL autonome,"Configurer primaire/réplicas, pooling, routage et VIP à partir des paramètres install.ini.",Patroni/équiv.; HAProxy; PgBouncer.,P05,Cluster bootstrappé sans expertise opérateur.
-EPIC-0602,P06,STR-DATA,P1,Réplication quasi synchrone,Configurer synchronisation quasi synchrone par défaut en mode cluster.,Config replication; monitoring.,P06,Replication lag surveillé et seuils définis.
+EPIC-0602,P06,STR-DATA,P1,Synchronisation quasi temps réel,Configurer synchronisation quasi temps réel par défaut en mode cluster.,Config replication; monitoring.,P06,Replication lag surveillé et seuils définis.
 EPIC-0603,P06,STR-DATA,P1,Mode strict optionnel,Ajouter option stricte pour écritures critiques selon contraintes RPO.,Config; docs; tests.,P06,Mode strict documenté et testable.
 EPIC-0604,P06,STR-SRE,P1,PITR et sauvegardes,"Configurer WAL archiving, sauvegarde chiffrée, rétention et restauration.",pgBackRest/équiv.; runbook.,P06,Restauration PITR démontrée.
 EPIC-0605,P06,STR-QA,P1,Tests failover sous charge,Valider bascule primaire pendant charge API/import.,Test chaos; reports.,P06,"Aucune corruption, reprise contrôlée."

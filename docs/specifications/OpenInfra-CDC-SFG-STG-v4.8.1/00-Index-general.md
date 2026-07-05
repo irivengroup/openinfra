@@ -12524,7 +12524,7 @@ d- [Delta v4.4](00-Delta-v4.4.md)
 - `11-Matrices/Matrice-sudoers-openinfra-v4.6.csv`
 - `11-Matrices/Matrice-fs-lvm-v4.6.csv`
 
-# Addendum v4.7.0 — Stockage PostgreSQL, réplication quasi synchrone et multisite
+# Addendum v4.7.0 — Stockage PostgreSQL, synchronisation quasi temps réel et multisite
 
 Voir :
 

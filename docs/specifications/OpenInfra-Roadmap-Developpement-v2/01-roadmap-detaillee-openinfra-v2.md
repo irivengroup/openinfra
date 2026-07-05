@@ -29,7 +29,7 @@ Cette roadmap met à jour la trajectoire de développement OpenInfra pour l’al
 - LDAP/IPA + RBAC/groupes pour Pro et Entreprise ;
 - les connecteurs ITSM externes pour Pro et Entreprise, sans ITSM intégré ;
 - le multisite Pro/Entreprise ;
-- la réplication PostgreSQL automatique et quasi synchrone en cluster.
+- la réplication PostgreSQL automatique et quasi temps réel en cluster.
 
 ---
 
@@ -66,7 +66,7 @@ Cette roadmap met à jour la trajectoire de développement OpenInfra pour l’al
 | P03 | Installateurs hors src et configuration install.ini | T0+2 à T0+5 mois | Créer installers/ avec scopes par édition, config/install.ini, validation, dry-run, dépendances, rollback. | Installateurs idempotents, sans modification de src, validés par édition et scope. |
 | P04 | Runtime systemd et packaging OS | T0+3 à T0+6 mois | Normaliser services canoniques openinfra.service, openinfra-web.service et openinfra-agent.service. | Aucun ancien service backend obsolète; services invariants; packages OS et unités validés. |
 | P05 | Stockage LVM, PGDATA et migrations backend | T0+3 à T0+7 mois | Créer FS applicatif, FS PostgreSQL /data/openinfra/, symlink, PGDATA réel et migrations backend. | PGDATA=/data/openinfra/ adapté au chemin réel; migrations appliquées par backend. |
-| P06 | PostgreSQL HA, réplication quasi synchrone et sauvegardes | T0+4 à T0+9 mois | Déployer PostgreSQL géré, Patroni/équivalent, VIP, réplication, PITR, tests failover. | Cluster autonome configuré avec FQDN/IP/mask/VIP/GW/DNS et bascule testée. |
+| P06 | PostgreSQL HA, synchronisation quasi temps réel et sauvegardes | T0+4 à T0+9 mois | Déployer PostgreSQL géré, Patroni/équivalent, VIP, réplication, PITR, tests failover. | Cluster autonome configuré avec FQDN/IP/mask/VIP/GW/DNS et bascule testée. |
 | P07 | Authentification, LDAP/IPA, RBAC et groupes | T0+5 à T0+10 mois | Livrer auth locale Lite, LDAP/IPA Pro/Entreprise, mapping groupes→rôles, audit et permissions. | Pro/Entreprise s’authentifient via LDAP/IPA; RBAC par groupes testé. |
 | P08 | Frontend React + Bootstrap 5 et parité CLI/API/UI | T0+5 à T0+11 mois | Livrer shell UI web, design system, appels API backend uniquement et parité fonctionnelle CLI/API/UI. | Toute commande CLI livrée dispose d’un parcours API/UI équivalent ou justifié. |
 | P09 | Source of Truth, gouvernance et qualité de données | T0+6 à T0+13 mois | Livrer objets, relations, audit, historique, gouvernance source autoritative, scores et réconciliation. | CRUD complet, time travel initial, conflits visibles, qualité mesurée. |
@@ -98,7 +98,7 @@ Cette roadmap met à jour la trajectoire de développement OpenInfra pour l’al
 | STR-DOC | Documentation & enablement | SFG/STG, guides admin, API, runbooks, formation, migration, notes de release. |
 | STR-ED | Editions & licensing | OpenInfra Lite/Pro/Entreprise, quotas, feature gates, abonnement/licence, conformité éditions. |
 | STR-PKG | Packaging & installateurs | Dossier installers hors src, install.ini, dépendances OS, migrations backend, validation et rollback. |
-| STR-MSITE | Multisite & HA | Topologies multisites, réplication quasi synchrone, VIP, agents régionaux, DR et tests de bascule. |
+| STR-MSITE | Multisite & HA | Topologies multisites, synchronisation quasi temps réel, VIP, agents régionaux, DR et tests de bascule. |
 
 ---
 
@@ -500,7 +500,7 @@ Cette roadmap met à jour la trajectoire de développement OpenInfra pour l’al
 
 ---
 
-## P06 — PostgreSQL HA, réplication quasi synchrone et sauvegardes
+## P06 — PostgreSQL HA, synchronisation quasi temps réel et sauvegardes
 
 **Période relative :** T0+4 à T0+9 mois
 
@@ -519,11 +519,11 @@ Cette roadmap met à jour la trajectoire de développement OpenInfra pour l’al
 - **Dépendances :** P05
 - **Acceptation :** Cluster bootstrappé sans expertise opérateur.
 
-#### EPIC-0602 — Réplication quasi synchrone
+#### EPIC-0602 — Synchronisation quasi temps réel
 
 - **Stream :** STR-DATA
 - **Priorité :** P1
-- **Résumé :** Configurer synchronisation quasi synchrone par défaut en mode cluster.
+- **Résumé :** Configurer synchronisation quasi temps réel par défaut en mode cluster.
 - **Livrables :** Config replication; monitoring.
 - **Dépendances :** P06
 - **Acceptation :** Replication lag surveillé et seuils définis.
@@ -1368,7 +1368,7 @@ Cette roadmap met à jour la trajectoire de développement OpenInfra pour l’al
 | GATE-02 | Go Installer Alpha | P03-P06 | install.ini validé; dépendances installées; PGDATA /data/openinfra; openinfra.service; failover DB démontré. | Autorise MVP Lite/Pro. |
 | GATE-03 | Go Lite MVP | P07-P11 | Limits Lite respectées; all-in-one opérationnel; UI/API/CLI SOT/DCIM/IPAM. | Autorise pilote Lite. |
 | GATE-04 | Go Pro MVP | P07-P13 | Backend/web séparés; LDAP/IPA; RBAC groupes; connecteurs ITSM externes; quotas Pro. | Autorise pilote Pro. |
-| GATE-05 | Go Enterprise Foundation | P14-P17 | Agents, multisite, réplication quasi synchrone, cluster frontend/backend, DR testé. | Autorise pilote Entreprise. |
+| GATE-05 | Go Enterprise Foundation | P14-P17 | Agents, multisite, synchronisation quasi temps réel, cluster frontend/backend, DR testé. | Autorise pilote Entreprise. |
 | GATE-06 | Go RC | P16-P18 | Modules avancés; sécurité; performance; docs; migrations et rollback validés. | Autorise release candidate. |
 | GATE-07 | Go GA | P18 | Benchmarks; chaos; PITR; failover; sécurité; packaging; support; runbooks validés. | Autorise GA Enterprise Scale. |
 
@@ -1422,7 +1422,7 @@ Cette roadmap met à jour la trajectoire de développement OpenInfra pour l’al
 - Le compte système gestionnaire PostgreSQL ne doit pas être supposé par nom ; il doit être résolu ou créé par l’installateur.
 - Pro et Entreprise doivent supporter LDAP/IPA et RBAC par groupes.
 - Pro et Entreprise peuvent se connecter aux ITSM connus via connecteurs externes, sans ticketing OpenInfra intégré.
-- En cluster, la réplication PostgreSQL doit être configurée automatiquement en mode quasi synchrone par défaut.
+- En cluster, la réplication PostgreSQL doit être configurée automatiquement en mode quasi temps réel par défaut.
 - Les éditions doivent être testées comme artefacts distincts à chaque release.
 
 ---
@@ -1433,6 +1433,6 @@ La v1 plaçait l’essentiel de l’industrialisation en fin de programme. La v2
 
 Le résultat est une roadmap plus exigeante au début, mais beaucoup plus réaliste pour une solution enterprise : les choix de packaging et d’exploitation ne sont plus ajoutés après les modules fonctionnels, ils structurent les livraisons dès Foundation Alpha.
 
-## Incrément réalisé v0.29.7 — P06
+## Incrément réalisé v0.29.8 — P06
 
 Le jalon P06 est amorcé avant reprise Discovery par le plan installateur PostgreSQL HA/PITR : configuration streaming native, WAL archiving, répertoires PITR/backups, migration de registre HA, commande `database ha-plan` et failover contrôlé opérateur.

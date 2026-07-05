@@ -1,4 +1,4 @@
-# Volume V29 — Stockage PostgreSQL dédié, réplication quasi synchrone et multisite
+# Volume V29 — Stockage PostgreSQL dédié, synchronisation quasi temps réel et multisite
 
 ## 1. Positionnement
 
@@ -61,9 +61,9 @@ openinfra_postgresql_data_fs:
 
 Le symlink est fourni pour offrir un point de référence OpenInfra stable. Il ne change pas la règle de sécurité : le compte applicatif `openinfra` ne doit pas écrire directement dans les fichiers PostgreSQL internes.
 
-## 5. Réplication quasi synchrone
+## 5. Synchronisation quasi temps réel
 
-En mode cluster backend, l'installation doit configurer automatiquement une réplication PostgreSQL quasi synchrone.
+En mode cluster backend, l'installation doit configurer automatiquement une réplication PostgreSQL quasi temps réel.
 
 Mode par défaut :
 
@@ -75,7 +75,7 @@ Mode par défaut :
 - rétrogradation propre de l'ancien primaire ;
 - réintégration automatisée d'un nœud restauré.
 
-Le mode strict `remote_apply` peut être activé lorsque la latence et les objectifs RPO/RTO le justifient. Le mode WAN strict n'est pas activé par défaut pour éviter une dégradation globale.
+Un mode strict avec attente de standby ne doit pas être activé par défaut. Il reste une option d'architecture future lorsque les objectifs de cohérence et la latence mesurée le justifient.
 
 ## 6. Multisite
 
@@ -113,7 +113,7 @@ L'exigence est acceptée uniquement si :
 - `/data/openinfra/` est monté et possédé par le compte PostgreSQL résolu ;
 - `/opt/openinfra/data` pointe vers `/data/openinfra/` ;
 - l'installateur refuse une configuration où le compte applicatif peut écrire arbitrairement dans les fichiers internes PostgreSQL ;
-- le cluster configure automatiquement la réplication quasi synchrone ;
+- le cluster configure automatiquement la synchronisation quasi temps réel ;
 - le replication lag est supervisé ;
 - une bascule primaire est testée ;
 - Pro et Entreprise exposent des fonctions multisites conformes à leurs capacités respectives ;

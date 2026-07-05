@@ -1,9 +1,9 @@
 cluster_replication:
   enabled: true
-  mode: local_quasi_sync
-  synchronous_commit: remote_write
-  synchronous_standby_policy: first_available_local_or_low_latency
-  strict_remote_apply_enabled: false
+  mode: near_real_time_streaming
+  commit_policy: local_commit_non_blocking
+  standby_policy: first_available_local_or_low_latency
+  strict_local_enabled: false
   max_replication_lag_seconds: 5
   failover_automatic: true
   rejoin_automatic: true

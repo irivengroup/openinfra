@@ -45,7 +45,8 @@ class TestInstallerAlignment:
         assert enterprise_server.postgresql_ha_plan is not None
         assert enterprise_server.postgresql_ha_plan.replication_enabled is True
         assert enterprise_server.postgresql_ha_plan.cluster_sync_port == 2008
-        assert "ANY 1" in enterprise_server.postgresql_ha_plan.synchronous_standby_names
+        assert enterprise_server.postgresql_ha_plan.commit_policy == "local_commit_non_blocking"
+        assert enterprise_server.postgresql_ha_plan.topology == "near-real-time-streaming-cluster"
         lite = next(item for item in report.reports if item.edition == "lite")
         assert lite.postgresql_ha_plan is not None
         assert lite.postgresql_ha_plan.replication_enabled is False

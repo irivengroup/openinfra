@@ -69,17 +69,17 @@ class InstallerPostgreSQLHaPlan:
     pitr_archive_directory: str = "/data/openinfra/pitr"
     backup_directory: str = "/data/openinfra/backups"
     replication_slot_prefix: str = "openinfra"
-    synchronous_commit: str = "remote_apply"
+    commit_policy: str = "local_commit_non_blocking"
+    max_expected_lag_seconds: int = 5
 
     @property
-    def synchronous_standby_names(self) -> str:
+    def replication_slot_names(self) -> tuple[str, ...]:
         if not self.replication_enabled:
-            return ""
-        names = ",".join(
+            return ()
+        return tuple(
             f"{self.replication_slot_prefix}_{index}"
             for index, _peer in enumerate(self.peer_nodes, start=1)
         )
-        return f"ANY 1 ({names})"
 
     @property
     def archive_command(self) -> str:
@@ -94,6 +94,7 @@ class InstallerPostgreSQLHaPlan:
     def postgresql_conf_lines(self) -> tuple[str, ...]:
         lines = [
             "# managed by OpenInfra installer",
+            "# near-real-time streaming replication; commits do not wait for remote replay",
             "wal_level = replica",
             "archive_mode = on",
             f"archive_command = '{self.archive_command}'",
@@ -101,10 +102,12 @@ class InstallerPostgreSQLHaPlan:
             "hot_standby = on",
             "max_wal_senders = 16",
             "max_replication_slots = 16",
-            f"synchronous_commit = '{self.synchronous_commit}'",
+            "wal_keep_size = '1024MB'",
+            "max_slot_wal_keep_size = '4096MB'",
+            "synchronous_commit = 'local'",
         ]
-        if self.synchronous_standby_names:
-            lines.append(f"synchronous_standby_names = '{self.synchronous_standby_names}'")
+        if self.replication_enabled:
+            lines.append("# standby selection and lag monitoring are managed by OpenInfra")
         return tuple(lines)
 
     def as_dict(self) -> dict[str, object]:
@@ -120,8 +123,9 @@ class InstallerPostgreSQLHaPlan:
             "pitr_archive_directory": self.pitr_archive_directory,
             "backup_directory": self.backup_directory,
             "replication_slot_prefix": self.replication_slot_prefix,
-            "synchronous_commit": self.synchronous_commit,
-            "synchronous_standby_names": self.synchronous_standby_names,
+            "replication_slot_names": list(self.replication_slot_names),
+            "commit_policy": self.commit_policy,
+            "max_expected_lag_seconds": self.max_expected_lag_seconds,
             "archive_command": self.archive_command,
             "restore_command": self.restore_command,
             "postgresql_conf_lines": list(self.postgresql_conf_lines()),
@@ -136,7 +140,7 @@ class InstallerPostgreSQLHaPlan:
             "failover_safety": {
                 "automatic_promotion": False,
                 "requires_operator_confirmation": True,
-                "precheck": "verify last replay timestamp, VIP reachability and peer health",
+                "precheck": "verify replay lag, VIP reachability and peer health",
             },
         }
 
@@ -844,11 +848,13 @@ class InstallerConfigValidator:
             else None
         )
         replication_enabled = policy.scope == "server" and bool(peers)
-        topology = "quasi-synchronous-cluster" if replication_enabled else "standalone-managed"
+        topology = (
+            "near-real-time-streaming-cluster" if replication_enabled else "standalone-managed"
+        )
         return InstallerPostgreSQLHaPlan(
             replication_enabled=replication_enabled,
             topology=topology,
-            mode="native-postgresql-streaming",
+            mode="near-real-time-postgresql-streaming",
             peer_nodes=peers,
             vip_endpoint=endpoint or None,
         )
@@ -1032,7 +1038,7 @@ class InstallerConfigValidator:
             )
             if postgresql_ha_plan.replication_enabled:
                 actions.append(
-                    "enable quasi-synchronous PostgreSQL streaming replication from "
+                    "enable near-real-time PostgreSQL streaming replication from "
                     "identity.peer_nodes with internal ports and operator-controlled failover"
                 )
             else:

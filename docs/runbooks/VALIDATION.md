@@ -507,7 +507,7 @@ Les tests vérifient la file d’export, l’exécution worker, la pagination bo
 La v0.27.0 ajoute les contrôles P06 / EPIC-0604 suivants : templates Device42/NetBox/Nautobot/GLPI/CSV, génération de plan de migration dry-run, rapport d’écarts, persistance du rapport, reprise par `job_id`, validation OpenAPI, smoke CLI migration et migration PostgreSQL `0022_legacy_migration_framework.sql`. Les tests de non-régression vérifient notamment qu’un mapping legacy ne produit aucune écriture en simulation et qu’une colonne requise absente devient un gap bloquant.
 
 
-## Contrôles ajoutés en v0.29.7
+## Contrôles ajoutés en v0.29.8
 
 ```bash
 PYTHONPATH=src python -m openinfra.interfaces.cli database ha-plan \
@@ -517,4 +517,4 @@ PYTHONPATH=src python -m openinfra.interfaces.cli database ha-plan \
 PYTHONPATH=src:. python -m pytest tests/integration/test_installer_alignment.py tests/unit/test_installer_config.py
 ```
 
-La validation P06 vérifie le rendu du plan HA/PITR, l'absence de ports et paramètres bas niveau dans `install.ini`, les répertoires internes PITR/backup, le mode quasi synchrone lorsque `identity.peer_nodes` est renseigné, et la migration `0024_postgresql_ha_backup_registry.sql`.
+La validation P06 vérifie le rendu du plan HA/PITR, l'absence de ports et paramètres bas niveau dans `install.ini`, les répertoires internes PITR/backup, le mode quasi temps réel lorsque `identity.peer_nodes` est renseigné, et la migration `0024_postgresql_ha_backup_registry.sql`.

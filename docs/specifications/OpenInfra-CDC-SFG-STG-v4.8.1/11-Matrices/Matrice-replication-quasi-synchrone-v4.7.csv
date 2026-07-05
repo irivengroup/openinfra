@@ -1,4 +1,4 @@
 edition,cluster_mode,replication,sync_mode_default,strict_mode_option,automatic_bootstrap,failover,notes
 lite,non,non,none,non,non,non,monolithic profile
-pro,optionnel,oui si cluster activé,local_quasi_sync,oui si validé,oui,oui si cluster activé,multisite centralisé
-enterprise,oui optionnel default disabled,oui si cluster activé,local_quasi_sync,oui,oui,oui,multisite distribué et DR
+pro,optionnel,oui si cluster activé,near_real_time_streaming,oui si validé,oui,oui si cluster activé,multisite centralisé
+enterprise,oui optionnel default disabled,oui si cluster activé,near_real_time_streaming,oui,oui,oui,multisite distribué et DR

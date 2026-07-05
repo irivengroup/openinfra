@@ -73,7 +73,7 @@ required_terms = [
     "LDAP/IPA",
     "RBAC",
     "multisite",
-    "quasi synchrone",
+    "quasi temps réel",
     "ITSM externes",
     "React + Bootstrap 5",
     "2GB",

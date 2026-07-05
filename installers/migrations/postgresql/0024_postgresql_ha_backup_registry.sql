@@ -1,4 +1,4 @@
--- OpenInfra v0.29.7 - P06 PostgreSQL HA, PITR backup registry and failover audit
+-- OpenInfra v0.29.8 - P06 PostgreSQL HA, PITR backup registry and failover audit
 
 CREATE TABLE IF NOT EXISTS postgresql_ha_nodes (
     id uuid NOT NULL,

@@ -1,6 +1,6 @@
-## v0.29.7 — P06 PostgreSQL HA/PITR
+## v0.29.8 — P06 PostgreSQL HA/PITR
 
-La version `0.29.7` ajoute le socle P06 avant reprise Discovery. L'installateur reste la source d'orchestration : les scopes backend/all-in-one déduisent un plan PostgreSQL HA/PITR depuis l'arborescence et le `install.ini` minimaliste. Lorsque `identity.peer_nodes` contient des pairs, le plan passe en topologie `quasi-synchronous-cluster`; sinon il reste en `standalone-managed` avec primitives PITR et backup.
+La version `0.29.8` ajoute le socle P06 avant reprise Discovery. L'installateur reste la source d'orchestration : les scopes backend/all-in-one déduisent un plan PostgreSQL HA/PITR depuis l'arborescence et le `install.ini` minimaliste. Lorsque `identity.peer_nodes` contient des pairs, le plan passe en topologie `near-real-time-streaming-cluster`; sinon il reste en `standalone-managed` avec primitives PITR et backup.
 
 Le plan ne déplace pas de logique dans `src` et ne réintroduit pas `deploy/`. Il rend :
 

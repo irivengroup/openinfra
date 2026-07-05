@@ -126,7 +126,7 @@ class EnterpriseAlignmentValidator:
         if enterprise_server.postgresql_ha_plan is None:
             errors.append("enterprise server must render a PostgreSQL HA/PITR plan")
         elif not enterprise_server.postgresql_ha_plan.replication_enabled:
-            errors.append("enterprise server peer_nodes must enable quasi-synchronous replication")
+            errors.append("enterprise server peer_nodes must enable near-real-time replication")
         if "openinfra database apply-migrations" in rendered_units["openinfra.service"]:
             errors.append("systemd unit must not own database migration execution")
         catalog = InstallerScopeCatalog()

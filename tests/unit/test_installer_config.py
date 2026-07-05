@@ -396,9 +396,18 @@ class TestInstallerConfigDomain:
         assert parsed.family == "debian"
         assert enterprise.postgresql_ha_plan is not None
         assert enterprise.postgresql_ha_plan.replication_enabled is True
-        assert enterprise.postgresql_ha_plan.topology == "quasi-synchronous-cluster"
-        assert enterprise.postgresql_ha_plan.synchronous_standby_names == (
-            "ANY 1 (openinfra_1,openinfra_2)"
+        assert enterprise.postgresql_ha_plan.topology == "near-real-time-streaming-cluster"
+        assert enterprise.postgresql_ha_plan.replication_slot_names == (
+            "openinfra_1",
+            "openinfra_2",
+        )
+        assert enterprise.postgresql_ha_plan.commit_policy == "local_commit_non_blocking"
+        assert (
+            "synchronous_commit = 'local'" in enterprise.postgresql_ha_plan.postgresql_conf_lines()
+        )
+        assert not any(
+            "synchronous_standby_names" in line
+            for line in enterprise.postgresql_ha_plan.postgresql_conf_lines()
         )
         assert "wal_level = replica" in enterprise.postgresql_ha_plan.postgresql_conf_lines()
         assert (
@@ -406,6 +415,6 @@ class TestInstallerConfigDomain:
         )
         assert lite.postgresql_ha_plan is not None
         assert lite.postgresql_ha_plan.replication_enabled is False
-        assert lite.postgresql_ha_plan.synchronous_standby_names == ""
+        assert lite.postgresql_ha_plan.replication_slot_names == ()
         assert web.postgresql_ha_plan is None
         assert web.as_dict()["postgresql_ha"] is None

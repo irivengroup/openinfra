@@ -505,7 +505,7 @@ ops,SymlinkBinding,Lien symbolique contrôlé par l installateur.,standard,non s
 data,PostgreSQLServiceAccount,Compte système logique gestionnaire PostgreSQL.,standard,non systématique; selon volumétrie,"tenant_id, site_id, id, updated_at; index métier selon requêtes API",oui pour opération critique
 data,ReplicationMode,Mode de réplication PostgreSQL.,standard,non systématique; selon volumétrie,"tenant_id, site_id, id, updated_at; index métier selon requêtes API",oui pour opération critique
 data,ReplicationMember,Membre de réplication PostgreSQL.,standard,non systématique; selon volumétrie,"tenant_id, site_id, id, updated_at; index métier selon requêtes API",oui pour opération critique
-data,SynchronousStandbyPolicy,Politique de sélection standby synchrone.,standard,non systématique; selon volumétrie,"tenant_id, site_id, id, updated_at; index métier selon requêtes API",oui pour opération critique
+data,NearRealTimeStandbyPolicy,Politique de sélection standby faible latence.,standard,non systématique; selon volumétrie,"tenant_id, site_id, id, updated_at; index métier selon requêtes API",oui pour opération critique
 sot,SiteHealth,Statut de santé d un site OpenInfra.,standard,non systématique; selon volumétrie,"tenant_id, site_id, id, updated_at; index métier selon requêtes API",oui pour opération critique
 sot,Region,Regroupement régional de sites.,standard,non systématique; selon volumétrie,"tenant_id, site_id, id, updated_at; index métier selon requêtes API",oui pour opération critique
 discovery,RegionalAgentPool,Pool d agents régionaux Entreprise.,standard,non systématique; selon volumétrie,"tenant_id, site_id, id, updated_at; index métier selon requêtes API",oui pour opération critique

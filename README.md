@@ -1,21 +1,21 @@
-# OpenInfra v0.29.7
+# OpenInfra v0.29.8
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.7 — P06 PostgreSQL HA, réplication quasi synchrone et sauvegardes PITR avant reprise Discovery.**
+**Version courante : 0.29.8 — P06 PostgreSQL HA, synchronisation quasi temps réel PostgreSQL et sauvegardes PITR avant reprise Discovery.**
 
-## v0.29.7 — P06 PostgreSQL HA/PITR
+## v0.29.8 — P06 PostgreSQL HA/PITR quasi temps réel
 
 Cette livraison poursuit les dettes prioritaires de la roadmap v2 avant Discovery. Elle ajoute un plan PostgreSQL HA/PITR géré par les installateurs backend/all-in-one, sans alourdir les `install.ini` :
 
-- `identity.peer_nodes` active automatiquement le mode cluster quasi synchrone pour les scopes `server` Pro/Enterprise ;
+- `identity.peer_nodes` active automatiquement le mode cluster à synchronisation quasi temps réel pour les scopes `server` Pro/Enterprise ;
 - aucun port PostgreSQL, paramètre Patroni ou secret de réplication n'est exposé dans `install.ini` ;
-- le mode interne est `native-postgresql-streaming` ;
+- le mode interne est `near-real-time-postgresql-streaming` ;
 - le port de synchronisation applicative reste interne sur `2008` ;
 - PostgreSQL conserve son port standard interne `5432` ;
 - WAL archiving est préparé dans `/data/openinfra/pitr` ;
 - les backups physiques sont préparés dans `/data/openinfra/backups` ;
-- `synchronous_commit=remote_apply` et `synchronous_standby_names='ANY 1 (...)'` sont rendus en configuration PostgreSQL lorsque des peers existent ;
+- `synchronous_commit='local'` est rendu pour éviter un commit bloquant distant ; aucun `synchronous_standby_names` n'est généré par défaut ;
 - le failover reste volontairement contrôlé opérateur, pas automatique et destructif.
 
 Nouvelle commande :

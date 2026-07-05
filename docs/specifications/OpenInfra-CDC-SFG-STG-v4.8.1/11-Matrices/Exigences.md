@@ -42,9 +42,9 @@ Les exigences N1 sont obligatoires. Les exigences N2 structurent les releases su
 - **REQ-00654** — L installateur backend doit créer ou valider le LV PostgreSQL avant l initialisation PostgreSQL.
 - **REQ-00655** — L installateur doit refuser une configuration où `/opt/openinfra/` et `/data/openinfra/` désignent le même filesystem physique non validé.
 - **REQ-00656** — En cluster, l installateur doit configurer automatiquement la réplication PostgreSQL.
-- **REQ-00657** — En cluster, la synchronisation doit être quasi synchrone par défaut.
-- **REQ-00658** — Le mode quasi synchrone doit sélectionner au moins un standby local ou faible latence.
-- **REQ-00659** — Le mode strict `remote_apply` doit être disponible pour Entreprise lorsque validé par architecture.
+- **REQ-00657** — En cluster, la synchronisation doit être quasi temps réel par défaut.
+- **REQ-00658** — Le mode quasi temps réel doit sélectionner au moins un standby local ou faible latence.
+- **REQ-00659** — Le mode strict `local` doit être disponible pour Entreprise lorsque validé par architecture.
 - **REQ-00660** — La réplication WAN inter-site ne doit pas être strictement synchrone par défaut.
 - **REQ-00661** — Le replication lag doit être supervisé et alerté.
 - **REQ-00662** — Le cluster doit tester la promotion d un standby et la reprise applicative.
@@ -69,14 +69,14 @@ Les exigences N1 sont obligatoires. Les exigences N2 structurent les releases su
 - **REQ-00681** — Le dry-run doit afficher les opérations LVM, PostgreSQL, réplication et symlink avant exécution.
 - **REQ-00682** — Le rollback doit retirer ou restaurer les changements de symlink sans supprimer les données PostgreSQL validées sauf demande explicite.
 - **REQ-00683** — La création des réplicas doit utiliser des identités de réplication dédiées et non le superuser PostgreSQL applicatif.
-- **REQ-00684** — La configuration quasi synchrone doit être versionnée dans l inventaire d installation.
+- **REQ-00684** — La configuration quasi temps réel doit être versionnée dans l inventaire d installation.
 - **REQ-00685** — La bascule cluster doit préserver la VIP et le routage des écritures vers le primaire actif.
 - **REQ-00686** — Les lectures de reporting peuvent être routées vers un réplica dédié en Pro/Entreprise.
 - **REQ-00687** — Les migrations backend doivent être exécutées une seule fois par cluster via verrou distribué.
 - **REQ-00688** — Le support multisite doit être cohérent avec les connecteurs ITSM externes Pro/Entreprise.
 - **REQ-00689** — Les permissions du symlink ne doivent pas permettre d escalade du compte applicatif vers le compte PostgreSQL.
 - **REQ-00690** — La CI documentaire doit valider les matrices stockage, réplication, symlink et multisite v4.7.
-- **REQ-00691** — Les tests de charge doivent couvrir la réplication quasi synchrone sous écriture concurrente.
-- **REQ-00692** — Les tests chaos doivent couvrir perte du standby synchrone et reconfiguration contrôlée.
+- **REQ-00691** — Les tests de charge doivent couvrir la synchronisation quasi temps réel sous écriture concurrente.
+- **REQ-00692** — Les tests chaos doivent couvrir perte du standby faible latence et reconfiguration contrôlée.
 - **REQ-00693** — Les tests multisites doivent couvrir Pro centralisé et Entreprise distribué.
 - **REQ-00694** — Les recommandations contradictoires des versions précédentes doivent être corrigées par la v4.7.

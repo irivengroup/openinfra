@@ -1446,3 +1446,10 @@ P09 démarre par la capacité de qualité et certification RI : évaluation indi
 P08 est consolidé par l'intégration du thème Bootstrap 5 Dashboard dans `openinfra-web`. Le portail web dispose désormais d'un header double niveau, d'une recherche opérationnelle, d'une sidebar Dashboard et d'une zone d'exécution API alignée sur les domaines CLI/API : Dashboard, RI, IPAM, DCIM, Discovery, Sécurité/RBAC, Audit et Runtime.
 
 Le rendu reste dans le domaine présentation/rendering, les assets Bootstrap sont servis localement, et le navigateur ne reçoit aucun secret ni accès direct aux composants backend ou PostgreSQL.
+
+### Avancement v0.29.16 — P08 Dashboard pilotable et trust web-backend
+
+- Les formulaires `openinfra-web` sont typés par domaine et exposent les variables métier attendues par l'API/CLI.
+- Le panneau latéral devient le menu principal : Dashboard direct, autres composantes en accordéons avec transition `fade`.
+- Le navigateur ne saisit ni ne relaie de token API technique ; `openinfra-web` établit le trust server-side avec le backend.
+- Les références DSN/credentials PostgreSQL du service web sont déclarées dans `[web_database]` et matérialisées dans le runtime serveur.

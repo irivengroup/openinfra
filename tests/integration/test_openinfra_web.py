@@ -48,7 +48,11 @@ class BackendFakeHandler(BaseHTTPRequestHandler):
             payload = json.loads(self.rfile.read(length).decode("utf-8"))
             self._json(
                 HTTPStatus.CREATED,
-                {"received": payload, "authorized": "Authorization" in self.headers},
+                {
+                    "received": payload,
+                    "browser_authorization_forwarded": "Authorization" in self.headers,
+                    "web_trust": self.headers.get("X-OpenInfra-Web-Trust"),
+                },
             )
             return
         self._json(HTTPStatus.NOT_FOUND, {"error": self.path})
@@ -93,6 +97,7 @@ class TestOpenInfraWeb:
                 public_config = self._get_json(web.base_url + "/config.json")
                 readiness = self._get_json(web.base_url + "/ready")
                 version = self._get_json(web.base_url + "/api/v1/version")
+                web_version = self._get_json(web.base_url + "/version")
                 openapi = self._get_text(web.base_url + "/openapi.yaml")
                 echoed = self._post_json(
                     web.base_url + "/api/v1/echo",
@@ -110,6 +115,10 @@ class TestOpenInfraWeb:
         assert "Login" in static_js and "Sign-up" in static_js
         assert "Ressources Inventory" in static_js
         assert "/v1/ri/objects" in static_js
+        assert "openinfra-accordion" in static_js + static_css
+        assert "Numéro de série" in static_js
+        assert "Token API" not in static_js
+        assert "openinfra-method" not in static_js + static_css
         assert "agents proxy collectors Enterprise uniquement" in static_js
         assert "postgresql://" not in index + static_js + static_css
         assert "OPENINFRA_DATABASE_DSN" not in index + static_js + static_css
@@ -117,14 +126,21 @@ class TestOpenInfraWeb:
             "apiBaseUrl": "/api",
             "authMode": "standard",
             "backendProxy": "/api",
+            "databaseTrust": "not-configured",
             "edition": "pro",
             "service": "openinfra-web",
             "version": __version__,
+            "webBackendTrust": "server-side",
         }
         assert readiness["ready"] is True
         assert version["version"] == __version__
+        assert web_version["version"] == __version__
         assert "openapi: 3.1.0" in openapi
-        assert echoed == {"authorized": True, "received": {"tenant_id": "default", "value": 42}}
+        assert echoed == {
+            "browser_authorization_forwarded": False,
+            "received": {"tenant_id": "default", "value": 42},
+            "web_trust": "server-side",
+        }
 
     def test_web_rejects_path_traversal_and_invalid_backend_configuration(self) -> None:
         static_root = OpenInfraWebStaticLocator().resolve(None)
@@ -266,6 +282,11 @@ class TestOpenInfraWebEdges:
                 "https://backend.example.net", static_root, edition="lite", auth_mode="ldap"
             ),
             self._raw_config("https://backend.example.net", static_root, max_request_body_bytes=0),
+            self._raw_config(
+                "https://backend.example.net",
+                static_root,
+                database_dsn_ref="postgresql://cleartext/openinfra",
+            ),
         ]
         for invalid in invalid_configs:
             with pytest.raises(OpenInfraError):
@@ -415,6 +436,7 @@ class TestOpenInfraWebEdges:
         edition: str = "pro",
         auth_mode: str = "standard",
         max_request_body_bytes: int = 1_048_576,
+        database_dsn_ref: str = "",
     ) -> OpenInfraWebConfig:
         return OpenInfraWebConfig(
             host="127.0.0.1",
@@ -426,4 +448,5 @@ class TestOpenInfraWebEdges:
             auth_mode=auth_mode,
             allow_insecure_backend=False,
             max_request_body_bytes=max_request_body_bytes,
+            database_dsn_ref=database_dsn_ref,
         )

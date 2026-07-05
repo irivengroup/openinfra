@@ -56,3 +56,11 @@ Le portail `openinfra-web` adopte le thème officiel Bootstrap 5 Dashboard comme
 Les assets Bootstrap 5 sont servis localement depuis `src/openinfra/interfaces/rendering/static/assets/bootstrap.min.css`. Aucun CDN externe n'est requis au runtime, ce qui préserve la politique CSP stricte, l'exploitation offline et l'absence d'exposition de secrets.
 
 Le dashboard reste API-only : le navigateur consomme uniquement `/api/*` via `openinfra-web`, sans accès direct à PostgreSQL, sans DSN, sans secret backend et sans lecture du fichier runtime `openinfra.conf`.
+## Delta v0.29.16 — openinfra-web formulaires métier, trust server-side et accordéons
+
+Le portail `openinfra-web` ne doit plus afficher un champ générique `Attributs` ni demander un token API technique à l'opérateur. Chaque formulaire web présente les variables métier attendues par l'API/CLI : numéro de série, constructeur, modèle, site, bâtiment, salle, ligne, colonne, rack, IP de management, source autoritative, tags, scopes collector, empreinte certificat, etc.
+
+La navigation latérale devient le point de pilotage principal : `Dashboard` reste une entrée directe, tandis que RI, IPAM, DCIM, Discovery et Sécurité/RBAC/Audit sont des accordéons avec transitions `fade`. Les opérations anciennement affichées dans une zone de menu interne à la page sont déplacées dans ces accordéons et le menu interne est supprimé. L'UI ne doit pas afficher les méthodes HTTP aux opérateurs.
+
+Le trust `openinfra-web` ↔ backend est server-side : le navigateur ne transmet pas de token technique et `openinfra-web` ne relaie pas l'en-tête `Authorization` venant du navigateur. Les références DSN/credentials PostgreSQL propres au service web sont déclarées dans `[web_database]`, matérialisées dans `/opt/openinfra/config/openinfra.conf`, et jamais exposées au navigateur.
+

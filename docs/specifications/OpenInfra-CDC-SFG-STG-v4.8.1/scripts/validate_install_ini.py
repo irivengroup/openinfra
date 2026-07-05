@@ -69,11 +69,11 @@ for edition, scope, rel, _service in expected:
     cp = configparser.ConfigParser()
     cp.read(path, encoding="utf-8")
     if edition == "lite":
-        require_sections(rel, cp, ("storage", "security"))
+        require_sections(rel, cp, ("storage", "security", "web_database"))
     elif scope == "server":
         require_sections(rel, cp, ("storage", "api", "identity", "auth", "security"))
     elif scope == "web":
-        require_sections(rel, cp, ("api", "auth", "security"))
+        require_sections(rel, cp, ("api", "auth", "security", "web_database"))
     else:
         require_sections(rel, cp, ("api", "security"))
     require_security(rel, edition, cp)
@@ -99,6 +99,15 @@ for edition, scope, rel, _service in expected:
         fail(f"{rel}: web auth.mode must be standard, ldap or ipa")
     if edition == "lite" and cp.has_section("auth"):
         fail(f"{rel}: Lite must not expose auth")
+
+    if scope in {"all-in-one", "web"}:
+        if not cp.has_section("web_database"):
+            fail(f"{rel}: web runtime must declare [web_database]")
+        else:
+            for key in ("postgresql_dsn_ref", "postgresql_user_ref", "postgresql_password_ref"):
+                value = cp.get("web_database", key, fallback="")
+                if not value.startswith(("env:", "vault://", "sops://", "file://", "kms://")):
+                    fail(f"{rel}: web_database.{key} must be a secret/config reference")
     text = path.read_text(encoding="utf-8")
     for bad in ["password =", "token =", "secret ="]:
         if re.search(rf"(?im)^\s*{re.escape(bad)}", text):

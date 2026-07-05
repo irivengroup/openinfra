@@ -251,3 +251,12 @@ La v0.27.0 ajoute une simulation de migration depuis Device42, NetBox, Nautobot,
 | Frontend | `web/src/main.jsx` et `interfaces/rendering/static` exposent Dashboard, RI, IPAM, DCIM, Discovery et Sécurité dans le header et la sidebar. |
 | Sécurité | Bootstrap est servi localement, le dashboard reste API-only, et aucun DSN PostgreSQL ni secret backend n'est exposé au navigateur. |
 | Tests | `TST-WEB-049`, `scripts/validate_frontend.py` et `tests/integration/test_openinfra_web.py` valident les assets, le header, la sidebar et la non-exposition de secrets. |
+
+## v0.29.16 — openinfra-web formulaires métier et trust server-side
+
+| Axe | Alignement |
+|---|---|
+| Frontend | `interfaces/rendering/static` et `web/src/main.jsx` remplacent les champs génériques par des inputs métier explicites et déplacent les opérations dans les accordéons latéraux. |
+| Sécurité | `openinfra-web` ne demande pas de token API à l'opérateur et ne relaie pas `Authorization` venant du navigateur. |
+| Runtime | `[web_database]` dans `install.ini` alimente `OPENINFRA_WEB_DATABASE_*_REF` dans `/opt/openinfra/config/openinfra.conf`. |
+| CDC | `REQ-00747` et `TST-WEB-050` couvrent le contrat formulaires typés, version package fiable et trust server-side. |

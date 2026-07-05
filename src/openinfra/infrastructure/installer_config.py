@@ -414,6 +414,12 @@ class InstallerScopeCatalog:
         "ca_cert_ref",
         "cache_ttl_seconds",
     )
+    _web_database_required_options = (
+        "postgresql_dsn_ref",
+        "postgresql_user_ref",
+        "postgresql_password_ref",
+    )
+    _web_database_options = _web_database_required_options
 
     def __init__(self) -> None:
         self._policies = {
@@ -427,14 +433,16 @@ class InstallerScopeCatalog:
                     managed_postgresql=True,
                     apply_backend_migrations=True,
                     postgresql_lvsize_max="2GB",
-                    required_sections=("storage", "security"),
+                    required_sections=("storage", "security", "web_database"),
                     required_options={
                         "storage": self._storage_options,
                         "security": self._lite_security_required_options,
+                        "web_database": self._web_database_required_options,
                     },
                     allowed_options={
                         "storage": self._storage_options,
                         "security": self._security_options,
+                        "web_database": self._web_database_options,
                     },
                 ),
                 InstallerScopePolicy(
@@ -468,16 +476,18 @@ class InstallerScopeCatalog:
                     managed_postgresql=False,
                     apply_backend_migrations=False,
                     postgresql_lvsize_max=None,
-                    required_sections=("api", "auth", "security"),
+                    required_sections=("api", "auth", "security", "web_database"),
                     required_options={
                         "api": self._server_api_options,
                         "auth": self._web_auth_required_options,
                         "security": self._network_security_required_options,
+                        "web_database": self._web_database_required_options,
                     },
                     allowed_options={
                         "api": self._server_api_options,
                         "auth": self._web_auth_options,
                         "security": self._security_options,
+                        "web_database": self._web_database_options,
                     },
                 ),
                 InstallerScopePolicy(
@@ -511,16 +521,18 @@ class InstallerScopeCatalog:
                     managed_postgresql=False,
                     apply_backend_migrations=False,
                     postgresql_lvsize_max=None,
-                    required_sections=("api", "auth", "security"),
+                    required_sections=("api", "auth", "security", "web_database"),
                     required_options={
                         "api": self._server_api_options,
                         "auth": self._web_auth_required_options,
                         "security": self._network_security_required_options,
+                        "web_database": self._web_database_required_options,
                     },
                     allowed_options={
                         "api": self._server_api_options,
                         "auth": self._web_auth_options,
                         "security": self._security_options,
+                        "web_database": self._web_database_options,
                     },
                 ),
                 InstallerScopePolicy(

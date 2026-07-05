@@ -29,9 +29,15 @@ class OpenInfraWebConfig:
     allow_insecure_backend: bool
     request_timeout_seconds: float = 5.0
     max_request_body_bytes: int = 1_048_576
+    database_dsn_ref: str = ""
+    database_user_ref: str = ""
+    database_password_ref: str = ""
 
     def normalized_backend_url(self) -> str:
         return self.backend_url.rstrip("/") + "/"
+
+    def has_database_trust(self) -> bool:
+        return bool(self.database_dsn_ref or self.database_user_ref or self.database_password_ref)
 
     def as_public_dict(self) -> dict[str, object]:
         return {
@@ -41,6 +47,8 @@ class OpenInfraWebConfig:
             "authMode": self.auth_mode,
             "apiBaseUrl": self.public_api_base_url,
             "backendProxy": "/api",
+            "webBackendTrust": "server-side",
+            "databaseTrust": "server-side" if self.has_database_trust() else "not-configured",
         }
 
 
@@ -79,6 +87,18 @@ class OpenInfraWebConfigFactory:
             default=os.environ.get("OPENINFRA_WEB_ALLOW_INSECURE_BACKEND", "false").lower()
             == "true",
         )
+        parser.add_argument(
+            "--database-dsn-ref",
+            default=os.environ.get("OPENINFRA_WEB_DATABASE_DSN_REF", ""),
+        )
+        parser.add_argument(
+            "--database-user-ref",
+            default=os.environ.get("OPENINFRA_WEB_DATABASE_USER_REF", ""),
+        )
+        parser.add_argument(
+            "--database-password-ref",
+            default=os.environ.get("OPENINFRA_WEB_DATABASE_PASSWORD_REF", ""),
+        )
         namespace = parser.parse_args(argv)
         static_root = OpenInfraWebStaticLocator().resolve(namespace.static_root or None)
         config = OpenInfraWebConfig(
@@ -90,6 +110,9 @@ class OpenInfraWebConfigFactory:
             edition=str(namespace.edition).strip().lower(),
             auth_mode=str(namespace.auth_mode).strip().lower(),
             allow_insecure_backend=bool(namespace.allow_insecure_backend),
+            database_dsn_ref=str(namespace.database_dsn_ref).strip(),
+            database_user_ref=str(namespace.database_user_ref).strip(),
+            database_password_ref=str(namespace.database_password_ref).strip(),
         )
         OpenInfraWebConfigValidator().validate(config)
         return config
@@ -117,6 +140,7 @@ class OpenInfraWebStaticLocator:
 class OpenInfraWebConfigValidator:
     _allowed_auth_modes = frozenset({"standard", "ldap", "ipa"})
     _allowed_editions = frozenset({"lite", "pro", "enterprise"})
+    _allowed_secret_ref_prefixes = ("env:", "vault://", "sops://", "file://", "kms://")
 
     def validate(self, config: OpenInfraWebConfig) -> None:
         parsed = urlparse(config.normalized_backend_url())
@@ -142,6 +166,18 @@ class OpenInfraWebConfigValidator:
             )
         if config.max_request_body_bytes <= 0:
             raise OpenInfraError("max request body size must be positive")
+        for key, value in (
+            ("OPENINFRA_WEB_DATABASE_DSN_REF", config.database_dsn_ref),
+            ("OPENINFRA_WEB_DATABASE_USER_REF", config.database_user_ref),
+            ("OPENINFRA_WEB_DATABASE_PASSWORD_REF", config.database_password_ref),
+        ):
+            self._validate_secret_reference(key, value)
+
+    def _validate_secret_reference(self, key: str, value: str) -> None:
+        if not value:
+            return
+        if not value.startswith(self._allowed_secret_ref_prefixes):
+            raise OpenInfraError(key + " must be a secret reference, not a cleartext value")
 
 
 class OpenInfraWebJsonResponder:
@@ -176,7 +212,6 @@ class OpenInfraBackendProxy:
     _forwarded_request_headers = frozenset(
         {
             "accept",
-            "authorization",
             "content-type",
             "x-request-id",
             "x-openinfra-tenant",
@@ -229,6 +264,10 @@ class OpenInfraBackendProxy:
             "https" if self._config.backend_url.startswith("https:") else "http"
         )
         headers["X-OpenInfra-Web"] = "openinfra-web"
+        headers["X-OpenInfra-Web-Trust"] = "server-side"
+        headers["X-OpenInfra-Web-Version"] = __version__
+        if self._config.has_database_trust():
+            headers["X-OpenInfra-Web-Database-Trust"] = "configured"
         return headers
 
     def _request_body(self, handler: BaseHTTPRequestHandler) -> bytes | None:
@@ -285,6 +324,9 @@ class OpenInfraWebRequestHandler(BaseHTTPRequestHandler):
         if route == "/health":
             self._json(HTTPStatus.OK, {"status": "ok", "service": "openinfra-web"})
             return
+        if route == "/version":
+            self._json(HTTPStatus.OK, {"service": "openinfra-web", "version": __version__})
+            return
         if route == "/ready":
             self._proxy_readiness()
             return
@@ -308,7 +350,14 @@ class OpenInfraWebRequestHandler(BaseHTTPRequestHandler):
 
     def _proxy_readiness(self) -> None:
         synthetic = request.Request(  # noqa: S310
-            urljoin(self.server.config.normalized_backend_url(), "ready"), method="GET"
+            urljoin(self.server.config.normalized_backend_url(), "ready"),
+            method="GET",
+            headers={
+                "Accept": "application/json",
+                "X-OpenInfra-Web": "openinfra-web",
+                "X-OpenInfra-Web-Trust": "server-side",
+                "X-OpenInfra-Web-Version": __version__,
+            },
         )
         try:
             with request.urlopen(  # noqa: S310  # nosec B310

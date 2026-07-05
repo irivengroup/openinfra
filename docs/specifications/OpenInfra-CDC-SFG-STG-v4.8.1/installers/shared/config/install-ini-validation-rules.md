@@ -29,9 +29,9 @@ Le fichier `/opt/openinfra/config/.openinfra-installed.lock` empêche toute réi
 |---|---|---|
 | Lite `all-in-one` | `[storage]`, `[security]` | Monolithique local app+BDD+frontend ; pas de LDAP, pas de réseau distant, pas d'API opérateur exposée, pas de cluster. |
 | Pro `server` | `[storage]`, `[api]`, `[identity]`, `[auth]`, `[security]` | Backend API-only avec PostgreSQL local/cluster ; `backend_endpoint` désigne la VIP si cluster ; pas de login LDAP/IPA opérateur côté backend. |
-| Pro `web` | `[api]`, `[auth]`, `[security]` | Authentification opérateur locale ou LDAP/IPA ; aucune BDD locale ; communication backend mTLS. |
+| Pro `web` | `[api]`, `[auth]`, `[security]`, `[web_database]` | Authentification opérateur locale ou LDAP/IPA ; trust backend mTLS ; références PostgreSQL côté service web uniquement. |
 | Enterprise `server` | `[storage]`, `[api]`, `[identity]`, `[auth]`, `[security]` | Backend API-only illimité ; peer nodes requis lorsque le cluster est activé. |
-| Enterprise `web` | `[api]`, `[auth]`, `[security]` | Authentification opérateur locale ou LDAP/IPA ; aucune BDD locale ; communication backend mTLS. |
+| Enterprise `web` | `[api]`, `[auth]`, `[security]`, `[web_database]` | Authentification opérateur locale ou LDAP/IPA ; trust backend mTLS ; références PostgreSQL côté service web uniquement. |
 | Enterprise `agent` | `[api]`, `[security]` | Enrôlement via backend/portail web puis échange token/certificat avec le backend ; aucun accès PostgreSQL. |
 
 ## Tailles LVM maximales exposées

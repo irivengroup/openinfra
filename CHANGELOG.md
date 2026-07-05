@@ -1,4 +1,4 @@
-## 0.29.15 - 2026-07-05
+## 0.29.16 - 2026-07-05
 
 - `openinfra-web` adopte le thème Bootstrap 5 Dashboard avec header double niveau adapté aux domaines OpenInfra.
 - Ajout de `assets/bootstrap.min.css` dans le domaine présentation/rendering pour un runtime sans CDN.

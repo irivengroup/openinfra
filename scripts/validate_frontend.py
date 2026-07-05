@@ -52,6 +52,9 @@ class FrontendContractValidator:
             or "openinfra-theme.css" not in main_source
             or "Search OpenInfra operations" not in main_source
             or "Dashboard de pilotage OpenInfra" not in main_source
+            or "openinfra-accordion" not in main_source
+            or "Numéro de série" not in main_source
+            or "Token API" in main_source
         ):
             raise FrontendValidationError(
                 "web/src/main.jsx must implement the OpenInfra React + Bootstrap dashboard UI"
@@ -113,10 +116,12 @@ class FrontendContractValidator:
             "Search OpenInfra operations",
             "bg-dark text-white",
             "openinfra-sidebar",
+            "openinfra-accordion",
             "Login",
             "Sign-up",
             "Ressources Inventory",
             "agents proxy collectors Enterprise uniquement",
+            "Numéro de série",
         ):
             if fragment not in payload:
                 raise FrontendValidationError(
@@ -126,6 +131,12 @@ class FrontendContractValidator:
         leaked = [fragment for fragment in forbidden if fragment in payload]
         if leaked:
             raise FrontendValidationError("runtime web assets leak forbidden backend data")
+        for forbidden_ui in ("Token API", "openinfra-method"):
+            if forbidden_ui in payload:
+                raise FrontendValidationError(
+                    "runtime web assets expose a forbidden generic/technical UI fragment: "
+                    + forbidden_ui
+                )
         return required
 
 

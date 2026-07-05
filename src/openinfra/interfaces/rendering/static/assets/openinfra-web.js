@@ -1,7 +1,6 @@
 class OpenInfraApiClient {
-  constructor(apiBaseUrl, tokenProvider, tenantProvider) {
+  constructor(apiBaseUrl, tenantProvider) {
     this.apiBaseUrl = apiBaseUrl.replace(/\/$/, "");
-    this.tokenProvider = tokenProvider;
     this.tenantProvider = tenantProvider;
   }
 
@@ -9,10 +8,6 @@ class OpenInfraApiClient {
     const path = this.interpolatePath(operation.path, payload);
     const query = this.buildQuery(operation.query || [], payload);
     const headers = { Accept: "application/json" };
-    const token = this.tokenProvider();
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
     if (operation.method !== "GET") {
       headers["Content-Type"] = "application/json";
     }
@@ -26,18 +21,18 @@ class OpenInfraApiClient {
     const contentType = response.headers.get("content-type") || "";
     const data = contentType.includes("application/json") ? await response.json() : await response.text();
     if (!response.ok) {
-      throw new Error(JSON.stringify(data));
+      throw new Error(typeof data === "string" ? data : JSON.stringify(data));
     }
     return data;
   }
 
   async getJson(path) {
-    const response = await fetch(`${this.apiBaseUrl}${path}`, {
+    const response = await fetch(path, {
       credentials: "same-origin",
       headers: { Accept: "application/json" }
     });
     if (!response.ok) {
-      throw new Error(`API ${path} returned ${response.status}`);
+      throw new Error(`${path} returned ${response.status}`);
     }
     return response.json();
   }
@@ -49,7 +44,7 @@ class OpenInfraApiClient {
   buildQuery(fields, payload) {
     const query = new URLSearchParams();
     for (const field of fields) {
-      const value = payload[field.name];
+      const value = this.normalizedFieldValue(field, payload[field.name]);
       if (value !== undefined && value !== null && String(value).trim() !== "") {
         query.set(field.name, String(value));
       }
@@ -65,19 +60,59 @@ class OpenInfraApiClient {
     const body = {};
     for (const field of operation.body || []) {
       const raw = payload[field.name];
-      if (raw === undefined || raw === null || String(raw).trim() === "") {
+      const value = this.normalizedFieldValue(field, raw);
+      if (value === undefined || value === null || String(value).trim?.() === "") {
         if (field.required) {
-          throw new Error(`Champ obligatoire manquant: ${field.name}`);
+          throw new Error(`Champ obligatoire manquant: ${field.label || field.name}`);
         }
         continue;
       }
-      body[field.name] = field.type === "json" ? JSON.parse(raw) : raw;
+      this.assignBodyValue(body, field.target || field.name, value);
     }
     const tenant = this.tenantProvider();
     if (tenant && operation.body && !Object.prototype.hasOwnProperty.call(body, "tenant_id")) {
       body.tenant_id = tenant;
     }
     return body;
+  }
+
+  normalizedFieldValue(field, raw) {
+    if (raw === undefined || raw === null) {
+      return undefined;
+    }
+    const value = String(raw).trim();
+    if (!value) {
+      return undefined;
+    }
+    if (field.type === "number") {
+      const parsed = Number(value);
+      if (Number.isNaN(parsed)) {
+        throw new Error(`Valeur numérique invalide: ${field.label || field.name}`);
+      }
+      return parsed;
+    }
+    if (field.type === "boolean") {
+      return ["1", "true", "yes", "oui"].includes(value.toLowerCase());
+    }
+    if (field.type === "csv") {
+      return value.split(",").map((item) => item.trim()).filter(Boolean);
+    }
+    if (field.type === "json") {
+      return JSON.parse(value);
+    }
+    return value;
+  }
+
+  assignBodyValue(body, target, value) {
+    const parts = target.split(".");
+    let current = body;
+    for (const part of parts.slice(0, -1)) {
+      if (!Object.prototype.hasOwnProperty.call(current, part)) {
+        current[part] = {};
+      }
+      current = current[part];
+    }
+    current[parts[parts.length - 1]] = value;
   }
 }
 
@@ -91,84 +126,132 @@ const OPENINFRA_ICONS = {
   activity: "M6.5 12a.5.5 0 0 1-.447-.276L3.382 6.382 1.894 9.36A.5.5 0 0 1 1.447 9.636H.5a.5.5 0 0 1 0-1h.638l1.915-3.83a.5.5 0 0 1 .894 0L6.5 9.91l2.553-5.105a.5.5 0 0 1 .894 0l1.915 3.83h3.638a.5.5 0 0 1 0 1h-3.947a.5.5 0 0 1-.447-.276L9.5 6.382l-2.553 5.342A.5.5 0 0 1 6.5 12z"
 };
 
+const COMMON_KIND_OPTIONS = ["server", "network-device", "virtual-machine", "application", "database", "service"];
+const SOURCE_OPTIONS = ["manual", "import", "backend-discovery", "enterprise-proxy", "api"];
+
+const FIELD_SETS = {
+  tenant: { name: "tenant_id", label: "Tenant", defaultValue: "default", placeholder: "default" },
+  limit: { name: "limit", label: "Limite", type: "number", placeholder: "100" },
+  riKind: { name: "kind", label: "Type de ressource", type: "select", options: COMMON_KIND_OPTIONS },
+  tag: { name: "tag", label: "Tag", placeholder: "prod" },
+  actor: { name: "actor", label: "Opérateur", required: true, placeholder: "admin@openinfra" },
+  riKey: { name: "key", label: "Clé RI", required: true, placeholder: "server/srv-db-01" },
+  displayName: { name: "display_name", label: "Nom affiché", required: true, placeholder: "srv-db-01" },
+  source: { name: "source", label: "Source autoritative", required: true, type: "select", options: SOURCE_OPTIONS },
+  serial: { name: "serial", label: "Numéro de série", target: "attributes.serial", placeholder: "SN123456" },
+  vendor: { name: "vendor", label: "Constructeur", target: "attributes.vendor", placeholder: "Dell, HPE, Cisco" },
+  model: { name: "model", label: "Modèle", target: "attributes.model", placeholder: "PowerEdge R760" },
+  site: { name: "site", label: "Site", target: "attributes.site", placeholder: "PAR1" },
+  building: { name: "building", label: "Bâtiment", target: "attributes.building", placeholder: "B1" },
+  room: { name: "room", label: "Salle", target: "attributes.room", placeholder: "DC-A" },
+  row: { name: "row", label: "Ligne salle", target: "attributes.row", placeholder: "Rangée A" },
+  column: { name: "column", label: "Colonne salle", target: "attributes.column", placeholder: "Colonne 04" },
+  rack: { name: "rack", label: "Rack", target: "attributes.rack", placeholder: "R12" },
+  managementIp: { name: "management_ip", label: "IP de management", target: "attributes.management_ip", placeholder: "10.10.10.15" },
+  lifecycle: { name: "lifecycle_state", label: "État cycle de vie", target: "attributes.lifecycle_state", type: "select", options: ["planned", "active", "maintenance", "retired"] },
+  tags: { name: "tags", label: "Tags", type: "csv", placeholder: "prod,critical,postgres" }
+};
+
 const OPENINFRA_MODULES = [
-  { id: "overview", label: "Dashboard", icon: "speedometer2", description: "Vue de synthèse, readiness backend, version, sécurité et opérations rapides.", operations: [
-    { id: "version", label: "Version runtime", method: "GET", path: "/v1/version", query: [] },
-    { id: "schema", label: "Statut schéma DB", method: "GET", path: "/v1/database/schema", query: [] }
+  { id: "overview", label: "Dashboard", icon: "speedometer2", description: "Vue de synthèse, readiness backend, version package, trust web-backend et opérations rapides.", operations: [
+    { id: "version", label: "Version runtime", method: "GET", path: "/version", query: [] },
+    { id: "schema", label: "Statut schéma DB", method: "GET", path: "/api/v1/database/schema", query: [] }
   ] },
-  { id: "ri", label: "RI", icon: "table", description: "Ressources Inventory : inventaire canonique, relations, versions, gouvernance et certification.", operations: [
-    { id: "ri-list", label: "Lister les objets RI", method: "GET", path: "/v1/ri/objects", query: [{ name: "kind" }, { name: "tag" }, { name: "limit" }] },
-    { id: "ri-upsert", label: "Créer / mettre à jour un objet RI", method: "POST", path: "/v1/ri/objects", body: [{ name: "actor", required: true }, { name: "key", required: true }, { name: "kind", required: true }, { name: "display_name", required: true }, { name: "attributes", type: "json" }, { name: "tags", type: "json" }, { name: "source", required: true }] },
-    { id: "ri-relations", label: "Lister les relations RI", method: "GET", path: "/v1/ri/relations", query: [{ name: "source_key" }, { name: "target_key" }, { name: "relation_type" }, { name: "limit" }] },
-    { id: "ri-quality-object", label: "Évaluer la qualité d’un objet RI", method: "GET", path: "/v1/ri/quality/object", query: [{ name: "key" }] },
-    { id: "ri-quality-summary", label: "Synthèse qualité / certification RI", method: "GET", path: "/v1/ri/quality/summary", query: [{ name: "kind" }, { name: "tag" }, { name: "limit" }] },
-    { id: "ri-governance", label: "Évaluer une règle de gouvernance RI", method: "POST", path: "/v1/ri/governance/evaluate", body: [{ name: "object_kind", required: true }, { name: "incoming_source", required: true }, { name: "existing_attributes", type: "json" }, { name: "incoming_attributes", type: "json" }] }
+  { id: "ri", label: "Ressources Inventory", shortLabel: "RI", icon: "table", description: "Inventaire canonique, relations, versions, gouvernance et certification.", operations: [
+    { id: "ri-list", label: "Lister les objets RI", method: "GET", path: "/v1/ri/objects", query: [FIELD_SETS.riKind, FIELD_SETS.tag, FIELD_SETS.limit] },
+    { id: "ri-upsert", label: "Créer / mettre à jour une ressource", method: "POST", path: "/v1/ri/objects", body: [FIELD_SETS.actor, FIELD_SETS.riKey, FIELD_SETS.riKind, FIELD_SETS.displayName, FIELD_SETS.source, FIELD_SETS.serial, FIELD_SETS.vendor, FIELD_SETS.model, FIELD_SETS.site, FIELD_SETS.building, FIELD_SETS.room, FIELD_SETS.row, FIELD_SETS.column, FIELD_SETS.rack, FIELD_SETS.managementIp, FIELD_SETS.lifecycle, FIELD_SETS.tags] },
+    { id: "ri-relations", label: "Lister les relations", method: "GET", path: "/v1/ri/relations", query: [{ name: "source_key", label: "Ressource source" }, { name: "target_key", label: "Ressource cible" }, { name: "relation_type", label: "Type de relation" }, FIELD_SETS.limit] },
+    { id: "ri-quality-object", label: "Évaluer la qualité d’une ressource", method: "GET", path: "/v1/ri/quality/object", query: [FIELD_SETS.riKey] },
+    { id: "ri-quality-summary", label: "Synthèse qualité / certification", method: "GET", path: "/v1/ri/quality/summary", query: [FIELD_SETS.riKind, FIELD_SETS.tag, FIELD_SETS.limit] },
+    { id: "ri-governance", label: "Évaluer une règle de gouvernance", method: "POST", path: "/v1/ri/governance/evaluate", body: [
+      { name: "object_kind", label: "Type d’objet", required: true, type: "select", options: COMMON_KIND_OPTIONS },
+      { name: "incoming_source", label: "Source entrante", required: true, type: "select", options: SOURCE_OPTIONS },
+      { name: "existing_serial", label: "Serial existant", target: "existing_attributes.serial" },
+      { name: "incoming_serial", label: "Serial entrant", target: "incoming_attributes.serial" },
+      { name: "existing_site", label: "Site existant", target: "existing_attributes.site" },
+      { name: "incoming_site", label: "Site entrant", target: "incoming_attributes.site" }
+    ] }
   ] },
   { id: "ipam", label: "IPAM", icon: "grid", description: "Préfixes, VLANs, VRF, réservations, conflits, capacité et allocations.", operations: [
-    { id: "ipam-search", label: "Rechercher IPAM", method: "GET", path: "/v1/ipam/search", query: [{ name: "query" }, { name: "limit" }] },
-    { id: "ipam-capacity", label: "Capacité IPAM", method: "GET", path: "/v1/ipam/capacity", query: [{ name: "prefix" }] },
-    { id: "ipam-allocate", label: "Allouer une IP", method: "POST", path: "/v1/ipam/allocate", body: [{ name: "actor", required: true }, { name: "prefix", required: true }, { name: "purpose", required: true }] },
-    { id: "ipam-conflicts", label: "Détecter les conflits", method: "GET", path: "/v1/ipam/conflicts", query: [{ name: "limit" }] }
+    { id: "ipam-search", label: "Rechercher dans l’IPAM", method: "GET", path: "/v1/ipam/search", query: [{ name: "query", label: "Recherche", placeholder: "10.20.0.0/24 ou srv-db" }, FIELD_SETS.limit] },
+    { id: "ipam-capacity", label: "Calculer la capacité d’un préfixe", method: "GET", path: "/v1/ipam/capacity", query: [{ name: "prefix", label: "Préfixe", placeholder: "10.20.30.0/24" }] },
+    { id: "ipam-allocate", label: "Allouer une adresse IP", method: "POST", path: "/v1/ipam/allocate", body: [FIELD_SETS.actor, { name: "prefix", label: "Préfixe", required: true, placeholder: "10.20.30.0/24" }, { name: "purpose", label: "Usage", required: true, placeholder: "srv-app-01 management" }] },
+    { id: "ipam-conflicts", label: "Détecter les conflits", method: "GET", path: "/v1/ipam/conflicts", query: [FIELD_SETS.limit] }
   ] },
   { id: "dcim", label: "DCIM", icon: "home", description: "Sites, salles, zones, racks, ports, câbles, énergie et localisation terrain.", operations: [
-    { id: "dcim-rack-capacity", label: "Capacité rack", method: "GET", path: "/v1/dcim/rack-capacity", query: [{ name: "site" }, { name: "building" }, { name: "room" }, { name: "rack" }] },
-    { id: "dcim-room-plan", label: "Plan de salle", method: "GET", path: "/v1/dcim/room-plan", query: [{ name: "site" }, { name: "building" }, { name: "room" }] },
-    { id: "dcim-cable-trace", label: "Tracer un câble", method: "GET", path: "/v1/dcim/cable-trace", query: [{ name: "cable_id" }] }
+    { id: "dcim-rack-capacity", label: "Capacité rack", method: "GET", path: "/v1/dcim/rack-capacity", query: [{ name: "site", label: "Site" }, { name: "building", label: "Bâtiment" }, { name: "room", label: "Salle" }, { name: "rack", label: "Rack" }] },
+    { id: "dcim-room-plan", label: "Plan de salle", method: "GET", path: "/v1/dcim/room-plan", query: [{ name: "site", label: "Site" }, { name: "building", label: "Bâtiment" }, { name: "room", label: "Salle" }] },
+    { id: "dcim-cable-trace", label: "Tracer un câble", method: "GET", path: "/v1/dcim/cable-trace", query: [{ name: "cable_id", label: "Identifiant câble", placeholder: "CAB-000123" }] }
   ] },
-  { id: "discovery", label: "Discovery", icon: "activity", description: "Collecte locale backend Lite/Pro ; agents proxy collectors Enterprise uniquement en topologie étoile.", operations: [
-    { id: "collectors-list", label: "Lister les agents proxy Enterprise", method: "GET", path: "/v1/discovery/collectors", query: [{ name: "scope" }, { name: "limit" }] },
-    { id: "collectors-register", label: "Enregistrer un agent proxy Enterprise", method: "POST", path: "/v1/discovery/collectors", body: [{ name: "actor", required: true }, { name: "name", required: true }, { name: "kind", required: true }, { name: "certificate_fingerprint", required: true }, { name: "scopes", type: "json", required: true }, { name: "endpoint", required: true }] },
-    { id: "job-authorize", label: "Autoriser un job collector", method: "POST", path: "/v1/discovery/jobs/authorize", body: [{ name: "collector_id", required: true }, { name: "certificate_fingerprint", required: true }, { name: "scope", required: true }, { name: "job_type", required: true }] }
+  { id: "discovery", label: "Discovery", icon: "activity", description: "Collecte backend locale en Lite/Pro ; agents proxy collectors Enterprise uniquement en topologie étoile.", operations: [
+    { id: "collectors-list", label: "Lister les agents proxy Enterprise", method: "GET", path: "/v1/discovery/collectors", query: [{ name: "scope", label: "Scope autorisé" }, FIELD_SETS.limit] },
+    { id: "collectors-register", label: "Enregistrer un agent proxy Enterprise", method: "POST", path: "/v1/discovery/collectors", body: [FIELD_SETS.actor, { name: "name", label: "Nom agent proxy", required: true }, { name: "kind", label: "Type", required: true, type: "select", options: ["site-proxy", "network-proxy", "datacenter-proxy"] }, { name: "certificate_fingerprint", label: "Empreinte certificat", required: true }, { name: "scopes", label: "Scopes autorisés", type: "csv", required: true, placeholder: "site/paris,network/core" }, { name: "endpoint", label: "Endpoint mTLS", required: true, placeholder: "https://collector-paris.openinfra.local" }] },
+    { id: "job-authorize", label: "Autoriser un job collector", method: "POST", path: "/v1/discovery/jobs/authorize", body: [{ name: "collector_id", label: "ID agent proxy", required: true }, { name: "certificate_fingerprint", label: "Empreinte certificat", required: true }, { name: "scope", label: "Scope demandé", required: true }, { name: "job_type", label: "Type de job", required: true, type: "select", options: ["snmp", "ssh", "winrm", "vmware", "kubernetes"] }] }
   ] },
-  { id: "security", label: "Sécurité", icon: "shield", description: "Identité, RBAC, tokens, politiques d’accès, audit et intégrité.", operations: [
-    { id: "tokens-list", label: "Lister les tokens", method: "GET", path: "/v1/security/tokens", query: [{ name: "limit" }, { name: "include_inactive" }] },
-    { id: "effective-identity", label: "Identité effective", method: "GET", path: "/v1/identity/effective", query: [{ name: "subject" }] },
-    { id: "access-rules", label: "Lister les politiques d’accès", method: "GET", path: "/v1/access/rules", query: [{ name: "limit" }, { name: "include_inactive" }] },
-    { id: "audit-events", label: "Lister les événements d’audit", method: "GET", path: "/v1/audit/events", query: [{ name: "action" }, { name: "target_type" }, { name: "limit" }] },
-    { id: "audit-integrity", label: "Vérifier l’intégrité audit", method: "GET", path: "/v1/audit/integrity", query: [{ name: "limit" }] }
+  { id: "security", label: "Sécurité / RBAC / Audit", shortLabel: "Sécurité", icon: "shield", description: "Identité, RBAC, tokens, politiques d’accès, audit et intégrité.", operations: [
+    { id: "tokens-list", label: "Lister les tokens techniques", method: "GET", path: "/v1/security/tokens", query: [FIELD_SETS.limit, { name: "include_inactive", label: "Inclure inactifs", type: "boolean" }] },
+    { id: "effective-identity", label: "Identité effective", method: "GET", path: "/v1/identity/effective", query: [{ name: "subject", label: "Sujet", placeholder: "user@example.com" }] },
+    { id: "access-rules", label: "Politiques d’accès", method: "GET", path: "/v1/access/rules", query: [FIELD_SETS.limit, { name: "include_inactive", label: "Inclure inactives", type: "boolean" }] },
+    { id: "audit-events", label: "Événements d’audit", method: "GET", path: "/v1/audit/events", query: [{ name: "action", label: "Action" }, { name: "target_type", label: "Type cible" }, FIELD_SETS.limit] },
+    { id: "audit-integrity", label: "Intégrité audit", method: "GET", path: "/v1/audit/integrity", query: [FIELD_SETS.limit] }
   ] }
 ];
 
 class OpenInfraDashboard {
   constructor(root) {
     this.root = root;
-    this.state = { config: null, version: null, ready: null, selected: OPENINFRA_MODULES[0].operations[0], activeModuleId: "overview", result: null, error: null, filter: "" };
+    this.state = {
+      activeModuleId: "overview",
+      selected: OPENINFRA_MODULES[0].operations[0],
+      openedModules: new Set(["ri"]),
+      filter: "",
+      tenant: "default",
+      config: null,
+      ready: null,
+      version: null,
+      result: null,
+      error: null
+    };
   }
 
   async start() {
+    await this.refreshRuntime();
+    this.render();
+  }
+
+  async refreshRuntime() {
     try {
-      const config = await this.fetchConfig();
-      const client = this.client(config);
+      const configResponse = await fetch("/config.json", { credentials: "same-origin", headers: { Accept: "application/json" } });
+      if (!configResponse.ok) {
+        throw new Error(`Configuration unavailable: ${configResponse.status}`);
+      }
+      const config = await configResponse.json();
       const [version, ready] = await Promise.all([
-        client.getJson("/v1/version"),
-        fetch("/ready", { credentials: "same-origin" }).then((response) => response.json())
+        fetch("/version", { credentials: "same-origin", headers: { Accept: "application/json" } }).then((response) => response.ok ? response.json() : { version: config.version }),
+        fetch("/ready", { credentials: "same-origin", headers: { Accept: "application/json" } }).then((response) => response.ok ? response.json() : { ready: false })
       ]);
       this.state = { ...this.state, config, version, ready, error: null };
     } catch (error) {
       this.state = { ...this.state, error };
     }
-    this.render();
   }
 
-  client(config) {
-    return new OpenInfraApiClient(
-      config.apiBaseUrl,
-      () => document.getElementById("openinfra-token")?.value || "",
-      () => document.getElementById("openinfra-tenant")?.value || "default"
-    );
+  client() {
+    return new OpenInfraApiClient(this.state.config?.apiBaseUrl || "/api", () => this.state.tenant);
   }
 
-  async fetchConfig() {
-    const response = await fetch("/config.json", { credentials: "same-origin" });
-    if (!response.ok) {
-      throw new Error(`Configuration unavailable: ${response.status}`);
+  visibleOperations(module) {
+    const filter = this.state.filter.toLowerCase();
+    if (!filter) {
+      return module.operations;
     }
-    return response.json();
+    return module.operations.filter((operation) => `${module.label} ${operation.label}`.toLowerCase().includes(filter));
   }
 
   render() {
-    const { config, version, ready, error, selected, result, activeModuleId, filter } = this.state;
-    const totalOperations = OPENINFRA_MODULES.reduce((total, module) => total + module.operations.length, 0);
+    const { activeModuleId, selected, config, ready, version, error, result } = this.state;
+    const operationsCount = OPENINFRA_MODULES.reduce((total, module) => total + module.operations.length, 0);
+    const displayedVersion = version?.version || config?.version || "indisponible";
     this.root.innerHTML = `
       <header>
         <div class="px-3 py-2 bg-dark text-white openinfra-top-header">
@@ -180,7 +263,7 @@ class OpenInfraDashboard {
               <ul class="nav col-12 col-lg-auto my-2 justify-content-center my-md-0 text-small">
                 ${OPENINFRA_MODULES.slice(0, 6).map((module) => `
                   <li><button type="button" class="nav-link border-0 bg-transparent ${activeModuleId === module.id ? "text-secondary" : "text-white"}" data-module-id="${this.escape(module.id)}">
-                    ${this.icon(module.icon, "bi d-block mx-auto mb-1 openinfra-top-icon", 24, 24)}${this.escape(module.label)}
+                    ${this.icon(module.icon, "bi d-block mx-auto mb-1 openinfra-top-icon", 24, 24)}${this.escape(module.shortLabel || module.label)}
                   </button></li>
                 `).join("")}
               </ul>
@@ -190,7 +273,7 @@ class OpenInfraDashboard {
         <div class="px-3 py-2 border-bottom mb-3">
           <div class="container-fluid d-flex flex-wrap justify-content-center">
             <form class="col-12 col-lg-auto mb-2 mb-lg-0 me-lg-auto" role="search">
-              <input type="search" id="openinfra-search" class="form-control openinfra-search" placeholder="Search OpenInfra operations..." aria-label="Search" value="${this.escape(filter)}">
+              <input type="search" id="openinfra-search" class="form-control openinfra-search" placeholder="Search OpenInfra operations..." aria-label="Search" value="${this.escape(this.state.filter)}">
             </form>
             <div class="text-end">
               <button type="button" class="btn btn-light text-dark me-2" id="openinfra-login">Login</button>
@@ -202,69 +285,121 @@ class OpenInfraDashboard {
       <div class="container-fluid">
         <div class="row">
           <nav class="col-lg-3 col-xl-2 openinfra-sidebar" aria-label="Sidebar navigation">
-            <div class="openinfra-sidebar-heading">Composantes</div>
-            <ul class="nav flex-column">
-              ${OPENINFRA_MODULES.map((module) => `<li class="nav-item"><button type="button" class="nav-link w-100 text-start ${activeModuleId === module.id ? "active" : ""}" data-module-id="${this.escape(module.id)}">${this.icon(module.icon)}${this.escape(module.label)}</button></li>`).join("")}
-            </ul>
+            <div class="openinfra-sidebar-heading">Pilotage</div>
+            ${this.renderSidebar()}
             <div class="openinfra-sidebar-heading">État runtime</div>
             <div class="px-2 small text-muted">
               <p><span class="openinfra-status-dot ${ready?.ready === true ? "ready" : "warning"}"></span>Backend ${ready?.ready === true ? "prêt" : "à vérifier"}</p>
-              <p>API : <code>${this.escape(config?.apiBaseUrl || "/api")}</code></p>
+              <p>Version : <strong>${this.escape(displayedVersion)}</strong></p>
+              <p>Trust web/backend : <strong>${this.escape(config?.webBackendTrust || "server-side")}</strong></p>
             </div>
           </nav>
           <main class="col-lg-9 col-xl-10 ms-sm-auto openinfra-main">
             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 openinfra-titlebar">
-              <div><h1 class="h2">Dashboard de pilotage OpenInfra</h1><p class="text-muted mb-0">Portail API-only aligné sur les domaines CLI : RI, IPAM, DCIM, Discovery, Sécurité/RBAC, Audit et Runtime.</p></div>
+              <div><h1 class="h2">Dashboard de pilotage OpenInfra</h1><p class="text-muted mb-0">Portail BFF server-side : l’opérateur ne saisit aucun token technique ; les secrets PostgreSQL restent côté service web.</p></div>
               <div class="btn-toolbar mb-2 mb-md-0"><span class="badge text-bg-primary me-2">${this.escape(config?.edition || "runtime")}</span><span class="badge text-bg-secondary">${this.escape(config?.authMode || "standard")}</span></div>
             </div>
             ${error ? `<div class="alert alert-warning" role="alert">${this.escape(error.message)}</div>` : ""}
             ${ready?.ready === true ? `<div class="alert alert-success" role="status">Backend prêt.</div>` : ""}
             <div class="row g-3 mb-4">
-              ${this.metric("Version", this.escape(version?.version || "indisponible"))}
+              ${this.metric("Version", this.escape(displayedVersion))}
               ${this.metric("API", this.escape(config?.apiBaseUrl || "/api"))}
-              ${this.metric("RBAC", "Backend enforced")}
-              ${this.metric("Modules", `${totalOperations} opérations`)}
+              ${this.metric("Trust", this.escape(config?.webBackendTrust || "server-side"))}
+              ${this.metric("Modules", `${operationsCount} opérations`)}
             </div>
-            <section class="card openinfra-operation-card"><div class="card-body"><div class="row g-4">
-              <section class="col-xl-4"><h2 class="h5">Opérations</h2><p class="text-muted">Chaque action du dashboard appelle l’API backend, sans accès direct aux secrets ni à PostgreSQL.</p><div class="openinfra-operation-list list-group">${this.renderOperationList()}</div></section>
-              <section class="col-xl-8">${this.renderOperationPanel(selected, result)}</section>
-            </div></div></section>
+            <section class="card openinfra-operation-card"><div class="card-body">${this.renderOperationPanel(selected, result)}</div></section>
           </main>
         </div>
       </div>
     `;
-    document.getElementById("openinfra-login")?.addEventListener("click", () => document.getElementById("openinfra-token")?.focus());
+    this.bindEvents();
+  }
+
+  renderSidebar() {
+    return OPENINFRA_MODULES.map((module) => {
+      if (module.id === "overview") {
+        return `<button type="button" class="nav-link openinfra-sidebar-dashboard w-100 text-start ${this.state.activeModuleId === module.id ? "active" : ""}" data-operation-id="${this.escape(module.operations[0].id)}">${this.icon(module.icon)}Dashboard</button>`;
+      }
+      const opened = this.state.openedModules.has(module.id);
+      const visibleOperations = this.visibleOperations(module);
+      if (visibleOperations.length === 0 && !module.label.toLowerCase().includes(this.state.filter.toLowerCase())) {
+        return "";
+      }
+      return `<section class="openinfra-accordion ${opened ? "open" : ""}">
+        <button type="button" class="openinfra-accordion-toggle ${this.state.activeModuleId === module.id ? "active" : ""}" data-accordion-id="${this.escape(module.id)}" aria-expanded="${opened ? "true" : "false"}">
+          <span>${this.icon(module.icon)}${this.escape(module.shortLabel || module.label)}</span><span class="openinfra-chevron">›</span>
+        </button>
+        <div class="openinfra-accordion-panel fade ${opened ? "show" : ""}">
+          ${visibleOperations.map((operation) => `<button type="button" class="openinfra-sidebar-operation ${this.state.selected.id === operation.id ? "active" : ""}" data-operation-id="${this.escape(operation.id)}">${this.escape(operation.label)}</button>`).join("")}
+        </div>
+      </section>`;
+    }).join("");
+  }
+
+  renderOperationPanel(operation, result) {
+    const module = this.moduleForOperation(operation);
+    const fields = [...(operation.query || []), ...(operation.body || [])];
+    return `<div class="row g-4">
+      <section class="col-12 col-xxl-8">
+        <h2 class="h4">${this.escape(operation.label)}</h2>
+        <p class="text-muted">${this.escape(module.description)}</p>
+        <div class="alert alert-info" role="note">Formulaire métier typé : chaque champ correspond à une variable attendue par l’API OpenInfra. Aucun champ générique Attributs n’est demandé à l’opérateur.</div>
+        <div class="row g-3 mb-3"><label class="col-md-4 form-label">Tenant<input id="openinfra-tenant" class="form-control" value="${this.escape(this.state.tenant)}" autocomplete="off"></label></div>
+        <div class="row g-3">${fields.map((field) => this.renderField(field)).join("") || "<p>Aucun paramètre requis.</p>"}</div>
+        <button class="btn btn-primary mt-3" type="button" id="openinfra-execute">Exécuter</button>
+      </section>
+      <aside class="col-12 col-xxl-4">
+        <h3 class="h6 text-uppercase text-muted">Résultat</h3>
+        <pre class="openinfra-result">${this.escape(result ? JSON.stringify(result, null, 2) : "Résultat en attente.")}</pre>
+      </aside>
+    </div>`;
+  }
+
+  renderField(field) {
+    const required = field.required ? " required" : "";
+    const requiredText = field.required ? " *" : "";
+    const value = field.defaultValue || "";
+    if (field.type === "select") {
+      return `<label class="col-md-6 col-xl-4 form-label">${this.escape(field.label || field.name)}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${required}><option value=""></option>${(field.options || []).map((option) => `<option value="${this.escape(option)}" ${value === option ? "selected" : ""}>${this.escape(option)}</option>`).join("")}</select></label>`;
+    }
+    if (field.type === "boolean") {
+      return `<label class="col-md-6 col-xl-4 form-label">${this.escape(field.label || field.name)}<select class="form-select" data-field="${this.escape(field.name)}"><option value="false">Non</option><option value="true">Oui</option></select></label>`;
+    }
+    const inputType = field.type === "number" ? "number" : "text";
+    return `<label class="col-md-6 col-xl-4 form-label">${this.escape(field.label || field.name)}${requiredText}<input class="form-control" type="${inputType}" data-field="${this.escape(field.name)}" value="${this.escape(value)}" placeholder="${this.escape(field.placeholder || "")}"${required}></label>`;
+  }
+
+  bindEvents() {
+    document.getElementById("openinfra-login")?.addEventListener("click", () => this.selectModule("security"));
     document.getElementById("openinfra-signup")?.addEventListener("click", () => this.selectModule("security"));
     document.getElementById("openinfra-execute")?.addEventListener("click", () => this.executeSelected());
     document.getElementById("openinfra-search")?.addEventListener("input", (event) => {
       this.state = { ...this.state, filter: event.target.value };
       this.render();
     });
+    document.getElementById("openinfra-tenant")?.addEventListener("input", (event) => {
+      this.state = { ...this.state, tenant: event.target.value };
+    });
     for (const button of document.querySelectorAll("[data-module-id]")) {
       button.addEventListener("click", () => this.selectModule(button.dataset.moduleId));
+    }
+    for (const button of document.querySelectorAll("[data-accordion-id]")) {
+      button.addEventListener("click", () => this.toggleAccordion(button.dataset.accordionId));
     }
     for (const button of document.querySelectorAll("[data-operation-id]")) {
       button.addEventListener("click", () => this.selectOperation(button.dataset.operationId));
     }
   }
 
-  renderOperationList() {
-    const filter = this.state.filter.toLowerCase();
-    return OPENINFRA_MODULES.map((module) => {
-      const operations = module.operations.filter((operation) => `${module.label} ${operation.label} ${operation.path}`.toLowerCase().includes(filter));
-      if (operations.length === 0 && !module.label.toLowerCase().includes(filter)) {
-        return "";
-      }
-      const visibleOperations = operations.length ? operations : module.operations;
-      return `<div class="mb-3"><h3 class="h6 text-uppercase text-muted">${this.escape(module.label)}</h3>${visibleOperations.map((operation) => `<button type="button" class="list-group-item list-group-item-action openinfra-operation ${this.state.selected.id === operation.id ? "active" : ""}" data-operation-id="${this.escape(operation.id)}"><span class="badge text-bg-light text-dark openinfra-method me-2">${this.escape(operation.method)}</span>${this.escape(operation.label)}</button>`).join("")}</div>`;
-    }).join("");
-  }
-
-  renderOperationPanel(operation, result) {
-    const fields = [...(operation.query || []), ...(operation.body || [])];
-    const inputs = fields.map((field) => `<label class="col-md-6 form-label">${this.escape(field.name)}${field.required ? " *" : ""}<textarea class="form-control" data-field="${this.escape(field.name)}" rows="${field.type === "json" ? 4 : 1}" placeholder="${field.type === "json" ? "{} ou []" : ""}"></textarea></label>`).join("");
-    const module = this.moduleForOperation(operation);
-    return `<h2 class="h5">${this.escape(operation.label)}</h2><p class="text-muted">${this.escape(module.description)}</p><p><code>${this.escape(operation.method)} ${this.escape(operation.path)}</code></p><div class="row g-3 mb-3"><label class="col-md-4 form-label">Tenant<input id="openinfra-tenant" class="form-control" value="default" autocomplete="off"></label><label class="col-md-8 form-label">Token API<input id="openinfra-token" class="form-control" type="password" autocomplete="off"></label></div><div class="row g-3">${inputs || "<p>Aucun paramètre requis.</p>"}</div><button class="btn btn-primary mt-3" type="button" id="openinfra-execute">Exécuter via API</button><pre class="openinfra-result mt-3">${this.escape(result ? JSON.stringify(result, null, 2) : "Résultat en attente.")}</pre>`;
+  toggleAccordion(moduleId) {
+    const opened = new Set(this.state.openedModules);
+    if (opened.has(moduleId)) {
+      opened.delete(moduleId);
+    } else {
+      opened.add(moduleId);
+    }
+    this.state = { ...this.state, openedModules: opened };
+    this.render();
   }
 
   selectModule(moduleId) {
@@ -272,7 +407,11 @@ class OpenInfraDashboard {
     if (!module) {
       return;
     }
-    this.state = { ...this.state, activeModuleId: module.id, selected: module.operations[0], result: null, error: null };
+    const opened = new Set(this.state.openedModules);
+    if (module.id !== "overview") {
+      opened.add(module.id);
+    }
+    this.state = { ...this.state, activeModuleId: module.id, selected: module.operations[0], openedModules: opened, result: null, error: null };
     this.render();
   }
 
@@ -280,7 +419,11 @@ class OpenInfraDashboard {
     for (const module of OPENINFRA_MODULES) {
       const operation = module.operations.find((item) => item.id === operationId);
       if (operation) {
-        this.state = { ...this.state, activeModuleId: module.id, selected: operation, result: null, error: null };
+        const opened = new Set(this.state.openedModules);
+        if (module.id !== "overview") {
+          opened.add(module.id);
+        }
+        this.state = { ...this.state, activeModuleId: module.id, selected: operation, openedModules: opened, result: null, error: null };
         this.render();
         return;
       }
@@ -293,7 +436,7 @@ class OpenInfraDashboard {
       for (const input of document.querySelectorAll("[data-field]")) {
         payload[input.dataset.field] = input.value;
       }
-      const data = await this.client(this.state.config).request(this.state.selected, payload);
+      const data = await this.client().request(this.state.selected, payload);
       this.state = { ...this.state, result: data, error: null };
     } catch (error) {
       this.state = { ...this.state, error, result: null };
@@ -314,7 +457,7 @@ class OpenInfraDashboard {
   }
 
   escape(value) {
-    return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;").replace(/'/g, "&#039;");
   }
 }
 

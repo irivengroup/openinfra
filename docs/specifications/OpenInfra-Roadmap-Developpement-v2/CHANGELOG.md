@@ -28,3 +28,10 @@
 - P08 renforcé : `openinfra-web` adopte le thème Bootstrap 5 Dashboard et le header double niveau adapté aux domaines OpenInfra.
 - Bootstrap 5 est servi localement dans le domaine présentation/rendering, sans CDN runtime.
 - Ajout du test roadmap de parité UI Bootstrap/API-only.
+
+## 0.29.16
+
+- P08 web renforcé : formulaires métier typés sans champ générique Attributs.
+- Navigation sidebar en accordéons avec transitions fade ; suppression du menu d'opérations interne.
+- Trust `openinfra-web` ↔ backend server-side ; aucun token API demandé à l'opérateur.
+- Cible `install.ini` `[web_database]` ajoutée pour les références DSN/credentials PostgreSQL du service web.

@@ -958,6 +958,21 @@ class AutonomousInstallerProgram:
         else:
             values["OPENINFRA_WEB_BACKEND_URL"] = "http://127.0.0.1:8080"
             values["OPENINFRA_WEB_ALLOW_INSECURE_BACKEND"] = "true"
+        self._add_web_database_runtime_values(parser, values)
+
+    def _add_web_database_runtime_values(
+        self, parser: configparser.ConfigParser, values: dict[str, str]
+    ) -> None:
+        if not parser.has_section("web_database"):
+            return
+        for ini_key, env_key in (
+            ("postgresql_dsn_ref", "OPENINFRA_WEB_DATABASE_DSN_REF"),
+            ("postgresql_user_ref", "OPENINFRA_WEB_DATABASE_USER_REF"),
+            ("postgresql_password_ref", "OPENINFRA_WEB_DATABASE_PASSWORD_REF"),
+        ):
+            value = parser.get("web_database", ini_key, fallback="").strip()
+            if value:
+                values[env_key] = self._sanitize_runtime_value(env_key, value)
 
     def _add_database_runtime_refs(
         self, parser: configparser.ConfigParser, values: dict[str, str]

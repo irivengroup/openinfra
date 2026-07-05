@@ -139,9 +139,6 @@ body {
   white-space: pre-wrap;
 }
 
-.openinfra-method {
-  min-width: 4rem;
-}
 
 .openinfra-status-dot {
   border-radius: 999px;
@@ -171,4 +168,106 @@ body {
   .openinfra-top-header .nav-link {
     min-width: 4.5rem;
   }
+}
+
+/* v0.29.16: accordion-driven sidebar and typed business forms. */
+.openinfra-sidebar-dashboard,
+.openinfra-accordion-toggle,
+.openinfra-sidebar-operation {
+  border: 0;
+  background: transparent;
+  display: block;
+  width: 100%;
+  text-align: left;
+}
+
+.openinfra-sidebar-dashboard {
+  border-radius: .5rem;
+  color: #333;
+  font-weight: 700;
+  margin-bottom: .35rem;
+  padding: .65rem .75rem;
+}
+
+.openinfra-sidebar-dashboard.active,
+.openinfra-accordion-toggle.active {
+  background-color: #0d6efd;
+  color: #fff;
+}
+
+.openinfra-accordion {
+  margin-bottom: .35rem;
+}
+
+.openinfra-accordion-toggle {
+  align-items: center;
+  border-radius: .5rem;
+  color: #333;
+  display: flex;
+  font-weight: 700;
+  justify-content: space-between;
+  padding: .65rem .75rem;
+  transition: background-color .18s ease-in-out, color .18s ease-in-out;
+}
+
+.openinfra-accordion-toggle span:first-child {
+  align-items: center;
+  display: inline-flex;
+}
+
+.openinfra-accordion-toggle svg,
+.openinfra-sidebar-dashboard svg {
+  fill: currentColor;
+  margin-right: .5rem;
+}
+
+.openinfra-chevron {
+  display: inline-block;
+  font-size: 1.25rem;
+  line-height: 1;
+  transform: rotate(0deg);
+  transition: transform .2s ease-in-out;
+}
+
+.openinfra-accordion.open .openinfra-chevron {
+  transform: rotate(90deg);
+}
+
+.openinfra-accordion-panel {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  padding-left: .85rem;
+  transition: max-height .24s ease-in-out, opacity .24s ease-in-out;
+}
+
+.openinfra-accordion-panel.show {
+  max-height: 34rem;
+  opacity: 1;
+}
+
+.openinfra-sidebar-operation {
+  border-left: .18rem solid transparent;
+  border-radius: .35rem;
+  color: #495057;
+  font-size: .82rem;
+  margin: .2rem 0;
+  padding: .45rem .5rem .45rem .7rem;
+  transition: background-color .18s ease-in-out, border-color .18s ease-in-out, color .18s ease-in-out;
+}
+
+.openinfra-sidebar-operation:hover,
+.openinfra-sidebar-operation:focus {
+  background-color: rgba(13, 110, 253, .08);
+}
+
+.openinfra-sidebar-operation.active {
+  background-color: rgba(13, 110, 253, .12);
+  border-left-color: #0d6efd;
+  color: #0d6efd;
+  font-weight: 700;
+}
+
+.openinfra-operation-card .form-label {
+  font-weight: 600;
 }

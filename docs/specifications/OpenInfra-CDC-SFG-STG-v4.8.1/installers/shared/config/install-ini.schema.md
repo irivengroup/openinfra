@@ -11,8 +11,9 @@
 | identity | non | oui | non | oui | non | non |
 | auth | non | oui | oui | oui | oui | non |
 | security | oui | oui | oui | oui | oui | oui |
+| web_database | oui | non | oui | non | oui | non |
 
-Toute autre section est interdite.
+Toute autre section est interdite. Le scope web et le scope Lite all-in-one déclarent également `[web_database]` afin que `openinfra-web` dispose côté serveur de références DSN/credentials PostgreSQL sans les exposer au navigateur.
 
 ## `[storage]`
 
@@ -63,6 +64,17 @@ mode = standard
 ```
 
 LDAP/IPA est autorisé uniquement pour les scopes web Pro/Enterprise. Le backend ne réalise pas de login opérateur LDAP/IPA ; il valide des jetons applicatifs et applique les permissions OpenInfra.
+
+## `[web_database]`
+
+```ini
+[web_database]
+postgresql_dsn_ref = env:OPENINFRA_WEB_POSTGRES_DSN
+postgresql_user_ref = env:OPENINFRA_WEB_POSTGRES_USER
+postgresql_password_ref = env:OPENINFRA_WEB_POSTGRES_PASSWORD
+```
+
+Le portail `openinfra-web` agit comme BFF serveur de confiance. Il peut utiliser côté serveur les références DSN/credentials PostgreSQL matérialisées dans `/opt/openinfra/config/openinfra.conf`. Ces valeurs ne sont jamais transmises au navigateur, jamais demandées à l'opérateur et jamais affichées dans les assets web.
 
 ## `[security]`
 

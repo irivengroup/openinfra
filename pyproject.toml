@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "openinfra"
-version = "0.29.11"
+version = "0.29.12"
 description = "OpenInfra Python POO source of truth, DCIM and IPAM foundation"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -29,9 +29,14 @@ dev = [
 [project.scripts]
 openinfra = "openinfra.interfaces.cli:OpenInfraCLI.main"
 openinfra-api = "openinfra.interfaces.http_api:OpenInfraApiEntrypoint.main"
+openinfra-web = "openinfra.interfaces.web:OpenInfraWebEntrypoint.main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/openinfra"]
+
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "scripts", "docker", "installers", "docs", "web", "README.md", "LICENSE", "VERSION", "CHANGELOG.md", "compose.yaml", "Dockerfile", ".env.example"]
 
 [tool.pytest.ini_options]
 addopts = "-q --cov=src/openinfra --cov-report=term-missing --cov-fail-under=98"

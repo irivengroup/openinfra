@@ -1,3 +1,11 @@
+## 0.29.12 - 2026-07-05
+
+- Implémente le service `openinfra-web` P08 : serveur frontend API-only, assets web, `/config.json`, `/health`, `/ready` et proxy sécurisé `/api/*` vers le backend.
+- Ajoute le frontend React/Bootstrap 5 source sous `web/` et les assets runtime servis par le paquet Python.
+- Intègre `openinfra-web` dans `compose.yaml`, `Dockerfile`, `.env.example`, `scripts/docker_environment.py` et le smoke runtime Docker.
+- Aligne `openinfra-web.service` sur l'entrée `openinfra-web` et la configuration canonique `/opt/openinfra/config/openinfra.conf` accessible via `/etc/openinfra/openinfra.conf`.
+- Renforce les tests P08 : parité CLI/API/UI, proxy web, absence de DSN/secrets côté frontend, compose web et validation statique.
+
 ## 0.29.11 - 2026-07-05
 
 - Correction du modèle P07/P08 : LDAP/IPA opérateur est désormais porté par le frontend web Pro/Enterprise, pas par le backend server.

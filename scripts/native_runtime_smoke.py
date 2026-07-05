@@ -59,7 +59,7 @@ class NativeRuntimeAssetChecker:
         )
         required_fragments = (
             "ExecStart=/opt/openinfra/venv/bin/openinfra-api",
-            "ExecStart=/opt/openinfra/venv/bin/python -m http.server 2006",
+            "ExecStart=/opt/openinfra/venv/bin/openinfra-web",
             "openinfra-agent.service",
             "NoNewPrivileges=true",
             "ProtectSystem=strict",

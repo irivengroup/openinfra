@@ -14,12 +14,13 @@ COPY pyproject.toml README.md LICENSE VERSION ./
 COPY src ./src
 COPY installers ./installers
 COPY docs/api ./docs/api
+COPY web ./web
 
 RUN python -m pip install --upgrade pip \
     && python -m pip install '.[postgresql]' \
     && chown -R openinfra:openinfra /app
 
 USER openinfra
-EXPOSE 8080
+EXPOSE 8080 2006
 
 CMD ["openinfra-api", "--host", "0.0.0.0", "--port", "8080", "--backend", "postgresql"]

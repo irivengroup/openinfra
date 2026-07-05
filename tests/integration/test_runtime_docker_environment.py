@@ -28,6 +28,7 @@ class TestRuntimeEnvironment:
 
         assert not Path("deploy").exists()
         assert "ExecStart=/opt/openinfra/venv/bin/openinfra-api" in backend_unit
+        assert "ExecStart=/opt/openinfra/venv/bin/openinfra-web" in web_unit
         assert "User=openinfra" in backend_unit
         assert "NoNewPrivileges=true" in backend_unit
         assert "ProtectSystem=strict" in backend_unit
@@ -57,18 +58,23 @@ class TestRuntimeEnvironment:
         assert "api:" in compose
         assert "smoke:" in compose
         assert "pgadmin:" in compose
+        assert "web:" in compose
+        assert "openinfra-web" in compose
         assert "service_healthy" in compose
         assert "service_completed_successfully" in compose
         assert "USER openinfra" in dockerfile
         assert "HEALTHCHECK" not in dockerfile
         assert "OPENINFRA_POSTGRES_PASSWORD=" in env_example
-        assert "OPENINFRA_IMAGE_TAG=0.29.11" in env_example
+        assert "OPENINFRA_IMAGE_TAG=0.29.12" in env_example
         assert "OPENINFRA_PGADMIN_EMAIL=" in env_example
         assert "OPENINFRA_PGADMIN_PASSWORD=" in env_example
         assert "OPENINFRA_PGADMIN_PORT=5050" in env_example
-        assert "openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.29.11}" in compose
+        assert "OPENINFRA_WEB_PORT=2006" in env_example
+        assert "OPENINFRA_WEB_BACKEND_URL=http://api:8080" in env_example
+        assert "openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.29.12}" in compose
         assert "${OPENINFRA_PGADMIN_IMAGE:-dpage/pgadmin4:latest}" in compose
         assert "openinfra-pgadmin-data:/var/lib/pgadmin" in compose
+        assert "${OPENINFRA_WEB_BIND:-127.0.0.1}:${OPENINFRA_WEB_PORT:-2006}:2006" in compose
         assert "./docker/pgadmin/servers.json:/pgadmin4/servers.json:ro" in compose
         assert "${OPENINFRA_PGADMIN_BIND:-127.0.0.1}:${OPENINFRA_PGADMIN_PORT:-5050}:80" in compose
         assert "openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.14.0}" not in compose
@@ -76,6 +82,8 @@ class TestRuntimeEnvironment:
         assert "apply-migrations" in compose
         assert "psql" not in compose
         assert "/ready" in smoke
+        assert "OPENINFRA_WEB_BASE_URL" in smoke
+        assert "/config.json" in smoke
         assert "/" in smoke
         assert "/api/v1" in smoke
         assert "/api/v1/database/schema" in smoke
@@ -108,6 +116,8 @@ class TestRuntimeEnvironment:
         assert "admin@openinfra.local" not in payload
         assert "OPENINFRA_PGADMIN_PASSWORD=" in payload
         assert "OPENINFRA_PGADMIN_IMAGE=dpage/pgadmin4:latest" in payload
+        assert "OPENINFRA_WEB_BIND=127.0.0.1" in payload
+        assert "OPENINFRA_WEB_BACKEND_URL=http://api:8080" in payload
         assert "replace-with" not in payload
         assert os.linesep in payload
 

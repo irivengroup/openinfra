@@ -43,13 +43,20 @@ class EnvFileManager:
                 f"OPENINFRA_POSTGRES_PASSWORD={password}",
                 "OPENINFRA_API_BIND=127.0.0.1",
                 "OPENINFRA_API_PORT=8080",
-                "OPENINFRA_IMAGE_TAG=0.29.11",
+                "OPENINFRA_IMAGE_TAG=0.29.12",
                 f"OPENINFRA_BOOTSTRAP_TOKEN={bootstrap_token}",
                 "OPENINFRA_PGADMIN_EMAIL=admin@openinfra.tld",
                 f"OPENINFRA_PGADMIN_PASSWORD={pgadmin_password}",
                 "OPENINFRA_PGADMIN_BIND=127.0.0.1",
                 "OPENINFRA_PGADMIN_PORT=5050",
                 "OPENINFRA_PGADMIN_IMAGE=dpage/pgadmin4:latest",
+                "OPENINFRA_WEB_BIND=127.0.0.1",
+                "OPENINFRA_WEB_PORT=2006",
+                "OPENINFRA_WEB_BACKEND_URL=http://api:8080",
+                "OPENINFRA_WEB_PUBLIC_API_BASE_URL=/api",
+                "OPENINFRA_WEB_ALLOW_INSECURE_BACKEND=true",
+                "OPENINFRA_WEB_EDITION=pro",
+                "OPENINFRA_WEB_AUTH_MODE=standard",
                 "",
             )
         )
@@ -106,7 +113,17 @@ class DockerRuntimeEnvironmentCli:
             env_manager.ensure()
         if action == "up":
             runner.run(
-                ["up", "--build", "-d", "postgres", "migrate", "auth-bootstrap", "api", "pgadmin"]
+                [
+                    "up",
+                    "--build",
+                    "-d",
+                    "postgres",
+                    "migrate",
+                    "auth-bootstrap",
+                    "api",
+                    "web",
+                    "pgadmin",
+                ]
             )
             return
         if action == "validate":

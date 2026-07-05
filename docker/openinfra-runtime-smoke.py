@@ -46,6 +46,40 @@ class HttpJsonClient:
             return json.loads(response.read().decode("utf-8"))
 
 
+@dataclass(frozen=True, slots=True)
+class WebHttpClient:
+    base_url: str
+    timeout_seconds: float = 5.0
+
+    def get_text(self, path: str) -> str:
+        with urllib.request.urlopen(self.base_url + path, timeout=self.timeout_seconds) as response:
+            return response.read().decode("utf-8")
+
+    def get_json(self, path: str) -> dict[str, object]:
+        return json.loads(self.get_text(path))
+
+
+class RuntimeWebSmokeScenario:
+    def __init__(self, client: WebHttpClient) -> None:
+        self._client = client
+
+    def run(self) -> None:
+        health = self._client.get_json("/health")
+        config = self._client.get_json("/config.json")
+        index = self._client.get_text("/")
+        version = self._client.get_json("/api/v1/version")
+        if health.get("status") != "ok":
+            raise SmokeError("unexpected openinfra-web health response")
+        if config.get("service") != "openinfra-web" or config.get("apiBaseUrl") != "/api":
+            raise SmokeError(
+                "unexpected openinfra-web config: " + json.dumps(config, sort_keys=True)
+            )
+        if "openinfra-root" not in index or "OPENINFRA_DATABASE_DSN" in index:
+            raise SmokeError("openinfra-web index does not match the API-only frontend contract")
+        if version.get("version") != __version__:
+            raise SmokeError("openinfra-web proxy returned wrong version")
+
+
 class RuntimeSmokeScenario:
     def __init__(self, client: HttpJsonClient, database_dsn: str) -> None:
         self._client = client
@@ -573,6 +607,7 @@ class RuntimeSmokeCli:
     @classmethod
     def main(cls) -> int:
         base_url = os.environ.get("OPENINFRA_API_BASE_URL", "http://api:8080").rstrip("/")
+        web_base_url = os.environ.get("OPENINFRA_WEB_BASE_URL", "http://web:2006").rstrip("/")
         database_dsn = os.environ.get("OPENINFRA_DATABASE_DSN", "").strip()
         token = os.environ.get("OPENINFRA_BOOTSTRAP_TOKEN", "").strip()
         if not database_dsn:
@@ -583,6 +618,7 @@ class RuntimeSmokeCli:
             return 2
         try:
             RuntimeSmokeScenario(HttpJsonClient(base_url, token), database_dsn).run()
+            RuntimeWebSmokeScenario(WebHttpClient(web_base_url)).run()
         except SmokeError as exc:
             print(str(exc), file=sys.stderr)
             return 1

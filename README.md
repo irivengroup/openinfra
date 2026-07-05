@@ -1,8 +1,16 @@
-# OpenInfra v0.29.11
+# OpenInfra v0.29.12
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.11 — Correctif P07/P08 de modèle runtime : configuration canonique post-installation, backend API-only, LDAP/IPA côté web et mTLS front/back/agent.**
+**Version courante : 0.29.12 — P08 frontend `openinfra-web` API-only, React/Bootstrap 5 et runtime Docker Compose intégré.**
+
+
+## v0.29.12 — openinfra-web, frontend API-only et Docker Compose
+
+- `openinfra-web` sert l'interface web et proxyfie `/api/*` vers le backend.
+- Docker Compose démarre désormais `postgres`, `migrate`, `auth-bootstrap`, `api`, `web` et `pgadmin` pour l'environnement d'exécution de validation.
+- Le frontend ne reçoit aucun DSN PostgreSQL, secret LDAP/IPA, clé privée ou jeton d'enrôlement agent.
+- Le runtime natif conserve `/opt/openinfra/config/openinfra.conf` comme configuration canonique et `/etc/openinfra` comme lien symbolique de compatibilité.
 
 ## v0.29.11 — Runtime post-installation, backend API-only et sécurisation des flux
 

@@ -1,3 +1,13 @@
+## Validation openinfra-web / Compose — v0.29.12
+
+```bash
+PYTHONPATH=src:. python -m pytest -q tests/integration/test_openinfra_web.py tests/integration/test_runtime_docker_environment.py --no-cov
+python scripts/validate_frontend.py --project-root .
+PYTHONPATH=src:. python scripts/quality_gate.py
+```
+
+Ces contrôles garantissent que `openinfra-web` sert l'interface, expose `/config.json`, proxyfie `/api/*` vers le backend, refuse les URL backend dangereuses, n'expose pas de DSN PostgreSQL et est réellement déclaré dans `compose.yaml`, `.env.example`, le smoke Docker et l'installateur natif.
+
 ## Validation P02 éditions / feature gates — v0.29.0
 
 ```bash

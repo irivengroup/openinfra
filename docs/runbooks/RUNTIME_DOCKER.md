@@ -2,7 +2,7 @@
 
 Ce runbook décrit un lab facultatif. La production OpenInfra s’exécute directement sur serveurs Linux via le runbook `RUNTIME_NATIVE.md`; Docker n’est pas requis pour le runtime de production.
 
-Ce runbook décrit le lab Docker livré avec OpenInfra pour valider le fonctionnement réel de la solution développée : PostgreSQL, moteur de migrations applicatif, API, readiness backend, statut de schéma, sécurité API, allocation IPAM transactionnelle par API et allocation IPAM par CLI.
+Ce runbook décrit le lab Docker livré avec OpenInfra pour valider le fonctionnement réel de la solution développée : PostgreSQL, moteur de migrations applicatif, API, frontend `openinfra-web`, proxy HTTP same-origin, readiness backend, statut de schéma, sécurité API, allocation IPAM transactionnelle par API et allocation IPAM par CLI.
 
 ## Objectif
 
@@ -11,7 +11,9 @@ L'environnement n'est pas un simple conteneur de tests unitaires. Il exécute la
 - `postgres` : instance PostgreSQL 16 persistante avec healthcheck ;
 - `migrate` : conteneur applicatif OpenInfra exécutant `openinfra database apply-migrations` ;
 - `api` : API OpenInfra construite depuis le Dockerfile applicatif, lancée avec backend PostgreSQL ;
-- `smoke` : scénario fonctionnel exécuté dans le même runtime applicatif que l'API.
+- `web` : service `openinfra-web` servant le frontend et proxyfiant `/api/*` vers `api:8080`, sans DSN ni secret exposé au navigateur ;
+- `pgadmin` : console PostgreSQL de lab liée uniquement au réseau Compose ;
+- `smoke` : scénario fonctionnel exécuté dans le même runtime applicatif que l'API et le frontend.
 
 ## Sécurité locale
 
@@ -29,7 +31,7 @@ Le fichier `.env.example` documente les variables attendues sans contenir de sec
 python scripts/docker_environment.py up
 ```
 
-Cette commande construit l'image OpenInfra, démarre PostgreSQL, applique les migrations via la CLI OpenInfra, puis démarre l'API uniquement après succès du conteneur `migrate`.
+Cette commande construit l'image OpenInfra, démarre PostgreSQL, applique les migrations via la CLI OpenInfra, démarre l'API uniquement après succès du conteneur `migrate`, puis démarre `openinfra-web` uniquement quand l'API est saine.
 
 ## Validation fonctionnelle runtime
 
@@ -46,7 +48,8 @@ Le scénario de validation vérifie :
 5. `/api/v1/ipam/allocate` crée une réservation IPAM ;
 6. un second appel API avec la même clé confirme l'idempotence ;
 7. le cycle de vie sécurité crée, liste et révoque un jeton de test sans exposer de hash ;
-8. la commande `openinfra ipam allocate --backend postgresql` fonctionne dans le conteneur applicatif.
+8. la commande `openinfra ipam allocate --backend postgresql` fonctionne dans le conteneur applicatif ;
+9. `openinfra-web` répond sur `/health`, sert `/config.json`, sert l'interface HTML et proxyfie `/api/v1/version` vers le backend sans exposer `OPENINFRA_DATABASE_DSN`.
 
 ## Commandes de migration PostgreSQL
 
@@ -85,7 +88,7 @@ Cette commande supprime aussi le volume PostgreSQL Docker afin de repartir d'un 
 - migrations versionnées, idempotentes et vérifiées par checksum ;
 - healthcheck applicatif connecté à `/ready` ;
 - PostgreSQL comme socle de persistance runtime ;
-- API et CLI validées dans l'environnement d'exécution ;
+- API, CLI et frontend `openinfra-web` validés dans l'environnement d'exécution ;
 - réseau Docker isolé ;
 - données PostgreSQL stockées dans un volume nommé.
 

@@ -1,3 +1,10 @@
+## v0.29.12 — openinfra-web API-only et Compose runtime
+
+- `openinfra-web` est un service applicatif distinct du backend : il sert les assets frontend et proxyfie `/api/*` vers l'API interne.
+- Le navigateur reste en same-origin sur `/api`; il ne reçoit aucun DSN PostgreSQL, secret LDAP/IPA, clé privée mTLS ou jeton d'enrôlement agent.
+- Docker Compose inclut désormais `web` avec healthcheck dédié, dépendance sur `api:service_healthy` et smoke tests front/back.
+- Le runtime natif rend `openinfra-web.service` via l'installateur autonome et lit la configuration canonique `/opt/openinfra/config/openinfra.conf` exposée par le symlink `/etc/openinfra`.
+
 ## v0.29.11 — Configuration runtime canonique, backend API-only et flux sécurisés
 
 - `/opt/openinfra/config/openinfra.conf` est le fichier runtime canonique matérialisant les paramètres utiles de `install.ini` et des références `.env`.

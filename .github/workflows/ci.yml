@@ -77,6 +77,9 @@ jobs:
           openinfra installer validate --root installers >/tmp/openinfra-installers.json
           openinfra installer dry-run --root installers >/tmp/openinfra-installers-dry-run.json
 
+      - name: Frontend contract validation
+        run: python scripts/validate_frontend.py --project-root .
+
       - name: Smoke migration rendering
         run: |
           set -euo pipefail

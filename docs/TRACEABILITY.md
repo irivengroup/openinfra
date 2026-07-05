@@ -1,3 +1,14 @@
+## v0.29.12 — P08 frontend web et Compose
+
+| Élément | Alignement |
+|---|---|
+| Roadmap | P08 matérialisé par un frontend React/Bootstrap et un serveur `openinfra-web` API-only. |
+| Backend | Le backend reste API-only : aucune authentification opérateur LDAP/IPA directe. |
+| Frontend | `web/src/main.jsx` consomme uniquement `/api` et `/config.json`; aucun secret backend n'est présent dans les assets. |
+| Docker Compose | Service `web` ajouté avec healthcheck, dépendance sur `api`, port local `2006` et proxy `/api/*` vers `api:8080`. |
+| Installateur | Scope web rendu en `openinfra-web.service` et configuration runtime matérialisée dans `/opt/openinfra/config/openinfra.conf`. |
+| Tests | `tests/integration/test_openinfra_web.py`, `tests/integration/test_runtime_docker_environment.py`, `scripts/validate_frontend.py` et smoke Docker frontend. |
+
 ## v0.29.10 — P07 authentification LDAP/IPA et RBAC groupes
 
 - Lite reste strictement limité à l'authentification locale `standard`.

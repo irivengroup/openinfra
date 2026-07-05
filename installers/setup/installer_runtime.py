@@ -400,6 +400,7 @@ class AutonomousInstallerProgram:
                 plan.application_root / "requirements",
                 journal,
             )
+            self._deploy_web_assets(plan, journal)
             self._replace_file(
                 self._location.config_path,
                 plan.configuration_root / f"install-{plan.edition_directory}-{plan.scope}.ini",
@@ -473,6 +474,13 @@ class AutonomousInstallerProgram:
                         "/usr/sbin/nologin",
                         "openinfra",
                     ),
+                )
+            )
+        if report.scope in {"all-in-one", "web"}:
+            commands.append(
+                InstallationCommand(
+                    "deploy OpenInfra web assets",
+                    ("install", "-d", str(application_root / "web")),
                 )
             )
         commands.extend(
@@ -819,6 +827,15 @@ class AutonomousInstallerProgram:
             journal,
         )
 
+    def _deploy_web_assets(
+        self, plan: InstallationPlan, journal: InstallationRollbackJournal
+    ) -> None:
+        if plan.scope not in {"all-in-one", "web"}:
+            return
+        web_source = self._location.project_root / "web"
+        if web_source.is_dir():
+            self._replace_tree(web_source, plan.application_root / "web", journal)
+
     def _run_postgresql_bootstrap(
         self, plan: InstallationPlan, journal: InstallationRollbackJournal
     ) -> None:
@@ -901,6 +918,8 @@ class AutonomousInstallerProgram:
         }
         if plan.edition == "lite":
             values["OPENINFRA_DATABASE_DSN"] = "postgresql:///openinfra"
+        if plan.scope in {"all-in-one", "web"}:
+            self._add_web_runtime_values(parser, plan, values)
         for section in parser.sections():
             for key, value in parser.items(section):
                 env_key = "OPENINFRA_INSTALL_" + section.upper() + "_" + key.upper()
@@ -921,6 +940,22 @@ class AutonomousInstallerProgram:
             )
         )
         self._replace_text(plan.runtime_config_file, content, 0o640, journal)
+
+    def _add_web_runtime_values(
+        self, parser: configparser.ConfigParser, plan: InstallationPlan, values: dict[str, str]
+    ) -> None:
+        values["OPENINFRA_WEB_HOST"] = "127.0.0.1"
+        values["OPENINFRA_WEB_PORT"] = "2006"
+        values["OPENINFRA_WEB_PUBLIC_API_BASE_URL"] = "/api"
+        values["OPENINFRA_WEB_STATIC_ROOT"] = "/opt/openinfra/src/openinfra/web_static"
+        values["OPENINFRA_WEB_AUTH_MODE"] = parser.get("auth", "mode", fallback="standard").strip()
+        if plan.scope == "web":
+            values["OPENINFRA_WEB_BACKEND_URL"] = parser.get(
+                "api", "backend_endpoint", fallback=""
+            ).strip()
+        else:
+            values["OPENINFRA_WEB_BACKEND_URL"] = "http://127.0.0.1:8080"
+            values["OPENINFRA_WEB_ALLOW_INSECURE_BACKEND"] = "true"
 
     def _add_database_runtime_refs(
         self, parser: configparser.ConfigParser, values: dict[str, str]

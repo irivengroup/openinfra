@@ -51,6 +51,7 @@ class NativeRuntimeGuard:
             "scripts/native_runtime_smoke.py",
             "scripts/validate_autonomous_installer.py",
             "scripts/validate_enterprise_alignment.py",
+            "scripts/validate_frontend.py",
             "installers/migrations/postgresql/0001_bootstrap.sql",
             "installers/requirements/common.txt",
             "installers/requirements/backend.txt",
@@ -188,7 +189,7 @@ class DockerRuntimeGuard:
             raise QualityGateError(
                 "Dockerfile must not define an API healthcheck inherited by migrate/auth-bootstrap"
             )
-        if "openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.29.11}" not in compose:
+        if "openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.29.12}" not in compose:
             raise QualityGateError("compose.yaml must default to the current OpenInfra image tag")
         stale_tags = (
             "OPENINFRA_IMAGE_TAG=0.9.0",
@@ -196,6 +197,7 @@ class DockerRuntimeGuard:
             "OPENINFRA_IMAGE_TAG=0.22.1",
             "OPENINFRA_IMAGE_TAG=0.22.2",
             "OPENINFRA_IMAGE_TAG=0.28.1",
+            "OPENINFRA_IMAGE_TAG=0.29.11",
             "${OPENINFRA_IMAGE_TAG:-0.14.0}",
             "${OPENINFRA_IMAGE_TAG:-0.22.1}",
             "${OPENINFRA_IMAGE_TAG:-0.22.2}",
@@ -206,12 +208,45 @@ class DockerRuntimeGuard:
             "${OPENINFRA_IMAGE_TAG:-0.29.4}",
             "${OPENINFRA_IMAGE_TAG:-0.29.5}",
             "${OPENINFRA_IMAGE_TAG:-0.29.6}",
+            "${OPENINFRA_IMAGE_TAG:-0.29.11}",
         )
         stale = [
             fragment for fragment in stale_tags if fragment in compose + env_example + env_manager
         ]
         if stale:
             raise QualityGateError("stale Docker image tag defaults detected: " + ", ".join(stale))
+
+        web_required = (
+            "  web:",
+            "container_name: openinfra-web",
+            "openinfra-web",
+            "OPENINFRA_WEB_BACKEND_URL",
+            "OPENINFRA_WEB_PUBLIC_API_BASE_URL",
+            "OPENINFRA_WEB_ALLOW_INSECURE_BACKEND",
+            "${OPENINFRA_WEB_BIND:-127.0.0.1}:${OPENINFRA_WEB_PORT:-2006}:2006",
+            "http://127.0.0.1:2006/health",
+        )
+        missing_web = [fragment for fragment in web_required if fragment not in compose]
+        if missing_web:
+            raise QualityGateError(
+                "compose openinfra-web service is incomplete: " + ", ".join(missing_web)
+            )
+        web_env_required = (
+            "OPENINFRA_WEB_BIND=127.0.0.1",
+            "OPENINFRA_WEB_PORT=2006",
+            "OPENINFRA_WEB_BACKEND_URL=http://api:8080",
+            "OPENINFRA_WEB_PUBLIC_API_BASE_URL=/api",
+            "OPENINFRA_WEB_ALLOW_INSECURE_BACKEND=true",
+        )
+        missing_web_env = [fragment for fragment in web_env_required if fragment not in env_example]
+        if missing_web_env:
+            raise QualityGateError(
+                ".env.example missing openinfra-web variables: " + ", ".join(missing_web_env)
+            )
+        if "OPENINFRA_WEB_BACKEND_URL=http://api:8080" not in env_manager:
+            raise QualityGateError(
+                "docker environment manager must generate openinfra-web settings"
+            )
 
         pgadmin_servers = self._project_root / "docker/pgadmin/servers.json"
         if "  pgadmin:" not in compose:
@@ -375,6 +410,14 @@ class QualityGate:
         postgres_migration_guard.assert_audit_indexes_use_created_at()
         postgres_migration_guard.assert_enterprise_ipam_migration_backfills_prefix_family()
         CompletionMarkerGuard(self._project_root).assert_clean_sources()
+        CommandRunner().run(
+            [
+                sys.executable,
+                "scripts/validate_frontend.py",
+                "--project-root",
+                str(self._project_root),
+            ]
+        )
         CommandRunner().run(
             [sys.executable, "scripts/security_gate.py", "--project-root", str(self._project_root)]
         )

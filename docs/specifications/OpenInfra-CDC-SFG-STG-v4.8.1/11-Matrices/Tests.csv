@@ -549,3 +549,4 @@ TST-AUTH-045,sécurité,Modèle opérateur API-only backend,Tests politique auth
 TST-RIQUAL-046,fonctionnel,Qualité objet RI,Tests service et CLI,Un objet complet et autoritatif obtient un statut certified avec score >= 90.,REQ-00743
 TST-RIQUAL-047,sécurité,RBAC qualité RI,Tests négatifs,Un rôle sans ri.quality.read ne peut pas consulter la qualité RI.,REQ-00744
 TST-RIQUAL-048,fonctionnel,Source non autoritative RI,Tests gouvernance + qualité,Une donnée portée par une source non autoritative remonte un warning explicite.,REQ-00745
+TST-WEB-049,fonctionnel,Dashboard Bootstrap openinfra-web,Validation frontend et tests intégration serveur web,"Le portail sert bootstrap.min.css local, le header Bootstrap double niveau, la sidebar dashboard, les domaines OpenInfra et aucun secret runtime.",REQ-00746

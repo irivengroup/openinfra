@@ -21,3 +21,4 @@ CDC-ITSM-001,Pas d’ITSM intégré,P13,EPIC-1303; EPIC-1304,REL-04,Connecteurs 
 CDC-MSITE-001,Multisite Pro/Entreprise,P17,EPIC-1701; EPIC-1702,REL-05/REL-07,Topologies Pro/Entreprise.
 CDC-SUP-001,Garantie/support constructeur obligatoires,P12,EPIC-1202; EPIC-1203,REL-06,Tests non-écrasement.
 P09,REQ-00743;REQ-00744;REQ-00745,RI Quality & Certification,Implémenté en v0.29.14
+P08,REQ-00746,openinfra-web Bootstrap 5 Dashboard Theme,Implémenté en v0.29.15

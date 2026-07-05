@@ -1440,3 +1440,9 @@ Le jalon P06 est amorcé avant reprise Discovery par le plan installateur Postgr
 ### Avancement v0.29.14 — P09 RI Quality & Certification
 
 P09 démarre par la capacité de qualité et certification RI : évaluation individuelle des objets, synthèse tenant, score de complétude/fraîcheur/autorité/confiance, intégration des règles de source autoritative, RBAC `ri.quality.read`, audit `ri.quality.*`, API `/api/v1/ri/quality/*`, CLI `openinfra ri quality-*` et exposition dans le dashboard web.
+
+### Avancement v0.29.15 — P08 Bootstrap 5 Dashboard Theme
+
+P08 est consolidé par l'intégration du thème Bootstrap 5 Dashboard dans `openinfra-web`. Le portail web dispose désormais d'un header double niveau, d'une recherche opérationnelle, d'une sidebar Dashboard et d'une zone d'exécution API alignée sur les domaines CLI/API : Dashboard, RI, IPAM, DCIM, Discovery, Sécurité/RBAC, Audit et Runtime.
+
+Le rendu reste dans le domaine présentation/rendering, les assets Bootstrap sont servis localement, et le navigateur ne reçoit aucun secret ni accès direct aux composants backend ou PostgreSQL.

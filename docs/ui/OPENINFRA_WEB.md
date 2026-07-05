@@ -1,4 +1,4 @@
-# OpenInfra Web v0.29.13
+# OpenInfra Web v0.29.15
 
 OpenInfra Web est le portail `openinfra-web` API-only. Il sert l'interface React/Bootstrap 5, expose un proxy applicatif `/api/*` vers le backend `openinfra-api` et fournit un dashboard de pilotage aligné sur les domaines CLI.
 
@@ -39,3 +39,11 @@ Le service Compose `openinfra-web` dépend de `api:8080`, écoute par défaut su
 ## Installation native
 
 L'unité `openinfra-web.service` lance `openinfra-web` depuis le virtualenv géré par l'installateur et lit sa configuration via `EnvironmentFile=/etc/openinfra/openinfra.conf`, chemin compatible pointant vers `/opt/openinfra/config/openinfra.conf`.
+
+## v0.29.15 — Bootstrap 5 Dashboard Theme
+
+Le portail utilise le thème Bootstrap 5 Dashboard comme structure principale : header sombre, second header de recherche/actions, sidebar gauche, métriques runtime et zone centrale d'opérations. Le header Bootstrap est adapté aux domaines OpenInfra : Dashboard, RI, IPAM, DCIM, Discovery et Sécurité.
+
+Les styles Bootstrap sont fournis localement par `src/openinfra/interfaces/rendering/static/assets/bootstrap.min.css`; aucun CDN externe n'est nécessaire. Le fichier `openinfra-web.css` ne contient que les adaptations produit OpenInfra.
+
+Les boutons `Login` et `Sign-up` sont conservés dans la structure du header Bootstrap. Ils sont câblés sans secret : `Login` positionne l'opérateur sur la saisie de jeton applicatif, et `Sign-up` oriente vers le domaine Sécurité/RBAC pour les opérations d'identité et de gouvernance d'accès.

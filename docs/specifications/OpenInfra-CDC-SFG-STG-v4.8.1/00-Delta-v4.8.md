@@ -48,3 +48,11 @@ L'exigence est acceptée si tous les dossiers `installers/<edition>/<scope>/` li
 ## Delta v0.29.14 — RI Quality & Certification
 
 La phase P09 ajoute la certification qualité RI : score par objet, synthèse tenant, détection des attributs obligatoires manquants, fraîcheur, source non autoritative, RBAC `ri.quality.read`, audit `ri.quality.*`, API `/api/v1/ri/quality/*` et commandes CLI `openinfra ri quality-*`.
+
+## Delta v0.29.15 — openinfra-web Bootstrap 5 Dashboard Theme
+
+Le portail `openinfra-web` adopte le thème officiel Bootstrap 5 Dashboard comme base de rendu et le header double niveau Bootstrap adapté aux domaines OpenInfra. Les items génériques du template sont remplacés par les domaines opérationnels réels : Dashboard, RI, IPAM, DCIM, Discovery et Sécurité/RBAC/Audit.
+
+Les assets Bootstrap 5 sont servis localement depuis `src/openinfra/interfaces/rendering/static/assets/bootstrap.min.css`. Aucun CDN externe n'est requis au runtime, ce qui préserve la politique CSP stricte, l'exploitation offline et l'absence d'exposition de secrets.
+
+Le dashboard reste API-only : le navigateur consomme uniquement `/api/*` via `openinfra-web`, sans accès direct à PostgreSQL, sans DSN, sans secret backend et sans lecture du fichier runtime `openinfra.conf`.

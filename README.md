@@ -1,9 +1,17 @@
-# OpenInfra v0.29.13
+# OpenInfra v0.29.15
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.13 — réalignement RI, sémantique agents proxy Enterprise, dashboard web de pilotage et assets rendering.**
+**Version courante : 0.29.15 — openinfra-web Bootstrap 5 Dashboard Theme, RI Quality & Certification, agents proxy Enterprise et backend API-only.**
 
+
+
+### v0.29.15 — openinfra-web Bootstrap 5 Dashboard Theme
+
+- Portail `openinfra-web` aligné sur le thème Bootstrap 5 Dashboard.
+- Header double niveau adapté aux domaines OpenInfra : Dashboard, RI, IPAM, DCIM, Discovery, Sécurité/RBAC et Audit.
+- Bootstrap servi localement depuis `interfaces/rendering/static/assets/bootstrap.min.css`.
+- Dashboard API-only : aucun DSN PostgreSQL ni secret backend exposé au navigateur.
 
 ## v0.29.13 — RI, agents proxy Enterprise et dashboard de pilotage
 

@@ -45,3 +45,9 @@ Le service backend expose l'API OpenInfra et applique les politiques d'autorisat
 - les autres nœuds backend dans les topologies clusterisées.
 
 Le backend valide les jetons applicatifs, applique RBAC/ABAC, journalise les refus et décisions sensibles, et refuse tout chemin de contournement qui tenterait d'utiliser LDAP/IPA directement sur un scope backend. Tous les flux réseau hors Lite utilisent TLS 1.3 et mTLS.
+
+## Complément v0.29.15 — thème Bootstrap 5 du portail web
+
+`openinfra-web.service` doit servir un dashboard Bootstrap 5 complet basé sur le modèle Dashboard officiel et sur un header double niveau adapté à OpenInfra. Les composants visibles doivent permettre le pilotage réel des domaines exposés par l'API backend : Dashboard, Ressources Inventory, IPAM, DCIM, Discovery, Sécurité/RBAC, Audit et Runtime.
+
+Les fichiers statiques appartiennent au domaine présentation/rendering et sont empaquetés sous `src/openinfra/interfaces/rendering/static`. Le runtime doit charger Bootstrap localement depuis `assets/bootstrap.min.css`, puis le thème OpenInfra depuis `assets/openinfra-web.css`.

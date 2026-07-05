@@ -87,6 +87,8 @@ class TestOpenInfraWeb:
             config = self._config(backend.base_url)
             with RunningServer(OpenInfraWebServer(("127.0.0.1", 0), config)) as web:
                 index = self._get_text(web.base_url + "/")
+                bootstrap_css = self._get_text(web.base_url + "/assets/bootstrap.min.css")
+                static_css = self._get_text(web.base_url + "/assets/openinfra-web.css")
                 static_js = self._get_text(web.base_url + "/assets/openinfra-web.js")
                 public_config = self._get_json(web.base_url + "/config.json")
                 readiness = self._get_json(web.base_url + "/ready")
@@ -99,12 +101,18 @@ class TestOpenInfraWeb:
                 )
 
         assert "openinfra-root" in index
+        assert "/assets/bootstrap.min.css" in index
+        assert "Bootstrap" in bootstrap_css and "v5." in bootstrap_css
+        assert "openinfra-sidebar" in static_css
         assert "OpenInfraDashboard" in static_js
+        assert "Dashboard de pilotage OpenInfra" in static_js
+        assert "Search OpenInfra operations" in static_js
+        assert "Login" in static_js and "Sign-up" in static_js
         assert "Ressources Inventory" in static_js
         assert "/v1/ri/objects" in static_js
-        assert "agents proxy collectors uniquement Enterprise" in static_js
-        assert "postgresql://" not in index + static_js
-        assert "OPENINFRA_DATABASE_DSN" not in index + static_js
+        assert "agents proxy collectors Enterprise uniquement" in static_js
+        assert "postgresql://" not in index + static_js + static_css
+        assert "OPENINFRA_DATABASE_DSN" not in index + static_js + static_css
         assert public_config == {
             "apiBaseUrl": "/api",
             "authMode": "standard",

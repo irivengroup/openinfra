@@ -1,3 +1,10 @@
+## 0.29.15 - 2026-07-05
+
+- `openinfra-web` adopte le thème Bootstrap 5 Dashboard avec header double niveau adapté aux domaines OpenInfra.
+- Ajout de `assets/bootstrap.min.css` dans le domaine présentation/rendering pour un runtime sans CDN.
+- Validation frontend renforcée : header, sidebar, recherche, domaines RI/IPAM/DCIM/Discovery/Sécurité et non-exposition des secrets.
+- CDC v4.8.1 mis à jour avec `REQ-00746` et `TST-WEB-049`.
+
 ## 0.29.13 - 2026-07-05
 
 - Renomme le domaine public `Source of Truth/SOT` en `Ressources Inventory/RI` dans le CDC, la roadmap, OpenAPI, runbooks, CI, documentation, dashboard et smoke tests.

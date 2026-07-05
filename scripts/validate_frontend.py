@@ -49,8 +49,23 @@ class FrontendContractValidator:
         if (
             "from 'react'" not in main_source
             or "bootstrap/dist/css/bootstrap.min.css" not in main_source
+            or "openinfra-theme.css" not in main_source
+            or "Search OpenInfra operations" not in main_source
+            or "Dashboard de pilotage OpenInfra" not in main_source
         ):
-            raise FrontendValidationError("web/src/main.jsx must implement React + Bootstrap UI")
+            raise FrontendValidationError(
+                "web/src/main.jsx must implement the OpenInfra React + Bootstrap dashboard UI"
+            )
+        for required_header_fragment in (
+            "bg-dark text-white",
+            "text-small",
+            "Login",
+            "Sign-up",
+        ):
+            if required_header_fragment not in main_source:
+                raise FrontendValidationError(
+                    "web/src/main.jsx must keep the Bootstrap 5 double-header dashboard theme"
+                )
         compose = (self._project_root / "compose.yaml").read_text(encoding="utf-8")
         compose_required = (
             "  web:",
@@ -83,11 +98,30 @@ class FrontendContractValidator:
 
     def _validate_static_assets(self) -> tuple[str, ...]:
         root = self._project_root / "src/openinfra/interfaces/rendering/static"
-        required = ("index.html", "assets/openinfra-web.js", "assets/openinfra-web.css")
+        required = (
+            "index.html",
+            "assets/bootstrap.min.css",
+            "assets/openinfra-web.js",
+            "assets/openinfra-web.css",
+        )
         missing = [name for name in required if not (root / name).is_file()]
         if missing:
             raise FrontendValidationError("missing runtime web assets: " + ", ".join(missing))
         payload = "\n".join((root / name).read_text(encoding="utf-8") for name in required)
+        for fragment in (
+            "Dashboard de pilotage OpenInfra",
+            "Search OpenInfra operations",
+            "bg-dark text-white",
+            "openinfra-sidebar",
+            "Login",
+            "Sign-up",
+            "Ressources Inventory",
+            "agents proxy collectors Enterprise uniquement",
+        ):
+            if fragment not in payload:
+                raise FrontendValidationError(
+                    "runtime web assets do not expose the Bootstrap dashboard contract"
+                )
         forbidden = ("OPENINFRA_DATABASE_DSN", "postgresql://", "bind_password", "client_key")
         leaked = [fragment for fragment in forbidden if fragment in payload]
         if leaked:

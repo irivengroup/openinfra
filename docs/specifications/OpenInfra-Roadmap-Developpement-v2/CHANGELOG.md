@@ -22,3 +22,9 @@
 - P09 initialisée par RI Quality & Certification.
 - Ajout du pilotage qualité/certification RI dans CLI, API et dashboard web.
 - Ajout de la permission `ri.quality.read` et des audits `ri.quality.*`.
+
+## 0.29.15
+
+- P08 renforcé : `openinfra-web` adopte le thème Bootstrap 5 Dashboard et le header double niveau adapté aux domaines OpenInfra.
+- Bootstrap 5 est servi localement dans le domaine présentation/rendering, sans CDN runtime.
+- Ajout du test roadmap de parité UI Bootstrap/API-only.

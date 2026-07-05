@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
@@ -175,6 +176,15 @@ class TestExternalIdentityInfrastructure:
                 )
         finally:
             sys.modules.pop("ldap3", None)
+
+        real_import_module = importlib.import_module
+
+        def unavailable_ldap3(name: str, package: str | None = None) -> object:
+            if name == "ldap3":
+                raise ModuleNotFoundError(name)
+            return real_import_module(name, package)
+
+        monkeypatch.setattr(importlib, "import_module", unavailable_ldap3)
         with pytest.raises(ValidationError):
             LdapIpaDirectoryAuthenticator().authenticate(
                 _config(),

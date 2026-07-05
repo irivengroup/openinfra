@@ -107,11 +107,15 @@ class TestAutonomousScopeInstallers:
         lite_app = tmp_path / "lite-target/opt/openinfra"
         assert (lite_app / "src/openinfra").is_dir()
         assert (lite_app / "requirements/lite-all-in-one.txt").is_file()
-        assert (lite_app / "installers/migrations/postgresql/0001_bootstrap.sql").is_file()
+        assert (lite_app / "share/migrations/postgresql/0001_bootstrap.sql").is_file()
         assert (
-            lite_app / "installers/migrations/postgresql/0024_postgresql_ha_backup_registry.sql"
+            lite_app / "share/migrations/postgresql/0024_postgresql_ha_backup_registry.sql"
         ).is_file()
-        assert (tmp_path / "lite-target/etc/openinfra/install-lite-all-in-one.ini").is_file()
+        assert (lite_app / "config/install-lite-all-in-one.ini").is_file()
+        assert (lite_app / "config/openinfra.conf").is_file()
+        assert (lite_app / "config/.openinfra-installed.lock").is_file()
+        assert (tmp_path / "lite-target/etc/openinfra").is_symlink()
+        assert (tmp_path / "lite-target/etc/openinfra").readlink() == Path("/opt/openinfra/config")
         assert (tmp_path / "lite-target/etc/systemd/system/openinfra.service").is_file()
 
         agent_installer = program_cls(Path("installers/setup/enterprise/agent/install.py"))
@@ -121,8 +125,15 @@ class TestAutonomousScopeInstallers:
         agent_app = tmp_path / "agent-target/opt/openinfra"
         assert (agent_app / "src/openinfra").is_dir()
         assert (agent_app / "requirements/enterprise-agent.txt").is_file()
-        assert not (agent_app / "installers/migrations").exists()
-        assert (tmp_path / "agent-target/etc/openinfra/install-enterprise-agent.ini").is_file()
+        assert not (agent_app / "share/migrations").exists()
+        assert (agent_app / "config/install-enterprise-agent.ini").is_file()
+        agent_runtime = (agent_app / "config/openinfra.conf").read_text(encoding="utf-8")
+        assert (
+            'OPENINFRA_INSTALL_API_ENROLLMENT_TOKEN_REF="env:OPENINFRA_AGENT_ENROLLMENT_TOKEN"'
+            in agent_runtime
+        )
+        assert 'OPENINFRA_INSTALL_SECURITY_TRANSPORT="mtls"' in agent_runtime
+        assert 'OPENINFRA_INSTALL_SECURITY_MTLS_REQUIRED="true"' in agent_runtime
         agent_unit = tmp_path / "agent-target/etc/systemd/system/openinfra-agent.service"
         assert agent_unit.is_file()
         assert "WorkingDirectory=/opt/openinfra" in agent_unit.read_text(encoding="utf-8")
@@ -218,6 +229,20 @@ class TestAutonomousScopeInstallers:
 
         with pytest.raises(runtime_error):
             installer.execute_migrations(plan)
+
+    def test_hidden_installation_lock_prevents_duplicate_install(self, tmp_path: Path) -> None:
+        module = InstallerRuntimeModule().load()
+        program_cls = cast(Any, module).AutonomousInstallerProgram
+        runtime_error = cast(Any, module).InstallerRuntimeError
+        installer = program_cls(Path("installers/setup/lite/install.py"))
+        plan = installer.build_plan(tmp_path / "locked-target")
+        plan.installation_lock_file.parent.mkdir(parents=True)
+        plan.installation_lock_file.write_text("edition=lite\n", encoding="utf-8")
+
+        with pytest.raises(runtime_error) as exc_info:
+            installer.execute(plan, skip_service_enable=True)
+
+        assert ".openinfra-installed.lock" in str(exc_info.value)
 
     def test_manual_rollback_restores_stale_backups(self, tmp_path: Path) -> None:
         module = InstallerRuntimeModule().load()

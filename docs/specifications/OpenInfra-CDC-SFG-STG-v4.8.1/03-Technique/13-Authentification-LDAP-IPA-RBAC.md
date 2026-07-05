@@ -2,41 +2,49 @@
 
 ## Architecture
 
-Les éditions Pro et Entreprise doivent intégrer un adaptateur d'identité externe capable de se connecter à LDAP/LDAPS et IPA/FreeIPA. L'adaptateur appartient à la couche infrastructure et expose au domaine une identité normalisée.
+Les éditions Pro et Entreprise doivent intégrer un adaptateur d'identité externe capable de se connecter à LDAP/LDAPS et IPA/FreeIPA pour l'authentification opérateur portée par le frontend web. L'adaptateur appartient à la couche infrastructure et expose au domaine une identité normalisée.
+
+Le backend reste API-only pour les opérateurs : il ne réalise pas de login LDAP/IPA direct. Il valide les jetons applicatifs émis après authentification frontend, applique les permissions RBAC OpenInfra effectives et journalise les décisions d'autorisation.
 
 ```mermaid id="6xwzqu"
 flowchart LR
   U[Utilisateur] --> WEB[Frontend React + Bootstrap 5]
+  WEB --> LDAP[LDAP/LDAPS]
+  WEB --> IPA[IPA/FreeIPA]
   WEB --> API[API OpenInfra]
-  API --> AUTH[Service AuthN/AuthZ]
-  AUTH --> LDAP[LDAP/LDAPS]
-  AUTH --> IPA[IPA/FreeIPA]
-  AUTH --> RBAC[RBAC OpenInfra]
-  RBAC --> AUDIT[Audit]
+  API --> RBAC[RBAC OpenInfra]
+  API --> AUDIT[Audit]
+  AGENT[Agent technique] --> API
 ```
 
 ## Règles techniques
 
-- Le frontend ne gère jamais directement LDAP/IPA.
-- Le backend est l'unique composant autorisé à valider l'identité externe.
+- Lite reste strictement local et n'utilise jamais LDAP/IPA.
+- LDAP/IPA est autorisé uniquement pour les scopes web Pro/Entreprise.
+- Le backend n'authentifie pas directement chaque opérateur humain par LDAP/IPA.
+- Le frontend authentifie l'opérateur puis consomme l'API backend avec un jeton applicatif.
+- Les agents consomment l'API backend avec un mécanisme technique d'enrôlement, jamais avec un login opérateur.
 - Les mots de passe ou secrets de bind ne sont jamais loggés.
 - Les certificats TLS LDAP/IPA doivent être validés.
-- Les groupes externes sont mappés vers des rôles applicatifs.
-- Les sessions et tokens portent les permissions effectives calculées.
+- Les groupes externes sont mappés vers des rôles applicatifs OpenInfra.
+- Les sessions et tokens portent les permissions effectives calculées par OpenInfra.
 - Un changement de mapping doit invalider les sessions concernées selon la politique configurée.
 
-## Configuration minimale Pro/Entreprise
+## Configuration minimale Pro/Entreprise web
 
 ```yaml id="6mdlob"
 auth:
   providers:
     ldap_ipa:
       enabled: true
+      scope: frontend_web_only
       type: ldap_or_ipa
       url: ldaps://ipa.example.net:636
       base_dn: dc=example,dc=net
       user_filter: "(uid={username})"
       group_filter: "(member={user_dn})"
+      bind_dn_ref: env:OPENINFRA_LDAP_BIND_DN
+      bind_password_ref: env:OPENINFRA_LDAP_BIND_PASSWORD
       tls_required: true
       nested_groups: true
       cache_ttl_seconds: 300
@@ -44,7 +52,11 @@ auth:
 
 ## RBAC
 
-Le RBAC doit rester interne à OpenInfra. LDAP/IPA fournit l'identité et l'appartenance groupe ; OpenInfra décide des droits applicatifs.
+Le RBAC doit rester interne à OpenInfra. LDAP/IPA fournit l'identité et l'appartenance groupe ; OpenInfra décide des droits applicatifs. Le backend applique l'autorisation finale à chaque appel API, même lorsque le frontend masque déjà des actions non autorisées côté interface.
+
+## Sécurisation des échanges
+
+Hors Lite, les échanges frontend-backend, agent-backend et backend-backend imposent TLS 1.3 avec authentification mutuelle mTLS. Les certificats, clés privées et secrets LDAP/IPA sont référencés uniquement via `env:`, `file://`, `vault://`, `sops://` ou `kms://`.
 
 ## Break-glass
 
@@ -55,13 +67,3 @@ Un compte local break-glass peut exister uniquement pour Pro/Entreprise si :
 - il est protégé par MFA si disponible ;
 - son usage déclenche une alerte ;
 - sa rotation est imposée.
-
-## v0.29.10 — P07 authentification LDAP/IPA et RBAC groupes
-
-- Lite reste strictement limité à l'authentification locale `standard`.
-- Pro et Enterprise acceptent une politique LDAP/IPA uniquement côté backend/server.
-- Le frontend ne se connecte jamais directement à LDAP/IPA.
-- Les secrets de bind LDAP/IPA restent des références `env:`, `vault://`, `sops://`, `file://` ou `kms://`.
-- Les groupes externes sont mappés explicitement vers des rôles OpenInfra ; l'annuaire authentifie l'identité mais n'autorise jamais les actions applicatives.
-- L'émission des tokens applicatifs est basée sur les rôles OpenInfra effectifs.
-- Les connexions externes réussies sont auditées sans journaliser les mots de passe, DN utilisateur en clair dans les payloads publics ou secrets de bind.

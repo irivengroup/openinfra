@@ -1,2 +1,3 @@
 # Enterprise web production dependencies.
 -r web.txt
+-r auth-ldap.txt

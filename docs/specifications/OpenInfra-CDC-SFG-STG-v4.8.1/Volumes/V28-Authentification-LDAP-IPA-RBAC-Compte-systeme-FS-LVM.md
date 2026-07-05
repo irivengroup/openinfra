@@ -136,3 +136,13 @@ L'exigence est acceptée uniquement si :
 - l'installation est rejouable sans destruction ;
 - les migrations backend restent appliquées uniquement par le scope backend ;
 - les contrôles de sécurité refusent tout sudoers permissif ou modifiable par `openinfra`.
+
+## 11. Portée frontend de l'authentification opérateur
+
+L'authentification LDAP/IPA des opérateurs est portée par le frontend web Pro/Entreprise. Le backend ne se connecte pas à LDAP/IPA pour authentifier directement un opérateur humain. Il valide uniquement des jetons applicatifs, applique le RBAC OpenInfra, journalise les décisions et refuse les chemins de contournement.
+
+Les groupes LDAP/IPA restent mappés explicitement vers des groupes/rôles OpenInfra. L'annuaire externe prouve l'identité et l'appartenance à des groupes ; OpenInfra reste l'autorité effective des permissions.
+
+## 12. Sécurité des échanges d'authentification
+
+Les échanges frontend-backend, agent-backend et backend-backend doivent imposer TLS 1.3 et mTLS hors Lite. Les certificats, clés privées, secrets de bind LDAP/IPA et tokens d'enrôlement sont référencés uniquement par `env:`, `file://`, `vault://`, `sops://` ou `kms://`.

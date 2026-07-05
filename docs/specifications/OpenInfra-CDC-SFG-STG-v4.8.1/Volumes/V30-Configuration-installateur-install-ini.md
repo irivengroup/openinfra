@@ -102,3 +102,44 @@ L’installation est acceptée si :
 - les scopes `web` et `agent` ne déploient jamais PostgreSQL ni migrations ;
 - l’agent Enterprise crée ou valide le FS/LVM applicatif CDC `/opt/openinfra/`, mais n’accède jamais directement à PostgreSQL ;
 - le dry-run affiche un plan complet sans modification système.
+
+## 9. Configuration runtime issue de `install.ini` et `.env`
+
+`install.ini` est une entrée de bootstrap. Après installation, les paramètres utiles issus de `install.ini` et du fichier `.env` sont matérialisés dans `/opt/openinfra/config/openinfra.conf`. Le chemin `/etc/openinfra/openinfra.conf` est disponible parce que `/etc/openinfra` est un lien symbolique vers `/opt/openinfra/config`.
+
+Les unités systemd utilisent `EnvironmentFile=/etc/openinfra/openinfra.conf`. Le fichier réel reste `/opt/openinfra/config/openinfra.conf`. Les services ne doivent pas dépendre de `installers/` après installation.
+
+## 10. Section `[security]`
+
+La section `[security]` est obligatoire. Lite impose :
+
+```ini
+[security]
+transport = local
+tls_min_version = TLSv1.3
+mtls_required = false
+loopback_only = true
+```
+
+Pro/Entreprise imposent :
+
+```ini
+[security]
+transport = mtls
+tls_min_version = TLSv1.3
+mtls_required = true
+server_ca_cert_ref = file:///opt/openinfra/config/trust/openinfra-ca.pem
+client_cert_ref = file:///opt/openinfra/config/tls/<scope>.crt
+client_key_ref = file:///opt/openinfra/config/tls/<scope>.key
+loopback_only = false
+```
+
+Les valeurs `server_ca_cert_ref`, `client_cert_ref` et `client_key_ref` doivent être des références `file://`, `vault://`, `sops://` ou `kms://`. Aucun certificat, clé privée ou secret ne doit être stocké en clair dans `install.ini`.
+
+## 11. Verrou anti-réinstallation
+
+Le fichier `/opt/openinfra/config/.openinfra-installed.lock` doit être créé après installation réussie. Une nouvelle exécution `--execute` doit s'arrêter avant toute modification si ce verrou existe. Toute réinstallation contrôlée doit passer par une procédure de maintenance explicite avec sauvegarde et rollback.
+
+## 12. Modèle backend API-only
+
+Le backend ne doit pas authentifier directement chaque opérateur côté LDAP/IPA. LDAP/IPA est autorisé uniquement côté web Pro/Entreprise pour l'authentification opérateur. Le backend valide les jetons applicatifs, applique RBAC et audit, et sert les appels du frontend et des agents.

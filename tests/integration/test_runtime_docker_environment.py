@@ -62,11 +62,11 @@ class TestRuntimeEnvironment:
         assert "USER openinfra" in dockerfile
         assert "HEALTHCHECK" not in dockerfile
         assert "OPENINFRA_POSTGRES_PASSWORD=" in env_example
-        assert "OPENINFRA_IMAGE_TAG=0.29.10" in env_example
+        assert "OPENINFRA_IMAGE_TAG=0.29.11" in env_example
         assert "OPENINFRA_PGADMIN_EMAIL=" in env_example
         assert "OPENINFRA_PGADMIN_PASSWORD=" in env_example
         assert "OPENINFRA_PGADMIN_PORT=5050" in env_example
-        assert "openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.29.10}" in compose
+        assert "openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.29.11}" in compose
         assert "${OPENINFRA_PGADMIN_IMAGE:-dpage/pgadmin4:latest}" in compose
         assert "openinfra-pgadmin-data:/var/lib/pgadmin" in compose
         assert "./docker/pgadmin/servers.json:/pgadmin4/servers.json:ro" in compose

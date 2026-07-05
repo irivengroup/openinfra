@@ -113,6 +113,7 @@ from openinfra.application.source_of_truth_services import (
 from openinfra.domain.access_policy import AccessRequestContext
 from openinfra.domain.common import AccessDeniedError, OpenInfraError
 from openinfra.domain.security import AuthenticatedPrincipal, Permission
+from openinfra.infrastructure.runtime_config import RuntimeDatabaseDsnResolver
 
 
 class JsonHttpResponder:
@@ -2163,10 +2164,11 @@ class OpenInfraApiEntrypoint:
         edition = getattr(args, "edition", os.environ.get("OPENINFRA_EDITION", "enterprise"))
         if args.backend == "json":
             return ApplicationFactory().create_json_application(args.data, edition=edition)
-        dsn = args.postgres_dsn or os.environ.get("OPENINFRA_DATABASE_DSN", "")
+        dsn = RuntimeDatabaseDsnResolver().resolve(args.postgres_dsn)
         if not dsn:
             raise OpenInfraError(
-                "--postgres-dsn or OPENINFRA_DATABASE_DSN is required for postgresql backend"
+                "--postgres-dsn, OPENINFRA_DATABASE_DSN or /opt/openinfra/config/"
+                "openinfra.conf is required for postgresql backend"
             )
         if edition == "enterprise":
             return ApplicationFactory().create_postgresql_application(dsn, seed=False)

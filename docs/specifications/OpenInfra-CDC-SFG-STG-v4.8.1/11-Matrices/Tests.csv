@@ -542,3 +542,7 @@ TST-INICFG-038,installation,Configuration install.ini,Validation automatisée pa
 TST-INICFG-039,installation,Configuration install.ini,Validation automatisée par template et test négatif,Le template install.ini respecte le schéma et les règles édition/scope/service/migrations.,UC-0042
 TST-INICFG-040,installation,Configuration install.ini,Validation automatisée par template et test négatif,Le template install.ini respecte le schéma et les règles édition/scope/service/migrations.,UC-0042
 TST-INICFG-041,installation,Configuration install.ini,Validation automatisée par template et test négatif,Le template install.ini respecte le schéma et les règles édition/scope/service/migrations.,UC-0042
+TST-INICFG-042,installation,Configuration runtime post-install,Test installateur offline et inspection fichiers,openinfra.conf est généré sous /opt/openinfra/config et /etc/openinfra est un symlink de compatibilité.,UC-0042
+TST-INICFG-043,installation,Verrou anti-réinstallation,Test de non-régression installateur,Une seconde installation est refusée lorsque .openinfra-installed.lock existe.,UC-0042
+TST-SEC-044,sécurité,Flux frontend-backend-agent,Validation install.ini et tests négatifs,TLS 1.3 et mTLS sont obligatoires hors Lite avec certificats référencés.,UC-0042
+TST-AUTH-045,sécurité,Modèle opérateur API-only backend,Tests politique auth et install.ini,LDAP/IPA est refusé côté backend et accepté uniquement côté web Pro/Enterprise.,UC-0042

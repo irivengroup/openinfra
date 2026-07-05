@@ -1,8 +1,8 @@
 ## v0.29.10 — P07 authentification LDAP/IPA et RBAC groupes
 
 - Lite reste strictement limité à l'authentification locale `standard`.
-- Pro et Enterprise acceptent une politique LDAP/IPA uniquement côté backend/server.
-- Le frontend ne se connecte jamais directement à LDAP/IPA.
+- Pro et Enterprise acceptent LDAP/IPA uniquement côté frontend/web pour l'authentification opérateur.
+- Le backend ne réalise pas de login LDAP/IPA opérateur direct ; il valide des jetons applicatifs, applique RBAC et audit.
 - Les secrets de bind LDAP/IPA restent des références `env:`, `vault://`, `sops://`, `file://` ou `kms://`.
 - Les groupes externes sont mappés explicitement vers des rôles OpenInfra ; l'annuaire authentifie l'identité mais n'autorise jamais les actions applicatives.
 - L'émission des tokens applicatifs est basée sur les rôles OpenInfra effectifs.
@@ -86,7 +86,7 @@ Tous les programmes `install.py` déploient :
 - l’unité systemd adaptée sous `/etc/systemd/system` ;
 - la configuration validée sous `/etc/openinfra/install-<edition>-<scope>.ini`.
 
-Les scopes backend/all-in-one copient aussi `installers/migrations/postgresql` vers `/opt/openinfra/installers/migrations/postgresql`, puis appliquent les migrations après bootstrap PostgreSQL. Les scopes `web` et `agent` ne copient pas les migrations et n’ont aucun accès direct à PostgreSQL.
+Les scopes backend/all-in-one copient aussi `installers/migrations/postgresql` vers `/opt/openinfra/share/migrations/postgresql`, puis appliquent les migrations après bootstrap PostgreSQL. Les scopes `web` et `agent` ne copient pas les migrations et n’ont aucun accès direct à PostgreSQL.
 
 ## Règles `install.ini`
 
@@ -96,7 +96,7 @@ Règles stockage : seuls `vgname`, `lvname` et `lvsize` sont exposés pour le st
 
 ## PostgreSQL backend
 
-Pour les scopes `lite/all-in-one`, `pro/server` et `enterprise/server`, l’installateur gère PostgreSQL en interne : détection de la famille Linux via `/etc/os-release`, choix de `dnf`, `apt-get` ou `zypper`, installation si `psql` est absent, activation/démarrage de `postgresql.service`, vérification `pg_isready`, initialisation PGDATA sous `/data/openinfra/`, puis application des migrations depuis `installers/migrations/postgresql`.
+Pour les scopes `lite/all-in-one`, `pro/server` et `enterprise/server`, l’installateur gère PostgreSQL en interne : détection de la famille Linux via `/etc/os-release`, choix de `dnf`, `apt-get` ou `zypper`, installation si `psql` est absent, activation/démarrage de `postgresql.service`, vérification `pg_isready`, initialisation PGDATA sous `/data/openinfra/`, puis application des migrations depuis `/opt/openinfra/share/migrations/postgresql`.
 
 
 ## Moteur transactionnel v0.29.5
@@ -105,13 +105,13 @@ Les programmes `install.py` ne sont pas de simples validateurs. En mode `--execu
 
 - validation stricte de `install.ini`;
 - vérification des prérequis locaux (`python3`, `systemctl` en installation native, gestionnaire de paquets PostgreSQL pour backend/all-in-one);
-- copie de `src/`, `pyproject.toml`, `installers/requirements` et, pour backend/all-in-one, `installers/migrations/postgresql`;
+- copie de `src/`, `pyproject.toml`, `installers/requirements` et, pour backend/all-in-one, des migrations vers `/opt/openinfra/share/migrations/postgresql`;
 - création de `/opt/openinfra/venv`;
 - installation des dépendances de production du scope;
 - installation du package applicatif OpenInfra dans le virtualenv;
 - rendu de l'unité systemd adaptée;
 - bootstrap PostgreSQL si nécessaire pour `lite/all-in-one`, `pro/server` et `enterprise/server`;
-- application des migrations backend avec DSN résolu depuis `OPENINFRA_DATABASE_DSN`, `postgresql_dsn_ref` ou les références `postgresql_user_ref` / `postgresql_password_ref`;
+- application des migrations backend avec DSN résolu depuis `OPENINFRA_DATABASE_DSN`, `OPENINFRA_DATABASE_DSN_REF` ou les références `OPENINFRA_POSTGRES_USER_REF` / `OPENINFRA_POSTGRES_PASSWORD_REF` matérialisées dans `/opt/openinfra/config/openinfra.conf`;
 - `systemctl daemon-reload`, `enable` et `restart` du service OpenInfra en installation native.
 
 Toute erreur après écriture déclenche un rollback automatique des fichiers et dossiers remplacés ou créés par l'installateur courant. Le mode manuel `--rollback` restaure également les sauvegardes `.openinfra-rollback` résiduelles d'une installation interrompue brutalement.
@@ -152,7 +152,7 @@ PYTHONPATH=src python -m openinfra.interfaces.cli database ha-plan \
 
 Artefacts rendus en exécution réelle :
 
-- `/etc/openinfra/postgresql-ha.json` ;
+- `/opt/openinfra/config/postgresql-ha.json` ;
 - `/data/openinfra/conf.d/openinfra-ha.conf` ;
 - `/data/openinfra/pitr` ;
 - `/data/openinfra/backups`.

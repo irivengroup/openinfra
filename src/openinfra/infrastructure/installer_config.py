@@ -368,6 +368,30 @@ class InstallerScopeCatalog:
     _api_options = ("backend_endpoint", "enrollment_token_ref")
     _server_api_options = ("backend_endpoint",)
     _identity_options = ("peer_nodes",)
+    _security_options = (
+        "transport",
+        "tls_min_version",
+        "mtls_required",
+        "server_ca_cert_ref",
+        "client_cert_ref",
+        "client_key_ref",
+        "trusted_proxy_cidrs",
+        "loopback_only",
+    )
+    _lite_security_required_options = (
+        "transport",
+        "tls_min_version",
+        "mtls_required",
+        "loopback_only",
+    )
+    _network_security_required_options = (
+        "transport",
+        "tls_min_version",
+        "mtls_required",
+        "server_ca_cert_ref",
+        "client_cert_ref",
+        "client_key_ref",
+    )
     _backend_auth_required_options = (
         "mode",
         "postgresql_user_ref",
@@ -377,6 +401,10 @@ class InstallerScopeCatalog:
         "mode",
         "postgresql_user_ref",
         "postgresql_password_ref",
+    )
+    _web_auth_required_options = ("mode",)
+    _web_auth_options = (
+        "mode",
         "directory_url",
         "base_dn",
         "user_filter",
@@ -385,12 +413,6 @@ class InstallerScopeCatalog:
         "bind_password_ref",
         "ca_cert_ref",
         "cache_ttl_seconds",
-    )
-    _web_auth_options = (
-        "mode",
-        "postgresql_dsn_ref",
-        "postgresql_user_ref",
-        "postgresql_password_ref",
     )
 
     def __init__(self) -> None:
@@ -405,9 +427,15 @@ class InstallerScopeCatalog:
                     managed_postgresql=True,
                     apply_backend_migrations=True,
                     postgresql_lvsize_max="2GB",
-                    required_sections=("storage",),
-                    required_options={"storage": self._storage_options},
-                    allowed_options={"storage": self._storage_options},
+                    required_sections=("storage", "security"),
+                    required_options={
+                        "storage": self._storage_options,
+                        "security": self._lite_security_required_options,
+                    },
+                    allowed_options={
+                        "storage": self._storage_options,
+                        "security": self._security_options,
+                    },
                 ),
                 InstallerScopePolicy(
                     edition="pro",
@@ -417,17 +445,19 @@ class InstallerScopeCatalog:
                     managed_postgresql=True,
                     apply_backend_migrations=True,
                     postgresql_lvsize_max="100GB",
-                    required_sections=("storage", "api", "identity", "auth"),
+                    required_sections=("storage", "api", "identity", "auth", "security"),
                     required_options={
                         "storage": self._storage_options,
                         "api": self._server_api_options,
                         "auth": self._backend_auth_required_options,
+                        "security": self._network_security_required_options,
                     },
                     allowed_options={
                         "storage": self._storage_options,
                         "api": self._server_api_options,
                         "identity": self._identity_options,
                         "auth": self._backend_auth_options,
+                        "security": self._security_options,
                     },
                 ),
                 InstallerScopePolicy(
@@ -438,14 +468,16 @@ class InstallerScopeCatalog:
                     managed_postgresql=False,
                     apply_backend_migrations=False,
                     postgresql_lvsize_max=None,
-                    required_sections=("api", "auth"),
+                    required_sections=("api", "auth", "security"),
                     required_options={
                         "api": self._server_api_options,
-                        "auth": self._web_auth_options,
+                        "auth": self._web_auth_required_options,
+                        "security": self._network_security_required_options,
                     },
                     allowed_options={
                         "api": self._server_api_options,
                         "auth": self._web_auth_options,
+                        "security": self._security_options,
                     },
                 ),
                 InstallerScopePolicy(
@@ -456,17 +488,19 @@ class InstallerScopeCatalog:
                     managed_postgresql=True,
                     apply_backend_migrations=True,
                     postgresql_lvsize_max=None,
-                    required_sections=("storage", "api", "identity", "auth"),
+                    required_sections=("storage", "api", "identity", "auth", "security"),
                     required_options={
                         "storage": self._storage_options,
                         "api": self._server_api_options,
                         "auth": self._backend_auth_required_options,
+                        "security": self._network_security_required_options,
                     },
                     allowed_options={
                         "storage": self._storage_options,
                         "api": self._server_api_options,
                         "identity": self._identity_options,
                         "auth": self._backend_auth_options,
+                        "security": self._security_options,
                     },
                 ),
                 InstallerScopePolicy(
@@ -477,14 +511,16 @@ class InstallerScopeCatalog:
                     managed_postgresql=False,
                     apply_backend_migrations=False,
                     postgresql_lvsize_max=None,
-                    required_sections=("api", "auth"),
+                    required_sections=("api", "auth", "security"),
                     required_options={
                         "api": self._server_api_options,
-                        "auth": self._web_auth_options,
+                        "auth": self._web_auth_required_options,
+                        "security": self._network_security_required_options,
                     },
                     allowed_options={
                         "api": self._server_api_options,
                         "auth": self._web_auth_options,
+                        "security": self._security_options,
                     },
                 ),
                 InstallerScopePolicy(
@@ -495,9 +531,15 @@ class InstallerScopeCatalog:
                     managed_postgresql=False,
                     apply_backend_migrations=False,
                     postgresql_lvsize_max=None,
-                    required_sections=("api",),
-                    required_options={"api": self._api_options},
-                    allowed_options={"api": self._api_options},
+                    required_sections=("api", "security"),
+                    required_options={
+                        "api": self._api_options,
+                        "security": self._network_security_required_options,
+                    },
+                    allowed_options={
+                        "api": self._api_options,
+                        "security": self._security_options,
+                    },
                 ),
             )
         }
@@ -604,7 +646,7 @@ class InstallerSystemdUnitRenderer:
                 "Type=simple",
                 "User=openinfra",
                 "Group=openinfra",
-                "EnvironmentFile=-/etc/openinfra/openinfra.env",
+                "EnvironmentFile=/etc/openinfra/openinfra.conf",
                 "WorkingDirectory=/opt/openinfra",
                 "ExecStart=/opt/openinfra/venv/bin/openinfra-api --backend postgresql",
                 "Restart=on-failure",
@@ -635,7 +677,7 @@ class InstallerSystemdUnitRenderer:
                 "Type=simple",
                 "User=openinfra",
                 "Group=openinfra",
-                "EnvironmentFile=-/etc/openinfra/openinfra-web.env",
+                "EnvironmentFile=/etc/openinfra/openinfra.conf",
                 "WorkingDirectory=/opt/openinfra/web",
                 "ExecStart=/opt/openinfra/venv/bin/python -m http.server 2006 --bind 127.0.0.1",
                 "Restart=on-failure",
@@ -666,7 +708,7 @@ class InstallerSystemdUnitRenderer:
                 "Type=simple",
                 "User=openinfra",
                 "Group=openinfra",
-                "EnvironmentFile=-/etc/openinfra/openinfra-agent.env",
+                "EnvironmentFile=/etc/openinfra/openinfra.conf",
                 "WorkingDirectory=/opt/openinfra",
                 "ExecStart=/opt/openinfra/venv/bin/openinfra "
                 "discovery collector-list --backend json",
@@ -709,6 +751,7 @@ class InstallerConfigValidator:
             self._validate_api(parser, policy, errors)
             self._validate_identity(parser, policy, errors)
             self._validate_auth(parser, policy, errors)
+            self._validate_security(parser, policy, errors)
             errors.extend(self._secret_policy.validate(parser))
         if policy is None:
             return InstallerConfigReport(
@@ -1023,8 +1066,13 @@ class InstallerConfigValidator:
         if policy.edition == "lite":
             errors.append("lite auth.mode must remain standard")
             return
-        if policy.scope != "server":
-            errors.append(f"{policy.key} must not connect directly to LDAP/IPA")
+        if policy.scope == "server":
+            errors.append(
+                f"{policy.key} backend API must not authenticate human operators directly"
+            )
+            return
+        if policy.scope != "web":
+            errors.append(f"{policy.key} must not authenticate operators through LDAP/IPA")
             return
         url = self._required(parser, "auth", "directory_url", errors)
         base_dn = self._required(parser, "auth", "base_dn", errors)
@@ -1055,6 +1103,49 @@ class InstallerConfigValidator:
             else:
                 if not 30 <= value <= 3600:
                     errors.append("auth.cache_ttl_seconds must be between 30 and 3600")
+
+    def _validate_security(
+        self, parser: configparser.ConfigParser, policy: InstallerScopePolicy, errors: list[str]
+    ) -> None:
+        if not parser.has_section("security"):
+            return
+        transport = parser.get("security", "transport", fallback="").strip().lower()
+        tls_min_version = parser.get("security", "tls_min_version", fallback="").strip()
+        mtls_required = parser.get("security", "mtls_required", fallback="").strip().lower()
+        loopback_only = parser.get("security", "loopback_only", fallback="false").strip().lower()
+        if transport not in {"local", "tls", "mtls"}:
+            errors.append("security.transport must be local, tls or mtls")
+        if tls_min_version != "TLSv1.3":
+            errors.append("security.tls_min_version must be TLSv1.3")
+        if mtls_required not in {"true", "false"}:
+            errors.append("security.mtls_required must be true or false")
+        if loopback_only not in {"true", "false"}:
+            errors.append("security.loopback_only must be true or false")
+        if policy.edition == "lite":
+            if transport != "local":
+                errors.append("lite security.transport must be local")
+            if mtls_required != "false":
+                errors.append("lite security.mtls_required must be false")
+            if loopback_only != "true":
+                errors.append("lite security.loopback_only must be true")
+            return
+        if transport != "mtls":
+            errors.append(f"{policy.key} security.transport must be mtls")
+        if mtls_required != "true":
+            errors.append(f"{policy.key} security.mtls_required must be true")
+        for option in ("server_ca_cert_ref", "client_cert_ref", "client_key_ref"):
+            value = parser.get("security", option, fallback="").strip()
+            if value and not value.startswith(("file://", "vault://", "sops://", "kms://")):
+                errors.append(
+                    "security." + option + " must reference file://, vault://, sops:// or kms://"
+                )
+        trusted_proxy_cidrs = parser.get("security", "trusted_proxy_cidrs", fallback="").strip()
+        if trusted_proxy_cidrs:
+            for cidr in (item.strip() for item in trusted_proxy_cidrs.split(",") if item.strip()):
+                try:
+                    ipaddress.ip_network(cidr, strict=False)
+                except ValueError:
+                    errors.append("security.trusted_proxy_cidrs contains invalid CIDR: " + cidr)
 
     def _render_actions(
         self,
@@ -1088,14 +1179,14 @@ class InstallerConfigValidator:
                     "enable and start internal PostgreSQL service "
                     + postgresql_plan.os_profile.service,
                     "verify PostgreSQL readiness with " + " ".join(postgresql_plan.verify_command),
-                    "apply backend migrations from installers/migrations/postgresql "
+                    "apply backend migrations from /opt/openinfra/share/migrations/postgresql "
                     "before service enablement",
                 )
             )
         if postgresql_ha_plan is not None:
             actions.extend(
                 (
-                    "render native PostgreSQL HA/PITR configuration under /etc/openinfra",
+                    "render native PostgreSQL HA/PITR configuration under /opt/openinfra/config",
                     "enable WAL archiving to /data/openinfra/pitr with idempotent archive command",
                     "prepare physical backup directory /data/openinfra/backups",
                 )
@@ -1120,10 +1211,14 @@ class InstallerConfigValidator:
             )
         if policy.scope == "server" and policy.edition in {"pro", "enterprise"}:
             actions.append(
-                "enforce backend-only LDAP/IPA authentication integration with OpenInfra RBAC"
+                "enforce backend API-only operator model: token validation, RBAC and "
+                "audit without direct LDAP/IPA login"
             )
         if policy.scope == "web":
-            actions.append("install web frontend without PostgreSQL storage deployment")
+            actions.append(
+                "install web frontend without PostgreSQL storage deployment; operator "
+                "LDAP/IPA login is frontend-scoped"
+            )
         if policy.scope == "agent":
             actions.append(
                 "enroll enterprise discovery agent through backend API without direct database "
@@ -1132,8 +1227,13 @@ class InstallerConfigValidator:
         actions.extend(
             (
                 "create Python virtual environment under /opt/openinfra/venv",
+                "materialize runtime configuration in /opt/openinfra/config/openinfra.conf "
+                "with /etc/openinfra symlink",
+                "create hidden installation lock /opt/openinfra/config/.openinfra-installed.lock",
                 "install scope production requirements from installers/requirements",
                 "install OpenInfra application package into the managed virtual environment",
+                "secure backend/frontend/agent exchanges with TLS 1.3 and mandatory mTLS "
+                "outside Lite",
                 "execute installer changes with transactional rollback on failure",
                 f"enable and restart {policy.service} after successful validation",
             )

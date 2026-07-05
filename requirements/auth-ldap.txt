@@ -1,2 +1,2 @@
-# Production dependency required only when LDAP/IPA authentication is enabled.
+# Optional production dependency for frontend-scoped LDAP/IPA operator authentication.
 ldap3>=2.9

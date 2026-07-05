@@ -1,3 +1,16 @@
+## 0.29.11 - 2026-07-05
+
+- Correction du modèle P07/P08 : LDAP/IPA opérateur est désormais porté par le frontend web Pro/Enterprise, pas par le backend server.
+- Le backend conserve un contrat API-only : validation de jetons applicatifs, RBAC OpenInfra effectif et audit des permissions.
+- Ajout de la configuration runtime canonique `/opt/openinfra/config/openinfra.conf`, accessible via `/etc/openinfra/openinfra.conf` grâce au symlink `/etc/openinfra -> /opt/openinfra/config`.
+- Matérialisation post-installation des paramètres utiles issus de `install.ini` et `.env` dans `openinfra.conf`, sans exposer de secrets en clair.
+- Ajout du verrou masqué `/opt/openinfra/config/.openinfra-installed.lock` pour empêcher les installations multiples non contrôlées.
+- Déplacement du chemin runtime des migrations backend vers `/opt/openinfra/share/migrations/postgresql` ; le dossier `installers/` reste une source de bootstrap, pas une dépendance runtime.
+- Durcissement des échanges frontend-backend, agent-backend et backend-backend : TLS 1.3 et mTLS obligatoires hors Lite.
+- Mise à jour du CDC v4.8.1 : ADR, volumes, matrices exigences/tests/traçabilité, schéma install.ini, règles systemd, runbooks et templates install.ini.
+- Déplacement des dépendances `ldap3` vers les scopes web Pro/Enterprise.
+- Ajout de tests de non-régression sur runtime config, symlink `/etc/openinfra`, lock d'installation, politique backend API-only et sécurité `[security]`.
+
 ## 0.29.10 - 2026-07-05
 
 - Livraison P07 avant reprise Discovery : authentification locale/LDAP/IPA, RBAC externe mappé OpenInfra et audit des permissions.

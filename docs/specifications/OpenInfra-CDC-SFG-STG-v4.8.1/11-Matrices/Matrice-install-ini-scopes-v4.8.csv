@@ -1,7 +1,7 @@
-edition,scope,installer_path,config_path,systemd_service,managed_postgresql,applies_migrations,requires_backend_endpoint,requires_direct_db_access
-lite,all-in-one,installers/setup/lite,installers/setup/lite/install.ini,openinfra.service,oui,oui,non,oui
-pro,server,installers/setup/pro/server,installers/setup/pro/server/install.ini,openinfra.service,oui,oui,oui,oui
-pro,web,installers/setup/pro/web,installers/setup/pro/web/install.ini,openinfra-web.service,non,non,oui,non
-enterprise,server,installers/setup/enterprise/server,installers/setup/enterprise/server/install.ini,openinfra.service,oui,oui,oui,oui
-enterprise,web,installers/setup/enterprise/web,installers/setup/enterprise/web/install.ini,openinfra-web.service,non,non,oui,non
-enterprise,agent,installers/setup/enterprise/agent,installers/setup/enterprise/agent/install.ini,openinfra-agent.service,non,non,oui,non
+edition,scope,installer_path,config_path,systemd_service,managed_postgresql,applies_migrations,requires_backend_endpoint,requires_direct_db_access,runtime_config,security_transport,operator_auth_scope
+lite,all-in-one,installers/setup/lite,installers/setup/lite/install.ini,openinfra.service,oui,oui,non,oui,/opt/openinfra/config/openinfra.conf,local,local
+pro,server,installers/setup/pro/server,installers/setup/pro/server/install.ini,openinfra.service,oui,oui,oui,oui,/opt/openinfra/config/openinfra.conf,mtls,api-only
+pro,web,installers/setup/pro/web,installers/setup/pro/web/install.ini,openinfra-web.service,non,non,oui,non,/opt/openinfra/config/openinfra.conf,mtls,frontend
+enterprise,server,installers/setup/enterprise/server,installers/setup/enterprise/server/install.ini,openinfra.service,oui,oui,oui,oui,/opt/openinfra/config/openinfra.conf,mtls,api-only
+enterprise,web,installers/setup/enterprise/web,installers/setup/enterprise/web/install.ini,openinfra-web.service,non,non,oui,non,/opt/openinfra/config/openinfra.conf,mtls,frontend
+enterprise,agent,installers/setup/enterprise/agent,installers/setup/enterprise/agent/install.ini,openinfra-agent.service,non,non,oui,non,/opt/openinfra/config/openinfra.conf,mtls,technical-agent

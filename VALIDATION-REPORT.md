@@ -1,91 +1,68 @@
-# OpenInfra v0.29.10 — validation report
+# OpenInfra v0.29.11 — rapport de validation
 
-Date: 2026-07-05
-Base: OpenInfra v0.29.9
-Scope: P07 authentication, LDAP/IPA, RBAC group mapping and permission audit before resuming Discovery.
+## Objet de livraison
 
-## Scope delivered
+Correctif d'alignement P07/P08 après v0.29.10 :
 
-- Local `standard` authentication remains the only accepted mode for Lite.
-- LDAP/IPA authentication is accepted only for Pro/Enterprise backend `server` scopes.
-- `web` and `agent` scopes do not connect directly to LDAP/IPA; they rely on backend-mediated authentication.
-- LDAP/IPA configuration requires `ldaps://`, TLS validation and secret references only.
-- External directory groups are mapped to OpenInfra internal groups and roles; OpenInfra remains the RBAC authority.
-- External authentication produces OpenInfra application tokens and records audit events.
-- PostgreSQL migration `0025_authentication_ldap_ipa_rbac.sql` adds authentication provider config, external group mappings and partitioned permission audit tables.
-- LDAP/IPA runtime dependency `ldap3` is separated by scope and loaded only when external directory authentication is used.
+- configuration runtime canonique matérialisée dans `/opt/openinfra/config/openinfra.conf` ;
+- compatibilité opérateur via `/etc/openinfra/openinfra.conf`, avec `/etc/openinfra` comme lien symbolique vers `/opt/openinfra/config` ;
+- verrou anti-réinstallation `/opt/openinfra/config/.openinfra-installed.lock` ;
+- suppression de la dépendance runtime au dossier `installers/` après installation ;
+- copie des migrations backend vers `/opt/openinfra/share/migrations/postgresql` ;
+- backend strictement API-only pour les opérateurs humains ;
+- authentification opérateur locale/LDAP/IPA portée par le frontend web Pro/Enterprise ;
+- agents consommant l'API backend avec mécanisme technique d'enrôlement ;
+- sécurisation maximale des flux frontend-backend, agent-backend et backend-backend par TLS 1.3 + mTLS hors Lite ;
+- CDC v4.8.1, ADR, matrices et runbooks alignés.
 
-## Files changed
+## Validations exécutées
 
-- `src/openinfra/domain/authentication.py`
-- `src/openinfra/application/authentication_services.py`
-- `src/openinfra/application/container.py`
-- `src/openinfra/infrastructure/external_identity.py`
-- `src/openinfra/infrastructure/installer_config.py`
-- `src/openinfra/interfaces/cli.py`
-- `installers/migrations/postgresql/0025_authentication_ldap_ipa_rbac.sql`
-- `installers/requirements/auth-ldap.txt`
-- `installers/requirements/pro-server.txt`
-- `installers/requirements/enterprise-server.txt`
-- `requirements/auth-ldap.txt`
-- `requirements/security-audit.txt`
-- `pyproject.toml`
-- `tests/unit/test_authentication_domain.py`
-- `tests/unit/test_external_identity_infrastructure.py`
-- `tests/integration/test_external_authentication_services.py`
-- `tests/integration/test_installer_alignment.py`
-- CDC, architecture, runbook, traceability, README and CHANGELOG.
+| Validation | Résultat |
+|---|---:|
+| `PYTHONPATH=src:. python -m compileall -q src tests scripts docker installers` | PASS |
+| `python -m ruff format --check src tests scripts docker installers` | PASS |
+| `python -m ruff check src tests scripts docker installers` | PASS |
+| `python -m mypy src/openinfra` | PASS |
+| `bandit -q -r src/openinfra` | PASS |
+| `PYTHONPATH=src:. python scripts/security_gate.py --project-root .` | PASS |
+| `pip-audit --dry-run` | PASS — aucune vulnérabilité connue détectée |
+| `PYTHONPATH=src:. python -m pytest -q` | PASS |
+| `PYTHONPATH=src:. python scripts/quality_gate.py` | PASS |
+| `PYTHONPATH=src python -m openinfra.interfaces.cli version` | PASS — 0.29.11 |
+| `PYTHONPATH=src python -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1` | PASS |
+| `PYTHONPATH=src python -m openinfra.interfaces.cli installer validate --root installers` | PASS |
+| `PYTHONPATH=src python -m openinfra.interfaces.cli installer dry-run --root installers` | PASS |
+| `PYTHONPATH=src python scripts/validate_autonomous_installer.py --root installers` | PASS |
+| `PYTHONPATH=src python scripts/validate_enterprise_alignment.py --project-root .` | PASS |
+| `PYTHONPATH=src python scripts/native_runtime_smoke.py --project-root .` | PASS |
+| `python docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1/scripts/validate_storage_multisite.py` | PASS |
+| `python docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1/scripts/validate_install_ini.py` | PASS |
+| `python docs/specifications/OpenInfra-Roadmap-Developpement-v2/scripts/validate_roadmap.py` | PASS |
+| `python -m build` | PASS |
+| `python scripts/verify_artifact.py dist/*.whl` | PASS |
 
-## Validations executed
+## Résultats chiffrés
 
-```bash
-PYTHONPATH=src:. python -m compileall -q src tests scripts docker installers
-python -m ruff format --check src tests scripts docker installers
-python -m ruff check src tests scripts docker installers
-python -m mypy src/openinfra
-bandit -q -r src/openinfra
-PYTHONPATH=src:. python scripts/security_gate.py --project-root .
-pip-audit --dry-run
-PYTHONPATH=src:. python -m pytest -q
-PYTHONPATH=src:. python scripts/quality_gate.py
-PYTHONPATH=src python -m openinfra.interfaces.cli version
-PYTHONPATH=src python -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1
-PYTHONPATH=src python -m openinfra.interfaces.cli installer validate --root installers
-PYTHONPATH=src python -m openinfra.interfaces.cli installer dry-run --root installers
-PYTHONPATH=src python scripts/validate_autonomous_installer.py --root installers
-PYTHONPATH=src python scripts/validate_enterprise_alignment.py --project-root .
-PYTHONPATH=src python scripts/native_runtime_smoke.py --project-root .
-python docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1/scripts/validate_storage_multisite.py
-python docs/specifications/OpenInfra-Roadmap-Developpement-v2/scripts/validate_roadmap.py
-PYTHONPATH=src python -m openinfra.interfaces.cli auth policy --edition enterprise --mode ipa --url ldaps://ipa.example.net --base-dn dc=example,dc=net --bind-dn-ref env:OPENINFRA_IPA_BIND_DN --bind-password-ref env:OPENINFRA_IPA_BIND_PASSWORD
-python -m build
-python scripts/verify_artifact.py dist/*.whl
-```
+- Version : `0.29.11`.
+- Suite Python : 376 tests collectés et passés.
+- Couverture globale : 98.00 %.
+- CDC v4.8.1 : PASS — 742 exigences, 547 tests.
+- Roadmap v2 : PASS — 19 phases, 114 epics, 8 gates, 20 tests.
+- Installateurs autonomes : PASS — 6 profils.
+- Migrations PostgreSQL : PASS — 25 migrations.
+- Build wheel/sdist : PASS.
 
-## Results
+## Contrôles archive attendus
 
-- Compileall: PASS.
-- Ruff format/check: PASS.
-- MyPy strict: PASS.
-- Bandit: PASS.
-- Security gate: PASS.
-- pip-audit dry-run: PASS — 512 packages would be audited, no known vulnerabilities found.
-- Pytest: PASS — 366 tests.
-- Coverage: PASS — 98.04 %, threshold >= 98 %.
-- Quality gate: PASS.
-- CLI version: PASS — 0.29.10.
-- CDC v4.8.1 validation: PASS — 735 requirements, 543 tests.
-- Roadmap v2 validation: PASS — 19 phases, 114 epics, 8 gates, 20 tests.
-- Installer validate/dry-run: PASS — 6 profiles.
-- Autonomous installer validation: PASS.
-- Enterprise alignment validation: PASS.
-- Native runtime smoke: PASS.
-- Migration catalog load: PASS — 25 migrations.
-- CLI auth policy smoke: PASS — Enterprise IPA accepted with secret references and RBAC authority OpenInfra.
-- Build wheel/sdist: PASS — `openinfra-0.29.10-py3-none-any.whl`, `openinfra-0.29.10.tar.gz`.
-- Artifact verification: PASS.
-- Archive cleanup: PASS — no `deploy/`, no root `migrations/`, no legacy installer roots, no caches.
+- `deploy/` absent.
+- `migrations/` racine absent.
+- anciens dossiers `installers/lite`, `installers/pro`, `installers/enterprise` absents.
+- `installers/setup/**/install.py` présents pour les 6 installateurs autonomes.
+- `installers/migrations/postgresql` présent comme source projet.
+- runtime natif cible `/opt/openinfra/share/migrations/postgresql` après installation.
+- caches et artefacts temporaires absents.
+- `dist/` et `build/` exclus de l'archive source.
 
-## Not executed
+## Point non exécuté
 
-- Docker Compose with a live PostgreSQL instance was not executed in this environment because Docker is unavailable here.
+Docker Compose réel avec PostgreSQL live n'a pas été exécuté dans cet environnement. Le smoke natif et les validations CLI/installateurs/migrations ont été exécutés.

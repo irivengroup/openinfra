@@ -126,6 +126,7 @@ from openinfra.infrastructure.postgresql import (
     PostgreSQLMigrationExecutor,
     PostgreSQLSessionRegistry,
 )
+from openinfra.infrastructure.runtime_config import RuntimeConfigLoader, RuntimeDatabaseDsnResolver
 from openinfra.infrastructure.spec_validation import ContractualSpecValidator
 
 
@@ -238,21 +239,21 @@ class OpenInfraCLI:
             help="render a versioned migration",
         )
         render.add_argument("--name", required=True)
-        render.add_argument("--root", type=Path, default=Path("installers/migrations/postgresql"))
+        render.add_argument("--root", type=Path)
         render.set_defaults(handler=self._handle_database_render_migration)
         status = database_subparsers.add_parser(
             "status",
             help="report PostgreSQL schema migration status",
         )
         status.add_argument("--postgres-dsn")
-        status.add_argument("--root", type=Path, default=Path("installers/migrations/postgresql"))
+        status.add_argument("--root", type=Path)
         status.set_defaults(handler=self._handle_database_status)
         apply = database_subparsers.add_parser(
             "apply-migrations",
             help="apply PostgreSQL migrations idempotently",
         )
         apply.add_argument("--postgres-dsn")
-        apply.add_argument("--root", type=Path, default=Path("installers/migrations/postgresql"))
+        apply.add_argument("--root", type=Path)
         apply.add_argument("--dry-run", action="store_true")
         apply.set_defaults(handler=self._handle_database_apply_migrations)
         ha_plan = database_subparsers.add_parser(
@@ -1500,7 +1501,8 @@ class OpenInfraCLI:
         return 0 if decision.allowed else 2
 
     def _handle_database_render_migration(self, args: argparse.Namespace) -> int:
-        migration = PostgreSQLMigrationCatalog(args.root).load(args.name)
+        root = self._resolve_migration_root(args)
+        migration = PostgreSQLMigrationCatalog(root).load(args.name)
         print(migration.sql, end="")
         return 0
 
@@ -2812,23 +2814,35 @@ class OpenInfraCLI:
         return 0
 
     def _create_migration_executor(self, args: argparse.Namespace) -> PostgreSQLMigrationExecutor:
-        dsn = args.postgres_dsn or os.environ.get("OPENINFRA_DATABASE_DSN", "")
+        dsn = RuntimeDatabaseDsnResolver().resolve(args.postgres_dsn)
         if not dsn:
             raise OpenInfraError(
-                "--postgres-dsn or OPENINFRA_DATABASE_DSN is required for PostgreSQL migrations"
+                "--postgres-dsn, OPENINFRA_DATABASE_DSN or /opt/openinfra/config/"
+                "openinfra.conf is required for PostgreSQL migrations"
             )
         registry = PostgreSQLSessionRegistry(PostgreSQLConnectionFactory(dsn))
-        return PostgreSQLMigrationExecutor(registry, PostgreSQLMigrationCatalog(args.root))
+        return PostgreSQLMigrationExecutor(
+            registry,
+            PostgreSQLMigrationCatalog(self._resolve_migration_root(args)),
+        )
+
+    def _resolve_migration_root(self, args: argparse.Namespace) -> Path:
+        explicit_root = getattr(args, "root", None)
+        if explicit_root is not None:
+            return Path(explicit_root)
+        runtime_root = RuntimeConfigLoader().load().get("OPENINFRA_MIGRATIONS_ROOT")
+        return Path(runtime_root) if runtime_root else Path("installers/migrations/postgresql")
 
     def _create_application(self, args: argparse.Namespace) -> OpenInfraApplication:
         backend = str(args.backend)
         edition = getattr(args, "edition", os.environ.get("OPENINFRA_EDITION", "enterprise"))
         if backend == "json":
             return ApplicationFactory().create_json_application(args.data, edition=edition)
-        dsn = args.postgres_dsn or os.environ.get("OPENINFRA_DATABASE_DSN", "")
+        dsn = RuntimeDatabaseDsnResolver().resolve(args.postgres_dsn)
         if not dsn:
             raise OpenInfraError(
-                "--postgres-dsn or OPENINFRA_DATABASE_DSN is required for postgresql backend"
+                "--postgres-dsn, OPENINFRA_DATABASE_DSN or /opt/openinfra/config/"
+                "openinfra.conf is required for postgresql backend"
             )
         return ApplicationFactory().create_postgresql_application(dsn, seed=False, edition=edition)
 

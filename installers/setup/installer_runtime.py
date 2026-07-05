@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, ClassVar
 from urllib.parse import quote
@@ -57,6 +58,10 @@ class InstallationPlan:
     config_path: Path
     application_root: Path
     configuration_root: Path
+    compatibility_configuration_root: Path
+    runtime_config_file: Path
+    installation_lock_file: Path
+    migrations_root: Path
     systemd_root: Path
     deploy_src: bool
     deploy_requirements: bool
@@ -82,6 +87,10 @@ class InstallationPlan:
             "config_path": str(self.config_path),
             "application_root": str(self.application_root),
             "configuration_root": str(self.configuration_root),
+            "compatibility_configuration_root": str(self.compatibility_configuration_root),
+            "runtime_config_file": str(self.runtime_config_file),
+            "installation_lock_file": str(self.installation_lock_file),
+            "migrations_root": str(self.migrations_root),
             "systemd_root": str(self.systemd_root),
             "deploy_src": self.deploy_src,
             "deploy_requirements": self.deploy_requirements,
@@ -333,8 +342,12 @@ class AutonomousInstallerProgram:
         if not report.valid:
             raise InstallerRuntimeError("invalid install.ini: " + "; ".join(report.errors))
         application_root = self._target_path(target_root, "/opt/openinfra")
-        configuration_root = self._target_path(target_root, "/etc/openinfra")
+        configuration_root = application_root / "config"
+        compatibility_configuration_root = self._target_path(target_root, "/etc/openinfra")
         systemd_root = self._target_path(target_root, "/etc/systemd/system")
+        runtime_config_file = configuration_root / "openinfra.conf"
+        installation_lock_file = configuration_root / ".openinfra-installed.lock"
+        migrations_root = application_root / "share/migrations/postgresql"
         requirements_file = self._requirements_by_scope[(report.edition, report.scope)]
         commands = self._build_commands(report, target_root, application_root, requirements_file)
         prerequisites = self._build_prerequisites(report, target_root)
@@ -345,6 +358,10 @@ class AutonomousInstallerProgram:
             config_path=self._location.config_path,
             application_root=application_root,
             configuration_root=configuration_root,
+            compatibility_configuration_root=compatibility_configuration_root,
+            runtime_config_file=runtime_config_file,
+            installation_lock_file=installation_lock_file,
+            migrations_root=migrations_root,
             systemd_root=systemd_root,
             deploy_src=True,
             deploy_requirements=True,
@@ -365,6 +382,7 @@ class AutonomousInstallerProgram:
 
     def execute(self, plan: InstallationPlan, skip_service_enable: bool) -> None:
         self._assert_supported_execute_target(plan)
+        self._assert_installation_lock_absent(plan)
         self._assert_prerequisites(plan, skip_service_enable=skip_service_enable)
         journal = InstallationRollbackJournal()
         try:
@@ -372,6 +390,7 @@ class AutonomousInstallerProgram:
                 self._prepare_application_filesystem(plan, journal)
             self._create_directory(plan.application_root, journal)
             self._create_directory(plan.configuration_root, journal)
+            self._ensure_configuration_symlink(plan, journal)
             self._create_directory(plan.systemd_root, journal)
             self._replace_tree(
                 self._location.project_root / "src", plan.application_root / "src", journal
@@ -387,6 +406,7 @@ class AutonomousInstallerProgram:
                 mode=0o640,
                 journal=journal,
             )
+            self._render_runtime_configuration(plan, journal)
             self._replace_file(
                 self._location.project_root / "pyproject.toml",
                 plan.application_root / "pyproject.toml",
@@ -396,7 +416,7 @@ class AutonomousInstallerProgram:
             if plan.deploy_migrations:
                 self._replace_tree(
                     self._location.installers_root / "migrations" / "postgresql",
-                    plan.application_root / "installers" / "migrations" / "postgresql",
+                    plan.migrations_root,
                     journal,
                 )
             unit = self._validator.render_systemd_unit(plan.edition, plan.scope)
@@ -407,6 +427,7 @@ class AutonomousInstallerProgram:
             if plan.managed_postgresql:
                 self._run_postgresql_bootstrap(plan, journal)
                 self.execute_migrations(plan)
+            self._write_installation_lock(plan, journal)
             if plan.application_root == Path("/opt/openinfra") and not skip_service_enable:
                 self._run_command(("systemctl", "daemon-reload"))
                 self._run_command(("systemctl", "enable", plan.service_name))
@@ -428,7 +449,7 @@ class AutonomousInstallerProgram:
                 "database",
                 "apply-migrations",
                 "--root",
-                str(plan.application_root / "installers/migrations/postgresql"),
+                str(plan.migrations_root),
             ),
             environment={"OPENINFRA_DATABASE_DSN": dsn},
         )
@@ -521,7 +542,7 @@ class AutonomousInstallerProgram:
                             "database",
                             "apply-migrations",
                             "--root",
-                            str(application_root / "installers/migrations/postgresql"),
+                            str(application_root / "share/migrations/postgresql"),
                         ),
                     ),
                 )
@@ -770,7 +791,9 @@ class AutonomousInstallerProgram:
             self._run_command(("chown", "-R", f"{account[0]}:{account[1]}", str(pitr)))
             self._run_command(("chown", "-R", f"{account[0]}:{account[1]}", str(backups)))
         payload = json.dumps(ha_plan.as_dict(), sort_keys=True, indent=2) + "\n"
-        self._replace_text(Path("/etc/openinfra/postgresql-ha.json"), payload, 0o640, journal)
+        self._replace_text(
+            Path("/opt/openinfra/config/postgresql-ha.json"), payload, 0o640, journal
+        )
         self._render_postgresql_conf_include(ha_plan, journal)
 
     def _render_postgresql_conf_include(
@@ -837,6 +860,136 @@ class AutonomousInstallerProgram:
             markers = ("/data/openinfra/PG_VERSION", *profile.os_profile.cluster_marker_paths)
             return any(Path(marker).exists() for marker in markers)
         return True
+
+    def _assert_installation_lock_absent(self, plan: InstallationPlan) -> None:
+        if plan.installation_lock_file.exists():
+            raise InstallerRuntimeError(
+                "OpenInfra is already installed for this target; remove "
+                + str(plan.installation_lock_file)
+                + " only after a controlled uninstall or rollback"
+            )
+
+    def _ensure_configuration_symlink(
+        self, plan: InstallationPlan, journal: InstallationRollbackJournal
+    ) -> None:
+        link = plan.compatibility_configuration_root
+        target = Path("/opt/openinfra/config")
+        self._create_directory(link.parent, journal)
+        if link.is_symlink() and Path(os.readlink(link)) == target:
+            return
+        if link.exists() or link.is_symlink():
+            backup = self._backup_existing(link)
+            journal.record_replacement(link, backup)
+        link.symlink_to(target)
+        journal.record_replacement(link, None)
+
+    def _render_runtime_configuration(
+        self, plan: InstallationPlan, journal: InstallationRollbackJournal
+    ) -> None:
+        parser = configparser.ConfigParser(interpolation=None)
+        parser.read(self._location.config_path, encoding="utf-8")
+        values: dict[str, str] = {
+            "OPENINFRA_EDITION": plan.edition,
+            "OPENINFRA_SCOPE": plan.scope,
+            "OPENINFRA_SERVICE": plan.service_name,
+            "OPENINFRA_APPLICATION_ROOT": "/opt/openinfra",
+            "OPENINFRA_CONFIG_ROOT": "/opt/openinfra/config",
+            "OPENINFRA_CONFIG_COMPAT_SYMLINK": "/etc/openinfra",
+            "OPENINFRA_RUNTIME_CONFIG": "/opt/openinfra/config/openinfra.conf",
+            "OPENINFRA_INSTALL_LOCK": "/opt/openinfra/config/.openinfra-installed.lock",
+            "OPENINFRA_MIGRATIONS_ROOT": "/opt/openinfra/share/migrations/postgresql",
+        }
+        if plan.edition == "lite":
+            values["OPENINFRA_DATABASE_DSN"] = "postgresql:///openinfra"
+        for section in parser.sections():
+            for key, value in parser.items(section):
+                env_key = "OPENINFRA_INSTALL_" + section.upper() + "_" + key.upper()
+                values[env_key] = self._sanitize_runtime_value(env_key, value)
+        self._add_database_runtime_refs(parser, values)
+        self._add_dotenv_runtime_values(values)
+        content = "\n".join(
+            (
+                "# Managed by OpenInfra autonomous installer.",
+                "# Canonical runtime path: /opt/openinfra/config/openinfra.conf.",
+                "# Compatibility path: /etc/openinfra/openinfra.conf via /etc/openinfra symlink.",
+                "# Secrets are stored as references only; cleartext secret values are forbidden.",
+                *(
+                    key + "=" + self._quote_environment_value(value)
+                    for key, value in sorted(values.items())
+                ),
+                "",
+            )
+        )
+        self._replace_text(plan.runtime_config_file, content, 0o640, journal)
+
+    def _add_database_runtime_refs(
+        self, parser: configparser.ConfigParser, values: dict[str, str]
+    ) -> None:
+        if not parser.has_section("auth"):
+            return
+        dsn_ref = parser.get("auth", "postgresql_dsn_ref", fallback="").strip()
+        user_ref = parser.get("auth", "postgresql_user_ref", fallback="").strip()
+        password_ref = parser.get("auth", "postgresql_password_ref", fallback="").strip()
+        if dsn_ref:
+            values["OPENINFRA_DATABASE_DSN_REF"] = self._sanitize_runtime_value(
+                "OPENINFRA_DATABASE_DSN_REF", dsn_ref
+            )
+        if user_ref:
+            values["OPENINFRA_POSTGRES_USER_REF"] = self._sanitize_runtime_value(
+                "OPENINFRA_POSTGRES_USER_REF", user_ref
+            )
+        if password_ref:
+            values["OPENINFRA_POSTGRES_PASSWORD_REF"] = self._sanitize_runtime_value(
+                "OPENINFRA_POSTGRES_PASSWORD_REF", password_ref
+            )
+
+    def _add_dotenv_runtime_values(self, values: dict[str, str]) -> None:
+        dotenv = self._location.project_root / ".env"
+        if not dotenv.is_file():
+            return
+        for raw_line in dotenv.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            normalized_key = key.strip()
+            if not normalized_key.startswith("OPENINFRA_"):
+                continue
+            value = value.strip().strip("'\"")
+            values[normalized_key] = self._sanitize_runtime_value(normalized_key, value)
+
+    def _sanitize_runtime_value(self, key: str, value: str) -> str:
+        normalized = value.strip()
+        if not self._looks_sensitive(key):
+            return normalized
+        if normalized.startswith(("env:", "vault://", "sops://", "file://", "kms://")):
+            return normalized
+        if key.startswith("OPENINFRA_"):
+            return "env:" + key
+        raise InstallerRuntimeError("refusing to materialize cleartext secret in openinfra.conf")
+
+    def _looks_sensitive(self, key: str) -> bool:
+        lowered = key.lower()
+        return any(marker in lowered for marker in ("password", "secret", "token", "key"))
+
+    def _quote_environment_value(self, value: str) -> str:
+        escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+        return '"' + escaped + '"'
+
+    def _write_installation_lock(
+        self, plan: InstallationPlan, journal: InstallationRollbackJournal
+    ) -> None:
+        content = "\n".join(
+            (
+                "edition=" + plan.edition,
+                "scope=" + plan.scope,
+                "service=" + plan.service_name,
+                "installed_at=" + datetime.now(UTC).isoformat(),
+                "runtime_config=/opt/openinfra/config/openinfra.conf",
+                "",
+            )
+        )
+        self._replace_text(plan.installation_lock_file, content, 0o640, journal)
 
     def _prepare_python_runtime(
         self, plan: InstallationPlan, journal: InstallationRollbackJournal

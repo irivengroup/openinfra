@@ -35,3 +35,13 @@ Rôles canoniques :
 - Les migrations sont exécutées une seule fois de manière idempotente, avec verrou applicatif et rapport de preuve.
 - Le frontend consomme l'API exposée par le backend et ne dépend pas du nom d'une édition.
 - Les agents publient les observations vers l'API backend et n'écrivent jamais directement dans PostgreSQL.
+
+## Modèle backend API-only et clients autorisés
+
+Le service backend expose l'API OpenInfra et applique les politiques d'autorisation effectives. Il n'est pas un portail de login opérateur LDAP/IPA. Les clients autorisés sont :
+
+- le frontend web, chargé de l'authentification opérateur et de la présentation ;
+- les agents techniques enrôlés, chargés de la collecte et de la remontée d'observations ;
+- les autres nœuds backend dans les topologies clusterisées.
+
+Le backend valide les jetons applicatifs, applique RBAC/ABAC, journalise les refus et décisions sensibles, et refuse tout chemin de contournement qui tenterait d'utiliser LDAP/IPA directement sur un scope backend. Tous les flux réseau hors Lite utilisent TLS 1.3 et mTLS.

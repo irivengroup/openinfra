@@ -1,8 +1,16 @@
+## v0.29.11 — Configuration runtime canonique, backend API-only et flux sécurisés
+
+- `/opt/openinfra/config/openinfra.conf` est le fichier runtime canonique matérialisant les paramètres utiles de `install.ini` et des références `.env`.
+- `/etc/openinfra` est un lien symbolique vers `/opt/openinfra/config`; les unités systemd lisent donc `/etc/openinfra/openinfra.conf` sans conserver `installers/` au runtime.
+- Le verrou masqué `/opt/openinfra/config/.openinfra-installed.lock` empêche les réinstallations accidentelles.
+- Les migrations backend post-installation sont copiées vers `/opt/openinfra/share/migrations/postgresql`.
+- Hors Lite, les flux frontend-backend, agent-backend et backend-backend imposent TLS 1.3 et mTLS.
+
 ## v0.29.10 — P07 authentification LDAP/IPA et RBAC groupes
 
 - Lite reste strictement limité à l'authentification locale `standard`.
-- Pro et Enterprise acceptent une politique LDAP/IPA uniquement côté backend/server.
-- Le frontend ne se connecte jamais directement à LDAP/IPA.
+- Pro et Enterprise acceptent LDAP/IPA uniquement côté frontend/web pour l'authentification opérateur.
+- Le backend ne réalise pas de login LDAP/IPA opérateur direct ; il valide des jetons applicatifs, applique RBAC et audit.
 - Les secrets de bind LDAP/IPA restent des références `env:`, `vault://`, `sops://`, `file://` ou `kms://`.
 - Les groupes externes sont mappés explicitement vers des rôles OpenInfra ; l'annuaire authentifie l'identité mais n'autorise jamais les actions applicatives.
 - L'émission des tokens applicatifs est basée sur les rôles OpenInfra effectifs.
@@ -14,7 +22,7 @@ La version `0.29.10` ajoute le socle P06 avant reprise Discovery. L'installateur
 
 Le plan ne déplace pas de logique dans `src` et ne réintroduit pas `deploy/`. Il rend :
 
-- `/etc/openinfra/postgresql-ha.json` pour audit opérateur ;
+- `/opt/openinfra/config/postgresql-ha.json` pour audit opérateur ;
 - `/data/openinfra/conf.d/openinfra-ha.conf` pour WAL archiving, hot standby, slots et synchronous commit ;
 - `/data/openinfra/pitr` pour l'archive WAL ;
 - `/data/openinfra/backups` pour les backups physiques.
@@ -35,11 +43,11 @@ Le CDC conserve le filesystem applicatif `/opt/openinfra` comme disposition entr
 
 ## v0.29.2 — Source unique migrations et bootstrap PostgreSQL backend
 
-La version `0.29.2` supprime le dossier racine `migrations/`. Le catalogue applicatif `PostgreSQLMigrationCatalog.from_project_root()` et le runtime Docker utilisent exclusivement `installers/migrations/postgresql`. Les scopes backend (`lite/all-in-one`, `pro/server`, `enterprise/server`) rendent aussi un plan de déploiement PostgreSQL OS-aware : détection, installation paquetaire si absent, activation systemd, démarrage, readiness, initialisation PGDATA et application des migrations.
+La version `0.29.2` supprime le dossier racine `migrations/`. Le catalogue applicatif `PostgreSQLMigrationCatalog.from_project_root()` et le runtime Docker utilisent la source projet `installers/migrations/postgresql`; après installation native, les migrations sont copiées et exécutées depuis `/opt/openinfra/share/migrations/postgresql`. Les scopes backend (`lite/all-in-one`, `pro/server`, `enterprise/server`) rendent aussi un plan de déploiement PostgreSQL OS-aware : détection, installation paquetaire si absent, activation systemd, démarrage, readiness, initialisation PGDATA et application des migrations.
 
 ## v0.29.2 — Installateurs comme source de vérité opérationnelle
 
-La version `0.29.2` retire le dossier `deploy/` : les unités systemd ne sont plus livrées comme fichiers statiques. L'installateur déduit l'édition et le scope depuis `installers/setup/...`, valide un `install.ini` minimal, rend `openinfra.service`, `openinfra-web.service` ou `openinfra-agent.service`, puis applique les migrations backend depuis `installers/migrations/postgresql` lorsque le scope gère PostgreSQL.
+La version `0.29.2` retire le dossier `deploy/` : les unités systemd ne sont plus livrées comme fichiers statiques. L'installateur déduit l'édition et le scope depuis `installers/setup/...`, valide un `install.ini` minimal, rend `openinfra.service`, `openinfra-web.service` ou `openinfra-agent.service`, puis applique les migrations backend depuis `/opt/openinfra/share/migrations/postgresql` après copie depuis la source projet lorsque le scope gère PostgreSQL.
 
 ## v0.29.0 — Éditions et garde-fous runtime
 

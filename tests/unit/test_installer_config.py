@@ -149,6 +149,53 @@ class TestInstallerConfigDomain:
         assert "api.backend_endpoint must be an origin URL" in joined
         assert "api.enrollment_token_ref must reference" in joined
 
+    def test_security_transport_policy_rejects_weak_back_front_agent_exchanges(
+        self, tmp_path: Path
+    ) -> None:
+        validator = InstallerConfigValidator()
+        weak_server = tmp_path / "weak-server.ini"
+        weak_server.write_text(
+            Path("installers/setup/pro/server/install.ini")
+            .read_text(encoding="utf-8")
+            .replace("transport = mtls", "transport = tls")
+            .replace("tls_min_version = TLSv1.3", "tls_min_version = TLSv1.2")
+            .replace("mtls_required = true", "mtls_required = false")
+            .replace(
+                "server_ca_cert_ref = file:///opt/openinfra/config/trust/openinfra-ca.pem",
+                "server_ca_cert_ref = env:OPENINFRA_CA",
+            )
+            .replace(
+                "trusted_proxy_cidrs = 10.0.0.0/8,172.16.0.0/12,192.168.0.0/16",
+                "trusted_proxy_cidrs = bad-cidr",
+            ),
+            encoding="utf-8",
+        )
+        weak_lite = tmp_path / "weak-lite.ini"
+        weak_lite.write_text(
+            Path("installers/setup/lite/install.ini")
+            .read_text(encoding="utf-8")
+            .replace("transport = local", "transport = mtls")
+            .replace("mtls_required = false", "mtls_required = true")
+            .replace("loopback_only = true", "loopback_only = false"),
+            encoding="utf-8",
+        )
+
+        server_errors = "\n".join(
+            validator.validate_file(weak_server, edition="pro", scope="server").errors
+        )
+        lite_errors = "\n".join(
+            validator.validate_file(weak_lite, edition="lite", scope="all-in-one").errors
+        )
+
+        assert "pro:server security.transport must be mtls" in server_errors
+        assert "security.tls_min_version must be TLSv1.3" in server_errors
+        assert "pro:server security.mtls_required must be true" in server_errors
+        assert "security.server_ca_cert_ref must reference file://" in server_errors
+        assert "security.trusted_proxy_cidrs contains invalid CIDR: bad-cidr" in server_errors
+        assert "lite security.transport must be local" in lite_errors
+        assert "lite security.mtls_required must be false" in lite_errors
+        assert "lite security.loopback_only must be true" in lite_errors
+
     def test_tree_detects_missing_unexpected_and_assert_raises(self, tmp_path: Path) -> None:
         unexpected = tmp_path / "lite/server/config/install.ini"
         unexpected.parent.mkdir(parents=True)
@@ -421,10 +468,11 @@ class TestInstallerConfigDomain:
 
     def test_installer_auth_ldap_ipa_invalid_edges_are_reported(self, tmp_path: Path) -> None:
         validator = InstallerConfigValidator()
+        web_base = Path("installers/setup/pro/web/install.ini").read_text(encoding="utf-8")
         server_base = Path("installers/setup/pro/server/install.ini").read_text(encoding="utf-8")
-        invalid_server = tmp_path / "invalid-ldap.ini"
-        invalid_server.write_text(
-            server_base.replace(
+        invalid_web = tmp_path / "invalid-ldap.ini"
+        invalid_web.write_text(
+            web_base.replace(
                 "mode = standard",
                 "\n".join(
                     (
@@ -442,7 +490,10 @@ class TestInstallerConfigDomain:
         )
         standard_with_directory = tmp_path / "standard-directory.ini"
         standard_with_directory.write_text(
-            server_base + "\ndirectory_url = ldaps://ldap.example.net\n",
+            web_base.replace(
+                "mode = standard",
+                "mode = standard\ndirectory_url = ldaps://ldap.example.net",
+            ),
             encoding="utf-8",
         )
         lite_ldap = tmp_path / "lite-ldap.ini"
@@ -453,7 +504,7 @@ class TestInstallerConfigDomain:
         )
         invalid_ttl = tmp_path / "invalid-ttl.ini"
         invalid_ttl.write_text(
-            server_base.replace(
+            web_base.replace(
                 "mode = standard",
                 "\n".join(
                     (
@@ -470,7 +521,7 @@ class TestInstallerConfigDomain:
         )
 
         invalid_errors = "\n".join(
-            validator.validate_file(invalid_server, edition="pro", scope="server").errors
+            validator.validate_file(invalid_web, edition="pro", scope="web").errors
         )
         standard_errors = "\n".join(
             validator.validate_file(standard_with_directory, edition="pro", scope="server").errors
@@ -479,7 +530,7 @@ class TestInstallerConfigDomain:
             validator.validate_file(lite_ldap, edition="lite", scope="all-in-one").errors
         )
         ttl_errors = "\n".join(
-            validator.validate_file(invalid_ttl, edition="pro", scope="server").errors
+            validator.validate_file(invalid_ttl, edition="pro", scope="web").errors
         )
 
         assert "auth.directory_url must use ldaps:// with a host" in invalid_errors
@@ -492,3 +543,11 @@ class TestInstallerConfigDomain:
         assert "auth.directory_url is only valid for ldap/ipa mode" in standard_errors
         assert "lite auth.mode must remain standard" in lite_errors
         assert "auth.cache_ttl_seconds must be between 30 and 3600" in ttl_errors
+        backend_direct = tmp_path / "backend-direct-ldap.ini"
+        backend_direct.write_text(
+            server_base.replace("mode = standard", "mode = ldap"), encoding="utf-8"
+        )
+        backend_errors = "\n".join(
+            validator.validate_file(backend_direct, edition="pro", scope="server").errors
+        )
+        assert "backend API must not authenticate human operators directly" in backend_errors

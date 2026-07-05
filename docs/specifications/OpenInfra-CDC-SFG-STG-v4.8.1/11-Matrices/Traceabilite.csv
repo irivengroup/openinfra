@@ -734,3 +734,10 @@ REQ-00732,N1,INSTALL,UC-0042,TST-INICFG-038,Comparaison automatisée.
 REQ-00733,N1,INSTALL,UC-0042,TST-INICFG-039,Test plan.
 REQ-00734,N1,INSTALL,UC-0042,TST-INICFG-040,Revue release.
 REQ-00735,N1,INSTALL,UC-0042,TST-INICFG-041,Revue d’architecture.
+REQ-00736,N1,INSTALL,UC-0042,TST-INICFG-042,"Test installateur offline, contrôle systemd, contrôle runtime resolver."
+REQ-00737,N1,INSTALL,UC-0042,TST-INICFG-042,Test installateur et contrôle de rollback.
+REQ-00738,N1,INSTALL,UC-0042,TST-INICFG-043,Test de non-régression installateur.
+REQ-00739,N1,AUTH,UC-0042,TST-AUTH-045,Tests de politique auth et validation install.ini.
+REQ-00740,N1,AUTH,UC-0042,TST-AUTH-045,"Tests RBAC, audit et authentification externe."
+REQ-00741,N1,SECURITY,UC-0042,TST-SEC-044,"Tests install.ini, scan sécurité, revue systemd et runbook."
+REQ-00742,N1,SECURITY,UC-0042,TST-SEC-044,Tests négatifs par édition.

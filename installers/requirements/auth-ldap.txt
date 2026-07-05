@@ -1,2 +1,2 @@
-# Production dependency required only for Pro/Enterprise backend LDAP/IPA authentication.
+# Production dependency required only for Pro/Enterprise web operator LDAP/IPA authentication.
 ldap3>=2.9

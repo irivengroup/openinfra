@@ -1,21 +1,23 @@
-# OpenInfra v0.29.10
+# OpenInfra v0.29.11
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.10 — P07 authentification locale/LDAP/IPA, RBAC externe mappé OpenInfra et audit des permissions avant reprise Discovery.**
+**Version courante : 0.29.11 — Correctif P07/P08 de modèle runtime : configuration canonique post-installation, backend API-only, LDAP/IPA côté web et mTLS front/back/agent.**
 
-## v0.29.10 — P07 Authentification, RBAC et audit
+## v0.29.11 — Runtime post-installation, backend API-only et sécurisation des flux
 
-Cette livraison reprend la roadmap après le correctif runtime PostgreSQL v0.29.9. Elle ne poursuit pas Discovery. Elle traite le socle d'authentification attendu avant reprise fonctionnelle :
+Cette livraison corrige et verrouille le modèle d'exploitation post-installation :
 
-- Lite reste strictement en authentification locale `standard` ; LDAP/IPA y est refusé côté backend et installateur.
-- Pro/Enterprise acceptent LDAP/IPA uniquement côté backend `server`.
-- Les scopes `web` et `agent` ne se connectent jamais directement à LDAP/IPA ; ils passent par le backend.
-- L'autorité de permissions reste OpenInfra : les groupes LDAP/IPA externes sont mappés vers des groupes/rôles OpenInfra.
-- Les secrets LDAP/IPA ne sont jamais acceptés en clair : seules les références `env:`, `vault://`, `sops://`, `file://` et `kms://` sont valides dans la configuration.
-- L'adaptateur LDAP/IPA utilise `ldaps://`, validation TLS obligatoire, bind de service optionnel, recherche utilisateur, validation du mot de passe utilisateur et résolution des groupes.
-- Les dépendances LDAP/IPA restent séparées par scope via `installers/requirements/*-server.txt` et l'extra Python `openinfra[ldap]`.
-- Les événements d'authentification externe et de permission sont auditables via la nouvelle migration PostgreSQL `0025_authentication_ldap_ipa_rbac.sql`.
+- `/opt/openinfra/config/openinfra.conf` devient la configuration runtime canonique.
+- `/etc/openinfra` est un symlink vers `/opt/openinfra/config`, conservant le chemin compatible `/etc/openinfra/openinfra.conf`.
+- `install.ini` et `.env` sont des entrées de bootstrap ; les services ne dépendent plus de `installers/` après installation.
+- Les migrations backend sont copiées sous `/opt/openinfra/share/migrations/postgresql`.
+- Le verrou `/opt/openinfra/config/.openinfra-installed.lock` empêche les installations multiples non contrôlées.
+- Le backend reste API-only pour les opérateurs : pas de login LDAP/IPA direct côté backend.
+- Le frontend web porte l'authentification opérateur, y compris LDAP/IPA en Pro/Enterprise.
+- Les agents consomment uniquement l'API backend avec leur mécanisme technique d'enrôlement.
+- Hors Lite, les échanges frontend-backend, agent-backend et backend-backend imposent TLS 1.3 et mTLS.
+- Lite reste strictement local et loopback-only.
 
 Nouvelle commande de contrôle :
 

@@ -1,8 +1,8 @@
 ## v0.29.10 — P07 authentification LDAP/IPA et RBAC groupes
 
 - Lite reste strictement limité à l'authentification locale `standard`.
-- Pro et Enterprise acceptent une politique LDAP/IPA uniquement côté backend/server.
-- Le frontend ne se connecte jamais directement à LDAP/IPA.
+- Pro et Enterprise acceptent LDAP/IPA uniquement côté frontend/web pour l'authentification opérateur.
+- Le backend ne réalise pas de login LDAP/IPA opérateur direct ; il valide des jetons applicatifs, applique RBAC et audit.
 - Les secrets de bind LDAP/IPA restent des références `env:`, `vault://`, `sops://`, `file://` ou `kms://`.
 - Les groupes externes sont mappés explicitement vers des rôles OpenInfra ; l'annuaire authentifie l'identité mais n'autorise jamais les actions applicatives.
 - L'émission des tokens applicatifs est basée sur les rôles OpenInfra effectifs.

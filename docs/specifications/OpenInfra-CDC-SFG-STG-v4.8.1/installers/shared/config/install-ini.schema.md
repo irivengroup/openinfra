@@ -10,12 +10,11 @@
 | api | non | oui | oui | oui | oui | oui |
 | identity | non | oui | non | oui | non | non |
 | auth | non | oui | oui | oui | oui | non |
+| security | oui | oui | oui | oui | oui | oui |
 
 Toute autre section est interdite.
 
 ## `[storage]`
-
-Champs autorisés :
 
 ```ini
 [storage]
@@ -47,15 +46,53 @@ peer_nodes = backend02.example.com,backend03.example.com
 
 ## `[auth]`
 
+Scope server :
+
 ```ini
 [auth]
 mode = standard
-postgresql_dsn_ref = env:OPENINFRA_POSTGRES_DSN
 postgresql_user_ref = env:OPENINFRA_POSTGRES_USER
 postgresql_password_ref = env:OPENINFRA_POSTGRES_PASSWORD
 ```
 
-Le mode par défaut et validé est `standard` : application + PostgreSQL. Lite n'expose pas cette section car tout est local et connu de l'installateur.
+Scope web :
+
+```ini
+[auth]
+mode = standard
+```
+
+LDAP/IPA est autorisé uniquement pour les scopes web Pro/Enterprise. Le backend ne réalise pas de login opérateur LDAP/IPA ; il valide des jetons applicatifs et applique les permissions OpenInfra.
+
+## `[security]`
+
+Lite :
+
+```ini
+[security]
+transport = local
+tls_min_version = TLSv1.3
+mtls_required = false
+loopback_only = true
+```
+
+Pro/Enterprise :
+
+```ini
+[security]
+transport = mtls
+tls_min_version = TLSv1.3
+mtls_required = true
+server_ca_cert_ref = file:///opt/openinfra/config/trust/openinfra-ca.pem
+client_cert_ref = file:///opt/openinfra/config/tls/<scope>.crt
+client_key_ref = file:///opt/openinfra/config/tls/<scope>.key
+trusted_proxy_cidrs = 10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+loopback_only = false
+```
+
+## Configuration runtime
+
+Après installation, le fichier runtime canonique est `/opt/openinfra/config/openinfra.conf`. `/etc/openinfra` est un symlink vers `/opt/openinfra/config`. Les unités systemd utilisent `EnvironmentFile=/etc/openinfra/openinfra.conf`, ce qui résout le fichier canonique sans conserver `installers/` au runtime.
 
 ## PGDATA PostgreSQL
 

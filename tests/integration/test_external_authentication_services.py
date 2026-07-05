@@ -60,6 +60,9 @@ class TestExternalAuthenticationServices:
         )
 
         assert payload["external_directory_enabled"] is True
+        assert payload["operator_auth_scope"] == "frontend-web-only"
+        assert payload["backend_authenticates_human_operators"] is False
+        assert payload["backend_contract"] == "api-token-rbac-audit"
         assert payload["rbac_authority"] == "openinfra"
         assert payload["directory"]["has_bind_password_ref"] is True
 
@@ -138,12 +141,12 @@ class TestExternalAuthenticationServices:
 
     def test_policy_standard_and_mismatch_edges(self, tmp_path: Path) -> None:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json")
-        assert (
-            app.auth_provider_policy_service.validate(
-                AuthProviderPolicyCommand("enterprise", "standard", None)
-            )["external_directory_enabled"]
-            is False
+        standard = app.auth_provider_policy_service.validate(
+            AuthProviderPolicyCommand("enterprise", "standard", None)
         )
+        assert standard["external_directory_enabled"] is False
+        assert standard["backend_authenticates_human_operators"] is False
+        assert standard["operator_auth_scope"] == "local-frontend-session"
         with pytest.raises(ValidationError):
             app.auth_provider_policy_service.validate(
                 AuthProviderPolicyCommand("enterprise", "standard", _directory_config())

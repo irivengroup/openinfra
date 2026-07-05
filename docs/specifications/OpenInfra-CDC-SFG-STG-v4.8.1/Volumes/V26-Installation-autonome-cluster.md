@@ -172,3 +172,9 @@ L'installation autonome est acceptée uniquement si :
 - un rapport d'installation complet est généré ;
 - le rollback est possible avant démarrage final ;
 - les tests d'acceptation automatisés passent.
+
+## 13. Configuration runtime post-installation
+
+Les installateurs autonomes utilisent `install.ini` et `.env` uniquement comme entrées de bootstrap. Une installation réussie doit produire `/opt/openinfra/config/openinfra.conf`, qui devient la configuration runtime canonique. Le chemin `/etc/openinfra` doit être un lien symbolique vers `/opt/openinfra/config`, afin que `/etc/openinfra/openinfra.conf` reste disponible pour systemd sans créer de seconde source de vérité.
+
+Le verrou `/opt/openinfra/config/.openinfra-installed.lock` doit être créé après succès et vérifié avant toute nouvelle installation. Les migrations backend doivent être copiées sous `/opt/openinfra/share/migrations/postgresql`. Aucun service runtime ne doit dépendre du dossier `installers/` après installation.

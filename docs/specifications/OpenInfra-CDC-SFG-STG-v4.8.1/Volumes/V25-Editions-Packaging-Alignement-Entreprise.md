@@ -269,3 +269,16 @@ Le volume est accepté si :
 - support constructeur et support tiers sont séparés ;
 - les tests multi-éditions valident la matrice de capacités.
 
+
+## 25.9 Sécurité des flux runtime front/back/agent
+
+Hors Lite, tous les flux réseau OpenInfra doivent être protégés par TLS 1.3 et authentification mutuelle mTLS :
+
+- frontend vers backend ;
+- agent vers backend ;
+- backend vers backend dans les topologies clusterisées ;
+- appels techniques de supervision et de readiness lorsqu'ils transportent des données sensibles.
+
+Lite reste strictement local : boucle locale, transport local, aucun LDAP/IPA et aucune exposition distante opérateur.
+
+Le backend conserve un modèle API-only : il ne réalise pas le login direct de chaque opérateur humain. Le frontend authentifie les opérateurs, y compris LDAP/IPA lorsque Pro/Entreprise le permettent, puis consomme l'API backend avec des jetons applicatifs. Les agents consomment l'API backend via leur mécanisme technique d'enrôlement, certificat client et jeton.

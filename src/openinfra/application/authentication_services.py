@@ -82,6 +82,9 @@ class AuthProviderPolicyService:
                 "edition": edition.value,
                 "mode": mode.value,
                 "external_directory_enabled": False,
+                "operator_auth_scope": "local-frontend-session",
+                "backend_authenticates_human_operators": False,
+                "backend_contract": "api-token-rbac-audit",
                 "rbac_authority": "openinfra",
             }
         if command.directory_config is None:
@@ -92,6 +95,9 @@ class AuthProviderPolicyService:
             "edition": edition.value,
             "mode": mode.value,
             "external_directory_enabled": True,
+            "operator_auth_scope": "frontend-web-only",
+            "backend_authenticates_human_operators": False,
+            "backend_contract": "api-token-rbac-audit",
             "rbac_authority": "openinfra",
             "directory": command.directory_config.as_safe_dict(),
             "group_mapping_required": True,

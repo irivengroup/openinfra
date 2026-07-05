@@ -28,10 +28,16 @@ class TestInstallerAlignment:
         assert "scope =" not in "\n".join(configs.values())
         assert "service =" not in "\n".join(configs.values())
         assert any(
-            "installers/migrations/postgresql" in action
+            "/opt/openinfra/share/migrations/postgresql" in action
             for item in report.reports
             for action in item.actions
         )
+        assert any(
+            "/opt/openinfra/config/openinfra.conf" in action
+            for item in report.reports
+            for action in item.actions
+        )
+        assert any("mandatory mTLS" in action for item in report.reports for action in item.actions)
         assert any(
             "without direct database access" in action
             for item in report.reports
@@ -141,56 +147,51 @@ class TestInstallerAlignment:
 
         assert report.valid is True
 
-    def test_installer_auth_policy_allows_ldap_ipa_only_on_backend_scopes(
+    def test_installer_auth_policy_keeps_backend_api_only_and_allows_web_ldap(
         self, tmp_path: Path
     ) -> None:
-        source = Path("installers/setup/pro/server/install.ini")
+        ldap_payload = "\n".join(
+            (
+                "mode = ldap",
+                "directory_url = ldaps://ldap.example.net:636",
+                "base_dn = dc=example,dc=net",
+                "user_filter = (uid={username})",
+                "group_filter = (member={user_dn})",
+                "bind_dn_ref = env:OPENINFRA_LDAP_BIND_DN",
+                "bind_password_ref = env:OPENINFRA_LDAP_BIND_PASSWORD",
+                "ca_cert_ref = file:///opt/openinfra/config/trust/ldap-ca.pem",
+                "cache_ttl_seconds = 300",
+            )
+        )
         ldap_server = tmp_path / "server-install.ini"
         ldap_server.write_text(
-            source.read_text(encoding="utf-8").replace(
-                "mode = standard",
-                "\n".join(
-                    (
-                        "mode = ldap",
-                        "directory_url = ldaps://ldap.example.net:636",
-                        "base_dn = dc=example,dc=net",
-                        "user_filter = (uid={username})",
-                        "group_filter = (member={user_dn})",
-                        "bind_dn_ref = env:OPENINFRA_LDAP_BIND_DN",
-                        "bind_password_ref = env:OPENINFRA_LDAP_BIND_PASSWORD",
-                        "ca_cert_ref = file:///etc/openinfra/ldap-ca.pem",
-                        "cache_ttl_seconds = 300",
-                    )
-                ),
-            ),
+            Path("installers/setup/pro/server/install.ini")
+            .read_text(encoding="utf-8")
+            .replace("mode = standard", ldap_payload),
             encoding="utf-8",
         )
         ldap_web = tmp_path / "web-install.ini"
         ldap_web.write_text(
             Path("installers/setup/pro/web/install.ini")
             .read_text(encoding="utf-8")
-            .replace(
-                "mode = standard",
-                "mode = ldap\ndirectory_url = ldaps://ldap.example.net",
-            ),
+            .replace("mode = standard", ldap_payload),
             encoding="utf-8",
         )
 
         server_report = InstallerConfigValidator().validate_file(
-            ldap_server,
-            edition="pro",
-            scope="server",
+            ldap_server, edition="pro", scope="server"
         )
-        web_report = InstallerConfigValidator().validate_file(
-            ldap_web,
-            edition="pro",
-            scope="web",
-        )
+        web_report = InstallerConfigValidator().validate_file(ldap_web, edition="pro", scope="web")
 
-        assert server_report.valid is True
-        assert any("LDAP/IPA authentication" in action for action in server_report.actions)
-        assert web_report.valid is False
-        assert any("must not connect directly to LDAP/IPA" in error for error in web_report.errors)
+        assert server_report.valid is False
+        assert any(
+            "backend API must not authenticate human operators" in error
+            for error in server_report.errors
+        )
+        assert web_report.valid is True
+        assert any(
+            "operator LDAP/IPA login is frontend-scoped" in action for action in web_report.actions
+        )
 
     def test_cli_auth_policy_rejects_lite_ldap_and_accepts_enterprise_ipa(
         self, capsys: object

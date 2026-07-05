@@ -117,6 +117,11 @@ class TestOpenInfraWeb:
         assert "Ressources Inventory" in static_js
         assert "/v1/ri/objects" in static_js
         assert "openinfra-accordion" in static_js + static_css
+        assert "Statistiques des composants OpenInfra" in static_js
+        assert "Accueil — statistiques des composants" in static_js
+        assert "openinfra-component-card" in static_js + static_css
+        assert "openinfra-pie-chart" in static_js + static_css
+        assert "Camembert" in static_js
         assert "Numéro de série" in static_js
         assert "Token API" not in static_js
         assert "openinfra-method" not in static_js + static_css

@@ -52,6 +52,8 @@ class FrontendContractValidator:
             or "openinfra-theme.css" not in main_source
             or "Dashboard de pilotage OpenInfra" not in main_source
             or "openinfra-accordion" not in main_source
+            or "Statistiques des composants OpenInfra" not in main_source
+            or "openinfra-pie-chart" not in main_source
             or "Numéro de série" not in main_source
             or "Token API" in main_source
         ):
@@ -125,6 +127,9 @@ class FrontendContractValidator:
             "bg-dark text-white",
             "openinfra-sidebar",
             "openinfra-accordion",
+            "Statistiques des composants OpenInfra",
+            "openinfra-component-card",
+            "openinfra-pie-chart",
             "Ressources Inventory",
             "agents proxy collectors Enterprise uniquement",
             "Numéro de série",

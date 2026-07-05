@@ -1453,3 +1453,8 @@ Le rendu reste dans le domaine présentation/rendering, les assets Bootstrap son
 - Le panneau latéral devient le menu principal : Dashboard direct, autres composantes en accordéons avec transition `fade`.
 - Le navigateur ne saisit ni ne relaie de token API technique ; `openinfra-web` établit le trust server-side avec le backend.
 - Les références DSN/credentials PostgreSQL du service web sont déclarées dans `[web_database]` et matérialisées dans le runtime serveur.
+
+
+### Avancement v0.29.18 — P08 dashboard accueil statistiques composants
+
+P08 est renforcé par une vue d’accueil réellement exploitable : chaque composant métier OpenInfra affiche ses métriques opérationnelles et un camembert lecture/mutation. Cette restitution reste API-only, déterministe et sans exposition de secrets côté navigateur.

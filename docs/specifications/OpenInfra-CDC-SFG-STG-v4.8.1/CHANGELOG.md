@@ -1,3 +1,7 @@
+## v4.8.1 / OpenInfra 0.29.18
+
+- Ajout `REQ-00749` et `TST-WEB-052` : dashboard d’accueil `openinfra-web` avec statistiques et camemberts par composant métier.
+
 ## v4.8.1 - Correction des entrées existantes stockage PostgreSQL
 
 - Mise à jour du mountpoint PostgreSQL backend : `/data/openinfra/`.

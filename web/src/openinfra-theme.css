@@ -268,3 +268,97 @@ body {
 .openinfra-operation-card .form-label {
   font-weight: 600;
 }
+
+/* v0.29.18: component metrics and pie charts on the home dashboard. */
+.openinfra-overview-summary,
+.openinfra-component-card {
+  border: 1px solid var(--openinfra-border);
+  border-radius: .85rem;
+  box-shadow: 0 .125rem .35rem rgba(0, 0, 0, .05);
+}
+
+.openinfra-component-icon {
+  color: #0d6efd;
+  fill: currentColor;
+  flex: 0 0 auto;
+}
+
+.openinfra-component-visual {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+}
+
+.openinfra-pie-chart {
+  align-items: center;
+  background: conic-gradient(#0d6efd 0 var(--oi-read-end), #198754 var(--oi-read-end) var(--oi-write-end), #dee2e6 var(--oi-write-end) 100%);
+  border-radius: 50%;
+  display: inline-flex;
+  height: 5.25rem;
+  justify-content: center;
+  min-width: 5.25rem;
+  position: relative;
+  width: 5.25rem;
+}
+
+.openinfra-pie-chart::after {
+  background: #fff;
+  border-radius: 50%;
+  content: "";
+  height: 3.35rem;
+  position: absolute;
+  width: 3.35rem;
+}
+
+.openinfra-pie-chart span {
+  font-size: 1.15rem;
+  font-weight: 800;
+  position: relative;
+  z-index: 1;
+}
+
+.openinfra-pie-legend {
+  display: grid;
+  gap: .35rem;
+}
+
+.openinfra-pie-legend span {
+  align-items: center;
+  display: inline-flex;
+  gap: .35rem;
+}
+
+.openinfra-pie-legend i {
+  border-radius: 999px;
+  display: inline-block;
+  height: .7rem;
+  width: .7rem;
+}
+
+.openinfra-legend-read {
+  background: #0d6efd;
+}
+
+.openinfra-legend-write {
+  background: #198754;
+}
+
+.openinfra-component-metrics > div {
+  background: #f8f9fa;
+  border-radius: .65rem;
+  padding: .65rem .75rem;
+}
+
+.openinfra-component-metrics strong,
+.openinfra-component-metrics span {
+  display: block;
+}
+
+.openinfra-component-metrics strong {
+  font-size: 1.15rem;
+}
+
+.openinfra-component-metrics span {
+  color: #6c757d;
+  font-size: .75rem;
+}

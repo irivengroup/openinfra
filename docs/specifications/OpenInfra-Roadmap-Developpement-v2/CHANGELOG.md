@@ -1,3 +1,7 @@
+## v2 / OpenInfra 0.29.18
+
+- Ajout `TST-P08-WEB-COMPONENT-STATS` : validation du dashboard d’accueil avec métriques et camemberts par composant.
+
 # CHANGELOG — OpenInfra Roadmap
 
 ## v2.0.0

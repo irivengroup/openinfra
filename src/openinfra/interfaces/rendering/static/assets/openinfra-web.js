@@ -243,6 +243,30 @@ class OpenInfraDashboard {
     return module.operations;
   }
 
+  componentModules() {
+    return OPENINFRA_MODULES.filter((module) => module.id !== "overview");
+  }
+
+  moduleStatistics(module) {
+    const operations = module.operations.length;
+    const readOperations = module.operations.filter((operation) => operation.method === "GET").length;
+    const writeOperations = operations - readOperations;
+    const fields = module.operations.reduce((total, operation) => total + (operation.query || []).length + (operation.body || []).length, 0);
+    const requiredFields = module.operations.reduce((total, operation) => {
+      return total + [...(operation.query || []), ...(operation.body || [])].filter((field) => field.required).length;
+    }, 0);
+    const readPercent = operations === 0 ? 0 : Math.round((readOperations / operations) * 100);
+    return {
+      operations,
+      readOperations,
+      writeOperations,
+      fields,
+      requiredFields,
+      readPercent,
+      writePercent: 100 - readPercent
+    };
+  }
+
   render() {
     const { activeModuleId, selected, config, ready, version, error, result } = this.state;
     const operationsCount = OPENINFRA_MODULES.reduce((total, module) => total + module.operations.length, 0);
@@ -291,12 +315,85 @@ class OpenInfraDashboard {
               ${this.metric("Trust", this.escape(config?.webBackendTrust || "server-side"))}
               ${this.metric("Modules", `${operationsCount} opérations`)}
             </div>
-            <section class="card openinfra-operation-card"><div class="card-body">${this.renderOperationPanel(selected, result)}</div></section>
+            ${this.renderWorkspace(selected, result)}
           </main>
         </div>
       </div>
     `;
     this.bindEvents();
+  }
+
+  renderWorkspace(selected, result) {
+    if (this.state.activeModuleId === "overview") {
+      return this.renderOverviewDashboard();
+    }
+    return `<section class="card openinfra-operation-card"><div class="card-body">${this.renderOperationPanel(selected, result)}</div></section>`;
+  }
+
+  renderOverviewDashboard() {
+    const components = this.componentModules();
+    const totalOperations = components.reduce((total, module) => total + module.operations.length, 0);
+    const totalFields = components.reduce((total, module) => total + this.moduleStatistics(module).fields, 0);
+    const totalRequiredFields = components.reduce((total, module) => total + this.moduleStatistics(module).requiredFields, 0);
+    return `<section class="openinfra-overview" aria-label="Statistiques des composants OpenInfra">
+      <div class="card openinfra-overview-summary mb-4">
+        <div class="card-body">
+          <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+            <div>
+              <h2 class="h4 mb-1">Accueil — statistiques des composants</h2>
+              <p class="text-muted mb-0">Vue de synthèse par composant : métriques fonctionnelles, champs métier exposés et camemberts de répartition lecture/mutation.</p>
+            </div>
+            <div class="text-end">
+              <span class="badge text-bg-primary">${components.length} composants</span>
+              <span class="badge text-bg-secondary ms-2">${totalOperations} opérations</span>
+            </div>
+          </div>
+          <div class="row g-3 mt-3">
+            ${this.metric("Champs métier", String(totalFields))}
+            ${this.metric("Champs obligatoires", String(totalRequiredFields))}
+            ${this.metric("Navigation", "Accordéons") }
+            ${this.metric("Secrets navigateur", "0 exposé")}
+          </div>
+        </div>
+      </div>
+      <div class="row g-3">
+        ${components.map((module) => this.renderComponentStatsCard(module)).join("")}
+      </div>
+    </section>`;
+  }
+
+  renderComponentStatsCard(module) {
+    const stats = this.moduleStatistics(module);
+    const readEnd = `${stats.readPercent}%`;
+    const writeEnd = `${stats.readPercent + stats.writePercent}%`;
+    return `<article class="col-md-6 col-xxl-4">
+      <div class="card h-100 openinfra-component-card">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start gap-3">
+            <div>
+              <h3 class="h5 mb-1">${this.escape(module.shortLabel || module.label)}</h3>
+              <p class="text-muted small mb-0">${this.escape(module.description)}</p>
+            </div>
+            ${this.icon(module.icon, "openinfra-component-icon", 28, 28)}
+          </div>
+          <div class="openinfra-component-visual mt-3">
+            <div class="openinfra-pie-chart" role="img" aria-label="Camembert ${this.escape(module.label)} : ${stats.readOperations} lectures et ${stats.writeOperations} mutations" style="--oi-read-end: ${readEnd}; --oi-write-end: ${writeEnd};">
+              <span>${stats.operations}</span>
+            </div>
+            <div class="openinfra-pie-legend small">
+              <span><i class="openinfra-legend-read"></i>${stats.readOperations} lectures</span>
+              <span><i class="openinfra-legend-write"></i>${stats.writeOperations} mutations</span>
+            </div>
+          </div>
+          <div class="row g-2 mt-3 openinfra-component-metrics">
+            <div class="col-6"><strong>${stats.operations}</strong><span>Opérations</span></div>
+            <div class="col-6"><strong>${stats.fields}</strong><span>Champs métier</span></div>
+            <div class="col-6"><strong>${stats.requiredFields}</strong><span>Obligatoires</span></div>
+            <div class="col-6"><strong>${stats.writeOperations}</strong><span>Mutations</span></div>
+          </div>
+        </div>
+      </div>
+    </article>`;
   }
 
   renderSidebar() {

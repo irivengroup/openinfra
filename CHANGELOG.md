@@ -1,3 +1,10 @@
+## 0.29.18 - 2026-07-06
+
+- `openinfra-web` enrichit le dashboard d’accueil avec une vue statistiques par composant.
+- Ajout de cartes RI, IPAM, DCIM, Discovery et Sécurité avec métriques opérations/champs/mutations et camemberts lecture/mutation.
+- Renforcement du validateur frontend et des tests d’intégration sur les fragments `Statistiques des composants OpenInfra`, `openinfra-component-card` et `openinfra-pie-chart`.
+- CDC v4.8.1 et roadmap v2 alignés avec l’exigence de statistiques d’accueil par composant.
+
 ## 0.29.17 - 2026-07-06
 
 - `openinfra-web` retire le second bandeau Bootstrap de recherche/actions demandé.

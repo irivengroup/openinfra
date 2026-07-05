@@ -113,3 +113,18 @@ Le périmètre Historique du volume Référentiel Ressources Inventory doit êtr
 ## Critères d’acceptation
 
 La capacité est acceptée si les scénarios nominaux, erreurs, droits insuffisants, conflits et imports/exports sont validés par tests automatisés et si les journaux d’audit permettent de reconstituer les opérations.
+
+## Complément v0.29.14 — Qualité, certification et score RI
+
+OpenInfra doit fournir une capacité native de qualité et certification RI exposée par CLI, API et dashboard web.
+
+Règles obligatoires :
+
+- chaque objet RI peut être évalué individuellement ;
+- chaque tenant peut obtenir une synthèse paginée des statuts qualité RI ;
+- le score agrège au minimum la complétude, la fraîcheur, l’autorité de source et la confiance ;
+- un objet incomplet ou obsolète ne doit jamais être marqué certifié ;
+- une source non autoritative par rapport aux règles de gouvernance RI doit produire une alerte visible ;
+- les évaluations doivent être protégées par RBAC et auditées ;
+- les chemins primaires sont `openinfra ri quality-object`, `openinfra ri quality-summary`, `/api/v1/ri/quality/object` et `/api/v1/ri/quality/summary` ;
+- les alias `sot` restent acceptés uniquement pour compatibilité ascendante.

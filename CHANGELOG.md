@@ -511,3 +511,12 @@
 - Ajout de la migration PostgreSQL initiale partitionnée et indexée.
 - Ajout de la CLI, de l'API HTTP, de la documentation, des tests et de la CI GitHub Actions.
 - Intégration documentaire du CDC/SFG/STG v4 et de la roadmap v1 comme sources contractuelles.
+
+## 0.29.14
+
+- Ajout P09 initial : RI Quality & Certification.
+- Ajout du service applicatif `RessourcesInventoryQualityService` pour scorer les objets RI.
+- Ajout des commandes `openinfra ri quality-object` et `openinfra ri quality-summary` avec alias `openinfra sot ...` conservés.
+- Ajout des endpoints API `/api/v1/ri/quality/object` et `/api/v1/ri/quality/summary` avec alias `/api/v1/sot/...` via compatibilité existante.
+- Dashboard web enrichi avec les opérations de qualité/certification RI.
+- RBAC enrichi avec la permission `ri.quality.read`, incluse dans les rôles RI de lecture/opération/gouvernance.

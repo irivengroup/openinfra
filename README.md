@@ -66,3 +66,14 @@ PYTHONPATH=src python -m openinfra.interfaces.cli spec validate --root docs/spec
 python -m build
 python scripts/verify_artifact.py dist/*.whl
 ```
+
+### v0.29.14 — RI Quality & Certification
+
+OpenInfra expose maintenant la qualité RI comme capacité pilotable :
+
+```bash
+openinfra ri quality-object --tenant default --admin-token "$TOKEN" --key device/example
+openinfra ri quality-summary --tenant default --admin-token "$TOKEN" --kind device
+```
+
+Les endpoints primaires sont `/api/v1/ri/quality/object` et `/api/v1/ri/quality/summary`. Les alias historiques `/api/v1/sot/...` et `openinfra sot ...` restent disponibles pour compatibilité ascendante.

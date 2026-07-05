@@ -22,6 +22,7 @@ class Permission(StrEnum):
     RI_WRITE = "ri.write"
     RI_GOVERNANCE_READ = "ri.governance.read"
     RI_GOVERNANCE_WRITE = "ri.governance.write"
+    RI_QUALITY_READ = "ri.quality.read"
     SOT_READ = "ri.read"
     SOT_WRITE = "ri.write"
     SOT_GOVERNANCE_READ = "ri.governance.read"

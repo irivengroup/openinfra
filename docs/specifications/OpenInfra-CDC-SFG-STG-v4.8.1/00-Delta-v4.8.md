@@ -44,3 +44,7 @@ Le fichier doit permettre de renseigner ou surcharger :
 ## Acceptation
 
 L'exigence est acceptée si tous les dossiers `installers/<edition>/<scope>/` livrés contiennent `config/install.ini`, si la validation échoue proprement en cas de valeur incohérente et si les tests vérifient les profils Lite, Pro et Entreprise.
+
+## Delta v0.29.14 — RI Quality & Certification
+
+La phase P09 ajoute la certification qualité RI : score par objet, synthèse tenant, détection des attributs obligatoires manquants, fraîcheur, source non autoritative, RBAC `ri.quality.read`, audit `ri.quality.*`, API `/api/v1/ri/quality/*` et commandes CLI `openinfra ri quality-*`.

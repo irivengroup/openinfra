@@ -1436,3 +1436,7 @@ Le résultat est une roadmap plus exigeante au début, mais beaucoup plus réali
 ## Incrément réalisé v0.29.10 — P06
 
 Le jalon P06 est amorcé avant reprise Discovery par le plan installateur PostgreSQL HA/PITR : configuration streaming native, WAL archiving, répertoires PITR/backups, migration de registre HA, commande `database ha-plan` et failover contrôlé opérateur.
+
+### Avancement v0.29.14 — P09 RI Quality & Certification
+
+P09 démarre par la capacité de qualité et certification RI : évaluation individuelle des objets, synthèse tenant, score de complétude/fraîcheur/autorité/confiance, intégration des règles de source autoritative, RBAC `ri.quality.read`, audit `ri.quality.*`, API `/api/v1/ri/quality/*`, CLI `openinfra ri quality-*` et exposition dans le dashboard web.

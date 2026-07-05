@@ -19,3 +19,4 @@ TST-RM-017,P14,Agent no DB direct,Vérifier agent via API/mTLS uniquement.,Secur
 TST-RM-018,P15,Graph performance,Graphe impact 1 niveau sous objectif.,Performance
 TST-RM-019,P17,Multisite DR,Tester perte site et reprise.,Chaos
 TST-RM-020,P18,GA release gate,Toutes validations bloquantes passantes.,Release
+TST-P09-RI-QUALITY,P09,RI Quality & Certification,"Service, CLI, API, dashboard et RBAC","Score, statut de certification et alertes de gouvernance validés."

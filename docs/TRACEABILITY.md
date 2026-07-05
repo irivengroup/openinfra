@@ -231,3 +231,14 @@ Traçabilité :
 
 La v0.27.0 ajoute une simulation de migration depuis Device42, NetBox, Nautobot, GLPI et CSV générique. Les exigences couvertes sont la préparation de mappings contrôlés, le dry-run sans écriture, le rapport d’écarts complet, la persistance du plan et la reprise par `job_id`. Les contrats exposés sont `openinfra import migration-template|migration-plan|migration-report` et `/api/v1/imports/migration-template`, `/api/v1/imports/migration-plans`, `/api/v1/imports/migration-report`.
 
+
+## v0.29.14 — P09 RI Quality & Certification
+
+| Élément | Couverture |
+|---|---|
+| RI Quality service | `src/openinfra/application/ressources_inventory_quality_services.py` |
+| CLI | `openinfra ri quality-object`, `openinfra ri quality-summary`, alias `sot` |
+| API | `/api/v1/ri/quality/object`, `/api/v1/ri/quality/summary` |
+| Dashboard | opérations RI quality dans `interfaces/rendering/static` |
+| RBAC | permission `ri.quality.read` |
+| Tests | `tests/integration/test_ri_quality_services.py`, contrat HTTP RI quality |

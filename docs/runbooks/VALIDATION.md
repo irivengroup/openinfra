@@ -528,3 +528,23 @@ PYTHONPATH=src:. python -m pytest tests/integration/test_installer_alignment.py 
 ```
 
 La validation P06 vérifie le rendu du plan HA/PITR, l'absence de ports et paramètres bas niveau dans `install.ini`, les répertoires internes PITR/backup, le mode quasi temps réel lorsque `identity.peer_nodes` est renseigné, et la migration `0024_postgresql_ha_backup_registry.sql`.
+
+### RI Quality & Certification — v0.29.14
+
+Les contrôles de qualité RI sont validables via CLI et API :
+
+```bash
+PYTHONPATH=src python -m openinfra.interfaces.cli ri quality-object \
+  --data .openinfra.json \
+  --tenant default \
+  --admin-token "$OPENINFRA_TOKEN" \
+  --key device/example
+
+PYTHONPATH=src python -m openinfra.interfaces.cli ri quality-summary \
+  --data .openinfra.json \
+  --tenant default \
+  --admin-token "$OPENINFRA_TOKEN" \
+  --kind device
+```
+
+Critères de validation : score de complétude, fraîcheur, autorité de source, confiance, statut de certification et audit `ri.quality.*`.

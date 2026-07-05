@@ -546,3 +546,6 @@ TST-INICFG-042,installation,Configuration runtime post-install,Test installateur
 TST-INICFG-043,installation,Verrou anti-réinstallation,Test de non-régression installateur,Une seconde installation est refusée lorsque .openinfra-installed.lock existe.,UC-0042
 TST-SEC-044,sécurité,Flux frontend-backend-agent,Validation install.ini et tests négatifs,TLS 1.3 et mTLS sont obligatoires hors Lite avec certificats référencés.,UC-0042
 TST-AUTH-045,sécurité,Modèle opérateur API-only backend,Tests politique auth et install.ini,LDAP/IPA est refusé côté backend et accepté uniquement côté web Pro/Enterprise.,UC-0042
+TST-RIQUAL-046,fonctionnel,Qualité objet RI,Tests service et CLI,Un objet complet et autoritatif obtient un statut certified avec score >= 90.,REQ-00743
+TST-RIQUAL-047,sécurité,RBAC qualité RI,Tests négatifs,Un rôle sans ri.quality.read ne peut pas consulter la qualité RI.,REQ-00744
+TST-RIQUAL-048,fonctionnel,Source non autoritative RI,Tests gouvernance + qualité,Une donnée portée par une source non autoritative remonte un warning explicite.,REQ-00745

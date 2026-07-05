@@ -16,3 +16,9 @@
 ## v1.0.0
 
 - Roadmap initiale alignée CDC v4.0.0.
+
+## 0.29.14
+
+- P09 initialisée par RI Quality & Certification.
+- Ajout du pilotage qualité/certification RI dans CLI, API et dashboard web.
+- Ajout de la permission `ri.quality.read` et des audits `ri.quality.*`.

@@ -90,6 +90,10 @@ from openinfra.application.ipam_services import (
     PreviewDdiReservationCommand,
     RegisterIpAddressCommand,
 )
+from openinfra.application.ressources_inventory_quality_services import (
+    EvaluateRiObjectQualityCommand,
+    RiQualitySummaryCommand,
+)
 from openinfra.application.security_services import (
     AuthenticateTokenCommand,
     ListTokensCommand,
@@ -550,6 +554,43 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     )
                 )
                 responder.send(HTTPStatus.OK, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/sot/quality/object":
+            try:
+                query = parse_qs(parsed.query)
+                result = (
+                    self.server.application.ressources_inventory_quality_service.evaluate_object(
+                        EvaluateRiObjectQualityCommand(
+                            tenant_id=self._first_query_value(query, "tenant_id"),
+                            admin_token=self._bearer_token(),
+                            key=self._first_query_value(query, "key"),
+                        )
+                    )
+                )
+                responder.send(HTTPStatus.OK, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/sot/quality/summary":
+            try:
+                query = parse_qs(parsed.query)
+                summary = self.server.application.ressources_inventory_quality_service.summarize(
+                    RiQualitySummaryCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        kind=query.get("kind", [None])[0],
+                        tag=query.get("tag", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, summary.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (ValueError, OpenInfraError) as exc:
@@ -2115,6 +2156,8 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "object_versions": "/api/v1/ri/object-versions",
                     "relations": "/api/v1/ri/relations",
                     "governance_rules": "/api/v1/ri/governance-rules",
+                    "quality_object": "/api/v1/ri/quality/object",
+                    "quality_summary": "/api/v1/ri/quality/summary",
                     "legacy_sot_alias": "/api/v1/sot/objects",
                 },
                 "discovery": {

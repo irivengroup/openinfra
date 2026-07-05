@@ -122,15 +122,27 @@ class BuiltinRolePolicy:
                 Permission.SCHEMA_READ,
             )
         ),
-        "viewer": frozenset((Permission.SCHEMA_READ, Permission.RI_READ)),
-        "ri:reader": frozenset((Permission.RI_READ, Permission.SCHEMA_READ)),
-        "ri:operator": frozenset((Permission.RI_READ, Permission.RI_WRITE, Permission.SCHEMA_READ)),
+        "viewer": frozenset(
+            (Permission.SCHEMA_READ, Permission.RI_READ, Permission.RI_QUALITY_READ)
+        ),
+        "ri:reader": frozenset(
+            (Permission.RI_READ, Permission.RI_QUALITY_READ, Permission.SCHEMA_READ)
+        ),
+        "ri:operator": frozenset(
+            (
+                Permission.RI_READ,
+                Permission.RI_WRITE,
+                Permission.RI_QUALITY_READ,
+                Permission.SCHEMA_READ,
+            )
+        ),
         "ri:governance-admin": frozenset(
             (
                 Permission.RI_READ,
                 Permission.RI_WRITE,
                 Permission.RI_GOVERNANCE_READ,
                 Permission.RI_GOVERNANCE_WRITE,
+                Permission.RI_QUALITY_READ,
                 Permission.SCHEMA_READ,
                 Permission.AUDIT_READ,
             )
@@ -154,6 +166,7 @@ class BuiltinRolePolicy:
                 Permission.RI_WRITE,
                 Permission.RI_GOVERNANCE_READ,
                 Permission.RI_GOVERNANCE_WRITE,
+                Permission.RI_QUALITY_READ,
                 Permission.SCHEMA_READ,
                 Permission.AUDIT_READ,
             )

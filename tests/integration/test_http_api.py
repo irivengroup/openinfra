@@ -74,6 +74,8 @@ class TestHttpApi:
                     "object_versions": "/api/v1/ri/object-versions",
                     "relations": "/api/v1/ri/relations",
                     "governance_rules": "/api/v1/ri/governance-rules",
+                    "quality_object": "/api/v1/ri/quality/object",
+                    "quality_summary": "/api/v1/ri/quality/summary",
                     "legacy_sot_alias": "/api/v1/sot/objects",
                 },
                 "discovery": {
@@ -92,6 +94,54 @@ class TestHttpApi:
             assert ready["component"] == "json"
             assert version["version"] == __version__
             assert allocation["address"] == "10.6.0.1"
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def test_ri_quality_http_contract_and_legacy_alias(self, tmp_path: Path) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+        token = "w" * 40
+        app.security_service.bootstrap_token(
+            BootstrapTokenCommand(
+                tenant_id="default",
+                actor="pytest",
+                subject="ri-quality-api",
+                roles=("ri:operator",),
+                token=token,
+            )
+        )
+        app.source_of_truth_service.upsert_object(
+            UpsertSourceObjectCommand(
+                tenant_id="default",
+                actor="pytest",
+                admin_token=token,
+                key="device/ri-quality-api",
+                kind="device",
+                display_name="RI Quality API",
+                attributes_json=json.dumps({"serial": "SNAPI", "site": "PAR1"}),
+                tags=("prod",),
+                source="manual",
+            )
+        )
+        server = OpenInfraThreadingServer(("127.0.0.1", 0), app, auth_required=True)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base_url = f"http://127.0.0.1:{server.server_port}"
+            report = self._get_json(
+                base_url + "/api/v1/ri/quality/object?tenant_id=default&key=device/ri-quality-api",
+                token=token,
+            )
+            summary = self._get_json(
+                base_url + "/api/v1/sot/quality/summary?tenant_id=default&kind=device",
+                token=token,
+            )
+
+            assert report["key"] == "device/ri-quality-api"
+            assert report["domain"] == "ressources_inventory"
+            assert summary["total"] == 1
+            assert summary["reports"][0]["key"] == "device/ri-quality-api"
         finally:
             server.shutdown()
             server.server_close()

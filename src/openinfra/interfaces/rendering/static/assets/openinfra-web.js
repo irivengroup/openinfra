@@ -92,6 +92,8 @@ const OPENINFRA_OPERATIONS = [
         { name: "display_name", required: true }, { name: "attributes", type: "json" }, { name: "tags", type: "json" }, { name: "source", required: true }
       ] },
       { id: "ri-relations", label: "Lister les relations RI", method: "GET", path: "/v1/ri/relations", query: [{ name: "source_key" }, { name: "target_key" }, { name: "relation_type" }, { name: "limit" }] },
+      { id: "ri-quality-object", label: "Évaluer la qualité d’un objet RI", method: "GET", path: "/v1/ri/quality/object", query: [{ name: "key" }] },
+      { id: "ri-quality-summary", label: "Synthèse qualité / certification RI", method: "GET", path: "/v1/ri/quality/summary", query: [{ name: "kind" }, { name: "tag" }, { name: "limit" }] },
       { id: "ri-governance", label: "Évaluer une règle de gouvernance RI", method: "POST", path: "/v1/ri/governance/evaluate", body: [
         { name: "object_kind", required: true }, { name: "incoming_source", required: true },
         { name: "existing_attributes", type: "json" }, { name: "incoming_attributes", type: "json" }

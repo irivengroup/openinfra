@@ -94,6 +94,10 @@ from openinfra.application.ipam_services import (
     PreviewDdiReservationCommand,
     RegisterIpAddressCommand,
 )
+from openinfra.application.ressources_inventory_quality_services import (
+    EvaluateRiObjectQualityCommand,
+    RiQualitySummaryCommand,
+)
 from openinfra.application.security_services import (
     AuthenticateTokenCommand,
     BootstrapTokenCommand,
@@ -858,6 +862,25 @@ class OpenInfraCLI:
         governance_deactivate.add_argument("--admin-token", required=True)
         governance_deactivate.add_argument("--name", required=True)
         governance_deactivate.set_defaults(handler=self._handle_sot_deactivate_governance_rule)
+        quality_object = sot_subparsers.add_parser(
+            "quality-object", help=f"evaluate one {short_label} object quality and certification"
+        )
+        self._add_backend_arguments(quality_object)
+        quality_object.add_argument("--tenant", required=True)
+        quality_object.add_argument("--admin-token", required=True)
+        quality_object.add_argument("--key", required=True)
+        quality_object.set_defaults(handler=self._handle_sot_quality_object)
+        quality_summary = sot_subparsers.add_parser(
+            "quality-summary", help=f"summarize {short_label} quality and certification status"
+        )
+        self._add_backend_arguments(quality_summary)
+        quality_summary.add_argument("--tenant", required=True)
+        quality_summary.add_argument("--admin-token", required=True)
+        quality_summary.add_argument("--limit", type=int, default=100)
+        quality_summary.add_argument("--cursor")
+        quality_summary.add_argument("--kind")
+        quality_summary.add_argument("--tag")
+        quality_summary.set_defaults(handler=self._handle_sot_quality_summary)
 
     def _add_backend_arguments(self, parser: Any) -> None:
         parser.add_argument("--backend", choices=("json", "postgresql"), default="json")
@@ -2219,6 +2242,33 @@ class OpenInfraCLI:
             )
         )
         print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_sot_quality_object(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.ressources_inventory_quality_service.evaluate_object(
+            EvaluateRiObjectQualityCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                key=args.key,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_sot_quality_summary(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        summary = application.ressources_inventory_quality_service.summarize(
+            RiQualitySummaryCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                limit=args.limit,
+                cursor=args.cursor,
+                kind=args.kind,
+                tag=args.tag,
+            )
+        )
+        print(json.dumps(summary.as_dict(), sort_keys=True))
         return 0
 
     def _handle_ipam_allocate(self, args: argparse.Namespace) -> int:

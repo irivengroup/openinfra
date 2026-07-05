@@ -33,7 +33,7 @@ backend_endpoint = https://openinfra-vip.example.com
 enrollment_token_ref = env:OPENINFRA_AGENT_ENROLLMENT_TOKEN
 ```
 
-`backend_endpoint` désigne le backend, ou la VIP backend en cluster. Les ports par défaut ne sont pas configurables dans `install.ini` : `2006` pour back/front, `2007` pour back/agent, `2008` pour synchronisation cluster.
+`backend_endpoint` désigne le backend, ou la VIP backend en cluster. Les ports par défaut ne sont pas configurables dans `install.ini` : `2006` pour back/front, `2007` pour back/agent-proxy, `2008` pour synchronisation cluster.
 
 ## `[identity]`
 

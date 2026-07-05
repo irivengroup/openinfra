@@ -328,17 +328,17 @@ jobs:
             --tenant default \
             --admin-token "$admin_token"
 
-      - name: Smoke JSON Source of Truth governance
+      - name: Smoke JSON Ressources Inventory governance
         run: |
           tmpdir="$(mktemp -d)"
           admin_token="$(python -c 'import secrets; print("ci_" + secrets.token_urlsafe(48))')"
           openinfra security bootstrap-token \
             --data "$tmpdir/state.json" \
             --tenant default \
-            --subject ci-sot-governance \
-            --role sot:governance-admin \
+            --subject ci-ri-governance \
+            --role ri:governance-admin \
             --token "$admin_token"
-          openinfra sot create-governance-rule \
+          openinfra ri create-governance-rule \
             --data "$tmpdir/state.json" \
             --tenant default \
             --admin-token "$admin_token" \
@@ -347,12 +347,12 @@ jobs:
             --attribute-path serial \
             --authoritative-source discovery \
             --priority 500
-          openinfra sot list-governance-rules \
+          openinfra ri list-governance-rules \
             --data "$tmpdir/state.json" \
             --tenant default \
             --admin-token "$admin_token" \
             --object-kind device
-          openinfra sot evaluate-governance \
+          openinfra ri evaluate-governance \
             --data "$tmpdir/state.json" \
             --tenant default \
             --admin-token "$admin_token" \
@@ -360,7 +360,7 @@ jobs:
             --incoming-source manual \
             --existing-attributes-json '{"serial":"A"}' \
             --incoming-attributes-json '{"serial":"B"}'
-          openinfra sot deactivate-governance-rule \
+          openinfra ri deactivate-governance-rule \
             --data "$tmpdir/state.json" \
             --tenant default \
             --admin-token "$admin_token" \

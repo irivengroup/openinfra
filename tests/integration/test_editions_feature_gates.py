@@ -259,7 +259,7 @@ def test_edition_query_service_validates_negative_increment(tmp_path: Path) -> N
     app = ApplicationFactory().create_json_application(tmp_path / "state.json", edition="pro")
 
     decision = app.edition_query_service.feature_decision(
-        CheckFeatureCommand("default", "pro", "core_source_of_truth")
+        CheckFeatureCommand("default", "pro", "core_ressources_inventory")
     )
     assert decision.allowed is True
     with pytest.raises(ValidationError, match="quota increment cannot be negative"):

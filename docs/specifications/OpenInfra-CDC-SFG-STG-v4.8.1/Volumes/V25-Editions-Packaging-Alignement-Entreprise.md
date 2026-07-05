@@ -18,7 +18,7 @@ Caractéristiques obligatoires :
 - séparation backend/frontend : non ;
 - clustering PostgreSQL : non ;
 - clustering frontend : non ;
-- architecture distribuée discovery par agents régionaux : non ;
+- architecture distribuée discovery par agents proxy collectors régionaux Enterprise : non ;
 - clustering agents : non ;
 - concurrence multithreading : non ;
 - asynchrone : non ;
@@ -49,7 +49,7 @@ Caractéristiques obligatoires :
 - profil PostgreSQL : medium ;
 - clustering PostgreSQL : oui en option, désactivé par défaut ;
 - clustering frontend : non ;
-- architecture distribuée discovery par agents régionaux : non ;
+- architecture distribuée discovery par agents proxy collectors régionaux Enterprise : non ;
 - clustering agents : non ;
 - concurrence multithreading : non ;
 - asynchrone : oui ;
@@ -89,7 +89,7 @@ Caractéristiques obligatoires :
 - profil PostgreSQL : large, conçu pour plus de 10 000 000 000 d'entrées ;
 - clustering PostgreSQL : oui en option, désactivé par défaut ;
 - clustering frontend : oui ;
-- architecture discovery distribuée par agents régionaux : oui ;
+- architecture discovery distribuée par agents proxy collectors régionaux Enterprise : oui ;
 - clustering agents : oui ;
 - concurrence multithreading : oui ;
 - asynchrone : oui ;
@@ -150,7 +150,7 @@ L'édition active est déterminée par configuration signée, licence/abonnement
 
 ## 25.4 Agents d'autodiscovery
 
-Les agents sont de simples collecteurs d'informations destinés à alimenter la base centrale via l'API backend. Ils ne sont pas une Source of Truth locale.
+Les agents sont de simples collecteurs d'informations destinés à alimenter la base centrale via l'API backend. Ils ne sont pas une Ressources Inventory locale.
 
 Un agent doit :
 
@@ -175,7 +175,7 @@ Il doit :
 - ne jamais se connecter directement à PostgreSQL ;
 - ne jamais embarquer de logique d'autorisation finale ;
 - appliquer RBAC/ABAC côté affichage mais laisser l'autorisation définitive au backend ;
-- exposer les modules Source of Truth, DCIM, ITAM, IPAM, Discovery, Dependency Mapping, sécurité, gouvernance, qualité, support constructeur, licences et connecteurs ;
+- exposer les modules Ressources Inventory, DCIM, ITAM, IPAM, Discovery, Dependency Mapping, sécurité, gouvernance, qualité, support constructeur, licences et connecteurs ;
 - supporter le mode responsive ;
 - utiliser Bootstrap 5 pour layout, composants et cohérence visuelle ;
 - respecter accessibilité, pagination, recherche, filtres, exports asynchrones et traces d'audit.
@@ -270,7 +270,7 @@ Le volume est accepté si :
 - les tests multi-éditions valident la matrice de capacités.
 
 
-## 25.9 Sécurité des flux runtime front/back/agent
+## 25.9 Sécurité des flux runtime front/back/agent-proxy-proxy
 
 Hors Lite, tous les flux réseau OpenInfra doivent être protégés par TLS 1.3 et authentification mutuelle mTLS :
 

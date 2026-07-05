@@ -113,7 +113,7 @@ class SourceOfTruthService:
     def upsert_object(self, command: UpsertSourceObjectCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
         principal = self._security_service.authenticate_token(
-            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.SOT_WRITE)
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.RI_WRITE)
         )
         attributes = self._attributes_from_json(command.attributes_json)
         SourceObjectKind(str(command.kind).strip().lower())
@@ -163,7 +163,7 @@ class SourceOfTruthService:
     def get_object(self, command: GetSourceObjectCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
         self._security_service.authenticate_token(
-            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.SOT_READ)
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.RI_READ)
         )
         with self._transaction_manager.begin() as unit_of_work:
             source_object = self._repository.find_object(tenant_id, command.key)
@@ -175,7 +175,7 @@ class SourceOfTruthService:
     def list_objects(self, command: ListSourceObjectsCommand) -> SourceObjectPage:
         tenant_id = TenantId.from_value(command.tenant_id)
         principal = self._security_service.authenticate_token(
-            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.SOT_READ)
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.RI_READ)
         )
         kind = SourceObjectKind(str(command.kind).strip().lower()) if command.kind else None
         pagination = Pagination.from_values(command.limit, command.cursor)
@@ -202,7 +202,7 @@ class SourceOfTruthService:
     def get_object_version(self, command: GetSourceObjectVersionCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
         self._security_service.authenticate_token(
-            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.SOT_READ)
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.RI_READ)
         )
         if int(command.version) < 1:
             raise ValidationError("source object version must be positive")
@@ -220,7 +220,7 @@ class SourceOfTruthService:
     def create_relation(self, command: CreateSourceRelationCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
         principal = self._security_service.authenticate_token(
-            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.SOT_WRITE)
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.RI_WRITE)
         )
         with self._transaction_manager.begin() as unit_of_work:
             if self._repository.find_object(tenant_id, command.source_key) is None:
@@ -258,7 +258,7 @@ class SourceOfTruthService:
     def list_relations(self, command: ListSourceRelationsCommand) -> SourceRelationPage:
         tenant_id = TenantId.from_value(command.tenant_id)
         self._security_service.authenticate_token(
-            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.SOT_READ)
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.RI_READ)
         )
         pagination = Pagination.from_values(command.limit, command.cursor)
         with self._transaction_manager.begin() as unit_of_work:

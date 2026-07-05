@@ -1,10 +1,12 @@
-## 0.29.12 - 2026-07-05
+## 0.29.13 - 2026-07-05
 
-- Implémente le service `openinfra-web` P08 : serveur frontend API-only, assets web, `/config.json`, `/health`, `/ready` et proxy sécurisé `/api/*` vers le backend.
-- Ajoute le frontend React/Bootstrap 5 source sous `web/` et les assets runtime servis par le paquet Python.
-- Intègre `openinfra-web` dans `compose.yaml`, `Dockerfile`, `.env.example`, `scripts/docker_environment.py` et le smoke runtime Docker.
-- Aligne `openinfra-web.service` sur l'entrée `openinfra-web` et la configuration canonique `/opt/openinfra/config/openinfra.conf` accessible via `/etc/openinfra/openinfra.conf`.
-- Renforce les tests P08 : parité CLI/API/UI, proxy web, absence de DSN/secrets côté frontend, compose web et validation statique.
+- Renomme le domaine public `Source of Truth/SOT` en `Ressources Inventory/RI` dans le CDC, la roadmap, OpenAPI, runbooks, CI, documentation, dashboard et smoke tests.
+- Ajoute les contrats primaires `openinfra ri *`, `/api/v1/ri/*`, rôles `ri:reader`, `ri:operator`, `ri:governance-admin` et permissions `ri.*`.
+- Conserve les alias de compatibilité `openinfra sot *`, `/api/v1/sot/*` et `sot:*` afin d'éviter toute régression opérationnelle.
+- Corrige la sémantique Discovery : un agent est exclusivement un proxy collector Enterprise en topologie étoile ; Lite et Pro exécutent la collecte depuis leurs backends servers.
+- Déplace les assets runtime web de `src/openinfra/web_static` vers `src/openinfra/interfaces/rendering/static`, domaine présentation/rendering.
+- Transforme `openinfra-web` en dashboard de pilotage API-only couvrant RI, IPAM, DCIM, Discovery, sécurité/RBAC, audit, import/export et runtime.
+- Met à jour tests, gates, validation frontend, installateur, CDC et roadmap pour verrouiller ces contrats.
 
 ## 0.29.11 - 2026-07-05
 
@@ -157,7 +159,7 @@
 ## 0.27.0 - 2026-07-04
 
 - Roadmap : P06 / EPIC-0604 — Migration depuis référentiels existants.
-- Ajout des templates de migration Device42, NetBox, Nautobot, GLPI et CSV générique vers la Source of Truth.
+- Ajout des templates de migration Device42, NetBox, Nautobot, GLPI et CSV générique vers la Ressources Inventory.
 - Ajout du domaine de planification `LegacyMigrationSource`, `MigrationTemplate`, `MigrationGap` et `MigrationPlanReport` avec statut, gaps, rapport dry-run et stratégie de reprise.
 - Ajout du service applicatif de migration : sélection de template, mapping contrôlé, simulation sans écriture, rapport d’écarts, audit et persistance du rapport.
 - Ajout du support de mappings littéraux `literal:<valeur>` pour normaliser les champs `kind` et `source` sans exiger de colonnes artificielles dans les exports legacy.
@@ -416,24 +418,24 @@
 - Ajout du domaine `SourceGovernanceRule`, `SourceGovernanceEvaluation` et `SourceGovernanceEvaluator`.
 - Ajout du service applicatif `SourceGovernanceService` : création, inventaire paginé, évaluation et désactivation des règles.
 - Intégration de la gouvernance dans `SourceOfTruthService` pour refuser les écrasements non autoritatifs selon la stratégie `reject`.
-- Ajout du rôle `sot:governance-admin` et des permissions `sot.governance.read` / `sot.governance.write`.
+- Ajout du rôle `ri:governance-admin` et des permissions `ri.governance.read` / `ri.governance.write`.
 - Ajout des référentiels JSON et PostgreSQL `SourceGovernanceRepository`.
 - Ajout de la migration PostgreSQL `0008_source_governance.sql` avec table partitionnée, contraintes et index métier.
-- Ajout des commandes `openinfra sot create-governance-rule`, `list-governance-rules`, `evaluate-governance` et `deactivate-governance-rule`.
-- Ajout des endpoints `/api/v1/sot/governance-rules`, `/api/v1/sot/governance/evaluate` et `/api/v1/sot/governance/deactivate-rule`.
+- Ajout des commandes `openinfra ri create-governance-rule`, `list-governance-rules`, `evaluate-governance` et `deactivate-governance-rule`.
+- Ajout des endpoints `/api/v1/ri/governance-rules`, `/api/v1/ri/governance/evaluate` et `/api/v1/ri/governance/deactivate-rule`.
 - Extension du runtime Docker smoke, OpenAPI, README, architecture, runbooks, CI et tests de non-régression.
 
 ## 0.10.0 - 2026-07-03
 
-- Réalignement roadmap sur REL-01/P03 Source of Truth avant poursuite des briques P14.
-- Ajout du domaine SOT : objets typés, clés sûres, tags, attributs JSON contrôlés, source déclarée, version et statut.
-- Ajout des relations typées transactionnelles entre objets SOT avec provenance et validité temporelle.
+- Réalignement roadmap sur REL-01/P03 Ressources Inventory avant poursuite des briques P14.
+- Ajout du domaine RI : objets typés, clés sûres, tags, attributs JSON contrôlés, source déclarée, version et statut.
+- Ajout des relations typées transactionnelles entre objets RI avec provenance et validité temporelle.
 - Ajout des snapshots `SourceObjectSnapshot` pour restitution time-travel initiale par version.
-- Ajout du service applicatif `SourceOfTruthService` avec contrôle `sot.read` / `sot.write` et audit.
+- Ajout du service applicatif `SourceOfTruthService` avec contrôle `ri.read` / `ri.write` et audit.
 - Ajout des référentiels JSON et PostgreSQL `SourceOfTruthRepository`.
 - Ajout de la migration PostgreSQL `0007_source_of_truth_core.sql` avec tables partitionnées et index type/tags/JSONB/relations.
-- Ajout des commandes `openinfra sot upsert-object`, `get-object`, `list-objects`, `get-object-version`, `create-relation`, `list-relations`.
-- Ajout des endpoints `/api/v1/sot/objects`, `/api/v1/sot/object-versions` et `/api/v1/sot/relations`.
+- Ajout des commandes `openinfra ri upsert-object`, `get-object`, `list-objects`, `get-object-version`, `create-relation`, `list-relations`.
+- Ajout des endpoints `/api/v1/ri/objects`, `/api/v1/ri/object-versions` et `/api/v1/ri/relations`.
 - Extension du runtime Docker smoke, OpenAPI, README, architecture, runbooks, CI et tests de non-régression.
 
 ## 0.9.0 - 2026-07-03

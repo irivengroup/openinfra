@@ -160,6 +160,7 @@ class OpenInfraCLI:
         self._add_import_commands(subparsers)
         self._add_export_commands(subparsers)
         self._add_discovery_commands(subparsers)
+        self._add_ri_commands(subparsers)
         self._add_sot_commands(subparsers)
         self._add_ipam_commands(subparsers)
         self._add_dcim_commands(subparsers)
@@ -502,7 +503,7 @@ class OpenInfraCLI:
         import_subparsers = imports.add_subparsers(dest="import_command", required=True)
         dataset = import_subparsers.add_parser(
             "dataset",
-            help="validate or apply a mapped CSV, JSON or XLSX dataset into Source of Truth",
+            help="validate or apply a mapped CSV, JSON or XLSX dataset into Ressources Inventory",
         )
         self._add_backend_arguments(dataset)
         dataset.add_argument("--tenant", required=True)
@@ -571,8 +572,7 @@ class OpenInfraCLI:
         migration_plan = import_subparsers.add_parser(
             "migration-plan",
             help=(
-                "simulate a legacy inventory migration and persist a gap report "
-                "without mutating SOT"
+                "simulate a legacy inventory migration and persist a gap report without mutating RI"
             ),
         )
         self._add_backend_arguments(migration_plan)
@@ -708,10 +708,37 @@ class OpenInfraCLI:
         artifact.add_argument("--output", type=Path, required=True)
         artifact.set_defaults(handler=self._handle_export_artifact)
 
+    def _add_ri_commands(self, subparsers: Any) -> None:
+        self._add_inventory_commands(
+            subparsers,
+            command_name="ri",
+            help_text="ressources inventory objects, relations and governance",
+            command_dest="ri_command",
+            short_label="RI",
+        )
+
     def _add_sot_commands(self, subparsers: Any) -> None:
-        sot = subparsers.add_parser("sot", help="source of truth objects and relations")
-        sot_subparsers = sot.add_subparsers(dest="sot_command", required=True)
-        upsert = sot_subparsers.add_parser("upsert-object", help="create or update a SOT object")
+        self._add_inventory_commands(
+            subparsers,
+            command_name="sot",
+            help_text="legacy alias for ressources inventory commands",
+            command_dest="sot_command",
+            short_label="SOT compatibility",
+        )
+
+    def _add_inventory_commands(
+        self,
+        subparsers: Any,
+        command_name: str,
+        help_text: str,
+        command_dest: str,
+        short_label: str,
+    ) -> None:
+        sot = subparsers.add_parser(command_name, help=help_text)
+        sot_subparsers = sot.add_subparsers(dest=command_dest, required=True)
+        upsert = sot_subparsers.add_parser(
+            "upsert-object", help=f"create or update a {short_label} object"
+        )
         self._add_backend_arguments(upsert)
         upsert.add_argument("--tenant", required=True)
         upsert.add_argument("--actor", default="cli")
@@ -727,13 +754,15 @@ class OpenInfraCLI:
         upsert.add_argument("--tag", action="append", default=[])
         upsert.add_argument("--source", required=True)
         upsert.set_defaults(handler=self._handle_sot_upsert_object)
-        get_object = sot_subparsers.add_parser("get-object", help="get a SOT object by key")
+        get_object = sot_subparsers.add_parser(
+            "get-object", help=f"get a {short_label} object by key"
+        )
         self._add_backend_arguments(get_object)
         get_object.add_argument("--tenant", required=True)
         get_object.add_argument("--admin-token", required=True)
         get_object.add_argument("--key", required=True)
         get_object.set_defaults(handler=self._handle_sot_get_object)
-        list_objects = sot_subparsers.add_parser("list-objects", help="list SOT objects")
+        list_objects = sot_subparsers.add_parser("list-objects", help=f"list {short_label} objects")
         self._add_backend_arguments(list_objects)
         list_objects.add_argument("--tenant", required=True)
         list_objects.add_argument("--admin-token", required=True)
@@ -743,7 +772,7 @@ class OpenInfraCLI:
         list_objects.add_argument("--tag")
         list_objects.set_defaults(handler=self._handle_sot_list_objects)
         get_version = sot_subparsers.add_parser(
-            "get-object-version", help="get a SOT object historical version"
+            "get-object-version", help=f"get a {short_label} object historical version"
         )
         self._add_backend_arguments(get_version)
         get_version.add_argument("--tenant", required=True)
@@ -752,7 +781,7 @@ class OpenInfraCLI:
         get_version.add_argument("--version", type=int, required=True)
         get_version.set_defaults(handler=self._handle_sot_get_object_version)
         create_relation = sot_subparsers.add_parser(
-            "create-relation", help="create a typed SOT relation"
+            "create-relation", help=f"create a typed {short_label} relation"
         )
         self._add_backend_arguments(create_relation)
         create_relation.add_argument("--tenant", required=True)
@@ -764,7 +793,7 @@ class OpenInfraCLI:
         create_relation.add_argument("--provenance", required=True)
         create_relation.set_defaults(handler=self._handle_sot_create_relation)
         list_relations = sot_subparsers.add_parser(
-            "list-relations", help="list typed SOT relations"
+            "list-relations", help=f"list typed {short_label} relations"
         )
         self._add_backend_arguments(list_relations)
         list_relations.add_argument("--tenant", required=True)
@@ -777,7 +806,7 @@ class OpenInfraCLI:
         list_relations.set_defaults(handler=self._handle_sot_list_relations)
         governance_create = sot_subparsers.add_parser(
             "create-governance-rule",
-            help="create or update a SOT authoritative source governance rule",
+            help=f"create or update a {short_label} authoritative source governance rule",
         )
         self._add_backend_arguments(governance_create)
         governance_create.add_argument("--tenant", required=True)
@@ -797,7 +826,7 @@ class OpenInfraCLI:
         governance_create.set_defaults(handler=self._handle_sot_create_governance_rule)
         governance_list = sot_subparsers.add_parser(
             "list-governance-rules",
-            help="list SOT governance rules with pagination",
+            help=f"list {short_label} governance rules with pagination",
         )
         self._add_backend_arguments(governance_list)
         governance_list.add_argument("--tenant", required=True)
@@ -809,7 +838,7 @@ class OpenInfraCLI:
         governance_list.set_defaults(handler=self._handle_sot_list_governance_rules)
         governance_eval = sot_subparsers.add_parser(
             "evaluate-governance",
-            help="evaluate a source update against SOT governance rules",
+            help=f"evaluate a source update against {short_label} governance rules",
         )
         self._add_backend_arguments(governance_eval)
         governance_eval.add_argument("--tenant", required=True)
@@ -821,7 +850,7 @@ class OpenInfraCLI:
         governance_eval.set_defaults(handler=self._handle_sot_evaluate_governance)
         governance_deactivate = sot_subparsers.add_parser(
             "deactivate-governance-rule",
-            help="deactivate a SOT governance rule",
+            help=f"deactivate a {short_label} governance rule",
         )
         self._add_backend_arguments(governance_deactivate)
         governance_deactivate.add_argument("--tenant", required=True)

@@ -28,8 +28,8 @@ Il doit :
 ## Interdictions
 
 - Le frontend ne doit jamais appliquer de migration.
-- L'agent ne doit jamais appliquer de migration.
-- Le frontend et l'agent ne doivent jamais installer PostgreSQL.
+- L'agent proxy collector Enterprise ne doit jamais appliquer de migration.
+- Le frontend et l'agent proxy collector Enterprise ne doivent jamais installer PostgreSQL.
 - Un installateur ne doit jamais modifier directement une table métier hors mécanisme de migration.
 - Une migration ne doit jamais être ignorée silencieusement.
 - Une installation ne doit jamais démarrer un backend sur un schéma non validé.

@@ -26,8 +26,8 @@ Le mode recommandé par défaut est le streaming PostgreSQL faible latence avec 
 
 Pro et Entreprise doivent supporter plusieurs sites. L'écart se situe sur le niveau de distribution :
 
-- Pro : multisite centralisé sans clustering d'agents obligatoire.
-- Entreprise : multisite distribué avec agents régionaux, clustering d'agents et planification régionale.
+- Pro : multisite centralisé sans agents/proxy collectors distribués ; les backends servers collectent directement.
+- Entreprise : multisite distribué avec agents proxy collectors régionaux Enterprise, clustering de collectors et planification régionale.
 
 ## Complément v0.29.10 — Déduction depuis les scopes installateur
 

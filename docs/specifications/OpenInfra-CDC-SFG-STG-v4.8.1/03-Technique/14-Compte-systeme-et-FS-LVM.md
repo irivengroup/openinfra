@@ -53,7 +53,7 @@ FS recommandé       : xfs
 12. Démarrage services.
 13. Health checks.
 
-Pour le scope `enterprise/agent`, les étapes VG/LV/filesystem/montage applicatif `/opt/openinfra/` sont conservées. L'installateur crée le compte/service nécessaires, prépare le FS applicatif, déploie l'agent, configure son enrôlement backend et active `openinfra-agent.service`, sans accès direct à PostgreSQL.
+Pour le scope `enterprise/agent`, les étapes VG/LV/filesystem/montage applicatif `/opt/openinfra/` sont conservées. L'installateur crée le compte/service nécessaires, prépare le FS applicatif, déploie l'agent proxy collector Enterprise, configure son enrôlement backend et active `openinfra-agent.service`, sans accès direct à PostgreSQL.
 
 ## Refus obligatoires
 
@@ -65,6 +65,6 @@ L'installateur doit refuser :
 - une taille inférieure à la taille minimale de l'édition ;
 - des permissions permettant l'écriture par d'autres utilisateurs non autorisés.
 
-## Exception agent Enterprise
+## Exception agent proxy collector Enterprise
 
-`enterprise/agent` doit créer ou valider le LV applicatif `/opt/openinfra/` conformément au CDC. Il ne doit jamais créer ni modifier un LV PostgreSQL, PGDATA ou le symlink `/opt/openinfra/data`. L'agent communique avec le backend via API et jeton/certificat d'enrôlement.
+`enterprise/agent` doit créer ou valider le LV applicatif `/opt/openinfra/` conformément au CDC. Il ne doit jamais créer ni modifier un LV PostgreSQL, PGDATA ou le symlink `/opt/openinfra/data`. L'agent proxy collector communique avec le backend via API et jeton/certificat d'enrôlement.

@@ -11,7 +11,7 @@ classification: Interne / Consultation intégrateurs
 
 ## Objectif
 
-Vue composants : modules Source of Truth, IPAM, DCIM, Discovery, Dependency, ITAM, Security, API.
+Vue composants : modules Ressources Inventory, IPAM, DCIM, Discovery, Dependency, ITAM, Security, API.
 
 ## Principes de représentation
 

@@ -68,7 +68,7 @@ Règles internes : session locale applicative avec base locale uniquement, aucun
 
 ### Pro / Entreprise — scope `server`
 
-Le backend est un service API-only. Il n'authentifie pas directement chaque opérateur humain et ne se connecte pas à LDAP/IPA pour un login opérateur. Il valide les jetons applicatifs présentés par le frontend ou les agents, applique le RBAC OpenInfra effectif et journalise les décisions d'autorisation.
+Le backend est un service API-only. Il n'authentifie pas directement chaque opérateur humain et ne se connecte pas à LDAP/IPA pour un login opérateur. Il valide les jetons applicatifs présentés par le frontend ou par les agents proxy collectors Enterprise, applique le RBAC OpenInfra effectif et journalise les décisions d'autorisation.
 
 Lorsque PostgreSQL est absent sur un backend local, l'installateur le déploie automatiquement selon la famille Linux détectée, active `postgresql.service`, vérifie la disponibilité, initialise PGDATA sous `/data/openinfra/`, puis applique les migrations backend depuis `/opt/openinfra/share/migrations/postgresql` avant activation du service.
 
@@ -100,7 +100,7 @@ trusted_proxy_cidrs = 10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
 loopback_only = false
 ```
 
-`backend_endpoint` désigne l'endpoint backend exposé. En cluster, il désigne la VIP. Les ports de communication back/front, back/agent et inter-nœuds ne sont pas exposés dans `install.ini`; les ports internes par défaut sont respectivement 2006, 2007 et 2008. `peer_nodes` est utilisé uniquement lorsque le backend est clusterisé et ne doit contenir ni protocole ni port.
+`backend_endpoint` désigne l'endpoint backend exposé. En cluster, il désigne la VIP. Les ports de communication back/front, back/agent-proxy et inter-nœuds ne sont pas exposés dans `install.ini`; les ports internes par défaut sont respectivement 2006, 2007 et 2008. `peer_nodes` est utilisé uniquement lorsque le backend est clusterisé et ne doit contenir ni protocole ni port.
 
 ### Pro / Entreprise — scope `web`
 
@@ -143,7 +143,7 @@ cache_ttl_seconds = 300
 
 ### Entreprise — scope `agent`
 
-L'agent s'enregistre auprès du backend via le portail web et transmet ensuite ses observations au backend avec son mécanisme technique d'enrôlement. Il n'a jamais d'accès direct à PostgreSQL. Il dispose du filesystem LVM applicatif `/opt/openinfra/` géré en interne par l'installateur, mais ne crée aucun filesystem PostgreSQL, aucun PGDATA, aucun symlink `/opt/openinfra/data` et aucune migration backend.
+L'agent proxy collector Enterprise s'enregistre auprès du backend via le portail web et transmet ensuite ses observations au backend avec son mécanisme technique d'enrôlement. Il n'a jamais d'accès direct à PostgreSQL. Il dispose du filesystem LVM applicatif `/opt/openinfra/` géré en interne par l'installateur, mais ne crée aucun filesystem PostgreSQL, aucun PGDATA, aucun symlink `/opt/openinfra/data` et aucune migration backend.
 
 ```ini
 [api]
@@ -161,14 +161,14 @@ trusted_proxy_cidrs =
 loopback_only = false
 ```
 
-## Sécurisation des échanges front/back/agent
+## Sécurisation des échanges front/back/agent-proxy-proxy
 
-Hors Lite, tout échange réseau entre frontend, backend, agents et nœuds backend doit utiliser TLS 1.3 avec authentification mutuelle mTLS. Les certificats, clés privées et autorités de certification sont déclarés par référence uniquement. Les chemins référencés sous `/opt/openinfra/config` doivent être protégés par permissions minimales et ne doivent jamais être journalisés en clair.
+Hors Lite, tout échange réseau entre frontend, backend, agents proxy collectors Enterprise et nœuds backend doit utiliser TLS 1.3 avec authentification mutuelle mTLS. Les certificats, clés privées et autorités de certification sont déclarés par référence uniquement. Les chemins référencés sous `/opt/openinfra/config` doivent être protégés par permissions minimales et ne doivent jamais être journalisés en clair.
 
 Flux imposés :
 
 - frontend → backend : HTTPS TLS 1.3 + certificat client web + jeton applicatif opérateur ;
-- agent → backend : HTTPS TLS 1.3 + certificat client agent + jeton/enrôlement technique ;
+- agent proxy collector Enterprise → backend : HTTPS TLS 1.3 + certificat client agent + jeton/enrôlement technique ;
 - backend ↔ backend : TLS 1.3 + mTLS + ports internes non exposés dans `install.ini` ;
 - Lite : boucle locale seulement, sans exposition réseau opérateur.
 

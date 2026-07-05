@@ -36,7 +36,7 @@ class TestSourceGovernanceServices:
                 "default",
                 "pytest",
                 "governance-admin",
-                ("sot:governance-admin",),
+                ("ri:governance-admin",),
                 token,
             )
         )
@@ -194,7 +194,7 @@ class TestSourceGovernanceServices:
                     "--subject",
                     "gov-cli",
                     "--role",
-                    "sot:governance-admin",
+                    "ri:governance-admin",
                     "--token",
                     token,
                 ]
@@ -204,7 +204,7 @@ class TestSourceGovernanceServices:
         capsys.readouterr()
         create_code = OpenInfraCLI().run(
             [
-                "sot",
+                "ri",
                 "create-governance-rule",
                 "--data",
                 str(data),
@@ -227,7 +227,7 @@ class TestSourceGovernanceServices:
         created = json.loads(capsys.readouterr().out)
         list_code = OpenInfraCLI().run(
             [
-                "sot",
+                "ri",
                 "list-governance-rules",
                 "--data",
                 str(data),
@@ -242,7 +242,7 @@ class TestSourceGovernanceServices:
         listed = json.loads(capsys.readouterr().out)
         eval_code = OpenInfraCLI().run(
             [
-                "sot",
+                "ri",
                 "evaluate-governance",
                 "--data",
                 str(data),
@@ -263,7 +263,7 @@ class TestSourceGovernanceServices:
         evaluated = json.loads(capsys.readouterr().out)
         deactivate_code = OpenInfraCLI().run(
             [
-                "sot",
+                "ri",
                 "deactivate-governance-rule",
                 "--data",
                 str(data),

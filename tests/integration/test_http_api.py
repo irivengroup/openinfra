@@ -69,6 +69,13 @@ class TestHttpApi:
                     "report": "/api/v1/exports/jobs",
                     "artifact": "/api/v1/exports/artifact",
                 },
+                "ressources_inventory": {
+                    "objects": "/api/v1/ri/objects",
+                    "object_versions": "/api/v1/ri/object-versions",
+                    "relations": "/api/v1/ri/relations",
+                    "governance_rules": "/api/v1/ri/governance-rules",
+                    "legacy_sot_alias": "/api/v1/sot/objects",
+                },
                 "discovery": {
                     "collectors": "/api/v1/discovery/collectors",
                     "heartbeat": "/api/v1/discovery/collectors/heartbeat",
@@ -367,7 +374,7 @@ class TestHttpApi:
                 tenant_id="default",
                 actor="pytest",
                 subject="api-import-admin",
-                roles=("sot:operator",),
+                roles=("ri:operator",),
                 token=token,
             )
         )
@@ -434,7 +441,7 @@ class TestHttpApi:
                 tenant_id="default",
                 actor="pytest",
                 subject="api-bulk-import-admin",
-                roles=("sot:operator",),
+                roles=("ri:operator",),
                 token=token,
             )
         )
@@ -507,7 +514,7 @@ class TestHttpApi:
                 tenant_id="default",
                 actor="pytest",
                 subject="api-migration-admin",
-                roles=("sot:operator",),
+                roles=("ri:operator",),
                 token=token,
             )
         )
@@ -570,7 +577,7 @@ class TestHttpApi:
                 tenant_id="default",
                 actor="pytest",
                 subject="api-export-admin",
-                roles=("sot:operator",),
+                roles=("ri:operator",),
                 token=token,
             )
         )
@@ -1062,7 +1069,7 @@ class TestSourceOfTruthHttpApi:
                 tenant_id="default",
                 actor="pytest",
                 subject="sot-api-admin",
-                roles=("sot:operator",),
+                roles=("ri:operator",),
                 token=token,
             )
         )
@@ -1072,7 +1079,7 @@ class TestSourceOfTruthHttpApi:
         try:
             base_url = f"http://127.0.0.1:{server.server_port}"
             device = helper._post_json(
-                base_url + "/api/v1/sot/objects",
+                base_url + "/api/v1/ri/objects",
                 {
                     "tenant_id": "default",
                     "key": "device/api-srv-1",
@@ -1085,7 +1092,7 @@ class TestSourceOfTruthHttpApi:
                 token=token,
             )
             helper._post_json(
-                base_url + "/api/v1/sot/objects",
+                base_url + "/api/v1/ri/objects",
                 {
                     "tenant_id": "default",
                     "key": "application/api-app",
@@ -1098,7 +1105,7 @@ class TestSourceOfTruthHttpApi:
                 token=token,
             )
             relation = helper._post_json(
-                base_url + "/api/v1/sot/relations",
+                base_url + "/api/v1/ri/relations",
                 {
                     "tenant_id": "default",
                     "relation_type": "runs_on",
@@ -1109,25 +1116,25 @@ class TestSourceOfTruthHttpApi:
                 token=token,
             )
             listed = helper._get_json(
-                base_url + "/api/v1/sot/objects?tenant_id=default&kind=device&tag=api",
+                base_url + "/api/v1/ri/objects?tenant_id=default&kind=device&tag=api",
                 token=token,
             )
             fetched = helper._get_json(
-                base_url + "/api/v1/sot/objects?tenant_id=default&key=device/api-srv-1",
+                base_url + "/api/v1/ri/objects?tenant_id=default&key=device/api-srv-1",
                 token=token,
             )
             version = helper._get_json(
                 base_url
-                + "/api/v1/sot/object-versions?tenant_id=default"
+                + "/api/v1/ri/object-versions?tenant_id=default"
                 + "&key=device/api-srv-1&version=1",
                 token=token,
             )
             relations = helper._get_json(
-                base_url + "/api/v1/sot/relations?tenant_id=default&source_key=application/api-app",
+                base_url + "/api/v1/ri/relations?tenant_id=default&source_key=application/api-app",
                 token=token,
             )
             try:
-                helper._get_json(base_url + "/api/v1/sot/objects?tenant_id=default")
+                helper._get_json(base_url + "/api/v1/ri/objects?tenant_id=default")
             except urllib.error.HTTPError as exc:
                 assert exc.code == 401
 
@@ -1153,7 +1160,7 @@ class TestSourceGovernanceHttpApi:
                 tenant_id="default",
                 actor="pytest",
                 subject="governance-api-admin",
-                roles=("sot:governance-admin",),
+                roles=("ri:governance-admin",),
                 token=token,
             )
         )
@@ -1163,7 +1170,7 @@ class TestSourceGovernanceHttpApi:
         try:
             base_url = f"http://127.0.0.1:{server.server_port}"
             created = helper._post_json(
-                base_url + "/api/v1/sot/governance-rules",
+                base_url + "/api/v1/ri/governance-rules",
                 {
                     "tenant_id": "default",
                     "name": "api-serial-authority",
@@ -1177,11 +1184,11 @@ class TestSourceGovernanceHttpApi:
                 token=token,
             )
             listed = helper._get_json(
-                base_url + "/api/v1/sot/governance-rules?tenant_id=default&object_kind=device",
+                base_url + "/api/v1/ri/governance-rules?tenant_id=default&object_kind=device",
                 token=token,
             )
             evaluated = helper._post_json(
-                base_url + "/api/v1/sot/governance/evaluate",
+                base_url + "/api/v1/ri/governance/evaluate",
                 {
                     "tenant_id": "default",
                     "object_kind": "device",
@@ -1192,7 +1199,7 @@ class TestSourceGovernanceHttpApi:
                 token=token,
             )
             deactivated = helper._post_json(
-                base_url + "/api/v1/sot/governance/deactivate-rule",
+                base_url + "/api/v1/ri/governance/deactivate-rule",
                 {"tenant_id": "default", "name": "api-serial-authority"},
                 token=token,
             )

@@ -19,7 +19,7 @@ OpenInfra doit répondre à des contraintes enterprise : cohérence, évolutivit
 
 ## Décision
 
-Les fonctions IA produisent recommandations et analyses, mais ne modifient pas la Source of Truth sans validation.
+Les fonctions IA produisent recommandations et analyses, mais ne modifient pas la Ressources Inventory sans validation.
 
 ## Conséquences positives
 

@@ -11,7 +11,7 @@ classification: Interne / Consultation intégrateurs
 
 ## Objectif
 
-La découverte couvre SNMP, SSH, WinRM/WMI, VMware, Proxmox, Hyper-V, Kubernetes, Cloud, LLDP/CDP, NetFlow/sFlow/IPFIX, agents optionnels et réconciliation.
+La découverte couvre SNMP, SSH, WinRM/WMI, VMware, Proxmox, Hyper-V, Kubernetes, Cloud, LLDP/CDP, NetFlow/sFlow/IPFIX et réconciliation. Le terme agent désigne exclusivement un proxy collector OpenInfra Enterprise, similaire à une capsule Satellite, installé sur un serveur contrôlé par OpenInfra et jamais sur les équipements découverts.
 
 ## Capacités obligatoires
 
@@ -23,6 +23,15 @@ La découverte couvre SNMP, SSH, WinRM/WMI, VMware, Proxmox, Hyper-V, Kubernetes
 - RBAC/ABAC tenant-aware.
 - Détection et gestion des conflits de données.
 - Tests unitaires, intégration, performance et sécurité selon criticité.
+
+## Sémantique agent/proxy collector
+
+- `agent` = proxy collector OpenInfra Enterprise uniquement.
+- Les agents sont autorisés seulement en édition Entreprise, en topologie étoile vers les backends servers.
+- Lite et Pro n'utilisent pas d'agents/proxy distribués : les backends servers exécutent eux-mêmes la collecte autorisée.
+- Un agent ne détient aucun RI local, n'écrit jamais dans PostgreSQL et ne contourne jamais l'API backend.
+- Les échanges agent-proxy-backend imposent mTLS, enrôlement technique, scopes explicites, secrets par références sécurisées et audit complet.
+- Agentless signifie aucun agent sur les cibles découvertes ; cela reste compatible avec des agents proxy Enterprise déployés comme collecteurs régionaux.
 
 ## Règles métier structurantes
 

@@ -47,7 +47,7 @@ Le volume **V03 — IPAM Enterprise++** décrit les spécifications applicables 
 
 ### Finalité
 
-Le volet **IPv4/IPv6** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Source of Truth.
+Le volet **IPv4/IPv6** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
 
 ### Règles de conception
 
@@ -68,7 +68,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **VRF** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Source of Truth.
+Le volet **VRF** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
 
 ### Règles de conception
 
@@ -89,7 +89,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **ASN** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Source of Truth.
+Le volet **ASN** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
 
 ### Règles de conception
 
@@ -110,7 +110,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **BGP** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Source of Truth.
+Le volet **BGP** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
 
 ### Règles de conception
 
@@ -131,7 +131,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **EVPN/VXLAN** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Source of Truth.
+Le volet **EVPN/VXLAN** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
 
 ### Règles de conception
 
@@ -152,7 +152,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **MPLS** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Source of Truth.
+Le volet **MPLS** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
 
 ### Règles de conception
 
@@ -173,7 +173,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **NAT** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Source of Truth.
+Le volet **NAT** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
 
 ### Règles de conception
 
@@ -194,7 +194,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **DHCP** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Source of Truth.
+Le volet **DHCP** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
 
 ### Règles de conception
 
@@ -215,7 +215,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **DNS** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Source of Truth.
+Le volet **DNS** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
 
 ### Règles de conception
 
@@ -236,7 +236,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **DDI** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Source of Truth.
+Le volet **DDI** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
 
 ### Règles de conception
 
@@ -257,7 +257,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **RPKI** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Source of Truth.
+Le volet **RPKI** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
 
 ### Règles de conception
 
@@ -278,7 +278,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **Blocs RIPE/ARIN/APNIC** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Source of Truth.
+Le volet **Blocs RIPE/ARIN/APNIC** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
 
 ### Règles de conception
 
@@ -299,7 +299,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **Détection de conflits** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Source of Truth.
+Le volet **Détection de conflits** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
 
 ### Règles de conception
 
@@ -320,7 +320,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **Planification** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Source of Truth.
+Le volet **Planification** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
 
 ### Règles de conception
 
@@ -341,7 +341,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **Capacité prévisionnelle** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Source of Truth.
+Le volet **Capacité prévisionnelle** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
 
 ### Règles de conception
 
@@ -698,6 +698,6 @@ Le volume est recevable si :
 5. les scénarios d’erreur sont testés ;
 6. les journaux d’audit sont exploitables ;
 7. les performances critiques respectent les budgets définis ;
-8. l’intégration à la Source of Truth est effective ;
+8. l’intégration à la Ressources Inventory est effective ;
 9. la documentation d’exploitation existe ;
 10. les risques résiduels sont acceptés.

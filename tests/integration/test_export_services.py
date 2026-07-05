@@ -37,7 +37,7 @@ def _bootstrap(app: Any) -> str:
             tenant_id="default",
             actor="pytest",
             subject="export-admin",
-            roles=("sot:operator", "audit:reader"),
+            roles=("ri:operator", "audit:reader"),
             token=token,
         )
     )

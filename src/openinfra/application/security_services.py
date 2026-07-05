@@ -122,7 +122,19 @@ class BuiltinRolePolicy:
                 Permission.SCHEMA_READ,
             )
         ),
-        "viewer": frozenset((Permission.SCHEMA_READ, Permission.SOT_READ)),
+        "viewer": frozenset((Permission.SCHEMA_READ, Permission.RI_READ)),
+        "ri:reader": frozenset((Permission.RI_READ, Permission.SCHEMA_READ)),
+        "ri:operator": frozenset((Permission.RI_READ, Permission.RI_WRITE, Permission.SCHEMA_READ)),
+        "ri:governance-admin": frozenset(
+            (
+                Permission.RI_READ,
+                Permission.RI_WRITE,
+                Permission.RI_GOVERNANCE_READ,
+                Permission.RI_GOVERNANCE_WRITE,
+                Permission.SCHEMA_READ,
+                Permission.AUDIT_READ,
+            )
+        ),
         "security:admin": frozenset(
             (
                 Permission.SECURITY_ADMIN,
@@ -132,16 +144,16 @@ class BuiltinRolePolicy:
         ),
         "access:admin": frozenset((Permission.ACCESS_POLICY_ADMIN, Permission.SCHEMA_READ)),
         "audit:reader": frozenset((Permission.AUDIT_READ, Permission.SCHEMA_READ)),
-        "sot:reader": frozenset((Permission.SOT_READ, Permission.SCHEMA_READ)),
+        "sot:reader": frozenset((Permission.RI_READ, Permission.SCHEMA_READ)),
         "sot:operator": frozenset(
-            (Permission.SOT_READ, Permission.SOT_WRITE, Permission.SCHEMA_READ)
+            (Permission.RI_READ, Permission.RI_WRITE, Permission.SCHEMA_READ)
         ),
         "sot:governance-admin": frozenset(
             (
-                Permission.SOT_READ,
-                Permission.SOT_WRITE,
-                Permission.SOT_GOVERNANCE_READ,
-                Permission.SOT_GOVERNANCE_WRITE,
+                Permission.RI_READ,
+                Permission.RI_WRITE,
+                Permission.RI_GOVERNANCE_READ,
+                Permission.RI_GOVERNANCE_WRITE,
                 Permission.SCHEMA_READ,
                 Permission.AUDIT_READ,
             )

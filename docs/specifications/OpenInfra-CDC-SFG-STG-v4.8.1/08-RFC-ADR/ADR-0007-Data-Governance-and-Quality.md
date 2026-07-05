@@ -10,7 +10,7 @@ OpenInfra doit éviter de devenir un inventaire automatiquement alimenté mais n
 
 ## Décision
 
-Adopter un module de gouvernance et un module qualité séparés, alimentant tous les domaines sans écraser silencieusement la Source of Truth.
+Adopter un module de gouvernance et un module qualité séparés, alimentant tous les domaines sans écraser silencieusement la Ressources Inventory.
 
 ## Conséquences
 

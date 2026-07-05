@@ -38,7 +38,7 @@ Aucune information de mot de passe, token ou secret n'est attendue dans cet inve
 7. Configuration firewall.
 8. Configuration systemd.
 9. Bootstrap cluster.
-10. Déploiement backend, frontend ou agent selon scope.
+10. Déploiement backend, frontend ou agent proxy collector Enterprise selon scope.
 11. Exécution des migrations pour le scope backend.
 12. Démarrage contrôlé.
 13. Tests health/readiness.

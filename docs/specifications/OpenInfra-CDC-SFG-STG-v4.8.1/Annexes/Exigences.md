@@ -32,7 +32,7 @@ classification: Interne / Consultation intégrateurs
 | OPS | Administration & exploitation | 35 |
 | QA | Qualité & validation | 16 |
 | SEC | Sécurité | 22 |
-| SOT | Source of Truth | 21 |
+| RI | Ressources Inventory | 21 |
 
 Le fichier `11-Matrices/Exigences.csv` constitue la référence contractuelle des exigences.
 

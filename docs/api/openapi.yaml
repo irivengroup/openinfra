@@ -1011,9 +1011,9 @@ paths:
         '401':
           description: Missing or invalid Bearer token when authentication is enabled
 
-  /api/v1/sot/objects:
+  /api/v1/ri/objects:
     get:
-      summary: Get or list Source of Truth objects
+      summary: Get or list Ressources Inventory objects
       security:
         - bearerToken: []
       parameters:
@@ -1042,11 +1042,11 @@ paths:
           required: false
           schema: {type: string}
       responses:
-        '200': {description: Source of Truth object or paginated objects}
+        '200': {description: Ressources Inventory object or paginated objects}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid SOT reader token}
+        '401': {description: Missing or invalid RI reader token}
     post:
-      summary: Create or update a Source of Truth object with history
+      summary: Create or update a Ressources Inventory object with history
       security:
         - bearerToken: []
       requestBody:
@@ -1068,12 +1068,12 @@ paths:
                   items: {type: string}
                 source: {type: string}
       responses:
-        '201': {description: Source of Truth object persisted}
+        '201': {description: Ressources Inventory object persisted}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid SOT writer token}
-  /api/v1/sot/object-versions:
+        '401': {description: Missing or invalid RI writer token}
+  /api/v1/ri/object-versions:
     get:
-      summary: Retrieve a historical Source of Truth object snapshot
+      summary: Retrieve a historical Ressources Inventory object snapshot
       security:
         - bearerToken: []
       parameters:
@@ -1092,10 +1092,10 @@ paths:
       responses:
         '200': {description: Historical object snapshot}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid SOT reader token}
-  /api/v1/sot/relations:
+        '401': {description: Missing or invalid RI reader token}
+  /api/v1/ri/relations:
     get:
-      summary: List Source of Truth typed relations
+      summary: List Ressources Inventory typed relations
       security:
         - bearerToken: []
       parameters:
@@ -1126,9 +1126,9 @@ paths:
       responses:
         '200': {description: Paginated typed relations}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid SOT reader token}
+        '401': {description: Missing or invalid RI reader token}
     post:
-      summary: Create a typed Source of Truth relation
+      summary: Create a typed Ressources Inventory relation
       security:
         - bearerToken: []
       requestBody:
@@ -1146,13 +1146,13 @@ paths:
                 target_key: {type: string}
                 provenance: {type: string}
       responses:
-        '201': {description: Source of Truth relation persisted}
+        '201': {description: Ressources Inventory relation persisted}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid SOT writer token}
+        '401': {description: Missing or invalid RI writer token}
 
-  /api/v1/sot/governance-rules:
+  /api/v1/ri/governance-rules:
     get:
-      summary: List Source of Truth governance rules
+      summary: List Ressources Inventory governance rules
       security:
         - bearerToken: []
       parameters:
@@ -1179,9 +1179,9 @@ paths:
       responses:
         '200': {description: Paginated governance rules}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid SOT governance token}
+        '401': {description: Missing or invalid RI governance token}
     post:
-      summary: Create or update a Source of Truth authoritative source rule
+      summary: Create or update a Ressources Inventory authoritative source rule
       security:
         - bearerToken: []
       requestBody:
@@ -1204,10 +1204,10 @@ paths:
       responses:
         '201': {description: Governance rule persisted}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid SOT governance token}
-  /api/v1/sot/governance/evaluate:
+        '401': {description: Missing or invalid RI governance token}
+  /api/v1/ri/governance/evaluate:
     post:
-      summary: Evaluate a Source of Truth update against authoritative source rules
+      summary: Evaluate a Ressources Inventory update against authoritative source rules
       security:
         - bearerToken: []
       requestBody:
@@ -1226,10 +1226,10 @@ paths:
       responses:
         '200': {description: Governance evaluation result}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid SOT governance token}
-  /api/v1/sot/governance/deactivate-rule:
+        '401': {description: Missing or invalid RI governance token}
+  /api/v1/ri/governance/deactivate-rule:
     post:
-      summary: Deactivate a Source of Truth governance rule
+      summary: Deactivate a Ressources Inventory governance rule
       security:
         - bearerToken: []
       requestBody:
@@ -1246,7 +1246,7 @@ paths:
       responses:
         '200': {description: Governance rule deactivated}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid SOT governance token}
+        '401': {description: Missing or invalid RI governance token}
 
   /api/v1/dcim/power-devices:
     post:
@@ -1726,7 +1726,7 @@ paths:
   /api/v1/exports/jobs:
     post:
       summary: Queue an asynchronous signed export job
-      description: Creates a non-blocking export job for Source of Truth data. The job remains queued until an export worker invokes the run endpoint or CLI command.
+      description: Creates a non-blocking export job for Ressources Inventory data. The job remains queued until an export worker invokes the run endpoint or CLI command.
       requestBody:
         required: true
         content:
@@ -1788,8 +1788,8 @@ paths:
 
   /api/v1/imports/datasets:
     post:
-      summary: Validate or apply a mapped CSV, JSON or XLSX dataset into Source of Truth
-      description: "Performs a dry-run by default. When apply is true, the import is atomic: any invalid row prevents all Source of Truth mutations and produces a DLQ report."
+      summary: Validate or apply a mapped CSV, JSON or XLSX dataset into Ressources Inventory
+      description: "Performs a dry-run by default. When apply is true, the import is atomic: any invalid row prevents all Ressources Inventory mutations and produces a DLQ report."
       requestBody:
         required: true
         content:
@@ -1991,7 +1991,7 @@ paths:
         '400': {description: Validation error or unsupported source}
   /api/v1/imports/migration-plans:
     post:
-      summary: Simulate a legacy inventory migration without mutating Source of Truth
+      summary: Simulate a legacy inventory migration without mutating Ressources Inventory
       description: "Runs a dry-run migration using a built-in Device42, NetBox, Nautobot, GLPI or generic CSV template, persists a gap report and returns a resume strategy for bulk execution."
       requestBody:
         required: true

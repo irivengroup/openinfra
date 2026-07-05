@@ -24,7 +24,7 @@ Le fichier normatif est `Exigences.csv`. Ce document synthétise la volumétrie.
 | OPS | Administration & exploitation | 35 |
 | QA | Qualité & validation | 16 |
 | SEC | Sécurité | 22 |
-| SOT | Source of Truth | 21 |
+| RI | Ressources Inventory | 21 |
 
 Les exigences N1 sont obligatoires. Les exigences N2 structurent les releases suivantes. Les exigences N3 ne sont pas utilisées dans cette version pour éviter les options non cadrées.
 

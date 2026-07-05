@@ -28,7 +28,7 @@ class TestSourceOfTruthServices:
                 tenant_id="default",
                 actor="pytest",
                 subject="sot-admin",
-                roles=("sot:operator", "audit:reader"),
+                roles=("ri:operator", "audit:reader"),
                 token=admin_token,
             )
         )
@@ -169,7 +169,7 @@ class TestSourceOfTruthServices:
                 "--subject",
                 "sot-cli-admin",
                 "--role",
-                "sot:operator",
+                "ri:operator",
                 "--token",
                 token,
             ]
@@ -177,7 +177,7 @@ class TestSourceOfTruthServices:
         capsys.readouterr()
         create_code = OpenInfraCLI().run(
             [
-                "sot",
+                "ri",
                 "upsert-object",
                 "--data",
                 str(data),
@@ -202,7 +202,7 @@ class TestSourceOfTruthServices:
         created = json.loads(capsys.readouterr().out)
         list_code = OpenInfraCLI().run(
             [
-                "sot",
+                "ri",
                 "list-objects",
                 "--data",
                 str(data),
@@ -217,7 +217,7 @@ class TestSourceOfTruthServices:
         listed = json.loads(capsys.readouterr().out)
         version_code = OpenInfraCLI().run(
             [
-                "sot",
+                "ri",
                 "get-object-version",
                 "--data",
                 str(data),
@@ -254,7 +254,7 @@ class TestSourceOfTruthServices:
                 "--subject",
                 "sot-cli-admin-2",
                 "--role",
-                "sot:operator",
+                "ri:operator",
                 "--token",
                 token,
             ]
@@ -263,7 +263,7 @@ class TestSourceOfTruthServices:
         for key, kind in (("application/app-cli", "application"), ("service/svc-cli", "service")):
             OpenInfraCLI().run(
                 [
-                    "sot",
+                    "ri",
                     "upsert-object",
                     "--data",
                     str(data),
@@ -284,7 +284,7 @@ class TestSourceOfTruthServices:
             capsys.readouterr()
         relation_code = OpenInfraCLI().run(
             [
-                "sot",
+                "ri",
                 "create-relation",
                 "--data",
                 str(data),
@@ -305,7 +305,7 @@ class TestSourceOfTruthServices:
         relation = json.loads(capsys.readouterr().out)
         list_code = OpenInfraCLI().run(
             [
-                "sot",
+                "ri",
                 "list-relations",
                 "--data",
                 str(data),
@@ -332,7 +332,7 @@ class TestSourceOfTruthServices:
                 tenant_id="default",
                 actor="pytest",
                 subject="sot-admin-errors",
-                roles=("sot:operator",),
+                roles=("ri:operator",),
                 token=token,
             )
         )

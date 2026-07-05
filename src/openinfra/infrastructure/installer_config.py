@@ -700,7 +700,7 @@ class InstallerSystemdUnitRenderer:
         return "\n".join(
             (
                 "[Unit]",
-                "Description=OpenInfra enterprise discovery collector agent",
+                "Description=OpenInfra enterprise discovery proxy collector agent",
                 "After=network-online.target",
                 "Wants=network-online.target",
                 "",
@@ -1221,8 +1221,8 @@ class InstallerConfigValidator:
             )
         if policy.scope == "agent":
             actions.append(
-                "enroll enterprise discovery agent through backend API without direct database "
-                "access, PostgreSQL storage, PGDATA or backend migrations"
+                "enroll enterprise discovery proxy collector agent through backend API without "
+                "direct database access, PostgreSQL storage, PGDATA or backend migrations"
             )
         actions.extend(
             (
@@ -1232,7 +1232,7 @@ class InstallerConfigValidator:
                 "create hidden installation lock /opt/openinfra/config/.openinfra-installed.lock",
                 "install scope production requirements from installers/requirements",
                 "install OpenInfra application package into the managed virtual environment",
-                "secure backend/frontend/agent exchanges with TLS 1.3 and mandatory mTLS "
+                "secure backend/frontend/agent-proxy exchanges with TLS 1.3 and mandatory mTLS "
                 "outside Lite",
                 "execute installer changes with transactional rollback on failure",
                 f"enable and restart {policy.service} after successful validation",

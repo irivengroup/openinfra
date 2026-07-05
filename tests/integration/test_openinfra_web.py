@@ -100,6 +100,9 @@ class TestOpenInfraWeb:
 
         assert "openinfra-root" in index
         assert "OpenInfraDashboard" in static_js
+        assert "Ressources Inventory" in static_js
+        assert "/v1/ri/objects" in static_js
+        assert "agents proxy collectors uniquement Enterprise" in static_js
         assert "postgresql://" not in index + static_js
         assert "OPENINFRA_DATABASE_DSN" not in index + static_js
         assert public_config == {

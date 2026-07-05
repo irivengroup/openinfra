@@ -7,11 +7,11 @@ statut: Validé
 classification: Interne / Consultation intégrateurs
 ---
 
-# V02 — Référentiel Source of Truth
+# V02 — Référentiel Ressources Inventory
 
 ## Positionnement
 
-Le volume **V02 — Référentiel Source of Truth** décrit les spécifications applicables au domaine associé. Il est normatif pour la conception, le développement, les tests et la réception.
+Le volume **V02 — Référentiel Ressources Inventory** décrit les spécifications applicables au domaine associé. Il est normatif pour la conception, le développement, les tests et la réception.
 
 ## Sections couvertes
 
@@ -38,7 +38,7 @@ Le volume **V02 — Référentiel Source of Truth** décrit les spécifications 
 
 ### Finalité
 
-Le volet **Modèle de données complet** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Source of Truth.
+Le volet **Modèle de données complet** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
 
 ### Règles de conception
 
@@ -59,7 +59,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **Gestion des équipements** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Source of Truth.
+Le volet **Gestion des équipements** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
 
 ### Règles de conception
 
@@ -80,7 +80,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **Localisation X/Y/Z** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Source of Truth.
+Le volet **Localisation X/Y/Z** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
 
 ### Règles de conception
 
@@ -101,7 +101,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **Historique** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Source of Truth.
+Le volet **Historique** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
 
 ### Règles de conception
 
@@ -122,7 +122,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **Audit** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Source of Truth.
+Le volet **Audit** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
 
 ### Règles de conception
 
@@ -143,7 +143,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **Cycle de vie** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Source of Truth.
+Le volet **Cycle de vie** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
 
 ### Règles de conception
 
@@ -183,7 +183,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 **Critère d’acceptation :** Une requête as-of-date restitue objets, relations et localisations cohérents.
 ### REQ-00031 — N1 — Fonctionnelle
 
-**Exigence :** Le périmètre Modèle de données complet du volume Référentiel Source of Truth doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
+**Exigence :** Le périmètre Modèle de données complet du volume Référentiel Ressources Inventory doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
 
 **Justification :** Le domaine Modèle de données complet fait partie du périmètre entreprise attendu pour OpenInfra.
 
@@ -210,7 +210,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 **Critère d’acceptation :** Le job est découpé en lots, relançable, journalisé et consultable par API.
 ### REQ-00034 — N1 — Fonctionnelle
 
-**Exigence :** Le périmètre Gestion des équipements du volume Référentiel Source of Truth doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
+**Exigence :** Le périmètre Gestion des équipements du volume Référentiel Ressources Inventory doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
 
 **Justification :** Le domaine Gestion des équipements fait partie du périmètre entreprise attendu pour OpenInfra.
 
@@ -237,7 +237,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 **Critère d’acceptation :** Le job est découpé en lots, relançable, journalisé et consultable par API.
 ### REQ-00037 — N1 — Fonctionnelle
 
-**Exigence :** Le périmètre Localisation X/Y/Z du volume Référentiel Source of Truth doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
+**Exigence :** Le périmètre Localisation X/Y/Z du volume Référentiel Ressources Inventory doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
 
 **Justification :** Le domaine Localisation X/Y/Z fait partie du périmètre entreprise attendu pour OpenInfra.
 
@@ -264,7 +264,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 **Critère d’acceptation :** Le job est découpé en lots, relançable, journalisé et consultable par API.
 ### REQ-00040 — N1 — Fonctionnelle
 
-**Exigence :** Le périmètre Historique du volume Référentiel Source of Truth doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
+**Exigence :** Le périmètre Historique du volume Référentiel Ressources Inventory doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
 
 **Justification :** Le domaine Historique fait partie du périmètre entreprise attendu pour OpenInfra.
 
@@ -291,7 +291,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 **Critère d’acceptation :** Le job est découpé en lots, relançable, journalisé et consultable par API.
 ### REQ-00043 — N1 — Fonctionnelle
 
-**Exigence :** Le périmètre Audit du volume Référentiel Source of Truth doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
+**Exigence :** Le périmètre Audit du volume Référentiel Ressources Inventory doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
 
 **Justification :** Le domaine Audit fait partie du périmètre entreprise attendu pour OpenInfra.
 
@@ -318,7 +318,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 **Critère d’acceptation :** Le job est découpé en lots, relançable, journalisé et consultable par API.
 ### REQ-00046 — N1 — Fonctionnelle
 
-**Exigence :** Le périmètre Cycle de vie du volume Référentiel Source of Truth doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
+**Exigence :** Le périmètre Cycle de vie du volume Référentiel Ressources Inventory doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
 
 **Justification :** Le domaine Cycle de vie fait partie du périmètre entreprise attendu pour OpenInfra.
 
@@ -356,6 +356,6 @@ Le volume est recevable si :
 5. les scénarios d’erreur sont testés ;
 6. les journaux d’audit sont exploitables ;
 7. les performances critiques respectent les budgets définis ;
-8. l’intégration à la Source of Truth est effective ;
+8. l’intégration à la Ressources Inventory est effective ;
 9. la documentation d’exploitation existe ;
 10. les risques résiduels sont acceptés.

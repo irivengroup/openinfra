@@ -24,7 +24,8 @@ class OpenInfraEdition(StrEnum):
 
 
 class FeatureCapability(StrEnum):
-    CORE_SOURCE_OF_TRUTH = "core_source_of_truth"
+    CORE_RESSOURCES_INVENTORY = "core_ressources_inventory"
+    CORE_SOURCE_OF_TRUTH = "core_ressources_inventory"
     DCIM = "dcim"
     IPAM = "ipam"
     RBAC = "rbac"
@@ -38,6 +39,8 @@ class FeatureCapability(StrEnum):
         if isinstance(value, cls):
             return value
         normalized = value.strip().lower().replace("-", "_")
+        aliases = {"core_source_of_truth": "core_ressources_inventory"}
+        normalized = aliases.get(normalized, normalized)
         try:
             return cls(normalized)
         except ValueError as exc:
@@ -143,7 +146,7 @@ class EditionPolicyCatalog:
     def __init__(self) -> None:
         shared = frozenset(
             {
-                FeatureCapability.CORE_SOURCE_OF_TRUTH,
+                FeatureCapability.CORE_RESSOURCES_INVENTORY,
                 FeatureCapability.DCIM,
                 FeatureCapability.IPAM,
                 FeatureCapability.RBAC,

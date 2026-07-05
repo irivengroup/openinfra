@@ -44,7 +44,7 @@ Les anciens dossiers racine `installers/lite`, `installers/pro` et `installers/e
 
 - `edition`, `scope`, `service` ;
 - section `[operations]` ;
-- ports internes back/front, back/agent ou peer-to-peer ;
+- ports internes back/front, back/agent-proxy ou peer-to-peer ;
 - `central_endpoint` ;
 - `mountpoint`, `owner`, `group`, `pgdata`, symlink ;
 - chemins système canoniques ou paramètres de contournement des quotas.
@@ -72,7 +72,7 @@ Le filesystem applicatif `/opt/openinfra/` est géré en interne pour `lite/all-
 
 ## 6. API, identity et auth
 
-`backend_endpoint` désigne l’endpoint backend ou la VIP en cas de cluster. Les ports par défaut sont internes à l’installateur : 2006 pour back/front, 2007 pour back/agent et 2008 pour la synchronisation inter-backends.
+`backend_endpoint` désigne l’endpoint backend ou la VIP en cas de cluster. Les ports par défaut sont internes à l’installateur : 2006 pour back/front, 2007 pour back/agent-proxy et 2008 pour la synchronisation inter-backends.
 
 `peer_nodes` est autorisé uniquement pour les scopes backend clusterisables et ne contient ni protocole ni port.
 

@@ -84,7 +84,7 @@ class SourceGovernanceService:
             AuthenticateTokenCommand(
                 tenant_id.value,
                 command.admin_token,
-                Permission.SOT_GOVERNANCE_WRITE,
+                Permission.RI_GOVERNANCE_WRITE,
             )
         )
         rule = SourceGovernanceRule.create(
@@ -124,7 +124,7 @@ class SourceGovernanceService:
             AuthenticateTokenCommand(
                 tenant_id.value,
                 command.admin_token,
-                Permission.SOT_GOVERNANCE_READ,
+                Permission.RI_GOVERNANCE_READ,
             )
         )
         pagination = Pagination.from_values(command.limit, command.cursor)
@@ -154,7 +154,7 @@ class SourceGovernanceService:
             AuthenticateTokenCommand(
                 tenant_id.value,
                 command.admin_token,
-                Permission.SOT_GOVERNANCE_READ,
+                Permission.RI_GOVERNANCE_READ,
             )
         )
         object_kind = SourceObjectKind(str(command.object_kind).strip().lower())
@@ -195,7 +195,7 @@ class SourceGovernanceService:
             AuthenticateTokenCommand(
                 tenant_id.value,
                 command.admin_token,
-                Permission.SOT_GOVERNANCE_WRITE,
+                Permission.RI_GOVERNANCE_WRITE,
             )
         )
         with self._transaction_manager.begin() as unit_of_work:

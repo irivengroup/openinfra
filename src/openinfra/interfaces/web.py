@@ -48,7 +48,7 @@ class OpenInfraWebConfigFactory:
     def from_args(self, argv: list[str] | None = None) -> OpenInfraWebConfig:
         parser = argparse.ArgumentParser(
             prog="openinfra-web",
-            description="OpenInfra web frontend serving React assets and backend API proxy",
+            description="OpenInfra web dashboard serving rendering assets and backend API proxy",
         )
         parser.add_argument("--host", default=os.environ.get("OPENINFRA_WEB_HOST", "127.0.0.1"))
         parser.add_argument(
@@ -103,8 +103,8 @@ class OpenInfraWebStaticLocator:
         candidates.extend(
             (
                 Path.cwd() / "web/dist",
-                Path.cwd() / "src/openinfra/web_static",
-                Path(__file__).resolve().parents[1] / "web_static",
+                Path.cwd() / "src/openinfra/interfaces/rendering/static",
+                Path(__file__).resolve().parent / "rendering/static",
                 Path(__file__).resolve().parents[3] / "web/dist",
             )
         )

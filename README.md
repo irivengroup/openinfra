@@ -1,16 +1,18 @@
-# OpenInfra v0.29.12
+# OpenInfra v0.29.13
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.12 — P08 frontend `openinfra-web` API-only, React/Bootstrap 5 et runtime Docker Compose intégré.**
+**Version courante : 0.29.13 — réalignement RI, sémantique agents proxy Enterprise, dashboard web de pilotage et assets rendering.**
 
 
-## v0.29.12 — openinfra-web, frontend API-only et Docker Compose
+## v0.29.13 — RI, agents proxy Enterprise et dashboard de pilotage
 
-- `openinfra-web` sert l'interface web et proxyfie `/api/*` vers le backend.
-- Docker Compose démarre désormais `postgres`, `migrate`, `auth-bootstrap`, `api`, `web` et `pgadmin` pour l'environnement d'exécution de validation.
-- Le frontend ne reçoit aucun DSN PostgreSQL, secret LDAP/IPA, clé privée ou jeton d'enrôlement agent.
-- Le runtime natif conserve `/opt/openinfra/config/openinfra.conf` comme configuration canonique et `/etc/openinfra` comme lien symbolique de compatibilité.
+- Le domaine public `Source of Truth/SOT` est renommé `Ressources Inventory/RI`.
+- Les chemins primaires deviennent `openinfra ri *`, `/api/v1/ri/*` et les rôles `ri:*`.
+- Les anciens alias `openinfra sot *`, `/api/v1/sot/*` et `sot:*` restent compatibles pour éviter une rupture opérationnelle.
+- `agent` désigne exclusivement un proxy collector Enterprise en topologie étoile ; Lite et Pro collectent depuis les backends servers.
+- Les assets web runtime sont déplacés sous `src/openinfra/interfaces/rendering/static`, cohérents avec le domaine présentation/rendering.
+- `openinfra-web` devient un dashboard de pilotage API-only couvrant RI, IPAM, DCIM, Discovery, sécurité/RBAC, audit, import/export et runtime.
 
 ## v0.29.11 — Runtime post-installation, backend API-only et sécurisation des flux
 

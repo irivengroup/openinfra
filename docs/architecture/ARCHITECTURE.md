@@ -1,4 +1,4 @@
-## v0.29.12 — openinfra-web API-only et Compose runtime
+## v0.29.13 — openinfra-web API-only et Compose runtime
 
 - `openinfra-web` est un service applicatif distinct du backend : il sert les assets frontend et proxyfie `/api/*` vers l'API interne.
 - Le navigateur reste en same-origin sur `/api`; il ne reçoit aucun DSN PostgreSQL, secret LDAP/IPA, clé privée mTLS ou jeton d'enrôlement agent.
@@ -174,22 +174,22 @@ La persistance PostgreSQL est ajoutée par `0005_access_policy_abac.sql` avec pa
 
 La v0.9.0 ajoute une couche applicative d’audit consultable indépendamment des modules métier. Les services existants continuent d’écrire des `AuditEvent`; les adaptateurs JSON et PostgreSQL les enrichissent avec `previous_hash` et `record_hash`. Le service `AuditTrailService` expose la liste paginée, l’export JSON/JSONL et la vérification de chaîne avec permission `audit.read`. L’architecture reste hexagonale : le domaine contient les objets d’intégrité, l’application orchestre les cas d’usage, l’infrastructure persiste et calcule le chaînage au plus près de l’écriture transactionnelle, et les interfaces CLI/API exposent des contrats stables.
 
-## v0.10.0 — Alignement roadmap REL-01/P03 Source of Truth
+## v0.10.0 — Alignement roadmap REL-01/P03 Ressources Inventory
 
-La version 0.10.0 reprend l'ordre de la roadmap et livre le premier incrément P03 avant de poursuivre les extensions P14. Le module Source of Truth introduit un agrégat `SourceOfTruthObject` pour les objets génériques et spécialisés, un agrégat `SourceRelation` pour les relations typées et un snapshot `SourceObjectSnapshot` pour l'historisation initiale.
+La version 0.10.0 reprend l'ordre de la roadmap et livre le premier incrément P03 avant de poursuivre les extensions P14. Le module Ressources Inventory introduit un agrégat `SourceOfTruthObject` pour les objets génériques et spécialisés, un agrégat `SourceRelation` pour les relations typées et un snapshot `SourceObjectSnapshot` pour l'historisation initiale.
 
 Frontières conservées :
 
 - domaine : invariants clés sûres, type d'objet, tags, attributs JSON, version, relation et validité temporelle ;
-- application : `SourceOfTruthService`, contrôle `sot.read` / `sot.write`, audit et transactions ;
+- application : `SourceOfTruthService`, contrôle `ri.read` / `ri.write`, audit et transactions ;
 - infrastructure : `JsonSourceOfTruthRepository` et `PostgreSQLSourceOfTruthRepository` ;
-- interfaces : commandes `openinfra sot *` et endpoints `/api/v1/sot/*`.
+- interfaces : commandes `openinfra ri *` et endpoints `/api/v1/ri/*`.
 
 La migration `0007_source_of_truth_core.sql` reste additive et partitionnée par `tenant_id`. Elle ne modifie pas les migrations existantes et préserve la compatibilité des modules IPAM, DCIM, IAM, ABAC et audit.
 
 ## v0.11.0 — REL-01/P03 EPIC-0306 Gouvernance minimale des sources
 
-La version 0.11.0 poursuit le jalon P03 avec une gouvernance minimale des sources autoritatives. Le domaine `SourceGovernanceRule` définit quel système est autoritatif pour un type d'objet SOT et un chemin d'attribut donné. L'évaluateur compare les attributs existants et entrants, détecte les chemins modifiés et produit une décision déterministe.
+La version 0.11.0 poursuit le jalon P03 avec une gouvernance minimale des sources autoritatives. Le domaine `SourceGovernanceRule` définit quel système est autoritatif pour un type d'objet RI et un chemin d'attribut donné. L'évaluateur compare les attributs existants et entrants, détecte les chemins modifiés et produit une décision déterministe.
 
 Frontières conservées :
 
@@ -197,9 +197,9 @@ Frontières conservées :
 - application : `SourceGovernanceService` et enforcement dans `SourceOfTruthService` avant versionnement d'un objet existant ;
 - ports : `SourceGovernanceRepository` ;
 - infrastructure : `JsonSourceGovernanceRepository` et `PostgreSQLSourceGovernanceRepository` ;
-- interfaces : commandes `openinfra sot *-governance-*` et endpoints `/api/v1/sot/governance*`.
+- interfaces : commandes `openinfra ri *-governance-*` et endpoints `/api/v1/ri/governance*`.
 
-Le comportement reste compatible : sans règle active applicable, les mises à jour SOT gardent le comportement v0.10.0. Une règle active peut refuser une modification non autoritative avec `reject`, ou l'accepter avec signalement auditable via `accept_with_audit`. La migration `0008_source_governance.sql` est additive, partitionnée par `tenant_id` et ne modifie aucun schéma antérieur.
+Le comportement reste compatible : sans règle active applicable, les mises à jour RI gardent le comportement v0.10.0. Une règle active peut refuser une modification non autoritative avec `reject`, ou l'accepter avec signalement auditable via `accept_with_audit`. La migration `0008_source_governance.sql` est additive, partitionnée par `tenant_id` et ne modifie aucun schéma antérieur.
 
 
 ## v0.12.0 — P04 EPIC-0401 Modèle physique DCIM
@@ -350,7 +350,7 @@ L’entrypoint `openinfra-api` écrit également un événement JSON unique sur 
 
 ## v0.25.1 — P06 EPIC-0602 Import massif scalable
 
-La version 0.25.0 a introduit une capacité d’import massif sans modifier le contrat atomique du framework générique livré en 0.24.0. L’architecture reste hexagonale : le domaine décrit les rapports bulk, checkpoints et métriques ; l’application orchestre l’autorisation `sot.write`, le parsing streaming, les batches, la persistance d’avancement et l’écriture Source of Truth ; l’infrastructure fournit les parseurs et les référentiels JSON/PostgreSQL.
+La version 0.25.0 a introduit une capacité d’import massif sans modifier le contrat atomique du framework générique livré en 0.24.0. L’architecture reste hexagonale : le domaine décrit les rapports bulk, checkpoints et métriques ; l’application orchestre l’autorisation `ri.write`, le parsing streaming, les batches, la persistance d’avancement et l’écriture Ressources Inventory ; l’infrastructure fournit les parseurs et les référentiels JSON/PostgreSQL.
 
 Le flux CSV bulk utilise `ImportDatasetParser.iter_rows` pour produire les lignes une par une. Les batches sont bornés par `batch_size`, les checkpoints sont persistés selon `checkpoint_interval`, et la reprise par `resume_job_id` redémarre au `next_row_number` du dernier checkpoint. Les impacts et DLQ restent échantillonnés pour éviter les rapports non bornés sur très gros datasets.
 

@@ -4,10 +4,10 @@
 
 | Domaine | Lite | Pro | Entreprise |
 |---|---|---|---|
-| Déploiement | Monolithique | Backend + Web + DB séparables | Backend cluster + Web cluster + Agents + Workers + DB HA |
+| Déploiement | Monolithique | Backend + Web + DB séparables | Backend cluster + Web cluster + Agents proxy collectors + Workers + DB HA |
 | Service principal | `openinfra.service` | `openinfra.service` | `openinfra.service` |
 | Frontend | intégré | `openinfra-web.service` | `openinfra-web.service` en replicas |
-| Agent discovery distant | non | non | `openinfra-agent.service` |
+| Agent/proxy collector distribué | non | non | `openinfra-agent.service` Enterprise uniquement |
 | Workers asynchrones | non | oui | oui, scalables |
 | PostgreSQL | local/simple | medium, cluster optionnel | large, cluster optionnel, partitionnement obligatoire |
 | ITSM externe | non | oui | oui |
@@ -60,7 +60,7 @@ graph TD
 ## Règles communes
 
 - Le frontend ne doit jamais accéder directement à PostgreSQL.
-- Les agents ne doivent jamais écrire directement dans PostgreSQL.
+- Les agents proxy collectors Enterprise ne doivent jamais écrire directement dans PostgreSQL et ne sont jamais disponibles en Lite/Pro.
 - Les connecteurs ITSM ne doivent jamais contourner l'API backend.
 - Les décisions d'autorisation sont prises côté backend.
 - Les feature gates sont appliqués côté backend et testés par édition.

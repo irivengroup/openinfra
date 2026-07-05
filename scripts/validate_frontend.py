@@ -82,7 +82,7 @@ class FrontendContractValidator:
         return data
 
     def _validate_static_assets(self) -> tuple[str, ...]:
-        root = self._project_root / "src/openinfra/web_static"
+        root = self._project_root / "src/openinfra/interfaces/rendering/static"
         required = ("index.html", "assets/openinfra-web.js", "assets/openinfra-web.css")
         missing = [name for name in required if not (root / name).is_file()]
         if missing:

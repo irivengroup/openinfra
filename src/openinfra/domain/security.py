@@ -18,10 +18,14 @@ class Permission(StrEnum):
     SECURITY_ADMIN = "security.admin"
     ACCESS_POLICY_ADMIN = "access.policy.admin"
     AUDIT_READ = "audit.read"
-    SOT_READ = "sot.read"
-    SOT_WRITE = "sot.write"
-    SOT_GOVERNANCE_READ = "sot.governance.read"
-    SOT_GOVERNANCE_WRITE = "sot.governance.write"
+    RI_READ = "ri.read"
+    RI_WRITE = "ri.write"
+    RI_GOVERNANCE_READ = "ri.governance.read"
+    RI_GOVERNANCE_WRITE = "ri.governance.write"
+    SOT_READ = "ri.read"
+    SOT_WRITE = "ri.write"
+    SOT_GOVERNANCE_READ = "ri.governance.read"
+    SOT_GOVERNANCE_WRITE = "ri.governance.write"
 
 
 @dataclass(frozen=True, slots=True)

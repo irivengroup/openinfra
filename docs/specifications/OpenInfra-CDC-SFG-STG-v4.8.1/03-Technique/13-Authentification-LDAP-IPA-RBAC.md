@@ -14,7 +14,7 @@ flowchart LR
   WEB --> API[API OpenInfra]
   API --> RBAC[RBAC OpenInfra]
   API --> AUDIT[Audit]
-  AGENT[Agent technique] --> API
+  AGENT[Agent proxy collector Enterprise] --> API
 ```
 
 ## Règles techniques
@@ -23,7 +23,7 @@ flowchart LR
 - LDAP/IPA est autorisé uniquement pour les scopes web Pro/Entreprise.
 - Le backend n'authentifie pas directement chaque opérateur humain par LDAP/IPA.
 - Le frontend authentifie l'opérateur puis consomme l'API backend avec un jeton applicatif.
-- Les agents consomment l'API backend avec un mécanisme technique d'enrôlement, jamais avec un login opérateur.
+- Les agents proxy collectors Enterprise consomment l'API backend avec un mécanisme technique d'enrôlement, jamais avec un login opérateur. Lite et Pro n'exécutent aucune collecte via agent distribué : les backends servers sont seuls responsables de la collecte.
 - Les mots de passe ou secrets de bind ne sont jamais loggés.
 - Les certificats TLS LDAP/IPA doivent être validés.
 - Les groupes externes sont mappés vers des rôles applicatifs OpenInfra.
@@ -56,7 +56,7 @@ Le RBAC doit rester interne à OpenInfra. LDAP/IPA fournit l'identité et l'appa
 
 ## Sécurisation des échanges
 
-Hors Lite, les échanges frontend-backend, agent-backend et backend-backend imposent TLS 1.3 avec authentification mutuelle mTLS. Les certificats, clés privées et secrets LDAP/IPA sont référencés uniquement via `env:`, `file://`, `vault://`, `sops://` ou `kms://`.
+Hors Lite, les échanges frontend-backend, agent-proxy-backend et backend-backend imposent TLS 1.3 avec authentification mutuelle mTLS. Les certificats, clés privées et secrets LDAP/IPA sont référencés uniquement via `env:`, `file://`, `vault://`, `sops://` ou `kms://`.
 
 ## Break-glass
 

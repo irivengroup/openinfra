@@ -241,7 +241,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         page: Any
         report: Any
         result: Any
-        route = parsed.path
+        route = self._canonical_route(parsed.path)
         if route in ("/", "/api/v1"):
             responder.send(HTTPStatus.OK, self.server.discovery_document())
             return
@@ -846,7 +846,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         responder = JsonHttpResponder(self)
-        route = urlparse(self.path).path
+        route = self._canonical_route(urlparse(self.path).path)
         result: Any
         rule: Any
 
@@ -2052,6 +2052,14 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             raise OpenInfraError("roles must be a list")
         return tuple(str(role) for role in roles_payload)
 
+    @staticmethod
+    def _canonical_route(route: str) -> str:
+        if route.startswith("/api/v1/ri/"):
+            return "/api/v1/sot/" + route.removeprefix("/api/v1/ri/")
+        if route == "/api/v1/ri":
+            return "/api/v1/sot"
+        return route
+
     def _read_json_body(self) -> dict[str, Any]:
         content_length = int(self.headers.get("Content-Length", "0"))
         if content_length <= 0 or content_length > 1_048_576:
@@ -2101,6 +2109,13 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "run": "/api/v1/exports/run",
                     "report": "/api/v1/exports/jobs",
                     "artifact": "/api/v1/exports/artifact",
+                },
+                "ressources_inventory": {
+                    "objects": "/api/v1/ri/objects",
+                    "object_versions": "/api/v1/ri/object-versions",
+                    "relations": "/api/v1/ri/relations",
+                    "governance_rules": "/api/v1/ri/governance-rules",
+                    "legacy_sot_alias": "/api/v1/sot/objects",
                 },
                 "discovery": {
                     "collectors": "/api/v1/discovery/collectors",

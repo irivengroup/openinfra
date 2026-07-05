@@ -1,4 +1,4 @@
-## Validation openinfra-web / Compose — v0.29.12
+## Validation openinfra-web / Compose — v0.29.13
 
 ```bash
 PYTHONPATH=src:. python -m pytest -q tests/integration/test_openinfra_web.py tests/integration/test_runtime_docker_environment.py --no-cov
@@ -178,20 +178,20 @@ La CI exécute également un smoke test JSON audit et le runtime natif valide le
 
 ## Contrôles ajoutés en v0.10.0
 
-- Tests unitaires du domaine Source of Truth : clés sûres, tags, source, relation, snapshots et erreurs contrôlées.
+- Tests unitaires du domaine Ressources Inventory : clés sûres, tags, source, relation, snapshots et erreurs contrôlées.
 - Tests d'intégration JSON : objet, mise à jour versionnée, relation, liste paginée, restitution de version et erreurs d'autorisation.
-- Tests CLI : `openinfra sot upsert-object`, `list-objects`, `get-object-version`, `create-relation`, `list-relations`.
-- Tests API HTTP : `/api/v1/sot/objects`, `/api/v1/sot/object-versions`, `/api/v1/sot/relations`.
+- Tests CLI : `openinfra ri upsert-object`, `list-objects`, `get-object-version`, `create-relation`, `list-relations`.
+- Tests API HTTP : `/api/v1/ri/objects`, `/api/v1/ri/object-versions`, `/api/v1/ri/relations`.
 - Tests adaptateur PostgreSQL simulé : insert/update objet, snapshot, relation et requêtes paginées.
 
 ## Contrôles ajoutés en v0.11.0
 
 - Tests unitaires du domaine Source Governance : validation des chemins, wildcard, priorité, fraîcheur et détection de modifications imbriquées.
 - Tests d'intégration JSON : création de règle, inventaire, évaluation, désactivation et enforcement dans `SourceOfTruthService`.
-- Tests CLI : `openinfra sot create-governance-rule`, `list-governance-rules`, `evaluate-governance`, `deactivate-governance-rule`.
-- Tests API HTTP : `/api/v1/sot/governance-rules`, `/api/v1/sot/governance/evaluate`, `/api/v1/sot/governance/deactivate-rule`.
+- Tests CLI : `openinfra ri create-governance-rule`, `list-governance-rules`, `evaluate-governance`, `deactivate-governance-rule`.
+- Tests API HTTP : `/api/v1/ri/governance-rules`, `/api/v1/ri/governance/evaluate`, `/api/v1/ri/governance/deactivate-rule`.
 - Tests adaptateur PostgreSQL simulé : persistance, lecture paginée et évaluation via `PostgreSQLSourceGovernanceRepository`.
-- Smoke runtime natif : scénario gouvernance SOT contre API authentifiée. Le backend PostgreSQL réel peut être testé dans le lab Docker facultatif ou sur un serveur PostgreSQL dédié.
+- Smoke runtime natif : scénario gouvernance RI contre API authentifiée. Le backend PostgreSQL réel peut être testé dans le lab Docker facultatif ou sur un serveur PostgreSQL dédié.
 
 
 ## Contrôles ajoutés en v0.12.0
@@ -471,7 +471,7 @@ token="$(python - <<'PY'
 print("b" * 40)
 PY
 )"
-PYTHONPATH=src python -m openinfra.interfaces.cli security bootstrap-token --data "$tmpdir/state.json" --tenant default --subject bulk-import-admin --role sot:operator --token "$token" >/dev/null
+PYTHONPATH=src python -m openinfra.interfaces.cli security bootstrap-token --data "$tmpdir/state.json" --tenant default --subject bulk-import-admin --role ri:operator --token "$token" >/dev/null
 printf 'asset_key,kind,name,source,serial\ndevice/bulk-001,device,Bulk 001,csv_import,SN001\ndevice/bulk-002,device,Bulk 002,csv_import,SN002\n' > "$tmpdir/bulk.csv"
 PYTHONPATH=src python -m openinfra.interfaces.cli import bulk-dataset --data "$tmpdir/state.json" --tenant default --actor bulk-import-admin --admin-token "$token" --file "$tmpdir/bulk.csv" --format csv --mapping-json '{"key":"asset_key","kind":"kind","display_name":"name","source":"source","attributes.serial":"serial"}' --batch-size 1000 --checkpoint-interval 1000
 PYTHONPATH=src python -m pytest -q --no-cov tests/unit/test_data_import_domain.py tests/unit/test_import_parsers.py tests/integration/test_import_services.py tests/integration/test_cli_import.py tests/integration/test_http_api.py tests/integration/test_postgresql_migration.py
@@ -502,8 +502,8 @@ La v0.26.0 ajoute les contrôles P06 / EPIC-0603 suivants :
 ```bash
 tmpdir="$(mktemp -d)"
 token="$(python -c 'print("x" * 40)')"
-PYTHONPATH=src python -m openinfra.interfaces.cli security bootstrap-token --data "$tmpdir/state.json" --tenant default --subject export-admin --role sot:operator --role audit:reader --token "$token" >/dev/null
-PYTHONPATH=src python -m openinfra.interfaces.cli sot upsert-object --data "$tmpdir/state.json" --tenant default --admin-token "$token" --key device/export-smoke --kind device --display-name "Export Smoke" --attributes-json '{"serial":"EXPORT-SMOKE"}' --tag prod --source smoke >/dev/null
+PYTHONPATH=src python -m openinfra.interfaces.cli security bootstrap-token --data "$tmpdir/state.json" --tenant default --subject export-admin --role ri:operator --role audit:reader --token "$token" >/dev/null
+PYTHONPATH=src python -m openinfra.interfaces.cli ri upsert-object --data "$tmpdir/state.json" --tenant default --admin-token "$token" --key device/export-smoke --kind device --display-name "Export Smoke" --attributes-json '{"serial":"EXPORT-SMOKE"}' --tag prod --source smoke >/dev/null
 PYTHONPATH=src python -m openinfra.interfaces.cli export request --data "$tmpdir/state.json" --tenant default --admin-token "$token" --format json --tag prod
 PYTHONPATH=src python -m openinfra.interfaces.cli export run --data "$tmpdir/state.json" --tenant default --admin-token "$token"
 PYTHONPATH=src python -m pytest -q --no-cov tests/integration/test_export_services.py tests/integration/test_cli_export.py tests/integration/test_http_api.py tests/integration/test_postgresql_migration.py

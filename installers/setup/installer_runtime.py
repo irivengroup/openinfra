@@ -947,7 +947,9 @@ class AutonomousInstallerProgram:
         values["OPENINFRA_WEB_HOST"] = "127.0.0.1"
         values["OPENINFRA_WEB_PORT"] = "2006"
         values["OPENINFRA_WEB_PUBLIC_API_BASE_URL"] = "/api"
-        values["OPENINFRA_WEB_STATIC_ROOT"] = "/opt/openinfra/src/openinfra/web_static"
+        values["OPENINFRA_WEB_STATIC_ROOT"] = (
+            "/opt/openinfra/src/openinfra/interfaces/rendering/static"
+        )
         values["OPENINFRA_WEB_AUTH_MODE"] = parser.get("auth", "mode", fallback="standard").strip()
         if plan.scope == "web":
             values["OPENINFRA_WEB_BACKEND_URL"] = parser.get(

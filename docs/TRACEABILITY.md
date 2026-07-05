@@ -1,10 +1,12 @@
-## v0.29.12 — P08 frontend web et Compose
+## v0.29.13 — RI, agents proxy Enterprise et dashboard web
 
 | Élément | Alignement |
 |---|---|
-| Roadmap | P08 matérialisé par un frontend React/Bootstrap et un serveur `openinfra-web` API-only. |
+| Roadmap | P08 consolidé : `openinfra-web` devient dashboard de pilotage API-only couvrant les domaines CLI. |
+| Ressources Inventory | `Source of Truth/SOT` est renommé en `Ressources Inventory/RI`; `/api/v1/ri/*`, `openinfra ri` et `ri:*` sont primaires, les alias `sot` restent compatibles. |
+| Discovery | `agent` est réservé aux proxy collectors Enterprise en topologie étoile ; Lite/Pro collectent via backends servers. |
 | Backend | Le backend reste API-only : aucune authentification opérateur LDAP/IPA directe. |
-| Frontend | `web/src/main.jsx` consomme uniquement `/api` et `/config.json`; aucun secret backend n'est présent dans les assets. |
+| Frontend | `web/src/main.jsx` et les assets `interfaces/rendering/static` consomment `/api`, `/config.json` et exposent les opérations RI/IPAM/DCIM/Discovery/sécurité/audit sans secret backend. |
 | Docker Compose | Service `web` ajouté avec healthcheck, dépendance sur `api`, port local `2006` et proxy `/api/*` vers `api:8080`. |
 | Installateur | Scope web rendu en `openinfra-web.service` et configuration runtime matérialisée dans `/opt/openinfra/config/openinfra.conf`. |
 | Tests | `tests/integration/test_openinfra_web.py`, `tests/integration/test_runtime_docker_environment.py`, `scripts/validate_frontend.py` et smoke Docker frontend. |

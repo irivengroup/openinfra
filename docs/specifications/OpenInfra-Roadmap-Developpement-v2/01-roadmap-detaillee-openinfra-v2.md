@@ -69,7 +69,7 @@ Cette roadmap met à jour la trajectoire de développement OpenInfra pour l’al
 | P06 | PostgreSQL HA, synchronisation quasi temps réel et sauvegardes | T0+4 à T0+9 mois | Déployer PostgreSQL géré, Patroni/équivalent, VIP, réplication, PITR, tests failover. | Cluster autonome configuré avec FQDN/IP/mask/VIP/GW/DNS et bascule testée. |
 | P07 | Authentification, LDAP/IPA, RBAC et groupes | T0+5 à T0+10 mois | Livrer auth locale Lite, LDAP/IPA Pro/Entreprise, mapping groupes→rôles, audit et permissions. | Pro/Entreprise s’authentifient via LDAP/IPA; RBAC par groupes testé. |
 | P08 | Frontend React + Bootstrap 5 et parité CLI/API/UI | T0+5 à T0+11 mois | Livrer shell UI web, design system, appels API backend uniquement et parité fonctionnelle CLI/API/UI. | Toute commande CLI livrée dispose d’un parcours API/UI équivalent ou justifié. |
-| P09 | Source of Truth, gouvernance et qualité de données | T0+6 à T0+13 mois | Livrer objets, relations, audit, historique, gouvernance source autoritative, scores et réconciliation. | CRUD complet, time travel initial, conflits visibles, qualité mesurée. |
+| P09 | Ressources Inventory, gouvernance et qualité de données | T0+6 à T0+13 mois | Livrer objets, relations, audit, historique, gouvernance source autoritative, scores et réconciliation. | CRUD complet, time travel initial, conflits visibles, qualité mesurée. |
 | P10 | DCIM, localisation physique et capacité | T0+7 à T0+15 mois | Livrer sites, bâtiments, salles, lignes/colonnes/X/Y/Z, racks, U, câblage, PDU et capacité. | Un équipement physique est localisable univoquement et exploitable terrain. |
 | P11 | IPAM Enterprise++ et DDI | T0+7 à T0+16 mois | Livrer IPv4/IPv6, VRF, ASN, BGP, EVPN/VXLAN, MPLS, NAT, DHCP, DNS, DDI, RPKI et capacité. | Allocation IP concurrente sans conflit, recherche IPAM indexée et audits complets. |
 | P12 | ITAM, garanties/support constructeur et support tiers | T0+9 à T0+17 mois | Livrer actifs, logiciels, contrats, licences, garanties constructeur, support constructeur et support tiers séparé. | Le support tiers n’écrase jamais le support constructeur initial. |
@@ -691,14 +691,14 @@ Cette roadmap met à jour la trajectoire de développement OpenInfra pour l’al
 
 - **Stream :** STR-QA
 - **Priorité :** P1
-- **Résumé :** Automatiser parcours login, SOT, IPAM, DCIM, install status et admin.
+- **Résumé :** Automatiser parcours login, RI, IPAM, DCIM, install status et admin.
 - **Livrables :** E2E suite.
 - **Dépendances :** P08
 - **Acceptation :** Parcours critiques stables en CI.
 
 ---
 
-## P09 — Source of Truth, gouvernance et qualité de données
+## P09 — Ressources Inventory, gouvernance et qualité de données
 
 **Période relative :** T0+6 à T0+13 mois
 
@@ -708,7 +708,7 @@ Cette roadmap met à jour la trajectoire de développement OpenInfra pour l’al
 
 ### Epics
 
-#### EPIC-0901 — Objets Source of Truth
+#### EPIC-0901 — Objets Ressources Inventory
 
 - **Stream :** STR-BE
 - **Priorité :** P1
@@ -913,7 +913,7 @@ Cette roadmap met à jour la trajectoire de développement OpenInfra pour l’al
 - **Résumé :** Livrer lifecycle actif, propriétaires, coûts, statuts et localisations.
 - **Livrables :** ITAM model; API; UI.
 - **Dépendances :** P09
-- **Acceptation :** Actifs liés au SOT/DCIM.
+- **Acceptation :** Actifs liés au RI/DCIM.
 
 #### EPIC-1202 — Garantie constructeur obligatoire
 
@@ -1366,7 +1366,7 @@ Cette roadmap met à jour la trajectoire de développement OpenInfra pour l’al
 | GATE-00 | Go programme v4.8.1 | P00 | Matrice CDC→roadmap complète; backlog priorisé; risques connus; arbitrages actés. | Programme autorisé uniquement si les décisions v4.8.1 sont tracées. |
 | GATE-01 | Go Foundation Alpha | P01-P02 | CI verte; édition model testé; API baseline; services cibles documentés. | Autorise démarrage installateurs et runtime. |
 | GATE-02 | Go Installer Alpha | P03-P06 | install.ini validé; dépendances installées; PGDATA /data/openinfra; openinfra.service; failover DB démontré. | Autorise MVP Lite/Pro. |
-| GATE-03 | Go Lite MVP | P07-P11 | Limits Lite respectées; all-in-one opérationnel; UI/API/CLI SOT/DCIM/IPAM. | Autorise pilote Lite. |
+| GATE-03 | Go Lite MVP | P07-P11 | Limits Lite respectées; all-in-one opérationnel; UI/API/CLI RI/DCIM/IPAM. | Autorise pilote Lite. |
 | GATE-04 | Go Pro MVP | P07-P13 | Backend/web séparés; LDAP/IPA; RBAC groupes; connecteurs ITSM externes; quotas Pro. | Autorise pilote Pro. |
 | GATE-05 | Go Enterprise Foundation | P14-P17 | Agents, multisite, synchronisation quasi temps réel, cluster frontend/backend, DR testé. | Autorise pilote Entreprise. |
 | GATE-06 | Go RC | P16-P18 | Modules avancés; sécurité; performance; docs; migrations et rollback validés. | Autorise release candidate. |

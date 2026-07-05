@@ -35,7 +35,7 @@
 
 ## Effets sur le périmètre
 
-- Le périmètre Source of Truth est enrichi par la gouvernance, la qualité et la certification des données.
+- Le périmètre Ressources Inventory est enrichi par la gouvernance, la qualité et la certification des données.
 - Le périmètre sécurité est enrichi par les flux, certificats, secrets référencés, SBOM, vulnérabilités contextualisées et policy engine.
 - Le périmètre DCIM est enrichi par les opérations terrain, GreenOps et simulation d’impact.
 - Le périmètre cloud-native est enrichi par Kubernetes avancé et mapping bout-en-bout.

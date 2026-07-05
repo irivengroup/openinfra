@@ -36,7 +36,7 @@ Pratiques retenues :
 
 Pratiques retenues :
 
-- Source of Truth gouvernée ;
+- Ressources Inventory gouvernée ;
 - qualité de données mesurée ;
 - règles de certification ;
 - traçabilité par attribut critique ;

@@ -9,7 +9,7 @@
 | ITSM | Risque d'introduire un ticketing interne | Interdiction explicite ; connecteurs externes uniquement Pro/Entreprise |
 | Support | Support tiers pouvant écraser constructeur | Entités séparées et conflit obligatoire en cas de divergence |
 | Sécurité | Connecteurs externes trop permissifs | OAuth/mTLS/tokens, Vault, RBAC, audit, rate limit, retry contrôlé |
-| Résilience | Connecteurs bloquants | Queue asynchrone, DLQ, dry-run, replay, désactivation sans impact SOT |
+| Résilience | Connecteurs bloquants | Queue asynchrone, DLQ, dry-run, replay, désactivation sans impact RI |
 | API | Risque d'exports synchrones | Exports massifs asynchrones uniquement |
 | Performance | Risque de scans complets | Partitionnement, index, filtres sélectifs, tests EXPLAIN |
 | Gouvernance | Sources concurrentes non priorisées | Source autoritative par attribut et score de confiance |

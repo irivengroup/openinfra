@@ -1,4 +1,4 @@
-# OpenInfra v0.29.12 — rapport de validation
+# OpenInfra v0.29.13 — rapport de validation
 
 ## Objet de livraison
 
@@ -6,7 +6,7 @@ P08 livré côté code et runtime après v0.29.11 :
 
 - ajout du service `openinfra-web` servant l'interface frontend et proxyfiant `/api/*` vers le backend ;
 - intégration réelle de `openinfra-web` dans `compose.yaml`, `.env.example`, `scripts/docker_environment.py` et le smoke Docker ;
-- frontend React/Bootstrap 5 sous `web/` et assets runtime embarqués sous `src/openinfra/web_static` ;
+- frontend React/Bootstrap 5 sous `web/` et assets runtime embarqués sous `src/openinfra/interfaces/rendering/static` ;
 - backend conservé strictement API-only : pas de login opérateur LDAP/IPA direct côté backend ;
 - navigateur limité à un modèle same-origin `/api`, sans DSN PostgreSQL, secret LDAP/IPA, clé privée ou jeton agent ;
 - runtime natif aligné : `openinfra-web.service` lancé par `/opt/openinfra/venv/bin/openinfra-web` et configuration issue de `/opt/openinfra/config/openinfra.conf` accessible via `/etc/openinfra/openinfra.conf` ;
@@ -27,7 +27,7 @@ P08 livré côté code et runtime après v0.29.11 :
 | `python -m coverage report --fail-under=98` | PASS |
 | `python scripts/validate_frontend.py --project-root .` | PASS |
 | `PYTHONPATH=src:. python scripts/quality_gate.py` | PASS |
-| `PYTHONPATH=src python -m openinfra.interfaces.cli version` | PASS — 0.29.12 |
+| `PYTHONPATH=src python -m openinfra.interfaces.cli version` | PASS — 0.29.13 |
 | `PYTHONPATH=src python -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1` | PASS |
 | `PYTHONPATH=src python -m openinfra.interfaces.cli installer validate --root installers` | PASS |
 | `PYTHONPATH=src python -m openinfra.interfaces.cli installer dry-run --root installers` | PASS |
@@ -41,7 +41,7 @@ P08 livré côté code et runtime après v0.29.11 :
 
 ## Résultats chiffrés
 
-- Version : `0.29.12`.
+- Version : `0.29.13`.
 - Suite Python : 383 tests collectés et passés.
 - Couverture globale : 98.00 %.
 - CDC v4.8.1 : PASS — 742 exigences, 547 tests.

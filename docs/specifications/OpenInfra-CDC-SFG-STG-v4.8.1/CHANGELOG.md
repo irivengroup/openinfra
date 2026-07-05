@@ -117,7 +117,7 @@ classification: Interne / Consultation intégrateurs
 
 ### Compatibilité
 
-Cette version conserve le périmètre v2 : Source of Truth, DCIM, ITAM, Discovery, Dependency Mapping, IPAM avancé et exclusion ITSM intégrée. Elle renforce la granularité documentaire et contractuelle.
+Cette version conserve le périmètre v2 : Ressources Inventory, DCIM, ITAM, Discovery, Dependency Mapping, IPAM avancé et exclusion ITSM intégrée. Elle renforce la granularité documentaire et contractuelle.
 
 
 ## 4.3.0 - Alignement enterprise, éditions, ITSM externe et support constructeur

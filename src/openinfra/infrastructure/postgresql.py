@@ -4,6 +4,7 @@ import hashlib
 import importlib
 import ipaddress
 import json
+import re
 import secrets
 import threading
 from collections.abc import Callable, Mapping, Sequence
@@ -192,6 +193,130 @@ class PostgreSQLClusterProfile:
         )
 
 
+class PostgreSQLPartitionConstraintValidator:
+    _SQL_IDENTIFIER_RE: ClassVar[str] = r"[a-zA-Z_][a-zA-Z0-9_]*"
+
+    @classmethod
+    def validate(cls, sql: str) -> None:
+        partitioned_tables: dict[str, tuple[str, ...]] = {}
+        for statement in PostgreSQLStatementSplitter.split(sql):
+            create_match = re.search(
+                rf"\bCREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+({cls._SQL_IDENTIFIER_RE})\b",
+                statement,
+                re.I,
+            )
+            if create_match is not None and " PARTITION OF " not in statement.upper():
+                table_name = create_match.group(1).lower()
+                partition_columns = cls._partition_columns(statement)
+                if partition_columns:
+                    partitioned_tables[table_name] = partition_columns
+                    opening_index = statement.find("(", create_match.end())
+                    table_body = cls._matching_parenthesized_value(statement, opening_index)
+                    for item in cls._split_top_level_csv(table_body):
+                        for unique_columns in cls._inline_unique_constraint_columns(item):
+                            missing = set(partition_columns) - set(unique_columns)
+                            if missing:
+                                raise ValidationError(
+                                    "partitioned table unique constraint must include "
+                                    f"partition columns: {table_name} missing {sorted(missing)}"
+                                )
+                continue
+
+            index_match = re.search(
+                rf"\bCREATE\s+UNIQUE\s+INDEX\b.+?\bON\s+({cls._SQL_IDENTIFIER_RE})\s+(?:USING\s+{cls._SQL_IDENTIFIER_RE}\s+)?\(",
+                statement,
+                re.I | re.S,
+            )
+            if index_match is None:
+                continue
+            table_name = index_match.group(1).lower()
+            index_partition_columns = partitioned_tables.get(table_name)
+            if not index_partition_columns:
+                continue
+            opening_index = statement.find("(", index_match.end() - 1)
+            index_columns = cls._column_identifiers(
+                cls._matching_parenthesized_value(statement, opening_index)
+            )
+            missing = set(index_partition_columns) - set(index_columns)
+            if missing:
+                raise ValidationError(
+                    "partitioned table unique index must include partition columns: "
+                    f"{table_name} missing {sorted(missing)}"
+                )
+
+    @classmethod
+    def _matching_parenthesized_value(cls, sql: str, opening_index: int) -> str:
+        if opening_index < 0 or opening_index >= len(sql) or sql[opening_index] != "(":
+            raise ValidationError("invalid SQL parenthesized expression")
+        depth = 0
+        start = opening_index + 1
+        for index, character in enumerate(sql[opening_index:], start=opening_index):
+            if character == "(":
+                depth += 1
+            elif character == ")":
+                depth -= 1
+                if depth == 0:
+                    return sql[start:index]
+        raise ValidationError("unbalanced SQL parenthesized expression")
+
+    @classmethod
+    def _split_top_level_csv(cls, payload: str) -> tuple[str, ...]:
+        parts: list[str] = []
+        buffer: list[str] = []
+        depth = 0
+        for character in payload:
+            if character == "(":
+                depth += 1
+            elif character == ")" and depth > 0:
+                depth -= 1
+            if character == "," and depth == 0:
+                part = "".join(buffer).strip()
+                if part:
+                    parts.append(part)
+                buffer = []
+                continue
+            buffer.append(character)
+        trailing = "".join(buffer).strip()
+        if trailing:
+            parts.append(trailing)
+        return tuple(parts)
+
+    @classmethod
+    def _column_identifiers(cls, payload: str) -> tuple[str, ...]:
+        columns: list[str] = []
+        for expression in cls._split_top_level_csv(payload):
+            normalized = re.sub(
+                r"\s+(ASC|DESC|NULLS\s+(FIRST|LAST))\b", "", expression, flags=re.I
+            ).strip()
+            if re.fullmatch(cls._SQL_IDENTIFIER_RE, normalized):
+                columns.append(normalized.lower())
+        return tuple(columns)
+
+    @classmethod
+    def _partition_columns(cls, statement: str) -> tuple[str, ...]:
+        match = re.search(r"\bPARTITION\s+BY\s+(?:HASH|RANGE|LIST)\s*\(", statement, re.I)
+        if match is None:
+            return ()
+        opening_index = statement.find("(", match.end() - 1)
+        return cls._column_identifiers(cls._matching_parenthesized_value(statement, opening_index))
+
+    @classmethod
+    def _inline_unique_constraint_columns(cls, table_item: str) -> tuple[tuple[str, ...], ...]:
+        upper = table_item.upper()
+        columns: list[tuple[str, ...]] = []
+        for marker in ("PRIMARY KEY", "UNIQUE"):
+            marker_index = upper.find(marker)
+            if marker_index == -1:
+                continue
+            opening_index = table_item.find("(", marker_index)
+            columns.append(
+                cls._column_identifiers(
+                    cls._matching_parenthesized_value(table_item, opening_index)
+                )
+            )
+        return tuple(columns)
+
+
 @dataclass(frozen=True, slots=True)
 class PostgreSQLMigration:
     name: str
@@ -218,6 +343,7 @@ class PostgreSQLMigration:
             raise ValidationError("migration must create or maintain indexes")
         if "AUDIT_EVENTS" not in normalized:
             raise ValidationError("migration must include audit persistence or audit indexes")
+        PostgreSQLPartitionConstraintValidator.validate(self.sql)
 
     def as_dict(self) -> dict[str, object]:
         return {"version": self.name, "checksum": self.checksum}

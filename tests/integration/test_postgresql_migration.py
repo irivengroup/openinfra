@@ -5,11 +5,13 @@ from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 
+from openinfra.domain.common import ValidationError
 from openinfra.infrastructure.postgresql import (
     ConnectionProtocol,
     CursorProtocol,
     PostgreSQLClusterProfile,
     PostgreSQLConnectionFactory,
+    PostgreSQLMigration,
     PostgreSQLMigrationCatalog,
     PostgreSQLMigrationExecutor,
     PostgreSQLSessionRegistry,
@@ -273,6 +275,40 @@ class TestPostgreSQLMigration:
         assert "PARTITION BY RANGE" in migration.sql
         assert "CREATE INDEX" in migration.sql
         assert "audit_events" in migration.sql
+
+    def test_range_partitioned_tables_include_partition_column_in_primary_key(self) -> None:
+        migration = PostgreSQLMigrationCatalog.from_project_root().load(
+            "0024_postgresql_ha_backup_registry"
+        )
+
+        assert "PRIMARY KEY (tenant_id, started_at, id)" in migration.sql
+
+    def test_migration_validator_rejects_partitioned_unique_constraints_missing_partition_key(
+        self,
+    ) -> None:
+        migration = PostgreSQLMigration(
+            name="9999_invalid_partition_pk.sql",
+            path=Path("9999_invalid_partition_pk.sql"),
+            sql="""
+            CREATE TABLE IF NOT EXISTS invalid_backup_runs (
+                id uuid NOT NULL,
+                tenant_id text NOT NULL,
+                started_at timestamptz NOT NULL,
+                PRIMARY KEY (tenant_id, id)
+            ) PARTITION BY RANGE (started_at);
+            CREATE TABLE IF NOT EXISTS invalid_backup_runs_default
+                PARTITION OF invalid_backup_runs DEFAULT;
+            CREATE INDEX IF NOT EXISTS idx_invalid_backup_runs_audit
+                ON audit_events (tenant_id, target_type, created_at DESC);
+            """,
+        )
+
+        try:
+            migration.validate()
+        except ValidationError as exc:
+            assert "partition columns" in str(exc)
+        else:
+            raise AssertionError("invalid partitioned primary key accepted")
 
     def test_statement_splitter_preserves_plpgsql_blocks_and_splits_dependent_ddl(self) -> None:
         statements = _migration_statements(

@@ -1,12 +1,14 @@
-# OpenInfra v0.29.8
+# OpenInfra v0.29.9
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.8 — P06 PostgreSQL HA, synchronisation quasi temps réel PostgreSQL et sauvegardes PITR avant reprise Discovery.**
+**Version courante : 0.29.9 — P06 PostgreSQL HA, synchronisation quasi temps réel PostgreSQL et sauvegardes PITR avant reprise Discovery.**
 
-## v0.29.8 — P06 PostgreSQL HA/PITR quasi temps réel
+## v0.29.9 — Correctif runtime migration PostgreSQL P06
 
-Cette livraison poursuit les dettes prioritaires de la roadmap v2 avant Discovery. Elle ajoute un plan PostgreSQL HA/PITR géré par les installateurs backend/all-in-one, sans alourdir les `install.ini` :
+Cette livraison suspend P07 et corrige d'abord l'erreur runtime constatée sur `openinfra database apply-migrations` : la table partitionnée `postgresql_backup_runs` inclut désormais `started_at` dans sa clé primaire, comme l'exige PostgreSQL pour les contraintes uniques sur tables partitionnées. Le validateur de migrations bloque aussi toute régression équivalente.
+
+Le socle P06 reste inchangé fonctionnellement : HA/PITR géré par les installateurs backend/all-in-one, sans alourdir les `install.ini` :
 
 - `identity.peer_nodes` active automatiquement le mode cluster à synchronisation quasi temps réel pour les scopes `server` Pro/Enterprise ;
 - aucun port PostgreSQL, paramètre Patroni ou secret de réplication n'est exposé dans `install.ini` ;

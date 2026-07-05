@@ -155,7 +155,7 @@ PYTHONPATH=src python -m openinfra.interfaces.cli database render-migration \
 
 Après application, les appels applicatifs doivent continuer à passer par l'API ou la CLI afin de bénéficier du contrôle de chevauchement des intervalles U.
 
-## v0.29.8 — Plan HA/PITR généré par les installateurs
+## v0.29.9 — Plan HA/PITR généré par les installateurs
 
 Le plan HA/PITR est généré par les scopes backend/all-in-one. En Pro/Enterprise server, `identity.peer_nodes` déclenche la topologie `near-real-time-streaming-cluster`. Le plan ne lit aucun port ni paramètre PostgreSQL dans `install.ini`; les valeurs internes restent gérées par l'installateur pour éviter les contournements et les divergences.
 

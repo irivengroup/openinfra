@@ -141,7 +141,7 @@ Le domaine EVPN/VXLAN doit supporter l’import/export asynchrone lorsque le vol
 - Les métriques de saturation doivent être exposées.
 - Les dashboards doivent couvrir API, base, workers, files, discovery, imports, IPAM et sécurité.
 
-## Complément v0.29.8 — HA/PITR pilotés par installateur
+## Complément v0.29.9 — HA/PITR pilotés par installateur
 
 Le scope backend/all-in-one doit générer un plan PostgreSQL HA/PITR interne. Les paramètres bas niveau PostgreSQL, les ports et les secrets de réplication ne doivent pas être exposés dans `install.ini`.
 

@@ -1,3 +1,11 @@
+## 0.29.9 - 2026-07-05
+
+- Correctif runtime bloquant sur la migration `0024_postgresql_ha_backup_registry.sql`.
+- Correction de la clé primaire de `postgresql_backup_runs`, partitionnée par `started_at` : la contrainte est désormais `PRIMARY KEY (tenant_id, started_at, id)`, conformément aux règles PostgreSQL sur les tables partitionnées.
+- Durcissement du validateur de migrations : les contraintes `PRIMARY KEY` / `UNIQUE` et les index uniques sur tables partitionnées doivent inclure toutes les colonnes de partitionnement.
+- Ajout de tests de non-régression pour empêcher la réintroduction de contraintes uniques incompatibles avec les partitions PostgreSQL.
+- P07 reste suspendu : priorité donnée au correctif runtime de migration.
+
 ## 0.29.8 - 2026-07-05
 
 - Livraison P06 avant reprise Discovery : PostgreSQL HA/PITR, synchronisation quasi temps réel et sauvegardes.

@@ -1,4 +1,4 @@
--- OpenInfra v0.29.8 - P06 PostgreSQL HA, PITR backup registry and failover audit
+-- OpenInfra v0.29.9 - P06 PostgreSQL HA/PITR registry partition key fix
 
 CREATE TABLE IF NOT EXISTS postgresql_ha_nodes (
     id uuid NOT NULL,
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS postgresql_backup_runs (
     error_message text NULL,
     created_by text NOT NULL,
     created_at timestamptz NOT NULL DEFAULT now(),
-    PRIMARY KEY (tenant_id, id),
+    PRIMARY KEY (tenant_id, started_at, id),
     CONSTRAINT postgresql_backup_runs_kind_check CHECK (backup_kind IN ('basebackup', 'wal_archive', 'pitr_test')),
     CONSTRAINT postgresql_backup_runs_status_check CHECK (status IN ('planned', 'running', 'succeeded', 'failed', 'cancelled')),
     CONSTRAINT postgresql_backup_runs_finished_check CHECK (finished_at IS NULL OR finished_at >= started_at),

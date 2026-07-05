@@ -127,7 +127,7 @@ PYTHONPATH=src python scripts/validate_autonomous_installer.py --root installers
 PYTHONPATH=src python -m openinfra.interfaces.cli installer render-systemd --edition enterprise --scope agent
 ```
 
-## PostgreSQL HA/PITR v0.29.8
+## PostgreSQL HA/PITR v0.29.9
 
 Les scopes `lite/all-in-one`, `pro/server` et `enterprise/server` produisent désormais un plan PostgreSQL HA/PITR interne. Le fichier `install.ini` ne doit pas contenir de paramètres PostgreSQL bas niveau. Pour les scopes `server`, la présence de `identity.peer_nodes` active le mode cluster à synchronisation quasi temps réel.
 

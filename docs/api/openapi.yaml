@@ -1141,6 +1141,33 @@ paths:
         '200': {description: Paginated object audit records}
         '400': {description: Validation error}
         '401': {description: Missing or invalid ITRM reader token}
+  /api/v1/itrm/reconcile-object:
+    post:
+      summary: Plan or apply a governed IT Ressources Management reconciliation
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, key, attributes, source]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                key: {type: string}
+                display_name: {type: string}
+                attributes: {type: object}
+                tags:
+                  type: array
+                  items: {type: string}
+                source: {type: string}
+                apply: {type: boolean}
+      responses:
+        '200': {description: Reconciliation plan with accepted/applied state, conflicts and resulting attributes}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid ITRM writer token}
   /api/v1/itrm/relations:
     get:
       summary: List IT Ressources Management typed relations

@@ -1,10 +1,17 @@
-# OpenInfra v0.29.23
+# OpenInfra v0.29.24
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.23 — ITRM expose désormais la restitution historique `as-of`, le filtrage temporel des relations, l’audit par objet, les formulaires web correspondants, le statut BFF sans secret, Bootstrap 5 Dashboard, ITRM Quality & Certification, agents proxy Enterprise et backend API-only.**
+**Version courante : 0.29.24 — ITRM expose désormais la réconciliation gouvernée dry-run/apply, la restitution historique `as-of`, le filtrage temporel des relations, l’audit par objet, les formulaires web correspondants, le statut BFF sans secret, Bootstrap 5 Dashboard, ITRM Quality & Certification, agents proxy Enterprise et backend API-only.**
 
 
+
+### v0.29.24 — réconciliation gouvernée ITRM
+
+- Ajout de `openinfra itrm reconcile-object` et `POST /api/v1/itrm/reconcile-object`.
+- Le mode par défaut produit un plan déterministe : chemins modifiés, conflits, règles obsolètes, version planifiée et attributs résultants.
+- L’option `--apply` applique uniquement les plans acceptés ; les conflits bloquants ne provoquent aucun écrasement silencieux.
+- Les plans et applications sont tracés dans l’audit objet via `itrm.reconciliation.plan` et `itrm.reconciliation.apply`.
 
 ### v0.29.23 — historique ITRM as-of et audit par objet
 

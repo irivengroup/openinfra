@@ -13,7 +13,12 @@ from openinfra.application.source_governance_services import (
     EvaluateSourceGovernanceCommand,
     ListSourceGovernanceRulesCommand,
 )
-from openinfra.application.source_of_truth_services import UpsertSourceObjectCommand
+from openinfra.application.source_of_truth_services import (
+    GetSourceObjectCommand,
+    ListSourceObjectAuditCommand,
+    ReconcileSourceObjectCommand,
+    UpsertSourceObjectCommand,
+)
 from openinfra.domain.common import ConflictError, TenantId, ValidationError
 from openinfra.domain.source_governance import (
     GovernedAttributePath,
@@ -144,6 +149,129 @@ class TestSourceGovernanceServices:
         assert evaluation["conflicts"][0]["attribute_path"] == "owner.team"
         assert deactivated["deactivated"] is True
         assert after.items[0].active is False
+
+    def test_reconcile_object_plans_rejects_and_applies_authoritative_update(
+        self, tmp_path: Path
+    ) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+        token = "r" * 40
+        app.security_service.bootstrap_token(
+            BootstrapTokenCommand(
+                "default",
+                "pytest",
+                "reconcile-admin",
+                ("itrm:governance-admin",),
+                token,
+            )
+        )
+        app.source_governance_service.create_rule(
+            CreateSourceGovernanceRuleCommand(
+                "default",
+                "pytest",
+                token,
+                "serial-from-cmdb",
+                "device",
+                "serial",
+                "cmdb",
+                100,
+                None,
+                "reject",
+            )
+        )
+        app.it_resources_management_service.upsert_object(
+            UpsertSourceObjectCommand(
+                tenant_id="default",
+                actor="pytest",
+                admin_token=token,
+                key="device/reconcile-001",
+                kind="device",
+                display_name="Reconcile 001",
+                attributes_json='{"serial":"A","rack":"R1"}',
+                tags=("prod",),
+                source="cmdb",
+            )
+        )
+
+        rejected = app.it_resources_management_service.reconcile_object(
+            ReconcileSourceObjectCommand(
+                tenant_id="default",
+                actor="pytest",
+                admin_token=token,
+                key="device/reconcile-001",
+                attributes_json='{"serial":"B","rack":"R2"}',
+                source="manual",
+                apply=True,
+            )
+        )
+        applied = app.it_resources_management_service.reconcile_object(
+            ReconcileSourceObjectCommand(
+                tenant_id="default",
+                actor="pytest",
+                admin_token=token,
+                key="device/reconcile-001",
+                attributes_json='{"serial":"B","rack":"R2"}',
+                source="cmdb",
+                display_name="Reconciled 001",
+                tags=("prod", "reconciled"),
+                apply=True,
+            )
+        )
+        current = app.it_resources_management_service.get_object(
+            GetSourceObjectCommand("default", token, "device/reconcile-001")
+        )
+        audit = app.it_resources_management_service.list_object_audit(
+            ListSourceObjectAuditCommand("default", token, "device/reconcile-001", limit=10)
+        )
+
+        assert rejected["accepted"] is False
+        assert rejected["applied"] is False
+        assert rejected["conflicts"][0]["attribute_path"] == "serial"
+        assert rejected["result_attributes"] == {"serial": "A", "rack": "R1"}
+        assert applied["accepted"] is True
+        assert applied["applied"] is True
+        assert applied["version"] == 2
+        assert current["display_name"] == "Reconciled 001"
+        assert current["attributes"] == {"serial": "B", "rack": "R2"}
+        assert current["tags"] == ["prod", "reconciled"]
+        assert [record.event.action for record in audit.items][:2] == [
+            "itrm.reconciliation.apply",
+            "itrm.reconciliation.plan",
+        ]
+
+    def test_cli_reconcile_object_supports_dry_run_and_apply(
+        self, tmp_path: Path, capsys: object
+    ) -> None:
+        data = tmp_path / "state.json"
+        token = "q" * 40
+        assert OpenInfraCLI().run([
+            "security", "bootstrap-token", "--data", str(data), "--tenant", "default",
+            "--subject", "reconcile-cli", "--role", "itrm:operator", "--token", token,
+        ]) == 0
+        capsys.readouterr()
+        assert OpenInfraCLI().run([
+            "itrm", "upsert-object", "--data", str(data), "--tenant", "default",
+            "--admin-token", token, "--key", "device/reconcile-cli", "--kind", "device",
+            "--display-name", "Reconcile CLI", "--attributes-json", '{"serial":"CLI1"}',
+            "--source", "manual",
+        ]) == 0
+        capsys.readouterr()
+        assert OpenInfraCLI().run([
+            "itrm", "reconcile-object", "--data", str(data), "--tenant", "default",
+            "--admin-token", token, "--key", "device/reconcile-cli",
+            "--attributes-json", '{"serial":"CLI2"}', "--source", "manual",
+        ]) == 0
+        planned = json.loads(capsys.readouterr().out)
+        assert OpenInfraCLI().run([
+            "itrm", "reconcile-object", "--data", str(data), "--tenant", "default",
+            "--admin-token", token, "--key", "device/reconcile-cli",
+            "--attributes-json", '{"serial":"CLI2"}', "--source", "manual", "--apply",
+        ]) == 0
+        applied = json.loads(capsys.readouterr().out)
+
+        assert planned["accepted"] is True
+        assert planned["applied"] is False
+        assert applied["applied"] is True
+        assert applied["object"]["attributes"] == {"serial": "CLI2"}
 
     def test_accept_with_audit_is_not_blocking_but_reports_conflict(self, tmp_path: Path) -> None:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json")

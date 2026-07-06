@@ -75,6 +75,7 @@ class TestHttpApi:
                     "object_versions": "/api/v1/itrm/object-versions",
                     "object_as_of": "/api/v1/itrm/object-as-of",
                     "object_audit": "/api/v1/itrm/object-audit",
+                    "reconcile_object": "/api/v1/itrm/reconcile-object",
                     "relations": "/api/v1/itrm/relations",
                     "governance_rules": "/api/v1/itrm/governance-rules",
                     "quality_object": "/api/v1/itrm/quality/object",
@@ -1217,6 +1218,94 @@ class TestSourceOfTruthHttpApi:
             assert audit["items"][0]["action"] == "itrm.object.create"
             assert relation["relation_type"] == "runs_on"
             assert relations["items"][0]["target_key"] == "device/api-srv-1"
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+
+    def test_itrm_reconcile_object_api_plans_and_applies_governed_update(
+        self, tmp_path: Path
+    ) -> None:
+        helper = TestHttpApi()
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+        token = "r" * 40
+        app.security_service.bootstrap_token(
+            BootstrapTokenCommand(
+                tenant_id="default",
+                actor="pytest",
+                subject="reconcile-api-admin",
+                roles=("itrm:governance-admin",),
+                token=token,
+            )
+        )
+        server = OpenInfraThreadingServer(("127.0.0.1", 0), app, auth_required=True)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base_url = f"http://127.0.0.1:{server.server_port}"
+            helper._post_json(
+                base_url + "/api/v1/itrm/governance-rules",
+                {
+                    "tenant_id": "default",
+                    "name": "api-reconcile-serial",
+                    "object_kind": "device",
+                    "attribute_path": "serial",
+                    "authoritative_source": "cmdb",
+                    "conflict_strategy": "reject",
+                },
+                token=token,
+            )
+            helper._post_json(
+                base_url + "/api/v1/itrm/objects",
+                {
+                    "tenant_id": "default",
+                    "key": "device/api-reconcile",
+                    "kind": "device",
+                    "display_name": "API Reconcile",
+                    "attributes": {"serial": "A", "rack": "R1"},
+                    "tags": ["prod"],
+                    "source": "cmdb",
+                },
+                token=token,
+            )
+            rejected = helper._post_json(
+                base_url + "/api/v1/itrm/reconcile-object",
+                {
+                    "tenant_id": "default",
+                    "key": "device/api-reconcile",
+                    "attributes": {"serial": "B", "rack": "R2"},
+                    "source": "manual",
+                    "apply": True,
+                },
+                token=token,
+            )
+            applied = helper._post_json(
+                base_url + "/api/v1/itrm/reconcile-object",
+                {
+                    "tenant_id": "default",
+                    "key": "device/api-reconcile",
+                    "display_name": "API Reconciled",
+                    "attributes": {"serial": "B", "rack": "R2"},
+                    "tags": ["prod", "reconciled"],
+                    "source": "cmdb",
+                    "apply": True,
+                },
+                token=token,
+            )
+            current = helper._get_json(
+                base_url + "/api/v1/itrm/objects?tenant_id=default&key=device/api-reconcile",
+                token=token,
+            )
+
+            assert rejected["accepted"] is False
+            assert rejected["applied"] is False
+            assert rejected["conflicts"][0]["attribute_path"] == "serial"
+            assert applied["accepted"] is True
+            assert applied["applied"] is True
+            assert applied["object"]["version"] == 2
+            assert current["display_name"] == "API Reconciled"
+            assert current["attributes"] == {"serial": "B", "rack": "R2"}
         finally:
             server.shutdown()
             server.server_close()

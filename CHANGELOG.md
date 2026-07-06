@@ -1,3 +1,11 @@
+## 0.29.24 - 2026-07-06
+
+- Added governed ITRM object reconciliation with deterministic dry-run and optional apply.
+- Added `openinfra itrm reconcile-object` and `POST /api/v1/itrm/reconcile-object`.
+- Reconciliation returns accepted/applied state, changed paths, conflicts, stale rules, planned version and resulting attributes.
+- Rejected non-authoritative updates are not applied and are audit-traced through `itrm.reconciliation.plan`; accepted applied updates are traced through `itrm.reconciliation.apply`.
+- Updated dashboard operation catalog, OpenAPI, CDC, roadmap and regression tests.
+
 ## 0.29.23 - 2026-07-06
 
 - Added ITRM object time-travel retrieval through `get-object-as-of` and `/api/v1/itrm/object-as-of`.

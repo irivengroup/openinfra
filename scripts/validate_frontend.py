@@ -147,6 +147,8 @@ class FrontendContractValidator:
             "IT Ressources Management",
             "agents proxy collectors Enterprise uniquement",
             "Numéro de série",
+            "/v1/itrm/reconcile-object",
+            "Réconcilier une ressource",
         ):
             if fragment not in payload:
                 raise FrontendValidationError(

@@ -106,6 +106,7 @@ from openinfra.application.it_resources_management_services import (
     ListSourceObjectAuditCommand,
     ListSourceObjectsCommand,
     ListSourceRelationsCommand,
+    ReconcileSourceObjectCommand,
     UpsertSourceObjectCommand,
 )
 from openinfra.application.security_services import (
@@ -820,6 +821,21 @@ class OpenInfraCLI:
         list_object_audit.add_argument("--limit", type=int, default=100)
         list_object_audit.add_argument("--cursor")
         list_object_audit.set_defaults(handler=self._handle_sot_list_object_audit)
+        reconcile = sot_subparsers.add_parser(
+            "reconcile-object",
+            help=f"plan or apply a governed {short_label} object reconciliation",
+        )
+        self._add_backend_arguments(reconcile)
+        reconcile.add_argument("--tenant", required=True)
+        reconcile.add_argument("--actor", default="cli")
+        reconcile.add_argument("--admin-token", required=True)
+        reconcile.add_argument("--key", required=True)
+        reconcile.add_argument("--attributes-json", required=True)
+        reconcile.add_argument("--source", required=True)
+        reconcile.add_argument("--display-name")
+        reconcile.add_argument("--tag", action="append")
+        reconcile.add_argument("--apply", action="store_true")
+        reconcile.set_defaults(handler=self._handle_sot_reconcile_object)
         create_relation = sot_subparsers.add_parser(
             "create-relation", help=f"create a typed {short_label} relation"
         )
@@ -2232,6 +2248,25 @@ class OpenInfraCLI:
             )
         )
         print(json.dumps(page.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_sot_reconcile_object(self, args: argparse.Namespace) -> int:
+        self._warn_legacy_inventory_alias(args)
+        application = self._create_application(args)
+        result = application.it_resources_management_service.reconcile_object(
+            ReconcileSourceObjectCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                key=args.key,
+                attributes_json=args.attributes_json,
+                source=args.source,
+                display_name=args.display_name,
+                tags=tuple(args.tag) if args.tag is not None else None,
+                apply=bool(args.apply),
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
         return 0
 
     def _handle_sot_create_relation(self, args: argparse.Namespace) -> int:

@@ -93,3 +93,9 @@ Le dashboard d’accueil ne doit plus afficher d’alerte succès permanente `Ba
 - Ajout de REQ-00758 : ITRM expose la restitution historique `as-of` des objets, le filtrage temporel des relations et l’audit par objet.
 - Ajout de TST-ITRM-061 : tests service, API, CLI et repositories pour verrouiller `get-object-as-of`, `object-as-of`, `object-audit`, `target_id` audit et `as_of` sur les relations.
 - Les snapshots existants restent compatibles ; aucune migration destructive n’est requise.
+
+## Delta v0.29.24 — réconciliation gouvernée ITRM
+
+- Ajout de REQ-00759 : ITRM expose une réconciliation gouvernée en dry-run et apply contrôlé.
+- Ajout de TST-ITRM-062 : tests service, API, CLI, frontend et audit pour verrouiller `reconcile-object`, `/api/v1/itrm/reconcile-object`, conflits non autoritatifs et application autoritative.
+- Les mises à jour non autoritatives rejetées ne sont jamais appliquées ; les plans et applications sont auditables par objet.

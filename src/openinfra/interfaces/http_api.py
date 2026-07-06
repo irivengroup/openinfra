@@ -102,6 +102,7 @@ from openinfra.application.it_resources_management_services import (
     ListSourceObjectAuditCommand,
     ListSourceObjectsCommand,
     ListSourceRelationsCommand,
+    ReconcileSourceObjectCommand,
     UpsertSourceObjectCommand,
 )
 from openinfra.application.security_services import (
@@ -1334,6 +1335,37 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
+        if route == "/api/v1/sot/reconcile-object":
+            try:
+                payload = self._read_json_body()
+                tags_payload = payload.get("tags")
+                if tags_payload is not None and not isinstance(tags_payload, list):
+                    raise OpenInfraError("tags must be a list")
+                result = self.server.application.it_resources_management_service.reconcile_object(
+                    ReconcileSourceObjectCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        key=str(payload["key"]),
+                        attributes_json=json.dumps(payload.get("attributes", {}), sort_keys=True),
+                        source=str(payload["source"]),
+                        display_name=(
+                            str(payload["display_name"])
+                            if payload.get("display_name") is not None
+                            else None
+                        ),
+                        tags=tuple(str(tag) for tag in tags_payload)
+                        if tags_payload is not None
+                        else None,
+                        apply=bool(payload.get("apply", False)),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
         if route == "/api/v1/sot/objects":
             try:
                 payload = self._read_json_body()
@@ -2199,6 +2231,7 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "object_versions": "/api/v1/itrm/object-versions",
                     "object_as_of": "/api/v1/itrm/object-as-of",
                     "object_audit": "/api/v1/itrm/object-audit",
+                    "reconcile_object": "/api/v1/itrm/reconcile-object",
                     "relations": "/api/v1/itrm/relations",
                     "governance_rules": "/api/v1/itrm/governance-rules",
                     "quality_object": "/api/v1/itrm/quality/object",

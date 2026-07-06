@@ -173,6 +173,19 @@ const OPENINFRA_MODULES = [
       { name: "incoming_serial", label: "Serial entrant", target: "incoming_attributes.serial" },
       { name: "existing_site", label: "Site existant", target: "existing_attributes.site" },
       { name: "incoming_site", label: "Site entrant", target: "incoming_attributes.site" }
+    ] },
+    { id: "itrm-reconcile", label: "Réconcilier une ressource", method: "POST", path: "/v1/itrm/reconcile-object", body: [
+      FIELD_SETS.actor,
+      FIELD_SETS.riKey,
+      FIELD_SETS.source,
+      { name: "display_name", label: "Nom affiché cible", placeholder: "srv-db-01 réconcilié" },
+      FIELD_SETS.serial,
+      FIELD_SETS.vendor,
+      FIELD_SETS.model,
+      FIELD_SETS.site,
+      FIELD_SETS.rack,
+      FIELD_SETS.tags,
+      { name: "apply", label: "Appliquer le plan", type: "boolean" }
     ] }
   ] },
   { id: "ipam", label: "IPAM", icon: "grid", description: "Préfixes, VLANs, VRF, réservations, conflits, capacité et allocations.", operations: [

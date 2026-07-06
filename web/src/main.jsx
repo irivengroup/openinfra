@@ -19,6 +19,7 @@ const MODULES = [
     { id: 'itrm-upsert', label: 'Créer / mettre à jour une ressource', path: '/v1/itrm/objects', method: 'POST', fields: ['Opérateur', 'Clé ITRM', 'Type de ressource', 'Nom affiché', 'Source autoritative', 'Numéro de série', 'Constructeur', 'Modèle', 'Site', 'Bâtiment', 'Salle', 'Ligne salle', 'Colonne salle', 'Rack', 'IP de management', 'État cycle de vie', 'Tags'] },
     { id: 'itrm-as-of', label: 'Restituer une ressource à date', path: '/v1/itrm/object-as-of', method: 'GET', fields: ['Clé ITRM', 'Date ISO-8601'] },
     { id: 'itrm-object-audit', label: 'Audit d’une ressource', path: '/v1/itrm/object-audit', method: 'GET', fields: ['Clé ITRM', 'Limite'] },
+    { id: 'itrm-reconcile', label: 'Réconcilier une ressource', path: '/v1/itrm/reconcile-object', method: 'POST', fields: ['Opérateur', 'Clé ITRM', 'Source entrante', 'Nom affiché cible', 'Numéro de série', 'Constructeur', 'Modèle', 'Site', 'Rack', 'Tags', 'Appliquer le plan'] },
   ] },
   { id: 'ipam', label: 'IPAM', icon: 'grid', operations: [{ id: 'ipam-search', label: 'Rechercher dans l’IPAM', path: '/v1/ipam/ui-search', method: 'GET', fields: ['Recherche', 'VRF'] }] },
   { id: 'dcim', label: 'DCIM', icon: 'home', operations: [{ id: 'dcim-rack-capacity', label: 'Capacité rack', path: '/v1/dcim/rack-capacity', method: 'GET', fields: ['Site', 'Bâtiment', 'Salle', 'Rack'] }] },

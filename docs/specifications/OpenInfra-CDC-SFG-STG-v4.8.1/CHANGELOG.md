@@ -1,3 +1,7 @@
+## v4.8.1 / OpenInfra 0.29.24
+
+- Ajout de `REQ-00759` et `TST-ITRM-062` : réconciliation gouvernée ITRM avec dry-run déterministe, apply contrôlé, conflits non autoritatifs non appliqués et audit objet.
+
 ## v4.8.1 / OpenInfra 0.29.23
 
 - Ajout de `REQ-00758` et `TST-ITRM-061` : restitution historique `as-of` ITRM, relations filtrées temporellement et audit par objet.

@@ -151,6 +151,8 @@ class TestOpenInfraWeb:
         assert "requested_scope" in static_js
         assert 'path: "/api/v1/database/schema"' not in static_js
         assert "Numéro de série" in static_js
+        assert 'path: "/v1/itrm/reconcile-object"' in static_js
+        assert "Réconcilier une ressource" in static_js
         assert "Token API" not in static_js
         assert "openinfra-method" not in static_js + static_css
         assert "agents proxy collectors Enterprise uniquement" in static_js

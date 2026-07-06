@@ -84,3 +84,4 @@ Les exigences N1 sont obligatoires. Les exigences N2 structurent les releases su
 
 - **REQ-00750** — Le composant public anciennement nommé Ressources Inventory/RI doit être exposé partout sous le nom IT Ressources Management/ITRM, avec contrats primaires CLI/API/RBAC itrm et alias ri/sot compatibles.
 - **REQ-00751** — Le dashboard d’accueil openinfra-web ne doit pas afficher d’alerte succès permanente de readiness ; les alertes visibles doivent être réservées aux erreurs et aux soumissions de formulaire.
+- **REQ-00759** — ITRM doit exposer une réconciliation gouvernée permettant de planifier ou appliquer une mise à jour d’objet sans écrasement silencieux des attributs protégés.

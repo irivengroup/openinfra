@@ -8,6 +8,7 @@ from openinfra.application.source_of_truth_services import (
     ListSourceObjectAuditCommand,
     ListSourceObjectsCommand,
     ListSourceRelationsCommand,
+    ReconcileSourceObjectCommand,
     SourceOfTruthService,
     UpsertSourceObjectCommand,
 )
@@ -25,6 +26,7 @@ GetITResourceVersionCommand = GetSourceObjectVersionCommand
 GetITResourceAsOfCommand = GetSourceObjectAsOfCommand
 ListITResourceAuditCommand = ListSourceObjectAuditCommand
 CreateITResourceRelationCommand = CreateSourceRelationCommand
+ReconcileITResourceCommand = ReconcileSourceObjectCommand
 
 __all__ = [
     "CreateITResourceRelationCommand",
@@ -40,6 +42,8 @@ __all__ = [
     "ListITResourcesCommand",
     "ListITResourcesRelationsCommand",
     "ListSourceObjectAuditCommand",
+    "ReconcileITResourceCommand",
+    "ReconcileSourceObjectCommand",
     "ListSourceObjectsCommand",
     "ListSourceRelationsCommand",
     "SourceOfTruthService",

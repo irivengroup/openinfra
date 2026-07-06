@@ -1492,3 +1492,10 @@ Le dashboard d’accueil ne présente plus l’alerte succès permanente `Backen
 - `openinfra itrm list-object-audit`, `/api/v1/itrm/object-audit` et le filtre audit `target_id` rendent l’audit consultable par objet.
 - Les formulaires web ITRM exposent ces opérations via le BFF sans token navigateur.
 - La roadmap P09 ajoute `TST-P09-ITRM-AS-OF-AUDIT` et aligne `REQ-00758`.
+
+### Avancement v0.29.24 — P09 réconciliation gouvernée ITRM
+
+- `openinfra itrm reconcile-object` et `/api/v1/itrm/reconcile-object` produisent un plan de réconciliation déterministe avec chemins modifiés, conflits, règles obsolètes, version planifiée et attributs résultants.
+- L’application est explicite via `--apply` ou `apply=true` et ne s’exécute que lorsque les règles de source autoritative acceptent la mise à jour.
+- Les plans refusés et applications acceptées sont auditables par objet via `itrm.reconciliation.plan` et `itrm.reconciliation.apply`.
+- La roadmap P09 ajoute `TST-P09-ITRM-RECONCILIATION` et aligne `REQ-00759`.

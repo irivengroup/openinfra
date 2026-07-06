@@ -21,7 +21,11 @@ from openinfra.domain.common import (
     ValidationError,
 )
 from openinfra.domain.security import Permission
-from openinfra.domain.source_governance import SourceConflictStrategy, SourceGovernanceEvaluator
+from openinfra.domain.source_governance import (
+    SourceConflictStrategy,
+    SourceGovernanceEvaluation,
+    SourceGovernanceEvaluator,
+)
 from openinfra.domain.source_of_truth import (
     SourceObjectKind,
     SourceObjectPage,
@@ -43,6 +47,19 @@ class UpsertSourceObjectCommand:
     attributes_json: str
     tags: tuple[str, ...]
     source: str
+
+
+@dataclass(frozen=True, slots=True)
+class ReconcileSourceObjectCommand:
+    tenant_id: str
+    actor: str
+    admin_token: str
+    key: str
+    attributes_json: str
+    source: str
+    display_name: str | None = None
+    tags: tuple[str, ...] | None = None
+    apply: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -178,6 +195,79 @@ class SourceOfTruthService:
             )
             unit_of_work.commit()
         return source_object.as_dict()
+
+    def reconcile_object(self, command: ReconcileSourceObjectCommand) -> dict[str, object]:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        principal = self._security_service.authenticate_token(
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITRM_WRITE)
+        )
+        incoming_attributes = self._attributes_from_json(command.attributes_json)
+        incoming_source = SourceSystem.from_value(command.source)
+        with self._transaction_manager.begin() as unit_of_work:
+            existing = self._repository.find_object(tenant_id, command.key)
+            if existing is None:
+                raise NotFoundError("source object not found: " + command.key)
+            evaluation = self._evaluate_governance(
+                tenant_id,
+                existing,
+                incoming_attributes,
+                incoming_source.value,
+            )
+            changed_paths = [path.value for path in evaluation.changed_paths]
+            stale_rule_names = [name.value for name in evaluation.stale_rule_names]
+            conflicts = [conflict.as_dict() for conflict in evaluation.conflicts]
+            result: dict[str, object] = {
+                "tenant_id": tenant_id.value,
+                "key": existing.key.value,
+                "kind": existing.kind.value,
+                "incoming_source": incoming_source.value,
+                "accepted": evaluation.accepted,
+                "apply_requested": bool(command.apply),
+                "applied": False,
+                "current_version": existing.version,
+                "planned_version": existing.version + 1 if evaluation.accepted else existing.version,
+                "changed_paths": changed_paths,
+                "stale_rule_names": stale_rule_names,
+                "conflicts": conflicts,
+                "result_attributes": incoming_attributes if evaluation.accepted else existing.attributes,
+            }
+            action = "itrm.reconciliation.plan"
+            if command.apply and evaluation.accepted:
+                revised = existing.revise(
+                    display_name=command.display_name,
+                    attributes=incoming_attributes,
+                    tags=command.tags,
+                    source=incoming_source.value,
+                )
+                self._repository.upsert_object(revised, command.actor)
+                result.update(
+                    {
+                        "applied": True,
+                        "version": revised.version,
+                        "object": revised.as_dict(),
+                    }
+                )
+                action = "itrm.reconciliation.apply"
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=principal.subject,
+                    action=action,
+                    target_type="source_object",
+                    target_id=existing.key.value,
+                    metadata={
+                        "declared_actor": command.actor,
+                        "incoming_source": incoming_source.value,
+                        "accepted": evaluation.accepted,
+                        "apply_requested": bool(command.apply),
+                        "applied": bool(result["applied"]),
+                        "changed_paths": changed_paths,
+                        "conflict_count": len(conflicts),
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return result
 
     def get_object(self, command: GetSourceObjectCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
@@ -354,6 +444,27 @@ class SourceOfTruthService:
             raise ValidationError("attributes must be a JSON object")
         return dict(decoded)
 
+    def _evaluate_governance(
+        self,
+        tenant_id: TenantId,
+        existing: SourceOfTruthObject,
+        incoming_attributes: dict[str, object],
+        incoming_source: str,
+    ) -> SourceGovernanceEvaluation:
+        rules = (
+            self._governance_repository.find_active_rules_for_kind(tenant_id, existing.kind.value)
+            if self._governance_repository is not None
+            else ()
+        )
+        return self._governance_evaluator.evaluate(
+            tenant_id=tenant_id,
+            object_kind=existing.kind,
+            incoming_source=SourceSystem.from_value(incoming_source),
+            existing_attributes=existing.attributes,
+            incoming_attributes=incoming_attributes,
+            rules=rules,
+        )
+
     def _enforce_governance(
         self,
         tenant_id: TenantId,
@@ -361,21 +472,11 @@ class SourceOfTruthService:
         incoming_attributes: dict[str, object],
         incoming_source: str,
     ) -> None:
-        if self._governance_repository is None:
-            return
-        rules = self._governance_repository.find_active_rules_for_kind(
+        evaluation = self._evaluate_governance(
             tenant_id,
-            existing.kind.value,
-        )
-        if not rules:
-            return
-        evaluation = self._governance_evaluator.evaluate(
-            tenant_id=tenant_id,
-            object_kind=existing.kind,
-            incoming_source=SourceSystem.from_value(incoming_source),
-            existing_attributes=existing.attributes,
-            incoming_attributes=incoming_attributes,
-            rules=rules,
+            existing,
+            incoming_attributes,
+            incoming_source,
         )
         blocking = [
             conflict

@@ -1,3 +1,8 @@
+## v2 / OpenInfra 0.29.24
+
+- Ajout de `TST-P09-ITRM-RECONCILIATION` pour verrouiller la réconciliation gouvernée ITRM, le dry-run, l’apply contrôlé et l’audit objet.
+- Alignement P09 avec `REQ-00759`.
+
 ## v2 / OpenInfra 0.29.23
 
 - Ajout de `TST-P09-ITRM-AS-OF-AUDIT` pour verrouiller la restitution historique ITRM, les relations `as_of` et l’audit par objet.

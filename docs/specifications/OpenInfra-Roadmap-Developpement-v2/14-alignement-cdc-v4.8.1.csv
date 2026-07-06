@@ -20,14 +20,15 @@ CDC-AUTH-002,RBAC par groupes,P07,EPIC-0704,REL-04,Mapping groupes→rôles.
 CDC-ITSM-001,Pas d’ITSM intégré,P13,EPIC-1303; EPIC-1304,REL-04,Connecteurs externes seulement.
 CDC-MSITE-001,Multisite Pro/Entreprise,P17,EPIC-1701; EPIC-1702,REL-05/REL-07,Topologies Pro/Entreprise.
 CDC-SUP-001,Garantie/support constructeur obligatoires,P12,EPIC-1202; EPIC-1203,REL-06,Tests non-écrasement.
-P09,REQ-00743;REQ-00744;REQ-00745,ITRM Quality & Certification,Implémenté en v0.29.14
-P08,REQ-00746,openinfra-web Bootstrap 5 Dashboard Theme,Implémenté en v0.29.15
-P08,REQ-00747,openinfra-web formulaires métier et trust server-side,Implémenté en v0.29.16
-P08,REQ-00749,openinfra-web statistiques d’accueil par composant,Implémenté en v0.29.19
-P08,REQ-00750,Renommage transversal ITRM et compatibilité ri/sot,Implémenté en v0.29.19
-P08,REQ-00751,Alertes dashboard limitées aux erreurs et soumissions,Implémenté en v0.29.19
-P08,REQ-00752,openinfra-web formulaires câblés sur vrais contrats API,Implémenté en v0.29.20
-P08,REQ-00753,openinfra-web injection bearer backend server-side non exposée,Implémenté en v0.29.20
-P08,REQ-00754,openinfra-web camemberts dashboard doublés et responsives,Implémenté en v0.29.20
-P08,REQ-00755,openinfra-web titlebar dashboard aérée,Implémenté en v0.29.21
-P08,REQ-00756,openinfra-web fallback bearer bootstrap et erreur BFF sans missing bearer token,Implémenté en v0.29.21
+P09,REQ-00743;REQ-00744;REQ-00745,ITRM Quality & Certification,Implémenté en v0.29.14,,
+P08,REQ-00746,openinfra-web Bootstrap 5 Dashboard Theme,Implémenté en v0.29.15,,
+P08,REQ-00747,openinfra-web formulaires métier et trust server-side,Implémenté en v0.29.16,,
+P08,REQ-00749,openinfra-web statistiques d’accueil par composant,Implémenté en v0.29.19,,
+P08,REQ-00750,Renommage transversal ITRM et compatibilité ri/sot,Implémenté en v0.29.19,,
+P08,REQ-00751,Alertes dashboard limitées aux erreurs et soumissions,Implémenté en v0.29.19,,
+P08,REQ-00752,openinfra-web formulaires câblés sur vrais contrats API,Implémenté en v0.29.20,,
+P08,REQ-00753,openinfra-web injection bearer backend server-side non exposée,Implémenté en v0.29.20,,
+P08,REQ-00754,openinfra-web camemberts dashboard doublés et responsives,Implémenté en v0.29.20,,
+P08,REQ-00755,openinfra-web titlebar dashboard aérée,Implémenté en v0.29.22,,
+P08,REQ-00756,openinfra-web fallback bearer bootstrap et erreur BFF sans missing bearer token,Implémenté en v0.29.22,,
+P08,REQ-00757,openinfra-web statut BFF sans secret et assainissement auth backend,Implémenté en v0.29.22,,

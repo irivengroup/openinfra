@@ -1,45 +1,57 @@
-# OpenInfra v0.29.21 — Validation Report
+# OpenInfra v0.29.22 — Validation Report
 
 ## Scope
 
-- UI: dashboard titlebar vertical spacing, responsive CSS retained in React source and runtime asset.
-- Web BFF: authenticated form proxy no longer propagates a raw backend `missing bearer token` error to the browser.
-- Runtime auth: `OPENINFRA_WEB_BACKEND_BEARER_TOKEN` blank values fall back to `OPENINFRA_BOOTSTRAP_TOKEN` server-side.
-- Quality: Ruff format/check regression fixed for `tests/integration/test_http_api.py` and all impacted files.
+Delivery v0.29.22 hardens `openinfra-web` after v0.29.21:
 
-## Passed validations
+- add `/status` BFF runtime status without secrets;
+- display protected-form status in the dashboard;
+- sanitize backend raw `missing bearer token` responses before returning to the browser;
+- update CDC v4.8.1 and roadmap v2 traceability.
 
-| Validation | Result |
-|---|---:|
-| `python -m compileall -q src tests scripts docker` | PASS |
-| `ruff format --check src tests scripts docker` | PASS |
-| `ruff check src tests scripts docker` | PASS |
-| `mypy src/openinfra` | PASS |
-| `bandit -q -r src/openinfra` | PASS |
-| `python scripts/security_gate.py` | PASS |
-| `python scripts/validate_frontend.py` | PASS |
+## Validation results
+
+| Check | Result |
+| --- | --- |
+| `PYTHONPATH=src python -m compileall -q src scripts tests` | PASS |
+| `PYTHONPATH=src python scripts/security_gate.py --project-root .` | PASS |
+| `PYTHONPATH=src python scripts/validate_frontend.py --project-root .` | PASS |
 | `node --check src/openinfra/interfaces/rendering/static/assets/openinfra-web.js` | PASS |
-| `python -m openinfra version` | PASS — 0.29.21 |
-| `python docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1/scripts/validate_docs.py` | PASS — 756 requirements, 519 entities |
-| `python docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1/scripts/validate_storage_multisite.py` | PASS — 756 requirements |
-| `python docs/specifications/OpenInfra-Roadmap-Developpement-v2/scripts/validate_roadmap.py` | PASS — 19 phases, 114 epics, 8 gates, 31 tests |
-| `python scripts/validate_enterprise_alignment.py` | PASS |
-| `python scripts/validate_autonomous_installer.py` | PASS — 6 profiles |
-| `python scripts/native_runtime_smoke.py` | PASS |
-| targeted web/API regression tests | PASS — 33 tests |
-| full pytest by batches with combined coverage | PASS — 393 tests, 98% coverage |
-| `python scripts/quality_gate.py` | PASS |
-| `python -m build` | PASS |
-| `python scripts/verify_artifact.py dist/openinfra-0.29.21-py3-none-any.whl` | PASS |
+| `PYTHONPATH=src python -m openinfra.interfaces.cli version` | PASS — 0.29.22 |
+| `PYTHONPATH=src python -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1` | PASS — 757 requirements, 562 tests |
+| `PYTHONPATH=src python scripts/validate_enterprise_alignment.py --project-root .` | PASS |
+| `PYTHONPATH=src python -m openinfra.interfaces.cli installer validate --root installers` | PASS — 6 profiles |
+| `PYTHONPATH=src python -m openinfra.interfaces.cli installer dry-run --root installers` | PASS |
+| `PYTHONPATH=src python scripts/validate_autonomous_installer.py --root installers` | PASS — 6 profiles |
+| `PYTHONPATH=src python scripts/native_runtime_smoke.py` | PASS |
+| `python docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1/scripts/validate_storage_multisite.py` | PASS — 757 requirements |
+| `PYTHONPATH=src python -m pytest --collect-only --no-cov` | PASS — 394 tests collected |
+| `PYTHONPATH=src python -m pytest ... --cov-append --cov-fail-under=0` | PASS — 394 tests executed in batches |
+| `python -m coverage report --fail-under=98` | PASS — 98% |
+| `PYTHONPATH=src python scripts/quality_gate.py` | PASS |
+
+## Batch test execution
+
+The complete test suite was executed by batches because a single monolithic `pytest` run timed out in the interactive environment. Coverage data was combined with `coverage append` and then checked globally.
+
+Executed batches:
+
+- `tests/unit` — 149 tests;
+- `tests/integration` batch 1 — 50 tests;
+- `tests/integration` batch 2 — 69 tests;
+- `tests/integration` batch 3 — 67 tests;
+- `tests/integration` batch 4 — 56 tests;
+- `tests/architecture` — 3 tests.
 
 ## Not executed locally
 
-| Validation | Reason |
-|---|---|
-| `pip-audit -r requirements/runtime.txt` | Failed due environment DNS/network unavailability while querying PyPI vulnerability metadata. |
-| `npm run build` | `web/node_modules` absent in the execution environment. Runtime JS syntax was still checked with `node --check`. |
-| Docker Compose live runtime | Docker daemon unavailable in the execution environment. |
-
-## Notes
-
-The single CI failure reported by the user, `ruff format --check src tests scripts docker`, has been corrected and revalidated. The final archive excludes caches, coverage files, build outputs and temporary artifacts.
+| Check | Reason |
+| --- | --- |
+| `ruff format --check src tests scripts docker` | `ruff` is not installed in this environment |
+| `ruff check src tests scripts docker` | `ruff` is not installed in this environment |
+| `mypy src/openinfra` | `mypy` is not installed in this environment |
+| `bandit -q -r src/openinfra` | `bandit` is not installed in this environment |
+| `pip-audit --dry-run` | `pip-audit` is not installed in this environment |
+| `python -m build` | `build` is not installed in this environment |
+| `npm run build` | `web/node_modules` is absent |
+| Docker Compose live smoke | Docker is unavailable in this environment |

@@ -281,7 +281,7 @@ body {
   font-weight: 600;
 }
 
-/* v0.29.21: responsive component metrics, doubled pie charts, and airy dashboard titlebar spacing. */
+/* v0.29.22: responsive component metrics, doubled pie charts, and airy dashboard titlebar spacing. */
 .openinfra-overview-summary,
 .openinfra-component-card {
   border: 1px solid var(--openinfra-border);

@@ -54,6 +54,8 @@ class FrontendContractValidator:
             or "openinfra-accordion" not in main_source
             or "Statistiques des composants OpenInfra" not in main_source
             or "openinfra-pie-chart" not in main_source
+            or "fetch('/status'" not in main_source
+            or "Formulaires" not in main_source
             or "Numéro de série" not in main_source
             or "Token API" in main_source
         ):
@@ -136,6 +138,8 @@ class FrontendContractValidator:
             "padding-block: clamp(1rem, 2vw, 1.75rem)",
             "openinfra-titlebar h1",
             "--openinfra-pie-size: clamp(8rem, 14vw, 10.5rem)",
+            'fetch("/status"',
+            "Formulaires protégés",
             "/v1/ipam/ui-search",
             "idempotency_key",
             "endpoint_url",

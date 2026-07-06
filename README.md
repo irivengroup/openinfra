@@ -1,17 +1,17 @@
-# OpenInfra v0.29.21
+# OpenInfra v0.29.22
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.21 — openinfra-web dashboard aéré, formulaires métier câblés sur les vrais contrats backend, injection serveur optionnelle du jeton backend, camemberts responsive, Bootstrap 5 Dashboard, ITRM Quality & Certification, agents proxy Enterprise et backend API-only.**
+**Version courante : 0.29.22 — openinfra-web expose un statut BFF sans secret, assainit les erreurs backend `missing bearer token`, conserve les formulaires métier câblés sur les vrais contrats backend, l’injection serveur optionnelle du jeton backend, les camemberts responsive, Bootstrap 5 Dashboard, ITRM Quality & Certification, agents proxy Enterprise et backend API-only.**
 
 
 
-### v0.29.21 — aération de la titlebar du dashboard
+### v0.29.22 — statut BFF web et assainissement des erreurs auth
 
-- La zone titre `Dashboard de pilotage OpenInfra` gagne un espacement vertical responsive autour du titre et du sous-titre.
-- La règle CSS `padding-block: clamp(1rem, 2vw, 1.75rem)` rend l’aération lisible sur desktop sans dégrader les écrans mobiles.
-- Les sources React, les assets runtime et les validateurs frontend vérifient la présence de cette titlebar aérée.
-- Les formulaires web authentifiés utilisent systématiquement le bearer server-side effectif ; si aucun jeton n’est configuré, `openinfra-web` retourne une erreur BFF explicite au lieu de propager `missing bearer token`.
+- `openinfra-web` expose `/status`, un endpoint de diagnostic sans secret indiquant le trust server-side, l’état des formulaires protégés et la configuration bearer backend sous forme `configured` / `not-configured`.
+- Le dashboard affiche un indicateur discret `Formulaires protégés` alimenté par `/status`.
+- Si le backend renvoie une erreur brute `missing bearer token`, le proxy web retourne une erreur BFF assainie au navigateur.
+- La zone titre `Dashboard de pilotage OpenInfra` conserve l’espacement vertical responsive autour du titre et du sous-titre.
 
 ### v0.29.20 — formulaires web fonctionnels et camemberts responsive
 

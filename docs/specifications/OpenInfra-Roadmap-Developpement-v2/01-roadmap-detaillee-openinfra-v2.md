@@ -1473,8 +1473,13 @@ Le dashboard d’accueil ne présente plus l’alerte succès permanente `Backen
 - Les camemberts de l’accueil sont doublés et responsives via `clamp()` avec règle mobile dédiée.
 
 
-### Avancement v0.29.21 — titlebar dashboard aérée
+### Avancement v0.29.22 — titlebar dashboard aérée
 
 - La titlebar `Dashboard de pilotage OpenInfra` gagne un espacement vertical responsive autour du titre et du sous-titre.
 - Les sources React et les assets runtime CSS sont alignés afin que le rendu servi par `openinfra-web` corresponde au rendu de développement.
 - Les validateurs frontend et tests d’intégration verrouillent la règle `padding-block: clamp(1rem, 2vw, 1.75rem)`.
+### Avancement v0.29.22 — statut BFF web sans secret
+
+- `openinfra-web` expose `/status` pour diagnostiquer les formulaires protégés et le trust server-side sans fuite de secret.
+- Le proxy assainit les erreurs backend brutes `missing bearer token` avant retour navigateur.
+- La roadmap P08 ajoute `TST-P08-WEB-BFF-STATUS`.

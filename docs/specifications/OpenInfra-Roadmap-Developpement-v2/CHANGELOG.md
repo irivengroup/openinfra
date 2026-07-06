@@ -1,4 +1,4 @@
-## v2 / OpenInfra 0.29.21
+## v2 / OpenInfra 0.29.22
 
 - Ajout de `TST-P08-WEB-TITLEBAR-SPACING` pour verrouiller l’aération verticale responsive de la titlebar dashboard.
 - Ajout de `TST-P08-WEB-BEARER-FALLBACK` pour verrouiller le fallback `OPENINFRA_BOOTSTRAP_TOKEN` et l’absence d’erreur brute `missing bearer token` côté web.

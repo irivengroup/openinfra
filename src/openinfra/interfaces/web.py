@@ -52,6 +52,32 @@ class OpenInfraWebConfig:
             "databaseTrust": "server-side" if self.has_database_trust() else "not-configured",
         }
 
+    def as_status_dict(self) -> dict[str, object]:
+        backend_bearer_configured = bool(self.backend_bearer_token)
+        protected_forms = "enabled" if backend_bearer_configured else "blocked-by-missing-server-bearer"
+        status: dict[str, object] = {
+            "service": "openinfra-web",
+            "version": __version__,
+            "ready": True,
+            "backendProxy": "/api",
+            "backendOrigin": "configured",
+            "protectedForms": protected_forms,
+            "trust": {
+                "webBackend": "server-side",
+                "database": "server-side" if self.has_database_trust() else "not-configured",
+                "backendBearer": "configured" if backend_bearer_configured else "not-configured",
+            },
+        }
+        if not backend_bearer_configured:
+            status["remediation"] = {
+                "environment": [
+                    "OPENINFRA_WEB_BACKEND_BEARER_TOKEN",
+                    "OPENINFRA_BOOTSTRAP_TOKEN",
+                ],
+                "message": "configure a server-side backend bearer token for protected forms",
+            }
+        return status
+
 
 class OpenInfraWebConfigFactory:
     def from_args(self, argv: list[str] | None = None) -> OpenInfraWebConfig:
@@ -269,7 +295,7 @@ class OpenInfraBackendProxy:
                     handler, response.status, response.headers, response.read()
                 )
         except error.HTTPError as exc:
-            self._send_proxy_response(handler, exc.code, exc.headers, exc.read())
+            self._send_upstream_error(handler, exc)
         except error.URLError as exc:
             OpenInfraWebJsonResponder(handler).send(
                 HTTPStatus.BAD_GATEWAY, {"error": "backend unavailable", "reason": str(exc.reason)}
@@ -327,6 +353,29 @@ class OpenInfraBackendProxy:
             raise OpenInfraError("request body exceeds OpenInfra web proxy limit")
         return handler.rfile.read(length)
 
+    def _send_upstream_error(self, handler: BaseHTTPRequestHandler, exc: error.HTTPError) -> None:
+        body = exc.read()
+        if self._is_raw_missing_bearer_error(body):
+            OpenInfraWebJsonResponder(handler).send(
+                HTTPStatus.BAD_GATEWAY,
+                {
+                    "error": "backend authentication failed through openinfra-web",
+                    "reason": "server-side backend bearer token was not accepted by the API",
+                },
+            )
+            return
+        self._send_proxy_response(handler, exc.code, exc.headers, body)
+
+    def _is_raw_missing_bearer_error(self, body: bytes) -> bool:
+        try:
+            payload = json.loads(body.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return False
+        if not isinstance(payload, dict):
+            return False
+        message = str(payload.get("error", "")).strip().lower()
+        return message == "missing bearer token"
+
     def _send_proxy_response(
         self, handler: BaseHTTPRequestHandler, status_code: int, headers: Any, body: bytes
     ) -> None:
@@ -377,6 +426,9 @@ class OpenInfraWebRequestHandler(BaseHTTPRequestHandler):
             return
         if route == "/config.json":
             self._json(HTTPStatus.OK, self.server.config.as_public_dict())
+            return
+        if route == "/status":
+            self._json(HTTPStatus.OK, self.server.config.as_status_dict())
             return
         if route == "/openapi.yaml" or route.startswith("/api/"):
             self._handle_proxy_request()

@@ -207,6 +207,7 @@ class OpenInfraDashboard {
       tenant: "default",
       config: null,
       ready: null,
+      status: null,
       version: null,
       result: null,
       error: null
@@ -225,11 +226,12 @@ class OpenInfraDashboard {
         throw new Error(`Configuration unavailable: ${configResponse.status}`);
       }
       const config = await configResponse.json();
-      const [version, ready] = await Promise.all([
+      const [version, ready, status] = await Promise.all([
         fetch("/version", { credentials: "same-origin", headers: { Accept: "application/json" } }).then((response) => response.ok ? response.json() : { version: config.version }),
-        fetch("/ready", { credentials: "same-origin", headers: { Accept: "application/json" } }).then((response) => response.ok ? response.json() : { ready: false })
+        fetch("/ready", { credentials: "same-origin", headers: { Accept: "application/json" } }).then((response) => response.ok ? response.json() : { ready: false }),
+        fetch("/status", { credentials: "same-origin", headers: { Accept: "application/json" } }).then((response) => response.ok ? response.json() : { protectedForms: "unknown", trust: {} })
       ]);
-      this.state = { ...this.state, config, version, ready, error: null };
+      this.state = { ...this.state, config, version, ready, status, error: null };
     } catch (error) {
       this.state = { ...this.state, error };
     }
@@ -268,9 +270,10 @@ class OpenInfraDashboard {
   }
 
   render() {
-    const { activeModuleId, selected, config, ready, version, error, result } = this.state;
+    const { activeModuleId, selected, config, ready, status, version, error, result } = this.state;
     const operationsCount = OPENINFRA_MODULES.reduce((total, module) => total + module.operations.length, 0);
     const displayedVersion = version?.version || config?.version || "indisponible";
+    const protectedForms = status?.protectedForms === "enabled" ? "actifs" : "à configurer";
     this.root.innerHTML = `
       <header>
         <div class="px-3 py-2 bg-dark text-white openinfra-top-header">
@@ -300,6 +303,7 @@ class OpenInfraDashboard {
               <p><span class="openinfra-status-dot ${ready?.ready === true ? "ready" : "warning"}"></span>Backend ${ready?.ready === true ? "prêt" : "à vérifier"}</p>
               <p>Version : <strong>${this.escape(displayedVersion)}</strong></p>
               <p>Trust web/backend : <strong>${this.escape(config?.webBackendTrust || "server-side")}</strong></p>
+              <p>Formulaires protégés : <strong>${this.escape(protectedForms)}</strong></p>
             </div>
           </nav>
           <main class="col-lg-9 col-xl-10 ms-sm-auto openinfra-main">
@@ -313,6 +317,7 @@ class OpenInfraDashboard {
               ${this.metric("Version", this.escape(displayedVersion))}
               ${this.metric("API", this.escape(config?.apiBaseUrl || "/api"))}
               ${this.metric("Trust", this.escape(config?.webBackendTrust || "server-side"))}
+              ${this.metric("Formulaires", this.escape(protectedForms))}
               ${this.metric("Modules", `${operationsCount} opérations`)}
             </div>
             ${this.renderWorkspace(selected, result)}

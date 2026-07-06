@@ -66,6 +66,9 @@ class BackendFakeHandler(BaseHTTPRequestHandler):
                 },
             )
             return
+        if self.path == "/api/v1/raw-missing-bearer":
+            self._json(HTTPStatus.UNAUTHORIZED, {"error": "missing bearer token"})
+            return
         self._json(HTTPStatus.NOT_FOUND, {"error": self.path})
 
     def _json(self, status: HTTPStatus, payload: dict[str, Any]) -> None:
@@ -106,6 +109,7 @@ class TestOpenInfraWeb:
                 static_css = self._get_text(web.base_url + "/assets/openinfra-web.css")
                 static_js = self._get_text(web.base_url + "/assets/openinfra-web.js")
                 public_config = self._get_json(web.base_url + "/config.json")
+                bff_status = self._get_json(web.base_url + "/status")
                 readiness = self._get_json(web.base_url + "/ready")
                 version = self._get_json(web.base_url + "/api/v1/version")
                 web_version = self._get_json(web.base_url + "/version")
@@ -137,6 +141,8 @@ class TestOpenInfraWeb:
         assert "padding-block: clamp(1rem, 2vw, 1.75rem)" in static_css
         assert "openinfra-titlebar h1" in static_css
         assert "--openinfra-pie-size: clamp(8rem, 14vw, 10.5rem)" in static_css
+        assert "Formulaires protégés" in static_js
+        assert 'fetch("/status"' in static_js
         assert "@media (max-width: 575.98px)" in static_css
         assert "Camembert" in static_js
         assert 'path: "/v1/ipam/ui-search"' in static_js
@@ -161,6 +167,9 @@ class TestOpenInfraWeb:
             "webBackendTrust": "server-side",
         }
         assert readiness["ready"] is True
+        assert bff_status["protectedForms"] == "enabled"
+        assert bff_status["trust"]["backendBearer"] == "configured"
+        assert "server-side-secret" not in json.dumps(bff_status, sort_keys=True)
         assert version["version"] == __version__
         assert web_version["version"] == __version__
         assert "openapi: 3.1.0" in openapi
@@ -276,12 +285,31 @@ class TestOpenInfraWeb:
         with RunningServer(ThreadingHTTPServer(("127.0.0.1", 0), BackendFakeHandler)) as backend:
             config = self._config(backend.base_url)
             with RunningServer(OpenInfraWebServer(("127.0.0.1", 0), config)) as web:
+                status = self._get_json(web.base_url + "/status")
                 with pytest.raises(urllib.error.HTTPError) as exc:
                     self._post_json(web.base_url + "/api/v1/echo", {"tenant_id": "default"})
                 payload = json.loads(exc.value.read().decode("utf-8"))
 
+        assert status["protectedForms"] == "blocked-by-missing-server-bearer"
+        assert status["trust"]["backendBearer"] == "not-configured"
+        assert "OPENINFRA_BOOTSTRAP_TOKEN" in status["remediation"]["environment"]
         assert exc.value.code == HTTPStatus.SERVICE_UNAVAILABLE.value
         assert payload["error"] == "web backend bearer token is not configured"
+        assert "missing bearer token" not in json.dumps(payload)
+
+    def test_web_proxy_sanitizes_backend_raw_missing_bearer_response(self) -> None:
+        with RunningServer(ThreadingHTTPServer(("127.0.0.1", 0), BackendFakeHandler)) as backend:
+            config = self._config(backend.base_url, backend_bearer_token=_test_server_side_bearer())
+            with RunningServer(OpenInfraWebServer(("127.0.0.1", 0), config)) as web:
+                with pytest.raises(urllib.error.HTTPError) as exc:
+                    self._post_json(web.base_url + "/api/v1/raw-missing-bearer", {})
+                payload = json.loads(exc.value.read().decode("utf-8"))
+
+        assert exc.value.code == HTTPStatus.BAD_GATEWAY.value
+        assert payload == {
+            "error": "backend authentication failed through openinfra-web",
+            "reason": "server-side backend bearer token was not accepted by the API",
+        }
         assert "missing bearer token" not in json.dumps(payload)
 
     def test_entrypoint_returns_success_and_keyboard_interrupt(

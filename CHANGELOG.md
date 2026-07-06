@@ -1,3 +1,11 @@
+## 0.29.22 - 2026-07-06
+
+- Ajoute le endpoint `openinfra-web` `/status` pour diagnostiquer le trust BFF server-side, l’état des formulaires protégés et la configuration bearer backend sans exposer de secret.
+- Assainit toute erreur backend brute `missing bearer token` propagée par l’API : le navigateur reçoit une erreur BFF explicite, sans message technique backend.
+- Affiche dans le dashboard un indicateur discret `Formulaires protégés` alimenté par `/status`.
+- Renforce `validate_frontend.py` et les tests d’intégration web sur `/status`, non-exposition du bearer et assainissement des erreurs d’authentification.
+- Conserve l’aération responsive de la titlebar dashboard introduite en v0.29.21.
+
 ## 0.29.21 - 2026-07-06
 
 - Aère la titlebar du dashboard `openinfra-web` avec un espacement vertical responsive autour du titre et du sous-titre.

@@ -1,4 +1,4 @@
-# OpenInfra Web v0.29.21
+# OpenInfra Web v0.29.22
 
 OpenInfra Web est le portail `openinfra-web` API-only. Il sert l'interface React/Bootstrap 5, expose un proxy applicatif `/api/*` vers le backend `openinfra-api` et fournit un dashboard de pilotage aligné sur les domaines CLI.
 
@@ -34,7 +34,7 @@ Dans OpenInfra, `agent` signifie exclusivement proxy collector Enterprise, simil
 
 ## Docker Compose
 
-Le service Compose `openinfra-web` dépend de `api:8080`, écoute par défaut sur `127.0.0.1:2006` et sert `/health`, `/ready`, `/config.json` et les assets web.
+Le service Compose `openinfra-web` dépend de `api:8080`, écoute par défaut sur `127.0.0.1:2006` et sert `/health`, `/ready`, `/status`, `/config.json` et les assets web.
 
 ## Installation native
 
@@ -76,8 +76,14 @@ En runtime Docker, une valeur vide de `OPENINFRA_WEB_BACKEND_BEARER_TOKEN` est t
 Les camemberts du dashboard d’accueil sont doublés et adaptatifs : `--openinfra-pie-size` utilise `clamp(8rem, 14vw, 10.5rem)` en desktop/tablette et une règle mobile dédiée en dessous de 576 px.
 
 
-## v0.29.21 — titlebar dashboard aérée
+## v0.29.22 — titlebar dashboard aérée
 
 La zone `Dashboard de pilotage OpenInfra` utilise un espacement vertical responsive pour éviter un rendu compact du titre et du sous-titre. La règle produit `padding-block: clamp(1rem, 2vw, 1.75rem)` est appliquée à `.openinfra-titlebar`, avec un interligne renforcé sur le texte descriptif.
 
 Cette correction est appliquée aux sources React et aux assets runtime servis par `openinfra-web`; elle est verrouillée par `validate_frontend.py` et les tests d’intégration serveur web.
+
+## v0.29.22 — statut BFF sans secret et assainissement auth backend
+
+`openinfra-web` expose désormais `/status`, un statut BFF destiné à l’exploitation. Il indique l’état des formulaires protégés, le trust web/backend server-side, le trust base de données et la présence d’un bearer backend server-side sans jamais sérialiser la valeur du secret. En absence de bearer, le statut retourne une remédiation explicite vers `OPENINFRA_WEB_BACKEND_BEARER_TOKEN` ou `OPENINFRA_BOOTSTRAP_TOKEN`.
+
+Le proxy web assainit aussi les erreurs d’authentification backend : une réponse brute `missing bearer token` issue de l’API n’est pas renvoyée telle quelle au navigateur. L’opérateur reçoit une erreur BFF explicite indiquant que l’authentification backend via `openinfra-web` a échoué.

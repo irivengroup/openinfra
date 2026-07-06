@@ -98,6 +98,14 @@ from openinfra.application.it_resources_management_quality_services import (
     EvaluateItrmObjectQualityCommand,
     ItrmQualitySummaryCommand,
 )
+from openinfra.application.it_resources_management_services import (
+    CreateSourceRelationCommand,
+    GetSourceObjectCommand,
+    GetSourceObjectVersionCommand,
+    ListSourceObjectsCommand,
+    ListSourceRelationsCommand,
+    UpsertSourceObjectCommand,
+)
 from openinfra.application.security_services import (
     AuthenticateTokenCommand,
     BootstrapTokenCommand,
@@ -110,14 +118,6 @@ from openinfra.application.source_governance_services import (
     DeactivateSourceGovernanceRuleCommand,
     EvaluateSourceGovernanceCommand,
     ListSourceGovernanceRulesCommand,
-)
-from openinfra.application.it_resources_management_services import (
-    CreateSourceRelationCommand,
-    GetSourceObjectCommand,
-    GetSourceObjectVersionCommand,
-    ListSourceObjectsCommand,
-    ListSourceRelationsCommand,
-    UpsertSourceObjectCommand,
 )
 from openinfra.domain.access_policy import AccessRequestContext
 from openinfra.domain.authentication import ExternalDirectoryConfig
@@ -508,7 +508,9 @@ class OpenInfraCLI:
         import_subparsers = imports.add_subparsers(dest="import_command", required=True)
         dataset = import_subparsers.add_parser(
             "dataset",
-            help="validate or apply a mapped CSV, JSON or XLSX dataset into IT Ressources Management",
+            help=(
+                "validate or apply a mapped CSV, JSON or XLSX dataset into IT Ressources Management"
+            ),
         )
         self._add_backend_arguments(dataset)
         dataset.add_argument("--tenant", required=True)
@@ -577,7 +579,8 @@ class OpenInfraCLI:
         migration_plan = import_subparsers.add_parser(
             "migration-plan",
             help=(
-                "simulate a legacy inventory migration and persist a gap report without mutating ITRM"
+                "simulate a legacy inventory migration and persist a gap report "
+                "without mutating ITRM"
             ),
         )
         self._add_backend_arguments(migration_plan)

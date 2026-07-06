@@ -1,3 +1,10 @@
+## 0.29.21 - 2026-07-06
+
+- Aère la titlebar du dashboard `openinfra-web` avec un espacement vertical responsive autour du titre et du sous-titre.
+- Synchronise les sources React, les assets runtime CSS et les validateurs frontend pour verrouiller le rendu servi.
+- Ajoute une régression web empêchant le retour d’une titlebar trop compacte.
+- Corrige le chaînage BFF authentifié : un `OPENINFRA_WEB_BACKEND_BEARER_TOKEN` vide bascule sur `OPENINFRA_BOOTSTRAP_TOKEN`, et le navigateur ne reçoit plus d’erreur brute `missing bearer token`.
+
 ## 0.29.20 - 2026-07-06
 
 - Fixed openinfra-web form submission contracts by aligning dashboard operations with backend `/api/v1/*` routes through the server-side proxy.

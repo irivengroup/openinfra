@@ -1,10 +1,17 @@
-# OpenInfra v0.29.20
+# OpenInfra v0.29.21
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.20 — openinfra-web formulaires métier câblés sur les vrais contrats backend, injection serveur optionnelle du jeton backend, dashboard d’accueil enrichi avec camemberts responsive, Bootstrap 5 Dashboard, ITRM Quality & Certification, agents proxy Enterprise et backend API-only.**
+**Version courante : 0.29.21 — openinfra-web dashboard aéré, formulaires métier câblés sur les vrais contrats backend, injection serveur optionnelle du jeton backend, camemberts responsive, Bootstrap 5 Dashboard, ITRM Quality & Certification, agents proxy Enterprise et backend API-only.**
 
 
+
+### v0.29.21 — aération de la titlebar du dashboard
+
+- La zone titre `Dashboard de pilotage OpenInfra` gagne un espacement vertical responsive autour du titre et du sous-titre.
+- La règle CSS `padding-block: clamp(1rem, 2vw, 1.75rem)` rend l’aération lisible sur desktop sans dégrader les écrans mobiles.
+- Les sources React, les assets runtime et les validateurs frontend vérifient la présence de cette titlebar aérée.
+- Les formulaires web authentifiés utilisent systématiquement le bearer server-side effectif ; si aucun jeton n’est configuré, `openinfra-web` retourne une erreur BFF explicite au lieu de propager `missing bearer token`.
 
 ### v0.29.20 — formulaires web fonctionnels et camemberts responsive
 

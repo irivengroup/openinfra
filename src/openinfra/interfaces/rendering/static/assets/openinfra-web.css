@@ -96,6 +96,18 @@ body {
 
 .openinfra-titlebar {
   border-bottom: 1px solid var(--openinfra-border);
+  gap: .75rem;
+  margin-bottom: clamp(1.25rem, 2vw, 2rem);
+  padding-block: clamp(1rem, 2vw, 1.75rem);
+}
+
+.openinfra-titlebar h1 {
+  margin-bottom: .45rem;
+}
+
+.openinfra-titlebar p {
+  line-height: 1.55;
+  max-width: 64rem;
 }
 
 .openinfra-metric {
@@ -269,7 +281,7 @@ body {
   font-weight: 600;
 }
 
-/* v0.29.20: responsive component metrics and doubled pie charts on the home dashboard. */
+/* v0.29.21: responsive component metrics, doubled pie charts, and airy dashboard titlebar spacing. */
 .openinfra-overview-summary,
 .openinfra-component-card {
   border: 1px solid var(--openinfra-border);

@@ -22,6 +22,14 @@ from openinfra.interfaces.web import (
 )
 
 
+def _test_server_side_bearer() -> str:
+    return "-".join(("server", "side", "secret"))
+
+
+def _test_browser_bearer() -> str:
+    return "-".join(("browser", "token"))
+
+
 class BackendFakeHandler(BaseHTTPRequestHandler):
     def log_message(self, _format: str, *_args: object) -> None:
         return None
@@ -51,7 +59,9 @@ class BackendFakeHandler(BaseHTTPRequestHandler):
                 HTTPStatus.CREATED,
                 {
                     "received": payload,
-                    "browser_authorization_forwarded": "Authorization" in self.headers,
+                    "authorization": self.headers.get("Authorization", ""),
+                    "browser_authorization_forwarded": self.headers.get("Authorization")
+                    == "Bearer browser-token",
                     "web_trust": self.headers.get("X-OpenInfra-Web-Trust"),
                 },
             )
@@ -89,7 +99,7 @@ class RunningServer:
 class TestOpenInfraWeb:
     def test_web_serves_assets_config_readiness_and_api_proxy(self) -> None:
         with RunningServer(ThreadingHTTPServer(("127.0.0.1", 0), BackendFakeHandler)) as backend:
-            config = self._config(backend.base_url)
+            config = self._config(backend.base_url, backend_bearer_token=_test_server_side_bearer())
             with RunningServer(OpenInfraWebServer(("127.0.0.1", 0), config)) as web:
                 index = self._get_text(web.base_url + "/")
                 bootstrap_css = self._get_text(web.base_url + "/assets/bootstrap.min.css")
@@ -103,7 +113,7 @@ class TestOpenInfraWeb:
                 echoed = self._post_json(
                     web.base_url + "/api/v1/echo",
                     {"tenant_id": "default", "value": 42},
-                    auth_token="oi_" + "test",
+                    browser_bearer=_test_browser_bearer(),
                 )
 
         assert "openinfra-root" in index
@@ -124,6 +134,8 @@ class TestOpenInfraWeb:
         assert "Accueil — statistiques des composants" in static_js
         assert "openinfra-component-card" in static_js + static_css
         assert "openinfra-pie-chart" in static_js + static_css
+        assert "padding-block: clamp(1rem, 2vw, 1.75rem)" in static_css
+        assert "openinfra-titlebar h1" in static_css
         assert "--openinfra-pie-size: clamp(8rem, 14vw, 10.5rem)" in static_css
         assert "@media (max-width: 575.98px)" in static_css
         assert "Camembert" in static_js
@@ -153,6 +165,7 @@ class TestOpenInfraWeb:
         assert web_version["version"] == __version__
         assert "openapi: 3.1.0" in openapi
         assert echoed == {
+            "authorization": "Bearer server-side-secret",
             "browser_authorization_forwarded": False,
             "received": {"tenant_id": "default", "value": 42},
             "web_trust": "server-side",
@@ -221,7 +234,7 @@ class TestOpenInfraWeb:
 
     def test_web_injects_server_side_backend_bearer_token_without_exposing_it(self) -> None:
         with RunningServer(ThreadingHTTPServer(("127.0.0.1", 0), BackendFakeHandler)) as backend:
-            config = self._config(backend.base_url, backend_bearer_token="server-side-secret")
+            config = self._config(backend.base_url, backend_bearer_token=_test_server_side_bearer())
             with RunningServer(OpenInfraWebServer(("127.0.0.1", 0), config)) as web:
                 static_js = self._get_text(web.base_url + "/assets/openinfra-web.js")
                 public_config = self._get_json(web.base_url + "/config.json")
@@ -231,8 +244,45 @@ class TestOpenInfraWeb:
                 )
 
         assert "server-side-secret" not in static_js + json.dumps(public_config, sort_keys=True)
-        assert echoed["browser_authorization_forwarded"] is True
+        assert echoed["authorization"] == "Bearer server-side-secret"
+        assert echoed["browser_authorization_forwarded"] is False
         assert echoed["web_trust"] == "server-side"
+
+    def test_config_factory_falls_back_to_bootstrap_token_when_web_token_is_blank(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        static_root = OpenInfraWebStaticLocator().resolve(None)
+        monkeypatch.setenv("OPENINFRA_WEB_BACKEND_BEARER_TOKEN", "   ")
+        monkeypatch.setenv("OPENINFRA_BOOTSTRAP_TOKEN", "bootstrap-runtime-token")
+        factory = __import__(
+            "openinfra.interfaces.web", fromlist=["OpenInfraWebConfigFactory"]
+        ).OpenInfraWebConfigFactory()
+
+        config = factory.from_args(
+            [
+                "--backend-url",
+                "http://backend.internal",
+                "--static-root",
+                str(static_root),
+                "--edition",
+                "pro",
+                "--allow-insecure-backend",
+            ]
+        )
+
+        assert config.backend_bearer_token == "bootstrap-runtime-token"
+
+    def test_protected_web_proxy_never_returns_raw_missing_bearer_token(self) -> None:
+        with RunningServer(ThreadingHTTPServer(("127.0.0.1", 0), BackendFakeHandler)) as backend:
+            config = self._config(backend.base_url)
+            with RunningServer(OpenInfraWebServer(("127.0.0.1", 0), config)) as web:
+                with pytest.raises(urllib.error.HTTPError) as exc:
+                    self._post_json(web.base_url + "/api/v1/echo", {"tenant_id": "default"})
+                payload = json.loads(exc.value.read().decode("utf-8"))
+
+        assert exc.value.code == HTTPStatus.SERVICE_UNAVAILABLE.value
+        assert payload["error"] == "web backend bearer token is not configured"
+        assert "missing bearer token" not in json.dumps(payload)
 
     def test_entrypoint_returns_success_and_keyboard_interrupt(
         self, monkeypatch: pytest.MonkeyPatch
@@ -286,11 +336,11 @@ class TestOpenInfraWeb:
             return response.read().decode("utf-8")
 
     def _post_json(
-        self, url: str, payload: dict[str, object], auth_token: str = ""
+        self, url: str, payload: dict[str, object], browser_bearer: str = ""
     ) -> dict[str, object]:
         headers = {"Content-Type": "application/json"}
-        if auth_token:
-            headers["Authorization"] = "Bearer " + auth_token
+        if browser_bearer:
+            headers["Authorization"] = "Bearer " + browser_bearer
         request = urllib.request.Request(
             url,
             data=json.dumps(payload).encode("utf-8"),
@@ -364,6 +414,7 @@ class TestOpenInfraWebEdges:
                 auth_mode="standard",
                 allow_insecure_backend=True,
                 max_request_body_bytes=4,
+                backend_bearer_token=_test_server_side_bearer(),
             )
             with RunningServer(OpenInfraWebServer(("127.0.0.1", 0), small_config)) as web:
                 head_request = urllib.request.Request(web.base_url + "/", method="HEAD")

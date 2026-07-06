@@ -88,6 +88,7 @@ class FrontendContractValidator:
             "OPENINFRA_WEB_BACKEND_URL",
             "OPENINFRA_WEB_PUBLIC_API_BASE_URL",
             "OPENINFRA_WEB_BACKEND_BEARER_TOKEN",
+            "OPENINFRA_BOOTSTRAP_TOKEN:?OPENINFRA_BOOTSTRAP_TOKEN is required",
             "http://127.0.0.1:2006/health",
         )
         missing_compose = [fragment for fragment in compose_required if fragment not in compose]
@@ -132,6 +133,8 @@ class FrontendContractValidator:
             "Statistiques des composants OpenInfra",
             "openinfra-component-card",
             "openinfra-pie-chart",
+            "padding-block: clamp(1rem, 2vw, 1.75rem)",
+            "openinfra-titlebar h1",
             "--openinfra-pie-size: clamp(8rem, 14vw, 10.5rem)",
             "/v1/ipam/ui-search",
             "idempotency_key",

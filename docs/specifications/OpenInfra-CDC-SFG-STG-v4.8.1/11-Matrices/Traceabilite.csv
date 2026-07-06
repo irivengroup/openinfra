@@ -747,3 +747,7 @@ REQ-00748,N1,WEB,UC-0042,TST-WEB-051,Validation frontend et tests intégration s
 REQ-00749,N1,WEB,UC-0042,TST-WEB-052,Validation frontend et tests intégration serveur web.
 REQ-00750,N1,WEB,UC-0042,TST-WEB-053,"Tests CLI, API, frontend, smoke runtime et validation documentaire."
 REQ-00751,N1,WEB,UC-0042,TST-WEB-054,Validation frontend et tests intégration serveur web.
+REQ-00752,N1,WEB,UC-0042,TST-WEB-055,Validation frontend et tests proxy web.
+REQ-00753,N1,WEB,UC-0042,TST-WEB-056,Tests proxy web et inspection assets.
+REQ-00754,N2,WEB,UC-0042,TST-WEB-057,Validation frontend et tests intégration serveur web.
+REQ-00755,N2,WEB,UC-0042,TST-WEB-058,Validation frontend et tests intégration serveur web.

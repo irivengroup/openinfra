@@ -6,10 +6,14 @@ from openinfra.application.source_of_truth_services import (
     GetSourceObjectVersionCommand,
     ListSourceObjectsCommand,
     ListSourceRelationsCommand,
-    ListSourceRelationsCommand as ListITResourcesRelationsCommand,
-    ListSourceObjectsCommand as ListITResourcesCommand,
     SourceOfTruthService,
     UpsertSourceObjectCommand,
+)
+from openinfra.application.source_of_truth_services import (
+    ListSourceObjectsCommand as ListITResourcesCommand,
+)
+from openinfra.application.source_of_truth_services import (
+    ListSourceRelationsCommand as ListITResourcesRelationsCommand,
 )
 
 ITResourcesManagementService = SourceOfTruthService

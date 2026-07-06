@@ -189,8 +189,13 @@ class DockerRuntimeGuard:
             raise QualityGateError(
                 "Dockerfile must not define an API healthcheck inherited by migrate/auth-bootstrap"
             )
-        if "openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.29.20}" not in compose:
+        if "openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.29.21}" not in compose:
             raise QualityGateError("compose.yaml must default to the current OpenInfra image tag")
+        if "OPENINFRA_WEB_BACKEND_BEARER_TOKEN:-${OPENINFRA_BOOTSTRAP_TOKEN" not in compose:
+            raise QualityGateError(
+                "openinfra-web must fall back to OPENINFRA_BOOTSTRAP_TOKEN "
+                "when its dedicated backend bearer token is blank"
+            )
         stale_tags = (
             "OPENINFRA_IMAGE_TAG=0.9.0",
             "OPENINFRA_IMAGE_TAG=0.14.0",

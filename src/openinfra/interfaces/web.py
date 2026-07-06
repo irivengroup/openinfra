@@ -90,9 +90,9 @@ class OpenInfraWebConfigFactory:
         )
         parser.add_argument(
             "--backend-bearer-token",
-            default=os.environ.get(
+            default=self._first_non_blank_env(
                 "OPENINFRA_WEB_BACKEND_BEARER_TOKEN",
-                os.environ.get("OPENINFRA_BOOTSTRAP_TOKEN", ""),
+                "OPENINFRA_BOOTSTRAP_TOKEN",
             ),
             help="Optional server-side bearer token used by openinfra-web when proxying API forms.",
         )
@@ -126,6 +126,13 @@ class OpenInfraWebConfigFactory:
         )
         OpenInfraWebConfigValidator().validate(config)
         return config
+
+    def _first_non_blank_env(self, *names: str) -> str:
+        for name in names:
+            value = os.environ.get(name, "").strip()
+            if value:
+                return value
+        return ""
 
 
 class OpenInfraWebStaticLocator:
@@ -233,9 +240,21 @@ class OpenInfraBackendProxy:
         self._config = config
 
     def proxy(self, handler: BaseHTTPRequestHandler, route: str) -> None:
+        body = self._request_body(handler)
+        if self._requires_server_side_bearer(handler.command, route):
+            OpenInfraWebJsonResponder(handler).send(
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                {
+                    "error": "web backend bearer token is not configured",
+                    "hint": (
+                        "set OPENINFRA_WEB_BACKEND_BEARER_TOKEN or "
+                        "OPENINFRA_BOOTSTRAP_TOKEN for openinfra-web"
+                    ),
+                },
+            )
+            return
         target_url = self._target_url(handler, route)
         headers = self._request_headers(handler)
-        body = self._request_body(handler)
         upstream_request = request.Request(  # noqa: S310
             target_url,
             data=body,
@@ -255,6 +274,19 @@ class OpenInfraBackendProxy:
             OpenInfraWebJsonResponder(handler).send(
                 HTTPStatus.BAD_GATEWAY, {"error": "backend unavailable", "reason": str(exc.reason)}
             )
+
+    def _requires_server_side_bearer(self, method: str, route: str) -> bool:
+        if self._config.backend_bearer_token:
+            return False
+        if route in {"/openapi.yaml", "/api/v1/version"}:
+            return False
+        return route.startswith("/api/v1/") and method.upper() in {
+            "GET",
+            "POST",
+            "PUT",
+            "PATCH",
+            "DELETE",
+        }
 
     def _target_url(self, handler: BaseHTTPRequestHandler, route: str) -> str:
         # Keep the public /api/v1 prefix when proxying: the backend API contract is

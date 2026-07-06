@@ -242,16 +242,15 @@ def test_cli_itrm_quality_commands_and_sot_compatibility_alias(
 
 
 def test_legacy_ri_quality_import_aliases_remain_compatible() -> None:
-    from openinfra.application.ressources_inventory_quality_services import (
-        EvaluateRiObjectQualityCommand,
-        RessourcesInventoryQualityService,
-        RiQualitySummaryCommand,
-    )
-
     from openinfra.application.it_resources_management_quality_services import (
         EvaluateItrmObjectQualityCommand,
         ITResourcesManagementQualityService,
         ItrmQualitySummaryCommand,
+    )
+    from openinfra.application.ressources_inventory_quality_services import (
+        EvaluateRiObjectQualityCommand,
+        RessourcesInventoryQualityService,
+        RiQualitySummaryCommand,
     )
 
     assert EvaluateRiObjectQualityCommand is EvaluateItrmObjectQualityCommand

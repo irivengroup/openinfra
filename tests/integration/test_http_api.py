@@ -131,7 +131,8 @@ class TestHttpApi:
         try:
             base_url = f"http://127.0.0.1:{server.server_port}"
             report = self._get_json(
-                base_url + "/api/v1/itrm/quality/object?tenant_id=default&key=device/itrm-quality-api",
+                base_url
+                + "/api/v1/itrm/quality/object?tenant_id=default&key=device/itrm-quality-api",
                 token=token,
             )
             summary = self._get_json(
@@ -1181,7 +1182,8 @@ class TestSourceOfTruthHttpApi:
                 token=token,
             )
             relations = helper._get_json(
-                base_url + "/api/v1/itrm/relations?tenant_id=default&source_key=application/api-app",
+                base_url
+                + "/api/v1/itrm/relations?tenant_id=default&source_key=application/api-app",
                 token=token,
             )
             try:

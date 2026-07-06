@@ -1,3 +1,8 @@
+## v4.8.1 / OpenInfra 0.29.21
+
+- Ajout de `REQ-00755` et `TST-WEB-058` : aération verticale responsive de la titlebar du dashboard d’accueil `openinfra-web`.
+- Ajout de `REQ-00756` et `TST-WEB-059` : fallback bearer server-side depuis `OPENINFRA_BOOTSTRAP_TOKEN` lorsque le token web dédié est vide, sans exposition d’erreur brute `missing bearer token` au navigateur.
+
 ## v4.8.1 / OpenInfra 0.29.20
 
 - Ajout des exigences REQ-00752 à REQ-00754 pour formulaires web réellement fonctionnels, injection bearer backend server-side et camemberts responsive doublés.

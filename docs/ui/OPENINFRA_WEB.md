@@ -1,4 +1,4 @@
-# OpenInfra Web v0.29.20
+# OpenInfra Web v0.29.21
 
 OpenInfra Web est le portail `openinfra-web` API-only. Il sert l'interface React/Bootstrap 5, expose un proxy applicatif `/api/*` vers le backend `openinfra-api` et fournit un dashboard de pilotage aligné sur les domaines CLI.
 
@@ -59,7 +59,7 @@ Le panneau latéral devient le menu principal. `Dashboard` reste une entrée dir
 Le second bandeau Bootstrap de recherche/actions a été retiré du header web. Le dashboard conserve uniquement le header sombre principal et la sidebar accordéon comme navigation opérationnelle. Les boutons `Login` et `Sign-up` ne sont plus affichés dans le header ; l’authentification opérateur reste portée par le flux applicatif web et non par des contrôles techniques visibles dans le bandeau.
 
 
-## v0.29.20 — statistiques d’accueil par composant
+## v0.29.18 — statistiques d’accueil par composant
 
 L’accueil du dashboard affiche maintenant une synthèse de chaque composant métier : ITRM, IPAM, DCIM, Discovery et Sécurité/RBAC/Audit. Chaque carte expose les métriques calculées depuis le catalogue UI : nombre d’opérations, nombre de champs métier, champs obligatoires et mutations.
 
@@ -71,4 +71,13 @@ Les formulaires du dashboard sont désormais alignés sur les vrais contrats bac
 
 Pour les runtimes backend authentifiés, `openinfra-web` peut injecter côté serveur un bearer backend via `OPENINFRA_WEB_BACKEND_BEARER_TOKEN`, avec fallback contrôlé sur `OPENINFRA_BOOTSTRAP_TOKEN`. Ce secret n’est jamais sérialisé dans `/config.json`, dans les assets JavaScript/CSS ou dans les formulaires navigateur. Un `Authorization` fourni par le navigateur n’est pas relayé automatiquement.
 
+En runtime Docker, une valeur vide de `OPENINFRA_WEB_BACKEND_BEARER_TOKEN` est traitée comme absente : `openinfra-web` utilise alors `OPENINFRA_BOOTSTRAP_TOKEN`. Si aucun bearer server-side n’est disponible pour une route API protégée, le proxy retourne une erreur de configuration BFF explicite plutôt que de propager l’erreur backend brute `missing bearer token` au navigateur.
+
 Les camemberts du dashboard d’accueil sont doublés et adaptatifs : `--openinfra-pie-size` utilise `clamp(8rem, 14vw, 10.5rem)` en desktop/tablette et une règle mobile dédiée en dessous de 576 px.
+
+
+## v0.29.21 — titlebar dashboard aérée
+
+La zone `Dashboard de pilotage OpenInfra` utilise un espacement vertical responsive pour éviter un rendu compact du titre et du sous-titre. La règle produit `padding-block: clamp(1rem, 2vw, 1.75rem)` est appliquée à `.openinfra-titlebar`, avec un interligne renforcé sur le texte descriptif.
+
+Cette correction est appliquée aux sources React et aux assets runtime servis par `openinfra-web`; elle est verrouillée par `validate_frontend.py` et les tests d’intégration serveur web.

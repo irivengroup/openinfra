@@ -31,6 +31,9 @@ from openinfra.application.ipam_services import (
     IpamModelService,
     IpamUiService,
 )
+from openinfra.application.it_resources_management_quality_services import (
+    ITResourcesManagementQualityService,
+)
 from openinfra.application.ports import (
     AccessPolicyRepository,
     AuditRepository,
@@ -47,9 +50,6 @@ from openinfra.application.ports import (
     SourceGovernanceRepository,
     SourceOfTruthRepository,
     TransactionManager,
-)
-from openinfra.application.it_resources_management_quality_services import (
-    ITResourcesManagementQualityService,
 )
 from openinfra.application.security_services import SecurityService
 from openinfra.application.source_governance_services import SourceGovernanceService

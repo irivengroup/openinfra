@@ -77,3 +77,9 @@ Le dashboard d’accueil ne doit plus afficher d’alerte succès permanente `Ba
 - Ajout de REQ-00754 : les camemberts du dashboard d’accueil sont doublés et rendus responsives par CSS `clamp()`.
 - Ajout de TST-WEB-055, TST-WEB-056 et TST-WEB-057 pour verrouiller les régressions formulaire, sécurité BFF et responsive charts.
 
+
+## Delta v0.29.21 — aération de la titlebar dashboard
+
+- Ajout de REQ-00755 : la titlebar du dashboard d’accueil doit disposer d’un espacement vertical responsive autour du titre et du sous-titre.
+- Ajout de TST-WEB-058 : validation frontend et tests d’intégration inspectent les assets CSS runtime pour verrouiller `padding-block: clamp(1rem, 2vw, 1.75rem)`.
+- Ajout de REQ-00756 et TST-WEB-059 : le bearer backend server-side doit rester effectif lorsque `OPENINFRA_WEB_BACKEND_BEARER_TOKEN` est vide mais `OPENINFRA_BOOTSTRAP_TOKEN` est défini, et le navigateur ne doit plus recevoir d’erreur brute `missing bearer token`.

@@ -84,7 +84,7 @@ class SourceGovernanceService:
             AuthenticateTokenCommand(
                 tenant_id.value,
                 command.admin_token,
-                Permission.RI_GOVERNANCE_WRITE,
+                Permission.ITRM_GOVERNANCE_WRITE,
             )
         )
         rule = SourceGovernanceRule.create(
@@ -103,7 +103,7 @@ class SourceGovernanceService:
                 AuditEvent.record(
                     tenant_id=tenant_id,
                     actor=principal.subject,
-                    action="sot.governance.rule.upsert",
+                    action="itrm.governance.rule.upsert",
                     target_type="source_governance_rule",
                     target_id=rule.name.value,
                     metadata={
@@ -124,7 +124,7 @@ class SourceGovernanceService:
             AuthenticateTokenCommand(
                 tenant_id.value,
                 command.admin_token,
-                Permission.RI_GOVERNANCE_READ,
+                Permission.ITRM_GOVERNANCE_READ,
             )
         )
         pagination = Pagination.from_values(command.limit, command.cursor)
@@ -139,7 +139,7 @@ class SourceGovernanceService:
                 AuditEvent.record(
                     tenant_id=tenant_id,
                     actor=principal.subject,
-                    action="sot.governance.rule.list",
+                    action="itrm.governance.rule.list",
                     target_type="source_governance_rule",
                     target_id=tenant_id.value,
                     metadata={"limit": pagination.limit},
@@ -154,7 +154,7 @@ class SourceGovernanceService:
             AuthenticateTokenCommand(
                 tenant_id.value,
                 command.admin_token,
-                Permission.RI_GOVERNANCE_READ,
+                Permission.ITRM_GOVERNANCE_READ,
             )
         )
         object_kind = SourceObjectKind(str(command.object_kind).strip().lower())
@@ -176,7 +176,7 @@ class SourceGovernanceService:
                 AuditEvent.record(
                     tenant_id=tenant_id,
                     actor=principal.subject,
-                    action="sot.governance.evaluate",
+                    action="itrm.governance.evaluate",
                     target_type="source_governance",
                     target_id=object_kind.value,
                     metadata={
@@ -195,7 +195,7 @@ class SourceGovernanceService:
             AuthenticateTokenCommand(
                 tenant_id.value,
                 command.admin_token,
-                Permission.RI_GOVERNANCE_WRITE,
+                Permission.ITRM_GOVERNANCE_WRITE,
             )
         )
         with self._transaction_manager.begin() as unit_of_work:
@@ -206,7 +206,7 @@ class SourceGovernanceService:
                 AuditEvent.record(
                     tenant_id=tenant_id,
                     actor=principal.subject,
-                    action="sot.governance.rule.deactivate",
+                    action="itrm.governance.rule.deactivate",
                     target_type="source_governance_rule",
                     target_id=command.name.strip().lower(),
                     metadata={"declared_actor": command.actor, "deactivated": deactivated},

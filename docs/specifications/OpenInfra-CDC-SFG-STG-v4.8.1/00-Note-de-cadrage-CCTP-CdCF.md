@@ -13,7 +13,7 @@ classification: Interne / Consultation intégrateurs
 
 Le présent dossier définit les spécifications fonctionnelles générales, les spécifications techniques générales, les contraintes d’architecture, les exigences de sécurité, les performances attendues, les critères d’acceptation et les livrables de la solution OpenInfra.
 
-OpenInfra doit être une plateforme open source de référence d’infrastructure, couvrant Ressources Inventory, DCIM, ITAM, Discovery, Dependency Mapping et IPAM Enterprise++, sans fonction ITSM intégrée.
+OpenInfra doit être une plateforme open source de référence d’infrastructure, couvrant IT Ressources Management, DCIM, ITAM, Discovery, Dependency Mapping et IPAM Enterprise++, sans fonction ITSM intégrée.
 
 ## 2. Portée contractuelle
 

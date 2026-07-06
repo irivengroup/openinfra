@@ -60,7 +60,7 @@ Un connecteur ITSM ne doit jamais écraser silencieusement :
 
 - le support constructeur ;
 - la garantie constructeur ;
-- les données Ressources Inventory certifiées ;
+- les données IT Ressources Management certifiées ;
 - les relations critiques validées ;
 - les champs dont la source autoritative n'est pas l'ITSM.
 
@@ -88,7 +88,7 @@ Chaque connecteur doit :
 - gérer retry avec backoff ;
 - disposer d'une dead-letter queue ;
 - supporter dry-run ;
-- être désactivable sans impact sur la Ressources Inventory.
+- être désactivable sans impact sur la IT Ressources Management.
 
 ## Critères d'acceptation
 

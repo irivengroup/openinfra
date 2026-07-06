@@ -73,8 +73,8 @@ def test_json_store_repository_edge_paths(tmp_path: Path) -> None:
     identity.add_membership(GroupMembership.create(tenant, "alice", "netops"))
     assert identity.grant_user_role(tenant, "alice", "dcim:operator") is True
     assert identity.grant_user_role(tenant, "alice", "dcim:operator") is False
-    assert identity.grant_group_role(tenant, "netops", "ri:reader") is True
-    assert identity.grant_group_role(tenant, "netops", "ri:reader") is False
+    assert identity.grant_group_role(tenant, "netops", "itrm:reader") is True
+    assert identity.grant_group_role(tenant, "netops", "itrm:reader") is False
     assert identity.effective_identity_for_subject(tenant, "alice").groups == ("netops",)
     assert identity.effective_identity_for_subject(tenant, "unknown").active is False
     with pytest.raises(ValidationError):

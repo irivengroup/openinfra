@@ -1,33 +1,34 @@
-# OpenInfra v0.29.18
+# OpenInfra v0.29.19
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.18 — dashboard d’accueil enrichi avec métriques et camemberts par composant, openinfra-web formulaires métier typés, trust server-side, Bootstrap 5 Dashboard, RI Quality & Certification, agents proxy Enterprise et backend API-only.**
+**Version courante : 0.29.19 — dashboard d’accueil enrichi avec métriques et camemberts par composant, openinfra-web formulaires métier typés, trust server-side, Bootstrap 5 Dashboard, ITRM Quality & Certification, agents proxy Enterprise et backend API-only.**
 
 
 
-### v0.29.18 — dashboard accueil métriques par composant
+### v0.29.19 — dashboard accueil métriques par composant
 
 - L’accueil `openinfra-web` affiche désormais des métriques par composant : opérations, champs métier, champs obligatoires et mutations.
-- Chaque composant RI, IPAM, DCIM, Discovery et Sécurité dispose d’un camembert lecture/mutation calculé depuis le catalogue UI.
+- Chaque composant ITRM, IPAM, DCIM, Discovery et Sécurité dispose d’un camembert lecture/mutation calculé depuis le catalogue UI.
 - Les statistiques restent déterministes, sans accès direct base de données et sans exposition de secret côté navigateur.
+- L’accueil ne présente plus l’alerte permanente `Backend prêt` ; les alertes visibles sont réservées aux erreurs et aux soumissions de formulaire.
 
 
 ### v0.29.17 — openinfra-web Bootstrap 5 Dashboard Theme
 
 - Portail `openinfra-web` aligné sur le thème Bootstrap 5 Dashboard.
-- Header principal unique adapté aux domaines OpenInfra : Dashboard, RI, IPAM, DCIM, Discovery, Sécurité/RBAC et Audit.
+- Header principal unique adapté aux domaines OpenInfra : Dashboard, ITRM, IPAM, DCIM, Discovery, Sécurité/RBAC et Audit.
 - Bootstrap servi localement depuis `interfaces/rendering/static/assets/bootstrap.min.css`.
 - Dashboard API-only : aucun DSN PostgreSQL ni secret backend exposé au navigateur.
 
-## v0.29.13 — RI, agents proxy Enterprise et dashboard de pilotage
+## v0.29.13 — ITRM, agents proxy Enterprise et dashboard de pilotage
 
-- Le domaine public `Source of Truth/SOT` est renommé `Ressources Inventory/RI`.
-- Les chemins primaires deviennent `openinfra ri *`, `/api/v1/ri/*` et les rôles `ri:*`.
-- Les anciens alias `openinfra sot *`, `/api/v1/sot/*` et `sot:*` restent compatibles pour éviter une rupture opérationnelle.
+- Le domaine public `Source of Truth/SOT` est renommé `IT Ressources Management/ITRM`.
+- Les chemins primaires deviennent `openinfra itrm *`, `/api/v1/itrm/*`, les rôles `itrm:*` et les permissions `itrm.*`.
+- Les anciens alias `openinfra ri *`, `/api/v1/ri/*`, `ri:*`, `openinfra sot *`, `/api/v1/sot/*` et `sot:*` restent compatibles uniquement pour migration ; ils sont signalés comme dépréciés et seront supprimés progressivement au profit de `itrm`.
 - `agent` désigne exclusivement un proxy collector Enterprise en topologie étoile ; Lite et Pro collectent depuis les backends servers.
 - Les assets web runtime sont déplacés sous `src/openinfra/interfaces/rendering/static`, cohérents avec le domaine présentation/rendering.
-- `openinfra-web` devient un dashboard de pilotage API-only couvrant RI, IPAM, DCIM, Discovery, sécurité/RBAC, audit, import/export et runtime.
+- `openinfra-web` devient un dashboard de pilotage API-only couvrant ITRM, IPAM, DCIM, Discovery, sécurité/RBAC, audit, import/export et runtime.
 
 ## v0.29.11 — Runtime post-installation, backend API-only et sécurisation des flux
 
@@ -82,13 +83,13 @@ python -m build
 python scripts/verify_artifact.py dist/*.whl
 ```
 
-### v0.29.14 — RI Quality & Certification
+### v0.29.14 — ITRM Quality & Certification
 
-OpenInfra expose maintenant la qualité RI comme capacité pilotable :
+OpenInfra expose maintenant la qualité ITRM comme capacité pilotable :
 
 ```bash
-openinfra ri quality-object --tenant default --admin-token "$TOKEN" --key device/example
-openinfra ri quality-summary --tenant default --admin-token "$TOKEN" --kind device
+openinfra itrm quality-object --tenant default --admin-token "$TOKEN" --key device/example
+openinfra itrm quality-summary --tenant default --admin-token "$TOKEN" --kind device
 ```
 
-Les endpoints primaires sont `/api/v1/ri/quality/object` et `/api/v1/ri/quality/summary`. Les alias historiques `/api/v1/sot/...` et `openinfra sot ...` restent disponibles pour compatibilité ascendante.
+Les endpoints primaires sont `/api/v1/itrm/quality/object` et `/api/v1/itrm/quality/summary`. Les alias historiques `/api/v1/sot/...` et `openinfra sot ...` restent disponibles uniquement pour migration et sont dépréciés.

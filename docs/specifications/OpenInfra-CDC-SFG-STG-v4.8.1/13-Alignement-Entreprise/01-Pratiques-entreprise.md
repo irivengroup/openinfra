@@ -36,7 +36,7 @@ Pratiques retenues :
 
 Pratiques retenues :
 
-- Ressources Inventory gouvernée ;
+- IT Ressources Management gouvernée ;
 - qualité de données mesurée ;
 - règles de certification ;
 - traçabilité par attribut critique ;

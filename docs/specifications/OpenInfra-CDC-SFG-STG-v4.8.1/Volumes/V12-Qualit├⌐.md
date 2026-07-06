@@ -37,7 +37,7 @@ Le volume **V12 — Qualité** décrit les spécifications applicables au domain
 
 ### Finalité
 
-Le volet **Tests** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
+Le volet **Tests** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la IT Ressources Management.
 
 ### Règles de conception
 
@@ -58,7 +58,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **CI/CD** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
+Le volet **CI/CD** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la IT Ressources Management.
 
 ### Règles de conception
 
@@ -79,7 +79,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **Performances** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
+Le volet **Performances** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la IT Ressources Management.
 
 ### Règles de conception
 
@@ -100,7 +100,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **Critères d’acceptation** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
+Le volet **Critères d’acceptation** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la IT Ressources Management.
 
 ### Règles de conception
 
@@ -121,7 +121,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **Matrice d’exigences** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
+Le volet **Matrice d’exigences** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la IT Ressources Management.
 
 ### Règles de conception
 
@@ -318,7 +318,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 **Justification :** Support interventions rapides.
 
-**Vérification :** Benchmark RI.
+**Vérification :** Benchmark ITRM.
 
 **Critère d’acceptation :** p95 mesuré inférieur au seuil.
 ### REQ-00303 — N1 — Performance
@@ -388,6 +388,6 @@ Le volume est recevable si :
 5. les scénarios d’erreur sont testés ;
 6. les journaux d’audit sont exploitables ;
 7. les performances critiques respectent les budgets définis ;
-8. l’intégration à la Ressources Inventory est effective ;
+8. l’intégration à la IT Ressources Management est effective ;
 9. la documentation d’exploitation existe ;
 10. les risques résiduels sont acceptés.

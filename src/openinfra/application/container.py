@@ -48,8 +48,8 @@ from openinfra.application.ports import (
     SourceOfTruthRepository,
     TransactionManager,
 )
-from openinfra.application.ressources_inventory_quality_services import (
-    RessourcesInventoryQualityService,
+from openinfra.application.it_resources_management_quality_services import (
+    ITResourcesManagementQualityService,
 )
 from openinfra.application.security_services import SecurityService
 from openinfra.application.source_governance_services import SourceGovernanceService
@@ -130,7 +130,7 @@ class OpenInfraApplication:
     audit_service: AuditTrailService
     source_of_truth_service: SourceOfTruthService
     source_governance_service: SourceGovernanceService
-    ressources_inventory_quality_service: RessourcesInventoryQualityService
+    it_resources_management_quality_service: ITResourcesManagementQualityService
     identity_repository: IdentityRepository
     security_repository: SecurityRepository
     access_policy_repository: AccessPolicyRepository
@@ -143,6 +143,14 @@ class OpenInfraApplication:
     edition_guard: EditionRuntimeGuard
     edition_query_service: EditionQueryService
     runtime_usage_repository: RuntimeUsageRepository
+
+    @property
+    def it_resources_management_service(self) -> SourceOfTruthService:
+        return self.source_of_truth_service
+
+    @property
+    def ressources_inventory_quality_service(self) -> ITResourcesManagementQualityService:
+        return self.it_resources_management_quality_service
 
 
 class ApplicationFactory:
@@ -435,7 +443,7 @@ class ApplicationFactory:
                 transaction_manager,
                 security_service,
             ),
-            ressources_inventory_quality_service=RessourcesInventoryQualityService(
+            it_resources_management_quality_service=ITResourcesManagementQualityService(
                 source_of_truth_repository,
                 source_governance_repository,
                 audit_repository,

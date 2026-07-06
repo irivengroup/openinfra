@@ -1,5 +1,5 @@
 # Cahier des charges enterprise — OpenInfra
-## Ressources Inventory, DCIM, ITAM, Discovery, Dependency Mapping et IPAM avancé, sans fonction ITSM intégrée
+## IT Ressources Management, DCIM, ITAM, Discovery, Dependency Mapping et IPAM avancé, sans fonction ITSM intégrée
 
 **Version :** 2.0 Entreprise  
 **Date :** 2026-07-02  
@@ -13,7 +13,7 @@
 
 ## 0. Résumé exécutif
 
-OpenInfra doit être une plateforme open source d’enterprise jouant le rôle de **référentiel central d’infrastructure** et de **Ressources Inventory** pour les actifs physiques, virtuels, cloud, réseau, applicatifs, logiciels, IP, dépendances, localisations, contrats et capacités.
+OpenInfra doit être une plateforme open source d’enterprise jouant le rôle de **référentiel central d’infrastructure** et de **IT Ressources Management** pour les actifs physiques, virtuels, cloud, réseau, applicatifs, logiciels, IP, dépendances, localisations, contrats et capacités.
 
 La solution doit reprendre les grands blocs fonctionnels d’une solution de type Device42 : inventaire, autodécouverte, DCIM, ITAM, IPAM, dépendances, API, imports/exports et visualisations, tout en supprimant toute fonction de ticketing ou ITSM intégrée. OpenInfra doit rester interopérable avec les outils ITSM externes, mais ne doit pas devenir un outil de gestion d’incidents, de demandes ou de changements.
 
@@ -99,7 +99,7 @@ Ces références ne transforment pas OpenInfra en solution certifiée par défau
 
 | Terme | Définition |
 |---|---|
-| Ressources Inventory | Référentiel considéré comme source fiable et prioritaire d’une information |
+| IT Ressources Management | Référentiel considéré comme source fiable et prioritaire d’une information |
 | CMDB | Configuration Management Database, référentiel des éléments de configuration et relations |
 | DCIM | Data Center Infrastructure Management, gestion des infrastructures physiques de datacenter |
 | ITAM | IT Asset Management, gestion des actifs IT et de leur cycle de vie |
@@ -133,7 +133,7 @@ OpenInfra doit couvrir obligatoirement :
 
 | Domaine | Couverture obligatoire |
 |---|---|
-| Ressources Inventory | Objets, relations, statuts, propriétaires, historique, confiance, preuve |
+| IT Ressources Management | Objets, relations, statuts, propriétaires, historique, confiance, preuve |
 | CMDB technique | CIs, relations, dépendances, impact analysis, service mapping |
 | DCIM | Sites, bâtiments, salles, lignes, colonnes, racks, U, câbles, puissance, environnement |
 | ITAM | Actifs, cycle de vie, coûts, contrats, garanties, fournisseurs, stocks |
@@ -232,7 +232,7 @@ OpenInfra doit suivre une architecture modulaire, API-first, orientée domaine e
  |                          |                            |
 [Domain Services]      [Async Job Platform]       [Integration Layer]
  |                          |                            |
- |-- Ressources Inventory         |-- Discovery Jobs           |-- ITSM
+ |-- IT Ressources Management         |-- Discovery Jobs           |-- ITSM
  |-- DCIM                    |-- Import Jobs              |-- Cloud
  |-- ITAM/SAM                |-- Reconciliation Jobs      |-- Hypervisors
  |-- IPAM                    |-- Dependency Jobs          |-- DNS/DHCP
@@ -745,7 +745,7 @@ Le moteur de rapprochement doit utiliser :
 
 ### 10.5 Gestion des conflits
 
-Aucune donnée de Ressources Inventory ne doit être écrasée silencieusement par la découverte. Un conflit doit être créé lorsque :
+Aucune donnée de IT Ressources Management ne doit être écrasée silencieusement par la découverte. Un conflit doit être créé lorsque :
 
 - la valeur découverte diverge de la valeur déclarée ;
 - deux sources fiables donnent des valeurs différentes ;
@@ -1675,7 +1675,7 @@ OpenInfra est conforme si :
 - observabilité ;
 - packaging.
 
-### Phase 2 — Ressources Inventory et DCIM
+### Phase 2 — IT Ressources Management et DCIM
 
 - objets de référence ;
 - relations ;
@@ -1817,7 +1817,7 @@ OpenInfra est conforme si :
 
 ## 28. Synthèse finale
 
-OpenInfra doit être une solution open source d’enterprise, robuste et complète, couvrant Ressources Inventory, DCIM, ITAM, SAM, Discovery, Dependency Mapping et IPAM avancé, sans intégrer de fonction ITSM native.
+OpenInfra doit être une solution open source d’enterprise, robuste et complète, couvrant IT Ressources Management, DCIM, ITAM, SAM, Discovery, Dependency Mapping et IPAM avancé, sans intégrer de fonction ITSM native.
 
 Les exigences structurantes sont obligatoires : PostgreSQL Cluster, haute disponibilité, forte concurrence, haute performance, conception pour plus de 10 milliards d’entrées, localisation physique avec ligne et colonne en salle, sécurité by design, audit, API-first, tests et CI/CD.
 

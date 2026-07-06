@@ -110,7 +110,7 @@ class GenericImportService:
     def plan_migration(self, command: PlanMigrationCommand) -> MigrationPlanReport:
         tenant_id = TenantId.from_value(command.tenant_id)
         principal = self._security_service.authenticate_token(
-            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.RI_WRITE)
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITRM_WRITE)
         )
         source = LegacyMigrationSource.from_value(command.source)
         import_format = ImportFormat.from_value(command.format)
@@ -184,7 +184,7 @@ class GenericImportService:
     def import_dataset(self, command: ImportDatasetCommand) -> ImportReport:
         tenant_id = TenantId.from_value(command.tenant_id)
         principal = self._security_service.authenticate_token(
-            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.RI_WRITE)
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITRM_WRITE)
         )
         import_format = ImportFormat.from_value(command.format)
         mapping = ImportMapping.from_json(command.mapping_json)
@@ -233,7 +233,7 @@ class GenericImportService:
     def bulk_import_dataset(self, command: BulkImportDatasetCommand) -> BulkImportReport:
         tenant_id = TenantId.from_value(command.tenant_id)
         principal = self._security_service.authenticate_token(
-            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.RI_WRITE)
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITRM_WRITE)
         )
         import_format = ImportFormat.from_value(command.format)
         mapping = ImportMapping.from_json(command.mapping_json)
@@ -583,7 +583,7 @@ class GenericImportService:
                 ("GLPI user ownership is imported as attribute, not as IAM identity.",),
             ),
             LegacyMigrationSource.CSV: (
-                "Generic CSV Ressources Inventory baseline",
+                "Generic CSV ITRM baseline",
                 {
                     "key": "key",
                     "kind": "kind",

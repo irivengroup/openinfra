@@ -1,5 +1,7 @@
-## v4.8.1 / OpenInfra 0.29.18
+## v4.8.1 / OpenInfra 0.29.19
 
+- Ajout `REQ-00750` et `TST-WEB-053` : renommage transversal du composant public en `IT Ressources Management/ITRM`, contrats primaires `itrm` et alias `ri`/`sot` dépréciés mais compatibles.
+- Ajout `REQ-00751` et `TST-WEB-054` : suppression de l’alerte succès permanente `Backend prêt` sur l’accueil ; alertes visibles réservées aux erreurs et soumissions de formulaire.
 - Ajout `REQ-00749` et `TST-WEB-052` : dashboard d’accueil `openinfra-web` avec statistiques et camemberts par composant métier.
 
 ## v4.8.1 - Correction des entrées existantes stockage PostgreSQL
@@ -121,7 +123,7 @@ classification: Interne / Consultation intégrateurs
 
 ### Compatibilité
 
-Cette version conserve le périmètre v2 : Ressources Inventory, DCIM, ITAM, Discovery, Dependency Mapping, IPAM avancé et exclusion ITSM intégrée. Elle renforce la granularité documentaire et contractuelle.
+Cette version conserve le périmètre v2 : IT Ressources Management, DCIM, ITAM, Discovery, Dependency Mapping, IPAM avancé et exclusion ITSM intégrée. Elle renforce la granularité documentaire et contractuelle.
 
 
 ## 4.3.0 - Alignement enterprise, éditions, ITSM externe et support constructeur

@@ -58,7 +58,7 @@ Principes non négociables :
 **Version :** 4.0.0  
 **Date :** 2026-07-02  
 **Statut :** version enrichie enterprise, prête pour cadrage, consultation d’intégrateurs, lancement de conception détaillée et pilotage de développement.  
-**Périmètre :** Ressources Inventory, DCIM, ITAM, Discovery, Dependency Mapping, IPAM Enterprise++, sécurité, API, IA/automatisation, administration, qualité.  
+**Périmètre :** IT Ressources Management, DCIM, ITAM, Discovery, Dependency Mapping, IPAM Enterprise++, sécurité, API, IA/automatisation, administration, qualité.  
 **Exclusion structurante :** aucune fonction ITSM intégrée. Les outils ITSM sont intégrés par connecteurs externes uniquement.
 
 ## Contenu du livrable

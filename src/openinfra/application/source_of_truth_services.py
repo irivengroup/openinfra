@@ -113,7 +113,7 @@ class SourceOfTruthService:
     def upsert_object(self, command: UpsertSourceObjectCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
         principal = self._security_service.authenticate_token(
-            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.RI_WRITE)
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITRM_WRITE)
         )
         attributes = self._attributes_from_json(command.attributes_json)
         SourceObjectKind(str(command.kind).strip().lower())
@@ -131,7 +131,7 @@ class SourceOfTruthService:
                     source=command.source,
                     actor=command.actor,
                 )
-                action = "sot.object.create"
+                action = "itrm.object.create"
             else:
                 self._enforce_governance(tenant_id, existing, attributes, command.source)
                 source_object = existing.revise(
@@ -141,7 +141,7 @@ class SourceOfTruthService:
                     source=command.source,
                 )
                 self._repository.upsert_object(source_object, command.actor)
-                action = "sot.object.update"
+                action = "itrm.object.update"
             self._audit_repository.append(
                 AuditEvent.record(
                     tenant_id=tenant_id,
@@ -163,7 +163,7 @@ class SourceOfTruthService:
     def get_object(self, command: GetSourceObjectCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
         self._security_service.authenticate_token(
-            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.RI_READ)
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITRM_READ)
         )
         with self._transaction_manager.begin() as unit_of_work:
             source_object = self._repository.find_object(tenant_id, command.key)
@@ -175,7 +175,7 @@ class SourceOfTruthService:
     def list_objects(self, command: ListSourceObjectsCommand) -> SourceObjectPage:
         tenant_id = TenantId.from_value(command.tenant_id)
         principal = self._security_service.authenticate_token(
-            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.RI_READ)
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITRM_READ)
         )
         kind = SourceObjectKind(str(command.kind).strip().lower()) if command.kind else None
         pagination = Pagination.from_values(command.limit, command.cursor)
@@ -190,7 +190,7 @@ class SourceOfTruthService:
                 AuditEvent.record(
                     tenant_id=tenant_id,
                     actor=principal.subject,
-                    action="sot.object.list",
+                    action="itrm.object.list",
                     target_type="source_object",
                     target_id=tenant_id.value,
                     metadata={"limit": pagination.limit, "kind": kind.value if kind else None},
@@ -202,7 +202,7 @@ class SourceOfTruthService:
     def get_object_version(self, command: GetSourceObjectVersionCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
         self._security_service.authenticate_token(
-            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.RI_READ)
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITRM_READ)
         )
         if int(command.version) < 1:
             raise ValidationError("source object version must be positive")
@@ -220,7 +220,7 @@ class SourceOfTruthService:
     def create_relation(self, command: CreateSourceRelationCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
         principal = self._security_service.authenticate_token(
-            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.RI_WRITE)
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITRM_WRITE)
         )
         with self._transaction_manager.begin() as unit_of_work:
             if self._repository.find_object(tenant_id, command.source_key) is None:
@@ -241,7 +241,7 @@ class SourceOfTruthService:
                 AuditEvent.record(
                     tenant_id=tenant_id,
                     actor=principal.subject,
-                    action="sot.relation.create",
+                    action="itrm.relation.create",
                     target_type="source_relation",
                     target_id=relation.id.value,
                     metadata={
@@ -258,7 +258,7 @@ class SourceOfTruthService:
     def list_relations(self, command: ListSourceRelationsCommand) -> SourceRelationPage:
         tenant_id = TenantId.from_value(command.tenant_id)
         self._security_service.authenticate_token(
-            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.RI_READ)
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITRM_READ)
         )
         pagination = Pagination.from_values(command.limit, command.cursor)
         with self._transaction_manager.begin() as unit_of_work:

@@ -28,7 +28,7 @@
 - Pro et Entreprise peuvent activer ServiceNow, Jira Service Management, GLPI et Freshservice au minimum.
 - Les connecteurs ne créent aucun module ticket interne.
 - Les synchronisations sont auditables, rejouables et désactivables.
-- Les erreurs de connecteurs n'altèrent pas la Ressources Inventory.
+- Les erreurs de connecteurs n'altèrent pas la IT Ressources Management.
 
 ## Support constructeur
 

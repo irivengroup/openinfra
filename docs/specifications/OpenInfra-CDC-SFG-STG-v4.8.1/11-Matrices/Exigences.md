@@ -24,7 +24,8 @@ Le fichier normatif est `Exigences.csv`. Ce document synthétise la volumétrie.
 | OPS | Administration & exploitation | 35 |
 | QA | Qualité & validation | 16 |
 | SEC | Sécurité | 22 |
-| RI | Ressources Inventory | 21 |
+| ITRM | IT Ressources Management | 21 |
+| WEB | Portail web OpenInfra | 6 |
 
 Les exigences N1 sont obligatoires. Les exigences N2 structurent les releases suivantes. Les exigences N3 ne sont pas utilisées dans cette version pour éviter les options non cadrées.
 
@@ -80,3 +81,6 @@ Les exigences N1 sont obligatoires. Les exigences N2 structurent les releases su
 - **REQ-00692** — Les tests chaos doivent couvrir perte du standby faible latence et reconfiguration contrôlée.
 - **REQ-00693** — Les tests multisites doivent couvrir Pro centralisé et Entreprise distribué.
 - **REQ-00694** — Les recommandations contradictoires des versions précédentes doivent être corrigées par la v4.7.
+
+- **REQ-00750** — Le composant public anciennement nommé Ressources Inventory/RI doit être exposé partout sous le nom IT Ressources Management/ITRM, avec contrats primaires CLI/API/RBAC itrm et alias ri/sot compatibles.
+- **REQ-00751** — Le dashboard d’accueil openinfra-web ne doit pas afficher d’alerte succès permanente de readiness ; les alertes visibles doivent être réservées aux erreurs et aux soumissions de formulaire.

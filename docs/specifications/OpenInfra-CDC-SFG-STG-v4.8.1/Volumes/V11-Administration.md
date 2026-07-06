@@ -38,7 +38,7 @@ Le volume **V11 — Administration** décrit les spécifications applicables au 
 
 ### Finalité
 
-Le volet **Déploiement** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
+Le volet **Déploiement** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la IT Ressources Management.
 
 ### Règles de conception
 
@@ -59,7 +59,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **Kubernetes** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
+Le volet **Kubernetes** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la IT Ressources Management.
 
 ### Règles de conception
 
@@ -80,7 +80,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **Docker** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
+Le volet **Docker** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la IT Ressources Management.
 
 ### Règles de conception
 
@@ -101,7 +101,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **Sauvegarde** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
+Le volet **Sauvegarde** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la IT Ressources Management.
 
 ### Règles de conception
 
@@ -122,7 +122,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **PRA/PCA** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
+Le volet **PRA/PCA** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la IT Ressources Management.
 
 ### Règles de conception
 
@@ -143,7 +143,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **Observabilité** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la Ressources Inventory.
+Le volet **Observabilité** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la IT Ressources Management.
 
 ### Règles de conception
 
@@ -437,6 +437,6 @@ Le volume est recevable si :
 5. les scénarios d’erreur sont testés ;
 6. les journaux d’audit sont exploitables ;
 7. les performances critiques respectent les budgets définis ;
-8. l’intégration à la Ressources Inventory est effective ;
+8. l’intégration à la IT Ressources Management est effective ;
 9. la documentation d’exploitation existe ;
 10. les risques résiduels sont acceptés.

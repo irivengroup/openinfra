@@ -71,6 +71,7 @@ class FrontendContractValidator:
         forbidden_main_source = (
             "Search OpenInfra operations",
             "openinfra-search",
+            "Backend prêt",
             "Login</button>",
             "Sign-up",
         )
@@ -130,7 +131,7 @@ class FrontendContractValidator:
             "Statistiques des composants OpenInfra",
             "openinfra-component-card",
             "openinfra-pie-chart",
-            "Ressources Inventory",
+            "IT Ressources Management",
             "agents proxy collectors Enterprise uniquement",
             "Numéro de série",
         ):
@@ -149,6 +150,7 @@ class FrontendContractValidator:
             "openinfra-search",
             "openinfra-login",
             "openinfra-signup",
+            "Backend prêt",
             "Sign-up",
         ):
             if forbidden_ui in payload:

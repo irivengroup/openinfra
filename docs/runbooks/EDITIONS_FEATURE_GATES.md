@@ -14,7 +14,7 @@ Les éditions supportées sont :
 | Pro | 5000 | 100 | 5000 | 100 | 0 |
 | Enterprise | illimité | illimité | illimité | illimité | illimité |
 
-Les capabilities `distributed_discovery_agents` et `installer_agent_scope` sont réservées à Enterprise. Les fonctionnalités cœur Ressources Inventory, DCIM, IPAM, RBAC, audit et import/export restent disponibles dans les trois éditions selon les quotas associés.
+Les capabilities `distributed_discovery_agents` et `installer_agent_scope` sont réservées à Enterprise. Les fonctionnalités cœur IT Ressources Management, DCIM, IPAM, RBAC, audit et import/export restent disponibles dans les trois éditions selon les quotas associés.
 
 ## Configuration runtime
 

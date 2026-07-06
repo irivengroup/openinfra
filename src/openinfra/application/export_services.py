@@ -94,7 +94,7 @@ class ExportService:
     def request_export(self, command: RequestExportCommand) -> ExportJob:
         tenant_id = TenantId.from_value(command.tenant_id)
         principal = self._security_service.authenticate_token(
-            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.RI_READ)
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITRM_READ)
         )
         resource = ExportResource.from_value(command.resource)
         export_format = ExportFormat.from_value(command.format)
@@ -129,7 +129,7 @@ class ExportService:
     def run_export_job(self, command: RunExportJobCommand) -> ExportJob:
         tenant_id = TenantId.from_value(command.tenant_id)
         principal = self._security_service.authenticate_token(
-            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.RI_READ)
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITRM_READ)
         )
         page_size = self._normalize_page_size(command.page_size)
         with self._transaction_manager.begin() as unit_of_work:
@@ -185,7 +185,7 @@ class ExportService:
     def get_export_job(self, command: GetExportJobCommand) -> ExportJob:
         tenant_id = TenantId.from_value(command.tenant_id)
         self._security_service.authenticate_token(
-            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.RI_READ)
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITRM_READ)
         )
         job = self._export_repository.get_export_job(tenant_id, command.job_id)
         if job is None:
@@ -195,7 +195,7 @@ class ExportService:
     def get_export_artifact(self, command: GetExportArtifactCommand) -> ExportArtifactDownload:
         tenant_id = TenantId.from_value(command.tenant_id)
         self._security_service.authenticate_token(
-            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.RI_READ)
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITRM_READ)
         )
         job = self._export_repository.get_export_job(tenant_id, command.job_id)
         if job is None:

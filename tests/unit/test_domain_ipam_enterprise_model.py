@@ -175,7 +175,7 @@ class TestIpamConflictDomain:
             "prod",
             " address/10.0.0.10 ",
             ("  owner-a  ", "owner-b"),
-            "  reconcile ressources inventory  ",
+            "  reconcile IT ressources management  ",
         )
         dns = ObservedDnsRecord.create(
             tenant,

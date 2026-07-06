@@ -7,7 +7,7 @@ statut: Validé
 classification: Interne / Consultation intégrateurs
 ---
 
-# Ressources Inventory
+# IT Ressources Management
 
 ## Objectif
 
@@ -50,7 +50,7 @@ Le référentiel doit conserver un historique complet time travel permettant de 
 
 ### REQ-00031
 
-Le périmètre Modèle de données complet du volume Référentiel Ressources Inventory doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
+Le périmètre Modèle de données complet du volume Référentiel IT Ressources Management doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
 
 **Acceptation :** Le dossier contient les règles de gestion Modèle de données complet, les critères d’acceptation et au moins un cas d’usage nominal et un cas d’erreur.
 
@@ -68,7 +68,7 @@ Le domaine Modèle de données complet doit supporter l’import/export asynchro
 
 ### REQ-00034
 
-Le périmètre Gestion des équipements du volume Référentiel Ressources Inventory doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
+Le périmètre Gestion des équipements du volume Référentiel IT Ressources Management doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
 
 **Acceptation :** Le dossier contient les règles de gestion Gestion des équipements, les critères d’acceptation et au moins un cas d’usage nominal et un cas d’erreur.
 
@@ -86,7 +86,7 @@ Le domaine Gestion des équipements doit supporter l’import/export asynchrone 
 
 ### REQ-00037
 
-Le périmètre Localisation X/Y/Z du volume Référentiel Ressources Inventory doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
+Le périmètre Localisation X/Y/Z du volume Référentiel IT Ressources Management doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
 
 **Acceptation :** Le dossier contient les règles de gestion Localisation X/Y/Z, les critères d’acceptation et au moins un cas d’usage nominal et un cas d’erreur.
 
@@ -104,7 +104,7 @@ Le domaine Localisation X/Y/Z doit supporter l’import/export asynchrone lorsqu
 
 ### REQ-00040
 
-Le périmètre Historique du volume Référentiel Ressources Inventory doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
+Le périmètre Historique du volume Référentiel IT Ressources Management doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
 
 **Acceptation :** Le dossier contient les règles de gestion Historique, les critères d’acceptation et au moins un cas d’usage nominal et un cas d’erreur.
 
@@ -114,17 +114,17 @@ Le périmètre Historique du volume Référentiel Ressources Inventory doit êtr
 
 La capacité est acceptée si les scénarios nominaux, erreurs, droits insuffisants, conflits et imports/exports sont validés par tests automatisés et si les journaux d’audit permettent de reconstituer les opérations.
 
-## Complément v0.29.14 — Qualité, certification et score RI
+## Complément v0.29.14 — Qualité, certification et score ITRM
 
-OpenInfra doit fournir une capacité native de qualité et certification RI exposée par CLI, API et dashboard web.
+OpenInfra doit fournir une capacité native de qualité et certification ITRM exposée par CLI, API et dashboard web.
 
 Règles obligatoires :
 
-- chaque objet RI peut être évalué individuellement ;
-- chaque tenant peut obtenir une synthèse paginée des statuts qualité RI ;
+- chaque objet ITRM peut être évalué individuellement ;
+- chaque tenant peut obtenir une synthèse paginée des statuts qualité ITRM ;
 - le score agrège au minimum la complétude, la fraîcheur, l’autorité de source et la confiance ;
 - un objet incomplet ou obsolète ne doit jamais être marqué certifié ;
-- une source non autoritative par rapport aux règles de gouvernance RI doit produire une alerte visible ;
+- une source non autoritative par rapport aux règles de gouvernance ITRM doit produire une alerte visible ;
 - les évaluations doivent être protégées par RBAC et auditées ;
-- les chemins primaires sont `openinfra ri quality-object`, `openinfra ri quality-summary`, `/api/v1/ri/quality/object` et `/api/v1/ri/quality/summary` ;
+- les chemins primaires sont `openinfra itrm quality-object`, `openinfra itrm quality-summary`, `/api/v1/itrm/quality/object` et `/api/v1/itrm/quality/summary` ;
 - les alias `sot` restent acceptés uniquement pour compatibilité ascendante.

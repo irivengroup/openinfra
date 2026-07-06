@@ -114,8 +114,10 @@ class TestOpenInfraWeb:
         assert "Search OpenInfra operations" not in static_js
         assert "openinfra-login" not in static_js and "openinfra-signup" not in static_js
         assert "Login" not in static_js and "Sign-up" not in static_js
-        assert "Ressources Inventory" in static_js
-        assert "/v1/ri/objects" in static_js
+        assert "IT Ressources Management" in static_js
+        assert "/v1/itrm/objects" in static_js
+        assert "Backend prêt" not in static_js
+        assert "Soumission exécutée avec succès" in static_js
         assert "openinfra-accordion" in static_js + static_css
         assert "Statistiques des composants OpenInfra" in static_js
         assert "Accueil — statistiques des composants" in static_js

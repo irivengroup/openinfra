@@ -1,4 +1,9 @@
-## v2 / OpenInfra 0.29.18
+## v2 / OpenInfra 0.29.19
+
+- Renommage transversal ITRM : CLI/API/RBAC/frontend primaires en `itrm`, alias `ri` et `sot` compatibles et dépréciés progressivement.
+- Ajout de la validation des alertes dashboard contextuelles : suppression de l’alerte succès permanente `Backend prêt` sur l’accueil.
+
+## v2 / OpenInfra 0.29.19
 
 - Ajout `TST-P08-WEB-COMPONENT-STATS` : validation du dashboard d’accueil avec métriques et camemberts par composant.
 
@@ -23,9 +28,9 @@
 
 ## 0.29.14
 
-- P09 initialisée par RI Quality & Certification.
-- Ajout du pilotage qualité/certification RI dans CLI, API et dashboard web.
-- Ajout de la permission `ri.quality.read` et des audits `ri.quality.*`.
+- P09 initialisée par ITRM Quality & Certification.
+- Ajout du pilotage qualité/certification ITRM dans CLI, API et dashboard web.
+- Ajout de la permission `itrm.quality.read` et des audits `itrm.quality.*`.
 
 ## 0.29.15
 

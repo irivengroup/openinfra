@@ -50,7 +50,7 @@ Le référentiel doit conserver un historique complet time travel permettant de 
 
 ### REQ-00031
 
-Le périmètre Modèle de données complet du volume Référentiel Ressources Inventory doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
+Le périmètre Modèle de données complet du volume Référentiel IT Ressources Management doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
 
 **Acceptation :** Le dossier contient les règles de gestion Modèle de données complet, les critères d’acceptation et au moins un cas d’usage nominal et un cas d’erreur.
 
@@ -68,7 +68,7 @@ Le domaine Modèle de données complet doit supporter l’import/export asynchro
 
 ### REQ-00034
 
-Le périmètre Gestion des équipements du volume Référentiel Ressources Inventory doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
+Le périmètre Gestion des équipements du volume Référentiel IT Ressources Management doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
 
 **Acceptation :** Le dossier contient les règles de gestion Gestion des équipements, les critères d’acceptation et au moins un cas d’usage nominal et un cas d’erreur.
 
@@ -86,7 +86,7 @@ Le domaine Gestion des équipements doit supporter l’import/export asynchrone 
 
 ### REQ-00037
 
-Le périmètre Localisation X/Y/Z du volume Référentiel Ressources Inventory doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
+Le périmètre Localisation X/Y/Z du volume Référentiel IT Ressources Management doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
 
 **Acceptation :** Le dossier contient les règles de gestion Localisation X/Y/Z, les critères d’acceptation et au moins un cas d’usage nominal et un cas d’erreur.
 
@@ -104,7 +104,7 @@ Le domaine Localisation X/Y/Z doit supporter l’import/export asynchrone lorsqu
 
 ### REQ-00040
 
-Le périmètre Historique du volume Référentiel Ressources Inventory doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
+Le périmètre Historique du volume Référentiel IT Ressources Management doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
 
 **Acceptation :** Le dossier contient les règles de gestion Historique, les critères d’acceptation et au moins un cas d’usage nominal et un cas d’erreur.
 

@@ -94,9 +94,9 @@ from openinfra.application.ipam_services import (
     PreviewDdiReservationCommand,
     RegisterIpAddressCommand,
 )
-from openinfra.application.ressources_inventory_quality_services import (
-    EvaluateRiObjectQualityCommand,
-    RiQualitySummaryCommand,
+from openinfra.application.it_resources_management_quality_services import (
+    EvaluateItrmObjectQualityCommand,
+    ItrmQualitySummaryCommand,
 )
 from openinfra.application.security_services import (
     AuthenticateTokenCommand,
@@ -111,7 +111,7 @@ from openinfra.application.source_governance_services import (
     EvaluateSourceGovernanceCommand,
     ListSourceGovernanceRulesCommand,
 )
-from openinfra.application.source_of_truth_services import (
+from openinfra.application.it_resources_management_services import (
     CreateSourceRelationCommand,
     GetSourceObjectCommand,
     GetSourceObjectVersionCommand,
@@ -164,6 +164,7 @@ class OpenInfraCLI:
         self._add_import_commands(subparsers)
         self._add_export_commands(subparsers)
         self._add_discovery_commands(subparsers)
+        self._add_itrm_commands(subparsers)
         self._add_ri_commands(subparsers)
         self._add_sot_commands(subparsers)
         self._add_ipam_commands(subparsers)
@@ -507,7 +508,7 @@ class OpenInfraCLI:
         import_subparsers = imports.add_subparsers(dest="import_command", required=True)
         dataset = import_subparsers.add_parser(
             "dataset",
-            help="validate or apply a mapped CSV, JSON or XLSX dataset into Ressources Inventory",
+            help="validate or apply a mapped CSV, JSON or XLSX dataset into IT Ressources Management",
         )
         self._add_backend_arguments(dataset)
         dataset.add_argument("--tenant", required=True)
@@ -576,7 +577,7 @@ class OpenInfraCLI:
         migration_plan = import_subparsers.add_parser(
             "migration-plan",
             help=(
-                "simulate a legacy inventory migration and persist a gap report without mutating RI"
+                "simulate a legacy inventory migration and persist a gap report without mutating ITRM"
             ),
         )
         self._add_backend_arguments(migration_plan)
@@ -712,20 +713,29 @@ class OpenInfraCLI:
         artifact.add_argument("--output", type=Path, required=True)
         artifact.set_defaults(handler=self._handle_export_artifact)
 
+    def _add_itrm_commands(self, subparsers: Any) -> None:
+        self._add_inventory_commands(
+            subparsers,
+            command_name="itrm",
+            help_text="IT Ressources Management objects, relations and governance",
+            command_dest="itrm_command",
+            short_label="ITRM",
+        )
+
     def _add_ri_commands(self, subparsers: Any) -> None:
         self._add_inventory_commands(
             subparsers,
             command_name="ri",
-            help_text="ressources inventory objects, relations and governance",
+            help_text="legacy alias for ITRM commands",
             command_dest="ri_command",
-            short_label="RI",
+            short_label="ITRM legacy compatibility",
         )
 
     def _add_sot_commands(self, subparsers: Any) -> None:
         self._add_inventory_commands(
             subparsers,
             command_name="sot",
-            help_text="legacy alias for ressources inventory commands",
+            help_text="legacy alias for IT Ressources Management commands",
             command_dest="sot_command",
             short_label="SOT compatibility",
         )
@@ -2092,9 +2102,22 @@ class OpenInfraCLI:
         print(json.dumps(download.as_dict(), indent=2, sort_keys=True))
         return 0
 
+    def _warn_legacy_inventory_alias(self, args: argparse.Namespace) -> None:
+        if hasattr(args, "ri_command"):
+            sys.stderr.write(
+                "DEPRECATION: 'openinfra ri' is a legacy alias; use 'openinfra itrm'. "
+                "The RI alias is scheduled for removal in a future major release.\n"
+            )
+        elif hasattr(args, "sot_command"):
+            sys.stderr.write(
+                "DEPRECATION: 'openinfra sot' is a legacy alias; use 'openinfra itrm'. "
+                "The SOT alias is scheduled for removal in a future major release.\n"
+            )
+
     def _handle_sot_upsert_object(self, args: argparse.Namespace) -> int:
+        self._warn_legacy_inventory_alias(args)
         application = self._create_application(args)
-        result = application.source_of_truth_service.upsert_object(
+        result = application.it_resources_management_service.upsert_object(
             UpsertSourceObjectCommand(
                 tenant_id=args.tenant,
                 actor=args.actor,
@@ -2111,8 +2134,9 @@ class OpenInfraCLI:
         return 0
 
     def _handle_sot_get_object(self, args: argparse.Namespace) -> int:
+        self._warn_legacy_inventory_alias(args)
         application = self._create_application(args)
-        result = application.source_of_truth_service.get_object(
+        result = application.it_resources_management_service.get_object(
             GetSourceObjectCommand(
                 tenant_id=args.tenant,
                 admin_token=args.admin_token,
@@ -2123,8 +2147,9 @@ class OpenInfraCLI:
         return 0
 
     def _handle_sot_list_objects(self, args: argparse.Namespace) -> int:
+        self._warn_legacy_inventory_alias(args)
         application = self._create_application(args)
-        page = application.source_of_truth_service.list_objects(
+        page = application.it_resources_management_service.list_objects(
             ListSourceObjectsCommand(
                 tenant_id=args.tenant,
                 admin_token=args.admin_token,
@@ -2138,8 +2163,9 @@ class OpenInfraCLI:
         return 0
 
     def _handle_sot_get_object_version(self, args: argparse.Namespace) -> int:
+        self._warn_legacy_inventory_alias(args)
         application = self._create_application(args)
-        result = application.source_of_truth_service.get_object_version(
+        result = application.it_resources_management_service.get_object_version(
             GetSourceObjectVersionCommand(
                 tenant_id=args.tenant,
                 admin_token=args.admin_token,
@@ -2151,8 +2177,9 @@ class OpenInfraCLI:
         return 0
 
     def _handle_sot_create_relation(self, args: argparse.Namespace) -> int:
+        self._warn_legacy_inventory_alias(args)
         application = self._create_application(args)
-        result = application.source_of_truth_service.create_relation(
+        result = application.it_resources_management_service.create_relation(
             CreateSourceRelationCommand(
                 tenant_id=args.tenant,
                 actor=args.actor,
@@ -2167,8 +2194,9 @@ class OpenInfraCLI:
         return 0
 
     def _handle_sot_list_relations(self, args: argparse.Namespace) -> int:
+        self._warn_legacy_inventory_alias(args)
         application = self._create_application(args)
-        page = application.source_of_truth_service.list_relations(
+        page = application.it_resources_management_service.list_relations(
             ListSourceRelationsCommand(
                 tenant_id=args.tenant,
                 admin_token=args.admin_token,
@@ -2183,6 +2211,7 @@ class OpenInfraCLI:
         return 0
 
     def _handle_sot_create_governance_rule(self, args: argparse.Namespace) -> int:
+        self._warn_legacy_inventory_alias(args)
         application = self._create_application(args)
         rule = application.source_governance_service.create_rule(
             CreateSourceGovernanceRuleCommand(
@@ -2202,6 +2231,7 @@ class OpenInfraCLI:
         return 0
 
     def _handle_sot_list_governance_rules(self, args: argparse.Namespace) -> int:
+        self._warn_legacy_inventory_alias(args)
         application = self._create_application(args)
         page = application.source_governance_service.list_rules(
             ListSourceGovernanceRulesCommand(
@@ -2217,6 +2247,7 @@ class OpenInfraCLI:
         return 0
 
     def _handle_sot_evaluate_governance(self, args: argparse.Namespace) -> int:
+        self._warn_legacy_inventory_alias(args)
         application = self._create_application(args)
         result = application.source_governance_service.evaluate(
             EvaluateSourceGovernanceCommand(
@@ -2232,6 +2263,7 @@ class OpenInfraCLI:
         return 0
 
     def _handle_sot_deactivate_governance_rule(self, args: argparse.Namespace) -> int:
+        self._warn_legacy_inventory_alias(args)
         application = self._create_application(args)
         result = application.source_governance_service.deactivate_rule(
             DeactivateSourceGovernanceRuleCommand(
@@ -2245,9 +2277,10 @@ class OpenInfraCLI:
         return 0
 
     def _handle_sot_quality_object(self, args: argparse.Namespace) -> int:
+        self._warn_legacy_inventory_alias(args)
         application = self._create_application(args)
-        result = application.ressources_inventory_quality_service.evaluate_object(
-            EvaluateRiObjectQualityCommand(
+        result = application.it_resources_management_quality_service.evaluate_object(
+            EvaluateItrmObjectQualityCommand(
                 tenant_id=args.tenant,
                 admin_token=args.admin_token,
                 key=args.key,
@@ -2257,9 +2290,10 @@ class OpenInfraCLI:
         return 0
 
     def _handle_sot_quality_summary(self, args: argparse.Namespace) -> int:
+        self._warn_legacy_inventory_alias(args)
         application = self._create_application(args)
-        summary = application.ressources_inventory_quality_service.summarize(
-            RiQualitySummaryCommand(
+        summary = application.it_resources_management_quality_service.summarize(
+            ItrmQualitySummaryCommand(
                 tenant_id=args.tenant,
                 admin_token=args.admin_token,
                 limit=args.limit,

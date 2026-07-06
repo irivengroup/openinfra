@@ -150,7 +150,7 @@ L'édition active est déterminée par configuration signée, licence/abonnement
 
 ## 25.4 Agents d'autodiscovery
 
-Les agents sont de simples collecteurs d'informations destinés à alimenter la base centrale via l'API backend. Ils ne sont pas une Ressources Inventory locale.
+Les agents sont de simples collecteurs d'informations destinés à alimenter la base centrale via l'API backend. Ils ne sont pas une IT Ressources Management locale.
 
 Un agent doit :
 
@@ -175,7 +175,7 @@ Il doit :
 - ne jamais se connecter directement à PostgreSQL ;
 - ne jamais embarquer de logique d'autorisation finale ;
 - appliquer RBAC/ABAC côté affichage mais laisser l'autorisation définitive au backend ;
-- exposer les modules Ressources Inventory, DCIM, ITAM, IPAM, Discovery, Dependency Mapping, sécurité, gouvernance, qualité, support constructeur, licences et connecteurs ;
+- exposer les modules IT Ressources Management, DCIM, ITAM, IPAM, Discovery, Dependency Mapping, sécurité, gouvernance, qualité, support constructeur, licences et connecteurs ;
 - supporter le mode responsive ;
 - utiliser Bootstrap 5 pour layout, composants et cohérence visuelle ;
 - respecter accessibilité, pagination, recherche, filtres, exports asynchrones et traces d'audit.

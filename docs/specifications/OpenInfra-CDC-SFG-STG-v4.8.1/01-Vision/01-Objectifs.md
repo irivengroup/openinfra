@@ -11,7 +11,7 @@ classification: Interne / Consultation intégrateurs
 
 ## Synthèse
 
-OpenInfra vise à devenir la Ressources Inventory infrastructure open source, couvrant actifs, IPAM, DCIM, discovery, dépendances, sécurité et exploitation.
+OpenInfra vise à devenir la IT Ressources Management infrastructure open source, couvrant actifs, IPAM, DCIM, discovery, dépendances, sécurité et exploitation.
 
 ## Principes de décision
 

@@ -89,7 +89,7 @@ def test_cli_database_handlers_and_additional_identity_sot_paths(
                 "--display-name",
                 "CLI Group",
                 "--role",
-                "ri:reader",
+                "itrm:reader",
             ]
         )
         == 0
@@ -135,7 +135,7 @@ def test_cli_database_handlers_and_additional_identity_sot_paths(
     assert (
         cli.run(
             [
-                "ri",
+                "itrm",
                 "upsert-object",
                 "--data",
                 str(data),
@@ -158,7 +158,7 @@ def test_cli_database_handlers_and_additional_identity_sot_paths(
     assert (
         cli.run(
             [
-                "ri",
+                "itrm",
                 "get-object",
                 "--data",
                 str(data),

@@ -269,7 +269,7 @@ body {
   font-weight: 600;
 }
 
-/* v0.29.18: component metrics and pie charts on the home dashboard. */
+/* v0.29.19: component metrics and pie charts on the home dashboard. */
 .openinfra-overview-summary,
 .openinfra-component-card {
   border: 1px solid var(--openinfra-border);

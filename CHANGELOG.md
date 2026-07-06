@@ -1,7 +1,15 @@
+## 0.29.19 - 2026-07-06
+
+- Renommage transversal du composant public `ITRM` (`IT Ressources Management`) comme successeur du composant inventaire précédent.
+- Promotion des contrats primaires `openinfra itrm *`, `/api/v1/itrm/*`, rôles `itrm:*` et permissions `itrm.*`.
+- Conservation des alias compatibles `openinfra ri *`, `/api/v1/ri/*`, `openinfra sot *`, `/api/v1/sot/*`, `ri:*` et `sot:*`.
+- Mise à jour du dashboard, des assets runtime, du catalogue frontend, des tests HTTP/CLI, du smoke runtime, de l’OpenAPI, du CDC et de la roadmap.
+- Suppression de l’alerte permanente `Backend prêt` sur l’accueil : l’état runtime reste en sidebar, les alertes visibles sont réservées aux erreurs et aux soumissions de formulaire.
+
 ## 0.29.18 - 2026-07-06
 
 - `openinfra-web` enrichit le dashboard d’accueil avec une vue statistiques par composant.
-- Ajout de cartes RI, IPAM, DCIM, Discovery et Sécurité avec métriques opérations/champs/mutations et camemberts lecture/mutation.
+- Ajout de cartes ITRM, IPAM, DCIM, Discovery et Sécurité avec métriques opérations/champs/mutations et camemberts lecture/mutation.
 - Renforcement du validateur frontend et des tests d’intégration sur les fragments `Statistiques des composants OpenInfra`, `openinfra-component-card` et `openinfra-pie-chart`.
 - CDC v4.8.1 et roadmap v2 alignés avec l’exigence de statistiques d’accueil par composant.
 
@@ -16,17 +24,17 @@
 
 - `openinfra-web` adopte le thème Bootstrap 5 Dashboard avec header principal unique adapté aux domaines OpenInfra.
 - Ajout de `assets/bootstrap.min.css` dans le domaine présentation/rendering pour un runtime sans CDN.
-- Validation frontend renforcée : header, sidebar, recherche, domaines RI/IPAM/DCIM/Discovery/Sécurité et non-exposition des secrets.
+- Validation frontend renforcée : header, sidebar, recherche, domaines ITRM/IPAM/DCIM/Discovery/Sécurité et non-exposition des secrets.
 - CDC v4.8.1 mis à jour avec `REQ-00746` et `TST-WEB-049`.
 
 ## 0.29.13 - 2026-07-05
 
-- Renomme le domaine public `Source of Truth/SOT` en `Ressources Inventory/RI` dans le CDC, la roadmap, OpenAPI, runbooks, CI, documentation, dashboard et smoke tests.
-- Ajoute les contrats primaires `openinfra ri *`, `/api/v1/ri/*`, rôles `ri:reader`, `ri:operator`, `ri:governance-admin` et permissions `ri.*`.
+- Renomme le domaine public `Source of Truth/SOT` en `IT Ressources Management/ITRM` dans le CDC, la roadmap, OpenAPI, runbooks, CI, documentation, dashboard et smoke tests.
+- Ajoute les contrats primaires `openinfra itrm *`, `/api/v1/itrm/*`, rôles `itrm:reader`, `itrm:operator`, `itrm:governance-admin` et permissions `itrm.*`.
 - Conserve les alias de compatibilité `openinfra sot *`, `/api/v1/sot/*` et `sot:*` afin d'éviter toute régression opérationnelle.
 - Corrige la sémantique Discovery : un agent est exclusivement un proxy collector Enterprise en topologie étoile ; Lite et Pro exécutent la collecte depuis leurs backends servers.
 - Déplace les assets runtime web de `src/openinfra/web_static` vers `src/openinfra/interfaces/rendering/static`, domaine présentation/rendering.
-- Transforme `openinfra-web` en dashboard de pilotage API-only couvrant RI, IPAM, DCIM, Discovery, sécurité/RBAC, audit, import/export et runtime.
+- Transforme `openinfra-web` en dashboard de pilotage API-only couvrant ITRM, IPAM, DCIM, Discovery, sécurité/RBAC, audit, import/export et runtime.
 - Met à jour tests, gates, validation frontend, installateur, CDC et roadmap pour verrouiller ces contrats.
 
 ## 0.29.11 - 2026-07-05
@@ -180,7 +188,7 @@
 ## 0.27.0 - 2026-07-04
 
 - Roadmap : P06 / EPIC-0604 — Migration depuis référentiels existants.
-- Ajout des templates de migration Device42, NetBox, Nautobot, GLPI et CSV générique vers la Ressources Inventory.
+- Ajout des templates de migration Device42, NetBox, Nautobot, GLPI et CSV générique vers la IT Ressources Management.
 - Ajout du domaine de planification `LegacyMigrationSource`, `MigrationTemplate`, `MigrationGap` et `MigrationPlanReport` avec statut, gaps, rapport dry-run et stratégie de reprise.
 - Ajout du service applicatif de migration : sélection de template, mapping contrôlé, simulation sans écriture, rapport d’écarts, audit et persistance du rapport.
 - Ajout du support de mappings littéraux `literal:<valeur>` pour normaliser les champs `kind` et `source` sans exiger de colonnes artificielles dans les exports legacy.
@@ -439,24 +447,24 @@
 - Ajout du domaine `SourceGovernanceRule`, `SourceGovernanceEvaluation` et `SourceGovernanceEvaluator`.
 - Ajout du service applicatif `SourceGovernanceService` : création, inventaire paginé, évaluation et désactivation des règles.
 - Intégration de la gouvernance dans `SourceOfTruthService` pour refuser les écrasements non autoritatifs selon la stratégie `reject`.
-- Ajout du rôle `ri:governance-admin` et des permissions `ri.governance.read` / `ri.governance.write`.
+- Ajout du rôle `itrm:governance-admin` et des permissions `itrm.governance.read` / `itrm.governance.write`.
 - Ajout des référentiels JSON et PostgreSQL `SourceGovernanceRepository`.
 - Ajout de la migration PostgreSQL `0008_source_governance.sql` avec table partitionnée, contraintes et index métier.
-- Ajout des commandes `openinfra ri create-governance-rule`, `list-governance-rules`, `evaluate-governance` et `deactivate-governance-rule`.
-- Ajout des endpoints `/api/v1/ri/governance-rules`, `/api/v1/ri/governance/evaluate` et `/api/v1/ri/governance/deactivate-rule`.
+- Ajout des commandes `openinfra itrm create-governance-rule`, `list-governance-rules`, `evaluate-governance` et `deactivate-governance-rule`.
+- Ajout des endpoints `/api/v1/itrm/governance-rules`, `/api/v1/itrm/governance/evaluate` et `/api/v1/itrm/governance/deactivate-rule`.
 - Extension du runtime Docker smoke, OpenAPI, README, architecture, runbooks, CI et tests de non-régression.
 
 ## 0.10.0 - 2026-07-03
 
-- Réalignement roadmap sur REL-01/P03 Ressources Inventory avant poursuite des briques P14.
-- Ajout du domaine RI : objets typés, clés sûres, tags, attributs JSON contrôlés, source déclarée, version et statut.
-- Ajout des relations typées transactionnelles entre objets RI avec provenance et validité temporelle.
+- Réalignement roadmap sur REL-01/P03 IT Ressources Management avant poursuite des briques P14.
+- Ajout du domaine ITRM : objets typés, clés sûres, tags, attributs JSON contrôlés, source déclarée, version et statut.
+- Ajout des relations typées transactionnelles entre objets ITRM avec provenance et validité temporelle.
 - Ajout des snapshots `SourceObjectSnapshot` pour restitution time-travel initiale par version.
-- Ajout du service applicatif `SourceOfTruthService` avec contrôle `ri.read` / `ri.write` et audit.
+- Ajout du service applicatif `SourceOfTruthService` avec contrôle `itrm.read` / `itrm.write` et audit.
 - Ajout des référentiels JSON et PostgreSQL `SourceOfTruthRepository`.
 - Ajout de la migration PostgreSQL `0007_source_of_truth_core.sql` avec tables partitionnées et index type/tags/JSONB/relations.
-- Ajout des commandes `openinfra ri upsert-object`, `get-object`, `list-objects`, `get-object-version`, `create-relation`, `list-relations`.
-- Ajout des endpoints `/api/v1/ri/objects`, `/api/v1/ri/object-versions` et `/api/v1/ri/relations`.
+- Ajout des commandes `openinfra itrm upsert-object`, `get-object`, `list-objects`, `get-object-version`, `create-relation`, `list-relations`.
+- Ajout des endpoints `/api/v1/itrm/objects`, `/api/v1/itrm/object-versions` et `/api/v1/itrm/relations`.
 - Extension du runtime Docker smoke, OpenAPI, README, architecture, runbooks, CI et tests de non-régression.
 
 ## 0.9.0 - 2026-07-03
@@ -535,9 +543,9 @@
 
 ## 0.29.14
 
-- Ajout P09 initial : RI Quality & Certification.
-- Ajout du service applicatif `RessourcesInventoryQualityService` pour scorer les objets RI.
-- Ajout des commandes `openinfra ri quality-object` et `openinfra ri quality-summary` avec alias `openinfra sot ...` conservés.
-- Ajout des endpoints API `/api/v1/ri/quality/object` et `/api/v1/ri/quality/summary` avec alias `/api/v1/sot/...` via compatibilité existante.
-- Dashboard web enrichi avec les opérations de qualité/certification RI.
-- RBAC enrichi avec la permission `ri.quality.read`, incluse dans les rôles RI de lecture/opération/gouvernance.
+- Ajout P09 initial : ITRM Quality & Certification.
+- Ajout du service applicatif `ITResourcesManagementQualityService` pour scorer les objets ITRM.
+- Ajout des commandes `openinfra itrm quality-object` et `openinfra itrm quality-summary` avec alias `openinfra sot ...` conservés.
+- Ajout des endpoints API `/api/v1/itrm/quality/object` et `/api/v1/itrm/quality/summary` avec alias `/api/v1/sot/...` via compatibilité existante.
+- Dashboard web enrichi avec les opérations de qualité/certification ITRM.
+- RBAC enrichi avec la permission `itrm.quality.read`, incluse dans les rôles ITRM de lecture/opération/gouvernance.

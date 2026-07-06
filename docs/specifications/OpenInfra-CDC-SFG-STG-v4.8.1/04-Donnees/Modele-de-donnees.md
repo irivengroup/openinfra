@@ -18,7 +18,7 @@ Le modèle de données est organisé par domaines afin d’éviter une base conf
 | Schéma | Nombre entités |
 | --- | --- |
 | core | 29 |
-| ri | 31 |
+| itrm | 31 |
 | dcim | 49 |
 | ipam | 50 |
 | discovery | 36 |
@@ -30,7 +30,7 @@ Le modèle de données est organisé par domaines afin d’éviter une base conf
 
 ## Entités majeures
 
-Le dictionnaire complet est disponible dans `04-Donnees/Dictionnaire.csv`. Il contient 319 entités logiques couvrant core, Ressources Inventory, DCIM, IPAM, discovery, dependency mapping, ITAM, sécurité, exploitation et IA.
+Le dictionnaire complet est disponible dans `04-Donnees/Dictionnaire.csv`. Il contient 319 entités logiques couvrant core, IT Ressources Management, DCIM, IPAM, discovery, dependency mapping, ITAM, sécurité, exploitation et IA.
 
 ## Règles transverses
 

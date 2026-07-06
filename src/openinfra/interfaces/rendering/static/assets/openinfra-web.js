@@ -135,7 +135,7 @@ const FIELD_SETS = {
   riKind: { name: "kind", label: "Type de ressource", type: "select", options: COMMON_KIND_OPTIONS },
   tag: { name: "tag", label: "Tag", placeholder: "prod" },
   actor: { name: "actor", label: "Opérateur", required: true, placeholder: "admin@openinfra" },
-  riKey: { name: "key", label: "Clé RI", required: true, placeholder: "server/srv-db-01" },
+  riKey: { name: "key", label: "Clé ITRM", required: true, placeholder: "server/srv-db-01" },
   displayName: { name: "display_name", label: "Nom affiché", required: true, placeholder: "srv-db-01" },
   source: { name: "source", label: "Source autoritative", required: true, type: "select", options: SOURCE_OPTIONS },
   serial: { name: "serial", label: "Numéro de série", target: "attributes.serial", placeholder: "SN123456" },
@@ -157,13 +157,13 @@ const OPENINFRA_MODULES = [
     { id: "version", label: "Version runtime", method: "GET", path: "/version", query: [] },
     { id: "schema", label: "Statut schéma DB", method: "GET", path: "/api/v1/database/schema", query: [] }
   ] },
-  { id: "ri", label: "Ressources Inventory", shortLabel: "RI", icon: "table", description: "Inventaire canonique, relations, versions, gouvernance et certification.", operations: [
-    { id: "ri-list", label: "Lister les objets RI", method: "GET", path: "/v1/ri/objects", query: [FIELD_SETS.riKind, FIELD_SETS.tag, FIELD_SETS.limit] },
-    { id: "ri-upsert", label: "Créer / mettre à jour une ressource", method: "POST", path: "/v1/ri/objects", body: [FIELD_SETS.actor, FIELD_SETS.riKey, FIELD_SETS.riKind, FIELD_SETS.displayName, FIELD_SETS.source, FIELD_SETS.serial, FIELD_SETS.vendor, FIELD_SETS.model, FIELD_SETS.site, FIELD_SETS.building, FIELD_SETS.room, FIELD_SETS.row, FIELD_SETS.column, FIELD_SETS.rack, FIELD_SETS.managementIp, FIELD_SETS.lifecycle, FIELD_SETS.tags] },
-    { id: "ri-relations", label: "Lister les relations", method: "GET", path: "/v1/ri/relations", query: [{ name: "source_key", label: "Ressource source" }, { name: "target_key", label: "Ressource cible" }, { name: "relation_type", label: "Type de relation" }, FIELD_SETS.limit] },
-    { id: "ri-quality-object", label: "Évaluer la qualité d’une ressource", method: "GET", path: "/v1/ri/quality/object", query: [FIELD_SETS.riKey] },
-    { id: "ri-quality-summary", label: "Synthèse qualité / certification", method: "GET", path: "/v1/ri/quality/summary", query: [FIELD_SETS.riKind, FIELD_SETS.tag, FIELD_SETS.limit] },
-    { id: "ri-governance", label: "Évaluer une règle de gouvernance", method: "POST", path: "/v1/ri/governance/evaluate", body: [
+  { id: "itrm", label: "IT Ressources Management", shortLabel: "ITRM", icon: "table", description: "Inventaire canonique, relations, versions, gouvernance et certification.", operations: [
+    { id: "itrm-list", label: "Lister les objets ITRM", method: "GET", path: "/v1/itrm/objects", query: [FIELD_SETS.riKind, FIELD_SETS.tag, FIELD_SETS.limit] },
+    { id: "itrm-upsert", label: "Créer / mettre à jour une ressource", method: "POST", path: "/v1/itrm/objects", body: [FIELD_SETS.actor, FIELD_SETS.riKey, FIELD_SETS.riKind, FIELD_SETS.displayName, FIELD_SETS.source, FIELD_SETS.serial, FIELD_SETS.vendor, FIELD_SETS.model, FIELD_SETS.site, FIELD_SETS.building, FIELD_SETS.room, FIELD_SETS.row, FIELD_SETS.column, FIELD_SETS.rack, FIELD_SETS.managementIp, FIELD_SETS.lifecycle, FIELD_SETS.tags] },
+    { id: "itrm-relations", label: "Lister les relations", method: "GET", path: "/v1/itrm/relations", query: [{ name: "source_key", label: "Ressource source" }, { name: "target_key", label: "Ressource cible" }, { name: "relation_type", label: "Type de relation" }, FIELD_SETS.limit] },
+    { id: "itrm-quality-object", label: "Évaluer la qualité d’une ressource", method: "GET", path: "/v1/itrm/quality/object", query: [FIELD_SETS.riKey] },
+    { id: "itrm-quality-summary", label: "Synthèse qualité / certification", method: "GET", path: "/v1/itrm/quality/summary", query: [FIELD_SETS.riKind, FIELD_SETS.tag, FIELD_SETS.limit] },
+    { id: "itrm-governance", label: "Évaluer une règle de gouvernance", method: "POST", path: "/v1/itrm/governance/evaluate", body: [
       { name: "object_kind", label: "Type d’objet", required: true, type: "select", options: COMMON_KIND_OPTIONS },
       { name: "incoming_source", label: "Source entrante", required: true, type: "select", options: SOURCE_OPTIONS },
       { name: "existing_serial", label: "Serial existant", target: "existing_attributes.serial" },
@@ -203,7 +203,7 @@ class OpenInfraDashboard {
     this.state = {
       activeModuleId: "overview",
       selected: OPENINFRA_MODULES[0].operations[0],
-      openedModules: new Set(["ri"]),
+      openedModules: new Set(["itrm"]),
       tenant: "default",
       config: null,
       ready: null,
@@ -308,7 +308,7 @@ class OpenInfraDashboard {
               <div class="btn-toolbar mb-2 mb-md-0"><span class="badge text-bg-primary me-2">${this.escape(config?.edition || "runtime")}</span><span class="badge text-bg-secondary">${this.escape(config?.authMode || "standard")}</span></div>
             </div>
             ${error ? `<div class="alert alert-warning" role="alert">${this.escape(error.message)}</div>` : ""}
-            ${ready?.ready === true ? `<div class="alert alert-success" role="status">Backend prêt.</div>` : ""}
+            ${result && activeModuleId !== "overview" ? `<div class="alert alert-success" role="status">Soumission exécutée avec succès.</div>` : ""}
             <div class="row g-3 mb-4">
               ${this.metric("Version", this.escape(displayedVersion))}
               ${this.metric("API", this.escape(config?.apiBaseUrl || "/api"))}

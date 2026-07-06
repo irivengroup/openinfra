@@ -1011,9 +1011,9 @@ paths:
         '401':
           description: Missing or invalid Bearer token when authentication is enabled
 
-  /api/v1/ri/objects:
+  /api/v1/itrm/objects:
     get:
-      summary: Get or list Ressources Inventory objects
+      summary: Get or list IT Ressources Management objects
       security:
         - bearerToken: []
       parameters:
@@ -1042,11 +1042,11 @@ paths:
           required: false
           schema: {type: string}
       responses:
-        '200': {description: Ressources Inventory object or paginated objects}
+        '200': {description: IT Ressources Management object or paginated objects}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid RI reader token}
+        '401': {description: Missing or invalid ITRM reader token}
     post:
-      summary: Create or update a Ressources Inventory object with history
+      summary: Create or update a IT Ressources Management object with history
       security:
         - bearerToken: []
       requestBody:
@@ -1068,12 +1068,12 @@ paths:
                   items: {type: string}
                 source: {type: string}
       responses:
-        '201': {description: Ressources Inventory object persisted}
+        '201': {description: IT Ressources Management object persisted}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid RI writer token}
-  /api/v1/ri/object-versions:
+        '401': {description: Missing or invalid ITRM writer token}
+  /api/v1/itrm/object-versions:
     get:
-      summary: Retrieve a historical Ressources Inventory object snapshot
+      summary: Retrieve a historical IT Ressources Management object snapshot
       security:
         - bearerToken: []
       parameters:
@@ -1092,10 +1092,10 @@ paths:
       responses:
         '200': {description: Historical object snapshot}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid RI reader token}
-  /api/v1/ri/relations:
+        '401': {description: Missing or invalid ITRM reader token}
+  /api/v1/itrm/relations:
     get:
-      summary: List Ressources Inventory typed relations
+      summary: List IT Ressources Management typed relations
       security:
         - bearerToken: []
       parameters:
@@ -1126,9 +1126,9 @@ paths:
       responses:
         '200': {description: Paginated typed relations}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid RI reader token}
+        '401': {description: Missing or invalid ITRM reader token}
     post:
-      summary: Create a typed Ressources Inventory relation
+      summary: Create a typed IT Ressources Management relation
       security:
         - bearerToken: []
       requestBody:
@@ -1146,13 +1146,13 @@ paths:
                 target_key: {type: string}
                 provenance: {type: string}
       responses:
-        '201': {description: Ressources Inventory relation persisted}
+        '201': {description: IT Ressources Management relation persisted}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid RI writer token}
+        '401': {description: Missing or invalid ITRM writer token}
 
-  /api/v1/ri/quality/object:
+  /api/v1/itrm/quality/object:
     get:
-      summary: Evaluate Ressources Inventory object quality and certification
+      summary: Evaluate IT Ressources Management object quality and certification
       security:
         - bearerToken: []
       parameters:
@@ -1165,12 +1165,12 @@ paths:
           required: true
           schema: {type: string}
       responses:
-        '200': {description: RI quality report with score, certification status and issues}
+        '200': {description: ITRM quality report with score, certification status and issues}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid RI quality reader token}
-  /api/v1/ri/quality/summary:
+        '401': {description: Missing or invalid ITRM quality reader token}
+  /api/v1/itrm/quality/summary:
     get:
-      summary: Summarize Ressources Inventory quality and certification status
+      summary: Summarize IT Ressources Management quality and certification status
       security:
         - bearerToken: []
       parameters:
@@ -1195,13 +1195,13 @@ paths:
           required: false
           schema: {type: string}
       responses:
-        '200': {description: RI quality summary and evaluated reports}
+        '200': {description: ITRM quality summary and evaluated reports}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid RI quality reader token}
+        '401': {description: Missing or invalid ITRM quality reader token}
 
-  /api/v1/ri/governance-rules:
+  /api/v1/itrm/governance-rules:
     get:
-      summary: List Ressources Inventory governance rules
+      summary: List IT Ressources Management governance rules
       security:
         - bearerToken: []
       parameters:
@@ -1228,9 +1228,9 @@ paths:
       responses:
         '200': {description: Paginated governance rules}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid RI governance token}
+        '401': {description: Missing or invalid ITRM governance token}
     post:
-      summary: Create or update a Ressources Inventory authoritative source rule
+      summary: Create or update a IT Ressources Management authoritative source rule
       security:
         - bearerToken: []
       requestBody:
@@ -1253,10 +1253,10 @@ paths:
       responses:
         '201': {description: Governance rule persisted}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid RI governance token}
-  /api/v1/ri/governance/evaluate:
+        '401': {description: Missing or invalid ITRM governance token}
+  /api/v1/itrm/governance/evaluate:
     post:
-      summary: Evaluate a Ressources Inventory update against authoritative source rules
+      summary: Evaluate a IT Ressources Management update against authoritative source rules
       security:
         - bearerToken: []
       requestBody:
@@ -1275,10 +1275,10 @@ paths:
       responses:
         '200': {description: Governance evaluation result}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid RI governance token}
-  /api/v1/ri/governance/deactivate-rule:
+        '401': {description: Missing or invalid ITRM governance token}
+  /api/v1/itrm/governance/deactivate-rule:
     post:
-      summary: Deactivate a Ressources Inventory governance rule
+      summary: Deactivate a IT Ressources Management governance rule
       security:
         - bearerToken: []
       requestBody:
@@ -1295,7 +1295,7 @@ paths:
       responses:
         '200': {description: Governance rule deactivated}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid RI governance token}
+        '401': {description: Missing or invalid ITRM governance token}
 
   /api/v1/dcim/power-devices:
     post:
@@ -1775,7 +1775,7 @@ paths:
   /api/v1/exports/jobs:
     post:
       summary: Queue an asynchronous signed export job
-      description: Creates a non-blocking export job for Ressources Inventory data. The job remains queued until an export worker invokes the run endpoint or CLI command.
+      description: Creates a non-blocking export job for IT Ressources Management data. The job remains queued until an export worker invokes the run endpoint or CLI command.
       requestBody:
         required: true
         content:
@@ -1837,8 +1837,8 @@ paths:
 
   /api/v1/imports/datasets:
     post:
-      summary: Validate or apply a mapped CSV, JSON or XLSX dataset into Ressources Inventory
-      description: "Performs a dry-run by default. When apply is true, the import is atomic: any invalid row prevents all Ressources Inventory mutations and produces a DLQ report."
+      summary: Validate or apply a mapped CSV, JSON or XLSX dataset into IT Ressources Management
+      description: "Performs a dry-run by default. When apply is true, the import is atomic: any invalid row prevents all IT Ressources Management mutations and produces a DLQ report."
       requestBody:
         required: true
         content:
@@ -2040,7 +2040,7 @@ paths:
         '400': {description: Validation error or unsupported source}
   /api/v1/imports/migration-plans:
     post:
-      summary: Simulate a legacy inventory migration without mutating Ressources Inventory
+      summary: Simulate a legacy inventory migration without mutating IT Ressources Management
       description: "Runs a dry-run migration using a built-in Device42, NetBox, Nautobot, GLPI or generic CSV template, persists a gap report and returns a resume strategy for bulk execution."
       requestBody:
         required: true

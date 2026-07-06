@@ -90,9 +90,9 @@ from openinfra.application.ipam_services import (
     PreviewDdiReservationCommand,
     RegisterIpAddressCommand,
 )
-from openinfra.application.ressources_inventory_quality_services import (
-    EvaluateRiObjectQualityCommand,
-    RiQualitySummaryCommand,
+from openinfra.application.it_resources_management_quality_services import (
+    EvaluateItrmObjectQualityCommand,
+    ItrmQualitySummaryCommand,
 )
 from openinfra.application.security_services import (
     AuthenticateTokenCommand,
@@ -106,7 +106,7 @@ from openinfra.application.source_governance_services import (
     EvaluateSourceGovernanceCommand,
     ListSourceGovernanceRulesCommand,
 )
-from openinfra.application.source_of_truth_services import (
+from openinfra.application.it_resources_management_services import (
     CreateSourceRelationCommand,
     GetSourceObjectCommand,
     GetSourceObjectVersionCommand,
@@ -517,7 +517,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 query = parse_qs(parsed.query)
                 key = query.get("key", [None])[0]
                 if key:
-                    result = self.server.application.source_of_truth_service.get_object(
+                    result = self.server.application.it_resources_management_service.get_object(
                         GetSourceObjectCommand(
                             tenant_id=self._first_query_value(query, "tenant_id"),
                             admin_token=self._bearer_token(),
@@ -526,7 +526,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     )
                     responder.send(HTTPStatus.OK, result)
                 else:
-                    page = self.server.application.source_of_truth_service.list_objects(
+                    page = self.server.application.it_resources_management_service.list_objects(
                         ListSourceObjectsCommand(
                             tenant_id=self._first_query_value(query, "tenant_id"),
                             admin_token=self._bearer_token(),
@@ -545,7 +545,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         if route == "/api/v1/sot/object-versions":
             try:
                 query = parse_qs(parsed.query)
-                result = self.server.application.source_of_truth_service.get_object_version(
+                result = self.server.application.it_resources_management_service.get_object_version(
                     GetSourceObjectVersionCommand(
                         tenant_id=self._first_query_value(query, "tenant_id"),
                         admin_token=self._bearer_token(),
@@ -563,8 +563,8 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             try:
                 query = parse_qs(parsed.query)
                 result = (
-                    self.server.application.ressources_inventory_quality_service.evaluate_object(
-                        EvaluateRiObjectQualityCommand(
+                    self.server.application.it_resources_management_quality_service.evaluate_object(
+                        EvaluateItrmObjectQualityCommand(
                             tenant_id=self._first_query_value(query, "tenant_id"),
                             admin_token=self._bearer_token(),
                             key=self._first_query_value(query, "key"),
@@ -580,8 +580,8 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         if route == "/api/v1/sot/quality/summary":
             try:
                 query = parse_qs(parsed.query)
-                summary = self.server.application.ressources_inventory_quality_service.summarize(
-                    RiQualitySummaryCommand(
+                summary = self.server.application.it_resources_management_quality_service.summarize(
+                    ItrmQualitySummaryCommand(
                         tenant_id=self._first_query_value(query, "tenant_id"),
                         admin_token=self._bearer_token(),
                         limit=int(self._first_query_value(query, "limit", "100")),
@@ -599,7 +599,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         if route == "/api/v1/sot/relations":
             try:
                 query = parse_qs(parsed.query)
-                page = self.server.application.source_of_truth_service.list_relations(
+                page = self.server.application.it_resources_management_service.list_relations(
                     ListSourceRelationsCommand(
                         tenant_id=self._first_query_value(query, "tenant_id"),
                         admin_token=self._bearer_token(),
@@ -1301,7 +1301,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 tags_payload = payload.get("tags", [])
                 if not isinstance(tags_payload, list):
                     raise OpenInfraError("tags must be a list")
-                result = self.server.application.source_of_truth_service.upsert_object(
+                result = self.server.application.it_resources_management_service.upsert_object(
                     UpsertSourceObjectCommand(
                         tenant_id=str(payload["tenant_id"]),
                         actor=str(payload.get("actor", "api")),
@@ -1323,7 +1323,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         if route == "/api/v1/sot/relations":
             try:
                 payload = self._read_json_body()
-                result = self.server.application.source_of_truth_service.create_relation(
+                result = self.server.application.it_resources_management_service.create_relation(
                     CreateSourceRelationCommand(
                         tenant_id=str(payload["tenant_id"]),
                         actor=str(payload.get("actor", "api")),
@@ -2095,6 +2095,10 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
 
     @staticmethod
     def _canonical_route(route: str) -> str:
+        if route.startswith("/api/v1/itrm/"):
+            return "/api/v1/sot/" + route.removeprefix("/api/v1/itrm/")
+        if route == "/api/v1/itrm":
+            return "/api/v1/sot"
         if route.startswith("/api/v1/ri/"):
             return "/api/v1/sot/" + route.removeprefix("/api/v1/ri/")
         if route == "/api/v1/ri":
@@ -2151,13 +2155,14 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "report": "/api/v1/exports/jobs",
                     "artifact": "/api/v1/exports/artifact",
                 },
-                "ressources_inventory": {
-                    "objects": "/api/v1/ri/objects",
-                    "object_versions": "/api/v1/ri/object-versions",
-                    "relations": "/api/v1/ri/relations",
-                    "governance_rules": "/api/v1/ri/governance-rules",
-                    "quality_object": "/api/v1/ri/quality/object",
-                    "quality_summary": "/api/v1/ri/quality/summary",
+                "it_resources_management": {
+                    "objects": "/api/v1/itrm/objects",
+                    "object_versions": "/api/v1/itrm/object-versions",
+                    "relations": "/api/v1/itrm/relations",
+                    "governance_rules": "/api/v1/itrm/governance-rules",
+                    "quality_object": "/api/v1/itrm/quality/object",
+                    "quality_summary": "/api/v1/itrm/quality/summary",
+                    "legacy_ri_alias": "/api/v1/ri/objects",
                     "legacy_sot_alias": "/api/v1/sot/objects",
                 },
                 "discovery": {

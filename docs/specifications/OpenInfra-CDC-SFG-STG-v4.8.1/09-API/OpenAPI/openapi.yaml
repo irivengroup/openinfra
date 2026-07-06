@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: OpenInfra API
   version: 3.0.0
-  description: API de référence OpenInfra pour Ressources Inventory, DCIM, IPAM, Discovery,
+  description: API de référence OpenInfra pour IT Ressources Management, DCIM, IPAM, Discovery,
     Dependency Mapping et ITAM.
 servers:
 - url: https://openinfra.example.internal/api/v1

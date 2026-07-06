@@ -1,12 +1,12 @@
-## v0.29.13 — RI, agents proxy Enterprise et dashboard web
+## v0.29.13 — ITRM, agents proxy Enterprise et dashboard web
 
 | Élément | Alignement |
 |---|---|
 | Roadmap | P08 consolidé : `openinfra-web` devient dashboard de pilotage API-only couvrant les domaines CLI. |
-| Ressources Inventory | `Source of Truth/SOT` est renommé en `Ressources Inventory/RI`; `/api/v1/ri/*`, `openinfra ri` et `ri:*` sont primaires, les alias `sot` restent compatibles. |
+| IT Ressources Management | `Source of Truth/SOT` est renommé en `IT Ressources Management/ITRM`; `/api/v1/itrm/*`, `openinfra itrm` et `itrm:*` sont primaires, les alias `ri` et `sot` restent compatibles uniquement pour migration et sont dépréciés. |
 | Discovery | `agent` est réservé aux proxy collectors Enterprise en topologie étoile ; Lite/Pro collectent via backends servers. |
 | Backend | Le backend reste API-only : aucune authentification opérateur LDAP/IPA directe. |
-| Frontend | `web/src/main.jsx` et les assets `interfaces/rendering/static` consomment `/api`, `/config.json` et exposent les opérations RI/IPAM/DCIM/Discovery/sécurité/audit sans secret backend. |
+| Frontend | `web/src/main.jsx` et les assets `interfaces/rendering/static` consomment `/api`, `/config.json` et exposent les opérations ITRM/IPAM/DCIM/Discovery/sécurité/audit sans secret backend. |
 | Docker Compose | Service `web` ajouté avec healthcheck, dépendance sur `api`, port local `2006` et proxy `/api/*` vers `api:8080`. |
 | Installateur | Scope web rendu en `openinfra-web.service` et configuration runtime matérialisée dans `/opt/openinfra/config/openinfra.conf`. |
 | Tests | `tests/integration/test_openinfra_web.py`, `tests/integration/test_runtime_docker_environment.py`, `scripts/validate_frontend.py` et smoke Docker frontend. |
@@ -232,23 +232,23 @@ Traçabilité :
 La v0.27.0 ajoute une simulation de migration depuis Device42, NetBox, Nautobot, GLPI et CSV générique. Les exigences couvertes sont la préparation de mappings contrôlés, le dry-run sans écriture, le rapport d’écarts complet, la persistance du plan et la reprise par `job_id`. Les contrats exposés sont `openinfra import migration-template|migration-plan|migration-report` et `/api/v1/imports/migration-template`, `/api/v1/imports/migration-plans`, `/api/v1/imports/migration-report`.
 
 
-## v0.29.14 — P09 RI Quality & Certification
+## v0.29.14 — P09 ITRM Quality & Certification
 
 | Élément | Couverture |
 |---|---|
-| RI Quality service | `src/openinfra/application/ressources_inventory_quality_services.py` |
-| CLI | `openinfra ri quality-object`, `openinfra ri quality-summary`, alias `sot` |
-| API | `/api/v1/ri/quality/object`, `/api/v1/ri/quality/summary` |
-| Dashboard | opérations RI quality dans `interfaces/rendering/static` |
-| RBAC | permission `ri.quality.read` |
-| Tests | `tests/integration/test_ri_quality_services.py`, contrat HTTP RI quality |
+| ITRM Quality service | `src/openinfra/application/it_resources_management_quality_services.py` |
+| CLI | `openinfra itrm quality-object`, `openinfra itrm quality-summary`, alias `sot` |
+| API | `/api/v1/itrm/quality/object`, `/api/v1/itrm/quality/summary` |
+| Dashboard | opérations ITRM quality dans `interfaces/rendering/static` |
+| RBAC | permission `itrm.quality.read` |
+| Tests | `tests/integration/test_ri_quality_services.py`, contrat HTTP ITRM quality |
 
 ## v0.29.15 — openinfra-web Bootstrap Dashboard
 
 | Domaine | Alignement |
 | --- | --- |
 | CDC | `REQ-00746` impose le thème Bootstrap 5 Dashboard complet, le header principal unique adapté et les assets Bootstrap locaux. |
-| Frontend | `web/src/main.jsx` et `interfaces/rendering/static` exposent Dashboard, RI, IPAM, DCIM, Discovery et Sécurité dans le header et la sidebar. |
+| Frontend | `web/src/main.jsx` et `interfaces/rendering/static` exposent Dashboard, ITRM, IPAM, DCIM, Discovery et Sécurité dans le header et la sidebar. |
 | Sécurité | Bootstrap est servi localement, le dashboard reste API-only, et aucun DSN PostgreSQL ni secret backend n'est exposé au navigateur. |
 | Tests | `TST-WEB-049`, `scripts/validate_frontend.py` et `tests/integration/test_openinfra_web.py` valident les assets, le header, la sidebar et la non-exposition de secrets. |
 

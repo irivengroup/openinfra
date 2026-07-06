@@ -48,6 +48,6 @@ Le backend valide les jetons applicatifs, applique RBAC/ABAC, journalise les ref
 
 ## Complément v0.29.15 — thème Bootstrap 5 du portail web
 
-`openinfra-web.service` doit servir un dashboard Bootstrap 5 complet basé sur le modèle Dashboard officiel et sur un header principal unique adapté à OpenInfra. Les composants visibles doivent permettre le pilotage réel des domaines exposés par l'API backend : Dashboard, Ressources Inventory, IPAM, DCIM, Discovery, Sécurité/RBAC, Audit et Runtime.
+`openinfra-web.service` doit servir un dashboard Bootstrap 5 complet basé sur le modèle Dashboard officiel et sur un header principal unique adapté à OpenInfra. Les composants visibles doivent permettre le pilotage réel des domaines exposés par l'API backend : Dashboard, IT Ressources Management, IPAM, DCIM, Discovery, Sécurité/RBAC, Audit et Runtime.
 
 Les fichiers statiques appartiennent au domaine présentation/rendering et sont empaquetés sous `src/openinfra/interfaces/rendering/static`. Le runtime doit charger Bootstrap localement depuis `assets/bootstrap.min.css`, puis le thème OpenInfra depuis `assets/openinfra-web.css`.

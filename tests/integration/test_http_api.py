@@ -69,13 +69,14 @@ class TestHttpApi:
                     "report": "/api/v1/exports/jobs",
                     "artifact": "/api/v1/exports/artifact",
                 },
-                "ressources_inventory": {
-                    "objects": "/api/v1/ri/objects",
-                    "object_versions": "/api/v1/ri/object-versions",
-                    "relations": "/api/v1/ri/relations",
-                    "governance_rules": "/api/v1/ri/governance-rules",
-                    "quality_object": "/api/v1/ri/quality/object",
-                    "quality_summary": "/api/v1/ri/quality/summary",
+                "it_resources_management": {
+                    "objects": "/api/v1/itrm/objects",
+                    "object_versions": "/api/v1/itrm/object-versions",
+                    "relations": "/api/v1/itrm/relations",
+                    "governance_rules": "/api/v1/itrm/governance-rules",
+                    "quality_object": "/api/v1/itrm/quality/object",
+                    "quality_summary": "/api/v1/itrm/quality/summary",
+                    "legacy_ri_alias": "/api/v1/ri/objects",
                     "legacy_sot_alias": "/api/v1/sot/objects",
                 },
                 "discovery": {
@@ -106,8 +107,8 @@ class TestHttpApi:
             BootstrapTokenCommand(
                 tenant_id="default",
                 actor="pytest",
-                subject="ri-quality-api",
-                roles=("ri:operator",),
+                subject="itrm-quality-api",
+                roles=("itrm:operator",),
                 token=token,
             )
         )
@@ -116,9 +117,9 @@ class TestHttpApi:
                 tenant_id="default",
                 actor="pytest",
                 admin_token=token,
-                key="device/ri-quality-api",
+                key="device/itrm-quality-api",
                 kind="device",
-                display_name="RI Quality API",
+                display_name="ITRM Quality API",
                 attributes_json=json.dumps({"serial": "SNAPI", "site": "PAR1"}),
                 tags=("prod",),
                 source="manual",
@@ -130,7 +131,7 @@ class TestHttpApi:
         try:
             base_url = f"http://127.0.0.1:{server.server_port}"
             report = self._get_json(
-                base_url + "/api/v1/ri/quality/object?tenant_id=default&key=device/ri-quality-api",
+                base_url + "/api/v1/itrm/quality/object?tenant_id=default&key=device/itrm-quality-api",
                 token=token,
             )
             summary = self._get_json(
@@ -138,10 +139,10 @@ class TestHttpApi:
                 token=token,
             )
 
-            assert report["key"] == "device/ri-quality-api"
-            assert report["domain"] == "ressources_inventory"
+            assert report["key"] == "device/itrm-quality-api"
+            assert report["domain"] == "it_resources_management"
             assert summary["total"] == 1
-            assert summary["reports"][0]["key"] == "device/ri-quality-api"
+            assert summary["reports"][0]["key"] == "device/itrm-quality-api"
         finally:
             server.shutdown()
             server.server_close()
@@ -424,7 +425,7 @@ class TestHttpApi:
                 tenant_id="default",
                 actor="pytest",
                 subject="api-import-admin",
-                roles=("ri:operator",),
+                roles=("itrm:operator",),
                 token=token,
             )
         )
@@ -491,7 +492,7 @@ class TestHttpApi:
                 tenant_id="default",
                 actor="pytest",
                 subject="api-bulk-import-admin",
-                roles=("ri:operator",),
+                roles=("itrm:operator",),
                 token=token,
             )
         )
@@ -564,7 +565,7 @@ class TestHttpApi:
                 tenant_id="default",
                 actor="pytest",
                 subject="api-migration-admin",
-                roles=("ri:operator",),
+                roles=("itrm:operator",),
                 token=token,
             )
         )
@@ -627,7 +628,7 @@ class TestHttpApi:
                 tenant_id="default",
                 actor="pytest",
                 subject="api-export-admin",
-                roles=("ri:operator",),
+                roles=("itrm:operator",),
                 token=token,
             )
         )
@@ -1119,7 +1120,7 @@ class TestSourceOfTruthHttpApi:
                 tenant_id="default",
                 actor="pytest",
                 subject="sot-api-admin",
-                roles=("ri:operator",),
+                roles=("itrm:operator",),
                 token=token,
             )
         )
@@ -1129,7 +1130,7 @@ class TestSourceOfTruthHttpApi:
         try:
             base_url = f"http://127.0.0.1:{server.server_port}"
             device = helper._post_json(
-                base_url + "/api/v1/ri/objects",
+                base_url + "/api/v1/itrm/objects",
                 {
                     "tenant_id": "default",
                     "key": "device/api-srv-1",
@@ -1142,7 +1143,7 @@ class TestSourceOfTruthHttpApi:
                 token=token,
             )
             helper._post_json(
-                base_url + "/api/v1/ri/objects",
+                base_url + "/api/v1/itrm/objects",
                 {
                     "tenant_id": "default",
                     "key": "application/api-app",
@@ -1155,7 +1156,7 @@ class TestSourceOfTruthHttpApi:
                 token=token,
             )
             relation = helper._post_json(
-                base_url + "/api/v1/ri/relations",
+                base_url + "/api/v1/itrm/relations",
                 {
                     "tenant_id": "default",
                     "relation_type": "runs_on",
@@ -1166,25 +1167,25 @@ class TestSourceOfTruthHttpApi:
                 token=token,
             )
             listed = helper._get_json(
-                base_url + "/api/v1/ri/objects?tenant_id=default&kind=device&tag=api",
+                base_url + "/api/v1/itrm/objects?tenant_id=default&kind=device&tag=api",
                 token=token,
             )
             fetched = helper._get_json(
-                base_url + "/api/v1/ri/objects?tenant_id=default&key=device/api-srv-1",
+                base_url + "/api/v1/itrm/objects?tenant_id=default&key=device/api-srv-1",
                 token=token,
             )
             version = helper._get_json(
                 base_url
-                + "/api/v1/ri/object-versions?tenant_id=default"
+                + "/api/v1/itrm/object-versions?tenant_id=default"
                 + "&key=device/api-srv-1&version=1",
                 token=token,
             )
             relations = helper._get_json(
-                base_url + "/api/v1/ri/relations?tenant_id=default&source_key=application/api-app",
+                base_url + "/api/v1/itrm/relations?tenant_id=default&source_key=application/api-app",
                 token=token,
             )
             try:
-                helper._get_json(base_url + "/api/v1/ri/objects?tenant_id=default")
+                helper._get_json(base_url + "/api/v1/itrm/objects?tenant_id=default")
             except urllib.error.HTTPError as exc:
                 assert exc.code == 401
 
@@ -1210,7 +1211,7 @@ class TestSourceGovernanceHttpApi:
                 tenant_id="default",
                 actor="pytest",
                 subject="governance-api-admin",
-                roles=("ri:governance-admin",),
+                roles=("itrm:governance-admin",),
                 token=token,
             )
         )
@@ -1220,7 +1221,7 @@ class TestSourceGovernanceHttpApi:
         try:
             base_url = f"http://127.0.0.1:{server.server_port}"
             created = helper._post_json(
-                base_url + "/api/v1/ri/governance-rules",
+                base_url + "/api/v1/itrm/governance-rules",
                 {
                     "tenant_id": "default",
                     "name": "api-serial-authority",
@@ -1234,11 +1235,11 @@ class TestSourceGovernanceHttpApi:
                 token=token,
             )
             listed = helper._get_json(
-                base_url + "/api/v1/ri/governance-rules?tenant_id=default&object_kind=device",
+                base_url + "/api/v1/itrm/governance-rules?tenant_id=default&object_kind=device",
                 token=token,
             )
             evaluated = helper._post_json(
-                base_url + "/api/v1/ri/governance/evaluate",
+                base_url + "/api/v1/itrm/governance/evaluate",
                 {
                     "tenant_id": "default",
                     "object_kind": "device",
@@ -1249,7 +1250,7 @@ class TestSourceGovernanceHttpApi:
                 token=token,
             )
             deactivated = helper._post_json(
-                base_url + "/api/v1/ri/governance/deactivate-rule",
+                base_url + "/api/v1/itrm/governance/deactivate-rule",
                 {"tenant_id": "default", "name": "api-serial-authority"},
                 token=token,
             )

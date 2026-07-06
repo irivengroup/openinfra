@@ -1119,7 +1119,7 @@ class TestPostgreSQLSourceOfTruth:
                 tenant_id="default",
                 actor="pytest",
                 subject="pg-sot-admin",
-                roles=("ri:operator",),
+                roles=("itrm:operator",),
                 token=token,
             )
         )

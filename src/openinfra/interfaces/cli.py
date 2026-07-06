@@ -100,8 +100,10 @@ from openinfra.application.it_resources_management_quality_services import (
 )
 from openinfra.application.it_resources_management_services import (
     CreateSourceRelationCommand,
+    GetSourceObjectAsOfCommand,
     GetSourceObjectCommand,
     GetSourceObjectVersionCommand,
+    ListSourceObjectAuditCommand,
     ListSourceObjectsCommand,
     ListSourceRelationsCommand,
     UpsertSourceObjectCommand,
@@ -482,6 +484,7 @@ class OpenInfraCLI:
         list_events.add_argument("--actor")
         list_events.add_argument("--action")
         list_events.add_argument("--target-type")
+        list_events.add_argument("--target-id")
         list_events.add_argument("--severity")
         list_events.set_defaults(handler=self._handle_audit_list)
         export = audit_subparsers.add_parser("export", help="export audit events as JSON or JSONL")
@@ -494,6 +497,7 @@ class OpenInfraCLI:
         export.add_argument("--actor")
         export.add_argument("--action")
         export.add_argument("--target-type")
+        export.add_argument("--target-id")
         export.add_argument("--severity")
         export.set_defaults(handler=self._handle_audit_export)
         verify = audit_subparsers.add_parser("verify-integrity", help="verify audit hash chain")
@@ -797,6 +801,25 @@ class OpenInfraCLI:
         get_version.add_argument("--key", required=True)
         get_version.add_argument("--version", type=int, required=True)
         get_version.set_defaults(handler=self._handle_sot_get_object_version)
+        get_as_of = sot_subparsers.add_parser(
+            "get-object-as-of", help=f"get a {short_label} object as it was at an ISO-8601 date"
+        )
+        self._add_backend_arguments(get_as_of)
+        get_as_of.add_argument("--tenant", required=True)
+        get_as_of.add_argument("--admin-token", required=True)
+        get_as_of.add_argument("--key", required=True)
+        get_as_of.add_argument("--as-of", required=True)
+        get_as_of.set_defaults(handler=self._handle_sot_get_object_as_of)
+        list_object_audit = sot_subparsers.add_parser(
+            "list-object-audit", help=f"list audit records for a {short_label} object"
+        )
+        self._add_backend_arguments(list_object_audit)
+        list_object_audit.add_argument("--tenant", required=True)
+        list_object_audit.add_argument("--admin-token", required=True)
+        list_object_audit.add_argument("--key", required=True)
+        list_object_audit.add_argument("--limit", type=int, default=100)
+        list_object_audit.add_argument("--cursor")
+        list_object_audit.set_defaults(handler=self._handle_sot_list_object_audit)
         create_relation = sot_subparsers.add_parser(
             "create-relation", help=f"create a typed {short_label} relation"
         )
@@ -820,6 +843,7 @@ class OpenInfraCLI:
         list_relations.add_argument("--source-key")
         list_relations.add_argument("--target-key")
         list_relations.add_argument("--relation-type")
+        list_relations.add_argument("--as-of")
         list_relations.set_defaults(handler=self._handle_sot_list_relations)
         governance_create = sot_subparsers.add_parser(
             "create-governance-rule",
@@ -1851,6 +1875,7 @@ class OpenInfraCLI:
                 actor=args.actor,
                 action=args.action,
                 target_type=args.target_type,
+                target_id=args.target_id,
                 severity=args.severity,
             )
         )
@@ -1869,6 +1894,7 @@ class OpenInfraCLI:
                 actor=args.actor,
                 action=args.action,
                 target_type=args.target_type,
+                target_id=args.target_id,
                 severity=args.severity,
             )
         )
@@ -2179,6 +2205,35 @@ class OpenInfraCLI:
         print(json.dumps(result, sort_keys=True))
         return 0
 
+    def _handle_sot_get_object_as_of(self, args: argparse.Namespace) -> int:
+        self._warn_legacy_inventory_alias(args)
+        application = self._create_application(args)
+        result = application.it_resources_management_service.get_object_as_of(
+            GetSourceObjectAsOfCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                key=args.key,
+                as_of=args.as_of,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_sot_list_object_audit(self, args: argparse.Namespace) -> int:
+        self._warn_legacy_inventory_alias(args)
+        application = self._create_application(args)
+        page = application.it_resources_management_service.list_object_audit(
+            ListSourceObjectAuditCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                key=args.key,
+                limit=args.limit,
+                cursor=args.cursor,
+            )
+        )
+        print(json.dumps(page.as_dict(), sort_keys=True))
+        return 0
+
     def _handle_sot_create_relation(self, args: argparse.Namespace) -> int:
         self._warn_legacy_inventory_alias(args)
         application = self._create_application(args)
@@ -2208,6 +2263,7 @@ class OpenInfraCLI:
                 source_key=args.source_key,
                 target_key=args.target_key,
                 relation_type=args.relation_type,
+                as_of=args.as_of,
             )
         )
         print(json.dumps(page.as_dict(), sort_keys=True))

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -9,8 +10,10 @@ from openinfra.application.container import ApplicationFactory
 from openinfra.application.security_services import BootstrapTokenCommand
 from openinfra.application.source_of_truth_services import (
     CreateSourceRelationCommand,
+    GetSourceObjectAsOfCommand,
     GetSourceObjectCommand,
     GetSourceObjectVersionCommand,
+    ListSourceObjectAuditCommand,
     ListSourceObjectsCommand,
     ListSourceRelationsCommand,
     UpsertSourceObjectCommand,
@@ -119,6 +122,120 @@ class TestSourceOfTruthServices:
         assert relations.items[0].target_key.value == "device/srv-001"
         assert version_one["payload"]["display_name"] == "Server 001"
         assert current["display_name"] == "Server 001 renamed"
+
+
+    def test_itrm_as_of_relations_and_object_audit_are_operational(
+        self, tmp_path: Path
+    ) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+        admin_token = "h" * 40
+        app.security_service.bootstrap_token(
+            BootstrapTokenCommand(
+                tenant_id="default",
+                actor="pytest",
+                subject="itrm-history-admin",
+                roles=("itrm:operator",),
+                token=admin_token,
+            )
+        )
+
+        app.it_resources_management_service.upsert_object(
+            UpsertSourceObjectCommand(
+                tenant_id="default",
+                actor="pytest",
+                admin_token=admin_token,
+                key="device/history-srv",
+                kind="device",
+                display_name="History Server v1",
+                attributes_json='{"serial":"H1"}',
+                tags=("history",),
+                source="manual",
+            )
+        )
+        first_snapshot = app.it_resources_management_service.get_object_version(
+            GetSourceObjectVersionCommand("default", admin_token, "device/history-srv", 1)
+        )
+        app.it_resources_management_service.upsert_object(
+            UpsertSourceObjectCommand(
+                tenant_id="default",
+                actor="pytest",
+                admin_token=admin_token,
+                key="device/history-srv",
+                kind="device",
+                display_name="History Server v2",
+                attributes_json='{"serial":"H1","rack":"R42"}',
+                tags=("history", "prod"),
+                source="manual",
+            )
+        )
+        app.it_resources_management_service.upsert_object(
+            UpsertSourceObjectCommand(
+                tenant_id="default",
+                actor="pytest",
+                admin_token=admin_token,
+                key="application/history-app",
+                kind="application",
+                display_name="History App",
+                attributes_json='{"owner":"platform"}',
+                tags=("history",),
+                source="manual",
+            )
+        )
+        app.it_resources_management_service.create_relation(
+            CreateSourceRelationCommand(
+                tenant_id="default",
+                actor="pytest",
+                admin_token=admin_token,
+                relation_type="runs_on",
+                source_key="application/history-app",
+                target_key="device/history-srv",
+                provenance="manual",
+                valid_from=datetime(2026, 1, 1, tzinfo=UTC),
+                valid_to=datetime(2026, 6, 1, tzinfo=UTC),
+            )
+        )
+
+        as_of = app.it_resources_management_service.get_object_as_of(
+            GetSourceObjectAsOfCommand(
+                tenant_id="default",
+                admin_token=admin_token,
+                key="device/history-srv",
+                as_of=str(first_snapshot["changed_at"]),
+            )
+        )
+        active_relations = app.it_resources_management_service.list_relations(
+            ListSourceRelationsCommand(
+                tenant_id="default",
+                admin_token=admin_token,
+                source_key="application/history-app",
+                as_of="2026-03-01T00:00:00+00:00",
+            )
+        )
+        expired_relations = app.it_resources_management_service.list_relations(
+            ListSourceRelationsCommand(
+                tenant_id="default",
+                admin_token=admin_token,
+                source_key="application/history-app",
+                as_of="2026-12-01T00:00:00+00:00",
+            )
+        )
+        audit_page = app.it_resources_management_service.list_object_audit(
+            ListSourceObjectAuditCommand(
+                tenant_id="default",
+                admin_token=admin_token,
+                key="device/history-srv",
+                limit=10,
+            )
+        )
+
+        assert as_of["display_name"] == "History Server v1"
+        assert as_of["resolved_version"] == 1
+        assert len(active_relations.items) == 1
+        assert len(expired_relations.items) == 0
+        assert [record.event.action for record in audit_page.items] == [
+            "itrm.object.update",
+            "itrm.object.create",
+        ]
 
     def test_access_denied_and_validation_errors_are_controlled(self, tmp_path: Path) -> None:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json")

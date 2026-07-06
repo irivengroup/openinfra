@@ -1,10 +1,18 @@
-# OpenInfra v0.29.22
+# OpenInfra v0.29.23
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.22 — openinfra-web expose un statut BFF sans secret, assainit les erreurs backend `missing bearer token`, conserve les formulaires métier câblés sur les vrais contrats backend, l’injection serveur optionnelle du jeton backend, les camemberts responsive, Bootstrap 5 Dashboard, ITRM Quality & Certification, agents proxy Enterprise et backend API-only.**
+**Version courante : 0.29.23 — ITRM expose désormais la restitution historique `as-of`, le filtrage temporel des relations, l’audit par objet, les formulaires web correspondants, le statut BFF sans secret, Bootstrap 5 Dashboard, ITRM Quality & Certification, agents proxy Enterprise et backend API-only.**
 
 
+
+### v0.29.23 — historique ITRM as-of et audit par objet
+
+- Ajout de la restitution `openinfra itrm get-object-as-of` et `GET /api/v1/itrm/object-as-of`.
+- Ajout du filtrage temporel des relations via `--as-of` et paramètre query `as_of`.
+- Ajout de `openinfra itrm list-object-audit` et `GET /api/v1/itrm/object-audit`.
+- Ajout du filtre audit `target_id` pour cibler précisément un objet ou une ressource.
+- Ajout des formulaires web ITRM correspondants.
 
 ### v0.29.22 — statut BFF web et assainissement des erreurs auth
 

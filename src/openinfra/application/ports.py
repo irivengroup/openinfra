@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Generic, TypeVar
 
 from openinfra.domain.access_policy import AccessPolicyRule
@@ -817,6 +818,15 @@ class SourceOfTruthRepository(ABC):
         raise TypeError("adapter contract invoked directly")
 
     @abstractmethod
+    def find_object_as_of(
+        self,
+        tenant_id: TenantId,
+        key: str,
+        as_of: datetime,
+    ) -> SourceObjectSnapshot | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
     def add_relation(self, relation: SourceRelation) -> None:
         raise TypeError("adapter contract invoked directly")
 
@@ -828,6 +838,7 @@ class SourceOfTruthRepository(ABC):
         source_key: str | None = None,
         target_key: str | None = None,
         relation_type: str | None = None,
+        as_of: datetime | None = None,
     ) -> SourceRelationPage:
         raise TypeError("adapter contract invoked directly")
 

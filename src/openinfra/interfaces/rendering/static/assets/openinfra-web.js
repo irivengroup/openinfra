@@ -149,7 +149,8 @@ const FIELD_SETS = {
   rack: { name: "rack", label: "Rack", target: "attributes.rack", placeholder: "R12" },
   managementIp: { name: "management_ip", label: "IP de management", target: "attributes.management_ip", placeholder: "10.10.10.15" },
   lifecycle: { name: "lifecycle_state", label: "État cycle de vie", target: "attributes.lifecycle_state", type: "select", options: ["planned", "active", "maintenance", "retired"] },
-  tags: { name: "tags", label: "Tags", type: "csv", placeholder: "prod,critical,postgres" }
+  tags: { name: "tags", label: "Tags", type: "csv", placeholder: "prod,critical,postgres" },
+  asOf: { name: "as_of", label: "Date ISO-8601", required: true, placeholder: "2026-07-06T10:00:00+02:00" }
 };
 
 const OPENINFRA_MODULES = [
@@ -160,7 +161,9 @@ const OPENINFRA_MODULES = [
   { id: "itrm", label: "IT Ressources Management", shortLabel: "ITRM", icon: "table", description: "Inventaire canonique, relations, versions, gouvernance et certification.", operations: [
     { id: "itrm-list", label: "Lister les objets ITRM", method: "GET", path: "/v1/itrm/objects", query: [FIELD_SETS.riKind, FIELD_SETS.tag, FIELD_SETS.limit] },
     { id: "itrm-upsert", label: "Créer / mettre à jour une ressource", method: "POST", path: "/v1/itrm/objects", body: [FIELD_SETS.actor, FIELD_SETS.riKey, { ...FIELD_SETS.riKind, required: true }, FIELD_SETS.displayName, FIELD_SETS.source, FIELD_SETS.serial, FIELD_SETS.vendor, FIELD_SETS.model, FIELD_SETS.site, FIELD_SETS.building, FIELD_SETS.room, FIELD_SETS.row, FIELD_SETS.column, FIELD_SETS.rack, FIELD_SETS.managementIp, FIELD_SETS.lifecycle, FIELD_SETS.tags] },
-    { id: "itrm-relations", label: "Lister les relations", method: "GET", path: "/v1/itrm/relations", query: [{ name: "source_key", label: "Ressource source" }, { name: "target_key", label: "Ressource cible" }, { name: "relation_type", label: "Type de relation" }, FIELD_SETS.limit] },
+    { id: "itrm-relations", label: "Lister les relations", method: "GET", path: "/v1/itrm/relations", query: [{ name: "source_key", label: "Ressource source" }, { name: "target_key", label: "Ressource cible" }, { name: "relation_type", label: "Type de relation" }, { ...FIELD_SETS.asOf, required: false }, FIELD_SETS.limit] },
+    { id: "itrm-as-of", label: "Restituer une ressource à date", method: "GET", path: "/v1/itrm/object-as-of", query: [FIELD_SETS.riKey, FIELD_SETS.asOf] },
+    { id: "itrm-object-audit", label: "Audit d’une ressource", method: "GET", path: "/v1/itrm/object-audit", query: [FIELD_SETS.riKey, FIELD_SETS.limit] },
     { id: "itrm-quality-object", label: "Évaluer la qualité d’une ressource", method: "GET", path: "/v1/itrm/quality/object", query: [FIELD_SETS.riKey] },
     { id: "itrm-quality-summary", label: "Synthèse qualité / certification", method: "GET", path: "/v1/itrm/quality/summary", query: [FIELD_SETS.riKind, FIELD_SETS.tag, FIELD_SETS.limit] },
     { id: "itrm-governance", label: "Évaluer une règle de gouvernance", method: "POST", path: "/v1/itrm/governance/evaluate", body: [

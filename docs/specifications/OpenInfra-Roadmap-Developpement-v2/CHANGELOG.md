@@ -1,3 +1,8 @@
+## v2 / OpenInfra 0.29.23
+
+- Ajout de `TST-P09-ITRM-AS-OF-AUDIT` pour verrouiller la restitution historique ITRM, les relations `as_of` et l’audit par objet.
+- Alignement P09 avec `REQ-00758`.
+
 ## v2 / OpenInfra 0.29.22
 
 - Ajout de `TST-P08-WEB-TITLEBAR-SPACING` pour verrouiller l’aération verticale responsive de la titlebar dashboard.

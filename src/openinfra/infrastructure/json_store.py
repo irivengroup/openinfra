@@ -2868,6 +2868,8 @@ class JsonAuditRepository(AuditRepository):
             return False
         if event_filter.target_type is not None and event.target_type != event_filter.target_type:
             return False
+        if event_filter.target_id is not None and event.target_id != event_filter.target_id:
+            return False
         if event_filter.severity is not None and event.severity != event_filter.severity:
             return False
         if event_filter.created_from is not None and event.created_at < event_filter.created_from:
@@ -2999,6 +3001,25 @@ class JsonSourceOfTruthRepository(SourceOfTruthRepository):
                 return self._snapshot_from_dict(value)
         return None
 
+    def find_object_as_of(
+        self,
+        tenant_id: TenantId,
+        key: str,
+        as_of: datetime,
+    ) -> SourceObjectSnapshot | None:
+        normalized_key = key.strip().lower()
+        candidates = [
+            self._snapshot_from_dict(value)
+            for value in self._store.data["source_object_snapshots"]
+            if value.get("tenant_id") == tenant_id.value
+            and value.get("object_key") == normalized_key
+        ]
+        candidates = [snapshot for snapshot in candidates if snapshot.changed_at <= as_of]
+        if not candidates:
+            return None
+        candidates.sort(key=lambda item: (item.changed_at, item.version), reverse=True)
+        return candidates[0]
+
     def add_relation(self, relation: SourceRelation) -> None:
         key = self._key(relation.tenant_id, relation.id.value)
         self._store.data["source_relations"][key] = self._relation_to_dict(relation)
@@ -3011,6 +3032,7 @@ class JsonSourceOfTruthRepository(SourceOfTruthRepository):
         source_key: str | None = None,
         target_key: str | None = None,
         relation_type: str | None = None,
+        as_of: datetime | None = None,
     ) -> SourceRelationPage:
         start = self._cursor_offset(pagination.cursor)
         normalized_source = source_key.strip().lower() if source_key else None
@@ -3027,6 +3049,8 @@ class JsonSourceOfTruthRepository(SourceOfTruthRepository):
             relations = [item for item in relations if item.target_key.value == normalized_target]
         if normalized_type:
             relations = [item for item in relations if item.relation_type.value == normalized_type]
+        if as_of is not None:
+            relations = [item for item in relations if item.is_valid_at(as_of)]
         relations.sort(key=lambda item: (item.created_at.isoformat(), item.id.value), reverse=True)
         selected = tuple(relations[start : start + pagination.limit])
         next_index = start + len(selected)

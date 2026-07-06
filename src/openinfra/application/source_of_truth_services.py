@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 
 from openinfra.application.ports import (
     AuditRepository,
@@ -11,6 +11,7 @@ from openinfra.application.ports import (
     TransactionManager,
 )
 from openinfra.application.security_services import AuthenticateTokenCommand, SecurityService
+from openinfra.domain.audit import AuditEventFilter, AuditEventPage
 from openinfra.domain.common import (
     AuditEvent,
     ConflictError,
@@ -70,6 +71,23 @@ class GetSourceObjectVersionCommand:
 
 
 @dataclass(frozen=True, slots=True)
+class GetSourceObjectAsOfCommand:
+    tenant_id: str
+    admin_token: str
+    key: str
+    as_of: str | datetime
+
+
+@dataclass(frozen=True, slots=True)
+class ListSourceObjectAuditCommand:
+    tenant_id: str
+    admin_token: str
+    key: str
+    limit: int = 100
+    cursor: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class CreateSourceRelationCommand:
     tenant_id: str
     actor: str
@@ -91,6 +109,7 @@ class ListSourceRelationsCommand:
     source_key: str | None = None
     target_key: str | None = None
     relation_type: str | None = None
+    as_of: str | datetime | None = None
 
 
 class SourceOfTruthService:
@@ -217,6 +236,42 @@ class SourceOfTruthService:
             unit_of_work.commit()
         return snapshot.as_dict()
 
+    def get_object_as_of(self, command: GetSourceObjectAsOfCommand) -> dict[str, object]:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        self._security_service.authenticate_token(
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITRM_READ)
+        )
+        as_of = self._datetime_from_value(command.as_of, "as_of")
+        with self._transaction_manager.begin() as unit_of_work:
+            snapshot = self._repository.find_object_as_of(tenant_id, command.key, as_of)
+            if snapshot is None:
+                raise NotFoundError("source object snapshot not found at requested date")
+            unit_of_work.commit()
+        result = dict(snapshot.payload)
+        result["as_of"] = as_of.isoformat()
+        result["resolved_version"] = snapshot.version
+        result["snapshot_changed_at"] = snapshot.changed_at.isoformat()
+        return result
+
+    def list_object_audit(self, command: ListSourceObjectAuditCommand) -> AuditEventPage:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        self._security_service.authenticate_token(
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITRM_READ)
+        )
+        normalized_key = command.key.strip().lower()
+        if not normalized_key:
+            raise ValidationError("source object key is mandatory")
+        event_filter = AuditEventFilter.create(
+            tenant_id=tenant_id,
+            pagination=Pagination.from_values(command.limit, command.cursor),
+            target_type="source_object",
+            target_id=normalized_key,
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            page = self._audit_repository.list_records(event_filter)
+            unit_of_work.commit()
+        return page
+
     def create_relation(self, command: CreateSourceRelationCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
         principal = self._security_service.authenticate_token(
@@ -268,9 +323,27 @@ class SourceOfTruthService:
                 source_key=command.source_key,
                 target_key=command.target_key,
                 relation_type=command.relation_type,
+                as_of=self._datetime_from_value(command.as_of, "as_of")
+                if command.as_of is not None
+                else None,
             )
             unit_of_work.commit()
         return page
+
+    def _datetime_from_value(self, value: str | datetime, label: str) -> datetime:
+        if isinstance(value, datetime):
+            parsed = value
+        else:
+            normalized = value.strip()
+            if normalized.endswith("Z"):
+                normalized = normalized[:-1] + "+00:00"
+            try:
+                parsed = datetime.fromisoformat(normalized)
+            except ValueError as exc:
+                raise ValidationError(label + " must be an ISO-8601 datetime") from exc
+        if parsed.tzinfo is None:
+            raise ValidationError(label + " must be timezone-aware")
+        return parsed.astimezone(UTC)
 
     def _attributes_from_json(self, payload: str) -> dict[str, object]:
         try:

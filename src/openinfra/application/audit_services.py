@@ -26,6 +26,7 @@ class ListAuditEventsCommand:
     actor: str | None = None
     action: str | None = None
     target_type: str | None = None
+    target_id: str | None = None
     severity: str | None = None
     created_from: datetime | None = None
     created_to: datetime | None = None
@@ -41,6 +42,7 @@ class ExportAuditEventsCommand:
     actor: str | None = None
     action: str | None = None
     target_type: str | None = None
+    target_id: str | None = None
     severity: str | None = None
     created_from: datetime | None = None
     created_to: datetime | None = None
@@ -85,6 +87,7 @@ class AuditTrailService:
                         "actor_filter": event_filter.actor,
                         "action_filter": event_filter.action,
                         "target_type_filter": event_filter.target_type,
+                        "target_id_filter": event_filter.target_id,
                         "severity_filter": (
                             event_filter.severity.value if event_filter.severity else None
                         ),
@@ -158,6 +161,7 @@ class AuditTrailService:
             actor=command.actor,
             action=command.action,
             target_type=command.target_type,
+            target_id=command.target_id,
             severity=command.severity,
             created_from=command.created_from,
             created_to=command.created_to,

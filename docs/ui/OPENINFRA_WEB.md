@@ -1,4 +1,4 @@
-# OpenInfra Web v0.29.22
+# OpenInfra Web v0.29.23
 
 OpenInfra Web est le portail `openinfra-web` API-only. Il sert l'interface React/Bootstrap 5, expose un proxy applicatif `/api/*` vers le backend `openinfra-api` et fournit un dashboard de pilotage aligné sur les domaines CLI.
 
@@ -75,6 +75,13 @@ En runtime Docker, une valeur vide de `OPENINFRA_WEB_BACKEND_BEARER_TOKEN` est t
 
 Les camemberts du dashboard d’accueil sont doublés et adaptatifs : `--openinfra-pie-size` utilise `clamp(8rem, 14vw, 10.5rem)` en desktop/tablette et une règle mobile dédiée en dessous de 576 px.
 
+
+## v0.29.23 — formulaires ITRM historique
+
+- Ajout du formulaire `Restituer une ressource à date`, câblé sur `/v1/itrm/object-as-of`.
+- Ajout du formulaire `Audit d’une ressource`, câblé sur `/v1/itrm/object-audit`.
+- Le formulaire `Lister les relations` accepte désormais `as_of` pour filtrer les relations valides à une date donnée.
+- Les formulaires restent exécutés via BFF server-side, sans token technique saisi ou stocké dans le navigateur.
 
 ## v0.29.22 — titlebar dashboard aérée
 

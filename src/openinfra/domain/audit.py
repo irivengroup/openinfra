@@ -22,6 +22,7 @@ class AuditEventFilter:
     actor: str | None = None
     action: str | None = None
     target_type: str | None = None
+    target_id: str | None = None
     severity: Severity | None = None
     created_from: datetime | None = None
     created_to: datetime | None = None
@@ -34,6 +35,7 @@ class AuditEventFilter:
         actor: str | None = None,
         action: str | None = None,
         target_type: str | None = None,
+        target_id: str | None = None,
         severity: str | Severity | None = None,
         created_from: datetime | None = None,
         created_to: datetime | None = None,
@@ -41,6 +43,7 @@ class AuditEventFilter:
         normalized_actor = cls._optional_safe_text(actor, "actor")
         normalized_action = cls._optional_safe_text(action, "action")
         normalized_target_type = cls._optional_safe_text(target_type, "target type")
+        normalized_target_id = cls._optional_safe_text(target_id, "target id")
         normalized_severity = cls._normalize_severity(severity)
         normalized_from = cls._normalize_optional_datetime(created_from, "created_from")
         normalized_to = cls._normalize_optional_datetime(created_to, "created_to")
@@ -56,6 +59,7 @@ class AuditEventFilter:
             actor=normalized_actor,
             action=normalized_action,
             target_type=normalized_target_type,
+            target_id=normalized_target_id,
             severity=normalized_severity,
             created_from=normalized_from,
             created_to=normalized_to,

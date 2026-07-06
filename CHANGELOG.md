@@ -1,3 +1,11 @@
+## 0.29.23 - 2026-07-06
+
+- Added ITRM object time-travel retrieval through `get-object-as-of` and `/api/v1/itrm/object-as-of`.
+- Added temporal relation filtering with `as_of` in CLI, API, JSON store and PostgreSQL repository.
+- Added object-scoped audit retrieval through `list-object-audit`, `/api/v1/itrm/object-audit`, and `target_id` audit filtering.
+- Added web dashboard operations for ITRM as-of retrieval and object audit.
+- Updated OpenAPI, CDC, roadmap and regression tests.
+
 ## 0.29.22 - 2026-07-06
 
 - Ajoute le endpoint `openinfra-web` `/status` pour diagnostiquer le trust BFF server-side, l’état des formulaires protégés et la configuration bearer backend sans exposer de secret.

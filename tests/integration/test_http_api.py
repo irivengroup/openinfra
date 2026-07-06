@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import threading
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -72,6 +73,8 @@ class TestHttpApi:
                 "it_resources_management": {
                     "objects": "/api/v1/itrm/objects",
                     "object_versions": "/api/v1/itrm/object-versions",
+                    "object_as_of": "/api/v1/itrm/object-as-of",
+                    "object_audit": "/api/v1/itrm/object-audit",
                     "relations": "/api/v1/itrm/relations",
                     "governance_rules": "/api/v1/itrm/governance-rules",
                     "quality_object": "/api/v1/itrm/quality/object",
@@ -1181,9 +1184,23 @@ class TestSourceOfTruthHttpApi:
                 + "&key=device/api-srv-1&version=1",
                 token=token,
             )
+            encoded_as_of = urllib.parse.quote(str(version["changed_at"]), safe="")
+            as_of = helper._get_json(
+                base_url
+                + "/api/v1/itrm/object-as-of?tenant_id=default"
+                + "&key=device/api-srv-1&as_of="
+                + encoded_as_of,
+                token=token,
+            )
+            audit = helper._get_json(
+                base_url
+                + "/api/v1/itrm/object-audit?tenant_id=default&key=device/api-srv-1",
+                token=token,
+            )
             relations = helper._get_json(
                 base_url
-                + "/api/v1/itrm/relations?tenant_id=default&source_key=application/api-app",
+                + "/api/v1/itrm/relations?tenant_id=default&source_key=application/api-app"
+                + "&as_of=2026-12-01T00%3A00%3A00%2B00%3A00",
                 token=token,
             )
             try:
@@ -1195,6 +1212,9 @@ class TestSourceOfTruthHttpApi:
             assert fetched["key"] == "device/api-srv-1"
             assert listed["items"][0]["key"] == "device/api-srv-1"
             assert version["payload"]["display_name"] == "API Server 1"
+            assert as_of["display_name"] == "API Server 1"
+            assert as_of["resolved_version"] == 1
+            assert audit["items"][0]["action"] == "itrm.object.create"
             assert relation["relation_type"] == "runs_on"
             assert relations["items"][0]["target_key"] == "device/api-srv-1"
         finally:

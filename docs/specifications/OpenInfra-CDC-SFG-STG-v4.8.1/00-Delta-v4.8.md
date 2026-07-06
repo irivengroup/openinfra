@@ -87,3 +87,9 @@ Le dashboard d’accueil ne doit plus afficher d’alerte succès permanente `Ba
 
 - Ajout de REQ-00757 et TST-WEB-060 : `openinfra-web` expose `/status` sans secret pour diagnostiquer le trust BFF et l’état des formulaires protégés.
 - Le proxy web assainit toute erreur backend brute `missing bearer token` avant retour navigateur.
+
+## Delta v0.29.23 — historique ITRM as-of et audit par objet
+
+- Ajout de REQ-00758 : ITRM expose la restitution historique `as-of` des objets, le filtrage temporel des relations et l’audit par objet.
+- Ajout de TST-ITRM-061 : tests service, API, CLI et repositories pour verrouiller `get-object-as-of`, `object-as-of`, `object-audit`, `target_id` audit et `as_of` sur les relations.
+- Les snapshots existants restent compatibles ; aucune migration destructive n’est requise.

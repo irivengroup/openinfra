@@ -94,7 +94,7 @@ openinfra audit verify-integrity --backend postgresql --tenant default --admin-t
 
 ## Migration 0007 IT Ressources Management
 
-La migration `0007_source_of_truth_core.sql` ajoute les tables partitionnées `source_objects`, `source_object_snapshots` et `source_relations`. Elle doit être appliquée avec le moteur de migrations OpenInfra afin de conserver l'historique `openinfra_schema_migrations` et les checksums SHA-256.
+La migration `0007_source_of_truth_core.sql` ajoute les tables partitionnées `source_objects`, `source_object_snapshots` et `source_relations`. Elle doit être appliquée avec le moteur de migrations OpenInfra afin de conserver l'historique `openinfra_schema_migrations` et les checksums SHA-256. La migration `0026_itrm_as_of_audit_indexes.sql` ajoute les index non destructifs nécessaires à la restitution `as-of`, au filtrage temporel des relations et à l’audit par objet ITRM.
 
 Validation :
 

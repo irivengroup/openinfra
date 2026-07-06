@@ -96,8 +96,10 @@ from openinfra.application.it_resources_management_quality_services import (
 )
 from openinfra.application.it_resources_management_services import (
     CreateSourceRelationCommand,
+    GetSourceObjectAsOfCommand,
     GetSourceObjectCommand,
     GetSourceObjectVersionCommand,
+    ListSourceObjectAuditCommand,
     ListSourceObjectsCommand,
     ListSourceRelationsCommand,
     UpsertSourceObjectCommand,
@@ -342,6 +344,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         actor=query.get("actor", [None])[0],
                         action=query.get("action", [None])[0],
                         target_type=query.get("target_type", [None])[0],
+                        target_id=query.get("target_id", [None])[0],
                         severity=query.get("severity", [None])[0],
                     )
                 )
@@ -559,6 +562,41 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except (ValueError, OpenInfraError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
+        if route == "/api/v1/sot/object-as-of":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.it_resources_management_service.get_object_as_of(
+                    GetSourceObjectAsOfCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        key=self._first_query_value(query, "key"),
+                        as_of=self._first_query_value(query, "as_of"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/sot/object-audit":
+            try:
+                query = parse_qs(parsed.query)
+                page = self.server.application.it_resources_management_service.list_object_audit(
+                    ListSourceObjectAuditCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        key=self._first_query_value(query, "key"),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, page.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
         if route == "/api/v1/sot/quality/object":
             try:
                 query = parse_qs(parsed.query)
@@ -608,6 +646,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         source_key=query.get("source_key", [None])[0],
                         target_key=query.get("target_key", [None])[0],
                         relation_type=query.get("relation_type", [None])[0],
+                        as_of=query.get("as_of", [None])[0],
                     )
                 )
                 responder.send(HTTPStatus.OK, page.as_dict())
@@ -2158,6 +2197,8 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                 "it_resources_management": {
                     "objects": "/api/v1/itrm/objects",
                     "object_versions": "/api/v1/itrm/object-versions",
+                    "object_as_of": "/api/v1/itrm/object-as-of",
+                    "object_audit": "/api/v1/itrm/object-audit",
                     "relations": "/api/v1/itrm/relations",
                     "governance_rules": "/api/v1/itrm/governance-rules",
                     "quality_object": "/api/v1/itrm/quality/object",

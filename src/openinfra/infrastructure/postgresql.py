@@ -4631,6 +4631,31 @@ class PostgreSQLSourceOfTruthRepository(PostgreSQLRepositoryBase, SourceOfTruthR
         )
         return self._snapshot_from_row(row) if row else None
 
+    def find_object_as_of(
+        self,
+        tenant_id: TenantId,
+        key: str,
+        as_of: datetime,
+    ) -> SourceObjectSnapshot | None:
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, object_key, object_id, version,
+                   payload, changed_by, changed_at
+            FROM source_object_snapshots
+            WHERE tenant_id = %(tenant_id)s
+              AND object_key = %(object_key)s
+              AND changed_at <= %(as_of)s
+            ORDER BY changed_at DESC, version DESC
+            LIMIT 1
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "object_key": key.strip().lower(),
+                "as_of": as_of,
+            },
+        )
+        return self._snapshot_from_row(row) if row else None
+
     def add_relation(self, relation: SourceRelation) -> None:
         self._ensure_tenant(relation.tenant_id)
         self._execute_without_result(
@@ -4664,6 +4689,7 @@ class PostgreSQLSourceOfTruthRepository(PostgreSQLRepositoryBase, SourceOfTruthR
         source_key: str | None = None,
         target_key: str | None = None,
         relation_type: str | None = None,
+        as_of: datetime | None = None,
     ) -> SourceRelationPage:
         offset = self._offset(pagination.cursor)
         rows = self._fetch_all(
@@ -4675,6 +4701,8 @@ class PostgreSQLSourceOfTruthRepository(PostgreSQLRepositoryBase, SourceOfTruthR
               AND (%(source_key)s IS NULL OR source_key = %(source_key)s)
               AND (%(target_key)s IS NULL OR target_key = %(target_key)s)
               AND (%(relation_type)s IS NULL OR relation_type = %(relation_type)s)
+              AND (%(as_of)s IS NULL OR (active = TRUE AND valid_from <= %(as_of)s
+                   AND (valid_to IS NULL OR %(as_of)s < valid_to)))
             ORDER BY created_at DESC, id DESC
             LIMIT %(limit)s OFFSET %(offset)s
             """,
@@ -4685,6 +4713,7 @@ class PostgreSQLSourceOfTruthRepository(PostgreSQLRepositoryBase, SourceOfTruthR
                 "relation_type": relation_type.strip().lower()
                 if relation_type is not None
                 else None,
+                "as_of": as_of,
                 "limit": pagination.limit + 1,
                 "offset": offset,
             },
@@ -4825,6 +4854,7 @@ class PostgreSQLAuditRepository(PostgreSQLRepositoryBase, AuditRepository):
               AND (%(actor)s IS NULL OR actor = %(actor)s)
               AND (%(action)s IS NULL OR action = %(action)s)
               AND (%(target_type)s IS NULL OR target_type = %(target_type)s)
+              AND (%(target_id)s IS NULL OR target_id = %(target_id)s)
               AND (%(severity)s IS NULL OR severity = %(severity)s)
               AND (%(created_from)s IS NULL OR created_at >= %(created_from)s)
               AND (%(created_to)s IS NULL OR created_at <= %(created_to)s)
@@ -4836,6 +4866,7 @@ class PostgreSQLAuditRepository(PostgreSQLRepositoryBase, AuditRepository):
                 "actor": event_filter.actor,
                 "action": event_filter.action,
                 "target_type": event_filter.target_type,
+                "target_id": event_filter.target_id,
                 "severity": event_filter.severity.value
                 if event_filter.severity is not None
                 else None,

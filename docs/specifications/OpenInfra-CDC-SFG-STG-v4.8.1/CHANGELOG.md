@@ -1,3 +1,8 @@
+## v4.8.1 / OpenInfra 0.29.23
+
+- Ajout de `REQ-00758` et `TST-ITRM-061` : restitution historique `as-of` ITRM, relations filtrées temporellement et audit par objet.
+- Mise à jour API, CLI, OpenAPI, dashboard web et repositories JSON/PostgreSQL sans migration destructive des snapshots existants.
+
 ## v4.8.1 / OpenInfra 0.29.22
 
 - Ajout de `REQ-00755` et `TST-WEB-058` : aération verticale responsive de la titlebar du dashboard d’accueil `openinfra-web`.

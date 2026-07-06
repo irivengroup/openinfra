@@ -181,7 +181,7 @@ La CI exécute également un smoke test JSON audit et le runtime natif valide le
 - Tests unitaires du domaine IT Ressources Management : clés sûres, tags, source, relation, snapshots et erreurs contrôlées.
 - Tests d'intégration JSON : objet, mise à jour versionnée, relation, liste paginée, restitution de version et erreurs d'autorisation.
 - Tests CLI : `openinfra itrm upsert-object`, `list-objects`, `get-object-version`, `create-relation`, `list-relations`.
-- Tests API HTTP : `/api/v1/itrm/objects`, `/api/v1/itrm/object-versions`, `/api/v1/itrm/relations`.
+- Tests API HTTP : `/api/v1/itrm/objects`, `/api/v1/itrm/object-versions`, `/api/v1/itrm/object-as-of`, `/api/v1/itrm/object-audit`, `/api/v1/itrm/relations`.
 - Tests adaptateur PostgreSQL simulé : insert/update objet, snapshot, relation et requêtes paginées.
 
 ## Contrôles ajoutés en v0.11.0

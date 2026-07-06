@@ -32,3 +32,4 @@ P08,REQ-00754,openinfra-web camemberts dashboard doublés et responsives,Implém
 P08,REQ-00755,openinfra-web titlebar dashboard aérée,Implémenté en v0.29.22,,
 P08,REQ-00756,openinfra-web fallback bearer bootstrap et erreur BFF sans missing bearer token,Implémenté en v0.29.22,,
 P08,REQ-00757,openinfra-web statut BFF sans secret et assainissement auth backend,Implémenté en v0.29.22,,
+P09,REQ-00758,ITRM historique as-of relations et audit objet,Implémenté en v0.29.23,,

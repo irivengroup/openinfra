@@ -1483,3 +1483,12 @@ Le dashboard d’accueil ne présente plus l’alerte succès permanente `Backen
 - `openinfra-web` expose `/status` pour diagnostiquer les formulaires protégés et le trust server-side sans fuite de secret.
 - Le proxy assainit les erreurs backend brutes `missing bearer token` avant retour navigateur.
 - La roadmap P08 ajoute `TST-P08-WEB-BFF-STATUS`.
+
+
+### Avancement v0.29.23 — P09 historique ITRM as-of et audit objet
+
+- `openinfra itrm get-object-as-of` et `/api/v1/itrm/object-as-of` restituent un objet ITRM à une date donnée à partir des snapshots existants.
+- `openinfra itrm list-relations --as-of` et le paramètre HTTP `as_of` filtrent les relations valides à une date donnée.
+- `openinfra itrm list-object-audit`, `/api/v1/itrm/object-audit` et le filtre audit `target_id` rendent l’audit consultable par objet.
+- Les formulaires web ITRM exposent ces opérations via le BFF sans token navigateur.
+- La roadmap P09 ajoute `TST-P09-ITRM-AS-OF-AUDIT` et aligne `REQ-00758`.

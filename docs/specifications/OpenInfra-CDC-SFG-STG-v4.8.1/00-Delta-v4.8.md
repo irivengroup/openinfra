@@ -1,3 +1,9 @@
+## Delta v0.29.25 — taxonomie ITRM catégories / types
+
+- Ajout du catalogue ITRM catégories/types couvrant les ressources datacenter.
+- Ajout du filtrage dynamique Catégorie -> Type de ressource dans le dashboard.
+- Ajout de la validation backend des couples catégorie/type et du mécanisme générique optionsByField/optionsMap.
+
 # Delta v4.8.0 — Configuration installateur `./config/install.ini`
 
 ## Décision

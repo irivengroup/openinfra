@@ -153,6 +153,11 @@ class TestOpenInfraWeb:
         assert "Numéro de série" in static_js
         assert 'path: "/v1/itrm/reconcile-object"' in static_js
         assert "Réconcilier une ressource" in static_js
+        assert "Catalogue catégories / types" in static_js
+        assert "RESOURCE_TAXONOMY" in static_js
+        assert "physical-server" in static_js and "firewall" in static_js
+        assert "data-options-by-field" in static_js
+        assert "resource_type" in static_js
         assert "Token API" not in static_js
         assert "openinfra-method" not in static_js + static_css
         assert "agents proxy collectors Enterprise uniquement" in static_js

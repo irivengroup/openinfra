@@ -4583,6 +4583,7 @@ class PostgreSQLSourceOfTruthRepository(PostgreSQLRepositoryBase, SourceOfTruthR
         pagination: Pagination,
         kind: str | None = None,
         tag: str | None = None,
+        resource_type: str | None = None,
     ) -> SourceObjectPage:
         offset = self._offset(pagination.cursor)
         rows = self._fetch_all(
@@ -4593,6 +4594,7 @@ class PostgreSQLSourceOfTruthRepository(PostgreSQLRepositoryBase, SourceOfTruthR
             WHERE tenant_id = %(tenant_id)s
               AND (%(kind)s IS NULL OR kind = %(kind)s)
               AND (%(tag)s IS NULL OR tags @> %(tag)s)
+              AND (%(resource_type)s IS NULL OR attributes->>'resource_type' = %(resource_type)s)
             ORDER BY object_key ASC
             LIMIT %(limit)s OFFSET %(offset)s
             """,
@@ -4600,6 +4602,9 @@ class PostgreSQLSourceOfTruthRepository(PostgreSQLRepositoryBase, SourceOfTruthR
                 "tenant_id": tenant_id.value,
                 "kind": kind.strip().lower() if kind is not None else None,
                 "tag": [tag.strip().lower()] if tag is not None else None,
+                "resource_type": (
+                    resource_type.strip().lower() if resource_type is not None else None
+                ),
                 "limit": pagination.limit + 1,
                 "offset": offset,
             },

@@ -1,10 +1,16 @@
-# OpenInfra v0.29.24
+# OpenInfra v0.29.25
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.24 — ITRM expose désormais la réconciliation gouvernée dry-run/apply, la restitution historique `as-of`, le filtrage temporel des relations, l’audit par objet, les formulaires web correspondants, le statut BFF sans secret, Bootstrap 5 Dashboard, ITRM Quality & Certification, agents proxy Enterprise et backend API-only.**
+**Version courante : 0.29.25 — ITRM couvre désormais une taxonomie complète des ressources de datacenter, avec catégories, types filtrés dynamiquement dans les formulaires web, API/CLI de catalogue, réconciliation gouvernée, historique `as-of`, BFF sans secret, Bootstrap 5 Dashboard, ITRM Quality & Certification, agents proxy Enterprise et backend API-only.**
 
+### v0.29.25 — taxonomie ITRM catégories / types
 
+- Ajout d’un catalogue ITRM structuré par catégories : server, personal-computer, monitor-peripheral, network-device, storage, power-supply, rack-facility, cooling, security-safety, telecom, cloud-virtualization, software-service, cable-connectivity, mobile-iot et other.
+- Chaque catégorie expose ses types rattachés, par exemple `server -> physical-server, virtual-machine`, `network-device -> firewall, load-balancer, router, switch` et `storage -> storage-array, disk`.
+- Ajout de `GET /api/v1/itrm/resource-taxonomy` et de `openinfra itrm resource-taxonomy`.
+- Les créations/modifications ITRM valident la cohérence catégorie/type et enrichissent les objets avec `resource_category` et `resource_type`.
+- Le dashboard filtre dynamiquement le champ `Type de ressource` selon la `Catégorie`, via un mécanisme générique réutilisable pour les autres formulaires structurés de la même façon.
 
 ### v0.29.24 — réconciliation gouvernée ITRM
 

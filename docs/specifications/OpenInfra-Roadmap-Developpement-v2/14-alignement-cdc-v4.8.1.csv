@@ -34,3 +34,4 @@ P08,REQ-00756,openinfra-web fallback bearer bootstrap et erreur BFF sans missing
 P08,REQ-00757,openinfra-web statut BFF sans secret et assainissement auth backend,Implémenté en v0.29.22,,
 P09,REQ-00758,ITRM historique as-of relations et audit objet,Implémenté en v0.29.23,,
 P09,REQ-00759,ITRM réconciliation gouvernée dry-run apply,Implémenté en v0.29.24,,
+P09,REQ-00760;REQ-00761;REQ-00762,ITRM taxonomie catégories/types DC et filtrage dynamique,Implémenté en v0.29.25,,

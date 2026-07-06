@@ -33,3 +33,4 @@ TST-P08-WEB-BEARER-FALLBACK,P08,openinfra-web bearer fallback sans erreur brute,
 TST-P08-WEB-BFF-STATUS,P08,openinfra-web BFF status et auth sanitization,"Valider /status sans secret, l’état des formulaires protégés et l’assainissement des erreurs backend missing bearer token.",Frontend/Security/Regression
 TST-P09-ITRM-AS-OF-AUDIT,P09,ITRM historique as-of et audit objet,"Service, CLI, API, repositories JSON/PostgreSQL, OpenAPI et web","Restitution objet à date, relations filtrées par as_of et audit par target_id validés."
 TST-P09-ITRM-RECONCILIATION,P09,ITRM réconciliation gouvernée,"Valider dry-run, apply contrôlé, conflits non autoritatifs et audit objet.",Automatisé service/API/CLI/frontend
+TST-P09-ITRM-RESOURCE-TAXONOMY,P09,ITRM taxonomie catégories/types DC,"Valider catalogue catégories/types, filtrage type par catégorie, API/CLI/web et compatibilité legacy.",Automatisé service/API/CLI/frontend

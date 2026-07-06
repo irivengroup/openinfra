@@ -72,6 +72,7 @@ class TestHttpApi:
                 },
                 "it_resources_management": {
                     "objects": "/api/v1/itrm/objects",
+                    "resource_taxonomy": "/api/v1/itrm/resource-taxonomy",
                     "object_versions": "/api/v1/itrm/object-versions",
                     "object_as_of": "/api/v1/itrm/object-as-of",
                     "object_audit": "/api/v1/itrm/object-audit",
@@ -1305,7 +1306,12 @@ class TestSourceOfTruthHttpApi:
             assert applied["applied"] is True
             assert applied["object"]["version"] == 2
             assert current["display_name"] == "API Reconciled"
-            assert current["attributes"] == {"serial": "B", "rack": "R2"}
+            assert current["attributes"] == {
+                "serial": "B",
+                "rack": "R2",
+                "resource_category": "other",
+                "resource_type": "unknown-device",
+            }
         finally:
             server.shutdown()
             server.server_close()

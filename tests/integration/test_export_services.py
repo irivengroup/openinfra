@@ -144,7 +144,11 @@ class TestExportService:
 
         assert completed.id == queued.id
         assert rows[0]["key"] == "device/export-101"
-        assert rows[0]["attributes_json"] == '{"serial": "EXPORT-101"}'
+        assert rows[0]["attributes_json"] == (
+            '{"resource_category": "other", '
+            '"resource_type": "unknown-device", '
+            '"serial": "EXPORT-101"}'
+        )
         assert len(rows) == 1
 
     def test_xlsx_export_binary_opens_from_bytes(self, tmp_path: Path) -> None:

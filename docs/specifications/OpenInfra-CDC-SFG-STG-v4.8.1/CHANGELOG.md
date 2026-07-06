@@ -1,3 +1,9 @@
+## Delta v0.29.25 — taxonomie ITRM catégories / types
+
+- Ajout du catalogue ITRM catégories/types couvrant les ressources datacenter.
+- Ajout du filtrage dynamique Catégorie -> Type de ressource dans le dashboard.
+- Ajout de la validation backend des couples catégorie/type et du mécanisme générique optionsByField/optionsMap.
+
 ## v4.8.1 / OpenInfra 0.29.24
 
 - Ajout de `REQ-00759` et `TST-ITRM-062` : réconciliation gouvernée ITRM avec dry-run déterministe, apply contrôlé, conflits non autoritatifs non appliqués et audit objet.

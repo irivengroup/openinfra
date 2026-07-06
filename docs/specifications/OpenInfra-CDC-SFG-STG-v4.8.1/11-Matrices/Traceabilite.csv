@@ -752,3 +752,6 @@ REQ-00753,N1,WEB,UC-0042,TST-WEB-056,Tests proxy web et inspection assets.
 REQ-00754,N2,WEB,UC-0042,TST-WEB-057,Validation frontend et tests intégration serveur web.
 REQ-00755,N2,WEB,UC-0042,TST-WEB-058,Validation frontend et tests intégration serveur web.
 REQ-00759,N1,ITRM,UC-0042,TST-ITRM-062,"Tests service, API, CLI, frontend et audit pour la réconciliation gouvernée."
+REQ-00760,N1,ITRM,UC-0042,TST-ITRM-063,"Tests domaine, service, API, CLI et frontend pour la taxonomie ITRM."
+REQ-00761,N1,WEB,UC-0042,TST-WEB-064,Tests web et validation backend des combinaisons catégorie/type.
+REQ-00762,N2,WEB,UC-0042,TST-WEB-065,Inspection des assets runtime et mécanisme générique de selects dépendants.

@@ -122,6 +122,8 @@ class ItrmQualitySummaryCommand:
     cursor: str | None = None
     kind: str | None = None
     tag: str | None = None
+    resource_category: str | None = None
+    resource_type: str | None = None
 
 
 class ITResourcesManagementQualityService:
@@ -131,6 +133,23 @@ class ITResourcesManagementQualityService:
         "interface": ("parent", "mac_address"),
         "service": ("owner", "protocol"),
         "application": ("owner", "environment"),
+        "database": ("owner", "environment"),
+        "virtual-machine": ("owner", "environment"),
+        "server": ("serial", "site"),
+        "personal-computer": ("serial", "owner"),
+        "monitor-peripheral": ("serial",),
+        "network-device": ("serial", "site"),
+        "storage": ("serial", "site"),
+        "power-supply": ("serial", "site"),
+        "rack-facility": ("site", "location"),
+        "cooling": ("serial", "site"),
+        "security-safety": ("serial", "site"),
+        "telecom": ("serial", "site"),
+        "cloud-virtualization": ("provider", "region"),
+        "software-service": ("owner", "environment"),
+        "cable-connectivity": ("source", "target"),
+        "mobile-iot": ("serial", "owner"),
+        "other": (),
     }
     _FRESHNESS_WARNING_SECONDS = 90 * 24 * 60 * 60
     _FRESHNESS_ERROR_SECONDS = 365 * 24 * 60 * 60
@@ -193,8 +212,9 @@ class ITResourcesManagementQualityService:
             page = self._repository.list_objects(
                 tenant_id=tenant_id,
                 pagination=pagination,
-                kind=command.kind,
+                kind=command.resource_category or command.kind,
                 tag=command.tag,
+                resource_type=command.resource_type,
             )
             reports = tuple(self._evaluate_source_object(item) for item in page.items)
             summary = self._summary_from_reports(tenant_id, reports)
@@ -207,7 +227,8 @@ class ITResourcesManagementQualityService:
                     target_id=tenant_id.value,
                     metadata={
                         "limit": pagination.limit,
-                        "kind": command.kind,
+                        "kind": command.resource_category or command.kind,
+                        "resource_type": command.resource_type,
                         "total": summary.total,
                         "average_score": summary.average_score,
                     },
@@ -219,7 +240,7 @@ class ITResourcesManagementQualityService:
     def _evaluate_source_object(self, source_object: SourceOfTruthObject) -> ItrmQualityReport:
         issues: list[ItrmQualityIssue] = []
         kind = source_object.kind.value
-        required_attributes = self._REQUIRED_ATTRIBUTES[kind]
+        required_attributes = self._REQUIRED_ATTRIBUTES.get(kind, ())
         missing_fields = tuple(
             field for field in required_attributes if not source_object.attributes.get(field)
         )

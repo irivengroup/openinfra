@@ -1499,3 +1499,11 @@ Le dashboard d’accueil ne présente plus l’alerte succès permanente `Backen
 - L’application est explicite via `--apply` ou `apply=true` et ne s’exécute que lorsque les règles de source autoritative acceptent la mise à jour.
 - Les plans refusés et applications acceptées sont auditables par objet via `itrm.reconciliation.plan` et `itrm.reconciliation.apply`.
 - La roadmap P09 ajoute `TST-P09-ITRM-RECONCILIATION` et aligne `REQ-00759`.
+
+### Avancement v0.29.25 — P09 taxonomie ITRM catégories / types DC
+
+- OpenInfra expose un catalogue ITRM structuré par catégories datacenter et types rattachés : serveurs, postes, périphériques, réseau, stockage, énergie, racks/facility, refroidissement, sécurité, télécom, cloud/virtualisation, logiciels/services, câblage et mobile/IoT.
+- `openinfra itrm resource-taxonomy` et `/api/v1/itrm/resource-taxonomy` publient la taxonomie consommable par clients, intégrations et BFF web.
+- Les créations, modifications et réconciliations ITRM acceptent `resource_category` et `resource_type`, valident que le type appartient à la catégorie, et enrichissent les attributs historisés.
+- Le dashboard web filtre automatiquement le champ type de ressource selon la catégorie choisie ; le mécanisme de listes dépendantes est générique pour les formulaires analogues.
+- La roadmap P09 ajoute `TST-P09-ITRM-RESOURCE-TAXONOMY` et aligne `REQ-00760`, `REQ-00761` et `REQ-00762`.

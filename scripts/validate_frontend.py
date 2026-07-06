@@ -57,6 +57,8 @@ class FrontendContractValidator:
             or "fetch('/status'" not in main_source
             or "Formulaires" not in main_source
             or "Numéro de série" not in main_source
+            or "Catalogue catégories / types" not in main_source
+            or "RESOURCE_TAXONOMY" not in main_source
             or "Token API" in main_source
         ):
             raise FrontendValidationError(
@@ -149,6 +151,10 @@ class FrontendContractValidator:
             "Numéro de série",
             "/v1/itrm/reconcile-object",
             "Réconcilier une ressource",
+            "Catalogue catégories / types",
+            "RESOURCE_TAXONOMY",
+            "data-options-by-field",
+            "resource_type",
         ):
             if fragment not in payload:
                 raise FrontendValidationError(

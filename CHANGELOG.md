@@ -1,3 +1,13 @@
+## 0.29.25 - 2026-07-06
+
+- Added a complete ITRM datacenter resource taxonomy with category-to-type mapping.
+- Added `GET /api/v1/itrm/resource-taxonomy` and `openinfra itrm resource-taxonomy`.
+- Added category/type validation to ITRM upsert and reconciliation commands.
+- Persisted normalized `resource_category` and `resource_type` in ITRM object attributes and public payloads.
+- Updated the web dashboard so selecting a category dynamically filters compatible resource types.
+- Generalized dependent select fields through reusable `optionsByField` form metadata.
+- Updated OpenAPI, CDC, roadmap, documentation and regression tests.
+
 ## 0.29.24 - 2026-07-06
 
 - Added governed ITRM object reconciliation with deterministic dry-run and optional apply.

@@ -102,7 +102,12 @@ class TestSourceGovernanceServices:
 
         assert created["version"] == 1
         assert accepted["version"] == 2
-        assert accepted["attributes"] == {"serial": "XYZ", "rack": "R1"}
+        assert accepted["attributes"] == {
+            "serial": "XYZ",
+            "rack": "R1",
+            "resource_category": "other",
+            "resource_type": "unknown-device",
+        }
 
     def test_list_evaluate_and_deactivate_rule(self, tmp_path: Path) -> None:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json")
@@ -226,12 +231,22 @@ class TestSourceGovernanceServices:
         assert rejected["accepted"] is False
         assert rejected["applied"] is False
         assert rejected["conflicts"][0]["attribute_path"] == "serial"
-        assert rejected["result_attributes"] == {"serial": "A", "rack": "R1"}
+        assert rejected["result_attributes"] == {
+            "serial": "A",
+            "rack": "R1",
+            "resource_category": "other",
+            "resource_type": "unknown-device",
+        }
         assert applied["accepted"] is True
         assert applied["applied"] is True
         assert applied["version"] == 2
         assert current["display_name"] == "Reconciled 001"
-        assert current["attributes"] == {"serial": "B", "rack": "R2"}
+        assert current["attributes"] == {
+            "serial": "B",
+            "rack": "R2",
+            "resource_category": "other",
+            "resource_type": "unknown-device",
+        }
         assert current["tags"] == ["prod", "reconciled"]
         assert [record.event.action for record in audit.items][:2] == [
             "itrm.reconciliation.apply",
@@ -271,7 +286,11 @@ class TestSourceGovernanceServices:
         assert planned["accepted"] is True
         assert planned["applied"] is False
         assert applied["applied"] is True
-        assert applied["object"]["attributes"] == {"serial": "CLI2"}
+        assert applied["object"]["attributes"] == {
+            "serial": "CLI2",
+            "resource_category": "other",
+            "resource_type": "unknown-device",
+        }
 
     def test_accept_with_audit_is_not_blocking_but_reports_conflict(self, tmp_path: Path) -> None:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json")

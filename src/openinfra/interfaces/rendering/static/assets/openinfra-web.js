@@ -126,13 +126,34 @@ const OPENINFRA_ICONS = {
   activity: "M6.5 12a.5.5 0 0 1-.447-.276L3.382 6.382 1.894 9.36A.5.5 0 0 1 1.447 9.636H.5a.5.5 0 0 1 0-1h.638l1.915-3.83a.5.5 0 0 1 .894 0L6.5 9.91l2.553-5.105a.5.5 0 0 1 .894 0l1.915 3.83h3.638a.5.5 0 0 1 0 1h-3.947a.5.5 0 0 1-.447-.276L9.5 6.382l-2.553 5.342A.5.5 0 0 1 6.5 12z"
 };
 
-const COMMON_KIND_OPTIONS = ["server", "network-device", "virtual-machine", "application", "database", "service"];
+const RESOURCE_TAXONOMY = {
+  "server": ["physical-server", "rack-server", "blade-server", "tower-server", "hypervisor-host", "virtual-machine", "container-host", "compute-appliance"],
+  "personal-computer": ["laptop", "desktop", "workstation", "thin-client", "all-in-one", "tablet", "kiosk"],
+  "monitor-peripheral": ["monitor", "keyboard", "mouse", "docking-station", "webcam", "headset", "printer", "scanner", "barcode-scanner", "kvm-console"],
+  "network-device": ["switch", "core-switch", "distribution-switch", "access-switch", "router", "firewall", "load-balancer", "vpn-gateway", "sdwan-edge", "wireless-controller", "wireless-access-point", "proxy-appliance", "wan-accelerator", "network-tap", "packet-broker", "network-interface"],
+  "storage": ["storage-array", "nas-appliance", "san-switch", "storage-controller", "storage-shelf", "disk", "hdd", "ssd", "nvme-drive", "tape-library", "backup-appliance", "object-storage-node"],
+  "power-supply": ["ups", "pdu", "ats", "sts", "rectifier", "inverter", "battery-pack", "power-shelf", "generator", "busway", "power-meter"],
+  "rack-facility": ["rack", "cabinet", "patch-panel", "fiber-panel", "cable-management", "containment", "raised-floor-tile", "sensor-probe", "rack-accessory"],
+  "cooling": ["crac", "crah", "in-row-cooler", "rear-door-heat-exchanger", "chiller", "cooling-tower", "heat-exchanger", "humidifier", "environmental-sensor"],
+  "security-safety": ["cctv-camera", "access-control-reader", "door-controller", "biometric-reader", "fire-panel", "smoke-detector", "leak-detector", "alarm-siren"],
+  "telecom": ["pbx", "voip-gateway", "ip-phone", "conference-phone", "modem", "optical-transponder", "mux", "radio-link"],
+  "cloud-virtualization": ["cloud-account", "cloud-region", "vpc", "cloud-subnet", "security-group", "cloud-load-balancer", "cloud-instance", "cloud-volume", "kubernetes-cluster", "kubernetes-node", "container", "namespace"],
+  "software-service": ["application", "service", "api-service", "web-service", "database-instance", "middleware", "message-broker", "license", "certificate", "dns-zone"],
+  "cable-connectivity": ["copper-cable", "fiber-cable", "patch-cord", "trunk-cable", "transceiver", "sfp-module", "qsfp-module", "patch-cassette"],
+  "mobile-iot": ["smartphone", "rugged-handheld", "iot-gateway", "industrial-controller", "plc", "sensor", "actuator"],
+  "other": ["generic-asset", "unknown-device", "external-resource"]
+};
+const RESOURCE_CATEGORY_OPTIONS = Object.keys(RESOURCE_TAXONOMY);
 const SOURCE_OPTIONS = ["manual", "import", "backend-discovery", "enterprise-proxy", "api"];
 
 const FIELD_SETS = {
   tenant: { name: "tenant_id", label: "Tenant", defaultValue: "default", placeholder: "default" },
   limit: { name: "limit", label: "Limite", type: "number", placeholder: "100" },
-  riKind: { name: "kind", label: "Type de ressource", type: "select", options: COMMON_KIND_OPTIONS },
+  resourceCategory: { name: "resource_category", label: "Catégorie", type: "select", options: RESOURCE_CATEGORY_OPTIONS, target: "kind", defaultValue: "server" },
+  resourceType: { name: "resource_type", label: "Type de ressource", type: "select", optionsByField: "resource_category", optionsMap: RESOURCE_TAXONOMY, target: "attributes.resource_type", defaultValue: "physical-server" },
+  resourceCategoryFilter: { name: "resource_category", label: "Catégorie", type: "select", options: RESOURCE_CATEGORY_OPTIONS },
+  resourceTypeFilter: { name: "resource_type", label: "Type de ressource", type: "select", optionsByField: "resource_category", optionsMap: RESOURCE_TAXONOMY },
+  riKind: { name: "kind", label: "Catégorie", type: "select", options: RESOURCE_CATEGORY_OPTIONS },
   tag: { name: "tag", label: "Tag", placeholder: "prod" },
   actor: { name: "actor", label: "Opérateur", required: true, placeholder: "admin@openinfra" },
   riKey: { name: "key", label: "Clé ITRM", required: true, placeholder: "server/srv-db-01" },
@@ -159,15 +180,16 @@ const OPENINFRA_MODULES = [
     { id: "schema", label: "Statut schéma DB", method: "GET", path: "/v1/database/schema", query: [] }
   ] },
   { id: "itrm", label: "IT Ressources Management", shortLabel: "ITRM", icon: "table", description: "Inventaire canonique, relations, versions, gouvernance et certification.", operations: [
-    { id: "itrm-list", label: "Lister les objets ITRM", method: "GET", path: "/v1/itrm/objects", query: [FIELD_SETS.riKind, FIELD_SETS.tag, FIELD_SETS.limit] },
-    { id: "itrm-upsert", label: "Créer / mettre à jour une ressource", method: "POST", path: "/v1/itrm/objects", body: [FIELD_SETS.actor, FIELD_SETS.riKey, { ...FIELD_SETS.riKind, required: true }, FIELD_SETS.displayName, FIELD_SETS.source, FIELD_SETS.serial, FIELD_SETS.vendor, FIELD_SETS.model, FIELD_SETS.site, FIELD_SETS.building, FIELD_SETS.room, FIELD_SETS.row, FIELD_SETS.column, FIELD_SETS.rack, FIELD_SETS.managementIp, FIELD_SETS.lifecycle, FIELD_SETS.tags] },
+    { id: "itrm-taxonomy", label: "Catalogue catégories / types", method: "GET", path: "/v1/itrm/resource-taxonomy", query: [] },
+    { id: "itrm-list", label: "Lister les objets ITRM", method: "GET", path: "/v1/itrm/objects", query: [FIELD_SETS.resourceCategoryFilter, FIELD_SETS.resourceTypeFilter, FIELD_SETS.tag, FIELD_SETS.limit] },
+    { id: "itrm-upsert", label: "Créer / mettre à jour une ressource", method: "POST", path: "/v1/itrm/objects", body: [FIELD_SETS.actor, FIELD_SETS.riKey, { ...FIELD_SETS.resourceCategory, required: true }, { ...FIELD_SETS.resourceType, required: true }, FIELD_SETS.displayName, FIELD_SETS.source, FIELD_SETS.serial, FIELD_SETS.vendor, FIELD_SETS.model, FIELD_SETS.site, FIELD_SETS.building, FIELD_SETS.room, FIELD_SETS.row, FIELD_SETS.column, FIELD_SETS.rack, FIELD_SETS.managementIp, FIELD_SETS.lifecycle, FIELD_SETS.tags] },
     { id: "itrm-relations", label: "Lister les relations", method: "GET", path: "/v1/itrm/relations", query: [{ name: "source_key", label: "Ressource source" }, { name: "target_key", label: "Ressource cible" }, { name: "relation_type", label: "Type de relation" }, { ...FIELD_SETS.asOf, required: false }, FIELD_SETS.limit] },
     { id: "itrm-as-of", label: "Restituer une ressource à date", method: "GET", path: "/v1/itrm/object-as-of", query: [FIELD_SETS.riKey, FIELD_SETS.asOf] },
     { id: "itrm-object-audit", label: "Audit d’une ressource", method: "GET", path: "/v1/itrm/object-audit", query: [FIELD_SETS.riKey, FIELD_SETS.limit] },
     { id: "itrm-quality-object", label: "Évaluer la qualité d’une ressource", method: "GET", path: "/v1/itrm/quality/object", query: [FIELD_SETS.riKey] },
-    { id: "itrm-quality-summary", label: "Synthèse qualité / certification", method: "GET", path: "/v1/itrm/quality/summary", query: [FIELD_SETS.riKind, FIELD_SETS.tag, FIELD_SETS.limit] },
+    { id: "itrm-quality-summary", label: "Synthèse qualité / certification", method: "GET", path: "/v1/itrm/quality/summary", query: [FIELD_SETS.resourceCategoryFilter, FIELD_SETS.resourceTypeFilter, FIELD_SETS.tag, FIELD_SETS.limit] },
     { id: "itrm-governance", label: "Évaluer une règle de gouvernance", method: "POST", path: "/v1/itrm/governance/evaluate", body: [
-      { name: "object_kind", label: "Type d’objet", required: true, type: "select", options: COMMON_KIND_OPTIONS },
+      { name: "object_kind", label: "Catégorie d’objet", required: true, type: "select", options: RESOURCE_CATEGORY_OPTIONS },
       { name: "incoming_source", label: "Source entrante", required: true, type: "select", options: SOURCE_OPTIONS },
       { name: "existing_serial", label: "Serial existant", target: "existing_attributes.serial" },
       { name: "incoming_serial", label: "Serial entrant", target: "incoming_attributes.serial" },
@@ -178,6 +200,8 @@ const OPENINFRA_MODULES = [
       FIELD_SETS.actor,
       FIELD_SETS.riKey,
       FIELD_SETS.source,
+      { ...FIELD_SETS.resourceCategory, required: false },
+      { ...FIELD_SETS.resourceType, required: false },
       { name: "display_name", label: "Nom affiché cible", placeholder: "srv-db-01 réconcilié" },
       FIELD_SETS.serial,
       FIELD_SETS.vendor,
@@ -462,7 +486,10 @@ class OpenInfraDashboard {
     const requiredText = field.required ? " *" : "";
     const value = field.defaultValue || "";
     if (field.type === "select") {
-      return `<label class="col-md-6 col-xl-4 form-label">${this.escape(field.label || field.name)}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${required}><option value=""></option>${(field.options || []).map((option) => `<option value="${this.escape(option)}" ${value === option ? "selected" : ""}>${this.escape(option)}</option>`).join("")}</select></label>`;
+      const options = this.selectOptionsForField(field);
+      const source = field.optionsByField ? ` data-options-by-field="${this.escape(field.optionsByField)}"` : "";
+      const map = field.optionsMap ? ` data-options-map="${this.escape(JSON.stringify(field.optionsMap))}"` : "";
+      return `<label class="col-md-6 col-xl-4 form-label">${this.escape(field.label || field.name)}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${source}${map}${required}><option value=""></option>${options.map((option) => `<option value="${this.escape(option)}" ${value === option ? "selected" : ""}>${this.escape(option)}</option>`).join("")}</select></label>`;
     }
     if (field.type === "boolean") {
       return `<label class="col-md-6 col-xl-4 form-label">${this.escape(field.label || field.name)}<select class="form-select" data-field="${this.escape(field.name)}"><option value="false">Non</option><option value="true">Oui</option></select></label>`;
@@ -471,11 +498,42 @@ class OpenInfraDashboard {
     return `<label class="col-md-6 col-xl-4 form-label">${this.escape(field.label || field.name)}${requiredText}<input class="form-control" type="${inputType}" data-field="${this.escape(field.name)}" value="${this.escape(value)}" placeholder="${this.escape(field.placeholder || "")}"${required}></label>`;
   }
 
+  selectOptionsForField(field) {
+    if (!field.optionsByField || !field.optionsMap) {
+      return field.options || [];
+    }
+    const controller = field.defaultControllerValue || Object.keys(field.optionsMap)[0];
+    return field.optionsMap[controller] || [];
+  }
+
+  bindDependentSelects() {
+    for (const dependent of document.querySelectorAll("select[data-options-by-field]")) {
+      const source = document.querySelector(`[data-field="${dependent.dataset.optionsByField}"]`);
+      if (!source) {
+        continue;
+      }
+      const refresh = () => {
+        const selected = dependent.value;
+        const optionsMap = JSON.parse(dependent.dataset.optionsMap || "{}");
+        const options = optionsMap[source.value] || [];
+        dependent.innerHTML = `<option value=""></option>${options.map((option) => `<option value="${this.escape(option)}">${this.escape(option)}</option>`).join("")}`;
+        if (options.includes(selected)) {
+          dependent.value = selected;
+        } else if (options.length === 1) {
+          dependent.value = options[0];
+        }
+      };
+      source.addEventListener("change", refresh);
+      refresh();
+    }
+  }
+
   bindEvents() {
     document.getElementById("openinfra-execute")?.addEventListener("click", () => this.executeSelected());
     document.getElementById("openinfra-tenant")?.addEventListener("input", (event) => {
       this.state = { ...this.state, tenant: event.target.value };
     });
+    this.bindDependentSelects();
     for (const button of document.querySelectorAll("[data-module-id]")) {
       button.addEventListener("click", () => this.selectModule(button.dataset.moduleId));
     }

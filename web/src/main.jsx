@@ -12,14 +12,26 @@ const ICONS = {
   shield: 'M5.338 1.59a61.44 61.44 0 0 0-2.837.856.48.48 0 0 0-.328.39c-.554 4.157.726 7.19 2.253 9.188A10.7 10.7 0 0 0 8 15a10.7 10.7 0 0 0 3.574-2.976c1.527-1.998 2.807-5.031 2.253-9.188a.48.48 0 0 0-.328-.39 61.44 61.44 0 0 0-2.837-.856C9.552 1.29 8.531 1.067 8 1.067c-.531 0-1.552.223-2.662.523z',
 };
 
+const RESOURCE_TAXONOMY = {
+  server: ['physical-server', 'rack-server', 'blade-server', 'tower-server', 'hypervisor-host', 'virtual-machine', 'container-host'],
+  'personal-computer': ['laptop', 'desktop', 'workstation', 'thin-client', 'tablet'],
+  'network-device': ['switch', 'router', 'firewall', 'load-balancer', 'wireless-access-point'],
+  storage: ['storage-array', 'nas-appliance', 'disk', 'ssd', 'tape-library'],
+  'power-supply': ['ups', 'pdu', 'ats', 'generator'],
+  'rack-facility': ['rack', 'cabinet', 'patch-panel'],
+  cooling: ['crac', 'crah', 'in-row-cooler', 'chiller'],
+  'software-service': ['application', 'service', 'database-instance'],
+};
+
 const MODULES = [
   { id: 'overview', label: 'Dashboard', icon: 'speedometer2', operations: [{ id: 'version', label: 'Version runtime', path: '/v1/version', method: 'GET', fields: [] }] },
   { id: 'itrm', label: 'IT Ressources Management', shortLabel: 'ITRM', icon: 'table', operations: [
-    { id: 'itrm-list', label: 'Lister les objets ITRM', path: '/v1/itrm/objects', method: 'GET', fields: ['Type de ressource', 'Tag', 'Limite'] },
-    { id: 'itrm-upsert', label: 'Créer / mettre à jour une ressource', path: '/v1/itrm/objects', method: 'POST', fields: ['Opérateur', 'Clé ITRM', 'Type de ressource', 'Nom affiché', 'Source autoritative', 'Numéro de série', 'Constructeur', 'Modèle', 'Site', 'Bâtiment', 'Salle', 'Ligne salle', 'Colonne salle', 'Rack', 'IP de management', 'État cycle de vie', 'Tags'] },
+    { id: 'itrm-taxonomy', label: 'Catalogue catégories / types', path: '/v1/itrm/resource-taxonomy', method: 'GET', fields: [] },
+    { id: 'itrm-list', label: 'Lister les objets ITRM', path: '/v1/itrm/objects', method: 'GET', fields: ['Catégorie', 'Type de ressource', 'Tag', 'Limite'] },
+    { id: 'itrm-upsert', label: 'Créer / mettre à jour une ressource', path: '/v1/itrm/objects', method: 'POST', fields: ['Opérateur', 'Clé ITRM', 'Catégorie', 'Type de ressource', 'Nom affiché', 'Source autoritative', 'Numéro de série', 'Constructeur', 'Modèle', 'Site', 'Bâtiment', 'Salle', 'Ligne salle', 'Colonne salle', 'Rack', 'IP de management', 'État cycle de vie', 'Tags'] },
     { id: 'itrm-as-of', label: 'Restituer une ressource à date', path: '/v1/itrm/object-as-of', method: 'GET', fields: ['Clé ITRM', 'Date ISO-8601'] },
     { id: 'itrm-object-audit', label: 'Audit d’une ressource', path: '/v1/itrm/object-audit', method: 'GET', fields: ['Clé ITRM', 'Limite'] },
-    { id: 'itrm-reconcile', label: 'Réconcilier une ressource', path: '/v1/itrm/reconcile-object', method: 'POST', fields: ['Opérateur', 'Clé ITRM', 'Source entrante', 'Nom affiché cible', 'Numéro de série', 'Constructeur', 'Modèle', 'Site', 'Rack', 'Tags', 'Appliquer le plan'] },
+    { id: 'itrm-reconcile', label: 'Réconcilier une ressource', path: '/v1/itrm/reconcile-object', method: 'POST', fields: ['Opérateur', 'Clé ITRM', 'Source entrante', 'Catégorie', 'Type de ressource', 'Nom affiché cible', 'Numéro de série', 'Constructeur', 'Modèle', 'Site', 'Rack', 'Tags', 'Appliquer le plan'] },
   ] },
   { id: 'ipam', label: 'IPAM', icon: 'grid', operations: [{ id: 'ipam-search', label: 'Rechercher dans l’IPAM', path: '/v1/ipam/ui-search', method: 'GET', fields: ['Recherche', 'VRF'] }] },
   { id: 'dcim', label: 'DCIM', icon: 'home', operations: [{ id: 'dcim-rack-capacity', label: 'Capacité rack', path: '/v1/dcim/rack-capacity', method: 'GET', fields: ['Site', 'Bâtiment', 'Salle', 'Rack'] }] },

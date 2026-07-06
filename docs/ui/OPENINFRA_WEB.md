@@ -1,4 +1,4 @@
-# OpenInfra Web v0.29.24
+# OpenInfra Web v0.29.25
 
 OpenInfra Web est le portail `openinfra-web` API-only. Il sert l'interface React/Bootstrap 5, expose un proxy applicatif `/api/*` vers le backend `openinfra-api` et fournit un dashboard de pilotage aligné sur les domaines CLI.
 
@@ -40,6 +40,13 @@ Le service Compose `openinfra-web` dépend de `api:8080`, écoute par défaut su
 
 L'unité `openinfra-web.service` lance `openinfra-web` depuis le virtualenv géré par l'installateur et lit sa configuration via `EnvironmentFile=/etc/openinfra/openinfra.conf`, chemin compatible pointant vers `/opt/openinfra/config/openinfra.conf`.
 
+
+## v0.29.25 — taxonomie ITRM et filtres dynamiques
+
+Le formulaire `Créer / mettre à jour une ressource` sépare désormais la `Catégorie` et le `Type de ressource`. La catégorie pilote dynamiquement la liste des types compatibles : un serveur propose notamment `physical-server`, `rack-server`, `hypervisor-host` et `virtual-machine`, tandis qu’un équipement réseau propose `switch`, `router`, `firewall`, `load-balancer` ou `wireless-access-point`.
+
+Le même mécanisme de formulaire est générique : tout champ `select` peut déclarer une dépendance `optionsByField` vers un autre champ et fournir une table `optionsMap`. Les futurs objets structurés catégorie/type des autres composants peuvent donc réutiliser ce comportement sans logique spécifique au composant.
+
 ## v0.29.16 — Bootstrap 5 Dashboard Theme
 
 Le portail utilise le thème Bootstrap 5 Dashboard comme structure principale : header sombre principal unique, sidebar gauche, métriques runtime et zone centrale d'opérations. Le header Bootstrap est adapté aux domaines OpenInfra : Dashboard, ITRM, IPAM, DCIM, Discovery et Sécurité.
@@ -76,7 +83,7 @@ En runtime Docker, une valeur vide de `OPENINFRA_WEB_BACKEND_BEARER_TOKEN` est t
 Les camemberts du dashboard d’accueil sont doublés et adaptatifs : `--openinfra-pie-size` utilise `clamp(8rem, 14vw, 10.5rem)` en desktop/tablette et une règle mobile dédiée en dessous de 576 px.
 
 
-## v0.29.24 — formulaires ITRM historique
+## v0.29.23 — formulaires ITRM historique
 
 - Ajout du formulaire `Restituer une ressource à date`, câblé sur `/v1/itrm/object-as-of`.
 - Ajout du formulaire `Audit d’une ressource`, câblé sur `/v1/itrm/object-audit`.

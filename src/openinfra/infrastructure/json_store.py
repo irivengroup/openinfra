@@ -2964,10 +2964,12 @@ class JsonSourceOfTruthRepository(SourceOfTruthRepository):
         pagination: Pagination,
         kind: str | None = None,
         tag: str | None = None,
+        resource_type: str | None = None,
     ) -> SourceObjectPage:
         start = self._cursor_offset(pagination.cursor)
         normalized_kind = kind.strip().lower() if kind else None
         normalized_tag = tag.strip().lower() if tag else None
+        normalized_resource_type = resource_type.strip().lower() if resource_type else None
         objects = [
             self._object_from_dict(value)
             for value in self._store.data["source_objects"].values()
@@ -2978,6 +2980,12 @@ class JsonSourceOfTruthRepository(SourceOfTruthRepository):
         if normalized_tag:
             objects = [
                 item for item in objects if normalized_tag in {tag.value for tag in item.tags}
+            ]
+        if normalized_resource_type:
+            objects = [
+                item
+                for item in objects
+                if item.as_dict().get("resource_type") == normalized_resource_type
             ]
         objects.sort(key=lambda item: item.key.value)
         selected = tuple(objects[start : start + pagination.limit])

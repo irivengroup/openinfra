@@ -516,6 +516,13 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
+        if route == "/api/v1/sot/resource-taxonomy":
+            responder.send(
+                HTTPStatus.OK,
+                self.server.application.it_resources_management_service.resource_taxonomy(),
+            )
+            return
+
         if route == "/api/v1/sot/objects":
             try:
                 query = parse_qs(parsed.query)
@@ -536,8 +543,11 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                             admin_token=self._bearer_token(),
                             limit=int(self._first_query_value(query, "limit", "100")),
                             cursor=query.get("cursor", [None])[0],
-                            kind=query.get("kind", [None])[0],
+                            kind=(
+                                query.get("resource_category", query.get("kind", [None]))[0]
+                            ),
                             tag=query.get("tag", [None])[0],
+                            resource_type=query.get("resource_type", [None])[0],
                         )
                     )
                     responder.send(HTTPStatus.OK, page.as_dict())
@@ -627,6 +637,8 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         cursor=query.get("cursor", [None])[0],
                         kind=query.get("kind", [None])[0],
                         tag=query.get("tag", [None])[0],
+                        resource_category=query.get("resource_category", [None])[0],
+                        resource_type=query.get("resource_type", [None])[0],
                     )
                 )
                 responder.send(HTTPStatus.OK, summary.as_dict())
@@ -1358,6 +1370,16 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         if tags_payload is not None
                         else None,
                         apply=bool(payload.get("apply", False)),
+                        resource_category=(
+                            str(payload["resource_category"])
+                            if payload.get("resource_category") is not None
+                            else None
+                        ),
+                        resource_type=(
+                            str(payload["resource_type"])
+                            if payload.get("resource_type") is not None
+                            else None
+                        ),
                     )
                 )
                 responder.send(HTTPStatus.OK, result)
@@ -1378,11 +1400,21 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         actor=str(payload.get("actor", "api")),
                         admin_token=self._bearer_token(),
                         key=str(payload["key"]),
-                        kind=str(payload["kind"]),
+                        kind=str(payload.get("kind") or payload.get("resource_category") or ""),
                         display_name=str(payload["display_name"]),
                         attributes_json=json.dumps(payload.get("attributes", {}), sort_keys=True),
                         tags=tuple(str(tag) for tag in tags_payload),
                         source=str(payload["source"]),
+                        resource_category=(
+                            str(payload["resource_category"])
+                            if payload.get("resource_category") is not None
+                            else None
+                        ),
+                        resource_type=(
+                            str(payload["resource_type"])
+                            if payload.get("resource_type") is not None
+                            else None
+                        ),
                     )
                 )
                 responder.send(HTTPStatus.CREATED, result)
@@ -2228,6 +2260,7 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                 },
                 "it_resources_management": {
                     "objects": "/api/v1/itrm/objects",
+                    "resource_taxonomy": "/api/v1/itrm/resource-taxonomy",
                     "object_versions": "/api/v1/itrm/object-versions",
                     "object_as_of": "/api/v1/itrm/object-as-of",
                     "object_audit": "/api/v1/itrm/object-audit",

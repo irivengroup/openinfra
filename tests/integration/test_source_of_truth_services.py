@@ -501,3 +501,84 @@ class TestSourceOfTruthServices:
                     provenance="manual",
                 )
             )
+
+
+def test_itrm_resource_taxonomy_filters_types_and_validates_category_type(tmp_path: Path) -> None:
+    app = ApplicationFactory().create_json_application(tmp_path / "state-taxonomy.json")
+    admin_token = "t" * 40
+    app.security_service.bootstrap_token(
+        BootstrapTokenCommand(
+            tenant_id="default",
+            actor="pytest",
+            subject="itrm-taxonomy-admin",
+            roles=("itrm:operator",),
+            token=admin_token,
+        )
+    )
+
+    taxonomy = app.it_resources_management_service.resource_taxonomy()
+    categories = {category["value"]: category for category in taxonomy["categories"]}
+
+    assert "server" in categories
+    assert "network-device" in categories
+    assert "power-supply" in categories
+    assert "physical-server" in [item["value"] for item in categories["server"]["types"]]
+    assert "firewall" in [item["value"] for item in categories["network-device"]["types"]]
+
+    created = app.it_resources_management_service.upsert_object(
+        UpsertSourceObjectCommand(
+            tenant_id="default",
+            actor="pytest",
+            admin_token=admin_token,
+            key="server/srv-taxonomy-01",
+            kind="server",
+            resource_category="server",
+            resource_type="physical-server",
+            display_name="Taxonomy Server",
+            attributes_json='{"serial":"TX-01"}',
+            tags=("taxonomy",),
+            source="manual",
+        )
+    )
+
+    assert created["kind"] == "server"
+    assert created["resource_category"] == "server"
+    assert created["resource_type"] == "physical-server"
+    assert created["attributes"]["resource_category"] == "server"
+    assert created["attributes"]["resource_type"] == "physical-server"
+
+
+    category_page = app.it_resources_management_service.list_objects(
+        ListSourceObjectsCommand(
+            tenant_id="default",
+            admin_token=admin_token,
+            kind="server",
+        )
+    )
+    assert [item.key.value for item in category_page.items] == ["server/srv-taxonomy-01"]
+
+    type_page = app.it_resources_management_service.list_objects(
+        ListSourceObjectsCommand(
+            tenant_id="default",
+            admin_token=admin_token,
+            resource_type="physical-server",
+        )
+    )
+    assert [item.key.value for item in type_page.items] == ["server/srv-taxonomy-01"]
+
+    with pytest.raises(ValidationError):
+        app.it_resources_management_service.upsert_object(
+            UpsertSourceObjectCommand(
+                tenant_id="default",
+                actor="pytest",
+                admin_token=admin_token,
+                key="server/bad-taxonomy-01",
+                kind="server",
+                resource_category="server",
+                resource_type="firewall",
+                display_name="Bad Taxonomy",
+                attributes_json="{}",
+                tags=(),
+                source="manual",
+            )
+        )

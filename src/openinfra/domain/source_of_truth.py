@@ -8,6 +8,7 @@ from enum import StrEnum
 from typing import Any, Self
 
 from openinfra.domain.common import EntityId, TenantId, ValidationError
+from openinfra.domain.resource_taxonomy import ResourceTaxonomy
 
 
 class SourceObjectKind(StrEnum):
@@ -16,6 +17,23 @@ class SourceObjectKind(StrEnum):
     INTERFACE = "interface"
     SERVICE = "service"
     APPLICATION = "application"
+    DATABASE = "database"
+    VIRTUAL_MACHINE = "virtual-machine"
+    SERVER = "server"
+    PERSONAL_COMPUTER = "personal-computer"
+    MONITOR_PERIPHERAL = "monitor-peripheral"
+    NETWORK_DEVICE = "network-device"
+    STORAGE = "storage"
+    POWER_SUPPLY = "power-supply"
+    RACK_FACILITY = "rack-facility"
+    COOLING = "cooling"
+    SECURITY_SAFETY = "security-safety"
+    TELECOM = "telecom"
+    CLOUD_VIRTUALIZATION = "cloud-virtualization"
+    SOFTWARE_SERVICE = "software-service"
+    CABLE_CONNECTIVITY = "cable-connectivity"
+    MOBILE_IOT = "mobile-iot"
+    OTHER = "other"
 
 
 class SourceObjectStatus(StrEnum):
@@ -183,12 +201,13 @@ class SourceOfTruthObject:
         tags: tuple[str, ...] | None,
         source: str | None,
         status: str | None = None,
+        kind: str | None = None,
     ) -> Self:
         return self.restore(
             id=self.id,
             tenant_id=self.tenant_id,
             key=self.key.value,
-            kind=self.kind.value,
+            kind=self.kind.value if kind is None else kind,
             display_name=self.display_name if display_name is None else display_name,
             attributes=self.attributes if attributes is None else attributes,
             tags=tuple(tag.value for tag in self.tags) if tags is None else tags,
@@ -200,11 +219,19 @@ class SourceOfTruthObject:
         )
 
     def as_dict(self) -> dict[str, object]:
+        classification = ResourceTaxonomy.classify(
+            kind=self.kind.value,
+            resource_category=None,
+            resource_type=None,
+            attributes=self.attributes,
+        )
         return {
             "id": self.id.value,
             "tenant_id": self.tenant_id.value,
             "key": self.key.value,
             "kind": self.kind.value,
+            "resource_category": classification.category,
+            "resource_type": classification.resource_type,
             "display_name": self.display_name,
             "attributes": self.attributes,
             "tags": [tag.value for tag in self.tags],

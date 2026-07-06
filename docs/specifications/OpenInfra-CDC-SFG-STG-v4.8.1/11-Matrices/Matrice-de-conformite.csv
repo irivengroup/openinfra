@@ -175,3 +175,6 @@ V24,V24,V24,V24,V24
 V24,V24,V24,V24,V24
 V24,V24,V24,V24,V24
 V24,V24,V24,V24,V24
+REQ-00760,"ITRM doit supporter une taxonomie complète des catégories de ressources trouvables dans un datacenter, chaque catégorie regroupant tous les types de ressources qui lui sont rattachés.",Conforme / Partiellement conforme / Non conforme,"Catalogue ITRM, tests domaine/service/API/CLI/frontend et documentation.",À renseigner par le soumissionnaire
+REQ-00761,"Lors de la création ou modification d’une ressource ITRM, le choix d’une catégorie doit filtrer automatiquement le champ type de ressource.",Conforme / Partiellement conforme / Non conforme,Tests openinfra-web et tests de validation catégorie/type.,À renseigner par le soumissionnaire
+REQ-00762,Tous les formulaires OpenInfra respectant une structuration catégorie/type doivent utiliser un mécanisme générique de filtrage dépendant.,Conforme / Partiellement conforme / Non conforme,Inspection assets runtime et validation frontend.,À renseigner par le soumissionnaire

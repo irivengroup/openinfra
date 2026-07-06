@@ -805,6 +805,7 @@ class SourceOfTruthRepository(ABC):
         pagination: Pagination,
         kind: str | None = None,
         tag: str | None = None,
+        resource_type: str | None = None,
     ) -> SourceObjectPage:
         raise TypeError("adapter contract invoked directly")
 

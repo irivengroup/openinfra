@@ -21,6 +21,7 @@ from openinfra.domain.common import (
     ValidationError,
 )
 from openinfra.domain.security import Permission
+from openinfra.domain.resource_taxonomy import ResourceClassification, ResourceTaxonomy
 from openinfra.domain.source_governance import (
     SourceConflictStrategy,
     SourceGovernanceEvaluation,
@@ -47,6 +48,8 @@ class UpsertSourceObjectCommand:
     attributes_json: str
     tags: tuple[str, ...]
     source: str
+    resource_category: str | None = None
+    resource_type: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,6 +63,8 @@ class ReconcileSourceObjectCommand:
     display_name: str | None = None
     tags: tuple[str, ...] | None = None
     apply: bool = False
+    resource_category: str | None = None
+    resource_type: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,6 +82,7 @@ class ListSourceObjectsCommand:
     cursor: str | None = None
     kind: str | None = None
     tag: str | None = None
+    resource_type: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -152,7 +158,15 @@ class SourceOfTruthService:
             AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITRM_WRITE)
         )
         attributes = self._attributes_from_json(command.attributes_json)
-        SourceObjectKind(str(command.kind).strip().lower())
+        classification = self._classify_resource(
+            kind=command.kind,
+            resource_category=command.resource_category,
+            resource_type=command.resource_type,
+            attributes=attributes,
+        )
+        attributes = self._attributes_with_classification(attributes, classification)
+        stored_kind = self._stored_kind(command.kind, command.resource_category, classification)
+        SourceObjectKind(stored_kind)
         SourceSystem.from_value(command.source)
         with self._transaction_manager.begin() as unit_of_work:
             existing = self._repository.find_object(tenant_id, command.key)
@@ -160,7 +174,7 @@ class SourceOfTruthService:
                 source_object = self._repository.create_object(
                     tenant_id=tenant_id,
                     key=command.key,
-                    kind=command.kind,
+                    kind=stored_kind,
                     display_name=command.display_name,
                     attributes=attributes,
                     tags=command.tags,
@@ -175,6 +189,7 @@ class SourceOfTruthService:
                     attributes=attributes,
                     tags=command.tags,
                     source=command.source,
+                    kind=stored_kind,
                 )
                 self._repository.upsert_object(source_object, command.actor)
                 action = "itrm.object.update"
@@ -188,6 +203,8 @@ class SourceOfTruthService:
                     metadata={
                         "version": source_object.version,
                         "kind": source_object.kind.value,
+                        "resource_category": source_object.as_dict()["resource_category"],
+                        "resource_type": source_object.as_dict()["resource_type"],
                         "tags": [tag.value for tag in source_object.tags],
                         "declared_actor": command.actor,
                     },
@@ -207,6 +224,15 @@ class SourceOfTruthService:
             existing = self._repository.find_object(tenant_id, command.key)
             if existing is None:
                 raise NotFoundError("source object not found: " + command.key)
+            classification = self._classify_resource(
+                kind=existing.kind.value,
+                resource_category=command.resource_category,
+                resource_type=command.resource_type,
+                attributes=incoming_attributes,
+            )
+            incoming_attributes = self._attributes_with_classification(
+                incoming_attributes, classification
+            )
             evaluation = self._evaluate_governance(
                 tenant_id,
                 existing,
@@ -220,16 +246,22 @@ class SourceOfTruthService:
                 "tenant_id": tenant_id.value,
                 "key": existing.key.value,
                 "kind": existing.kind.value,
+                "resource_category": classification.category,
+                "resource_type": classification.resource_type,
                 "incoming_source": incoming_source.value,
                 "accepted": evaluation.accepted,
                 "apply_requested": bool(command.apply),
                 "applied": False,
                 "current_version": existing.version,
-                "planned_version": existing.version + 1 if evaluation.accepted else existing.version,
+                "planned_version": (
+                    existing.version + 1 if evaluation.accepted else existing.version
+                ),
                 "changed_paths": changed_paths,
                 "stale_rule_names": stale_rule_names,
                 "conflicts": conflicts,
-                "result_attributes": incoming_attributes if evaluation.accepted else existing.attributes,
+                "result_attributes": (
+                    incoming_attributes if evaluation.accepted else existing.attributes
+                ),
             }
             action = "itrm.reconciliation.plan"
             if command.apply and evaluation.accepted:
@@ -238,6 +270,11 @@ class SourceOfTruthService:
                     attributes=incoming_attributes,
                     tags=command.tags,
                     source=incoming_source.value,
+                    kind=(
+                        classification.category
+                        if command.resource_category
+                        else existing.kind.value
+                    ),
                 )
                 self._repository.upsert_object(revised, command.actor)
                 result.update(
@@ -287,6 +324,9 @@ class SourceOfTruthService:
             AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITRM_READ)
         )
         kind = SourceObjectKind(str(command.kind).strip().lower()) if command.kind else None
+        resource_type = None
+        if command.resource_type:
+            resource_type = ResourceTaxonomy.normalize_token(command.resource_type, "resource type")
         pagination = Pagination.from_values(command.limit, command.cursor)
         with self._transaction_manager.begin() as unit_of_work:
             page = self._repository.list_objects(
@@ -294,6 +334,7 @@ class SourceOfTruthService:
                 pagination=pagination,
                 kind=kind.value if kind else None,
                 tag=command.tag,
+                resource_type=resource_type,
             )
             self._audit_repository.append(
                 AuditEvent.record(
@@ -302,7 +343,11 @@ class SourceOfTruthService:
                     action="itrm.object.list",
                     target_type="source_object",
                     target_id=tenant_id.value,
-                    metadata={"limit": pagination.limit, "kind": kind.value if kind else None},
+                    metadata={
+                        "limit": pagination.limit,
+                        "kind": kind.value if kind else None,
+                        "resource_type": resource_type,
+                    },
                 )
             )
             unit_of_work.commit()
@@ -443,6 +488,43 @@ class SourceOfTruthService:
         if not isinstance(decoded, dict):
             raise ValidationError("attributes must be a JSON object")
         return dict(decoded)
+
+    def _classify_resource(
+        self,
+        *,
+        kind: str | None,
+        resource_category: str | None,
+        resource_type: str | None,
+        attributes: dict[str, object],
+    ) -> ResourceClassification:
+        return ResourceTaxonomy.classify(
+            kind=kind,
+            resource_category=resource_category,
+            resource_type=resource_type,
+            attributes=attributes,
+        )
+
+    def _stored_kind(
+        self,
+        requested_kind: str,
+        requested_category: str | None,
+        classification: ResourceClassification,
+    ) -> str:
+        normalized_kind = requested_kind.strip().lower().replace("_", "-")
+        if requested_category is None and normalized_kind in ResourceTaxonomy.LEGACY_KIND_MAP:
+            return normalized_kind
+        return classification.category
+
+    def _attributes_with_classification(
+        self, attributes: dict[str, object], classification: ResourceClassification
+    ) -> dict[str, object]:
+        enriched = dict(attributes)
+        enriched["resource_category"] = classification.category
+        enriched["resource_type"] = classification.resource_type
+        return enriched
+
+    def resource_taxonomy(self) -> dict[str, object]:
+        return ResourceTaxonomy.as_dict()
 
     def _evaluate_governance(
         self,

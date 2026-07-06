@@ -128,3 +128,35 @@ Règles obligatoires :
 - les évaluations doivent être protégées par RBAC et auditées ;
 - les chemins primaires sont `openinfra itrm quality-object`, `openinfra itrm quality-summary`, `/api/v1/itrm/quality/object` et `/api/v1/itrm/quality/summary` ;
 - les alias `sot` restent acceptés uniquement pour compatibilité ascendante.
+
+## Complément v0.29.25 — Taxonomie catégories / types de ressources
+
+OpenInfra doit gérer les ressources ITRM selon une taxonomie normalisée composée d’une catégorie métier et d’un type rattaché à cette catégorie.
+
+Catégories minimales obligatoires :
+
+- `server` : serveurs physiques, serveurs rack, blades, tours, hôtes hyperviseurs, machines virtuelles, hôtes conteneurs et appliances de calcul ;
+- `personal-computer` : laptops, desktops, workstations, thin clients, all-in-one, tablettes et kiosques ;
+- `monitor-peripheral` : écrans, claviers, souris, docks, webcams, casques, imprimantes, scanners, lecteurs codes-barres et consoles KVM ;
+- `network-device` : switches, routeurs, firewalls, load balancers, contrôleurs Wi-Fi, points d’accès, VPN gateways, SD-WAN edges, TAP et interfaces réseau ;
+- `storage` : baies, NAS, SAN switches, contrôleurs, shelves, disques, SSD/NVMe, librairies de bandes, appliances de sauvegarde et nœuds object storage ;
+- `power-supply` : UPS, PDU, ATS, STS, redresseurs, onduleurs, batteries, générateurs, busways et compteurs électriques ;
+- `rack-facility` : racks, armoires, patch panels, fiber panels, gestion de câbles, confinement, dalles et accessoires rack ;
+- `cooling` : CRAC, CRAH, in-row coolers, échangeurs, chillers, humidificateurs et capteurs environnementaux ;
+- `security-safety` : caméras CCTV, contrôle d’accès, lecteurs biométriques, centrales incendie, détecteurs et alarmes ;
+- `telecom` : PBX, passerelles VoIP, téléphones IP, modems, transpondeurs optiques, multiplexeurs et liens radio ;
+- `cloud-virtualization` : comptes cloud, régions, VPC, subnets cloud, security groups, instances, volumes, clusters Kubernetes, nœuds, conteneurs et namespaces ;
+- `software-service` : applications, services, API, services web, bases de données, middleware, brokers, licences, certificats et zones DNS ;
+- `cable-connectivity` : câbles cuivre, fibres, patch cords, trunks, transceivers, modules SFP/QSFP et cassettes ;
+- `mobile-iot` : smartphones, terminaux durcis, passerelles IoT, PLC, capteurs et actionneurs ;
+- `other` : actifs génériques, ressources externes et équipements inconnus.
+
+Règles obligatoires :
+
+1. Le catalogue doit être exposé par `openinfra itrm resource-taxonomy` et `/api/v1/itrm/resource-taxonomy`.
+2. Les opérations de création, modification et réconciliation doivent accepter `resource_category` et `resource_type`.
+3. Le backend doit rejeter tout type incompatible avec la catégorie sélectionnée.
+4. Les objets historisés doivent conserver `resource_category` et `resource_type` dans les attributs et au niveau de la représentation API.
+5. Les anciens `kind` legacy restent tolérés uniquement pendant la période de migration contrôlée vers ITRM.
+6. Les formulaires web doivent filtrer automatiquement les types selon la catégorie choisie.
+7. Le mécanisme de filtrage dépendant doit être générique et réutilisable par tout composant exposant une structure catégorie/type.

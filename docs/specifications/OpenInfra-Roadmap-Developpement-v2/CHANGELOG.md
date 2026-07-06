@@ -1,4 +1,12 @@
-## v2 / OpenInfra 0.29.24
+## v2 / OpenInfra 0.29.25
+
+## 0.29.25
+
+- P09 renforcé : taxonomie ITRM complète des catégories et types de ressources datacenter.
+- Ajout du contrat `resource-taxonomy` en CLI/API et BFF web.
+- Filtrage dynamique du type de ressource par catégorie dans les formulaires ITRM, avec mécanisme générique de listes dépendantes.
+- Alignement CDC `REQ-00760` à `REQ-00762` et ajout de `TST-P09-ITRM-RESOURCE-TAXONOMY`.
+
 
 - Ajout de `TST-P09-ITRM-RECONCILIATION` pour verrouiller la réconciliation gouvernée ITRM, le dry-run, l’apply contrôlé et l’audit objet.
 - Alignement P09 avec `REQ-00759`.

@@ -125,6 +125,7 @@ from openinfra.application.source_governance_services import (
 from openinfra.domain.access_policy import AccessRequestContext
 from openinfra.domain.authentication import ExternalDirectoryConfig
 from openinfra.domain.common import OpenInfraError
+from openinfra.domain.resource_taxonomy import ResourceTaxonomy
 from openinfra.domain.security import Permission
 from openinfra.infrastructure.installer_config import InstallerConfigValidator
 from openinfra.infrastructure.postgresql import (
@@ -758,6 +759,11 @@ class OpenInfraCLI:
     ) -> None:
         sot = subparsers.add_parser(command_name, help=help_text)
         sot_subparsers = sot.add_subparsers(dest=command_dest, required=True)
+        taxonomy = sot_subparsers.add_parser(
+            "resource-taxonomy",
+            help=f"list supported {short_label} resource categories and category-filtered types",
+        )
+        taxonomy.set_defaults(handler=self._handle_sot_resource_taxonomy)
         upsert = sot_subparsers.add_parser(
             "upsert-object", help=f"create or update a {short_label} object"
         )
@@ -768,8 +774,18 @@ class OpenInfraCLI:
         upsert.add_argument("--key", required=True)
         upsert.add_argument(
             "--kind",
-            choices=("generic", "device", "interface", "service", "application"),
-            required=True,
+            choices=ResourceTaxonomy.category_values() + tuple(ResourceTaxonomy.LEGACY_KIND_MAP),
+            help="resource category; legacy kind aliases remain accepted during migration",
+        )
+        upsert.add_argument(
+            "--resource-category",
+            choices=ResourceTaxonomy.category_values(),
+            help="ITRM category used to filter compatible resource types",
+        )
+        upsert.add_argument(
+            "--resource-type",
+            choices=ResourceTaxonomy.all_type_values(),
+            help="ITRM resource type allowed by the selected category",
         )
         upsert.add_argument("--display-name", required=True)
         upsert.add_argument("--attributes-json", default="{}")
@@ -791,6 +807,8 @@ class OpenInfraCLI:
         list_objects.add_argument("--limit", type=int, default=100)
         list_objects.add_argument("--cursor")
         list_objects.add_argument("--kind")
+        list_objects.add_argument("--resource-category", choices=ResourceTaxonomy.category_values())
+        list_objects.add_argument("--resource-type", choices=ResourceTaxonomy.all_type_values())
         list_objects.add_argument("--tag")
         list_objects.set_defaults(handler=self._handle_sot_list_objects)
         get_version = sot_subparsers.add_parser(
@@ -831,6 +849,8 @@ class OpenInfraCLI:
         reconcile.add_argument("--admin-token", required=True)
         reconcile.add_argument("--key", required=True)
         reconcile.add_argument("--attributes-json", required=True)
+        reconcile.add_argument("--resource-category", choices=ResourceTaxonomy.category_values())
+        reconcile.add_argument("--resource-type", choices=ResourceTaxonomy.all_type_values())
         reconcile.add_argument("--source", required=True)
         reconcile.add_argument("--display-name")
         reconcile.add_argument("--tag", action="append")
@@ -932,6 +952,10 @@ class OpenInfraCLI:
         quality_summary.add_argument("--limit", type=int, default=100)
         quality_summary.add_argument("--cursor")
         quality_summary.add_argument("--kind")
+        quality_summary.add_argument(
+            "--resource-category", choices=ResourceTaxonomy.category_values()
+        )
+        quality_summary.add_argument("--resource-type", choices=ResourceTaxonomy.all_type_values())
         quality_summary.add_argument("--tag")
         quality_summary.set_defaults(handler=self._handle_sot_quality_summary)
 
@@ -2159,6 +2183,11 @@ class OpenInfraCLI:
                 "The SOT alias is scheduled for removal in a future major release.\n"
             )
 
+    def _handle_sot_resource_taxonomy(self, args: argparse.Namespace) -> int:
+        self._warn_legacy_inventory_alias(args)
+        print(json.dumps(ResourceTaxonomy.as_dict(), sort_keys=True))
+        return 0
+
     def _handle_sot_upsert_object(self, args: argparse.Namespace) -> int:
         self._warn_legacy_inventory_alias(args)
         application = self._create_application(args)
@@ -2168,11 +2197,13 @@ class OpenInfraCLI:
                 actor=args.actor,
                 admin_token=args.admin_token,
                 key=args.key,
-                kind=args.kind,
+                kind=args.resource_category or args.kind or "",
                 display_name=args.display_name,
                 attributes_json=args.attributes_json,
                 tags=tuple(args.tag),
                 source=args.source,
+                resource_category=args.resource_category,
+                resource_type=args.resource_type,
             )
         )
         print(json.dumps(result, sort_keys=True))
@@ -2200,8 +2231,9 @@ class OpenInfraCLI:
                 admin_token=args.admin_token,
                 limit=args.limit,
                 cursor=args.cursor,
-                kind=args.kind,
+                kind=args.resource_category or args.kind,
                 tag=args.tag,
+                resource_type=args.resource_type,
             )
         )
         print(json.dumps(page.as_dict(), sort_keys=True))
@@ -2264,6 +2296,8 @@ class OpenInfraCLI:
                 display_name=args.display_name,
                 tags=tuple(args.tag) if args.tag is not None else None,
                 apply=bool(args.apply),
+                resource_category=args.resource_category,
+                resource_type=args.resource_type,
             )
         )
         print(json.dumps(result, sort_keys=True))
@@ -2392,8 +2426,9 @@ class OpenInfraCLI:
                 admin_token=args.admin_token,
                 limit=args.limit,
                 cursor=args.cursor,
-                kind=args.kind,
+                kind=args.resource_category or args.kind,
                 tag=args.tag,
+                resource_type=args.resource_type,
             )
         )
         print(json.dumps(summary.as_dict(), sort_keys=True))

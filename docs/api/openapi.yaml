@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.3
+  version: 0.29.25
 components:
   securitySchemes:
     bearerToken:
@@ -1011,6 +1011,13 @@ paths:
         '401':
           description: Missing or invalid Bearer token when authentication is enabled
 
+  /api/v1/itrm/resource-taxonomy:
+    get:
+      summary: List supported ITRM resource categories and category-filtered resource types
+      responses:
+        '200':
+          description: Taxonomy containing categories, default type and allowed types per category
+
   /api/v1/itrm/objects:
     get:
       summary: Get or list IT Ressources Management objects
@@ -1028,7 +1035,15 @@ paths:
         - name: kind
           in: query
           required: false
-          schema: {type: string, enum: [generic, device, interface, service, application]}
+          schema: {type: string, enum: [server, personal-computer, monitor-peripheral, network-device, storage, power-supply, rack-facility, cooling, security-safety, telecom, cloud-virtualization, software-service, cable-connectivity, mobile-iot, other, generic, device, interface, service, application, database, virtual-machine]}
+        - name: resource_category
+          in: query
+          required: false
+          schema: {type: string, enum: [server, personal-computer, monitor-peripheral, network-device, storage, power-supply, rack-facility, cooling, security-safety, telecom, cloud-virtualization, software-service, cable-connectivity, mobile-iot, other]}
+        - name: resource_type
+          in: query
+          required: false
+          schema: {type: string}
         - name: tag
           in: query
           required: false
@@ -1055,13 +1070,22 @@ paths:
           application/json:
             schema:
               type: object
-              required: [tenant_id, key, kind, display_name, source]
+              required: [tenant_id, key, display_name, source]
               properties:
                 tenant_id: {type: string}
                 actor: {type: string}
                 key: {type: string}
-                kind: {type: string, enum: [generic, device, interface, service, application]}
+                kind:
+                  type: string
+                  description: Legacy kind or canonical ITRM category; resource_category is preferred for new clients.
+                  enum: [server, personal-computer, monitor-peripheral, network-device, storage, power-supply, rack-facility, cooling, security-safety, telecom, cloud-virtualization, software-service, cable-connectivity, mobile-iot, other, generic, device, interface, service, application, database, virtual-machine]
                 display_name: {type: string}
+                resource_category:
+                  type: string
+                  enum: [server, personal-computer, monitor-peripheral, network-device, storage, power-supply, rack-facility, cooling, security-safety, telecom, cloud-virtualization, software-service, cable-connectivity, mobile-iot, other]
+                resource_type:
+                  type: string
+                  description: Must be one of the types allowed by resource_category.
                 attributes: {type: object}
                 tags:
                   type: array
@@ -1158,6 +1182,12 @@ paths:
                 actor: {type: string}
                 key: {type: string}
                 display_name: {type: string}
+                resource_category:
+                  type: string
+                  enum: [server, personal-computer, monitor-peripheral, network-device, storage, power-supply, rack-facility, cooling, security-safety, telecom, cloud-virtualization, software-service, cable-connectivity, mobile-iot, other]
+                resource_type:
+                  type: string
+                  description: Must be one of the types allowed by resource_category.
                 attributes: {type: object}
                 tags:
                   type: array
@@ -1260,7 +1290,15 @@ paths:
         - name: kind
           in: query
           required: false
-          schema: {type: string, enum: [generic, device, interface, service, application]}
+          schema: {type: string, enum: [server, personal-computer, monitor-peripheral, network-device, storage, power-supply, rack-facility, cooling, security-safety, telecom, cloud-virtualization, software-service, cable-connectivity, mobile-iot, other, generic, device, interface, service, application, database, virtual-machine]}
+        - name: resource_category
+          in: query
+          required: false
+          schema: {type: string, enum: [server, personal-computer, monitor-peripheral, network-device, storage, power-supply, rack-facility, cooling, security-safety, telecom, cloud-virtualization, software-service, cable-connectivity, mobile-iot, other]}
+        - name: resource_type
+          in: query
+          required: false
+          schema: {type: string}
         - name: tag
           in: query
           required: false
@@ -1291,7 +1329,7 @@ paths:
         - name: object_kind
           in: query
           required: false
-          schema: {type: string, enum: [generic, device, interface, service, application]}
+          schema: {type: string, enum: [server, personal-computer, monitor-peripheral, network-device, storage, power-supply, rack-facility, cooling, security-safety, telecom, cloud-virtualization, software-service, cable-connectivity, mobile-iot, other, generic, device, interface, service, application]}
         - name: limit
           in: query
           required: false

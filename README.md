@@ -1,16 +1,19 @@
-# OpenInfra v0.29.19
+# OpenInfra v0.29.20
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.19 — dashboard d’accueil enrichi avec métriques et camemberts par composant, openinfra-web formulaires métier typés, trust server-side, Bootstrap 5 Dashboard, ITRM Quality & Certification, agents proxy Enterprise et backend API-only.**
+**Version courante : 0.29.20 — openinfra-web formulaires métier câblés sur les vrais contrats backend, injection serveur optionnelle du jeton backend, dashboard d’accueil enrichi avec camemberts responsive, Bootstrap 5 Dashboard, ITRM Quality & Certification, agents proxy Enterprise et backend API-only.**
 
 
 
-### v0.29.19 — dashboard accueil métriques par composant
+### v0.29.20 — formulaires web fonctionnels et camemberts responsive
 
 - L’accueil `openinfra-web` affiche désormais des métriques par composant : opérations, champs métier, champs obligatoires et mutations.
 - Chaque composant ITRM, IPAM, DCIM, Discovery et Sécurité dispose d’un camembert lecture/mutation calculé depuis le catalogue UI.
 - Les statistiques restent déterministes, sans accès direct base de données et sans exposition de secret côté navigateur.
+- Les formulaires web ciblent les vrais contrats backend `/api/v1/*` via le proxy same-origin `/api/*`.
+- `openinfra-web` peut injecter côté serveur un bearer backend via `OPENINFRA_WEB_BACKEND_BEARER_TOKEN` ou `OPENINFRA_BOOTSTRAP_TOKEN`, sans exposition navigateur.
+- Les camemberts utilisent `clamp()` pour atteindre 10.5rem en desktop tout en restant adaptés aux écrans mobiles.
 - L’accueil ne présente plus l’alerte permanente `Backend prêt` ; les alertes visibles sont réservées aux erreurs et aux soumissions de formulaire.
 
 

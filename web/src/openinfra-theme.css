@@ -269,12 +269,17 @@ body {
   font-weight: 600;
 }
 
-/* v0.29.19: component metrics and pie charts on the home dashboard. */
+/* v0.29.20: responsive component metrics and doubled pie charts on the home dashboard. */
 .openinfra-overview-summary,
 .openinfra-component-card {
   border: 1px solid var(--openinfra-border);
   border-radius: .85rem;
   box-shadow: 0 .125rem .35rem rgba(0, 0, 0, .05);
+}
+
+.openinfra-component-card {
+  --openinfra-pie-size: clamp(8rem, 14vw, 10.5rem);
+  --openinfra-pie-inner-size: calc(var(--openinfra-pie-size) * .64);
 }
 
 .openinfra-component-icon {
@@ -286,32 +291,36 @@ body {
 .openinfra-component-visual {
   align-items: center;
   display: flex;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  justify-content: space-between;
 }
 
 .openinfra-pie-chart {
   align-items: center;
+  aspect-ratio: 1 / 1;
   background: conic-gradient(#0d6efd 0 var(--oi-read-end), #198754 var(--oi-read-end) var(--oi-write-end), #dee2e6 var(--oi-write-end) 100%);
   border-radius: 50%;
   display: inline-flex;
-  height: 5.25rem;
+  flex: 0 0 var(--openinfra-pie-size);
+  height: var(--openinfra-pie-size);
   justify-content: center;
-  min-width: 5.25rem;
+  min-width: var(--openinfra-pie-size);
   position: relative;
-  width: 5.25rem;
+  width: var(--openinfra-pie-size);
 }
 
 .openinfra-pie-chart::after {
   background: #fff;
   border-radius: 50%;
   content: "";
-  height: 3.35rem;
+  height: var(--openinfra-pie-inner-size);
   position: absolute;
-  width: 3.35rem;
+  width: var(--openinfra-pie-inner-size);
 }
 
 .openinfra-pie-chart span {
-  font-size: 1.15rem;
+  font-size: clamp(1.35rem, 2.2vw, 1.85rem);
   font-weight: 800;
   position: relative;
   z-index: 1;
@@ -341,6 +350,21 @@ body {
 
 .openinfra-legend-write {
   background: #198754;
+}
+
+@media (max-width: 575.98px) {
+  .openinfra-component-card {
+    --openinfra-pie-size: clamp(7.5rem, 44vw, 9rem);
+  }
+
+  .openinfra-component-visual {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .openinfra-pie-legend {
+    width: 100%;
+  }
 }
 
 .openinfra-component-metrics > div {

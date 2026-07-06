@@ -1,4 +1,4 @@
-# OpenInfra Web v0.29.19
+# OpenInfra Web v0.29.20
 
 OpenInfra Web est le portail `openinfra-web` API-only. Il sert l'interface React/Bootstrap 5, expose un proxy applicatif `/api/*` vers le backend `openinfra-api` et fournit un dashboard de pilotage aligné sur les domaines CLI.
 
@@ -59,8 +59,16 @@ Le panneau latéral devient le menu principal. `Dashboard` reste une entrée dir
 Le second bandeau Bootstrap de recherche/actions a été retiré du header web. Le dashboard conserve uniquement le header sombre principal et la sidebar accordéon comme navigation opérationnelle. Les boutons `Login` et `Sign-up` ne sont plus affichés dans le header ; l’authentification opérateur reste portée par le flux applicatif web et non par des contrôles techniques visibles dans le bandeau.
 
 
-## v0.29.19 — statistiques d’accueil par composant
+## v0.29.20 — statistiques d’accueil par composant
 
 L’accueil du dashboard affiche maintenant une synthèse de chaque composant métier : ITRM, IPAM, DCIM, Discovery et Sécurité/RBAC/Audit. Chaque carte expose les métriques calculées depuis le catalogue UI : nombre d’opérations, nombre de champs métier, champs obligatoires et mutations.
 
 Un camembert par composant représente la répartition fonctionnelle lecture/mutation sans afficher les méthodes HTTP à l’opérateur. Cette vue est déterministe, ne consomme aucun accès base direct et ne fait transiter aucun secret dans le navigateur.
+
+## v0.29.20 — formulaires fonctionnels, bearer backend server-side et camemberts responsives
+
+Les formulaires du dashboard sont désormais alignés sur les vrais contrats backend `/api/v1/*` servis via le proxy same-origin `/api/*`. Les chemins IPAM utilisent notamment `/v1/ipam/ui-search`, `/v1/ipam/allocate`, `/v1/ipam/capacity` et `/v1/ipam/conflicts`; Discovery envoie les champs attendus `version`, `endpoint_url`, `requested_scope` et `target`.
+
+Pour les runtimes backend authentifiés, `openinfra-web` peut injecter côté serveur un bearer backend via `OPENINFRA_WEB_BACKEND_BEARER_TOKEN`, avec fallback contrôlé sur `OPENINFRA_BOOTSTRAP_TOKEN`. Ce secret n’est jamais sérialisé dans `/config.json`, dans les assets JavaScript/CSS ou dans les formulaires navigateur. Un `Authorization` fourni par le navigateur n’est pas relayé automatiquement.
+
+Les camemberts du dashboard d’accueil sont doublés et adaptatifs : `--openinfra-pie-size` utilise `clamp(8rem, 14vw, 10.5rem)` en desktop/tablette et une règle mobile dédiée en dessous de 576 px.

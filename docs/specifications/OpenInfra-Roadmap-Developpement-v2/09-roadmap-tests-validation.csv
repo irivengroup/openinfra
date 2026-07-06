@@ -25,4 +25,6 @@ TST-P08-WEB-FORMS,P08,openinfra-web typed forms,"Valider formulaires métier, ac
 TST-P08-WEB-SINGLE-HEADER,P08,openinfra-web header principal unique,Valider absence du second bandeau recherche/actions et des boutons Login/Sign-up dans les assets runtime.,Frontend/Regression
 TST-P08-WEB-COMPONENT-STATS,P08,openinfra-web dashboard accueil statistiques composants,Valider métriques et camemberts par composant sur l’accueil du dashboard web.,Frontend/Regression
 TST-P08-WEB-ITRM-RENAMING,P08,openinfra-web ITRM rename,"Valider renommage transversal ITRM, routes primaires /api/v1/itrm, commande openinfra itrm, rôles itrm:* et alias compatibles ri/sot.",Frontend/API/CLI/Regression
-TST-P08-WEB-ALERT-SCOPE,P08,openinfra-web dashboard alert scope,"Valider absence de l’alerte succès permanente Backend prêt sur l’accueil et conservation des alertes erreur/soumission.",Frontend/Regression
+TST-P08-WEB-ALERT-SCOPE,P08,openinfra-web dashboard alert scope,Valider absence de l’alerte succès permanente Backend prêt sur l’accueil et conservation des alertes erreur/soumission.,Frontend/Regression
+TST-P08-WEB-FORM-CONTRACTS,P08,openinfra-web functional form contracts,"Valider endpoints /api/v1 réels, champs obligatoires, IPAM ui-search/allocate et Discovery collectors/jobs.",Frontend/API/Regression
+TST-P08-WEB-RESPONSIVE-PIES,P08,openinfra-web responsive doubled pie charts,"Valider CSS clamp(), diamètre desktop 10.5rem et règle mobile des camemberts dashboard.",Frontend/Regression

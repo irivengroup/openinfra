@@ -1466,3 +1466,9 @@ Le composant inventaire public est désormais exposé sous le nom IT Ressources 
 ### Avancement v0.29.19 — alertes dashboard contextuelles
 
 Le dashboard d’accueil ne présente plus l’alerte succès permanente `Backend prêt`. L’état backend reste visible dans la sidebar runtime ; les alertes dans la zone principale sont réservées aux erreurs et aux soumissions de formulaire réussies.
+### Avancement v0.29.20 — formulaires web réellement fonctionnels et camemberts responsive
+
+- Les formulaires openinfra-web sont alignés sur les routes backend `/api/v1/*` et sur les champs obligatoires des commandes applicatives.
+- Le proxy web conserve le modèle BFF : aucun token opérateur dans le navigateur, injection bearer backend optionnelle uniquement côté serveur.
+- Les camemberts de l’accueil sont doublés et responsives via `clamp()` avec règle mobile dédiée.
+

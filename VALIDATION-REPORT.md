@@ -1,33 +1,37 @@
-# OpenInfra Validation Report — v0.29.19
+# OpenInfra Validation Report — v0.29.20
 
 ## Scope
 
-OpenInfra v0.29.19 promotes the former public RI/SOT component naming to `ITRM` (`IT Ressources Management`) across UI, CLI, API, RBAC, audit labels, documentation, CDC and roadmap. Legacy aliases `ri` and `sot` remain available only as deprecated migration aliases and are scheduled for progressive removal.
+OpenInfra v0.29.20 fixes the operational web dashboard after the ITRM transition:
 
-The dashboard home no longer displays a permanent success alert for backend readiness. Visible success alerts are now reserved for form submissions; errors remain explicit.
+- all dashboard forms now target the real backend contracts exposed under `/api/v1/*` through the same-origin web proxy;
+- form payloads have been aligned with backend-required fields such as `vrf`, `hostname`, `idempotency_key`, `endpoint_url`, `version`, `requested_scope` and `target`;
+- the web proxy preserves the `/api/v1/*` upstream prefix instead of stripping `/api`, preventing runtime 404 mismatches;
+- `openinfra-web` supports optional server-side backend bearer injection through `OPENINFRA_WEB_BACKEND_BEARER_TOKEN` or `OPENINFRA_BOOTSTRAP_TOKEN`, without exposing credentials to the browser;
+- dashboard component pie charts are doubled and responsive through CSS `clamp()` sizing, while remaining mobile-safe;
+- the permanent dashboard readiness success alert remains removed; visible success alerts are reserved for form submissions and errors stay explicit.
 
 ## Passed validations
 
-- Python compileall on `src`, `tests`, `scripts`, `docker`
+- Python compileall on `src`, `tests`, `scripts`
 - Frontend static validator
 - Runtime asset JavaScript syntax check with `node --check`
-- Targeted web/ITRM/API regression tests
+- Targeted web/runtime regression tests
 - Full test suite by batches with combined coverage data
 - Coverage gate `coverage report --fail-under=98`
 - Security gate
 - Quality gate
 - CLI version check
 - CDC validation
-- Roadmap validation
+- Roadmap/CDC enterprise alignment validation
 - Installer validation and dry-run
 - Autonomous installer validation
-- Enterprise alignment validation
 - Native runtime smoke test
 - Storage/multisite CDC validation
 
 ## Coverage
 
-- Tests collected: 389
+- Tests collected: 391
 - Final coverage: 98%
 - Required coverage: 98%
 

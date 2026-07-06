@@ -1,3 +1,8 @@
+## v4.8.1 / OpenInfra 0.29.20
+
+- Ajout des exigences REQ-00752 à REQ-00754 pour formulaires web réellement fonctionnels, injection bearer backend server-side et camemberts responsive doublés.
+- Ajout des tests TST-WEB-055 à TST-WEB-057.
+
 ## v4.8.1 / OpenInfra 0.29.19
 
 - Ajout `REQ-00750` et `TST-WEB-053` : renommage transversal du composant public en `IT Ressources Management/ITRM`, contrats primaires `itrm` et alias `ri`/`sot` dépréciés mais compatibles.

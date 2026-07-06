@@ -26,3 +26,6 @@ P08,REQ-00747,openinfra-web formulaires métier et trust server-side,Implément�
 P08,REQ-00749,openinfra-web statistiques d’accueil par composant,Implémenté en v0.29.19
 P08,REQ-00750,Renommage transversal ITRM et compatibilité ri/sot,Implémenté en v0.29.19
 P08,REQ-00751,Alertes dashboard limitées aux erreurs et soumissions,Implémenté en v0.29.19
+P08,REQ-00752,openinfra-web formulaires câblés sur vrais contrats API,Implémenté en v0.29.20
+P08,REQ-00753,openinfra-web injection bearer backend server-side non exposée,Implémenté en v0.29.20
+P08,REQ-00754,openinfra-web camemberts dashboard doublés et responsives,Implémenté en v0.29.20

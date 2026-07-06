@@ -1,3 +1,8 @@
+## v2 / OpenInfra 0.29.20
+
+- Ajout de TST-P08-WEB-FORM-CONTRACTS et TST-P08-WEB-RESPONSIVE-PIES.
+- Alignement P08 avec REQ-00752 à REQ-00754.
+
 ## v2 / OpenInfra 0.29.19
 
 - Renommage transversal ITRM : CLI/API/RBAC/frontend primaires en `itrm`, alias `ri` et `sot` compatibles et dépréciés progressivement.

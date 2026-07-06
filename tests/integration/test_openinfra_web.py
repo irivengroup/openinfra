@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import threading
 import urllib.error
 import urllib.request
@@ -29,7 +30,7 @@ class BackendFakeHandler(BaseHTTPRequestHandler):
         if self.path == "/ready":
             self._json(HTTPStatus.OK, {"ready": True, "backend": "fake"})
             return
-        if self.path == "/v1/version":
+        if self.path == "/api/v1/version":
             self._json(HTTPStatus.OK, {"version": __version__})
             return
         if self.path == "/openapi.yaml":
@@ -43,7 +44,7 @@ class BackendFakeHandler(BaseHTTPRequestHandler):
         self._json(HTTPStatus.NOT_FOUND, {"error": self.path})
 
     def do_POST(self) -> None:
-        if self.path == "/v1/echo":
+        if self.path == "/api/v1/echo":
             length = int(self.headers.get("Content-Length", "0"))
             payload = json.loads(self.rfile.read(length).decode("utf-8"))
             self._json(
@@ -123,7 +124,14 @@ class TestOpenInfraWeb:
         assert "Accueil — statistiques des composants" in static_js
         assert "openinfra-component-card" in static_js + static_css
         assert "openinfra-pie-chart" in static_js + static_css
+        assert "--openinfra-pie-size: clamp(8rem, 14vw, 10.5rem)" in static_css
+        assert "@media (max-width: 575.98px)" in static_css
         assert "Camembert" in static_js
+        assert 'path: "/v1/ipam/ui-search"' in static_js
+        assert "idempotency_key" in static_js
+        assert "endpoint_url" in static_js
+        assert "requested_scope" in static_js
+        assert 'path: "/api/v1/database/schema"' not in static_js
         assert "Numéro de série" in static_js
         assert "Token API" not in static_js
         assert "openinfra-method" not in static_js + static_css
@@ -149,6 +157,28 @@ class TestOpenInfraWeb:
             "received": {"tenant_id": "default", "value": 42},
             "web_trust": "server-side",
         }
+
+    def test_dashboard_form_operation_paths_are_real_backend_contracts(self) -> None:
+        static_js = Path(
+            "src/openinfra/interfaces/rendering/static/assets/openinfra-web.js"
+        ).read_text(encoding="utf-8")
+        api_source = Path("src/openinfra/interfaces/http_api.py").read_text(encoding="utf-8")
+        operation_paths = sorted(set(re.findall(r'path: "([^"]+)"', static_js)))
+        api_routes = set(re.findall(r'"(/api/v1/[^"]+)"', api_source))
+
+        assert operation_paths
+        assert "/v1/ipam/search" not in operation_paths
+        assert "/api/v1/database/schema" not in operation_paths
+        for operation_path in operation_paths:
+            assert operation_path.startswith("/v1/")
+            backend_route = "/api" + operation_path
+            if backend_route in api_routes:
+                continue
+            if backend_route.startswith("/api/v1/itrm/"):
+                legacy_route = "/api/v1/sot/" + backend_route.removeprefix("/api/v1/itrm/")
+                assert legacy_route in api_routes
+                continue
+            raise AssertionError("dashboard operation route is not backed by API: " + backend_route)
 
     def test_web_rejects_path_traversal_and_invalid_backend_configuration(self) -> None:
         static_root = OpenInfraWebStaticLocator().resolve(None)
@@ -189,6 +219,21 @@ class TestOpenInfraWeb:
                 )
             )
 
+    def test_web_injects_server_side_backend_bearer_token_without_exposing_it(self) -> None:
+        with RunningServer(ThreadingHTTPServer(("127.0.0.1", 0), BackendFakeHandler)) as backend:
+            config = self._config(backend.base_url, backend_bearer_token="server-side-secret")
+            with RunningServer(OpenInfraWebServer(("127.0.0.1", 0), config)) as web:
+                static_js = self._get_text(web.base_url + "/assets/openinfra-web.js")
+                public_config = self._get_json(web.base_url + "/config.json")
+                echoed = self._post_json(
+                    web.base_url + "/api/v1/echo",
+                    {"tenant_id": "default", "value": 99},
+                )
+
+        assert "server-side-secret" not in static_js + json.dumps(public_config, sort_keys=True)
+        assert echoed["browser_authorization_forwarded"] is True
+        assert echoed["web_trust"] == "server-side"
+
     def test_entrypoint_returns_success_and_keyboard_interrupt(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -222,7 +267,7 @@ class TestOpenInfraWeb:
         with urllib.request.urlopen(request, timeout=5) as response:
             return json.loads(response.read().decode("utf-8"))
 
-    def _config(self, backend_url: str) -> OpenInfraWebConfig:
+    def _config(self, backend_url: str, backend_bearer_token: str = "") -> OpenInfraWebConfig:
         return OpenInfraWebConfig(
             host="127.0.0.1",
             port=0,
@@ -232,6 +277,7 @@ class TestOpenInfraWeb:
             edition="pro",
             auth_mode="standard",
             allow_insecure_backend=True,
+            backend_bearer_token=backend_bearer_token,
         )
 
     def _get_text(self, url: str) -> str:
@@ -240,12 +286,15 @@ class TestOpenInfraWeb:
             return response.read().decode("utf-8")
 
     def _post_json(
-        self, url: str, payload: dict[str, object], auth_token: str
+        self, url: str, payload: dict[str, object], auth_token: str = ""
     ) -> dict[str, object]:
+        headers = {"Content-Type": "application/json"}
+        if auth_token:
+            headers["Authorization"] = "Bearer " + auth_token
         request = urllib.request.Request(
             url,
             data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json", "Authorization": "Bearer " + auth_token},
+            headers=headers,
             method="POST",
         )
         with urllib.request.urlopen(request, timeout=5) as response:

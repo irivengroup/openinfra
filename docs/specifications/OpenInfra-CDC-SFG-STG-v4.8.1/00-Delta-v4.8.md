@@ -70,3 +70,10 @@ Le trust `openinfra-web` ↔ backend est server-side : le navigateur ne transmet
 Le composant public d’inventaire est exposé sous `IT Ressources Management/ITRM`. Les contrats primaires sont `openinfra itrm *`, `/api/v1/itrm/*`, les rôles `itrm:*` et les permissions `itrm.*`. Les alias historiques `ri` et `sot` restent compatibles uniquement pour migration et sont signalés comme dépréciés afin d’être supprimés progressivement.
 
 Le dashboard d’accueil ne doit plus afficher d’alerte succès permanente `Backend prêt`. L’état backend reste visible dans la sidebar, tandis que les alertes de contenu sont réservées aux erreurs et aux soumissions de formulaire réussies.
+## Delta v0.29.20 — formulaires web fonctionnels et camemberts responsives
+
+- Ajout de REQ-00752 : les formulaires openinfra-web doivent être réellement câblés sur les contrats backend `/api/v1/*`, avec chemins et champs obligatoires alignés.
+- Ajout de REQ-00753 : le proxy web peut injecter côté serveur un bearer backend optionnel sans exposition navigateur.
+- Ajout de REQ-00754 : les camemberts du dashboard d’accueil sont doublés et rendus responsives par CSS `clamp()`.
+- Ajout de TST-WEB-055, TST-WEB-056 et TST-WEB-057 pour verrouiller les régressions formulaire, sécurité BFF et responsive charts.
+

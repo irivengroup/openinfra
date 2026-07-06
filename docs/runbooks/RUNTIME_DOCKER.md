@@ -97,9 +97,9 @@ Cette commande supprime aussi le volume PostgreSQL Docker afin de repartir d'un 
 Le runtime Docker exécute la solution avec l’authentification API activée. Le script `python scripts/docker_environment.py init` génère deux valeurs locales non versionnées dans `.env` :
 
 - `OPENINFRA_POSTGRES_PASSWORD` pour PostgreSQL ;
-- `OPENINFRA_BOOTSTRAP_TOKEN` pour amorcer un client API `docker-runtime`.
+- `OPENINFRA_BOOTSTRAP_TOKEN` pour amorcer un client API `docker-runtime` et fournir le bearer server-side utilisé par `openinfra-web` lorsque `OPENINFRA_WEB_BACKEND_BEARER_TOKEN` n’est pas explicitement défini.
 
-La chaîne Compose suit l’ordre suivant : PostgreSQL sain, migrations appliquées, jeton API haché en base, API démarrée avec `OPENINFRA_AUTH_REQUIRED=true`, smoke tests API/CLI. Les smoke tests appellent `/api/v1/ipam/allocate` avec l’en-tête `Authorization: Bearer ...` et valident l’idempotence IPAM sur le backend PostgreSQL.
+La chaîne Compose suit l’ordre suivant : PostgreSQL sain, migrations appliquées, jeton API haché en base, API démarrée avec `OPENINFRA_AUTH_REQUIRED=true`, web proxy configuré avec un bearer backend côté serveur, smoke tests API/CLI. Les smoke tests appellent `/api/v1/ipam/allocate` avec l’en-tête `Authorization: Bearer ...` et valident l’idempotence IPAM sur le backend PostgreSQL.
 
 Le jeton n’est pas stocké en clair en base. Seul le hash SHA-256 et un préfixe d’identification opérationnelle sont persistés. La validation runtime vérifie aussi la création d’un jeton temporaire, l’inventaire paginé des métadonnées et la révocation auditée.
 

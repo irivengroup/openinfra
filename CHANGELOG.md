@@ -1,3 +1,9 @@
+## 0.29.20 - 2026-07-06
+
+- Fixed openinfra-web form submission contracts by aligning dashboard operations with backend `/api/v1/*` routes through the server-side proxy.
+- Added optional server-side backend bearer token injection for openinfra-web so authenticated backend forms remain usable without exposing tokens in the browser.
+- Increased dashboard pie charts with responsive sizing using CSS `clamp()` and viewport-aware layout.
+
 ## 0.29.19 - 2026-07-06
 
 - Renommage transversal du composant public `ITRM` (`IT Ressources Management`) comme successeur du composant inventaire précédent.

@@ -32,6 +32,7 @@ class OpenInfraWebConfig:
     database_dsn_ref: str = ""
     database_user_ref: str = ""
     database_password_ref: str = ""
+    backend_bearer_token: str = ""
 
     def normalized_backend_url(self) -> str:
         return self.backend_url.rstrip("/") + "/"
@@ -88,6 +89,14 @@ class OpenInfraWebConfigFactory:
             == "true",
         )
         parser.add_argument(
+            "--backend-bearer-token",
+            default=os.environ.get(
+                "OPENINFRA_WEB_BACKEND_BEARER_TOKEN",
+                os.environ.get("OPENINFRA_BOOTSTRAP_TOKEN", ""),
+            ),
+            help="Optional server-side bearer token used by openinfra-web when proxying API forms.",
+        )
+        parser.add_argument(
             "--database-dsn-ref",
             default=os.environ.get("OPENINFRA_WEB_DATABASE_DSN_REF", ""),
         )
@@ -113,6 +122,7 @@ class OpenInfraWebConfigFactory:
             database_dsn_ref=str(namespace.database_dsn_ref).strip(),
             database_user_ref=str(namespace.database_user_ref).strip(),
             database_password_ref=str(namespace.database_password_ref).strip(),
+            backend_bearer_token=str(namespace.backend_bearer_token).strip(),
         )
         OpenInfraWebConfigValidator().validate(config)
         return config
@@ -247,9 +257,10 @@ class OpenInfraBackendProxy:
             )
 
     def _target_url(self, handler: BaseHTTPRequestHandler, route: str) -> str:
-        upstream_path = route.removeprefix("/api") if route.startswith("/api/") else route
-        if upstream_path == "":
-            upstream_path = "/"
+        # Keep the public /api/v1 prefix when proxying: the backend API contract is
+        # versioned as /api/v1/*. Previous stripping to /v1/* made dashboard forms
+        # reach non-existing backend routes in the real runtime.
+        upstream_path = route or "/"
         query = ""
         if "?" in handler.path:
             query = "?" + handler.path.split("?", 1)[1]
@@ -268,6 +279,8 @@ class OpenInfraBackendProxy:
         headers["X-OpenInfra-Web-Version"] = __version__
         if self._config.has_database_trust():
             headers["X-OpenInfra-Web-Database-Trust"] = "configured"
+        if self._config.backend_bearer_token:
+            headers["Authorization"] = "Bearer " + self._config.backend_bearer_token
         return headers
 
     def _request_body(self, handler: BaseHTTPRequestHandler) -> bytes | None:

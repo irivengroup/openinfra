@@ -133,10 +133,17 @@ class FrontendContractValidator:
         for required_header_fragment in (
             "bg-dark text-white",
             "text-small",
+            "openinfra-global-toolbar",
+            "openinfra-global-search",
+            "Recherche globale OpenInfra",
+            "globalSearchGroups",
+            "Swagger",
+            "ReDoc",
+            "openinfra-api-doc-actions",
         ):
             if required_header_fragment not in main_source:
                 raise FrontendValidationError(
-                    "web/src/main.jsx must keep the Bootstrap 5 single-header dashboard theme"
+                    "web/src/main.jsx must keep the Bootstrap 5 double-header global search theme"
                 )
         forbidden_main_source = (
             "Search OpenInfra operations",
@@ -155,6 +162,8 @@ class FrontendContractValidator:
             "alert alert-info",
             'role="note"',
             'className="alert alert-info"',
+            "Formulaire métier typé : chaque champ correspond",
+            "Aucun champ générique Attributs",
         )
         leaked_alerts = [
             fragment for fragment in forbidden_default_alerts if fragment in main_source
@@ -234,6 +243,20 @@ class FrontendContractValidator:
             "--openinfra-content-shadow: 0 .16rem .55rem rgba(0, 27, 65, .055)",
             "--openinfra-content-shadow-hover: 0 .28rem .8rem rgba(0, 27, 65, .07)",
             ".openinfra-top-header.bg-dark",
+            "openinfra-global-toolbar",
+            "openinfra-global-toolbar-inner",
+            "openinfra-global-search",
+            "openinfra-global-search-icon",
+            "openinfra-global-search-results",
+            "Recherche globale OpenInfra",
+            "renderGlobalSearchToolbar",
+            "renderGlobalSearchResults",
+            "globalSearchGroups",
+            "data-search-operation-id",
+            "Swagger",
+            "ReDoc",
+            "openinfra-api-doc-actions",
+            "grid-template-columns: minmax(0, 1fr) minmax(18rem, 50%) minmax(0, 1fr)",
             ".btn-primary",
             ".form-control:focus",
             'fetch("/status"',
@@ -341,6 +364,8 @@ class FrontendContractValidator:
             "openinfra-signup",
             "Backend prêt",
             "Sign-up",
+            "Formulaire métier typé : chaque champ correspond",
+            "Aucun champ générique Attributs",
         ):
             if forbidden_ui in payload:
                 raise FrontendValidationError(

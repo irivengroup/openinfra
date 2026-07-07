@@ -1,3 +1,8 @@
+## 0.29.37
+
+- Ajout `TST-P08-WEB-GLOBAL-SEARCH-HEADER` pour verrouiller la double barre header, la recherche globale centrée, les résultats groupés par composant et les liens Swagger/ReDoc.
+- Alignement CDC `REQ-00777` et extension de `TST-P08-WEB-CONTEXTUAL-ALERTS` au retrait des textes permanents hérités des alertes.
+
 ## 0.29.36
 
 - Ajout `TST-P08-WEB-CONTEXTUAL-ALERTS` pour verrouiller l’absence d’alertes informatives affichées par défaut dans openinfra-web.

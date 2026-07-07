@@ -133,6 +133,18 @@ class TestOpenInfraWeb:
         assert "Search OpenInfra operations" not in static_js
         assert "openinfra-login" not in static_js and "openinfra-signup" not in static_js
         assert "Login" not in static_js and "Sign-up" not in static_js
+        assert "openinfra-global-toolbar" in static_js + static_css
+        assert "openinfra-global-search" in static_js + static_css
+        assert "Recherche globale OpenInfra" in static_js
+        assert "openinfra-global-search-icon" in static_js + static_css
+        assert "openinfra-global-search-results" in static_js + static_css
+        assert "renderGlobalSearchToolbar" in static_js
+        assert "renderGlobalSearchResults" in static_js
+        assert "globalSearchGroups" in static_js + main_js
+        assert "data-search-operation-id" in static_js
+        assert "Swagger" in static_js and "ReDoc" in static_js
+        assert "openinfra-api-doc-actions" in static_js + static_css
+        assert "grid-template-columns: minmax(0, 1fr) minmax(18rem, 50%) minmax(0, 1fr)" in static_css
         assert "IT Ressources Management" in static_js
         assert "/v1/itrm/objects" in static_js
         assert "Backend prêt" not in static_js
@@ -141,8 +153,10 @@ class TestOpenInfraWeb:
         assert '<div class="alert alert-info"' not in static_js
         assert "alert alert-info" not in main_js
         assert 'role="note"' not in main_js
-        assert "Formulaire métier typé : chaque champ correspond" in static_js
-        assert "Formulaire métier typé : chaque champ correspond" in main_js
+        assert "Formulaire métier typé : chaque champ correspond" not in static_js
+        assert "Formulaire métier typé : chaque champ correspond" not in main_js
+        assert "Aucun champ générique Attributs" not in static_js
+        assert "Aucun champ générique Attributs" not in main_js
         success_condition = (
             'result && activeModuleId !== "overview" ? `<div class="alert alert-success"'
         )

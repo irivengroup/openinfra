@@ -1574,4 +1574,10 @@ La version 0.29.35 réduit l’effet shadow des blocs de contenu openinfra-web a
 
 ### Avancement v0.29.36 — Alertes openinfra-web contextuelles uniquement
 
-La version 0.29.36 supprime l’alerte informative affichée par défaut sur les pages composant. L’aide de formulaire typé reste visible comme texte indicatif neutre, tandis que les alertes de la zone principale sont réservées aux problèmes caractérisés et aux soumissions effectives. Cette correction P08 réduit le bruit visuel sans supprimer le feedback `success` post-action ni les messages `warning/error`.
+La version 0.29.36 supprime l’alerte informative affichée par défaut sur les pages composant. La version 0.29.37 retire ensuite les messages permanents hérités de ces alertes et ajoute une recherche globale de header groupée par composant. Cette correction P08 réduit le bruit visuel sans supprimer le feedback `success` post-action ni les messages `warning/error`.
+
+### v0.29.37 — Double barre header et recherche globale openinfra-web
+
+La version 0.29.37 complète P08 avec une double barre de header : navigation produit dans le premier bandeau, recherche globale et accès Swagger/ReDoc dans le second. La recherche est centrée, dimensionnée à 50 % de l’espace desktop, dotée d’une loupe SVG et affiche les résultats groupés par composant. La même livraison retire les messages permanents hérités des anciennes alertes informatives.
+
+La roadmap P08 ajoute `TST-P08-WEB-GLOBAL-SEARCH-HEADER` et aligne `REQ-00777`. `TST-P08-WEB-CONTEXTUAL-ALERTS` couvre désormais aussi l’absence des textes permanents hérités des alertes.

@@ -1,7 +1,12 @@
+## 0.29.37
+
+- Ajout `REQ-00777` et `TST-WEB-080` pour la double barre de header, la recherche globale centrée, la loupe SVG, les résultats groupés par composant et les actions Swagger/ReDoc.
+- Mise à jour `REQ-00776` et `TST-WEB-079` : les textes permanents hérités des anciennes alertes informatives sont retirés du rendu UI.
+
 ## 0.29.36
 
 - Ajout `REQ-00776` et `TST-WEB-079` : suppression des alertes informatives affichées par défaut sur les pages composant openinfra-web.
-- Le contenu d’aide formulaire reste indicatif mais n’est plus rendu comme `alert-info` ou `role="note"`.
+- Les textes permanents hérités des anciennes alertes informatives sont retirés du rendu UI à partir de la v0.29.37.
 - Les alertes visibles restent réservées aux problèmes caractérisés et aux soumissions de formulaire réussies.
 
 - Ajout REQ-00773 pour la vérification locale CLI des fichiers d’enrôlement proxy Discovery Enterprise.

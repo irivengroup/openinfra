@@ -571,3 +571,170 @@ body {
   color: rgba(var(--openinfra-ink-rgb), .62);
   font-size: .75rem;
 }
+
+.openinfra-global-toolbar {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, .97), rgba(238, 245, 255, .88)),
+    radial-gradient(circle at 50% 0, rgba(var(--openinfra-cyan-rgb), .14), transparent 28rem);
+  border-bottom-color: var(--openinfra-border) !important;
+  box-shadow: 0 .45rem 1.25rem rgba(0, 27, 65, .055);
+  position: relative;
+  z-index: 20;
+}
+
+.openinfra-global-toolbar-inner {
+  align-items: start;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, 50%) minmax(0, 1fr);
+}
+
+.openinfra-global-search-form {
+  grid-column: 2;
+  position: relative;
+  width: 100%;
+}
+
+.openinfra-global-search-control {
+  position: relative;
+}
+
+.openinfra-global-search-icon {
+  color: rgba(var(--openinfra-blue-rgb), .72);
+  fill: currentColor;
+  left: 1rem;
+  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+}
+
+.openinfra-global-search-control .form-control {
+  background-color: rgba(255, 255, 255, .98);
+  border-color: var(--openinfra-border-strong);
+  border-radius: 999px;
+  box-shadow: var(--openinfra-content-shadow);
+  min-height: 2.65rem;
+  padding-left: 2.85rem;
+  transition: border-color .18s ease-in-out, box-shadow .18s ease-in-out, transform .18s ease-in-out;
+}
+
+.openinfra-global-search-control .form-control:hover,
+.openinfra-global-search-control .form-control:focus {
+  border-color: rgba(var(--openinfra-action-rgb), .5);
+  box-shadow: var(--openinfra-focus-ring), var(--openinfra-content-shadow-hover);
+  transform: translateY(-1px);
+}
+
+.openinfra-api-doc-actions {
+  grid-column: 3;
+  justify-self: end;
+  white-space: nowrap;
+}
+
+.openinfra-api-doc-actions .btn {
+  border-radius: 999px;
+  font-weight: 700;
+  min-width: 5.75rem;
+  transition: background-color .18s ease-in-out, border-color .18s ease-in-out, color .18s ease-in-out, transform .18s ease-in-out, box-shadow .18s ease-in-out;
+}
+
+.openinfra-api-doc-actions .btn:hover,
+.openinfra-api-doc-actions .btn:focus {
+  box-shadow: var(--openinfra-content-shadow-hover);
+  transform: translateY(-1px);
+}
+
+.openinfra-global-search-results {
+  background: rgba(255, 255, 255, .985);
+  border: 1px solid var(--openinfra-border);
+  border-radius: 1rem;
+  box-shadow: var(--openinfra-shadow-soft);
+  left: 0;
+  max-height: min(32rem, 70vh);
+  overflow: auto;
+  padding: .65rem;
+  position: absolute;
+  right: 0;
+  top: calc(100% + .45rem);
+  z-index: 30;
+}
+
+.openinfra-global-search-group + .openinfra-global-search-group {
+  border-top: 1px solid var(--openinfra-border);
+  margin-top: .55rem;
+  padding-top: .55rem;
+}
+
+.openinfra-global-search-group-title {
+  align-items: center;
+  color: rgba(var(--openinfra-ink-rgb), .66);
+  display: flex;
+  font-size: .72rem;
+  font-weight: 800;
+  justify-content: space-between;
+  letter-spacing: .08em;
+  margin: .15rem .35rem .35rem;
+  text-transform: uppercase;
+}
+
+.openinfra-global-search-item {
+  background: transparent;
+  border: 0;
+  border-radius: .85rem;
+  color: var(--openinfra-ink);
+  display: block;
+  padding: .55rem .65rem;
+  text-align: left;
+  transition: background-color .18s ease-in-out, color .18s ease-in-out, transform .18s ease-in-out;
+  width: 100%;
+}
+
+.openinfra-global-search-item:hover,
+.openinfra-global-search-item:focus {
+  background: rgba(var(--openinfra-action-rgb), .09);
+  color: var(--openinfra-blue);
+  transform: translateX(.12rem);
+}
+
+.openinfra-global-search-item span,
+.openinfra-global-search-item small {
+  display: block;
+}
+
+.openinfra-global-search-item span {
+  font-weight: 750;
+}
+
+.openinfra-global-search-item small,
+.openinfra-global-search-more,
+.openinfra-global-search-empty {
+  color: rgba(var(--openinfra-ink-rgb), .62);
+}
+
+.openinfra-global-search-more,
+.openinfra-global-search-empty {
+  font-size: .82rem;
+  padding: .65rem;
+}
+
+@media (max-width: 991.98px) {
+  .openinfra-global-toolbar-inner {
+    grid-template-columns: 1fr;
+  }
+
+  .openinfra-global-toolbar-spacer,
+  .openinfra-global-search-form,
+  .openinfra-api-doc-actions {
+    grid-column: 1;
+  }
+
+  .openinfra-global-toolbar-spacer {
+    display: none;
+  }
+
+  .openinfra-api-doc-actions {
+    justify-self: center;
+  }
+}

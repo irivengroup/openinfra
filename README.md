@@ -1,13 +1,21 @@
-# OpenInfra v0.29.36
+# OpenInfra v0.29.37
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.36 — openinfra-web supprime les alertes informatives affichées par défaut sur les pages composant ; les alertes restent réservées aux erreurs et aux soumissions réellement exécutées.**
+**Version courante : 0.29.37 — openinfra-web ajoute une seconde barre de header avec recherche globale groupée par composant, accès Swagger/ReDoc, et supprime les messages permanents hérités des anciennes alertes.**
+
+### v0.29.37 — double header, recherche globale et retrait des messages permanents
+
+- Le header devient une double barre : navigation produit en haut, recherche globale et accès documentation API dans le second bandeau.
+- Le champ de recherche globale est centré, occupe la moitié de l’espace disponible sur desktop et embarque une loupe SVG cohérente avec le thème.
+- Les résultats de recherche sont groupés par composant OpenInfra afin de garder une lecture claire lorsque plusieurs domaines correspondent.
+- Les boutons `Swagger` et `ReDoc` pointent respectivement vers `/docs` et `/redoc`, sans réintroduire les contrôles Login/Sign-up supprimés précédemment.
+- Les textes permanents précédemment issus d’alertes informatives sont retirés du rendu UI ; seules les alertes `warning/error` caractérisées et `success` post-soumission restent visibles.
 
 ### v0.29.36 — openinfra-web contextual alerts only
 
 - Les pages composant n’affichent plus d’alerte informative par défaut pour signaler que le formulaire est typé.
-- Le message reste visible comme texte indicatif neutre, sans `alert-info` ni `role="note"`.
+- Les messages permanents hérités des anciennes alertes sont retirés à partir de la v0.29.37.
 - Les alertes visibles restent contextuelles : `warning/error` lors d’un problème caractérisé et `success` uniquement après soumission effective d’un formulaire.
 - Le validateur frontend et les tests d’intégration verrouillent l’absence d’alerte informative runtime par défaut.
 

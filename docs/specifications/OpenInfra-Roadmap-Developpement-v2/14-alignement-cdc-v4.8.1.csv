@@ -48,4 +48,5 @@ CDC-WEB-075,Charte graphique premium openinfra-web,P08,EPIC-0801,REL-02933,REQ-0
 REQ-00773,Discovery proxy enrollment config verification,P11,EPIC-1105,0.29.35,TST-P11-DISCOVERY-PROXY-ENROLLMENT-VERIFY
 REQ-00774,Dashboard court et contenu accueil isolé,P08,EPIC-0801,0.29.35,TST-P08-WEB-DASHBOARD-SCOPING
 REQ-00775,Ombres de contenu allégées openinfra-web,P08,EPIC-0801,0.29.35,TST-P08-WEB-SUBTLE-CONTENT-SHADOW
-REQ-00776,Alertes openinfra-web contextuelles uniquement,P08,EPIC-0801,0.29.36,TST-P08-WEB-CONTEXTUAL-ALERTS
+REQ-00776,Alertes openinfra-web contextuelles et retrait des messages permanents,P08,EPIC-0801,0.29.37,TST-P08-WEB-CONTEXTUAL-ALERTS
+REQ-00777,Double barre header et recherche globale openinfra-web,P08,EPIC-0801,0.29.37,TST-P08-WEB-GLOBAL-SEARCH-HEADER

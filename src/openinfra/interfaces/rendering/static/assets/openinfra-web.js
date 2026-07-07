@@ -118,6 +118,7 @@ class OpenInfraApiClient {
 
 const OPENINFRA_ICONS = {
   home: "M8 3.293l6 6V15a1 1 0 0 1-1 1h-3v-4H6v4H3a1 1 0 0 1-1-1V9.293l6-6zm5-.793V6l-2-2V2.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5z",
+  search: "M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.099zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z",
   speedometer2: "M8 4a.5.5 0 0 1 .5.5V6a.5.5 0 0 1-1 0V4.5A.5.5 0 0 1 8 4zM3.732 5.732a.5.5 0 0 1 .707 0l.915.914a.5.5 0 1 1-.708.708l-.914-.915a.5.5 0 0 1 0-.707zM2 10a.5.5 0 0 1 .5-.5h1.586a.5.5 0 0 1 0 1H2.5A.5.5 0 0 1 2 10zm9.5 0a.5.5 0 0 1 .5-.5h1.5a.5.5 0 0 1 0 1H12a.5.5 0 0 1-.5-.5zm.754-4.246a.5.5 0 0 1 0 .707l-.94.94a.5.5 0 1 1-.707-.708l.94-.94a.5.5 0 0 1 .707 0zM9.67 11.71a2 2 0 1 1-3.34-2.19l3.95-3.95a.5.5 0 0 1 .8.6l-1.41 5.54zM8 1a7 7 0 0 0-7 7c0 1.71.61 3.28 1.63 4.5a.5.5 0 0 0 .38.17h9.98a.5.5 0 0 0 .38-.17A6.97 6.97 0 0 0 15 8a7 7 0 0 0-7-7z",
   table: "M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2zm15 2h-4v3h4V4zm0 4h-4v3h4V8zm0 4h-4v3h3a1 1 0 0 0 1-1v-2zm-5 3v-3H6v3h4zm-5 0v-3H1v2a1 1 0 0 0 1 1h3zm-4-4h4V8H1v3zm0-4h4V4H1v3zm5-3v3h4V4H6zm4 4H6v3h4V8z",
   grid: "M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zm8 0A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm-8 8A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm8 0A1.5 1.5 0 0 1 10.5 9h3a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 13.5v-3z",
@@ -917,7 +918,8 @@ class OpenInfraDashboard {
       status: null,
       version: null,
       result: null,
-      error: null
+      error: null,
+      globalSearchQuery: ""
     };
   }
 
@@ -976,6 +978,77 @@ class OpenInfraDashboard {
     };
   }
 
+  normalizeSearchText(value) {
+    return String(value || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  }
+
+  operationSearchHaystack(module, operation) {
+    const fields = [...(operation.query || []), ...(operation.body || [])];
+    return [
+      module.label,
+      module.shortLabel,
+      module.description,
+      operation.id,
+      operation.label,
+      operation.method,
+      operation.path,
+      ...fields.flatMap((field) => [field.name, field.label, field.placeholder, field.target])
+    ].filter(Boolean).join(" ");
+  }
+
+  globalSearchGroups() {
+    const query = this.normalizeSearchText(this.state.globalSearchQuery.trim());
+    if (!query) {
+      return [];
+    }
+    return this.componentModules().map((module) => {
+      const matches = module.operations.filter((operation) => {
+        return this.normalizeSearchText(this.operationSearchHaystack(module, operation)).includes(query);
+      });
+      return { module, operations: matches.slice(0, 8), total: matches.length };
+    }).filter((group) => group.total > 0);
+  }
+
+  renderGlobalSearchToolbar() {
+    const query = this.state.globalSearchQuery;
+    const hasQuery = query.trim() !== "";
+    return `<div class="px-3 py-2 border-bottom openinfra-global-toolbar">
+      <div class="container-fluid openinfra-global-toolbar-inner">
+        <div class="openinfra-global-toolbar-spacer" aria-hidden="true"></div>
+        <form class="openinfra-global-search-form" role="search" autocomplete="off">
+          <label class="visually-hidden" for="openinfra-global-search">Recherche globale OpenInfra</label>
+          <div class="openinfra-global-search-control">
+            ${this.icon("search", "openinfra-global-search-icon", 18, 18)}
+            <input type="search" id="openinfra-global-search" class="form-control" placeholder="Recherche globale..." aria-label="Recherche globale OpenInfra" aria-controls="openinfra-global-search-results" aria-expanded="${hasQuery ? "true" : "false"}" value="${this.escape(query)}">
+          </div>
+          <div id="openinfra-global-search-results" class="openinfra-global-search-results" ${hasQuery ? "" : "hidden"}>${this.renderGlobalSearchResults()}</div>
+        </form>
+        <div class="text-end openinfra-api-doc-actions">
+          <a class="btn btn-light text-dark me-2" href="/docs" target="_blank" rel="noopener noreferrer">Swagger</a>
+          <a class="btn btn-primary" href="/redoc" target="_blank" rel="noopener noreferrer">ReDoc</a>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  renderGlobalSearchResults() {
+    const query = this.state.globalSearchQuery.trim();
+    if (!query) {
+      return "";
+    }
+    const groups = this.globalSearchGroups();
+    if (groups.length === 0) {
+      return `<div class="openinfra-global-search-empty">Aucun résultat global pour <strong>${this.escape(query)}</strong>.</div>`;
+    }
+    return groups.map(({ module, operations, total }) => `<section class="openinfra-global-search-group" aria-label="Résultats ${this.escape(module.shortLabel || module.label)}">
+      <div class="openinfra-global-search-group-title"><span>${this.escape(module.shortLabel || module.label)}</span><span>${total} résultat${total > 1 ? "s" : ""}</span></div>
+      ${operations.map((operation) => `<button type="button" class="openinfra-global-search-item" data-search-operation-id="${this.escape(operation.id)}">
+        <span>${this.escape(operation.label)}</span><small>${this.escape(operation.method)} ${this.escape(operation.path)}</small>
+      </button>`).join("")}
+      ${total > operations.length ? `<div class="openinfra-global-search-more">${total - operations.length} résultat${total - operations.length > 1 ? "s" : ""} supplémentaire${total - operations.length > 1 ? "s" : ""}</div>` : ""}
+    </section>`).join("");
+  }
+
   render() {
     const { activeModuleId, selected, config, ready, status, version, error, result } = this.state;
     const displayedVersion = version?.version || config?.version || "indisponible";
@@ -1003,6 +1076,7 @@ class OpenInfraDashboard {
             </div>
           </div>
         </div>
+        ${this.renderGlobalSearchToolbar()}
       </header>
       <div class="container-fluid">
         <div class="row">
@@ -1144,7 +1218,6 @@ class OpenInfraDashboard {
       <section class="col-12 col-xxl-8">
         <h2 class="h4">${this.escape(operation.label)}</h2>
         <p class="text-muted">${this.escape(module.description)}</p>
-        <p class="text-muted mb-3">Formulaire métier typé : chaque champ correspond à une variable attendue par l’API OpenInfra. Aucun champ générique Attributs n’est demandé à l’opérateur.</p>
         <div class="row g-3 mb-3"><label class="col-md-4 form-label">Tenant<input id="openinfra-tenant" class="form-control" value="${this.escape(this.state.tenant)}" autocomplete="off"></label></div>
         <div class="row g-3">${fields.map((field) => this.renderField(field)).join("") || "<p>Aucun paramètre requis.</p>"}</div>
         <button class="btn btn-primary mt-3" type="button" id="openinfra-execute">Exécuter</button>
@@ -1230,6 +1303,15 @@ class OpenInfraDashboard {
     document.getElementById("openinfra-tenant")?.addEventListener("input", (event) => {
       this.state = { ...this.state, tenant: event.target.value };
     });
+    const globalSearchInput = document.getElementById("openinfra-global-search");
+    globalSearchInput?.addEventListener("input", (event) => this.updateGlobalSearch(event.target.value));
+    globalSearchInput?.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        this.updateGlobalSearch("");
+      }
+    });
+    this.bindSearchResultButtons();
     this.bindDependentSelects();
     for (const button of document.querySelectorAll("[data-module-id]")) {
       button.addEventListener("click", () => this.selectModule(button.dataset.moduleId));
@@ -1239,6 +1321,28 @@ class OpenInfraDashboard {
     }
     for (const button of document.querySelectorAll("[data-operation-id]")) {
       button.addEventListener("click", () => this.selectOperation(button.dataset.operationId));
+    }
+  }
+
+  updateGlobalSearch(value) {
+    this.state = { ...this.state, globalSearchQuery: value };
+    const input = document.getElementById("openinfra-global-search");
+    const results = document.getElementById("openinfra-global-search-results");
+    const hasQuery = value.trim() !== "";
+    if (input) {
+      input.setAttribute("aria-expanded", hasQuery ? "true" : "false");
+      input.value = value;
+    }
+    if (results) {
+      results.hidden = !hasQuery;
+      results.innerHTML = this.renderGlobalSearchResults();
+      this.bindSearchResultButtons();
+    }
+  }
+
+  bindSearchResultButtons() {
+    for (const button of document.querySelectorAll("[data-search-operation-id]")) {
+      button.addEventListener("click", () => this.selectSearchOperation(button.dataset.searchOperationId));
     }
   }
 
@@ -1264,6 +1368,29 @@ class OpenInfraDashboard {
     }
     this.state = { ...this.state, activeModuleId: module.id, selected: module.operations[0], openedModules: opened, result: null, error: null };
     this.render();
+  }
+
+  selectSearchOperation(operationId) {
+    for (const module of OPENINFRA_MODULES) {
+      const operation = module.operations.find((item) => item.id === operationId);
+      if (operation) {
+        const opened = new Set(this.state.openedModules);
+        if (module.id !== "overview") {
+          opened.add(module.id);
+        }
+        this.state = {
+          ...this.state,
+          activeModuleId: module.id,
+          selected: operation,
+          openedModules: opened,
+          result: null,
+          error: null,
+          globalSearchQuery: ""
+        };
+        this.render();
+        return;
+      }
+    }
   }
 
   selectOperation(operationId) {

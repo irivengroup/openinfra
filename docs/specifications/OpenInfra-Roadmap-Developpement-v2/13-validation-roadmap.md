@@ -9,8 +9,8 @@
 - Epics : 114
 - Gates Go/No-Go : 8
 - Risques : 12
-- Tests roadmap : 20
-- Décisions CDC mappées : 21
+- Tests roadmap : 21
+- Décisions CDC mappées : 22
 
 ## Contrôles attendus
 
@@ -59,3 +59,8 @@ Validation attendue : `scripts/validate_frontend.py` et `tests/integration/test_
 ### v0.29.36 — Alertes openinfra-web contextuelles uniquement
 
 Validation attendue : `scripts/validate_frontend.py` et `tests/integration/test_openinfra_web.py` doivent interdire `alert alert-info` et `role="note"` dans les assets runtime, tout en conservant les alertes `success` strictement conditionnées à une soumission de formulaire.
+
+
+## Validation v0.29.37
+
+La roadmap v2 intègre P08/openinfra-web double barre et recherche globale via `TST-P08-WEB-GLOBAL-SEARCH-HEADER` et l’alignement CDC `REQ-00777`. La validation contextual alerts couvre aussi le retrait des messages permanents hérités des anciennes alertes.

@@ -419,9 +419,17 @@ Le framework de migration legacy reste dans le bounded context import afin de r�
 `IpamModelService.topology` construit un graphe opérationnel lecture seule à partir du repository IPAM : VRF, agrégats, préfixes, plages, adresses, réservations, VLAN/VXLAN, ASN/BGP et observations DNS/DHCP. Le rapport expose `nodes`, `edges`, `summary` et `integrity`, et journalise `ipam.topology.generated` sans introduire de stockage parallèle.
 
 
+## Web UX global search and contextual messaging v0.29.37
+
+La version `0.29.37` transforme le header `openinfra-web` en double barre. Le premier bandeau conserve l’identité produit et la navigation principale ; le second bandeau porte une recherche globale centrée, limitée à 50 % de la largeur disponible sur desktop, avec icône SVG loupe intégrée et résultats groupés par composant. Les actions `Swagger` et `ReDoc` sont exposées dans ce second bandeau via `/docs` et `/redoc`, sans réintroduire les anciens contrôles Login/Sign-up.
+
+La recherche globale est calculée côté navigateur sur le catalogue d’opérations déjà embarqué dans le dashboard. Elle indexe les libellés de composants, opérations, méthodes, chemins API et champs de formulaires. Les résultats sont rendus par groupes de composants pour préserver le contexte métier et sélectionner directement l’opération concernée.
+
+La même livraison retire les textes permanents qui avaient été conservés après la suppression des alertes informatives par défaut. Les pages composant conservent le titre, le sous-titre, le formulaire et le panneau résultat ; les alertes visibles restent strictement contextuelles : `warning/error` pour un problème caractérisé et `success` uniquement après une soumission effective de formulaire. Le validateur frontend et les tests web verrouillent l’absence de `alert-info`, de `role="note"` et des textes hérités des anciennes alertes.
+
 ## Web UX contextual alerts v0.29.36
 
-La version `0.29.36` supprime l’alerte informative affichée par défaut sur les pages composant `openinfra-web`. Le message de contexte du formulaire métier reste rendu comme texte indicatif neutre, afin de ne pas assimiler une aide statique à un événement opérationnel. Les alertes de la zone principale sont désormais strictement contextuelles : `warning/error` pour un problème caractérisé et `success` uniquement après une soumission effective de formulaire. Le validateur frontend interdit `alert alert-info` et `role="note"` dans les sources UI runtime pour empêcher toute régression.
+La version `0.29.36` supprime l’alerte informative affichée par défaut sur les pages composant `openinfra-web`. Depuis la v0.29.37, le message permanent issu de cette ancienne alerte est également retiré du rendu. Les alertes de la zone principale restent strictement contextuelles : `warning/error` pour un problème caractérisé et `success` uniquement après une soumission effective de formulaire. Le validateur frontend interdit `alert alert-info`, `role="note"` et les textes hérités des anciennes alertes dans les sources UI runtime pour empêcher toute régression.
 
 ## Discovery Enterprise proxy enrollment verification v0.29.35
 

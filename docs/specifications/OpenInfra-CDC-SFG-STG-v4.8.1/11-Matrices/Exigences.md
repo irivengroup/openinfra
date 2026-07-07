@@ -25,7 +25,7 @@ Le fichier normatif est `Exigences.csv`. Ce document synthétise la volumétrie.
 | QA | Qualité & validation | 16 |
 | SEC | Sécurité | 22 |
 | ITRM | IT Ressources Management | 21 |
-| WEB | Portail web OpenInfra | 6 |
+| WEB | Portail web OpenInfra | 7 |
 
 Les exigences N1 sont obligatoires. Les exigences N2 structurent les releases suivantes. Les exigences N3 ne sont pas utilisées dans cette version pour éviter les options non cadrées.
 
@@ -105,4 +105,12 @@ Le portail openinfra-web doit remplacer les couleurs basic Bootstrap par une cha
 Les blocs de contenu du portail openinfra-web doivent utiliser une ombre portée plus légère que les effets de navigation, afin de rendre les pages plus fluides visuellement. La correction cible les titlebars, cartes, métriques, formulaires, synthèses et cartes composants ; le header principal et le menu latéral conservent leurs effets existants.
 
 **Acceptation :** Les assets CSS exposent `--openinfra-content-shadow` et `--openinfra-content-shadow-hover`; les blocs de contenu utilisent ces variables dédiées ; les validateurs frontend et tests web empêchent un retour aux ombres trop fortes sur les cards et composants.
-- **REQ-00776** — Les pages composant openinfra-web ne doivent pas afficher d’alerte informative ou succès par défaut ; les alertes visibles doivent être strictement contextuelles.
+- **REQ-00776** — Les pages composant openinfra-web ne doivent pas afficher d’alerte informative ou succès par défaut ; les alertes visibles doivent être strictement contextuelles et les textes hérités des anciennes alertes permanentes doivent être retirés.
+- **REQ-00777** — Le header openinfra-web doit être transformé en double barre avec recherche globale centrée, icône loupe SVG, résultats groupés par composant et actions Swagger/ReDoc intégrées au thème.
+
+
+### REQ-00777 — Double barre header et recherche globale openinfra-web
+
+Le header du portail doit exposer un second bandeau dédié à la recherche globale et à la documentation API. Le champ est centré par rapport à la page, occupe 50 % de l’espace disponible sur desktop, embarque une icône loupe SVG, et affiche les résultats groupés par composant. Les actions Swagger et ReDoc sont accessibles depuis ce bandeau sans réintroduire les anciens contrôles Login/Sign-up.
+
+**Acceptation :** Les assets runtime contiennent `openinfra-global-toolbar`, `openinfra-global-search`, `renderGlobalSearchResults`, les styles de grille 50 %, les liens `/docs` et `/redoc`; les tests frontend vérifient le regroupement par composant et l’absence des anciens contrôles supprimés.

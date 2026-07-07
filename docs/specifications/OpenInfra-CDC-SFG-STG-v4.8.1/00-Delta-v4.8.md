@@ -1,7 +1,7 @@
 ## Delta v0.29.36 — alertes web contextuelles uniquement
 
 - Ajout de `REQ-00776` et `TST-WEB-079` : les pages composant `openinfra-web` ne doivent plus afficher d’alerte informative par défaut pour expliquer le caractère typé des formulaires.
-- Le contenu d’aide reste visible comme texte indicatif neutre, sans classe `alert-info` ni rôle `note`.
+- Les textes permanents hérités des anciennes alertes informatives sont retirés du rendu UI à partir de la v0.29.37.
 - Les alertes de contenu sont réservées aux erreurs/warnings caractérisés et au succès post-soumission de formulaire.
 
 - Ajout REQ-00773 pour la vérification locale CLI des fichiers d’enrôlement proxy Discovery Enterprise.

@@ -1,4 +1,4 @@
-# OpenInfra Web v0.29.36
+# OpenInfra Web v0.29.37
 
 OpenInfra Web est le portail `openinfra-web` API-only. Il sert l'interface React/Bootstrap 5, expose un proxy applicatif `/api/*` vers le backend `openinfra-api` et fournit un dashboard aligné sur les domaines CLI.
 
@@ -154,11 +154,21 @@ Aucun logo, image ou composant tiers n’est importé. Les classes Bootstrap exi
 
 La version 0.29.33 ajoute l’enrôlement direct des proxies Discovery Enterprise en CLI. `openinfra discovery proxy-enroll` poste vers un ou plusieurs backends via `POST /api/v1/discovery/proxy-enrollments` et refuse Lite/Pro avant tentative d’enrôlement. `openinfra discovery proxy-enroll-local` couvre le cas backend local sélectionné. Le dashboard conserve l’administration Discovery API-only existante ; les secrets restent côté backend/BFF et ne sont pas demandés au navigateur.
 
-## v0.29.36 — Alertes contextuelles uniquement
+## v0.29.37 — Double barre et recherche globale
 
-Les pages composant n’affichent plus d’alerte informative au chargement. L’aide de formulaire reste disponible comme texte indicatif neutre, afin d’éviter une lecture opérateur de type événement ou état système. Les alertes dans la zone principale sont désormais réservées aux situations actionnables : erreur/warning caractérisé ou succès après soumission effective.
+Le header `openinfra-web` est structuré en deux barres complémentaires. La première conserve la navigation produit et l’identité OpenInfra. La seconde expose une recherche globale centrée, dimensionnée à 50 % de l’espace disponible sur desktop, avec icône SVG loupe intégrée et effets de focus/hover alignés sur la charte navy/bleu/cyan.
 
-La non-régression est portée par `scripts/validate_frontend.py` et par `tests/integration/test_openinfra_web.py`, qui interdisent `alert alert-info` et `role="note"` dans les sources UI runtime.
+La recherche porte sur les composants, opérations, méthodes, chemins API et champs exposés par le dashboard. Lorsque plusieurs composants correspondent, les résultats sont groupés par composant afin d’éviter une liste globale non contextualisée. Chaque résultat sélectionne directement l’opération concernée et ouvre le composant associé dans le menu latéral.
+
+Le second bandeau expose aussi les actions `Swagger` et `ReDoc`, reliées à `/docs` et `/redoc`. Les anciens contrôles `Login`, `Sign-up` et la recherche locale `Search OpenInfra operations` restent interdits.
+
+Les textes permanents précédemment issus des alertes informatives ne sont plus rendus sur les pages composant. Le composant conserve son titre, son sous-titre, le formulaire métier et le panneau résultat ; les alertes restent réservées aux erreurs/warnings caractérisés et au succès après soumission effective.
+
+## v0.29.37 — Alertes contextuelles uniquement
+
+Les pages composant n’affichent plus d’alerte informative au chargement. Depuis la v0.29.37, les messages permanents précédemment issus de ces alertes sont également retirés du rendu afin d’éviter toute aide statique redondante. Les alertes dans la zone principale sont réservées aux situations actionnables : erreur/warning caractérisé ou succès après soumission effective.
+
+La non-régression est portée par `scripts/validate_frontend.py` et par `tests/integration/test_openinfra_web.py`, qui interdisent `alert alert-info`, `role="note"` et le retour des textes permanents hérités des anciennes alertes dans les sources UI runtime.
 
 ## v0.29.35 — Discovery proxy enrollment verification
 

@@ -1,3 +1,11 @@
+## 0.29.37 - 2026-07-07
+
+- Added a themed second header bar dedicated to global search, centered on the page and sized to half of the available width on desktop.
+- Added a magnifier SVG inside the global search field and grouped result rendering by OpenInfra component when matches span multiple modules.
+- Added Swagger and ReDoc actions in the second header bar without reintroducing Login/Sign-up or the old local operations search.
+- Removed the residual permanent typed-form guidance text that had previously been displayed inside default alert blocks.
+- Extended frontend validation and web integration tests to lock global search grouping, documentation actions and the absence of permanent alert-derived messages.
+
 ## 0.29.36 - 2026-07-07
 
 - Removed the default informational `alert-info` block from openinfra-web component pages.

@@ -41,7 +41,23 @@ class BackendFakeHandler(BaseHTTPRequestHandler):
         if self.path == "/api/v1/version":
             self._json(HTTPStatus.OK, {"version": __version__})
             return
-        if self.path == "/openapi.yaml":
+        if self.path in {"/docs", "/swagger"}:
+            body = b"<html><body>SwaggerUIBundle backend API</body></html>"
+            self.send_response(HTTPStatus.OK.value)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if self.path == "/redoc":
+            body = b"<html><body>redoc.standalone.js backend API</body></html>"
+            self.send_response(HTTPStatus.OK.value)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if self.path in {"/openapi.yaml", "/api/v1/openapi.yaml"}:
             body = b"openapi: 3.1.0\ninfo:\n  title: OpenInfra\n"
             self.send_response(HTTPStatus.OK.value)
             self.send_header("Content-Type", "application/yaml")
@@ -114,7 +130,11 @@ class TestOpenInfraWeb:
                 readiness = self._get_json(web.base_url + "/ready")
                 version = self._get_json(web.base_url + "/api/v1/version")
                 web_version = self._get_json(web.base_url + "/version")
+                swagger = self._get_text(web.base_url + "/docs")
+                swagger_alias = self._get_text(web.base_url + "/swagger")
+                redoc = self._get_text(web.base_url + "/redoc")
                 openapi = self._get_text(web.base_url + "/openapi.yaml")
+                versioned_openapi = self._get_text(web.base_url + "/api/v1/openapi.yaml")
                 echoed = self._post_json(
                     web.base_url + "/api/v1/echo",
                     {"tenant_id": "default", "value": 42},
@@ -148,9 +168,19 @@ class TestOpenInfraWeb:
         assert "Résultats locaux ci-dessous" in static_js + main_js
         assert "data-search-operation-id" in static_js
         assert "Swagger" in static_js and "ReDoc" in static_js
+        assert "apiDocumentation" in static_js + main_js
+        assert "apiDocumentationLinks" in static_js + main_js
+        assert "buildApiDocumentationUrl" in static_js + main_js
+        assert "Ouvrir Swagger UI backend API" in static_js + main_js
+        assert "Ouvrir ReDoc backend API" in static_js + main_js
         assert "openinfra-api-doc-actions" in static_js + static_css
         assert "grid-template-columns: minmax(0, 1fr) minmax(18rem, 50%) minmax(0, 1fr)" in static_css
         assert "IT Ressources Management" in static_js
+        assert 'icon: "reference"' in static_js
+        assert 'icon: \'reference\'' in main_js
+        assert "ITRM" in static_js
+        assert 'id: "itrm", label: "IT Ressources Management", shortLabel: "ITRM", icon: "table"' not in static_js
+        assert "bookmark" not in static_js.lower()  # icon remains inline SVG path data only
         assert "/v1/itrm/objects" in static_js
         assert "Backend prêt" not in static_js
         assert "alert alert-info" not in static_js
@@ -181,16 +211,25 @@ class TestOpenInfraWeb:
         assert "@media (max-width: 575.98px)" in static_css
         assert "--openinfra-navy: #001b41" in static_css
         assert "--openinfra-action: #0066ff" in static_css
-        assert "--openinfra-fuchsia: #ff00ff" in static_css
-        assert "conic-gradient(var(--openinfra-navy) 0 var(--oi-read-end), var(--openinfra-fuchsia)" in static_css
-        assert "background: var(--openinfra-navy);" in static_css
-        assert "background: var(--openinfra-fuchsia);" in static_css
-        assert "var(--openinfra-green) var(--oi-read-end)" not in static_css
+        assert "--openinfra-green: #15a362" in static_css
+        assert "conic-gradient(var(--openinfra-action) 0 var(--oi-read-end), var(--openinfra-green)" in static_css
+        assert "background: var(--openinfra-action);" in static_css
+        assert "background: var(--openinfra-green);" in static_css
+        assert "conic-gradient(var(--openinfra-navy) 0 var(--oi-read-end), var(--openinfra-fuchsia)" not in static_css
+        assert "background: var(--openinfra-fuchsia);" not in static_css
         assert "--openinfra-content-shadow: 0 .16rem .55rem rgba(0, 27, 65, .055)" in static_css
         assert "--openinfra-content-shadow-hover: 0 .28rem .8rem rgba(0, 27, 65, .07)" in static_css
         assert "box-shadow: var(--openinfra-content-shadow);" in static_css
         assert "box-shadow: var(--openinfra-content-shadow-hover);" in static_css
         assert ".openinfra-top-header.bg-dark" in static_css
+        assert ".openinfra-header-stack" in static_css
+        assert "position: fixed" in static_css
+        assert "padding-top: var(--openinfra-fixed-header-height)" in static_css
+        assert "top: var(--openinfra-fixed-header-height)" in static_css
+        assert "--openinfra-fixed-header-height" in static_css
+        assert "openinfra-header-stack" in static_js + main_js
+        assert "syncFixedHeaderOffset" in static_js
+        assert "syncHeaderOffset" in main_js
         assert ".btn-primary" in static_css
         assert ".form-control:focus" in static_css
         assert "#0d6efd" not in static_css
@@ -285,6 +324,13 @@ class TestOpenInfraWeb:
         assert "OPENINFRA_DATABASE_DSN" not in index + static_js + static_css
         assert public_config == {
             "apiBaseUrl": "/api",
+            "apiDocumentation": {
+                "openapiUrl": "/openapi.yaml",
+                "redocUrl": "/redoc",
+                "swaggerAliasUrl": "/swagger",
+                "swaggerUrl": "/docs",
+                "versionedOpenapiUrl": "/api/v1/openapi.yaml",
+            },
             "authMode": "standard",
             "backendProxy": "/api",
             "databaseTrust": "not-configured",
@@ -293,6 +339,9 @@ class TestOpenInfraWeb:
             "version": __version__,
             "webBackendTrust": "server-side",
         }
+        assert "SwaggerUIBundle backend API" in swagger
+        assert "SwaggerUIBundle backend API" in swagger_alias
+        assert "redoc.standalone.js backend API" in redoc
         assert readiness["ready"] is True
         assert bff_status["protectedForms"] == "enabled"
         assert bff_status["trust"]["backendBearer"] == "configured"
@@ -300,6 +349,7 @@ class TestOpenInfraWeb:
         assert version["version"] == __version__
         assert web_version["version"] == __version__
         assert "openapi: 3.1.0" in openapi
+        assert versioned_openapi == openapi
         assert echoed == {
             "authorization": "Bearer server-side-secret",
             "browser_authorization_forwarded": False,
@@ -348,6 +398,7 @@ class TestOpenInfraWeb:
                     port=2006,
                     backend_url="http://user:pass@example.net",
                     public_api_base_url="/api",
+                    public_api_docs_base_url="",
                     static_root=static_root,
                     edition="pro",
                     auth_mode="standard",
@@ -361,10 +412,25 @@ class TestOpenInfraWeb:
                     port=2006,
                     backend_url="http://backend.internal",
                     public_api_base_url="/api",
+                    public_api_docs_base_url="",
                     static_root=static_root,
                     edition="enterprise",
                     auth_mode="standard",
                     allow_insecure_backend=False,
+                )
+            )
+        with pytest.raises(OpenInfraError):
+            OpenInfraWebConfigValidator().validate(
+                OpenInfraWebConfig(
+                    host="127.0.0.1",
+                    port=2006,
+                    backend_url="http://backend.internal",
+                    public_api_base_url="/api",
+                    public_api_docs_base_url="https://user:pass@example.net/docs",
+                    static_root=static_root,
+                    edition="pro",
+                    auth_mode="standard",
+                    allow_insecure_backend=True,
                 )
             )
 
@@ -479,6 +545,7 @@ class TestOpenInfraWeb:
             port=0,
             backend_url=backend_url,
             public_api_base_url="/api",
+            public_api_docs_base_url="",
             static_root=OpenInfraWebStaticLocator().resolve(None),
             edition="pro",
             auth_mode="standard",
@@ -565,6 +632,7 @@ class TestOpenInfraWebEdges:
                 port=0,
                 backend_url=backend.base_url,
                 public_api_base_url="/api",
+                public_api_docs_base_url="",
                 static_root=static_root,
                 edition="pro",
                 auth_mode="standard",
@@ -618,6 +686,7 @@ class TestOpenInfraWebEdges:
             port=0,
             backend_url="http://127.0.0.1:9",
             public_api_base_url="/api",
+            public_api_docs_base_url="",
             static_root=static_root,
             edition="pro",
             auth_mode="standard",
@@ -687,6 +756,7 @@ class TestOpenInfraWebEdges:
             port=0,
             backend_url=backend_url,
             public_api_base_url="/api",
+            public_api_docs_base_url="",
             static_root=OpenInfraWebStaticLocator().resolve(None),
             edition="pro",
             auth_mode="standard",
@@ -707,6 +777,7 @@ class TestOpenInfraWebEdges:
             port=2006,
             backend_url=backend_url,
             public_api_base_url="/api",
+            public_api_docs_base_url="",
             static_root=static_root,
             edition=edition,
             auth_mode=auth_mode,

@@ -128,9 +128,29 @@ La recherche globale ne doit pas se limiter au filtrage local des opérations vi
 
 **Acceptation :** l’appel est construit depuis `apiBaseUrl`, l’indisponibilité backend affiche un message générique et le fallback local groupé par composant reste disponible.
 
-### REQ-00780 — Camemberts bleu nuit/fuchsia
+### REQ-00780 — Camemberts palette initiale lisible
 
-**Exigence :** les camemberts de statistiques du Dashboard doivent utiliser la palette bleu nuit et fuchsia du thème OpenInfra inspiré IONOS.
+**Exigence :** les camemberts de statistiques du Dashboard doivent utiliser la palette initiale lisible : bleu action pour les lectures et vert pour les mutations.
 
-**Acceptation :** les assets CSS utilisent `--openinfra-navy` et `--openinfra-fuchsia` pour le gradient et les légendes ; le vert historique n’est plus utilisé dans le gradient de camembert.
+**Acceptation :** les assets CSS utilisent `--openinfra-action` et `--openinfra-green` pour le gradient et les légendes ; le duo bleu nuit/fuchsia n’est plus utilisé dans le rendu des camemberts.
 
+
+### REQ-00781 — Swagger/ReDoc backend API réels
+
+**Exigence :** les boutons Swagger et ReDoc du header `openinfra-web` doivent ouvrir la documentation réelle du backend API à partir des liens publiés par `/config.json`.
+
+**Justification :** éviter qu’un portail web servi séparément du backend affiche des boutons visuellement présents mais non branchés sur `openinfra-api`.
+
+**Acceptation :** `/config.json` publie `apiDocumentation`; les boutons utilisent `apiDocumentation.swaggerUrl` et `apiDocumentation.redocUrl`; `openinfra-web` proxyfie `/docs`, `/swagger`, `/redoc`, `/openapi.yaml` et `/api/v1/openapi.yaml` vers le backend API lorsque les liens sont same-origin.
+
+### REQ-00782 — Icône ITRM référentiel/référence
+
+**Exigence :** l’entrée ITRM du portail `openinfra-web` doit utiliser une icône représentant un référentiel ou une référence, et non une table générique.
+
+**Acceptation :** les catalogues d’icônes React/runtime exposent `reference`; le module ITRM l’utilise dans le header, le menu latéral et les cartes de composant ; l’ancien mapping `table` est interdit pour ITRM.
+
+### REQ-00783 — Header fixe openinfra-web
+
+**Exigence :** le double header `openinfra-web` doit rester fixe en haut de viewport et les pages doivent scroller sous ce bandeau lorsque le contenu dépasse la hauteur disponible.
+
+**Acceptation :** les assets runtime exposent `openinfra-header-stack`, `--openinfra-fixed-header-height`, un calcul dynamique d’offset et des règles CSS évitant le recouvrement du contenu principal et du menu latéral.

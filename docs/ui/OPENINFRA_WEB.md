@@ -160,9 +160,16 @@ Le header `openinfra-web` est structuré en deux barres complémentaires. La pre
 
 La recherche porte sur les composants, opérations, méthodes, chemins API et champs exposés par le dashboard. Lorsque plusieurs composants correspondent, les résultats sont groupés par composant afin d’éviter une liste globale non contextualisée. Chaque résultat sélectionne directement l’opération concernée et ouvre le composant associé dans le menu latéral.
 
-Le second bandeau expose aussi les actions `Swagger` et `ReDoc`, reliées à `/docs` et `/redoc`. Les anciens contrôles `Login`, `Sign-up` et la recherche locale `Search OpenInfra operations` restent interdits.
+Le second bandeau expose aussi les actions `Swagger` et `ReDoc`. Depuis la v0.29.40, ces actions ne sont plus de simples liens statiques : elles consomment les URLs `apiDocumentation` publiées par `/config.json` et ouvrent les routes backend API réelles `/docs` et `/redoc`. Par défaut, `openinfra-web` proxyfie ces routes vers `openinfra-api`; si le portail et l’API sont publiés sur des origines séparées, `OPENINFRA_WEB_PUBLIC_API_DOCS_BASE_URL` peut publier explicitement l’origine documentaire backend. Les anciens contrôles `Login`, `Sign-up` et la recherche locale `Search OpenInfra operations` restent interdits.
 
 Les textes permanents précédemment issus des alertes informatives ne sont plus rendus sur les pages composant. Le composant conserve son titre, son sous-titre, le formulaire métier et le panneau résultat ; les alertes restent réservées aux erreurs/warnings caractérisés et au succès après soumission effective.
+
+
+## v0.29.40 — Liens Swagger/ReDoc branchés sur le backend API
+
+Le header ne pointe plus vers des routes statiques supposées du portail. Le navigateur lit `apiDocumentation.swaggerUrl` et `apiDocumentation.redocUrl` depuis `/config.json`. En mode BFF standard, ces URLs restent same-origin (`/docs`, `/redoc`) et `openinfra-web` les proxyfie vers `openinfra-api`. En mode exposition séparée, `OPENINFRA_WEB_PUBLIC_API_DOCS_BASE_URL` permet de publier une origine backend API explicite.
+
+Les routes `/docs`, `/swagger`, `/redoc`, `/openapi.yaml` et `/api/v1/openapi.yaml` sont donc servies par le backend API réel, pas par un placeholder UI. La CSP du proxy web autorise uniquement les sources nécessaires aux viewers Swagger UI et ReDoc sur ces pages documentaires.
 
 ## v0.29.37 — Alertes contextuelles uniquement
 
@@ -177,16 +184,30 @@ La validation locale des fichiers d’enrôlement proxy Enterprise est portée p
 La même livraison simplifie le titre de la page d’accueil en `Dashboard` et isole les métriques/cartes d’accueil dans cette page uniquement. Lorsqu’un opérateur ouvre ITRM, IPAM, DCIM, Discovery ou Sécurité, la zone centrale affiche seulement le titre du composant, son sous-titre contextuel, le formulaire métier et le résultat éventuel.
 
 
-## v0.29.39 — recherche globale tolérante et camemberts bleu nuit/fuchsia
+## v0.29.40 — restauration des couleurs initiales des camemberts
+
+Les camemberts de l’accueil reviennent à la palette initiale plus confortable : `--openinfra-action` pour les lectures et `--openinfra-green` pour les mutations. Le duo bleu nuit/fuchsia est retiré du gradient et des pastilles de légende afin de réduire la fatigue visuelle signalée.
+
+Les mêmes garde-fous sont appliqués aux sources React et aux assets runtime servis par `openinfra-web` : le fuchsia ne doit plus être utilisé par les camemberts du Dashboard.
+
+## v0.29.40 — icône ITRM référentiel/référence
+
+L’entrée ITRM du header, du menu latéral et des cartes de composants utilise désormais une icône de référentiel/référence. Cette icône remplace le pictogramme tableau générique afin de matérialiser le rôle d’ITRM comme référentiel canonique des ressources, relations, versions et règles de gouvernance.
+
+Les sources React et les assets runtime exposent le même nom d’icône `reference`, contrôlé par le validateur frontend et les tests d’intégration web.
+
+## v0.29.39 — Recherche globale tolérante
 
 La recherche globale du double header construit son appel depuis `apiBaseUrl` exposé par `/config.json`. Les déploiements qui personnalisent `OPENINFRA_WEB_PUBLIC_API_BASE_URL` n’ont donc plus de chemin `/api` figé dans l’asset JavaScript.
 
 Si le backend ou le proxy BFF est temporairement indisponible, le navigateur n’expose pas l’erreur technique brute telle que `Failed to fetch`. Le panneau de résultats affiche un message fonctionnel générique et conserve le fallback local des opérations, toujours groupé par composant.
-
-Les camemberts de l’accueil utilisent désormais deux tons stricts : bleu nuit pour les lectures et fuchsia pour les mutations. Les mêmes variables CSS sont appliquées aux assets React et runtime servis par `openinfra-web`.
 
 ## v0.29.38 — Recherche globale backend
 
 La recherche globale du double header appelle `GET /api/v1/search/global` avec `tenant_id`, `query` et `limit`. Quand le backend répond, les résultats métiers sont affichés par composant : ITRM, IPAM et Discovery. Chaque entrée expose un libellé, une description, un type et une route API ouvrable depuis le panneau résultat.
 
 Si le backend est indisponible, si le jeton courant ne permet pas la recherche ou si la requête est trop courte, le portail conserve un fallback local sur les opérations déjà connues. Cette dégradation contrôlée évite une page vide tout en empêchant l’affichage de données non autorisées.
+
+## Header fixe et navigation
+
+Le portail `openinfra-web` conserve le double header en position fixe. La hauteur réelle du header est mesurée côté runtime et publiée dans `--openinfra-fixed-header-height` afin que le contenu principal et le menu latéral scrollent sous le bandeau sans recouvrement. Le menu latéral reste sticky sous ce header et conserve son propre scroll vertical lorsque la liste des composants dépasse la hauteur disponible.

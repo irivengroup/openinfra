@@ -121,6 +121,7 @@ const OPENINFRA_ICONS = {
   search: "M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.099zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z",
   speedometer2: "M8 4a.5.5 0 0 1 .5.5V6a.5.5 0 0 1-1 0V4.5A.5.5 0 0 1 8 4zM3.732 5.732a.5.5 0 0 1 .707 0l.915.914a.5.5 0 1 1-.708.708l-.914-.915a.5.5 0 0 1 0-.707zM2 10a.5.5 0 0 1 .5-.5h1.586a.5.5 0 0 1 0 1H2.5A.5.5 0 0 1 2 10zm9.5 0a.5.5 0 0 1 .5-.5h1.5a.5.5 0 0 1 0 1H12a.5.5 0 0 1-.5-.5zm.754-4.246a.5.5 0 0 1 0 .707l-.94.94a.5.5 0 1 1-.707-.708l.94-.94a.5.5 0 0 1 .707 0zM9.67 11.71a2 2 0 1 1-3.34-2.19l3.95-3.95a.5.5 0 0 1 .8.6l-1.41 5.54zM8 1a7 7 0 0 0-7 7c0 1.71.61 3.28 1.63 4.5a.5.5 0 0 0 .38.17h9.98a.5.5 0 0 0 .38-.17A6.97 6.97 0 0 0 15 8a7 7 0 0 0-7-7z",
   table: "M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2zm15 2h-4v3h4V4zm0 4h-4v3h4V8zm0 4h-4v3h3a1 1 0 0 0 1-1v-2zm-5 3v-3H6v3h4zm-5 0v-3H1v2a1 1 0 0 0 1 1h3zm-4-4h4V8H1v3zm0-4h4V4H1v3zm5-3v3h4V4H6zm4 4H6v3h4V8z",
+  reference: "M3 0h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2zm0 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H3zm3 7V2h1v5.117L8.743 6.07a.5.5 0 0 1 .514 0L11 7.117V2h1v6a.5.5 0 0 1-.757.429L9 7.083 6.757 8.43A.5.5 0 0 1 6 8zm0 3.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h3.5a.5.5 0 0 1 0 1H6.5a.5.5 0 0 1-.5-.5z",
   grid: "M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zm8 0A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm-8 8A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm8 0A1.5 1.5 0 0 1 10.5 9h3a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 13.5v-3z",
   people: "M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0zm-1.559 4.27A4.985 4.985 0 0 0 8 10c-2.67 0-4.9 2.1-4.99 4.71A1 1 0 0 0 4 15h8a1 1 0 0 0 .99-1.29 5.002 5.002 0 0 0-3.549-3.44zM13.5 7a2.5 2.5 0 0 1-1.18 2.12 6.01 6.01 0 0 1 2.2 2.56A1 1 0 0 0 15.5 10.5 3.5 3.5 0 0 0 12 7h1.5z",
   shield: "M5.338 1.59a61.44 61.44 0 0 0-2.837.856.48.48 0 0 0-.328.39c-.554 4.157.726 7.19 2.253 9.188A10.7 10.7 0 0 0 8 15a10.7 10.7 0 0 0 3.574-2.976c1.527-1.998 2.807-5.031 2.253-9.188a.48.48 0 0 0-.328-.39 61.44 61.44 0 0 0-2.837-.856C9.552 1.29 8.531 1.067 8 1.067c-.531 0-1.552.223-2.662.523z",
@@ -800,7 +801,7 @@ const OPENINFRA_MODULES = [
     { id: "version", label: "Version runtime", method: "GET", path: "/v1/version", query: [] },
     { id: "schema", label: "Statut schéma DB", method: "GET", path: "/v1/database/schema", query: [] }
   ] },
-  { id: "itrm", label: "IT Ressources Management", shortLabel: "ITRM", icon: "table", description: "Inventaire canonique, relations, versions, gouvernance et certification.", operations: [
+  { id: "itrm", label: "IT Ressources Management", shortLabel: "ITRM", icon: "reference", description: "Inventaire canonique, relations, versions, gouvernance et certification.", operations: [
     { id: "itrm-taxonomy", label: "Catalogue catégories / types", method: "GET", path: "/v1/itrm/resource-taxonomy", query: [] },
     { id: "itrm-list", label: "Lister les objets ITRM", method: "GET", path: "/v1/itrm/objects", query: [FIELD_SETS.resourceCategoryFilter, FIELD_SETS.resourceTypeFilter, FIELD_SETS.tag, FIELD_SETS.limit] },
     { id: "itrm-upsert", label: "Créer / mettre à jour une ressource", method: "POST", path: "/v1/itrm/objects", body: [FIELD_SETS.actor, FIELD_SETS.riKey, { ...FIELD_SETS.resourceCategory, required: true }, { ...FIELD_SETS.resourceType, required: true }, FIELD_SETS.displayName, FIELD_SETS.source, FIELD_SETS.serial, FIELD_SETS.vendor, FIELD_SETS.model, FIELD_SETS.site, FIELD_SETS.building, FIELD_SETS.room, FIELD_SETS.row, FIELD_SETS.column, FIELD_SETS.rack, FIELD_SETS.managementIp, FIELD_SETS.lifecycle, FIELD_SETS.tags] },
@@ -924,9 +925,11 @@ class OpenInfraDashboard {
       globalSearchLoading: false,
       globalSearchError: null
     };
+    this.handleResize = () => this.syncFixedHeaderOffset();
   }
 
   async start() {
+    window.addEventListener("resize", this.handleResize);
     await this.refreshRuntime();
     this.render();
   }
@@ -963,6 +966,36 @@ class OpenInfraDashboard {
     return `${base}/v1/search/global?${params.toString()}`;
   }
 
+  buildApiDocumentationUrl(route) {
+    const normalizedRoute = String(route || "/docs").startsWith("/") ? String(route || "/docs") : `/${route}`;
+    const value = String(this.state.config?.apiBaseUrl || "/api").trim();
+    if (/^https?:\/\//i.test(value)) {
+      const url = new URL(value);
+      return `${url.origin}${normalizedRoute}`;
+    }
+    return normalizedRoute;
+  }
+
+  apiDocumentationLinks() {
+    const published = this.state.config?.apiDocumentation || {};
+    return {
+      swaggerUrl: published.swaggerUrl || this.buildApiDocumentationUrl("/docs"),
+      redocUrl: published.redocUrl || this.buildApiDocumentationUrl("/redoc"),
+      openapiUrl: published.openapiUrl || this.buildApiDocumentationUrl("/openapi.yaml")
+    };
+  }
+
+
+  syncFixedHeaderOffset() {
+    const header = document.querySelector(".openinfra-header-stack");
+    if (!header || typeof header.getBoundingClientRect !== "function") {
+      return;
+    }
+    const height = Math.ceil(header.getBoundingClientRect().height);
+    if (height > 0) {
+      document.documentElement.style.setProperty("--openinfra-fixed-header-height", `${height}px`);
+    }
+  }
 
   visibleOperations(module) {
     return module.operations;
@@ -1026,6 +1059,7 @@ class OpenInfraDashboard {
   renderGlobalSearchToolbar() {
     const query = this.state.globalSearchQuery;
     const hasQuery = query.trim() !== "";
+    const docs = this.apiDocumentationLinks();
     return `<div class="px-3 py-2 border-bottom openinfra-global-toolbar">
       <div class="container-fluid openinfra-global-toolbar-inner">
         <div class="openinfra-global-toolbar-spacer" aria-hidden="true"></div>
@@ -1038,8 +1072,8 @@ class OpenInfraDashboard {
           <div id="openinfra-global-search-results" class="openinfra-global-search-results" ${hasQuery ? "" : "hidden"}>${this.renderGlobalSearchResults()}</div>
         </form>
         <div class="text-end openinfra-api-doc-actions">
-          <a class="btn btn-light text-dark me-2" href="/docs" target="_blank" rel="noopener noreferrer">Swagger</a>
-          <a class="btn btn-primary" href="/redoc" target="_blank" rel="noopener noreferrer">ReDoc</a>
+          <a class="btn btn-light text-dark me-2" href="${this.escape(docs.swaggerUrl)}" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir Swagger UI backend API">Swagger</a>
+          <a class="btn btn-primary" href="${this.escape(docs.redocUrl)}" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir ReDoc backend API">ReDoc</a>
         </div>
       </div>
     </div>`;
@@ -1107,7 +1141,7 @@ class OpenInfraDashboard {
       ? "Vue de synthèse OpenInfra, readiness backend et état du portail server-side."
       : `${selected.label} — formulaire métier typé, sans champs génériques ni secrets côté navigateur.`;
     this.root.innerHTML = `
-      <header>
+      <header class="openinfra-header-stack">
         <div class="px-3 py-2 bg-dark text-white openinfra-top-header">
           <div class="container-fluid">
             <div class="d-flex flex-wrap align-items-center justify-content-center justify-content-lg-start">
@@ -1151,6 +1185,7 @@ class OpenInfraDashboard {
         </div>
       </div>
     `;
+    this.syncFixedHeaderOffset();
     this.bindEvents();
   }
 

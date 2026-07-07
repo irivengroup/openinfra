@@ -1,11 +1,12 @@
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './openinfra-theme.css';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 
 const ICONS = {
   speedometer2: 'M8 4a.5.5 0 0 1 .5.5V6a.5.5 0 0 1-1 0V4.5A.5.5 0 0 1 8 4z',
   table: 'M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2z',
+  reference: 'M3 0h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2zm0 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H3zm3 7V2h1v5.117L8.743 6.07a.5.5 0 0 1 .514 0L11 7.117V2h1v6a.5.5 0 0 1-.757.429L9 7.083 6.757 8.43A.5.5 0 0 1 6 8zm0 3.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h3.5a.5.5 0 0 1 0 1H6.5a.5.5 0 0 1-.5-.5z',
   grid: 'M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3z',
   home: 'M8 3.293l6 6V15a1 1 0 0 1-1 1h-3v-4H6v4H3a1 1 0 0 1-1-1V9.293l6-6z',
   search: 'M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.099zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z',
@@ -655,7 +656,7 @@ const RESOURCE_CATEGORY_OPTIONS = [
 
 const MODULES = [
   { id: 'overview', label: 'Dashboard', icon: 'speedometer2', operations: [{ id: 'version', label: 'Version runtime', path: '/v1/version', method: 'GET', fields: [] }] },
-  { id: 'itrm', label: 'IT Ressources Management', shortLabel: 'ITRM', icon: 'table', operations: [
+  { id: 'itrm', label: 'IT Ressources Management', shortLabel: 'ITRM', icon: 'reference', operations: [
     { id: 'itrm-taxonomy', label: 'Catalogue catégories / types', path: '/v1/itrm/resource-taxonomy', method: 'GET', fields: [] },
     { id: 'itrm-list', label: 'Lister les objets ITRM', path: '/v1/itrm/objects', method: 'GET', fields: ['Catégorie', 'Type de ressource', 'Tag', 'Limite'] },
     { id: 'itrm-upsert', label: 'Créer / mettre à jour une ressource', path: '/v1/itrm/objects', method: 'POST', fields: ['Opérateur', 'Clé ITRM', 'Catégorie', 'Type de ressource', 'Nom affiché', 'Source autoritative', 'Numéro de série', 'Constructeur', 'Modèle', 'Site', 'Bâtiment', 'Salle', 'Ligne salle', 'Colonne salle', 'Rack', 'IP de management', 'État cycle de vie', 'Tags'] },
@@ -734,6 +735,25 @@ function buildGlobalSearchUrl(apiBaseUrl, tenant, query, limit = 6) {
   return `${base}/v1/search/global?${params.toString()}`;
 }
 
+function buildApiDocumentationUrl(apiBaseUrl, route) {
+  const normalizedRoute = String(route || '/docs').startsWith('/') ? String(route || '/docs') : `/${route}`;
+  const value = String(apiBaseUrl || '/api').trim();
+  if (/^https?:\/\//i.test(value)) {
+    const url = new URL(value);
+    return `${url.origin}${normalizedRoute}`;
+  }
+  return normalizedRoute;
+}
+
+function apiDocumentationLinks(config) {
+  const published = config?.apiDocumentation || {};
+  return {
+    swaggerUrl: published.swaggerUrl || buildApiDocumentationUrl(config?.apiBaseUrl, '/docs'),
+    redocUrl: published.redocUrl || buildApiDocumentationUrl(config?.apiBaseUrl, '/redoc'),
+    openapiUrl: published.openapiUrl || buildApiDocumentationUrl(config?.apiBaseUrl, '/openapi.yaml'),
+  };
+}
+
 function globalSearchGroups(query) {
   const normalizedQuery = normalizeSearchText(query.trim());
   if (!normalizedQuery) {
@@ -757,7 +777,7 @@ function globalSearchGroups(query) {
 }
 
 function Dashboard() {
-  const [config, setConfig] = useState({ apiBaseUrl: '/api', version: 'indisponible', webBackendTrust: 'server-side' });
+  const [config, setConfig] = useState({ apiBaseUrl: '/api', apiDocumentation: { swaggerUrl: '/docs', redocUrl: '/redoc', openapiUrl: '/openapi.yaml' }, version: 'indisponible', webBackendTrust: 'server-side' });
   const [ready, setReady] = useState(null);
   const [bffStatus, setBffStatus] = useState(null);
   const [version, setVersion] = useState(null);
@@ -774,6 +794,23 @@ function Dashboard() {
   const operationsCount = useMemo(() => MODULES.reduce((total, module) => total + module.operations.length, 0), []);
   const businessFieldsCount = useMemo(() => businessModules.reduce((total, module) => total + moduleStatistics(module).fields, 0), [businessModules]);
   const searchGroups = useMemo(() => globalSearchGroups(globalSearchQuery), [globalSearchQuery]);
+  const apiDocs = useMemo(() => apiDocumentationLinks(config), [config]);
+
+
+  useLayoutEffect(() => {
+    const syncHeaderOffset = () => {
+      const header = document.querySelector('.openinfra-header-stack');
+      if (header instanceof HTMLElement) {
+        const height = Math.ceil(header.getBoundingClientRect().height);
+        if (height > 0) {
+          document.documentElement.style.setProperty('--openinfra-fixed-header-height', `${height}px`);
+        }
+      }
+    };
+    syncHeaderOffset();
+    window.addEventListener('resize', syncHeaderOffset);
+    return () => window.removeEventListener('resize', syncHeaderOffset);
+  });
 
   useEffect(() => {
     const query = globalSearchQuery.trim();
@@ -863,9 +900,9 @@ function Dashboard() {
     : `${selected.label} — formulaire métier typé, sans champs génériques ni secrets côté navigateur.`;
 
   return <div className="openinfra-shell">
-    <header>
+    <header className="openinfra-header-stack">
       <div className="px-3 py-2 bg-dark text-white openinfra-top-header"><div className="container-fluid"><div className="d-flex flex-wrap align-items-center justify-content-center justify-content-lg-start"><a href="/" className="d-flex align-items-center my-2 my-lg-0 me-lg-auto text-white text-decoration-none" aria-label="OpenInfra accueil"><span className="openinfra-brand-mark me-2">OI</span><span className="fs-5 fw-semibold">OpenInfra</span></a><ul className="nav col-12 col-lg-auto my-2 justify-content-center my-md-0 text-small">{MODULES.slice(0, 6).map((module) => <li key={module.id}><button type="button" className={`nav-link border-0 bg-transparent ${activeModuleId === module.id ? 'text-secondary' : 'text-white'}`} onClick={() => chooseOperation(module, module.operations[0])}><Icon name={module.icon} className="bi d-block mx-auto mb-1 openinfra-top-icon" />{module.shortLabel || module.label}</button></li>)}</ul></div></div></div>
-      <div className="px-3 py-2 border-bottom openinfra-global-toolbar"><div className="container-fluid openinfra-global-toolbar-inner"><div className="openinfra-global-toolbar-spacer" aria-hidden="true" /><form className="openinfra-global-search-form" role="search" autoComplete="off"><label className="visually-hidden" htmlFor="openinfra-global-search">Recherche globale OpenInfra</label><div className="openinfra-global-search-control"><Icon name="search" className="openinfra-global-search-icon" /><input type="search" id="openinfra-global-search" className="form-control" placeholder="Recherche globale..." aria-label="Recherche globale OpenInfra" aria-controls="openinfra-global-search-results" aria-expanded={globalSearchQuery.trim() !== ''} value={globalSearchQuery} onChange={(event) => setGlobalSearchQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') setGlobalSearchQuery(''); }} /></div>{globalSearchQuery.trim() !== '' && <div id="openinfra-global-search-results" className="openinfra-global-search-results"><GlobalSearchResults query={globalSearchQuery} groups={searchGroups} backend={globalSearchBackend} loading={globalSearchLoading} error={globalSearchError} onSelect={selectSearchOperation} onBackendSelect={selectBackendSearchItem} /></div>}</form><div className="text-end openinfra-api-doc-actions"><a className="btn btn-light text-dark me-2" href="/docs" target="_blank" rel="noopener noreferrer">Swagger</a><a className="btn btn-primary" href="/redoc" target="_blank" rel="noopener noreferrer">ReDoc</a></div></div></div>
+      <div className="px-3 py-2 border-bottom openinfra-global-toolbar"><div className="container-fluid openinfra-global-toolbar-inner"><div className="openinfra-global-toolbar-spacer" aria-hidden="true" /><form className="openinfra-global-search-form" role="search" autoComplete="off"><label className="visually-hidden" htmlFor="openinfra-global-search">Recherche globale OpenInfra</label><div className="openinfra-global-search-control"><Icon name="search" className="openinfra-global-search-icon" /><input type="search" id="openinfra-global-search" className="form-control" placeholder="Recherche globale..." aria-label="Recherche globale OpenInfra" aria-controls="openinfra-global-search-results" aria-expanded={globalSearchQuery.trim() !== ''} value={globalSearchQuery} onChange={(event) => setGlobalSearchQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') setGlobalSearchQuery(''); }} /></div>{globalSearchQuery.trim() !== '' && <div id="openinfra-global-search-results" className="openinfra-global-search-results"><GlobalSearchResults query={globalSearchQuery} groups={searchGroups} backend={globalSearchBackend} loading={globalSearchLoading} error={globalSearchError} onSelect={selectSearchOperation} onBackendSelect={selectBackendSearchItem} /></div>}</form><div className="text-end openinfra-api-doc-actions"><a className="btn btn-light text-dark me-2" href={apiDocs.swaggerUrl} target="_blank" rel="noopener noreferrer" aria-label="Ouvrir Swagger UI backend API">Swagger</a><a className="btn btn-primary" href={apiDocs.redocUrl} target="_blank" rel="noopener noreferrer" aria-label="Ouvrir ReDoc backend API">ReDoc</a></div></div></div>
     </header>
     <div className="container-fluid"><div className="row"><nav className="col-lg-3 col-xl-2 openinfra-sidebar" aria-label="Sidebar navigation"><div className="openinfra-sidebar-heading">Pilotage</div>{filteredModules.map((module) => module.id === 'overview' ? <button key={module.id} type="button" className={`nav-link openinfra-sidebar-dashboard w-100 text-start ${activeModuleId === module.id ? 'active' : ''}`} onClick={() => chooseOperation(module, module.operations[0])}><Icon name={module.icon} />Dashboard</button> : <section className={`openinfra-accordion ${opened.has(module.id) ? 'open' : ''}`} key={module.id}><button type="button" className={`openinfra-accordion-toggle ${activeModuleId === module.id ? 'active' : ''}`} aria-expanded={opened.has(module.id)} onClick={() => toggleAccordion(module.id)}><span><Icon name={module.icon} />{module.shortLabel || module.label}</span><span className="openinfra-chevron">›</span></button><div className={`openinfra-accordion-panel fade ${opened.has(module.id) ? 'show' : ''}`}>{module.operations.map((operation) => <button key={operation.id} type="button" className={`openinfra-sidebar-operation ${selected.id === operation.id ? 'active' : ''}`} onClick={() => chooseOperation(module, operation)}>{operation.label}</button>)}</div></section>)}</nav><main className="col-lg-9 col-xl-10 ms-sm-auto openinfra-main"><div className="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 openinfra-titlebar"><div><h1 className="h2">{pageTitle}</h1><p className="text-muted mb-0">{pageSubtitle}</p></div><div className="btn-toolbar mb-2 mb-md-0"><span className="badge text-bg-primary me-2">{config.edition || 'runtime'}</span><span className="badge text-bg-secondary">{config.authMode || 'standard'}</span></div></div>{submissionCompleted && activeModuleId !== 'overview' && <div className="alert alert-success" role="status">Soumission exécutée avec succès.</div>}{activeModuleId === 'overview' && <div className="row g-3 mb-4 openinfra-dashboard-metrics" aria-label="Métriques du dashboard"><Metric title="Version" value={displayedVersion} /><Metric title="API" value={config.apiBaseUrl || '/api'} /><Metric title="Trust" value={config.webBackendTrust || 'server-side'} /><Metric title="Formulaires" value={protectedForms} /><Metric title="Modules" value={`${operationsCount} opérations`} /></div>}{activeModuleId === 'overview' ? <OverviewStats modules={businessModules} fieldsCount={businessFieldsCount} /> : <section className="card openinfra-operation-card"><div className="card-body"><h2 className="h4">{selected.label}</h2><div className="row g-3 mb-3"><label className="col-md-4 form-label">Tenant<input className="form-control" value={tenant} onChange={(event) => setTenant(event.target.value)} /></label></div><div className="row g-3">{selected.fields.map((field) => <label className="col-md-6 col-xl-4 form-label" key={field}>{field}<input className="form-control" /></label>)}</div><button type="button" className="btn btn-primary mt-3" onClick={execute}>Exécuter</button><pre className="openinfra-result mt-3">{result}</pre></div></section>}</main></div></div>
   </div>;

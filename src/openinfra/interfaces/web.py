@@ -23,6 +23,7 @@ class OpenInfraWebConfig:
     port: int
     backend_url: str
     public_api_base_url: str
+    public_api_docs_base_url: str
     static_root: Path
     edition: str
     auth_mode: str
@@ -47,10 +48,34 @@ class OpenInfraWebConfig:
             "edition": self.edition,
             "authMode": self.auth_mode,
             "apiBaseUrl": self.public_api_base_url,
+            "apiDocumentation": self.api_documentation_links(),
             "backendProxy": "/api",
             "webBackendTrust": "server-side",
             "databaseTrust": "server-side" if self.has_database_trust() else "not-configured",
         }
+
+    def api_documentation_links(self) -> dict[str, str]:
+        root = self._public_api_documentation_root()
+        return {
+            "swaggerUrl": root + "/docs",
+            "swaggerAliasUrl": root + "/swagger",
+            "redocUrl": root + "/redoc",
+            "openapiUrl": root + "/openapi.yaml",
+            "versionedOpenapiUrl": self._public_api_base_root() + "/v1/openapi.yaml",
+        }
+
+    def _public_api_documentation_root(self) -> str:
+        explicit = self.public_api_docs_base_url.strip().rstrip("/")
+        if explicit:
+            return explicit
+        parsed = urlparse(self.public_api_base_url)
+        if parsed.scheme in {"http", "https"} and parsed.netloc:
+            return f"{parsed.scheme}://{parsed.netloc}"
+        return ""
+
+    def _public_api_base_root(self) -> str:
+        value = self.public_api_base_url.strip().rstrip("/")
+        return value or "/api"
 
     def as_status_dict(self) -> dict[str, object]:
         backend_bearer_configured = bool(self.backend_bearer_token)
@@ -103,6 +128,14 @@ class OpenInfraWebConfigFactory:
             default=os.environ.get("OPENINFRA_WEB_PUBLIC_API_BASE_URL", "/api"),
         )
         parser.add_argument(
+            "--public-api-docs-base-url",
+            default=os.environ.get("OPENINFRA_WEB_PUBLIC_API_DOCS_BASE_URL", ""),
+            help=(
+                "Optional public backend API documentation origin. When omitted, "
+                "openinfra-web publishes same-origin proxied /docs and /redoc links."
+            ),
+        )
+        parser.add_argument(
             "--static-root",
             default=os.environ.get("OPENINFRA_WEB_STATIC_ROOT", ""),
         )
@@ -143,6 +176,7 @@ class OpenInfraWebConfigFactory:
             port=int(namespace.port),
             backend_url=str(namespace.backend_url),
             public_api_base_url=str(namespace.public_api_base_url),
+            public_api_docs_base_url=str(namespace.public_api_docs_base_url),
             static_root=static_root,
             edition=str(namespace.edition).strip().lower(),
             auth_mode=str(namespace.auth_mode).strip().lower(),
@@ -211,12 +245,30 @@ class OpenInfraWebConfigValidator:
             )
         if config.max_request_body_bytes <= 0:
             raise OpenInfraError("max request body size must be positive")
+        self._validate_public_api_docs_base_url(config.public_api_docs_base_url)
         for key, value in (
             ("OPENINFRA_WEB_DATABASE_DSN_REF", config.database_dsn_ref),
             ("OPENINFRA_WEB_DATABASE_USER_REF", config.database_user_ref),
             ("OPENINFRA_WEB_DATABASE_PASSWORD_REF", config.database_password_ref),
         ):
             self._validate_secret_reference(key, value)
+
+    def _validate_public_api_docs_base_url(self, value: str) -> None:
+        if not value.strip():
+            return
+        parsed = urlparse(value.strip().rstrip("/"))
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise OpenInfraError(
+                "OPENINFRA_WEB_PUBLIC_API_DOCS_BASE_URL must be an http or https origin URL"
+            )
+        if parsed.username or parsed.password:
+            raise OpenInfraError(
+                "OPENINFRA_WEB_PUBLIC_API_DOCS_BASE_URL must not embed credentials"
+            )
+        if parsed.params or parsed.query or parsed.fragment:
+            raise OpenInfraError(
+                "OPENINFRA_WEB_PUBLIC_API_DOCS_BASE_URL must not contain params, query or fragment"
+            )
 
     def _validate_secret_reference(self, key: str, value: str) -> None:
         if not value:
@@ -240,12 +292,20 @@ class OpenInfraWebJsonResponder:
 
 
 class OpenInfraWebSecurityHeaders:
-    def write(self, handler: BaseHTTPRequestHandler) -> None:
+    def write(self, handler: BaseHTTPRequestHandler, *, api_docs: bool = False) -> None:
         handler.send_header("X-Content-Type-Options", "nosniff")
         handler.send_header("Referrer-Policy", "no-referrer")
         handler.send_header("X-Frame-Options", "DENY")
         handler.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
         handler.send_header("Cache-Control", "no-store")
+        if api_docs:
+            handler.send_header(
+                "Content-Security-Policy",
+                "default-src 'self'; connect-src 'self'; img-src 'self' data:; "
+                "style-src 'self' 'unsafe-inline' https://unpkg.com; "
+                "script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.redoc.ly",
+            )
+            return
         handler.send_header(
             "Content-Security-Policy",
             "default-src 'self'; connect-src 'self'; "
@@ -294,7 +354,7 @@ class OpenInfraBackendProxy:
                 upstream_request, timeout=self._config.request_timeout_seconds
             ) as response:
                 self._send_proxy_response(
-                    handler, response.status, response.headers, response.read()
+                    handler, response.status, response.headers, response.read(), route=route
                 )
         except error.HTTPError as exc:
             self._send_upstream_error(handler, exc)
@@ -306,7 +366,14 @@ class OpenInfraBackendProxy:
     def _requires_server_side_bearer(self, method: str, route: str) -> bool:
         if self._config.backend_bearer_token:
             return False
-        if route in {"/openapi.yaml", "/api/v1/version"}:
+        if route in {
+            "/docs",
+            "/swagger",
+            "/redoc",
+            "/openapi.yaml",
+            "/api/v1/openapi.yaml",
+            "/api/v1/version",
+        }:
             return False
         return route.startswith("/api/v1/") and method.upper() in {
             "GET",
@@ -366,7 +433,8 @@ class OpenInfraBackendProxy:
                 },
             )
             return
-        self._send_proxy_response(handler, exc.code, exc.headers, body)
+        route = handler.path.split("?", 1)[0]
+        self._send_proxy_response(handler, exc.code, exc.headers, body, route=route)
 
     def _is_raw_missing_bearer_error(self, body: bytes) -> bool:
         try:
@@ -379,14 +447,22 @@ class OpenInfraBackendProxy:
         return message == "missing bearer token"
 
     def _send_proxy_response(
-        self, handler: BaseHTTPRequestHandler, status_code: int, headers: Any, body: bytes
+        self,
+        handler: BaseHTTPRequestHandler,
+        status_code: int,
+        headers: Any,
+        body: bytes,
+        *,
+        route: str = "",
     ) -> None:
         handler.send_response(status_code)
         for key, value in headers.items():
             if key.lower() in self._response_headers:
                 handler.send_header(key, value)
         handler.send_header("Content-Length", str(len(body)))
-        OpenInfraWebSecurityHeaders().write(handler)
+        OpenInfraWebSecurityHeaders().write(
+            handler, api_docs=route in {"/docs", "/swagger", "/redoc"}
+        )
         handler.end_headers()
         handler.wfile.write(body)
 
@@ -432,14 +508,14 @@ class OpenInfraWebRequestHandler(BaseHTTPRequestHandler):
         if route == "/status":
             self._json(HTTPStatus.OK, self.server.config.as_status_dict())
             return
-        if route == "/openapi.yaml" or route.startswith("/api/"):
+        if route in {"/docs", "/swagger", "/redoc", "/openapi.yaml"} or route.startswith("/api/"):
             self._handle_proxy_request()
             return
         self._serve_static(route, head_only=head_only)
 
     def _handle_proxy_request(self) -> None:
         route = self.path.split("?", 1)[0]
-        if route != "/openapi.yaml" and not route.startswith("/api/"):
+        if route not in {"/docs", "/swagger", "/redoc", "/openapi.yaml"} and not route.startswith("/api/"):
             self._json(HTTPStatus.NOT_FOUND, {"error": "route not served by openinfra-web"})
             return
         try:

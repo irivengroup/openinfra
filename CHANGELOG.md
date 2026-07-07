@@ -1,9 +1,18 @@
+## 0.29.40 - 2026-07-07
+
+- Les boutons `Swagger` et `ReDoc` du double header lisent désormais les liens `apiDocumentation` de `/config.json` et ouvrent les routes backend API réelles.
+- `openinfra-web` proxyfie `/docs`, `/swagger`, `/redoc`, `/openapi.yaml` et `/api/v1/openapi.yaml` vers `openinfra-api`, avec CSP dédiée aux viewers Swagger/ReDoc.
+- Ajout de `OPENINFRA_WEB_PUBLIC_API_DOCS_BASE_URL` pour les déploiements où le portail web et l’API sont publiés sur des origines séparées.
+- Les camemberts du Dashboard restaurent la palette initiale plus lisible : bleu action pour les lectures et vert pour les mutations.
+- Le duo bleu nuit/fuchsia introduit en 0.29.39 est retiré du gradient et des légendes, conformément au retour UX signalant une fatigue visuelle.
+- Les tests et validations frontend verrouillent la palette restaurée et empêchent le retour du fuchsia dans les camemberts.
+- Le pictogramme ITRM abandonne l’icône tableau et utilise une icône de référentiel/référence afin de mieux représenter le rôle de référentiel canonique.
+- Le double header est désormais fixe en haut de page ; le scroll s’applique au contenu sous-jacent avec offset CSS/JS dynamique.
+
 ## 0.29.39 - 2026-07-07
 
 - La recherche globale du double header n’expose plus l’erreur navigateur brute `Failed to fetch` : l’UI affiche un message fonctionnel générique et conserve le fallback local groupé par composant.
 - Le frontend construit l’URL de recherche globale depuis `apiBaseUrl` afin de respecter `OPENINFRA_WEB_PUBLIC_API_BASE_URL` au lieu de figer `/api`.
-- Les camemberts du Dashboard utilisent désormais le duo bleu nuit/fuchsia demandé pour le thème IONOS, avec légendes et garde-fous frontend alignés.
-- Les tests et validations frontend verrouillent l’absence du message technique, le fallback local et les nouvelles couleurs de camembert.
 
 ## 0.29.38 - 2026-07-07
 

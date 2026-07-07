@@ -1,14 +1,24 @@
-# OpenInfra v0.29.39
+# OpenInfra v0.29.40
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.39 — la recherche globale du header masque les erreurs réseau techniques, respecte `apiBaseUrl` et les camemberts du Dashboard utilisent le duo bleu nuit/fuchsia du thème IONOS.**
+**Version courante : 0.29.40 — la recherche globale du header conserve le fallback métier, les camemberts restaurent la palette initiale action/vert, les boutons Swagger/ReDoc ouvrent réellement la documentation du backend API, l’icône ITRM représente désormais un référentiel de référence et le header reste fixe pendant le scroll.**
 
-### v0.29.39 — recherche globale durcie et camemberts bleu nuit/fuchsia
+### v0.29.40 — restauration de la palette initiale des camemberts et documentation API réelle
+
+- Les boutons `Swagger` et `ReDoc` du second header utilisent désormais les URLs `apiDocumentation` publiées par `/config.json` et ouvrent les routes backend `/docs` et `/redoc`, proxifiées par `openinfra-web` si nécessaire.
+- `openinfra-web` publie aussi `/docs`, `/swagger`, `/redoc`, `/openapi.yaml` et `/api/v1/openapi.yaml` comme proxy BFF vers `openinfra-api`, avec une CSP adaptée aux viewers Swagger/ReDoc.
+- `OPENINFRA_WEB_PUBLIC_API_DOCS_BASE_URL` permet de publier explicitement une origine backend API externe lorsque le portail web et l’API sont exposés séparément.
+- Les camemberts du Dashboard reviennent à la palette initiale : bleu action pour les lectures et vert pour les mutations.
+- Le duo bleu nuit/fuchsia introduit en 0.29.39 est retiré du gradient et des légendes car trop agressif visuellement.
+- Les garde-fous frontend vérifient explicitement que les camemberts n’utilisent plus le fuchsia.
+- L’entrée ITRM utilise une icône de référentiel/référence, plus cohérente avec son rôle de source canonique qu’une icône de tableau générique.
+- Le double header est fixe en haut de viewport ; le contenu et le menu latéral scrollent dessous avec un offset dynamique calculé côté runtime.
+
+### v0.29.39 — recherche globale durcie
 
 - Le champ de recherche globale n’affiche plus le détail navigateur brut `Failed to fetch` : l’opérateur voit un message fonctionnel générique et les résultats locaux groupés restent disponibles.
-- L’appel backend utilise `apiBaseUrl` fourni par `/config.json`, ce qui respecte `OPENINFRA_WEB_PUBLIC_API_BASE_URL` dans les déploiements avec préfixe API personnalisé.
-- Les camemberts du Dashboard passent au couple bleu nuit/fuchsia demandé, avec légende alignée et contrôle de non-régression frontend.
+- L’appel backend utilise `apiBaseUrl` fourni par `/config.json`, ce qui respecte `OPENINFRA_WEB_PUBLIC_API_BASE_URL` dans les déploiements avec préfixe API personnalisé. Les liens de documentation API utilisent `apiDocumentation` et peuvent être surchargés avec `OPENINFRA_WEB_PUBLIC_API_DOCS_BASE_URL`.
 
 ### v0.29.38 — recherche globale backend groupée par composant
 
@@ -22,7 +32,7 @@ OpenInfra est une solution Python orientée objet pour référentiel d'infrastru
 - Le header devient une double barre : navigation produit en haut, recherche globale et accès documentation API dans le second bandeau.
 - Le champ de recherche globale est centré, occupe la moitié de l’espace disponible sur desktop et embarque une loupe SVG cohérente avec le thème.
 - Les résultats de recherche sont groupés par composant OpenInfra afin de garder une lecture claire lorsque plusieurs domaines correspondent.
-- Les boutons `Swagger` et `ReDoc` pointent respectivement vers `/docs` et `/redoc`, sans réintroduire les contrôles Login/Sign-up supprimés précédemment.
+- Les boutons `Swagger` et `ReDoc` utilisent les liens backend API publiés par `/config.json` ; par défaut `openinfra-web` proxyfie `/docs` et `/redoc` vers `openinfra-api`, sans réintroduire les contrôles Login/Sign-up supprimés précédemment.
 - Les textes permanents précédemment issus d’alertes informatives sont retirés du rendu UI ; seules les alertes `warning/error` caractérisées et `success` post-soumission restent visibles.
 
 ### v0.29.36 — openinfra-web contextual alerts only

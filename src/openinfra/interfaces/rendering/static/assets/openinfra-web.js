@@ -1144,7 +1144,7 @@ class OpenInfraDashboard {
       <section class="col-12 col-xxl-8">
         <h2 class="h4">${this.escape(operation.label)}</h2>
         <p class="text-muted">${this.escape(module.description)}</p>
-        <div class="alert alert-info" role="note">Formulaire métier typé : chaque champ correspond à une variable attendue par l’API OpenInfra. Aucun champ générique Attributs n’est demandé à l’opérateur.</div>
+        <p class="text-muted mb-3">Formulaire métier typé : chaque champ correspond à une variable attendue par l’API OpenInfra. Aucun champ générique Attributs n’est demandé à l’opérateur.</p>
         <div class="row g-3 mb-3"><label class="col-md-4 form-label">Tenant<input id="openinfra-tenant" class="form-control" value="${this.escape(this.state.tenant)}" autocomplete="off"></label></div>
         <div class="row g-3">${fields.map((field) => this.renderField(field)).join("") || "<p>Aucun paramètre requis.</p>"}</div>
         <button class="btn btn-primary mt-3" type="button" id="openinfra-execute">Exécuter</button>

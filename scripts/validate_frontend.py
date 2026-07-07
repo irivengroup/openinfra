@@ -151,6 +151,23 @@ class FrontendContractValidator:
                 "web/src/main.jsx must not expose the removed secondary header controls: "
                 + ", ".join(leaked_main)
             )
+        forbidden_default_alerts = (
+            "alert alert-info",
+            'role="note"',
+            'className="alert alert-info"',
+        )
+        leaked_alerts = [
+            fragment for fragment in forbidden_default_alerts if fragment in main_source
+        ]
+        if leaked_alerts:
+            raise FrontendValidationError(
+                "web/src/main.jsx must not render default informational alerts: "
+                + ", ".join(leaked_alerts)
+            )
+        if "submissionCompleted && activeModuleId !== 'overview' &&" not in main_source:
+            raise FrontendValidationError(
+                "web/src/main.jsx must keep success alerts conditional on a form submission"
+            )
         compose = (self._project_root / "compose.yaml").read_text(encoding="utf-8")
         compose_required = (
             "  web:",
@@ -194,7 +211,9 @@ class FrontendContractValidator:
         missing = [name for name in required if not (root / name).is_file()]
         if missing:
             raise FrontendValidationError("missing runtime web assets: " + ", ".join(missing))
-        payload = "\n".join((root / name).read_text(encoding="utf-8") for name in required)
+        assets_by_name = {name: (root / name).read_text(encoding="utf-8") for name in required}
+        payload = "\n".join(assets_by_name.values())
+        runtime_js = assets_by_name["assets/openinfra-web.js"]
         if "Dashboard de pilotage OpenInfra" in payload:
             raise FrontendValidationError("runtime dashboard title must be shortened to Dashboard")
         if "renderOverviewRuntimeMetrics(displayedVersion, config, protectedForms)" not in payload:
@@ -328,6 +347,22 @@ class FrontendContractValidator:
                     "runtime web assets expose a forbidden generic/technical UI fragment: "
                     + forbidden_ui
                 )
+        for forbidden_alert in (
+            "alert alert-info",
+            'role="note"',
+            '<div class="alert alert-info" role="note">',
+        ):
+            if forbidden_alert in runtime_js:
+                raise FrontendValidationError(
+                    "runtime web assets render a default informational alert: " + forbidden_alert
+                )
+        success_condition = (
+            '${result && activeModuleId !== "overview" ? `<div class="alert alert-success"'
+        )
+        if success_condition not in runtime_js:
+            raise FrontendValidationError(
+                "runtime web assets must keep success alerts conditional on form submissions"
+            )
         return required
 
 

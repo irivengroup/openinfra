@@ -1571,3 +1571,7 @@ Le portail web affiche désormais `Dashboard` comme titre d’accueil. Les métr
 ### Avancement v0.29.35 — Ombres de contenu openinfra-web allégées
 
 La version 0.29.35 réduit l’effet shadow des blocs de contenu openinfra-web afin de rendre les pages plus fluides. Les titlebars, métriques, cards, formulaires, synthèses et cartes composants utilisent des variables CSS dédiées plus légères, tandis que le header principal et le menu latéral conservent leurs effets visuels de navigation.
+
+### Avancement v0.29.36 — Alertes openinfra-web contextuelles uniquement
+
+La version 0.29.36 supprime l’alerte informative affichée par défaut sur les pages composant. L’aide de formulaire typé reste visible comme texte indicatif neutre, tandis que les alertes de la zone principale sont réservées aux problèmes caractérisés et aux soumissions effectives. Cette correction P08 réduit le bruit visuel sans supprimer le feedback `success` post-action ni les messages `warning/error`.

@@ -164,7 +164,7 @@ def test_cli_discovery_proxy_enroll_local_and_remote(tmp_path: Path, capsys: obj
             "--scope",
             "site/par1",
             "--version",
-            "0.29.35",
+            "0.29.36",
             "--endpoint-url",
             "https://proxy-par1.example.test/agent",
         ]
@@ -205,7 +205,7 @@ def test_cli_discovery_proxy_enroll_local_and_remote(tmp_path: Path, capsys: obj
                 "--scope",
                 "site/par1",
                 "--version",
-                "0.29.35",
+                "0.29.36",
                 "--endpoint-url",
                 "https://proxy-par1.example.test/agent",
                 "--config-output",
@@ -249,7 +249,7 @@ def test_cli_discovery_proxy_enroll_rejects_non_enterprise(capsys: object) -> No
             "--scope",
             "site/par1",
             "--version",
-            "0.29.35",
+            "0.29.36",
             "--endpoint-url",
             "https://proxy-par1.example.test/agent",
         ]
@@ -369,7 +369,7 @@ def test_cli_discovery_job_authorize_outputs_single_json_document(
                 "--scope",
                 "site/par1",
                 "--version",
-                "0.29.35",
+                "0.29.36",
             ]
         )
         == 0

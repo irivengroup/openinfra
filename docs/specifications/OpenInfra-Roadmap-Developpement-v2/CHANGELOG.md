@@ -1,3 +1,8 @@
+## 0.29.36
+
+- Ajout `TST-P08-WEB-CONTEXTUAL-ALERTS` pour verrouiller l’absence d’alertes informatives affichées par défaut dans openinfra-web.
+- Alignement CDC `REQ-00776` : alertes visibles réservées aux problèmes caractérisés et aux soumissions de formulaire.
+
 ## 0.29.35
 
 - Ajout `TST-P08-WEB-DASHBOARD-SCOPING` pour verrouiller le titre court `Dashboard` et l’isolation du contenu d’accueil dans openinfra-web.

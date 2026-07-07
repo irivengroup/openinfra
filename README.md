@@ -1,8 +1,15 @@
-# OpenInfra v0.29.35
+# OpenInfra v0.29.36
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.35 — openinfra-web réduit l’effet shadow des blocs de contenu pour une expérience visuelle plus fluide, sans modifier le header ni le menu latéral.**
+**Version courante : 0.29.36 — openinfra-web supprime les alertes informatives affichées par défaut sur les pages composant ; les alertes restent réservées aux erreurs et aux soumissions réellement exécutées.**
+
+### v0.29.36 — openinfra-web contextual alerts only
+
+- Les pages composant n’affichent plus d’alerte informative par défaut pour signaler que le formulaire est typé.
+- Le message reste visible comme texte indicatif neutre, sans `alert-info` ni `role="note"`.
+- Les alertes visibles restent contextuelles : `warning/error` lors d’un problème caractérisé et `success` uniquement après soumission effective d’un formulaire.
+- Le validateur frontend et les tests d’intégration verrouillent l’absence d’alerte informative runtime par défaut.
 
 ### v0.29.35 — openinfra-web content shadow refinement
 

@@ -1,3 +1,10 @@
+## 0.29.36 - 2026-07-07
+
+- Removed the default informational `alert-info` block from openinfra-web component pages.
+- Kept the typed-form guidance as neutral muted text so operators still receive context without a false status/event signal.
+- Preserved contextual alerts: warnings/errors remain visible for characterized problems and the success alert remains conditional on an executed form submission.
+- Extended frontend validation and web integration tests to forbid `alert alert-info` and `role="note"` in runtime UI assets.
+
 ## 0.29.35 - 2026-07-07
 
 - Reduced content block shadows in `openinfra-web` for a lighter, more fluid visual hierarchy.

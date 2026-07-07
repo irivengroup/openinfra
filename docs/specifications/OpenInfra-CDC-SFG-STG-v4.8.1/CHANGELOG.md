@@ -1,3 +1,9 @@
+## 0.29.36
+
+- Ajout `REQ-00776` et `TST-WEB-079` : suppression des alertes informatives affichées par défaut sur les pages composant openinfra-web.
+- Le contenu d’aide formulaire reste indicatif mais n’est plus rendu comme `alert-info` ou `role="note"`.
+- Les alertes visibles restent réservées aux problèmes caractérisés et aux soumissions de formulaire réussies.
+
 - Ajout REQ-00773 pour la vérification locale CLI des fichiers d’enrôlement proxy Discovery Enterprise.
 - Ajout TST-DISCOVERY-076 pour valider édition Enterprise, schéma, résultats backend, permissions 0600 et mode --allow-partial.
 - Ajout REQ-00771 pour l’enrôlement CLI direct des proxies Discovery Enterprise auprès des backends.

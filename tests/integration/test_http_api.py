@@ -244,7 +244,7 @@ class TestHttpApi:
                     "kind": "site-proxy",
                     "certificate_fingerprint": "a" * 64,
                     "scopes": ["site/par1"],
-                    "version": "0.29.35",
+                    "version": "0.29.36",
                     "endpoint_url": "https://proxy-par1.example.test/agent",
                 },
                 token=token,

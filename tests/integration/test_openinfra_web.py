@@ -136,6 +136,18 @@ class TestOpenInfraWeb:
         assert "IT Ressources Management" in static_js
         assert "/v1/itrm/objects" in static_js
         assert "Backend prêt" not in static_js
+        assert "alert alert-info" not in static_js
+        assert 'role="note"' not in static_js
+        assert '<div class="alert alert-info"' not in static_js
+        assert "alert alert-info" not in main_js
+        assert 'role="note"' not in main_js
+        assert "Formulaire métier typé : chaque champ correspond" in static_js
+        assert "Formulaire métier typé : chaque champ correspond" in main_js
+        success_condition = (
+            'result && activeModuleId !== "overview" ? `<div class="alert alert-success"'
+        )
+        assert success_condition in static_js
+        assert "submissionCompleted && activeModuleId !== 'overview' &&" in main_js
         assert "Soumission exécutée avec succès" in static_js
         assert "openinfra-accordion" in static_js + static_css
         assert "Statistiques des composants OpenInfra" in static_js

@@ -55,7 +55,7 @@ def _payload() -> dict[str, object]:
         "kind": "site-proxy",
         "certificate_fingerprint": "a" * 64,
         "scopes": ["site/par1"],
-        "version": "0.29.35",
+        "version": "0.29.36",
         "vault_secret_ref": None,
         "endpoint_url": "https://proxy-par1.example.test/agent",
     }
@@ -251,7 +251,7 @@ def test_proxy_enrollment_payload_factory_keeps_values_internal() -> None:
         kind="network-proxy",
         certificate_fingerprint="b" * 64,
         scope=("site/par1", "vrf/prod"),
-        version="0.29.35",
+        version="0.29.36",
         vault_secret_ref=_vault_ref(),
         endpoint_url="https://proxy-par1.example.test/agent",
     )
@@ -264,7 +264,7 @@ def test_proxy_enrollment_payload_factory_keeps_values_internal() -> None:
         "kind": "network-proxy",
         "certificate_fingerprint": "b" * 64,
         "scopes": ["site/par1", "vrf/prod"],
-        "version": "0.29.35",
+        "version": "0.29.36",
         "vault_secret_ref": "vault://openinfra/discovery/proxy/par1",
         "endpoint_url": "https://proxy-par1.example.test/agent",
     }
@@ -278,7 +278,7 @@ def test_proxy_enrollment_payload_factory_rejects_empty_scopes() -> None:
         kind="site-proxy",
         certificate_fingerprint="c" * 64,
         scope=(),
-        version="0.29.35",
+        version="0.29.36",
         vault_secret_ref=None,
         endpoint_url="https://proxy-par1.example.test/agent",
     )

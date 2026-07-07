@@ -105,3 +105,4 @@ Le portail openinfra-web doit remplacer les couleurs basic Bootstrap par une cha
 Les blocs de contenu du portail openinfra-web doivent utiliser une ombre portée plus légère que les effets de navigation, afin de rendre les pages plus fluides visuellement. La correction cible les titlebars, cartes, métriques, formulaires, synthèses et cartes composants ; le header principal et le menu latéral conservent leurs effets existants.
 
 **Acceptation :** Les assets CSS exposent `--openinfra-content-shadow` et `--openinfra-content-shadow-hover`; les blocs de contenu utilisent ces variables dédiées ; les validateurs frontend et tests web empêchent un retour aux ombres trop fortes sur les cards et composants.
+- **REQ-00776** — Les pages composant openinfra-web ne doivent pas afficher d’alerte informative ou succès par défaut ; les alertes visibles doivent être strictement contextuelles.

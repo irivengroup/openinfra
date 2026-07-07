@@ -419,6 +419,10 @@ Le framework de migration legacy reste dans le bounded context import afin de r�
 `IpamModelService.topology` construit un graphe opérationnel lecture seule à partir du repository IPAM : VRF, agrégats, préfixes, plages, adresses, réservations, VLAN/VXLAN, ASN/BGP et observations DNS/DHCP. Le rapport expose `nodes`, `edges`, `summary` et `integrity`, et journalise `ipam.topology.generated` sans introduire de stockage parallèle.
 
 
+## Web UX contextual alerts v0.29.36
+
+La version `0.29.36` supprime l’alerte informative affichée par défaut sur les pages composant `openinfra-web`. Le message de contexte du formulaire métier reste rendu comme texte indicatif neutre, afin de ne pas assimiler une aide statique à un événement opérationnel. Les alertes de la zone principale sont désormais strictement contextuelles : `warning/error` pour un problème caractérisé et `success` uniquement après une soumission effective de formulaire. Le validateur frontend interdit `alert alert-info` et `role="note"` dans les sources UI runtime pour empêcher toute régression.
+
 ## Discovery Enterprise proxy enrollment verification v0.29.35
 
 La version `0.29.35` complète le cycle d’exploitation de l’enrôlement proxy Enterprise. La CLI expose `openinfra discovery proxy-enroll-verify` pour relire un fichier produit par `openinfra discovery proxy-enroll --config-output`, vérifier qu’il reste réservé à Enterprise, contrôler son schéma JSON, les backends enregistrés, les codes HTTP, les réponses backend et les permissions POSIX `0600`. La validation est locale et déterministe : elle ne ré-appelle pas les backends, afin de permettre les diagnostics offline et les contrôles CI/CD sur artefact d’enrôlement. L’option `--allow-partial` conserve les erreurs de schéma mais transforme un enrôlement backend partiel en avertissement pour les opérations HA.

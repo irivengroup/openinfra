@@ -37,6 +37,8 @@ const MODULES = [
   { id: 'dcim', label: 'DCIM', icon: 'home', operations: [
     { id: 'dcim-locate-equipment', label: 'Localiser un équipement', path: '/v1/dcim/locations', method: 'POST', fields: ['Opérateur', 'Numéro d’actif', 'Nom équipement', 'Site', 'Bâtiment', 'Étage', 'Salle', 'Zone', 'Ligne salle', 'Colonne salle', 'Rack', 'Position U', 'Face rack', 'Hauteur U', 'Coordonnée X', 'Coordonnée Y', 'Coordonnée Z'] },
     { id: 'dcim-rack-capacity', label: 'Capacité rack', path: '/v1/dcim/rack-capacity', method: 'GET', fields: ['Site', 'Bâtiment', 'Salle', 'Rack'] },
+    { id: 'dcim-room-plan', label: 'Plan de salle', path: '/v1/dcim/room-plan', method: 'GET', fields: ['Site', 'Bâtiment', 'Salle', 'Format rendu'] },
+    { id: 'dcim-rack-elevation', label: 'Élévation rack', path: '/v1/dcim/rack-elevation', method: 'GET', fields: ['Site', 'Bâtiment', 'Salle', 'Rack', 'Face rack', 'Format rendu'] },
   ] },
   { id: 'discovery', label: 'Discovery', icon: 'activity', operations: [{ id: 'collectors-register', label: 'Enregistrer un agent proxy Enterprise', path: '/v1/discovery/collectors', method: 'POST', fields: ['Opérateur', 'Nom agent proxy', 'Type', 'Empreinte certificat', 'Scopes autorisés', 'Version agent', 'Endpoint mTLS'] }] },
   { id: 'security', label: 'Sécurité / RBAC / Audit', shortLabel: 'Sécurité', icon: 'shield', operations: [{ id: 'audit-events', label: 'Événements d’audit', path: '/v1/audit/events', method: 'GET', fields: ['Action', 'Type cible', 'Limite'] }] },

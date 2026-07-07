@@ -203,6 +203,12 @@ Le comportement reste compatible : sans règle active applicable, les mises à j
 
 
 
+## v0.29.27 — P10 DCIM élévation rack dashboard
+
+La version 0.29.27 complète la parité web de la visualisation DCIM : `openinfra-web` expose l’opération `Élévation rack` directement adossée au contrat `GET /api/v1/dcim/rack-elevation`. Le navigateur ne réimplémente aucun calcul d’occupation U ; il transmet uniquement site, bâtiment, salle, rack, face et format au backend via le proxy same-origin, puis affiche la réponse du service de visualisation.
+
+Le formulaire `Plan de salle` expose également le paramètre `format`, ce qui rend explicites les rendus `json`, `svg` et `html` déjà supportés par le domaine `RoomPlan2D` et par l’API HTTP. Les champs métier de lecture DCIM sont déclarés requis dans le catalogue runtime afin de limiter les appels incomplets dès l’interface opérateur tout en conservant la validation serveur comme autorité.
+
 ## v0.29.26 — P10 DCIM localisation équipement API/UI
 
 La version 0.29.26 rend la localisation et la relocalisation d’équipement DCIM consommables par API HTTP et par `openinfra-web`, sans créer de chemin parallèle au service applicatif `DcimLocationService`. Le contrat `POST /api/v1/dcim/locations` applique les mêmes invariants que la CLI `openinfra dcim locate` : site, bâtiment, salle, ligne et colonne obligatoires ; étage, zone, rack, face, position U, hauteur U et coordonnées X/Y/Z optionnels mais validés lorsqu’ils sont fournis.

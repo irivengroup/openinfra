@@ -1514,3 +1514,10 @@ Le dashboard d’accueil ne présente plus l’alerte succès permanente `Backen
 - Le contrat public renvoie `asset_tag`, `name` et une localisation sérialisée avec site, bâtiment, étage, salle, ligne, colonne, zone, rack, position U, face, hauteur U, coordonnées XYZ et libellé lisible.
 - Le dashboard web ajoute le formulaire **Localiser un équipement** via le BFF existant, sans jeton opérateur côté navigateur.
 - Le discovery API, OpenAPI, CDC, roadmap et tests verrouillent le contrat P10 par `REQ-00763` et `TST-P10-DCIM-LOCATION-API`.
+
+### Avancement v0.29.27 — P10 élévation rack DCIM dashboard
+
+- `openinfra-web` expose l’opération **Élévation rack** alignée sur `GET /api/v1/dcim/rack-elevation`.
+- Le formulaire web demande les champs métier Site, Bâtiment, Salle, Rack, Face rack et Format rendu, puis relaie la requête via le BFF existant.
+- Le formulaire **Plan de salle** expose aussi le choix `Format rendu` pour les sorties `json`, `svg` et `html` supportées par le service DCIM.
+- La roadmap P10 ajoute `TST-P10-DCIM-RACK-ELEVATION-WEB` et aligne `REQ-00764`.

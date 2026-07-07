@@ -35,3 +35,4 @@ TST-P09-ITRM-AS-OF-AUDIT,P09,ITRM historique as-of et audit objet,"Service, CLI,
 TST-P09-ITRM-RECONCILIATION,P09,ITRM réconciliation gouvernée,"Valider dry-run, apply contrôlé, conflits non autoritatifs et audit objet.",Automatisé service/API/CLI/frontend
 TST-P09-ITRM-RESOURCE-TAXONOMY,P09,ITRM taxonomie catégories/types DC,"Valider catalogue catégories/types, filtrage type par catégorie, API/CLI/web et compatibilité legacy.",Automatisé service/API/CLI/frontend
 TST-P10-DCIM-LOCATION-API,P10,DCIM localisation équipement API/UI,"Valider API HTTP, dashboard, OpenAPI et absence de régression des contraintes localisation/rack.",Automatisé API/frontend
+TST-P10-DCIM-RACK-ELEVATION-WEB,P10,DCIM élévation rack dashboard,"Valider formulaire web Élévation rack, champs face/format, route backend réelle et parité avec /api/v1/dcim/rack-elevation.",Frontend/API/Regression

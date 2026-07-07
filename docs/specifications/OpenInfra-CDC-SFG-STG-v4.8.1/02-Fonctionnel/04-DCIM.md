@@ -115,6 +115,12 @@ Le DCIM doit exposer la localisation et la relocalisation d’un équipement par
 
 **Acceptation :** Un équipement peut être localisé par `POST /api/v1/dcim/locations` et par le dashboard sans contourner les contrôles de conflit rack/U ni les règles ligne/colonne obligatoires.
 
+### REQ-00764
+
+Le DCIM doit exposer l’élévation rack dans le dashboard opérateur en réutilisant le contrat API `GET /api/v1/dcim/rack-elevation`, avec sélection explicite du rack, de la face et du format de rendu.
+
+**Acceptation :** Le dashboard contient l’opération `Élévation rack`, les champs Site/Bâtiment/Salle/Rack/Face rack/Format rendu, et transmet la requête au backend sans recalculer l’occupation U côté navigateur.
+
 ## Critères d’acceptation
 
 La capacité est acceptée si les scénarios nominaux, erreurs, droits insuffisants, conflits et imports/exports sont validés par tests automatisés et si les journaux d’audit permettent de reconstituer les opérations.

@@ -1,3 +1,10 @@
+## 0.29.27 - 2026-07-07
+
+- Added the `Élévation rack` dashboard operation for `GET /api/v1/dcim/rack-elevation`, including rack face and render format selection.
+- Added render format selection to the `Plan de salle` dashboard operation so operators can request JSON, SVG or HTML wrappers from the existing DCIM visualization API.
+- Tightened DCIM dashboard query fields for rack capacity, room plan, rack elevation and cable trace with required business inputs.
+- Updated frontend validation, web regression tests, documentation, CDC and roadmap for P10 rack elevation UI parity.
+
 ## 0.29.26 - 2026-07-07
 
 - Added `POST /api/v1/dcim/locations` to locate or relocate DCIM equipment through the existing location service.

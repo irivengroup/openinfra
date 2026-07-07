@@ -1,4 +1,4 @@
-# OpenInfra Web v0.29.26
+# OpenInfra Web v0.29.27
 
 OpenInfra Web est le portail `openinfra-web` API-only. Il sert l'interface React/Bootstrap 5, expose un proxy applicatif `/api/*` vers le backend `openinfra-api` et fournit un dashboard de pilotage aligné sur les domaines CLI.
 
@@ -41,9 +41,15 @@ Le service Compose `openinfra-web` dépend de `api:8080`, écoute par défaut su
 L'unité `openinfra-web.service` lance `openinfra-web` depuis le virtualenv géré par l'installateur et lit sa configuration via `EnvironmentFile=/etc/openinfra/openinfra.conf`, chemin compatible pointant vers `/opt/openinfra/config/openinfra.conf`.
 
 
+## v0.29.27 — élévation rack DCIM dans le dashboard
+
+Le dashboard expose désormais l’opération **Élévation rack** adossée à `GET /api/v1/dcim/rack-elevation`. Le formulaire couvre le site, le bâtiment, la salle, le rack, la face `front/rear` et le format de rendu `json/svg/html`. L’opération réutilise le proxy API same-origin et le service de visualisation DCIM existant : aucune logique de placement ni d’occupation U n’est recalculée côté navigateur.
+
+Le formulaire **Plan de salle** expose également le choix du format de rendu `json/svg/html`, afin de rendre la parité dashboard/API explicite pour les plans 2D.
+
 ## v0.29.26 — localisation équipement DCIM API/UI
 
-Le dashboard expose désormais l’opération **Localiser un équipement** adossée à `POST /api/v1/dcim/locations`. Le formulaire couvre l’identification d’actif, la salle, la ligne, la colonne, le rack, la face, la position U, la hauteur U et les coordonnées XYZ optionnelles. L’appel passe par le proxy API existant et conserve les validations métier DCIM côté serveur.
+Le dashboard expose l’opération **Localiser un équipement** adossée à `POST /api/v1/dcim/locations`. Le formulaire couvre l’identification d’actif, la salle, la ligne, la colonne, le rack, la face, la position U, la hauteur U et les coordonnées XYZ optionnelles. L’appel passe par le proxy API existant et conserve les validations métier DCIM côté serveur.
 
 ## v0.29.25 — taxonomie ITRM et filtres dynamiques
 

@@ -1,3 +1,10 @@
+## v2 / OpenInfra 0.29.27
+
+- P10 renforcé : élévation rack DCIM exposée dans `openinfra-web` via le contrat existant `/api/v1/dcim/rack-elevation`.
+- Ajout du choix de format `json/svg/html` aux formulaires web Plan de salle et Élévation rack.
+- Ajout de `TST-P10-DCIM-RACK-ELEVATION-WEB` pour verrouiller la parité dashboard/API et l’absence de logique métier d’occupation U côté navigateur.
+- Alignement CDC `REQ-00764`.
+
 ## v2 / OpenInfra 0.29.26
 
 - P10 renforcé : localisation/relocalisation d’équipement DCIM exposée par API HTTP et dashboard web.

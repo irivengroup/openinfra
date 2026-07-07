@@ -61,6 +61,9 @@ class FrontendContractValidator:
             or "RESOURCE_TAXONOMY" not in main_source
             or "Localiser un équipement" not in main_source
             or "/v1/dcim/locations" not in main_source
+            or "Élévation rack" not in main_source
+            or "/v1/dcim/rack-elevation" not in main_source
+            or "Format rendu" not in main_source
             or "Face rack" not in main_source
             or "Token API" in main_source
         ):
@@ -160,6 +163,9 @@ class FrontendContractValidator:
             "resource_type",
             "Localiser un équipement",
             "/v1/dcim/locations",
+            "Élévation rack",
+            "/v1/dcim/rack-elevation",
+            "Format rendu",
             "Face rack",
         ):
             if fragment not in payload:

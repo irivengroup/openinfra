@@ -238,9 +238,10 @@ const OPENINFRA_MODULES = [
       { name: "y", label: "Coordonnée Y", type: "number", placeholder: "2.50" },
       { name: "z", label: "Coordonnée Z", type: "number", placeholder: "0.00" }
     ] },
-    { id: "dcim-rack-capacity", label: "Capacité rack", method: "GET", path: "/v1/dcim/rack-capacity", query: [{ name: "site", label: "Site" }, { name: "building", label: "Bâtiment" }, { name: "room", label: "Salle" }, { name: "rack", label: "Rack" }] },
-    { id: "dcim-room-plan", label: "Plan de salle", method: "GET", path: "/v1/dcim/room-plan", query: [{ name: "site", label: "Site" }, { name: "building", label: "Bâtiment" }, { name: "room", label: "Salle" }] },
-    { id: "dcim-cable-trace", label: "Tracer un câble", method: "GET", path: "/v1/dcim/cable-trace", query: [{ name: "cable_id", label: "Identifiant câble", placeholder: "CAB-000123" }] }
+    { id: "dcim-rack-capacity", label: "Capacité rack", method: "GET", path: "/v1/dcim/rack-capacity", query: [{ name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "room", label: "Salle", required: true }, { name: "rack", label: "Rack", required: true }] },
+    { id: "dcim-room-plan", label: "Plan de salle", method: "GET", path: "/v1/dcim/room-plan", query: [{ name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "room", label: "Salle", required: true }, { name: "format", label: "Format rendu", type: "select", options: ["json", "svg", "html"], defaultValue: "json" }] },
+    { id: "dcim-rack-elevation", label: "Élévation rack", method: "GET", path: "/v1/dcim/rack-elevation", query: [{ name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "room", label: "Salle", required: true }, { name: "rack", label: "Rack", required: true }, { name: "face", label: "Face rack", type: "select", options: ["front", "rear"], defaultValue: "front" }, { name: "format", label: "Format rendu", type: "select", options: ["json", "svg", "html"], defaultValue: "json" }] },
+    { id: "dcim-cable-trace", label: "Tracer un câble", method: "GET", path: "/v1/dcim/cable-trace", query: [{ name: "cable_id", label: "Identifiant câble", required: true, placeholder: "CAB-000123" }] }
   ] },
   { id: "discovery", label: "Discovery", icon: "activity", description: "Collecte backend locale en Lite/Pro ; agents proxy collectors Enterprise uniquement en topologie étoile.", operations: [
     { id: "collectors-list", label: "Lister les agents proxy Enterprise", method: "GET", path: "/v1/discovery/collectors", query: [{ name: "scope", label: "Scope autorisé" }, FIELD_SETS.limit] },

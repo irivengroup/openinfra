@@ -1,3 +1,9 @@
+## Delta v0.29.27 — élévation rack DCIM dans le dashboard
+
+- Ajout de `REQ-00764` et `TST-DCIM-067` : élévation rack DCIM exposée dans le dashboard via le contrat existant `GET /api/v1/dcim/rack-elevation`.
+- Ajout du choix `Format rendu` sur `Plan de salle` et `Élévation rack` pour les rendus `json`, `svg` et `html`.
+- Conservation du calcul d’occupation rack côté service de visualisation DCIM ; le navigateur ne porte aucune logique métier d’occupation U.
+
 ## Delta v0.29.26 — localisation équipement DCIM API/UI
 
 - Ajout de `REQ-00763` et `TST-DCIM-066` : localisation/relocalisation équipement DCIM par API HTTP et formulaire web.

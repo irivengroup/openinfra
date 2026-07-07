@@ -1,3 +1,9 @@
+## Delta v0.29.27 — élévation rack DCIM dans le dashboard
+
+- Ajout de l’exigence `REQ-00764` pour exposer l’élévation rack DCIM dans `openinfra-web` via le contrat existant `GET /api/v1/dcim/rack-elevation`.
+- Ajout du test `TST-DCIM-067` couvrant la présence du formulaire web, les champs `Face rack` et `Format rendu`, la route backend réelle et la validation frontend.
+- Ajout du choix de format `json/svg/html` au formulaire `Plan de salle` afin d’aligner explicitement les rendus API et dashboard.
+
 ## Delta v0.29.26 — localisation équipement DCIM API/UI
 
 - Ajout de l’exigence `REQ-00763` pour exposer la localisation et relocalisation d’équipement DCIM par `POST /api/v1/dcim/locations` et formulaire web.

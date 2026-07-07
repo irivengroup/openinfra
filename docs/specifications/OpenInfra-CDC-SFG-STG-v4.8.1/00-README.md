@@ -197,3 +197,10 @@ L'installateur doit valider ce fichier avant toute action système, produire un 
 - Ajout `REQ-00791` : le badge d’édition affiché après le logo OpenInfra ne doit pas hériter du fond bleu Bootstrap `text-bg-primary`.
 - Le gabarit du badge reste inchangé via la classe Bootstrap `badge`, mais le fond est forcé par un sélecteur dédié fuchsia dégradé sans composante bleue.
 - Le mode d’authentification reste non affiché comme badge permanent.
+
+
+## v0.29.49 — Badge édition fuchsia très foncé
+
+- Ajout `REQ-00792` : le badge d’édition affiché après le logo OpenInfra doit utiliser un dégradé fuchsia très foncé, tirant vers prune chaud/bruné sans devenir marron.
+- Le gabarit Bootstrap `badge` reste inchangé : aucune modification de padding, hauteur, largeur minimale ou taille de police.
+- Le mode d’authentification reste non affiché comme badge permanent.

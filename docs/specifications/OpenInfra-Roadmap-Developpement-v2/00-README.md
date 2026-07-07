@@ -1,3 +1,4 @@
+- v0.29.49 : P08/EPIC-0805 ajuste le badge édition avec un dégradé fuchsia très foncé tirant vers prune chaud/bruné sans devenir marron, tout en conservant le gabarit Bootstrap.
 - v0.29.48 : P08/EPIC-0805 corrige le badge édition pour garantir un dégradé fuchsia effectif, sans héritage bleu `text-bg-primary`, tout en conservant le gabarit Bootstrap.
 - v0.29.48 : P08/EPIC-0805 déplace le badge édition dans le header principal, retire le badge visible du mode d’authentification et applique un fond fuchsia dégradé sans changer le gabarit.
 - v0.29.46 : P08/EPIC-0805 ajoute l’accessibilité critique openinfra-web : skip-link, états ARIA, recherche globale annonçable et focus contenu principal.

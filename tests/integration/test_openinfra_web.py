@@ -175,9 +175,15 @@ class TestOpenInfraWeb:
         assert "Ouvrir ReDoc backend API" in static_js + main_js
         assert "openinfra-api-doc-actions" in static_js + static_css
         assert "openinfra-edition-badge" in static_js + static_css + main_js
-        assert "var(--openinfra-fuchsia) 0%, #ff2bd6 52%, #c000a8 100%" in static_css
+        edition_badge_rule = static_css.split(".badge.openinfra-edition-badge", 1)[1].split("}", 1)[0]
+        assert "#2a0015 0%, #4b001f 46%, #6a1430 100%" in edition_badge_rule
+        assert "#ff2bd6" not in edition_badge_rule
+        assert "#c000a8" not in edition_badge_rule
+        assert "var(--openinfra-fuchsia)" not in edition_badge_rule
+        assert "#a52a2a" not in edition_badge_rule
+        assert "brown" not in edition_badge_rule.lower()
         assert "badge text-bg-primary openinfra-edition-badge" not in static_js + main_js
-        assert "var(--openinfra-action)) !important;" not in static_css.split(".badge.openinfra-edition-badge", 1)[1].split("}", 1)[0]
+        assert "var(--openinfra-action)) !important;" not in edition_badge_rule
         assert "config?.edition || \"runtime\")}</span>" in static_js
         assert "config?.authMode || \"standard\")}</span>" not in static_js
         assert "config.authMode || 'standard'" not in main_js

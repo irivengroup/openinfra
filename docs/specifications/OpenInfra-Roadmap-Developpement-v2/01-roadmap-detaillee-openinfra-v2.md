@@ -1607,3 +1607,8 @@ La version 0.29.47 renforce EPIC-0805 avec un ajustement UX du header openinfra-
 ### Avancement v0.29.48 — P08 badge édition fuchsia effectif
 
 La version 0.29.48 corrige la régression visuelle du badge d’édition : l’élément conserve la classe Bootstrap `badge` pour garder exactement le même gabarit, mais n’utilise plus `text-bg-primary`, afin d’éviter tout héritage bleu. Le style `badge.openinfra-edition-badge` force un dégradé fuchsia dédié et la validation frontend vérifie explicitement l’absence de bleu primaire sur ce badge.
+
+
+### Avancement v0.29.49 — P08 badge édition fuchsia très foncé
+
+La version 0.29.49 affine le rendu visuel du badge d’édition sans changer son emplacement ni son gabarit. Le badge conserve la classe Bootstrap `badge`, reste affiché après le logo OpenInfra et applique un dégradé fuchsia très foncé `#2a0015 → #4b001f → #6a1430`, orienté prune chaud/bruné sans rendu marron ni héritage bleu Bootstrap.

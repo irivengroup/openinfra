@@ -64,3 +64,4 @@ REQ-00788,Boutons Swagger/ReDoc réduits de moitié,P08,EPIC-0801,0.29.45,TST-P0
 REQ-00789,Accessibilité navigation/recherche openinfra-web,P08,EPIC-0805,0.29.46,TST-P08-WEB-ACCESSIBLE-NAVIGATION
 REQ-00790,Badge édition dans le header principal sans badge mode authentification,P08,EPIC-0805,0.29.47,TST-P08-WEB-EDITION-BADGE-HEADER
 REQ-00791,Badge édition fuchsia effectif sans héritage bleu Bootstrap,P08,EPIC-0805,0.29.48,TST-P08-WEB-EDITION-BADGE-FUCHSIA
+REQ-00792,Badge édition fuchsia très foncé sans rendu marron,P08,EPIC-0805,0.29.49,TST-P08-WEB-EDITION-BADGE-DARK-FUCHSIA

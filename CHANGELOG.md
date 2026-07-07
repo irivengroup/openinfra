@@ -1,3 +1,9 @@
+### v0.29.49 — openinfra-web badge édition fuchsia très foncé
+
+- Ajuste le badge d’édition affiché après le logo OpenInfra avec un dégradé fuchsia très foncé `#2a0015 → #4b001f → #6a1430`, orienté prune chaud/bruné sans rendu marron.
+- Conserve strictement le gabarit Bootstrap `badge` : aucun changement de padding, hauteur, largeur minimale ou taille de police.
+- Renforce le validateur frontend et les tests d’intégration web pour interdire le retour du bleu Bootstrap, de l’ancien fuchsia clair et d’une couleur marron explicite.
+
 ### v0.29.47 — openinfra-web badge édition header principal
 
 - Déplace l’affichage de l’édition runtime juste après le logo OpenInfra dans la première barre du header.

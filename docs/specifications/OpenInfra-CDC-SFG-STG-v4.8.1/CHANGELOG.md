@@ -1,3 +1,4 @@
+- Ajout `REQ-00792` pour garantir le badge édition fuchsia très foncé, tendant vers prune chaud/bruné sans rendu marron, avec conservation du gabarit Bootstrap `badge`.
 - Ajout `REQ-00791` pour garantir le badge édition fuchsia effectif sans héritage bleu `text-bg-primary`, tout en conservant le gabarit Bootstrap `badge`.
 - Ajout `REQ-00790` pour déplacer le badge édition dans le header principal, retirer l’indication visible du mode d’authentification et appliquer un fond fuchsia dégradé sans modifier le gabarit.
 - Ajout de REQ-00789 et TST-WEB-090 pour verrouiller le skip-link, les états ARIA, la recherche globale annonçable et le focus contenu principal.

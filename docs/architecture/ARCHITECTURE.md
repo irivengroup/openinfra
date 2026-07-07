@@ -515,3 +515,7 @@ La couche interface conserve le modèle API-only/BFF server-side, mais ajoute un
 ## OpenInfra Web — badge édition fuchsia v0.29.48
 
 Le header openinfra-web rend le badge d’édition à côté de la marque OpenInfra sans classe `text-bg-primary`. Cette décision évite l’héritage de la palette bleue Bootstrap tout en conservant le gabarit `.badge`. Le style dédié `badge.openinfra-edition-badge` est synchronisé entre le runtime statique et le frontend React.
+
+## OpenInfra Web — badge édition fuchsia très foncé v0.29.49
+
+Le badge d’édition reste dans le header principal, immédiatement après la marque OpenInfra. Le gabarit `.badge` est conservé sans modification dimensionnelle, mais le fond dédié passe à un dégradé fuchsia très foncé `#2a0015 → #4b001f → #6a1430`. La palette vise un rendu prune chaud/bruné sans utiliser de marron explicite ni de bleu Bootstrap. Les assets statiques et React partagent la même règle CSS afin d’éviter toute divergence runtime/build.

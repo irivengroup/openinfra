@@ -1,4 +1,4 @@
-# OpenInfra Web v0.29.48
+# OpenInfra Web v0.29.49
 
 OpenInfra Web est le portail `openinfra-web` API-only. Il sert l'interface React/Bootstrap 5, expose un proxy applicatif `/api/*` vers le backend `openinfra-api` et fournit un dashboard aligné sur les domaines CLI.
 
@@ -255,6 +255,11 @@ La version 0.29.43 ne modifie pas le contrat visuel du portail web. Les évoluti
 ## v0.29.45 — ITAM visible dans Dashboard/header/sidebar/recherche
 
 Le portail expose ITAM comme composant de premier niveau : carte Dashboard, entrée header, accordéon sidebar et recherche globale. L’icône `asset` est un SVG plein/opaque cohérent avec les autres composants. Les boutons Swagger/ReDoc conservent leur branchement backend mais leur taille est réduite de moitié pour préserver l’équilibre du double header.
+
+
+## v0.29.49 — badge édition fuchsia très foncé
+
+Le badge d’édition conserve sa position après le logo OpenInfra et son gabarit Bootstrap `badge`. Son fond utilise maintenant un dégradé fuchsia très foncé `#2a0015 → #4b001f → #6a1430`, avec une ombre prune cohérente, afin de tendre vers un ton chaud/bruné sans devenir marron ni revenir au bleu Bootstrap.
 
 ## v0.29.48 — badge édition fuchsia effectif
 

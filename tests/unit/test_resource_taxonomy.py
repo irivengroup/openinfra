@@ -12,17 +12,17 @@ class TestResourceTaxonomy:
 
         assert catalog["version"] == "2026.07"
         assert "server" in ResourceTaxonomy.category_values()
-        assert "physical-server" in ResourceTaxonomy.all_type_values()
+        assert "physical-server" not in ResourceTaxonomy.all_type_values()
         assert ResourceTaxonomy.type_values_for_category(" Network_Device ")[0] == "switch"
-        assert ResourceTaxonomy.default_type_for_category("server") == "physical-server"
+        assert ResourceTaxonomy.default_type_for_category("server") == "rack-server"
         assert catalog["legacy_kind_aliases"]["virtual-machine"] == {
             "resource_category": "server",
             "resource_type": "virtual-machine",
         }
-        assert catalog["categories"][0]["default_type"] == "physical-server"
+        assert catalog["categories"][0]["default_type"] == "rack-server"
         assert catalog["categories"][0]["types"][0] == {
-            "value": "physical-server",
-            "label": "Physical server",
+            "value": "rack-server",
+            "label": "Rack server",
         }
 
     def test_classification_accepts_legacy_kind_category_type_and_attributes(self) -> None:
@@ -45,7 +45,7 @@ class TestResourceTaxonomy:
             kind="device",
             resource_category="server",
             resource_type=None,
-        ).as_dict() == {"resource_category": "server", "resource_type": "physical-server"}
+        ).as_dict() == {"resource_category": "server", "resource_type": "rack-server"}
         assert ResourceTaxonomy.classify(
             kind=None,
             resource_category=None,

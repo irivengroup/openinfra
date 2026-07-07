@@ -1,8 +1,16 @@
-# OpenInfra v0.29.28
+# OpenInfra v0.29.29
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.28 — DCIM expose désormais les opérations de câblage terrain dans le dashboard : définition de panneau de brassage, définition de port, connexion de câble et traçage, en complément des vues plan de salle/élévation rack et de la localisation d’équipement.**
+**Version courante : 0.29.29 — DCIM expose désormais les opérations énergie/refroidissement dans le dashboard et dans le document OpenAPI : équipements électriques, circuits, zones froides/chaudes, réservations de puissance et rapport capacité rack.**
+
+### v0.29.29 — énergie/refroidissement DCIM dans le dashboard
+
+- Ajout des opérations web `Définir un équipement électrique`, `Définir un circuit électrique`, `Définir une zone de refroidissement`, `Réserver la puissance équipement` et `Capacité énergie/refroidissement`.
+- Les formulaires sont alignés sur les contrats backend existants `POST /api/v1/dcim/power-devices`, `POST /api/v1/dcim/power-circuits`, `POST /api/v1/dcim/cooling-zones`, `POST /api/v1/dcim/power-reservations` et `GET /api/v1/dcim/energy-cooling-capacity`.
+- Le navigateur ne calcule ni derating, ni redondance A/B, ni marge thermique : ces règles restent portées par le domaine DCIM et le service `DcimEnvironmentService`.
+- Le document de découverte API et `docs/api/openapi.yaml` exposent désormais les routes énergie/refroidissement DCIM.
+- Les sélecteurs ITRM affichent les libellés humains des catégories et types, tandis que les valeurs normalisées restent internes aux payloads API ; les types génériques obsolètes `physical-server` et `disk` sont retirés.
 
 ### v0.29.28 — câblage DCIM dans le dashboard
 
@@ -28,10 +36,10 @@ OpenInfra est une solution Python orientée objet pour référentiel d'infrastru
 ### v0.29.25 — taxonomie ITRM catégories / types
 
 - Ajout d’un catalogue ITRM structuré par catégories : server, personal-computer, monitor-peripheral, network-device, storage, power-supply, rack-facility, cooling, security-safety, telecom, cloud-virtualization, software-service, cable-connectivity, mobile-iot et other.
-- Chaque catégorie expose ses types rattachés, par exemple `server -> physical-server, virtual-machine`, `network-device -> firewall, load-balancer, router, switch` et `storage -> storage-array, disk`.
+- Chaque catégorie expose ses types rattachés, par exemple `server -> rack-server, virtual-machine`, `network-device -> firewall, load-balancer, router, switch` et `storage -> storage-array, hdd, ssd, nvme-drive`.
 - Ajout de `GET /api/v1/itrm/resource-taxonomy` et de `openinfra itrm resource-taxonomy`.
 - Les créations/modifications ITRM valident la cohérence catégorie/type et enrichissent les objets avec `resource_category` et `resource_type`.
-- Le dashboard filtre dynamiquement le champ `Type de ressource` selon la `Catégorie`, via un mécanisme générique réutilisable pour les autres formulaires structurés de la même façon.
+- Le dashboard filtre dynamiquement le champ `Type de ressource` selon la `Catégorie`, via un mécanisme générique réutilisable pour les autres formulaires structurés de la même façon. Les `select` affichent les labels opérateur et transmettent uniquement les valeurs normalisées internes à la solution.
 
 ### v0.29.24 — réconciliation gouvernée ITRM
 

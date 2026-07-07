@@ -519,7 +519,9 @@ def test_itrm_resource_taxonomy_filters_types_and_validates_category_type(tmp_pa
     assert "server" in categories
     assert "network-device" in categories
     assert "power-supply" in categories
-    assert "physical-server" in [item["value"] for item in categories["server"]["types"]]
+    assert "physical-server" not in [item["value"] for item in categories["server"]["types"]]
+    assert "disk" not in [item["value"] for item in categories["storage"]["types"]]
+    assert "Rack server" in [item["label"] for item in categories["server"]["types"]]
     assert "firewall" in [item["value"] for item in categories["network-device"]["types"]]
 
     created = app.it_resources_management_service.upsert_object(
@@ -530,7 +532,7 @@ def test_itrm_resource_taxonomy_filters_types_and_validates_category_type(tmp_pa
             key="server/srv-taxonomy-01",
             kind="server",
             resource_category="server",
-            resource_type="physical-server",
+            resource_type="rack-server",
             display_name="Taxonomy Server",
             attributes_json='{"serial":"TX-01"}',
             tags=("taxonomy",),
@@ -540,9 +542,9 @@ def test_itrm_resource_taxonomy_filters_types_and_validates_category_type(tmp_pa
 
     assert created["kind"] == "server"
     assert created["resource_category"] == "server"
-    assert created["resource_type"] == "physical-server"
+    assert created["resource_type"] == "rack-server"
     assert created["attributes"]["resource_category"] == "server"
-    assert created["attributes"]["resource_type"] == "physical-server"
+    assert created["attributes"]["resource_type"] == "rack-server"
 
     category_page = app.it_resources_management_service.list_objects(
         ListSourceObjectsCommand(
@@ -557,7 +559,7 @@ def test_itrm_resource_taxonomy_filters_types_and_validates_category_type(tmp_pa
         ListSourceObjectsCommand(
             tenant_id="default",
             admin_token=admin_token,
-            resource_type="physical-server",
+            resource_type="rack-server",
         )
     )
     assert [item.key.value for item in type_page.items] == ["server/srv-taxonomy-01"]

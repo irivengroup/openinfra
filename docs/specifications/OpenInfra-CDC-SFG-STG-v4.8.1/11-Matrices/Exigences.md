@@ -87,3 +87,5 @@ Les exigences N1 sont obligatoires. Les exigences N2 structurent les releases su
 - **REQ-00759** — ITRM doit exposer une réconciliation gouvernée permettant de planifier ou appliquer une mise à jour d’objet sans écrasement silencieux des attributs protégés.
 
 - **REQ-00765** — Le dashboard DCIM doit exposer les opérations de câblage terrain patch panel, port et câble via les contrats backend existants.
+- **REQ-00766** — Le dashboard DCIM doit exposer les opérations énergie/refroidissement power devices, circuits, zones, réservations et capacité rack via les contrats backend existants.
+- **REQ-00767** — Les sélecteurs de catégories et types de ressources ITRM doivent afficher les libellés métier, conserver les valeurs normalisées internes et ne plus proposer les types obsolètes `physical-server` et `disk`.

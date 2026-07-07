@@ -155,7 +155,12 @@ class TestOpenInfraWeb:
         assert "Réconcilier une ressource" in static_js
         assert "Catalogue catégories / types" in static_js
         assert "RESOURCE_TAXONOMY" in static_js
-        assert "physical-server" in static_js and "firewall" in static_js
+        assert "physical-server" not in static_js
+        assert "Rack server" in static_js and "Firewall" in static_js
+        assert '"value": "rack-server"' in static_js
+        assert '"label": "Rack server"' in static_js
+        assert "optionLabel(option)" in static_js
+        assert "optionValue(option)" in static_js
         assert "data-options-by-field" in static_js
         assert "resource_type" in static_js
         assert "Token API" not in static_js
@@ -176,6 +181,18 @@ class TestOpenInfraWeb:
         assert "Connecter un câble" in static_js
         assert "Chemin câble" in static_js
         assert "Média câble" in static_js
+        assert 'path: "/v1/dcim/power-devices"' in static_js
+        assert "Définir un équipement électrique" in static_js
+        assert 'path: "/v1/dcim/power-circuits"' in static_js
+        assert "Définir un circuit électrique" in static_js
+        assert 'path: "/v1/dcim/cooling-zones"' in static_js
+        assert "Définir une zone de refroidissement" in static_js
+        assert 'path: "/v1/dcim/power-reservations"' in static_js
+        assert "Réserver la puissance équipement" in static_js
+        assert 'path: "/v1/dcim/energy-cooling-capacity"' in static_js
+        assert "Capacité énergie/refroidissement" in static_js
+        assert "Chaîne électrique" in static_js
+        assert "Capacité froid watts" in static_js
         assert "postgresql://" not in index + static_js + static_css
         assert "OPENINFRA_DATABASE_DSN" not in index + static_js + static_css
         assert public_config == {

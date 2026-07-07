@@ -53,7 +53,6 @@ class ResourceTaxonomy:
             "server",
             "Server",
             (
-                ResourceTypeDefinition("physical-server", "Physical server"),
                 ResourceTypeDefinition("rack-server", "Rack server"),
                 ResourceTypeDefinition("blade-server", "Blade server"),
                 ResourceTypeDefinition("tower-server", "Tower server"),
@@ -123,7 +122,6 @@ class ResourceTaxonomy:
                 ResourceTypeDefinition("san-switch", "SAN switch"),
                 ResourceTypeDefinition("storage-controller", "Storage controller"),
                 ResourceTypeDefinition("storage-shelf", "Storage shelf"),
-                ResourceTypeDefinition("disk", "Disk"),
                 ResourceTypeDefinition("hdd", "HDD"),
                 ResourceTypeDefinition("ssd", "SSD"),
                 ResourceTypeDefinition("nvme-drive", "NVMe drive"),

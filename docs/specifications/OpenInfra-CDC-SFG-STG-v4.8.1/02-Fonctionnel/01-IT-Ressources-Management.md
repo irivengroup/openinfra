@@ -160,3 +160,6 @@ Règles obligatoires :
 5. Les anciens `kind` legacy restent tolérés uniquement pendant la période de migration contrôlée vers ITRM.
 6. Les formulaires web doivent filtrer automatiquement les types selon la catégorie choisie.
 7. Le mécanisme de filtrage dépendant doit être générique et réutilisable par tout composant exposant une structure catégorie/type.
+### Sélecteurs catégorie/type et valeurs internes
+
+Les interfaces opérateur doivent afficher les libellés métier de la taxonomie ITRM dans les listes déroulantes de catégories et de types. Les valeurs techniques normalisées demeurent internes à la solution et sont les seules transmises aux contrats API/CLI. Les types génériques `physical-server` et `disk` sont retirés car les spécialisations `rack-server`, `blade-server`, `tower-server`, `hdd`, `ssd` et `nvme-drive` couvrent explicitement ces cas.

@@ -1,3 +1,14 @@
+
+## 0.29.29
+
+- P10 étendu : dashboard DCIM énergie/refroidissement aligné sur les contrats API existants.
+- P09 renforcé : sélecteurs ITRM label/value, valeurs internes normalisées conservées et retrait des types obsolètes `physical-server`/`disk`.
+## v2 / OpenInfra 0.29.29
+
+- P10 renforcé : opérations énergie/refroidissement DCIM exposées dans `openinfra-web` via les contrats backend existants power devices, circuits, cooling zones, power reservations et capacité rack.
+- Ajout de `TST-P10-DCIM-ENERGY-COOLING-WEB` pour verrouiller les formulaires dashboard, les champs chaîne A/B, watts, derating, disjoncteur, températures et les routes API/OpenAPI réelles.
+- Alignement CDC `REQ-00766`.
+
 ## v2 / OpenInfra 0.29.28
 
 - P10 renforcé : opérations de câblage DCIM exposées dans `openinfra-web` via les contrats backend existants patch panels, ports et câbles.

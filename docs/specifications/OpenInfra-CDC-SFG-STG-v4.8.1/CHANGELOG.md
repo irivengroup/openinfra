@@ -1,3 +1,9 @@
+## Delta v0.29.29 — énergie/refroidissement DCIM dans le dashboard
+
+- Ajout de `REQ-00766` et `TST-DCIM-069` : opérations énergie/refroidissement DCIM exposées dans le dashboard via les contrats existants `POST /api/v1/dcim/power-devices`, `POST /api/v1/dcim/power-circuits`, `POST /api/v1/dcim/cooling-zones`, `POST /api/v1/dcim/power-reservations` et `GET /api/v1/dcim/energy-cooling-capacity`.
+- Ajout des champs opérateur chaîne électrique A/B, capacité watts, derating, calibre disjoncteur, rôle de zone, températures soufflage/retour et puissance attendue.
+- Publication explicite des routes énergie/refroidissement dans le document de découverte API et OpenAPI afin de verrouiller la parité API/UI.
+
 ## Delta v0.29.28 — câblage DCIM dans le dashboard
 
 - Ajout de `REQ-00765` et `TST-DCIM-068` : opérations de câblage DCIM exposées dans le dashboard via les contrats existants `POST /api/v1/dcim/patch-panels`, `POST /api/v1/dcim/ports` et `POST /api/v1/dcim/cables`.

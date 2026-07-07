@@ -1,4 +1,4 @@
-# OpenInfra Web v0.29.28
+# OpenInfra Web v0.29.29
 
 OpenInfra Web est le portail `openinfra-web` API-only. Il sert l'interface React/Bootstrap 5, expose un proxy applicatif `/api/*` vers le backend `openinfra-api` et fournit un dashboard de pilotage aligné sur les domaines CLI.
 
@@ -41,6 +41,12 @@ Le service Compose `openinfra-web` dépend de `api:8080`, écoute par défaut su
 L'unité `openinfra-web.service` lance `openinfra-web` depuis le virtualenv géré par l'installateur et lit sa configuration via `EnvironmentFile=/etc/openinfra/openinfra.conf`, chemin compatible pointant vers `/opt/openinfra/config/openinfra.conf`.
 
 
+## v0.29.29 — énergie/refroidissement DCIM dans le dashboard
+
+Le dashboard expose désormais les opérations **Définir un équipement électrique**, **Définir un circuit électrique**, **Définir une zone de refroidissement**, **Réserver la puissance équipement** et **Capacité énergie/refroidissement**. Ces formulaires appellent exclusivement les contrats backend existants `POST /api/v1/dcim/power-devices`, `POST /api/v1/dcim/power-circuits`, `POST /api/v1/dcim/cooling-zones`, `POST /api/v1/dcim/power-reservations` et `GET /api/v1/dcim/energy-cooling-capacity` via le proxy same-origin.
+
+Les champs opérateur couvrent la chaîne électrique A/B, les capacités en watts, le derating, le calibre disjoncteur, la zone froid/chaud, les températures soufflage/retour et la puissance attendue par actif. Le navigateur reste un client de saisie : les règles de capacité, redondance, derating, réservation et marge thermique restent centralisées côté backend.
+
 ## v0.29.28 — câblage DCIM dans le dashboard
 
 Le dashboard expose désormais les opérations **Définir un panneau de brassage**, **Définir un port DCIM** et **Connecter un câble**. Ces formulaires appellent exclusivement les contrats backend existants `POST /api/v1/dcim/patch-panels`, `POST /api/v1/dcim/ports` et `POST /api/v1/dcim/cables` via le proxy same-origin ; aucun calcul de compatibilité connecteur/média, d’occupation de port ou de conflit d’endpoint n’est réimplémenté côté navigateur.
@@ -59,7 +65,9 @@ Le dashboard expose l’opération **Localiser un équipement** adossée à `POS
 
 ## v0.29.25 — taxonomie ITRM et filtres dynamiques
 
-Le formulaire `Créer / mettre à jour une ressource` sépare désormais la `Catégorie` et le `Type de ressource`. La catégorie pilote dynamiquement la liste des types compatibles : un serveur propose notamment `physical-server`, `rack-server`, `hypervisor-host` et `virtual-machine`, tandis qu’un équipement réseau propose `switch`, `router`, `firewall`, `load-balancer` ou `wireless-access-point`.
+Le formulaire `Créer / mettre à jour une ressource` sépare désormais la `Catégorie` et le `Type de ressource`. La catégorie pilote dynamiquement la liste des types compatibles : un serveur propose notamment `Rack server`, `Hypervisor host` et `Virtual machine`, tandis qu’un équipement réseau propose `Switch`, `Router`, `Firewall`, `Load balancer` ou `Wireless access point`.
+
+Les listes déroulantes affichent les libellés métier (`Rack server`, `Firewall`, `Storage array`, etc.) mais conservent les valeurs techniques normalisées (`rack-server`, `firewall`, `storage-array`) dans les payloads envoyés à l’API. Les types génériques obsolètes `physical-server` et `disk` ne sont plus proposés.
 
 Le même mécanisme de formulaire est générique : tout champ `select` peut déclarer une dépendance `optionsByField` vers un autre champ et fournir une table `optionsMap`. Les futurs objets structurés catégorie/type des autres composants peuvent donc réutiliser ce comportement sans logique spécifique au composant.
 

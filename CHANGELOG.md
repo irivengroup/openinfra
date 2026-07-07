@@ -1,3 +1,12 @@
+## 0.29.29 - 2026-07-07
+
+- Added DCIM power and cooling dashboard operations for power devices, power circuits, cooling zones, power reservations and rack energy/cooling capacity reports.
+- Exposed the existing DCIM environment backend contracts in the API discovery document and OpenAPI specification.
+- Extended frontend validation and web regression tests so energy/cooling UI parity cannot drift away from the HTTP API.
+- Hardened ITRM category/type selectors so the dashboard displays human-readable labels while keeping normalized values internal to API payloads.
+- Removed obsolete `physical-server` and `disk` resource types from the taxonomy; server defaults now start at `rack-server` and storage keeps explicit media types such as `hdd`, `ssd` and `nvme-drive`.
+- Updated CDC, roadmap and documentation for P10 energy/cooling dashboard parity and ITRM taxonomy UX hardening.
+
 ## 0.29.28 - 2026-07-07
 
 - Added DCIM cabling dashboard operations for patch panels, ports and cable connections using the existing `/api/v1/dcim/patch-panels`, `/api/v1/dcim/ports` and `/api/v1/dcim/cables` backend contracts.

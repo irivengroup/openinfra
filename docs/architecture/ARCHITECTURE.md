@@ -203,6 +203,12 @@ Le comportement reste compatible : sans règle active applicable, les mises à j
 
 
 
+## v0.29.29 — P10 DCIM énergie/refroidissement dashboard et OpenAPI
+
+La version 0.29.29 complète la parité opérateur P10/DCIM pour l’énergie et le refroidissement. `openinfra-web` expose les formulaires `Définir un équipement électrique`, `Définir un circuit électrique`, `Définir une zone de refroidissement`, `Réserver la puissance équipement` et `Capacité énergie/refroidissement`, tous adossés au service applicatif existant `DcimEnvironmentService`.
+
+La frontière reste hexagonale : le dashboard collecte les paramètres métier, le BFF relaie vers `/api/v1/dcim/*`, le service applicatif orchestre les ports repository et le domaine conserve les invariants capacité watts, redondance A/B, derating, marge de refroidissement et réservation par actif. Le document de découverte API et `docs/api/openapi.yaml` publient les mêmes contrats afin d’éviter une divergence UI/API.
+
 ## v0.29.28 — P10 DCIM câblage dashboard
 
 La version 0.29.28 complète l’ergonomie P10/DCIM pour les opérations de câblage. `openinfra-web` expose les formulaires `Définir un panneau de brassage`, `Définir un port DCIM` et `Connecter un câble`, tous adossés aux services applicatifs existants `DcimCablingService`. Le navigateur reste un client API : il collecte les paramètres métier et laisse le domaine valider la compatibilité connecteur/média, l’existence des ports, l’occupation des endpoints, le chemin câble et les conflits.

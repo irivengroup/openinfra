@@ -127,6 +127,12 @@ Le dashboard DCIM doit exposer les opérations de câblage terrain permettant de
 
 **Acceptation :** Le dashboard contient les opérations `Définir un panneau de brassage`, `Définir un port DCIM` et `Connecter un câble`, avec les champs endpoints A/B, connecteur, média, statut, chemin câble, longueur et libellé ; les appels passent par `/api/v1/dcim/patch-panels`, `/api/v1/dcim/ports` et `/api/v1/dcim/cables` sans logique métier de compatibilité côté navigateur.
 
+### REQ-00766
+
+Le dashboard DCIM doit exposer les opérations énergie/refroidissement permettant de définir un équipement électrique, définir un circuit électrique, définir une zone de refroidissement, réserver la puissance d’un équipement et consulter la capacité énergie/refroidissement d’un rack via les contrats backend existants.
+
+**Acceptation :** Le dashboard contient les opérations `Définir un équipement électrique`, `Définir un circuit électrique`, `Définir une zone de refroidissement`, `Réserver la puissance équipement` et `Capacité énergie/refroidissement`; elles ciblent `/api/v1/dcim/power-devices`, `/api/v1/dcim/power-circuits`, `/api/v1/dcim/cooling-zones`, `/api/v1/dcim/power-reservations` et `/api/v1/dcim/energy-cooling-capacity` sans réimplémenter les règles de capacité, redondance A/B, derating ou marge thermique côté navigateur.
+
 ## Critères d’acceptation
 
 La capacité est acceptée si les scénarios nominaux, erreurs, droits insuffisants, conflits et imports/exports sont validés par tests automatisés et si les journaux d’audit permettent de reconstituer les opérations.

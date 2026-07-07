@@ -59,6 +59,9 @@ class FrontendContractValidator:
             or "Numéro de série" not in main_source
             or "Catalogue catégories / types" not in main_source
             or "RESOURCE_TAXONOMY" not in main_source
+            or "RESOURCE_CATEGORY_OPTIONS" not in main_source
+            or "Rack server" not in main_source
+            or "physical-server" in main_source
             or "Localiser un équipement" not in main_source
             or "/v1/dcim/locations" not in main_source
             or "Élévation rack" not in main_source
@@ -69,6 +72,16 @@ class FrontendContractValidator:
             or "/v1/dcim/ports" not in main_source
             or "Connecter un câble" not in main_source
             or "/v1/dcim/cables" not in main_source
+            or "Définir un équipement électrique" not in main_source
+            or "/v1/dcim/power-devices" not in main_source
+            or "Définir un circuit électrique" not in main_source
+            or "/v1/dcim/power-circuits" not in main_source
+            or "Définir une zone de refroidissement" not in main_source
+            or "/v1/dcim/cooling-zones" not in main_source
+            or "Réserver la puissance équipement" not in main_source
+            or "/v1/dcim/power-reservations" not in main_source
+            or "Capacité énergie/refroidissement" not in main_source
+            or "/v1/dcim/energy-cooling-capacity" not in main_source
             or "Chemin câble" not in main_source
             or "Format rendu" not in main_source
             or "Face rack" not in main_source
@@ -166,6 +179,10 @@ class FrontendContractValidator:
             "Réconcilier une ressource",
             "Catalogue catégories / types",
             "RESOURCE_TAXONOMY",
+            "RESOURCE_CATEGORY_OPTIONS",
+            "Rack server",
+            "optionLabel(option)",
+            "optionValue(option)",
             "data-options-by-field",
             "resource_type",
             "Localiser un équipement",
@@ -178,6 +195,19 @@ class FrontendContractValidator:
             "/v1/dcim/ports",
             "Connecter un câble",
             "/v1/dcim/cables",
+            "Définir un équipement électrique",
+            "/v1/dcim/power-devices",
+            "Définir un circuit électrique",
+            "/v1/dcim/power-circuits",
+            "Définir une zone de refroidissement",
+            "/v1/dcim/cooling-zones",
+            "Réserver la puissance équipement",
+            "/v1/dcim/power-reservations",
+            "Capacité énergie/refroidissement",
+            "/v1/dcim/energy-cooling-capacity",
+            "Chaîne électrique",
+            "Capacité watts",
+            "Capacité froid watts",
             "Chemin câble",
             "Média câble",
             "Format rendu",
@@ -193,6 +223,7 @@ class FrontendContractValidator:
             raise FrontendValidationError("runtime web assets leak forbidden backend data")
         for forbidden_ui in (
             "Token API",
+            "physical-server",
             "openinfra-method",
             "Search OpenInfra operations",
             "openinfra-search",

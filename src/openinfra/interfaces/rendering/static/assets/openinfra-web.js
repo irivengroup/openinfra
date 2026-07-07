@@ -127,30 +127,650 @@ const OPENINFRA_ICONS = {
 };
 
 const RESOURCE_TAXONOMY = {
-  "server": ["physical-server", "rack-server", "blade-server", "tower-server", "hypervisor-host", "virtual-machine", "container-host", "compute-appliance"],
-  "personal-computer": ["laptop", "desktop", "workstation", "thin-client", "all-in-one", "tablet", "kiosk"],
-  "monitor-peripheral": ["monitor", "keyboard", "mouse", "docking-station", "webcam", "headset", "printer", "scanner", "barcode-scanner", "kvm-console"],
-  "network-device": ["switch", "core-switch", "distribution-switch", "access-switch", "router", "firewall", "load-balancer", "vpn-gateway", "sdwan-edge", "wireless-controller", "wireless-access-point", "proxy-appliance", "wan-accelerator", "network-tap", "packet-broker", "network-interface"],
-  "storage": ["storage-array", "nas-appliance", "san-switch", "storage-controller", "storage-shelf", "disk", "hdd", "ssd", "nvme-drive", "tape-library", "backup-appliance", "object-storage-node"],
-  "power-supply": ["ups", "pdu", "ats", "sts", "rectifier", "inverter", "battery-pack", "power-shelf", "generator", "busway", "power-meter"],
-  "rack-facility": ["rack", "cabinet", "patch-panel", "fiber-panel", "cable-management", "containment", "raised-floor-tile", "sensor-probe", "rack-accessory"],
-  "cooling": ["crac", "crah", "in-row-cooler", "rear-door-heat-exchanger", "chiller", "cooling-tower", "heat-exchanger", "humidifier", "environmental-sensor"],
-  "security-safety": ["cctv-camera", "access-control-reader", "door-controller", "biometric-reader", "fire-panel", "smoke-detector", "leak-detector", "alarm-siren"],
-  "telecom": ["pbx", "voip-gateway", "ip-phone", "conference-phone", "modem", "optical-transponder", "mux", "radio-link"],
-  "cloud-virtualization": ["cloud-account", "cloud-region", "vpc", "cloud-subnet", "security-group", "cloud-load-balancer", "cloud-instance", "cloud-volume", "kubernetes-cluster", "kubernetes-node", "container", "namespace"],
-  "software-service": ["application", "service", "api-service", "web-service", "database-instance", "middleware", "message-broker", "license", "certificate", "dns-zone"],
-  "cable-connectivity": ["copper-cable", "fiber-cable", "patch-cord", "trunk-cable", "transceiver", "sfp-module", "qsfp-module", "patch-cassette"],
-  "mobile-iot": ["smartphone", "rugged-handheld", "iot-gateway", "industrial-controller", "plc", "sensor", "actuator"],
-  "other": ["generic-asset", "unknown-device", "external-resource"]
+  "server": [
+    {
+      "value": "rack-server",
+      "label": "Rack server"
+    },
+    {
+      "value": "blade-server",
+      "label": "Blade server"
+    },
+    {
+      "value": "tower-server",
+      "label": "Tower server"
+    },
+    {
+      "value": "hypervisor-host",
+      "label": "Hypervisor host"
+    },
+    {
+      "value": "virtual-machine",
+      "label": "Virtual machine"
+    },
+    {
+      "value": "container-host",
+      "label": "Container host"
+    },
+    {
+      "value": "compute-appliance",
+      "label": "Compute appliance"
+    }
+  ],
+  "personal-computer": [
+    {
+      "value": "laptop",
+      "label": "Laptop"
+    },
+    {
+      "value": "desktop",
+      "label": "Desktop"
+    },
+    {
+      "value": "workstation",
+      "label": "Workstation"
+    },
+    {
+      "value": "thin-client",
+      "label": "Thin client"
+    },
+    {
+      "value": "all-in-one",
+      "label": "All-in-one"
+    },
+    {
+      "value": "tablet",
+      "label": "Tablet"
+    },
+    {
+      "value": "kiosk",
+      "label": "Kiosk"
+    }
+  ],
+  "monitor-peripheral": [
+    {
+      "value": "monitor",
+      "label": "Monitor"
+    },
+    {
+      "value": "keyboard",
+      "label": "Keyboard"
+    },
+    {
+      "value": "mouse",
+      "label": "Mouse"
+    },
+    {
+      "value": "docking-station",
+      "label": "Docking station"
+    },
+    {
+      "value": "webcam",
+      "label": "Webcam"
+    },
+    {
+      "value": "headset",
+      "label": "Headset"
+    },
+    {
+      "value": "printer",
+      "label": "Printer"
+    },
+    {
+      "value": "scanner",
+      "label": "Scanner"
+    },
+    {
+      "value": "barcode-scanner",
+      "label": "Barcode scanner"
+    },
+    {
+      "value": "kvm-console",
+      "label": "KVM console"
+    }
+  ],
+  "network-device": [
+    {
+      "value": "switch",
+      "label": "Switch"
+    },
+    {
+      "value": "core-switch",
+      "label": "Core switch"
+    },
+    {
+      "value": "distribution-switch",
+      "label": "Distribution switch"
+    },
+    {
+      "value": "access-switch",
+      "label": "Access switch"
+    },
+    {
+      "value": "router",
+      "label": "Router"
+    },
+    {
+      "value": "firewall",
+      "label": "Firewall"
+    },
+    {
+      "value": "load-balancer",
+      "label": "Load balancer"
+    },
+    {
+      "value": "vpn-gateway",
+      "label": "VPN gateway"
+    },
+    {
+      "value": "sdwan-edge",
+      "label": "SD-WAN edge"
+    },
+    {
+      "value": "wireless-controller",
+      "label": "Wireless controller"
+    },
+    {
+      "value": "wireless-access-point",
+      "label": "Wireless access point"
+    },
+    {
+      "value": "proxy-appliance",
+      "label": "Proxy appliance"
+    },
+    {
+      "value": "wan-accelerator",
+      "label": "WAN accelerator"
+    },
+    {
+      "value": "network-tap",
+      "label": "Network TAP"
+    },
+    {
+      "value": "packet-broker",
+      "label": "Packet broker"
+    },
+    {
+      "value": "network-interface",
+      "label": "Network interface"
+    }
+  ],
+  "storage": [
+    {
+      "value": "storage-array",
+      "label": "Storage array"
+    },
+    {
+      "value": "nas-appliance",
+      "label": "NAS appliance"
+    },
+    {
+      "value": "san-switch",
+      "label": "SAN switch"
+    },
+    {
+      "value": "storage-controller",
+      "label": "Storage controller"
+    },
+    {
+      "value": "storage-shelf",
+      "label": "Storage shelf"
+    },
+    {
+      "value": "hdd",
+      "label": "HDD"
+    },
+    {
+      "value": "ssd",
+      "label": "SSD"
+    },
+    {
+      "value": "nvme-drive",
+      "label": "NVMe drive"
+    },
+    {
+      "value": "tape-library",
+      "label": "Tape library"
+    },
+    {
+      "value": "backup-appliance",
+      "label": "Backup appliance"
+    },
+    {
+      "value": "object-storage-node",
+      "label": "Object storage node"
+    }
+  ],
+  "power-supply": [
+    {
+      "value": "ups",
+      "label": "UPS"
+    },
+    {
+      "value": "pdu",
+      "label": "PDU"
+    },
+    {
+      "value": "ats",
+      "label": "Automatic transfer switch"
+    },
+    {
+      "value": "sts",
+      "label": "Static transfer switch"
+    },
+    {
+      "value": "rectifier",
+      "label": "Rectifier"
+    },
+    {
+      "value": "inverter",
+      "label": "Inverter"
+    },
+    {
+      "value": "battery-pack",
+      "label": "Battery pack"
+    },
+    {
+      "value": "power-shelf",
+      "label": "Power shelf"
+    },
+    {
+      "value": "generator",
+      "label": "Generator"
+    },
+    {
+      "value": "busway",
+      "label": "Busway"
+    },
+    {
+      "value": "power-meter",
+      "label": "Power meter"
+    }
+  ],
+  "rack-facility": [
+    {
+      "value": "rack",
+      "label": "Rack"
+    },
+    {
+      "value": "cabinet",
+      "label": "Cabinet"
+    },
+    {
+      "value": "patch-panel",
+      "label": "Patch panel"
+    },
+    {
+      "value": "fiber-panel",
+      "label": "Fiber panel"
+    },
+    {
+      "value": "cable-management",
+      "label": "Cable management"
+    },
+    {
+      "value": "containment",
+      "label": "Containment"
+    },
+    {
+      "value": "raised-floor-tile",
+      "label": "Raised floor tile"
+    },
+    {
+      "value": "sensor-probe",
+      "label": "Sensor probe"
+    },
+    {
+      "value": "rack-accessory",
+      "label": "Rack accessory"
+    }
+  ],
+  "cooling": [
+    {
+      "value": "crac",
+      "label": "CRAC"
+    },
+    {
+      "value": "crah",
+      "label": "CRAH"
+    },
+    {
+      "value": "in-row-cooler",
+      "label": "In-row cooler"
+    },
+    {
+      "value": "rear-door-heat-exchanger",
+      "label": "Rear-door heat exchanger"
+    },
+    {
+      "value": "chiller",
+      "label": "Chiller"
+    },
+    {
+      "value": "cooling-tower",
+      "label": "Cooling tower"
+    },
+    {
+      "value": "heat-exchanger",
+      "label": "Heat exchanger"
+    },
+    {
+      "value": "humidifier",
+      "label": "Humidifier"
+    },
+    {
+      "value": "environmental-sensor",
+      "label": "Environmental sensor"
+    }
+  ],
+  "security-safety": [
+    {
+      "value": "cctv-camera",
+      "label": "CCTV camera"
+    },
+    {
+      "value": "access-control-reader",
+      "label": "Access control reader"
+    },
+    {
+      "value": "door-controller",
+      "label": "Door controller"
+    },
+    {
+      "value": "biometric-reader",
+      "label": "Biometric reader"
+    },
+    {
+      "value": "fire-panel",
+      "label": "Fire panel"
+    },
+    {
+      "value": "smoke-detector",
+      "label": "Smoke detector"
+    },
+    {
+      "value": "leak-detector",
+      "label": "Leak detector"
+    },
+    {
+      "value": "alarm-siren",
+      "label": "Alarm siren"
+    }
+  ],
+  "telecom": [
+    {
+      "value": "pbx",
+      "label": "PBX"
+    },
+    {
+      "value": "voip-gateway",
+      "label": "VoIP gateway"
+    },
+    {
+      "value": "ip-phone",
+      "label": "IP phone"
+    },
+    {
+      "value": "conference-phone",
+      "label": "Conference phone"
+    },
+    {
+      "value": "modem",
+      "label": "Modem"
+    },
+    {
+      "value": "optical-transponder",
+      "label": "Optical transponder"
+    },
+    {
+      "value": "mux",
+      "label": "Multiplexer"
+    },
+    {
+      "value": "radio-link",
+      "label": "Radio link"
+    }
+  ],
+  "cloud-virtualization": [
+    {
+      "value": "cloud-account",
+      "label": "Cloud account"
+    },
+    {
+      "value": "cloud-region",
+      "label": "Cloud region"
+    },
+    {
+      "value": "vpc",
+      "label": "VPC"
+    },
+    {
+      "value": "cloud-subnet",
+      "label": "Cloud subnet"
+    },
+    {
+      "value": "security-group",
+      "label": "Security group"
+    },
+    {
+      "value": "cloud-load-balancer",
+      "label": "Cloud load balancer"
+    },
+    {
+      "value": "cloud-instance",
+      "label": "Cloud instance"
+    },
+    {
+      "value": "cloud-volume",
+      "label": "Cloud volume"
+    },
+    {
+      "value": "kubernetes-cluster",
+      "label": "Kubernetes cluster"
+    },
+    {
+      "value": "kubernetes-node",
+      "label": "Kubernetes node"
+    },
+    {
+      "value": "container",
+      "label": "Container"
+    },
+    {
+      "value": "namespace",
+      "label": "Namespace"
+    }
+  ],
+  "software-service": [
+    {
+      "value": "application",
+      "label": "Application"
+    },
+    {
+      "value": "service",
+      "label": "Service"
+    },
+    {
+      "value": "api-service",
+      "label": "API service"
+    },
+    {
+      "value": "web-service",
+      "label": "Web service"
+    },
+    {
+      "value": "database-instance",
+      "label": "Database instance"
+    },
+    {
+      "value": "middleware",
+      "label": "Middleware"
+    },
+    {
+      "value": "message-broker",
+      "label": "Message broker"
+    },
+    {
+      "value": "license",
+      "label": "License"
+    },
+    {
+      "value": "certificate",
+      "label": "Certificate"
+    },
+    {
+      "value": "dns-zone",
+      "label": "DNS zone"
+    }
+  ],
+  "cable-connectivity": [
+    {
+      "value": "copper-cable",
+      "label": "Copper cable"
+    },
+    {
+      "value": "fiber-cable",
+      "label": "Fiber cable"
+    },
+    {
+      "value": "patch-cord",
+      "label": "Patch cord"
+    },
+    {
+      "value": "trunk-cable",
+      "label": "Trunk cable"
+    },
+    {
+      "value": "transceiver",
+      "label": "Transceiver"
+    },
+    {
+      "value": "sfp-module",
+      "label": "SFP module"
+    },
+    {
+      "value": "qsfp-module",
+      "label": "QSFP module"
+    },
+    {
+      "value": "patch-cassette",
+      "label": "Patch cassette"
+    }
+  ],
+  "mobile-iot": [
+    {
+      "value": "smartphone",
+      "label": "Smartphone"
+    },
+    {
+      "value": "rugged-handheld",
+      "label": "Rugged handheld"
+    },
+    {
+      "value": "iot-gateway",
+      "label": "IoT gateway"
+    },
+    {
+      "value": "industrial-controller",
+      "label": "Industrial controller"
+    },
+    {
+      "value": "plc",
+      "label": "PLC"
+    },
+    {
+      "value": "sensor",
+      "label": "Sensor"
+    },
+    {
+      "value": "actuator",
+      "label": "Actuator"
+    }
+  ],
+  "other": [
+    {
+      "value": "generic-asset",
+      "label": "Generic asset"
+    },
+    {
+      "value": "unknown-device",
+      "label": "Unknown device"
+    },
+    {
+      "value": "external-resource",
+      "label": "External resource"
+    }
+  ]
 };
-const RESOURCE_CATEGORY_OPTIONS = Object.keys(RESOURCE_TAXONOMY);
+const RESOURCE_CATEGORY_OPTIONS = [
+  {
+    "value": "server",
+    "label": "Server"
+  },
+  {
+    "value": "personal-computer",
+    "label": "Personal computer"
+  },
+  {
+    "value": "monitor-peripheral",
+    "label": "Monitor and peripheral"
+  },
+  {
+    "value": "network-device",
+    "label": "Network device"
+  },
+  {
+    "value": "storage",
+    "label": "Storage"
+  },
+  {
+    "value": "power-supply",
+    "label": "Power supply"
+  },
+  {
+    "value": "rack-facility",
+    "label": "Rack and facility"
+  },
+  {
+    "value": "cooling",
+    "label": "Cooling"
+  },
+  {
+    "value": "security-safety",
+    "label": "Security and safety"
+  },
+  {
+    "value": "telecom",
+    "label": "Telecom"
+  },
+  {
+    "value": "cloud-virtualization",
+    "label": "Cloud and virtualization"
+  },
+  {
+    "value": "software-service",
+    "label": "Software and service"
+  },
+  {
+    "value": "cable-connectivity",
+    "label": "Cable and connectivity"
+  },
+  {
+    "value": "mobile-iot",
+    "label": "Mobile and IoT"
+  },
+  {
+    "value": "other",
+    "label": "Other"
+  }
+];
 const SOURCE_OPTIONS = ["manual", "import", "backend-discovery", "enterprise-proxy", "api"];
 
 const FIELD_SETS = {
   tenant: { name: "tenant_id", label: "Tenant", defaultValue: "default", placeholder: "default" },
   limit: { name: "limit", label: "Limite", type: "number", placeholder: "100" },
   resourceCategory: { name: "resource_category", label: "Catégorie", type: "select", options: RESOURCE_CATEGORY_OPTIONS, target: "kind", defaultValue: "server" },
-  resourceType: { name: "resource_type", label: "Type de ressource", type: "select", optionsByField: "resource_category", optionsMap: RESOURCE_TAXONOMY, target: "attributes.resource_type", defaultValue: "physical-server" },
+  resourceType: { name: "resource_type", label: "Type de ressource", type: "select", optionsByField: "resource_category", optionsMap: RESOURCE_TAXONOMY, target: "attributes.resource_type", defaultValue: "rack-server" },
   resourceCategoryFilter: { name: "resource_category", label: "Catégorie", type: "select", options: RESOURCE_CATEGORY_OPTIONS },
   resourceTypeFilter: { name: "resource_type", label: "Type de ressource", type: "select", optionsByField: "resource_category", optionsMap: RESOURCE_TAXONOMY },
   riKind: { name: "kind", label: "Catégorie", type: "select", options: RESOURCE_CATEGORY_OPTIONS },
@@ -244,7 +864,12 @@ const OPENINFRA_MODULES = [
     { id: "dcim-patch-panel", label: "Définir un panneau de brassage", method: "POST", path: "/v1/dcim/patch-panels", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true, placeholder: "PAR1" }, { name: "building", label: "Bâtiment", required: true, placeholder: "BAT-A" }, { name: "room", label: "Salle", required: true, placeholder: "MMR1" }, { name: "rack", label: "Rack", required: true, placeholder: "R01" }, { name: "patch_panel", label: "Panneau de brassage", required: true, placeholder: "PP01" }, { name: "rack_face", label: "Face rack", type: "select", options: ["front", "rear"], defaultValue: "front" }, { name: "u_position", label: "Position U", type: "number", required: true, placeholder: "1" }, { name: "u_height", label: "Hauteur U", type: "number", placeholder: "1" }, { name: "port_count", label: "Nombre de ports", type: "number", required: true, placeholder: "24" }, { name: "connector", label: "Connecteur", type: "select", options: ["rj45", "lc", "sc", "mpo", "sfp", "qsfp"], defaultValue: "rj45" }, { name: "medium", label: "Média câble", type: "select", options: ["copper", "fiber", "dac"], defaultValue: "copper" }, { name: "label", label: "Libellé", placeholder: "Panneau cuivre ToR" }, { name: "port_prefix", label: "Préfixe ports", placeholder: "P" }] },
     { id: "dcim-port", label: "Définir un port DCIM", method: "POST", path: "/v1/dcim/ports", body: [FIELD_SETS.actor, { name: "owner_type", label: "Type propriétaire", type: "select", options: ["equipment", "patch_panel"], defaultValue: "equipment" }, { name: "owner_code", label: "Code propriétaire", required: true, placeholder: "SRV-001" }, { name: "port_name", label: "Nom port", required: true, placeholder: "ETH0" }, { name: "connector", label: "Connecteur", type: "select", options: ["rj45", "lc", "sc", "mpo", "sfp", "qsfp"], defaultValue: "rj45" }, { name: "medium", label: "Média câble", type: "select", options: ["copper", "fiber", "dac"], defaultValue: "copper" }, { name: "site", label: "Site", placeholder: "PAR1" }, { name: "building", label: "Bâtiment", placeholder: "BAT-A" }, { name: "room", label: "Salle", placeholder: "MMR1" }, { name: "enabled", label: "Port actif", type: "boolean", placeholder: "true" }] },
     { id: "dcim-cable", label: "Connecter un câble", method: "POST", path: "/v1/dcim/cables", body: [FIELD_SETS.actor, { name: "cable_id", label: "Identifiant câble", required: true, placeholder: "CAB-000123" }, { name: "a_owner_type", label: "Type propriétaire A", type: "select", options: ["equipment", "patch_panel"], defaultValue: "equipment" }, { name: "a_owner_code", label: "Code propriétaire A", required: true, placeholder: "SRV-001" }, { name: "a_port_name", label: "Port A", required: true, placeholder: "ETH0" }, { name: "b_owner_type", label: "Type propriétaire B", type: "select", options: ["equipment", "patch_panel"], defaultValue: "patch_panel" }, { name: "b_owner_code", label: "Code propriétaire B", required: true, placeholder: "PP01" }, { name: "b_port_name", label: "Port B", required: true, placeholder: "P01" }, { name: "medium", label: "Média câble", type: "select", options: ["copper", "fiber", "dac"], defaultValue: "copper" }, { name: "status", label: "Statut câble", type: "select", options: ["planned", "installed", "retired"], defaultValue: "installed" }, { name: "path_segments", label: "Chemin câble", type: "csv", required: true, placeholder: "Rack R01 manager, Panneau PP01" }, { name: "length_m", label: "Longueur m", type: "number", placeholder: "2.5" }, { name: "label", label: "Libellé", placeholder: "Uplink serveur" }] },
-    { id: "dcim-cable-trace", label: "Tracer un câble", method: "GET", path: "/v1/dcim/cable-trace", query: [{ name: "cable_id", label: "Identifiant câble", required: true, placeholder: "CAB-000123" }] }
+    { id: "dcim-cable-trace", label: "Tracer un câble", method: "GET", path: "/v1/dcim/cable-trace", query: [{ name: "cable_id", label: "Identifiant câble", required: true, placeholder: "CAB-000123" }] },
+    { id: "dcim-power-device", label: "Définir un équipement électrique", method: "POST", path: "/v1/dcim/power-devices", body: [FIELD_SETS.actor, { name: "code", label: "Code équipement électrique", required: true, placeholder: "PDU-A-R01" }, { name: "kind", label: "Type équipement électrique", type: "select", options: ["pdu", "ups"], defaultValue: "pdu" }, { name: "site", label: "Site", required: true, placeholder: "PAR1" }, { name: "building", label: "Bâtiment", required: true, placeholder: "BAT-A" }, { name: "room", label: "Salle", required: true, placeholder: "MMR1" }, { name: "rack", label: "Rack", placeholder: "R01" }, { name: "side", label: "Chaîne électrique", type: "select", options: ["A", "B"] }, { name: "capacity_watts", label: "Capacité watts", type: "number", required: true, placeholder: "5000" }, { name: "derating_percent", label: "Derating %", type: "number", placeholder: "80" }, { name: "input_source", label: "Source amont", placeholder: "utility" }, { name: "output_voltage", label: "Tension sortie V", type: "number", placeholder: "230" }, { name: "label", label: "Libellé", placeholder: "PDU A baie R01" }] },
+    { id: "dcim-power-circuit", label: "Définir un circuit électrique", method: "POST", path: "/v1/dcim/power-circuits", body: [FIELD_SETS.actor, { name: "circuit_id", label: "Identifiant circuit", required: true, placeholder: "CIR-A-R01" }, { name: "source_device", label: "Source électrique", required: true, placeholder: "PDU-A-R01" }, { name: "site", label: "Site", required: true, placeholder: "PAR1" }, { name: "building", label: "Bâtiment", required: true, placeholder: "BAT-A" }, { name: "room", label: "Salle", required: true, placeholder: "MMR1" }, { name: "rack", label: "Rack", required: true, placeholder: "R01" }, { name: "side", label: "Chaîne électrique", type: "select", options: ["A", "B"], defaultValue: "A" }, { name: "capacity_watts", label: "Capacité watts", type: "number", required: true, placeholder: "2000" }, { name: "breaker_rating_amps", label: "Calibre disjoncteur A", type: "number", required: true, placeholder: "16" }, { name: "redundancy_group", label: "Groupe redondance", placeholder: "default" }, { name: "label", label: "Libellé", placeholder: "Circuit A baie R01" }] },
+    { id: "dcim-cooling-zone", label: "Définir une zone de refroidissement", method: "POST", path: "/v1/dcim/cooling-zones", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true, placeholder: "PAR1" }, { name: "building", label: "Bâtiment", required: true, placeholder: "BAT-A" }, { name: "room", label: "Salle", required: true, placeholder: "MMR1" }, { name: "zone", label: "Zone froid/chaud", required: true, placeholder: "Z1" }, { name: "role", label: "Rôle refroidissement", type: "select", options: ["cold_aisle", "hot_aisle", "neutral"], defaultValue: "cold_aisle" }, { name: "cooling_capacity_watts", label: "Capacité froid watts", type: "number", required: true, placeholder: "3000" }, { name: "supply_temperature_c", label: "Température soufflage °C", type: "number", required: true, placeholder: "18" }, { name: "return_temperature_c", label: "Température retour °C", type: "number", required: true, placeholder: "30" }, { name: "label", label: "Libellé", placeholder: "Allée froide A" }] },
+    { id: "dcim-power-reservation", label: "Réserver la puissance équipement", method: "POST", path: "/v1/dcim/power-reservations", body: [FIELD_SETS.actor, { name: "asset_tag", label: "Numéro d’actif", required: true, placeholder: "PAR-SRV-001" }, { name: "circuit_id", label: "Identifiant circuit", required: true, placeholder: "CIR-A-R01" }, { name: "expected_watts", label: "Puissance attendue watts", type: "number", required: true, placeholder: "600" }, { name: "label", label: "Libellé", placeholder: "Réservation alimentation principale" }] },
+    { id: "dcim-energy-cooling-capacity", label: "Capacité énergie/refroidissement", method: "GET", path: "/v1/dcim/energy-cooling-capacity", query: [{ name: "site", label: "Site", required: true, placeholder: "PAR1" }, { name: "building", label: "Bâtiment", required: true, placeholder: "BAT-A" }, { name: "room", label: "Salle", required: true, placeholder: "MMR1" }, { name: "rack", label: "Rack", required: true, placeholder: "R01" }] }
   ] },
   { id: "discovery", label: "Discovery", icon: "activity", description: "Collecte backend locale en Lite/Pro ; agents proxy collectors Enterprise uniquement en topologie étoile.", operations: [
     { id: "collectors-list", label: "Lister les agents proxy Enterprise", method: "GET", path: "/v1/discovery/collectors", query: [{ name: "scope", label: "Scope autorisé" }, FIELD_SETS.limit] },
@@ -512,7 +1137,7 @@ class OpenInfraDashboard {
       const options = this.selectOptionsForField(field);
       const source = field.optionsByField ? ` data-options-by-field="${this.escape(field.optionsByField)}"` : "";
       const map = field.optionsMap ? ` data-options-map="${this.escape(JSON.stringify(field.optionsMap))}"` : "";
-      return `<label class="col-md-6 col-xl-4 form-label">${this.escape(field.label || field.name)}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${source}${map}${required}><option value=""></option>${options.map((option) => `<option value="${this.escape(option)}" ${value === option ? "selected" : ""}>${this.escape(option)}</option>`).join("")}</select></label>`;
+      return `<label class="col-md-6 col-xl-4 form-label">${this.escape(field.label || field.name)}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${source}${map}${required}><option value=""></option>${this.renderOptions(options, value)}</select></label>`;
     }
     if (field.type === "boolean") {
       return `<label class="col-md-6 col-xl-4 form-label">${this.escape(field.label || field.name)}<select class="form-select" data-field="${this.escape(field.name)}"><option value="false">Non</option><option value="true">Oui</option></select></label>`;
@@ -525,8 +1150,30 @@ class OpenInfraDashboard {
     if (!field.optionsByField || !field.optionsMap) {
       return field.options || [];
     }
-    const controller = field.defaultControllerValue || Object.keys(field.optionsMap)[0];
+    const controller = field.defaultControllerValue || this.optionValue((field.controllerOptions || [])[0]) || Object.keys(field.optionsMap)[0];
     return field.optionsMap[controller] || [];
+  }
+
+  renderOptions(options, selectedValue = "") {
+    return options.map((option) => {
+      const value = this.optionValue(option);
+      const label = this.optionLabel(option);
+      return `<option value="${this.escape(value)}" ${selectedValue === value ? "selected" : ""}>${this.escape(label)}</option>`;
+    }).join("");
+  }
+
+  optionValue(option) {
+    if (option && typeof option === "object" && Object.hasOwn(option, "value")) {
+      return String(option.value);
+    }
+    return String(option || "");
+  }
+
+  optionLabel(option) {
+    if (option && typeof option === "object" && Object.hasOwn(option, "label")) {
+      return String(option.label);
+    }
+    return String(option || "");
   }
 
   bindDependentSelects() {
@@ -539,11 +1186,11 @@ class OpenInfraDashboard {
         const selected = dependent.value;
         const optionsMap = JSON.parse(dependent.dataset.optionsMap || "{}");
         const options = optionsMap[source.value] || [];
-        dependent.innerHTML = `<option value=""></option>${options.map((option) => `<option value="${this.escape(option)}">${this.escape(option)}</option>`).join("")}`;
-        if (options.includes(selected)) {
+        dependent.innerHTML = `<option value=""></option>${this.renderOptions(options, selected)}`;
+        if (options.some((option) => this.optionValue(option) === selected)) {
           dependent.value = selected;
         } else if (options.length === 1) {
-          dependent.value = options[0];
+          dependent.value = this.optionValue(options[0]);
         }
       };
       source.addEventListener("change", refresh);

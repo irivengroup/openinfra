@@ -1,3 +1,5 @@
+- Ajout REQ-00770 pour la topologie opérationnelle IPAM consolidée.
+- Ajout TST-IPAM-073 pour valider API, CLI, dashboard, OpenAPI et intégrité du graphe IPAM.
 ## Delta v0.29.31 — IPAM Enterprise++ dashboard
 
 - Ajout REQ-00769 pour l'exposition des opérations IPAM Enterprise++ dans le dashboard.

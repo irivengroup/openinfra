@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.31
+  version: 0.29.32
 components:
   securitySchemes:
     bearerToken:
@@ -1996,6 +1996,15 @@ paths:
         - {name: vrf, in: query, required: false, schema: {type: string}}
       responses:
         '200': {description: Network binding inventory}
+        '400': {description: Validation error}
+  /api/v1/ipam/topology:
+    get:
+      summary: Build an operational IPAM topology graph for one tenant or VRF
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: vrf, in: query, required: false, schema: {type: string}}
+      responses:
+        '200': {description: IPAM topology graph with nodes, edges, summary and integrity}
         '400': {description: Validation error}
   /api/v1/ipam/dns-observations:
     post:

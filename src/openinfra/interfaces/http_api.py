@@ -86,6 +86,7 @@ from openinfra.application.ipam_services import (
     IpamNetworkBindingsCommand,
     IpamReservationWizardCommand,
     IpamSearchCommand,
+    IpamTopologyCommand,
     IpamUiDashboardCommand,
     ObserveDhcpLeaseCommand,
     ObserveDnsRecordCommand,
@@ -936,6 +937,21 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 report = self.server.application.ipam_model_service.network_bindings(
                     IpamNetworkBindingsCommand(
                         tenant_id=self._first_query_value(query, "tenant_id"),
+                        vrf=query.get("vrf", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, report.as_dict())
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/ipam/topology":
+            try:
+                query = parse_qs(parsed.query)
+                report = self.server.application.ipam_model_service.topology(
+                    IpamTopologyCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        actor="api",
                         vrf=query.get("vrf", [None])[0],
                     )
                 )
@@ -2352,6 +2368,7 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "reservation_wizard": "/api/v1/ipam/reservation-wizard",
                     "capacity": "/api/v1/ipam/capacity",
                     "network_bindings": "/api/v1/ipam/network-bindings",
+                    "topology": "/api/v1/ipam/topology",
                     "vlan_groups": "/api/v1/ipam/vlan-groups",
                     "vxlan_vnis": "/api/v1/ipam/vxlan-vnis",
                     "vlans": "/api/v1/ipam/vlans",

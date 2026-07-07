@@ -1,3 +1,11 @@
+## 0.29.32 - 2026-07-07
+
+- Added P11/IPAM operational topology through `GET /api/v1/ipam/topology` and `openinfra ipam topology`.
+- Consolidated VRF, aggregates, prefixes, ranges, address records, reservations, VLAN groups, VLANs, VXLAN VNIs, ASNs, BGP peers, DNS observations and DHCP leases into a deterministic nodes/edges graph.
+- Added topology integrity reporting to detect orphan graph edges before API/UI/automation consumption.
+- Exposed the topology operation in the dashboard and API discovery/OpenAPI documentation.
+- Updated CDC, roadmap, frontend validators and regression tests for P11 IPAM topology parity.
+
 ## 0.29.31 - 2026-07-07
 
 - Added P11/IPAM Enterprise++ dashboard parity for VRF, aggregates, prefixes, ranges, address records, VLAN groups, VXLAN VNIs, VLANs, ASNs, BGP peers, DNS/DHCP observations, DDI preview, reservation wizard, allocation, capacity, network bindings and conflict detection.

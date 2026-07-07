@@ -78,6 +78,8 @@ class FrontendContractValidator:
             or "/v1/ipam/reservation-wizard" not in main_source
             or "Afficher les bindings réseau" not in main_source
             or "/v1/ipam/network-bindings" not in main_source
+            or "Topologie opérationnelle IPAM" not in main_source
+            or "/v1/ipam/topology" not in main_source
             or "Définir un groupe VLAN" not in main_source
             or "/v1/ipam/vlan-groups" not in main_source
             or "Définir un VXLAN VNI" not in main_source
@@ -237,6 +239,8 @@ class FrontendContractValidator:
             "/v1/ipam/reservation-wizard",
             "Afficher les bindings réseau",
             "/v1/ipam/network-bindings",
+            "Topologie opérationnelle IPAM",
+            "/v1/ipam/topology",
             "Définir un groupe VLAN",
             "/v1/ipam/vlan-groups",
             "Définir un VXLAN VNI",

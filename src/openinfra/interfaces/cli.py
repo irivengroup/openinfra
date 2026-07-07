@@ -89,6 +89,7 @@ from openinfra.application.ipam_services import (
     IpamNetworkBindingsCommand,
     IpamReservationWizardCommand,
     IpamSearchCommand,
+    IpamTopologyCommand,
     IpamUiDashboardCommand,
     ObserveDhcpLeaseCommand,
     ObserveDnsRecordCommand,
@@ -1133,6 +1134,15 @@ class OpenInfraCLI:
         network_bindings.add_argument("--tenant", required=True)
         network_bindings.add_argument("--vrf")
         network_bindings.set_defaults(handler=self._handle_ipam_network_bindings)
+
+        topology = ipam_subparsers.add_parser(
+            "topology", help="render the operational IPAM topology graph"
+        )
+        self._add_backend_arguments(topology)
+        topology.add_argument("--tenant", required=True)
+        topology.add_argument("--actor", default="cli")
+        topology.add_argument("--vrf")
+        topology.set_defaults(handler=self._handle_ipam_topology)
 
         observe_dns = ipam_subparsers.add_parser(
             "observe-dns", help="record an observed forward/reverse DNS binding for conflict scans"
@@ -2627,6 +2637,14 @@ class OpenInfraCLI:
         application = self._create_application(args)
         report = application.ipam_model_service.network_bindings(
             IpamNetworkBindingsCommand(args.tenant, args.vrf)
+        )
+        print(json.dumps(report.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_ipam_topology(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        report = application.ipam_model_service.topology(
+            IpamTopologyCommand(args.tenant, args.actor, args.vrf)
         )
         print(json.dumps(report.as_dict(), sort_keys=True))
         return 0

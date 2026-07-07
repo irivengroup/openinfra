@@ -65,14 +65,14 @@ class TestRuntimeEnvironment:
         assert "USER openinfra" in dockerfile
         assert "HEALTHCHECK" not in dockerfile
         assert "OPENINFRA_POSTGRES_PASSWORD=" in env_example
-        assert "OPENINFRA_IMAGE_TAG=0.29.31" in env_example
+        assert "OPENINFRA_IMAGE_TAG=0.29.32" in env_example
         assert "OPENINFRA_PGADMIN_EMAIL=" in env_example
         assert "OPENINFRA_PGADMIN_PASSWORD=" in env_example
         assert "OPENINFRA_PGADMIN_PORT=5050" in env_example
         assert "OPENINFRA_WEB_PORT=2006" in env_example
         assert "OPENINFRA_WEB_BACKEND_URL=http://api:8080" in env_example
         assert "OPENINFRA_WEB_BACKEND_BEARER_TOKEN:-${OPENINFRA_BOOTSTRAP_TOKEN" in compose
-        assert "openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.29.31}" in compose
+        assert "openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.29.32}" in compose
         assert "${OPENINFRA_PGADMIN_IMAGE:-dpage/pgadmin4:latest}" in compose
         assert "openinfra-pgadmin-data:/var/lib/pgadmin" in compose
         assert "${OPENINFRA_WEB_BIND:-127.0.0.1}:${OPENINFRA_WEB_PORT:-2006}:2006" in compose
@@ -113,7 +113,7 @@ class TestRuntimeEnvironment:
 
         assert mode == 0o600
         assert "OPENINFRA_POSTGRES_PASSWORD=" in payload
-        assert "OPENINFRA_IMAGE_TAG=0.29.31" in payload
+        assert "OPENINFRA_IMAGE_TAG=0.29.32" in payload
         assert "OPENINFRA_PGADMIN_EMAIL=admin@openinfra.tld" in payload
         assert "admin@openinfra.local" not in payload
         assert "OPENINFRA_PGADMIN_PASSWORD=" in payload

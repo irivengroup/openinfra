@@ -116,6 +116,13 @@ Le dashboard IPAM doit exposer les opérations Enterprise++ majeures VRF, agrég
 
 **Acceptation :** Les opérations IPAM du dashboard ciblent des routes `/api/v1/ipam/*` réelles, la découverte API expose la section `ipam`, et aucune règle métier IPAM n'est dupliquée côté navigateur.
 
+
+### REQ-00770
+
+OpenInfra doit exposer une topologie opérationnelle IPAM consolidant VRF, agrégats, préfixes, plages, adresses, réservations, VLAN/VXLAN, ASN/BGP et observations DNS/DHCP sous forme de graphe noeuds/arêtes exploitable par API, CLI et dashboard.
+
+**Acceptation :** `GET /api/v1/ipam/topology` et `openinfra ipam topology` retournent `summary`, `nodes`, `edges` et `integrity` ; le dashboard expose **Topologie opérationnelle IPAM** ; le graphe est construit à partir des repositories existants sans stockage parallèle.
+
 ## Critères d’acceptation
 
 La capacité est acceptée si les scénarios nominaux, erreurs, droits insuffisants, conflits et imports/exports sont validés par tests automatisés et si les journaux d’audit permettent de reconstituer les opérations.

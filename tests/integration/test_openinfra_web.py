@@ -182,6 +182,8 @@ class TestOpenInfraWeb:
         assert "Assistant de réservation IP" in static_js
         assert 'path: "/v1/ipam/network-bindings"' in static_js
         assert "Afficher les bindings réseau" in static_js
+        assert 'path: "/v1/ipam/topology"' in static_js
+        assert "Topologie opérationnelle IPAM" in static_js
         assert 'path: "/v1/ipam/vlan-groups"' in static_js
         assert "Définir un groupe VLAN" in static_js
         assert 'path: "/v1/ipam/vxlan-vnis"' in static_js

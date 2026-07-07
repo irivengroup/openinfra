@@ -1548,3 +1548,8 @@ La version 0.29.31 complète l'exposition opérateur P11 côté `openinfra-web` 
 
 Les opérations ciblent les contrats `/api/v1/ipam/*` existants et la découverte API racine expose désormais la section `ipam`, ce qui réduit l'écart entre OpenAPI, API runtime et dashboard.
 
+
+
+### Avancement v0.29.32 — P11 IPAM topologie opérationnelle
+
+La version 0.29.32 ajoute la topologie opérationnelle IPAM : API, CLI et dashboard restituent un graphe `nodes`/`edges` consolidant VRF, agrégats, préfixes, plages, adresses, réservations, VLAN/VXLAN, ASN/BGP et observations DNS/DHCP, avec contrôle `integrity` sans stockage parallèle.

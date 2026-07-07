@@ -9,6 +9,7 @@ import pytest
 
 from openinfra.application.container import ApplicationFactory
 from openinfra.application.ipam_services import (
+    AllocateIpCommand,
     DefineAsnCommand,
     DefineBgpPeerCommand,
     DefineIpAggregateCommand,
@@ -20,6 +21,9 @@ from openinfra.application.ipam_services import (
     DefineVxlanVniCommand,
     IpamCapacityCommand,
     IpamNetworkBindingsCommand,
+    IpamTopologyCommand,
+    ObserveDhcpLeaseCommand,
+    ObserveDnsRecordCommand,
     RegisterIpAddressCommand,
 )
 from openinfra.domain.common import ConflictError, NotFoundError, TenantId, ValidationError
@@ -111,6 +115,112 @@ class TestIpamEnterpriseModelServices:
         assert peer["address_family"] == "ipv4"
         assert report.as_dict()["counts"]["bgp_peers"] == 1
         assert persisted.as_dict()["vxlan_vnis"][0]["vni"] == 100100
+
+    def test_ipam_topology_consolidates_l3_l2_bgp_and_allocations(self, tmp_path: Path) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "topology.json")
+        app.ipam_model_service.define_vrf(
+            DefineVrfCommand("default", "netops", "prod", "65000:100")
+        )
+        app.ipam_model_service.define_aggregate(
+            DefineIpAggregateCommand("default", "netops", "prod", "10.90.0.0/16")
+        )
+        app.ipam_model_service.define_prefix(
+            DefineIpPrefixCommand("default", "netops", "prod", "10.90.10.0/29")
+        )
+        app.ipam_model_service.define_range(
+            DefineIpRangeCommand(
+                "default",
+                "netops",
+                "prod",
+                "10.90.10.0/29",
+                "10.90.10.1",
+                "10.90.10.4",
+            )
+        )
+        app.ipam_model_service.register_address(
+            RegisterIpAddressCommand(
+                "default", "netops", "prod", "10.90.10.0/29", "10.90.10.2", "srv-topo"
+            )
+        )
+        app.ipam_service.allocate(
+            AllocateIpCommand("default", "netops", "prod", "10.90.10.0/29", "srv-auto", "topo-1")
+        )
+        app.ipam_model_service.define_vlan_group(
+            DefineVlanGroupCommand("default", "netops", "fabric", "dc1")
+        )
+        app.ipam_model_service.define_vxlan_vni(
+            DefineVxlanVniCommand("default", "netops", 100090, "prod-vni", "prod")
+        )
+        app.ipam_model_service.define_vlan(
+            DefineVlanCommand("default", "netops", "fabric", 90, "prod", "prod", 100090)
+        )
+        app.ipam_model_service.define_asn(DefineAsnCommand("default", "netops", 65000, "local"))
+        app.ipam_model_service.define_asn(DefineAsnCommand("default", "netops", 65090, "remote"))
+        app.ipam_model_service.define_bgp_peer(
+            DefineBgpPeerCommand("default", "netops", "prod", 65000, 65090, "192.0.2.90")
+        )
+        app.ipam_conflict_service.observe_dns(
+            ObserveDnsRecordCommand(
+                "default",
+                "netops",
+                "prod",
+                "srv-topo.example.net",
+                "10.90.10.2",
+                "ptr-topo.example.net",
+            )
+        )
+        app.ipam_conflict_service.observe_dhcp_lease(
+            ObserveDhcpLeaseCommand(
+                "default",
+                "netops",
+                "prod",
+                "10.90.10.0/29",
+                "10.90.10.3",
+                "AA:BB:CC:90:00:03",
+                "srv-dhcp",
+            )
+        )
+
+        report = app.ipam_model_service.topology(IpamTopologyCommand("default", "netops", "prod"))
+        payload = report.as_dict()
+        node_kinds = {str(node["kind"]) for node in payload["nodes"]}
+        relations = {edge["relation"] for edge in payload["edges"]}
+
+        assert payload["summary"]["vrfs"] == 1
+        assert payload["summary"]["prefixes"] == 1
+        assert payload["summary"]["reservations"] == 1
+        assert payload["summary"]["vlans"] == 1
+        assert payload["summary"]["bgp_peers"] == 1
+        assert payload["summary"]["dns_observations"] == 1
+        assert payload["summary"]["dhcp_leases"] == 1
+        assert (
+            app.ipam_model_service.topology(IpamTopologyCommand("default", "netops")).as_dict()[
+                "summary"
+            ]["vrfs"]
+            == 1
+        )
+        assert payload["integrity"]["valid"] is True
+        assert {
+            "vrf",
+            "prefix",
+            "range",
+            "address_record",
+            "reservation",
+            "vlan",
+            "vxlan_vni",
+            "bgp_peer",
+            "dns_observation",
+            "dhcp_lease",
+        } <= node_kinds
+        assert {
+            "contains",
+            "assigns",
+            "reserves",
+            "maps_to_vni",
+            "has_bgp_peer",
+            "observes_dns",
+            "observes_dhcp",
+        } <= relations
 
     def test_networking_foundation_rejects_incoherent_relations(self, tmp_path: Path) -> None:
         app = ApplicationFactory().create_json_application(tmp_path / "bad-networking.json")
@@ -499,8 +609,24 @@ class TestIpamEnterpriseModelServices:
             )
             == 0
         )
+        assert (
+            cli.run(
+                [
+                    "ipam",
+                    "topology",
+                    "--data",
+                    str(data),
+                    "--tenant",
+                    "default",
+                    "--vrf",
+                    "prod",
+                ]
+            )
+            == 0
+        )
         captured = capsys.readouterr()
         assert "172.16.10.0/24" in captured.out
+        assert '"kind": "prefix"' in captured.out
 
     def test_http_ipam_model_endpoints(self, tmp_path: Path) -> None:
         app = ApplicationFactory().create_json_application(tmp_path / "api.json")
@@ -594,6 +720,9 @@ class TestIpamEnterpriseModelServices:
             bindings = client.get_json(
                 base_url + "/api/v1/ipam/network-bindings?tenant_id=default&vrf=prod"
             )
+            topology = client.get_json(
+                base_url + "/api/v1/ipam/topology?tenant_id=default&vrf=prod"
+            )
 
             assert vrf["name"] == "prod"
             assert aggregate["cidr"] == "198.51.100.0/24"
@@ -604,6 +733,9 @@ class TestIpamEnterpriseModelServices:
             assert capacity["reserved_addresses"] == 1
             assert bindings["counts"]["vlans"] == 1
             assert bindings["counts"]["bgp_peers"] == 1
+            assert topology["summary"]["vlans"] == 1
+            assert topology["summary"]["bgp_peers"] == 1
+            assert topology["integrity"]["valid"] is True
         finally:
             server.shutdown()
             thread.join(timeout=5)

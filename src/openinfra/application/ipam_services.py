@@ -302,6 +302,33 @@ class IpamNetworkBindingsReport:
 
 
 @dataclass(frozen=True, slots=True)
+class IpamTopologyCommand:
+    tenant_id: str
+    actor: str
+    vrf: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class IpamTopologyReport:
+    tenant_id: str
+    vrf: str | None
+    summary: dict[str, int]
+    nodes: tuple[dict[str, object], ...]
+    edges: tuple[dict[str, str], ...]
+    integrity: dict[str, object]
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "tenant_id": self.tenant_id,
+            "vrf": self.vrf,
+            "summary": self.summary,
+            "nodes": list(self.nodes),
+            "edges": list(self.edges),
+            "integrity": self.integrity,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class ObserveDnsRecordCommand:
     tenant_id: str
     actor: str
@@ -1597,12 +1624,348 @@ class IpamModelService:
             ),
         )
 
+    def topology(self, command: IpamTopologyCommand) -> IpamTopologyReport:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        requested_vrf = command.vrf.strip() if command.vrf else None
+        vrfs = self._topology_vrfs(tenant_id, requested_vrf)
+        nodes: list[dict[str, object]] = [
+            self._topology_node(
+                f"tenant:{tenant_id.value}",
+                "tenant",
+                tenant_id.value,
+                tenant_id=tenant_id.value,
+            )
+        ]
+        edges: list[dict[str, str]] = []
+        summary: dict[str, int] = {
+            "vrfs": len(vrfs),
+            "aggregates": 0,
+            "prefixes": 0,
+            "ranges": 0,
+            "address_records": 0,
+            "reservations": 0,
+            "vlan_groups": 0,
+            "vlans": 0,
+            "vxlan_vnis": 0,
+            "asns": 0,
+            "bgp_peers": 0,
+            "dns_observations": 0,
+            "dhcp_leases": 0,
+        }
+        for vrf in vrfs:
+            self._append_vrf_topology(tenant_id, vrf, nodes, edges, summary)
+        self._append_network_binding_topology(tenant_id, requested_vrf, nodes, edges, summary)
+        unique_nodes = self._deduplicate_nodes(nodes)
+        unique_edges = self._deduplicate_edges(edges)
+        summary["nodes"] = len(unique_nodes)
+        summary["edges"] = len(unique_edges)
+        orphan_edges = tuple(
+            edge
+            for edge in unique_edges
+            if edge["source"] not in {str(node["id"]) for node in unique_nodes}
+            or edge["target"] not in {str(node["id"]) for node in unique_nodes}
+        )
+        report = IpamTopologyReport(
+            tenant_id=tenant_id.value,
+            vrf=requested_vrf,
+            summary=summary,
+            nodes=unique_nodes,
+            edges=unique_edges,
+            integrity={
+                "orphan_edges": len(orphan_edges),
+                "valid": len(orphan_edges) == 0,
+            },
+        )
+        self._audit_repository.append(
+            AuditEvent.record(
+                tenant_id=tenant_id,
+                actor=command.actor,
+                action="ipam.topology.generated",
+                target_type="ipam_topology",
+                target_id=requested_vrf or "*",
+                metadata={"nodes": len(unique_nodes), "edges": len(unique_edges)},
+            )
+        )
+        return report
+
     def list_prefixes(self, tenant_id: str, vrf: str) -> tuple[dict[str, str | int], ...]:
         tenant = TenantId.from_value(tenant_id)
         return tuple(
             self._prefix_as_dict(prefix)
             for prefix in self._ipam_repository.list_prefixes(tenant, vrf)
         )
+
+    def _topology_vrfs(self, tenant_id: TenantId, requested_vrf: str | None) -> tuple[Vrf, ...]:
+        vrfs = self._ipam_repository.list_vrfs(tenant_id)
+        if requested_vrf is None:
+            return vrfs
+        return tuple(vrf for vrf in vrfs if vrf.name.value == requested_vrf)
+
+    def _append_vrf_topology(
+        self,
+        tenant_id: TenantId,
+        vrf: Vrf,
+        nodes: list[dict[str, object]],
+        edges: list[dict[str, str]],
+        summary: dict[str, int],
+    ) -> None:
+        tenant_node = f"tenant:{tenant_id.value}"
+        vrf_node = f"vrf:{vrf.name.value}"
+        nodes.append(
+            self._topology_node(
+                vrf_node,
+                "vrf",
+                vrf.name.value,
+                route_distinguisher=vrf.route_distinguisher,
+            )
+        )
+        edges.append(self._topology_edge(tenant_node, vrf_node, "contains"))
+        for aggregate in self._ipam_repository.list_aggregates(tenant_id, vrf.name.value):
+            aggregate_node = f"aggregate:{vrf.name.value}:{aggregate.network}"
+            nodes.append(
+                self._topology_node(
+                    aggregate_node,
+                    "aggregate",
+                    str(aggregate.network),
+                    vrf=vrf.name.value,
+                    family=aggregate.network.version,
+                    description=aggregate.description,
+                )
+            )
+            edges.append(self._topology_edge(vrf_node, aggregate_node, "announces"))
+            summary["aggregates"] += 1
+        for prefix in self._ipam_repository.list_prefixes(tenant_id, vrf.name.value):
+            self._append_prefix_topology(tenant_id, vrf, prefix, nodes, edges, summary)
+        for record in self._ipam_repository.list_dns_observations(tenant_id, vrf.name.value):
+            node_id = f"dns:{vrf.name.value}:{record.hostname}:{record.address}"
+            nodes.append(
+                self._topology_node(
+                    node_id,
+                    "dns_observation",
+                    record.hostname,
+                    vrf=vrf.name.value,
+                    address=str(record.address),
+                    ptr_hostname=record.ptr_hostname,
+                    source=record.source,
+                )
+            )
+            edges.append(self._topology_edge(vrf_node, node_id, "observes_dns"))
+            summary["dns_observations"] += 1
+        for lease in self._ipam_repository.list_dhcp_leases(tenant_id, vrf.name.value):
+            node_id = f"dhcp:{vrf.name.value}:{lease.address}:{lease.mac_address}"
+            nodes.append(
+                self._topology_node(
+                    node_id,
+                    "dhcp_lease",
+                    lease.hostname,
+                    vrf=vrf.name.value,
+                    prefix=lease.prefix,
+                    address=str(lease.address),
+                    mac_address=lease.mac_address,
+                    active=lease.active,
+                    source=lease.source,
+                )
+            )
+            edges.append(self._topology_edge(vrf_node, node_id, "observes_dhcp"))
+            summary["dhcp_leases"] += 1
+
+    def _append_prefix_topology(
+        self,
+        tenant_id: TenantId,
+        vrf: Vrf,
+        prefix: Prefix,
+        nodes: list[dict[str, object]],
+        edges: list[dict[str, str]],
+        summary: dict[str, int],
+    ) -> None:
+        vrf_node = f"vrf:{vrf.name.value}"
+        prefix_node = f"prefix:{vrf.name.value}:{prefix.network}"
+        nodes.append(
+            self._topology_node(
+                prefix_node,
+                "prefix",
+                str(prefix.network),
+                vrf=vrf.name.value,
+                family=prefix.network.version,
+                first_usable=str(ipaddress.ip_address(prefix.first_usable_int)),
+                last_usable=str(ipaddress.ip_address(prefix.last_usable_int)),
+                description=prefix.description,
+            )
+        )
+        edges.append(self._topology_edge(vrf_node, prefix_node, "contains"))
+        summary["prefixes"] += 1
+        for ip_range in self._ipam_repository.list_ranges(
+            tenant_id, vrf.name.value, str(prefix.network)
+        ):
+            range_node = f"range:{vrf.name.value}:{prefix.network}:{ip_range.start}-{ip_range.end}"
+            nodes.append(
+                self._topology_node(
+                    range_node,
+                    "range",
+                    f"{ip_range.start}-{ip_range.end}",
+                    vrf=vrf.name.value,
+                    prefix=str(prefix.network),
+                    purpose=ip_range.purpose.value,
+                    description=ip_range.description,
+                )
+            )
+            edges.append(self._topology_edge(prefix_node, range_node, "segments"))
+            summary["ranges"] += 1
+        for record in self._ipam_repository.list_address_records(
+            tenant_id, vrf.name.value, str(prefix.network)
+        ):
+            record_node = f"address:{vrf.name.value}:{record.address}"
+            nodes.append(
+                self._topology_node(
+                    record_node,
+                    "address_record",
+                    str(record.address),
+                    vrf=vrf.name.value,
+                    prefix=str(prefix.network),
+                    hostname=record.hostname,
+                    status=record.status.value,
+                    interface_name=record.interface_name.value if record.interface_name else "",
+                )
+            )
+            edges.append(self._topology_edge(prefix_node, record_node, "assigns"))
+            summary["address_records"] += 1
+        for reservation in self._ipam_repository.list_reservations(
+            tenant_id, vrf.name.value, str(prefix.network)
+        ):
+            reservation_node = (
+                f"reservation:{vrf.name.value}:{reservation.address}:{reservation.idempotency_key}"
+            )
+            nodes.append(
+                self._topology_node(
+                    reservation_node,
+                    "reservation",
+                    str(reservation.address),
+                    vrf=vrf.name.value,
+                    prefix=str(prefix.network),
+                    hostname=reservation.hostname,
+                    idempotency_key=reservation.idempotency_key,
+                )
+            )
+            edges.append(self._topology_edge(prefix_node, reservation_node, "reserves"))
+            summary["reservations"] += 1
+
+    def _append_network_binding_topology(
+        self,
+        tenant_id: TenantId,
+        requested_vrf: str | None,
+        nodes: list[dict[str, object]],
+        edges: list[dict[str, str]],
+        summary: dict[str, int],
+    ) -> None:
+        tenant_node = f"tenant:{tenant_id.value}"
+        for group in self._ipam_repository.list_vlan_groups(tenant_id):
+            group_node = f"vlan-group:{group.name.value}"
+            nodes.append(
+                self._topology_node(
+                    group_node,
+                    "vlan_group",
+                    group.name.value,
+                    scope=group.scope.value if group.scope else None,
+                    description=group.description,
+                )
+            )
+            edges.append(self._topology_edge(tenant_node, group_node, "contains"))
+            summary["vlan_groups"] += 1
+        for vni in self._ipam_repository.list_vxlan_vnis(tenant_id, requested_vrf):
+            vni_node = f"vni:{vni.vni}"
+            nodes.append(
+                self._topology_node(
+                    vni_node,
+                    "vxlan_vni",
+                    str(vni.vni),
+                    name=vni.name.value,
+                    vrf=vni.vrf_name.value,
+                    route_targets_import=list(vni.route_targets_import),
+                    route_targets_export=list(vni.route_targets_export),
+                )
+            )
+            edges.append(self._topology_edge(f"vrf:{vni.vrf_name.value}", vni_node, "owns_vni"))
+            summary["vxlan_vnis"] += 1
+        for vlan in self._ipam_repository.list_vlans(tenant_id, requested_vrf):
+            vlan_node = f"vlan:{vlan.group_name.value}:{vlan.vlan_id}"
+            nodes.append(
+                self._topology_node(
+                    vlan_node,
+                    "vlan",
+                    str(vlan.vlan_id),
+                    group=vlan.group_name.value,
+                    name=vlan.name.value,
+                    vrf=vlan.vrf_name.value if vlan.vrf_name else None,
+                    vni=vlan.vni,
+                )
+            )
+            edges.append(
+                self._topology_edge(f"vlan-group:{vlan.group_name.value}", vlan_node, "contains")
+            )
+            if vlan.vrf_name is not None:
+                edges.append(
+                    self._topology_edge(f"vrf:{vlan.vrf_name.value}", vlan_node, "binds_vlan")
+                )
+            if vlan.vni is not None:
+                edges.append(self._topology_edge(vlan_node, f"vni:{vlan.vni}", "maps_to_vni"))
+            summary["vlans"] += 1
+        for asn in self._ipam_repository.list_asns(tenant_id):
+            asn_node = f"asn:{asn.number}"
+            nodes.append(
+                self._topology_node(
+                    asn_node,
+                    "asn",
+                    str(asn.number),
+                    name=asn.name.value,
+                    description=asn.description,
+                )
+            )
+            edges.append(self._topology_edge(tenant_node, asn_node, "owns_asn"))
+            summary["asns"] += 1
+        for peer in self._ipam_repository.list_bgp_peers(tenant_id, requested_vrf):
+            peer_node = f"bgp-peer:{peer.vrf_name.value}:{peer.peer_address}"
+            nodes.append(
+                self._topology_node(
+                    peer_node,
+                    "bgp_peer",
+                    str(peer.peer_address),
+                    vrf=peer.vrf_name.value,
+                    local_asn=peer.local_asn,
+                    remote_asn=peer.remote_asn,
+                    address_family=peer.address_family.value,
+                    route_targets_import=list(peer.route_targets_import),
+                    route_targets_export=list(peer.route_targets_export),
+                )
+            )
+            edges.append(
+                self._topology_edge(f"vrf:{peer.vrf_name.value}", peer_node, "has_bgp_peer")
+            )
+            edges.append(self._topology_edge(f"asn:{peer.local_asn}", peer_node, "local_asn"))
+            edges.append(self._topology_edge(peer_node, f"asn:{peer.remote_asn}", "remote_asn"))
+            summary["bgp_peers"] += 1
+
+    def _topology_node(
+        self, node_id: str, kind: str, label: str, **attributes: object
+    ) -> dict[str, object]:
+        return {
+            "id": node_id,
+            "kind": kind,
+            "label": label,
+            "attributes": {key: value for key, value in attributes.items() if value is not None},
+        }
+
+    def _topology_edge(self, source: str, target: str, relation: str) -> dict[str, str]:
+        return {"source": source, "target": target, "relation": relation}
+
+    def _deduplicate_nodes(self, nodes: list[dict[str, object]]) -> tuple[dict[str, object], ...]:
+        deduplicated: dict[str, dict[str, object]] = {}
+        for node in nodes:
+            deduplicated[str(node["id"])] = node
+        return tuple(deduplicated[key] for key in sorted(deduplicated))
+
+    def _deduplicate_edges(self, edges: list[dict[str, str]]) -> tuple[dict[str, str], ...]:
+        deduplicated = {(edge["source"], edge["target"], edge["relation"]): edge for edge in edges}
+        return tuple(deduplicated[key] for key in sorted(deduplicated))
 
     def _is_pool_overlay(self, first: IpRange, second: IpRange) -> bool:
         purposes = {first.purpose.value, second.purpose.value}

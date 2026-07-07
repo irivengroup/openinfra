@@ -1,4 +1,4 @@
-# OpenInfra Web v0.29.31
+# OpenInfra Web v0.29.32
 
 OpenInfra Web est le portail `openinfra-web` API-only. Il sert l'interface React/Bootstrap 5, expose un proxy applicatif `/api/*` vers le backend `openinfra-api` et fournit un dashboard de pilotage aligné sur les domaines CLI.
 
@@ -137,3 +137,8 @@ Cette correction est appliquée aux sources React et aux assets runtime servis p
 `openinfra-web` expose désormais `/status`, un statut BFF destiné à l’exploitation. Il indique l’état des formulaires protégés, le trust web/backend server-side, le trust base de données et la présence d’un bearer backend server-side sans jamais sérialiser la valeur du secret. En absence de bearer, le statut retourne une remédiation explicite vers `OPENINFRA_WEB_BACKEND_BEARER_TOKEN` ou `OPENINFRA_BOOTSTRAP_TOKEN`.
 
 Le proxy web assainit aussi les erreurs d’authentification backend : une réponse brute `missing bearer token` issue de l’API n’est pas renvoyée telle quelle au navigateur. L’opérateur reçoit une erreur BFF explicite indiquant que l’authentification backend via `openinfra-web` a échoué.
+
+
+## IPAM topologie opérationnelle
+
+Le dashboard expose `Topologie opérationnelle IPAM` sur `/v1/ipam/topology`. Le formulaire conserve `tenant_id` côté BFF et accepte un filtre VRF optionnel ; le backend produit le graphe consolidé et le navigateur ne recalcule pas les invariants IPAM.

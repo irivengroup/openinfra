@@ -1,13 +1,14 @@
-# OpenInfra v0.29.31
+# OpenInfra v0.29.32
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.31 — P11/IPAM expose dans le dashboard les opérations Enterprise++ VRF, agrégats, préfixes, plages, adresses, VLAN/VXLAN, ASN/BGP, observations DNS/DHCP, DDI, conflits, capacité et allocation/réservation.**
+**Version courante : 0.29.32 — P11/IPAM ajoute une topologie opérationnelle consolidée VRF/préfixes/plages/adresses/réservations, VLAN/VXLAN, ASN/BGP et observations DNS/DHCP.**
 
-### v0.29.31 — IPAM Enterprise++ dashboard et découverte API
+### v0.29.32 — IPAM topologie opérationnelle
 
-- Ajout des formulaires IPAM avancés dans le dashboard : VRF, agrégats, préfixes, plages, adresses, VLAN groups, VXLAN VNI, VLAN, ASN, BGP peers, observations DNS/DHCP, DDI preview, assistant de réservation, allocation, capacité, bindings et conflits.
-- Ajout de la section IPAM dans le document de découverte API racine afin d'exposer les contrats REST IPAM déjà disponibles.
+- Ajout du graphe IPAM opérationnel via `GET /api/v1/ipam/topology` et `openinfra ipam topology`.
+- Consolidation déterministe des noeuds/relations VRF, agrégats, préfixes, plages, adresses, réservations, VLAN groups, VLAN, VXLAN VNI, ASN, BGP peers, observations DNS et baux DHCP.
+- Ajout d'un contrôle d'intégrité du graphe pour détecter les arêtes orphelines avant exploitation UI/API/automation.
 - Les formulaires restent API-only : aucune validation métier n'est dupliquée côté navigateur ; les invariants restent portés par le domaine et les services applicatifs.
 
 ### v0.29.30 — jumeau numérique DCIM initial

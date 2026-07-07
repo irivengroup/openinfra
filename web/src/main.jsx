@@ -675,6 +675,7 @@ const MODULES = [
     { id: 'ipam-reservation-wizard', label: 'Assistant de réservation IP', path: '/v1/ipam/reservation-wizard', method: 'POST', fields: ['Opérateur', 'VRF', 'Préfixe', 'Nom DNS / équipement', 'Clé d’idempotence', 'Appliquer la réservation'] },
     { id: 'ipam-capacity', label: 'Calculer la capacité d’un préfixe', path: '/v1/ipam/capacity', method: 'GET', fields: ['VRF', 'Préfixe'] },
     { id: 'ipam-network-bindings', label: 'Afficher les bindings réseau', path: '/v1/ipam/network-bindings', method: 'GET', fields: ['VRF'] },
+    { id: 'ipam-topology', label: 'Topologie opérationnelle IPAM', path: '/v1/ipam/topology', method: 'GET', fields: ['VRF'] },
     { id: 'ipam-define-vlan-group', label: 'Définir un groupe VLAN', path: '/v1/ipam/vlan-groups', method: 'POST', fields: ['Opérateur', 'Groupe VLAN', 'Scope VLAN', 'Description'] },
     { id: 'ipam-define-vxlan-vni', label: 'Définir un VXLAN VNI', path: '/v1/ipam/vxlan-vnis', method: 'POST', fields: ['Opérateur', 'VNI', 'Nom VNI', 'VRF', 'RT import', 'RT export', 'Description'] },
     { id: 'ipam-define-vlan', label: 'Définir un VLAN', path: '/v1/ipam/vlans', method: 'POST', fields: ['Opérateur', 'Groupe VLAN', 'VLAN ID', 'Nom VLAN', 'VRF', 'VNI', 'Description'] },

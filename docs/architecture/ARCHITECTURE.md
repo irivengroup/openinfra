@@ -412,3 +412,8 @@ Les interfaces restent fines : le CLI expose `openinfra export request`, `run`, 
 
 Le framework de migration legacy reste dans le bounded context import afin de réutiliser les parseurs CSV/JSON/XLSX, le mapping contrôlé, la DLQ et l’audit existants. La couche domaine porte les concepts `LegacyMigrationSource`, `MigrationTemplate`, `MigrationGap` et `MigrationPlanReport`. La couche application orchestre le dry-run sans effet de bord et persiste le rapport via le port `ImportRepository`. Les adaptateurs JSON/PostgreSQL stockent les plans, PostgreSQL utilisant la table partitionnée `migration_plan_reports` par hash du tenant pour conserver la scalabilité multi-tenant.
 
+
+
+### IPAM topology graph
+
+`IpamModelService.topology` construit un graphe opérationnel lecture seule à partir du repository IPAM : VRF, agrégats, préfixes, plages, adresses, réservations, VLAN/VXLAN, ASN/BGP et observations DNS/DHCP. Le rapport expose `nodes`, `edges`, `summary` et `integrity`, et journalise `ipam.topology.generated` sans introduire de stockage parallèle.

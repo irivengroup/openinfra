@@ -1,3 +1,9 @@
+## 0.29.32
+
+- Ajout de la topologie opérationnelle IPAM pour consolider VRF, préfixes, adresses, réservations, VLAN/VXLAN et ASN/BGP.
+- Ajout du test roadmap `TST-P11-IPAM-TOPOLOGY`.
+- Alignement CDC `REQ-00770` et contrats API/CLI/dashboard/OpenAPI.
+
 ## 0.29.31
 
 - Ajout de la parité dashboard IPAM Enterprise++ pour les contrats `/api/v1/ipam/*`.

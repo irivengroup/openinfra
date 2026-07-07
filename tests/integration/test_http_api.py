@@ -96,6 +96,7 @@ class TestHttpApi:
                     "reservation_wizard": "/api/v1/ipam/reservation-wizard",
                     "capacity": "/api/v1/ipam/capacity",
                     "network_bindings": "/api/v1/ipam/network-bindings",
+                    "topology": "/api/v1/ipam/topology",
                     "vlan_groups": "/api/v1/ipam/vlan-groups",
                     "vxlan_vnis": "/api/v1/ipam/vxlan-vnis",
                     "vlans": "/api/v1/ipam/vlans",
@@ -138,6 +139,7 @@ class TestHttpApi:
             assert openapi.startswith("openapi: 3.1.0")
             assert "/api/v1/ipam/vxlan-vnis" in openapi
             assert "/api/v1/ipam/ddi-preview" in openapi
+            assert "/api/v1/ipam/topology" in openapi
             assert "/api/v1/dcim/power-devices" in openapi
             assert "/api/v1/dcim/energy-cooling-capacity" in openapi
             assert "/api/v1/dcim/digital-twin" in openapi

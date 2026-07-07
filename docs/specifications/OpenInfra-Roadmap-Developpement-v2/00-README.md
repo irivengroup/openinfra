@@ -34,3 +34,8 @@ Roadmap mise à jour pour alignement avec **OpenInfra CDC/SFG/STG v4.8.1 corrig�
 - `/opt/openinfra/data` pointe vers `/data/openinfra/`.
 - Tailles PGDATA : Lite 2GB, Pro 100GB, Entreprise 1TB.
 - Pro/Entreprise supportent LDAP/IPA, RBAC groupes, multisite et connecteurs ITSM externes.
+
+
+### v0.29.32 — IPAM topologie opérationnelle
+
+Ajout du test `TST-P11-IPAM-TOPOLOGY` pour verrouiller la consolidation nodes/edges IPAM par API, CLI, dashboard et OpenAPI.

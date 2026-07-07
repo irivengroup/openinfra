@@ -1,12 +1,11 @@
 
-## 0.29.44 - 2026-07-07
+## 0.29.45 - 2026-07-07
 
-- Correction UX du panneau latéral : les accordéons ouverts repoussent désormais les composants suivants sans plafond de hauteur, avec scroll interne stable sous le header fixe.
-- Ajout du rapport de couverture ITAM par actif physique : statut garantie constructeur, jours restants, expiration, compteurs de supports tiers et état global de couverture.
-- Ajout de `PhysicalAssetSupportCoverageReport` dans le domaine ITAM sans modifier la persistance existante.
-- Ajout du service `get_support_coverage_report` et de la commande CLI `openinfra itam support-coverage`.
-- Ajout de l’endpoint `GET /api/v1/itam/support-coverage` et publication dans l’index documentaire API.
-- Ajout des tests domaine, service, API HTTP, CLI et OpenAPI associés.
+- ITAM devient un composant web de premier niveau visible comme les autres domaines dans le Dashboard, le header, le panneau latéral et la recherche globale.
+- Ajout d’une icône SVG pleine `asset`, dédiée à ITAM, homogène avec les pictogrammes opaques des autres composants.
+- La recherche globale backend agrège aussi ITAM via une recherche exacte de profil support par numéro d’actif, sans fuite de données entre tenants ni permissions.
+- Les boutons `Swagger` et `ReDoc` du double header sont réduits de moitié et conservent leurs liens backend API réels.
+- Conservation de la correction sidebar v0.29.44 : les accordéons restent dans le flux vertical, repoussent les composants inférieurs et scrollent sans masquer les entrées.
 
 ## 0.29.42 - 2026-07-07
 

@@ -8,6 +8,7 @@ from openinfra.application.container import ApplicationFactory
 from openinfra.application.discovery_services import RegisterCollectorCommand
 from openinfra.application.ipam_services import AllocateIpCommand, DefineIpPrefixCommand, DefineVrfCommand
 from openinfra.application.search_services import GlobalSearchCommand
+from openinfra.application.itam_services import RegisterManufacturerSupportCommand
 from openinfra.application.security_services import BootstrapTokenCommand
 from openinfra.application.source_of_truth_services import UpsertSourceObjectCommand
 from openinfra.domain.common import ValidationError
@@ -67,17 +68,41 @@ def test_global_search_groups_backend_results_by_component(tmp_path) -> None:
         )
     )
 
+    app.itam_support_service.register_manufacturer_support(
+        RegisterManufacturerSupportCommand(
+            tenant_id="default",
+            actor="pytest",
+            admin_token=token,
+            asset_tag="PARIS-ITAM-001",
+            manufacturer="Dell",
+            warranty_reference="WR-PARIS-001",
+            warranty_level="ProSupport",
+            warranty_start="2026-01-01",
+            warranty_end="2029-01-01",
+            support_reference="SUP-PARIS-001",
+            support_level="24x7",
+            support_contact="support@example.com",
+        )
+    )
+
     result = app.global_search_service.search(
         GlobalSearchCommand("default", "pytest", token, "paris", limit=3)
     ).as_dict()
 
     assert result["total"] >= 3
     groups = {group["component"]: group for group in result["groups"]}
-    assert {"itrm", "ipam", "discovery"}.issubset(groups)
+    assert {"itrm", "itam", "ipam", "discovery"}.issubset(groups)
     assert groups["itrm"]["items"][0]["label"] == "Paris DB 01"
     assert groups["ipam"]["items"]
     assert groups["discovery"]["items"][0]["label"] == "Paris discovery proxy"
     assert groups["itrm"]["items"][0]["route"].startswith("/api/v1/itrm/objects")
+
+    itam_result = app.global_search_service.search(
+        GlobalSearchCommand("default", "pytest", token, "PARIS-ITAM-001", limit=3)
+    ).as_dict()
+    itam_groups = {group["component"]: group for group in itam_result["groups"]}
+    assert itam_groups["itam"]["items"][0]["label"] == "PARIS-ITAM-001"
+    assert itam_groups["itam"]["items"][0]["route"].startswith("/api/v1/itam/support-profile")
 
 
 def test_global_search_validates_query_and_limit(tmp_path) -> None:

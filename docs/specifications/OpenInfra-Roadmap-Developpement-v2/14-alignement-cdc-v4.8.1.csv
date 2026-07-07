@@ -59,3 +59,5 @@ REQ-00783,Header fixe avec ombre prioritaire et scroll sous bandeau,P08,EPIC-080
 REQ-00784,Profil support ITAM constructeur immuable et support tiers séparé,P12,EPIC-1201,0.29.43,TST-P12-ITAM-ASSET-SUPPORT-PROFILE
 REQ-00785,Couverture garantie/support ITAM par actif,P12,EPIC-1202,0.29.44,TST-P12-ITAM-SUPPORT-COVERAGE
 REQ-00786,Sidebar accordéon sans masquage et scroll interne stable,P08,EPIC-0801,0.29.44,TST-P08-WEB-SIDEBAR-FLOW-SCROLL
+REQ-00787,ITAM visible Dashboard/header/sidebar/recherche avec icône asset,P08,EPIC-0801,0.29.45,TST-P08-WEB-ITAM-NAVIGATION-SEARCH
+REQ-00788,Boutons Swagger/ReDoc réduits de moitié,P08,EPIC-0801,0.29.45,TST-P08-WEB-COMPACT-API-DOC-BUTTONS

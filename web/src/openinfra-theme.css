@@ -661,9 +661,13 @@ body {
 }
 
 .openinfra-api-doc-actions .btn {
+  --bs-btn-padding-x: .5rem;
+  --bs-btn-padding-y: .22rem;
   border-radius: 999px;
+  font-size: .72rem;
   font-weight: 700;
-  min-width: 5.75rem;
+  line-height: 1.1;
+  min-width: 2.875rem;
   transition: background-color .18s ease-in-out, border-color .18s ease-in-out, color .18s ease-in-out, transform .18s ease-in-out, box-shadow .18s ease-in-out;
 }
 

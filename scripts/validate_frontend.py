@@ -125,6 +125,15 @@ class FrontendContractValidator:
             or "Chemin câble" not in main_source
             or "Format rendu" not in main_source
             or "Face rack" not in main_source
+            or "IT Asset Management" not in main_source
+            or "ITAM" not in main_source
+            or "icon: 'asset'" not in main_source
+            or "/v1/itam/support-profile" not in main_source
+            or "/v1/itam/support-coverage" not in main_source
+            or "Déclarer garantie constructeur" not in main_source
+            or "Ajouter support tiers" not in main_source
+            or "MODULES.map((module)" not in main_source
+            or "MODULES.slice(0, 6)" in main_source
             or "Token API" in main_source
         ):
             raise FrontendValidationError(
@@ -313,7 +322,16 @@ class FrontendContractValidator:
             'icon: "reference"',
             "OPENINFRA_ICONS",
             "reference:",
+            "asset:",
             'M1 2a2 2 0 0 1 2-2h1.6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V2zm6.7 0a2 2 0 0 1 2-2h1.6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9.7a2 2 0 0 1-2-2V2zm6.25.55A1.8 1.8 0 0 1 15 4.18v7.64a1.8 1.8 0 0 1-1.05 1.63V2.55z',
+            "IT Asset Management",
+            "ITAM",
+            'icon: "asset"',
+            "/v1/itam/support-profile",
+            "/v1/itam/support-coverage",
+            "Déclarer garantie constructeur",
+            "Ajouter support tiers",
+            "OPENINFRA_MODULES.map((module)",
             "agents proxy collectors Enterprise uniquement",
             "Numéro de série",
             "/v1/itrm/reconcile-object",
@@ -407,6 +425,7 @@ class FrontendContractValidator:
             "background: var(--openinfra-fuchsia);",
             "max-height: 34rem",
             "transition: max-height",
+            "OPENINFRA_MODULES.slice(0, 6)",
             "Token API",
             "physical-server",
             'id: "itrm", label: "IT Ressources Management", shortLabel: "ITRM", icon: "table"',

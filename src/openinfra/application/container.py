@@ -401,6 +401,12 @@ class ApplicationFactory:
             transaction_manager,
             auth_provider_policy_service,
         )
+        itam_support_service = ItamSupportService(
+            itam_support_repository,
+            audit_repository,
+            transaction_manager,
+            security_service,
+        )
         return OpenInfraApplication(
             store=store,
             dcim_service=DcimLocationService(
@@ -485,15 +491,11 @@ class ApplicationFactory:
                 source_of_truth_service,
                 ipam_ui_service,
                 discovery_service,
+                itam_support_service,
                 audit_repository,
                 transaction_manager,
             ),
-            itam_support_service=ItamSupportService(
-                itam_support_repository,
-                audit_repository,
-                transaction_manager,
-                security_service,
-            ),
+            itam_support_service=itam_support_service,
             dcim_repository=dcim_repository,
             identity_repository=identity_repository,
             ipam_repository=ipam_repository,

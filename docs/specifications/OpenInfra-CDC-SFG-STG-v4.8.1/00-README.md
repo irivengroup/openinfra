@@ -1,3 +1,8 @@
+## 0.29.45 - 2026-07-07
+
+- Ajout de REQ-00787 et TST-WEB-088 pour l’exposition ITAM dans Dashboard/header/sidebar/recherche avec icône pleine dédiée.
+- Ajout de REQ-00788 et TST-WEB-089 pour les boutons Swagger/ReDoc réduits de moitié.
+
 ## 0.29.44 - 2026-07-07
 
 - Ajout `REQ-00786` et `TST-WEB-087` pour le panneau latéral accordéon sans masquage et scroll interne stable.

@@ -1,18 +1,18 @@
-# OpenInfra v0.29.44
+# OpenInfra v0.29.45
 
-OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
+OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, ITAM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.44 — évaluation de couverture ITAM par actif : statut garantie constructeur, bascule support tiers et exposition API/CLI dédiées.**
+**Version courante : 0.29.45 — ITAM visible dans le Dashboard, le header, le panneau latéral et la recherche globale, avec icône dédiée et boutons Swagger/ReDoc compacts.**
 
 
 
-### v0.29.44 — couverture ITAM garantie/support par actif et scroll accordéon sidebar
+### v0.29.45 — ITAM visible partout et boutons documentation API compacts
 
-- Correction du panneau latéral : l’ouverture d’un composant en accordéon reste dans le flux vertical, repousse les composants inférieurs et supprime tout plafond artificiel masquant les opérations. Le panneau conserve un scroll interne stable sous le header fixe.
-- Ajout de l’évaluation de couverture d’un actif physique ITAM à partir du profil constructeur/tier existant.
-- Le rapport indique `warranty_status`, `warranty_days_remaining`, `warranty_expired`, les compteurs de supports tiers actifs/planifiés/expirés et `coverage_state`.
-- Ajout de la commande `openinfra itam support-coverage --tenant ... --asset-tag ... [--as-of YYYY-MM-DD]`.
-- Ajout de l’endpoint `GET /api/v1/itam/support-coverage`.
+- ITAM est maintenant exposé comme composant de premier niveau dans le Dashboard, le header, la sidebar et la recherche globale.
+- Le composant utilise une icône SVG pleine `asset`, cohérente avec les pictogrammes opaques des autres composants.
+- La recherche globale backend inclut ITAM via les profils support d’actifs, en respectant le tenant et les permissions.
+- Les boutons `Swagger` et `ReDoc` du double header sont réduits de moitié tout en conservant les liens backend API configurés par `/config.json`.
+- La correction sidebar v0.29.44 reste conservée : l’ouverture d’un composant en accordéon repousse les composants inférieurs et le panneau latéral scrolle sans masquer les entrées.
 
 ### v0.29.42 — header fixe renforcé et scroll sans chevauchement
 

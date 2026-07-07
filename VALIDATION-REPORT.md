@@ -1,8 +1,8 @@
-# OpenInfra v0.29.44 — Validation report
+# OpenInfra v0.29.45 — Validation report
 
 ## Scope
 
-Release v0.29.44 consolidates two increments:
+Release v0.29.45 consolidates two increments:
 
 - ITAM support coverage report per physical asset, exposed through domain/service/API/CLI/OpenAPI.
 - UX regression fix for the web sidebar accordion: expanded component menus remain in normal vertical flow, push lower components down, remove the fixed `34rem` panel cap, and keep the sidebar independently scrollable under the fixed header.
@@ -29,7 +29,7 @@ Release v0.29.44 consolidates two increments:
 | `python -m compileall -q src tests scripts` | PASS |
 | `python scripts/validate_frontend.py` | PASS |
 | `node --check src/openinfra/interfaces/rendering/static/assets/openinfra-web.js` | PASS |
-| `PYTHONPATH=src python -m openinfra version` | PASS — `0.29.44` |
+| `PYTHONPATH=src python -m openinfra version` | PASS — `0.29.45` |
 | `PYTHONPATH=src python scripts/native_runtime_smoke.py` | PASS |
 | `PYTHONPATH=src python scripts/validate_enterprise_alignment.py` | PASS |
 | `PYTHONPATH=src python scripts/validate_autonomous_installer.py` | PASS — 6 profiles |
@@ -46,7 +46,7 @@ Release v0.29.44 consolidates two increments:
 - `tests/integration/test_openinfra_web.py` verifies that `.openinfra-accordion-panel.show` uses `max-height: none` and `overflow: visible`.
 - The frontend validator rejects the old sidebar cap `max-height: 34rem` and `transition: max-height`.
 - The CSS keeps `.openinfra-sidebar` as the scroll container with `overflow-y: auto`, `overflow-x: hidden`, `overscroll-behavior: contain`, and `scrollbar-gutter: stable`.
-- Runtime Docker image tag tests were realigned to `0.29.44` to avoid stale test expectations.
+- Runtime Docker image tag tests were realigned to `0.29.45` to avoid stale test expectations.
 
 ## Not executable in this environment
 

@@ -174,6 +174,23 @@ class TestOpenInfraWeb:
         assert "Ouvrir Swagger UI backend API" in static_js + main_js
         assert "Ouvrir ReDoc backend API" in static_js + main_js
         assert "openinfra-api-doc-actions" in static_js + static_css
+        assert "IT Asset Management" in static_js
+        assert 'shortLabel: "ITAM"' in static_js
+        assert 'icon: "asset"' in static_js
+        assert "ITAM" in main_js
+        assert "asset: '" in main_js
+        assert "/v1/itam/support-profile" in static_js + main_js
+        assert "/v1/itam/support-coverage" in static_js + main_js
+        assert "Déclarer garantie constructeur" in static_js + main_js
+        assert "Ajouter support tiers" in static_js + main_js
+        assert "OPENINFRA_MODULES.map((module)" in static_js
+        assert "OPENINFRA_MODULES.slice(0, 6)" not in static_js
+        assert "MODULES.map((module)" in main_js
+        assert "MODULES.slice(0, 6)" not in main_js
+        assert "--bs-btn-padding-y: .22rem" in static_css
+        assert "--bs-btn-padding-x: .5rem" in static_css
+        assert "font-size: .72rem" in static_css
+        assert "min-width: 2.875rem" in static_css
         assert "grid-template-columns: minmax(0, 1fr) minmax(18rem, 50%) minmax(0, 1fr)" in static_css
         assert "IT Ressources Management" in static_js
         assert 'icon: "reference"' in static_js
@@ -333,6 +350,10 @@ class TestOpenInfraWeb:
         assert 'path: "/v1/dcim/digital-twin"' in static_js
         assert "Jumeau numérique salle" in static_js
         assert "Chaîne électrique" in static_js
+        assert 'path: "/v1/itam/support-profile"' in static_js
+        assert "Profil support actif" in static_js
+        assert 'path: "/v1/itam/support-coverage"' in static_js
+        assert "Couverture support actif" in static_js
         assert "Capacité froid watts" in static_js
         assert "postgresql://" not in index + static_js + static_css
         assert "OPENINFRA_DATABASE_DSN" not in index + static_js + static_css

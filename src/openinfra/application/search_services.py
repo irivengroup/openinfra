@@ -7,10 +7,11 @@ from typing import Any
 from urllib.parse import quote
 
 from openinfra.application.discovery_services import ListCollectorsCommand
+from openinfra.application.itam_services import GetAssetSupportProfileCommand
 from openinfra.application.ipam_services import IpamSearchCommand
 from openinfra.application.ports import AuditRepository, TransactionManager
 from openinfra.application.source_of_truth_services import ListSourceObjectsCommand
-from openinfra.domain.common import AccessDeniedError, AuditEvent, TenantId, ValidationError
+from openinfra.domain.common import AccessDeniedError, AuditEvent, NotFoundError, TenantId, ValidationError
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,12 +92,14 @@ class GlobalSearchService:
         itrm_service: Any,
         ipam_ui_service: Any,
         discovery_service: Any,
+        itam_support_service: Any,
         audit_repository: AuditRepository,
         transaction_manager: TransactionManager,
     ) -> None:
         self._itrm_service = itrm_service
         self._ipam_ui_service = ipam_ui_service
         self._discovery_service = discovery_service
+        self._itam_support_service = itam_support_service
         self._audit_repository = audit_repository
         self._transaction_manager = transaction_manager
 
@@ -108,6 +111,7 @@ class GlobalSearchService:
         limit = self._normalize_limit(command.limit)
         groups = (
             self._search_itrm(tenant_id, command, query, limit),
+            self._search_itam(tenant_id, command, query, limit),
             self._search_ipam(tenant_id, command, query, limit),
             self._search_discovery(tenant_id, command, query, limit),
         )
@@ -197,6 +201,58 @@ class GlobalSearchService:
                 )
             )
         return self._ok("itrm", "ITRM", matches, limit)
+
+    def _search_itam(
+        self, tenant_id: TenantId, command: GlobalSearchCommand, query: str, limit: int
+    ) -> GlobalSearchGroup:
+        try:
+            profile = self._itam_support_service.get_support_profile(
+                GetAssetSupportProfileCommand(
+                    tenant_id=tenant_id.value,
+                    admin_token=command.admin_token,
+                    asset_tag=query,
+                )
+            )
+        except AccessDeniedError:
+            return self._skipped("itam", "ITAM", "permission denied")
+        except (NotFoundError, ValidationError):
+            return self._ok("itam", "ITAM", [], limit)
+
+        row = profile.as_dict()
+        warranty = row.get("manufacturer_warranty", {})
+        if not isinstance(warranty, dict):
+            warranty = {}
+        fields = (
+            str(row.get("asset_tag", "")),
+            str(warranty.get("manufacturer", "")),
+            str(warranty.get("warranty_reference", "")),
+            str(warranty.get("support_reference", "")),
+            str(warranty.get("support_level", "")),
+            json.dumps(row.get("third_party_contracts", []), sort_keys=True, ensure_ascii=False),
+        )
+        score = self._score(query, fields)
+        if score == 0:
+            return self._ok("itam", "ITAM", [], limit)
+        asset_tag = str(row.get("asset_tag", query))
+        manufacturer = str(warranty.get("manufacturer", "constructeur"))
+        item = GlobalSearchItem(
+            component="itam",
+            kind="support-profile",
+            label=asset_tag,
+            description=f"{manufacturer} · garantie {warranty.get('warranty_reference', 'n/a')}",
+            route=(
+                "/api/v1/itam/support-profile?tenant_id="
+                f"{quote(tenant_id.value)}&asset_tag={quote(asset_tag)}"
+            ),
+            score=score,
+            metadata={
+                "asset_tag": asset_tag,
+                "manufacturer": warranty.get("manufacturer"),
+                "warranty_reference": warranty.get("warranty_reference"),
+                "support_reference": warranty.get("support_reference"),
+            },
+        )
+        return self._ok("itam", "ITAM", [item], limit)
 
     def _search_ipam(
         self, tenant_id: TenantId, command: GlobalSearchCommand, query: str, limit: int

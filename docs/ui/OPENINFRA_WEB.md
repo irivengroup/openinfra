@@ -1,4 +1,4 @@
-# OpenInfra Web v0.29.37
+# OpenInfra Web v0.29.38
 
 OpenInfra Web est le portail `openinfra-web` API-only. Il sert l'interface React/Bootstrap 5, expose un proxy applicatif `/api/*` vers le backend `openinfra-api` et fournit un dashboard aligné sur les domaines CLI.
 
@@ -175,3 +175,9 @@ La non-régression est portée par `scripts/validate_frontend.py` et par `tests/
 La validation locale des fichiers d’enrôlement proxy Enterprise est portée par la CLI `openinfra discovery proxy-enroll-verify`. Le dashboard ne demande toujours aucun secret d’enrôlement proxy au navigateur : les opérations sensibles restent côté CLI/backend, tandis que le portail conserve uniquement les workflows API Discovery déjà exposés.
 
 La même livraison simplifie le titre de la page d’accueil en `Dashboard` et isole les métriques/cartes d’accueil dans cette page uniquement. Lorsqu’un opérateur ouvre ITRM, IPAM, DCIM, Discovery ou Sécurité, la zone centrale affiche seulement le titre du composant, son sous-titre contextuel, le formulaire métier et le résultat éventuel.
+
+## v0.29.38 — Recherche globale backend
+
+La recherche globale du double header appelle `GET /api/v1/search/global` avec `tenant_id`, `query` et `limit`. Quand le backend répond, les résultats métiers sont affichés par composant : ITRM, IPAM et Discovery. Chaque entrée expose un libellé, une description, un type et une route API ouvrable depuis le panneau résultat.
+
+Si le backend est indisponible, si le jeton courant ne permet pas la recherche ou si la requête est trop courte, le portail conserve un fallback local sur les opérations déjà connues. Cette dégradation contrôlée évite une page vide tout en empêchant l’affichage de données non autorisées.

@@ -1581,3 +1581,9 @@ La version 0.29.36 supprime l’alerte informative affichée par défaut sur les
 La version 0.29.37 complète P08 avec une double barre de header : navigation produit dans le premier bandeau, recherche globale et accès Swagger/ReDoc dans le second. La recherche est centrée, dimensionnée à 50 % de l’espace desktop, dotée d’une loupe SVG et affiche les résultats groupés par composant. La même livraison retire les messages permanents hérités des anciennes alertes informatives.
 
 La roadmap P08 ajoute `TST-P08-WEB-GLOBAL-SEARCH-HEADER` et aligne `REQ-00777`. `TST-P08-WEB-CONTEXTUAL-ALERTS` couvre désormais aussi l’absence des textes permanents hérités des alertes.
+
+### v0.29.38 — Recherche globale backend groupée par composant
+
+La version 0.29.38 transforme la recherche globale de header en capacité backend réelle. Le service applicatif agrège ITRM, IPAM et Discovery, l’API expose `GET /api/v1/search/global`, la CLI ajoute `openinfra search global` et le portail web affiche les résultats métiers groupés par composant avec fallback local contrôlé.
+
+La roadmap P08 ajoute `TST-P08-WEB-BACKEND-GLOBAL-SEARCH` et aligne `REQ-00778`.

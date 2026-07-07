@@ -1080,3 +1080,74 @@ class TestOpenInfraAccessPolicyCli:
         )
         html = capsys.readouterr().out
         assert "OpenInfra fiche localisation" in html
+
+    def test_global_search_cli_command(self, tmp_path: Path, capsys: object) -> None:
+        data = tmp_path / "state.json"
+        token = "z" * 40
+        OpenInfraCLI().run(
+            [
+                "security",
+                "bootstrap-token",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--subject",
+                "global-search-cli",
+                "--role",
+                "admin",
+                "--token",
+                token,
+            ]
+        )
+        capsys.readouterr()
+        upsert_code = OpenInfraCLI().run(
+            [
+                "itrm",
+                "upsert-object",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--key",
+                "server/paris-cli-db-01",
+                "--resource-category",
+                "server",
+                "--resource-type",
+                "rack-server",
+                "--display-name",
+                "Paris CLI DB 01",
+                "--attributes-json",
+                '{"site":"Paris","role":"database"}',
+                "--tag",
+                "paris",
+                "--source",
+                "manual",
+            ]
+        )
+        capsys.readouterr()
+        search_code = OpenInfraCLI().run(
+            [
+                "search",
+                "global",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--query",
+                "Paris",
+                "--limit",
+                "5",
+            ]
+        )
+        payload = json.loads(capsys.readouterr().out)
+
+        assert upsert_code == 0
+        assert search_code == 0
+        assert payload["query"] == "Paris"
+        groups = {group["component"]: group for group in payload["groups"]}
+        assert groups["itrm"]["items"][0]["label"] == "Paris CLI DB 01"

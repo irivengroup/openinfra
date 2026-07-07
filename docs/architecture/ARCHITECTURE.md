@@ -446,3 +446,9 @@ La version `0.29.33` complète la frontière Discovery avec un enrôlement proxy
 ## Web UX content shadow refinement v0.29.35
 
 La version `0.29.35` sépare les effets d’élévation visuelle du contenu et de la navigation. Les blocs de contenu openinfra-web utilisent `--openinfra-content-shadow` et `--openinfra-content-shadow-hover`, plus légers que les tokens historiques de navigation. Le header principal et la sidebar restent inchangés pour préserver l’orientation opérateur, tandis que les cartes, métriques, titlebars et synthèses deviennent plus fluides visuellement.
+
+## Backend global search v0.29.38
+
+La version `0.29.38` introduit un service applicatif transverse `GlobalSearchService`. Il agrège ITRM, IPAM et Discovery via les ports/services existants, normalise le score de pertinence et retourne un contrat groupé par composant. Le service conserve la séparation Clean Architecture : l’UI et l’API ne lisent pas directement les repositories métiers.
+
+L’endpoint `GET /api/v1/search/global` expose ce contrat à `openinfra-web` et à tout client API. Les composants protégés qui refusent le jeton courant sont marqués comme non visibles au niveau applicatif, sans fuite de contenu. La commande `openinfra search global` réutilise le même service pour garantir la parité CLI/API/UI.

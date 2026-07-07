@@ -112,6 +112,7 @@ from openinfra.application.it_resources_management_services import (
     ReconcileSourceObjectCommand,
     UpsertSourceObjectCommand,
 )
+from openinfra.application.search_services import GlobalSearchCommand
 from openinfra.application.security_services import (
     AuthenticateTokenCommand,
     BootstrapTokenCommand,
@@ -174,6 +175,7 @@ class OpenInfraCLI:
         self._add_identity_commands(subparsers)
         self._add_access_policy_commands(subparsers)
         self._add_audit_commands(subparsers)
+        self._add_search_commands(subparsers)
         self._add_import_commands(subparsers)
         self._add_export_commands(subparsers)
         self._add_discovery_commands(subparsers)
@@ -482,6 +484,22 @@ class OpenInfraCLI:
         evaluate.add_argument("--site-code")
         evaluate.add_argument("--environment")
         evaluate.set_defaults(handler=self._handle_access_evaluate)
+
+    def _add_search_commands(self, subparsers: Any) -> None:
+        search = subparsers.add_parser("search", help="global cross-component search")
+        search_subparsers = search.add_subparsers(dest="search_command", required=True)
+        global_search = search_subparsers.add_parser(
+            "global",
+            help="search ITRM, IPAM and authorized Discovery data grouped by component",
+        )
+        self._add_backend_arguments(global_search)
+        global_search.add_argument("--tenant", required=True)
+        global_search.add_argument("--admin-token", required=True)
+        global_search.add_argument("--query", required=True)
+        global_search.add_argument("--limit", type=int, default=5)
+        global_search.add_argument("--actor", default="cli")
+        global_search.add_argument("--include-inactive-discovery", action="store_true")
+        global_search.set_defaults(handler=self._handle_search_global)
 
     def _add_audit_commands(self, subparsers: Any) -> None:
         audit = subparsers.add_parser("audit", help="audit trail operations")
@@ -2205,6 +2223,21 @@ class OpenInfraCLI:
         )
         print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
         return 0 if report.valid else 2
+
+    def _handle_search_global(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        result = app.global_search_service.search(
+            GlobalSearchCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                query=args.query,
+                limit=args.limit,
+                include_inactive_discovery=args.include_inactive_discovery,
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
 
     def _handle_discovery_collector_heartbeat(self, args: argparse.Namespace) -> int:
         app = self._create_application(args)

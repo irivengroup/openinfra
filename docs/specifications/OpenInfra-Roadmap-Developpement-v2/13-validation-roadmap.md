@@ -64,3 +64,7 @@ Validation attendue : `scripts/validate_frontend.py` et `tests/integration/test_
 ## Validation v0.29.37
 
 La roadmap v2 intègre P08/openinfra-web double barre et recherche globale via `TST-P08-WEB-GLOBAL-SEARCH-HEADER` et l’alignement CDC `REQ-00777`. La validation contextual alerts couvre aussi le retrait des messages permanents hérités des anciennes alertes.
+
+## Validation v0.29.38
+
+La roadmap v2 intègre P08/openinfra-web recherche globale backend via `TST-P08-WEB-BACKEND-GLOBAL-SEARCH` et l’alignement CDC `REQ-00778`. La validation couvre le service applicatif, l’API HTTP, la CLI et le fallback frontend.

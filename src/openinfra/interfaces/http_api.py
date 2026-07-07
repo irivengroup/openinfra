@@ -109,6 +109,7 @@ from openinfra.application.it_resources_management_services import (
     ReconcileSourceObjectCommand,
     UpsertSourceObjectCommand,
 )
+from openinfra.application.search_services import GlobalSearchCommand
 from openinfra.application.security_services import (
     AuthenticateTokenCommand,
     ListTokensCommand,
@@ -295,6 +296,33 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             status = self.server.application.schema_status_provider.status_as_dict()
             http_status = HTTPStatus.OK if status.get("ready") is True else HTTPStatus.CONFLICT
             responder.send(http_status, status)
+            return
+        if route == "/api/v1/search/global":
+            try:
+                query = parse_qs(parsed.query)
+                tenant_id = self._first_query_value(query, "tenant_id")
+                actor = "api"
+                if self.server.auth_required:
+                    principal = self._authenticate(tenant_id, Permission.ITRM_READ)
+                    actor = principal.subject
+                result = self.server.application.global_search_service.search(
+                    GlobalSearchCommand(
+                        tenant_id=tenant_id,
+                        actor=actor,
+                        admin_token=self._bearer_token(),
+                        query=self._first_query_value(query, "query"),
+                        limit=int(self._first_query_value(query, "limit", "5")),
+                        include_inactive_discovery=(
+                            self._first_query_value(query, "include_inactive_discovery", "false")
+                            == "true"
+                        ),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
         if route == "/api/v1/security/tokens":
             try:
@@ -2373,6 +2401,7 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "report": "/api/v1/exports/jobs",
                     "artifact": "/api/v1/exports/artifact",
                 },
+                "search": {"global": "/api/v1/search/global"},
                 "it_resources_management": {
                     "objects": "/api/v1/itrm/objects",
                     "resource_taxonomy": "/api/v1/itrm/resource-taxonomy",

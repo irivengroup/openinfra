@@ -760,10 +760,45 @@ function Dashboard() {
   const [tenant, setTenant] = useState('default');
   const [result, setResult] = useState('Résultat en attente.');
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
+  const [globalSearchBackend, setGlobalSearchBackend] = useState(null);
+  const [globalSearchLoading, setGlobalSearchLoading] = useState(false);
+  const [globalSearchError, setGlobalSearchError] = useState(null);
   const businessModules = useMemo(() => componentModules(), []);
   const operationsCount = useMemo(() => MODULES.reduce((total, module) => total + module.operations.length, 0), []);
   const businessFieldsCount = useMemo(() => businessModules.reduce((total, module) => total + moduleStatistics(module).fields, 0), [businessModules]);
   const searchGroups = useMemo(() => globalSearchGroups(globalSearchQuery), [globalSearchQuery]);
+
+  useEffect(() => {
+    const query = globalSearchQuery.trim();
+    if (query.length < 2) {
+      setGlobalSearchBackend(null);
+      setGlobalSearchError(null);
+      setGlobalSearchLoading(false);
+      return undefined;
+    }
+    let cancelled = false;
+    setGlobalSearchLoading(true);
+    fetch(`/api/v1/search/global?tenant_id=${encodeURIComponent(tenant || 'default')}&query=${encodeURIComponent(query)}&limit=6`, {
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json' },
+    }).then((response) => {
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.json();
+    }).then((payload) => {
+      if (!cancelled) {
+        setGlobalSearchBackend(payload);
+        setGlobalSearchError(null);
+      }
+    }).catch((error) => {
+      if (!cancelled) {
+        setGlobalSearchBackend(null);
+        setGlobalSearchError(error.message);
+      }
+    }).finally(() => {
+      if (!cancelled) setGlobalSearchLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [globalSearchQuery, tenant]);
 
   useEffect(() => {
     Promise.all([
@@ -791,6 +826,15 @@ function Dashboard() {
     setGlobalSearchQuery('');
   }
 
+  function selectBackendSearchItem(item) {
+    if (!item.route) return;
+    fetch(item.route, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+      .then((response) => response.json())
+      .then((payload) => setResult(JSON.stringify(payload, null, 2)))
+      .catch((error) => setResult(JSON.stringify({ error: error.message }, null, 2)));
+    setGlobalSearchQuery('');
+  }
+
   function toggleAccordion(moduleId) {
     const next = new Set(opened);
     if (next.has(moduleId)) next.delete(moduleId); else next.add(moduleId);
@@ -814,13 +858,30 @@ function Dashboard() {
   return <div className="openinfra-shell">
     <header>
       <div className="px-3 py-2 bg-dark text-white openinfra-top-header"><div className="container-fluid"><div className="d-flex flex-wrap align-items-center justify-content-center justify-content-lg-start"><a href="/" className="d-flex align-items-center my-2 my-lg-0 me-lg-auto text-white text-decoration-none" aria-label="OpenInfra accueil"><span className="openinfra-brand-mark me-2">OI</span><span className="fs-5 fw-semibold">OpenInfra</span></a><ul className="nav col-12 col-lg-auto my-2 justify-content-center my-md-0 text-small">{MODULES.slice(0, 6).map((module) => <li key={module.id}><button type="button" className={`nav-link border-0 bg-transparent ${activeModuleId === module.id ? 'text-secondary' : 'text-white'}`} onClick={() => chooseOperation(module, module.operations[0])}><Icon name={module.icon} className="bi d-block mx-auto mb-1 openinfra-top-icon" />{module.shortLabel || module.label}</button></li>)}</ul></div></div></div>
-      <div className="px-3 py-2 border-bottom openinfra-global-toolbar"><div className="container-fluid openinfra-global-toolbar-inner"><div className="openinfra-global-toolbar-spacer" aria-hidden="true" /><form className="openinfra-global-search-form" role="search" autoComplete="off"><label className="visually-hidden" htmlFor="openinfra-global-search">Recherche globale OpenInfra</label><div className="openinfra-global-search-control"><Icon name="search" className="openinfra-global-search-icon" /><input type="search" id="openinfra-global-search" className="form-control" placeholder="Recherche globale..." aria-label="Recherche globale OpenInfra" aria-controls="openinfra-global-search-results" aria-expanded={globalSearchQuery.trim() !== ''} value={globalSearchQuery} onChange={(event) => setGlobalSearchQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') setGlobalSearchQuery(''); }} /></div>{globalSearchQuery.trim() !== '' && <div id="openinfra-global-search-results" className="openinfra-global-search-results"><GlobalSearchResults query={globalSearchQuery} groups={searchGroups} onSelect={selectSearchOperation} /></div>}</form><div className="text-end openinfra-api-doc-actions"><a className="btn btn-light text-dark me-2" href="/docs" target="_blank" rel="noopener noreferrer">Swagger</a><a className="btn btn-primary" href="/redoc" target="_blank" rel="noopener noreferrer">ReDoc</a></div></div></div>
+      <div className="px-3 py-2 border-bottom openinfra-global-toolbar"><div className="container-fluid openinfra-global-toolbar-inner"><div className="openinfra-global-toolbar-spacer" aria-hidden="true" /><form className="openinfra-global-search-form" role="search" autoComplete="off"><label className="visually-hidden" htmlFor="openinfra-global-search">Recherche globale OpenInfra</label><div className="openinfra-global-search-control"><Icon name="search" className="openinfra-global-search-icon" /><input type="search" id="openinfra-global-search" className="form-control" placeholder="Recherche globale..." aria-label="Recherche globale OpenInfra" aria-controls="openinfra-global-search-results" aria-expanded={globalSearchQuery.trim() !== ''} value={globalSearchQuery} onChange={(event) => setGlobalSearchQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') setGlobalSearchQuery(''); }} /></div>{globalSearchQuery.trim() !== '' && <div id="openinfra-global-search-results" className="openinfra-global-search-results"><GlobalSearchResults query={globalSearchQuery} groups={searchGroups} backend={globalSearchBackend} loading={globalSearchLoading} error={globalSearchError} onSelect={selectSearchOperation} onBackendSelect={selectBackendSearchItem} /></div>}</form><div className="text-end openinfra-api-doc-actions"><a className="btn btn-light text-dark me-2" href="/docs" target="_blank" rel="noopener noreferrer">Swagger</a><a className="btn btn-primary" href="/redoc" target="_blank" rel="noopener noreferrer">ReDoc</a></div></div></div>
     </header>
     <div className="container-fluid"><div className="row"><nav className="col-lg-3 col-xl-2 openinfra-sidebar" aria-label="Sidebar navigation"><div className="openinfra-sidebar-heading">Pilotage</div>{filteredModules.map((module) => module.id === 'overview' ? <button key={module.id} type="button" className={`nav-link openinfra-sidebar-dashboard w-100 text-start ${activeModuleId === module.id ? 'active' : ''}`} onClick={() => chooseOperation(module, module.operations[0])}><Icon name={module.icon} />Dashboard</button> : <section className={`openinfra-accordion ${opened.has(module.id) ? 'open' : ''}`} key={module.id}><button type="button" className={`openinfra-accordion-toggle ${activeModuleId === module.id ? 'active' : ''}`} aria-expanded={opened.has(module.id)} onClick={() => toggleAccordion(module.id)}><span><Icon name={module.icon} />{module.shortLabel || module.label}</span><span className="openinfra-chevron">›</span></button><div className={`openinfra-accordion-panel fade ${opened.has(module.id) ? 'show' : ''}`}>{module.operations.map((operation) => <button key={operation.id} type="button" className={`openinfra-sidebar-operation ${selected.id === operation.id ? 'active' : ''}`} onClick={() => chooseOperation(module, operation)}>{operation.label}</button>)}</div></section>)}</nav><main className="col-lg-9 col-xl-10 ms-sm-auto openinfra-main"><div className="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 openinfra-titlebar"><div><h1 className="h2">{pageTitle}</h1><p className="text-muted mb-0">{pageSubtitle}</p></div><div className="btn-toolbar mb-2 mb-md-0"><span className="badge text-bg-primary me-2">{config.edition || 'runtime'}</span><span className="badge text-bg-secondary">{config.authMode || 'standard'}</span></div></div>{submissionCompleted && activeModuleId !== 'overview' && <div className="alert alert-success" role="status">Soumission exécutée avec succès.</div>}{activeModuleId === 'overview' && <div className="row g-3 mb-4 openinfra-dashboard-metrics" aria-label="Métriques du dashboard"><Metric title="Version" value={displayedVersion} /><Metric title="API" value={config.apiBaseUrl || '/api'} /><Metric title="Trust" value={config.webBackendTrust || 'server-side'} /><Metric title="Formulaires" value={protectedForms} /><Metric title="Modules" value={`${operationsCount} opérations`} /></div>}{activeModuleId === 'overview' ? <OverviewStats modules={businessModules} fieldsCount={businessFieldsCount} /> : <section className="card openinfra-operation-card"><div className="card-body"><h2 className="h4">{selected.label}</h2><div className="row g-3 mb-3"><label className="col-md-4 form-label">Tenant<input className="form-control" value={tenant} onChange={(event) => setTenant(event.target.value)} /></label></div><div className="row g-3">{selected.fields.map((field) => <label className="col-md-6 col-xl-4 form-label" key={field}>{field}<input className="form-control" /></label>)}</div><button type="button" className="btn btn-primary mt-3" onClick={execute}>Exécuter</button><pre className="openinfra-result mt-3">{result}</pre></div></section>}</main></div></div>
   </div>;
 }
 
-function GlobalSearchResults({ query, groups, onSelect }) {
+function GlobalSearchResults({ query, groups, backend, loading, error, onSelect, onBackendSelect }) {
+  if (loading) {
+    return <div className="openinfra-global-search-empty">Recherche backend en cours pour <strong>{query.trim()}</strong>…</div>;
+  }
+  if (backend && backend.query === query.trim()) {
+    const resultGroups = (backend.groups || []).filter((group) => group.status === 'ok' && Array.isArray(group.items) && group.items.length > 0);
+    const skipped = (backend.groups || []).filter((group) => group.status === 'skipped');
+    if (resultGroups.length > 0) {
+      return <>{resultGroups.map((group) => <section className="openinfra-global-search-group" aria-label={`Résultats ${group.label || group.component}`} key={group.component}><div className="openinfra-global-search-group-title"><span>{group.label || group.component}</span><span>{group.total} résultat{group.total > 1 ? 's' : ''}</span></div>{group.items.map((item) => <button type="button" className="openinfra-global-search-item" key={`${group.component}-${item.kind}-${item.label}`} onClick={() => onBackendSelect(item)}><span>{item.label}</span><small>{item.kind} · {item.description}</small></button>)}{group.total > group.items.length && <div className="openinfra-global-search-more">{group.total - group.items.length} résultat{group.total - group.items.length > 1 ? 's' : ''} supplémentaire{group.total - group.items.length > 1 ? 's' : ''}</div>}</section>)}{skipped.length > 0 && <div className="openinfra-global-search-empty">Composants ignorés selon les droits : {skipped.map((group) => group.label || group.component).join(', ')}.</div>}</>;
+    }
+  }
+  if (error) {
+    return <><div className="openinfra-global-search-empty">Recherche backend indisponible : {error}. Résultats locaux ci-dessous.</div><OperationSearchResults query={query} groups={groups} onSelect={onSelect} /></>;
+  }
+  return <OperationSearchResults query={query} groups={groups} onSelect={onSelect} />;
+}
+
+function OperationSearchResults({ query, groups, onSelect }) {
   if (groups.length === 0) {
     return <div className="openinfra-global-search-empty">Aucun résultat global pour <strong>{query.trim()}</strong>.</div>;
   }

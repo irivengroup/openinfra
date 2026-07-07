@@ -1,8 +1,15 @@
-# OpenInfra v0.29.37
+# OpenInfra v0.29.38
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.37 — openinfra-web ajoute une seconde barre de header avec recherche globale groupée par composant, accès Swagger/ReDoc, et supprime les messages permanents hérités des anciennes alertes.**
+**Version courante : 0.29.38 — la recherche globale du header interroge désormais le backend OpenInfra, agrège ITRM/IPAM/Discovery et affiche les résultats métiers groupés par composant.**
+
+### v0.29.38 — recherche globale backend groupée par composant
+
+- Le champ de recherche globale du double header appelle `/api/v1/search/global` quand le backend est disponible.
+- Les résultats backend sont groupés par composant métier : ITRM, IPAM et Discovery.
+- Les composants non accessibles au jeton courant sont ignorés sans fuite de données ; la recherche locale des opérations reste un fallback UX.
+- La CLI expose `openinfra search global --tenant ... --admin-token ... --query ...` pour le même contrat applicatif.
 
 ### v0.29.37 — double header, recherche globale et retrait des messages permanents
 

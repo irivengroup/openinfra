@@ -1,3 +1,11 @@
+## 0.29.38 - 2026-07-07
+
+- Ajout d’un service applicatif `GlobalSearchService` agrégeant les résultats ITRM, IPAM et Discovery.
+- Ajout de l’endpoint `GET /api/v1/search/global` avec résultats groupés par composant, limites validées et sécurité par jeton.
+- Ajout de la commande `openinfra search global` pour utiliser la recherche globale hors UI.
+- Le double header web utilise le backend quand il est disponible et conserve le fallback local de recherche d’opérations.
+- Ajout de tests service/API/frontend et de garde-fous de validation frontend.
+
 ## 0.29.37 - 2026-07-07
 
 - Added a themed second header bar dedicated to global search, centered on the page and sized to half of the available width on desktop.

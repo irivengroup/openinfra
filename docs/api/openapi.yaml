@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.37
+  version: 0.29.38
 components:
   securitySchemes:
     bearerToken:
@@ -83,6 +83,25 @@ paths:
           description: Schema is up to date or JSON backend does not require migrations
         '409':
           description: PostgreSQL schema has pending migrations or checksum drift
+  /api/v1/search/global:
+    get:
+      summary: Search OpenInfra business data across ITRM, IPAM and Discovery
+      description: Returns component-grouped global search results for the web header and CLI. Components the caller cannot access are skipped instead of leaking protected data.
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: query, in: query, required: true, schema: {type: string, minLength: 2, maxLength: 128}}
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 25, default: 5}}
+        - {name: include_inactive_discovery, in: query, required: false, schema: {type: boolean, default: false}}
+      responses:
+        '200':
+          description: Component-grouped global search result
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid Bearer token when authentication is enabled
+
   /api/v1/security/whoami:
     post:
       summary: Validate an API token and return the authenticated principal

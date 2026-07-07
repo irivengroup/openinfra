@@ -51,6 +51,7 @@ from openinfra.application.ports import (
     SourceOfTruthRepository,
     TransactionManager,
 )
+from openinfra.application.search_services import GlobalSearchService
 from openinfra.application.security_services import SecurityService
 from openinfra.application.source_governance_services import SourceGovernanceService
 from openinfra.application.source_of_truth_services import SourceOfTruthService
@@ -128,6 +129,7 @@ class OpenInfraApplication:
     auth_provider_policy_service: AuthProviderPolicyService
     access_policy_service: AccessPolicyService
     audit_service: AuditTrailService
+    global_search_service: GlobalSearchService
     source_of_truth_service: SourceOfTruthService
     source_governance_service: SourceGovernanceService
     it_resources_management_quality_service: ITResourcesManagementQualityService
@@ -354,6 +356,20 @@ class ApplicationFactory:
             security_service,
             edition_guard,
         )
+        source_of_truth_service = SourceOfTruthService(
+            source_of_truth_repository,
+            audit_repository,
+            transaction_manager,
+            security_service,
+            source_governance_repository,
+        )
+        ipam_ui_service = IpamUiService(
+            ipam_repository,
+            audit_repository,
+            transaction_manager,
+            ipam_allocation_service,
+            ipam_conflict_service,
+        )
         identity_service = IdentityService(
             identity_repository,
             audit_repository,
@@ -419,24 +435,12 @@ class ApplicationFactory:
             import_service=import_service,
             export_service=export_service,
             discovery_service=discovery_service,
-            ipam_ui_service=IpamUiService(
-                ipam_repository,
-                audit_repository,
-                transaction_manager,
-                ipam_allocation_service,
-                ipam_conflict_service,
-            ),
+            ipam_ui_service=ipam_ui_service,
             security_service=security_service,
             identity_service=identity_service,
             external_authentication_service=external_authentication_service,
             auth_provider_policy_service=auth_provider_policy_service,
-            source_of_truth_service=SourceOfTruthService(
-                source_of_truth_repository,
-                audit_repository,
-                transaction_manager,
-                security_service,
-                source_governance_repository,
-            ),
+            source_of_truth_service=source_of_truth_service,
             source_governance_service=SourceGovernanceService(
                 source_governance_repository,
                 audit_repository,
@@ -460,6 +464,13 @@ class ApplicationFactory:
                 audit_repository,
                 transaction_manager,
                 security_service,
+            ),
+            global_search_service=GlobalSearchService(
+                source_of_truth_service,
+                ipam_ui_service,
+                discovery_service,
+                audit_repository,
+                transaction_manager,
             ),
             dcim_repository=dcim_repository,
             identity_repository=identity_repository,

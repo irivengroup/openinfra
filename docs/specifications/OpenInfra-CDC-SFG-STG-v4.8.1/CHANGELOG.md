@@ -1,3 +1,8 @@
+## 0.29.38
+
+- Ajout `REQ-00778` et `TST-WEB-081` pour la recherche globale backend groupée par composant.
+- Mise à jour OpenAPI avec `GET /api/v1/search/global`.
+
 ## 0.29.37
 
 - Ajout `REQ-00777` et `TST-WEB-080` pour la double barre de header, la recherche globale centrée, la loupe SVG, les résultats groupés par composant et les actions Swagger/ReDoc.

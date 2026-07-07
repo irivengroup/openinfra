@@ -919,7 +919,10 @@ class OpenInfraDashboard {
       version: null,
       result: null,
       error: null,
-      globalSearchQuery: ""
+      globalSearchQuery: "",
+      globalSearchBackend: null,
+      globalSearchLoading: false,
+      globalSearchError: null
     };
   }
 
@@ -1037,6 +1040,40 @@ class OpenInfraDashboard {
       return "";
     }
     const groups = this.globalSearchGroups();
+    const backend = this.state.globalSearchBackend;
+    if (this.state.globalSearchLoading) {
+      return `<div class="openinfra-global-search-empty">Recherche backend en cours pour <strong>${this.escape(query)}</strong>…</div>`;
+    }
+    if (backend && backend.query === query) {
+      return this.renderBackendGlobalSearchResults(backend, query, groups);
+    }
+    if (this.state.globalSearchError) {
+      return `<div class="openinfra-global-search-empty">Recherche backend indisponible : ${this.escape(this.state.globalSearchError)}. Résultats locaux ci-dessous.</div>${this.renderOperationSearchResults(groups, query)}`;
+    }
+    return this.renderOperationSearchResults(groups, query);
+  }
+
+  renderBackendGlobalSearchResults(backend, query, operationGroups) {
+    const groups = Array.isArray(backend.groups) ? backend.groups : [];
+    const visibleGroups = groups.filter((group) => group.status === "ok" && Array.isArray(group.items) && group.items.length > 0);
+    const skipped = groups.filter((group) => group.status === "skipped");
+    const sections = visibleGroups.map((group) => `<section class="openinfra-global-search-group" aria-label="Résultats ${this.escape(group.label || group.component)}">
+      <div class="openinfra-global-search-group-title"><span>${this.escape(group.label || group.component)}</span><span>${group.total} résultat${group.total > 1 ? "s" : ""}</span></div>
+      ${group.items.map((item) => `<button type="button" class="openinfra-global-search-item" data-search-route="${this.escape(item.route || "")}">
+        <span>${this.escape(item.label || item.kind || "résultat")}</span><small>${this.escape(item.kind || group.component)} · ${this.escape(item.description || "")}</small>
+      </button>`).join("")}
+      ${group.total > group.items.length ? `<div class="openinfra-global-search-more">${group.total - group.items.length} résultat${group.total - group.items.length > 1 ? "s" : ""} supplémentaire${group.total - group.items.length > 1 ? "s" : ""}</div>` : ""}
+    </section>`);
+    const skippedNotice = skipped.length > 0
+      ? `<div class="openinfra-global-search-empty">Composants ignorés selon les droits : ${this.escape(skipped.map((group) => group.label || group.component).join(", "))}.</div>`
+      : "";
+    if (sections.length === 0) {
+      return `<div class="openinfra-global-search-empty">Aucun résultat métier pour <strong>${this.escape(query)}</strong>.</div>${skippedNotice}${this.renderOperationSearchResults(operationGroups, query)}`;
+    }
+    return sections.join("") + skippedNotice;
+  }
+
+  renderOperationSearchResults(groups, query) {
     if (groups.length === 0) {
       return `<div class="openinfra-global-search-empty">Aucun résultat global pour <strong>${this.escape(query)}</strong>.</div>`;
     }
@@ -1338,11 +1375,50 @@ class OpenInfraDashboard {
       results.innerHTML = this.renderGlobalSearchResults();
       this.bindSearchResultButtons();
     }
+    this.refreshBackendGlobalSearch(value);
+  }
+
+  async refreshBackendGlobalSearch(value) {
+    const query = value.trim();
+    if (query.length < 2) {
+      this.state = { ...this.state, globalSearchBackend: null, globalSearchLoading: false, globalSearchError: null };
+      return;
+    }
+    const requestId = (this.latestGlobalSearchRequest || 0) + 1;
+    this.latestGlobalSearchRequest = requestId;
+    this.state = { ...this.state, globalSearchLoading: true, globalSearchError: null };
+    try {
+      const response = await fetch(`/api/v1/search/global?tenant_id=${encodeURIComponent(this.state.tenant || "default")}&query=${encodeURIComponent(query)}&limit=6`, {
+        credentials: "same-origin",
+        headers: { Accept: "application/json" }
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const payload = await response.json();
+      if (this.latestGlobalSearchRequest !== requestId) {
+        return;
+      }
+      this.state = { ...this.state, globalSearchBackend: payload, globalSearchLoading: false, globalSearchError: null };
+    } catch (error) {
+      if (this.latestGlobalSearchRequest !== requestId) {
+        return;
+      }
+      this.state = { ...this.state, globalSearchBackend: null, globalSearchLoading: false, globalSearchError: error.message };
+    }
+    const results = document.getElementById("openinfra-global-search-results");
+    if (results && this.state.globalSearchQuery.trim() === query) {
+      results.innerHTML = this.renderGlobalSearchResults();
+      this.bindSearchResultButtons();
+    }
   }
 
   bindSearchResultButtons() {
     for (const button of document.querySelectorAll("[data-search-operation-id]")) {
       button.addEventListener("click", () => this.selectSearchOperation(button.dataset.searchOperationId));
+    }
+    for (const button of document.querySelectorAll("[data-search-route]")) {
+      button.addEventListener("click", () => this.selectSearchRoute(button.dataset.searchRoute));
     }
   }
 
@@ -1368,6 +1444,21 @@ class OpenInfraDashboard {
     }
     this.state = { ...this.state, activeModuleId: module.id, selected: module.operations[0], openedModules: opened, result: null, error: null };
     this.render();
+  }
+
+  async selectSearchRoute(route) {
+    if (!route) {
+      return;
+    }
+    try {
+      const response = await fetch(route, { credentials: "same-origin", headers: { Accept: "application/json" } });
+      const payload = await response.json();
+      this.state = { ...this.state, result: JSON.stringify(payload, null, 2), globalSearchQuery: "", globalSearchBackend: null };
+      this.render();
+    } catch (error) {
+      this.state = { ...this.state, error, globalSearchQuery: "", globalSearchBackend: null };
+      this.render();
+    }
   }
 
   selectSearchOperation(operationId) {

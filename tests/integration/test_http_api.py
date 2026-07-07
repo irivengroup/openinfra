@@ -70,6 +70,7 @@ class TestHttpApi:
                     "report": "/api/v1/exports/jobs",
                     "artifact": "/api/v1/exports/artifact",
                 },
+                "search": {"global": "/api/v1/search/global"},
                 "it_resources_management": {
                     "objects": "/api/v1/itrm/objects",
                     "resource_taxonomy": "/api/v1/itrm/resource-taxonomy",
@@ -141,6 +142,7 @@ class TestHttpApi:
             assert "/api/v1/ipam/vxlan-vnis" in openapi
             assert "/api/v1/ipam/ddi-preview" in openapi
             assert "/api/v1/ipam/topology" in openapi
+            assert "/api/v1/search/global" in openapi
             assert "/api/v1/discovery/proxy-enrollments" in openapi
             assert "/api/v1/dcim/power-devices" in openapi
             assert "/api/v1/dcim/energy-cooling-capacity" in openapi
@@ -151,6 +153,59 @@ class TestHttpApi:
             assert ready["component"] == "json"
             assert version["version"] == __version__
             assert allocation["address"] == "10.6.0.1"
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def test_global_search_http_contract(self, tmp_path: Path) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+        token = "s" * 40
+        app.security_service.bootstrap_token(
+            BootstrapTokenCommand(
+                tenant_id="default",
+                actor="pytest",
+                subject="global-search-api",
+                roles=("admin",),
+                token=token,
+            )
+        )
+        app.source_of_truth_service.upsert_object(
+            UpsertSourceObjectCommand(
+                tenant_id="default",
+                actor="pytest",
+                admin_token=token,
+                key="server/paris-api-db-01",
+                kind="server",
+                display_name="Paris API DB 01",
+                attributes_json=json.dumps({"site": "Paris", "role": "database"}),
+                tags=("paris", "prod"),
+                source="manual",
+            )
+        )
+        server = OpenInfraThreadingServer(("127.0.0.1", 0), app, auth_required=True)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base_url = f"http://127.0.0.1:{server.server_port}"
+            search = self._get_json(
+                base_url
+                + "/api/v1/search/global?tenant_id=default&query=Paris&limit=5",
+                token=token,
+            )
+            try:
+                self._get_json(
+                    base_url
+                    + "/api/v1/search/global?tenant_id=default&query=Paris&limit=5"
+                )
+            except urllib.error.HTTPError as exc:
+                assert exc.code == 401
+
+            assert search["query"] == "Paris"
+            assert search["total"] >= 1
+            groups = {group["component"]: group for group in search["groups"]}
+            assert groups["itrm"]["items"][0]["label"] == "Paris API DB 01"
+            assert groups["itrm"]["items"][0]["route"].startswith("/api/v1/itrm/objects")
         finally:
             server.shutdown()
             server.server_close()

@@ -114,3 +114,11 @@ Les blocs de contenu du portail openinfra-web doivent utiliser une ombre portée
 Le header du portail doit exposer un second bandeau dédié à la recherche globale et à la documentation API. Le champ est centré par rapport à la page, occupe 50 % de l’espace disponible sur desktop, embarque une icône loupe SVG, et affiche les résultats groupés par composant. Les actions Swagger et ReDoc sont accessibles depuis ce bandeau sans réintroduire les anciens contrôles Login/Sign-up.
 
 **Acceptation :** Les assets runtime contiennent `openinfra-global-toolbar`, `openinfra-global-search`, `renderGlobalSearchResults`, les styles de grille 50 %, les liens `/docs` et `/redoc`; les tests frontend vérifient le regroupement par composant et l’absence des anciens contrôles supprimés.
+
+- **REQ-00778** — La recherche globale du header openinfra-web doit interroger le backend OpenInfra et retourner des résultats métiers groupés par composant ITRM, IPAM et Discovery.
+
+### REQ-00778 — Recherche globale backend OpenInfra
+
+La recherche globale ne doit pas se limiter au filtrage local des opérations visibles. Elle doit appeler un service backend transverse, agréger ITRM, IPAM et Discovery, appliquer les permissions existantes et retourner des résultats groupés par composant avec libellé, description, type, score et route API.
+
+**Acceptation :** `GET /api/v1/search/global`, `openinfra search global` et le double header web consomment le même contrat applicatif ; les tests vérifient le groupement, les limites de requête et l’absence de fuite de données lorsqu’un composant n’est pas autorisé.

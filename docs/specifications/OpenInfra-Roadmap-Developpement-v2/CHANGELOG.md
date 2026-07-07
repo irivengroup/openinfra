@@ -1,3 +1,8 @@
+## 0.29.38
+
+- Ajout `TST-P08-WEB-BACKEND-GLOBAL-SEARCH` pour verrouiller la recherche globale backend groupée ITRM/IPAM/Discovery.
+- Alignement CDC `REQ-00778` sur P08 / EPIC-0801 / 0.29.38.
+
 ## 0.29.37
 
 - Ajout `TST-P08-WEB-GLOBAL-SEARCH-HEADER` pour verrouiller la double barre header, la recherche globale centrée, les résultats groupés par composant et les liens Swagger/ReDoc.

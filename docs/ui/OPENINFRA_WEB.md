@@ -220,3 +220,7 @@ Si le backend est indisponible, si le jeton courant ne permet pas la recherche o
 ## Header fixe et navigation
 
 Le portail `openinfra-web` conserve le double header en position fixe. La hauteur réelle du header est mesurée côté runtime et publiée dans `--openinfra-fixed-header-height` afin que le contenu principal et le menu latéral scrollent sous le bandeau sans recouvrement. Le menu latéral reste sticky sous ce header et conserve son propre scroll vertical lorsque la liste des composants dépasse la hauteur disponible.
+
+## v0.29.43 — continuité UI
+
+La version 0.29.43 ne modifie pas le contrat visuel du portail web. Les évolutions portent sur le backend ITAM, les API, la CLI, la persistance et la documentation contractuelle. Les garde-fous frontend existants restent exécutés afin de vérifier l’absence de régression sur le double header, la recherche globale, les liens Swagger/ReDoc et les composants du Dashboard.

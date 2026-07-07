@@ -1151,3 +1151,112 @@ class TestOpenInfraAccessPolicyCli:
         assert payload["query"] == "Paris"
         groups = {group["component"]: group for group in payload["groups"]}
         assert groups["itrm"]["items"][0]["label"] == "Paris CLI DB 01"
+
+
+def test_itam_support_profile_cli_commands(tmp_path: Path, capsys: object) -> None:
+    data = tmp_path / "state.json"
+    token = "i" * 40
+    assert (
+        OpenInfraCLI().run(
+            [
+                "security",
+                "bootstrap-token",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--subject",
+                "itam-cli",
+                "--role",
+                "admin",
+                "--token",
+                token,
+            ]
+        )
+        == 0
+    )
+    capsys.readouterr()
+    assert (
+        OpenInfraCLI().run(
+            [
+                "itam",
+                "register-manufacturer-support",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--asset-tag",
+                "srv-cli-001",
+                "--manufacturer",
+                "Dell",
+                "--warranty-reference",
+                "war-cli-001",
+                "--warranty-level",
+                "ProSupport",
+                "--warranty-start",
+                "2026-01-01",
+                "--warranty-end",
+                "2029-01-01",
+                "--support-reference",
+                "sup-cli-001",
+                "--support-level",
+                "24x7",
+                "--support-contact",
+                "support@example.invalid",
+            ]
+        )
+        == 0
+    )
+    capsys.readouterr()
+    assert (
+        OpenInfraCLI().run(
+            [
+                "itam",
+                "add-third-party-support",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--asset-tag",
+                "srv-cli-001",
+                "--provider",
+                "ThirdSupport",
+                "--contract-reference",
+                "tp-cli-001",
+                "--support-level",
+                "4h onsite",
+                "--support-start",
+                "2026-02-01",
+                "--support-end",
+                "2027-02-01",
+                "--support-contact",
+                "noc@example.invalid",
+            ]
+        )
+        == 0
+    )
+    capsys.readouterr()
+    assert (
+        OpenInfraCLI().run(
+            [
+                "itam",
+                "support-profile",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--asset-tag",
+                "srv-cli-001",
+            ]
+        )
+        == 0
+    )
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["manufacturer_warranty"]["support_reference"] == "SUP-CLI-001"
+    assert payload["third_party_contracts"][0]["contract_reference"] == "TP-CLI-001"

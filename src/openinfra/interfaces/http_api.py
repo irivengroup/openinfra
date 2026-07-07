@@ -98,6 +98,11 @@ from openinfra.application.it_resources_management_quality_services import (
     EvaluateItrmObjectQualityCommand,
     ItrmQualitySummaryCommand,
 )
+from openinfra.application.itam_services import (
+    AddThirdPartySupportCommand,
+    GetAssetSupportProfileCommand,
+    RegisterManufacturerSupportCommand,
+)
 from openinfra.application.it_resources_management_services import (
     CreateSourceRelationCommand,
     GetSourceObjectAsOfCommand,
@@ -322,6 +327,25 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/itam/support-profile":
+            try:
+                query = parse_qs(parsed.query)
+                tenant_id = self._first_query_value(query, "tenant_id")
+                if self.server.auth_required:
+                    self._authenticate(tenant_id, Permission.ITAM_READ)
+                profile = self.server.application.itam_support_service.get_support_profile(
+                    GetAssetSupportProfileCommand(
+                        tenant_id=tenant_id,
+                        admin_token=self._bearer_token(),
+                        asset_tag=self._first_query_value(query, "asset_tag"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, profile.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except OpenInfraError as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
         if route == "/api/v1/security/tokens":
@@ -1010,6 +1034,68 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         route = self._canonical_route(urlparse(self.path).path)
         result: Any
         rule: Any
+
+        if route == "/api/v1/itam/support-profile/manufacturer":
+            try:
+                payload = self._read_json_body()
+                tenant_id = str(payload["tenant_id"])
+                actor = str(payload.get("actor", "api"))
+                if self.server.auth_required:
+                    principal = self._authenticate(tenant_id, Permission.ITAM_WRITE)
+                    actor = principal.subject
+                profile = self.server.application.itam_support_service.register_manufacturer_support(
+                    RegisterManufacturerSupportCommand(
+                        tenant_id=tenant_id,
+                        actor=actor,
+                        admin_token=self._bearer_token(),
+                        asset_tag=str(payload["asset_tag"]),
+                        manufacturer=str(payload["manufacturer"]),
+                        warranty_reference=str(payload["warranty_reference"]),
+                        warranty_level=str(payload["warranty_level"]),
+                        warranty_start=str(payload["warranty_start"]),
+                        warranty_end=str(payload["warranty_end"]),
+                        support_reference=str(payload["support_reference"]),
+                        support_level=str(payload["support_level"]),
+                        support_contact=str(payload["support_contact"]),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, profile.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except OpenInfraError as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/itam/support-profile/third-party":
+            try:
+                payload = self._read_json_body()
+                tenant_id = str(payload["tenant_id"])
+                actor = str(payload.get("actor", "api"))
+                if self.server.auth_required:
+                    principal = self._authenticate(tenant_id, Permission.ITAM_WRITE)
+                    actor = principal.subject
+                profile = self.server.application.itam_support_service.add_third_party_support(
+                    AddThirdPartySupportCommand(
+                        tenant_id=tenant_id,
+                        actor=actor,
+                        admin_token=self._bearer_token(),
+                        asset_tag=str(payload["asset_tag"]),
+                        provider=str(payload["provider"]),
+                        contract_reference=str(payload["contract_reference"]),
+                        support_level=str(payload["support_level"]),
+                        support_start=str(payload["support_start"]),
+                        support_end=str(payload["support_end"]),
+                        support_contact=str(payload["support_contact"]),
+                        status=str(payload.get("status", "active")),
+                        notes=(None if payload.get("notes") is None else str(payload.get("notes"))),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, profile.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except OpenInfraError as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
 
         if route == "/api/v1/dcim/rooms":
             try:
@@ -2402,6 +2488,11 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "artifact": "/api/v1/exports/artifact",
                 },
                 "search": {"global": "/api/v1/search/global"},
+                "itam": {
+                    "support_profile": "/api/v1/itam/support-profile",
+                    "manufacturer_support": "/api/v1/itam/support-profile/manufacturer",
+                    "third_party_support": "/api/v1/itam/support-profile/third-party",
+                },
                 "it_resources_management": {
                     "objects": "/api/v1/itrm/objects",
                     "resource_taxonomy": "/api/v1/itrm/resource-taxonomy",

@@ -22,6 +22,7 @@ from openinfra.application.ports import (
     IdentityRepository,
     ImportRepository,
     IpamRepository,
+    ItamSupportRepository,
     ReadinessProbe,
     ReadinessStatus,
     RuntimeUsageRepository,
@@ -106,6 +107,12 @@ from openinfra.domain.identity import (
     IdentityRoleSet,
     IdentitySubject,
     IdentityUser,
+)
+from openinfra.domain.itam import (
+    ManufacturerWarranty,
+    PhysicalAssetSupportProfile,
+    ThirdPartySupportContract,
+    ItamDateParser,
 )
 from openinfra.domain.ipam import (
     AutonomousSystem,
@@ -244,6 +251,7 @@ class JsonDocumentStore:
             "export_jobs": {},
             "export_artifacts": {},
             "discovery_collectors": {},
+            "asset_support_profiles": {},
         }
 
 
@@ -689,6 +697,8 @@ class JsonReadinessProbe(ReadinessProbe):
                     "bulk_import_checkpoints",
                     "export_jobs",
                     "export_artifacts",
+                    "discovery_collectors",
+                    "asset_support_profiles",
                 )
             )
         detail = (
@@ -3204,3 +3214,72 @@ class SeedDataFactory:
 class IterableSerializer:
     def to_json_array(self, values: Iterable[dict[str, Any]]) -> str:
         return json.dumps(list(values), indent=2, sort_keys=True)
+
+
+class JsonItamSupportRepository(ItamSupportRepository):
+    def __init__(self, store: JsonDocumentStore) -> None:
+        self._store = store
+
+    def save_support_profile(self, profile: PhysicalAssetSupportProfile) -> None:
+        key = self._key(profile.tenant_id, profile.asset_tag.value)
+        self._store.data["asset_support_profiles"][key] = profile.as_dict()
+        self._store.mark_dirty()
+
+    def find_support_profile(
+        self, tenant_id: TenantId, asset_tag: str
+    ) -> PhysicalAssetSupportProfile | None:
+        key = self._key(tenant_id, Code.from_value(asset_tag, "asset tag").value)
+        value = self._store.data["asset_support_profiles"].get(key)
+        if value is None:
+            return None
+        return self._profile_from_dict(value)
+
+    def _key(self, tenant_id: TenantId, asset_tag: str) -> str:
+        return f"{tenant_id.value}:{asset_tag.upper()}"
+
+    def _profile_from_dict(self, value: dict[str, Any]) -> PhysicalAssetSupportProfile:
+        warranty_payload = value["manufacturer_warranty"]
+        warranty = ManufacturerWarranty.restore(
+            manufacturer=str(warranty_payload["manufacturer"]),
+            warranty_reference=str(warranty_payload["warranty_reference"]),
+            warranty_level=str(warranty_payload["warranty_level"]),
+            warranty_start=ItamDateParser.parse_date(
+                str(warranty_payload["warranty_start"]), "manufacturer warranty start"
+            ),
+            warranty_end=ItamDateParser.parse_date(
+                str(warranty_payload["warranty_end"]), "manufacturer warranty end"
+            ),
+            support_reference=str(warranty_payload["support_reference"]),
+            support_level=str(warranty_payload["support_level"]),
+            support_contact=str(warranty_payload["support_contact"]),
+        )
+        third_party_contracts = tuple(
+            self._third_party_from_dict(item)
+            for item in value.get("third_party_contracts", [])
+            if isinstance(item, dict)
+        )
+        return PhysicalAssetSupportProfile.restore(
+            id=EntityId.from_value(str(value["id"])),
+            tenant_id=TenantId.from_value(str(value["tenant_id"])),
+            asset_tag=str(value["asset_tag"]),
+            manufacturer_warranty=warranty,
+            third_party_contracts=third_party_contracts,
+            created_by=str(value["created_by"]),
+            created_at=datetime.fromisoformat(str(value["created_at"])),
+            updated_by=str(value["updated_by"]),
+            updated_at=datetime.fromisoformat(str(value["updated_at"])),
+        )
+
+    def _third_party_from_dict(self, value: dict[str, Any]) -> ThirdPartySupportContract:
+        return ThirdPartySupportContract.restore(
+            id=EntityId.from_value(str(value["id"])),
+            provider=str(value["provider"]),
+            contract_reference=str(value["contract_reference"]),
+            support_level=str(value["support_level"]),
+            support_start=ItamDateParser.parse_date(str(value["support_start"]), "third-party support start"),
+            support_end=ItamDateParser.parse_date(str(value["support_end"]), "third-party support end"),
+            support_contact=str(value["support_contact"]),
+            status=str(value["status"]),
+            notes=(None if value.get("notes") is None else str(value.get("notes"))),
+            created_at=datetime.fromisoformat(str(value["created_at"])),
+        )

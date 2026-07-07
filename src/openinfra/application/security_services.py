@@ -123,7 +123,12 @@ class BuiltinRolePolicy:
             )
         ),
         "viewer": frozenset(
-            (Permission.SCHEMA_READ, Permission.ITRM_READ, Permission.ITRM_QUALITY_READ)
+            (
+                Permission.SCHEMA_READ,
+                Permission.ITRM_READ,
+                Permission.ITRM_QUALITY_READ,
+                Permission.ITAM_READ,
+            )
         ),
         "itrm:reader": frozenset(
             (Permission.ITRM_READ, Permission.ITRM_QUALITY_READ, Permission.SCHEMA_READ)
@@ -175,6 +180,11 @@ class BuiltinRolePolicy:
                 Permission.SCHEMA_READ,
                 Permission.AUDIT_READ,
             )
+        ),
+
+        "itam:reader": frozenset((Permission.ITAM_READ, Permission.SCHEMA_READ)),
+        "itam:operator": frozenset(
+            (Permission.ITAM_READ, Permission.ITAM_WRITE, Permission.SCHEMA_READ)
         ),
         "access:admin": frozenset((Permission.ACCESS_POLICY_ADMIN, Permission.SCHEMA_READ)),
         "audit:reader": frozenset((Permission.AUDIT_READ, Permission.SCHEMA_READ)),

@@ -56,3 +56,4 @@ REQ-00780,Camemberts Dashboard palette initiale lisible,P08,EPIC-0801,0.29.41,TS
 REQ-00781,Swagger/ReDoc header branchés sur backend API,P08,EPIC-0801,0.29.41,TST-P08-WEB-API-DOCS-BACKEND-LINKS
 REQ-00782,Icône ITRM référentiel/référence pleine et opaque openinfra-web,P08,EPIC-0801,0.29.41,TST-P08-WEB-ITRM-REFERENCE-ICON
 REQ-00783,Header fixe avec ombre prioritaire et scroll sous bandeau,P08,EPIC-0801,0.29.42,TST-P08-WEB-FIXED-HEADER
+REQ-00784,Profil support ITAM constructeur immuable et support tiers séparé,P12,EPIC-1201,0.29.43,TST-P12-ITAM-ASSET-SUPPORT-PROFILE

@@ -1,9 +1,17 @@
-# OpenInfra v0.29.42
+# OpenInfra v0.29.43
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.42 — le header double barre reste fixe, porte une ombre plus prononcée que les blocs de contenu et le scroll commence exactement sous le bandeau sur toute la largeur.**
+**Version courante : 0.29.43 — profil support ITAM par actif physique, séparation constructeur/tier, API/CLI/audit/persistance et migration PostgreSQL dédiées.**
 
+
+
+### v0.29.43 — profil support ITAM constructeur et tiers
+
+- Ajout du profil de support par actif physique pour l’ITAM.
+- La garantie et le support constructeur restent une information canonique séparée des contrats de support tiers.
+- Ajout des commandes `openinfra itam register-manufacturer-support`, `openinfra itam add-third-party-support` et `openinfra itam support-profile`.
+- Ajout des endpoints `/api/v1/itam/support-profile`, `/api/v1/itam/support-profile/manufacturer` et `/api/v1/itam/support-profile/third-party`.
 
 ### v0.29.42 — header fixe renforcé et scroll sans chevauchement
 
@@ -239,3 +247,22 @@ openinfra itrm quality-summary --tenant default --admin-token "$TOKEN" --kind de
 ```
 
 Les endpoints primaires sont `/api/v1/itrm/quality/object` et `/api/v1/itrm/quality/summary`. Les alias historiques `/api/v1/sot/...` et `openinfra sot ...` restent disponibles uniquement pour migration et sont dépréciés.
+
+### ITAM support constructeur et tiers
+
+OpenInfra expose désormais un profil de support ITAM pour les équipements physiques. Le profil conserve la garantie constructeur et le support constructeur initial comme informations immuables, puis permet d’ajouter des contrats de support tiers séparés.
+
+```bash
+openinfra security bootstrap-token --tenant default --subject itam-admin --role admin --token "$TOKEN"
+openinfra itam register-manufacturer-support \
+  --tenant default --admin-token "$TOKEN" --asset-tag SRV-001 \
+  --manufacturer Dell --warranty-reference WAR-001 --warranty-level ProSupport \
+  --warranty-start 2026-01-01 --warranty-end 2029-01-01 \
+  --support-reference SUP-001 --support-level 24x7 --support-contact support@example.invalid
+openinfra itam add-third-party-support \
+  --tenant default --admin-token "$TOKEN" --asset-tag SRV-001 \
+  --provider ThirdSupport --contract-reference TP-001 --support-level "4h onsite" \
+  --support-start 2026-02-01 --support-end 2027-02-01 \
+  --support-contact noc@example.invalid
+openinfra itam support-profile --tenant default --admin-token "$TOKEN" --asset-tag SRV-001
+```

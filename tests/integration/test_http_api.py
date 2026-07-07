@@ -71,6 +71,11 @@ class TestHttpApi:
                     "artifact": "/api/v1/exports/artifact",
                 },
                 "search": {"global": "/api/v1/search/global"},
+                "itam": {
+                    "support_profile": "/api/v1/itam/support-profile",
+                    "manufacturer_support": "/api/v1/itam/support-profile/manufacturer",
+                    "third_party_support": "/api/v1/itam/support-profile/third-party",
+                },
                 "it_resources_management": {
                     "objects": "/api/v1/itrm/objects",
                     "resource_taxonomy": "/api/v1/itrm/resource-taxonomy",
@@ -143,6 +148,7 @@ class TestHttpApi:
             assert "/api/v1/ipam/ddi-preview" in openapi
             assert "/api/v1/ipam/topology" in openapi
             assert "/api/v1/search/global" in openapi
+            assert "/api/v1/itam/support-profile" in openapi
             assert "/api/v1/discovery/proxy-enrollments" in openapi
             assert "/api/v1/dcim/power-devices" in openapi
             assert "/api/v1/dcim/energy-cooling-capacity" in openapi

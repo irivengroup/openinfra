@@ -24,6 +24,7 @@ from openinfra.application.ports import (
     IdentityRepository,
     ImportRepository,
     IpamRepository,
+    ItamSupportRepository,
     ReadinessProbe,
     ReadinessStatus,
     RuntimeUsageRepository,
@@ -109,6 +110,12 @@ from openinfra.domain.identity import (
     IdentityRoleSet,
     IdentitySubject,
     IdentityUser,
+)
+from openinfra.domain.itam import (
+    ManufacturerWarranty,
+    PhysicalAssetSupportProfile,
+    ThirdPartySupportContract,
+    ItamDateParser,
 )
 from openinfra.domain.ipam import (
     AutonomousSystem,
@@ -4805,6 +4812,125 @@ class PostgreSQLSourceOfTruthRepository(PostgreSQLRepositoryBase, SourceOfTruthR
             active=bool(row["active"]),
             created_at=self._row_datetime(row["created_at"]),
         )
+
+    def _row_datetime(self, value: object) -> datetime:
+        if isinstance(value, datetime):
+            return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
+        parsed = datetime.fromisoformat(str(value))
+        return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
+
+
+class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepository):
+    def save_support_profile(self, profile: PhysicalAssetSupportProfile) -> None:
+        self._ensure_tenant(profile.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO asset_support_profiles (
+                id, tenant_id, asset_tag, manufacturer_warranty, third_party_contracts,
+                created_by, created_at, updated_by, updated_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(asset_tag)s, %(manufacturer_warranty)s,
+                %(third_party_contracts)s, %(created_by)s, %(created_at)s,
+                %(updated_by)s, %(updated_at)s
+            )
+            ON CONFLICT (tenant_id, asset_tag) DO UPDATE SET
+                third_party_contracts = EXCLUDED.third_party_contracts,
+                updated_by = EXCLUDED.updated_by,
+                updated_at = EXCLUDED.updated_at
+            """,
+            {
+                "id": profile.id.value,
+                "tenant_id": profile.tenant_id.value,
+                "asset_tag": profile.asset_tag.value,
+                "manufacturer_warranty": json.dumps(
+                    profile.manufacturer_warranty.as_dict(), sort_keys=True
+                ),
+                "third_party_contracts": json.dumps(
+                    [item.as_dict() for item in profile.third_party_contracts],
+                    sort_keys=True,
+                ),
+                "created_by": profile.created_by,
+                "created_at": profile.created_at,
+                "updated_by": profile.updated_by,
+                "updated_at": profile.updated_at,
+            },
+        )
+
+    def find_support_profile(
+        self, tenant_id: TenantId, asset_tag: str
+    ) -> PhysicalAssetSupportProfile | None:
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, asset_tag, manufacturer_warranty, third_party_contracts,
+                   created_by, created_at, updated_by, updated_at
+            FROM asset_support_profiles
+            WHERE tenant_id = %(tenant_id)s AND asset_tag = %(asset_tag)s
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "asset_tag": Code.from_value(asset_tag, "asset tag").value,
+            },
+        )
+        return self._profile_from_row(row) if row else None
+
+    def _profile_from_row(self, row: Mapping[str, object]) -> PhysicalAssetSupportProfile:
+        warranty_payload = self._json_mapping(row["manufacturer_warranty"])
+        warranty = ManufacturerWarranty.restore(
+            manufacturer=str(warranty_payload["manufacturer"]),
+            warranty_reference=str(warranty_payload["warranty_reference"]),
+            warranty_level=str(warranty_payload["warranty_level"]),
+            warranty_start=ItamDateParser.parse_date(
+                str(warranty_payload["warranty_start"]), "manufacturer warranty start"
+            ),
+            warranty_end=ItamDateParser.parse_date(
+                str(warranty_payload["warranty_end"]), "manufacturer warranty end"
+            ),
+            support_reference=str(warranty_payload["support_reference"]),
+            support_level=str(warranty_payload["support_level"]),
+            support_contact=str(warranty_payload["support_contact"]),
+        )
+        third_party_payload = self._json_sequence(row["third_party_contracts"])
+        return PhysicalAssetSupportProfile.restore(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            asset_tag=str(row["asset_tag"]),
+            manufacturer_warranty=warranty,
+            third_party_contracts=tuple(
+                self._third_party_from_mapping(item)
+                for item in third_party_payload
+                if isinstance(item, Mapping)
+            ),
+            created_by=str(row["created_by"]),
+            created_at=self._row_datetime(row["created_at"]),
+            updated_by=str(row["updated_by"]),
+            updated_at=self._row_datetime(row["updated_at"]),
+        )
+
+    def _third_party_from_mapping(
+        self, value: Mapping[str, object]
+    ) -> ThirdPartySupportContract:
+        return ThirdPartySupportContract.restore(
+            id=EntityId.from_value(str(value["id"])),
+            provider=str(value["provider"]),
+            contract_reference=str(value["contract_reference"]),
+            support_level=str(value["support_level"]),
+            support_start=ItamDateParser.parse_date(str(value["support_start"]), "third-party support start"),
+            support_end=ItamDateParser.parse_date(str(value["support_end"]), "third-party support end"),
+            support_contact=str(value["support_contact"]),
+            status=str(value["status"]),
+            notes=(None if value.get("notes") is None else str(value.get("notes"))),
+            created_at=self._row_datetime(value["created_at"]),
+        )
+
+    def _json_mapping(self, value: object) -> Mapping[str, object]:
+        if isinstance(value, str):
+            return cast(Mapping[str, object], json.loads(value))
+        return cast(Mapping[str, object], value)
+
+    def _json_sequence(self, value: object) -> Sequence[object]:
+        if isinstance(value, str):
+            return cast(Sequence[object], json.loads(value))
+        return cast(Sequence[object], value)
 
     def _row_datetime(self, value: object) -> datetime:
         if isinstance(value, datetime):

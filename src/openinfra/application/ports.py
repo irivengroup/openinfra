@@ -40,6 +40,7 @@ from openinfra.domain.identity import (
     IdentityGroup,
     IdentityUser,
 )
+from openinfra.domain.itam import PhysicalAssetSupportProfile
 from openinfra.domain.ipam import (
     AutonomousSystem,
     BgpPeer,
@@ -118,6 +119,18 @@ class ReadinessStatus:
             "ready": self.ready,
             "detail": self.detail,
         }
+
+
+class ItamSupportRepository(ABC):
+    @abstractmethod
+    def save_support_profile(self, profile: PhysicalAssetSupportProfile) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_support_profile(
+        self, tenant_id: TenantId, asset_tag: str
+    ) -> PhysicalAssetSupportProfile | None:
+        raise TypeError("adapter contract invoked directly")
 
 
 class ReadinessProbe(ABC):

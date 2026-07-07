@@ -97,6 +97,11 @@ from openinfra.application.ipam_services import (
     PreviewDdiReservationCommand,
     RegisterIpAddressCommand,
 )
+from openinfra.application.itam_services import (
+    AddThirdPartySupportCommand,
+    GetAssetSupportProfileCommand,
+    RegisterManufacturerSupportCommand,
+)
 from openinfra.application.it_resources_management_quality_services import (
     EvaluateItrmObjectQualityCommand,
     ItrmQualitySummaryCommand,
@@ -176,6 +181,7 @@ class OpenInfraCLI:
         self._add_access_policy_commands(subparsers)
         self._add_audit_commands(subparsers)
         self._add_search_commands(subparsers)
+        self._add_itam_commands(subparsers)
         self._add_import_commands(subparsers)
         self._add_export_commands(subparsers)
         self._add_discovery_commands(subparsers)
@@ -500,6 +506,56 @@ class OpenInfraCLI:
         global_search.add_argument("--actor", default="cli")
         global_search.add_argument("--include-inactive-discovery", action="store_true")
         global_search.set_defaults(handler=self._handle_search_global)
+
+
+    def _add_itam_commands(self, subparsers: Any) -> None:
+        itam = subparsers.add_parser("itam", help="IT asset management operations")
+        itam_subparsers = itam.add_subparsers(dest="itam_command", required=True)
+
+        register_manufacturer = itam_subparsers.add_parser(
+            "register-manufacturer-support",
+            help="register immutable manufacturer warranty and initial support for an asset",
+        )
+        self._add_backend_arguments(register_manufacturer)
+        register_manufacturer.add_argument("--tenant", required=True)
+        register_manufacturer.add_argument("--actor", default="cli")
+        register_manufacturer.add_argument("--admin-token", required=True)
+        register_manufacturer.add_argument("--asset-tag", required=True)
+        register_manufacturer.add_argument("--manufacturer", required=True)
+        register_manufacturer.add_argument("--warranty-reference", required=True)
+        register_manufacturer.add_argument("--warranty-level", required=True)
+        register_manufacturer.add_argument("--warranty-start", required=True)
+        register_manufacturer.add_argument("--warranty-end", required=True)
+        register_manufacturer.add_argument("--support-reference", required=True)
+        register_manufacturer.add_argument("--support-level", required=True)
+        register_manufacturer.add_argument("--support-contact", required=True)
+        register_manufacturer.set_defaults(handler=self._handle_itam_register_manufacturer_support)
+
+        add_third_party = itam_subparsers.add_parser(
+            "add-third-party-support",
+            help="add separated third-party support without modifying manufacturer support",
+        )
+        self._add_backend_arguments(add_third_party)
+        add_third_party.add_argument("--tenant", required=True)
+        add_third_party.add_argument("--actor", default="cli")
+        add_third_party.add_argument("--admin-token", required=True)
+        add_third_party.add_argument("--asset-tag", required=True)
+        add_third_party.add_argument("--provider", required=True)
+        add_third_party.add_argument("--contract-reference", required=True)
+        add_third_party.add_argument("--support-level", required=True)
+        add_third_party.add_argument("--support-start", required=True)
+        add_third_party.add_argument("--support-end", required=True)
+        add_third_party.add_argument("--support-contact", required=True)
+        add_third_party.add_argument("--status", default="active")
+        add_third_party.add_argument("--notes")
+        add_third_party.set_defaults(handler=self._handle_itam_add_third_party_support)
+
+        show = itam_subparsers.add_parser("support-profile", help="show asset support profile")
+        self._add_backend_arguments(show)
+        show.add_argument("--tenant", required=True)
+        show.add_argument("--admin-token", required=True)
+        show.add_argument("--asset-tag", required=True)
+        show.set_defaults(handler=self._handle_itam_support_profile)
 
     def _add_audit_commands(self, subparsers: Any) -> None:
         audit = subparsers.add_parser("audit", help="audit trail operations")
@@ -2237,6 +2293,61 @@ class OpenInfraCLI:
             )
         )
         print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+
+    def _handle_itam_register_manufacturer_support(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        profile = app.itam_support_service.register_manufacturer_support(
+            RegisterManufacturerSupportCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                asset_tag=args.asset_tag,
+                manufacturer=args.manufacturer,
+                warranty_reference=args.warranty_reference,
+                warranty_level=args.warranty_level,
+                warranty_start=args.warranty_start,
+                warranty_end=args.warranty_end,
+                support_reference=args.support_reference,
+                support_level=args.support_level,
+                support_contact=args.support_contact,
+            )
+        )
+        print(json.dumps(profile.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_itam_add_third_party_support(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        profile = app.itam_support_service.add_third_party_support(
+            AddThirdPartySupportCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                asset_tag=args.asset_tag,
+                provider=args.provider,
+                contract_reference=args.contract_reference,
+                support_level=args.support_level,
+                support_start=args.support_start,
+                support_end=args.support_end,
+                support_contact=args.support_contact,
+                status=args.status,
+                notes=args.notes,
+            )
+        )
+        print(json.dumps(profile.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_itam_support_profile(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        profile = app.itam_support_service.get_support_profile(
+            GetAssetSupportProfileCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                asset_tag=args.asset_tag,
+            )
+        )
+        print(json.dumps(profile.as_dict(), indent=2, sort_keys=True))
         return 0
 
     def _handle_discovery_collector_heartbeat(self, args: argparse.Namespace) -> int:

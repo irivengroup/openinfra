@@ -24,6 +24,7 @@ from openinfra.application.edition_services import EditionQueryService, EditionR
 from openinfra.application.export_services import ExportService
 from openinfra.application.identity_services import IdentityService
 from openinfra.application.import_services import GenericImportService
+from openinfra.application.itam_services import ItamSupportService
 from openinfra.application.ipam_services import (
     IpamAllocationService,
     IpamConflictService,
@@ -43,6 +44,7 @@ from openinfra.application.ports import (
     IdentityRepository,
     ImportRepository,
     IpamRepository,
+    ItamSupportRepository,
     ReadinessProbe,
     RuntimeUsageRepository,
     SchemaStatusProvider,
@@ -68,6 +70,7 @@ from openinfra.infrastructure.json_store import (
     JsonIdentityRepository,
     JsonImportRepository,
     JsonIpamRepository,
+    JsonItamSupportRepository,
     JsonReadinessProbe,
     JsonRuntimeUsageRepository,
     JsonSchemaStatusProvider,
@@ -88,6 +91,7 @@ from openinfra.infrastructure.postgresql import (
     PostgreSQLIdentityRepository,
     PostgreSQLImportRepository,
     PostgreSQLIpamRepository,
+    PostgreSQLItamSupportRepository,
     PostgreSQLMigrationCatalog,
     PostgreSQLMigrationExecutor,
     PostgreSQLReadinessProbe,
@@ -120,6 +124,7 @@ class OpenInfraApplication:
     discovery_service: DiscoveryCollectorService
     dcim_repository: DcimRepository
     ipam_repository: IpamRepository
+    itam_support_repository: ItamSupportRepository
     import_repository: ImportRepository
     export_repository: ExportRepository
     discovery_repository: DiscoveryRepository
@@ -130,6 +135,7 @@ class OpenInfraApplication:
     access_policy_service: AccessPolicyService
     audit_service: AuditTrailService
     global_search_service: GlobalSearchService
+    itam_support_service: ItamSupportService
     source_of_truth_service: SourceOfTruthService
     source_governance_service: SourceGovernanceService
     it_resources_management_quality_service: ITResourcesManagementQualityService
@@ -175,6 +181,7 @@ class ApplicationFactory:
         import_repository = JsonImportRepository(store)
         export_repository = JsonExportRepository(store)
         discovery_repository = JsonDiscoveryRepository(store)
+        itam_support_repository = JsonItamSupportRepository(store)
         readiness_probe = JsonReadinessProbe(store)
         schema_status_provider = JsonSchemaStatusProvider()
         runtime_usage_repository = JsonRuntimeUsageRepository(store)
@@ -187,6 +194,7 @@ class ApplicationFactory:
             store=store,
             dcim_repository=dcim_repository,
             ipam_repository=ipam_repository,
+            itam_support_repository=itam_support_repository,
             audit_repository=audit_repository,
             security_repository=security_repository,
             identity_repository=identity_repository,
@@ -224,6 +232,7 @@ class ApplicationFactory:
         import_repository = PostgreSQLImportRepository(registry)
         export_repository = PostgreSQLExportRepository(registry)
         discovery_repository = PostgreSQLDiscoveryRepository(registry)
+        itam_support_repository = PostgreSQLItamSupportRepository(registry)
         migration_catalog = PostgreSQLMigrationCatalog.from_project_root()
         readiness_probe = PostgreSQLReadinessProbe(registry, migration_catalog)
         schema_status_provider = PostgreSQLMigrationExecutor(registry, migration_catalog)
@@ -246,6 +255,7 @@ class ApplicationFactory:
             import_repository=import_repository,
             export_repository=export_repository,
             discovery_repository=discovery_repository,
+            itam_support_repository=itam_support_repository,
             transaction_manager=transaction_manager,
             readiness_probe=readiness_probe,
             schema_status_provider=schema_status_provider,
@@ -272,6 +282,7 @@ class ApplicationFactory:
         import_repository: ImportRepository | None = None,
         export_repository: ExportRepository | None = None,
         discovery_repository: DiscoveryRepository | None = None,
+        itam_support_repository: ItamSupportRepository | None = None,
     ) -> OpenInfraApplication:
         if source_of_truth_repository is None:
             if hasattr(store, "data"):
@@ -298,6 +309,11 @@ class ApplicationFactory:
                 discovery_repository = JsonDiscoveryRepository(store)
             else:
                 discovery_repository = PostgreSQLDiscoveryRepository(store)
+        if itam_support_repository is None:
+            if hasattr(store, "data"):
+                itam_support_repository = JsonItamSupportRepository(store)
+            else:
+                itam_support_repository = PostgreSQLItamSupportRepository(store)
         if runtime_usage_repository is None:
             if hasattr(store, "data"):
                 runtime_usage_repository = JsonRuntimeUsageRepository(store)
@@ -472,9 +488,16 @@ class ApplicationFactory:
                 audit_repository,
                 transaction_manager,
             ),
+            itam_support_service=ItamSupportService(
+                itam_support_repository,
+                audit_repository,
+                transaction_manager,
+                security_service,
+            ),
             dcim_repository=dcim_repository,
             identity_repository=identity_repository,
             ipam_repository=ipam_repository,
+            itam_support_repository=itam_support_repository,
             import_repository=import_repository,
             export_repository=export_repository,
             discovery_repository=discovery_repository,

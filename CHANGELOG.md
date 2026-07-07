@@ -1,3 +1,13 @@
+
+## 0.29.43
+
+- Ajout du profil de support ITAM par actif physique.
+- Séparation stricte entre garantie/support constructeur immuables et contrats de support tiers.
+- Ajout des endpoints `/api/v1/itam/support-profile`, `/manufacturer` et `/third-party`.
+- Ajout des commandes CLI `openinfra itam register-manufacturer-support`, `add-third-party-support` et `support-profile`.
+- Ajout de la migration PostgreSQL `0027_itam_asset_support_profiles.sql`.
+- Ajout de tests domaine, service, API HTTP et CLI.
+
 ## 0.29.42 - 2026-07-07
 
 - Le double header conserve sa position fixe mais porte maintenant une ombre `--openinfra-header-shadow` plus prononcée que les ombres de contenu allégées.

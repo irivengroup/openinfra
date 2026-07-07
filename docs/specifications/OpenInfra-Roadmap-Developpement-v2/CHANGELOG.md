@@ -162,3 +162,8 @@
 - Trust `openinfra-web` ↔ backend server-side ; aucun token API demandé à l'opérateur.
 - Cible `install.ini` `[web_database]` ajoutée pour les références DSN/credentials PostgreSQL du service web.
 - v0.29.33 : P08 ajoute la charte graphique premium Bootstrap 5 openinfra-web, sans changement de structure page, validée par TST-P08-WEB-PREMIUM-THEME.
+
+## 0.29.43
+
+- Ajout du test roadmap `TST-P12-ITAM-ASSET-SUPPORT-PROFILE`.
+- Alignement de `REQ-00784` sur P12 / EPIC-1201 pour le profil support ITAM constructeur et tiers.

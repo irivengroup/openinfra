@@ -46,3 +46,30 @@ Si une source externe propose de remplacer une donnée constructeur par une donn
 - L'UI affiche clairement les blocs `Constructeur` et `Tiers`.
 - Les connecteurs ITSM respectent la même séparation.
 
+
+## Implémentation incrémentale v0.29.43
+
+OpenInfra v0.29.43 introduit le profil de support ITAM `asset_support_profile` pour un équipement physique. Ce profil contient obligatoirement la garantie constructeur et le support constructeur initial, puis accepte des contrats de support tiers séparés.
+
+Règles de gestion :
+
+- la garantie constructeur et le support constructeur sont créés ensemble lors de l’enregistrement initial ;
+- toute tentative de modifier ces informations par un nouvel enregistrement divergent est rejetée ;
+- un contrat de support tiers ne peut être ajouté que si le profil constructeur existe déjà ;
+- un contrat tiers est identifié par fournisseur et référence de contrat ;
+- un contrat tiers n’écrase jamais les champs constructeur ;
+- chaque opération est auditée.
+
+Interfaces exposées :
+
+- `GET /api/v1/itam/support-profile` ;
+- `POST /api/v1/itam/support-profile/manufacturer` ;
+- `POST /api/v1/itam/support-profile/third-party` ;
+- `openinfra itam register-manufacturer-support` ;
+- `openinfra itam add-third-party-support` ;
+- `openinfra itam support-profile`.
+
+Persistance :
+
+- backend JSON : collection `asset_support_profiles` ;
+- backend PostgreSQL : migration `0027_itam_asset_support_profiles.sql`, table partitionnée par `tenant_id`, index d’échéance garantie, index GIN des contrats tiers et index d’audit dédié.

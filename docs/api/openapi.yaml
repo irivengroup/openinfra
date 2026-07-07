@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.42
+  version: 0.29.43
 components:
   securitySchemes:
     bearerToken:
@@ -2406,6 +2406,72 @@ paths:
         '200': {description: Collector disabled}
         '401': {description: Security administrator token required}
         '400': {description: Validation error}
+
+  /api/v1/itam/support-profile:
+    get:
+      summary: Read an ITAM physical asset support profile
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: asset_tag, in: query, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Manufacturer warranty and separated third-party support contracts}
+        '401': {description: ITAM read token required}
+        '400': {description: Validation error or unknown asset support profile}
+  /api/v1/itam/support-profile/manufacturer:
+    post:
+      summary: Register immutable manufacturer warranty and initial support for an asset
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, asset_tag, manufacturer, warranty_reference, warranty_level, warranty_start, warranty_end, support_reference, support_level, support_contact]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                asset_tag: {type: string}
+                manufacturer: {type: string}
+                warranty_reference: {type: string}
+                warranty_level: {type: string}
+                warranty_start: {type: string, format: date}
+                warranty_end: {type: string, format: date}
+                support_reference: {type: string}
+                support_level: {type: string}
+                support_contact: {type: string}
+      responses:
+        '201': {description: Manufacturer warranty/support registered}
+        '401': {description: ITAM write token required}
+        '400': {description: Validation error or immutable manufacturer support conflict}
+  /api/v1/itam/support-profile/third-party:
+    post:
+      summary: Add separated third-party support without modifying manufacturer support
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, asset_tag, provider, contract_reference, support_level, support_start, support_end, support_contact]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                asset_tag: {type: string}
+                provider: {type: string}
+                contract_reference: {type: string}
+                support_level: {type: string}
+                support_start: {type: string, format: date}
+                support_end: {type: string, format: date}
+                support_contact: {type: string}
+                status: {type: string, enum: [active, expired, planned, terminated], default: active}
+                notes: {type: string}
+      responses:
+        '201': {description: Third-party support contract added separately}
+        '401': {description: ITAM write token required}
+        '400': {description: Validation error or missing manufacturer support profile}
 
   /api/v1/imports/migration-template:
     get:

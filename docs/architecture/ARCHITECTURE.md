@@ -482,3 +482,9 @@ Le double header `openinfra-web` résout l’URL de recherche globale via `apiBa
 
 
 La version 0.29.42 précise le comportement du double header fixe : `openinfra-header-stack` reste en haut de viewport, porte une ombre renforcée sur toute la largeur et le contenu démarre exactement sous la limite du header grâce à `--openinfra-fixed-header-height`, `scroll-padding-top` et au calcul dynamique de hauteur.
+
+## v0.29.43 — profil support ITAM constructeur et tiers
+
+OpenInfra v0.29.43 ajoute un slice ITAM transversal autour du profil de support par actif physique. Le domaine `PhysicalAssetSupportProfile` conserve la garantie et le support constructeur comme référence canonique, tandis que les contrats de support tiers sont enregistrés dans une collection séparée afin d’éviter tout écrasement de la donnée constructeur initiale.
+
+La couche application expose `ItamSupportService` avec RBAC explicite (`itam.read`, `itam.write`) et audit des opérations constructeur/tier. Les adaptateurs de persistance JSON et PostgreSQL implémentent `ItamSupportRepository`; la migration `0027_itam_asset_support_profiles.sql` crée une table partitionnée par `tenant_id` pour préserver les objectifs de scalabilité multi-tenant. Les interfaces HTTP et CLI publient le même contrat métier via `/api/v1/itam/support-profile` et `openinfra itam`.

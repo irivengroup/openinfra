@@ -23,6 +23,8 @@ class Permission(StrEnum):
     ITRM_GOVERNANCE_READ = "itrm.governance.read"
     ITRM_GOVERNANCE_WRITE = "itrm.governance.write"
     ITRM_QUALITY_READ = "itrm.quality.read"
+    ITAM_READ = "itam.read"
+    ITAM_WRITE = "itam.write"
     RI_READ = "itrm.read"
     RI_WRITE = "itrm.write"
     RI_GOVERNANCE_READ = "itrm.governance.read"

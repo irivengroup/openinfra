@@ -1603,3 +1603,7 @@ La version 0.29.46 renforce EPIC-0805 avec un contrat d’accessibilité vérifi
 ### Avancement v0.29.47 — P08 badge édition header principal
 
 La version 0.29.47 renforce EPIC-0805 avec un ajustement UX du header openinfra-web : l’édition runtime est rendue dans la première barre, directement après la marque OpenInfra, tandis que le mode d’authentification n’est plus affiché comme badge permanent dans la titlebar. Le style `openinfra-edition-badge` applique uniquement un fond fuchsia dégradé et une ombre dédiée, sans surcharge de padding, taille de police ni largeur minimale.
+
+### Avancement v0.29.48 — P08 badge édition fuchsia effectif
+
+La version 0.29.48 corrige la régression visuelle du badge d’édition : l’élément conserve la classe Bootstrap `badge` pour garder exactement le même gabarit, mais n’utilise plus `text-bg-primary`, afin d’éviter tout héritage bleu. Le style `badge.openinfra-edition-badge` force un dégradé fuchsia dédié et la validation frontend vérifie explicitement l’absence de bleu primaire sur ce badge.

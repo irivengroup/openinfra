@@ -305,9 +305,11 @@ body {
   background: rgba(var(--openinfra-ink-rgb), .72) !important;
 }
 
-.openinfra-edition-badge {
-  background: linear-gradient(135deg, var(--openinfra-fuchsia), #c900ff 48%, var(--openinfra-action)) !important;
-  box-shadow: 0 .25rem .75rem rgba(var(--openinfra-fuchsia-rgb), .24);
+.badge.openinfra-edition-badge,
+.openinfra-top-header .badge.openinfra-edition-badge {
+  background: linear-gradient(135deg, var(--openinfra-fuchsia) 0%, #ff2bd6 52%, #c000a8 100%) !important;
+  box-shadow: 0 .25rem .75rem rgba(var(--openinfra-fuchsia-rgb), .28);
+  color: #fff !important;
 }
 
 .alert-info {
@@ -821,4 +823,4 @@ body {
   scroll-margin-top: .5rem;
 }
 
-/* v0.29.47: edition badge moved beside brand; visible auth mode indicator removed. */
+/* v0.29.48: edition badge uses a dedicated fuchsia gradient with no Bootstrap primary blue bleed-through. */

@@ -1,6 +1,6 @@
-# OpenInfra v0.29.47
+# OpenInfra v0.29.48
 
-## v0.29.47 — badge édition dans le header principal
+## v0.29.48 — badge édition fuchsia effectif
 
 OpenInfra Web affiche maintenant l’édition runtime directement après le logo OpenInfra dans la première barre du header. L’indication visible du mode d’authentification est retirée de la titlebar afin de réduire le bruit opérateur ; le contrat `/config.json` conserve `authMode` pour la configuration applicative. Le badge d’édition garde le gabarit Bootstrap existant et adopte un fond fuchsia dégradé dédié.
 
@@ -11,7 +11,7 @@ OpenInfra Web ajoute un parcours clavier robuste pour l’exploitation quotidien
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, ITAM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.47 — édition visible dans le header principal, badge fuchsia dégradé et retrait de l’indication visible du mode d’authentification.**
+**Version courante : 0.29.48 — édition visible dans le header principal, badge fuchsia dégradé effectif sans héritage bleu `text-bg-primary`, et retrait de l’indication visible du mode d’authentification.**
 
 
 

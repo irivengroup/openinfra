@@ -77,3 +77,7 @@ La roadmap v2 intègre `TST-P08-WEB-ACCESSIBLE-NAVIGATION` pour verrouiller l’
 ## Validation v0.29.47 — badge édition header principal
 
 La roadmap v2 intègre `TST-P08-WEB-EDITION-BADGE-HEADER` pour verrouiller le déplacement de l’édition runtime à côté du logo OpenInfra, le retrait de l’indication visible du mode d’authentification et le style fuchsia dégradé sans changement de gabarit Bootstrap. L’alignement CDC ajoute `REQ-00790` sur P08 / EPIC-0805 / release 0.29.47.
+
+## Validation v0.29.48 — badge édition fuchsia effectif
+
+La roadmap v2 intègre `TST-P08-WEB-EDITION-BADGE-FUCHSIA` pour verrouiller le rendu fuchsia effectif du badge d’édition, sans classe `text-bg-primary`, sans composante bleue dans le gradient dédié, et sans changement du gabarit Bootstrap `badge`. L’alignement CDC ajoute `REQ-00791` sur P08 / EPIC-0805 / release 0.29.48.

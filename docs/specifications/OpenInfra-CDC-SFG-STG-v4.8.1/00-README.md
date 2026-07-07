@@ -191,3 +191,9 @@ L'installateur doit valider ce fichier avant toute action système, produire un 
 - Le mode d’authentification n’est plus affiché comme badge permanent dans la titlebar, tout en restant disponible dans le contrat de configuration applicative.
 - Le badge d’édition utilise un fond fuchsia dégradé sans modification de gabarit Bootstrap.
 
+
+## v0.29.48 — Badge édition fuchsia effectif
+
+- Ajout `REQ-00791` : le badge d’édition affiché après le logo OpenInfra ne doit pas hériter du fond bleu Bootstrap `text-bg-primary`.
+- Le gabarit du badge reste inchangé via la classe Bootstrap `badge`, mais le fond est forcé par un sélecteur dédié fuchsia dégradé sans composante bleue.
+- Le mode d’authentification reste non affiché comme badge permanent.

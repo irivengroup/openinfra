@@ -783,3 +783,4 @@ REQ-00787,N2,WEB,UC-WEB-001,TST-WEB-088,Validation frontend et tests intégratio
 REQ-00788,N2,WEB,UC-WEB-001,TST-WEB-089,Validation frontend et tests intégration openinfra-web de la réduction de moitié des boutons Swagger/ReDoc.
 REQ-00789,N2,WEB,UC-WEB-001,TST-WEB-090,"Validation frontend et tests intégration openinfra-web de l’accessibilité navigation, recherche et focus contenu principal."
 REQ-00790,N2,WEB,UC-WEB-001,TST-WEB-091,Validation frontend et tests intégration openinfra-web du badge édition dans le header principal et du retrait de l’indication visible du mode d’authentification.
+REQ-00791,N2,WEB,UC-WEB-001,TST-WEB-092,Validation frontend et tests intégration openinfra-web du badge édition fuchsia effectif sans classe text-bg-primary ni composante bleue dans le gradient dédié.

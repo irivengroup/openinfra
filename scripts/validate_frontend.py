@@ -146,6 +146,7 @@ class FrontendContractValidator:
             or "shouldFocusMain" not in main_source
             or "openinfra-edition-badge" not in main_source
             or "config.authMode || 'standard'" in main_source
+            or "badge text-bg-primary openinfra-edition-badge" in main_source
         ):
             raise FrontendValidationError(
                 "web/src/main.jsx must implement the OpenInfra React + Bootstrap dashboard UI"
@@ -329,7 +330,8 @@ class FrontendContractValidator:
             "Ouvrir ReDoc backend API",
             "openinfra-api-doc-actions",
             "openinfra-edition-badge",
-            "var(--openinfra-fuchsia), #c900ff 48%, var(--openinfra-action)",
+            "var(--openinfra-fuchsia) 0%, #ff2bd6 52%, #c000a8 100%",
+            ".badge.openinfra-edition-badge",
             "openinfra-skip-link",
             "Aller au contenu principal",
             "openinfra-main-content",
@@ -466,6 +468,8 @@ class FrontendContractValidator:
             "openinfra-signup",
             'config?.authMode || "standard")}</span>',
             "config.authMode || 'standard'",
+            "badge text-bg-primary openinfra-edition-badge",
+            "var(--openinfra-fuchsia), #c900ff 48%, var(--openinfra-action)",
             "Backend prêt",
             "Sign-up",
             "Formulaire métier typé : chaque champ correspond",

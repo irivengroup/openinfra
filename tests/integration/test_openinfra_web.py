@@ -175,7 +175,9 @@ class TestOpenInfraWeb:
         assert "Ouvrir ReDoc backend API" in static_js + main_js
         assert "openinfra-api-doc-actions" in static_js + static_css
         assert "openinfra-edition-badge" in static_js + static_css + main_js
-        assert "var(--openinfra-fuchsia), #c900ff 48%, var(--openinfra-action)" in static_css
+        assert "var(--openinfra-fuchsia) 0%, #ff2bd6 52%, #c000a8 100%" in static_css
+        assert "badge text-bg-primary openinfra-edition-badge" not in static_js + main_js
+        assert "var(--openinfra-action)) !important;" not in static_css.split(".badge.openinfra-edition-badge", 1)[1].split("}", 1)[0]
         assert "config?.edition || \"runtime\")}</span>" in static_js
         assert "config?.authMode || \"standard\")}</span>" not in static_js
         assert "config.authMode || 'standard'" not in main_js
@@ -261,6 +263,7 @@ class TestOpenInfraWeb:
         assert "conic-gradient(var(--openinfra-navy) 0 var(--oi-read-end), var(--openinfra-fuchsia)" not in static_css
         assert "background: var(--openinfra-fuchsia);" not in static_css
         assert ".openinfra-edition-badge" in static_css
+        assert ".badge.openinfra-edition-badge" in static_css
         assert "--openinfra-content-shadow: 0 .16rem .55rem rgba(0, 27, 65, .055)" in static_css
         assert "--openinfra-content-shadow-hover: 0 .28rem .8rem rgba(0, 27, 65, .07)" in static_css
         assert "--openinfra-header-shadow: 0 .95rem 2.25rem rgba(0, 27, 65, .18), 0 .16rem .55rem rgba(0, 61, 143, .16)" in static_css

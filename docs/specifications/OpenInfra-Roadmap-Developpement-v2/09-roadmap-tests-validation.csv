@@ -46,3 +46,4 @@ TST-P11-DISCOVERY-PROXY-CLI-ENROLLMENT,P11,Discovery proxy CLI enrollment,"Valid
 TST-P08-WEB-PREMIUM-THEME,P08,openinfra-web charte premium Bootstrap 5,"Valider palette navy/bleu/cyan, effets, focus rings, boutons, cartes et absence de changement structurel.",Frontend/UX/Regression
 TST-P11-DISCOVERY-PROXY-ENROLLMENT-VERIFY,P11,Discovery proxy enrollment config verification,"Valider CLI Enterprise-only, schéma config, permissions 0600, résultats backend, mode allow-partial et sortie JSON unique job-authorize.",Service/CLI/Security/Regression
 TST-P08-WEB-DASHBOARD-SCOPING,P08,openinfra-web dashboard scoping,"Valider titre Dashboard court et isolation des métriques/statistiques d’accueil hors pages composants.",Frontend/UX/Regression
+TST-P08-WEB-SUBTLE-CONTENT-SHADOW,P08,openinfra-web ombres de contenu allégées,"Valider variables CSS dédiées, ombres réduites sur titlebar/cards/métriques/composants et préservation header/sidebar.",Frontend/UX/Regression

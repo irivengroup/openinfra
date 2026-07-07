@@ -28,6 +28,8 @@
   --openinfra-border-strong: rgba(0, 61, 143, .24);
   --openinfra-shadow: 0 1.125rem 2.75rem rgba(0, 27, 65, .12);
   --openinfra-shadow-soft: 0 .45rem 1.35rem rgba(0, 27, 65, .09);
+  --openinfra-content-shadow: 0 .16rem .55rem rgba(0, 27, 65, .055);
+  --openinfra-content-shadow-hover: 0 .28rem .8rem rgba(0, 27, 65, .07);
   --openinfra-focus-ring: 0 0 0 .25rem rgba(var(--openinfra-action-rgb), .2);
   --bs-primary: var(--openinfra-action);
   --bs-primary-rgb: var(--openinfra-action-rgb);
@@ -149,7 +151,7 @@ body {
   background: linear-gradient(135deg, rgba(255, 255, 255, .94), rgba(238, 245, 255, .78));
   border: 1px solid var(--openinfra-border);
   border-radius: 1.15rem;
-  box-shadow: var(--openinfra-shadow-soft);
+  box-shadow: var(--openinfra-content-shadow);
   gap: .75rem;
   margin: clamp(1rem, 1.8vw, 1.5rem) 0 clamp(1.25rem, 2vw, 2rem);
   padding: clamp(1rem, 2vw, 1.75rem);
@@ -177,7 +179,7 @@ body {
   background: var(--openinfra-card-bg);
   border: 1px solid var(--openinfra-border);
   border-radius: 1rem;
-  box-shadow: var(--openinfra-shadow-soft);
+  box-shadow: var(--openinfra-content-shadow);
 }
 
 .openinfra-metric {
@@ -445,7 +447,7 @@ body {
 .openinfra-component-card {
   border: 1px solid var(--openinfra-border);
   border-radius: 1rem;
-  box-shadow: var(--openinfra-shadow-soft);
+  box-shadow: var(--openinfra-content-shadow);
 }
 
 .openinfra-component-card {
@@ -455,8 +457,8 @@ body {
 }
 
 .openinfra-component-card:hover {
-  box-shadow: var(--openinfra-shadow);
-  transform: translateY(-2px);
+  box-shadow: var(--openinfra-content-shadow-hover);
+  transform: translateY(-1px);
 }
 
 .openinfra-component-icon {
@@ -479,7 +481,7 @@ body {
   background: conic-gradient(var(--openinfra-action) 0 var(--oi-read-end), var(--openinfra-green) var(--oi-read-end) var(--oi-write-end), rgba(var(--openinfra-ink-rgb), .1) var(--oi-write-end) 100%);
   border: .38rem solid rgba(255, 255, 255, .95);
   border-radius: 50%;
-  box-shadow: 0 .75rem 1.75rem rgba(0, 61, 143, .16);
+  box-shadow: 0 .22rem .7rem rgba(0, 61, 143, .08);
   display: inline-flex;
   flex: 0 0 var(--openinfra-pie-size);
   height: var(--openinfra-pie-size);

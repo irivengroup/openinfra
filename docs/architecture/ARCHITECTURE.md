@@ -419,9 +419,9 @@ Le framework de migration legacy reste dans le bounded context import afin de r�
 `IpamModelService.topology` construit un graphe opérationnel lecture seule à partir du repository IPAM : VRF, agrégats, préfixes, plages, adresses, réservations, VLAN/VXLAN, ASN/BGP et observations DNS/DHCP. Le rapport expose `nodes`, `edges`, `summary` et `integrity`, et journalise `ipam.topology.generated` sans introduire de stockage parallèle.
 
 
-## Discovery Enterprise proxy enrollment verification v0.29.34
+## Discovery Enterprise proxy enrollment verification v0.29.35
 
-La version `0.29.34` complète le cycle d’exploitation de l’enrôlement proxy Enterprise. La CLI expose `openinfra discovery proxy-enroll-verify` pour relire un fichier produit par `openinfra discovery proxy-enroll --config-output`, vérifier qu’il reste réservé à Enterprise, contrôler son schéma JSON, les backends enregistrés, les codes HTTP, les réponses backend et les permissions POSIX `0600`. La validation est locale et déterministe : elle ne ré-appelle pas les backends, afin de permettre les diagnostics offline et les contrôles CI/CD sur artefact d’enrôlement. L’option `--allow-partial` conserve les erreurs de schéma mais transforme un enrôlement backend partiel en avertissement pour les opérations HA.
+La version `0.29.35` complète le cycle d’exploitation de l’enrôlement proxy Enterprise. La CLI expose `openinfra discovery proxy-enroll-verify` pour relire un fichier produit par `openinfra discovery proxy-enroll --config-output`, vérifier qu’il reste réservé à Enterprise, contrôler son schéma JSON, les backends enregistrés, les codes HTTP, les réponses backend et les permissions POSIX `0600`. La validation est locale et déterministe : elle ne ré-appelle pas les backends, afin de permettre les diagnostics offline et les contrôles CI/CD sur artefact d’enrôlement. L’option `--allow-partial` conserve les erreurs de schéma mais transforme un enrôlement backend partiel en avertissement pour les opérations HA.
 
 ## Discovery Enterprise proxy enrollment v0.29.33
 
@@ -430,3 +430,7 @@ La version `0.29.33` complète la frontière Discovery avec un enrôlement proxy
 ### v0.29.33 — web theme layer
 
 `openinfra-web` conserve une séparation stricte structure/comportement/style : React déclare les modules, opérations et champs ; Bootstrap 5 fournit les primitives ; `openinfra-web.css` applique la charte produit sans modifier l’arbre HTML. La charte remplace les couleurs Bootstrap basic par des variables CSS produit (`--openinfra-navy`, `--openinfra-action`, `--openinfra-cyan`) et des états cohérents pour boutons, badges, formulaires, focus, sidebar, header et cartes. Aucun asset tiers n’est embarqué.
+
+## Web UX content shadow refinement v0.29.35
+
+La version `0.29.35` sépare les effets d’élévation visuelle du contenu et de la navigation. Les blocs de contenu openinfra-web utilisent `--openinfra-content-shadow` et `--openinfra-content-shadow-hover`, plus légers que les tokens historiques de navigation. Le header principal et la sidebar restent inchangés pour préserver l’orientation opérateur, tandis que les cartes, métriques, titlebars et synthèses deviennent plus fluides visuellement.

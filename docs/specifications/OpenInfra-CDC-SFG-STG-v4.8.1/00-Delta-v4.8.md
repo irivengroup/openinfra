@@ -149,3 +149,4 @@ Le dashboard d’accueil ne doit plus afficher d’alerte succès permanente `Ba
 - Ajout de TST-ITRM-062 : tests service, API, CLI, frontend et audit pour verrouiller `reconcile-object`, `/api/v1/itrm/reconcile-object`, conflits non autoritatifs et application autoritative.
 - Les mises à jour non autoritatives rejetées ne sont jamais appliquées ; les plans et applications sont auditables par objet.
 - v0.29.33 : ajout de la charte graphique premium openinfra-web, appliquée par CSS Bootstrap 5 compatible sans modification de structure ni import d’asset tiers.
+- Ajout REQ-00775 pour l’allègement des ombres de contenu openinfra-web sans modification du header ni du menu latéral.

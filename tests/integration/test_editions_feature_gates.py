@@ -191,7 +191,7 @@ def test_pro_backend_rejects_enterprise_proxy_enrollment(tmp_path: Path) -> None
                 kind="site-proxy",
                 certificate_fingerprint="8" * 64,
                 scopes=("site/par1",),
-                version="0.29.34",
+                version="0.29.35",
                 endpoint_url="https://proxy-pro.example.test/agent",
             )
         )

@@ -1,3 +1,10 @@
+## 0.29.35 - 2026-07-07
+
+- Reduced content block shadows in `openinfra-web` for a lighter, more fluid visual hierarchy.
+- Added content-specific CSS variables `--openinfra-content-shadow` and `--openinfra-content-shadow-hover` so cards, titlebars, metrics and component summaries no longer reuse the stronger navigation shadow token.
+- Preserved header and sidebar visual effects, as requested, to keep navigation emphasis unchanged.
+- Extended frontend validation and web integration tests to lock the lighter content shadow contract.
+
 ## 0.29.34 - 2026-07-07
 
 - Added `openinfra discovery proxy-enroll-verify` for Enterprise-only local validation of generated proxy enrollment configs.

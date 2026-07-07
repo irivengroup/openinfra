@@ -212,6 +212,8 @@ class FrontendContractValidator:
             "--openinfra-pie-size: clamp(8rem, 14vw, 10.5rem)",
             "--openinfra-navy: #001b41",
             "--openinfra-action: #0066ff",
+            "--openinfra-content-shadow: 0 .16rem .55rem rgba(0, 27, 65, .055)",
+            "--openinfra-content-shadow-hover: 0 .28rem .8rem rgba(0, 27, 65, .07)",
             ".openinfra-top-header.bg-dark",
             ".btn-primary",
             ".form-control:focus",

@@ -1555,15 +1555,19 @@ Les opérations ciblent les contrats `/api/v1/ipam/*` existants et la découvert
 La version 0.29.32 ajoute la topologie opérationnelle IPAM : API, CLI et dashboard restituent un graphe `nodes`/`edges` consolidant VRF, agrégats, préfixes, plages, adresses, réservations, VLAN/VXLAN, ASN/BGP et observations DNS/DHCP, avec contrôle `integrity` sans stockage parallèle.
 
 
-### Avancement v0.29.34 — P11 Discovery Enterprise proxy enrollment verification
+### Avancement v0.29.35 — P11 Discovery Enterprise proxy enrollment verification
 
-La version 0.29.34 complète l’exploitation des proxies Discovery Enterprise : `openinfra discovery proxy-enroll-verify` valide localement les fichiers produits par `proxy-enroll --config-output`, refuse Lite/Pro, contrôle le schéma JSON, les backends enrôlés, les codes HTTP, les réponses JSON et les permissions POSIX `0600`. Le mode `--allow-partial` permet le diagnostic d’une topologie HA partiellement enrôlée sans masquer les erreurs de structure. Une dette CLI est corrigée : `discovery job-authorize` retourne un seul document JSON.
+La version 0.29.35 complète l’exploitation des proxies Discovery Enterprise : `openinfra discovery proxy-enroll-verify` valide localement les fichiers produits par `proxy-enroll --config-output`, refuse Lite/Pro, contrôle le schéma JSON, les backends enrôlés, les codes HTTP, les réponses JSON et les permissions POSIX `0600`. Le mode `--allow-partial` permet le diagnostic d’une topologie HA partiellement enrôlée sans masquer les erreurs de structure. Une dette CLI est corrigée : `discovery job-authorize` retourne un seul document JSON.
 
 ### Avancement v0.29.33 — P11 Discovery Enterprise proxy CLI enrollment
 
 La version 0.29.33 ajoute l’enrôlement direct des proxies Discovery Enterprise en CLI : `openinfra discovery proxy-enroll` poste vers un ou plusieurs backends via `POST /api/v1/discovery/proxy-enrollments`, `openinfra discovery proxy-enroll-local` couvre le backend local, et les types `site-proxy`, `network-proxy`, `datacenter-proxy` sont acceptés par le domaine. Lite/Pro sont refusées avant persistance.
 - v0.29.33 : P08 ajoute la charte graphique premium Bootstrap 5 openinfra-web, sans changement de structure page, validée par TST-P08-WEB-PREMIUM-THEME.
 
-### Avancement v0.29.34 — Dashboard court et isolation contenu accueil
+### Avancement v0.29.35 — Dashboard court et isolation contenu accueil
 
 Le portail web affiche désormais `Dashboard` comme titre d’accueil. Les métriques runtime et les cartes de synthèse par composant ne sont rendues que sur l’accueil : lorsqu’un opérateur ouvre un composant, la zone principale reste centrée sur le titre contextuel, le formulaire métier et le résultat éventuel. Cette règle évite de répéter le contenu de synthèse dans les pages opérationnelles.
+
+### Avancement v0.29.35 — Ombres de contenu openinfra-web allégées
+
+La version 0.29.35 réduit l’effet shadow des blocs de contenu openinfra-web afin de rendre les pages plus fluides. Les titlebars, métriques, cards, formulaires, synthèses et cartes composants utilisent des variables CSS dédiées plus légères, tandis que le header principal et le menu latéral conservent leurs effets visuels de navigation.

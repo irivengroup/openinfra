@@ -150,6 +150,10 @@ class TestOpenInfraWeb:
         assert "@media (max-width: 575.98px)" in static_css
         assert "--openinfra-navy: #001b41" in static_css
         assert "--openinfra-action: #0066ff" in static_css
+        assert "--openinfra-content-shadow: 0 .16rem .55rem rgba(0, 27, 65, .055)" in static_css
+        assert "--openinfra-content-shadow-hover: 0 .28rem .8rem rgba(0, 27, 65, .07)" in static_css
+        assert "box-shadow: var(--openinfra-content-shadow);" in static_css
+        assert "box-shadow: var(--openinfra-content-shadow-hover);" in static_css
         assert ".openinfra-top-header.bg-dark" in static_css
         assert ".btn-primary" in static_css
         assert ".form-control:focus" in static_css

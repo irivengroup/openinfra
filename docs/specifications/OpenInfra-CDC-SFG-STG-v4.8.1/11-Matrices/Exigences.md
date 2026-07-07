@@ -99,3 +99,9 @@ OpenInfra doit permettre la vérification locale en CLI des fichiers d’enrôle
 ### REQ-00772 — Charte graphique premium openinfra-web
 
 Le portail openinfra-web doit remplacer les couleurs basic Bootstrap par une charte visuelle premium inspirée cloud provider, appliquée via Bootstrap 5 et CSS produit, sans modifier la structure des pages ni importer d’asset tiers. Les assets CSS doivent couvrir header, sidebar, cartes, boutons, badges, formulaires, focus rings, résultats, camemberts et transitions.
+
+### REQ-00775 — Ombres de contenu allégées openinfra-web
+
+Les blocs de contenu du portail openinfra-web doivent utiliser une ombre portée plus légère que les effets de navigation, afin de rendre les pages plus fluides visuellement. La correction cible les titlebars, cartes, métriques, formulaires, synthèses et cartes composants ; le header principal et le menu latéral conservent leurs effets existants.
+
+**Acceptation :** Les assets CSS exposent `--openinfra-content-shadow` et `--openinfra-content-shadow-hover`; les blocs de contenu utilisent ces variables dédiées ; les validateurs frontend et tests web empêchent un retour aux ombres trop fortes sur les cards et composants.

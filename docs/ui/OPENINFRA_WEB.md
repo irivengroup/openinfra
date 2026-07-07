@@ -1,4 +1,4 @@
-# OpenInfra Web v0.29.34
+# OpenInfra Web v0.29.35
 
 OpenInfra Web est le portail `openinfra-web` API-only. Il sert l'interface React/Bootstrap 5, expose un proxy applicatif `/api/*` vers le backend `openinfra-api` et fournit un dashboard aligné sur les domaines CLI.
 
@@ -154,7 +154,7 @@ Aucun logo, image ou composant tiers n’est importé. Les classes Bootstrap exi
 
 La version 0.29.33 ajoute l’enrôlement direct des proxies Discovery Enterprise en CLI. `openinfra discovery proxy-enroll` poste vers un ou plusieurs backends via `POST /api/v1/discovery/proxy-enrollments` et refuse Lite/Pro avant tentative d’enrôlement. `openinfra discovery proxy-enroll-local` couvre le cas backend local sélectionné. Le dashboard conserve l’administration Discovery API-only existante ; les secrets restent côté backend/BFF et ne sont pas demandés au navigateur.
 
-## v0.29.34 — Discovery proxy enrollment verification
+## v0.29.35 — Discovery proxy enrollment verification
 
 La validation locale des fichiers d’enrôlement proxy Enterprise est portée par la CLI `openinfra discovery proxy-enroll-verify`. Le dashboard ne demande toujours aucun secret d’enrôlement proxy au navigateur : les opérations sensibles restent côté CLI/backend, tandis que le portail conserve uniquement les workflows API Discovery déjà exposés.
 

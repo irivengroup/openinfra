@@ -1,4 +1,4 @@
-## 0.29.34
+## 0.29.35
 
 - Ajout `TST-P08-WEB-DASHBOARD-SCOPING` pour verrouiller le titre court `Dashboard` et l’isolation du contenu d’accueil dans openinfra-web.
 - Ajout de la vérification locale des fichiers d’enrôlement proxy Enterprise.

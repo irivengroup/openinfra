@@ -119,3 +119,9 @@ La capacité est acceptée si les scénarios nominaux, erreurs, droits insuffisa
 Le portail openinfra-web doit afficher le titre d’accueil court **Dashboard**. Les métriques runtime et les cartes de synthèse des composants appartiennent exclusivement à cette page d’accueil ; elles ne doivent pas être réaffichées lorsqu’un opérateur navigue vers les pages ITRM, IPAM, DCIM, Discovery ou Sécurité.
 
 **Acceptation :** Le titre long `Dashboard de pilotage OpenInfra` est absent des assets runtime ; les métriques `openinfra-dashboard-metrics` et les statistiques `Statistiques des composants OpenInfra` sont conditionnées à `overview` ; les pages composants affichent uniquement la titlebar contextuelle, le formulaire métier et le résultat éventuel.
+
+### REQ-00775 — Ombres de contenu allégées openinfra-web
+
+Le portail openinfra-web doit réduire la mise en perspective des blocs de contenu afin que la page soit plus fluide visuellement. Les effets de profondeur du header et du menu latéral ne sont pas modifiés ; les blocs métier doivent utiliser des tokens CSS dédiés plus légers.
+
+**Acceptation :** Les variables `--openinfra-content-shadow` et `--openinfra-content-shadow-hover` sont présentes dans les assets runtime ; `.openinfra-titlebar`, `.openinfra-metric`, `.openinfra-operation-card`, `.openinfra-overview-summary`, `.openinfra-component-card` et `.card` utilisent les ombres allégées.

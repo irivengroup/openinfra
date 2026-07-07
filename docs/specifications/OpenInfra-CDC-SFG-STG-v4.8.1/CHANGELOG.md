@@ -257,3 +257,4 @@ Cette version conserve le périmètre v2 : IT Ressources Management, DCIM, ITAM,
 - Services systemd canoniques : `openinfra.service`, `openinfra-web.service`, `openinfra-agent.service`.
 - Backend seul autorisé à appliquer les migrations.
 - v0.29.33 : ajout de la charte graphique premium openinfra-web, appliquée par CSS Bootstrap 5 compatible sans modification de structure ni import d’asset tiers.
+- Ajout REQ-00775 pour l’allègement des ombres de contenu openinfra-web sans modification du header ni du menu latéral.

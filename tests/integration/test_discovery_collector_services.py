@@ -92,7 +92,7 @@ def test_enterprise_proxy_enrollment_requires_proxy_kind_and_persists_collector(
             kind="site-proxy",
             certificate_fingerprint="3" * 64,
             scopes=("site/par1", "network/core"),
-            version="0.29.34",
+            version="0.29.35",
             endpoint_url="https://proxy-par1.example.tld/agent",
             vault_secret_ref="vault://" + "openinfra/discovery/proxy/par1",
         )
@@ -120,7 +120,7 @@ def test_proxy_enrollment_rejects_non_proxy_collector_kind(tmp_path: Path) -> No
                 kind="snmp",
                 certificate_fingerprint="4" * 64,
                 scopes=("site/par1",),
-                version="0.29.34",
+                version="0.29.35",
                 endpoint_url="https://collector.example.tld/agent",
             )
         )

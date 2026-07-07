@@ -45,5 +45,6 @@ REQ-00769,IPAM Enterprise++ dashboard et découverte API,P11,EPIC-1104,0.29.31,T
 REQ-00770,IPAM topologie opérationnelle,P11,EPIC-1104,0.29.32,TST-P11-IPAM-TOPOLOGY
 REQ-00771,Discovery proxy CLI enrollment Enterprise,P11,EPIC-1105,0.29.33,TST-P11-DISCOVERY-PROXY-CLI-ENROLLMENT
 CDC-WEB-075,Charte graphique premium openinfra-web,P08,EPIC-0801,REL-02933,REQ-00772/TST-WEB-075 validés par frontend validator et tests web.
-REQ-00773,Discovery proxy enrollment config verification,P11,EPIC-1105,0.29.34,TST-P11-DISCOVERY-PROXY-ENROLLMENT-VERIFY
-REQ-00774,Dashboard court et contenu accueil isolé,P08,EPIC-0801,0.29.34,TST-P08-WEB-DASHBOARD-SCOPING
+REQ-00773,Discovery proxy enrollment config verification,P11,EPIC-1105,0.29.35,TST-P11-DISCOVERY-PROXY-ENROLLMENT-VERIFY
+REQ-00774,Dashboard court et contenu accueil isolé,P08,EPIC-0801,0.29.35,TST-P08-WEB-DASHBOARD-SCOPING
+REQ-00775,Ombres de contenu allégées openinfra-web,P08,EPIC-0801,0.29.35,TST-P08-WEB-SUBTLE-CONTENT-SHADOW

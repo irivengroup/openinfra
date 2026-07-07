@@ -1,8 +1,15 @@
-# OpenInfra v0.29.34
+# OpenInfra v0.29.35
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.34 — Discovery Enterprise ajoute la vérification locale des fichiers d’enrôlement proxy, avec contrôle d’édition, schéma, statut backend et permissions de fichier.**
+**Version courante : 0.29.35 — openinfra-web réduit l’effet shadow des blocs de contenu pour une expérience visuelle plus fluide, sans modifier le header ni le menu latéral.**
+
+### v0.29.35 — openinfra-web content shadow refinement
+
+- Réduction des ombres portées sur les blocs de contenu : titlebar, cards, métriques, formulaires, synthèses et cartes composants.
+- Conservation des effets existants du header principal et du menu latéral afin de ne pas casser la hiérarchie visuelle de navigation.
+- Ajout de variables CSS dédiées `--openinfra-content-shadow` et `--openinfra-content-shadow-hover`, afin de séparer les effets de contenu des effets de navigation.
+- Les tests et validateurs frontend contrôlent la présence des ombres allégées et empêchent un retour au rendu trop appuyé.
 
 ### v0.29.34 — Discovery Enterprise proxy enrollment verification
 

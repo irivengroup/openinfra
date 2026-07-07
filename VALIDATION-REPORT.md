@@ -1,8 +1,8 @@
-# OpenInfra v0.29.34 validation report
+# OpenInfra v0.29.35 validation report
 
 ## Scope
 
-OpenInfra v0.29.34 delivers Discovery Enterprise proxy enrollment config verification and a focused openinfra-web dashboard UX correction.
+OpenInfra v0.29.35 delivers Discovery Enterprise proxy enrollment config verification and a focused openinfra-web dashboard UX correction.
 
 ## Functional changes
 
@@ -24,7 +24,7 @@ OpenInfra v0.29.34 delivers Discovery Enterprise proxy enrollment config verific
 | `python scripts/security_gate.py` | PASS |
 | `python scripts/validate_frontend.py` | PASS |
 | `node --check src/openinfra/interfaces/rendering/static/assets/openinfra-web.js` | PASS |
-| `PYTHONPATH=src python -m openinfra.interfaces.cli version` | PASS — 0.29.34 |
+| `PYTHONPATH=src python -m openinfra.interfaces.cli version` | PASS — 0.29.35 |
 | `mypy src/openinfra` | PASS |
 | `bandit -q -r src/openinfra` | PASS |
 | `pip-audit --dry-run` | PASS |

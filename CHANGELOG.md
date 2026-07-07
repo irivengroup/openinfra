@@ -1,3 +1,10 @@
+## 0.29.42 - 2026-07-07
+
+- Le double header conserve sa position fixe mais porte maintenant une ombre `--openinfra-header-shadow` plus prononcée que les ombres de contenu allégées.
+- Le scroll de la page démarre exactement sous le header sur toute la largeur via `scroll-padding-top`, `--openinfra-fixed-header-height` et le calcul runtime de hauteur.
+- La barre de recherche ne porte plus une ombre concurrente : l’effet de séparation est appliqué au header complet pour éviter un chevauchement visuel.
+- Les validations frontend et tests web verrouillent la hiérarchie d’ombres header/contenu et l’offset de scroll.
+
 ## 0.29.41 - 2026-07-07
 
 - Les boutons `Swagger` et `ReDoc` du double header lisent désormais les liens `apiDocumentation` de `/config.json` et ouvrent les routes backend API réelles.

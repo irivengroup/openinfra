@@ -55,3 +55,4 @@ REQ-00779,Recherche globale tolérante aux erreurs réseau et respect apiBaseUrl
 REQ-00780,Camemberts Dashboard palette initiale lisible,P08,EPIC-0801,0.29.41,TST-P08-WEB-RESTORED-PIE-PALETTE
 REQ-00781,Swagger/ReDoc header branchés sur backend API,P08,EPIC-0801,0.29.41,TST-P08-WEB-API-DOCS-BACKEND-LINKS
 REQ-00782,Icône ITRM référentiel/référence pleine et opaque openinfra-web,P08,EPIC-0801,0.29.41,TST-P08-WEB-ITRM-REFERENCE-ICON
+REQ-00783,Header fixe avec ombre prioritaire et scroll sous bandeau,P08,EPIC-0801,0.29.42,TST-P08-WEB-FIXED-HEADER

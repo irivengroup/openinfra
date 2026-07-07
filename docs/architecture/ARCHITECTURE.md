@@ -454,6 +454,13 @@ La version `0.29.38` introduit un service applicatif transverse `GlobalSearchSer
 L’endpoint `GET /api/v1/search/global` expose ce contrat à `openinfra-web` et à tout client API. Les composants protégés qui refusent le jeton courant sont marqués comme non visibles au niveau applicatif, sans fuite de contenu. La commande `openinfra search global` réutilise le même service pour garantir la parité CLI/API/UI.
 
 
+
+### v0.29.42 — hiérarchie d’ombres et offset de scroll du header
+
+La version 0.29.42 renforce le contrat layout du double header `openinfra-web`. Le conteneur fixe `openinfra-header-stack` porte `--openinfra-header-shadow`, plus visible que les ombres de contenu allégées, et couvre toute la largeur du viewport. Le contenu principal conserve son offset dynamique via `--openinfra-fixed-header-height`, tandis que `scroll-padding-top` garantit que les ancrages et mouvements de scroll démarrent sous la limite réelle du header.
+
+L’ombre basse du second bandeau est neutralisée pour éviter un double effet visuel : la séparation entre header et page est centralisée sur le header complet, sans déplacer ni recouvrir le contenu métier.
+
 ### v0.29.41 — Documentation API backend depuis le portail web
 
 `openinfra-web` expose désormais les routes documentaires `/docs`, `/swagger`, `/redoc`, `/openapi.yaml` et `/api/v1/openapi.yaml` comme proxy BFF vers `openinfra-api`. Le navigateur ne suppose plus que Swagger/ReDoc sont des assets du portail : les boutons du header lisent `apiDocumentation.swaggerUrl` et `apiDocumentation.redocUrl` depuis `/config.json`.
@@ -474,4 +481,4 @@ Le double header `openinfra-web` résout l’URL de recherche globale via `apiBa
 
 
 
-La version 0.29.41 fixe également le double header `openinfra-web` en haut de viewport. Les assets runtime ajoutent `openinfra-header-stack`, `--openinfra-fixed-header-height`, un calcul dynamique de hauteur et un offset CSS du `body`; le contenu métier et le menu latéral scrollent sous le header sans recouvrement.
+La version 0.29.42 précise le comportement du double header fixe : `openinfra-header-stack` reste en haut de viewport, porte une ombre renforcée sur toute la largeur et le contenu démarre exactement sous la limite du header grâce à `--openinfra-fixed-header-height`, `scroll-padding-top` et au calcul dynamique de hauteur.

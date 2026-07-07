@@ -1,3 +1,4 @@
+- Mise à jour `TST-P08-WEB-FIXED-HEADER` pour valider l’ombre prioritaire du header et le scroll aligné sous le bandeau pleine largeur.
 - Ajout `TST-P08-WEB-FIXED-HEADER` pour valider le header fixe et le scroll du contenu sous-jacent.
 ## 0.29.41 - 2026-07-07
 

@@ -1591,3 +1591,6 @@ La roadmap P08 ajoute `TST-P08-WEB-BACKEND-GLOBAL-SEARCH` et aligne `REQ-00778`.
 
 La version 0.29.41 restaure la palette initiale des camemberts du Dashboard : bleu action pour les lectures et vert pour les mutations. Elle branche aussi réellement les boutons Swagger/ReDoc du double header sur les routes documentaires du backend API via les liens `apiDocumentation` de `/config.json` et le proxy BFF `openinfra-web`. Elle conserve les corrections de recherche globale livrées en 0.29.39, tout en retirant le duo bleu nuit/fuchsia jugé trop agressif visuellement. Le même incrément remplace le pictogramme ITRM par une icône de référentiel/référence afin d’aligner la navigation sur le rôle canonique du composant, puis fixe le double header en haut de viewport afin que la page scrolle sous le bandeau sans recouvrement.
 
+### 0.29.42 — header fixe et hiérarchie d’ombres
+
+La version 0.29.42 affine le comportement du double header livré en P08. Le header reste fixe en haut de viewport, son ombre devient volontairement plus prononcée que celle des blocs de contenu et le scroll de page démarre exactement sous la limite du bandeau sur toute la largeur. Les règles CSS centralisent l’effet de séparation sur `openinfra-header-stack` et conservent l’offset dynamique `--openinfra-fixed-header-height` pour éviter tout recouvrement du contenu métier et du menu latéral.

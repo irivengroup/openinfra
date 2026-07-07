@@ -1,8 +1,16 @@
-# OpenInfra v0.29.41
+# OpenInfra v0.29.42
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.41 — la recherche globale du header conserve le fallback métier, les camemberts restaurent la palette initiale action/vert, les boutons Swagger/ReDoc ouvrent réellement la documentation du backend API, l’icône ITRM représente désormais un référentiel de référence avec un SVG plein/opaque et le header reste fixe pendant le scroll.**
+**Version courante : 0.29.42 — le header double barre reste fixe, porte une ombre plus prononcée que les blocs de contenu et le scroll commence exactement sous le bandeau sur toute la largeur.**
+
+
+### v0.29.42 — header fixe renforcé et scroll sans chevauchement
+
+- Le double header conserve sa position fixe en haut de viewport mais utilise désormais `--openinfra-header-shadow`, plus marqué que les ombres allégées des blocs de contenu.
+- L’ombre est portée par `openinfra-header-stack` sur toute la largeur, afin de séparer clairement le bandeau de navigation du contenu scrollable.
+- Le scroll de page démarre exactement sous le header grâce à `--openinfra-fixed-header-height`, `scroll-padding-top` et au calcul dynamique de hauteur runtime.
+- Le second bandeau ne porte plus sa propre ombre basse : la séparation visuelle est centralisée sur le header complet, sans marge parasite entre le header et la page.
 
 ### v0.29.41 — restauration de la palette initiale des camemberts et documentation API réelle
 

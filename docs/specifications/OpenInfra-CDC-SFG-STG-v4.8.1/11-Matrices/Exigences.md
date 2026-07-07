@@ -151,6 +151,6 @@ La recherche globale ne doit pas se limiter au filtrage local des opérations vi
 
 ### REQ-00783 — Header fixe openinfra-web
 
-**Exigence :** le double header `openinfra-web` doit rester fixe en haut de viewport et les pages doivent scroller sous ce bandeau lorsque le contenu dépasse la hauteur disponible.
+**Exigence :** le double header `openinfra-web` doit rester fixe en haut de viewport, porter une ombre plus prononcée que les blocs de contenu et laisser les pages scroller exactement sous ce bandeau sur toute la largeur lorsque le contenu dépasse la hauteur disponible.
 
-**Acceptation :** les assets runtime exposent `openinfra-header-stack`, `--openinfra-fixed-header-height`, un calcul dynamique d’offset et des règles CSS évitant le recouvrement du contenu principal et du menu latéral.
+**Acceptation :** les assets runtime exposent `openinfra-header-stack`, `--openinfra-header-shadow`, `--openinfra-fixed-header-height`, `scroll-padding-top`, un calcul dynamique d’offset et des règles CSS évitant le recouvrement du contenu principal et du menu latéral. L’ombre du header est supérieure aux ombres de contenu allégées.

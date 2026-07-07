@@ -222,11 +222,15 @@ class TestOpenInfraWeb:
         assert "background: var(--openinfra-fuchsia);" not in static_css
         assert "--openinfra-content-shadow: 0 .16rem .55rem rgba(0, 27, 65, .055)" in static_css
         assert "--openinfra-content-shadow-hover: 0 .28rem .8rem rgba(0, 27, 65, .07)" in static_css
+        assert "--openinfra-header-shadow: 0 .95rem 2.25rem rgba(0, 27, 65, .18), 0 .16rem .55rem rgba(0, 61, 143, .16)" in static_css
         assert "box-shadow: var(--openinfra-content-shadow);" in static_css
         assert "box-shadow: var(--openinfra-content-shadow-hover);" in static_css
+        assert "box-shadow: var(--openinfra-header-shadow);" in static_css
         assert ".openinfra-top-header.bg-dark" in static_css
         assert ".openinfra-header-stack" in static_css
         assert "position: fixed" in static_css
+        assert "scroll-padding-top: var(--openinfra-fixed-header-height)" in static_css
+        assert "width: 100%" in static_css
         assert "padding-top: var(--openinfra-fixed-header-height)" in static_css
         assert "top: var(--openinfra-fixed-header-height)" in static_css
         assert "--openinfra-fixed-header-height" in static_css

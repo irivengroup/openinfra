@@ -165,6 +165,15 @@ Le second bandeau expose aussi les actions `Swagger` et `ReDoc`. Depuis la v0.29
 Les textes permanents précédemment issus des alertes informatives ne sont plus rendus sur les pages composant. Le composant conserve son titre, son sous-titre, le formulaire métier et le panneau résultat ; les alertes restent réservées aux erreurs/warnings caractérisés et au succès après soumission effective.
 
 
+
+## v0.29.42 — header fixe, ombre renforcée et scroll aligné
+
+Le double header reste fixe en haut du viewport et porte l’ombre principale de séparation via `--openinfra-header-shadow`. Cette ombre est volontairement plus prononcée que `--openinfra-content-shadow` et `--openinfra-content-shadow-hover`, réservées aux cartes, formulaires et blocs de contenu. La hiérarchie visuelle est donc claire : le header est prioritaire, les cartes restent légères.
+
+Le scroll du contenu commence juste sous le header, sans recouvrement ni marge artificielle. Les assets appliquent `padding-top: var(--openinfra-fixed-header-height)` au `body`, `scroll-padding-top` au document et recalculent la hauteur réelle du header après rendu et lors des redimensionnements. Le menu latéral reste sticky avec `top: var(--openinfra-fixed-header-height)`.
+
+L’ombre basse du second bandeau est supprimée afin que l’effet soit porté par le header complet `openinfra-header-stack` sur toute la largeur de la page.
+
 ## v0.29.41 — Liens Swagger/ReDoc branchés sur le backend API
 
 Le header ne pointe plus vers des routes statiques supposées du portail. Le navigateur lit `apiDocumentation.swaggerUrl` et `apiDocumentation.redocUrl` depuis `/config.json`. En mode BFF standard, ces URLs restent same-origin (`/docs`, `/redoc`) et `openinfra-web` les proxyfie vers `openinfra-api`. En mode exposition séparée, `OPENINFRA_WEB_PUBLIC_API_DOCS_BASE_URL` permet de publier une origine backend API explicite.

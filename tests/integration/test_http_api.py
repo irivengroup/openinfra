@@ -1206,8 +1206,7 @@ class TestSourceOfTruthHttpApi:
                 token=token,
             )
             audit = helper._get_json(
-                base_url
-                + "/api/v1/itrm/object-audit?tenant_id=default&key=device/api-srv-1",
+                base_url + "/api/v1/itrm/object-audit?tenant_id=default&key=device/api-srv-1",
                 token=token,
             )
             relations = helper._get_json(
@@ -1234,7 +1233,6 @@ class TestSourceOfTruthHttpApi:
             server.shutdown()
             server.server_close()
             thread.join(timeout=5)
-
 
     def test_itrm_reconcile_object_api_plans_and_applies_governed_update(
         self, tmp_path: Path

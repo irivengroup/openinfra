@@ -246,7 +246,6 @@ class TestDcimDomain:
         assert rejected.as_dict()["received_payload"] == "oi:loc:default:OTHER:BAD"
         assert InterventionRouteStep.create(1, " A ", "  B   C ").as_dict()["instruction"] == "B C"
 
-
     def test_equipment_location_public_payload_contract(self) -> None:
         from openinfra.domain.dcim import Equipment
 

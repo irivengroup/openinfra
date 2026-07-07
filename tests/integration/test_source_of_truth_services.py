@@ -123,10 +123,7 @@ class TestSourceOfTruthServices:
         assert version_one["payload"]["display_name"] == "Server 001"
         assert current["display_name"] == "Server 001 renamed"
 
-
-    def test_itrm_as_of_relations_and_object_audit_are_operational(
-        self, tmp_path: Path
-    ) -> None:
+    def test_itrm_as_of_relations_and_object_audit_are_operational(self, tmp_path: Path) -> None:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json")
         admin_token = "h" * 40
         app.security_service.bootstrap_token(
@@ -546,7 +543,6 @@ def test_itrm_resource_taxonomy_filters_types_and_validates_category_type(tmp_pa
     assert created["resource_type"] == "physical-server"
     assert created["attributes"]["resource_category"] == "server"
     assert created["attributes"]["resource_type"] == "physical-server"
-
 
     category_page = app.it_resources_management_service.list_objects(
         ListSourceObjectsCommand(

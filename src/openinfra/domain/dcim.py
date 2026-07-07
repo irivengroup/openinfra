@@ -497,6 +497,7 @@ class EquipmentLocation:
 
     def as_dict(self) -> dict[str, object]:
         coordinates = self.coordinates.as_dict() if self.coordinates else None
+        rack_face = self.effective_rack_face()
         return {
             "site": self.site_code.value,
             "building": self.building_code.value,
@@ -507,7 +508,7 @@ class EquipmentLocation:
             "zone": self.zone_code.value if self.zone_code else None,
             "rack": self.rack_code.value if self.rack_code else None,
             "u_position": self.u_position,
-            "rack_face": self.effective_rack_face().value if self.effective_rack_face() else None,
+            "rack_face": rack_face.value if rack_face else None,
             "u_height": self.effective_u_height(),
             "coordinates": coordinates,
             "human_readable": self.human_readable(),

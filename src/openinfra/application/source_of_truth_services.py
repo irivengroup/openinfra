@@ -20,8 +20,8 @@ from openinfra.domain.common import (
     TenantId,
     ValidationError,
 )
-from openinfra.domain.security import Permission
 from openinfra.domain.resource_taxonomy import ResourceClassification, ResourceTaxonomy
+from openinfra.domain.security import Permission
 from openinfra.domain.source_governance import (
     SourceConflictStrategy,
     SourceGovernanceEvaluation,

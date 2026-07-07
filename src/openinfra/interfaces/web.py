@@ -54,7 +54,9 @@ class OpenInfraWebConfig:
 
     def as_status_dict(self) -> dict[str, object]:
         backend_bearer_configured = bool(self.backend_bearer_token)
-        protected_forms = "enabled" if backend_bearer_configured else "blocked-by-missing-server-bearer"
+        protected_forms = (
+            "enabled" if backend_bearer_configured else "blocked-by-missing-server-bearer"
+        )
         status: dict[str, object] = {
             "service": "openinfra-web",
             "version": __version__,

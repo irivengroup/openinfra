@@ -9,10 +9,18 @@ import pytest
 from openinfra.domain.access_policy import AccessPolicyEffect, AccessPolicyRule
 from openinfra.domain.audit import AuditEventFilter
 from openinfra.domain.common import AuditEvent, Pagination, Severity, TenantId, ValidationError
+from openinfra.domain.dcim import DcimCable, DcimCablePathSegment, DcimPortEndpoint
 from openinfra.domain.editions import QuotaResource
 from openinfra.domain.identity import GroupMembership, IdentityGroup, IdentityUser
-from openinfra.domain.dcim import DcimCable, DcimCablePathSegment, DcimPortEndpoint
-from openinfra.domain.ipam import AutonomousSystem, BgpPeer, IpRange, IpReservation, Prefix, Vlan, Vrf
+from openinfra.domain.ipam import (
+    AutonomousSystem,
+    BgpPeer,
+    IpRange,
+    IpReservation,
+    Prefix,
+    Vlan,
+    Vrf,
+)
 from openinfra.domain.security import ApiTokenCredential, Permission
 from openinfra.domain.source_governance import SourceGovernanceRule
 from openinfra.domain.source_of_truth import SourceOfTruthObject, SourceRelation
@@ -24,8 +32,8 @@ from openinfra.infrastructure.json_store import (
     JsonIdentityRepository,
     JsonImportRepository,
     JsonIpamRepository,
-    JsonRuntimeUsageRepository,
     JsonReadinessProbe,
+    JsonRuntimeUsageRepository,
     JsonSecurityRepository,
     JsonSourceGovernanceRepository,
     JsonSourceOfTruthRepository,
@@ -235,7 +243,11 @@ def test_json_store_operational_edge_contracts(tmp_path: Path) -> None:
         (
             "migration_plans",
             "plan-required",
-            {"template": {"mapping": {}, "source": "device42", "required_columns": {}}, "gaps": [], "import_report": {}},
+            {
+                "template": {"mapping": {}, "source": "device42", "required_columns": {}},
+                "gaps": [],
+                "import_report": {},
+            },
         ),
         (
             "migration_plans",
@@ -329,16 +341,22 @@ def test_json_store_datetime_cursor_and_filter_edges(tmp_path: Path) -> None:
     audit_payload["created_at"] = "2026-07-07T09:01:00"
     audit_payload.pop("record_hash", None)
     assert audit.list_records(AuditEventFilter.create(tenant, Pagination.from_values(10))).items
-    assert audit.list_records(
-        AuditEventFilter.create(tenant, Pagination.from_values(10), target_id="other")
-    ).items == ()
-    assert audit.list_records(
-        AuditEventFilter.create(
-            tenant,
-            Pagination.from_values(10),
-            created_from=datetime(2026, 7, 7, 10, 0, tzinfo=UTC),
-        )
-    ).items == ()
+    assert (
+        audit.list_records(
+            AuditEventFilter.create(tenant, Pagination.from_values(10), target_id="other")
+        ).items
+        == ()
+    )
+    assert (
+        audit.list_records(
+            AuditEventFilter.create(
+                tenant,
+                Pagination.from_values(10),
+                created_from=datetime(2026, 7, 7, 10, 0, tzinfo=UTC),
+            )
+        ).items
+        == ()
+    )
     with pytest.raises(ValidationError):
         audit.verify_integrity(tenant, limit=0)
 
@@ -360,9 +378,10 @@ def test_json_store_datetime_cursor_and_filter_edges(tmp_path: Path) -> None:
     assert sot.find_object(tenant, "device/fw-edge") is not None
     assert sot.find_object_version(tenant, "device/fw-edge", 1) is not None
     assert sot.list_objects(tenant, Pagination.from_values(10), resource_type="firewall").items
-    assert sot.find_object_as_of(
-        tenant, "device/fw-edge", datetime(2026, 7, 7, 8, 0, tzinfo=UTC)
-    ) is None
+    assert (
+        sot.find_object_as_of(tenant, "device/fw-edge", datetime(2026, 7, 7, 8, 0, tzinfo=UTC))
+        is None
+    )
     sot.create_object(
         tenant,
         "application/fw-policy",
@@ -473,7 +492,9 @@ def test_json_store_remaining_repository_branches(tmp_path: Path) -> None:
     security.upsert_token(credential)
     security.record_token_used(tenant, "d" * 64)
     security.upsert_token(credential)
-    preserved = security.list_tokens(tenant, Pagination.from_values(1), include_inactive=True).items[0]
+    preserved = security.list_tokens(
+        tenant, Pagination.from_values(1), include_inactive=True
+    ).items[0]
     assert preserved.last_used_at is not None
     assert preserved.use_count == 1
     with pytest.raises(ValidationError):

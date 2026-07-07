@@ -258,29 +258,96 @@ class TestSourceGovernanceServices:
     ) -> None:
         data = tmp_path / "state.json"
         token = "q" * 40
-        assert OpenInfraCLI().run([
-            "security", "bootstrap-token", "--data", str(data), "--tenant", "default",
-            "--subject", "reconcile-cli", "--role", "itrm:operator", "--token", token,
-        ]) == 0
+        assert (
+            OpenInfraCLI().run(
+                [
+                    "security",
+                    "bootstrap-token",
+                    "--data",
+                    str(data),
+                    "--tenant",
+                    "default",
+                    "--subject",
+                    "reconcile-cli",
+                    "--role",
+                    "itrm:operator",
+                    "--token",
+                    token,
+                ]
+            )
+            == 0
+        )
         capsys.readouterr()
-        assert OpenInfraCLI().run([
-            "itrm", "upsert-object", "--data", str(data), "--tenant", "default",
-            "--admin-token", token, "--key", "device/reconcile-cli", "--kind", "device",
-            "--display-name", "Reconcile CLI", "--attributes-json", '{"serial":"CLI1"}',
-            "--source", "manual",
-        ]) == 0
+        assert (
+            OpenInfraCLI().run(
+                [
+                    "itrm",
+                    "upsert-object",
+                    "--data",
+                    str(data),
+                    "--tenant",
+                    "default",
+                    "--admin-token",
+                    token,
+                    "--key",
+                    "device/reconcile-cli",
+                    "--kind",
+                    "device",
+                    "--display-name",
+                    "Reconcile CLI",
+                    "--attributes-json",
+                    '{"serial":"CLI1"}',
+                    "--source",
+                    "manual",
+                ]
+            )
+            == 0
+        )
         capsys.readouterr()
-        assert OpenInfraCLI().run([
-            "itrm", "reconcile-object", "--data", str(data), "--tenant", "default",
-            "--admin-token", token, "--key", "device/reconcile-cli",
-            "--attributes-json", '{"serial":"CLI2"}', "--source", "manual",
-        ]) == 0
+        assert (
+            OpenInfraCLI().run(
+                [
+                    "itrm",
+                    "reconcile-object",
+                    "--data",
+                    str(data),
+                    "--tenant",
+                    "default",
+                    "--admin-token",
+                    token,
+                    "--key",
+                    "device/reconcile-cli",
+                    "--attributes-json",
+                    '{"serial":"CLI2"}',
+                    "--source",
+                    "manual",
+                ]
+            )
+            == 0
+        )
         planned = json.loads(capsys.readouterr().out)
-        assert OpenInfraCLI().run([
-            "itrm", "reconcile-object", "--data", str(data), "--tenant", "default",
-            "--admin-token", token, "--key", "device/reconcile-cli",
-            "--attributes-json", '{"serial":"CLI2"}', "--source", "manual", "--apply",
-        ]) == 0
+        assert (
+            OpenInfraCLI().run(
+                [
+                    "itrm",
+                    "reconcile-object",
+                    "--data",
+                    str(data),
+                    "--tenant",
+                    "default",
+                    "--admin-token",
+                    token,
+                    "--key",
+                    "device/reconcile-cli",
+                    "--attributes-json",
+                    '{"serial":"CLI2"}',
+                    "--source",
+                    "manual",
+                    "--apply",
+                ]
+            )
+            == 0
+        )
         applied = json.loads(capsys.readouterr().out)
 
         assert planned["accepted"] is True

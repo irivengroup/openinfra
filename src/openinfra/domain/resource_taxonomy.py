@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any, ClassVar, Self
+from typing import Any, ClassVar
 
 from openinfra.domain.common import ValidationError
 
@@ -311,9 +311,7 @@ class ResourceTaxonomy:
     @classmethod
     def all_type_values(cls) -> tuple[str, ...]:
         return tuple(
-            resource_type.value
-            for category in cls.CATEGORIES
-            for resource_type in category.types
+            resource_type.value for category in cls.CATEGORIES for resource_type in category.types
         )
 
     @classmethod

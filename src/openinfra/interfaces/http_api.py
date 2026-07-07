@@ -544,9 +544,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                             admin_token=self._bearer_token(),
                             limit=int(self._first_query_value(query, "limit", "100")),
                             cursor=query.get("cursor", [None])[0],
-                            kind=(
-                                query.get("resource_category", query.get("kind", [None]))[0]
-                            ),
+                            kind=(query.get("resource_category", query.get("kind", [None]))[0]),
                             tag=query.get("tag", [None])[0],
                             resource_type=query.get("resource_type", [None])[0],
                         )

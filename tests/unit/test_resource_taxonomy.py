@@ -61,7 +61,9 @@ class TestResourceTaxonomy:
             lambda: ResourceTaxonomy.classify(
                 kind="unsupported-kind", resource_category=None, resource_type=None
             ),
-            lambda: ResourceTaxonomy.classify(kind=None, resource_category=None, resource_type=None),
+            lambda: ResourceTaxonomy.classify(
+                kind=None, resource_category=None, resource_type=None
+            ),
             lambda: ResourceTaxonomy.classify(
                 kind=None, resource_category="storage", resource_type="firewall"
             ),

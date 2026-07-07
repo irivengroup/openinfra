@@ -36,3 +36,4 @@ TST-P09-ITRM-RECONCILIATION,P09,ITRM réconciliation gouvernée,"Valider dry-run
 TST-P09-ITRM-RESOURCE-TAXONOMY,P09,ITRM taxonomie catégories/types DC,"Valider catalogue catégories/types, filtrage type par catégorie, API/CLI/web et compatibilité legacy.",Automatisé service/API/CLI/frontend
 TST-P10-DCIM-LOCATION-API,P10,DCIM localisation équipement API/UI,"Valider API HTTP, dashboard, OpenAPI et absence de régression des contraintes localisation/rack.",Automatisé API/frontend
 TST-P10-DCIM-RACK-ELEVATION-WEB,P10,DCIM élévation rack dashboard,"Valider formulaire web Élévation rack, champs face/format, route backend réelle et parité avec /api/v1/dcim/rack-elevation.",Frontend/API/Regression
+TST-P10-DCIM-CABLING-WEB,P10,DCIM câblage dashboard,"Valider formulaires web patch panel, port et câble, champs endpoints A/B, connecteur/média/statut/chemin et routes backend réelles.",Frontend/API/Regression

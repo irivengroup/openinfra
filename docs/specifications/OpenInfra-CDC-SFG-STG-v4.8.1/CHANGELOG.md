@@ -1,3 +1,9 @@
+## Delta v0.29.28 — câblage DCIM dans le dashboard
+
+- Ajout de `REQ-00765` et `TST-DCIM-068` : opérations de câblage DCIM exposées dans le dashboard via les contrats existants `POST /api/v1/dcim/patch-panels`, `POST /api/v1/dcim/ports` et `POST /api/v1/dcim/cables`.
+- Ajout des champs opérateur endpoints A/B, connecteur, média, statut, chemin câble, longueur et libellé pour documenter le chemin de bout en bout.
+- Conservation des validations métier côté service DCIM : compatibilité connecteur/média, existence des ports, occupation des endpoints et chemin obligatoire restent contrôlés par le backend.
+
 ## Delta v0.29.27 — élévation rack DCIM dans le dashboard
 
 - Ajout de `REQ-00764` et `TST-DCIM-067` : élévation rack DCIM exposée dans le dashboard via le contrat existant `GET /api/v1/dcim/rack-elevation`.

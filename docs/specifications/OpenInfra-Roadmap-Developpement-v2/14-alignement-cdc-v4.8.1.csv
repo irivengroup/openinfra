@@ -37,3 +37,4 @@ P09,REQ-00759,ITRM réconciliation gouvernée dry-run apply,Implémenté en v0.2
 P09,REQ-00760;REQ-00761;REQ-00762,ITRM taxonomie catégories/types DC et filtrage dynamique,Implémenté en v0.29.25,,
 P10,REQ-00763,DCIM localisation équipement API/UI,Implémenté en v0.29.26,,
 P10,REQ-00764,DCIM élévation rack dashboard,Implémenté en v0.29.27,,
+P10,REQ-00765,DCIM câblage dashboard,Implémenté en v0.29.28,,

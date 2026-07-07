@@ -168,6 +168,14 @@ class TestOpenInfraWeb:
         assert "Format rendu" in static_js
         assert "Face rack" in static_js
         assert "Position U" in static_js
+        assert 'path: "/v1/dcim/patch-panels"' in static_js
+        assert "Définir un panneau de brassage" in static_js
+        assert 'path: "/v1/dcim/ports"' in static_js
+        assert "Définir un port DCIM" in static_js
+        assert 'path: "/v1/dcim/cables"' in static_js
+        assert "Connecter un câble" in static_js
+        assert "Chemin câble" in static_js
+        assert "Média câble" in static_js
         assert "postgresql://" not in index + static_js + static_css
         assert "OPENINFRA_DATABASE_DSN" not in index + static_js + static_css
         assert public_config == {

@@ -1,4 +1,4 @@
-# OpenInfra Web v0.29.27
+# OpenInfra Web v0.29.28
 
 OpenInfra Web est le portail `openinfra-web` API-only. Il sert l'interface React/Bootstrap 5, expose un proxy applicatif `/api/*` vers le backend `openinfra-api` et fournit un dashboard de pilotage aligné sur les domaines CLI.
 
@@ -40,6 +40,12 @@ Le service Compose `openinfra-web` dépend de `api:8080`, écoute par défaut su
 
 L'unité `openinfra-web.service` lance `openinfra-web` depuis le virtualenv géré par l'installateur et lit sa configuration via `EnvironmentFile=/etc/openinfra/openinfra.conf`, chemin compatible pointant vers `/opt/openinfra/config/openinfra.conf`.
 
+
+## v0.29.28 — câblage DCIM dans le dashboard
+
+Le dashboard expose désormais les opérations **Définir un panneau de brassage**, **Définir un port DCIM** et **Connecter un câble**. Ces formulaires appellent exclusivement les contrats backend existants `POST /api/v1/dcim/patch-panels`, `POST /api/v1/dcim/ports` et `POST /api/v1/dcim/cables` via le proxy same-origin ; aucun calcul de compatibilité connecteur/média, d’occupation de port ou de conflit d’endpoint n’est réimplémenté côté navigateur.
+
+Les champs opérateur couvrent les endpoints A/B, le type propriétaire, le connecteur, le média, le statut, le chemin câble, la longueur et le libellé. Le champ **Chemin câble** utilise une saisie CSV transformée en liste `path_segments` avant soumission au backend.
 
 ## v0.29.27 — élévation rack DCIM dans le dashboard
 

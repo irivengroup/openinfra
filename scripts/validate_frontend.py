@@ -63,6 +63,13 @@ class FrontendContractValidator:
             or "/v1/dcim/locations" not in main_source
             or "Élévation rack" not in main_source
             or "/v1/dcim/rack-elevation" not in main_source
+            or "Définir un panneau de brassage" not in main_source
+            or "/v1/dcim/patch-panels" not in main_source
+            or "Définir un port DCIM" not in main_source
+            or "/v1/dcim/ports" not in main_source
+            or "Connecter un câble" not in main_source
+            or "/v1/dcim/cables" not in main_source
+            or "Chemin câble" not in main_source
             or "Format rendu" not in main_source
             or "Face rack" not in main_source
             or "Token API" in main_source
@@ -165,6 +172,14 @@ class FrontendContractValidator:
             "/v1/dcim/locations",
             "Élévation rack",
             "/v1/dcim/rack-elevation",
+            "Définir un panneau de brassage",
+            "/v1/dcim/patch-panels",
+            "Définir un port DCIM",
+            "/v1/dcim/ports",
+            "Connecter un câble",
+            "/v1/dcim/cables",
+            "Chemin câble",
+            "Média câble",
             "Format rendu",
             "Face rack",
         ):

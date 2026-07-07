@@ -1,3 +1,9 @@
+## v2 / OpenInfra 0.29.28
+
+- P10 renforcé : opérations de câblage DCIM exposées dans `openinfra-web` via les contrats backend existants patch panels, ports et câbles.
+- Ajout de `TST-P10-DCIM-CABLING-WEB` pour verrouiller les formulaires dashboard, les champs endpoints A/B, connecteur, média, statut, chemin câble et les routes API réelles.
+- Alignement CDC `REQ-00765`.
+
 ## v2 / OpenInfra 0.29.27
 
 - P10 renforcé : élévation rack DCIM exposée dans `openinfra-web` via le contrat existant `/api/v1/dcim/rack-elevation`.

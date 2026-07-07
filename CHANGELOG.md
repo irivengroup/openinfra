@@ -1,3 +1,10 @@
+## 0.29.28 - 2026-07-07
+
+- Added DCIM cabling dashboard operations for patch panels, ports and cable connections using the existing `/api/v1/dcim/patch-panels`, `/api/v1/dcim/ports` and `/api/v1/dcim/cables` backend contracts.
+- Added explicit operator fields for cable endpoint A/B, connector, medium, status, path segments, length and label, with select lists matching domain enumerations.
+- Extended frontend validation and web regression tests so the cabling UI cannot drift away from the HTTP API.
+- Updated CDC, roadmap and documentation for P10 cabling dashboard parity.
+
 ## 0.29.27 - 2026-07-07
 
 - Added the `Élévation rack` dashboard operation for `GET /api/v1/dcim/rack-elevation`, including rack face and render format selection.

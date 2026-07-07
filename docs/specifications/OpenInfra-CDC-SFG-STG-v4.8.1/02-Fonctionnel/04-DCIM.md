@@ -121,6 +121,12 @@ Le DCIM doit exposer l’élévation rack dans le dashboard opérateur en réuti
 
 **Acceptation :** Le dashboard contient l’opération `Élévation rack`, les champs Site/Bâtiment/Salle/Rack/Face rack/Format rendu, et transmet la requête au backend sans recalculer l’occupation U côté navigateur.
 
+### REQ-00765
+
+Le dashboard DCIM doit exposer les opérations de câblage terrain permettant de définir un panneau de brassage, définir un port DCIM et connecter un câble via les contrats backend existants.
+
+**Acceptation :** Le dashboard contient les opérations `Définir un panneau de brassage`, `Définir un port DCIM` et `Connecter un câble`, avec les champs endpoints A/B, connecteur, média, statut, chemin câble, longueur et libellé ; les appels passent par `/api/v1/dcim/patch-panels`, `/api/v1/dcim/ports` et `/api/v1/dcim/cables` sans logique métier de compatibilité côté navigateur.
+
 ## Critères d’acceptation
 
 La capacité est acceptée si les scénarios nominaux, erreurs, droits insuffisants, conflits et imports/exports sont validés par tests automatisés et si les journaux d’audit permettent de reconstituer les opérations.

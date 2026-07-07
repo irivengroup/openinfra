@@ -1,8 +1,15 @@
-# OpenInfra v0.29.27
+# OpenInfra v0.29.28
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.27 — DCIM expose désormais l’élévation rack dans le dashboard avec sélection face/format, en complément de la localisation/relocalisation d’équipement API/UI, de la taxonomie ITRM datacenter, de la réconciliation gouvernée, de l’historique `as-of`, du BFF sans secret, du Bootstrap 5 Dashboard, d’ITRM Quality & Certification, des agents proxy Enterprise et du backend API-only.**
+**Version courante : 0.29.28 — DCIM expose désormais les opérations de câblage terrain dans le dashboard : définition de panneau de brassage, définition de port, connexion de câble et traçage, en complément des vues plan de salle/élévation rack et de la localisation d’équipement.**
+
+### v0.29.28 — câblage DCIM dans le dashboard
+
+- Ajout des opérations web `Définir un panneau de brassage`, `Définir un port DCIM` et `Connecter un câble`, alignées sur les contrats backend `POST /api/v1/dcim/patch-panels`, `POST /api/v1/dcim/ports` et `POST /api/v1/dcim/cables`.
+- Le formulaire câble expose explicitement les deux endpoints A/B, le média, le statut, le chemin câble en liste CSV, la longueur et le libellé opérateur.
+- Les listes de valeurs `owner_type`, `connector`, `medium`, `status` et `rack_face` sont proposées en sélecteurs afin de réduire les erreurs de saisie sans dupliquer les règles métier serveur.
+- Le dashboard conserve `Tracer un câble` pour la consultation de bout en bout via `GET /api/v1/dcim/cable-trace`.
 
 ### v0.29.27 — élévation rack DCIM dans le dashboard
 

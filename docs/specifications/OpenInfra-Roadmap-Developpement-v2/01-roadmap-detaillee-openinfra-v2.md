@@ -1521,3 +1521,10 @@ Le dashboard d’accueil ne présente plus l’alerte succès permanente `Backen
 - Le formulaire web demande les champs métier Site, Bâtiment, Salle, Rack, Face rack et Format rendu, puis relaie la requête via le BFF existant.
 - Le formulaire **Plan de salle** expose aussi le choix `Format rendu` pour les sorties `json`, `svg` et `html` supportées par le service DCIM.
 - La roadmap P10 ajoute `TST-P10-DCIM-RACK-ELEVATION-WEB` et aligne `REQ-00764`.
+
+### Avancement v0.29.28 — P10 câblage DCIM dashboard
+
+- Le dashboard `openinfra-web` expose les opérations **Définir un panneau de brassage**, **Définir un port DCIM** et **Connecter un câble**.
+- Les formulaires ciblent les contrats existants `/api/v1/dcim/patch-panels`, `/api/v1/dcim/ports` et `/api/v1/dcim/cables` via le proxy API same-origin.
+- Les champs endpoints A/B, connecteur, média, statut, chemin câble, longueur et libellé sont déclarés explicitement ; la compatibilité et les conflits restent validés par le service DCIM backend.
+- La roadmap P10 ajoute `TST-P10-DCIM-CABLING-WEB` et aligne `REQ-00765`.

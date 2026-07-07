@@ -43,7 +43,7 @@ class EnvFileManager:
                 f"OPENINFRA_POSTGRES_PASSWORD={password}",
                 "OPENINFRA_API_BIND=127.0.0.1",
                 "OPENINFRA_API_PORT=8080",
-                "OPENINFRA_IMAGE_TAG=0.29.27",
+                "OPENINFRA_IMAGE_TAG=0.29.28",
                 f"OPENINFRA_BOOTSTRAP_TOKEN={bootstrap_token}",
                 "OPENINFRA_PGADMIN_EMAIL=admin@openinfra.tld",
                 f"OPENINFRA_PGADMIN_PASSWORD={pgadmin_password}",

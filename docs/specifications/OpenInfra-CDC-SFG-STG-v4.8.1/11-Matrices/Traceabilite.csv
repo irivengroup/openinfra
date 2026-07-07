@@ -757,3 +757,4 @@ REQ-00761,N1,WEB,UC-0042,TST-WEB-064,Tests web et validation backend des combina
 REQ-00762,N2,WEB,UC-0042,TST-WEB-065,Inspection des assets runtime et mécanisme générique de selects dépendants.
 REQ-00763,N1,DCIM,UC-0001,TST-DCIM-066,Tests API HTTP et frontend pour la localisation ou relocalisation d’équipement DCIM.
 REQ-00764,N1,DCIM,UC-0001,TST-DCIM-067,"Validation frontend, tests intégration web et vérification du routage dashboard vers /api/v1/dcim/rack-elevation."
+REQ-00765,N1,DCIM,UC-0001,TST-DCIM-068,Validation frontend et tests intégration web du câblage DCIM.

@@ -203,9 +203,15 @@ Le comportement reste compatible : sans règle active applicable, les mises à j
 
 
 
+## v0.29.28 — P10 DCIM câblage dashboard
+
+La version 0.29.28 complète l’ergonomie P10/DCIM pour les opérations de câblage. `openinfra-web` expose les formulaires `Définir un panneau de brassage`, `Définir un port DCIM` et `Connecter un câble`, tous adossés aux services applicatifs existants `DcimCablingService`. Le navigateur reste un client API : il collecte les paramètres métier et laisse le domaine valider la compatibilité connecteur/média, l’existence des ports, l’occupation des endpoints, le chemin câble et les conflits.
+
+Le champ `Chemin câble` est typé CSV dans le catalogue runtime et produit une liste `path_segments`, ce qui rend exploitable le traçage de bout en bout via `GET /api/v1/dcim/cable-trace` sans introduire de modèle UI parallèle.
+
 ## v0.29.27 — P10 DCIM élévation rack dashboard
 
-La version 0.29.27 complète la parité web de la visualisation DCIM : `openinfra-web` expose l’opération `Élévation rack` directement adossée au contrat `GET /api/v1/dcim/rack-elevation`. Le navigateur ne réimplémente aucun calcul d’occupation U ; il transmet uniquement site, bâtiment, salle, rack, face et format au backend via le proxy same-origin, puis affiche la réponse du service de visualisation.
+La version 0.29.28 complète la parité web de la visualisation DCIM : `openinfra-web` expose l’opération `Élévation rack` directement adossée au contrat `GET /api/v1/dcim/rack-elevation`. Le navigateur ne réimplémente aucun calcul d’occupation U ; il transmet uniquement site, bâtiment, salle, rack, face et format au backend via le proxy same-origin, puis affiche la réponse du service de visualisation.
 
 Le formulaire `Plan de salle` expose également le paramètre `format`, ce qui rend explicites les rendus `json`, `svg` et `html` déjà supportés par le domaine `RoomPlan2D` et par l’API HTTP. Les champs métier de lecture DCIM sont déclarés requis dans le catalogue runtime afin de limiter les appels incomplets dès l’interface opérateur tout en conservant la validation serveur comme autorité.
 

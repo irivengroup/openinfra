@@ -777,3 +777,5 @@ REQ-00781,N2,WEB,UC-WEB-001,TST-WEB-084,Validation frontend et tests intégratio
 REQ-00782,N2,WEB,UC-WEB-001,TST-WEB-085,Validation frontend et tests intégration openinfra-web de l’icône ITRM référentiel/référence pleine et opaque.
 REQ-00783,N2,WEB,UC-WEB-001,TST-WEB-086,"Validation frontend et tests intégration openinfra-web du header fixe, de l’ombre prioritaire et du scroll sous-jacent."
 REQ-00784,N1,ITAM,UC-V43-0007,TST-ITAM-001,"Tests domaine, service, API HTTP, CLI, migration PostgreSQL et audit du profil support constructeur/tiers."
+REQ-00785,N1,ITAM,UC-V43-0007,TST-ITAM-002,"Tests domaine, service, API HTTP, CLI et OpenAPI du rapport de couverture garantie/support ITAM."
+REQ-00786,N2,WEB,UC-WEB-001,TST-WEB-087,Validation frontend et tests intégration openinfra-web du flux accordéon sidebar et du scroll latéral sans masquage.

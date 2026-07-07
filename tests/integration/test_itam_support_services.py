@@ -5,6 +5,7 @@ import pytest
 from openinfra.application.container import ApplicationFactory
 from openinfra.application.itam_services import (
     AddThirdPartySupportCommand,
+    GetAssetSupportCoverageReportCommand,
     GetAssetSupportProfileCommand,
     RegisterManufacturerSupportCommand,
 )
@@ -73,6 +74,13 @@ def test_asset_support_profile_separates_manufacturer_and_third_party(tmp_path) 
         GetAssetSupportProfileCommand("default", token, "srv-001")
     )
     assert reloaded.as_dict() == updated.as_dict()
+
+    coverage = app.itam_support_service.get_support_coverage_report(
+        GetAssetSupportCoverageReportCommand("default", token, "srv-001", as_of="2026-07-01")
+    ).as_dict()
+    assert coverage["coverage_state"] == "manufacturer_active"
+    assert coverage["warranty_days_remaining"] > 800
+    assert coverage["third_party_active_count"] == 1
 
 
 def test_manufacturer_support_is_immutable_and_third_party_requires_profile(tmp_path) -> None:

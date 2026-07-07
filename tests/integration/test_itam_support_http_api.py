@@ -81,10 +81,16 @@ def test_itam_support_profile_http_contract(tmp_path: Path) -> None:
             base + "/api/v1/itam/support-profile?tenant_id=default&asset_tag=srv-http-001",
             token,
         )
+        coverage = _get_json(
+            base + "/api/v1/itam/support-coverage?tenant_id=default&asset_tag=srv-http-001&as_of=2026-07-01",
+            token,
+        )
 
         assert created["manufacturer_warranty"]["support_reference"] == "SUP-HTTP-001"
         assert updated["third_party_contracts"][0]["contract_reference"] == "TP-HTTP-001"
         assert loaded == updated
+        assert coverage["coverage_state"] == "manufacturer_active"
+        assert coverage["third_party_active_count"] == 1
     finally:
         server.shutdown()
         server.server_close()

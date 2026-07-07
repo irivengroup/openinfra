@@ -100,6 +100,7 @@ from openinfra.application.it_resources_management_quality_services import (
 )
 from openinfra.application.itam_services import (
     AddThirdPartySupportCommand,
+    GetAssetSupportCoverageReportCommand,
     GetAssetSupportProfileCommand,
     RegisterManufacturerSupportCommand,
 )
@@ -343,6 +344,26 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     )
                 )
                 responder.send(HTTPStatus.OK, profile.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except OpenInfraError as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/itam/support-coverage":
+            try:
+                query = parse_qs(parsed.query)
+                tenant_id = self._first_query_value(query, "tenant_id")
+                if self.server.auth_required:
+                    self._authenticate(tenant_id, Permission.ITAM_READ)
+                report = self.server.application.itam_support_service.get_support_coverage_report(
+                    GetAssetSupportCoverageReportCommand(
+                        tenant_id=tenant_id,
+                        admin_token=self._bearer_token(),
+                        asset_tag=self._first_query_value(query, "asset_tag"),
+                        as_of=self._optional_query_value(query, "as_of"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, report.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except OpenInfraError as exc:
@@ -2381,6 +2402,12 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             return default
         return values[0]
 
+    def _optional_query_value(self, query: dict[str, list[str]], name: str) -> str | None:
+        values = query.get(name)
+        if not values or values[0] == "":
+            return None
+        return values[0]
+
     def _bearer_token(self) -> str:
         authorization = self.headers.get("Authorization", "")
         if not authorization.startswith("Bearer "):
@@ -2490,6 +2517,7 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                 "search": {"global": "/api/v1/search/global"},
                 "itam": {
                     "support_profile": "/api/v1/itam/support-profile",
+                    "support_coverage": "/api/v1/itam/support-coverage",
                     "manufacturer_support": "/api/v1/itam/support-profile/manufacturer",
                     "third_party_support": "/api/v1/itam/support-profile/third-party",
                 },

@@ -1260,3 +1260,25 @@ def test_itam_support_profile_cli_commands(tmp_path: Path, capsys: object) -> No
     payload = json.loads(capsys.readouterr().out)
     assert payload["manufacturer_warranty"]["support_reference"] == "SUP-CLI-001"
     assert payload["third_party_contracts"][0]["contract_reference"] == "TP-CLI-001"
+    assert (
+        OpenInfraCLI().run(
+            [
+                "itam",
+                "support-coverage",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--asset-tag",
+                "srv-cli-001",
+                "--as-of",
+                "2026-07-01",
+            ]
+        )
+        == 0
+    )
+    coverage = json.loads(capsys.readouterr().out)
+    assert coverage["coverage_state"] == "manufacturer_active"
+    assert coverage["third_party_active_count"] == 1

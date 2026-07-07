@@ -1,17 +1,18 @@
-# OpenInfra v0.29.43
+# OpenInfra v0.29.44
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.43 — profil support ITAM par actif physique, séparation constructeur/tier, API/CLI/audit/persistance et migration PostgreSQL dédiées.**
+**Version courante : 0.29.44 — évaluation de couverture ITAM par actif : statut garantie constructeur, bascule support tiers et exposition API/CLI dédiées.**
 
 
 
-### v0.29.43 — profil support ITAM constructeur et tiers
+### v0.29.44 — couverture ITAM garantie/support par actif et scroll accordéon sidebar
 
-- Ajout du profil de support par actif physique pour l’ITAM.
-- La garantie et le support constructeur restent une information canonique séparée des contrats de support tiers.
-- Ajout des commandes `openinfra itam register-manufacturer-support`, `openinfra itam add-third-party-support` et `openinfra itam support-profile`.
-- Ajout des endpoints `/api/v1/itam/support-profile`, `/api/v1/itam/support-profile/manufacturer` et `/api/v1/itam/support-profile/third-party`.
+- Correction du panneau latéral : l’ouverture d’un composant en accordéon reste dans le flux vertical, repousse les composants inférieurs et supprime tout plafond artificiel masquant les opérations. Le panneau conserve un scroll interne stable sous le header fixe.
+- Ajout de l’évaluation de couverture d’un actif physique ITAM à partir du profil constructeur/tier existant.
+- Le rapport indique `warranty_status`, `warranty_days_remaining`, `warranty_expired`, les compteurs de supports tiers actifs/planifiés/expirés et `coverage_state`.
+- Ajout de la commande `openinfra itam support-coverage --tenant ... --asset-tag ... [--as-of YYYY-MM-DD]`.
+- Ajout de l’endpoint `GET /api/v1/itam/support-coverage`.
 
 ### v0.29.42 — header fixe renforcé et scroll sans chevauchement
 

@@ -7,6 +7,7 @@ import pytest
 from openinfra.domain.common import TenantId, ValidationError
 from openinfra.domain.itam import (
     ManufacturerWarranty,
+    PhysicalAssetSupportCoverageReport,
     PhysicalAssetSupportProfile,
     ThirdPartySupportContract,
 )
@@ -72,3 +73,40 @@ def test_third_party_support_does_not_replace_manufacturer_support() -> None:
     assert len(updated.third_party_contracts) == 1
     with pytest.raises(ValidationError, match="already exists"):
         updated.with_third_party_contract(contract, "pytest")
+
+
+def test_support_coverage_report_classifies_manufacturer_and_third_party_periods() -> None:
+    warranty = ManufacturerWarranty.create(
+        manufacturer="Dell",
+        warranty_reference="war-cov",
+        warranty_level="ProSupport",
+        warranty_start=date(2024, 1, 1),
+        warranty_end=date(2025, 1, 1),
+        support_reference="sup-cov",
+        support_level="24x7",
+        support_contact="support@example.invalid",
+    )
+    profile = PhysicalAssetSupportProfile.create(
+        tenant_id=TenantId.from_value("default"),
+        asset_tag="srv-cov-001",
+        manufacturer_warranty=warranty,
+        actor="pytest",
+    ).with_third_party_contract(
+        ThirdPartySupportContract.create(
+            provider="MaintCo",
+            contract_reference="maint-cov",
+            support_level="4h onsite",
+            support_start=date(2026, 1, 1),
+            support_end=date(2027, 1, 1),
+            support_contact="noc@example.invalid",
+        ),
+        "pytest",
+    )
+
+    report = PhysicalAssetSupportCoverageReport.from_profile(profile, date(2026, 7, 1)).as_dict()
+
+    assert report["warranty_status"] == "expired"
+    assert report["warranty_expired"] is True
+    assert report["third_party_active_count"] == 1
+    assert report["coverage_state"] == "third_party_only"
+    assert report["manufacturer_support_reference"] == "SUP-COV"

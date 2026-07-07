@@ -221,6 +221,13 @@ Si le backend est indisponible, si le jeton courant ne permet pas la recherche o
 
 Le portail `openinfra-web` conserve le double header en position fixe. La hauteur réelle du header est mesurée côté runtime et publiée dans `--openinfra-fixed-header-height` afin que le contenu principal et le menu latéral scrollent sous le bandeau sans recouvrement. Le menu latéral reste sticky sous ce header et conserve son propre scroll vertical lorsque la liste des composants dépasse la hauteur disponible.
 
+
+## v0.29.44 — sidebar accordéon sans masquage
+
+La version 0.29.44 corrige le comportement du panneau latéral lorsque plusieurs composants et opérations sont affichés. Un composant ouvert en accordéon reste dans le flux vertical, repousse les composants inférieurs vers le bas et n’utilise plus de plafond `max-height` fixe susceptible de masquer une partie de ses opérations.
+
+Le scroll reste porté par `.openinfra-sidebar`, borné sous le header fixe. Les règles `overflow-y: auto`, `overflow-x: hidden`, `overscroll-behavior: contain` et `scrollbar-gutter: stable` garantissent une navigation latérale longue sans chevauchement ni saut de largeur lors de l’apparition de la barre de défilement.
+
 ## v0.29.43 — continuité UI
 
 La version 0.29.43 ne modifie pas le contrat visuel du portail web. Les évolutions portent sur le backend ITAM, les API, la CLI, la persistance et la documentation contractuelle. Les garde-fous frontend existants restent exécutés afin de vérifier l’absence de régression sur le double header, la recherche globale, les liens Swagger/ReDoc et les composants du Dashboard.

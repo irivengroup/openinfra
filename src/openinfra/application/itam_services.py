@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from openinfra.application.ports import AuditRepository, ItamSupportRepository, TransactionManager
 from openinfra.application.security_services import AuthenticateTokenCommand, SecurityService
@@ -8,6 +9,7 @@ from openinfra.domain.common import AuditEvent, ConflictError, NotFoundError, Te
 from openinfra.domain.itam import (
     ManufacturerWarranty,
     PhysicalAssetSupportProfile,
+    PhysicalAssetSupportCoverageReport,
     ThirdPartySupportContract,
     ItamDateParser,
 )
@@ -51,6 +53,14 @@ class GetAssetSupportProfileCommand:
     tenant_id: str
     admin_token: str
     asset_tag: str
+
+
+@dataclass(frozen=True, slots=True)
+class GetAssetSupportCoverageReportCommand:
+    tenant_id: str
+    admin_token: str
+    asset_tag: str
+    as_of: str | None = None
 
 
 class ItamSupportService:
@@ -177,3 +187,21 @@ class ItamSupportService:
         if profile is None:
             raise NotFoundError("asset support profile not found")
         return profile
+
+
+    def get_support_coverage_report(
+        self, command: GetAssetSupportCoverageReportCommand
+    ) -> PhysicalAssetSupportCoverageReport:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        self._security_service.authenticate_token(
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITAM_READ)
+        )
+        profile = self._repository.find_support_profile(tenant_id, command.asset_tag)
+        if profile is None:
+            raise NotFoundError("asset support profile not found")
+        as_of = (
+            ItamDateParser.parse_date(command.as_of, "asset support coverage date")
+            if command.as_of is not None
+            else datetime.now(UTC).date()
+        )
+        return PhysicalAssetSupportCoverageReport.from_profile(profile, as_of)

@@ -202,6 +202,13 @@ class TestOpenInfraWeb:
         assert "submissionCompleted && activeModuleId !== 'overview' &&" in main_js
         assert "Soumission exécutée avec succès" in static_js
         assert "openinfra-accordion" in static_js + static_css
+        assert ".openinfra-accordion-panel.show" in static_css
+        assert "max-height: none" in static_css
+        assert "overflow: visible" in static_css
+        assert "scrollbar-gutter: stable" in static_css
+        assert "overscroll-behavior: contain" in static_css
+        assert "max-height: 34rem" not in static_css
+        assert "transition: max-height" not in static_css
         assert "Statistiques des composants OpenInfra" in static_js
         assert "Accueil — statistiques des composants" in static_js
         assert "openinfra-component-card" in static_js + static_css

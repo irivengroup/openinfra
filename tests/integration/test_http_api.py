@@ -73,6 +73,7 @@ class TestHttpApi:
                 "search": {"global": "/api/v1/search/global"},
                 "itam": {
                     "support_profile": "/api/v1/itam/support-profile",
+                    "support_coverage": "/api/v1/itam/support-coverage",
                     "manufacturer_support": "/api/v1/itam/support-profile/manufacturer",
                     "third_party_support": "/api/v1/itam/support-profile/third-party",
                 },
@@ -149,6 +150,7 @@ class TestHttpApi:
             assert "/api/v1/ipam/topology" in openapi
             assert "/api/v1/search/global" in openapi
             assert "/api/v1/itam/support-profile" in openapi
+            assert "/api/v1/itam/support-coverage" in openapi
             assert "/api/v1/discovery/proxy-enrollments" in openapi
             assert "/api/v1/dcim/power-devices" in openapi
             assert "/api/v1/dcim/energy-cooling-capacity" in openapi

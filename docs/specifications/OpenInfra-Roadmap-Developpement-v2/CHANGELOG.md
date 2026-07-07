@@ -1,3 +1,9 @@
+- Alignement de `REQ-00786` sur P08 / EPIC-0801 / 0.29.44 pour le panneau latéral accordéon sans masquage.
+## 0.29.44 - 2026-07-07
+
+- Ajout `TST-P12-ITAM-SUPPORT-COVERAGE` pour valider le rapport de couverture ITAM par actif.
+- Alignement de `REQ-00785` sur P12 / EPIC-1202 / 0.29.44.
+
 - Mise à jour `TST-P08-WEB-FIXED-HEADER` pour valider l’ombre prioritaire du header et le scroll aligné sous le bandeau pleine largeur.
 - Ajout `TST-P08-WEB-FIXED-HEADER` pour valider le header fixe et le scroll du contenu sous-jacent.
 ## 0.29.41 - 2026-07-07

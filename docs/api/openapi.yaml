@@ -2418,6 +2418,19 @@ paths:
         '200': {description: Manufacturer warranty and separated third-party support contracts}
         '401': {description: ITAM read token required}
         '400': {description: Validation error or unknown asset support profile}
+  /api/v1/itam/support-coverage:
+    get:
+      summary: Evaluate manufacturer warranty and third-party support coverage for an ITAM asset
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: asset_tag, in: query, required: true, schema: {type: string}}
+        - {name: as_of, in: query, required: false, schema: {type: string, format: date}}
+      responses:
+        '200': {description: Coverage status with manufacturer warranty state and third-party support counters}
+        '401': {description: ITAM read token required}
+        '400': {description: Validation error or unknown asset support profile}
+
   /api/v1/itam/support-profile/manufacturer:
     post:
       summary: Register immutable manufacturer warranty and initial support for an asset

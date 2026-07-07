@@ -1,63 +1,62 @@
-# OpenInfra v0.29.43 — rapport de validation
+# OpenInfra v0.29.44 — Validation report
 
-## Périmètre livré
+## Scope
 
-- Profil de support ITAM par actif physique.
-- Garantie/support constructeur conservés comme référence canonique séparée.
-- Contrats de support tiers ajoutés sans écraser les informations constructeur.
-- API HTTP, CLI, RBAC, audit, persistance JSON/PostgreSQL et migration PostgreSQL alignés.
-- Documentation, OpenAPI, CDC et roadmap mis à jour.
+Release v0.29.44 consolidates two increments:
 
-## Validations exécutées
+- ITAM support coverage report per physical asset, exposed through domain/service/API/CLI/OpenAPI.
+- UX regression fix for the web sidebar accordion: expanded component menus remain in normal vertical flow, push lower components down, remove the fixed `34rem` panel cap, and keep the sidebar independently scrollable under the fixed header.
 
-| Validation | Résultat |
-|---|---:|
-| `PYTHONPATH=src python -m compileall -q src tests scripts docker` | PASS |
+## Changed areas
+
+- `src/openinfra/domain/itam.py`
+- `src/openinfra/application/itam_services.py`
+- `src/openinfra/interfaces/http_api.py`
+- `src/openinfra/interfaces/cli.py`
+- `src/openinfra/interfaces/rendering/static/assets/openinfra-web.css`
+- `web/src/openinfra-theme.css`
+- `scripts/validate_frontend.py`
+- `tests/integration/test_openinfra_web.py`
+- `tests/integration/test_runtime_docker_environment.py`
+- `scripts/docker_environment.py`
+- `README.md`, `CHANGELOG.md`, `docs/ui/OPENINFRA_WEB.md`, `docs/architecture/ARCHITECTURE.md`
+- CDC v4.8.1 and Roadmap v2 matrices
+
+## Validation commands executed
+
+| Validation | Result |
+| --- | --- |
+| `python -m compileall -q src tests scripts` | PASS |
 | `python scripts/validate_frontend.py` | PASS |
 | `node --check src/openinfra/interfaces/rendering/static/assets/openinfra-web.js` | PASS |
-| `PYTHONPATH=src python -m openinfra.interfaces.cli version` | PASS — 0.29.43 |
-| `python scripts/security_gate.py` | PASS |
-| `python scripts/validate_enterprise_alignment.py` | PASS |
-| `python scripts/validate_autonomous_installer.py` | PASS — 6 profils |
+| `PYTHONPATH=src python -m openinfra version` | PASS — `0.29.44` |
 | `PYTHONPATH=src python scripts/native_runtime_smoke.py` | PASS |
-| `PYTHONPATH=src python -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1` | PASS — 784 exigences, 589 tests |
-| `python docs/specifications/OpenInfra-Roadmap-Developpement-v2/scripts/validate_roadmap.py` | PASS — 19 phases, 114 epics, 8 gates, 57 tests |
-| `PYTHONPATH=src:. pytest --collect-only --no-cov -q` | PASS — 446 tests collectés |
-| Tests ciblés ITAM domaine/service/API/CLI | PASS — 7 tests |
-| Tests unitaires + architecture | PASS |
-| Tests d’intégration par lots | PASS — 270 tests |
-| `coverage report --fail-under=98` | PASS — 98 % |
-| `python scripts/quality_gate.py` | PASS |
-| `zip -T openinfra-python-0.29.43.zip` | PASS |
-| `python scripts/verify_artifact.py /mnt/data/openinfra-python-0.29.43.zip` | PASS |
+| `PYTHONPATH=src python scripts/validate_enterprise_alignment.py` | PASS |
+| `PYTHONPATH=src python scripts/validate_autonomous_installer.py` | PASS — 6 profiles |
+| `PYTHONPATH=src python scripts/security_gate.py` | PASS |
+| `PYTHONPATH=src:. pytest --collect-only --no-cov` | PASS — 447 tests collected |
+| `PYTHONPATH=src:. pytest tests/unit --no-cov -q` | PASS — 174 tests |
+| Integration/architecture pytest batches with `--no-cov` | PASS — 273 tests |
+| Coverage aggregation in batches with `--cov-append` | PASS |
+| `coverage report --fail-under=98` | PASS — 98% |
+| `PYTHONPATH=src:. python scripts/quality_gate.py` | PASS |
 
-## Tests ciblés ITAM exécutés
+## Targeted regression checks
 
-```bash
-PYTHONPATH=src:. pytest -q --no-cov \
-  tests/unit/test_domain_itam_support.py \
-  tests/integration/test_itam_support_services.py \
-  tests/integration/test_itam_support_http_api.py \
-  tests/integration/test_cli.py::test_itam_support_profile_cli_commands \
-  tests/integration/test_http_api.py::TestHttpApi::test_health_and_ipam_allocation
-```
+- `tests/integration/test_openinfra_web.py` verifies that `.openinfra-accordion-panel.show` uses `max-height: none` and `overflow: visible`.
+- The frontend validator rejects the old sidebar cap `max-height: 34rem` and `transition: max-height`.
+- The CSS keeps `.openinfra-sidebar` as the scroll container with `overflow-y: auto`, `overflow-x: hidden`, `overscroll-behavior: contain`, and `scrollbar-gutter: stable`.
+- Runtime Docker image tag tests were realigned to `0.29.44` to avoid stale test expectations.
 
-Résultat : 7 passed.
+## Not executable in this environment
 
-## Validations non exécutées localement
+- `ruff`, `mypy`, `bandit`, `pip-audit`: command binaries unavailable.
+- `python -m build`: module `build` unavailable.
+- `npm run build`: `web/node_modules` / `vite` unavailable.
+- Docker Compose live execution: Docker unavailable.
 
-- `ruff format --check src tests scripts docker` : binaire `ruff` absent.
-- `ruff check src tests scripts docker` : binaire `ruff` absent.
-- `mypy src/openinfra` : binaire `mypy` absent.
-- `bandit -q -r src/openinfra` : binaire `bandit` absent.
-- `pip-audit --dry-run` : binaire `pip-audit` absent.
-- `python -m build` : module Python `build` absent.
-- `npm run build` depuis `web/` : `vite` absent car `web/node_modules` n’est pas installé.
-- Docker Compose live : commande `docker` absente.
+## Packaging checks
 
-## Nettoyage artefact
-
-- Caches Python supprimés.
-- Caches pytest/mypy/ruff supprimés.
-- Fichiers `.coverage*` supprimés après validation couverture.
-- `node_modules`, `build`, `dist`, `*.egg-info` exclus/supprimés avant packaging.
+- Caches and temporary artifacts removed before final archive.
+- Archive integrity checked with `zip -T`.
+- Artifact content checked with `scripts/verify_artifact.py`.

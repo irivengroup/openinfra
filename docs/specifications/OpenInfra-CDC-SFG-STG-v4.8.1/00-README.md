@@ -1,3 +1,8 @@
+## 0.29.44 - 2026-07-07
+
+- Ajout `REQ-00786` et `TST-WEB-087` pour le panneau latéral accordéon sans masquage et scroll interne stable.
+- Ajout `REQ-00785` et `TST-ITAM-002` pour le rapport de couverture garantie/support ITAM par actif.
+
 # OpenInfra CDC/SFG/STG v4.8.1 — Correction stockage PostgreSQL et install.ini
 
 Ce dossier consolide le CDC/SFG/STG OpenInfra avec l'alignement enterprise v4.3 et l'exigence v4.4 d'installation autonome des modes cluster.

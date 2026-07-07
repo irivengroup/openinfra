@@ -1450,7 +1450,7 @@ Le rendu reste dans le domaine présentation/rendering, les assets Bootstrap son
 ### Avancement v0.29.16 — P08 Dashboard pilotable et trust web-backend
 
 - Les formulaires `openinfra-web` sont typés par domaine et exposent les variables métier attendues par l'API/CLI.
-- Le panneau latéral devient le menu principal : Dashboard direct, autres composantes en accordéons avec transition `fade`.
+- Le panneau latéral devient le menu principal : Dashboard direct, autres composantes en accordéons avec transition `fade`. Les panneaux ouverts restent dans le flux vertical, repoussent les composants suivants et ne plafonnent pas la hauteur des opérations ; le scroll interne de la sidebar permet de parcourir les menus longs sous le header fixe.
 - Le navigateur ne saisit ni ne relaie de token API technique ; `openinfra-web` établit le trust server-side avec le backend.
 - Les références DSN/credentials PostgreSQL du service web sont déclarées dans `[web_database]` et matérialisées dans le runtime serveur.
 

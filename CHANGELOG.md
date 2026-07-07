@@ -1,12 +1,12 @@
 
-## 0.29.43
+## 0.29.44 - 2026-07-07
 
-- Ajout du profil de support ITAM par actif physique.
-- Séparation stricte entre garantie/support constructeur immuables et contrats de support tiers.
-- Ajout des endpoints `/api/v1/itam/support-profile`, `/manufacturer` et `/third-party`.
-- Ajout des commandes CLI `openinfra itam register-manufacturer-support`, `add-third-party-support` et `support-profile`.
-- Ajout de la migration PostgreSQL `0027_itam_asset_support_profiles.sql`.
-- Ajout de tests domaine, service, API HTTP et CLI.
+- Correction UX du panneau latéral : les accordéons ouverts repoussent désormais les composants suivants sans plafond de hauteur, avec scroll interne stable sous le header fixe.
+- Ajout du rapport de couverture ITAM par actif physique : statut garantie constructeur, jours restants, expiration, compteurs de supports tiers et état global de couverture.
+- Ajout de `PhysicalAssetSupportCoverageReport` dans le domaine ITAM sans modifier la persistance existante.
+- Ajout du service `get_support_coverage_report` et de la commande CLI `openinfra itam support-coverage`.
+- Ajout de l’endpoint `GET /api/v1/itam/support-coverage` et publication dans l’index documentaire API.
+- Ajout des tests domaine, service, API HTTP, CLI et OpenAPI associés.
 
 ## 0.29.42 - 2026-07-07
 

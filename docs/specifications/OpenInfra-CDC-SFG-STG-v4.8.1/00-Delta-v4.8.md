@@ -158,3 +158,7 @@ Le dashboard d’accueil ne doit plus afficher d’alerte succès permanente `Ba
 - Ajout REQ-00775 pour l’allègement des ombres de contenu openinfra-web sans modification du header ni du menu latéral.
 
 - La recherche globale du header interroge le backend à partir de la v0.29.38 et regroupe les résultats métiers ITRM, IPAM et Discovery.
+
+### REQ-00786 — Panneau latéral accordéon sans masquage
+
+Le panneau latéral openinfra-web doit ouvrir les accordéons de composants dans le flux vertical. Un composant ouvert repousse les composants inférieurs vers le bas, sans superposition et sans plafond de hauteur susceptible de masquer des opérations. Le scroll reste porté par la sidebar sous le header fixe.

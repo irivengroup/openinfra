@@ -1,3 +1,8 @@
+- Ajout `REQ-00786` et `TST-WEB-087` pour le panneau latéral accordéon sans masquage et scroll interne stable.
+## 0.29.44 - 2026-07-07
+
+- Ajout `REQ-00785` et `TST-ITAM-002` pour le rapport de couverture garantie/support ITAM par actif.
+
 - Mise à jour `REQ-00783` / `TST-WEB-086` : le header fixe porte une ombre plus prononcée que les blocs de contenu et le scroll démarre sous le bandeau pleine largeur.
 - Ajout `REQ-00783` et `TST-WEB-086` pour le header fixe openinfra-web avec scroll du contenu sous-jacent.
 ## 0.29.41 - 2026-07-07

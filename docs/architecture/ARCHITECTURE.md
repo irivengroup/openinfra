@@ -483,6 +483,15 @@ Le double header `openinfra-web` résout l’URL de recherche globale via `apiBa
 
 La version 0.29.42 précise le comportement du double header fixe : `openinfra-header-stack` reste en haut de viewport, porte une ombre renforcée sur toute la largeur et le contenu démarre exactement sous la limite du header grâce à `--openinfra-fixed-header-height`, `scroll-padding-top` et au calcul dynamique de hauteur.
 
+La version 0.29.44 corrige le flux du panneau latéral : les accordéons de composant ne sont pas positionnés hors flux et leurs panneaux ouverts n’utilisent plus de plafond `max-height` fixe. Le scroll est confié au conteneur `.openinfra-sidebar`, borné sous le header fixe, afin que les opérations longues restent accessibles sans chevauchement entre composants.
+
+
+## v0.29.44 — couverture ITAM garantie/support par actif
+
+OpenInfra v0.29.44 complète le slice ITAM livré en v0.29.43 avec une évaluation de couverture en lecture seule. Le domaine `PhysicalAssetSupportCoverageReport` calcule le statut de garantie constructeur, les jours restants, l’expiration et les compteurs de contrats tiers actifs, planifiés ou expirés sans modifier la persistance existante.
+
+L’application expose ce calcul via `ItamSupportService.get_support_coverage_report`, protégé par `itam.read`. L’API HTTP ajoute `GET /api/v1/itam/support-coverage`, et la CLI ajoute `openinfra itam support-coverage`. Le calcul accepte un `as_of` optionnel pour rendre les tests, audits et exports historiques déterministes.
+
 ## v0.29.43 — profil support ITAM constructeur et tiers
 
 OpenInfra v0.29.43 ajoute un slice ITAM transversal autour du profil de support par actif physique. Le domaine `PhysicalAssetSupportProfile` conserve la garantie et le support constructeur comme référence canonique, tandis que les contrats de support tiers sont enregistrés dans une collection séparée afin d’éviter tout écrasement de la donnée constructeur initiale.

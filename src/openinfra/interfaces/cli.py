@@ -99,6 +99,7 @@ from openinfra.application.ipam_services import (
 )
 from openinfra.application.itam_services import (
     AddThirdPartySupportCommand,
+    GetAssetSupportCoverageReportCommand,
     GetAssetSupportProfileCommand,
     RegisterManufacturerSupportCommand,
 )
@@ -556,6 +557,17 @@ class OpenInfraCLI:
         show.add_argument("--admin-token", required=True)
         show.add_argument("--asset-tag", required=True)
         show.set_defaults(handler=self._handle_itam_support_profile)
+
+        coverage = itam_subparsers.add_parser(
+            "support-coverage",
+            help="evaluate manufacturer warranty and third-party support coverage for an asset",
+        )
+        self._add_backend_arguments(coverage)
+        coverage.add_argument("--tenant", required=True)
+        coverage.add_argument("--admin-token", required=True)
+        coverage.add_argument("--asset-tag", required=True)
+        coverage.add_argument("--as-of")
+        coverage.set_defaults(handler=self._handle_itam_support_coverage)
 
     def _add_audit_commands(self, subparsers: Any) -> None:
         audit = subparsers.add_parser("audit", help="audit trail operations")
@@ -2348,6 +2360,19 @@ class OpenInfraCLI:
             )
         )
         print(json.dumps(profile.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_itam_support_coverage(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        report = app.itam_support_service.get_support_coverage_report(
+            GetAssetSupportCoverageReportCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                asset_tag=args.asset_tag,
+                as_of=args.as_of,
+            )
+        )
+        print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
         return 0
 
     def _handle_discovery_collector_heartbeat(self, args: argparse.Namespace) -> int:

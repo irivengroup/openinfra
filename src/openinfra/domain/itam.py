@@ -16,6 +16,19 @@ class SupportContractStatus(StrEnum):
     TERMINATED = "terminated"
 
 
+class WarrantyCoverageStatus(StrEnum):
+    ACTIVE = "active"
+    EXPIRED = "expired"
+    PLANNED = "planned"
+
+
+class AssetCoverageState(StrEnum):
+    MANUFACTURER_ACTIVE = "manufacturer_active"
+    MANUFACTURER_PLANNED = "manufacturer_planned"
+    THIRD_PARTY_ONLY = "third_party_only"
+    EXPIRED = "expired"
+
+
 @dataclass(frozen=True, slots=True)
 class Asset:
     id: EntityId
@@ -325,6 +338,86 @@ class PhysicalAssetSupportProfile:
             and self.manufacturer_warranty.support_contact
         )
 
+
+
+@dataclass(frozen=True, slots=True)
+class PhysicalAssetSupportCoverageReport:
+    tenant_id: TenantId
+    asset_tag: Code
+    as_of: date
+    manufacturer: str
+    manufacturer_warranty_reference: str
+    manufacturer_support_reference: str
+    warranty_status: WarrantyCoverageStatus
+    warranty_days_remaining: int
+    warranty_expired: bool
+    third_party_active_count: int
+    third_party_planned_count: int
+    third_party_expired_count: int
+    coverage_state: AssetCoverageState
+
+    @classmethod
+    def from_profile(cls, profile: PhysicalAssetSupportProfile, as_of: date) -> Self:
+        warranty = profile.manufacturer_warranty
+        warranty_status = cls._period_status(warranty.warranty_start, warranty.warranty_end, as_of)
+        active_count = 0
+        planned_count = 0
+        expired_count = 0
+        for contract in profile.third_party_contracts:
+            if contract.status == SupportContractStatus.ACTIVE and contract.support_start <= as_of <= contract.support_end:
+                active_count += 1
+            elif contract.status == SupportContractStatus.PLANNED or contract.support_start > as_of:
+                planned_count += 1
+            else:
+                expired_count += 1
+        if warranty_status == WarrantyCoverageStatus.ACTIVE:
+            coverage_state = AssetCoverageState.MANUFACTURER_ACTIVE
+        elif warranty_status == WarrantyCoverageStatus.PLANNED:
+            coverage_state = AssetCoverageState.MANUFACTURER_PLANNED
+        elif active_count > 0:
+            coverage_state = AssetCoverageState.THIRD_PARTY_ONLY
+        else:
+            coverage_state = AssetCoverageState.EXPIRED
+        return cls(
+            tenant_id=profile.tenant_id,
+            asset_tag=profile.asset_tag,
+            as_of=as_of,
+            manufacturer=warranty.manufacturer,
+            manufacturer_warranty_reference=warranty.warranty_reference,
+            manufacturer_support_reference=warranty.support_reference,
+            warranty_status=warranty_status,
+            warranty_days_remaining=(warranty.warranty_end - as_of).days,
+            warranty_expired=warranty_status == WarrantyCoverageStatus.EXPIRED,
+            third_party_active_count=active_count,
+            third_party_planned_count=planned_count,
+            third_party_expired_count=expired_count,
+            coverage_state=coverage_state,
+        )
+
+    @staticmethod
+    def _period_status(start: date, end: date, as_of: date) -> WarrantyCoverageStatus:
+        if as_of < start:
+            return WarrantyCoverageStatus.PLANNED
+        if as_of > end:
+            return WarrantyCoverageStatus.EXPIRED
+        return WarrantyCoverageStatus.ACTIVE
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "tenant_id": self.tenant_id.value,
+            "asset_tag": self.asset_tag.value,
+            "as_of": self.as_of.isoformat(),
+            "manufacturer": self.manufacturer,
+            "manufacturer_warranty_reference": self.manufacturer_warranty_reference,
+            "manufacturer_support_reference": self.manufacturer_support_reference,
+            "warranty_status": self.warranty_status.value,
+            "warranty_days_remaining": self.warranty_days_remaining,
+            "warranty_expired": self.warranty_expired,
+            "third_party_active_count": self.third_party_active_count,
+            "third_party_planned_count": self.third_party_planned_count,
+            "third_party_expired_count": self.third_party_expired_count,
+            "coverage_state": self.coverage_state.value,
+        }
 
 
 class ItamDateParser:

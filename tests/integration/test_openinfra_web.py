@@ -166,6 +166,40 @@ class TestOpenInfraWeb:
         assert "Token API" not in static_js
         assert "openinfra-method" not in static_js + static_css
         assert "agents proxy collectors Enterprise uniquement" in static_js
+        assert 'path: "/v1/ipam/ui-dashboard"' in static_js
+        assert "Dashboard IPAM" in static_js
+        assert 'path: "/v1/ipam/vrfs"' in static_js
+        assert "Définir une VRF" in static_js
+        assert 'path: "/v1/ipam/aggregates"' in static_js
+        assert "Définir un agrégat IP" in static_js
+        assert 'path: "/v1/ipam/prefixes"' in static_js
+        assert "Définir un préfixe IP" in static_js
+        assert 'path: "/v1/ipam/ranges"' in static_js
+        assert "Définir une plage IP" in static_js
+        assert 'path: "/v1/ipam/addresses"' in static_js
+        assert "Enregistrer une adresse IP" in static_js
+        assert 'path: "/v1/ipam/reservation-wizard"' in static_js
+        assert "Assistant de réservation IP" in static_js
+        assert 'path: "/v1/ipam/network-bindings"' in static_js
+        assert "Afficher les bindings réseau" in static_js
+        assert 'path: "/v1/ipam/vlan-groups"' in static_js
+        assert "Définir un groupe VLAN" in static_js
+        assert 'path: "/v1/ipam/vxlan-vnis"' in static_js
+        assert "Définir un VXLAN VNI" in static_js
+        assert 'path: "/v1/ipam/vlans"' in static_js
+        assert "Définir un VLAN" in static_js
+        assert 'path: "/v1/ipam/asns"' in static_js
+        assert "Définir un ASN" in static_js
+        assert 'path: "/v1/ipam/bgp-peers"' in static_js
+        assert "Définir un peer BGP" in static_js
+        assert 'path: "/v1/ipam/dns-observations"' in static_js
+        assert "Observer un enregistrement DNS" in static_js
+        assert 'path: "/v1/ipam/dhcp-leases"' in static_js
+        assert "Observer un bail DHCP" in static_js
+        assert 'path: "/v1/ipam/ddi-preview"' in static_js
+        assert "Prévisualiser DDI" in static_js
+        assert "RT import" in static_js
+        assert "Fournisseurs DDI" in static_js
         assert 'path: "/v1/dcim/locations"' in static_js
         assert "Localiser un équipement" in static_js
         assert 'path: "/v1/dcim/rack-elevation"' in static_js

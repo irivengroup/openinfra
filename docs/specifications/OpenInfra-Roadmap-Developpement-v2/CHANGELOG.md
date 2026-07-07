@@ -1,3 +1,9 @@
+## 0.29.31
+
+- Ajout de la parité dashboard IPAM Enterprise++ pour les contrats `/api/v1/ipam/*`.
+- Ajout du test roadmap `TST-P11-IPAM-DASHBOARD-PARITY`.
+- Alignement CDC `REQ-00769` et découverte API IPAM.
+
 
 ## 0.29.30
 

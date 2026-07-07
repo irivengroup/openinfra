@@ -110,6 +110,12 @@ Le périmètre BGP du volume IPAM Enterprise++ doit être implémenté par une c
 
 
 
+### REQ-00769
+
+Le dashboard IPAM doit exposer les opérations Enterprise++ majeures VRF, agrégats, préfixes, plages, adresses, allocation, assistant de réservation, capacité, bindings réseau, VLAN/VXLAN, ASN/BGP, observations DNS/DHCP, conflits et prévisualisation DDI via les contrats backend existants.
+
+**Acceptation :** Les opérations IPAM du dashboard ciblent des routes `/api/v1/ipam/*` réelles, la découverte API expose la section `ipam`, et aucune règle métier IPAM n'est dupliquée côté navigateur.
+
 ## Critères d’acceptation
 
 La capacité est acceptée si les scénarios nominaux, erreurs, droits insuffisants, conflits et imports/exports sont validés par tests automatisés et si les journaux d’audit permettent de reconstituer les opérations.

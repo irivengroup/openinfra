@@ -62,6 +62,40 @@ class FrontendContractValidator:
             or "RESOURCE_CATEGORY_OPTIONS" not in main_source
             or "Rack server" not in main_source
             or "physical-server" in main_source
+            or "Dashboard IPAM" not in main_source
+            or "/v1/ipam/ui-dashboard" not in main_source
+            or "Définir une VRF" not in main_source
+            or "/v1/ipam/vrfs" not in main_source
+            or "Définir un agrégat IP" not in main_source
+            or "/v1/ipam/aggregates" not in main_source
+            or "Définir un préfixe IP" not in main_source
+            or "/v1/ipam/prefixes" not in main_source
+            or "Définir une plage IP" not in main_source
+            or "/v1/ipam/ranges" not in main_source
+            or "Enregistrer une adresse IP" not in main_source
+            or "/v1/ipam/addresses" not in main_source
+            or "Assistant de réservation IP" not in main_source
+            or "/v1/ipam/reservation-wizard" not in main_source
+            or "Afficher les bindings réseau" not in main_source
+            or "/v1/ipam/network-bindings" not in main_source
+            or "Définir un groupe VLAN" not in main_source
+            or "/v1/ipam/vlan-groups" not in main_source
+            or "Définir un VXLAN VNI" not in main_source
+            or "/v1/ipam/vxlan-vnis" not in main_source
+            or "Définir un VLAN" not in main_source
+            or "/v1/ipam/vlans" not in main_source
+            or "Définir un ASN" not in main_source
+            or "/v1/ipam/asns" not in main_source
+            or "Définir un peer BGP" not in main_source
+            or "/v1/ipam/bgp-peers" not in main_source
+            or "Observer un enregistrement DNS" not in main_source
+            or "/v1/ipam/dns-observations" not in main_source
+            or "Observer un bail DHCP" not in main_source
+            or "/v1/ipam/dhcp-leases" not in main_source
+            or "Prévisualiser DDI" not in main_source
+            or "/v1/ipam/ddi-preview" not in main_source
+            or "RT import" not in main_source
+            or "Fournisseurs DDI" not in main_source
             or "Localiser un équipement" not in main_source
             or "/v1/dcim/locations" not in main_source
             or "Élévation rack" not in main_source
@@ -187,6 +221,42 @@ class FrontendContractValidator:
             "optionValue(option)",
             "data-options-by-field",
             "resource_type",
+            "Dashboard IPAM",
+            "/v1/ipam/ui-dashboard",
+            "Définir une VRF",
+            "/v1/ipam/vrfs",
+            "Définir un agrégat IP",
+            "/v1/ipam/aggregates",
+            "Définir un préfixe IP",
+            "/v1/ipam/prefixes",
+            "Définir une plage IP",
+            "/v1/ipam/ranges",
+            "Enregistrer une adresse IP",
+            "/v1/ipam/addresses",
+            "Assistant de réservation IP",
+            "/v1/ipam/reservation-wizard",
+            "Afficher les bindings réseau",
+            "/v1/ipam/network-bindings",
+            "Définir un groupe VLAN",
+            "/v1/ipam/vlan-groups",
+            "Définir un VXLAN VNI",
+            "/v1/ipam/vxlan-vnis",
+            "Définir un VLAN",
+            "/v1/ipam/vlans",
+            "Définir un ASN",
+            "/v1/ipam/asns",
+            "Définir un peer BGP",
+            "/v1/ipam/bgp-peers",
+            "Observer un enregistrement DNS",
+            "/v1/ipam/dns-observations",
+            "Observer un bail DHCP",
+            "/v1/ipam/dhcp-leases",
+            "Prévisualiser DDI",
+            "/v1/ipam/ddi-preview",
+            "RT import",
+            "Fournisseurs DDI",
+            "Route distinguisher",
+            "Usage plage",
             "Localiser un équipement",
             "/v1/dcim/locations",
             "Élévation rack",

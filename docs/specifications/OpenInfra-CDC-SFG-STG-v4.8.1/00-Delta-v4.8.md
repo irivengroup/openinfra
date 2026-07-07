@@ -1,3 +1,9 @@
+## Delta v0.29.31 — IPAM Enterprise++ dashboard
+
+- Ajout REQ-00769 pour l'exposition des opérations IPAM Enterprise++ dans le dashboard.
+- Ajout TST-IPAM-072 pour valider la parité frontend, les routes backend réelles et la découverte API IPAM.
+- Les valeurs et invariants IPAM restent gérés par les services backend ; le navigateur ne duplique pas les règles métier.
+
 ## Delta v0.29.30 — jumeau numérique DCIM initial
 
 - Ajout de `REQ-00768` et `TST-DCIM-071` : jumeau numérique DCIM initial exposé par API, CLI et dashboard via `GET /api/v1/dcim/digital-twin`, consolidant plan salle, racks, équipements, panneaux, ports, câbles et capacité énergie/refroidissement.

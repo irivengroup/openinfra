@@ -1,3 +1,10 @@
+## 0.29.31 - 2026-07-07
+
+- Added P11/IPAM Enterprise++ dashboard parity for VRF, aggregates, prefixes, ranges, address records, VLAN groups, VXLAN VNIs, VLANs, ASNs, BGP peers, DNS/DHCP observations, DDI preview, reservation wizard, allocation, capacity, network bindings and conflict detection.
+- Added IPAM endpoints to the API discovery document so operators and automation can discover the REST contracts without reading OpenAPI manually.
+- Extended frontend validation and web regression tests to prevent the IPAM dashboard from drifting away from real `/api/v1/ipam/*` backend contracts.
+- Updated CDC, roadmap and UI documentation for P11 IPAM Enterprise++ operator workflows.
+
 ## 0.29.30 - 2026-07-07
 
 - Added the initial DCIM room digital twin through `GET /api/v1/dcim/digital-twin` and `openinfra dcim digital-twin`.

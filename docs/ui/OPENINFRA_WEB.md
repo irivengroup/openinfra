@@ -1,4 +1,4 @@
-# OpenInfra Web v0.29.30
+# OpenInfra Web v0.29.31
 
 OpenInfra Web est le portail `openinfra-web` API-only. Il sert l'interface React/Bootstrap 5, expose un proxy applicatif `/api/*` vers le backend `openinfra-api` et fournit un dashboard de pilotage aligné sur les domaines CLI.
 
@@ -40,6 +40,12 @@ Le service Compose `openinfra-web` dépend de `api:8080`, écoute par défaut su
 
 L'unité `openinfra-web.service` lance `openinfra-web` depuis le virtualenv géré par l'installateur et lit sa configuration via `EnvironmentFile=/etc/openinfra/openinfra.conf`, chemin compatible pointant vers `/opt/openinfra/config/openinfra.conf`.
 
+
+## v0.29.31 — formulaires IPAM Enterprise++
+
+Le module IPAM du dashboard expose désormais les opérations opérateur suivantes : rechercher dans l’IPAM, afficher le dashboard IPAM, définir une VRF, définir un agrégat, définir un préfixe, définir une plage, enregistrer une adresse, allouer une adresse, utiliser l’assistant de réservation, calculer la capacité, lister les préfixes, afficher les bindings réseau, définir VLAN/VXLAN/ASN/BGP, observer DNS/DHCP, détecter les conflits et générer une prévisualisation DDI.
+
+Les champs sont typés et ciblent les vrais contrats `/api/v1/ipam/*`. Les règles d'allocation, de conflit et de cohérence réseau restent exclusivement dans les services backend.
 
 ## v0.29.30 — jumeau numérique DCIM initial
 

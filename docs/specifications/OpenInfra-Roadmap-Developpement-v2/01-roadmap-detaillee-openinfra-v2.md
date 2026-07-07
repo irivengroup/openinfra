@@ -1542,3 +1542,9 @@ Le dashboard d’accueil ne présente plus l’alerte succès permanente `Backen
 - Le document `dcim_digital_twin` contient `summary`, `room_plan`, `racks`, `floor_equipment`, `cables` et `integrity`, chaque rack portant aussi ses élévations et sa capacité énergie/refroidissement.
 - L’implémentation s’appuie sur les repositories et services DCIM existants sans stockage parallèle ; les invariants rack, port, câble, circuit, réservation et refroidissement restent validés par les couches domaine/application.
 - La roadmap P10 ajoute `TST-P10-DCIM-DIGITAL-TWIN` et aligne `REQ-00768`.
+### Avancement v0.29.31 — P11 IPAM Enterprise++ dashboard
+
+La version 0.29.31 complète l'exposition opérateur P11 côté `openinfra-web` : VRF, agrégats, préfixes, plages, adresses, allocation, assistant de réservation, capacité, bindings réseau, VLAN/VXLAN, ASN/BGP, observations DNS/DHCP, conflits et DDI preview sont accessibles via des formulaires typés.
+
+Les opérations ciblent les contrats `/api/v1/ipam/*` existants et la découverte API racine expose désormais la section `ipam`, ce qui réduit l'écart entre OpenAPI, API runtime et dashboard.
+

@@ -41,3 +41,4 @@ P10,REQ-00765,DCIM câblage dashboard,Implémenté en v0.29.28,,
 P10,REQ-00766,DCIM énergie/refroidissement dashboard,Implémenté en v0.29.29,0.29.29,TST-P10-DCIM-ENERGY-COOLING-WEB
 P09,REQ-00767,ITRM taxonomie labels opérateur et valeurs internes,Implémenté en v0.29.29,0.29.29,TST-P09-ITRM-TAXONOMY-LABELS
 P10,REQ-00768,DCIM jumeau numérique initial,Implémenté en v0.29.30,0.29.30,TST-P10-DCIM-DIGITAL-TWIN
+REQ-00769,IPAM Enterprise++ dashboard et découverte API,P11,EPIC-1104,0.29.31,TST-P11-IPAM-DASHBOARD-PARITY

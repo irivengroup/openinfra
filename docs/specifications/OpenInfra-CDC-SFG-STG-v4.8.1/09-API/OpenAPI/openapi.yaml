@@ -1,63 +1,734 @@
 openapi: 3.1.0
 info:
-  title: OpenInfra API
-  version: 3.0.0
-  description: API de référence OpenInfra pour IT Ressources Management, DCIM, IPAM, Discovery,
-    Dependency Mapping et ITAM.
-servers:
-- url: https://openinfra.example.internal/api/v1
+  title: OpenInfra API Foundation
+  version: 0.29.31
+components:
+  securitySchemes:
+    bearerToken:
+      type: http
+      scheme: bearer
+      bearerFormat: OpenInfra API token
 paths:
-  /assets:
+  /:
     get:
-      summary: Liste paginée des actifs
-      parameters:
-      - name: cursor
-        in: query
-        schema:
-          type: string
-      - name: limit
-        in: query
-        schema:
-          type: integer
-          maximum: 500
-      - name: filter
-        in: query
-        schema:
-          type: string
+      summary: API discovery document
       responses:
         '200':
-          description: Page d’actifs
-  /assets/{id}:
+          description: Service metadata and canonical operational endpoints
+  /api/v1:
     get:
-      summary: Détail actif
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
+      summary: API v1 discovery document
       responses:
         '200':
-          description: Actif
-  /dcim/locations:
+          description: API v1 base path and operational endpoint links
+  /docs:
+    get:
+      summary: Swagger UI documentation
+      responses:
+        '200':
+          description: Interactive Swagger UI backed by /openapi.yaml
+  /swagger:
+    get:
+      summary: Swagger UI documentation alias
+      responses:
+        '200':
+          description: Alias for the interactive Swagger UI
+  /redoc:
+    get:
+      summary: ReDoc documentation
+      responses:
+        '200':
+          description: ReDoc documentation backed by /openapi.yaml
+  /openapi.yaml:
+    get:
+      summary: Canonical OpenAPI YAML document
+      responses:
+        '200':
+          description: OpenAPI 3.1 YAML document
+        '503':
+          description: OpenAPI document is not available in the runtime filesystem
+  /api/v1/openapi.yaml:
+    get:
+      summary: Versioned OpenAPI YAML document alias
+      responses:
+        '200':
+          description: OpenAPI 3.1 YAML document
+        '503':
+          description: OpenAPI document is not available in the runtime filesystem
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: API is alive
+  /ready:
+    get:
+      summary: Runtime readiness probe validating persistence and PostgreSQL schema state
+      responses:
+        '200':
+          description: Backend is reachable and schema is ready
+        '503':
+          description: Backend or schema is not ready
+  /api/v1/version:
+    get:
+      summary: Version
+      responses:
+        '200':
+          description: Version payload
+  /api/v1/database/schema:
+    get:
+      summary: PostgreSQL schema migration status
+      responses:
+        '200':
+          description: Schema is up to date or JSON backend does not require migrations
+        '409':
+          description: PostgreSQL schema has pending migrations or checksum drift
+  /api/v1/security/whoami:
     post:
-      summary: Localiser ou relocaliser un équipement DCIM
-      description: Localisation physique par site, bâtiment, salle, ligne, colonne, rack, face, position U et coordonnées X/Y/Z lorsque applicable.
+      summary: Validate an API token and return the authenticated principal
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required:
-              - tenant_id
-              - asset_tag
-              - equipment_name
-              - site
-              - building
-              - room
-              - row
-              - column
+              required: [tenant_id, token]
+              properties:
+                tenant_id:
+                  type: string
+                token:
+                  type: string
+      responses:
+        '200':
+          description: Authenticated principal
+        '400':
+          description: Validation error
+        '401':
+          description: Invalid token
+
+  /api/v1/security/tokens:
+    get:
+      summary: List API token metadata without returning token hashes or secrets
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: include_inactive
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Paginated token metadata
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid security administrator token
+  /api/v1/security/revoke-token:
+    post:
+      summary: Revoke an API token using a security administrator token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, target_token]
+              properties:
+                tenant_id:
+                  type: string
+                actor:
+                  type: string
+                target_token:
+                  type: string
+                admin_token:
+                  type: string
+      responses:
+        '200':
+          description: Revocation result
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid security administrator token
+  /api/v1/security/rotate-token:
+    post:
+      summary: Rotate a security administrator token and revoke the previous token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, current_token]
+              properties:
+                tenant_id:
+                  type: string
+                actor:
+                  type: string
+                current_token:
+                  type: string
+                subject:
+                  type: string
+                roles:
+                  type: array
+                  items:
+                    type: string
+                token:
+                  type: string
+                ttl_seconds:
+                  type: integer
+                  minimum: 60
+      responses:
+        '201':
+          description: Replacement token created
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid security administrator token
+  /api/v1/identity/users:
+    post:
+      summary: Create or update an IAM user
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, username, display_name]
+              properties:
+                tenant_id:
+                  type: string
+                actor:
+                  type: string
+                username:
+                  type: string
+                display_name:
+                  type: string
+                email:
+                  type: string
+                roles:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '201':
+          description: IAM user persisted
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid security administrator token
+  /api/v1/identity/groups:
+    post:
+      summary: Create or update an IAM group
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, name, display_name]
+              properties:
+                tenant_id:
+                  type: string
+                actor:
+                  type: string
+                name:
+                  type: string
+                display_name:
+                  type: string
+                roles:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '201':
+          description: IAM group persisted
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid security administrator token
+  /api/v1/identity/group-memberships:
+    post:
+      summary: Add a user to an IAM group
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, username, group_name]
+              properties:
+                tenant_id:
+                  type: string
+                actor:
+                  type: string
+                username:
+                  type: string
+                group_name:
+                  type: string
+      responses:
+        '201':
+          description: IAM group membership persisted
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid security administrator token
+  /api/v1/identity/user-roles:
+    post:
+      summary: Grant a built-in role directly to a user
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, username, role]
+              properties:
+                tenant_id:
+                  type: string
+                actor:
+                  type: string
+                username:
+                  type: string
+                role:
+                  type: string
+      responses:
+        '200':
+          description: User role grant result
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid security administrator token
+  /api/v1/identity/group-roles:
+    post:
+      summary: Grant a built-in role to a group
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, group_name, role]
+              properties:
+                tenant_id:
+                  type: string
+                actor:
+                  type: string
+                group_name:
+                  type: string
+                role:
+                  type: string
+      responses:
+        '200':
+          description: Group role grant result
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid security administrator token
+  /api/v1/identity/effective:
+    get:
+      summary: Return effective roles for an IAM subject
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: subject
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Effective identity roles
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid security administrator token
+  /api/v1/access/rules:
+    get:
+      summary: List ABAC access policy rules
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: include_inactive
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Paginated ABAC rules
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid access policy administrator token
+    post:
+      summary: Create or update an ABAC access policy rule
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, name, permission, effect]
+              properties:
+                tenant_id:
+                  type: string
+                actor:
+                  type: string
+                name:
+                  type: string
+                permission:
+                  type: string
+                effect:
+                  type: string
+                  enum: [allow, deny]
+                subjects:
+                  type: array
+                  items:
+                    type: string
+                roles:
+                  type: array
+                  items:
+                    type: string
+                site_codes:
+                  type: array
+                  items:
+                    type: string
+                environments:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '201':
+          description: ABAC rule persisted
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid access policy administrator token
+  /api/v1/access/evaluate:
+    post:
+      summary: Evaluate a Bearer token against a contextual ABAC request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, token, permission]
+              properties:
+                tenant_id:
+                  type: string
+                token:
+                  type: string
+                permission:
+                  type: string
+                site_code:
+                  type: string
+                environment:
+                  type: string
+      responses:
+        '200':
+          description: ABAC evaluation result
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid token
+  /api/v1/access/deactivate-rule:
+    post:
+      summary: Deactivate an ABAC access policy rule
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, name]
+              properties:
+                tenant_id:
+                  type: string
+                actor:
+                  type: string
+                name:
+                  type: string
+      responses:
+        '200':
+          description: Deactivation result
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid access policy administrator token
+  /api/v1/audit/events:
+    get:
+      summary: List audit events with pagination, filters and integrity hashes
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: actor
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: action
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: target_type
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: severity
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [info, warning, error, critical]
+      responses:
+        '200':
+          description: Paginated audit event records
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid audit reader token
+  /api/v1/audit/export:
+    post:
+      summary: Export audit events as JSON or JSONL
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id]
+              properties:
+                tenant_id:
+                  type: string
+                format:
+                  type: string
+                  enum: [json, jsonl]
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 500
+                cursor:
+                  type: string
+                actor:
+                  type: string
+                action:
+                  type: string
+                target_type:
+                  type: string
+                severity:
+                  type: string
+                  enum: [info, warning, error, critical]
+      responses:
+        '200':
+          description: Audit export bundle
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid audit reader token
+  /api/v1/audit/integrity:
+    get:
+      summary: Verify the tenant audit trail hash chain
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 10000
+      responses:
+        '200':
+          description: Audit integrity report
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid audit reader token
+
+  /api/v1/dcim/rooms:
+    post:
+      summary: Define a physical DCIM room hierarchy with floor, grid, optional zone and coordinates
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, site_code, site_name, country, city, building_code, building_name, floor_code, floor_name, floor_index, room_code, room_name, rows, columns]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                site_code: {type: string}
+                site_name: {type: string}
+                country: {type: string}
+                region: {type: string}
+                city: {type: string}
+                building_code: {type: string}
+                building_name: {type: string}
+                floor_code: {type: string}
+                floor_name: {type: string}
+                floor_index: {type: integer}
+                room_code: {type: string}
+                room_name: {type: string}
+                rows:
+                  type: array
+                  items: {type: string}
+                columns:
+                  type: array
+                  items: {type: string}
+                zone_code: {type: string}
+                zone_name: {type: string}
+                zone_rows:
+                  type: array
+                  items: {type: string}
+                zone_columns:
+                  type: array
+                  items: {type: string}
+                x: {type: number}
+                y: {type: number}
+                z: {type: number}
+      responses:
+        '201': {description: Physical room hierarchy persisted}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM operator token}
+  /api/v1/dcim/racks:
+    post:
+      summary: Define a rack with U capacity, usable faces and physical placement
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, site, building, room, rack, row, column, units]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                site: {type: string}
+                building: {type: string}
+                floor: {type: string}
+                room: {type: string}
+                zone: {type: string}
+                rack: {type: string}
+                row: {type: string}
+                column: {type: string}
+                units:
+                  type: integer
+                  minimum: 1
+                  maximum: 60
+                faces:
+                  type: array
+                  items:
+                    type: string
+                    enum: [front, rear]
+                max_weight_kg: {type: number}
+                power_capacity_watts: {type: integer}
+                x: {type: number}
+                y: {type: number}
+                z: {type: number}
+      responses:
+        '201': {description: Rack capacity definition persisted}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM operator token}
+  /api/v1/dcim/locations:
+    post:
+      summary: Locate or relocate equipment in a DCIM room grid or rack position
+      description: Persists the physical location of an equipment asset using mandatory site, building, room, row and column, with optional floor, zone, rack, U position, face, height and X/Y/Z coordinates. Requires a Bearer token carrying dcim.locate when API authentication is enabled.
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, asset_tag, equipment_name, site, building, room, row, column]
               properties:
                 tenant_id: {type: string}
                 actor: {type: string}
@@ -71,125 +742,1677 @@ paths:
                 row: {type: string}
                 column: {type: string}
                 rack: {type: string}
-                u_position: {type: integer}
-                rack_face: {type: string}
-                u_height: {type: integer}
+                u_position: {type: integer, minimum: 1, maximum: 60}
+                rack_face: {type: string, enum: [front, rear]}
+                u_height: {type: integer, minimum: 1, maximum: 60}
                 x: {type: number}
                 y: {type: number}
                 z: {type: number}
       responses:
-        '201':
-          description: Localisation enregistrée
-        '400':
-          description: Localisation incohérente ou hiérarchie DCIM manquante
-  /ipam/vrfs/{vrfId}/prefixes/{prefixId}/next-available-ip:
-    post:
-      summary: Réservation IP transactionnelle
+        '201': {description: Equipment location persisted}
+        '400': {description: Validation, missing hierarchy or rack conflict error}
+        '401': {description: Missing or invalid DCIM locate token}
+  /api/v1/dcim/rack-capacity:
+    get:
+      summary: Return rack U occupation by face
       parameters:
-      - name: vrfId
-        in: path
+        - name: tenant_id
+          in: query
+          required: true
+          schema: {type: string}
+        - name: site
+          in: query
+          required: true
+          schema: {type: string}
+        - name: building
+          in: query
+          required: true
+          schema: {type: string}
+        - name: room
+          in: query
+          required: true
+          schema: {type: string}
+        - name: rack
+          in: query
+          required: true
+          schema: {type: string}
+      responses:
+        '200': {description: Rack capacity report}
+        '400': {description: Validation error}
+
+  /api/v1/dcim/locator-sheet:
+    get:
+      summary: Generate a field locator sheet with compact QR payload and human intervention path
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: {type: string}
+        - name: asset_tag
+          in: query
+          required: true
+          schema: {type: string}
+        - name: format
+          in: query
+          required: false
+          schema: {type: string, enum: [json, html]}
+      responses:
+        '200': {description: Locator sheet in JSON or HTML wrapper}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM identification token}
+  /api/v1/dcim/room-plan:
+    get:
+      summary: Render a deterministic 2D room plan with rows, columns, racks and floor equipment
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: {type: string}
+        - name: site
+          in: query
+          required: true
+          schema: {type: string}
+        - name: building
+          in: query
+          required: true
+          schema: {type: string}
+        - name: room
+          in: query
+          required: true
+          schema: {type: string}
+        - name: format
+          in: query
+          required: false
+          schema: {type: string, enum: [json, svg, html]}
+      responses:
+        '200': {description: Room plan in JSON or SVG/HTML wrapper}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM locator token}
+        '404': {description: Room not found}
+  /api/v1/dcim/rack-elevation:
+    get:
+      summary: Render a rack elevation for a selected face with U occupancy and free units
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: {type: string}
+        - name: site
+          in: query
+          required: true
+          schema: {type: string}
+        - name: building
+          in: query
+          required: true
+          schema: {type: string}
+        - name: room
+          in: query
+          required: true
+          schema: {type: string}
+        - name: rack
+          in: query
+          required: true
+          schema: {type: string}
+        - name: face
+          in: query
+          required: false
+          schema: {type: string, enum: [front, rear]}
+        - name: format
+          in: query
+          required: false
+          schema: {type: string, enum: [json, svg, html]}
+      responses:
+        '200': {description: Rack elevation in JSON or SVG/HTML wrapper}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM locator token}
+        '404': {description: Rack not found}
+  /api/v1/dcim/digital-twin:
+    get:
+      summary: Render the initial DCIM room digital twin across racks, equipment, cabling and capacity
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: {type: string}
+        - name: site
+          in: query
+          required: true
+          schema: {type: string}
+        - name: building
+          in: query
+          required: true
+          schema: {type: string}
+        - name: room
+          in: query
+          required: true
+          schema: {type: string}
+      responses:
+        '200': {description: Consolidated DCIM digital twin JSON document}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM locator token}
+        '404': {description: Room not found}
+
+  /api/v1/dcim/patch-panels:
+    post:
+      summary: Define a rack-mounted patch panel and generate DCIM ports
+      security:
+        - bearerToken: []
+      requestBody:
         required: true
-        schema:
-          type: string
-      - name: prefixId
-        in: path
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, site, building, room, rack, patch_panel, u_position, port_count, connector, medium]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                site: {type: string}
+                building: {type: string}
+                room: {type: string}
+                rack: {type: string}
+                patch_panel: {type: string}
+                rack_face: {type: string, enum: [front, rear]}
+                u_position: {type: integer, minimum: 1, maximum: 60}
+                u_height: {type: integer, minimum: 1, maximum: 10}
+                port_count: {type: integer, minimum: 1, maximum: 288}
+                connector: {type: string, enum: [rj45, lc, sc, mpo, sfp, qsfp]}
+                medium: {type: string, enum: [copper, fiber, dac]}
+                label: {type: string}
+                port_prefix: {type: string}
+      responses:
+        '201': {description: Patch panel and generated ports persisted}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM operator token}
+  /api/v1/dcim/ports:
+    post:
+      summary: Define a DCIM port on equipment or patch panel
+      security:
+        - bearerToken: []
+      requestBody:
         required: true
-        schema:
-          type: string
-      - name: Idempotency-Key
-        in: header
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, owner_type, owner_code, port_name, connector, medium]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                owner_type: {type: string, enum: [equipment, patch_panel]}
+                owner_code: {type: string}
+                port_name: {type: string}
+                connector: {type: string, enum: [rj45, lc, sc, mpo, sfp, qsfp]}
+                medium: {type: string, enum: [copper, fiber, dac]}
+                site: {type: string}
+                building: {type: string}
+                room: {type: string}
+                enabled: {type: boolean}
+      responses:
+        '201': {description: DCIM port persisted}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM operator token}
+  /api/v1/dcim/cables:
+    post:
+      summary: Connect two compatible DCIM ports with a cable and human trace path
+      security:
+        - bearerToken: []
+      requestBody:
         required: true
-        schema:
-          type: string
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, cable_id, a_owner_type, a_owner_code, a_port_name, b_owner_type, b_owner_code, b_port_name, medium, path_segments]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                cable_id: {type: string}
+                a_owner_type: {type: string, enum: [equipment, patch_panel]}
+                a_owner_code: {type: string}
+                a_port_name: {type: string}
+                b_owner_type: {type: string, enum: [equipment, patch_panel]}
+                b_owner_code: {type: string}
+                b_port_name: {type: string}
+                medium: {type: string, enum: [copper, fiber, dac]}
+                status: {type: string, enum: [planned, installed, retired]}
+                path_segments:
+                  type: array
+                  items: {type: string}
+                length_m: {type: number}
+                label: {type: string}
+      responses:
+        '201': {description: Cable persisted}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM operator token}
+  /api/v1/dcim/cable-trace:
+    get:
+      summary: Trace a DCIM cable with endpoints and human path
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: {type: string}
+        - name: cable_id
+          in: query
+          required: true
+          schema: {type: string}
+      responses:
+        '200': {description: Cable trace payload}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM locator token}
+        '404': {description: Cable not found}
+
+  /api/v1/dcim/power-devices:
+    post:
+      summary: Define a DCIM power source such as PDU or UPS
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, code, kind, site, building, room, capacity_watts]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                code: {type: string}
+                kind: {type: string, enum: [pdu, ups]}
+                site: {type: string}
+                building: {type: string}
+                room: {type: string}
+                rack: {type: string}
+                side: {type: string, enum: [A, B]}
+                capacity_watts: {type: integer, minimum: 1}
+                derating_percent: {type: integer, minimum: 1, maximum: 100}
+                input_source: {type: string}
+                output_voltage: {type: integer, minimum: 1}
+                label: {type: string}
+      responses:
+        '201': {description: Power device persisted}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM operator token}
+  /api/v1/dcim/power-circuits:
+    post:
+      summary: Define a rack A/B power circuit backed by a known power source
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, circuit_id, source_device, site, building, room, rack, side, capacity_watts, breaker_rating_amps]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                circuit_id: {type: string}
+                source_device: {type: string}
+                site: {type: string}
+                building: {type: string}
+                room: {type: string}
+                rack: {type: string}
+                side: {type: string, enum: [A, B]}
+                capacity_watts: {type: integer, minimum: 1}
+                breaker_rating_amps: {type: integer, minimum: 1}
+                redundancy_group: {type: string}
+                label: {type: string}
+      responses:
+        '201': {description: Power circuit persisted}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM operator token}
+  /api/v1/dcim/cooling-zones:
+    post:
+      summary: Define a room cooling zone with thermal capacity and temperatures
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, site, building, room, zone, role, cooling_capacity_watts, supply_temperature_c, return_temperature_c]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                site: {type: string}
+                building: {type: string}
+                room: {type: string}
+                zone: {type: string}
+                role: {type: string, enum: [cold_aisle, hot_aisle, neutral]}
+                cooling_capacity_watts: {type: integer, minimum: 1}
+                supply_temperature_c: {type: number}
+                return_temperature_c: {type: number}
+                label: {type: string}
+      responses:
+        '201': {description: Cooling zone persisted}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM operator token}
+  /api/v1/dcim/power-reservations:
+    post:
+      summary: Reserve expected equipment power draw on an existing power circuit
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, asset_tag, circuit_id, expected_watts]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                asset_tag: {type: string}
+                circuit_id: {type: string}
+                expected_watts: {type: integer, minimum: 1}
+                label: {type: string}
+      responses:
+        '201': {description: Power reservation persisted}
+        '400': {description: Validation, missing asset or capacity error}
+        '401': {description: Missing or invalid DCIM operator token}
+  /api/v1/dcim/energy-cooling-capacity:
+    get:
+      summary: Report rack A/B power capacity, reservation and cooling margin
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: {type: string}
+        - name: site
+          in: query
+          required: true
+          schema: {type: string}
+        - name: building
+          in: query
+          required: true
+          schema: {type: string}
+        - name: room
+          in: query
+          required: true
+          schema: {type: string}
+        - name: rack
+          in: query
+          required: true
+          schema: {type: string}
+      responses:
+        '200': {description: Rack energy and cooling capacity report}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM locator token}
+
+  /api/v1/dcim/verify-scan:
+    post:
+      summary: Verify a field QR scan payload against the expected equipment locator
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, asset_tag, payload]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                asset_tag: {type: string}
+                payload: {type: string}
+      responses:
+        '200': {description: Scan proof and verification result}
+        '400': {description: Validation error or QR mismatch}
+        '401': {description: Missing or invalid DCIM identification token}
+
+  /api/v1/ipam/allocate:
+    post:
+      summary: Allocate the next available IP address transactionally
+      description: Uses tenant/VRF/prefix idempotency, allocation/exclusion ranges and fine-grained storage locks. Requires a Bearer token carrying ipam.allocate when API authentication is enabled.
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, vrf, prefix, hostname, idempotency_key]
+              properties:
+                tenant_id:
+                  type: string
+                actor:
+                  type: string
+                vrf:
+                  type: string
+                prefix:
+                  type: string
+                hostname:
+                  type: string
+                idempotency_key:
+                  type: string
+                site_code:
+                  type: string
+                environment:
+                  type: string
       responses:
         '201':
-          description: IP réservée
-        '409':
-          description: Conflit ou préfixe saturé
-  /discovery/jobs:
-    post:
-      summary: Créer un job de découverte
+          description: Address allocated
+        '200':
+          description: Existing idempotent allocation returned
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid Bearer token when authentication is enabled
+
+  /api/v1/itrm/resource-taxonomy:
+    get:
+      summary: List supported ITRM resource categories and category-filtered resource types
       responses:
-        '202':
-          description: Job accepté
-  /imports:
-    post:
-      summary: Créer un import asynchrone
+        '200':
+          description: Taxonomy containing categories, default type and allowed types per category
+
+  /api/v1/itrm/objects:
+    get:
+      summary: Get or list IT Ressources Management objects
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: {type: string}
+        - name: key
+          in: query
+          required: false
+          schema: {type: string}
+        - name: kind
+          in: query
+          required: false
+          schema: {type: string, enum: [server, personal-computer, monitor-peripheral, network-device, storage, power-supply, rack-facility, cooling, security-safety, telecom, cloud-virtualization, software-service, cable-connectivity, mobile-iot, other, generic, device, interface, service, application, database, virtual-machine]}
+        - name: resource_category
+          in: query
+          required: false
+          schema: {type: string, enum: [server, personal-computer, monitor-peripheral, network-device, storage, power-supply, rack-facility, cooling, security-safety, telecom, cloud-virtualization, software-service, cable-connectivity, mobile-iot, other]}
+        - name: resource_type
+          in: query
+          required: false
+          schema: {type: string}
+        - name: tag
+          in: query
+          required: false
+          schema: {type: string}
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer, minimum: 1, maximum: 500}
+        - name: cursor
+          in: query
+          required: false
+          schema: {type: string}
       responses:
-        '202':
-          description: Import accepté
-  /dependency/impact-analysis:
+        '200': {description: IT Ressources Management object or paginated objects}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid ITRM reader token}
     post:
-      summary: Calculer une analyse d’impact
+      summary: Create or update a IT Ressources Management object with history
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, key, display_name, source]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                key: {type: string}
+                kind:
+                  type: string
+                  description: Legacy kind or canonical ITRM category; resource_category is preferred for new clients.
+                  enum: [server, personal-computer, monitor-peripheral, network-device, storage, power-supply, rack-facility, cooling, security-safety, telecom, cloud-virtualization, software-service, cable-connectivity, mobile-iot, other, generic, device, interface, service, application, database, virtual-machine]
+                display_name: {type: string}
+                resource_category:
+                  type: string
+                  enum: [server, personal-computer, monitor-peripheral, network-device, storage, power-supply, rack-facility, cooling, security-safety, telecom, cloud-virtualization, software-service, cable-connectivity, mobile-iot, other]
+                resource_type:
+                  type: string
+                  description: Must be one of the types allowed by resource_category.
+                attributes: {type: object}
+                tags:
+                  type: array
+                  items: {type: string}
+                source: {type: string}
       responses:
-        '202':
-          description: Analyse planifiée
-components:
-  securitySchemes:
-    oauth2:
-      type: oauth2
-      flows:
-        clientCredentials:
-          tokenUrl: https://idp.example.internal/oauth/token
-          scopes:
-            openinfra:read: Lecture
-            openinfra:write: Écriture
+        '201': {description: IT Ressources Management object persisted}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid ITRM writer token}
+  /api/v1/itrm/object-versions:
+    get:
+      summary: Retrieve a historical IT Ressources Management object snapshot
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: {type: string}
+        - name: key
+          in: query
+          required: true
+          schema: {type: string}
+        - name: version
+          in: query
+          required: true
+          schema: {type: integer, minimum: 1}
+      responses:
+        '200': {description: Historical object snapshot}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid ITRM reader token}
+  /api/v1/itrm/object-as-of:
+    get:
+      summary: Retrieve an IT Ressources Management object as of an ISO-8601 datetime
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: {type: string}
+        - name: key
+          in: query
+          required: true
+          schema: {type: string}
+        - name: as_of
+          in: query
+          required: true
+          schema: {type: string, format: date-time}
+      responses:
+        '200': {description: Historical object state resolved from snapshots}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid ITRM reader token}
+  /api/v1/itrm/object-audit:
+    get:
+      summary: List audit records for one IT Ressources Management object
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: {type: string}
+        - name: key
+          in: query
+          required: true
+          schema: {type: string}
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer, minimum: 1, maximum: 500}
+        - name: cursor
+          in: query
+          required: false
+          schema: {type: string}
+      responses:
+        '200': {description: Paginated object audit records}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid ITRM reader token}
+  /api/v1/itrm/reconcile-object:
+    post:
+      summary: Plan or apply a governed IT Ressources Management reconciliation
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, key, attributes, source]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                key: {type: string}
+                display_name: {type: string}
+                resource_category:
+                  type: string
+                  enum: [server, personal-computer, monitor-peripheral, network-device, storage, power-supply, rack-facility, cooling, security-safety, telecom, cloud-virtualization, software-service, cable-connectivity, mobile-iot, other]
+                resource_type:
+                  type: string
+                  description: Must be one of the types allowed by resource_category.
+                attributes: {type: object}
+                tags:
+                  type: array
+                  items: {type: string}
+                source: {type: string}
+                apply: {type: boolean}
+      responses:
+        '200': {description: Reconciliation plan with accepted/applied state, conflicts and resulting attributes}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid ITRM writer token}
+  /api/v1/itrm/relations:
+    get:
+      summary: List IT Ressources Management typed relations
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: {type: string}
+        - name: source_key
+          in: query
+          required: false
+          schema: {type: string}
+        - name: target_key
+          in: query
+          required: false
+          schema: {type: string}
+        - name: relation_type
+          in: query
+          required: false
+          schema: {type: string}
+        - name: as_of
+          in: query
+          required: false
+          schema: {type: string, format: date-time}
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer, minimum: 1, maximum: 500}
+        - name: cursor
+          in: query
+          required: false
+          schema: {type: string}
+      responses:
+        '200': {description: Paginated typed relations}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid ITRM reader token}
+    post:
+      summary: Create a typed IT Ressources Management relation
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, relation_type, source_key, target_key, provenance]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                relation_type: {type: string}
+                source_key: {type: string}
+                target_key: {type: string}
+                provenance: {type: string}
+      responses:
+        '201': {description: IT Ressources Management relation persisted}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid ITRM writer token}
+
+  /api/v1/itrm/quality/object:
+    get:
+      summary: Evaluate IT Ressources Management object quality and certification
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: {type: string}
+        - name: key
+          in: query
+          required: true
+          schema: {type: string}
+      responses:
+        '200': {description: ITRM quality report with score, certification status and issues}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid ITRM quality reader token}
+  /api/v1/itrm/quality/summary:
+    get:
+      summary: Summarize IT Ressources Management quality and certification status
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: {type: string}
+        - name: kind
+          in: query
+          required: false
+          schema: {type: string, enum: [server, personal-computer, monitor-peripheral, network-device, storage, power-supply, rack-facility, cooling, security-safety, telecom, cloud-virtualization, software-service, cable-connectivity, mobile-iot, other, generic, device, interface, service, application, database, virtual-machine]}
+        - name: resource_category
+          in: query
+          required: false
+          schema: {type: string, enum: [server, personal-computer, monitor-peripheral, network-device, storage, power-supply, rack-facility, cooling, security-safety, telecom, cloud-virtualization, software-service, cable-connectivity, mobile-iot, other]}
+        - name: resource_type
+          in: query
+          required: false
+          schema: {type: string}
+        - name: tag
+          in: query
+          required: false
+          schema: {type: string}
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer, minimum: 1, maximum: 500}
+        - name: cursor
+          in: query
+          required: false
+          schema: {type: string}
+      responses:
+        '200': {description: ITRM quality summary and evaluated reports}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid ITRM quality reader token}
+
+  /api/v1/itrm/governance-rules:
+    get:
+      summary: List IT Ressources Management governance rules
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: {type: string}
+        - name: object_kind
+          in: query
+          required: false
+          schema: {type: string, enum: [server, personal-computer, monitor-peripheral, network-device, storage, power-supply, rack-facility, cooling, security-safety, telecom, cloud-virtualization, software-service, cable-connectivity, mobile-iot, other, generic, device, interface, service, application]}
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer, minimum: 1, maximum: 500}
+        - name: cursor
+          in: query
+          required: false
+          schema: {type: string}
+        - name: include_inactive
+          in: query
+          required: false
+          schema: {type: boolean}
+      responses:
+        '200': {description: Paginated governance rules}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid ITRM governance token}
+    post:
+      summary: Create or update a IT Ressources Management authoritative source rule
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, name, attribute_path, authoritative_source]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                name: {type: string}
+                object_kind: {type: string, enum: [generic, device, interface, service, application]}
+                attribute_path: {type: string}
+                authoritative_source: {type: string}
+                priority: {type: integer}
+                freshness_seconds: {type: integer}
+                conflict_strategy: {type: string, enum: [reject, accept_with_audit]}
+      responses:
+        '201': {description: Governance rule persisted}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid ITRM governance token}
+  /api/v1/itrm/governance/evaluate:
+    post:
+      summary: Evaluate a IT Ressources Management update against authoritative source rules
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, object_kind, incoming_source, existing_attributes, incoming_attributes]
+              properties:
+                tenant_id: {type: string}
+                object_kind: {type: string}
+                incoming_source: {type: string}
+                existing_attributes: {type: object}
+                incoming_attributes: {type: object}
+      responses:
+        '200': {description: Governance evaluation result}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid ITRM governance token}
+  /api/v1/itrm/governance/deactivate-rule:
+    post:
+      summary: Deactivate a IT Ressources Management governance rule
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, name]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                name: {type: string}
+      responses:
+        '200': {description: Governance rule deactivated}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid ITRM governance token}
+
+  /api/v1/dcim/power-devices:
+    post:
+      summary: Define a rack or room power device such as a PDU or UPS
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, code, kind, site, building, room, capacity_watts]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                code: {type: string}
+                kind: {type: string, enum: [pdu, ups]}
+                site: {type: string}
+                building: {type: string}
+                room: {type: string}
+                rack: {type: string}
+                side: {type: string, enum: [A, B]}
+                capacity_watts: {type: integer, minimum: 1}
+                derating_percent: {type: integer, minimum: 1, maximum: 100}
+                input_source: {type: string}
+                output_voltage: {type: integer, minimum: 48, maximum: 1000}
+                label: {type: string}
+      responses:
+        '201': {description: Power device persisted}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM write token}
+  /api/v1/dcim/power-circuits:
+    post:
+      summary: Define a rack power circuit fed by a power device
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, circuit_id, source_device, site, building, room, rack, side, capacity_watts, breaker_rating_amps]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                circuit_id: {type: string}
+                source_device: {type: string}
+                site: {type: string}
+                building: {type: string}
+                room: {type: string}
+                rack: {type: string}
+                side: {type: string, enum: [A, B]}
+                capacity_watts: {type: integer, minimum: 1}
+                breaker_rating_amps: {type: integer, minimum: 1}
+                redundancy_group: {type: string}
+                label: {type: string}
+      responses:
+        '201': {description: Power circuit persisted}
+        '400': {description: Validation or capacity error}
+        '401': {description: Missing or invalid DCIM write token}
+  /api/v1/dcim/cooling-zones:
+    post:
+      summary: Define cooling capacity and temperatures for a room zone
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, site, building, room, zone, role, cooling_capacity_watts, supply_temperature_c, return_temperature_c]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                site: {type: string}
+                building: {type: string}
+                room: {type: string}
+                zone: {type: string}
+                role: {type: string, enum: [cold_aisle, hot_aisle, neutral]}
+                cooling_capacity_watts: {type: integer, minimum: 1}
+                supply_temperature_c: {type: number}
+                return_temperature_c: {type: number}
+                label: {type: string}
+      responses:
+        '201': {description: Cooling zone persisted}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM write token}
+  /api/v1/dcim/power-reservations:
+    post:
+      summary: Reserve expected equipment power draw on a circuit and enforce capacity
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, asset_tag, circuit_id, expected_watts]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                asset_tag: {type: string}
+                circuit_id: {type: string}
+                expected_watts: {type: integer, minimum: 1}
+                label: {type: string}
+      responses:
+        '201': {description: Power reservation persisted}
+        '400': {description: Validation or capacity error}
+        '401': {description: Missing or invalid DCIM write token}
+  /api/v1/dcim/energy-cooling-capacity:
+    get:
+      summary: Report rack power side capacity, reservations and cooling headroom
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: site, in: query, required: true, schema: {type: string}}
+        - {name: building, in: query, required: true, schema: {type: string}}
+        - {name: room, in: query, required: true, schema: {type: string}}
+        - {name: rack, in: query, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Rack energy and cooling capacity report}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM locate token}
+
+  /api/v1/ipam/vrfs:
+    post:
+      summary: Define or retrieve an IPAM VRF scoped to a tenant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, name]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                name: {type: string}
+                route_distinguisher: {type: string}
+      responses:
+        '201': {description: VRF persisted or returned idempotently}
+        '400': {description: Validation error}
+  /api/v1/ipam/aggregates:
+    post:
+      summary: Define an IPv4 or IPv6 aggregate inside one VRF
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, vrf, cidr]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                vrf: {type: string}
+                cidr: {type: string, example: 10.0.0.0/8}
+                description: {type: string}
+      responses:
+        '201': {description: Aggregate persisted}
+        '400': {description: Validation error}
+        '409': {description: Aggregate overlaps an existing aggregate in the same VRF}
+  /api/v1/ipam/prefixes:
+    get:
+      summary: List IPv4 and IPv6 prefixes for one tenant and VRF
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: vrf, in: query, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Prefix list}
+        '400': {description: Validation error}
+    post:
+      summary: Define an IPv4 or IPv6 prefix inside one VRF
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, vrf, cidr]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                vrf: {type: string}
+                cidr: {type: string, example: 10.25.1.0/24}
+                description: {type: string}
+      responses:
+        '201': {description: Prefix persisted or returned idempotently}
+        '400': {description: Validation error}
+        '409': {description: Prefix overlaps an existing prefix in the same VRF}
+  /api/v1/ipam/ranges:
+    post:
+      summary: Define an allocation, reservation or exclusion range inside a prefix
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, vrf, prefix, start, end]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                vrf: {type: string}
+                prefix: {type: string, example: 10.25.1.0/24}
+                start: {type: string, example: 10.25.1.10}
+                end: {type: string, example: 10.25.1.50}
+                purpose: {type: string, enum: [allocation, reservation, exclusion]}
+                description: {type: string}
+      responses:
+        '201': {description: Range persisted}
+        '400': {description: Validation error}
+        '409': {description: Range overlaps an existing range in the same VRF and prefix}
+  /api/v1/ipam/addresses:
+    post:
+      summary: Register an IP address and optional interface binding inside a prefix
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, vrf, prefix, address]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                vrf: {type: string}
+                prefix: {type: string, example: 10.25.1.0/24}
+                address: {type: string, example: 10.25.1.10}
+                hostname: {type: string}
+                interface_name: {type: string}
+                status: {type: string, enum: [planned, reserved, active, deprecated]}
+      responses:
+        '201': {description: Address record upserted}
+        '400': {description: Validation error}
+  /api/v1/ipam/capacity:
+    get:
+      summary: Report usable, reserved and free address capacity for one prefix
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: vrf, in: query, required: true, schema: {type: string}}
+        - {name: prefix, in: query, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Prefix capacity report}
+        '400': {description: Validation error}
+  /api/v1/ipam/vlan-groups:
+    post:
+      summary: Define a tenant-scoped VLAN group
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, name]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                name: {type: string}
+                scope: {type: string}
+                description: {type: string}
+      responses:
+        '201': {description: VLAN group persisted}
+        '400': {description: Validation error}
+  /api/v1/ipam/vxlan-vnis:
+    post:
+      summary: Define a tenant-scoped VNI attached to one VRF
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, vni, name, vrf]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                vni: {type: integer, minimum: 1, maximum: 16777215}
+                name: {type: string}
+                vrf: {type: string}
+                route_targets_import:
+                  type: array
+                  items: {type: string}
+                route_targets_export:
+                  type: array
+                  items: {type: string}
+                description: {type: string}
+      responses:
+        '201': {description: VNI persisted}
+        '400': {description: Validation error}
+        '409': {description: VNI already attached to another VRF}
+  /api/v1/ipam/vlans:
+    post:
+      summary: Define a VLAN and optional VRF/VNI attachment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, group, vlan_id, name]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                group: {type: string}
+                vlan_id: {type: integer, minimum: 1, maximum: 4094}
+                name: {type: string}
+                vrf: {type: string}
+                vni: {type: integer, minimum: 1, maximum: 16777215}
+                description: {type: string}
+      responses:
+        '201': {description: VLAN persisted}
+        '400': {description: Validation error}
+        '404': {description: Referenced VNI is not defined}
+        '409': {description: VLAN/VNI/VRF relation is incoherent}
+  /api/v1/ipam/asns:
+    post:
+      summary: Define an autonomous system number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, asn, name]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                asn: {type: integer, minimum: 1, maximum: 4294967295}
+                name: {type: string}
+                description: {type: string}
+      responses:
+        '201': {description: ASN persisted}
+        '400': {description: Validation error}
+  /api/v1/ipam/bgp-peers:
+    post:
+      summary: Define a BGP peer inside a VRF
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, vrf, local_asn, remote_asn, peer_address]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                vrf: {type: string}
+                local_asn: {type: integer, minimum: 1, maximum: 4294967295}
+                remote_asn: {type: integer, minimum: 1, maximum: 4294967295}
+                peer_address: {type: string}
+                address_family: {type: string, enum: [ipv4, ipv6]}
+                route_targets_import:
+                  type: array
+                  items: {type: string}
+                route_targets_export:
+                  type: array
+                  items: {type: string}
+                description: {type: string}
+      responses:
+        '201': {description: BGP peer persisted}
+        '400': {description: Validation error}
+        '404': {description: Local or remote ASN is not defined}
+  /api/v1/ipam/network-bindings:
+    get:
+      summary: Report VRF/VLAN/VNI/ASN/BGP bindings for one tenant
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: vrf, in: query, required: false, schema: {type: string}}
+      responses:
+        '200': {description: Network binding inventory}
+        '400': {description: Validation error}
+  /api/v1/ipam/dns-observations:
+    post:
+      summary: Record an observed DNS/PTR fact for IPAM conflict detection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, vrf, hostname, address]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                vrf: {type: string}
+                hostname: {type: string}
+                address: {type: string}
+                ptr_hostname: {type: string}
+                source: {type: string}
+      responses:
+        '201': {description: DNS observation persisted}
+        '400': {description: Validation error}
+  /api/v1/ipam/dhcp-leases:
+    post:
+      summary: Record an observed DHCP lease for IPAM conflict detection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, vrf, prefix, address, mac_address, hostname]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                vrf: {type: string}
+                prefix: {type: string}
+                address: {type: string}
+                mac_address: {type: string}
+                hostname: {type: string}
+                source: {type: string}
+                active: {type: boolean}
+      responses:
+        '201': {description: DHCP lease observation persisted}
+        '400': {description: Validation error}
+  /api/v1/ipam/conflicts:
+    get:
+      summary: Detect IPAM conflicts and observed DNS/DHCP divergences
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: vrf, in: query, required: false, schema: {type: string}}
+      responses:
+        '200': {description: Conflict report}
+        '400': {description: Validation error}
+  /api/v1/ipam/ui-dashboard:
+    get:
+      summary: Render the operational IPAM dashboard view model
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: vrf, in: query, required: false, schema: {type: string}}
+      responses:
+        '200': {description: IPAM UI dashboard view model}
+        '400': {description: Validation error}
+  /api/v1/ipam/ui-search:
+    get:
+      summary: Search IPAM UI objects across prefixes, reservations, DNS and DHCP observations
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: query, in: query, required: true, schema: {type: string}}
+        - {name: vrf, in: query, required: false, schema: {type: string}}
+      responses:
+        '200': {description: Search results}
+        '400': {description: Validation error}
+
+  /api/v1/ipam/ddi-preview:
+    post:
+      summary: Preview DNS/DHCP DDI changes for an existing IPAM reservation
+      description: Produces deterministic BIND, PowerDNS and Kea baseline changes, detected divergences and compensating rollback changes. No external DDI system is contacted by this endpoint.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, vrf, idempotency_key]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                vrf: {type: string}
+                idempotency_key: {type: string}
+                providers:
+                  type: array
+                  items: {type: string, enum: [all, bind, powerdns, kea]}
+                dns_zone: {type: string, example: example.net}
+                mac_address: {type: string, example: aa:bb:cc:00:00:01}
+                ttl: {type: integer, minimum: 0, maximum: 86400, default: 300}
+                apply_preview: {type: boolean, default: false}
+      responses:
+        '200': {description: DDI dry-run plan with changes, divergences and rollback changes}
+        '400': {description: Validation error or missing reservation}
+  /api/v1/exports/jobs:
+    post:
+      summary: Queue an asynchronous signed export job
+      description: Creates a non-blocking export job for IT Ressources Management data. The job remains queued until an export worker invokes the run endpoint or CLI command.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, admin_token]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                admin_token: {type: string}
+                resource: {type: string, enum: [source_objects], default: source_objects}
+                format: {type: string, enum: [csv, json, xlsx], default: json}
+                kind: {type: string}
+                tag: {type: string}
+                limit: {type: integer, minimum: 1, maximum: 1000000, default: 100000}
+      responses:
+        '202': {description: Export job queued}
+        '400': {description: Validation error or access error}
+    get:
+      summary: Read an export job status and signed artifact metadata
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: job_id, in: query, required: true, schema: {type: string}}
+        - {name: admin_token, in: query, required: false, schema: {type: string}}
+      responses:
+        '200': {description: Export job report}
+        '400': {description: Validation error or unknown export job}
+  /api/v1/exports/run:
+    post:
+      summary: Run one queued export job and produce a signed artifact
+      description: Executes a queued export in a bounded paginated worker step, stores the artifact, computes SHA-256 and signs the content with HMAC-SHA256.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, admin_token]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api-worker}
+                admin_token: {type: string}
+                job_id: {type: string}
+                page_size: {type: integer, minimum: 1, maximum: 500, default: 500}
+      responses:
+        '200': {description: Completed or failed export job report}
+        '400': {description: Validation error or no runnable queued job}
+  /api/v1/exports/artifact:
+    get:
+      summary: Download a signed export artifact after digest and signature verification
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: job_id, in: query, required: true, schema: {type: string}}
+        - {name: admin_token, in: query, required: false, schema: {type: string}}
+      responses:
+        '200': {description: Binary export artifact}
+        '400': {description: Validation error, unavailable artifact or integrity failure}
+
+  /api/v1/imports/datasets:
+    post:
+      summary: Validate or apply a mapped CSV, JSON or XLSX dataset into IT Ressources Management
+      description: "Performs a dry-run by default. When apply is true, the import is atomic: any invalid row prevents all IT Ressources Management mutations and produces a DLQ report."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, admin_token, file_path, format, mapping]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                admin_token: {type: string}
+                file_path: {type: string}
+                format: {type: string, enum: [csv, json, xlsx]}
+                apply: {type: boolean, default: false}
+                batch_size: {type: integer, minimum: 1, default: 500}
+                mapping:
+                  type: object
+                  additionalProperties: {type: string}
+                  example:
+                    key: asset_key
+                    kind: kind
+                    display_name: name
+                    source: source
+                    attributes.serial: serial
+      responses:
+        '200': {description: Dry-run import report with impacts and DLQ}
+        '201': {description: Applied import report}
+        '400': {description: Validation error, access error or invalid dataset}
+  /api/v1/imports/report:
+    get:
+      summary: Read a persisted import report
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: job_id, in: query, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Persisted import report}
+        '400': {description: Validation error or unknown report}
+
+  /api/v1/imports/bulk-datasets:
+    post:
+      summary: Stream and validate or apply a massive mapped dataset with checkpoints
+      description: "Bulk import processes rows in bounded batches, persists checkpoints, records metrics and keeps a DLQ sample. Valid rows may be applied batch by batch while invalid rows are reported."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, admin_token, file_path, format, mapping]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                admin_token: {type: string}
+                file_path: {type: string}
+                format: {type: string, enum: [csv, json, xlsx]}
+                apply: {type: boolean, default: false}
+                batch_size: {type: integer, minimum: 1, maximum: 100000, default: 5000}
+                checkpoint_interval: {type: integer, minimum: 1, maximum: 1000000, default: 25000}
+                resume_job_id: {type: string}
+                sample_limit: {type: integer, minimum: 0, maximum: 10000, default: 100}
+                mapping:
+                  type: object
+                  additionalProperties: {type: string}
+                  example:
+                    key: asset_key
+                    kind: kind
+                    display_name: name
+                    source: source
+                    attributes.serial: serial
+      responses:
+        '200': {description: Bulk dry-run report with metrics and latest checkpoint}
+        '201': {description: Bulk apply report with metrics and latest checkpoint}
+        '400': {description: Validation error, access error or invalid dataset}
+  /api/v1/imports/bulk-report:
+    get:
+      summary: Read a persisted bulk import report
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: job_id, in: query, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Persisted bulk import report}
+        '400': {description: Validation error or unknown bulk report}
+  /api/v1/imports/bulk-checkpoint:
+    get:
+      summary: Read the latest checkpoint for a bulk import job
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: job_id, in: query, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Persisted bulk import checkpoint}
+        '400': {description: Validation error or unknown bulk checkpoint}
 
 
-# Extension v4.0.0 — ressources avancées OpenInfra
-x-openinfra-v4-resources:
-  governance:
-    - /data-domains
-    - /authoritative-sources
-    - /certification-campaigns
-  dataQuality:
-    - /quality-rules
-    - /quality-findings
-    - /reconciliation-jobs
-  flowManagement:
-    - /flow-rules
-    - /flow-observations
-    - /flow-impact-reports
-  certificates:
-    - /certificates
-    - /certificate-endpoints
-    - /secret-references
-  networkCompliance:
-    - /golden-configs
-    - /config-snapshots
-    - /config-drifts
-  finops:
-    - /cost-records
-    - /budgets
-    - /showback-reports
-  fieldOperations:
-    - /field-operation-sheets
-    - /qr-codes
-    - /field-evidence
-  simulation:
-    - /simulation-scenarios
-    - /impact-reports
-    - /migration-waves
-  greenops:
-    - /energy-measurements
-    - /carbon-estimates
-    - /sustainability-reports
-  sbom:
-    - /sbom-documents
-    - /vulnerabilities
-    - /exposure-contexts
-  kubernetesAdvanced:
-    - /kubernetes-clusters
-    - /kubernetes-workloads
-    - /gitops-states
-  policyEngine:
-    - /policy-rules
-    - /policy-evaluations
-    - /policy-findings
+  /api/v1/discovery/collectors:
+    get:
+      summary: List discovery collectors
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, required: false, schema: {type: string}}
+        - {name: include_inactive, in: query, required: false, schema: {type: boolean, default: false}}
+      responses:
+        '200': {description: Registered collectors page}
+        '401': {description: Security administrator token required}
+        '400': {description: Validation error}
+    post:
+      summary: Register a strongly identified discovery collector
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, name, kind, certificate_fingerprint, scopes, version]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                name: {type: string}
+                kind: {type: string, enum: [snmp, ssh, winrm, vmware, proxmox, hyperv, kubernetes, cloud, generic]}
+                certificate_fingerprint: {type: string, pattern: '^[a-fA-F0-9:]{64,95}$'}
+                scopes: {type: array, minItems: 1, items: {type: string}}
+                version: {type: string}
+                vault_secret_ref: {type: string, nullable: true}
+                endpoint_url: {type: string, nullable: true}
+      responses:
+        '201': {description: Collector registered}
+        '401': {description: Security administrator token required}
+        '400': {description: Validation error}
+  /api/v1/discovery/collectors/heartbeat:
+    post:
+      summary: Record a collector heartbeat using registered certificate fingerprint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, collector_id, certificate_fingerprint, version]
+              properties:
+                tenant_id: {type: string}
+                collector_id: {type: string}
+                certificate_fingerprint: {type: string}
+                version: {type: string}
+                status: {type: string, enum: [ok, degraded, maintenance], default: ok}
+      responses:
+        '200': {description: Collector heartbeat stored}
+        '400': {description: Validation error or unregistered collector}
+  /api/v1/discovery/jobs/authorize:
+    post:
+      summary: Authorize or reject a discovery job for a collector
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, collector_id, certificate_fingerprint, requested_scope, job_type, target]
+              properties:
+                tenant_id: {type: string}
+                collector_id: {type: string}
+                certificate_fingerprint: {type: string}
+                requested_scope: {type: string}
+                job_type: {type: string}
+                target: {type: string}
+      responses:
+        '200': {description: Job authorized}
+        '403': {description: Collector not authorized for this job}
+        '400': {description: Validation error}
+  /api/v1/discovery/collectors/disable:
+    post:
+      summary: Disable a collector and prevent new jobs
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, collector_id, reason]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                collector_id: {type: string}
+                reason: {type: string}
+      responses:
+        '200': {description: Collector disabled}
+        '401': {description: Security administrator token required}
+        '400': {description: Validation error}
 
+  /api/v1/imports/migration-template:
+    get:
+      summary: Read a built-in legacy migration mapping template
+      parameters:
+        - {name: source, in: query, required: true, schema: {type: string, enum: [device42, netbox, nautobot, glpi, csv]}}
+      responses:
+        '200': {description: Built-in mapping template and expected columns}
+        '400': {description: Validation error or unsupported source}
+  /api/v1/imports/migration-plans:
+    post:
+      summary: Simulate a legacy inventory migration without mutating IT Ressources Management
+      description: "Runs a dry-run migration using a built-in Device42, NetBox, Nautobot, GLPI or generic CSV template, persists a gap report and returns a resume strategy for bulk execution."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, admin_token, source, file_path, format]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                admin_token: {type: string}
+                source: {type: string, enum: [device42, netbox, nautobot, glpi, csv]}
+                file_path: {type: string}
+                format: {type: string, enum: [csv, json, xlsx]}
+                sample_limit: {type: integer, minimum: 0, maximum: 10000, default: 100}
+      responses:
+        '200': {description: Persisted migration dry-run plan and gap report}
+        '400': {description: Validation error, access error or invalid dataset}
+  /api/v1/imports/migration-report:
+    get:
+      summary: Read a persisted legacy migration plan report
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: job_id, in: query, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Persisted legacy migration gap report}
+        '400': {description: Validation error or unknown migration plan}
 
-# v4.6 extension points:
-# - GET /api/v1/admin/auth/providers/status
-# - POST /api/v1/admin/auth/ldap-ipa/test
-# - POST /api/v1/admin/rbac/group-mapping/simulate
-# - GET /api/v1/admin/system/storage/status
+  /api/v1/ipam/reservation-wizard:
+    post:
+      summary: Preview or execute a traced IPAM reservation workflow
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, vrf, prefix, hostname, idempotency_key]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                vrf: {type: string}
+                prefix: {type: string}
+                hostname: {type: string}
+                idempotency_key: {type: string}
+                apply: {type: boolean}
+      responses:
+        '200': {description: Dry-run recommendation}
+        '201': {description: Reservation allocated}
+        '400': {description: Validation error}

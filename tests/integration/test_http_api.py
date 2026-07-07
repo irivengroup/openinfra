@@ -84,6 +84,28 @@ class TestHttpApi:
                     "legacy_ri_alias": "/api/v1/ri/objects",
                     "legacy_sot_alias": "/api/v1/sot/objects",
                 },
+                "ipam": {
+                    "ui_dashboard": "/api/v1/ipam/ui-dashboard",
+                    "ui_search": "/api/v1/ipam/ui-search",
+                    "vrfs": "/api/v1/ipam/vrfs",
+                    "aggregates": "/api/v1/ipam/aggregates",
+                    "prefixes": "/api/v1/ipam/prefixes",
+                    "ranges": "/api/v1/ipam/ranges",
+                    "addresses": "/api/v1/ipam/addresses",
+                    "allocate": "/api/v1/ipam/allocate",
+                    "reservation_wizard": "/api/v1/ipam/reservation-wizard",
+                    "capacity": "/api/v1/ipam/capacity",
+                    "network_bindings": "/api/v1/ipam/network-bindings",
+                    "vlan_groups": "/api/v1/ipam/vlan-groups",
+                    "vxlan_vnis": "/api/v1/ipam/vxlan-vnis",
+                    "vlans": "/api/v1/ipam/vlans",
+                    "asns": "/api/v1/ipam/asns",
+                    "bgp_peers": "/api/v1/ipam/bgp-peers",
+                    "dns_observations": "/api/v1/ipam/dns-observations",
+                    "dhcp_leases": "/api/v1/ipam/dhcp-leases",
+                    "conflicts": "/api/v1/ipam/conflicts",
+                    "ddi_preview": "/api/v1/ipam/ddi-preview",
+                },
                 "dcim": {
                     "rooms": "/api/v1/dcim/rooms",
                     "racks": "/api/v1/dcim/racks",
@@ -114,6 +136,8 @@ class TestHttpApi:
             assert "SwaggerUIBundle" in swagger_alias
             assert "redoc.standalone.js" in redoc
             assert openapi.startswith("openapi: 3.1.0")
+            assert "/api/v1/ipam/vxlan-vnis" in openapi
+            assert "/api/v1/ipam/ddi-preview" in openapi
             assert "/api/v1/dcim/power-devices" in openapi
             assert "/api/v1/dcim/energy-cooling-capacity" in openapi
             assert "/api/v1/dcim/digital-twin" in openapi

@@ -203,6 +203,12 @@ Le comportement reste compatible : sans règle active applicable, les mises à j
 
 
 
+## v0.29.31 — P11 IPAM Enterprise++ dashboard et découverte API
+
+La version 0.29.31 complète l'exposition opérateur IPAM Enterprise++ dans `openinfra-web`. Les formulaires du dashboard couvrent les contrats `/api/v1/ipam/*` existants pour VRF, agrégats, préfixes, plages, adresses, VLAN/VXLAN, ASN/BGP, observations DNS/DHCP, DDI, capacité, bindings, conflits, allocation et assistant de réservation.
+
+L'architecture reste hexagonale : le navigateur ne porte aucune règle métier IPAM et ne parle pas à la base. Les valeurs saisies sont transmises au BFF `openinfra-web`, puis aux endpoints API qui délèguent aux services applicatifs `IpamModelService`, `IpamAllocationService`, `IpamConflictService`, `IpamDdiService` et `IpamUiService`. Le document de découverte API racine expose désormais une section `ipam` afin de rendre les contrats automatisables directement découvrables.
+
 ## v0.29.30 — P10 DCIM jumeau numérique initial
 
 La version 0.29.30 introduit un jumeau numérique DCIM initial de salle. Le contrat `GET /api/v1/dcim/digital-twin`, la commande `openinfra dcim digital-twin` et l’opération web `Jumeau numérique salle` retournent une représentation consolidée `dcim_digital_twin` contenant plan salle, racks, équipements, panneaux, ports, câbles, énergie/refroidissement, élévations et contrôles d’intégrité.

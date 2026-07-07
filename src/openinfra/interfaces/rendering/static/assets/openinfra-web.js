@@ -794,7 +794,11 @@ const FIELD_SETS = {
   managementIp: { name: "management_ip", label: "IP de management", target: "attributes.management_ip", placeholder: "10.10.10.15" },
   lifecycle: { name: "lifecycle_state", label: "État cycle de vie", target: "attributes.lifecycle_state", type: "select", options: ["planned", "active", "maintenance", "retired"] },
   tags: { name: "tags", label: "Tags", type: "csv", placeholder: "prod,critical,postgres" },
-  asOf: { name: "as_of", label: "Date ISO-8601", required: true, placeholder: "2026-07-06T10:00:00+02:00" }
+  asOf: { name: "as_of", label: "Date ISO-8601", required: true, placeholder: "2026-07-06T10:00:00+02:00" },
+  edition: { name: "edition", label: "Édition", type: "select", options: ["lite", "pro", "enterprise"], defaultValue: "enterprise" },
+  featureCapability: { name: "capability", label: "Capacité", type: "select", options: ["core_it_resources_management", "dcim", "ipam", "rbac", "audit", "import_export", "distributed_discovery_agents", "installer_agent_scope"], defaultValue: "ipam" },
+  quotaResource: { name: "resource", label: "Ressource quota", type: "select", options: ["equipment", "subnet_vlan", "ip_dns_record", "user", "discovery_collector"], defaultValue: "equipment" },
+  requestedIncrement: { name: "requested_increment", label: "Incrément demandé", type: "number", defaultValue: "1", placeholder: "1" }
 };
 
 const OPENINFRA_MODULES = [
@@ -904,7 +908,10 @@ const OPENINFRA_MODULES = [
     { id: "collectors-register", label: "Enregistrer un agent proxy Enterprise", method: "POST", path: "/v1/discovery/collectors", body: [FIELD_SETS.actor, { name: "name", label: "Nom agent proxy", required: true }, { name: "kind", label: "Type", required: true, type: "select", options: ["site-proxy", "network-proxy", "datacenter-proxy"] }, { name: "certificate_fingerprint", label: "Empreinte certificat", required: true }, { name: "scopes", label: "Scopes autorisés", type: "csv", required: true, placeholder: "site/paris,network/core" }, { name: "version", label: "Version agent", required: true, defaultValue: "1.0.0" }, { name: "endpoint_url", label: "Endpoint mTLS", required: true, placeholder: "https://collector-paris.openinfra.local" }] },
     { id: "job-authorize", label: "Autoriser un job collector", method: "POST", path: "/v1/discovery/jobs/authorize", body: [{ name: "collector_id", label: "ID agent proxy", required: true }, { name: "certificate_fingerprint", label: "Empreinte certificat", required: true }, { name: "requested_scope", label: "Scope demandé", required: true }, { name: "job_type", label: "Type de job", required: true, type: "select", options: ["snmp", "ssh", "winrm", "vmware", "kubernetes"] }, { name: "target", label: "Cible", required: true, placeholder: "10.20.30.10" }] }
   ] },
-  { id: "security", label: "Sécurité / RBAC / Audit", shortLabel: "Sécurité", icon: "shield", description: "Identité, RBAC, tokens, politiques d’accès, audit et intégrité.", operations: [
+  { id: "security", label: "Sécurité / RBAC / Audit", shortLabel: "Sécurité", icon: "shield", description: "Identité, RBAC, tokens, politiques d’accès, audit, éditions et quotas runtime.", operations: [
+    { id: "edition-policies", label: "Politiques éditions et quotas", method: "GET", path: "/v1/editions/policies", query: [] },
+    { id: "edition-feature-check", label: "Vérifier une capacité édition", method: "GET", path: "/v1/editions/feature-check", query: [FIELD_SETS.edition, FIELD_SETS.featureCapability] },
+    { id: "edition-quota-check", label: "Vérifier un quota édition", method: "GET", path: "/v1/editions/quota-check", query: [FIELD_SETS.edition, FIELD_SETS.quotaResource, FIELD_SETS.requestedIncrement] },
     { id: "tokens-list", label: "Lister les tokens techniques", method: "GET", path: "/v1/security/tokens", query: [FIELD_SETS.limit, { name: "include_inactive", label: "Inclure inactifs", type: "boolean" }] },
     { id: "effective-identity", label: "Identité effective", method: "GET", path: "/v1/identity/effective", query: [{ name: "subject", label: "Sujet", placeholder: "user@example.com" }] },
     { id: "access-rules", label: "Politiques d’accès", method: "GET", path: "/v1/access/rules", query: [FIELD_SETS.limit, { name: "include_inactive", label: "Inclure inactives", type: "boolean" }] },

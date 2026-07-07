@@ -519,3 +519,15 @@ Le header openinfra-web rend le badge d’édition à côté de la marque OpenIn
 ## OpenInfra Web — badge édition fuchsia très foncé v0.29.49
 
 Le badge d’édition reste dans le header principal, immédiatement après la marque OpenInfra. Le gabarit `.badge` est conservé sans modification dimensionnelle, mais le fond dédié passe à un dégradé fuchsia très foncé `#2a0015 → #4b001f → #6a1430`. La palette vise un rendu prune chaud/bruné sans utiliser de marron explicite ni de bleu Bootstrap. Les assets statiques et React partagent la même règle CSS afin d’éviter toute divergence runtime/build.
+
+## API/UI éditions et quotas — v0.29.50
+
+Les règles d'édition livrées en v0.29.0 sont désormais exposées comme contrat HTTP et opérateur web sans déplacer la logique métier hors de la couche application. L'adaptateur HTTP ajoute trois lectures administratives :
+
+- `GET /api/v1/editions/policies` pour publier le catalogue Lite/Pro/Enterprise ;
+- `GET /api/v1/editions/feature-check` pour obtenir une décision de capability ;
+- `GET /api/v1/editions/quota-check` pour obtenir une décision de quota tenant.
+
+Ces endpoints délèguent exclusivement à `EditionQueryService` et réutilisent les commandes applicatives `CheckFeatureCommand` et `CheckQuotaCommand`. Lorsque l'authentification API est activée, ils exigent `Permission.SECURITY_ADMIN`, ce qui évite d'exposer des informations d'administration édition à un opérateur non autorisé. Le document de découverte et OpenAPI publient les mêmes chemins afin que CLI, API et portail restent alignés.
+
+Le portail `openinfra-web` ajoute les opérations correspondantes dans le composant Sécurité/RBAC/Audit. Les formulaires collectent uniquement les paramètres métier nécessaires (`edition`, `capability`, `resource`, `requested_increment`) et appellent le backend via le proxy API same-origin. Aucune règle de quota ou de feature gate n'est dupliquée dans les assets navigateur.

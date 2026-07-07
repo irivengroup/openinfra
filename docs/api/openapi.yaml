@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.43
+  version: 0.29.50
 components:
   securitySchemes:
     bearerToken:
@@ -101,6 +101,55 @@ paths:
           description: Validation error
         '401':
           description: Missing or invalid Bearer token when authentication is enabled
+
+  /api/v1/editions/policies:
+    get:
+      summary: List edition capabilities and quota policies
+      description: Returns Lite, Pro and Enterprise feature capabilities and runtime quota limits used by CLI, API and the web administration panel.
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: false, schema: {type: string, default: default}}
+      responses:
+        '200':
+          description: Edition policy catalog
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid security administrator token when authentication is enabled
+  /api/v1/editions/feature-check:
+    get:
+      summary: Check whether an edition allows a capability
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: edition, in: query, required: true, schema: {type: string, enum: [lite, pro, enterprise]}}
+        - {name: capability, in: query, required: true, schema: {type: string, enum: [core_it_resources_management, dcim, ipam, rbac, audit, import_export, distributed_discovery_agents, installer_agent_scope]}}
+      responses:
+        '200':
+          description: Feature gate decision
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid security administrator token when authentication is enabled
+  /api/v1/editions/quota-check:
+    get:
+      summary: Check tenant usage against an edition quota
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: edition, in: query, required: true, schema: {type: string, enum: [lite, pro, enterprise]}}
+        - {name: resource, in: query, required: true, schema: {type: string, enum: [equipment, subnet_vlan, ip_dns_record, user, discovery_collector]}}
+        - {name: requested_increment, in: query, required: false, schema: {type: integer, minimum: 0, default: 1}}
+      responses:
+        '200':
+          description: Runtime quota decision
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid security administrator token when authentication is enabled
 
   /api/v1/security/whoami:
     post:

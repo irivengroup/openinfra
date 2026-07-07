@@ -71,6 +71,11 @@ class TestHttpApi:
                     "artifact": "/api/v1/exports/artifact",
                 },
                 "search": {"global": "/api/v1/search/global"},
+                "editions": {
+                    "policies": "/api/v1/editions/policies",
+                    "feature_check": "/api/v1/editions/feature-check",
+                    "quota_check": "/api/v1/editions/quota-check",
+                },
                 "itam": {
                     "support_profile": "/api/v1/itam/support-profile",
                     "support_coverage": "/api/v1/itam/support-coverage",
@@ -149,6 +154,9 @@ class TestHttpApi:
             assert "/api/v1/ipam/ddi-preview" in openapi
             assert "/api/v1/ipam/topology" in openapi
             assert "/api/v1/search/global" in openapi
+            assert "/api/v1/editions/policies" in openapi
+            assert "/api/v1/editions/feature-check" in openapi
+            assert "/api/v1/editions/quota-check" in openapi
             assert "/api/v1/itam/support-profile" in openapi
             assert "/api/v1/itam/support-coverage" in openapi
             assert "/api/v1/discovery/proxy-enrollments" in openapi
@@ -214,6 +222,59 @@ class TestHttpApi:
             groups = {group["component"]: group for group in search["groups"]}
             assert groups["itrm"]["items"][0]["label"] == "Paris API DB 01"
             assert groups["itrm"]["items"][0]["route"].startswith("/api/v1/itrm/objects")
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def test_edition_policy_http_contract(self, tmp_path: Path) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json", edition="pro")
+        token = "q" * 40
+        app.security_service.bootstrap_token(
+            BootstrapTokenCommand(
+                tenant_id="default",
+                actor="pytest",
+                subject="edition-admin-api",
+                roles=("security:admin",),
+                token=token,
+            )
+        )
+        server = OpenInfraThreadingServer(("127.0.0.1", 0), app, auth_required=True)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base_url = f"http://127.0.0.1:{server.server_port}"
+            policies = self._get_json(
+                base_url + "/api/v1/editions/policies?tenant_id=default", token=token
+            )
+            feature = self._get_json(
+                base_url
+                + "/api/v1/editions/feature-check?tenant_id=default"
+                + "&edition=enterprise&capability=distributed_discovery_agents",
+                token=token,
+            )
+            quota = self._get_json(
+                base_url
+                + "/api/v1/editions/quota-check?tenant_id=default"
+                + "&edition=lite&resource=user&requested_increment=1",
+                token=token,
+            )
+            try:
+                self._get_json(base_url + "/api/v1/editions/policies?tenant_id=default")
+            except urllib.error.HTTPError as exc:
+                assert exc.code == 401
+
+            assert {item["edition"] for item in policies["items"]} == {"lite", "pro", "enterprise"}
+            assert feature == {
+                "edition": "enterprise",
+                "capability": "distributed_discovery_agents",
+                "allowed": True,
+                "reason": "allowed",
+            }
+            assert quota["edition"] == "lite"
+            assert quota["resource"] == "user"
+            assert quota["limit"] == 5
+            assert quota["allowed"] is True
         finally:
             server.shutdown()
             server.server_close()

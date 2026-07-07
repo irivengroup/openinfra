@@ -51,6 +51,10 @@ from openinfra.application.discovery_services import (
     ListCollectorsCommand,
     RegisterCollectorCommand,
 )
+from openinfra.application.edition_services import (
+    CheckFeatureCommand,
+    CheckQuotaCommand,
+)
 from openinfra.application.export_services import (
     GetExportArtifactCommand,
     GetExportJobCommand,
@@ -302,6 +306,62 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             status = self.server.application.schema_status_provider.status_as_dict()
             http_status = HTTPStatus.OK if status.get("ready") is True else HTTPStatus.CONFLICT
             responder.send(http_status, status)
+            return
+        if route == "/api/v1/editions/policies":
+            try:
+                query = parse_qs(parsed.query)
+                tenant_id = self._first_query_value(query, "tenant_id", "default")
+                if self.server.auth_required:
+                    self._authenticate(tenant_id, Permission.SECURITY_ADMIN)
+                responder.send(
+                    HTTPStatus.OK,
+                    {"items": list(self.server.application.edition_query_service.policies())},
+                )
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/editions/feature-check":
+            try:
+                query = parse_qs(parsed.query)
+                tenant_id = self._first_query_value(query, "tenant_id")
+                if self.server.auth_required:
+                    self._authenticate(tenant_id, Permission.SECURITY_ADMIN)
+                decision = self.server.application.edition_query_service.feature_decision(
+                    CheckFeatureCommand(
+                        tenant_id=tenant_id,
+                        edition=self._first_query_value(query, "edition"),
+                        capability=self._first_query_value(query, "capability"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, decision.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/editions/quota-check":
+            try:
+                query = parse_qs(parsed.query)
+                tenant_id = self._first_query_value(query, "tenant_id")
+                if self.server.auth_required:
+                    self._authenticate(tenant_id, Permission.SECURITY_ADMIN)
+                decision = self.server.application.edition_query_service.quota_decision(
+                    CheckQuotaCommand(
+                        tenant_id=tenant_id,
+                        edition=self._first_query_value(query, "edition"),
+                        resource=self._first_query_value(query, "resource"),
+                        requested_increment=int(
+                            self._first_query_value(query, "requested_increment", "1")
+                        ),
+                    )
+                )
+                responder.send(HTTPStatus.OK, decision.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
         if route == "/api/v1/search/global":
             try:
@@ -2515,6 +2575,11 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "artifact": "/api/v1/exports/artifact",
                 },
                 "search": {"global": "/api/v1/search/global"},
+                "editions": {
+                    "policies": "/api/v1/editions/policies",
+                    "feature_check": "/api/v1/editions/feature-check",
+                    "quota_check": "/api/v1/editions/quota-check",
+                },
                 "itam": {
                     "support_profile": "/api/v1/itam/support-profile",
                     "support_coverage": "/api/v1/itam/support-coverage",

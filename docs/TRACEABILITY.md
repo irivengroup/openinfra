@@ -56,6 +56,19 @@
 | Requirements | `installers/requirements` contient uniquement les dépendances de production par scope. |
 | CDC | Matrices `install.ini` et pages technique/exploitation mises à jour. |
 
+
+## v0.29.50 — API/UI administration éditions et quotas
+
+| Axe | Alignement réalisé |
+| --- | --- |
+| Roadmap v2 | P08 enrichit le portail web avec les contrôles d'édition déjà livrés en P02. |
+| Domaine/Application | Réutilisation stricte de `EditionQueryService`, `CheckFeatureCommand` et `CheckQuotaCommand`. |
+| API | Ajout de `/api/v1/editions/policies`, `/feature-check` et `/quota-check`, publiés dans discovery et OpenAPI. |
+| Sécurité | Routes protégées par `security:admin` lorsque l'authentification API est active. |
+| UI | Opérations ajoutées au composant Sécurité/RBAC/Audit dans React et runtime statique. |
+| Tests | Non-régression API, OpenAPI, discovery, frontend et validateur. |
+
+
 ## v0.29.0 — P02 Éditions, feature gates et quotas runtime
 
 | Axe | Alignement réalisé |

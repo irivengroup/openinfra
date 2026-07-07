@@ -207,6 +207,15 @@ class TestOpenInfraWeb:
         assert "/v1/itam/support-coverage" in static_js + main_js
         assert "Déclarer garantie constructeur" in static_js + main_js
         assert "Ajouter support tiers" in static_js + main_js
+        assert "Politiques éditions et quotas" in static_js + main_js
+        assert "Vérifier une capacité édition" in static_js + main_js
+        assert "Vérifier un quota édition" in static_js + main_js
+        assert "/v1/editions/policies" in static_js + main_js
+        assert "/v1/editions/feature-check" in static_js + main_js
+        assert "/v1/editions/quota-check" in static_js + main_js
+        assert "distributed_discovery_agents" in static_js
+        assert "discovery_collector" in static_js
+        assert "requested_increment" in static_js
         assert "OPENINFRA_MODULES.map((module)" in static_js
         assert "OPENINFRA_MODULES.slice(0, 6)" not in static_js
         assert "MODULES.map((module)" in main_js

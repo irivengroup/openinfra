@@ -1,4 +1,4 @@
-# OpenInfra Web v0.29.49
+# OpenInfra Web v0.29.50
 
 OpenInfra Web est le portail `openinfra-web` API-only. Il sert l'interface React/Bootstrap 5, expose un proxy applicatif `/api/*` vers le backend `openinfra-api` et fournit un dashboard aligné sur les domaines CLI.
 
@@ -40,6 +40,16 @@ Le service Compose `openinfra-web` dépend de `api:8080`, écoute par défaut su
 
 L'unité `openinfra-web.service` lance `openinfra-web` depuis le virtualenv géré par l'installateur et lit sa configuration via `EnvironmentFile=/etc/openinfra/openinfra.conf`, chemin compatible pointant vers `/opt/openinfra/config/openinfra.conf`.
 
+
+## v0.29.50 — administration éditions et quotas
+
+Le module **Sécurité/RBAC/Audit** expose désormais les opérations d'administration des éditions dans le portail web :
+
+- **Politiques éditions et quotas** : lecture du catalogue Lite/Pro/Enterprise via `GET /api/v1/editions/policies` ;
+- **Vérifier une capacité édition** : contrôle d'une capability telle que `distributed_discovery_agents` via `GET /api/v1/editions/feature-check` ;
+- **Vérifier un quota édition** : contrôle d'un quota runtime tel que `user` ou `discovery_collector` via `GET /api/v1/editions/quota-check`.
+
+Le navigateur reste un client de consultation/opération : il ne réimplémente pas les règles de licence, les quotas ni les décisions de feature gate. Les décisions restent produites par `EditionQueryService` côté backend, protégées par le RBAC API lorsque l'authentification est active. Les mêmes opérations sont présentes dans le runtime statique, dans la source React et dans le validateur frontend afin de préserver la parité build/runtime.
 
 ## v0.29.47 — badge édition dans le header principal
 

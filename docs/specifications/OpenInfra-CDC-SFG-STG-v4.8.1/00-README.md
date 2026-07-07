@@ -204,3 +204,9 @@ L'installateur doit valider ce fichier avant toute action système, produire un 
 - Ajout `REQ-00792` : le badge d’édition affiché après le logo OpenInfra doit utiliser un dégradé fuchsia très foncé, tirant vers prune chaud/bruné sans devenir marron.
 - Le gabarit Bootstrap `badge` reste inchangé : aucune modification de padding, hauteur, largeur minimale ou taille de police.
 - Le mode d’authentification reste non affiché comme badge permanent.
+
+## v0.29.50 — Administration éditions et quotas API/UI
+
+- Ajout `REQ-00793` : le portail openinfra-web et l’API HTTP exposent en lecture les politiques d’édition, les décisions de capacité et les décisions de quota runtime.
+- Les routes `/api/v1/editions/policies`, `/api/v1/editions/feature-check` et `/api/v1/editions/quota-check` sont publiées par discovery/OpenAPI et protégées par `security:admin` lorsque l’authentification est active.
+- Le composant Sécurité/RBAC/Audit du portail expose les trois opérations sans dupliquer les règles métier côté navigateur.

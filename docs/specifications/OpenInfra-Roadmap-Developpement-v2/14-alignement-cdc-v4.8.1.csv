@@ -65,3 +65,4 @@ REQ-00789,Accessibilité navigation/recherche openinfra-web,P08,EPIC-0805,0.29.4
 REQ-00790,Badge édition dans le header principal sans badge mode authentification,P08,EPIC-0805,0.29.47,TST-P08-WEB-EDITION-BADGE-HEADER
 REQ-00791,Badge édition fuchsia effectif sans héritage bleu Bootstrap,P08,EPIC-0805,0.29.48,TST-P08-WEB-EDITION-BADGE-FUCHSIA
 REQ-00792,Badge édition fuchsia très foncé sans rendu marron,P08,EPIC-0805,0.29.49,TST-P08-WEB-EDITION-BADGE-DARK-FUCHSIA
+CDC-WEB-02950,Administration API/UI des éditions et quotas runtime,P08,EPIC-0804,REL-08,"REQ-00793 et TST-WEB-094 valident discovery, OpenAPI, RBAC, UI et CI."

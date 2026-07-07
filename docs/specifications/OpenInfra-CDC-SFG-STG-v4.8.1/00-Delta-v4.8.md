@@ -162,3 +162,9 @@ Le dashboard d’accueil ne doit plus afficher d’alerte succès permanente `Ba
 ### REQ-00786 — Panneau latéral accordéon sans masquage
 
 Le panneau latéral openinfra-web doit ouvrir les accordéons de composants dans le flux vertical. Un composant ouvert repousse les composants inférieurs vers le bas, sans superposition et sans plafond de hauteur susceptible de masquer des opérations. Le scroll reste porté par la sidebar sous le header fixe.
+
+## Delta v0.29.50 — administration éditions et quotas API/UI
+
+- Ajout de REQ-00793 : le portail openinfra-web et l’API HTTP exposent en lecture les politiques d’édition, les décisions de capacité et les décisions de quota runtime.
+- Ajout de TST-WEB-094 : validation discovery, OpenAPI, routes HTTP protégées par `security:admin`, opérations web Sécurité/RBAC/Audit et parité CLI/API.
+- Les règles métier restent centralisées dans `EditionQueryService` ; le navigateur ne duplique aucune règle de licence, quota ou feature gate.

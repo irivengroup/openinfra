@@ -86,3 +86,7 @@ La roadmap v2 intègre `TST-P08-WEB-EDITION-BADGE-FUCHSIA` pour verrouiller le r
 ## Validation v0.29.49 — badge édition fuchsia très foncé
 
 La roadmap v2 intègre `TST-P08-WEB-EDITION-BADGE-DARK-FUCHSIA` pour verrouiller le rendu fuchsia très foncé du badge d’édition, sans retour au bleu Bootstrap, à l’ancien fuchsia clair ou à une couleur marron explicite. L’alignement CDC ajoute `REQ-00792` sur P08 / EPIC-0805 / release 0.29.49.
+
+## Validation v0.29.50 — administration éditions et quotas API/UI
+
+La roadmap v2 intègre `TST-P08-WEB-EDITION-ADMIN-QUOTAS` pour verrouiller l’exposition opérateur des politiques d’édition, des feature gates et des quotas runtime. L’alignement CDC ajoute `REQ-00793` sur P08 / EPIC-0804 / release 0.29.50, avec validation discovery, OpenAPI, RBAC `security:admin`, portail web Sécurité/RBAC/Audit et CI CLI équivalente.

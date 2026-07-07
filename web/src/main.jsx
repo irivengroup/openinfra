@@ -711,7 +711,12 @@ const MODULES = [
     { id: 'itam-add-third-party', label: 'Ajouter support tiers', path: '/v1/itam/support-profile/third-party', method: 'POST', fields: ['Opérateur', 'Numéro d’actif', 'Prestataire', 'Référence contrat', 'Niveau support', 'Début support', 'Fin support', 'Contact support', 'Statut', 'Notes'] },
   ] },
   { id: 'discovery', label: 'Discovery', icon: 'activity', operations: [{ id: 'collectors-register', label: 'Enregistrer un agent proxy Enterprise', path: '/v1/discovery/collectors', method: 'POST', fields: ['Opérateur', 'Nom agent proxy', 'Type', 'Empreinte certificat', 'Scopes autorisés', 'Version agent', 'Endpoint mTLS'] }] },
-  { id: 'security', label: 'Sécurité / RBAC / Audit', shortLabel: 'Sécurité', icon: 'shield', operations: [{ id: 'audit-events', label: 'Événements d’audit', path: '/v1/audit/events', method: 'GET', fields: ['Action', 'Type cible', 'Limite'] }] },
+  { id: 'security', label: 'Sécurité / RBAC / Audit', shortLabel: 'Sécurité', icon: 'shield', operations: [
+    { id: 'edition-policies', label: 'Politiques éditions et quotas', path: '/v1/editions/policies', method: 'GET', fields: [] },
+    { id: 'edition-feature-check', label: 'Vérifier une capacité édition', path: '/v1/editions/feature-check', method: 'GET', fields: ['Édition', 'Capacité'] },
+    { id: 'edition-quota-check', label: 'Vérifier un quota édition', path: '/v1/editions/quota-check', method: 'GET', fields: ['Édition', 'Ressource quota', 'Incrément demandé'] },
+    { id: 'audit-events', label: 'Événements d’audit', path: '/v1/audit/events', method: 'GET', fields: ['Action', 'Type cible', 'Limite'] },
+  ] },
 ];
 
 function Icon({ name, className = 'bi' }) {

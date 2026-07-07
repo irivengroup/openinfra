@@ -1,3 +1,9 @@
+## 0.29.50
+
+- Ajout du test roadmap `TST-P08-WEB-EDITION-ADMIN-QUOTAS`.
+- Alignement de `REQ-00793` sur P08 / EPIC-0804 pour l’administration web/API des politiques d’édition, feature gates et quotas runtime.
+- Validation attendue : discovery API, OpenAPI, RBAC `security:admin`, portail web Sécurité/RBAC/Audit et CI CLI équivalente.
+
 - Ajout `TST-P08-WEB-EDITION-BADGE-DARK-FUCHSIA` et alignement `REQ-00792` sur P08 / EPIC-0805 / 0.29.49.
 - Ajout `TST-P08-WEB-EDITION-BADGE-FUCHSIA` et alignement `REQ-00791` sur P08 / EPIC-0805 / 0.29.48.
 - Ajout `TST-P08-WEB-EDITION-BADGE-HEADER` et alignement `REQ-00790` sur P08 / EPIC-0805 / 0.29.47.

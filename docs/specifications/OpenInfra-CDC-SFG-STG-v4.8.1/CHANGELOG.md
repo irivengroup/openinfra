@@ -1,3 +1,9 @@
+## v0.29.50 — Administration éditions et quotas API/UI
+
+- Ajout `REQ-00793` : le portail openinfra-web et l’API HTTP exposent en lecture les politiques d’édition, les décisions de capacité et les décisions de quota runtime.
+- Les routes `/api/v1/editions/policies`, `/api/v1/editions/feature-check` et `/api/v1/editions/quota-check` sont publiées par discovery/OpenAPI et protégées par `security:admin` lorsque l’authentification est active.
+- Le composant Sécurité/RBAC/Audit du portail expose les trois opérations sans dupliquer les règles métier côté navigateur.
+
 - Ajout `REQ-00792` pour garantir le badge édition fuchsia très foncé, tendant vers prune chaud/bruné sans rendu marron, avec conservation du gabarit Bootstrap `badge`.
 - Ajout `REQ-00791` pour garantir le badge édition fuchsia effectif sans héritage bleu `text-bg-primary`, tout en conservant le gabarit Bootstrap `badge`.
 - Ajout `REQ-00790` pour déplacer le badge édition dans le header principal, retirer l’indication visible du mode d’authentification et appliquer un fond fuchsia dégradé sans modifier le gabarit.

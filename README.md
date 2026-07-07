@@ -1,4 +1,11 @@
-# OpenInfra v0.29.49
+# OpenInfra v0.29.50
+
+## v0.29.50 — administration éditions et quotas dans le portail web
+
+- Ajout des contrats HTTP `/api/v1/editions/policies`, `/api/v1/editions/feature-check` et `/api/v1/editions/quota-check`.
+- Exposition des politiques d’éditions, capacités et quotas runtime dans le portail web, sous Sécurité / RBAC / Audit.
+- Alignement OpenAPI, discovery document, tests HTTP, tests web et CI.
+
 
 ## v0.29.49 — badge édition fuchsia très foncé
 
@@ -15,7 +22,7 @@ OpenInfra Web ajoute un parcours clavier robuste pour l’exploitation quotidien
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, ITAM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.49 — édition visible dans le header principal, badge fuchsia très foncé avec dégradé prune chaud/bruné sans rendu marron, et retrait de l’indication visible du mode d’authentification.**
+**Version courante : 0.29.50 — administration des éditions et quotas runtime exposée par API HTTP, portail web et contrats OpenAPI, tout en conservant les correctifs UI du badge édition.**
 
 
 

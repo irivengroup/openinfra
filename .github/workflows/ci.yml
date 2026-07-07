@@ -174,6 +174,14 @@ jobs:
           openinfra ipam ui-dashboard --data "$tmpdir/state.json" --tenant default --vrf prod --format html > "$tmpdir/dashboard.html"
           python -c 'import json, pathlib, sys; search=json.loads(pathlib.Path(sys.argv[1]).read_text()); dashboard=json.loads(pathlib.Path(sys.argv[2]).read_text()); html=pathlib.Path(sys.argv[3]).read_text(); assert search["count"] >= 1; assert dashboard["summary"]["prefixes"] == 1; assert "OpenInfra IPAM" in html' "$tmpdir/search.json" "$tmpdir/dashboard.json" "$tmpdir/dashboard.html"
 
+      - name: Smoke JSON edition gates
+        run: |
+          tmpdir="$(mktemp -d)"
+          openinfra edition list --data "$tmpdir/state.json" > "$tmpdir/editions.json"
+          openinfra edition feature-check --data "$tmpdir/state.json" --tenant default --edition enterprise --capability distributed_discovery_agents > "$tmpdir/feature.json"
+          openinfra edition quota-check --data "$tmpdir/state.json" --tenant default --edition lite --resource user --increment 1 > "$tmpdir/quota.json"
+          python -c 'import json, pathlib, sys; editions=json.loads(pathlib.Path(sys.argv[1]).read_text()); feature=json.loads(pathlib.Path(sys.argv[2]).read_text()); quota=json.loads(pathlib.Path(sys.argv[3]).read_text()); assert {item["edition"] for item in editions} == {"lite", "pro", "enterprise"}; assert feature["allowed"] is True; assert quota["limit"] == 5 and quota["allowed"] is True' "$tmpdir/editions.json" "$tmpdir/feature.json" "$tmpdir/quota.json"
+
       - name: Smoke JSON security token
         run: |
           tmpdir="$(mktemp -d)"

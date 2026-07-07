@@ -1,3 +1,9 @@
+### v0.29.50 — administration éditions et quotas API/UI
+
+- Ajout des endpoints HTTP `/api/v1/editions/policies`, `/api/v1/editions/feature-check` et `/api/v1/editions/quota-check`.
+- Ajout des opérations web `Politiques éditions et quotas`, `Vérifier une capacité édition` et `Vérifier un quota édition`.
+- Mise à jour du discovery document, de l’OpenAPI, de la validation frontend, des tests HTTP/web et du smoke CI édition.
+
 ### v0.29.49 — openinfra-web badge édition fuchsia très foncé
 
 - Ajuste le badge d’édition affiché après le logo OpenInfra avec un dégradé fuchsia très foncé `#2a0015 → #4b001f → #6a1430`, orienté prune chaud/bruné sans rendu marron.

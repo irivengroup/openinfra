@@ -1,4 +1,4 @@
-# Éditions, feature gates et quotas runtime — v0.29.0
+# Éditions, feature gates et quotas runtime — v0.29.50
 
 ## Objectif
 
@@ -44,6 +44,25 @@ Un `feature-check` refusé retourne le code `2` et un JSON explicite. Un `quota-
 - Les quotas Lite/Pro sont vérifiés avant création d'utilisateur, allocation IP, enregistrement d'adresse IP/DNS, création de prefix et création de VLAN.
 - Enterprise conserve le comportement historique : aucune limite runtime par défaut, donc pas de transaction d'audit supplémentaire sur le chemin nominal.
 - Les décisions bloquantes sont auditées via `edition.feature_gate.checked` et `edition.quota.checked`.
+
+
+## API et portail web
+
+Les contrôles runtime sont exposés en lecture par l'API HTTP pour permettre l'administration depuis le portail sans accès shell :
+
+```bash
+curl -H "Authorization: Bearer $OPENINFRA_ADMIN_TOKEN" \
+  "http://127.0.0.1:8080/api/v1/editions/policies?tenant_id=default"
+
+curl -H "Authorization: Bearer $OPENINFRA_ADMIN_TOKEN" \
+  "http://127.0.0.1:8080/api/v1/editions/feature-check?tenant_id=default&edition=enterprise&capability=distributed_discovery_agents"
+
+curl -H "Authorization: Bearer $OPENINFRA_ADMIN_TOKEN" \
+  "http://127.0.0.1:8080/api/v1/editions/quota-check?tenant_id=default&edition=lite&resource=user&requested_increment=1"
+```
+
+Lorsque l'authentification API est active, ces routes nécessitent un jeton disposant de `security:admin`. Le portail `openinfra-web` les expose dans le composant **Sécurité/RBAC/Audit** sous les opérations **Politiques éditions et quotas**, **Vérifier une capacité édition** et **Vérifier un quota édition**.
+
 
 ## Validation
 

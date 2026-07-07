@@ -1,8 +1,14 @@
-# OpenInfra v0.29.38
+# OpenInfra v0.29.39
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.38 — la recherche globale du header interroge désormais le backend OpenInfra, agrège ITRM/IPAM/Discovery et affiche les résultats métiers groupés par composant.**
+**Version courante : 0.29.39 — la recherche globale du header masque les erreurs réseau techniques, respecte `apiBaseUrl` et les camemberts du Dashboard utilisent le duo bleu nuit/fuchsia du thème IONOS.**
+
+### v0.29.39 — recherche globale durcie et camemberts bleu nuit/fuchsia
+
+- Le champ de recherche globale n’affiche plus le détail navigateur brut `Failed to fetch` : l’opérateur voit un message fonctionnel générique et les résultats locaux groupés restent disponibles.
+- L’appel backend utilise `apiBaseUrl` fourni par `/config.json`, ce qui respecte `OPENINFRA_WEB_PUBLIC_API_BASE_URL` dans les déploiements avec préfixe API personnalisé.
+- Les camemberts du Dashboard passent au couple bleu nuit/fuchsia demandé, avec légende alignée et contrôle de non-régression frontend.
 
 ### v0.29.38 — recherche globale backend groupée par composant
 

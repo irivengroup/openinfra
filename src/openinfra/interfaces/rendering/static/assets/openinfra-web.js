@@ -953,6 +953,17 @@ class OpenInfraDashboard {
     return new OpenInfraApiClient(this.state.config?.apiBaseUrl || "/api", () => this.state.tenant);
   }
 
+  globalSearchUrl(query, limit = 6) {
+    const base = String(this.state.config?.apiBaseUrl || "/api").replace(/\/$/, "");
+    const params = new URLSearchParams({
+      tenant_id: this.state.tenant || "default",
+      query,
+      limit: String(limit)
+    });
+    return `${base}/v1/search/global?${params.toString()}`;
+  }
+
+
   visibleOperations(module) {
     return module.operations;
   }
@@ -1048,7 +1059,7 @@ class OpenInfraDashboard {
       return this.renderBackendGlobalSearchResults(backend, query, groups);
     }
     if (this.state.globalSearchError) {
-      return `<div class="openinfra-global-search-empty">Recherche backend indisponible : ${this.escape(this.state.globalSearchError)}. Résultats locaux ci-dessous.</div>${this.renderOperationSearchResults(groups, query)}`;
+      return `<div class="openinfra-global-search-empty">Recherche backend temporairement indisponible. Résultats locaux ci-dessous.</div>${this.renderOperationSearchResults(groups, query)}`;
     }
     return this.renderOperationSearchResults(groups, query);
   }
@@ -1388,7 +1399,7 @@ class OpenInfraDashboard {
     this.latestGlobalSearchRequest = requestId;
     this.state = { ...this.state, globalSearchLoading: true, globalSearchError: null };
     try {
-      const response = await fetch(`/api/v1/search/global?tenant_id=${encodeURIComponent(this.state.tenant || "default")}&query=${encodeURIComponent(query)}&limit=6`, {
+      const response = await fetch(this.globalSearchUrl(query, 6), {
         credentials: "same-origin",
         headers: { Accept: "application/json" }
       });
@@ -1404,7 +1415,7 @@ class OpenInfraDashboard {
       if (this.latestGlobalSearchRequest !== requestId) {
         return;
       }
-      this.state = { ...this.state, globalSearchBackend: null, globalSearchLoading: false, globalSearchError: error.message };
+      this.state = { ...this.state, globalSearchBackend: null, globalSearchLoading: false, globalSearchError: "backend_unavailable" };
     }
     const results = document.getElementById("openinfra-global-search-results");
     if (results && this.state.globalSearchQuery.trim() === query) {

@@ -20,6 +20,8 @@
   --openinfra-cyan-rgb: 0, 194, 255;
   --openinfra-green: #15a362;
   --openinfra-green-rgb: 21, 163, 98;
+  --openinfra-fuchsia: #ff00ff;
+  --openinfra-fuchsia-rgb: 255, 0, 255;
   --openinfra-warning: #ffb703;
   --openinfra-page-bg: #f4f8ff;
   --openinfra-soft-bg: #eef5ff;
@@ -478,7 +480,7 @@ body {
 .openinfra-pie-chart {
   align-items: center;
   aspect-ratio: 1 / 1;
-  background: conic-gradient(var(--openinfra-action) 0 var(--oi-read-end), var(--openinfra-green) var(--oi-read-end) var(--oi-write-end), rgba(var(--openinfra-ink-rgb), .1) var(--oi-write-end) 100%);
+  background: conic-gradient(var(--openinfra-navy) 0 var(--oi-read-end), var(--openinfra-fuchsia) var(--oi-read-end) var(--oi-write-end), rgba(var(--openinfra-ink-rgb), .1) var(--oi-write-end) 100%);
   border: .38rem solid rgba(255, 255, 255, .95);
   border-radius: 50%;
   box-shadow: 0 .22rem .7rem rgba(0, 61, 143, .08);
@@ -528,11 +530,11 @@ body {
 }
 
 .openinfra-legend-read {
-  background: var(--openinfra-action);
+  background: var(--openinfra-navy);
 }
 
 .openinfra-legend-write {
-  background: var(--openinfra-green);
+  background: var(--openinfra-fuchsia);
 }
 
 @media (max-width: 575.98px) {

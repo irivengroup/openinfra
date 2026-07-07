@@ -452,3 +452,10 @@ La version `0.29.35` sépare les effets d’élévation visuelle du contenu et d
 La version `0.29.38` introduit un service applicatif transverse `GlobalSearchService`. Il agrège ITRM, IPAM et Discovery via les ports/services existants, normalise le score de pertinence et retourne un contrat groupé par composant. Le service conserve la séparation Clean Architecture : l’UI et l’API ne lisent pas directement les repositories métiers.
 
 L’endpoint `GET /api/v1/search/global` expose ce contrat à `openinfra-web` et à tout client API. Les composants protégés qui refusent le jeton courant sont marqués comme non visibles au niveau applicatif, sans fuite de contenu. La commande `openinfra search global` réutilise le même service pour garantir la parité CLI/API/UI.
+
+### v0.29.39 — robustesse UX de la recherche globale et palette camemberts
+
+Le double header `openinfra-web` résout l’URL de recherche globale via `apiBaseUrl` publié par `/config.json`, puis appelle `${apiBaseUrl}/v1/search/global`. Cette règle évite de figer `/api` dans les assets navigateur et préserve les déploiements reverse-proxy avec préfixe public personnalisé. En cas d’indisponibilité réseau/proxy, l’erreur technique navigateur est confinée côté état interne et l’UI rend uniquement un message métier générique avec fallback local.
+
+La visualisation des statistiques d’accueil conserve son calcul déterministe lecture/mutation, mais remplace les couleurs action/green par des variables dédiées au rendu camembert bleu nuit/fuchsia. Le changement est strictement CSS et ne modifie ni le modèle de données, ni les contrats API, ni les métriques affichées.
+

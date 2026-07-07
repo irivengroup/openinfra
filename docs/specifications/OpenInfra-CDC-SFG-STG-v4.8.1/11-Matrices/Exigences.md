@@ -122,3 +122,15 @@ Le header du portail doit exposer un second bandeau dédié à la recherche glob
 La recherche globale ne doit pas se limiter au filtrage local des opérations visibles. Elle doit appeler un service backend transverse, agréger ITRM, IPAM et Discovery, appliquer les permissions existantes et retourner des résultats groupés par composant avec libellé, description, type, score et route API.
 
 **Acceptation :** `GET /api/v1/search/global`, `openinfra search global` et le double header web consomment le même contrat applicatif ; les tests vérifient le groupement, les limites de requête et l’absence de fuite de données lorsqu’un composant n’est pas autorisé.
+### REQ-00779 — Recherche globale tolérante aux erreurs réseau
+
+**Exigence :** la recherche globale openinfra-web ne doit jamais exposer les erreurs réseau techniques brutes du navigateur et doit respecter le préfixe API public configuré.
+
+**Acceptation :** l’appel est construit depuis `apiBaseUrl`, l’indisponibilité backend affiche un message générique et le fallback local groupé par composant reste disponible.
+
+### REQ-00780 — Camemberts bleu nuit/fuchsia
+
+**Exigence :** les camemberts de statistiques du Dashboard doivent utiliser la palette bleu nuit et fuchsia du thème OpenInfra inspiré IONOS.
+
+**Acceptation :** les assets CSS utilisent `--openinfra-navy` et `--openinfra-fuchsia` pour le gradient et les légendes ; le vert historique n’est plus utilisé dans le gradient de camembert.
+

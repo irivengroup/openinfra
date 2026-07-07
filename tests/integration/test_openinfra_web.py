@@ -141,6 +141,11 @@ class TestOpenInfraWeb:
         assert "renderGlobalSearchToolbar" in static_js
         assert "renderGlobalSearchResults" in static_js
         assert "globalSearchGroups" in static_js + main_js
+        assert "buildGlobalSearchUrl" in main_js
+        assert "globalSearchUrl" in static_js
+        assert "Recherche backend temporairement indisponible" in static_js + main_js
+        assert "Recherche backend indisponible" not in static_js + main_js
+        assert "Résultats locaux ci-dessous" in static_js + main_js
         assert "data-search-operation-id" in static_js
         assert "Swagger" in static_js and "ReDoc" in static_js
         assert "openinfra-api-doc-actions" in static_js + static_css
@@ -176,6 +181,11 @@ class TestOpenInfraWeb:
         assert "@media (max-width: 575.98px)" in static_css
         assert "--openinfra-navy: #001b41" in static_css
         assert "--openinfra-action: #0066ff" in static_css
+        assert "--openinfra-fuchsia: #ff00ff" in static_css
+        assert "conic-gradient(var(--openinfra-navy) 0 var(--oi-read-end), var(--openinfra-fuchsia)" in static_css
+        assert "background: var(--openinfra-navy);" in static_css
+        assert "background: var(--openinfra-fuchsia);" in static_css
+        assert "var(--openinfra-green) var(--oi-read-end)" not in static_css
         assert "--openinfra-content-shadow: 0 .16rem .55rem rgba(0, 27, 65, .055)" in static_css
         assert "--openinfra-content-shadow-hover: 0 .28rem .8rem rgba(0, 27, 65, .07)" in static_css
         assert "box-shadow: var(--openinfra-content-shadow);" in static_css

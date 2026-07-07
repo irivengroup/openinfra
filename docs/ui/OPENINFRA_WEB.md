@@ -176,6 +176,15 @@ La validation locale des fichiers d’enrôlement proxy Enterprise est portée p
 
 La même livraison simplifie le titre de la page d’accueil en `Dashboard` et isole les métriques/cartes d’accueil dans cette page uniquement. Lorsqu’un opérateur ouvre ITRM, IPAM, DCIM, Discovery ou Sécurité, la zone centrale affiche seulement le titre du composant, son sous-titre contextuel, le formulaire métier et le résultat éventuel.
 
+
+## v0.29.39 — recherche globale tolérante et camemberts bleu nuit/fuchsia
+
+La recherche globale du double header construit son appel depuis `apiBaseUrl` exposé par `/config.json`. Les déploiements qui personnalisent `OPENINFRA_WEB_PUBLIC_API_BASE_URL` n’ont donc plus de chemin `/api` figé dans l’asset JavaScript.
+
+Si le backend ou le proxy BFF est temporairement indisponible, le navigateur n’expose pas l’erreur technique brute telle que `Failed to fetch`. Le panneau de résultats affiche un message fonctionnel générique et conserve le fallback local des opérations, toujours groupé par composant.
+
+Les camemberts de l’accueil utilisent désormais deux tons stricts : bleu nuit pour les lectures et fuchsia pour les mutations. Les mêmes variables CSS sont appliquées aux assets React et runtime servis par `openinfra-web`.
+
 ## v0.29.38 — Recherche globale backend
 
 La recherche globale du double header appelle `GET /api/v1/search/global` avec `tenant_id`, `query` et `limit`. Quand le backend répond, les résultats métiers sont affichés par composant : ITRM, IPAM et Discovery. Chaque entrée expose un libellé, une description, un type et une route API ouvrable depuis le panneau résultat.

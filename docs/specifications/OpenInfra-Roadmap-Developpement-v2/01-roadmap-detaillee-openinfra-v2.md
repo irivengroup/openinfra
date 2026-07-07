@@ -1587,3 +1587,7 @@ La roadmap P08 ajoute `TST-P08-WEB-GLOBAL-SEARCH-HEADER` et aligne `REQ-00777`. 
 La version 0.29.38 transforme la recherche globale de header en capacité backend réelle. Le service applicatif agrège ITRM, IPAM et Discovery, l’API expose `GET /api/v1/search/global`, la CLI ajoute `openinfra search global` et le portail web affiche les résultats métiers groupés par composant avec fallback local contrôlé.
 
 La roadmap P08 ajoute `TST-P08-WEB-BACKEND-GLOBAL-SEARCH` et aligne `REQ-00778`.
+### 0.29.39 — robustesse recherche globale et palette Dashboard
+
+La version 0.29.39 durcit la recherche globale du double header : l’URL backend est construite depuis `apiBaseUrl`, les erreurs réseau brutes du navigateur ne sont plus exposées à l’opérateur et le fallback local groupé par composant reste disponible. Le Dashboard adopte également des camemberts bleu nuit/fuchsia cohérents avec la charte visuelle demandée.
+

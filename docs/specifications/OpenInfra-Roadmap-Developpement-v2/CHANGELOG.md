@@ -1,3 +1,8 @@
+## 0.29.39 - 2026-07-07
+
+- Ajout des tests roadmap TST-P08-WEB-GLOBAL-SEARCH-RESILIENCE et TST-P08-WEB-IONOS-PIE-PALETTE.
+- Alignement CDC REQ-00779/REQ-00780 sur P08 / EPIC-0801 / release 0.29.39.
+
 ## 0.29.38
 
 - Ajout `TST-P08-WEB-BACKEND-GLOBAL-SEARCH` pour verrouiller la recherche globale backend groupée ITRM/IPAM/Discovery.

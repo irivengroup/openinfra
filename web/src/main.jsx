@@ -727,6 +727,13 @@ function normalizeSearchText(value) {
   return String(value || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 }
 
+
+function buildGlobalSearchUrl(apiBaseUrl, tenant, query, limit = 6) {
+  const base = String(apiBaseUrl || '/api').replace(/\/$/, '');
+  const params = new URLSearchParams({ tenant_id: tenant || 'default', query, limit: String(limit) });
+  return `${base}/v1/search/global?${params.toString()}`;
+}
+
 function globalSearchGroups(query) {
   const normalizedQuery = normalizeSearchText(query.trim());
   if (!normalizedQuery) {
@@ -778,7 +785,7 @@ function Dashboard() {
     }
     let cancelled = false;
     setGlobalSearchLoading(true);
-    fetch(`/api/v1/search/global?tenant_id=${encodeURIComponent(tenant || 'default')}&query=${encodeURIComponent(query)}&limit=6`, {
+    fetch(buildGlobalSearchUrl(config.apiBaseUrl, tenant, query, 6), {
       credentials: 'same-origin',
       headers: { Accept: 'application/json' },
     }).then((response) => {
@@ -792,13 +799,13 @@ function Dashboard() {
     }).catch((error) => {
       if (!cancelled) {
         setGlobalSearchBackend(null);
-        setGlobalSearchError(error.message);
+        setGlobalSearchError('backend_unavailable');
       }
     }).finally(() => {
       if (!cancelled) setGlobalSearchLoading(false);
     });
     return () => { cancelled = true; };
-  }, [globalSearchQuery, tenant]);
+  }, [config.apiBaseUrl, globalSearchQuery, tenant]);
 
   useEffect(() => {
     Promise.all([
@@ -876,7 +883,7 @@ function GlobalSearchResults({ query, groups, backend, loading, error, onSelect,
     }
   }
   if (error) {
-    return <><div className="openinfra-global-search-empty">Recherche backend indisponible : {error}. Résultats locaux ci-dessous.</div><OperationSearchResults query={query} groups={groups} onSelect={onSelect} /></>;
+    return <><div className="openinfra-global-search-empty">Recherche backend temporairement indisponible. Résultats locaux ci-dessous.</div><OperationSearchResults query={query} groups={groups} onSelect={onSelect} /></>;
   }
   return <OperationSearchResults query={query} groups={groups} onSelect={onSelect} />;
 }

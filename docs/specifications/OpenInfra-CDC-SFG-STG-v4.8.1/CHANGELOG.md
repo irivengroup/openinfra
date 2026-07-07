@@ -1,3 +1,8 @@
+## 0.29.39 - 2026-07-07
+
+- Ajout REQ-00779 / TST-WEB-082 : recherche globale sans exposition d’erreur technique et respect du préfixe `apiBaseUrl`.
+- Ajout REQ-00780 / TST-WEB-083 : camemberts Dashboard bleu nuit/fuchsia avec validations frontend.
+
 ## 0.29.38
 
 - Ajout `REQ-00778` et `TST-WEB-081` pour la recherche globale backend groupée par composant.

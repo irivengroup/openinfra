@@ -1,3 +1,10 @@
+## 0.29.39 - 2026-07-07
+
+- La recherche globale du double header n’expose plus l’erreur navigateur brute `Failed to fetch` : l’UI affiche un message fonctionnel générique et conserve le fallback local groupé par composant.
+- Le frontend construit l’URL de recherche globale depuis `apiBaseUrl` afin de respecter `OPENINFRA_WEB_PUBLIC_API_BASE_URL` au lieu de figer `/api`.
+- Les camemberts du Dashboard utilisent désormais le duo bleu nuit/fuchsia demandé pour le thème IONOS, avec légendes et garde-fous frontend alignés.
+- Les tests et validations frontend verrouillent l’absence du message technique, le fallback local et les nouvelles couleurs de camembert.
+
 ## 0.29.38 - 2026-07-07
 
 - Ajout d’un service applicatif `GlobalSearchService` agrégeant les résultats ITRM, IPAM et Discovery.

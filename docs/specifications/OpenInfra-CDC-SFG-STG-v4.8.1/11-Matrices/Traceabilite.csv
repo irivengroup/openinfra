@@ -771,3 +771,5 @@ REQ-00775,N2,WEB,UC-WEB-001,TST-WEB-078,"Validation frontend, tests intégration
 REQ-00776,N2,WEB,UC-WEB-001,TST-WEB-079,Validation frontend et tests intégration openinfra-web des alertes contextuelles et du retrait des messages permanents hérités.
 REQ-00777,N2,WEB,UC-WEB-001,TST-WEB-080,"Validation frontend et tests intégration openinfra-web de la double barre, recherche globale groupée et actions Swagger/ReDoc."
 REQ-00778,N2,WEB/API,UC-WEB-001,TST-WEB-081,Tests service/API/CLI/frontend de la recherche globale backend groupée par composant.
+REQ-00779,N2,WEB,UC-WEB-001,TST-WEB-082,Validation frontend et tests intégration openinfra-web de la recherche globale tolérante et du respect apiBaseUrl.
+REQ-00780,N2,WEB,UC-WEB-001,TST-WEB-083,Validation frontend et tests intégration openinfra-web de la palette camemberts bleu nuit/fuchsia.

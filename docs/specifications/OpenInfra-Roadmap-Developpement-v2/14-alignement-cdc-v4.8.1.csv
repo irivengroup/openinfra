@@ -51,3 +51,5 @@ REQ-00775,Ombres de contenu allégées openinfra-web,P08,EPIC-0801,0.29.35,TST-P
 REQ-00776,Alertes openinfra-web contextuelles et retrait des messages permanents,P08,EPIC-0801,0.29.37,TST-P08-WEB-CONTEXTUAL-ALERTS
 REQ-00777,Double barre header et recherche globale openinfra-web,P08,EPIC-0801,0.29.37,TST-P08-WEB-GLOBAL-SEARCH-HEADER
 REQ-00778,Recherche globale backend groupée par composant,P08,EPIC-0801,0.29.38,TST-P08-WEB-BACKEND-GLOBAL-SEARCH
+REQ-00779,Recherche globale tolérante aux erreurs réseau et respect apiBaseUrl,P08,EPIC-0801,0.29.39,TST-P08-WEB-GLOBAL-SEARCH-RESILIENCE
+REQ-00780,Camemberts Dashboard bleu nuit/fuchsia,P08,EPIC-0801,0.29.39,TST-P08-WEB-IONOS-PIE-PALETTE

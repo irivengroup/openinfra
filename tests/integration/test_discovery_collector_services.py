@@ -2,16 +2,19 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from openinfra.application.container import ApplicationFactory
 from openinfra.application.discovery_services import (
     AuthorizeDiscoveryJobCommand,
     DisableCollectorCommand,
+    EnrollDiscoveryProxyCommand,
     HeartbeatCollectorCommand,
     ListCollectorsCommand,
     RegisterCollectorCommand,
 )
 from openinfra.application.security_services import BootstrapTokenCommand
-from openinfra.domain.common import TenantId
+from openinfra.domain.common import TenantId, ValidationError
 
 FINGERPRINT = "c" * 64
 
@@ -73,6 +76,54 @@ def test_collector_registry_heartbeat_and_job_authorization(tmp_path: Path) -> N
     assert refreshed.last_seen_version == "1.0.1"
     assert authorized.authorized is True
     assert authorized.reasons == ()
+
+
+def test_enterprise_proxy_enrollment_requires_proxy_kind_and_persists_collector(
+    tmp_path: Path,
+) -> None:
+    app, token = _application(tmp_path)
+
+    enrolled = app.discovery_service.enroll_proxy(
+        EnrollDiscoveryProxyCommand(
+            tenant_id="default",
+            actor="pytest",
+            admin_token=token,
+            name="Paris site proxy",
+            kind="site-proxy",
+            certificate_fingerprint="3" * 64,
+            scopes=("site/par1", "network/core"),
+            version="0.29.33",
+            endpoint_url="https://proxy-par1.example.tld/agent",
+            vault_secret_ref="vault://" + "openinfra/discovery/proxy/par1",
+        )
+    )
+
+    stored = app.discovery_repository.get_collector(
+        TenantId.from_value("default"), enrolled.id.value
+    )
+    assert stored is not None
+    assert enrolled.kind.value == "site-proxy"
+    assert enrolled.endpoint_url == "https://proxy-par1.example.tld/agent"
+    assert [scope.value for scope in enrolled.scopes] == ["site/par1", "network/core"]
+
+
+def test_proxy_enrollment_rejects_non_proxy_collector_kind(tmp_path: Path) -> None:
+    app, token = _application(tmp_path)
+
+    with pytest.raises(ValidationError, match="proxy enrollment kind"):
+        app.discovery_service.enroll_proxy(
+            EnrollDiscoveryProxyCommand(
+                tenant_id="default",
+                actor="pytest",
+                admin_token=token,
+                name="SNMP collector",
+                kind="snmp",
+                certificate_fingerprint="4" * 64,
+                scopes=("site/par1",),
+                version="0.29.33",
+                endpoint_url="https://collector.example.tld/agent",
+            )
+        )
 
 
 def test_disabled_collector_is_not_authorized_for_new_jobs(tmp_path: Path) -> None:

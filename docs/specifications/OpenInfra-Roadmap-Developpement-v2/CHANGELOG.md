@@ -1,3 +1,8 @@
+## 0.29.33
+
+- Ajout du test roadmap `TST-P11-DISCOVERY-PROXY-CLI-ENROLLMENT`.
+- Alignement CDC `REQ-00771` et contrats CLI/API Discovery pour l’enrôlement proxy Enterprise.
+
 ## 0.29.32
 
 - Ajout de la topologie opérationnelle IPAM pour consolider VRF, préfixes, adresses, réservations, VLAN/VXLAN et ASN/BGP.
@@ -122,3 +127,4 @@
 - Navigation sidebar en accordéons avec transitions fade ; suppression du menu d'opérations interne.
 - Trust `openinfra-web` ↔ backend server-side ; aucun token API demandé à l'opérateur.
 - Cible `install.ini` `[web_database]` ajoutée pour les références DSN/credentials PostgreSQL du service web.
+- v0.29.33 : P08 ajoute la charte graphique premium Bootstrap 5 openinfra-web, sans changement de structure page, validée par TST-P08-WEB-PREMIUM-THEME.

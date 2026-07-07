@@ -1,3 +1,5 @@
+- Ajout REQ-00771 pour l’enrôlement CLI direct des proxies Discovery Enterprise auprès des backends.
+- Ajout TST-DISCOVERY-074 pour valider édition Enterprise, refus Lite/Pro, API dédiée et CLI local/distant.
 - Ajout REQ-00770 pour la topologie opérationnelle IPAM consolidée.
 - Ajout TST-IPAM-073 pour valider API, CLI, dashboard, OpenAPI et intégrité du graphe IPAM.
 ## Delta v0.29.31 — IPAM Enterprise++ dashboard
@@ -144,3 +146,4 @@ Le dashboard d’accueil ne doit plus afficher d’alerte succès permanente `Ba
 - Ajout de REQ-00759 : ITRM expose une réconciliation gouvernée en dry-run et apply contrôlé.
 - Ajout de TST-ITRM-062 : tests service, API, CLI, frontend et audit pour verrouiller `reconcile-object`, `/api/v1/itrm/reconcile-object`, conflits non autoritatifs et application autoritative.
 - Les mises à jour non autoritatives rejetées ne sont jamais appliquées ; les plans et applications sont auditables par objet.
+- v0.29.33 : ajout de la charte graphique premium openinfra-web, appliquée par CSS Bootstrap 5 compatible sans modification de structure ni import d’asset tiers.

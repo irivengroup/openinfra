@@ -1,3 +1,5 @@
+- Ajout REQ-00771 pour l’enrôlement CLI direct des proxies Discovery Enterprise auprès des backends.
+- Ajout TST-DISCOVERY-074 pour valider édition Enterprise, refus Lite/Pro, API dédiée et CLI local/distant.
 - Ajout REQ-00770 pour la topologie opérationnelle IPAM consolidée.
 - Ajout TST-IPAM-073 pour valider API, CLI, dashboard, OpenAPI et intégrité du graphe IPAM.
 ## Delta v0.29.31 — IPAM Enterprise++ dashboard
@@ -252,3 +254,4 @@ Cette version conserve le périmètre v2 : IT Ressources Management, DCIM, ITAM,
 - Pas d'ITSM intégré.
 - Services systemd canoniques : `openinfra.service`, `openinfra-web.service`, `openinfra-agent.service`.
 - Backend seul autorisé à appliquer les migrations.
+- v0.29.33 : ajout de la charte graphique premium openinfra-web, appliquée par CSS Bootstrap 5 compatible sans modification de structure ni import d’asset tiers.

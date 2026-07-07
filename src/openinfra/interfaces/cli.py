@@ -44,6 +44,7 @@ from openinfra.application.dcim_services import (
 from openinfra.application.discovery_services import (
     AuthorizeDiscoveryJobCommand,
     DisableCollectorCommand,
+    EnrollDiscoveryProxyCommand,
     HeartbeatCollectorCommand,
     ListCollectorsCommand,
     RegisterCollectorCommand,
@@ -135,6 +136,11 @@ from openinfra.infrastructure.postgresql import (
     PostgreSQLMigrationCatalog,
     PostgreSQLMigrationExecutor,
     PostgreSQLSessionRegistry,
+)
+from openinfra.infrastructure.proxy_enrollment import (
+    ProxyEnrollmentConfigWriter,
+    ProxyEnrollmentHttpClient,
+    ProxyEnrollmentPayloadFactory,
 )
 from openinfra.infrastructure.runtime_config import RuntimeConfigLoader, RuntimeDatabaseDsnResolver
 from openinfra.infrastructure.spec_validation import ContractualSpecValidator
@@ -632,6 +638,60 @@ class OpenInfraCLI:
         register.add_argument("--vault-secret-ref")
         register.add_argument("--endpoint-url")
         register.set_defaults(handler=self._handle_discovery_collector_register)
+
+        enroll = discovery_subparsers.add_parser(
+            "proxy-enroll",
+            help="enroll an Enterprise discovery proxy directly against one or more backends",
+        )
+        enroll.add_argument(
+            "--backend-url",
+            action="append",
+            required=True,
+            help="OpenInfra backend URL; repeat for HA backend enrollment",
+        )
+        enroll.add_argument(
+            "--edition",
+            choices=("lite", "pro", "enterprise"),
+            default=os.environ.get("OPENINFRA_EDITION", "enterprise"),
+        )
+        enroll.add_argument("--tenant", required=True)
+        enroll.add_argument("--actor", default="proxy-cli")
+        enroll.add_argument("--admin-token", required=True)
+        enroll.add_argument("--name", required=True)
+        enroll.add_argument(
+            "--kind",
+            choices=("site-proxy", "network-proxy", "datacenter-proxy"),
+            default="site-proxy",
+        )
+        enroll.add_argument("--certificate-fingerprint", required=True)
+        enroll.add_argument("--scope", action="append", required=True)
+        enroll.add_argument("--version", required=True)
+        enroll.add_argument("--endpoint-url", required=True)
+        enroll.add_argument("--vault-secret-ref")
+        enroll.add_argument("--timeout-seconds", type=float, default=10.0)
+        enroll.add_argument("--config-output", type=Path)
+        enroll.set_defaults(handler=self._handle_discovery_proxy_enroll)
+
+        enroll_local = discovery_subparsers.add_parser(
+            "proxy-enroll-local",
+            help="enroll an Enterprise discovery proxy into the selected backend store",
+        )
+        self._add_backend_arguments(enroll_local)
+        enroll_local.add_argument("--tenant", required=True)
+        enroll_local.add_argument("--actor", default="proxy-cli")
+        enroll_local.add_argument("--admin-token", required=True)
+        enroll_local.add_argument("--name", required=True)
+        enroll_local.add_argument(
+            "--kind",
+            choices=("site-proxy", "network-proxy", "datacenter-proxy"),
+            default="site-proxy",
+        )
+        enroll_local.add_argument("--certificate-fingerprint", required=True)
+        enroll_local.add_argument("--scope", action="append", required=True)
+        enroll_local.add_argument("--version", required=True)
+        enroll_local.add_argument("--endpoint-url", required=True)
+        enroll_local.add_argument("--vault-secret-ref")
+        enroll_local.set_defaults(handler=self._handle_discovery_proxy_enroll_local)
 
         heartbeat = discovery_subparsers.add_parser(
             "collector-heartbeat", help="record collector heartbeat using strong identity"
@@ -2081,6 +2141,40 @@ class OpenInfraCLI:
         )
         print(json.dumps(collector.as_dict(), indent=2, sort_keys=True))
         return 0
+
+    def _handle_discovery_proxy_enroll_local(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        collector = app.discovery_service.enroll_proxy(
+            EnrollDiscoveryProxyCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                name=args.name,
+                kind=args.kind,
+                certificate_fingerprint=args.certificate_fingerprint,
+                scopes=tuple(args.scope),
+                version=args.version,
+                vault_secret_ref=args.vault_secret_ref,
+                endpoint_url=args.endpoint_url,
+            )
+        )
+        print(json.dumps(collector.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_discovery_proxy_enroll(self, args: argparse.Namespace) -> int:
+        if args.edition != "enterprise":
+            raise OpenInfraError("proxy CLI enrollment requires the Enterprise edition")
+        payload = ProxyEnrollmentPayloadFactory().from_args(args)
+        result = ProxyEnrollmentHttpClient().enroll_many(
+            backend_urls=tuple(args.backend_url),
+            admin_token=args.admin_token,
+            payload=payload,
+            timeout_seconds=args.timeout_seconds,
+        )
+        if args.config_output is not None:
+            ProxyEnrollmentConfigWriter().write(args.config_output, result)
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0 if result.enrolled else 2
 
     def _handle_discovery_collector_heartbeat(self, args: argparse.Namespace) -> int:
         app = self._create_application(args)

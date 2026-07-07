@@ -8,6 +8,7 @@ from openinfra.application.container import ApplicationFactory
 from openinfra.application.discovery_services import (
     AuthorizeDiscoveryJobCommand,
     DisableCollectorCommand,
+    EnrollDiscoveryProxyCommand,
     HeartbeatCollectorCommand,
     ListCollectorsCommand,
     RegisterCollectorCommand,
@@ -174,6 +175,33 @@ def test_lite_backend_rejects_collector_runtime_operations(tmp_path: Path) -> No
         app.discovery_service.list_collectors(
             ListCollectorsCommand(tenant_id="default", admin_token=token)
         )
+
+
+def test_pro_backend_rejects_enterprise_proxy_enrollment(tmp_path: Path) -> None:
+    app = ApplicationFactory().create_json_application(tmp_path / "state.json", edition="pro")
+    token = _bootstrap(app)
+
+    with pytest.raises(ValidationError, match="distributed_discovery_agents"):
+        app.discovery_service.enroll_proxy(
+            EnrollDiscoveryProxyCommand(
+                tenant_id="default",
+                actor="pytest",
+                admin_token=token,
+                name="proxy-pro",
+                kind="site-proxy",
+                certificate_fingerprint="8" * 64,
+                scopes=("site/par1",),
+                version="0.29.33",
+                endpoint_url="https://proxy-pro.example.test/agent",
+            )
+        )
+
+    assert (
+        app.runtime_usage_repository.count_resource(
+            TenantId.from_value("default"), QuotaResource.DISCOVERY_COLLECTOR
+        )
+        == 0
+    )
 
 
 def test_lite_identity_runtime_quota_blocks_sixth_user(tmp_path: Path) -> None:

@@ -417,3 +417,11 @@ Le framework de migration legacy reste dans le bounded context import afin de r�
 ### IPAM topology graph
 
 `IpamModelService.topology` construit un graphe opérationnel lecture seule à partir du repository IPAM : VRF, agrégats, préfixes, plages, adresses, réservations, VLAN/VXLAN, ASN/BGP et observations DNS/DHCP. Le rapport expose `nodes`, `edges`, `summary` et `integrity`, et journalise `ipam.topology.generated` sans introduire de stockage parallèle.
+
+## Discovery Enterprise proxy enrollment v0.29.33
+
+La version `0.29.33` complète la frontière Discovery avec un enrôlement proxy Enterprise explicite. Le domaine accepte désormais les kinds `site-proxy`, `network-proxy` et `datacenter-proxy`; le service applicatif `DiscoveryCollectorService.enroll_proxy` applique le feature gate `distributed_discovery_agents`, vérifie que le kind est bien un proxy et persiste l’agrégat collector avec audit `discovery.proxy.enrolled`. L’interface HTTP expose `POST /api/v1/discovery/proxy-enrollments`; la CLI peut soit appeler directement un ou plusieurs backends (`openinfra discovery proxy-enroll`), soit écrire dans le backend local choisi (`openinfra discovery proxy-enroll-local`). Hors Enterprise, l’enrôlement est rejeté avant persistance.
+
+### v0.29.33 — web theme layer
+
+`openinfra-web` conserve une séparation stricte structure/comportement/style : React déclare les modules, opérations et champs ; Bootstrap 5 fournit les primitives ; `openinfra-web.css` applique la charte produit sans modifier l’arbre HTML. La charte remplace les couleurs Bootstrap basic par des variables CSS produit (`--openinfra-navy`, `--openinfra-action`, `--openinfra-cyan`) et des états cohérents pour boutons, badges, formulaires, focus, sidebar, header et cartes. Aucun asset tiers n’est embarqué.

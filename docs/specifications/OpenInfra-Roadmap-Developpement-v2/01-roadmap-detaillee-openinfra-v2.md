@@ -1553,3 +1553,8 @@ Les opérations ciblent les contrats `/api/v1/ipam/*` existants et la découvert
 ### Avancement v0.29.32 — P11 IPAM topologie opérationnelle
 
 La version 0.29.32 ajoute la topologie opérationnelle IPAM : API, CLI et dashboard restituent un graphe `nodes`/`edges` consolidant VRF, agrégats, préfixes, plages, adresses, réservations, VLAN/VXLAN, ASN/BGP et observations DNS/DHCP, avec contrôle `integrity` sans stockage parallèle.
+
+### Avancement v0.29.33 — P11 Discovery Enterprise proxy CLI enrollment
+
+La version 0.29.33 ajoute l’enrôlement direct des proxies Discovery Enterprise en CLI : `openinfra discovery proxy-enroll` poste vers un ou plusieurs backends via `POST /api/v1/discovery/proxy-enrollments`, `openinfra discovery proxy-enroll-local` couvre le backend local, et les types `site-proxy`, `network-proxy`, `datacenter-proxy` sont acceptés par le domaine. Lite/Pro sont refusées avant persistance.
+- v0.29.33 : P08 ajoute la charte graphique premium Bootstrap 5 openinfra-web, sans changement de structure page, validée par TST-P08-WEB-PREMIUM-THEME.

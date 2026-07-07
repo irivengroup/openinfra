@@ -35,3 +35,8 @@ La roadmap v2 intègre P11/IPAM Enterprise++ dashboard parity via TST-P11-IPAM-D
 ### v0.29.32 — IPAM topologie opérationnelle
 
 Ajout du test `TST-P11-IPAM-TOPOLOGY` pour verrouiller la consolidation nodes/edges IPAM par API, CLI, dashboard et OpenAPI.
+
+### v0.29.33 — Discovery Enterprise proxy CLI enrollment
+
+Ajout du test `TST-P11-DISCOVERY-PROXY-CLI-ENROLLMENT` pour verrouiller l’enrôlement CLI local/distant des proxies Discovery Enterprise auprès des backends, avec refus Lite/Pro.
+- v0.29.33 : P08 ajoute la charte graphique premium Bootstrap 5 openinfra-web, sans changement de structure page, validée par TST-P08-WEB-PREMIUM-THEME.

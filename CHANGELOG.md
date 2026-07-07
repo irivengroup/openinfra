@@ -1,3 +1,13 @@
+## 0.29.33 - 2026-07-07
+
+- Added Enterprise-only direct proxy enrollment from CLI to one or more OpenInfra backends.
+- Added `POST /api/v1/discovery/proxy-enrollments` for backend-side proxy enrollment with edition gate enforcement.
+- Added `openinfra discovery proxy-enroll-local` for local backend-store enrollment.
+- Added discovery collector kinds `site-proxy`, `network-proxy` and `datacenter-proxy` across domain, API, CLI and documentation.
+- Added regression tests for Enterprise acceptance, Pro/Lite rejection, CLI remote enrollment, HTTP enrollment and proxy kind validation.
+- Replaced the basic Bootstrap color layer in `openinfra-web` with a premium navy/blue/cyan theme applied through Bootstrap 5-compatible CSS overrides, preserving the existing page structure.
+- Added frontend validator and web integration checks for the new theme variables, button states, focus rings and runtime CSS assets.
+
 ## 0.29.32 - 2026-07-07
 
 - Added P11/IPAM operational topology through `GET /api/v1/ipam/topology` and `openinfra ipam topology`.

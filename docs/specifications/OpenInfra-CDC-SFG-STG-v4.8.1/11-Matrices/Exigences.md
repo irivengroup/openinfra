@@ -90,3 +90,7 @@ Les exigences N1 sont obligatoires. Les exigences N2 structurent les releases su
 - **REQ-00766** — Le dashboard DCIM doit exposer les opérations énergie/refroidissement power devices, circuits, zones, réservations et capacité rack via les contrats backend existants.
 - **REQ-00767** — Les sélecteurs de catégories et types de ressources ITRM doivent afficher les libellés métier, conserver les valeurs normalisées internes et ne plus proposer les types obsolètes `physical-server` et `disk`.
 - **REQ-00768** — OpenInfra doit exposer un jumeau numérique DCIM initial consolidant plan salle, racks, équipements, câblage et capacité énergie/refroidissement via API, CLI et dashboard.
+
+### REQ-00772 — Charte graphique premium openinfra-web
+
+Le portail openinfra-web doit remplacer les couleurs basic Bootstrap par une charte visuelle premium inspirée cloud provider, appliquée via Bootstrap 5 et CSS produit, sans modifier la structure des pages ni importer d’asset tiers. Les assets CSS doivent couvrir header, sidebar, cartes, boutons, badges, formulaires, focus rings, résultats, camemberts et transitions.

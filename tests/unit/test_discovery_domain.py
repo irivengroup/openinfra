@@ -173,3 +173,10 @@ def test_collector_heartbeat_and_job_validation_edges() -> None:
         "par1-core",
     )
     assert invalid_fingerprint_decision.reasons == ("fingerprint_invalid",)
+
+
+def test_collector_kind_accepts_enterprise_proxy_aliases() -> None:
+    assert CollectorKind.from_value("site-proxy").is_proxy is True
+    assert CollectorKind.from_value("network_proxy").value == "network-proxy"
+    assert CollectorKind.from_value("dc-proxy") is CollectorKind.DATACENTER_PROXY
+    assert CollectorKind.from_value("snmp").is_proxy is False

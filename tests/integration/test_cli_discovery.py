@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import json
+import threading
 from pathlib import Path
 
+from openinfra.application.container import ApplicationFactory
+from openinfra.application.security_services import BootstrapTokenCommand
 from openinfra.interfaces.cli import OpenInfraCLI
+from openinfra.interfaces.http_api import OpenInfraThreadingServer
 
 FINGERPRINT = "1" * 64
 
@@ -114,3 +118,143 @@ def test_cli_discovery_collector_lifecycle(tmp_path: Path, capsys: object) -> No
     assert heartbeat["last_seen_version"] == "1.0.1"
     assert decision["authorized"] is True
     assert len(page["items"]) == 1
+
+
+def test_cli_discovery_proxy_enroll_local_and_remote(tmp_path: Path, capsys: object) -> None:
+    data = tmp_path / "state.json"
+    token = "h" * 40
+    cli = OpenInfraCLI()
+    assert (
+        cli.run(
+            [
+                "security",
+                "bootstrap-token",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--subject",
+                "discovery-admin",
+                "--role",
+                "security:admin",
+                "--token",
+                token,
+            ]
+        )
+        == 0
+    )
+    capsys.readouterr()
+
+    local_code = cli.run(
+        [
+            "discovery",
+            "proxy-enroll-local",
+            "--data",
+            str(data),
+            "--tenant",
+            "default",
+            "--admin-token",
+            token,
+            "--name",
+            "PAR1 site proxy local",
+            "--kind",
+            "site-proxy",
+            "--certificate-fingerprint",
+            "2" * 64,
+            "--scope",
+            "site/par1",
+            "--version",
+            "0.29.33",
+            "--endpoint-url",
+            "https://proxy-par1.example.test/agent",
+        ]
+    )
+    local_proxy = json.loads(capsys.readouterr().out)
+
+    app = ApplicationFactory().create_json_application(tmp_path / "remote.json")
+    app.security_service.bootstrap_token(
+        BootstrapTokenCommand(
+            tenant_id="default",
+            actor="pytest",
+            subject="discovery-admin",
+            roles=("security:admin",),
+            token=token,
+        )
+    )
+    server = OpenInfraThreadingServer(("127.0.0.1", 0), app)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        config_output = tmp_path / "proxy-enrollment.json"
+        remote_code = cli.run(
+            [
+                "discovery",
+                "proxy-enroll",
+                "--backend-url",
+                f"http://127.0.0.1:{server.server_port}",
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--name",
+                "PAR1 site proxy remote",
+                "--kind",
+                "site-proxy",
+                "--certificate-fingerprint",
+                "3" * 64,
+                "--scope",
+                "site/par1",
+                "--version",
+                "0.29.33",
+                "--endpoint-url",
+                "https://proxy-par1.example.test/agent",
+                "--config-output",
+                str(config_output),
+            ]
+        )
+        remote_result = json.loads(capsys.readouterr().out)
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+    assert local_code == 0
+    assert local_proxy["kind"] == "site-proxy"
+    assert remote_code == 0
+    assert remote_result["enrolled"] is True
+    assert remote_result["results"][0]["response"]["kind"] == "site-proxy"
+    assert config_output.is_file()
+    assert config_output.stat().st_mode & 0o777 == 0o600
+
+
+def test_cli_discovery_proxy_enroll_rejects_non_enterprise(capsys: object) -> None:
+    code = OpenInfraCLI().run(
+        [
+            "discovery",
+            "proxy-enroll",
+            "--edition",
+            "pro",
+            "--backend-url",
+            "https://backend.example.test",
+            "--tenant",
+            "default",
+            "--admin-token",
+            "x" * 40,
+            "--name",
+            "PAR1 site proxy",
+            "--kind",
+            "site-proxy",
+            "--certificate-fingerprint",
+            "4" * 64,
+            "--scope",
+            "site/par1",
+            "--version",
+            "0.29.33",
+            "--endpoint-url",
+            "https://proxy-par1.example.test/agent",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert code == 2
+    assert "Enterprise" in captured.err

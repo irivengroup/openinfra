@@ -28,16 +28,27 @@ class CollectorKind(StrEnum):
     HYPERV = "hyperv"
     KUBERNETES = "kubernetes"
     CLOUD = "cloud"
+    SITE_PROXY = "site-proxy"
+    NETWORK_PROXY = "network-proxy"
+    DATACENTER_PROXY = "datacenter-proxy"
     GENERIC = "generic"
 
     @classmethod
     def from_value(cls, value: str) -> Self:
         normalized = value.strip().lower().replace("_", "-")
-        aliases = {"hyper-v": "hyperv", "k8s": "kubernetes"}
+        aliases = {"hyper-v": "hyperv", "k8s": "kubernetes", "dc-proxy": "datacenter-proxy"}
         try:
             return cls(aliases.get(normalized, normalized))
         except ValueError as exc:
             raise ValidationError("collector kind is unsupported") from exc
+
+    @property
+    def is_proxy(self) -> bool:
+        return self in {
+            CollectorKind.SITE_PROXY,
+            CollectorKind.NETWORK_PROXY,
+            CollectorKind.DATACENTER_PROXY,
+        }
 
 
 class CollectorStatus(StrEnum):

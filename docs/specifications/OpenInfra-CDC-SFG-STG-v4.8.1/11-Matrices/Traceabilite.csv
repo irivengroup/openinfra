@@ -763,3 +763,5 @@ REQ-00767,N1,ITRM,UC-0042,TST-ITRM-070,"Tests domaine, service et frontend pour 
 REQ-00768,N1,DCIM,UC-0001,TST-DCIM-071,"Tests service, CLI, API HTTP, frontend et OpenAPI du jumeau numérique DCIM initial."
 REQ-00769,N1,IPAM,UC-0003,TST-IPAM-072,"Validation frontend, tests openinfra-web et découverte API pour les opérations IPAM Enterprise++."
 REQ-00770,N1,IPAM,UC-0003,TST-IPAM-073,"Tests service, CLI, API HTTP, frontend et OpenAPI de la topologie opérationnelle IPAM."
+REQ-00771,N1,DISCOVERY,UC-0004,TST-DISCOVERY-074,"Tests édition, service, CLI local/distant, API HTTP et OpenAPI de l’enrôlement proxy Discovery Enterprise."
+REQ-00772,N2,WEB,UC-WEB-001,TST-WEB-075,"Validation frontend, tests intégration openinfra-web et inspection assets CSS."

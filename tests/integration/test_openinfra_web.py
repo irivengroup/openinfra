@@ -144,6 +144,12 @@ class TestOpenInfraWeb:
         assert "Formulaires protégés" in static_js
         assert 'fetch("/status"' in static_js
         assert "@media (max-width: 575.98px)" in static_css
+        assert "--openinfra-navy: #001b41" in static_css
+        assert "--openinfra-action: #0066ff" in static_css
+        assert ".openinfra-top-header.bg-dark" in static_css
+        assert ".btn-primary" in static_css
+        assert ".form-control:focus" in static_css
+        assert "#0d6efd" not in static_css
         assert "Camembert" in static_js
         assert 'path: "/v1/ipam/ui-search"' in static_js
         assert "idempotency_key" in static_js

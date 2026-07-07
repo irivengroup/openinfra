@@ -1,4 +1,4 @@
-# OpenInfra Web v0.29.32
+# OpenInfra Web v0.29.33
 
 OpenInfra Web est le portail `openinfra-web` API-only. Il sert l'interface React/Bootstrap 5, expose un proxy applicatif `/api/*` vers le backend `openinfra-api` et fournit un dashboard de pilotage aligné sur les domaines CLI.
 
@@ -142,3 +142,14 @@ Le proxy web assainit aussi les erreurs d’authentification backend : une répo
 ## IPAM topologie opérationnelle
 
 Le dashboard expose `Topologie opérationnelle IPAM` sur `/v1/ipam/topology`. Le formulaire conserve `tenant_id` côté BFF et accepte un filtre VRF optionnel ; le backend produit le graphe consolidé et le navigateur ne recalcule pas les invariants IPAM.
+
+
+## v0.29.33 — charte graphique premium Bootstrap 5
+
+Le portail conserve exactement sa structure existante : header principal unique, sidebar accordéon, zone centrale de formulaires, cartes de métriques et panneau résultat. La couche visuelle basic Bootstrap est remplacée par une charte premium appliquée uniquement par CSS compatible Bootstrap 5 : surfaces navy, boutons bleu vif, accents cyan, fonds soft blue, cartes arrondies, ombres maîtrisées, focus rings visibles et transitions légères.
+
+Aucun logo, image ou composant tiers n’est importé. Les classes Bootstrap existantes restent utilisables ; les adaptations sont portées par `openinfra-web.css` et `openinfra-theme.css`, ce qui préserve le contrat HTML/React et le runtime offline.
+
+## Discovery Enterprise proxy enrollment CLI
+
+La version 0.29.33 ajoute l’enrôlement direct des proxies Discovery Enterprise en CLI. `openinfra discovery proxy-enroll` poste vers un ou plusieurs backends via `POST /api/v1/discovery/proxy-enrollments` et refuse Lite/Pro avant tentative d’enrôlement. `openinfra discovery proxy-enroll-local` couvre le cas backend local sélectionné. Le dashboard conserve l’administration Discovery API-only existante ; les secrets restent côté backend/BFF et ne sont pas demandés au navigateur.

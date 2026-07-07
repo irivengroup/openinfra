@@ -1,8 +1,8 @@
-# OpenInfra v0.29.32 — Validation Report
+# OpenInfra v0.29.33 — Validation Report
 
 ## Scope
 
-Release: `0.29.32`
+Release: `0.29.33`
 Increment: P11/IPAM operational topology graph.
 Date: 2026-07-07
 
@@ -28,7 +28,7 @@ Date: 2026-07-07
 | `python scripts/security_gate.py` | PASS |
 | `python scripts/validate_frontend.py` | PASS |
 | `node --check src/openinfra/interfaces/rendering/static/assets/openinfra-web.js` | PASS |
-| `PYTHONPATH=src python -m openinfra.interfaces.cli version` | PASS — 0.29.32 |
+| `PYTHONPATH=src python -m openinfra.interfaces.cli version` | PASS — 0.29.33 |
 | `PYTHONPATH=src mypy src/openinfra` | PASS |
 | `bandit -q -r src/openinfra` | PASS |
 | `pip-audit --dry-run` | PASS |
@@ -46,7 +46,7 @@ Date: 2026-07-07
 | `coverage report --fail-under=98` | PASS — 98.00745303825386% |
 | `python scripts/quality_gate.py` | PASS |
 | `python -m build` | PASS — wheel and sdist built |
-| `python scripts/verify_artifact.py dist/openinfra-0.29.32-py3-none-any.whl` | PASS |
+| `python scripts/verify_artifact.py dist/openinfra-0.29.33-py3-none-any.whl` | PASS |
 
 ## Timeout handling
 

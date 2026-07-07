@@ -129,6 +129,7 @@ class TestHttpApi:
                 },
                 "discovery": {
                     "collectors": "/api/v1/discovery/collectors",
+                    "proxy_enrollments": "/api/v1/discovery/proxy-enrollments",
                     "heartbeat": "/api/v1/discovery/collectors/heartbeat",
                     "authorize_job": "/api/v1/discovery/jobs/authorize",
                 },
@@ -140,6 +141,7 @@ class TestHttpApi:
             assert "/api/v1/ipam/vxlan-vnis" in openapi
             assert "/api/v1/ipam/ddi-preview" in openapi
             assert "/api/v1/ipam/topology" in openapi
+            assert "/api/v1/discovery/proxy-enrollments" in openapi
             assert "/api/v1/dcim/power-devices" in openapi
             assert "/api/v1/dcim/energy-cooling-capacity" in openapi
             assert "/api/v1/dcim/digital-twin" in openapi
@@ -234,6 +236,19 @@ class TestHttpApi:
                 },
                 token=token,
             )
+            proxy = self._post_json(
+                base_url + "/api/v1/discovery/proxy-enrollments",
+                {
+                    "tenant_id": "default",
+                    "name": "PAR1 site proxy",
+                    "kind": "site-proxy",
+                    "certificate_fingerprint": "a" * 64,
+                    "scopes": ["site/par1"],
+                    "version": "0.29.33",
+                    "endpoint_url": "https://proxy-par1.example.test/agent",
+                },
+                token=token,
+            )
             heartbeat = self._post_json(
                 base_url + "/api/v1/discovery/collectors/heartbeat",
                 {
@@ -284,9 +299,11 @@ class TestHttpApi:
                 assert rejected["reasons"] == ["collector_not_active"]
 
             assert collector["status"] == "active"
+            assert proxy["kind"] == "site-proxy"
+            assert proxy["enrollment_type"] == "enterprise_proxy"
             assert heartbeat["last_seen_version"] == "1.0.1"
             assert decision["authorized"] is True
-            assert len(page["items"]) == 1
+            assert len(page["items"]) == 2
             assert disabled["status"] == "disabled"
         finally:
             server.shutdown()

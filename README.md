@@ -1,8 +1,16 @@
-# OpenInfra v0.29.32
+# OpenInfra v0.29.33
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.32 — P11/IPAM ajoute une topologie opérationnelle consolidée VRF/préfixes/plages/adresses/réservations, VLAN/VXLAN, ASN/BGP et observations DNS/DHCP.**
+**Version courante : 0.29.33 — Discovery Enterprise ajoute l’enrôlement CLI direct des proxies auprès des backends, conditionné à l’édition Enterprise, et openinfra-web adopte une charte visuelle Bootstrap 5 premium inspirée cloud provider.**
+
+### v0.29.33 — Discovery Enterprise proxy CLI enrollment
+
+- Ajout `openinfra discovery proxy-enroll` pour enrôler un proxy Enterprise directement auprès d’un ou plusieurs backends via API.
+- Ajout `openinfra discovery proxy-enroll-local` pour l’enrôlement local dans un backend sélectionné.
+- Ajout de `POST /api/v1/discovery/proxy-enrollments` pour un contrat backend dédié à l’enrôlement proxy.
+- Alignement domaine/API/CLI pour les types `site-proxy`, `network-proxy`, `datacenter-proxy`.
+- Remplacement du thème web basic Bootstrap par une charte visuelle premium : surfaces navy, actions bleu vif, accents cyan, cartes arrondies, focus rings et transitions harmonisées, sans modification de structure de page ni ajout d’asset tiers.
 
 ### v0.29.32 — IPAM topologie opérationnelle
 

@@ -37,6 +37,20 @@ class RegisterCollectorCommand:
 
 
 @dataclass(frozen=True, slots=True)
+class EnrollDiscoveryProxyCommand:
+    tenant_id: str
+    actor: str
+    admin_token: str
+    name: str
+    kind: str
+    certificate_fingerprint: str
+    scopes: tuple[str, ...]
+    version: str
+    endpoint_url: str
+    vault_secret_ref: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class HeartbeatCollectorCommand:
     tenant_id: str
     collector_id: str
@@ -111,33 +125,104 @@ class DiscoveryCollectorService:
                 "discovery_collector",
                 command.name,
             )
-        collector = DiscoveryCollector.register(
+        return self._persist_collector(
             tenant_id=tenant_id,
+            actor=principal.subject,
+            declared_actor=command.actor,
             name=command.name,
             kind=CollectorKind.from_value(command.kind),
-            identity=CollectorIdentity.create(
-                command.certificate_fingerprint,
-                command.vault_secret_ref,
-            ),
-            scopes=tuple(DiscoveryScope.from_value(scope) for scope in command.scopes),
+            certificate_fingerprint=command.certificate_fingerprint,
+            scopes=command.scopes,
             version=command.version,
-            registered_by=principal.subject,
+            vault_secret_ref=command.vault_secret_ref,
             endpoint_url=command.endpoint_url,
+            audit_action="discovery.collector.registered",
+        )
+
+    def enroll_proxy(self, command: EnrollDiscoveryProxyCommand) -> DiscoveryCollector:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        principal = self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                tenant_id.value, command.admin_token, Permission.SECURITY_ADMIN
+            )
+        )
+        kind = CollectorKind.from_value(command.kind)
+        if not kind.is_proxy:
+            raise ValidationError(
+                "proxy enrollment kind must be site-proxy, network-proxy or datacenter-proxy"
+            )
+        if not command.endpoint_url.strip():
+            raise ValidationError("proxy enrollment endpoint URL is mandatory")
+        if self._edition_guard is not None:
+            self._edition_guard.require_feature(
+                tenant_id,
+                FeatureCapability.DISTRIBUTED_DISCOVERY_AGENTS,
+                principal.subject,
+                "discovery_proxy",
+                command.name,
+            )
+            self._edition_guard.require_quota(
+                tenant_id,
+                QuotaResource.DISCOVERY_COLLECTOR,
+                1,
+                principal.subject,
+                "discovery_proxy",
+                command.name,
+            )
+        return self._persist_collector(
+            tenant_id=tenant_id,
+            actor=principal.subject,
+            declared_actor=command.actor,
+            name=command.name,
+            kind=kind,
+            certificate_fingerprint=command.certificate_fingerprint,
+            scopes=command.scopes,
+            version=command.version,
+            vault_secret_ref=command.vault_secret_ref,
+            endpoint_url=command.endpoint_url,
+            audit_action="discovery.proxy.enrolled",
+        )
+
+    def _persist_collector(
+        self,
+        *,
+        tenant_id: TenantId,
+        actor: str,
+        declared_actor: str,
+        name: str,
+        kind: CollectorKind,
+        certificate_fingerprint: str,
+        scopes: tuple[str, ...],
+        version: str,
+        vault_secret_ref: str | None,
+        endpoint_url: str | None,
+        audit_action: str,
+    ) -> DiscoveryCollector:
+        collector = DiscoveryCollector.register(
+            tenant_id=tenant_id,
+            name=name,
+            kind=kind,
+            identity=CollectorIdentity.create(certificate_fingerprint, vault_secret_ref),
+            scopes=tuple(DiscoveryScope.from_value(scope) for scope in scopes),
+            version=version,
+            registered_by=actor,
+            endpoint_url=endpoint_url,
         )
         with self._transaction_manager.begin() as unit_of_work:
             self._discovery_repository.save_collector(collector)
             self._audit_repository.append(
                 AuditEvent.record(
                     tenant_id=tenant_id,
-                    actor=principal.subject,
-                    action="discovery.collector.registered",
+                    actor=actor,
+                    action=audit_action,
                     target_type="discovery_collector",
                     target_id=collector.id.value,
                     metadata={
-                        "declared_actor": command.actor,
+                        "declared_actor": declared_actor,
                         "kind": collector.kind.value,
                         "scopes": [scope.value for scope in collector.scopes],
                         "has_vault_secret_ref": collector.identity.vault_secret_ref is not None,
+                        "proxy_enrollment": collector.kind.is_proxy,
                     },
                 )
             )

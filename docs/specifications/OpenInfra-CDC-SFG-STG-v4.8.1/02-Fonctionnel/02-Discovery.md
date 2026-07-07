@@ -118,6 +118,12 @@ Le domaine Proxmox doit produire des événements d’audit structurés, corrél
 **Acceptation :** Chaque opération critique génère un événement avec acteur, tenant, ressource, action, résultat et corrélation.
 
 
+### REQ-00771
+
+OpenInfra doit permettre l’enrôlement direct en CLI des proxies Discovery auprès d’un ou plusieurs backends uniquement lorsque l’édition active est Enterprise.
+
+**Acceptation :** `openinfra discovery proxy-enroll` appelle `POST /api/v1/discovery/proxy-enrollments`, refuse Lite/Pro avant enrôlement, conserve l’identité forte par empreinte certificat, les scopes explicites, l’endpoint mTLS et l’audit backend ; `openinfra discovery proxy-enroll-local` permet le même cas d’usage sur un backend local sélectionné.
+
 
 ## Critères d’acceptation
 

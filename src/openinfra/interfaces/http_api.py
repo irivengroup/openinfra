@@ -46,6 +46,7 @@ from openinfra.application.dcim_services import (
 from openinfra.application.discovery_services import (
     AuthorizeDiscoveryJobCommand,
     DisableCollectorCommand,
+    EnrollDiscoveryProxyCommand,
     HeartbeatCollectorCommand,
     ListCollectorsCommand,
     RegisterCollectorCommand,
@@ -1762,6 +1763,36 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
+        if route == "/api/v1/discovery/proxy-enrollments":
+            try:
+                payload = self._read_json_body()
+                collector = self.server.application.discovery_service.enroll_proxy(
+                    EnrollDiscoveryProxyCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        name=str(payload["name"]),
+                        kind=str(payload["kind"]),
+                        certificate_fingerprint=str(payload["certificate_fingerprint"]),
+                        scopes=tuple(str(item) for item in payload["scopes"]),
+                        version=str(payload["version"]),
+                        vault_secret_ref=(
+                            None
+                            if payload.get("vault_secret_ref") is None
+                            else str(payload["vault_secret_ref"])
+                        ),
+                        endpoint_url=str(payload["endpoint_url"]),
+                    )
+                )
+                response = collector.as_dict()
+                response["enrollment_type"] = "enterprise_proxy"
+                responder.send(HTTPStatus.CREATED, response)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError, TypeError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
         if route == "/api/v1/discovery/collectors":
             try:
                 payload = self._read_json_body()
@@ -2401,6 +2432,7 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                 },
                 "discovery": {
                     "collectors": "/api/v1/discovery/collectors",
+                    "proxy_enrollments": "/api/v1/discovery/proxy-enrollments",
                     "heartbeat": "/api/v1/discovery/collectors/heartbeat",
                     "authorize_job": "/api/v1/discovery/jobs/authorize",
                 },

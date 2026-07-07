@@ -43,3 +43,5 @@ P09,REQ-00767,ITRM taxonomie labels opérateur et valeurs internes,Implémenté 
 P10,REQ-00768,DCIM jumeau numérique initial,Implémenté en v0.29.30,0.29.30,TST-P10-DCIM-DIGITAL-TWIN
 REQ-00769,IPAM Enterprise++ dashboard et découverte API,P11,EPIC-1104,0.29.31,TST-P11-IPAM-DASHBOARD-PARITY
 REQ-00770,IPAM topologie opérationnelle,P11,EPIC-1104,0.29.32,TST-P11-IPAM-TOPOLOGY
+REQ-00771,Discovery proxy CLI enrollment Enterprise,P11,EPIC-1105,0.29.33,TST-P11-DISCOVERY-PROXY-CLI-ENROLLMENT
+CDC-WEB-075,Charte graphique premium openinfra-web,P08,EPIC-0801,REL-02933,REQ-00772/TST-WEB-075 validés par frontend validator et tests web.

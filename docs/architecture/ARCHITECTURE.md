@@ -454,17 +454,17 @@ La version `0.29.38` introduit un service applicatif transverse `GlobalSearchSer
 L’endpoint `GET /api/v1/search/global` expose ce contrat à `openinfra-web` et à tout client API. Les composants protégés qui refusent le jeton courant sont marqués comme non visibles au niveau applicatif, sans fuite de contenu. La commande `openinfra search global` réutilise le même service pour garantir la parité CLI/API/UI.
 
 
-### v0.29.40 — Documentation API backend depuis le portail web
+### v0.29.41 — Documentation API backend depuis le portail web
 
 `openinfra-web` expose désormais les routes documentaires `/docs`, `/swagger`, `/redoc`, `/openapi.yaml` et `/api/v1/openapi.yaml` comme proxy BFF vers `openinfra-api`. Le navigateur ne suppose plus que Swagger/ReDoc sont des assets du portail : les boutons du header lisent `apiDocumentation.swaggerUrl` et `apiDocumentation.redocUrl` depuis `/config.json`.
 
 Par défaut, les liens restent same-origin pour simplifier les déploiements reverse-proxy. Lorsque le portail web et l’API sont publiés sur des origines distinctes, `OPENINFRA_WEB_PUBLIC_API_DOCS_BASE_URL` permet de déclarer l’origine documentaire publique du backend API. Les pages Swagger/ReDoc proxifiées reçoivent une CSP spécifique autorisant uniquement les viewers nécessaires, afin de conserver la CSP stricte du reste du portail.
 
-### v0.29.40 — restauration de la palette initiale des camemberts
+### v0.29.41 — restauration de la palette initiale des camemberts
 
 La visualisation des statistiques d’accueil conserve son calcul déterministe lecture/mutation et revient à la palette initiale `action/green`, plus lisible et moins fatigante que le duo bleu nuit/fuchsia. Le changement reste strictement CSS : il ne modifie ni le modèle de données, ni les contrats API, ni les métriques affichées.
 
-### v0.29.40 — pictogramme ITRM orienté référentiel
+### v0.29.41 — pictogramme ITRM orienté référentiel
 
 Le composant ITRM conserve ses contrats API, CLI et formulaires existants, mais son pictogramme UI passe d’une icône tableau à une icône de référentiel/référence. La modification est limitée à la couche interface : elle touche le catalogue d’icônes React/runtime et le choix d’icône du module ITRM, sans modifier les données métier ni les permissions.
 
@@ -474,4 +474,4 @@ Le double header `openinfra-web` résout l’URL de recherche globale via `apiBa
 
 
 
-La version 0.29.40 fixe également le double header `openinfra-web` en haut de viewport. Les assets runtime ajoutent `openinfra-header-stack`, `--openinfra-fixed-header-height`, un calcul dynamique de hauteur et un offset CSS du `body`; le contenu métier et le menu latéral scrollent sous le header sans recouvrement.
+La version 0.29.41 fixe également le double header `openinfra-web` en haut de viewport. Les assets runtime ajoutent `openinfra-header-stack`, `--openinfra-fixed-header-height`, un calcul dynamique de hauteur et un offset CSS du `body`; le contenu métier et le menu latéral scrollent sous le header sans recouvrement.

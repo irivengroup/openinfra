@@ -1,10 +1,10 @@
-# OpenInfra v0.29.40
+# OpenInfra v0.29.41
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.40 — la recherche globale du header conserve le fallback métier, les camemberts restaurent la palette initiale action/vert, les boutons Swagger/ReDoc ouvrent réellement la documentation du backend API, l’icône ITRM représente désormais un référentiel de référence et le header reste fixe pendant le scroll.**
+**Version courante : 0.29.41 — la recherche globale du header conserve le fallback métier, les camemberts restaurent la palette initiale action/vert, les boutons Swagger/ReDoc ouvrent réellement la documentation du backend API, l’icône ITRM représente désormais un référentiel de référence avec un SVG plein/opaque et le header reste fixe pendant le scroll.**
 
-### v0.29.40 — restauration de la palette initiale des camemberts et documentation API réelle
+### v0.29.41 — restauration de la palette initiale des camemberts et documentation API réelle
 
 - Les boutons `Swagger` et `ReDoc` du second header utilisent désormais les URLs `apiDocumentation` publiées par `/config.json` et ouvrent les routes backend `/docs` et `/redoc`, proxifiées par `openinfra-web` si nécessaire.
 - `openinfra-web` publie aussi `/docs`, `/swagger`, `/redoc`, `/openapi.yaml` et `/api/v1/openapi.yaml` comme proxy BFF vers `openinfra-api`, avec une CSP adaptée aux viewers Swagger/ReDoc.
@@ -12,7 +12,7 @@ OpenInfra est une solution Python orientée objet pour référentiel d'infrastru
 - Les camemberts du Dashboard reviennent à la palette initiale : bleu action pour les lectures et vert pour les mutations.
 - Le duo bleu nuit/fuchsia introduit en 0.29.39 est retiré du gradient et des légendes car trop agressif visuellement.
 - Les garde-fous frontend vérifient explicitement que les camemberts n’utilisent plus le fuchsia.
-- L’entrée ITRM utilise une icône de référentiel/référence, plus cohérente avec son rôle de source canonique qu’une icône de tableau générique.
+- L’entrée ITRM utilise une icône de référentiel/référence pleine et opaque, homogène avec les autres pictogrammes de composants et plus cohérente avec son rôle de source canonique qu’une icône de tableau générique.
 - Le double header est fixe en haut de viewport ; le contenu et le menu latéral scrollent dessous avec un offset dynamique calculé côté runtime.
 
 ### v0.29.39 — recherche globale durcie

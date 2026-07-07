@@ -1,9 +1,9 @@
 - Ajout `REQ-00783` et `TST-WEB-086` pour le header fixe openinfra-web avec scroll du contenu sous-jacent.
-## 0.29.40 - 2026-07-07
+## 0.29.41 - 2026-07-07
 
-- Ajout REQ-00782 / TST-WEB-085 : remplacement du pictogramme ITRM par une icône de référentiel/référence dans le portail web.
+- Mise à jour REQ-00782 / TST-WEB-085 : l’icône ITRM de référentiel/référence est désormais pleine et opaque comme les autres SVG de composants.
 
-## 0.29.40 - 2026-07-07
+## 0.29.41 - 2026-07-07
 
 - Ajout REQ-00779 / TST-WEB-082 : recherche globale sans exposition d’erreur technique et respect du préfixe `apiBaseUrl`.
 - Mise à jour REQ-00780 / TST-WEB-083 : restauration de la palette initiale action/vert des camemberts Dashboard avec validations frontend anti-régression.

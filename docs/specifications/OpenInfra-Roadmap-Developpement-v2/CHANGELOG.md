@@ -1,13 +1,13 @@
 - Ajout `TST-P08-WEB-FIXED-HEADER` pour valider le header fixe et le scroll du contenu sous-jacent.
-## 0.29.40 - 2026-07-07
+## 0.29.41 - 2026-07-07
 
-- Ajout TST-P08-WEB-ITRM-REFERENCE-ICON pour le pictogramme ITRM orienté référentiel/référence.
+- Mise à jour TST-P08-WEB-ITRM-REFERENCE-ICON : l’icône ITRM référentiel/référence doit être pleine et opaque comme les autres SVG de composants.
 
-## 0.29.40 - 2026-07-07
+## 0.29.41 - 2026-07-07
 
 - Ajout `TST-P08-WEB-API-DOCS-BACKEND-LINKS` pour verrouiller le branchement Swagger/ReDoc sur les routes documentaires réelles du backend API.
 - Mise à jour du test roadmap TST-P08-WEB-RESTORED-PIE-PALETTE pour verrouiller la restauration action/vert des camemberts.
-- Alignement CDC REQ-00780 sur P08 / EPIC-0801 / release 0.29.40.
+- Alignement CDC REQ-00780 sur P08 / EPIC-0801 / release 0.29.41.
 
 ## 0.29.38
 

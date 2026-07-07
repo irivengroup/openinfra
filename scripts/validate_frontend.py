@@ -304,6 +304,7 @@ class FrontendContractValidator:
             'icon: "reference"',
             "OPENINFRA_ICONS",
             "reference:",
+            'M1 2a2 2 0 0 1 2-2h1.6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V2zm6.7 0a2 2 0 0 1 2-2h1.6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9.7a2 2 0 0 1-2-2V2zm6.25.55A1.8 1.8 0 0 1 15 4.18v7.64a1.8 1.8 0 0 1-1.05 1.63V2.55z',
             "agents proxy collectors Enterprise uniquement",
             "Numéro de série",
             "/v1/itrm/reconcile-object",
@@ -413,6 +414,8 @@ class FrontendContractValidator:
                     "runtime web assets expose a forbidden generic/technical UI fragment: "
                     + forbidden_ui
                 )
+        if 'M3 0h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2zm0 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H3zm3 7V2h1v5.117' in payload:
+            raise FrontendValidationError("ITRM reference icon must use the filled opaque variant")
         for forbidden_alert in (
             "alert alert-info",
             'role="note"',

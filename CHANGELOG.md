@@ -1,4 +1,4 @@
-## 0.29.40 - 2026-07-07
+## 0.29.41 - 2026-07-07
 
 - Les boutons `Swagger` et `ReDoc` du double header lisent désormais les liens `apiDocumentation` de `/config.json` et ouvrent les routes backend API réelles.
 - `openinfra-web` proxyfie `/docs`, `/swagger`, `/redoc`, `/openapi.yaml` et `/api/v1/openapi.yaml` vers `openinfra-api`, avec CSP dédiée aux viewers Swagger/ReDoc.
@@ -6,7 +6,7 @@
 - Les camemberts du Dashboard restaurent la palette initiale plus lisible : bleu action pour les lectures et vert pour les mutations.
 - Le duo bleu nuit/fuchsia introduit en 0.29.39 est retiré du gradient et des légendes, conformément au retour UX signalant une fatigue visuelle.
 - Les tests et validations frontend verrouillent la palette restaurée et empêchent le retour du fuchsia dans les camemberts.
-- Le pictogramme ITRM abandonne l’icône tableau et utilise une icône de référentiel/référence afin de mieux représenter le rôle de référentiel canonique.
+- Le pictogramme ITRM abandonne l’icône tableau et utilise une icône de référentiel/référence pleine et opaque afin de rester homogène avec les autres composants.
 - Le double header est désormais fixe en haut de page ; le scroll s’applique au contenu sous-jacent avec offset CSS/JS dynamique.
 
 ## 0.29.39 - 2026-07-07

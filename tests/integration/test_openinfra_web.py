@@ -191,6 +191,8 @@ class TestOpenInfraWeb:
         assert "Réserver la puissance équipement" in static_js
         assert 'path: "/v1/dcim/energy-cooling-capacity"' in static_js
         assert "Capacité énergie/refroidissement" in static_js
+        assert 'path: "/v1/dcim/digital-twin"' in static_js
+        assert "Jumeau numérique salle" in static_js
         assert "Chaîne électrique" in static_js
         assert "Capacité froid watts" in static_js
         assert "postgresql://" not in index + static_js + static_css

@@ -203,6 +203,12 @@ Le comportement reste compatible : sans règle active applicable, les mises à j
 
 
 
+## v0.29.30 — P10 DCIM jumeau numérique initial
+
+La version 0.29.30 introduit un jumeau numérique DCIM initial de salle. Le contrat `GET /api/v1/dcim/digital-twin`, la commande `openinfra dcim digital-twin` et l’opération web `Jumeau numérique salle` retournent une représentation consolidée `dcim_digital_twin` contenant plan salle, racks, équipements, panneaux, ports, câbles, énergie/refroidissement, élévations et contrôles d’intégrité.
+
+La frontière reste hexagonale : `DcimVisualizationService` orchestre les ports repository et les services applicatifs existants, sans stockage parallèle ni logique métier dupliquée côté interface. Les invariants d’occupation rack/U, câblage, capacité watts, réservations et marge thermique restent dans le domaine et les services applicatifs spécialisés.
+
 ## v0.29.29 — P10 DCIM énergie/refroidissement dashboard et OpenAPI
 
 La version 0.29.29 complète la parité opérateur P10/DCIM pour l’énergie et le refroidissement. `openinfra-web` expose les formulaires `Définir un équipement électrique`, `Définir un circuit électrique`, `Définir une zone de refroidissement`, `Réserver la puissance équipement` et `Capacité énergie/refroidissement`, tous adossés au service applicatif existant `DcimEnvironmentService`.

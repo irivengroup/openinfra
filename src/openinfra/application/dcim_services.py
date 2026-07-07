@@ -122,6 +122,15 @@ class RenderRackElevationCommand:
 
 
 @dataclass(frozen=True, slots=True)
+class RenderDigitalTwinCommand:
+    tenant_id: str
+    actor: str
+    site: str
+    building: str
+    room: str
+
+
+@dataclass(frozen=True, slots=True)
 class DefinePatchPanelCommand:
     tenant_id: str
     actor: str
@@ -956,6 +965,185 @@ class DcimVisualizationService:
             output_format,
         )
         return elevation
+
+    def digital_twin(self, command: RenderDigitalTwinCommand) -> dict[str, object]:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        room = self._dcim_repository.find_room(
+            tenant_id, command.site, command.building, command.room
+        )
+        if room is None:
+            raise NotFoundError("room does not exist")
+        racks = self._dcim_repository.list_racks_in_room(
+            tenant_id, command.site, command.building, command.room
+        )
+        equipment = self._dcim_repository.list_equipment_in_room(
+            tenant_id, command.site, command.building, command.room
+        )
+        room_plan = RoomPlan2D.create(room, racks, equipment)
+        rack_payloads: list[dict[str, object]] = []
+        room_cables: dict[str, object] = {}
+        port_count = 0
+        patch_panel_count = 0
+        circuit_count = 0
+        reservation_count = 0
+        cooling_zone_codes: set[str] = set()
+        for rack in racks:
+            rack_equipment = tuple(
+                item
+                for item in equipment
+                if item.location.rack_code is not None
+                and item.location.rack_code.value == rack.code.value
+            )
+            patch_panels = self._dcim_repository.list_patch_panels_in_rack(
+                tenant_id,
+                command.site,
+                command.building,
+                command.room,
+                rack.code.value,
+            )
+            rack_ports = self._collect_rack_ports(tenant_id, rack_equipment, patch_panels)
+            rack_cables = self._collect_cables_for_ports(tenant_id, rack_ports)
+            for cable in rack_cables:
+                room_cables[cable.cable_id.value] = cable.as_dict()
+            circuits = self._dcim_repository.list_power_circuits_for_rack(
+                tenant_id,
+                command.site,
+                command.building,
+                command.room,
+                rack.code.value,
+            )
+            reservations = self._dcim_repository.list_power_reservations_for_rack(
+                tenant_id,
+                command.site,
+                command.building,
+                command.room,
+                rack.code.value,
+            )
+            cooling_zone = (
+                self._dcim_repository.find_cooling_zone(
+                    tenant_id,
+                    command.site,
+                    command.building,
+                    command.room,
+                    rack.zone_code.value,
+                )
+                if rack.zone_code is not None
+                else None
+            )
+            if cooling_zone is not None:
+                cooling_zone_codes.add(cooling_zone.zone_code.value)
+            energy_cooling = RackEnergyCoolingReport(
+                rack, circuits, reservations, cooling_zone
+            ).as_dict()
+            elevations = {
+                face.value: RackElevation.create(rack, rack_equipment, face).as_dict()
+                for face in rack.usable_faces
+            }
+            rack_payloads.append(
+                {
+                    "rack": self._rack_payload(rack),
+                    "equipment": [item.as_dict() for item in rack_equipment],
+                    "patch_panels": [panel.as_dict() for panel in patch_panels],
+                    "ports": [port.as_dict() for port in rack_ports],
+                    "cables": [cable.as_dict() for cable in rack_cables],
+                    "power_circuits": [circuit.as_dict() for circuit in circuits],
+                    "power_reservations": [item.as_dict() for item in reservations],
+                    "energy_cooling": energy_cooling,
+                    "elevations": elevations,
+                }
+            )
+            port_count += len(rack_ports)
+            patch_panel_count += len(patch_panels)
+            circuit_count += len(circuits)
+            reservation_count += len(reservations)
+        floor_equipment = tuple(item for item in equipment if item.location.rack_code is None)
+        payload: dict[str, object] = {
+            "type": "dcim_digital_twin",
+            "tenant_id": tenant_id.value,
+            "site": room.site_code.value,
+            "building": room.building_code.value,
+            "floor": room.floor_code.value if room.floor_code else None,
+            "room": room.code.value,
+            "room_path": room.physical_path(),
+            "summary": {
+                "rack_count": len(racks),
+                "equipment_count": len(equipment),
+                "floor_equipment_count": len(floor_equipment),
+                "patch_panel_count": patch_panel_count,
+                "port_count": port_count,
+                "cable_count": len(room_cables),
+                "power_circuit_count": circuit_count,
+                "power_reservation_count": reservation_count,
+                "cooling_zone_count": len(cooling_zone_codes),
+            },
+            "room_plan": room_plan.as_dict(),
+            "racks": rack_payloads,
+            "floor_equipment": [item.as_dict() for item in floor_equipment],
+            "cables": [room_cables[key] for key in sorted(room_cables)],
+            "integrity": {
+                "status": "ok",
+                "source": "dcim_repository",
+                "scope": "room",
+            },
+        }
+        self._record_visualization_audit(
+            tenant_id,
+            command.actor,
+            "dcim.digital-twin.rendered",
+            "room",
+            room.code.value,
+            "json",
+        )
+        return payload
+
+    def _collect_rack_ports(
+        self,
+        tenant_id: TenantId,
+        equipment: tuple[Equipment, ...],
+        patch_panels: tuple[PatchPanel, ...],
+    ) -> tuple[DcimPort, ...]:
+        ports: list[DcimPort] = []
+        for item in equipment:
+            ports.extend(
+                self._dcim_repository.list_dcim_ports_by_owner(
+                    tenant_id, DcimPortOwnerType.EQUIPMENT.value, item.asset_tag.value
+                )
+            )
+        for panel in patch_panels:
+            ports.extend(
+                self._dcim_repository.list_dcim_ports_by_owner(
+                    tenant_id, DcimPortOwnerType.PATCH_PANEL.value, panel.code.value
+                )
+            )
+        return tuple(sorted(ports, key=lambda item: item.endpoint.key()))
+
+    def _collect_cables_for_ports(
+        self, tenant_id: TenantId, ports: tuple[DcimPort, ...]
+    ) -> tuple[DcimCable, ...]:
+        cables: dict[str, DcimCable] = {}
+        for port in ports:
+            for cable in self._dcim_repository.list_dcim_cables_by_endpoint(
+                tenant_id, port.endpoint
+            ):
+                cables[cable.cable_id.value] = cable
+        return tuple(cables[key] for key in sorted(cables))
+
+    def _rack_payload(self, rack: Rack) -> dict[str, object]:
+        payload = rack.as_capacity_seed()
+        payload.update(
+            {
+                "tenant_id": rack.tenant_id.value,
+                "site": rack.site_code.value,
+                "building": rack.building_code.value,
+                "floor": rack.floor_code.value if rack.floor_code else None,
+                "room": rack.room_code.value,
+                "zone": rack.zone_code.value if rack.zone_code else None,
+                "row": rack.row,
+                "column": rack.column,
+                "coordinates": rack.coordinates.as_dict() if rack.coordinates else None,
+            }
+        )
+        return payload
 
     def _normalize_output_format(self, value: str) -> str:
         output_format = value.strip().lower()

@@ -38,5 +38,6 @@ P09,REQ-00760;REQ-00761;REQ-00762,ITRM taxonomie catégories/types DC et filtrag
 P10,REQ-00763,DCIM localisation équipement API/UI,Implémenté en v0.29.26,,
 P10,REQ-00764,DCIM élévation rack dashboard,Implémenté en v0.29.27,,
 P10,REQ-00765,DCIM câblage dashboard,Implémenté en v0.29.28,,
-P10,REQ-00766,DCIM énergie/refroidissement dashboard,Implémenté en v0.29.29,,
+P10,REQ-00766,DCIM énergie/refroidissement dashboard,Implémenté en v0.29.29,0.29.29,TST-P10-DCIM-ENERGY-COOLING-WEB
 P09,REQ-00767,ITRM taxonomie labels opérateur et valeurs internes,Implémenté en v0.29.29,0.29.29,TST-P09-ITRM-TAXONOMY-LABELS
+P10,REQ-00768,DCIM jumeau numérique initial,Implémenté en v0.29.30,0.29.30,TST-P10-DCIM-DIGITAL-TWIN

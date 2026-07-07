@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.29
+  version: 0.29.30
 components:
   securitySchemes:
     bearerToken:
@@ -872,6 +872,34 @@ paths:
         '400': {description: Validation error}
         '401': {description: Missing or invalid DCIM locator token}
         '404': {description: Rack not found}
+  /api/v1/dcim/digital-twin:
+    get:
+      summary: Render the initial DCIM room digital twin across racks, equipment, cabling and capacity
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: {type: string}
+        - name: site
+          in: query
+          required: true
+          schema: {type: string}
+        - name: building
+          in: query
+          required: true
+          schema: {type: string}
+        - name: room
+          in: query
+          required: true
+          schema: {type: string}
+      responses:
+        '200': {description: Consolidated DCIM digital twin JSON document}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM locator token}
+        '404': {description: Room not found}
+
   /api/v1/dcim/patch-panels:
     post:
       summary: Define a rack-mounted patch panel and generate DCIM ports

@@ -9,12 +9,20 @@ import pytest
 
 from openinfra.application.container import ApplicationFactory
 from openinfra.application.dcim_services import (
+    ConnectDcimCableCommand,
+    DefineCoolingZoneCommand,
+    DefineDcimPortCommand,
+    DefinePatchPanelCommand,
     DefinePhysicalRoomCommand,
+    DefinePowerCircuitCommand,
+    DefinePowerDeviceCommand,
     DefineRackCommand,
     LocateEquipmentCommand,
     RackCapacityCommand,
+    RenderDigitalTwinCommand,
     RenderRackElevationCommand,
     RenderRoomPlanCommand,
+    ReserveEquipmentPowerCommand,
 )
 from openinfra.domain.common import EntityId, NotFoundError, TenantId, ValidationError
 from openinfra.domain.dcim import (
@@ -211,6 +219,150 @@ class TestDcimVisualizationServices:
         assert elevation_payload["elevation"][-1]["u"] == 1
         assert "VIS-SRV-01" in elevation_svg
         assert elevation_html.startswith("<!doctype html>")
+
+    def test_digital_twin_rejects_unknown_room(self, tmp_path: Path) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json", seed=False)
+
+        with pytest.raises(NotFoundError):
+            app.dcim_visualization_service.digital_twin(
+                RenderDigitalTwinCommand("default", "pytest", "VIS1", "BAT-V", "ROOM-V")
+            )
+
+    def test_digital_twin_consolidates_room_racks_cabling_power_and_cooling(
+        self, tmp_path: Path
+    ) -> None:
+        app = self._prepared_app(tmp_path)
+        app.dcim_cabling_service.define_patch_panel(
+            DefinePatchPanelCommand(
+                tenant_id="default",
+                actor="pytest",
+                site="VIS1",
+                building="BAT-V",
+                room="ROOM-V",
+                rack="R01",
+                patch_panel="PP01",
+                rack_face="front",
+                u_position=1,
+                u_height=1,
+                port_count=2,
+                connector="rj45",
+                medium="copper",
+            )
+        )
+        app.dcim_cabling_service.define_port(
+            DefineDcimPortCommand(
+                tenant_id="default",
+                actor="pytest",
+                owner_type="equipment",
+                owner_code="VIS-SRV-01",
+                port_name="ETH0",
+                connector="rj45",
+                medium="copper",
+            )
+        )
+        app.dcim_cabling_service.connect_cable(
+            ConnectDcimCableCommand(
+                tenant_id="default",
+                actor="pytest",
+                cable_id="CAB-VIS-001",
+                a_owner_type="equipment",
+                a_owner_code="VIS-SRV-01",
+                a_port_name="ETH0",
+                b_owner_type="patch_panel",
+                b_owner_code="PP01",
+                b_port_name="P01",
+                medium="copper",
+                path_segments=("R01 serveur", "PP01"),
+            )
+        )
+        app.dcim_environment_service.define_power_device(
+            DefinePowerDeviceCommand(
+                tenant_id="default",
+                actor="pytest",
+                code="PDU-A-R01",
+                kind="pdu",
+                site="VIS1",
+                building="BAT-V",
+                room="ROOM-V",
+                rack="R01",
+                side="A",
+                capacity_watts=2000,
+                derating_percent=100,
+            )
+        )
+        app.dcim_environment_service.define_power_circuit(
+            DefinePowerCircuitCommand(
+                tenant_id="default",
+                actor="pytest",
+                circuit_id="CIR-A-R01",
+                source_device="PDU-A-R01",
+                site="VIS1",
+                building="BAT-V",
+                room="ROOM-V",
+                rack="R01",
+                side="A",
+                capacity_watts=1200,
+                breaker_rating_amps=16,
+            )
+        )
+        app.dcim_environment_service.define_cooling_zone(
+            DefineCoolingZoneCommand(
+                tenant_id="default",
+                actor="pytest",
+                site="VIS1",
+                building="BAT-V",
+                room="ROOM-V",
+                zone="Z1",
+                role="cold_aisle",
+                cooling_capacity_watts=5000,
+                supply_temperature_c=18.0,
+                return_temperature_c=30.0,
+            )
+        )
+        app.dcim_environment_service.reserve_equipment_power(
+            ReserveEquipmentPowerCommand(
+                tenant_id="default",
+                actor="pytest",
+                asset_tag="VIS-SRV-01",
+                circuit_id="CIR-A-R01",
+                expected_watts=450,
+            )
+        )
+
+        twin = app.dcim_visualization_service.digital_twin(
+            RenderDigitalTwinCommand(
+                tenant_id="default",
+                actor="pytest",
+                site="VIS1",
+                building="BAT-V",
+                room="ROOM-V",
+            )
+        )
+
+        assert twin["type"] == "dcim_digital_twin"
+        assert twin["summary"] == {
+            "rack_count": 2,
+            "equipment_count": 3,
+            "floor_equipment_count": 1,
+            "patch_panel_count": 1,
+            "port_count": 3,
+            "cable_count": 1,
+            "power_circuit_count": 1,
+            "power_reservation_count": 1,
+            "cooling_zone_count": 1,
+        }
+        assert twin["room_plan"]["type"] == "room_plan_2d"
+        assert twin["integrity"] == {
+            "status": "ok",
+            "source": "dcim_repository",
+            "scope": "room",
+        }
+        r01 = next(rack for rack in twin["racks"] if rack["rack"]["rack"] == "R01")
+        assert [panel["patch_panel"] for panel in r01["patch_panels"]] == ["PP01"]
+        assert [cable["cable_id"] for cable in r01["cables"]] == ["CAB-VIS-001"]
+        assert r01["energy_cooling"]["rack_reserved_watts"] == 450
+        assert r01["energy_cooling"]["cooling"]["status"] == "ok"
+        assert "front" in r01["elevations"] and "rear" in r01["elevations"]
 
     def test_visualization_rejects_unknown_room_rack_face_and_format(self, tmp_path: Path) -> None:
         app = self._prepared_app(tmp_path)
@@ -501,6 +653,29 @@ class TestDcimVisualizationServices:
         )
         assert "Rack elevation" in capsys.readouterr().out
 
+        assert (
+            OpenInfraCLI().run(
+                [
+                    "dcim",
+                    "digital-twin",
+                    "--data",
+                    str(data),
+                    "--tenant",
+                    "default",
+                    "--site",
+                    "VIS1",
+                    "--building",
+                    "BAT-V",
+                    "--room",
+                    "ROOM-V",
+                ]
+            )
+            == 0
+        )
+        twin_json = json.loads(capsys.readouterr().out)
+        assert twin_json["type"] == "dcim_digital_twin"
+        assert twin_json["summary"]["rack_count"] == 2
+
     def test_visualization_http_api(self, tmp_path: Path) -> None:
         app = self._prepared_app(tmp_path)
         server = OpenInfraThreadingServer(("127.0.0.1", 0), app)
@@ -527,10 +702,17 @@ class TestDcimVisualizationServices:
                 + "/api/v1/dcim/rack-elevation?tenant_id=default&site=VIS1"
                 + "&building=BAT-V&room=ROOM-V&rack=R01&face=front&format=html"
             )
+            twin = self._get_json(
+                base_url
+                + "/api/v1/dcim/digital-twin?tenant_id=default&site=VIS1"
+                + "&building=BAT-V&room=ROOM-V"
+            )
 
             assert plan["type"] == "room_plan_2d"
             assert svg["svg"].startswith("<svg")
             assert elevation["type"] == "rack_elevation"
+            assert twin["type"] == "dcim_digital_twin"
+            assert twin["summary"]["equipment_count"] == 3
             assert html["html"].startswith("<!doctype html>")
         finally:
             server.shutdown()

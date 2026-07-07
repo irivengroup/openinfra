@@ -1,15 +1,15 @@
-# OpenInfra v0.29.29 — validation report
-
-Date: 2026-07-07
+# OpenInfra v0.29.30 — validation report
 
 ## Scope
 
-OpenInfra v0.29.29 delivers P10/DCIM energy and cooling dashboard parity and ITRM taxonomy UX hardening:
+OpenInfra v0.29.30 delivers the initial P10/DCIM room digital twin:
 
-- DCIM dashboard operations for power devices, power circuits, cooling zones, power reservations and rack energy/cooling capacity.
-- API discovery and OpenAPI documentation for existing DCIM energy/cooling backend contracts.
-- ITRM category/type select fields display human-readable labels while keeping normalized internal values in submitted payloads.
-- Obsolete generic resource types `physical-server` and `disk` removed from the taxonomy; server default is now `rack-server`.
+- `GET /api/v1/dcim/digital-twin` HTTP API contract.
+- `openinfra dcim digital-twin` CLI command.
+- `Jumeau numérique salle` dashboard operation.
+- Consolidated `dcim_digital_twin` payload containing `summary`, `room_plan`, `racks`, `floor_equipment`, `cables` and `integrity`.
+- Rack-level aggregation of equipment, patch panels, ports, cables, power circuits, power reservations, energy/cooling capacity and rack elevations.
+- No parallel storage: existing DCIM repositories and services remain the source of truth.
 
 ## Validation results
 
@@ -21,30 +21,31 @@ OpenInfra v0.29.29 delivers P10/DCIM energy and cooling dashboard parity and ITR
 | `python scripts/security_gate.py` | PASS |
 | `python scripts/validate_frontend.py` | PASS |
 | `node --check src/openinfra/interfaces/rendering/static/assets/openinfra-web.js` | PASS |
-| `python -m openinfra.interfaces.cli version` | PASS — 0.29.29 |
-| `mypy src/openinfra` | PASS |
+| `PYTHONPATH=src python -m openinfra.interfaces.cli version` | PASS — 0.29.30 |
+| `PYTHONPATH=src mypy src/openinfra` | PASS |
 | `bandit -q -r src/openinfra` | PASS |
-| `pip-audit --dry-run` | PASS |
-| `python -m build` | PASS |
-| `python scripts/verify_artifact.py dist/openinfra-0.29.29-py3-none-any.whl` | PASS |
-| CDC `validate_docs.py` | PASS — 767 requirements, 519 entities |
-| CDC `validate_storage_multisite.py` | PASS — 767 requirements |
-| Roadmap `validate_roadmap.py` | PASS — 19 phases, 114 epics, 8 gates, 40 tests |
-| `python scripts/validate_enterprise_alignment.py` | PASS |
-| `python scripts/validate_autonomous_installer.py` | PASS — 6 profiles |
-| `python scripts/native_runtime_smoke.py` | PASS |
-| installer validate | PASS — 6 profiles |
-| installer dry-run | PASS — 6 profiles |
-| `pytest --collect-only --no-cov` | PASS — 407 tests collected |
-| pytest by batches with combined coverage | PASS — 407 tests executed |
-| `coverage report --fail-under=98` | PASS — 98.0096 % |
+| `pip-audit --dry-run` | PASS — no known vulnerabilities found |
+| CDC `validate_docs.py` | PASS — 768 requirements, 519 entities |
+| CDC `validate_storage_multisite.py` | PASS — 768 requirements |
+| Roadmap `validate_roadmap.py` | PASS — 19 phases, 114 epics, 8 gates, 41 tests |
+| `validate_enterprise_alignment.py` | PASS |
+| `validate_autonomous_installer.py` | PASS — 6 installers |
+| `native_runtime_smoke.py` | PASS |
+| installer dry-run/verify-only | PASS — 6 profiles |
+| `pytest --collect-only --no-cov` | PASS — 409 tests collected |
+| pytest batches with coverage append | PASS — 409 tests executed |
+| `coverage report --fail-under=98` | PASS — 98.0006% exact, displayed 98% |
 | `python scripts/quality_gate.py` | PASS |
-| `zip -T` on generated archives | PASS |
-| archive cleanup inspection | PASS |
-
-The single full `pytest` command with coverage exceeded the interactive timeout, so the complete suite was executed in four deterministic batches with `coverage --append`, followed by the final global `coverage report --fail-under=98` gate.
+| `python -m build` | PASS |
+| `python scripts/verify_artifact.py dist/openinfra-0.29.30-py3-none-any.whl` | PASS |
 
 ## Not executed locally
 
-- `npm run build`: `web/node_modules` is not present in the execution environment.
-- Docker Compose live runtime: Docker is not available in the execution environment.
+| Validation | Reason |
+| --- | --- |
+| `npm run build` | `web/node_modules` absent in the execution environment |
+| Docker Compose live runtime | `docker` command absent in the execution environment |
+
+## Notes
+
+The single-process full pytest run exceeded the interactive environment timeout. The complete suite was therefore executed by deterministic file batches with coverage append, then validated by the final `coverage report --fail-under=98` gate.

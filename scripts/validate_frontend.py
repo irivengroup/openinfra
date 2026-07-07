@@ -82,6 +82,8 @@ class FrontendContractValidator:
             or "/v1/dcim/power-reservations" not in main_source
             or "Capacité énergie/refroidissement" not in main_source
             or "/v1/dcim/energy-cooling-capacity" not in main_source
+            or "Jumeau numérique salle" not in main_source
+            or "/v1/dcim/digital-twin" not in main_source
             or "Chemin câble" not in main_source
             or "Format rendu" not in main_source
             or "Face rack" not in main_source
@@ -205,6 +207,8 @@ class FrontendContractValidator:
             "/v1/dcim/power-reservations",
             "Capacité énergie/refroidissement",
             "/v1/dcim/energy-cooling-capacity",
+            "Jumeau numérique salle",
+            "/v1/dcim/digital-twin",
             "Chaîne électrique",
             "Capacité watts",
             "Capacité froid watts",

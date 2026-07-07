@@ -1,3 +1,11 @@
+## 0.29.30 - 2026-07-07
+
+- Added the initial DCIM room digital twin through `GET /api/v1/dcim/digital-twin` and `openinfra dcim digital-twin`.
+- Consolidated room plan, racks, equipment, patch panels, ports, cables, power circuits, reservations, energy/cooling capacity, rack elevations and integrity checks in a single `dcim_digital_twin` payload.
+- Added the `Jumeau numérique salle` dashboard operation and API discovery/OpenAPI documentation for the same backend contract.
+- Reused existing DCIM services and repositories without introducing parallel storage or duplicating rack, cabling, energy or cooling invariants.
+- Updated CDC, roadmap, frontend validators and regression tests for P10 digital twin parity.
+
 ## 0.29.29 - 2026-07-07
 
 - Added DCIM power and cooling dashboard operations for power devices, power circuits, cooling zones, power reservations and rack energy/cooling capacity reports.

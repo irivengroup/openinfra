@@ -36,6 +36,7 @@ from openinfra.application.dcim_services import (
     LocateEquipmentCommand,
     RackCapacityCommand,
     RackEnergyCoolingCapacityCommand,
+    RenderDigitalTwinCommand,
     RenderRackElevationCommand,
     RenderRoomPlanCommand,
     ReserveEquipmentPowerCommand,
@@ -768,6 +769,29 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     responder.send(HTTPStatus.OK, {"html": elevation.html_document()})
                 else:
                     responder.send(HTTPStatus.OK, elevation.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/dcim/digital-twin":
+            try:
+                query = parse_qs(parsed.query)
+                tenant_id = self._first_query_value(query, "tenant_id")
+                actor = "api"
+                if self.server.auth_required:
+                    principal = self._authenticate(tenant_id, Permission.DCIM_LOCATE)
+                    actor = principal.subject
+                result = self.server.application.dcim_visualization_service.digital_twin(
+                    RenderDigitalTwinCommand(
+                        tenant_id=tenant_id,
+                        actor=actor,
+                        site=self._first_query_value(query, "site"),
+                        building=self._first_query_value(query, "building"),
+                        room=self._first_query_value(query, "room"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result)
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (ValueError, OpenInfraError) as exc:
@@ -2323,6 +2347,7 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "rack_capacity": "/api/v1/dcim/rack-capacity",
                     "room_plan": "/api/v1/dcim/room-plan",
                     "rack_elevation": "/api/v1/dcim/rack-elevation",
+                    "digital_twin": "/api/v1/dcim/digital-twin",
                     "locator_sheet": "/api/v1/dcim/locator-sheet",
                     "verify_scan": "/api/v1/dcim/verify-scan",
                     "patch_panels": "/api/v1/dcim/patch-panels",

@@ -1,10 +1,18 @@
-# OpenInfra v0.29.29
+# OpenInfra v0.29.30
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.29 — DCIM expose désormais les opérations énergie/refroidissement dans le dashboard et dans le document OpenAPI : équipements électriques, circuits, zones froides/chaudes, réservations de puissance et rapport capacité rack.**
+**Version courante : 0.29.30 — DCIM expose un jumeau numérique initial de salle, consolidant plan, racks, équipements, câblage, énergie/refroidissement et intégrité via API, CLI et dashboard.**
 
-### v0.29.29 — énergie/refroidissement DCIM dans le dashboard
+### v0.29.30 — jumeau numérique DCIM initial
+
+- Ajout de `GET /api/v1/dcim/digital-twin` et de `openinfra dcim digital-twin` pour restituer une vue consolidée de salle DCIM.
+- Le document retourné `dcim_digital_twin` agrège `summary`, `room_plan`, `racks`, `floor_equipment`, `cables` et `integrity` sans créer de stockage parallèle.
+- Chaque rack inclut son occupation, ses équipements, panneaux de brassage, ports, câbles, circuits, réservations, capacité énergie/refroidissement et élévations utilisables.
+- Le dashboard ajoute l’opération **Jumeau numérique salle**, alignée sur le contrat backend et servie via le proxy same-origin.
+- Le service réutilise les repositories et services DCIM existants ; les règles rack/U, câblage, énergie, refroidissement et intégrité restent centralisées côté domaine/application.
+
+### v0.29.29 — énergie/refroidissement DCIM dans le dashboard et taxonomie ITRM
 
 - Ajout des opérations web `Définir un équipement électrique`, `Définir un circuit électrique`, `Définir une zone de refroidissement`, `Réserver la puissance équipement` et `Capacité énergie/refroidissement`.
 - Les formulaires sont alignés sur les contrats backend existants `POST /api/v1/dcim/power-devices`, `POST /api/v1/dcim/power-circuits`, `POST /api/v1/dcim/cooling-zones`, `POST /api/v1/dcim/power-reservations` et `GET /api/v1/dcim/energy-cooling-capacity`.

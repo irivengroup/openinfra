@@ -149,6 +149,20 @@ class TestDcimCablingServices:
                 medium="copper",
             )
         )
+        operator_port = app.dcim_cabling_service.define_port(
+            DefineDcimPortCommand(
+                tenant_id="default",
+                actor="pytest",
+                owner_type="patch_panel",
+                owner_code="PP01",
+                port_name="P05",
+                connector="rj45",
+                medium="copper",
+                site="CBL1",
+                building="BAT-C",
+                room="MMR-C",
+            )
+        )
         cable = app.dcim_cabling_service.connect_cable(
             ConnectDcimCableCommand(
                 tenant_id="default",
@@ -178,6 +192,8 @@ class TestDcimCablingServices:
         assert panel["generated_ports"] == ["P01", "P02", "P03", "P04"]
         assert panel["occupied_units"] == [2]
         assert equipment_port["owner_type"] == "equipment"
+        assert operator_port["owner_type"] == "patch_panel"
+        assert operator_port["site"] == "CBL1"
         assert cable["length_m"] == 2.346
         assert cable["trace"].startswith("CAB-0001: equipment:SRV-CBL-01:ETH0")
         assert trace["a_port"]["connector"] == "rj45"
@@ -188,6 +204,7 @@ class TestDcimCablingServices:
             "P02",
             "P03",
             "P04",
+            "P05",
         ]
 
     def test_cabling_validation_rejects_missing_conflicting_and_incompatible_links(

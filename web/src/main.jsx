@@ -675,6 +675,7 @@ const MODULES = [
     { id: 'dcim-power-circuit', label: 'Définir un circuit électrique', path: '/v1/dcim/power-circuits', method: 'POST', fields: ['Opérateur', 'Identifiant circuit', 'Source électrique', 'Site', 'Bâtiment', 'Salle', 'Rack', 'Chaîne électrique', 'Capacité watts', 'Calibre disjoncteur A', 'Groupe redondance', 'Libellé'] },
     { id: 'dcim-cooling-zone', label: 'Définir une zone de refroidissement', path: '/v1/dcim/cooling-zones', method: 'POST', fields: ['Opérateur', 'Site', 'Bâtiment', 'Salle', 'Zone froid/chaud', 'Rôle refroidissement', 'Capacité froid watts', 'Température soufflage °C', 'Température retour °C', 'Libellé'] },
     { id: 'dcim-power-reservation', label: 'Réserver la puissance équipement', path: '/v1/dcim/power-reservations', method: 'POST', fields: ['Opérateur', 'Numéro d’actif', 'Identifiant circuit', 'Puissance attendue watts', 'Libellé'] },
+    { id: 'dcim-digital-twin', label: 'Jumeau numérique salle', path: '/v1/dcim/digital-twin', method: 'GET', fields: ['Site', 'Bâtiment', 'Salle'] },
     { id: 'dcim-energy-cooling-capacity', label: 'Capacité énergie/refroidissement', path: '/v1/dcim/energy-cooling-capacity', method: 'GET', fields: ['Site', 'Bâtiment', 'Salle', 'Rack'] },
   ] },
   { id: 'discovery', label: 'Discovery', icon: 'activity', operations: [{ id: 'collectors-register', label: 'Enregistrer un agent proxy Enterprise', path: '/v1/discovery/collectors', method: 'POST', fields: ['Opérateur', 'Nom agent proxy', 'Type', 'Empreinte certificat', 'Scopes autorisés', 'Version agent', 'Endpoint mTLS'] }] },

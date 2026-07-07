@@ -1535,3 +1535,10 @@ Le dashboard d’accueil ne présente plus l’alerte succès permanente `Backen
 - Les formulaires ciblent les contrats existants `/api/v1/dcim/power-devices`, `/api/v1/dcim/power-circuits`, `/api/v1/dcim/cooling-zones`, `/api/v1/dcim/power-reservations` et `/api/v1/dcim/energy-cooling-capacity` via le proxy API same-origin.
 - Les champs chaîne électrique A/B, capacité watts, derating, calibre disjoncteur, rôle de refroidissement, températures soufflage/retour et puissance attendue sont déclarés explicitement ; les règles de capacité et marge thermique restent validées par le service DCIM backend.
 - La roadmap P10 ajoute `TST-P10-DCIM-ENERGY-COOLING-WEB` et aligne `REQ-00766`.
+
+### Avancement v0.29.30 — P10 jumeau numérique DCIM initial
+
+- `GET /api/v1/dcim/digital-twin`, `openinfra dcim digital-twin` et l’opération web **Jumeau numérique salle** exposent une vue consolidée salle/rack/équipements/câblage/énergie/refroidissement.
+- Le document `dcim_digital_twin` contient `summary`, `room_plan`, `racks`, `floor_equipment`, `cables` et `integrity`, chaque rack portant aussi ses élévations et sa capacité énergie/refroidissement.
+- L’implémentation s’appuie sur les repositories et services DCIM existants sans stockage parallèle ; les invariants rack, port, câble, circuit, réservation et refroidissement restent validés par les couches domaine/application.
+- La roadmap P10 ajoute `TST-P10-DCIM-DIGITAL-TWIN` et aligne `REQ-00768`.

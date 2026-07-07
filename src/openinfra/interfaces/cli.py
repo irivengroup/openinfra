@@ -34,6 +34,7 @@ from openinfra.application.dcim_services import (
     LocateEquipmentCommand,
     RackCapacityCommand,
     RackEnergyCoolingCapacityCommand,
+    RenderDigitalTwinCommand,
     RenderRackElevationCommand,
     RenderRoomPlanCommand,
     ReserveEquipmentPowerCommand,
@@ -1571,6 +1572,20 @@ class OpenInfraCLI:
         energy_cooling.add_argument("--rack", required=True)
         energy_cooling.set_defaults(handler=self._handle_dcim_energy_cooling_capacity)
 
+        digital_twin = dcim_subparsers.add_parser(
+            "digital-twin",
+            help="render the initial room digital twin across racks, cabling and capacity",
+        )
+        digital_twin.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        digital_twin.add_argument("--data", type=Path, default=Path(".openinfra.json"))
+        digital_twin.add_argument("--postgres-dsn")
+        digital_twin.add_argument("--tenant", default="default")
+        digital_twin.add_argument("--actor", default="cli")
+        digital_twin.add_argument("--site", required=True)
+        digital_twin.add_argument("--building", required=True)
+        digital_twin.add_argument("--room", required=True)
+        digital_twin.set_defaults(handler=self._handle_dcim_digital_twin)
+
     def _handle_version(self, args: argparse.Namespace) -> int:
         print(__version__)
         return 0
@@ -3053,6 +3068,20 @@ class OpenInfraCLI:
             )
         )
         print(json.dumps(report.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_dcim_digital_twin(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_visualization_service.digital_twin(
+            RenderDigitalTwinCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                site=args.site,
+                building=args.building,
+                room=args.room,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
         return 0
 
     def _create_migration_executor(self, args: argparse.Namespace) -> PostgreSQLMigrationExecutor:

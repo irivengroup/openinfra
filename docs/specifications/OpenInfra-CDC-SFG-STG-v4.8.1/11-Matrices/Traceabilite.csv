@@ -760,3 +760,4 @@ REQ-00764,N1,DCIM,UC-0001,TST-DCIM-067,"Validation frontend, tests intégration 
 REQ-00765,N1,DCIM,UC-0001,TST-DCIM-068,Validation frontend et tests intégration web du câblage DCIM.
 REQ-00766,N1,DCIM,UC-0001,TST-DCIM-069,"Validation frontend, tests intégration web et découverte API/OpenAPI de l’énergie/refroidissement DCIM."
 REQ-00767,N1,ITRM,UC-0042,TST-ITRM-070,"Tests domaine, service et frontend pour libellés opérateur, valeurs internes et retrait des types obsolètes."
+REQ-00768,N1,DCIM,UC-0001,TST-DCIM-071,"Tests service, CLI, API HTTP, frontend et OpenAPI du jumeau numérique DCIM initial."

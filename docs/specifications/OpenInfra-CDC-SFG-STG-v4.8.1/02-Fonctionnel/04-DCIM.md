@@ -133,6 +133,12 @@ Le dashboard DCIM doit exposer les opérations énergie/refroidissement permetta
 
 **Acceptation :** Le dashboard contient les opérations `Définir un équipement électrique`, `Définir un circuit électrique`, `Définir une zone de refroidissement`, `Réserver la puissance équipement` et `Capacité énergie/refroidissement`; elles ciblent `/api/v1/dcim/power-devices`, `/api/v1/dcim/power-circuits`, `/api/v1/dcim/cooling-zones`, `/api/v1/dcim/power-reservations` et `/api/v1/dcim/energy-cooling-capacity` sans réimplémenter les règles de capacité, redondance A/B, derating ou marge thermique côté navigateur.
 
+### REQ-00768
+
+Le DCIM doit exposer un jumeau numérique initial de salle consolidant, pour un tenant et une salle donnés, le plan 2D, les racks, équipements montés ou posés au sol, panneaux de brassage, ports, câbles, circuits électriques, réservations de puissance, capacité énergie/refroidissement et élévations rack disponibles.
+
+**Acceptation :** `GET /api/v1/dcim/digital-twin`, la commande CLI `openinfra dcim digital-twin` et le dashboard `Jumeau numérique salle` retournent une vue JSON cohérente sans créer de stockage parallèle ni dupliquer les règles métier DCIM.
+
 ## Critères d’acceptation
 
 La capacité est acceptée si les scénarios nominaux, erreurs, droits insuffisants, conflits et imports/exports sont validés par tests automatisés et si les journaux d’audit permettent de reconstituer les opérations.

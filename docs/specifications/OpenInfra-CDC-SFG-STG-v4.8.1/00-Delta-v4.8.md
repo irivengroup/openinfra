@@ -1,5 +1,12 @@
-- Ajout de `REQ-00767` et `TST-ITRM-070` : les sélecteurs ITRM affichent les libellés métier tout en conservant les valeurs internes normalisées ; les types obsolètes `physical-server` et `disk` sont retirés de la taxonomie.
+## Delta v0.29.30 — jumeau numérique DCIM initial
+
+- Ajout de `REQ-00768` et `TST-DCIM-071` : jumeau numérique DCIM initial exposé par API, CLI et dashboard via `GET /api/v1/dcim/digital-twin`, consolidant plan salle, racks, équipements, panneaux, ports, câbles et capacité énergie/refroidissement.
+- Le document `dcim_digital_twin` agrège `summary`, `room_plan`, `racks`, `floor_equipment`, `cables` et `integrity` sans créer de stockage parallèle.
+- Les règles métier restent portées par les services DCIM existants : occupation rack, câblage, capacité énergie/refroidissement et intégrité.
+
 ## Delta v0.29.29 — énergie/refroidissement DCIM dans le dashboard
+
+- Ajout de `REQ-00767` et `TST-ITRM-070` : les sélecteurs ITRM affichent les libellés métier tout en conservant les valeurs internes normalisées ; les types obsolètes `physical-server` et `disk` sont retirés de la taxonomie.
 
 - Ajout de `REQ-00766` et `TST-DCIM-069` : opérations énergie/refroidissement DCIM exposées dans le dashboard via les contrats existants `POST /api/v1/dcim/power-devices`, `POST /api/v1/dcim/power-circuits`, `POST /api/v1/dcim/cooling-zones`, `POST /api/v1/dcim/power-reservations` et `GET /api/v1/dcim/energy-cooling-capacity`.
 - Ajout des champs opérateur chaîne électrique A/B, capacité watts, derating, calibre disjoncteur, rôle de zone, températures soufflage/retour et puissance attendue.

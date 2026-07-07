@@ -91,6 +91,7 @@ class TestHttpApi:
                     "rack_capacity": "/api/v1/dcim/rack-capacity",
                     "room_plan": "/api/v1/dcim/room-plan",
                     "rack_elevation": "/api/v1/dcim/rack-elevation",
+                    "digital_twin": "/api/v1/dcim/digital-twin",
                     "locator_sheet": "/api/v1/dcim/locator-sheet",
                     "verify_scan": "/api/v1/dcim/verify-scan",
                     "patch_panels": "/api/v1/dcim/patch-panels",
@@ -115,6 +116,7 @@ class TestHttpApi:
             assert openapi.startswith("openapi: 3.1.0")
             assert "/api/v1/dcim/power-devices" in openapi
             assert "/api/v1/dcim/energy-cooling-capacity" in openapi
+            assert "/api/v1/dcim/digital-twin" in openapi
             assert versioned_openapi == openapi
             assert health["status"] == "ok"
             assert ready["ready"] is True

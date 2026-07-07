@@ -1,8 +1,15 @@
 
+## 0.29.30
+
+- P10 étendu : jumeau numérique DCIM initial exposé par API, CLI et dashboard.
+- Ajout de `TST-P10-DCIM-DIGITAL-TWIN` pour verrouiller la consolidation salle/rack/câblage/énergie/refroidissement et la non-duplication des règles métier.
+- Alignement CDC `REQ-00768`.
+
 ## 0.29.29
 
 - P10 étendu : dashboard DCIM énergie/refroidissement aligné sur les contrats API existants.
 - P09 renforcé : sélecteurs ITRM label/value, valeurs internes normalisées conservées et retrait des types obsolètes `physical-server`/`disk`.
+
 ## v2 / OpenInfra 0.29.29
 
 - P10 renforcé : opérations énergie/refroidissement DCIM exposées dans `openinfra-web` via les contrats backend existants power devices, circuits, cooling zones, power reservations et capacité rack.

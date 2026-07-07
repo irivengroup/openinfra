@@ -1,4 +1,4 @@
-# OpenInfra Web v0.29.29
+# OpenInfra Web v0.29.30
 
 OpenInfra Web est le portail `openinfra-web` API-only. Il sert l'interface React/Bootstrap 5, expose un proxy applicatif `/api/*` vers le backend `openinfra-api` et fournit un dashboard de pilotage aligné sur les domaines CLI.
 
@@ -40,6 +40,12 @@ Le service Compose `openinfra-web` dépend de `api:8080`, écoute par défaut su
 
 L'unité `openinfra-web.service` lance `openinfra-web` depuis le virtualenv géré par l'installateur et lit sa configuration via `EnvironmentFile=/etc/openinfra/openinfra.conf`, chemin compatible pointant vers `/opt/openinfra/config/openinfra.conf`.
 
+
+## v0.29.30 — jumeau numérique DCIM initial
+
+Le dashboard expose désormais l’opération **Jumeau numérique salle** adossée à `GET /api/v1/dcim/digital-twin`. Le formulaire demande Site, Bâtiment et Salle, puis relaie la requête via le proxy same-origin sans exposer de jeton technique au navigateur.
+
+La réponse agrège une vue opérateur cohérente : synthèse de salle, plan 2D, racks, équipements localisés, équipements au sol, panneaux, ports, câbles, capacité énergie/refroidissement, réservations et contrôles d’intégrité. Le navigateur ne reconstruit pas le jumeau numérique : il affiche le document consolidé par le backend.
 
 ## v0.29.29 — énergie/refroidissement DCIM dans le dashboard
 

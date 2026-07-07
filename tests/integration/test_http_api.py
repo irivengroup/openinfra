@@ -84,6 +84,17 @@ class TestHttpApi:
                     "legacy_ri_alias": "/api/v1/ri/objects",
                     "legacy_sot_alias": "/api/v1/sot/objects",
                 },
+                "dcim": {
+                    "rooms": "/api/v1/dcim/rooms",
+                    "racks": "/api/v1/dcim/racks",
+                    "locations": "/api/v1/dcim/locations",
+                    "rack_capacity": "/api/v1/dcim/rack-capacity",
+                    "room_plan": "/api/v1/dcim/room-plan",
+                    "rack_elevation": "/api/v1/dcim/rack-elevation",
+                    "locator_sheet": "/api/v1/dcim/locator-sheet",
+                    "verify_scan": "/api/v1/dcim/verify-scan",
+                    "cable_trace": "/api/v1/dcim/cable-trace",
+                },
                 "discovery": {
                     "collectors": "/api/v1/discovery/collectors",
                     "heartbeat": "/api/v1/discovery/collectors/heartbeat",
@@ -1452,6 +1463,93 @@ class TestSourceGovernanceHttpApi:
             server.server_close()
             thread.join(timeout=5)
 
+    def test_dcim_location_api_requires_dcim_locate_and_returns_public_payload(
+        self, tmp_path: Path
+    ) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json", seed=False)
+        viewer_token = "l" * 40
+        dcim_token = "n" * 40
+        app.security_service.bootstrap_token(
+            BootstrapTokenCommand(
+                tenant_id="default",
+                actor="pytest",
+                subject="viewer-location-client",
+                roles=("viewer",),
+                token=viewer_token,
+            )
+        )
+        app.security_service.bootstrap_token(
+            BootstrapTokenCommand(
+                tenant_id="default",
+                actor="pytest",
+                subject="dcim-location-client",
+                roles=("dcim:operator",),
+                token=dcim_token,
+            )
+        )
+        server = OpenInfraThreadingServer(("127.0.0.1", 0), app, auth_required=True)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base_url = f"http://127.0.0.1:{server.server_port}"
+            room_payload = {
+                "tenant_id": "default",
+                "site_code": "LIL1",
+                "site_name": "Lille 1",
+                "country": "FR",
+                "region": "Hauts-de-France",
+                "city": "Lille",
+                "building_code": "BAT-L",
+                "building_name": "Building L",
+                "floor_code": "F01",
+                "floor_name": "First floor",
+                "floor_index": 1,
+                "room_code": "MDF1",
+                "room_name": "MDF Lille",
+                "rows": ["A"],
+                "columns": ["01"],
+            }
+            helper = TestHttpApi()
+            helper._post_json(base_url + "/api/v1/dcim/rooms", room_payload, token=dcim_token)
+            location_payload = {
+                "tenant_id": "default",
+                "asset_tag": "LIL-SRV-001",
+                "equipment_name": "Lille Server 001",
+                "site": "LIL1",
+                "building": "BAT-L",
+                "room": "MDF1",
+                "row": "A",
+                "column": "01",
+            }
+            try:
+                helper._post_json(
+                    base_url + "/api/v1/dcim/locations", location_payload, token=viewer_token
+                )
+            except urllib.error.HTTPError as exc:
+                assert exc.code == 401
+            bad_payload = dict(location_payload)
+            del bad_payload["asset_tag"]
+            try:
+                helper._post_json(
+                    base_url + "/api/v1/dcim/locations", bad_payload, token=dcim_token
+                )
+            except urllib.error.HTTPError as exc:
+                assert exc.code == 400
+            created = helper._post_json(
+                base_url + "/api/v1/dcim/locations", location_payload, token=dcim_token
+            )
+
+            assert created["asset_tag"] == "LIL-SRV-001"
+            assert created["name"] == "Lille Server 001"
+            assert created["location"]["site"] == "LIL1"
+            assert created["location"]["floor"] == "F01"
+            assert created["location"]["coordinates"] is None
+            assert created["location"]["human_readable"].startswith("site=LIL1")
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
     def test_dcim_rack_runtime_api_endpoints(self, tmp_path: Path) -> None:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json")
         server = OpenInfraThreadingServer(("127.0.0.1", 0), app)
@@ -1502,6 +1600,29 @@ class TestSourceGovernanceHttpApi:
                     "power_capacity_watts": 24000,
                 },
             )
+            location = helper._post_json(
+                base_url + "/api/v1/dcim/locations",
+                {
+                    "tenant_id": "default",
+                    "actor": "api-test",
+                    "asset_tag": "BOR-SRV-001",
+                    "equipment_name": "Bordeaux Server 001",
+                    "site": "BOR1",
+                    "building": "BAT-B",
+                    "floor": "F01",
+                    "room": "MDF1",
+                    "zone": "Z1",
+                    "row": "A",
+                    "column": "01",
+                    "rack": "R01",
+                    "u_position": 3,
+                    "rack_face": "front",
+                    "u_height": 2,
+                    "x": 1.25,
+                    "y": 2.5,
+                    "z": 0.0,
+                },
+            )
             capacity = helper._get_json(
                 base_url
                 + "/api/v1/dcim/rack-capacity?tenant_id=default"
@@ -1511,8 +1632,14 @@ class TestSourceGovernanceHttpApi:
             assert room["room"] == "MDF1"
             assert rack["rack"] == "R01"
             assert rack["faces"] == ["front", "rear"]
+            assert location["asset_tag"] == "BOR-SRV-001"
+            assert location["location"]["rack_face"] == "front"
+            assert location["location"]["u_height"] == 2
+            assert location["location"]["coordinates"] == {"x": 1.25, "y": 2.5, "z": 0.0}
+            assert "row=A | column=01" in location["location"]["human_readable"]
             assert capacity["units"] == 48
-            assert capacity["faces_capacity"]["front"]["free_count"] == 48
+            assert capacity["faces_capacity"]["front"]["used_units"] == [3, 4]
+            assert capacity["faces_capacity"]["front"]["free_count"] == 46
         finally:
             server.shutdown()
             server.server_close()

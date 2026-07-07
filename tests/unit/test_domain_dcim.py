@@ -246,6 +246,44 @@ class TestDcimDomain:
         assert rejected.as_dict()["received_payload"] == "oi:loc:default:OTHER:BAD"
         assert InterventionRouteStep.create(1, " A ", "  B   C ").as_dict()["instruction"] == "B C"
 
+
+    def test_equipment_location_public_payload_contract(self) -> None:
+        from openinfra.domain.dcim import Equipment
+
+        tenant = TenantId.from_value("default")
+        location = EquipmentLocation.create(
+            "PAR1",
+            "BAT-A",
+            "MMR1",
+            "A",
+            "01",
+            rack_code="R01",
+            u_position=12,
+            rack_face="rear",
+            u_height=2,
+            floor_code="F02",
+            zone_code="Z2",
+            coordinates=Coordinates3D.from_values(3.5, 4.25, 0.0),
+        )
+        equipment = Equipment.create(tenant, "PAR-SRV-777", "Server 777", location)
+
+        assert location.as_dict() == {
+            "site": "PAR1",
+            "building": "BAT-A",
+            "floor": "F02",
+            "room": "MMR1",
+            "row": "A",
+            "column": "01",
+            "zone": "Z2",
+            "rack": "R01",
+            "u_position": 12,
+            "rack_face": "rear",
+            "u_height": 2,
+            "coordinates": {"x": 3.5, "y": 4.25, "z": 0.0},
+            "human_readable": location.human_readable(),
+        }
+        assert equipment.as_dict()["location"] == location.as_dict()
+
     def test_qr_and_locator_validation_edges(self) -> None:
         from openinfra.domain.dcim import (
             Equipment,

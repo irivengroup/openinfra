@@ -1507,3 +1507,10 @@ Le dashboard d’accueil ne présente plus l’alerte succès permanente `Backen
 - Les créations, modifications et réconciliations ITRM acceptent `resource_category` et `resource_type`, valident que le type appartient à la catégorie, et enrichissent les attributs historisés.
 - Le dashboard web filtre automatiquement le champ type de ressource selon la catégorie choisie ; le mécanisme de listes dépendantes est générique pour les formulaires analogues.
 - La roadmap P09 ajoute `TST-P09-ITRM-RESOURCE-TAXONOMY` et aligne `REQ-00760`, `REQ-00761` et `REQ-00762`.
+
+### Avancement v0.29.26 — P10 localisation équipement DCIM API/UI
+
+- `POST /api/v1/dcim/locations` expose la localisation ou relocalisation d’un équipement sans contourner le service applicatif `DcimLocationService`.
+- Le contrat public renvoie `asset_tag`, `name` et une localisation sérialisée avec site, bâtiment, étage, salle, ligne, colonne, zone, rack, position U, face, hauteur U, coordonnées XYZ et libellé lisible.
+- Le dashboard web ajoute le formulaire **Localiser un équipement** via le BFF existant, sans jeton opérateur côté navigateur.
+- Le discovery API, OpenAPI, CDC, roadmap et tests verrouillent le contrat P10 par `REQ-00763` et `TST-P10-DCIM-LOCATION-API`.

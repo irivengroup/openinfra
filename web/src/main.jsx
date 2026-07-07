@@ -34,7 +34,10 @@ const MODULES = [
     { id: 'itrm-reconcile', label: 'Réconcilier une ressource', path: '/v1/itrm/reconcile-object', method: 'POST', fields: ['Opérateur', 'Clé ITRM', 'Source entrante', 'Catégorie', 'Type de ressource', 'Nom affiché cible', 'Numéro de série', 'Constructeur', 'Modèle', 'Site', 'Rack', 'Tags', 'Appliquer le plan'] },
   ] },
   { id: 'ipam', label: 'IPAM', icon: 'grid', operations: [{ id: 'ipam-search', label: 'Rechercher dans l’IPAM', path: '/v1/ipam/ui-search', method: 'GET', fields: ['Recherche', 'VRF'] }] },
-  { id: 'dcim', label: 'DCIM', icon: 'home', operations: [{ id: 'dcim-rack-capacity', label: 'Capacité rack', path: '/v1/dcim/rack-capacity', method: 'GET', fields: ['Site', 'Bâtiment', 'Salle', 'Rack'] }] },
+  { id: 'dcim', label: 'DCIM', icon: 'home', operations: [
+    { id: 'dcim-locate-equipment', label: 'Localiser un équipement', path: '/v1/dcim/locations', method: 'POST', fields: ['Opérateur', 'Numéro d’actif', 'Nom équipement', 'Site', 'Bâtiment', 'Étage', 'Salle', 'Zone', 'Ligne salle', 'Colonne salle', 'Rack', 'Position U', 'Face rack', 'Hauteur U', 'Coordonnée X', 'Coordonnée Y', 'Coordonnée Z'] },
+    { id: 'dcim-rack-capacity', label: 'Capacité rack', path: '/v1/dcim/rack-capacity', method: 'GET', fields: ['Site', 'Bâtiment', 'Salle', 'Rack'] },
+  ] },
   { id: 'discovery', label: 'Discovery', icon: 'activity', operations: [{ id: 'collectors-register', label: 'Enregistrer un agent proxy Enterprise', path: '/v1/discovery/collectors', method: 'POST', fields: ['Opérateur', 'Nom agent proxy', 'Type', 'Empreinte certificat', 'Scopes autorisés', 'Version agent', 'Endpoint mTLS'] }] },
   { id: 'security', label: 'Sécurité / RBAC / Audit', shortLabel: 'Sécurité', icon: 'shield', operations: [{ id: 'audit-events', label: 'Événements d’audit', path: '/v1/audit/events', method: 'GET', fields: ['Action', 'Type cible', 'Limite'] }] },
 ];

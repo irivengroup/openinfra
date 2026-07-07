@@ -9,17 +9,22 @@ import pytest
 from openinfra.domain.access_policy import AccessPolicyEffect, AccessPolicyRule
 from openinfra.domain.audit import AuditEventFilter
 from openinfra.domain.common import AuditEvent, Pagination, Severity, TenantId, ValidationError
+from openinfra.domain.editions import QuotaResource
 from openinfra.domain.identity import GroupMembership, IdentityGroup, IdentityUser
-from openinfra.domain.ipam import IpReservation, Prefix, Vrf
+from openinfra.domain.dcim import DcimCable, DcimCablePathSegment, DcimPortEndpoint
+from openinfra.domain.ipam import AutonomousSystem, BgpPeer, IpRange, IpReservation, Prefix, Vlan, Vrf
 from openinfra.domain.security import ApiTokenCredential, Permission
 from openinfra.domain.source_governance import SourceGovernanceRule
 from openinfra.domain.source_of_truth import SourceOfTruthObject, SourceRelation
 from openinfra.infrastructure.json_store import (
     JsonAccessPolicyRepository,
     JsonAuditRepository,
+    JsonDcimRepository,
     JsonDocumentStore,
     JsonIdentityRepository,
+    JsonImportRepository,
     JsonIpamRepository,
+    JsonRuntimeUsageRepository,
     JsonReadinessProbe,
     JsonSecurityRepository,
     JsonSourceGovernanceRepository,
@@ -201,3 +206,275 @@ def test_json_store_repository_edge_paths(tmp_path: Path) -> None:
         sot.list_objects(tenant, Pagination.from_values(1, "bad"))
     with pytest.raises(ValidationError):
         sot.list_relations(tenant, Pagination.from_values(1, "-1"))
+
+
+def test_json_store_operational_edge_contracts(tmp_path: Path) -> None:
+    tenant = TenantId.from_value("default")
+    store = JsonDocumentStore(tmp_path / "state.json")
+    usage = JsonRuntimeUsageRepository(store)
+    assert usage.count_resource(tenant, QuotaResource.EQUIPMENT) == 0
+    assert usage.count_resource(tenant, QuotaResource.SUBNET_VLAN) == 0
+    assert usage.count_resource(tenant, QuotaResource.IP_DNS_RECORD) == 0
+    assert usage.count_resource(tenant, QuotaResource.USER) == 0
+    assert usage.count_resource(tenant, QuotaResource.DISCOVERY_COLLECTOR) == 0
+    store.data["audit_events"] = [{"tenant_id": "default"}, {"tenant_id": "other"}]
+    assert usage._count_items("audit_events", tenant) == 1
+    with pytest.raises(AssertionError):
+        usage.count_resource(tenant, object())  # type: ignore[arg-type]
+
+    imports = JsonImportRepository(store)
+    malformed_cases = (
+        ("migration_plans", "plan-text", "not-a-dict"),
+        ("migration_plans", "plan-template", {"template": []}),
+        ("migration_plans", "plan-details", {"template": {}, "gaps": {}, "import_report": {}}),
+        (
+            "migration_plans",
+            "plan-mapping",
+            {"template": {"mapping": []}, "gaps": [], "import_report": {}},
+        ),
+        (
+            "migration_plans",
+            "plan-required",
+            {"template": {"mapping": {}, "source": "device42", "required_columns": {}}, "gaps": [], "import_report": {}},
+        ),
+        (
+            "migration_plans",
+            "plan-metadata",
+            {
+                "template": {
+                    "mapping": {},
+                    "source": "device42",
+                    "required_columns": [],
+                    "recommended_columns": {},
+                    "notes": [],
+                },
+                "gaps": [],
+                "import_report": {},
+            },
+        ),
+        ("import_jobs", "import-mapping", {"mapping": []}),
+        ("import_jobs", "import-rows", {"mapping": {}, "impacts": {}, "dlq": []}),
+        ("bulk_import_jobs", "bulk-mapping", {"mapping": []}),
+        ("bulk_import_jobs", "bulk-metrics", {"mapping": {}, "metrics": [], "checkpoint": {}}),
+        (
+            "bulk_import_jobs",
+            "bulk-samples",
+            {"mapping": {}, "metrics": {}, "checkpoint": {}, "impact_sample": {}, "dlq_sample": []},
+        ),
+    )
+    for bucket, job_id, payload in malformed_cases:
+        store.data[bucket]["default:" + job_id] = payload
+        with pytest.raises(ValidationError):
+            if bucket == "migration_plans":
+                imports.get_migration_plan_report(tenant, job_id)
+            elif bucket == "import_jobs":
+                imports.get_import_report(tenant, job_id)
+            else:
+                imports.get_bulk_import_report(tenant, job_id)
+
+
+def test_json_store_datetime_cursor_and_filter_edges(tmp_path: Path) -> None:
+    tenant = TenantId.from_value("default")
+    store = JsonDocumentStore(tmp_path / "state.json")
+
+    security = JsonSecurityRepository(store)
+    credential = ApiTokenCredential.create(
+        tenant,
+        "bob",
+        "c" * 64,
+        "cccccccccccc",
+        ("viewer",),
+        expires_at=datetime.now(UTC) + timedelta(hours=1),
+    )
+    security.upsert_token(credential)
+    token_key = next(iter(store.data["security_tokens"]))
+    store.data["security_tokens"][token_key]["created_at"] = datetime.now(UTC)
+    assert security.list_tokens(tenant, Pagination.from_values(10), include_inactive=True).items
+    assert security.revoke_token(tenant, "c" * 64, "pytest") is True
+    assert security.revoke_token(tenant, "c" * 64, "pytest") is False
+    with pytest.raises(ValidationError):
+        security.list_tokens(tenant, Pagination.from_values(1, "-1"), include_inactive=True)
+
+    access = JsonAccessPolicyRepository(store)
+    rule = AccessPolicyRule.create(
+        tenant,
+        "rule-b",
+        Permission.DCIM_LOCATE,
+        AccessPolicyEffect.ALLOW.value,
+        subjects=("bob",),
+    )
+    access.upsert_rule(rule)
+    access_key = next(iter(store.data["access_policy_rules"]))
+    store.data["access_policy_rules"][access_key]["created_at"] = datetime.now(UTC)
+    assert access.list_rules(tenant, Pagination.from_values(10), include_inactive=True).items
+    with pytest.raises(ValidationError):
+        access.list_rules(tenant, Pagination.from_values(1, "-1"), include_inactive=True)
+
+    governance = JsonSourceGovernanceRepository(store)
+    gov_rule = SourceGovernanceRule.create(
+        tenant, "asset-authority", "device", "asset", "manual", 10, None, "accept_with_audit"
+    )
+    governance.upsert_rule(gov_rule)
+    governance.upsert_rule(gov_rule)
+    gov_key = next(iter(store.data["source_governance_rules"]))
+    store.data["source_governance_rules"][gov_key]["created_at"] = "2026-07-07T09:00:00"
+    assert governance.find_rule(tenant, "asset-authority") is not None
+    with pytest.raises(ValidationError):
+        governance.list_rules(tenant, Pagination.from_values(1, "-1"))
+
+    audit = JsonAuditRepository(store)
+    event = AuditEvent.record(tenant, "pytest", "audit.edge", "unit", "edge")
+    audit.append(event)
+    audit_payload = store.data["audit_events"][-1]
+    audit_payload["created_at"] = "2026-07-07T09:01:00"
+    audit_payload.pop("record_hash", None)
+    assert audit.list_records(AuditEventFilter.create(tenant, Pagination.from_values(10))).items
+    assert audit.list_records(
+        AuditEventFilter.create(tenant, Pagination.from_values(10), target_id="other")
+    ).items == ()
+    assert audit.list_records(
+        AuditEventFilter.create(
+            tenant,
+            Pagination.from_values(10),
+            created_from=datetime(2026, 7, 7, 10, 0, tzinfo=UTC),
+        )
+    ).items == ()
+    with pytest.raises(ValidationError):
+        audit.verify_integrity(tenant, limit=0)
+
+    sot = JsonSourceOfTruthRepository(store)
+    sot.create_object(
+        tenant,
+        "device/fw-edge",
+        "network-device",
+        "Firewall Edge",
+        {"resource_category": "network-device", "resource_type": "firewall"},
+        ("edge",),
+        "manual",
+        "pytest",
+    )
+    object_key = next(iter(store.data["source_objects"]))
+    store.data["source_objects"][object_key]["created_at"] = "2026-07-07T09:02:00"
+    store.data["source_objects"][object_key]["updated_at"] = "2026-07-07T09:03:00"
+    store.data["source_object_snapshots"][0]["changed_at"] = "2026-07-07T09:04:00"
+    assert sot.find_object(tenant, "device/fw-edge") is not None
+    assert sot.find_object_version(tenant, "device/fw-edge", 1) is not None
+    assert sot.list_objects(tenant, Pagination.from_values(10), resource_type="firewall").items
+    assert sot.find_object_as_of(
+        tenant, "device/fw-edge", datetime(2026, 7, 7, 8, 0, tzinfo=UTC)
+    ) is None
+    sot.create_object(
+        tenant,
+        "application/fw-policy",
+        "application",
+        "Firewall Policy",
+        {},
+        ("edge",),
+        "manual",
+        "pytest",
+    )
+    relation = SourceRelation.create(
+        tenant,
+        "depends_on",
+        "application/fw-policy",
+        "device/fw-edge",
+        "manual",
+        valid_to=datetime(2026, 7, 8, 0, 0, tzinfo=UTC),
+    )
+    sot.add_relation(relation)
+    relation_key = next(iter(store.data["source_relations"]))
+    store.data["source_relations"][relation_key]["valid_from"] = "2026-07-07T09:05:00"
+    store.data["source_relations"][relation_key]["valid_to"] = "2026-07-08T09:05:00"
+    store.data["source_relations"][relation_key]["created_at"] = "2026-07-07T09:05:01"
+    assert sot.list_relations(
+        tenant,
+        Pagination.from_values(10),
+        source_key="application/fw-policy",
+        target_key="device/fw-edge",
+        relation_type="depends_on",
+        as_of=datetime(2026, 7, 7, 10, 0, tzinfo=UTC),
+    ).items
+
+
+def test_json_store_remaining_repository_branches(tmp_path: Path) -> None:
+    tenant = TenantId.from_value("default")
+    other_tenant = TenantId.from_value("other")
+    store = JsonDocumentStore(tmp_path / "state.json")
+
+    dcim = JsonDcimRepository(store)
+    default_endpoint = DcimPortEndpoint.create("equipment", "SRV-EDGE-01", "ETH0")
+    default_cable = DcimCable.create(
+        tenant,
+        "CAB-EDGE-01",
+        default_endpoint,
+        DcimPortEndpoint.create("patch_panel", "PP-EDGE-01", "P01"),
+        "copper",
+        "installed",
+        (DcimCablePathSegment.create(1, "A01/R01"),),
+    )
+    foreign_cable = DcimCable.create(
+        other_tenant,
+        "CAB-FOREIGN-01",
+        default_endpoint,
+        DcimPortEndpoint.create("patch_panel", "PP-FOREIGN-01", "P01"),
+        "copper",
+        "installed",
+        (DcimCablePathSegment.create(1, "B01/R01"),),
+    )
+    dcim.add_dcim_cable(foreign_cable)
+    dcim.add_dcim_cable(default_cable)
+    assert dcim.find_active_dcim_cable_by_endpoint(tenant, default_endpoint) == default_cable
+    assert dcim.list_dcim_cables_by_endpoint(tenant, default_endpoint) == (default_cable,)
+    with pytest.raises(Exception):
+        dcim.add_dcim_cable(default_cable)
+
+    ipam = JsonIpamRepository(store)
+    prefix = ipam.get_or_create_prefix(Prefix.create(tenant, "default", "10.20.0.0/29"))
+    ip_range = IpRange.create(tenant, "default", prefix, "10.20.0.1", "10.20.0.2")
+    assert ipam.add_range(ip_range) == ip_range
+    assert ipam.add_range(ip_range) == ip_range
+    with pytest.raises(ValidationError):
+        ipam.acquire_allocation_lock(tenant, "default", "  ")
+    vlan = Vlan.create(tenant, "prod", 120, "Prod VLAN", "default")
+    asn = AutonomousSystem.create(tenant, 64512, "edge-as")
+    peer = BgpPeer.create(tenant, "default", 64512, 64513, "192.0.2.1")
+    assert ipam.add_vlan(vlan) == vlan
+    assert ipam.add_vlan(vlan) == vlan
+    assert ipam.add_asn(asn) == asn
+    assert ipam.add_asn(asn) == asn
+    assert ipam.add_bgp_peer(peer) == peer
+    assert ipam.add_bgp_peer(peer) == peer
+
+    identity = JsonIdentityRepository(store)
+    user = IdentityUser.create(tenant, "edge-user", "Edge User", "edge@example.org", ("viewer",))
+    group = IdentityGroup.create(tenant, "edge-team", "Edge Team", ("dcim:operator",))
+    identity.upsert_user(user)
+    identity.upsert_group(group)
+    group_key = next(iter(store.data["identity_groups"]))
+    store.data["identity_groups"][group_key]["created_at"] = datetime.now(UTC)
+    restored_group = identity._group_from_dict(store.data["identity_groups"][group_key])
+    assert restored_group.name == group.name
+    store.data["identity_memberships"]["other:edge-user:edge-team"] = {
+        "tenant_id": "other",
+        "username": "edge-user",
+        "group_name": "edge-team",
+    }
+    assert identity.effective_identity_for_subject(tenant, "edge-user").groups == ()
+
+    security = JsonSecurityRepository(store)
+    credential = ApiTokenCredential.create(
+        tenant,
+        "edge-user",
+        "d" * 64,
+        "dddddddddddd",
+        ("viewer",),
+        expires_at=datetime.now(UTC) + timedelta(hours=1),
+    )
+    security.upsert_token(credential)
+    security.record_token_used(tenant, "d" * 64)
+    security.upsert_token(credential)
+    preserved = security.list_tokens(tenant, Pagination.from_values(1), include_inactive=True).items[0]
+    assert preserved.last_used_at is not None
+    assert preserved.use_count == 1
+    with pytest.raises(ValidationError):
+        security.list_tokens(tenant, Pagination.from_values(1, "abc"), include_inactive=True)

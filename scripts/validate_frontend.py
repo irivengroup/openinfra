@@ -59,6 +59,9 @@ class FrontendContractValidator:
             or "Numéro de série" not in main_source
             or "Catalogue catégories / types" not in main_source
             or "RESOURCE_TAXONOMY" not in main_source
+            or "Localiser un équipement" not in main_source
+            or "/v1/dcim/locations" not in main_source
+            or "Face rack" not in main_source
             or "Token API" in main_source
         ):
             raise FrontendValidationError(
@@ -155,6 +158,9 @@ class FrontendContractValidator:
             "RESOURCE_TAXONOMY",
             "data-options-by-field",
             "resource_type",
+            "Localiser un équipement",
+            "/v1/dcim/locations",
+            "Face rack",
         ):
             if fragment not in payload:
                 raise FrontendValidationError(

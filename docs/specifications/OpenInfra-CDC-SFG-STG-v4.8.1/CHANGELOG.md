@@ -1,3 +1,9 @@
+## Delta v0.29.26 — localisation équipement DCIM API/UI
+
+- Ajout de `REQ-00763` et `TST-DCIM-066` : localisation/relocalisation équipement DCIM par API HTTP et formulaire web.
+- Alignement OpenAPI, discovery API, dashboard et matrices de traçabilité sur `POST /api/v1/dcim/locations`.
+- Conservation des invariants existants : ligne, colonne, salle, rack, face, position U, hauteur U et coordonnées optionnelles sont validés par le service applicatif DCIM.
+
 ## Delta v0.29.25 — taxonomie ITRM catégories / types
 
 - Ajout du catalogue ITRM catégories/types couvrant les ressources datacenter.

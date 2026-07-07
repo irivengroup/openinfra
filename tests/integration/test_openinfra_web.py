@@ -161,6 +161,10 @@ class TestOpenInfraWeb:
         assert "Token API" not in static_js
         assert "openinfra-method" not in static_js + static_css
         assert "agents proxy collectors Enterprise uniquement" in static_js
+        assert 'path: "/v1/dcim/locations"' in static_js
+        assert "Localiser un équipement" in static_js
+        assert "Face rack" in static_js
+        assert "Position U" in static_js
         assert "postgresql://" not in index + static_js + static_css
         assert "OPENINFRA_DATABASE_DSN" not in index + static_js + static_css
         assert public_config == {

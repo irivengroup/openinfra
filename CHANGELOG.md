@@ -1,3 +1,11 @@
+## 0.29.26 - 2026-07-07
+
+- Added `POST /api/v1/dcim/locations` to locate or relocate DCIM equipment through the existing location service.
+- Added serialized equipment/location payloads including site, building, floor, room, row, column, zone, rack, face, U position, height and X/Y/Z coordinates.
+- Added the `dcim.locations` API discovery contract and OpenAPI documentation.
+- Added a dashboard form `Localiser un équipement` for the DCIM location contract, served by the runtime web assets and React source catalog.
+- Updated CDC, roadmap, frontend validation and regression tests for DCIM equipment location API/UI parity.
+
 ## 0.29.25 - 2026-07-06
 
 - Added a complete ITRM datacenter resource taxonomy with category-to-type mapping.

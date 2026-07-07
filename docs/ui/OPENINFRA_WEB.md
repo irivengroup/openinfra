@@ -1,4 +1,4 @@
-# OpenInfra Web v0.29.25
+# OpenInfra Web v0.29.26
 
 OpenInfra Web est le portail `openinfra-web` API-only. Il sert l'interface React/Bootstrap 5, expose un proxy applicatif `/api/*` vers le backend `openinfra-api` et fournit un dashboard de pilotage aligné sur les domaines CLI.
 
@@ -40,6 +40,10 @@ Le service Compose `openinfra-web` dépend de `api:8080`, écoute par défaut su
 
 L'unité `openinfra-web.service` lance `openinfra-web` depuis le virtualenv géré par l'installateur et lit sa configuration via `EnvironmentFile=/etc/openinfra/openinfra.conf`, chemin compatible pointant vers `/opt/openinfra/config/openinfra.conf`.
 
+
+## v0.29.26 — localisation équipement DCIM API/UI
+
+Le dashboard expose désormais l’opération **Localiser un équipement** adossée à `POST /api/v1/dcim/locations`. Le formulaire couvre l’identification d’actif, la salle, la ligne, la colonne, le rack, la face, la position U, la hauteur U et les coordonnées XYZ optionnelles. L’appel passe par le proxy API existant et conserve les validations métier DCIM côté serveur.
 
 ## v0.29.25 — taxonomie ITRM et filtres dynamiques
 

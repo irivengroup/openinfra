@@ -39,6 +39,49 @@ paths:
       responses:
         '200':
           description: Actif
+  /dcim/locations:
+    post:
+      summary: Localiser ou relocaliser un équipement DCIM
+      description: Localisation physique par site, bâtiment, salle, ligne, colonne, rack, face, position U et coordonnées X/Y/Z lorsque applicable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - tenant_id
+              - asset_tag
+              - equipment_name
+              - site
+              - building
+              - room
+              - row
+              - column
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                asset_tag: {type: string}
+                equipment_name: {type: string}
+                site: {type: string}
+                building: {type: string}
+                floor: {type: string}
+                room: {type: string}
+                zone: {type: string}
+                row: {type: string}
+                column: {type: string}
+                rack: {type: string}
+                u_position: {type: integer}
+                rack_face: {type: string}
+                u_height: {type: integer}
+                x: {type: number}
+                y: {type: number}
+                z: {type: number}
+      responses:
+        '201':
+          description: Localisation enregistrée
+        '400':
+          description: Localisation incohérente ou hiérarchie DCIM manquante
   /ipam/vrfs/{vrfId}/prefixes/{prefixId}/next-available-ip:
     post:
       summary: Réservation IP transactionnelle

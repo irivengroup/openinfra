@@ -33,6 +33,7 @@ from openinfra.application.dcim_services import (
     DefinePowerDeviceCommand,
     DefineRackCommand,
     GenerateEquipmentLocatorCommand,
+    LocateEquipmentCommand,
     RackCapacityCommand,
     RackEnergyCoolingCapacityCommand,
     RenderRackElevationCommand,
@@ -1023,6 +1024,51 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     )
                 )
                 responder.send(HTTPStatus.CREATED, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/dcim/locations":
+            try:
+                payload = self._read_json_body()
+                tenant_id = str(payload["tenant_id"])
+                actor = str(payload.get("actor", "api"))
+                if self.server.auth_required:
+                    principal = self._authenticate(tenant_id, Permission.DCIM_LOCATE)
+                    actor = principal.subject
+                equipment = self.server.application.dcim_service.locate_equipment(
+                    LocateEquipmentCommand(
+                        tenant_id=tenant_id,
+                        actor=actor,
+                        asset_tag=str(payload["asset_tag"]),
+                        equipment_name=str(payload["equipment_name"]),
+                        site=str(payload["site"]),
+                        building=str(payload["building"]),
+                        floor=self._optional_payload_value(payload, "floor"),
+                        room=str(payload["room"]),
+                        zone=self._optional_payload_value(payload, "zone"),
+                        row=str(payload["row"]),
+                        column=str(payload["column"]),
+                        rack=self._optional_payload_value(payload, "rack"),
+                        u_position=(
+                            int(payload["u_position"])
+                            if payload.get("u_position") is not None
+                            else None
+                        ),
+                        rack_face=self._optional_payload_value(payload, "rack_face"),
+                        u_height=(
+                            int(payload["u_height"])
+                            if payload.get("u_height") is not None
+                            else None
+                        ),
+                        x=(float(payload["x"]) if payload.get("x") is not None else None),
+                        y=(float(payload["y"]) if payload.get("y") is not None else None),
+                        z=(float(payload["z"]) if payload.get("z") is not None else None),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, equipment.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
@@ -2271,6 +2317,17 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "quality_summary": "/api/v1/itrm/quality/summary",
                     "legacy_ri_alias": "/api/v1/ri/objects",
                     "legacy_sot_alias": "/api/v1/sot/objects",
+                },
+                "dcim": {
+                    "rooms": "/api/v1/dcim/rooms",
+                    "racks": "/api/v1/dcim/racks",
+                    "locations": "/api/v1/dcim/locations",
+                    "rack_capacity": "/api/v1/dcim/rack-capacity",
+                    "room_plan": "/api/v1/dcim/room-plan",
+                    "rack_elevation": "/api/v1/dcim/rack-elevation",
+                    "locator_sheet": "/api/v1/dcim/locator-sheet",
+                    "verify_scan": "/api/v1/dcim/verify-scan",
+                    "cable_trace": "/api/v1/dcim/cable-trace",
                 },
                 "discovery": {
                     "collectors": "/api/v1/discovery/collectors",

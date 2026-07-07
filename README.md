@@ -1,8 +1,15 @@
-# OpenInfra v0.29.25
+# OpenInfra v0.29.26
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.25 — ITRM couvre désormais une taxonomie complète des ressources de datacenter, avec catégories, types filtrés dynamiquement dans les formulaires web, API/CLI de catalogue, réconciliation gouvernée, historique `as-of`, BFF sans secret, Bootstrap 5 Dashboard, ITRM Quality & Certification, agents proxy Enterprise et backend API-only.**
+**Version courante : 0.29.26 — DCIM expose désormais la localisation/relocalisation d’équipement par API et formulaire web, avec chemin physique complet salle/rack/U/XYZ, taxonomie ITRM datacenter, réconciliation gouvernée, historique `as-of`, BFF sans secret, Bootstrap 5 Dashboard, ITRM Quality & Certification, agents proxy Enterprise et backend API-only.**
+
+### v0.29.26 — localisation équipement DCIM API/UI
+
+- Ajout de `POST /api/v1/dcim/locations` pour localiser ou relocaliser un équipement DCIM via le service métier existant.
+- La réponse publique inclut `asset_tag`, `name`, `tenant_id` et un bloc `location` complet : site, bâtiment, étage, salle, ligne, colonne, zone, rack, face, position U, hauteur U, coordonnées X/Y/Z et chemin humain.
+- Le dashboard ajoute le formulaire `Localiser un équipement`, aligné sur le contrat API runtime `/v1/dcim/locations` et protégé par le proxy web same-origin.
+- Le document de découverte API expose maintenant `dcim.locations`, afin de rendre le contrat consommable par intégration automatisée.
 
 ### v0.29.25 — taxonomie ITRM catégories / types
 

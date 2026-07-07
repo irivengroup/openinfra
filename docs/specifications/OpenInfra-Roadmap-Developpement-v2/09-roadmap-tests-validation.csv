@@ -34,3 +34,4 @@ TST-P08-WEB-BFF-STATUS,P08,openinfra-web BFF status et auth sanitization,"Valide
 TST-P09-ITRM-AS-OF-AUDIT,P09,ITRM historique as-of et audit objet,"Service, CLI, API, repositories JSON/PostgreSQL, OpenAPI et web","Restitution objet à date, relations filtrées par as_of et audit par target_id validés."
 TST-P09-ITRM-RECONCILIATION,P09,ITRM réconciliation gouvernée,"Valider dry-run, apply contrôlé, conflits non autoritatifs et audit objet.",Automatisé service/API/CLI/frontend
 TST-P09-ITRM-RESOURCE-TAXONOMY,P09,ITRM taxonomie catégories/types DC,"Valider catalogue catégories/types, filtrage type par catégorie, API/CLI/web et compatibilité legacy.",Automatisé service/API/CLI/frontend
+TST-P10-DCIM-LOCATION-API,P10,DCIM localisation équipement API/UI,"Valider API HTTP, dashboard, OpenAPI et absence de régression des contraintes localisation/rack.",Automatisé API/frontend

@@ -219,6 +219,25 @@ const OPENINFRA_MODULES = [
     { id: "ipam-conflicts", label: "Détecter les conflits", method: "GET", path: "/v1/ipam/conflicts", query: [{ name: "vrf", label: "VRF", placeholder: "global" }] }
   ] },
   { id: "dcim", label: "DCIM", icon: "home", description: "Sites, salles, zones, racks, ports, câbles, énergie et localisation terrain.", operations: [
+    { id: "dcim-locate-equipment", label: "Localiser un équipement", method: "POST", path: "/v1/dcim/locations", body: [
+      FIELD_SETS.actor,
+      { name: "asset_tag", label: "Numéro d’actif", required: true, placeholder: "PAR-SRV-001" },
+      { name: "equipment_name", label: "Nom équipement", required: true, placeholder: "srv-app-01" },
+      { name: "site", label: "Site", required: true, placeholder: "PAR1" },
+      { name: "building", label: "Bâtiment", required: true, placeholder: "BAT-A" },
+      { name: "floor", label: "Étage", placeholder: "F01" },
+      { name: "room", label: "Salle", required: true, placeholder: "MMR1" },
+      { name: "zone", label: "Zone", placeholder: "Z1" },
+      { name: "row", label: "Ligne salle", required: true, placeholder: "A" },
+      { name: "column", label: "Colonne salle", required: true, placeholder: "01" },
+      { name: "rack", label: "Rack", placeholder: "R01" },
+      { name: "u_position", label: "Position U", type: "number", placeholder: "12" },
+      { name: "rack_face", label: "Face rack", type: "select", options: ["front", "rear"] },
+      { name: "u_height", label: "Hauteur U", type: "number", placeholder: "2" },
+      { name: "x", label: "Coordonnée X", type: "number", placeholder: "1.25" },
+      { name: "y", label: "Coordonnée Y", type: "number", placeholder: "2.50" },
+      { name: "z", label: "Coordonnée Z", type: "number", placeholder: "0.00" }
+    ] },
     { id: "dcim-rack-capacity", label: "Capacité rack", method: "GET", path: "/v1/dcim/rack-capacity", query: [{ name: "site", label: "Site" }, { name: "building", label: "Bâtiment" }, { name: "room", label: "Salle" }, { name: "rack", label: "Rack" }] },
     { id: "dcim-room-plan", label: "Plan de salle", method: "GET", path: "/v1/dcim/room-plan", query: [{ name: "site", label: "Site" }, { name: "building", label: "Bâtiment" }, { name: "room", label: "Salle" }] },
     { id: "dcim-cable-trace", label: "Tracer un câble", method: "GET", path: "/v1/dcim/cable-trace", query: [{ name: "cable_id", label: "Identifiant câble", placeholder: "CAB-000123" }] }

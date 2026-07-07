@@ -109,6 +109,11 @@ Le domaine Patch panels doit produire des événements d’audit structurés, co
 **Acceptation :** Chaque opération critique génère un événement avec acteur, tenant, ressource, action, résultat et corrélation.
 
 
+### REQ-00763
+
+Le DCIM doit exposer la localisation et la relocalisation d’un équipement par API HTTP et formulaire web, en réutilisant les contraintes existantes de salle, ligne, colonne, rack, face, position U, hauteur U et coordonnées X/Y/Z.
+
+**Acceptation :** Un équipement peut être localisé par `POST /api/v1/dcim/locations` et par le dashboard sans contourner les contrôles de conflit rack/U ni les règles ligne/colonne obligatoires.
 
 ## Critères d’acceptation
 

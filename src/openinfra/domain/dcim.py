@@ -495,6 +495,24 @@ class EquipmentLocation:
             )
         return " | ".join(parts)
 
+    def as_dict(self) -> dict[str, object]:
+        coordinates = self.coordinates.as_dict() if self.coordinates else None
+        return {
+            "site": self.site_code.value,
+            "building": self.building_code.value,
+            "floor": self.floor_code.value if self.floor_code else None,
+            "room": self.room_code.value,
+            "row": self.row,
+            "column": self.column,
+            "zone": self.zone_code.value if self.zone_code else None,
+            "rack": self.rack_code.value if self.rack_code else None,
+            "u_position": self.u_position,
+            "rack_face": self.effective_rack_face().value if self.effective_rack_face() else None,
+            "u_height": self.effective_u_height(),
+            "coordinates": coordinates,
+            "human_readable": self.human_readable(),
+        }
+
 
 @dataclass(frozen=True, slots=True)
 class Equipment:
@@ -519,6 +537,15 @@ class Equipment:
             name=Name.from_value(name, "equipment name"),
             location=location,
         )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "id": self.id.value,
+            "tenant_id": self.tenant_id.value,
+            "asset_tag": self.asset_tag.value,
+            "name": self.name.value,
+            "location": self.location.as_dict(),
+        }
 
 
 @dataclass(frozen=True, slots=True)

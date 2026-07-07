@@ -1,3 +1,9 @@
+## v2 / OpenInfra 0.29.26
+
+- P10 renforcé : localisation/relocalisation d’équipement DCIM exposée par API HTTP et dashboard web.
+- Ajout de `TST-P10-DCIM-LOCATION-API` pour verrouiller le contrat `/api/v1/dcim/locations`, la parité web et les contraintes rack/U.
+- Alignement CDC `REQ-00763`.
+
 ## v2 / OpenInfra 0.29.25
 
 ## 0.29.25

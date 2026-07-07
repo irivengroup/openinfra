@@ -202,6 +202,13 @@ Frontières conservées :
 Le comportement reste compatible : sans règle active applicable, les mises à jour ITRM gardent le comportement v0.10.0. Une règle active peut refuser une modification non autoritative avec `reject`, ou l'accepter avec signalement auditable via `accept_with_audit`. La migration `0008_source_governance.sql` est additive, partitionnée par `tenant_id` et ne modifie aucun schéma antérieur.
 
 
+
+## v0.29.26 — P10 DCIM localisation équipement API/UI
+
+La version 0.29.26 rend la localisation et la relocalisation d’équipement DCIM consommables par API HTTP et par `openinfra-web`, sans créer de chemin parallèle au service applicatif `DcimLocationService`. Le contrat `POST /api/v1/dcim/locations` applique les mêmes invariants que la CLI `openinfra dcim locate` : site, bâtiment, salle, ligne et colonne obligatoires ; étage, zone, rack, face, position U, hauteur U et coordonnées X/Y/Z optionnels mais validés lorsqu’ils sont fournis.
+
+La réponse sérialise un équipement complet avec son chemin humain, ce qui stabilise les intégrations BFF, les workflows terrain et les tests d’acceptation P10. Le dashboard ajoute le formulaire `Localiser un équipement` en utilisant le proxy same-origin `/api/v1/dcim/locations`; aucun secret ni DSN n’est exposé côté navigateur.
+
 ## v0.12.0 — P04 EPIC-0401 Modèle physique DCIM
 
 La version 0.12.0 démarre le jalon P04 de la roadmap avec le modèle physique DCIM. Le domaine représente site, bâtiment, étage, salle et zone de salle avec une grille obligatoire ligne/colonne. Les coordonnées X/Y/Z sont optionnelles mais validées comme triplet complet lorsqu’elles sont fournies.
@@ -212,7 +219,7 @@ Frontières conservées :
 - application : `DcimTopologyService` pour définir la hiérarchie physique, `DcimLocationService` pour localiser un équipement et vérifier les conflits ;
 - ports : extension de `DcimRepository` avec lecture/écriture de floors et zones ;
 - infrastructure : adaptateurs JSON et PostgreSQL alignés sur le même contrat ;
-- interfaces : `openinfra dcim define-room`, `openinfra dcim locate --floor --zone` et `POST /api/v1/dcim/rooms`.
+- interfaces : `openinfra dcim define-room`, `openinfra dcim locate --floor --zone`, `POST /api/v1/dcim/rooms` et `POST /api/v1/dcim/locations`.
 
 La migration `0009_dcim_physical_model.sql` est additive. Elle conserve les données DCIM existantes, ajoute les étages, zones, coordonnées et index de recherche physique sans modifier les migrations précédentes.
 

@@ -1,57 +1,56 @@
-# OpenInfra v0.29.22 — Validation Report
+# OpenInfra v0.29.26 — rapport de validation
 
-## Scope
+Date: 2026-07-07
 
-Delivery v0.29.22 hardens `openinfra-web` after v0.29.21:
+## Périmètre livré
 
-- add `/status` BFF runtime status without secrets;
-- display protected-form status in the dashboard;
-- sanitize backend raw `missing bearer token` responses before returning to the browser;
-- update CDC v4.8.1 and roadmap v2 traceability.
+OpenInfra v0.29.26 ajoute le contrat P10 de localisation/relocalisation d’équipement DCIM par API HTTP et formulaire web, en réutilisant le service applicatif `DcimLocationService` et les invariants existants de salle, ligne, colonne, rack, face, position U, hauteur U et coordonnées XYZ.
 
-## Validation results
+## Validations exécutées
 
-| Check | Result |
-| --- | --- |
-| `PYTHONPATH=src python -m compileall -q src scripts tests` | PASS |
-| `PYTHONPATH=src python scripts/security_gate.py --project-root .` | PASS |
-| `PYTHONPATH=src python scripts/validate_frontend.py --project-root .` | PASS |
+| Validation | Résultat |
+|---|---:|
+| `python -m compileall -q src tests scripts docker` | PASS |
+| `python scripts/security_gate.py` | PASS |
+| `python scripts/validate_frontend.py --project-root .` | PASS |
 | `node --check src/openinfra/interfaces/rendering/static/assets/openinfra-web.js` | PASS |
-| `PYTHONPATH=src python -m openinfra.interfaces.cli version` | PASS — 0.29.22 |
-| `PYTHONPATH=src python -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1` | PASS — 757 requirements, 562 tests |
-| `PYTHONPATH=src python scripts/validate_enterprise_alignment.py --project-root .` | PASS |
-| `PYTHONPATH=src python -m openinfra.interfaces.cli installer validate --root installers` | PASS — 6 profiles |
-| `PYTHONPATH=src python -m openinfra.interfaces.cli installer dry-run --root installers` | PASS |
-| `PYTHONPATH=src python scripts/validate_autonomous_installer.py --root installers` | PASS — 6 profiles |
-| `PYTHONPATH=src python scripts/native_runtime_smoke.py` | PASS |
-| `python docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1/scripts/validate_storage_multisite.py` | PASS — 757 requirements |
-| `PYTHONPATH=src python -m pytest --collect-only --no-cov` | PASS — 394 tests collected |
-| `PYTHONPATH=src python -m pytest ... --cov-append --cov-fail-under=0` | PASS — 394 tests executed in batches |
-| `python -m coverage report --fail-under=98` | PASS — 98% |
-| `PYTHONPATH=src python scripts/quality_gate.py` | PASS |
+| `python -m openinfra.interfaces.cli version` | PASS — 0.29.26 |
+| `python docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1/scripts/validate_docs.py` | PASS — 763 exigences, 519 entités |
+| `python docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1/scripts/validate_storage_multisite.py` | PASS — 763 exigences |
+| `python docs/specifications/OpenInfra-Roadmap-Developpement-v2/scripts/validate_roadmap.py` | PASS — 19 phases, 114 epics, 8 gates, 36 tests |
+| `python scripts/validate_enterprise_alignment.py` | PASS |
+| `python scripts/validate_autonomous_installer.py` | PASS — 6 profils |
+| `python scripts/native_runtime_smoke.py` | PASS |
+| `python -m openinfra.interfaces.cli installer validate --root installers` | PASS — 6 profils |
+| `python -m openinfra.interfaces.cli installer dry-run --root installers` | PASS — 6 profils |
+| `python -m pytest --collect-only --no-cov tests` | PASS — 407 tests collectés |
+| `pytest` par lots avec `pytest-cov` et couverture combinée | PASS — 407 tests exécutés |
+| `coverage report --fail-under=98` | PASS — 98.0094 % |
+| `python scripts/quality_gate.py` | PASS |
+| `python scripts/verify_artifact.py /mnt/data/openinfra-python-0.29.26.zip` | PASS |
+| `zip -T openinfra-python-0.29.26.zip` | PASS |
+| `zip -T openinfra-cdc-sfg-stg-v4.8.1-updated-0.29.26.zip` | PASS |
+| `zip -T openinfra-roadmap-developpement-v2-updated-0.29.26.zip` | PASS |
 
-## Batch test execution
+## Validations non exécutées localement
 
-The complete test suite was executed by batches because a single monolithic `pytest` run timed out in the interactive environment. Coverage data was combined with `coverage append` and then checked globally.
+| Validation | Raison |
+|---|---|
+| `ruff format --check src tests scripts docker` | outil `ruff` absent |
+| `ruff check src tests scripts docker` | outil `ruff` absent |
+| `mypy src/openinfra` | outil `mypy` absent |
+| `bandit -q -r src/openinfra` | outil `bandit` absent |
+| `pip-audit --dry-run` | outil `pip-audit` absent |
+| `python -m build` | module `build` absent |
+| `npm run build` | `web/node_modules` absent ; dépendances Vite non installées |
+| Docker Compose live | Docker indisponible dans l’environnement |
 
-Executed batches:
+## Couverture finale
 
-- `tests/unit` — 149 tests;
-- `tests/integration` batch 1 — 50 tests;
-- `tests/integration` batch 2 — 69 tests;
-- `tests/integration` batch 3 — 67 tests;
-- `tests/integration` batch 4 — 56 tests;
-- `tests/architecture` — 3 tests.
+- Lignes couvertes : 12 654 / 12 911.
+- Lignes manquantes : 257.
+- Couverture : 98.0094 %.
 
-## Not executed locally
+## Remarques
 
-| Check | Reason |
-| --- | --- |
-| `ruff format --check src tests scripts docker` | `ruff` is not installed in this environment |
-| `ruff check src tests scripts docker` | `ruff` is not installed in this environment |
-| `mypy src/openinfra` | `mypy` is not installed in this environment |
-| `bandit -q -r src/openinfra` | `bandit` is not installed in this environment |
-| `pip-audit --dry-run` | `pip-audit` is not installed in this environment |
-| `python -m build` | `build` is not installed in this environment |
-| `npm run build` | `web/node_modules` is absent |
-| Docker Compose live smoke | Docker is unavailable in this environment |
+Le mono-run `pytest` complet dépasse le timeout de l’environnement interactif ; la suite a donc été exécutée par lots, avec couverture cumulée, puis contrôlée par `coverage report --fail-under=98` et `quality_gate.py`.

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.25
+  version: 0.29.26
 components:
   securitySchemes:
     bearerToken:
@@ -716,6 +716,42 @@ paths:
         '201': {description: Rack capacity definition persisted}
         '400': {description: Validation error}
         '401': {description: Missing or invalid DCIM operator token}
+  /api/v1/dcim/locations:
+    post:
+      summary: Locate or relocate equipment in a DCIM room grid or rack position
+      description: Persists the physical location of an equipment asset using mandatory site, building, room, row and column, with optional floor, zone, rack, U position, face, height and X/Y/Z coordinates. Requires a Bearer token carrying dcim.locate when API authentication is enabled.
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, asset_tag, equipment_name, site, building, room, row, column]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                asset_tag: {type: string}
+                equipment_name: {type: string}
+                site: {type: string}
+                building: {type: string}
+                floor: {type: string}
+                room: {type: string}
+                zone: {type: string}
+                row: {type: string}
+                column: {type: string}
+                rack: {type: string}
+                u_position: {type: integer, minimum: 1, maximum: 60}
+                rack_face: {type: string, enum: [front, rear]}
+                u_height: {type: integer, minimum: 1, maximum: 60}
+                x: {type: number}
+                y: {type: number}
+                z: {type: number}
+      responses:
+        '201': {description: Equipment location persisted}
+        '400': {description: Validation, missing hierarchy or rack conflict error}
+        '401': {description: Missing or invalid DCIM locate token}
   /api/v1/dcim/rack-capacity:
     get:
       summary: Return rack U occupation by face

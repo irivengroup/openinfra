@@ -755,3 +755,4 @@ REQ-00759,N1,ITRM,UC-0042,TST-ITRM-062,"Tests service, API, CLI, frontend et aud
 REQ-00760,N1,ITRM,UC-0042,TST-ITRM-063,"Tests domaine, service, API, CLI et frontend pour la taxonomie ITRM."
 REQ-00761,N1,WEB,UC-0042,TST-WEB-064,Tests web et validation backend des combinaisons catégorie/type.
 REQ-00762,N2,WEB,UC-0042,TST-WEB-065,Inspection des assets runtime et mécanisme générique de selects dépendants.
+REQ-00763,N1,DCIM,UC-0001,TST-DCIM-066,Tests API HTTP et frontend pour la localisation ou relocalisation d’équipement DCIM.

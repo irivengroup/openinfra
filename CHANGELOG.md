@@ -1,3 +1,12 @@
+## 0.29.34 - 2026-07-07
+
+- Added `openinfra discovery proxy-enroll-verify` for Enterprise-only local validation of generated proxy enrollment configs.
+- Added schema, backend result and POSIX permission checks for proxy enrollment config files.
+- Added `--allow-partial` to report partial HA backend enrollment as a warning while preserving schema errors.
+- Fixed duplicate JSON output from `openinfra discovery job-authorize`.
+- Shortened the web home title to `Dashboard`.
+- Scoped home metrics and component statistics to the Dashboard page only, keeping component pages focused on their selected operation form.
+
 ## 0.29.33 - 2026-07-07
 
 - Added Enterprise-only direct proxy enrollment from CLI to one or more OpenInfra backends.

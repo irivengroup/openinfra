@@ -978,9 +978,13 @@ class OpenInfraDashboard {
 
   render() {
     const { activeModuleId, selected, config, ready, status, version, error, result } = this.state;
-    const operationsCount = OPENINFRA_MODULES.reduce((total, module) => total + module.operations.length, 0);
     const displayedVersion = version?.version || config?.version || "indisponible";
     const protectedForms = status?.protectedForms === "enabled" ? "actifs" : "à configurer";
+    const activeModule = OPENINFRA_MODULES.find((module) => module.id === activeModuleId) || OPENINFRA_MODULES[0];
+    const pageTitle = activeModuleId === "overview" ? "Dashboard" : activeModule.shortLabel || activeModule.label;
+    const pageSubtitle = activeModuleId === "overview"
+      ? "Vue de synthèse OpenInfra, readiness backend et état du portail server-side."
+      : `${selected.label} — formulaire métier typé, sans champs génériques ni secrets côté navigateur.`;
     this.root.innerHTML = `
       <header>
         <div class="px-3 py-2 bg-dark text-white openinfra-top-header">
@@ -1015,19 +1019,12 @@ class OpenInfraDashboard {
           </nav>
           <main class="col-lg-9 col-xl-10 ms-sm-auto openinfra-main">
             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 openinfra-titlebar">
-              <div><h1 class="h2">Dashboard de pilotage OpenInfra</h1><p class="text-muted mb-0">Portail BFF server-side : l’opérateur ne saisit aucun token technique ; les secrets PostgreSQL restent côté service web.</p></div>
+              <div><h1 class="h2">${this.escape(pageTitle)}</h1><p class="text-muted mb-0">${this.escape(pageSubtitle)}</p></div>
               <div class="btn-toolbar mb-2 mb-md-0"><span class="badge text-bg-primary me-2">${this.escape(config?.edition || "runtime")}</span><span class="badge text-bg-secondary">${this.escape(config?.authMode || "standard")}</span></div>
             </div>
             ${error ? `<div class="alert alert-warning" role="alert">${this.escape(error.message)}</div>` : ""}
             ${result && activeModuleId !== "overview" ? `<div class="alert alert-success" role="status">Soumission exécutée avec succès.</div>` : ""}
-            <div class="row g-3 mb-4">
-              ${this.metric("Version", this.escape(displayedVersion))}
-              ${this.metric("API", this.escape(config?.apiBaseUrl || "/api"))}
-              ${this.metric("Trust", this.escape(config?.webBackendTrust || "server-side"))}
-              ${this.metric("Formulaires", this.escape(protectedForms))}
-              ${this.metric("Modules", `${operationsCount} opérations`)}
-            </div>
-            ${this.renderWorkspace(selected, result)}
+            ${this.renderWorkspace(selected, result, displayedVersion, config, protectedForms)}
           </main>
         </div>
       </div>
@@ -1035,11 +1032,22 @@ class OpenInfraDashboard {
     this.bindEvents();
   }
 
-  renderWorkspace(selected, result) {
+  renderWorkspace(selected, result, displayedVersion, config, protectedForms) {
     if (this.state.activeModuleId === "overview") {
-      return this.renderOverviewDashboard();
+      return `${this.renderOverviewRuntimeMetrics(displayedVersion, config, protectedForms)}${this.renderOverviewDashboard()}`;
     }
     return `<section class="card openinfra-operation-card"><div class="card-body">${this.renderOperationPanel(selected, result)}</div></section>`;
+  }
+
+  renderOverviewRuntimeMetrics(displayedVersion, config, protectedForms) {
+    const operationsCount = OPENINFRA_MODULES.reduce((total, module) => total + module.operations.length, 0);
+    return `<div class="row g-3 mb-4 openinfra-dashboard-metrics" aria-label="Métriques du dashboard">
+      ${this.metric("Version", this.escape(displayedVersion))}
+      ${this.metric("API", this.escape(config?.apiBaseUrl || "/api"))}
+      ${this.metric("Trust", this.escape(config?.webBackendTrust || "server-side"))}
+      ${this.metric("Formulaires", this.escape(protectedForms))}
+      ${this.metric("Modules", `${operationsCount} opérations`)}
+    </div>`;
   }
 
   renderOverviewDashboard() {

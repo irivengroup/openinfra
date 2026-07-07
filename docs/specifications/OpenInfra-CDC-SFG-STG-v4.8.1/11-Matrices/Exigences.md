@@ -91,6 +91,11 @@ Les exigences N1 sont obligatoires. Les exigences N2 structurent les releases su
 - **REQ-00767** — Les sélecteurs de catégories et types de ressources ITRM doivent afficher les libellés métier, conserver les valeurs normalisées internes et ne plus proposer les types obsolètes `physical-server` et `disk`.
 - **REQ-00768** — OpenInfra doit exposer un jumeau numérique DCIM initial consolidant plan salle, racks, équipements, câblage et capacité énergie/refroidissement via API, CLI et dashboard.
 
+
+### REQ-00773 — Vérification locale d’enrôlement proxy Enterprise
+
+OpenInfra doit permettre la vérification locale en CLI des fichiers d’enrôlement proxy Discovery Enterprise générés par la commande distante. La vérification doit rester réservée à Enterprise, contrôler le schéma JSON, les résultats backend, les codes HTTP, les réponses JSON et les permissions de fichier afin qu’un opérateur puisse valider un proxy HA hors-ligne avant exploitation.
+
 ### REQ-00772 — Charte graphique premium openinfra-web
 
 Le portail openinfra-web doit remplacer les couleurs basic Bootstrap par une charte visuelle premium inspirée cloud provider, appliquée via Bootstrap 5 et CSS produit, sans modifier la structure des pages ni importer d’asset tiers. Les assets CSS doivent couvrir header, sidebar, cartes, boutons, badges, formulaires, focus rings, résultats, camemberts et transitions.

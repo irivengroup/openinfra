@@ -108,6 +108,7 @@ class TestOpenInfraWeb:
                 bootstrap_css = self._get_text(web.base_url + "/assets/bootstrap.min.css")
                 static_css = self._get_text(web.base_url + "/assets/openinfra-web.css")
                 static_js = self._get_text(web.base_url + "/assets/openinfra-web.js")
+                main_js = Path("web/src/main.jsx").read_text(encoding="utf-8")
                 public_config = self._get_json(web.base_url + "/config.json")
                 bff_status = self._get_json(web.base_url + "/status")
                 readiness = self._get_json(web.base_url + "/ready")
@@ -125,7 +126,10 @@ class TestOpenInfraWeb:
         assert "Bootstrap" in bootstrap_css and "v5." in bootstrap_css
         assert "openinfra-sidebar" in static_css
         assert "OpenInfraDashboard" in static_js
-        assert "Dashboard de pilotage OpenInfra" in static_js
+        assert "Dashboard de pilotage OpenInfra" not in static_js
+        assert 'const pageTitle = activeModuleId === "overview" ? "Dashboard"' in static_js
+        assert "renderOverviewRuntimeMetrics" in static_js
+        assert "activeModuleId === 'overview' &&" in main_js
         assert "Search OpenInfra operations" not in static_js
         assert "openinfra-login" not in static_js and "openinfra-signup" not in static_js
         assert "Login" not in static_js and "Sign-up" not in static_js
@@ -329,6 +333,7 @@ class TestOpenInfraWeb:
             config = self._config(backend.base_url, backend_bearer_token=_test_server_side_bearer())
             with RunningServer(OpenInfraWebServer(("127.0.0.1", 0), config)) as web:
                 static_js = self._get_text(web.base_url + "/assets/openinfra-web.js")
+                main_js = Path("web/src/main.jsx").read_text(encoding="utf-8")
                 public_config = self._get_json(web.base_url + "/config.json")
                 echoed = self._post_json(
                     web.base_url + "/api/v1/echo",

@@ -164,7 +164,7 @@ def test_cli_discovery_proxy_enroll_local_and_remote(tmp_path: Path, capsys: obj
             "--scope",
             "site/par1",
             "--version",
-            "0.29.33",
+            "0.29.34",
             "--endpoint-url",
             "https://proxy-par1.example.test/agent",
         ]
@@ -205,7 +205,7 @@ def test_cli_discovery_proxy_enroll_local_and_remote(tmp_path: Path, capsys: obj
                 "--scope",
                 "site/par1",
                 "--version",
-                "0.29.33",
+                "0.29.34",
                 "--endpoint-url",
                 "https://proxy-par1.example.test/agent",
                 "--config-output",
@@ -249,7 +249,7 @@ def test_cli_discovery_proxy_enroll_rejects_non_enterprise(capsys: object) -> No
             "--scope",
             "site/par1",
             "--version",
-            "0.29.33",
+            "0.29.34",
             "--endpoint-url",
             "https://proxy-par1.example.test/agent",
         ]
@@ -258,3 +258,148 @@ def test_cli_discovery_proxy_enroll_rejects_non_enterprise(capsys: object) -> No
     captured = capsys.readouterr()
     assert code == 2
     assert "Enterprise" in captured.err
+
+
+def test_cli_discovery_proxy_enroll_verify_validates_generated_config(
+    tmp_path: Path,
+    capsys: object,
+) -> None:
+    config_output = tmp_path / "proxy-enrollment.json"
+    config_output.write_text(
+        json.dumps(
+            {
+                "tenant_id": "default",
+                "name": "PAR1 proxy",
+                "enrolled": True,
+                "results": [
+                    {
+                        "backend_url": "https://backend.example.test",
+                        "status_code": 201,
+                        "response": {"id": "collector-1", "kind": "site-proxy"},
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    config_output.chmod(0o600)
+
+    code = OpenInfraCLI().run(
+        [
+            "discovery",
+            "proxy-enroll-verify",
+            "--config",
+            str(config_output),
+        ]
+    )
+    report = json.loads(capsys.readouterr().out)
+
+    assert code == 0
+    assert report["valid"] is True
+    assert report["backend_count"] == 1
+
+
+def test_cli_discovery_proxy_enroll_verify_rejects_non_enterprise(
+    tmp_path: Path,
+    capsys: object,
+) -> None:
+    config_output = tmp_path / "proxy-enrollment.json"
+    config_output.write_text("{}", encoding="utf-8")
+
+    code = OpenInfraCLI().run(
+        [
+            "discovery",
+            "proxy-enroll-verify",
+            "--edition",
+            "pro",
+            "--config",
+            str(config_output),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert code == 2
+    assert "Enterprise" in captured.err
+
+
+def test_cli_discovery_job_authorize_outputs_single_json_document(
+    tmp_path: Path,
+    capsys: object,
+) -> None:
+    data = tmp_path / "state.json"
+    token = "j" * 40
+    cli = OpenInfraCLI()
+    assert (
+        cli.run(
+            [
+                "security",
+                "bootstrap-token",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--subject",
+                "discovery-admin",
+                "--role",
+                "security:admin",
+                "--token",
+                token,
+            ]
+        )
+        == 0
+    )
+    capsys.readouterr()
+    assert (
+        cli.run(
+            [
+                "discovery",
+                "collector-register",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--name",
+                "SNMP collector",
+                "--kind",
+                "snmp",
+                "--certificate-fingerprint",
+                FINGERPRINT,
+                "--scope",
+                "site/par1",
+                "--version",
+                "0.29.34",
+            ]
+        )
+        == 0
+    )
+    collector = json.loads(capsys.readouterr().out)
+
+    assert (
+        cli.run(
+            [
+                "discovery",
+                "job-authorize",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--collector-id",
+                str(collector["id"]),
+                "--certificate-fingerprint",
+                FINGERPRINT,
+                "--requested-scope",
+                "site/par1",
+                "--job-type",
+                "snmp-scan",
+                "--target",
+                "par1-core",
+            ]
+        )
+        == 0
+    )
+    output = capsys.readouterr().out
+
+    assert output.count('"authorized"') == 1
+    assert json.loads(output)["authorized"] is True

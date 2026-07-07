@@ -1,3 +1,5 @@
+- Ajout REQ-00773 pour la vérification locale CLI des fichiers d’enrôlement proxy Discovery Enterprise.
+- Ajout TST-DISCOVERY-076 pour valider édition Enterprise, schéma, résultats backend, permissions 0600 et mode --allow-partial.
 - Ajout REQ-00771 pour l’enrôlement CLI direct des proxies Discovery Enterprise auprès des backends.
 - Ajout TST-DISCOVERY-074 pour valider édition Enterprise, refus Lite/Pro, API dédiée et CLI local/distant.
 - Ajout REQ-00770 pour la topologie opérationnelle IPAM consolidée.

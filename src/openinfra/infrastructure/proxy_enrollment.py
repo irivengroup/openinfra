@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from http import HTTPStatus
 from pathlib import Path
@@ -65,6 +66,137 @@ class ProxyEnrollmentBatchResult:
             "enrolled": self.enrolled,
             "results": [item.as_dict() for item in self.results],
         }
+
+
+@dataclass(frozen=True, slots=True)
+class ProxyEnrollmentValidationReport:
+    config_path: str
+    valid: bool
+    enterprise_only: bool
+    tenant_id: str | None
+    name: str | None
+    backend_count: int
+    enrolled: bool | None
+    errors: tuple[str, ...]
+    warnings: tuple[str, ...]
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "config_path": self.config_path,
+            "valid": self.valid,
+            "enterprise_only": self.enterprise_only,
+            "tenant_id": self.tenant_id,
+            "name": self.name,
+            "backend_count": self.backend_count,
+            "enrolled": self.enrolled,
+            "errors": list(self.errors),
+            "warnings": list(self.warnings),
+        }
+
+
+class ProxyEnrollmentConfigValidator:
+    def validate(self, path: Path, *, strict: bool = True) -> ProxyEnrollmentValidationReport:
+        destination = path.expanduser().resolve()
+        errors: list[str] = []
+        warnings: list[str] = []
+        tenant_id: str | None = None
+        name: str | None = None
+        backend_count = 0
+        enrolled: bool | None = None
+
+        if not destination.is_file():
+            return ProxyEnrollmentValidationReport(
+                config_path=str(destination),
+                valid=False,
+                enterprise_only=True,
+                tenant_id=None,
+                name=None,
+                backend_count=0,
+                enrolled=None,
+                errors=("proxy enrollment config file does not exist",),
+                warnings=(),
+            )
+
+        if os.name == "posix":
+            mode = destination.stat().st_mode & 0o777
+            if mode & 0o077:
+                message = "proxy enrollment config file must not be group/world readable"
+                if strict:
+                    errors.append(message)
+                else:
+                    warnings.append(message)
+
+        try:
+            raw = json.loads(destination.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            errors.append("proxy enrollment config is not valid JSON")
+            raw = {}
+        if not isinstance(raw, dict):
+            errors.append("proxy enrollment config must be a JSON object")
+            raw = {}
+
+        tenant_value = raw.get("tenant_id")
+        if isinstance(tenant_value, str) and tenant_value.strip():
+            tenant_id = tenant_value.strip()
+        else:
+            errors.append("proxy enrollment config tenant_id is mandatory")
+
+        name_value = raw.get("name")
+        if isinstance(name_value, str) and name_value.strip():
+            name = name_value.strip()
+        else:
+            errors.append("proxy enrollment config name is mandatory")
+
+        enrolled_value = raw.get("enrolled")
+        if isinstance(enrolled_value, bool):
+            enrolled = enrolled_value
+        else:
+            errors.append("proxy enrollment config enrolled flag must be boolean")
+
+        results_value = raw.get("results")
+        if not isinstance(results_value, list) or not results_value:
+            errors.append("proxy enrollment config results must be a non-empty list")
+            results_value = []
+
+        for index, item in enumerate(results_value):
+            item_prefix = f"proxy enrollment result #{index + 1}"
+            if not isinstance(item, dict):
+                errors.append(item_prefix + " must be a JSON object")
+                continue
+            backend_url = item.get("backend_url")
+            if not isinstance(backend_url, str):
+                errors.append(item_prefix + " backend_url is mandatory")
+            else:
+                try:
+                    ProxyEnrollmentTarget.from_backend_url(backend_url)
+                except ValidationError as exc:
+                    errors.append(item_prefix + " backend_url is invalid: " + str(exc))
+            status_code = item.get("status_code")
+            if not isinstance(status_code, int) or not 100 <= status_code <= 599:
+                errors.append(item_prefix + " status_code must be an HTTP status code")
+            elif strict and not HTTPStatus.OK.value <= status_code < 300:
+                errors.append(item_prefix + f" failed with HTTP {status_code}")
+            response = item.get("response")
+            if not isinstance(response, dict):
+                errors.append(item_prefix + " response must be a JSON object")
+            backend_count += 1
+
+        if strict and enrolled is False:
+            errors.append("proxy enrollment config is not fully enrolled")
+        if not strict and enrolled is False:
+            warnings.append("proxy enrollment config is not fully enrolled")
+
+        return ProxyEnrollmentValidationReport(
+            config_path=str(destination),
+            valid=not errors,
+            enterprise_only=True,
+            tenant_id=tenant_id,
+            name=name,
+            backend_count=backend_count,
+            enrolled=enrolled,
+            errors=tuple(errors),
+            warnings=tuple(warnings),
+        )
 
 
 class ProxyEnrollmentHttpClient:

@@ -40,6 +40,12 @@ Roadmap mise à jour pour alignement avec **OpenInfra CDC/SFG/STG v4.8.1 corrig�
 
 Ajout du test `TST-P11-IPAM-TOPOLOGY` pour verrouiller la consolidation nodes/edges IPAM par API, CLI, dashboard et OpenAPI.
 
+### v0.29.34 — Discovery Enterprise proxy enrollment verification
+
+- P11 ajoute `openinfra discovery proxy-enroll-verify` pour valider hors-ligne les fichiers d’enrôlement proxy Enterprise générés par `--config-output`.
+- P08 simplifie le titre accueil en `Dashboard` et isole les métriques/statistiques d’accueil hors pages composants.
+- La vérification couvre édition, schéma JSON, résultats backend, permissions POSIX et mode `--allow-partial`.
+
 ### v0.29.33 — Discovery Enterprise proxy CLI enrollment
 
 Ajout du test `TST-P11-DISCOVERY-PROXY-CLI-ENROLLMENT` pour verrouiller l’enrôlement CLI local/distant des proxies Discovery Enterprise auprès des backends, avec refus Lite/Pro.

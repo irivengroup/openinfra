@@ -50,7 +50,9 @@ class FrontendContractValidator:
             "from 'react'" not in main_source
             or "bootstrap/dist/css/bootstrap.min.css" not in main_source
             or "openinfra-theme.css" not in main_source
-            or "Dashboard de pilotage OpenInfra" not in main_source
+            or "const pageTitle = activeModuleId === 'overview' ? 'Dashboard'" not in main_source
+            or "activeModuleId === 'overview' &&" not in main_source
+            or "Dashboard de pilotage OpenInfra" in main_source
             or "openinfra-accordion" not in main_source
             or "Statistiques des composants OpenInfra" not in main_source
             or "openinfra-pie-chart" not in main_source
@@ -193,8 +195,12 @@ class FrontendContractValidator:
         if missing:
             raise FrontendValidationError("missing runtime web assets: " + ", ".join(missing))
         payload = "\n".join((root / name).read_text(encoding="utf-8") for name in required)
+        if "Dashboard de pilotage OpenInfra" in payload:
+            raise FrontendValidationError("runtime dashboard title must be shortened to Dashboard")
+        if "renderOverviewRuntimeMetrics(displayedVersion, config, protectedForms)" not in payload:
+            raise FrontendValidationError("runtime dashboard metrics must be scoped to overview")
         for fragment in (
-            "Dashboard de pilotage OpenInfra",
+            "Dashboard",
             "bg-dark text-white",
             "openinfra-sidebar",
             "openinfra-accordion",

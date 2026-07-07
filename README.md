@@ -1,8 +1,18 @@
-# OpenInfra v0.29.33
+# OpenInfra v0.29.34
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.33 — Discovery Enterprise ajoute l’enrôlement CLI direct des proxies auprès des backends, conditionné à l’édition Enterprise, et openinfra-web adopte une charte visuelle Bootstrap 5 premium inspirée cloud provider.**
+**Version courante : 0.29.34 — Discovery Enterprise ajoute la vérification locale des fichiers d’enrôlement proxy, avec contrôle d’édition, schéma, statut backend et permissions de fichier.**
+
+### v0.29.34 — Discovery Enterprise proxy enrollment verification
+
+- Ajout `openinfra discovery proxy-enroll-verify` pour valider localement un fichier généré par `--config-output`.
+- La commande reste réservée à l’édition Enterprise et refuse Lite/Pro avant lecture opérationnelle.
+- Le validateur contrôle le schéma JSON, `tenant_id`, `name`, `enrolled`, la liste des backends, les URLs backend, les codes HTTP, les réponses JSON et les permissions POSIX `0600`.
+- L’option `--allow-partial` permet de transformer un enrôlement backend partiel en avertissement lorsqu’un opérateur doit diagnostiquer une topologie HA sans masquer les erreurs de schéma.
+- Correction de dette CLI : `openinfra discovery job-authorize` n’imprime plus deux fois le même document JSON.
+- Le portail web affiche désormais le titre d’accueil court `Dashboard`.
+- Les métriques et statistiques d’accueil restent strictement limitées à la page Dashboard et ne sont plus reprises dans les pages des composants.
 
 ### v0.29.33 — Discovery Enterprise proxy CLI enrollment
 
@@ -84,7 +94,7 @@ OpenInfra est une solution Python orientée objet pour référentiel d'infrastru
 - `openinfra-web` expose `/status`, un endpoint de diagnostic sans secret indiquant le trust server-side, l’état des formulaires protégés et la configuration bearer backend sous forme `configured` / `not-configured`.
 - Le dashboard affiche un indicateur discret `Formulaires protégés` alimenté par `/status`.
 - Si le backend renvoie une erreur brute `missing bearer token`, le proxy web retourne une erreur BFF assainie au navigateur.
-- La zone titre `Dashboard de pilotage OpenInfra` conserve l’espacement vertical responsive autour du titre et du sous-titre.
+- La zone titre `Dashboard` conserve l’espacement vertical responsive autour du titre et du sous-titre.
 
 ### v0.29.20 — formulaires web fonctionnels et camemberts responsive
 
@@ -104,14 +114,14 @@ OpenInfra est une solution Python orientée objet pour référentiel d'infrastru
 - Bootstrap servi localement depuis `interfaces/rendering/static/assets/bootstrap.min.css`.
 - Dashboard API-only : aucun DSN PostgreSQL ni secret backend exposé au navigateur.
 
-## v0.29.13 — ITRM, agents proxy Enterprise et dashboard de pilotage
+## v0.29.13 — ITRM, agents proxy Enterprise et dashboard
 
 - Le domaine public `Source of Truth/SOT` est renommé `IT Ressources Management/ITRM`.
 - Les chemins primaires deviennent `openinfra itrm *`, `/api/v1/itrm/*`, les rôles `itrm:*` et les permissions `itrm.*`.
 - Les anciens alias `openinfra ri *`, `/api/v1/ri/*`, `ri:*`, `openinfra sot *`, `/api/v1/sot/*` et `sot:*` restent compatibles uniquement pour migration ; ils sont signalés comme dépréciés et seront supprimés progressivement au profit de `itrm`.
 - `agent` désigne exclusivement un proxy collector Enterprise en topologie étoile ; Lite et Pro collectent depuis les backends servers.
 - Les assets web runtime sont déplacés sous `src/openinfra/interfaces/rendering/static`, cohérents avec le domaine présentation/rendering.
-- `openinfra-web` devient un dashboard de pilotage API-only couvrant ITRM, IPAM, DCIM, Discovery, sécurité/RBAC, audit, import/export et runtime.
+- `openinfra-web` devient un dashboard API-only couvrant ITRM, IPAM, DCIM, Discovery, sécurité/RBAC, audit, import/export et runtime.
 
 ## v0.29.11 — Runtime post-installation, backend API-only et sécurisation des flux
 

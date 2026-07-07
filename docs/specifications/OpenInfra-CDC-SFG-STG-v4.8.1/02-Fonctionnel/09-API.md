@@ -113,3 +113,9 @@ Le domaine Bus d’événements doit produire des événements d’audit structu
 ## Critères d’acceptation
 
 La capacité est acceptée si les scénarios nominaux, erreurs, droits insuffisants, conflits et imports/exports sont validés par tests automatisés et si les journaux d’audit permettent de reconstituer les opérations.
+
+### REQ-00774 — Dashboard court et contenu d’accueil isolé
+
+Le portail openinfra-web doit afficher le titre d’accueil court **Dashboard**. Les métriques runtime et les cartes de synthèse des composants appartiennent exclusivement à cette page d’accueil ; elles ne doivent pas être réaffichées lorsqu’un opérateur navigue vers les pages ITRM, IPAM, DCIM, Discovery ou Sécurité.
+
+**Acceptation :** Le titre long `Dashboard de pilotage OpenInfra` est absent des assets runtime ; les métriques `openinfra-dashboard-metrics` et les statistiques `Statistiques des composants OpenInfra` sont conditionnées à `overview` ; les pages composants affichent uniquement la titlebar contextuelle, le formulaire métier et le résultat éventuel.

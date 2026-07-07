@@ -138,6 +138,7 @@ from openinfra.infrastructure.postgresql import (
     PostgreSQLSessionRegistry,
 )
 from openinfra.infrastructure.proxy_enrollment import (
+    ProxyEnrollmentConfigValidator,
     ProxyEnrollmentConfigWriter,
     ProxyEnrollmentHttpClient,
     ProxyEnrollmentPayloadFactory,
@@ -692,6 +693,23 @@ class OpenInfraCLI:
         enroll_local.add_argument("--endpoint-url", required=True)
         enroll_local.add_argument("--vault-secret-ref")
         enroll_local.set_defaults(handler=self._handle_discovery_proxy_enroll_local)
+
+        enroll_verify = discovery_subparsers.add_parser(
+            "proxy-enroll-verify",
+            help="validate a generated Enterprise discovery proxy enrollment config",
+        )
+        enroll_verify.add_argument(
+            "--edition",
+            choices=("lite", "pro", "enterprise"),
+            default=os.environ.get("OPENINFRA_EDITION", "enterprise"),
+        )
+        enroll_verify.add_argument("--config", type=Path, required=True)
+        enroll_verify.add_argument(
+            "--allow-partial",
+            action="store_true",
+            help="report partial backend enrollment as a warning instead of an error",
+        )
+        enroll_verify.set_defaults(handler=self._handle_discovery_proxy_enroll_verify)
 
         heartbeat = discovery_subparsers.add_parser(
             "collector-heartbeat", help="record collector heartbeat using strong identity"
@@ -2175,6 +2193,18 @@ class OpenInfraCLI:
             ProxyEnrollmentConfigWriter().write(args.config_output, result)
         print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
         return 0 if result.enrolled else 2
+
+    def _handle_discovery_proxy_enroll_verify(self, args: argparse.Namespace) -> int:
+        if args.edition != "enterprise":
+            raise OpenInfraError(
+                "proxy enrollment config verification requires the Enterprise edition"
+            )
+        report = ProxyEnrollmentConfigValidator().validate(
+            args.config,
+            strict=not args.allow_partial,
+        )
+        print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
+        return 0 if report.valid else 2
 
     def _handle_discovery_collector_heartbeat(self, args: argparse.Namespace) -> int:
         app = self._create_application(args)

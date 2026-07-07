@@ -1,6 +1,6 @@
-# OpenInfra Web v0.29.33
+# OpenInfra Web v0.29.34
 
-OpenInfra Web est le portail `openinfra-web` API-only. Il sert l'interface React/Bootstrap 5, expose un proxy applicatif `/api/*` vers le backend `openinfra-api` et fournit un dashboard de pilotage aligné sur les domaines CLI.
+OpenInfra Web est le portail `openinfra-web` API-only. Il sert l'interface React/Bootstrap 5, expose un proxy applicatif `/api/*` vers le backend `openinfra-api` et fournit un dashboard aligné sur les domaines CLI.
 
 ## Contrat fonctionnel
 
@@ -126,9 +126,9 @@ Les camemberts du dashboard d’accueil sont doublés et adaptatifs : `--openinf
 - Le formulaire `Lister les relations` accepte désormais `as_of` pour filtrer les relations valides à une date donnée.
 - Les formulaires restent exécutés via BFF server-side, sans token technique saisi ou stocké dans le navigateur.
 
-## v0.29.22 — titlebar dashboard aérée
+## v0.29.22 — titlebar dashboard concise
 
-La zone `Dashboard de pilotage OpenInfra` utilise un espacement vertical responsive pour éviter un rendu compact du titre et du sous-titre. La règle produit `padding-block: clamp(1rem, 2vw, 1.75rem)` est appliquée à `.openinfra-titlebar`, avec un interligne renforcé sur le texte descriptif.
+La zone `Dashboard` utilise un espacement vertical responsive pour éviter un rendu compact du titre et du sous-titre. La règle produit `padding-block: clamp(1rem, 2vw, 1.75rem)` est appliquée à `.openinfra-titlebar`, avec un interligne renforcé sur le texte descriptif.
 
 Cette correction est appliquée aux sources React et aux assets runtime servis par `openinfra-web`; elle est verrouillée par `validate_frontend.py` et les tests d’intégration serveur web.
 
@@ -153,3 +153,9 @@ Aucun logo, image ou composant tiers n’est importé. Les classes Bootstrap exi
 ## Discovery Enterprise proxy enrollment CLI
 
 La version 0.29.33 ajoute l’enrôlement direct des proxies Discovery Enterprise en CLI. `openinfra discovery proxy-enroll` poste vers un ou plusieurs backends via `POST /api/v1/discovery/proxy-enrollments` et refuse Lite/Pro avant tentative d’enrôlement. `openinfra discovery proxy-enroll-local` couvre le cas backend local sélectionné. Le dashboard conserve l’administration Discovery API-only existante ; les secrets restent côté backend/BFF et ne sont pas demandés au navigateur.
+
+## v0.29.34 — Discovery proxy enrollment verification
+
+La validation locale des fichiers d’enrôlement proxy Enterprise est portée par la CLI `openinfra discovery proxy-enroll-verify`. Le dashboard ne demande toujours aucun secret d’enrôlement proxy au navigateur : les opérations sensibles restent côté CLI/backend, tandis que le portail conserve uniquement les workflows API Discovery déjà exposés.
+
+La même livraison simplifie le titre de la page d’accueil en `Dashboard` et isole les métriques/cartes d’accueil dans cette page uniquement. Lorsqu’un opérateur ouvre ITRM, IPAM, DCIM, Discovery ou Sécurité, la zone centrale affiche seulement le titre du composant, son sous-titre contextuel, le formulaire métier et le résultat éventuel.

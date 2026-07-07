@@ -125,6 +125,13 @@ OpenInfra doit permettre l’enrôlement direct en CLI des proxies Discovery aup
 **Acceptation :** `openinfra discovery proxy-enroll` appelle `POST /api/v1/discovery/proxy-enrollments`, refuse Lite/Pro avant enrôlement, conserve l’identité forte par empreinte certificat, les scopes explicites, l’endpoint mTLS et l’audit backend ; `openinfra discovery proxy-enroll-local` permet le même cas d’usage sur un backend local sélectionné.
 
 
+
+### REQ-00773
+
+OpenInfra doit permettre la vérification locale en CLI des fichiers d’enrôlement proxy Discovery Enterprise générés par `openinfra discovery proxy-enroll --config-output`.
+
+**Acceptation :** `openinfra discovery proxy-enroll-verify --config <fichier>` refuse Lite/Pro, valide le schéma JSON, les URLs backend, les codes HTTP, les réponses backend JSON, le statut global d’enrôlement et les permissions POSIX `0600`. L’option `--allow-partial` autorise le diagnostic d’un enrôlement HA partiel sans masquer les erreurs de schéma.
+
 ## Critères d’acceptation
 
 La capacité est acceptée si les scénarios nominaux, erreurs, droits insuffisants, conflits et imports/exports sont validés par tests automatisés et si les journaux d’audit permettent de reconstituer les opérations.

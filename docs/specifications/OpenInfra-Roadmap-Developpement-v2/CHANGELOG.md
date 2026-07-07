@@ -1,3 +1,10 @@
+## 0.29.34
+
+- Ajout `TST-P08-WEB-DASHBOARD-SCOPING` pour verrouiller le titre court `Dashboard` et l’isolation du contenu d’accueil dans openinfra-web.
+- Ajout de la vérification locale des fichiers d’enrôlement proxy Enterprise.
+- Ajout du test roadmap `TST-P11-DISCOVERY-PROXY-ENROLLMENT-VERIFY`.
+- Alignement CDC `REQ-00773`.
+
 ## 0.29.33
 
 - Ajout du test roadmap `TST-P11-DISCOVERY-PROXY-CLI-ENROLLMENT`.

@@ -765,3 +765,4 @@ REQ-00769,N1,IPAM,UC-0003,TST-IPAM-072,"Validation frontend, tests openinfra-web
 REQ-00770,N1,IPAM,UC-0003,TST-IPAM-073,"Tests service, CLI, API HTTP, frontend et OpenAPI de la topologie opérationnelle IPAM."
 REQ-00771,N1,DISCOVERY,UC-0004,TST-DISCOVERY-074,"Tests édition, service, CLI local/distant, API HTTP et OpenAPI de l’enrôlement proxy Discovery Enterprise."
 REQ-00772,N2,WEB,UC-WEB-001,TST-WEB-075,"Validation frontend, tests intégration openinfra-web et inspection assets CSS."
+REQ-00773,N1,DISCOVERY,UC-0004,TST-DISCOVERY-076,"Tests unitaires et CLI de vérification locale des fichiers d’enrôlement proxy Enterprise."

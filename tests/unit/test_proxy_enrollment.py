@@ -11,6 +11,7 @@ import pytest
 from openinfra.domain.common import ValidationError
 from openinfra.infrastructure.proxy_enrollment import (
     ProxyEnrollmentBatchResult,
+    ProxyEnrollmentConfigValidator,
     ProxyEnrollmentConfigWriter,
     ProxyEnrollmentHttpClient,
     ProxyEnrollmentPayloadFactory,
@@ -54,7 +55,7 @@ def _payload() -> dict[str, object]:
         "kind": "site-proxy",
         "certificate_fingerprint": "a" * 64,
         "scopes": ["site/par1"],
-        "version": "0.29.33",
+        "version": "0.29.34",
         "vault_secret_ref": None,
         "endpoint_url": "https://proxy-par1.example.test/agent",
     }
@@ -250,7 +251,7 @@ def test_proxy_enrollment_payload_factory_keeps_values_internal() -> None:
         kind="network-proxy",
         certificate_fingerprint="b" * 64,
         scope=("site/par1", "vrf/prod"),
-        version="0.29.33",
+        version="0.29.34",
         vault_secret_ref=_vault_ref(),
         endpoint_url="https://proxy-par1.example.test/agent",
     )
@@ -263,7 +264,7 @@ def test_proxy_enrollment_payload_factory_keeps_values_internal() -> None:
         "kind": "network-proxy",
         "certificate_fingerprint": "b" * 64,
         "scopes": ["site/par1", "vrf/prod"],
-        "version": "0.29.33",
+        "version": "0.29.34",
         "vault_secret_ref": "vault://openinfra/discovery/proxy/par1",
         "endpoint_url": "https://proxy-par1.example.test/agent",
     }
@@ -277,7 +278,7 @@ def test_proxy_enrollment_payload_factory_rejects_empty_scopes() -> None:
         kind="site-proxy",
         certificate_fingerprint="c" * 64,
         scope=(),
-        version="0.29.33",
+        version="0.29.34",
         vault_secret_ref=None,
         endpoint_url="https://proxy-par1.example.test/agent",
     )
@@ -312,3 +313,119 @@ def test_proxy_enrollment_result_serialization() -> None:
             }
         ],
     }
+
+
+def test_proxy_enrollment_config_validator_accepts_secure_full_config(tmp_path: Path) -> None:
+    result = ProxyEnrollmentBatchResult(
+        tenant_id="default",
+        name="PAR1 proxy",
+        enrolled=True,
+        results=(
+            ProxyEnrollmentResult(
+                backend_url="https://backend.example.test",
+                status_code=201,
+                response={"id": "collector-1", "kind": "site-proxy"},
+            ),
+        ),
+    )
+    output = tmp_path / "proxy-enrollment.json"
+    ProxyEnrollmentConfigWriter().write(output, result)
+
+    report = ProxyEnrollmentConfigValidator().validate(output)
+
+    assert report.valid is True
+    assert report.enterprise_only is True
+    assert report.backend_count == 1
+    assert report.errors == ()
+    assert report.as_dict()["tenant_id"] == "default"
+
+
+def test_proxy_enrollment_config_validator_rejects_missing_file(tmp_path: Path) -> None:
+    report = ProxyEnrollmentConfigValidator().validate(tmp_path / "missing.json")
+
+    assert report.valid is False
+    assert report.errors == ("proxy enrollment config file does not exist",)
+    assert report.backend_count == 0
+
+
+def test_proxy_enrollment_config_validator_reports_schema_and_partial_errors(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "proxy-enrollment.json"
+    output.write_text(
+        json.dumps(
+            {
+                "tenant_id": "default",
+                "name": "PAR1 proxy",
+                "enrolled": False,
+                "results": [
+                    {
+                        "backend_url": "http://backend.example.test",
+                        "status_code": 403,
+                        "response": {"error": "forbidden"},
+                    },
+                    {"backend_url": "https://backend-b.example.test", "status_code": 200},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    output.chmod(0o644)
+
+    report = ProxyEnrollmentConfigValidator().validate(output)
+    relaxed = ProxyEnrollmentConfigValidator().validate(output, strict=False)
+
+    assert report.valid is False
+    assert report.backend_count == 2
+    assert any("group/world readable" in item for item in report.errors)
+    assert any("backend_url is invalid" in item for item in report.errors)
+    assert any("failed with HTTP 403" in item for item in report.errors)
+    assert any("not fully enrolled" in item for item in report.errors)
+    assert any("response must be a JSON object" in item for item in report.errors)
+    assert relaxed.valid is False
+    assert any("not fully enrolled" in item for item in relaxed.warnings)
+
+
+def test_proxy_enrollment_config_validator_rejects_non_json_object(tmp_path: Path) -> None:
+    invalid_json = tmp_path / "invalid.json"
+    invalid_json.write_text("not-json", encoding="utf-8")
+    invalid_json.chmod(0o600)
+    array_json = tmp_path / "array.json"
+    array_json.write_text("[]", encoding="utf-8")
+    array_json.chmod(0o600)
+
+    invalid_report = ProxyEnrollmentConfigValidator().validate(invalid_json)
+    array_report = ProxyEnrollmentConfigValidator().validate(array_json)
+
+    assert any("not valid JSON" in item for item in invalid_report.errors)
+    assert any("must be a JSON object" in item for item in array_report.errors)
+
+
+def test_proxy_enrollment_config_validator_reports_malformed_result_items(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "proxy-enrollment.json"
+    output.write_text(
+        json.dumps(
+            {
+                "tenant_id": "default",
+                "name": "PAR1 proxy",
+                "enrolled": "yes",
+                "results": [
+                    "not-object",
+                    {"status_code": "created", "response": {}},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    output.chmod(0o600)
+
+    report = ProxyEnrollmentConfigValidator().validate(output)
+
+    assert any("enrolled flag must be boolean" in item for item in report.errors)
+    assert any("result #1 must be a JSON object" in item for item in report.errors)
+    assert any("result #2 backend_url is mandatory" in item for item in report.errors)
+    assert any(
+        "result #2 status_code must be an HTTP status code" in item for item in report.errors
+    )

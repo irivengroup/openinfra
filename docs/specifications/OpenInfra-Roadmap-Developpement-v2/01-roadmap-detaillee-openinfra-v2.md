@@ -1594,3 +1594,12 @@ La version 0.29.41 restaure la palette initiale des camemberts du Dashboard : bl
 ### 0.29.42 — header fixe et hiérarchie d’ombres
 
 La version 0.29.42 affine le comportement du double header livré en P08. Le header reste fixe en haut de viewport, son ombre devient volontairement plus prononcée que celle des blocs de contenu et le scroll de page démarre exactement sous la limite du bandeau sur toute la largeur. Les règles CSS centralisent l’effet de séparation sur `openinfra-header-stack` et conservent l’offset dynamique `--openinfra-fixed-header-height` pour éviter tout recouvrement du contenu métier et du menu latéral.
+
+### Avancement v0.29.46 — P08 accessibilité navigation/recherche
+
+La version 0.29.46 renforce EPIC-0805 avec un contrat d’accessibilité vérifiable pour openinfra-web : skip-link vers le contenu principal, main focalisable, états `aria-current` dans le header et la sidebar, accordéons liés par `aria-controls`/`aria-labelledby`, recherche globale déclarée comme combobox/listbox/options et annonces `aria-live`. La sélection depuis la recherche replace le focus dans le contenu principal afin de préserver un parcours clavier exploitable sous le header fixe.
+
+
+### Avancement v0.29.47 — P08 badge édition header principal
+
+La version 0.29.47 renforce EPIC-0805 avec un ajustement UX du header openinfra-web : l’édition runtime est rendue dans la première barre, directement après la marque OpenInfra, tandis que le mode d’authentification n’est plus affiché comme badge permanent dans la titlebar. Le style `openinfra-edition-badge` applique uniquement un fond fuchsia dégradé et une ombre dédiée, sans surcharge de padding, taille de police ni largeur minimale.

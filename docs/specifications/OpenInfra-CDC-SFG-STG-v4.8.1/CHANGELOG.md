@@ -1,3 +1,5 @@
+- Ajout `REQ-00790` pour déplacer le badge édition dans le header principal, retirer l’indication visible du mode d’authentification et appliquer un fond fuchsia dégradé sans modifier le gabarit.
+- Ajout de REQ-00789 et TST-WEB-090 pour verrouiller le skip-link, les états ARIA, la recherche globale annonçable et le focus contenu principal.
 ## 0.29.45 - 2026-07-07
 
 - Ajout de REQ-00787 et TST-WEB-088 pour l’exposition ITAM dans Dashboard/header/sidebar/recherche avec icône pleine dédiée.

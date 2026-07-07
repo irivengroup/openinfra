@@ -1,3 +1,5 @@
+- Ajout `TST-P08-WEB-EDITION-BADGE-HEADER` et alignement `REQ-00790` sur P08 / EPIC-0805 / 0.29.47.
+- Ajout `TST-P08-WEB-ACCESSIBLE-NAVIGATION` et alignement `REQ-00789` sur P08 / EPIC-0805 / 0.29.46.
 - Alignement de `REQ-00786` sur P08 / EPIC-0801 / 0.29.44 pour le panneau latéral accordéon sans masquage.
 ## 0.29.44 - 2026-07-07
 

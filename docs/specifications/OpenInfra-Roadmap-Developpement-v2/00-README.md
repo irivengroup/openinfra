@@ -1,3 +1,5 @@
+- v0.29.47 : P08/EPIC-0805 déplace le badge édition dans le header principal, retire le badge visible du mode d’authentification et applique un fond fuchsia dégradé sans changer le gabarit.
+- v0.29.46 : P08/EPIC-0805 ajoute l’accessibilité critique openinfra-web : skip-link, états ARIA, recherche globale annonçable et focus contenu principal.
 # OpenInfra — Roadmap de développement v2.0.0
 
 Roadmap mise à jour pour alignement avec **OpenInfra CDC/SFG/STG v4.8.1 corrigé**.

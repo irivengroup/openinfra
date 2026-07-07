@@ -781,3 +781,5 @@ REQ-00785,N1,ITAM,UC-V43-0007,TST-ITAM-002,"Tests domaine, service, API HTTP, CL
 REQ-00786,N2,WEB,UC-WEB-001,TST-WEB-087,Validation frontend et tests intégration openinfra-web du flux accordéon sidebar et du scroll latéral sans masquage.
 REQ-00787,N2,WEB,UC-WEB-001,TST-WEB-088,Validation frontend et tests intégration openinfra-web de la visibilité ITAM Dashboard/header/sidebar/recherche et icône asset pleine.
 REQ-00788,N2,WEB,UC-WEB-001,TST-WEB-089,Validation frontend et tests intégration openinfra-web de la réduction de moitié des boutons Swagger/ReDoc.
+REQ-00789,N2,WEB,UC-WEB-001,TST-WEB-090,"Validation frontend et tests intégration openinfra-web de l’accessibilité navigation, recherche et focus contenu principal."
+REQ-00790,N2,WEB,UC-WEB-001,TST-WEB-091,Validation frontend et tests intégration openinfra-web du badge édition dans le header principal et du retrait de l’indication visible du mode d’authentification.

@@ -1,12 +1,21 @@
-# OpenInfra v0.29.45
+# OpenInfra v0.29.47
+
+## v0.29.47 — badge édition dans le header principal
+
+OpenInfra Web affiche maintenant l’édition runtime directement après le logo OpenInfra dans la première barre du header. L’indication visible du mode d’authentification est retirée de la titlebar afin de réduire le bruit opérateur ; le contrat `/config.json` conserve `authMode` pour la configuration applicative. Le badge d’édition garde le gabarit Bootstrap existant et adopte un fond fuchsia dégradé dédié.
+
+## v0.29.46 — accessibilité critique du portail web
+
+OpenInfra Web ajoute un parcours clavier robuste pour l’exploitation quotidienne : skip-link vers le contenu principal, états `aria-current` sur la navigation active, régions d’accordéon reliées par `aria-controls`/`aria-labelledby`, résultats de recherche globale annoncés via `aria-live` et focus automatique sur le contenu après sélection depuis la recherche. Les liens Swagger/ReDoc, la sidebar et les items de recherche disposent désormais d’un rendu `focus-visible` explicite.
+
 
 OpenInfra est une solution Python orientée objet pour référentiel d'infrastructure, IPAM/DDI, DCIM, ITAM, inventaire, import/export, sécurité, éditions Lite/Pro/Enterprise et installateurs autonomes.
 
-**Version courante : 0.29.45 — ITAM visible dans le Dashboard, le header, le panneau latéral et la recherche globale, avec icône dédiée et boutons Swagger/ReDoc compacts.**
+**Version courante : 0.29.47 — édition visible dans le header principal, badge fuchsia dégradé et retrait de l’indication visible du mode d’authentification.**
 
 
 
-### v0.29.45 — ITAM visible partout et boutons documentation API compacts
+### v0.29.46 — ITAM visible partout et boutons documentation API compacts
 
 - ITAM est maintenant exposé comme composant de premier niveau dans le Dashboard, le header, la sidebar et la recherche globale.
 - Le composant utilise une icône SVG pleine `asset`, cohérente avec les pictogrammes opaques des autres composants.

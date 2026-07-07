@@ -1,3 +1,4 @@
+- Ajout de REQ-00789 et TST-WEB-090 pour l’accessibilité navigation/recherche openinfra-web.
 ## 0.29.45 - 2026-07-07
 
 - Ajout de REQ-00787 et TST-WEB-088 pour l’exposition ITAM dans Dashboard/header/sidebar/recherche avec icône pleine dédiée.
@@ -183,3 +184,10 @@ Décisions structurantes :
 Chaque dossier d'installation OpenInfra doit contenir son propre fichier de configuration canonique `./config/install.ini`.
 Ce fichier est édité par l'opérateur pour adapter l'installation aux caractéristiques du serveur, sans modifier les scripts d'installation.
 L'installateur doit valider ce fichier avant toute action système, produire un dry-run, installer les dépendances, créer les comptes et filesystems, configurer les services et appliquer les migrations backend lorsque le scope le permet.
+
+## v0.29.47 — Badge édition header principal
+
+- Ajout `REQ-00790` : l’édition runtime est affichée juste après le logo OpenInfra dans le header principal.
+- Le mode d’authentification n’est plus affiché comme badge permanent dans la titlebar, tout en restant disponible dans le contrat de configuration applicative.
+- Le badge d’édition utilise un fond fuchsia dégradé sans modification de gabarit Bootstrap.
+

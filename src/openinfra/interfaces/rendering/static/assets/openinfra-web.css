@@ -305,6 +305,11 @@ body {
   background: rgba(var(--openinfra-ink-rgb), .72) !important;
 }
 
+.openinfra-edition-badge {
+  background: linear-gradient(135deg, var(--openinfra-fuchsia), #c900ff 48%, var(--openinfra-action)) !important;
+  box-shadow: 0 .25rem .75rem rgba(var(--openinfra-fuchsia-rgb), .24);
+}
+
 .alert-info {
   --bs-alert-color: var(--openinfra-navy);
   --bs-alert-bg: rgba(var(--openinfra-cyan-rgb), .12);
@@ -769,3 +774,51 @@ body {
     justify-self: center;
   }
 }
+
+
+/* v0.29.46: accessible navigation landmarks, skip-link and screen-reader friendly search. */
+.openinfra-skip-link {
+  background: #fff;
+  border: 2px solid var(--openinfra-action);
+  border-radius: .75rem;
+  box-shadow: var(--openinfra-header-shadow);
+  color: var(--openinfra-navy);
+  font-weight: 800;
+  left: 1rem;
+  padding: .55rem .85rem;
+  position: fixed;
+  text-decoration: none;
+  top: .75rem;
+  transform: translateY(-220%);
+  transition: transform .16s ease-in-out;
+  z-index: 1045;
+}
+
+.openinfra-skip-link:focus {
+  outline: 0;
+  transform: translateY(0);
+}
+
+.openinfra-main:focus {
+  outline: 0;
+}
+
+.openinfra-main:focus-visible {
+  box-shadow: inset 0 0 0 .2rem rgba(var(--openinfra-action-rgb), .22);
+}
+
+.openinfra-top-header .nav-link:focus-visible,
+.openinfra-sidebar-dashboard:focus-visible,
+.openinfra-accordion-toggle:focus-visible,
+.openinfra-sidebar-operation:focus-visible,
+.openinfra-global-search-item:focus-visible,
+.openinfra-api-doc-actions .btn:focus-visible {
+  outline: 0;
+  box-shadow: var(--openinfra-focus-ring);
+}
+
+.openinfra-global-search-results[role="listbox"] {
+  scroll-margin-top: .5rem;
+}
+
+/* v0.29.47: edition badge moved beside brand; visible auth mode indicator removed. */

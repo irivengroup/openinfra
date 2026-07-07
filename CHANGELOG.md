@@ -1,3 +1,18 @@
+### v0.29.47 — openinfra-web badge édition header principal
+
+- Déplace l’affichage de l’édition runtime juste après le logo OpenInfra dans la première barre du header.
+- Retire l’indication visible du mode d’authentification de la titlebar, sans modifier le contrat de configuration backend `/config.json`.
+- Ajoute un style `openinfra-edition-badge` à fond fuchsia dégradé, sans modifier le padding, la taille de police ou le gabarit Bootstrap du badge.
+- Étend le validateur frontend et les tests d’intégration web pour verrouiller ce comportement UI.
+
+### v0.29.46 — openinfra-web accessibilité navigation/recherche
+
+- Ajout d’un skip-link `Aller au contenu principal` vers `#openinfra-main-content` afin de permettre aux opérateurs clavier et lecteurs d’écran de contourner le double header fixe et la sidebar.
+- Ajout des états `aria-current` sur la navigation header/sidebar, des régions accordéon `aria-controls`/`aria-labelledby` et d’un `main` focalisable après sélection depuis la recherche globale.
+- La recherche globale expose désormais `role="combobox"`, `role="listbox"`, `role="option"`, `aria-live` et conserve le fallback backend/local sans erreur brute.
+- Ajout de styles `focus-visible` homogènes sur header, sidebar, résultats de recherche et boutons Swagger/ReDoc.
+- Tests d’intégration et validateur frontend étendus pour verrouiller ces contrats d’accessibilité.
+
 
 ## 0.29.45 - 2026-07-07
 

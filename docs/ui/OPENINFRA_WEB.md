@@ -1,4 +1,4 @@
-# OpenInfra Web v0.29.38
+# OpenInfra Web v0.29.47
 
 OpenInfra Web est le portail `openinfra-web` API-only. Il sert l'interface React/Bootstrap 5, expose un proxy applicatif `/api/*` vers le backend `openinfra-api` et fournit un dashboard aligné sur les domaines CLI.
 
@@ -40,6 +40,25 @@ Le service Compose `openinfra-web` dépend de `api:8080`, écoute par défaut su
 
 L'unité `openinfra-web.service` lance `openinfra-web` depuis le virtualenv géré par l'installateur et lit sa configuration via `EnvironmentFile=/etc/openinfra/openinfra.conf`, chemin compatible pointant vers `/opt/openinfra/config/openinfra.conf`.
 
+
+## v0.29.47 — badge édition dans le header principal
+
+Le header principal affiche l’édition runtime juste après le logo `OpenInfra`, via le badge `openinfra-edition-badge`. Ce badge conserve le gabarit Bootstrap existant : aucune surcharge de padding, taille de police, hauteur ou largeur minimale n’est ajoutée. Seul le fond visuel devient un dégradé fuchsia/action afin de distinguer clairement l’édition.
+
+La titlebar du contenu ne reprend plus l’édition et n’affiche plus le mode d’authentification. Le mode reste présent dans `/config.json` pour le comportement applicatif, mais il n’est plus exposé comme indication permanente dans l’interface opérateur.
+
+## v0.29.46 — accessibilité navigation et recherche
+
+Le portail expose maintenant un contrat d’accessibilité vérifiable pour les parcours critiques :
+
+- un lien d’évitement `Aller au contenu principal` pointe vers `#openinfra-main-content` ;
+- la navigation du header et de la sidebar marque l’élément actif avec `aria-current` ;
+- chaque accordéon de composant relie son bouton et son panneau via `aria-controls` et `aria-labelledby` ;
+- la recherche globale est déclarée comme champ de recherche/combobox, ses résultats comme listbox et chaque résultat comme option ;
+- les mises à jour de recherche et de résultat sont annoncées avec `aria-live` ;
+- après sélection depuis la recherche globale, le focus est déplacé vers le contenu principal pour éviter de piéger l’opérateur dans le header fixe.
+
+Ces règles sont présentes dans la source React, dans les assets runtime servis par `openinfra-web`, dans `scripts/validate_frontend.py` et dans les tests d’intégration web.
 
 ## v0.29.31 — formulaires IPAM Enterprise++
 

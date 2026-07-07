@@ -502,3 +502,12 @@ La couche application expose `ItamSupportService` avec RBAC explicite (`itam.rea
 ## v0.29.45 — exposition web ITAM transverse
 
 L’architecture web aligne désormais le domaine ITAM avec les autres composants de premier niveau. Les opérations ITAM support-profile/support-coverage sont exposées dans le modèle de navigation runtime React et statique, et la recherche globale backend interroge les profils de support par numéro d’actif sans exposer de secret navigateur.
+
+
+## OpenInfra Web — header runtime v0.29.47
+
+L’édition OpenInfra est affichée au niveau du header principal, immédiatement après le logo produit, afin de rester visible sans dupliquer les informations dans la titlebar métier. L’indication permanente du mode d’authentification est supprimée de la surface UI : le frontend conserve `authMode` dans sa configuration publique pour piloter les flux, mais ne l’expose plus comme badge opérateur. Le style `openinfra-edition-badge` surcharge uniquement le fond et l’ombre du badge, sans modifier son gabarit Bootstrap.
+
+## OpenInfra Web — accessibilité v0.29.46
+
+La couche interface conserve le modèle API-only/BFF server-side, mais ajoute un contrat d’accessibilité explicite dans le domaine rendering : skip-link, landmarks, états actifs `aria-current`, accordéons liés par attributs ARIA, recherche globale exposée comme combobox/listbox et focus dirigé vers le contenu principal après sélection. Cette évolution ne modifie pas les contrats backend et ne duplique aucune règle métier côté navigateur.

@@ -68,3 +68,12 @@ La roadmap v2 intègre P08/openinfra-web double barre et recherche globale via `
 ## Validation v0.29.38
 
 La roadmap v2 intègre P08/openinfra-web recherche globale backend via `TST-P08-WEB-BACKEND-GLOBAL-SEARCH` et l’alignement CDC `REQ-00778`. La validation couvre le service applicatif, l’API HTTP, la CLI et le fallback frontend.
+
+## Validation v0.29.46 — accessibilité openinfra-web
+
+La roadmap v2 intègre `TST-P08-WEB-ACCESSIBLE-NAVIGATION` pour verrouiller l’accessibilité du portail web sans modifier les contrats backend. L’alignement CDC ajoute `REQ-00789` sur P08 / EPIC-0805 / release 0.29.46.
+
+
+## Validation v0.29.47 — badge édition header principal
+
+La roadmap v2 intègre `TST-P08-WEB-EDITION-BADGE-HEADER` pour verrouiller le déplacement de l’édition runtime à côté du logo OpenInfra, le retrait de l’indication visible du mode d’authentification et le style fuchsia dégradé sans changement de gabarit Bootstrap. L’alignement CDC ajoute `REQ-00790` sur P08 / EPIC-0805 / release 0.29.47.

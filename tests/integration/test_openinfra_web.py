@@ -174,6 +174,22 @@ class TestOpenInfraWeb:
         assert "Ouvrir Swagger UI backend API" in static_js + main_js
         assert "Ouvrir ReDoc backend API" in static_js + main_js
         assert "openinfra-api-doc-actions" in static_js + static_css
+        assert "openinfra-edition-badge" in static_js + static_css + main_js
+        assert "var(--openinfra-fuchsia), #c900ff 48%, var(--openinfra-action)" in static_css
+        assert "config?.edition || \"runtime\")}</span>" in static_js
+        assert "config?.authMode || \"standard\")}</span>" not in static_js
+        assert "config.authMode || 'standard'" not in main_js
+        assert "openinfra-skip-link" in static_js + static_css + main_js
+        assert "Aller au contenu principal" in static_js + main_js
+        assert "openinfra-main-content" in static_js + main_js
+        assert "aria-current" in static_js + main_js
+        assert 'role="listbox"' in static_js + main_js
+        assert 'role="option"' in static_js + main_js
+        assert "aria-live" in static_js + main_js
+        assert "focusMainContentIfRequested" in static_js
+        assert "shouldFocusMain" in main_js
+        assert "aria-autocomplete" in static_js + main_js
+        assert "aria-controls" in static_js + main_js
         assert "IT Asset Management" in static_js
         assert 'shortLabel: "ITAM"' in static_js
         assert 'icon: "asset"' in static_js
@@ -244,6 +260,7 @@ class TestOpenInfraWeb:
         assert "background: var(--openinfra-green);" in static_css
         assert "conic-gradient(var(--openinfra-navy) 0 var(--oi-read-end), var(--openinfra-fuchsia)" not in static_css
         assert "background: var(--openinfra-fuchsia);" not in static_css
+        assert ".openinfra-edition-badge" in static_css
         assert "--openinfra-content-shadow: 0 .16rem .55rem rgba(0, 27, 65, .055)" in static_css
         assert "--openinfra-content-shadow-hover: 0 .28rem .8rem rgba(0, 27, 65, .07)" in static_css
         assert "--openinfra-header-shadow: 0 .95rem 2.25rem rgba(0, 27, 65, .18), 0 .16rem .55rem rgba(0, 61, 143, .16)" in static_css

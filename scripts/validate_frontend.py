@@ -135,6 +135,17 @@ class FrontendContractValidator:
             or "MODULES.map((module)" not in main_source
             or "MODULES.slice(0, 6)" in main_source
             or "Token API" in main_source
+            or "openinfra-skip-link" not in main_source
+            or "Aller au contenu principal" not in main_source
+            or "openinfra-main-content" not in main_source
+            or "aria-current" not in main_source
+            or 'role="listbox"' not in main_source
+            or 'role="option"' not in main_source
+            or "aria-live" not in main_source
+            or "aria-autocomplete" not in main_source
+            or "shouldFocusMain" not in main_source
+            or "openinfra-edition-badge" not in main_source
+            or "config.authMode || 'standard'" in main_source
         ):
             raise FrontendValidationError(
                 "web/src/main.jsx must implement the OpenInfra React + Bootstrap dashboard UI"
@@ -161,6 +172,14 @@ class FrontendContractValidator:
             "Ouvrir Swagger UI backend API",
             "Ouvrir ReDoc backend API",
             "openinfra-api-doc-actions",
+            "openinfra-edition-badge",
+            "openinfra-skip-link",
+            "openinfra-main-content",
+            'role="listbox"',
+            'role="option"',
+            "aria-current",
+            "aria-live",
+            "aria-autocomplete",
         ):
             if required_header_fragment not in main_source:
                 raise FrontendValidationError(
@@ -309,6 +328,17 @@ class FrontendContractValidator:
             "Ouvrir Swagger UI backend API",
             "Ouvrir ReDoc backend API",
             "openinfra-api-doc-actions",
+            "openinfra-edition-badge",
+            "var(--openinfra-fuchsia), #c900ff 48%, var(--openinfra-action)",
+            "openinfra-skip-link",
+            "Aller au contenu principal",
+            "openinfra-main-content",
+            'role="listbox"',
+            'role="option"',
+            "aria-current",
+            "aria-live",
+            "aria-autocomplete",
+            "focusMainContentIfRequested",
             "grid-template-columns: minmax(0, 1fr) minmax(18rem, 50%) minmax(0, 1fr)",
             ".btn-primary",
             ".form-control:focus",
@@ -434,6 +464,8 @@ class FrontendContractValidator:
             "openinfra-search",
             "openinfra-login",
             "openinfra-signup",
+            'config?.authMode || "standard")}</span>',
+            "config.authMode || 'standard'",
             "Backend prêt",
             "Sign-up",
             "Formulaire métier typé : chaque champ correspond",

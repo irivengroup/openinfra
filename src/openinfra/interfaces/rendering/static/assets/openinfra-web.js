@@ -1070,13 +1070,13 @@ class OpenInfraDashboard {
     return `<div class="px-3 py-2 border-bottom openinfra-global-toolbar">
       <div class="container-fluid openinfra-global-toolbar-inner">
         <div class="openinfra-global-toolbar-spacer" aria-hidden="true"></div>
-        <form class="openinfra-global-search-form" role="search" autocomplete="off">
+        <form class="openinfra-global-search-form" role="search" aria-label="Recherche globale OpenInfra" autocomplete="off">
           <label class="visually-hidden" for="openinfra-global-search">Recherche globale OpenInfra</label>
           <div class="openinfra-global-search-control">
             ${this.icon("search", "openinfra-global-search-icon", 18, 18)}
-            <input type="search" id="openinfra-global-search" class="form-control" placeholder="Recherche globale..." aria-label="Recherche globale OpenInfra" aria-controls="openinfra-global-search-results" aria-expanded="${hasQuery ? "true" : "false"}" value="${this.escape(query)}">
+            <input type="search" id="openinfra-global-search" class="form-control" placeholder="Recherche globale..." aria-label="Recherche globale OpenInfra" role="combobox" aria-autocomplete="list" aria-haspopup="listbox" aria-controls="openinfra-global-search-results" aria-expanded="${hasQuery ? "true" : "false"}" value="${this.escape(query)}">
           </div>
-          <div id="openinfra-global-search-results" class="openinfra-global-search-results" ${hasQuery ? "" : "hidden"}>${this.renderGlobalSearchResults()}</div>
+          <div id="openinfra-global-search-results" class="openinfra-global-search-results" role="listbox" aria-label="Résultats de recherche globale" aria-live="polite" ${hasQuery ? "" : "hidden"}>${this.renderGlobalSearchResults()}</div>
         </form>
         <div class="text-end openinfra-api-doc-actions">
           <a class="btn btn-light text-dark me-2" href="${this.escape(docs.swaggerUrl)}" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir Swagger UI backend API">Swagger</a>
@@ -1109,9 +1109,9 @@ class OpenInfraDashboard {
     const groups = Array.isArray(backend.groups) ? backend.groups : [];
     const visibleGroups = groups.filter((group) => group.status === "ok" && Array.isArray(group.items) && group.items.length > 0);
     const skipped = groups.filter((group) => group.status === "skipped");
-    const sections = visibleGroups.map((group) => `<section class="openinfra-global-search-group" aria-label="Résultats ${this.escape(group.label || group.component)}">
+    const sections = visibleGroups.map((group) => `<section class="openinfra-global-search-group" role="group" aria-label="Résultats ${this.escape(group.label || group.component)}">
       <div class="openinfra-global-search-group-title"><span>${this.escape(group.label || group.component)}</span><span>${group.total} résultat${group.total > 1 ? "s" : ""}</span></div>
-      ${group.items.map((item) => `<button type="button" class="openinfra-global-search-item" data-search-route="${this.escape(item.route || "")}">
+      ${group.items.map((item) => `<button type="button" class="openinfra-global-search-item" role="option" data-search-route="${this.escape(item.route || "")}">
         <span>${this.escape(item.label || item.kind || "résultat")}</span><small>${this.escape(item.kind || group.component)} · ${this.escape(item.description || "")}</small>
       </button>`).join("")}
       ${group.total > group.items.length ? `<div class="openinfra-global-search-more">${group.total - group.items.length} résultat${group.total - group.items.length > 1 ? "s" : ""} supplémentaire${group.total - group.items.length > 1 ? "s" : ""}</div>` : ""}
@@ -1129,9 +1129,9 @@ class OpenInfraDashboard {
     if (groups.length === 0) {
       return `<div class="openinfra-global-search-empty">Aucun résultat global pour <strong>${this.escape(query)}</strong>.</div>`;
     }
-    return groups.map(({ module, operations, total }) => `<section class="openinfra-global-search-group" aria-label="Résultats ${this.escape(module.shortLabel || module.label)}">
+    return groups.map(({ module, operations, total }) => `<section class="openinfra-global-search-group" role="group" aria-label="Résultats ${this.escape(module.shortLabel || module.label)}">
       <div class="openinfra-global-search-group-title"><span>${this.escape(module.shortLabel || module.label)}</span><span>${total} résultat${total > 1 ? "s" : ""}</span></div>
-      ${operations.map((operation) => `<button type="button" class="openinfra-global-search-item" data-search-operation-id="${this.escape(operation.id)}">
+      ${operations.map((operation) => `<button type="button" class="openinfra-global-search-item" role="option" data-search-operation-id="${this.escape(operation.id)}">
         <span>${this.escape(operation.label)}</span><small>${this.escape(operation.method)} ${this.escape(operation.path)}</small>
       </button>`).join("")}
       ${total > operations.length ? `<div class="openinfra-global-search-more">${total - operations.length} résultat${total - operations.length > 1 ? "s" : ""} supplémentaire${total - operations.length > 1 ? "s" : ""}</div>` : ""}
@@ -1148,16 +1148,17 @@ class OpenInfraDashboard {
       ? "Vue de synthèse OpenInfra, readiness backend et état du portail server-side."
       : `${selected.label} — formulaire métier typé, sans champs génériques ni secrets côté navigateur.`;
     this.root.innerHTML = `
+      <a class="openinfra-skip-link" href="#openinfra-main-content">Aller au contenu principal</a>
       <header class="openinfra-header-stack">
         <div class="px-3 py-2 bg-dark text-white openinfra-top-header">
           <div class="container-fluid">
             <div class="d-flex flex-wrap align-items-center justify-content-center justify-content-lg-start">
               <a href="/" class="d-flex align-items-center my-2 my-lg-0 me-lg-auto text-white text-decoration-none" aria-label="OpenInfra accueil">
-                <span class="openinfra-brand-mark me-2">OI</span><span class="fs-5 fw-semibold">OpenInfra</span>
+                <span class="openinfra-brand-mark me-2">OI</span><span class="fs-5 fw-semibold">OpenInfra</span><span class="badge text-bg-primary openinfra-edition-badge ms-3">${this.escape(config?.edition || "runtime")}</span>
               </a>
               <ul class="nav col-12 col-lg-auto my-2 justify-content-center my-md-0 text-small">
                 ${OPENINFRA_MODULES.map((module) => `
-                  <li><button type="button" class="nav-link border-0 bg-transparent ${activeModuleId === module.id ? "text-secondary" : "text-white"}" data-module-id="${this.escape(module.id)}">
+                  <li><button type="button" class="nav-link border-0 bg-transparent ${activeModuleId === module.id ? "text-secondary" : "text-white"}" data-module-id="${this.escape(module.id)}" aria-current="${activeModuleId === module.id ? "page" : "false"}">
                     ${this.icon(module.icon, "bi d-block mx-auto mb-1 openinfra-top-icon", 24, 24)}${this.escape(module.shortLabel || module.label)}
                   </button></li>
                 `).join("")}
@@ -1180,10 +1181,9 @@ class OpenInfraDashboard {
               <p>Formulaires protégés : <strong>${this.escape(protectedForms)}</strong></p>
             </div>
           </nav>
-          <main class="col-lg-9 col-xl-10 ms-sm-auto openinfra-main">
-            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 openinfra-titlebar">
-              <div><h1 class="h2">${this.escape(pageTitle)}</h1><p class="text-muted mb-0">${this.escape(pageSubtitle)}</p></div>
-              <div class="btn-toolbar mb-2 mb-md-0"><span class="badge text-bg-primary me-2">${this.escape(config?.edition || "runtime")}</span><span class="badge text-bg-secondary">${this.escape(config?.authMode || "standard")}</span></div>
+          <main id="openinfra-main-content" class="col-lg-9 col-xl-10 ms-sm-auto openinfra-main" tabindex="-1">
+            <div class="pb-2 mb-3 openinfra-titlebar">
+              <h1 class="h2">${this.escape(pageTitle)}</h1><p class="text-muted mb-0">${this.escape(pageSubtitle)}</p>
             </div>
             ${error ? `<div class="alert alert-warning" role="alert">${this.escape(error.message)}</div>` : ""}
             ${result && activeModuleId !== "overview" ? `<div class="alert alert-success" role="status">Soumission exécutée avec succès.</div>` : ""}
@@ -1194,6 +1194,15 @@ class OpenInfraDashboard {
     `;
     this.syncFixedHeaderOffset();
     this.bindEvents();
+    this.focusMainContentIfRequested();
+  }
+
+  focusMainContentIfRequested() {
+    if (!this.pendingMainFocus) {
+      return;
+    }
+    this.pendingMainFocus = false;
+    document.getElementById("openinfra-main-content")?.focus({ preventScroll: false });
   }
 
   renderWorkspace(selected, result, displayedVersion, config, protectedForms) {
@@ -1283,7 +1292,7 @@ class OpenInfraDashboard {
   renderSidebar() {
     return OPENINFRA_MODULES.map((module) => {
       if (module.id === "overview") {
-        return `<button type="button" class="nav-link openinfra-sidebar-dashboard w-100 text-start ${this.state.activeModuleId === module.id ? "active" : ""}" data-operation-id="${this.escape(module.operations[0].id)}">${this.icon(module.icon)}Dashboard</button>`;
+        return `<button type="button" class="nav-link openinfra-sidebar-dashboard w-100 text-start ${this.state.activeModuleId === module.id ? "active" : ""}" data-operation-id="${this.escape(module.operations[0].id)}" aria-current="${this.state.activeModuleId === module.id ? "page" : "false"}">${this.icon(module.icon)}Dashboard</button>`;
       }
       const opened = this.state.openedModules.has(module.id);
       const visibleOperations = this.visibleOperations(module);
@@ -1291,11 +1300,11 @@ class OpenInfraDashboard {
         return "";
       }
       return `<section class="openinfra-accordion ${opened ? "open" : ""}">
-        <button type="button" class="openinfra-accordion-toggle ${this.state.activeModuleId === module.id ? "active" : ""}" data-accordion-id="${this.escape(module.id)}" aria-expanded="${opened ? "true" : "false"}">
+        <button type="button" id="openinfra-accordion-${this.escape(module.id)}" class="openinfra-accordion-toggle ${this.state.activeModuleId === module.id ? "active" : ""}" data-accordion-id="${this.escape(module.id)}" aria-expanded="${opened ? "true" : "false"}" aria-controls="openinfra-panel-${this.escape(module.id)}" aria-current="${this.state.activeModuleId === module.id ? "page" : "false"}">
           <span>${this.icon(module.icon)}${this.escape(module.shortLabel || module.label)}</span><span class="openinfra-chevron">›</span>
         </button>
-        <div class="openinfra-accordion-panel fade ${opened ? "show" : ""}">
-          ${visibleOperations.map((operation) => `<button type="button" class="openinfra-sidebar-operation ${this.state.selected.id === operation.id ? "active" : ""}" data-operation-id="${this.escape(operation.id)}">${this.escape(operation.label)}</button>`).join("")}
+        <div id="openinfra-panel-${this.escape(module.id)}" class="openinfra-accordion-panel fade ${opened ? "show" : ""}" role="region" aria-labelledby="openinfra-accordion-${this.escape(module.id)}">
+          ${visibleOperations.map((operation) => `<button type="button" class="openinfra-sidebar-operation ${this.state.selected.id === operation.id ? "active" : ""}" data-operation-id="${this.escape(operation.id)}" aria-current="${this.state.selected.id === operation.id ? "page" : "false"}">${this.escape(operation.label)}</button>`).join("")}
         </div>
       </section>`;
     }).join("");
@@ -1314,7 +1323,7 @@ class OpenInfraDashboard {
       </section>
       <aside class="col-12 col-xxl-4">
         <h3 class="h6 text-uppercase text-muted">Résultat</h3>
-        <pre class="openinfra-result">${this.escape(result ? JSON.stringify(result, null, 2) : "Résultat en attente.")}</pre>
+        <pre class="openinfra-result" aria-live="polite" aria-label="Résultat de l’opération">${this.escape(result ? JSON.stringify(result, null, 2) : "Résultat en attente.")}</pre>
       </aside>
     </div>`;
   }
@@ -1506,9 +1515,11 @@ class OpenInfraDashboard {
     try {
       const response = await fetch(route, { credentials: "same-origin", headers: { Accept: "application/json" } });
       const payload = await response.json();
+      this.pendingMainFocus = true;
       this.state = { ...this.state, result: JSON.stringify(payload, null, 2), globalSearchQuery: "", globalSearchBackend: null };
       this.render();
     } catch (error) {
+      this.pendingMainFocus = true;
       this.state = { ...this.state, error, globalSearchQuery: "", globalSearchBackend: null };
       this.render();
     }
@@ -1531,6 +1542,7 @@ class OpenInfraDashboard {
           error: null,
           globalSearchQuery: ""
         };
+        this.pendingMainFocus = true;
         this.render();
         return;
       }

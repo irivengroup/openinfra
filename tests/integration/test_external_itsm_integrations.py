@@ -11,10 +11,12 @@ from openinfra.application.external_itsm_services import (
     BuildFreshserviceAssetSyncPlanCommand,
     BuildGlpiAssetSyncPlanCommand,
     BuildJiraServiceManagementAssetSyncPlanCommand,
+    BuildOpenServiceCmdbSyncPlanCommand,
     BuildServiceNowCiSyncPlanCommand,
     ValidateFreshserviceConnectorCommand,
     ValidateGlpiConnectorCommand,
     ValidateJiraServiceManagementConnectorCommand,
+    ValidateOpenServiceConnectorCommand,
     ValidateServiceNowConnectorCommand,
 )
 from openinfra.application.security_services import BootstrapTokenCommand
@@ -75,6 +77,38 @@ class TestExternalItsmIntegrations:
         assert profile.as_dict()["native_ticketing_enabled"] is False
         assert plan.as_dict()["mapping"]["resource_key"] == "external_id"
         assert plan.as_dict()["target_table"] == "server"
+
+    def test_service_prepares_openservice_connector_without_openinfra_web_ui(
+        self, tmp_path: Path
+    ) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+
+        profile = app.external_itsm_service.validate_openservice_connector(
+            ValidateOpenServiceConnectorCommand(
+                tenant_id="default",
+                instance_url="https://openservice.example.com",
+                collection="configuration_item",
+                auth_secret_ref="vault://openinfra/openservice/oauth",
+            )
+        )
+        plan = app.external_itsm_service.build_openservice_cmdb_sync_plan(
+            BuildOpenServiceCmdbSyncPlanCommand(
+                tenant_id="default",
+                resource_key="SRV-PAR1-001",
+                direction="push_ci",
+                collection="configuration_item",
+            )
+        )
+        policies = [
+            policy.as_dict() for policy in app.external_itsm_service.list_policies()
+        ]
+
+        assert profile.provider.value == "openservice"
+        assert profile.as_dict()["native_ticketing_enabled"] is False
+        assert plan.as_dict()["mapping"]["resource_key"] == "openinfra_resource_key"
+        assert policies[-1]["provider"] == "openservice"
+        assert policies[-1]["openinfra_web_ui_enabled"] is False
+        assert policies[-1]["integration_ui_owner"] == "openservice-web"
 
     def test_cli_servicenow_contracts(self, tmp_path: Path, capsys: object) -> None:
         data = tmp_path / "state.json"
@@ -280,6 +314,48 @@ class TestExternalItsmIntegrations:
         assert freshservice_profile["provider"] == "freshservice"
         assert freshservice_plan["target_table"] == "server"
 
+    def test_cli_openservice_contracts(self, tmp_path: Path, capsys: object) -> None:
+        data = tmp_path / "state.json"
+        code = OpenInfraCLI().run(
+            [
+                "integrations",
+                "openservice-validate",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--instance-url",
+                "https://openservice.example.com",
+                "--collection",
+                "configuration_item",
+                "--auth-secret-ref",
+                "vault://openinfra/openservice/oauth",
+            ]
+        )
+        profile = json.loads(capsys.readouterr().out)
+        plan_code = OpenInfraCLI().run(
+            [
+                "integrations",
+                "openservice-cmdb-sync-plan",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--resource-key",
+                "SRV-PAR1-001",
+                "--collection",
+                "configuration_item",
+            ]
+        )
+        plan = json.loads(capsys.readouterr().out)
+
+        assert code == 0
+        assert plan_code == 0
+        assert profile["provider"] == "openservice"
+        assert profile["native_ticketing_enabled"] is False
+        assert plan["target_table"] == "configuration_item"
+        assert plan["mapping"]["cmdb_class"] == "cmdb_class"
+
     def test_http_servicenow_contracts_are_security_admin_protected(self, tmp_path: Path) -> None:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json")
         auth_ref = "vault://openinfra/servicenow/oauth"
@@ -360,11 +436,33 @@ class TestExternalItsmIntegrations:
                 {"tenant_id": "default", "resource_key": "SRV-PAR1-001", "asset_type": "server"},
                 token=token,
             )
+            openservice_profile = self._post_json(
+                base_url + "/api/v1/integrations/itsm/openservice/validate",
+                {
+                    "tenant_id": "default",
+                    "instance_url": "https://openservice.example.com",
+                    "collection": "configuration_item",
+                    "auth_secret_ref": "vault://openinfra/openservice/oauth",
+                },
+                token=token,
+            )
+            openservice_plan = self._post_json(
+                base_url + "/api/v1/integrations/itsm/openservice/cmdb-sync-plan",
+                {
+                    "tenant_id": "default",
+                    "resource_key": "SRV-PAR1-001",
+                    "collection": "configuration_item",
+                },
+                token=token,
+            )
 
             assert policies["items"][0]["provider"] == "servicenow"
             assert policies["items"][1]["provider"] == "jira_service_management"
             assert policies["items"][2]["provider"] == "glpi"
             assert policies["items"][3]["provider"] == "freshservice"
+            assert policies["items"][4]["provider"] == "openservice"
+            assert policies["items"][4]["openinfra_web_ui_enabled"] is False
+            assert policies["items"][4]["integration_ui_owner"] == "openservice-web"
             assert profile["native_ticketing_enabled"] is False
             assert plan["direction"] == "push_ci"
             assert jira_profile["provider"] == "jira_service_management"
@@ -373,6 +471,8 @@ class TestExternalItsmIntegrations:
             assert glpi_plan["target_table"] == "computer"
             assert freshservice_profile["provider"] == "freshservice"
             assert freshservice_plan["target_table"] == "server"
+            assert openservice_profile["provider"] == "openservice"
+            assert openservice_plan["target_table"] == "configuration_item"
         finally:
             server.shutdown()
             server.server_close()

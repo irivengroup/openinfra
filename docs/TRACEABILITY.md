@@ -1,3 +1,7 @@
+### v0.29.58 — préparation OpenService autonome
+
+OpenInfra prépare le raccordement futur d’OpenService comme ITSM/CMDB externe autonome : fournisseur domaine `openservice`, validation de profil, plan de synchronisation CMDB depuis RSOT, CLI, API, OpenAPI et discovery. OpenService n’est pas développé dans OpenInfra et garde sa propre interface web ; aucun écran OpenService n’est ajouté à `openinfra-web`. Les exigences couvertes sont `REQ-00801` / `TST-WEB-101` et `TST-P25-ITSM-OPENSERVICE-FUTURE-CMDB-CONNECTOR`.
+
 ### v0.29.57 — intégrations externes GLPI Inventory et Freshservice Assets
 
 OpenInfra publie GLPI Inventory et Freshservice Assets comme connecteurs ITSM externes de contexte : validation de profil, plans de synchronisation d’assets RSOT, API, CLI, portail web, OpenAPI et discovery. Aucun ticketing natif n’est introduit ; les secrets restent des références et les endpoints sont protégés par `security:admin` quand l’authentification API est active.

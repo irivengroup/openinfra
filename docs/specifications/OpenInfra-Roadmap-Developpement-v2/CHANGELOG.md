@@ -1,3 +1,8 @@
+## 0.29.58 — préparation OpenService autonome
+
+- Ajout `TST-P25-ITSM-OPENSERVICE-FUTURE-CMDB-CONNECTOR`.
+- Alignement `REQ-00801` pour OpenService externe futur, autonome, consommable par API/CLI/discovery et non exposé dans `openinfra-web`.
+
 ## 0.29.57 — GLPI Inventory et Freshservice Assets externes
 
 - Ajout `TST-P25-ITSM-GLPI-FRESHSERVICE-EXTERNAL-CONNECTORS`.

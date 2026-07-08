@@ -548,3 +548,7 @@ PYTHONPATH=src python -m openinfra.interfaces.cli RSOT quality-summary \
 ```
 
 Critères de validation : score de complétude, fraîcheur, autorité de source, confiance, statut de certification et audit `rsot.quality.*`.
+
+## v0.29.58 — préparation OpenService autonome
+
+La v0.29.58 ajoute les contrôles P25 / EPIC-2506 suivants : fournisseur externe `openservice`, alias contrôlés, validation de profil, plan CMDB, CLI, API, OpenAPI, discovery et contrôle négatif de non-exposition dans `openinfra-web`. Les tests de non-régression vérifient que `native_ticketing_enabled=false`, `openinfra_web_ui_enabled=false`, que les secrets restent des références et qu’aucun formulaire OpenService n’est publié dans le portail web OpenInfra.

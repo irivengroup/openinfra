@@ -16,6 +16,7 @@ OpenInfra agit comme référentiel d'infrastructure et fournisseur de contexte. 
 | Jira Service Management | Oui | Oui | lien asset/ticket, enrichissement issue/request, webhooks |
 | GLPI | Oui | Oui | synchronisation d'actifs, liens tickets externes, inventaire contexte |
 | Freshservice | Oui | Oui | requester/ticket/asset context, webhooks, synchronisation contrôlée |
+| OpenService | Oui | Oui | préparation CMDB externe future, API/CLI/discovery uniquement, interface web portée par OpenService |
 | Zendesk | Optionnel | Oui | liens tickets, contexte équipement/application |
 | Zammad | Optionnel | Oui | liens tickets, contexte équipement/application |
 | Redmine | Optionnel | Oui | liens issues, contexte actif/application |
@@ -99,3 +100,10 @@ Chaque connecteur doit :
 - Les connecteurs respectent les feature gates d'édition.
 - Les connecteurs ne sont pas installés ni activables en Lite.
 
+
+
+## Préparation OpenService
+
+OpenService est une solution ITSM/CMDB autonome future, non développée dans OpenInfra. Le CDC OpenService sera rédigé séparément. OpenInfra doit seulement préparer les points d’extension stables nécessaires au raccordement futur : fournisseur `openservice`, validation de profil, plan de synchronisation CMDB, CLI, API, OpenAPI et discovery.
+
+L’interface web OpenService appartient à OpenService. `openinfra-web` ne doit donc pas embarquer de formulaire ou d’écran OpenService. Cette séparation évite un couplage prématuré avant rédaction du CDC OpenService et préserve l’exclusion stricte du ticketing natif OpenInfra.

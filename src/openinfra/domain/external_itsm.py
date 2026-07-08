@@ -13,6 +13,7 @@ class ExternalItsmProvider(StrEnum):
     JIRA_SERVICE_MANAGEMENT = "jira_service_management"
     GLPI = "glpi"
     FRESHSERVICE = "freshservice"
+    OPENSERVICE = "openservice"
 
     @classmethod
     def from_value(cls, value: str | ExternalItsmProvider) -> Self:
@@ -31,6 +32,9 @@ class ExternalItsmProvider(StrEnum):
             "fresh-service": "freshservice",
             "freshservice-assets": "freshservice",
             "freshworks": "freshservice",
+            "open-service": "openservice",
+            "openservice-cmdb": "openservice",
+            "openservice-itsm": "openservice",
         }
         try:
             return cls(aliases.get(normalized, normalized))
@@ -66,6 +70,8 @@ class ExternalItsmConnectorPolicy:
     editions: tuple[str, ...]
     supported_directions: tuple[ExternalItsmSyncDirection, ...]
     native_ticketing_enabled: bool
+    openinfra_web_ui_enabled: bool
+    integration_ui_owner: str
     required_secret_refs: tuple[str, ...]
     required_ci_fields: tuple[str, ...]
 
@@ -80,6 +86,8 @@ class ExternalItsmConnectorPolicy:
                 ExternalItsmSyncDirection.LINK_EXTERNAL_TICKET,
             ),
             native_ticketing_enabled=False,
+            openinfra_web_ui_enabled=True,
+            integration_ui_owner="openinfra-web",
             required_secret_refs=(
                 "OPENINFRA_SERVICENOW_CLIENT_ID_REF",
                 "OPENINFRA_SERVICENOW_SECRET_REF",
@@ -104,6 +112,8 @@ class ExternalItsmConnectorPolicy:
                 ExternalItsmSyncDirection.LINK_EXTERNAL_TICKET,
             ),
             native_ticketing_enabled=False,
+            openinfra_web_ui_enabled=True,
+            integration_ui_owner="openinfra-web",
             required_secret_refs=(
                 "OPENINFRA_JIRA_BASE_URL",
                 "OPENINFRA_JIRA_TOKEN_REF",
@@ -128,6 +138,8 @@ class ExternalItsmConnectorPolicy:
                 ExternalItsmSyncDirection.LINK_EXTERNAL_TICKET,
             ),
             native_ticketing_enabled=False,
+            openinfra_web_ui_enabled=True,
+            integration_ui_owner="openinfra-web",
             required_secret_refs=(
                 "OPENINFRA_GLPI_BASE_URL",
                 "OPENINFRA_GLPI_APP_TOKEN_REF",
@@ -153,6 +165,8 @@ class ExternalItsmConnectorPolicy:
                 ExternalItsmSyncDirection.LINK_EXTERNAL_TICKET,
             ),
             native_ticketing_enabled=False,
+            openinfra_web_ui_enabled=True,
+            integration_ui_owner="openinfra-web",
             required_secret_refs=(
                 "OPENINFRA_FRESHSERVICE_BASE_URL",
                 "OPENINFRA_FRESHSERVICE_API_TOKEN_REF",
@@ -166,12 +180,41 @@ class ExternalItsmConnectorPolicy:
             ),
         )
 
+    @classmethod
+    def openservice(cls) -> Self:
+        return cls(
+            provider=ExternalItsmProvider.OPENSERVICE,
+            editions=("pro", "enterprise"),
+            supported_directions=(
+                ExternalItsmSyncDirection.PUSH_CI,
+                ExternalItsmSyncDirection.ENRICH_EXTERNAL_TICKET,
+                ExternalItsmSyncDirection.LINK_EXTERNAL_TICKET,
+            ),
+            native_ticketing_enabled=False,
+            openinfra_web_ui_enabled=False,
+            integration_ui_owner="openservice-web",
+            required_secret_refs=(
+                "OPENINFRA_OPENSERVICE_BASE_URL",
+                "OPENINFRA_OPENSERVICE_CLIENT_ID_REF",
+                "OPENINFRA_OPENSERVICE_SECRET_REF",
+            ),
+            required_ci_fields=(
+                "resource_key",
+                "display_name",
+                "resource_type",
+                "cmdb_class",
+                "source",
+            ),
+        )
+
     def as_dict(self) -> dict[str, object]:
         return {
             "provider": self.provider.value,
             "editions": list(self.editions),
             "supported_directions": [direction.value for direction in self.supported_directions],
             "native_ticketing_enabled": self.native_ticketing_enabled,
+            "openinfra_web_ui_enabled": self.openinfra_web_ui_enabled,
+            "integration_ui_owner": self.integration_ui_owner,
             "required_secret_refs": list(self.required_secret_refs),
             "required_ci_fields": list(self.required_ci_fields),
         }
@@ -254,6 +297,14 @@ class ExternalItsmConnectorProfile:
                 "network_device",
                 "software",
             },
+            ExternalItsmProvider.OPENSERVICE: {
+                "configuration_item",
+                "asset",
+                "relationship",
+                "service",
+                "software",
+                "contract",
+            },
         }
         allowed = allowed_by_provider[provider]
         if normalized not in allowed:
@@ -262,6 +313,7 @@ class ExternalItsmConnectorProfile:
                 ExternalItsmProvider.JIRA_SERVICE_MANAGEMENT: "Jira Assets object type",
                 ExternalItsmProvider.GLPI: "GLPI inventory item type",
                 ExternalItsmProvider.FRESHSERVICE: "Freshservice asset type",
+                ExternalItsmProvider.OPENSERVICE: "OpenService CMDB collection",
             }
             raise ValidationError(
                 f"{labels[provider]} must be one of: " + ", ".join(sorted(allowed))

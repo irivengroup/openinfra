@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.57
+  version: 0.29.58
 components:
   securitySchemes:
     bearerToken:
@@ -2640,6 +2640,52 @@ paths:
                 mapping: {type: object, additionalProperties: {type: string}}
       responses:
         '200': {description: Freshservice Assets synchronization plan}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid security administrator token when authentication is enabled}
+  /api/v1/integrations/itsm/openservice/validate:
+    post:
+      summary: Validate a future OpenService external CMDB connector profile
+      description: Validates endpoint, CMDB collection and secret reference for the future autonomous OpenService product. OpenService keeps its own web UI; OpenInfra only exposes backend/API and CLI integration contracts and does not enable native ticketing.
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, instance_url, auth_secret_ref]
+              properties:
+                tenant_id: {type: string}
+                instance_url: {type: string, format: uri}
+                collection: {type: string, default: configuration_item}
+                auth_secret_ref: {type: string}
+                enabled: {type: boolean, default: true}
+      responses:
+        '200': {description: Validated OpenService connector profile}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid security administrator token when authentication is enabled}
+  /api/v1/integrations/itsm/openservice/cmdb-sync-plan:
+    post:
+      summary: Build an OpenService CMDB synchronization plan
+      description: Builds a deterministic future OpenService CMDB synchronization plan from RSOT resources. The plan is backend/API oriented for OpenService consumption, does not add OpenService screens to openinfra-web and creates no native ticket, incident, request or change in OpenInfra.
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, resource_key]
+              properties:
+                tenant_id: {type: string}
+                resource_key: {type: string}
+                direction: {type: string, enum: [push_ci, enrich_external_ticket, link_external_ticket], default: push_ci}
+                collection: {type: string, default: configuration_item}
+                mapping: {type: object, additionalProperties: {type: string}}
+      responses:
+        '200': {description: OpenService CMDB synchronization plan}
         '400': {description: Validation error}
         '401': {description: Missing or invalid security administrator token when authentication is enabled}
   /api/v1/itam/support-profile/manufacturer:

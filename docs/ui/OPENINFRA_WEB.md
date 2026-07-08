@@ -1,3 +1,7 @@
+### v0.29.58 — OpenService non exposé dans openinfra-web
+
+OpenService est préparé comme ITSM/CMDB externe autonome avec sa propre interface web. `openinfra-web` ne contient volontairement aucun bouton, formulaire, route proxy dédiée ou opération OpenService. Les contrats disponibles côté OpenInfra sont backend/API, CLI, discovery et OpenAPI pour être consommés par OpenService ou par l’exploitation Pro/Enterprise.
+
 ### v0.29.57 — intégrations externes GLPI Inventory et Freshservice Assets
 
 OpenInfra publie GLPI Inventory et Freshservice Assets comme connecteurs ITSM externes de contexte : validation de profil, plans de synchronisation d’assets RSOT, API, CLI, portail web, OpenAPI et discovery. Aucun ticketing natif n’est introduit ; les secrets restent des références et les endpoints sont protégés par `security:admin` quand l’authentification API est active.

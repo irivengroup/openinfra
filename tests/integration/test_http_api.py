@@ -97,6 +97,8 @@ class TestHttpApi:
                     "glpi_asset_sync_plan": "/api/v1/integrations/itsm/glpi/asset-sync-plan",
                     "freshservice_validate": "/api/v1/integrations/itsm/freshservice/validate",
                     "freshservice_asset_sync_plan": "/api/v1/integrations/itsm/freshservice/asset-sync-plan",
+                    "openservice_validate": "/api/v1/integrations/itsm/openservice/validate",
+                    "openservice_cmdb_sync_plan": "/api/v1/integrations/itsm/openservice/cmdb-sync-plan",
                 },
                 "itam": {
                     "support_profile": "/api/v1/itam/support-profile",
@@ -189,6 +191,10 @@ class TestHttpApi:
             assert "/api/v1/integrations/itsm/servicenow/ci-sync-plan" in openapi
             assert "/api/v1/integrations/itsm/jira/validate" in openapi
             assert "/api/v1/integrations/itsm/jira/asset-sync-plan" in openapi
+            assert "/api/v1/integrations/itsm/glpi/validate" in openapi
+            assert "/api/v1/integrations/itsm/freshservice/asset-sync-plan" in openapi
+            assert "/api/v1/integrations/itsm/openservice/validate" in openapi
+            assert "/api/v1/integrations/itsm/openservice/cmdb-sync-plan" in openapi
             assert "/api/v1/itam/support-profile" in openapi
             assert "/api/v1/itam/support-coverage" in openapi
             assert "/api/v1/itam/software-license" in openapi

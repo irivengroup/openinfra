@@ -1,3 +1,11 @@
+### v0.29.58 — préparation intégration future OpenService CMDB
+
+- Ajout du fournisseur ITSM externe `openservice`, réservé aux éditions Pro et Enterprise, sans ticketing natif OpenInfra.
+- Ajout CLI/API/OpenAPI/discovery pour valider un profil OpenService et générer un plan de synchronisation CMDB depuis RSOT.
+- Verrouillage explicite : OpenService possède sa propre interface web ; aucune opération OpenService n’est ajoutée au portail `openinfra-web`.
+- Préparation neutre compatible avec le futur CDC OpenService, sans figer le périmètre fonctionnel OpenService dans OpenInfra.
+- Non-régression ServiceNow, Jira Assets, GLPI Inventory, Freshservice Assets, RSOT et thème Bootstrap conservée.
+
 ### v0.29.57 — connecteurs externes GLPI Inventory et Freshservice Assets
 
 - Ajout des fournisseurs `glpi` et `freshservice` dans le domaine `external_itsm`, avec alias contrôlés.

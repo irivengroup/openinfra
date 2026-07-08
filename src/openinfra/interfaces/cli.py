@@ -65,10 +65,12 @@ from openinfra.application.external_itsm_services import (
     BuildFreshserviceAssetSyncPlanCommand,
     BuildGlpiAssetSyncPlanCommand,
     BuildJiraServiceManagementAssetSyncPlanCommand,
+    BuildOpenServiceCmdbSyncPlanCommand,
     BuildServiceNowCiSyncPlanCommand,
     ValidateFreshserviceConnectorCommand,
     ValidateGlpiConnectorCommand,
     ValidateJiraServiceManagementConnectorCommand,
+    ValidateOpenServiceConnectorCommand,
     ValidateServiceNowConnectorCommand,
 )
 from openinfra.application.identity_services import (
@@ -891,6 +893,39 @@ class OpenInfraCLI:
         freshservice_plan.add_argument("--asset-type", default="asset")
         freshservice_plan.set_defaults(
             handler=self._handle_integrations_freshservice_asset_sync_plan
+        )
+
+        openservice_validate = integration_subparsers.add_parser(
+            "openservice-validate",
+            help=(
+                "validate a future OpenService external CMDB connector profile; "
+                "OpenService keeps its own web UI"
+            ),
+        )
+        self._add_backend_arguments(openservice_validate)
+        openservice_validate.add_argument("--tenant", required=True)
+        openservice_validate.add_argument("--instance-url", required=True)
+        openservice_validate.add_argument("--collection", default="configuration_item")
+        openservice_validate.add_argument("--auth-secret-ref", required=True)
+        openservice_validate.add_argument("--disabled", action="store_true")
+        openservice_validate.set_defaults(
+            handler=self._handle_integrations_openservice_validate
+        )
+
+        openservice_plan = integration_subparsers.add_parser(
+            "openservice-cmdb-sync-plan",
+            help=(
+                "build a safe OpenService CMDB synchronization plan without "
+                "OpenInfra native ticketing"
+            ),
+        )
+        self._add_backend_arguments(openservice_plan)
+        openservice_plan.add_argument("--tenant", required=True)
+        openservice_plan.add_argument("--resource-key", required=True)
+        openservice_plan.add_argument("--direction", default="push_ci")
+        openservice_plan.add_argument("--collection", default="configuration_item")
+        openservice_plan.set_defaults(
+            handler=self._handle_integrations_openservice_cmdb_sync_plan
         )
 
     def _add_discovery_commands(self, subparsers: Any) -> None:
@@ -2565,6 +2600,37 @@ class OpenInfraCLI:
                 resource_key=args.resource_key,
                 direction=args.direction,
                 asset_type=args.asset_type,
+            )
+        )
+        print(json.dumps(plan.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_integrations_openservice_validate(
+        self, args: argparse.Namespace
+    ) -> int:
+        app = self._create_application(args)
+        profile = app.external_itsm_service.validate_openservice_connector(
+            ValidateOpenServiceConnectorCommand(
+                tenant_id=args.tenant,
+                instance_url=args.instance_url,
+                collection=args.collection,
+                auth_secret_ref=args.auth_secret_ref,
+                enabled=not args.disabled,
+            )
+        )
+        print(json.dumps(profile.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_integrations_openservice_cmdb_sync_plan(
+        self, args: argparse.Namespace
+    ) -> int:
+        app = self._create_application(args)
+        plan = app.external_itsm_service.build_openservice_cmdb_sync_plan(
+            BuildOpenServiceCmdbSyncPlanCommand(
+                tenant_id=args.tenant,
+                resource_key=args.resource_key,
+                direction=args.direction,
+                collection=args.collection,
             )
         )
         print(json.dumps(plan.as_dict(), indent=2, sort_keys=True))

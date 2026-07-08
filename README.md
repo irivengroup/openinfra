@@ -1,3 +1,29 @@
+## v0.29.58 — préparation connecteur futur OpenService CMDB
+
+OpenInfra v0.29.58 prépare les briques d’intégration pour **OpenService**, solution ITSM autonome future disposant de sa propre interface web. OpenInfra ne développe pas OpenService et n’ajoute aucune fonctionnalité de ticketing natif : il expose uniquement les contrats backend/API, CLI, discovery et OpenAPI nécessaires au raccordement futur Pro/Enterprise.
+
+### Surfaces OpenService préparées
+
+- Domaine : fournisseur `openservice` avec alias contrôlés `open-service`, `openservice-cmdb`, `openservice-itsm`.
+- Service application : validation de profil OpenService et plan déterministe de synchronisation CMDB depuis RSOT.
+- CLI :
+  - `openinfra integrations openservice-validate`
+  - `openinfra integrations openservice-cmdb-sync-plan`
+- API :
+  - `POST /api/v1/integrations/itsm/openservice/validate`
+  - `POST /api/v1/integrations/itsm/openservice/cmdb-sync-plan`
+- Discovery/OpenAPI : endpoints publiés pour consommation par OpenService ou outils d’intégration.
+- Web : aucune opération OpenService n’est ajoutée à `openinfra-web`; l’interface opérateur appartient à OpenService.
+
+### Garde-fous OpenService
+
+- OpenService est traité comme produit autonome externe, non inclus dans OpenInfra.
+- Le CDC OpenService futur pourra préciser son modèle sans migration lourde côté OpenInfra.
+- Les secrets restent uniquement des références `auth_secret_ref`.
+- Les URL doivent être HTTPS et sans credentials embarqués.
+- `native_ticketing_enabled` reste `false`.
+- `openinfra_web_ui_enabled` vaut `false` pour OpenService.
+
 ## v0.29.57 — connecteurs externes GLPI Inventory et Freshservice Assets
 
 OpenInfra v0.29.57 complète les connecteurs ITSM externes P13 avec **GLPI Inventory** et **Freshservice Assets**, sans introduire de ticketing natif OpenInfra. Les contrats ServiceNow et Jira Service Management Assets restent inchangés.

@@ -31,6 +31,18 @@ def test_jira_service_management_policy_excludes_native_ticketing() -> None:
     assert "workspace_id" in policy["required_ci_fields"]
 
 
+def test_openservice_policy_prepares_external_autonomous_cmdb_without_openinfra_web_ui() -> None:
+    policy = ExternalItsmConnectorPolicy.openservice().as_dict()
+
+    assert policy["provider"] == "openservice"
+    assert policy["editions"] == ["pro", "enterprise"]
+    assert policy["native_ticketing_enabled"] is False
+    assert policy["openinfra_web_ui_enabled"] is False
+    assert policy["integration_ui_owner"] == "openservice-web"
+    assert "OPENINFRA_OPENSERVICE_SECRET_REF" in policy["required_secret_refs"]
+    assert "cmdb_class" in policy["required_ci_fields"]
+
+
 def test_servicenow_provider_and_direction_reject_unknown_values() -> None:
     assert (
         ExternalItsmProvider.from_value(ExternalItsmProvider.SERVICENOW)
@@ -44,6 +56,14 @@ def test_servicenow_provider_and_direction_reject_unknown_values() -> None:
     assert (
         ExternalItsmProvider.from_value("jsm")
         is ExternalItsmProvider.JIRA_SERVICE_MANAGEMENT
+    )
+    assert (
+        ExternalItsmProvider.from_value("open-service")
+        is ExternalItsmProvider.OPENSERVICE
+    )
+    assert (
+        ExternalItsmProvider.from_value("openservice-cmdb")
+        is ExternalItsmProvider.OPENSERVICE
     )
     assert (
         ExternalItsmSyncDirection.from_value(ExternalItsmSyncDirection.PUSH_CI)
@@ -336,4 +356,45 @@ def test_glpi_and_freshservice_reject_invalid_asset_types() -> None:
             "https://tenant.freshservice.com",
             "change",
             "vault://openinfra/freshservice/api-token",
+        )
+
+
+def test_openservice_profile_and_cmdb_plan_are_safe_and_future_cdc_neutral() -> None:
+    profile = ExternalItsmConnectorProfile.create(
+        "default",
+        "openservice-itsm",
+        "https://openservice.example.com/",
+        "CONFIGURATION_ITEM",
+        "vault://openinfra/openservice/oauth",
+    )
+    plan = ExternalItsmCiSyncPlan.create(
+        "default",
+        "openservice",
+        "push_ci",
+        "SRV-PAR1-001",
+        "configuration_item",
+        {
+            "resource_key": "openinfra_resource_key",
+            "display_name": "name",
+            "resource_type": "cmdb_class",
+            "cmdb_class": "cmdb_class",
+        },
+    )
+
+    assert profile.as_dict()["provider"] == "openservice"
+    assert profile.as_dict()["table_name"] == "configuration_item"
+    assert profile.as_dict()["native_ticketing_enabled"] is False
+    assert plan.as_dict()["target_table"] == "configuration_item"
+    assert plan.as_dict()["mapping"]["cmdb_class"] == "cmdb_class"
+    assert plan.as_dict()["native_ticketing_enabled"] is False
+
+
+def test_openservice_rejects_unbounded_future_collections() -> None:
+    with pytest.raises(ValidationError):
+        ExternalItsmConnectorProfile.create(
+            "default",
+            "openservice",
+            "https://openservice.example.com",
+            "incident",
+            "vault://openinfra/openservice/oauth",
         )

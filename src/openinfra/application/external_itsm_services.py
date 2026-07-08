@@ -81,6 +81,24 @@ class BuildFreshserviceAssetSyncPlanCommand:
     mapping: dict[str, str] | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class ValidateOpenServiceConnectorCommand:
+    tenant_id: str
+    instance_url: str
+    collection: str
+    auth_secret_ref: str
+    enabled: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class BuildOpenServiceCmdbSyncPlanCommand:
+    tenant_id: str
+    resource_key: str
+    direction: str = "push_ci"
+    collection: str = "configuration_item"
+    mapping: dict[str, str] | None = None
+
+
 class ExternalItsmIntegrationService:
     def list_policies(self) -> tuple[ExternalItsmConnectorPolicy, ...]:
         return (
@@ -88,6 +106,7 @@ class ExternalItsmIntegrationService:
             ExternalItsmConnectorPolicy.jira_service_management(),
             ExternalItsmConnectorPolicy.glpi(),
             ExternalItsmConnectorPolicy.freshservice(),
+            ExternalItsmConnectorPolicy.openservice(),
         )
 
     def validate_servicenow_connector(
@@ -214,3 +233,34 @@ class ExternalItsmIntegrationService:
             mapping=mapping,
         )
 
+
+    def validate_openservice_connector(
+        self, command: ValidateOpenServiceConnectorCommand
+    ) -> ExternalItsmConnectorProfile:
+        return ExternalItsmConnectorProfile.create(
+            tenant_id=command.tenant_id,
+            provider="openservice",
+            instance_url=command.instance_url,
+            table_name=command.collection,
+            auth_secret_ref=command.auth_secret_ref,
+            enabled=command.enabled,
+        )
+
+    def build_openservice_cmdb_sync_plan(
+        self, command: BuildOpenServiceCmdbSyncPlanCommand
+    ) -> ExternalItsmCiSyncPlan:
+        mapping = command.mapping or {
+            "resource_key": "openinfra_resource_key",
+            "display_name": "name",
+            "resource_type": "cmdb_class",
+            "cmdb_class": "cmdb_class",
+            "source": "openinfra_source",
+        }
+        return ExternalItsmCiSyncPlan.create(
+            tenant_id=command.tenant_id,
+            provider="openservice",
+            direction=command.direction,
+            resource_key=command.resource_key,
+            target_table=command.collection,
+            mapping=mapping,
+        )

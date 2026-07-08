@@ -1,3 +1,7 @@
+### v0.29.58 — point d’extension OpenService autonome
+
+OpenInfra ajoute un contrat d’intégration pour le futur produit OpenService sans coupler son architecture à un produit non encore développé. Le domaine expose un fournisseur `openservice` et des collections CMDB bornées ; l’application produit des profils validés et des plans déterministes de synchronisation CMDB depuis RSOT ; l’interface publique est limitée à CLI/API/OpenAPI/discovery. L’interface web opérateur relève exclusivement d’OpenService, donc `openinfra-web` ne publie aucun formulaire OpenService.
+
 ### v0.29.56 — intégration externe Jira Service Management Assets
 
 OpenInfra publie Jira Service Management Assets comme connecteur ITSM externe de contexte : validation de profil, plan de synchronisation d’assets RSOT, API, CLI, portail web, OpenAPI et discovery. Aucun ticketing natif n’est introduit ; les secrets restent des références et les endpoints sont protégés par `security:admin` quand l’authentification API est active.

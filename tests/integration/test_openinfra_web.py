@@ -365,6 +365,8 @@ class TestOpenInfraWeb:
         assert 'path: "/v1/integrations/itsm/glpi/asset-sync-plan"' in static_js
         assert 'path: "/v1/integrations/itsm/freshservice/validate"' in static_js
         assert 'path: "/v1/integrations/itsm/freshservice/asset-sync-plan"' in static_js
+        assert "OpenService" not in static_js
+        assert '/v1/integrations/itsm/openservice' not in static_js
         assert "Valider connecteur ServiceNow" in static_js
         assert "Valider connecteur Jira Assets" in static_js
         assert "Valider connecteur GLPI Inventory" in static_js

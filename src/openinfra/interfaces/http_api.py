@@ -66,10 +66,12 @@ from openinfra.application.external_itsm_services import (
     BuildFreshserviceAssetSyncPlanCommand,
     BuildGlpiAssetSyncPlanCommand,
     BuildJiraServiceManagementAssetSyncPlanCommand,
+    BuildOpenServiceCmdbSyncPlanCommand,
     BuildServiceNowCiSyncPlanCommand,
     ValidateFreshserviceConnectorCommand,
     ValidateGlpiConnectorCommand,
     ValidateJiraServiceManagementConnectorCommand,
+    ValidateOpenServiceConnectorCommand,
     ValidateServiceNowConnectorCommand,
 )
 from openinfra.application.identity_services import (
@@ -1434,6 +1436,62 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         resource_key=self._required_payload_value(payload, "resource_key"),
                         direction=str(payload.get("direction", "push_ci")),
                         asset_type=str(payload.get("asset_type", "asset")),
+                        mapping=mapping,
+                    )
+                )
+                responder.send(HTTPStatus.OK, plan.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except OpenInfraError as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/integrations/itsm/openservice/validate":
+            try:
+                payload = self._read_json_body()
+                tenant_id = self._required_payload_value(payload, "tenant_id")
+                if self.server.auth_required:
+                    self._authenticate(tenant_id, Permission.SECURITY_ADMIN)
+                service = self.server.application.external_itsm_service
+                profile = service.validate_openservice_connector(
+                    ValidateOpenServiceConnectorCommand(
+                        tenant_id=tenant_id,
+                        instance_url=self._required_payload_value(payload, "instance_url"),
+                        collection=str(payload.get("collection", "configuration_item")),
+                        auth_secret_ref=self._required_payload_value(
+                            payload, "auth_secret_ref"
+                        ),
+                        enabled=bool(payload.get("enabled", True)),
+                    )
+                )
+                responder.send(HTTPStatus.OK, profile.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except OpenInfraError as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/integrations/itsm/openservice/cmdb-sync-plan":
+            try:
+                payload = self._read_json_body()
+                tenant_id = self._required_payload_value(payload, "tenant_id")
+                if self.server.auth_required:
+                    self._authenticate(tenant_id, Permission.SECURITY_ADMIN)
+                raw_mapping = payload.get("mapping")
+                if raw_mapping is not None and not isinstance(raw_mapping, dict):
+                    raise OpenInfraError("mapping must be a JSON object")
+                mapping = (
+                    {str(key): str(value) for key, value in raw_mapping.items()}
+                    if isinstance(raw_mapping, dict)
+                    else None
+                )
+                service = self.server.application.external_itsm_service
+                plan = service.build_openservice_cmdb_sync_plan(
+                    BuildOpenServiceCmdbSyncPlanCommand(
+                        tenant_id=tenant_id,
+                        resource_key=self._required_payload_value(payload, "resource_key"),
+                        direction=str(payload.get("direction", "push_ci")),
+                        collection=str(payload.get("collection", "configuration_item")),
                         mapping=mapping,
                     )
                 )
@@ -3008,6 +3066,8 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "glpi_asset_sync_plan": "/api/v1/integrations/itsm/glpi/asset-sync-plan",
                     "freshservice_validate": "/api/v1/integrations/itsm/freshservice/validate",
                     "freshservice_asset_sync_plan": "/api/v1/integrations/itsm/freshservice/asset-sync-plan",
+                    "openservice_validate": "/api/v1/integrations/itsm/openservice/validate",
+                    "openservice_cmdb_sync_plan": "/api/v1/integrations/itsm/openservice/cmdb-sync-plan",
                 },
                 "itam": {
                     "support_profile": "/api/v1/itam/support-profile",

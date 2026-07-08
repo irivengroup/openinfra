@@ -98,3 +98,5 @@ La roadmap v2 intègre `TST-P08-WEB-EDITION-BADGE-DARK-FUCHSIA` pour verrouiller
 ## Validation v0.29.50 — administration éditions et quotas API/UI
 
 La roadmap v2 intègre `TST-P08-WEB-EDITION-ADMIN-QUOTAS` pour verrouiller l’exposition opérateur des politiques d’édition, des feature gates et des quotas runtime. L’alignement CDC ajoute `REQ-00793` sur P08 / EPIC-0804 / release 0.29.50, avec validation discovery, OpenAPI, RBAC `security:admin`, portail web Sécurité/RBAC/Audit et CI CLI équivalente.
+
+La roadmap v2 intègre `TST-P25-ITSM-OPENSERVICE-FUTURE-CMDB-CONNECTOR` pour préparer OpenService comme ITSM/CMDB externe futur. L’alignement CDC ajoute `REQ-00801` sur P25 / EPIC-2506 / release 0.29.58, avec validation domaine, service, CLI, API, OpenAPI, discovery et absence d’opération OpenService dans `openinfra-web`.

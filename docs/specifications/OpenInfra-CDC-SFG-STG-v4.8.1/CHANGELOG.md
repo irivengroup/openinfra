@@ -1,3 +1,9 @@
+## 0.29.58 — préparation OpenService autonome
+
+- Ajout `REQ-00801` pour préparer OpenService comme ITSM/CMDB externe futur, autonome et sans interface dans `openinfra-web`.
+- Ajout `TST-WEB-101` pour verrouiller CLI/API/OpenAPI/discovery, sécurité et non-exposition web OpenInfra.
+- Ajout des entités `external_itsm_openservice_connector_profile` et `external_itsm_openservice_cmdb_sync_plan`.
+
 - Ajout de `REQ-00800` et `TST-WEB-101` pour couvrir GLPI Inventory et Freshservice Assets comme connecteurs ITSM externes sans ticketing natif.
 - Ajout de `REQ-00796` et `TST-WEB-097` pour couvrir P13 / EPIC-1302 : lecture streaming par chunks des artefacts d’export massifs signés avec offset, SHA-256 chunk et reprise client.
 - Ajout de `REQ-00795` et `TST-WEB-096` pour couvrir P13 / EPIC-1301 : progression opérable des imports massifs reprenables via service, CLI, API, OpenAPI et portail web.

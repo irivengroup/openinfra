@@ -1,3 +1,4 @@
+- 0.29.58 : ajout `TST-P25-ITSM-OPENSERVICE-FUTURE-CMDB-CONNECTOR` pour préparer OpenService comme ITSM/CMDB externe autonome, sans UI dans openinfra-web et sans ticketing natif.
 - 0.29.57 : ajout `TST-P25-ITSM-GLPI-FRESHSERVICE-EXTERNAL-CONNECTORS` pour couvrir GLPI Inventory et Freshservice Assets comme connecteurs ITSM externes sans ticketing natif.
 - 0.29.56 : ajout `TST-P25-ITSM-JIRA-ASSETS-EXTERNAL-CONNECTOR` pour couvrir Jira Service Management Assets comme connecteur ITSM externe sans ticketing natif.
 - 0.29.56 : ajout `TST-P25-ITSM-SERVICENOW-EXTERNAL-CONNECTOR` pour couvrir les connecteurs ITSM externes ServiceNow, sans ticketing natif, et la correction thème Bootstrap `btn-primary`/statut runtime.

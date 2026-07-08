@@ -17,7 +17,10 @@ from openinfra.application.import_services import (
     PlanMigrationCommand,
 )
 from openinfra.application.security_services import BootstrapTokenCommand
-from openinfra.application.source_of_truth_services import GetSourceObjectCommand, UpsertSourceObjectCommand
+from openinfra.application.source_of_truth_services import (
+    GetSourceObjectCommand,
+    UpsertSourceObjectCommand,
+)
 from openinfra.domain.common import NotFoundError, TenantId, ValidationError
 from openinfra.domain.data_import import BulkImportCheckpoint, ImportFormat, ImportJobStatus
 from openinfra.infrastructure.import_parsers import ImportDatasetParser
@@ -627,7 +630,6 @@ def test_legacy_migration_plan_limit_not_found_and_corrupt_store_errors(tmp_path
     app.store.data["migration_plans"][key]["gaps"] = {}
     with pytest.raises(ValidationError, match="plan details"):
         app.import_service.get_migration_plan("default", report.job_id.value)
-
 
 
 def test_bulk_import_rollback_plan_and_apply_retires_created_objects(tmp_path: Path) -> None:

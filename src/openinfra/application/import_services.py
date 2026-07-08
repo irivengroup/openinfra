@@ -75,8 +75,6 @@ class BulkImportDatasetCommand:
     sample_limit: int = 100
 
 
-
-
 @dataclass(frozen=True, slots=True)
 class BulkImportRollbackCommand:
     tenant_id: str
@@ -484,7 +482,6 @@ class GenericImportService:
         if report is None:
             raise ValidationError("import job not found: " + job_id)
         return report
-
 
     def _normalize_conflict_policy(self, value: str) -> str:
         normalized = value.strip().lower().replace("_", "-")
@@ -904,11 +901,21 @@ class GenericImportService:
             LegacyMigrationSource.CSV: "Generic CSV to OpenInfra RSOT migration guide",
         }
         extract_note_by_source = {
-            LegacyMigrationSource.DEVICE42: "Export Device42 devices with device_name as immutable natural key.",
-            LegacyMigrationSource.NETBOX: "Export NetBox devices with name, status, role, site, rack and serial columns.",
-            LegacyMigrationSource.NAUTOBOT: "Export Nautobot devices with location and platform fields preserved.",
-            LegacyMigrationSource.GLPI: "Export GLPI computers or inventory items with name and inventory metadata.",
-            LegacyMigrationSource.CSV: "Prepare an explicit RSOT CSV with key, kind, display_name and source columns.",
+            LegacyMigrationSource.DEVICE42: (
+                "Export Device42 devices with device_name as immutable natural key."
+            ),
+            LegacyMigrationSource.NETBOX: (
+                "Export NetBox devices with name, status, role, site, rack and serial columns."
+            ),
+            LegacyMigrationSource.NAUTOBOT: (
+                "Export Nautobot devices with location and platform fields preserved."
+            ),
+            LegacyMigrationSource.GLPI: (
+                "Export GLPI computers or inventory items with name and inventory metadata."
+            ),
+            LegacyMigrationSource.CSV: (
+                "Prepare an explicit RSOT CSV with key, kind, display_name and source columns."
+            ),
         }
         source_value = source.value
         steps = (
@@ -917,12 +924,18 @@ class GenericImportService:
                 "extract",
                 extract_note_by_source[source],
                 f"openinfra import migration-template --source {source_value}",
-                "The built-in mapping template and expected columns are reviewed before extraction.",
+                (
+                    "The built-in mapping template and expected columns are reviewed "
+                    "before extraction."
+                ),
             ),
             MigrationGuideStep.create(
                 2,
                 "profile",
-                "Run a dry-run migration plan to detect missing required columns and unmapped data.",
+                (
+                    "Run a dry-run migration plan to detect missing required columns "
+                    "and unmapped data."
+                ),
                 (
                     "openinfra import migration-plan --tenant <tenant> --admin-token <token> "
                     f"--source {source_value} --file <dataset> --format csv"
@@ -952,9 +965,13 @@ class GenericImportService:
                 "Plan rollback before applying it to confirm no concurrent RSOT conflict exists.",
                 (
                     "openinfra import bulk-rollback --tenant <tenant> --admin-token <token> "
-                    "--job-id <bulk_job_id> --file <dataset> --format csv --mapping-json '<mapping>'"
+                    "--job-id <bulk_job_id> --file <dataset> --format csv "
+                    "--mapping-json '<mapping>'"
                 ),
-                "Rollback remains dry-run by default and reports restore, retire or conflict actions.",
+                (
+                    "Rollback remains dry-run by default and reports restore, retire "
+                    "or conflict actions."
+                ),
             ),
         )
         return MigrationGuide.create(
@@ -964,15 +981,24 @@ class GenericImportService:
             template=template,
             steps=steps,
             required_controls=(
-                "Run migration-template before extraction and preserve the returned required columns.",
+                (
+                    "Run migration-template before extraction and preserve the returned "
+                    "required columns."
+                ),
                 "Run migration-plan in dry-run mode before any RSOT mutation.",
                 "Keep source exports immutable and archived with checksum outside OpenInfra.",
-                "Use bulk-dataset for production loads to retain checkpoints and restart capability.",
+                (
+                    "Use bulk-dataset for production loads to retain checkpoints and "
+                    "restart capability."
+                ),
             ),
             rollback_controls=(
                 "Run bulk-rollback without --apply first and inspect all conflict actions.",
                 "Use conflict_policy=fail by default to protect concurrent RSOT changes.",
-                "Never hard-delete imported RSOT objects; created objects are retired when rollback applies.",
+                (
+                    "Never hard-delete imported RSOT objects; created objects are "
+                    "retired when rollback applies."
+                ),
             ),
             success_criteria=(
                 "Migration plan status is validated and contains no missing-required gap.",

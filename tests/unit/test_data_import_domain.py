@@ -380,7 +380,10 @@ def test_legacy_migration_guide_step_and_metadata_validation_errors() -> None:
         (lambda: MigrationGuideStep.create(1, " ", "action", "command", "result"), "phase"),
         (lambda: MigrationGuideStep.create(1, "phase", " ", "command", "result"), "action"),
         (lambda: MigrationGuideStep.create(1, "phase", "action", " ", "result"), "command"),
-        (lambda: MigrationGuideStep.create(1, "phase", "action", "command", " "), "expected result"),
+        (
+            lambda: MigrationGuideStep.create(1, "phase", "action", "command", " "),
+            "expected result",
+        ),
         (
             lambda: MigrationGuide.create(
                 LegacyMigrationSource.NETBOX,

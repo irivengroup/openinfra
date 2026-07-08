@@ -23,6 +23,10 @@ from openinfra.application.security_services import BootstrapTokenCommand
 from openinfra.interfaces.cli import OpenInfraCLI
 from openinfra.interfaces.http_api import OpenInfraThreadingServer
 
+OPEN_SERVICE_SECRET_REF = "vault://openinfra/openservice/oauth"
+GLPI_SECRET_REF = "vault://openinfra/glpi/tokens"
+FRESHSERVICE_SECRET_REF = "vault://openinfra/freshservice/api-token"
+
 
 class TestExternalItsmIntegrations:
     def test_service_validates_servicenow_connector_and_plan(self, tmp_path: Path) -> None:
@@ -50,7 +54,6 @@ class TestExternalItsmIntegrations:
         assert profile.as_dict()["native_ticketing_enabled"] is False
         assert plan.as_dict()["mapping"]["resource_key"] == "correlation_id"
         assert plan.as_dict()["native_ticketing_enabled"] is False
-
 
     def test_service_validates_jira_connector_and_plan(self, tmp_path: Path) -> None:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json")
@@ -88,7 +91,7 @@ class TestExternalItsmIntegrations:
                 tenant_id="default",
                 instance_url="https://openservice.example.com",
                 collection="configuration_item",
-                auth_secret_ref="vault://openinfra/openservice/oauth",
+                auth_secret_ref=OPEN_SERVICE_SECRET_REF,
             )
         )
         plan = app.external_itsm_service.build_openservice_cmdb_sync_plan(
@@ -99,9 +102,7 @@ class TestExternalItsmIntegrations:
                 collection="configuration_item",
             )
         )
-        policies = [
-            policy.as_dict() for policy in app.external_itsm_service.list_policies()
-        ]
+        policies = [policy.as_dict() for policy in app.external_itsm_service.list_policies()]
 
         assert profile.provider.value == "openservice"
         assert profile.as_dict()["native_ticketing_enabled"] is False
@@ -148,7 +149,6 @@ class TestExternalItsmIntegrations:
         assert plan_code == 0
         assert profile["native_ticketing_enabled"] is False
         assert plan["target_table"] == "cmdb_ci"
-
 
     def test_cli_jira_contracts(self, tmp_path: Path, capsys: object) -> None:
         data = tmp_path / "state.json"
@@ -201,7 +201,7 @@ class TestExternalItsmIntegrations:
                 tenant_id="default",
                 instance_url="https://glpi.example.com",
                 item_type="computer",
-                auth_secret_ref="vault://openinfra/glpi/tokens",
+                auth_secret_ref=GLPI_SECRET_REF,
             )
         )
         glpi_plan = app.external_itsm_service.build_glpi_asset_sync_plan(
@@ -217,7 +217,7 @@ class TestExternalItsmIntegrations:
                 tenant_id="default",
                 instance_url="https://tenant.freshservice.com",
                 asset_type="server",
-                auth_secret_ref="vault://openinfra/freshservice/api-token",
+                auth_secret_ref=FRESHSERVICE_SECRET_REF,
             )
         )
         freshservice_plan = app.external_itsm_service.build_freshservice_asset_sync_plan(
@@ -236,9 +236,7 @@ class TestExternalItsmIntegrations:
         assert freshservice_profile.as_dict()["native_ticketing_enabled"] is False
         assert freshservice_plan.as_dict()["mapping"]["resource_key"] == "asset_tag"
 
-    def test_cli_glpi_and_freshservice_contracts(
-        self, tmp_path: Path, capsys: object
-    ) -> None:
+    def test_cli_glpi_and_freshservice_contracts(self, tmp_path: Path, capsys: object) -> None:
         data = tmp_path / "state.json"
         glpi_code = OpenInfraCLI().run(
             [

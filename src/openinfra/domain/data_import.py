@@ -285,8 +285,6 @@ class MigrationTemplate:
         }
 
 
-
-
 @dataclass(frozen=True, slots=True)
 class MigrationGuideStep:
     order: int
@@ -413,6 +411,7 @@ class MigrationGuide:
             "rsot_authoritative": True,
         }
 
+
 @dataclass(frozen=True, slots=True)
 class BulkImportProgress:
     job_id: EntityId
@@ -435,8 +434,7 @@ class BulkImportProgress:
         report: BulkImportReport | None = None,
     ) -> Self:
         processed_rows = max(0, checkpoint.next_row_number - 1)
-        if checkpoint.total_rows > processed_rows:
-            processed_rows = checkpoint.total_rows
+        processed_rows = max(processed_rows, checkpoint.total_rows)
         final_report_available = report is not None
         if report is not None:
             if report.job_id != checkpoint.job_id:

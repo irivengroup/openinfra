@@ -1247,9 +1247,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         tenant_id=tenant_id,
                         instance_url=self._required_payload_value(payload, "instance_url"),
                         table_name=str(payload.get("table_name", "cmdb_ci")),
-                        auth_secret_ref=self._required_payload_value(
-                            payload, "auth_secret_ref"
-                        ),
+                        auth_secret_ref=self._required_payload_value(payload, "auth_secret_ref"),
                         enabled=bool(payload.get("enabled", True)),
                     )
                 )
@@ -1303,9 +1301,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         tenant_id=tenant_id,
                         instance_url=self._required_payload_value(payload, "instance_url"),
                         object_type=str(payload.get("object_type", "object")),
-                        auth_secret_ref=self._required_payload_value(
-                            payload, "auth_secret_ref"
-                        ),
+                        auth_secret_ref=self._required_payload_value(payload, "auth_secret_ref"),
                         enabled=bool(payload.get("enabled", True)),
                     )
                 )
@@ -1359,9 +1355,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         tenant_id=tenant_id,
                         instance_url=self._required_payload_value(payload, "instance_url"),
                         item_type=str(payload.get("item_type", "computer")),
-                        auth_secret_ref=self._required_payload_value(
-                            payload, "auth_secret_ref"
-                        ),
+                        auth_secret_ref=self._required_payload_value(payload, "auth_secret_ref"),
                         enabled=bool(payload.get("enabled", True)),
                     )
                 )
@@ -1415,9 +1409,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         tenant_id=tenant_id,
                         instance_url=self._required_payload_value(payload, "instance_url"),
                         asset_type=str(payload.get("asset_type", "asset")),
-                        auth_secret_ref=self._required_payload_value(
-                            payload, "auth_secret_ref"
-                        ),
+                        auth_secret_ref=self._required_payload_value(payload, "auth_secret_ref"),
                         enabled=bool(payload.get("enabled", True)),
                     )
                 )
@@ -1471,9 +1463,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         tenant_id=tenant_id,
                         instance_url=self._required_payload_value(payload, "instance_url"),
                         collection=str(payload.get("collection", "configuration_item")),
-                        auth_secret_ref=self._required_payload_value(
-                            payload, "auth_secret_ref"
-                        ),
+                        auth_secret_ref=self._required_payload_value(payload, "auth_secret_ref"),
                         enabled=bool(payload.get("enabled", True)),
                     )
                 )
@@ -2653,7 +2643,6 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
-
         if route == "/api/v1/imports/bulk-rollback":
             try:
                 payload = self._read_json_body()
@@ -3103,9 +3092,13 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "glpi_validate": "/api/v1/integrations/itsm/glpi/validate",
                     "glpi_asset_sync_plan": "/api/v1/integrations/itsm/glpi/asset-sync-plan",
                     "freshservice_validate": "/api/v1/integrations/itsm/freshservice/validate",
-                    "freshservice_asset_sync_plan": "/api/v1/integrations/itsm/freshservice/asset-sync-plan",
+                    "freshservice_asset_sync_plan": (
+                        "/api/v1/integrations/itsm/freshservice/asset-sync-plan"
+                    ),
                     "openservice_validate": "/api/v1/integrations/itsm/openservice/validate",
-                    "openservice_cmdb_sync_plan": "/api/v1/integrations/itsm/openservice/cmdb-sync-plan",
+                    "openservice_cmdb_sync_plan": (
+                        "/api/v1/integrations/itsm/openservice/cmdb-sync-plan"
+                    ),
                 },
                 "itam": {
                     "support_profile": "/api/v1/itam/support-profile",

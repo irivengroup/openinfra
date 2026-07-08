@@ -233,7 +233,6 @@ class ExternalItsmIntegrationService:
             mapping=mapping,
         )
 
-
     def validate_openservice_connector(
         self, command: ValidateOpenServiceConnectorCommand
     ) -> ExternalItsmConnectorProfile:

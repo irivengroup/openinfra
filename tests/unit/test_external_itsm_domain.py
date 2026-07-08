@@ -49,22 +49,10 @@ def test_servicenow_provider_and_direction_reject_unknown_values() -> None:
         is ExternalItsmProvider.SERVICENOW
     )
     assert ExternalItsmProvider.from_value("snow") is ExternalItsmProvider.SERVICENOW
-    assert (
-        ExternalItsmProvider.from_value("jira")
-        is ExternalItsmProvider.JIRA_SERVICE_MANAGEMENT
-    )
-    assert (
-        ExternalItsmProvider.from_value("jsm")
-        is ExternalItsmProvider.JIRA_SERVICE_MANAGEMENT
-    )
-    assert (
-        ExternalItsmProvider.from_value("open-service")
-        is ExternalItsmProvider.OPENSERVICE
-    )
-    assert (
-        ExternalItsmProvider.from_value("openservice-cmdb")
-        is ExternalItsmProvider.OPENSERVICE
-    )
+    assert ExternalItsmProvider.from_value("jira") is ExternalItsmProvider.JIRA_SERVICE_MANAGEMENT
+    assert ExternalItsmProvider.from_value("jsm") is ExternalItsmProvider.JIRA_SERVICE_MANAGEMENT
+    assert ExternalItsmProvider.from_value("open-service") is ExternalItsmProvider.OPENSERVICE
+    assert ExternalItsmProvider.from_value("openservice-cmdb") is ExternalItsmProvider.OPENSERVICE
     assert (
         ExternalItsmSyncDirection.from_value(ExternalItsmSyncDirection.PUSH_CI)
         is ExternalItsmSyncDirection.PUSH_CI
@@ -133,7 +121,6 @@ def test_servicenow_profile_normalizes_safe_values() -> None:
         "enabled": True,
         "native_ticketing_enabled": False,
     }
-
 
 
 def test_jira_service_management_profile_and_asset_plan_normalize_safe_values() -> None:

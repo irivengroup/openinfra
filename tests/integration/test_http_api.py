@@ -789,7 +789,6 @@ class TestHttpApi:
             server.server_close()
             thread.join(timeout=5)
 
-
     def test_bulk_import_rollback_api_endpoint(self, tmp_path: Path) -> None:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json")
         token = "q" * 40

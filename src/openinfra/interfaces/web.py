@@ -473,22 +473,22 @@ class OpenInfraWebRequestHandler(BaseHTTPRequestHandler):
     def log_message(self, _format: str, *_args: object) -> None:
         return None
 
-    def do_GET(self) -> None:  # noqa: N802
+    def do_GET(self) -> None:
         self._handle_without_body()
 
-    def do_HEAD(self) -> None:  # noqa: N802
+    def do_HEAD(self) -> None:
         self._handle_without_body(head_only=True)
 
-    def do_POST(self) -> None:  # noqa: N802
+    def do_POST(self) -> None:
         self._handle_proxy_request()
 
-    def do_PUT(self) -> None:  # noqa: N802
+    def do_PUT(self) -> None:
         self._handle_proxy_request()
 
-    def do_PATCH(self) -> None:  # noqa: N802
+    def do_PATCH(self) -> None:
         self._handle_proxy_request()
 
-    def do_DELETE(self) -> None:  # noqa: N802
+    def do_DELETE(self) -> None:
         self._handle_proxy_request()
 
     def _handle_without_body(self, head_only: bool = False) -> None:

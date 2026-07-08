@@ -34,7 +34,7 @@ class BackendFakeHandler(BaseHTTPRequestHandler):
     def log_message(self, _format: str, *_args: object) -> None:
         return None
 
-    def do_GET(self) -> None:  # noqa: N802
+    def do_GET(self) -> None:
         if self.path == "/ready":
             self._json(HTTPStatus.OK, {"ready": True, "backend": "fake"})
             return
@@ -67,7 +67,7 @@ class BackendFakeHandler(BaseHTTPRequestHandler):
             return
         self._json(HTTPStatus.NOT_FOUND, {"error": self.path})
 
-    def do_POST(self) -> None:  # noqa: N802
+    def do_POST(self) -> None:
         if self.path == "/api/v1/echo":
             length = int(self.headers.get("Content-Length", "0"))
             payload = json.loads(self.rfile.read(length).decode("utf-8"))
@@ -368,7 +368,7 @@ class TestOpenInfraWeb:
         assert 'path: "/v1/integrations/itsm/freshservice/validate"' in static_js
         assert 'path: "/v1/integrations/itsm/freshservice/asset-sync-plan"' in static_js
         assert "OpenService" not in static_js
-        assert '/v1/integrations/itsm/openservice' not in static_js
+        assert "/v1/integrations/itsm/openservice" not in static_js
         assert "Valider connecteur ServiceNow" in static_js
         assert "Valider connecteur Jira Assets" in static_js
         assert "Valider connecteur GLPI Inventory" in static_js

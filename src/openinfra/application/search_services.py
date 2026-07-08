@@ -193,8 +193,7 @@ class GlobalSearchService:
                         f"source {row.get('source', 'unknown')}"
                     ),
                     route=(
-                        "/api/v1/rsot/objects?tenant_id="
-                        f"{quote(tenant_id.value)}&key={quote(key)}"
+                        f"/api/v1/rsot/objects?tenant_id={quote(tenant_id.value)}&key={quote(key)}"
                     ),
                     score=score,
                     metadata={
@@ -281,8 +280,7 @@ class GlobalSearchService:
             kind = str(row.get("kind", "ipam"))
             label = self._ipam_label(kind, row)
             route = (
-                f"/api/v1/ipam/ui-search?tenant_id={quote(tenant_id.value)}"
-                f"&query={quote(query)}"
+                f"/api/v1/ipam/ui-search?tenant_id={quote(tenant_id.value)}&query={quote(query)}"
             )
             vrf = str(row.get("vrf", ""))
             matches.append(

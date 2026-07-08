@@ -40,9 +40,7 @@ class ExternalItsmProvider(StrEnum):
             return cls(aliases.get(normalized, normalized))
         except ValueError as exc:
             supported = ", ".join(item.value for item in cls)
-            raise ValidationError(
-                f"external ITSM provider must be one of: {supported}"
-            ) from exc
+            raise ValidationError(f"external ITSM provider must be one of: {supported}") from exc
 
 
 class ExternalItsmSyncDirection(StrEnum):

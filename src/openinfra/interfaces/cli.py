@@ -726,7 +726,6 @@ class OpenInfraCLI:
         report.add_argument("--job-id", required=True)
         report.set_defaults(handler=self._handle_import_report)
 
-
         bulk_rollback = import_subparsers.add_parser(
             "bulk-rollback",
             help="plan or apply a safe rollback for an applied bulk import job",
@@ -940,9 +939,7 @@ class OpenInfraCLI:
         openservice_validate.add_argument("--collection", default="configuration_item")
         openservice_validate.add_argument("--auth-secret-ref", required=True)
         openservice_validate.add_argument("--disabled", action="store_true")
-        openservice_validate.set_defaults(
-            handler=self._handle_integrations_openservice_validate
-        )
+        openservice_validate.set_defaults(handler=self._handle_integrations_openservice_validate)
 
         openservice_plan = integration_subparsers.add_parser(
             "openservice-cmdb-sync-plan",
@@ -956,9 +953,7 @@ class OpenInfraCLI:
         openservice_plan.add_argument("--resource-key", required=True)
         openservice_plan.add_argument("--direction", default="push_ci")
         openservice_plan.add_argument("--collection", default="configuration_item")
-        openservice_plan.set_defaults(
-            handler=self._handle_integrations_openservice_cmdb_sync_plan
-        )
+        openservice_plan.set_defaults(handler=self._handle_integrations_openservice_cmdb_sync_plan)
 
     def _add_discovery_commands(self, subparsers: Any) -> None:
         discovery = subparsers.add_parser(
@@ -2630,9 +2625,7 @@ class OpenInfraCLI:
         print(json.dumps(plan.as_dict(), indent=2, sort_keys=True))
         return 0
 
-    def _handle_integrations_freshservice_validate(
-        self, args: argparse.Namespace
-    ) -> int:
+    def _handle_integrations_freshservice_validate(self, args: argparse.Namespace) -> int:
         app = self._create_application(args)
         profile = app.external_itsm_service.validate_freshservice_connector(
             ValidateFreshserviceConnectorCommand(
@@ -2646,9 +2639,7 @@ class OpenInfraCLI:
         print(json.dumps(profile.as_dict(), indent=2, sort_keys=True))
         return 0
 
-    def _handle_integrations_freshservice_asset_sync_plan(
-        self, args: argparse.Namespace
-    ) -> int:
+    def _handle_integrations_freshservice_asset_sync_plan(self, args: argparse.Namespace) -> int:
         app = self._create_application(args)
         plan = app.external_itsm_service.build_freshservice_asset_sync_plan(
             BuildFreshserviceAssetSyncPlanCommand(
@@ -2661,9 +2652,7 @@ class OpenInfraCLI:
         print(json.dumps(plan.as_dict(), indent=2, sort_keys=True))
         return 0
 
-    def _handle_integrations_openservice_validate(
-        self, args: argparse.Namespace
-    ) -> int:
+    def _handle_integrations_openservice_validate(self, args: argparse.Namespace) -> int:
         app = self._create_application(args)
         profile = app.external_itsm_service.validate_openservice_connector(
             ValidateOpenServiceConnectorCommand(
@@ -2677,9 +2666,7 @@ class OpenInfraCLI:
         print(json.dumps(profile.as_dict(), indent=2, sort_keys=True))
         return 0
 
-    def _handle_integrations_openservice_cmdb_sync_plan(
-        self, args: argparse.Namespace
-    ) -> int:
+    def _handle_integrations_openservice_cmdb_sync_plan(self, args: argparse.Namespace) -> int:
         app = self._create_application(args)
         plan = app.external_itsm_service.build_openservice_cmdb_sync_plan(
             BuildOpenServiceCmdbSyncPlanCommand(

@@ -463,19 +463,26 @@ body {
 }
 
 .openinfra-accordion-panel {
-  max-height: 0;
+  display: grid;
+  grid-template-rows: 0fr;
   opacity: 0;
   overflow: hidden;
   padding-left: .85rem;
-  transition: opacity .24s ease-in-out;
+  transform: translateY(-.18rem);
+  transition: grid-template-rows .36s cubic-bezier(.25, .1, .25, 1), opacity .22s ease-in-out, transform .36s cubic-bezier(.25, .1, .25, 1);
 }
 
 .openinfra-accordion-panel.show {
-  max-height: none;
+  grid-template-rows: 1fr;
   opacity: 1;
-  overflow: visible;
+  transform: translateY(0);
 }
 
+.openinfra-accordion-panel-inner,
+.openinfra-sidebar-context-panel-inner {
+  min-height: 0;
+  overflow: hidden;
+}
 
 .openinfra-sidebar-context {
   border-left: 1px solid rgba(var(--openinfra-action-rgb), .14);
@@ -484,13 +491,33 @@ body {
 }
 
 .openinfra-sidebar-context-title {
+  background: transparent;
+  border: 0;
   color: rgba(var(--openinfra-ink-rgb), .58);
+  display: block;
   font-size: .68rem;
   font-weight: 900;
   letter-spacing: .075em;
   margin: .45rem 0 .18rem;
-  padding-left: .15rem;
+  padding: 0 0 0 .15rem;
+  text-align: left;
   text-transform: uppercase;
+  width: 100%;
+}
+
+.openinfra-sidebar-context-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  overflow: hidden;
+  transform: translateY(-.16rem);
+  transition: grid-template-rows .34s cubic-bezier(.25, .1, .25, 1), opacity .2s ease-in-out, transform .34s cubic-bezier(.25, .1, .25, 1);
+}
+
+.openinfra-sidebar-context-panel.show {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .openinfra-sidebar-operation {
@@ -858,6 +885,7 @@ body {
 .openinfra-top-header .nav-link:focus-visible,
 .openinfra-sidebar-dashboard:focus-visible,
 .openinfra-accordion-toggle:focus-visible,
+.openinfra-sidebar-context-title:focus-visible,
 .openinfra-sidebar-operation:focus-visible,
 .openinfra-global-search-item:focus-visible,
 .openinfra-api-doc-actions .btn:focus-visible {
@@ -1062,4 +1090,17 @@ body {
   }
 }
 
-/* v0.29.67: sidebar navigation hotfix keeps accordion selection and DCIM catalog rendering non-blocking. */
+/* v0.29.68: sidebar navigation hotfix keeps accordion selection and DCIM catalog rendering non-blocking. */
+
+
+/* v0.29.68: hierarchical accordion animation, Prismium-inspired easing without visual theme changes. */
+@media (prefers-reduced-motion: reduce) {
+  .openinfra-accordion-panel,
+  .openinfra-sidebar-context-panel,
+  .openinfra-chevron,
+  .openinfra-accordion-toggle,
+  .openinfra-sidebar-operation {
+    transition: none;
+    transform: none;
+  }
+}

@@ -354,8 +354,15 @@ class TestOpenInfraWeb:
         assert 'groups.push({ label: "Autres", operations: remaining })' in static_js
         assert "openinfra-accordion" in static_js + static_css
         assert ".openinfra-accordion-panel.show" in static_css
-        assert "max-height: none" in static_css
-        assert "overflow: visible" in static_css
+        assert "grid-template-rows: 0fr" in static_css
+        assert "grid-template-rows: 1fr" in static_css
+        assert "openinfra-accordion-panel-inner" in static_js + static_css + main_js
+        assert "openinfra-sidebar-context-panel" in static_js + static_css + main_js
+        assert "openinfra-sidebar-context-panel-inner" in static_js + static_css + main_js
+        assert "data-context-module-id" in static_js
+        assert "toggleSidebarContext" in static_js + main_js
+        assert "openedContexts" in static_js + main_js
+        assert "prefers-reduced-motion" in static_css
         assert "scrollbar-gutter: stable" in static_css
         assert "overscroll-behavior: contain" in static_css
         assert "max-height: 34rem" not in static_css
@@ -547,8 +554,9 @@ class TestOpenInfraWeb:
         assert "isDcimReferenceField(field)" in static_js
         assert "DCIM topology catalog returned" in static_js
         assert 'this.state.selected.id.startsWith("dcim-")' in static_js
-        assert "activeModuleId: module.id" in static_js.split("toggleAccordion(moduleId)", 1)[1]
-        assert "selected: module.operations[0]" in static_js.split("toggleAccordion(moduleId)", 1)[1]
+        toggle_body = static_js.split("toggleAccordion(moduleId)", 1)[1].split("toggleSidebarContext", 1)[0]
+        assert "activeModuleId: module.id" not in toggle_body
+        assert "selected: module.operations[0]" not in toggle_body
         assert "dcimCatalog" in static_js
         assert "data-field" in static_js
         assert (

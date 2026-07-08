@@ -877,6 +877,33 @@ function sidebarOperationGroups(module) {
   return groups;
 }
 
+function sidebarContextKey(moduleId, label) {
+  return `${moduleId}::${label}`;
+}
+
+function contextForOperation(module, operationId) {
+  return sidebarOperationGroups(module).find((group) => group.operations.some((operation) => operation.id === operationId));
+}
+
+function withoutModuleContexts(openedContexts, moduleId) {
+  const next = new Set(openedContexts);
+  for (const key of Array.from(next)) {
+    if (key.startsWith(`${moduleId}::`)) {
+      next.delete(key);
+    }
+  }
+  return next;
+}
+
+function slugifyContextLabel(value) {
+  return String(value ?? 'context')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'context';
+}
+
 
 function Dashboard() {
   const [config, setConfig] = useState({ apiBaseUrl: '/api', apiDocumentation: { swaggerUrl: '/docs', redocUrl: '/redoc', openapiUrl: '/openapi.yaml' }, version: 'indisponible', webBackendTrust: 'server-side' });
@@ -886,6 +913,7 @@ function Dashboard() {
   const [selected, setSelected] = useState(MODULES[0].operations[0]);
   const [activeModuleId, setActiveModuleId] = useState('overview');
   const [opened, setOpened] = useState(new Set(['rsot']));
+  const [openedContexts, setOpenedContexts] = useState(new Set());
   const [tenant, setTenant] = useState('default');
   const [result, setResult] = useState('Résultat en attente.');
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
@@ -974,7 +1002,15 @@ function Dashboard() {
   function chooseOperation(module, operation, focusMain = false) {
     setSelected(operation);
     setActiveModuleId(module.id);
-    setOpened(new Set([...opened, module.id]));
+    setOpened((current) => new Set([...current, module.id]));
+    setOpenedContexts((current) => {
+      const next = withoutModuleContexts(current, module.id);
+      const context = contextForOperation(module, operation.id);
+      if (context) {
+        next.add(sidebarContextKey(module.id, context.label));
+      }
+      return next;
+    });
     setResult('Résultat en attente.');
     setMobileSidebarOpen(false);
     if (focusMain) {
@@ -1007,17 +1043,33 @@ function Dashboard() {
     if (!module) {
       return;
     }
-    const next = new Set(opened);
-    if (next.has(moduleId) && activeModuleId === moduleId) {
-      next.delete(moduleId);
-    } else {
-      next.add(moduleId);
+    setOpened((current) => {
+      const next = new Set(current);
+      if (next.has(moduleId)) {
+        next.delete(moduleId);
+      } else {
+        next.add(moduleId);
+      }
+      return next;
+    });
+    setOpenedContexts((current) => withoutModuleContexts(current, moduleId));
+  }
+
+  function toggleSidebarContext(moduleId, contextLabel) {
+    const module = MODULES.find((item) => item.id === moduleId);
+    if (!module || !contextLabel) {
+      return;
     }
-    setOpened(next);
-    setSelected(module.operations[0]);
-    setActiveModuleId(module.id);
-    setResult('Résultat en attente.');
-    setMobileSidebarOpen(false);
+    setOpened((current) => new Set([...current, moduleId]));
+    setOpenedContexts((current) => {
+      const contextKey = sidebarContextKey(moduleId, contextLabel);
+      const wasOpen = current.has(contextKey);
+      const next = withoutModuleContexts(current, moduleId);
+      if (!wasOpen) {
+        next.add(contextKey);
+      }
+      return next;
+    });
   }
 
   function execute() {
@@ -1040,7 +1092,32 @@ function Dashboard() {
       <div className="px-3 py-2 bg-dark text-white openinfra-top-header"><div className="container-fluid"><div className="d-flex flex-wrap align-items-center justify-content-center justify-content-lg-start"><a href="/" className="d-flex align-items-center my-2 my-lg-0 me-lg-auto text-white text-decoration-none" aria-label="OpenInfra accueil"><span className="openinfra-brand-mark me-2">OI</span><span className="fs-5 fw-semibold">OpenInfra</span><span className="badge openinfra-edition-badge ms-3">{config.edition || 'runtime'}</span></a><ul className="nav col-12 col-lg-auto my-2 justify-content-center my-md-0 text-small">{MODULES.map((module) => <li key={module.id}><button type="button" className={`nav-link border-0 bg-transparent ${activeModuleId === module.id ? 'text-secondary' : 'text-white'}`} aria-current={activeModuleId === module.id ? 'page' : undefined} onClick={() => chooseOperation(module, module.operations[0])}><Icon name={module.icon} className="bi d-block mx-auto mb-1 openinfra-top-icon" />{module.shortLabel || module.label}</button></li>)}</ul></div></div></div>
       <div className="px-3 py-2 border-bottom openinfra-global-toolbar"><div className="container-fluid openinfra-global-toolbar-inner"><div className="openinfra-global-toolbar-spacer" aria-hidden="true" /><form className="openinfra-global-search-form" role="search" aria-label="Recherche globale OpenInfra" autoComplete="off"><label className="visually-hidden" htmlFor="openinfra-global-search">Recherche globale OpenInfra</label><div className="openinfra-global-search-control"><Icon name="search" className="openinfra-global-search-icon" /><input type="search" id="openinfra-global-search" className="form-control" placeholder="Recherche globale..." aria-label="Recherche globale OpenInfra" role="combobox" aria-autocomplete="list" aria-haspopup="listbox" aria-controls="openinfra-global-search-results" aria-expanded={globalSearchQuery.trim() !== ''} value={globalSearchQuery} onChange={(event) => setGlobalSearchQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') setGlobalSearchQuery(''); }} /></div>{globalSearchQuery.trim() !== '' && <div id="openinfra-global-search-results" className="openinfra-global-search-results" role="listbox" aria-label="Résultats de recherche globale" aria-live="polite"><GlobalSearchResults query={globalSearchQuery} groups={searchGroups} backend={globalSearchBackend} loading={globalSearchLoading} error={globalSearchError} onSelect={selectSearchOperation} onBackendSelect={selectBackendSearchItem} /></div>}</form><div className="text-end openinfra-api-doc-actions"><a className="btn btn-light text-dark me-2" href={apiDocs.swaggerUrl} target="_blank" rel="noopener noreferrer" aria-label="Ouvrir Swagger UI backend API">Swagger</a><a className="btn btn-primary" href={apiDocs.redocUrl} target="_blank" rel="noopener noreferrer" aria-label="Ouvrir ReDoc backend API">ReDoc</a></div></div></div>
     </header>
-    <div className="container-fluid"><div className="openinfra-mobile-menu-bar"><button type="button" id="openinfra-mobile-menu-button" className="btn btn-primary openinfra-mobile-menu-button" aria-label={mobileSidebarOpen ? "Fermer le menu de navigation" : "Ouvrir le menu de navigation"} aria-expanded={mobileSidebarOpen} aria-controls="openinfra-sidebar" onClick={() => setMobileSidebarOpen((open) => !open)}><Icon name="menu" className="openinfra-mobile-menu-icon" /><span className="visually-hidden">Menu</span></button></div>{mobileSidebarOpen && <button type="button" className="openinfra-mobile-sidebar-backdrop" aria-label="Fermer le menu de navigation" onClick={() => setMobileSidebarOpen(false)} />}<div className="row"><nav id="openinfra-sidebar" className={`col-lg-3 col-xl-2 openinfra-sidebar ${mobileSidebarOpen ? 'mobile-open' : ''}`} aria-label="Sidebar navigation"><div className="openinfra-sidebar-heading">Pilotage</div>{filteredModules.map((module) => module.id === 'overview' ? <button key={module.id} type="button" className={`nav-link openinfra-sidebar-dashboard w-100 text-start ${activeModuleId === module.id ? 'active' : ''}`} aria-current={activeModuleId === module.id ? 'page' : undefined} onClick={() => chooseOperation(module, module.operations[0])}><Icon name={module.icon} />Dashboard</button> : <section className={`openinfra-accordion ${opened.has(module.id) ? 'open' : ''}`} key={module.id}><button type="button" id={`openinfra-accordion-${module.id}`} className={`openinfra-accordion-toggle ${activeModuleId === module.id ? 'active' : ''}`} aria-expanded={opened.has(module.id)} aria-controls={`openinfra-panel-${module.id}`} aria-current={activeModuleId === module.id ? 'page' : undefined} onClick={() => toggleAccordion(module.id)}><span><Icon name={module.icon} />{module.shortLabel || module.label}</span><span className="openinfra-chevron">›</span></button><div id={`openinfra-panel-${module.id}`} className={`openinfra-accordion-panel fade ${opened.has(module.id) ? 'show' : ''}`} role="region" aria-labelledby={`openinfra-accordion-${module.id}`}>{sidebarOperationGroups(module).map((group) => <div key={`${module.id}-${group.label}`} className="openinfra-sidebar-context" role="group" aria-label={group.label}><div className="openinfra-sidebar-context-title">{group.label}</div>{group.operations.map((operation) => <button key={operation.id} type="button" className={`openinfra-sidebar-operation ${selected.id === operation.id ? 'active' : ''}`} aria-current={selected.id === operation.id ? 'page' : undefined} onClick={() => chooseOperation(module, operation)}>{operation.label}</button>)}</div>)}</div></section>)}</nav><main id="openinfra-main-content" ref={mainContentRef} tabIndex={-1} className="col-lg-9 col-xl-10 ms-sm-auto openinfra-main"><div className="pb-2 mb-3 openinfra-titlebar"><h1 className="h2">{pageTitle}</h1><p className="text-muted mb-0">{pageSubtitle}</p></div>{submissionCompleted && activeModuleId !== 'overview' && <div className="alert alert-success" role="status">Soumission exécutée avec succès.</div>}{activeModuleId === 'overview' && <div className="row g-3 mb-4 openinfra-dashboard-metrics" aria-label="Métriques du dashboard"><Metric title="Version" value={displayedVersion} /><Metric title="API" value={config.apiBaseUrl || '/api'} /><Metric title="Trust" value={config.webBackendTrust || 'server-side'} /><Metric title="Formulaires" value={protectedForms} /><Metric title="Modules" value={`${operationsCount} opérations`} /></div>}{activeModuleId === 'overview' ? <OverviewStats modules={businessModules} fieldsCount={businessFieldsCount} /> : <section className="card openinfra-operation-card"><div className="card-body"><h2 className="h4">{selected.label}</h2><div className="row g-3 mb-3"><label className="col-md-4 form-label">Entité propriétaire<select className="form-select" value={tenant} onChange={(event) => setTenant(event.target.value)}><option value="default">Default</option></select></label></div><div className="row g-3">{selected.fields.map((field) => <label className="col-md-6 col-xl-4 form-label" key={field}>{field}<input className="form-control" /></label>)}</div><button type="button" className="btn btn-primary mt-3" onClick={execute}>Exécuter</button><pre className="openinfra-result mt-3" aria-live="polite" aria-label="Résultat de l’opération">{result}</pre></div></section>}</main></div></div>
+    <div className="container-fluid"><div className="openinfra-mobile-menu-bar"><button type="button" id="openinfra-mobile-menu-button" className="btn btn-primary openinfra-mobile-menu-button" aria-label={mobileSidebarOpen ? "Fermer le menu de navigation" : "Ouvrir le menu de navigation"} aria-expanded={mobileSidebarOpen} aria-controls="openinfra-sidebar" onClick={() => setMobileSidebarOpen((open) => !open)}><Icon name="menu" className="openinfra-mobile-menu-icon" /><span className="visually-hidden">Menu</span></button></div>{mobileSidebarOpen && <button type="button" className="openinfra-mobile-sidebar-backdrop" aria-label="Fermer le menu de navigation" onClick={() => setMobileSidebarOpen(false)} />}<div className="row"><nav id="openinfra-sidebar" className={`col-lg-3 col-xl-2 openinfra-sidebar ${mobileSidebarOpen ? 'mobile-open' : ''}`} aria-label="Sidebar navigation"><div className="openinfra-sidebar-heading">Pilotage</div>{filteredModules.map((module) => {
+  if (module.id === 'overview') {
+    return <button key={module.id} type="button" className={`nav-link openinfra-sidebar-dashboard w-100 text-start ${activeModuleId === module.id ? 'active' : ''}`} aria-current={activeModuleId === module.id ? 'page' : undefined} onClick={() => chooseOperation(module, module.operations[0])}><Icon name={module.icon} />Dashboard</button>;
+  }
+  const moduleOpened = opened.has(module.id);
+  return <section className={`openinfra-accordion ${moduleOpened ? 'open' : ''}`} key={module.id}>
+    <button type="button" id={`openinfra-accordion-${module.id}`} className={`openinfra-accordion-toggle ${activeModuleId === module.id ? 'active' : ''}`} aria-expanded={moduleOpened} aria-controls={`openinfra-panel-${module.id}`} aria-current={activeModuleId === module.id ? 'page' : undefined} onClick={() => toggleAccordion(module.id)}><span><Icon name={module.icon} />{module.shortLabel || module.label}</span><span className="openinfra-chevron">›</span></button>
+    <div id={`openinfra-panel-${module.id}`} className={`openinfra-accordion-panel fade ${moduleOpened ? 'show' : ''}`} role="region" aria-labelledby={`openinfra-accordion-${module.id}`}>
+      <div className="openinfra-accordion-panel-inner">
+        {sidebarOperationGroups(module).map((group) => {
+          const contextKey = sidebarContextKey(module.id, group.label);
+          const contextOpened = openedContexts.has(contextKey);
+          const contextId = `openinfra-context-${module.id}-${slugifyContextLabel(group.label)}`;
+          return <section key={`${module.id}-${group.label}`} className={`openinfra-sidebar-context ${contextOpened ? 'open' : ''}`} role="group" aria-label={group.label}>
+            <button type="button" className="openinfra-sidebar-context-title" aria-expanded={contextOpened} aria-controls={contextId} onClick={() => toggleSidebarContext(module.id, group.label)}>{group.label}</button>
+            <div id={contextId} className={`openinfra-sidebar-context-panel ${contextOpened ? 'show' : ''}`} role="region" aria-label={group.label}>
+              <div className="openinfra-sidebar-context-panel-inner">
+                {group.operations.map((operation) => <button key={operation.id} type="button" className={`openinfra-sidebar-operation ${selected.id === operation.id ? 'active' : ''}`} aria-current={selected.id === operation.id ? 'page' : undefined} onClick={() => chooseOperation(module, operation)}>{operation.label}</button>)}
+              </div>
+            </div>
+          </section>;
+        })}
+      </div>
+    </div>
+  </section>;
+})}</nav><main id="openinfra-main-content" ref={mainContentRef} tabIndex={-1} className="col-lg-9 col-xl-10 ms-sm-auto openinfra-main"><div className="pb-2 mb-3 openinfra-titlebar"><h1 className="h2">{pageTitle}</h1><p className="text-muted mb-0">{pageSubtitle}</p></div>{submissionCompleted && activeModuleId !== 'overview' && <div className="alert alert-success" role="status">Soumission exécutée avec succès.</div>}{activeModuleId === 'overview' && <div className="row g-3 mb-4 openinfra-dashboard-metrics" aria-label="Métriques du dashboard"><Metric title="Version" value={displayedVersion} /><Metric title="API" value={config.apiBaseUrl || '/api'} /><Metric title="Trust" value={config.webBackendTrust || 'server-side'} /><Metric title="Formulaires" value={protectedForms} /><Metric title="Modules" value={`${operationsCount} opérations`} /></div>}{activeModuleId === 'overview' ? <OverviewStats modules={businessModules} fieldsCount={businessFieldsCount} /> : <section className="card openinfra-operation-card"><div className="card-body"><h2 className="h4">{selected.label}</h2><div className="row g-3 mb-3"><label className="col-md-4 form-label">Entité propriétaire<select className="form-select" value={tenant} onChange={(event) => setTenant(event.target.value)}><option value="default">Default</option></select></label></div><div className="row g-3">{selected.fields.map((field) => <label className="col-md-6 col-xl-4 form-label" key={field}>{field}<input className="form-control" /></label>)}</div><button type="button" className="btn btn-primary mt-3" onClick={execute}>Exécuter</button><pre className="openinfra-result mt-3" aria-live="polite" aria-label="Résultat de l’opération">{result}</pre></div></section>}</main></div></div>
   </div>;
 }
 

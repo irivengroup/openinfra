@@ -1,10 +1,12 @@
-## v0.29.67 — Hotfix navigation sidebar et catalogue DCIM runtime
+## v0.29.68 — Accordéon sidebar hiérarchique animé
 
-- Correction du warning navigateur `this.refreshDcimCatalog is not a function` au refresh du portail.
-- Ajout des méthodes runtime manquantes `refreshDcimCatalog`, `dcimReferenceLevel`, `isDcimReferenceField` et `dcimOptions`.
-- Restauration de la sélection des modules depuis les en-têtes d’accordéon de la sidebar : un clic charge désormais l’opération par défaut du composant en plus de gérer l’expansion.
-- Le catalogue DCIM devient non bloquant : une indisponibilité backend n’empêche plus le rendu et les formulaires conservent un fallback déterministe.
-- Rafraîchissement du catalogue DCIM après mutation DCIM pour que les sélecteurs restent cohérents.
+- Remplacement du dépliage brutal de la sidebar par un accordéon hiérarchique à deux niveaux : composant puis contexte.
+- Un clic sur un composant ouvre uniquement la liste des contextes du composant, sans déplier toutes les opérations.
+- Un clic sur un contexte ouvre uniquement ce contexte et referme les autres contextes du même composant.
+- La sélection d’une opération reste le seul geste qui ferme automatiquement le menu extra-small mobile.
+- L’aspect visuel existant est conservé : pas de nouvelle couleur, pas de nouveau fond, pas de changement de gabarit.
+- Les animations utilisent une transition fluide de type grid-row avec easing `cubic-bezier(.25, .1, .25, 1)` et respectent `prefers-reduced-motion`.
+- Ajout de garde-fous frontend empêchant le retour du dépliage complet de tous les contextes.
 
 ## v0.29.66 — Hotfix sidebar responsive mobile
 

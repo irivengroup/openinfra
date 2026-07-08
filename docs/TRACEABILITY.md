@@ -1,8 +1,13 @@
-## v0.29.67 — Traçabilité hotfix navigation web
+## v0.29.68 — Traçabilité accordéon sidebar hiérarchique
 
-- Demande : restaurer le chargement des pages depuis la sidebar et supprimer le warning `this.refreshDcimCatalog is not a function`.
-- Impact : runtime statique web, source React, tests d’intégration web, documentation UI/architecture, version package.
-- Validation attendue : syntaxe JS, validation frontend, test de non-régression web ciblé, tests unitaires/architecture et lots d’intégration disponibles.
+| Élément | Couverture |
+| --- | --- |
+| Demande | Animation sidebar plus professionnelle, composant → contextes → opérations |
+| Interface source | `web/src/main.jsx`, `web/src/openinfra-theme.css` |
+| Runtime statique | `src/openinfra/interfaces/rendering/static/assets/openinfra-web.js`, `openinfra-web.css` |
+| Test de non-régression | `tests/integration/test_openinfra_web.py` vérifie l’accordéon hiérarchique et l’absence de `transition: max-height` |
+| Garde-fou CI | `scripts/validate_frontend.py` exige `openedContexts`, `toggleSidebarContext`, les panneaux de contexte et le mode reduced-motion |
+| Compatibilité | Aucun changement API/CLI/domaine/persistance |
 
 ## v0.29.66 — Traçabilité hotfix sidebar responsive
 

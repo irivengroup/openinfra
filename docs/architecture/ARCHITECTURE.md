@@ -1,8 +1,10 @@
-## v0.29.67 — Correctif architecture runtime UI
+## v0.29.68 — Architecture UI accordéon hiérarchique
 
-Le runtime web server-side conserve une séparation explicite entre navigation, rendu de formulaire et chargement des catalogues métier. Les méthodes DCIM utilisées par le renderer sont intégrées dans la classe `OpenInfraDashboard`, ce qui supprime la dépendance implicite à une fonction absente et empêche une erreur JavaScript bloquante au refresh.
+La sidebar web expose désormais une machine d’état distincte pour les composants ouverts (`openedModules`) et les contextes ouverts (`openedContexts`). Cette séparation évite le dépliage complet d’un composant et garantit qu’un seul contexte par composant est visible à la fois.
 
-La navigation sidebar est redevenue déterministe : le clic sur un composant charge l’opération par défaut, met à jour l’état actif, conserve l’accordéon cohérent et ferme le panneau uniquement sur les très petits écrans.
+Le runtime statique et la source React restent alignés : même structure de rendu, mêmes classes CSS, mêmes attributs ARIA, même comportement mobile. Les transitions sont purement CSS et ne dépendent pas d’un calcul de hauteur JavaScript, ce qui réduit les risques de layout thrashing et de saccades sur petits écrans.
+
+Aucun contrat backend, CLI, OpenAPI, domaine ou migration n’est modifié par cet incrément.
 
 ## v0.29.66 — Correctif architecture UI responsive
 

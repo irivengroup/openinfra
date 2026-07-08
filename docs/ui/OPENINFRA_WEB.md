@@ -1,10 +1,12 @@
-## v0.29.67 — Navigation sidebar restaurée et catalogue DCIM non bloquant
+## v0.29.68 — Accordéon sidebar hiérarchique animé
 
-Le portail corrige deux régressions introduites pendant le durcissement responsive : les en-têtes d’accordéon de la sidebar sélectionnent de nouveau l’opération par défaut du composant, et le runtime statique expose désormais les méthodes DCIM réellement appelées par le rendu.
+Le portail web conserve le rendu visuel existant de la sidebar, mais son comportement d’accordéon est désormais hiérarchique.
 
-Sur très petit écran, le bouton menu SVG reste conservé : le menu s’ouvre à la demande et se referme après sélection d’une entrée. Sur desktop/tablette, la sidebar reste dans la grille Bootstrap et ne masque pas le contenu principal.
+Un clic sur un composant ouvre uniquement la liste de ses contextes fonctionnels. Les opérations ne sont plus toutes rendues visibles immédiatement. Un clic sur un contexte ouvre uniquement les opérations de ce contexte et referme les autres contextes du même composant.
 
-Le catalogue `/api/v1/dcim/topology-catalog` alimente les sélecteurs de localisation. En cas d’indisponibilité temporaire, l’erreur est stockée dans l’état UI sans casser le rendu de la page.
+Sur écran extra-small, le bouton menu SVG est conservé. Le panneau reste ouvert pendant la navigation composant/contexte afin de permettre à l’utilisateur d’atteindre l’opération ciblée ; il se ferme uniquement après sélection effective d’une opération.
+
+Les animations sont inspirées du comportement d’accordéons modernes : transition douce, easing professionnel, absence de saut brutal de hauteur et support `prefers-reduced-motion`. Aucune couleur, bordure, ombre ou typographie métier n’est modifiée.
 
 ## v0.29.66 — Sidebar desktop restaurée et menu SVG mobile
 

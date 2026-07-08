@@ -33,7 +33,7 @@
 
 ## Delta v0.29.29 — énergie/refroidissement DCIM dans le dashboard
 
-- Ajout de `REQ-00767` et `TST-ITRM-070` : les sélecteurs ITRM affichent les libellés métier tout en conservant les valeurs internes normalisées ; les types obsolètes `physical-server` et `disk` sont retirés de la taxonomie.
+- Ajout de `REQ-00767` et `TST-RSOT-070` : les sélecteurs RSOT affichent les libellés métier tout en conservant les valeurs internes normalisées ; les types obsolètes `physical-server` et `disk` sont retirés de la taxonomie.
 
 - Ajout de `REQ-00766` et `TST-DCIM-069` : opérations énergie/refroidissement DCIM exposées dans le dashboard via les contrats existants `POST /api/v1/dcim/power-devices`, `POST /api/v1/dcim/power-circuits`, `POST /api/v1/dcim/cooling-zones`, `POST /api/v1/dcim/power-reservations` et `GET /api/v1/dcim/energy-cooling-capacity`.
 - Ajout des champs opérateur chaîne électrique A/B, capacité watts, derating, calibre disjoncteur, rôle de zone, températures soufflage/retour et puissance attendue.
@@ -56,9 +56,9 @@
 - Ajout de l’exigence `REQ-00763` pour exposer la localisation et relocalisation d’équipement DCIM par `POST /api/v1/dcim/locations` et formulaire web.
 - Ajout du test `TST-DCIM-066` couvrant API, payload public, dashboard et non-régression des contraintes rack/U.
 
-## Delta v0.29.25 — taxonomie ITRM catégories / types
+## Delta v0.29.25 — taxonomie RSOT catégories / types
 
-- Ajout du catalogue ITRM catégories/types couvrant les ressources datacenter.
+- Ajout du catalogue RSOT catégories/types couvrant les ressources datacenter.
 - Ajout du filtrage dynamique Catégorie -> Type de ressource dans le dashboard.
 - Ajout de la validation backend des couples catégorie/type et du mécanisme générique optionsByField/optionsMap.
 
@@ -109,13 +109,13 @@ Le fichier doit permettre de renseigner ou surcharger :
 
 L'exigence est acceptée si tous les dossiers `installers/<edition>/<scope>/` livrés contiennent `config/install.ini`, si la validation échoue proprement en cas de valeur incohérente et si les tests vérifient les profils Lite, Pro et Entreprise.
 
-## Delta v0.29.14 — ITRM Quality & Certification
+## Delta v0.29.14 — RSOT Quality & Certification
 
-La phase P09 ajoute la certification qualité ITRM : score par objet, synthèse tenant, détection des attributs obligatoires manquants, fraîcheur, source non autoritative, RBAC `itrm.quality.read`, audit `itrm.quality.*`, API `/api/v1/itrm/quality/*` et commandes CLI `openinfra itrm quality-*`.
+La phase P09 ajoute la certification qualité RSOT : score par objet, synthèse tenant, détection des attributs obligatoires manquants, fraîcheur, source non autoritative, RBAC `rsot.quality.read`, audit `rsot.quality.*`, API `/api/v1/rsot/quality/*` et commandes CLI `openinfra rsot quality-*`.
 
 ## Delta v0.29.15 — openinfra-web Bootstrap 5 Dashboard Theme
 
-Le portail `openinfra-web` adopte le thème officiel Bootstrap 5 Dashboard comme base de rendu et le header principal unique Bootstrap adapté aux domaines OpenInfra. Les items génériques du template sont remplacés par les domaines opérationnels réels : Dashboard, ITRM, IPAM, DCIM, Discovery et Sécurité/RBAC/Audit.
+Le portail `openinfra-web` adopte le thème officiel Bootstrap 5 Dashboard comme base de rendu et le header principal unique Bootstrap adapté aux domaines OpenInfra. Les items génériques du template sont remplacés par les domaines opérationnels réels : Dashboard, RSOT, IPAM, DCIM, Discovery et Sécurité/RBAC/Audit.
 
 Les assets Bootstrap 5 sont servis localement depuis `src/openinfra/interfaces/rendering/static/assets/bootstrap.min.css`. Aucun CDN externe n'est requis au runtime, ce qui préserve la politique CSP stricte, l'exploitation offline et l'absence d'exposition de secrets.
 
@@ -124,14 +124,14 @@ Le dashboard reste API-only : le navigateur consomme uniquement `/api/*` via `op
 
 Le portail `openinfra-web` ne doit plus afficher un champ générique `Attributs` ni demander un token API technique à l'opérateur. Chaque formulaire web présente les variables métier attendues par l'API/CLI : numéro de série, constructeur, modèle, site, bâtiment, salle, ligne, colonne, rack, IP de management, source autoritative, tags, scopes collector, empreinte certificat, etc.
 
-La navigation latérale devient le point de pilotage principal : `Dashboard` reste une entrée directe, tandis que ITRM, IPAM, DCIM, Discovery et Sécurité/RBAC/Audit sont des accordéons avec transitions `fade`. Les opérations anciennement affichées dans une zone de menu interne à la page sont déplacées dans ces accordéons et le menu interne est supprimé. L'UI ne doit pas afficher les méthodes HTTP aux opérateurs.
+La navigation latérale devient le point de pilotage principal : `Dashboard` reste une entrée directe, tandis que RSOT, IPAM, DCIM, Discovery et Sécurité/RBAC/Audit sont des accordéons avec transitions `fade`. Les opérations anciennement affichées dans une zone de menu interne à la page sont déplacées dans ces accordéons et le menu interne est supprimé. L'UI ne doit pas afficher les méthodes HTTP aux opérateurs.
 
 Le trust `openinfra-web` ↔ backend est server-side : le navigateur ne transmet pas de token technique et `openinfra-web` ne relaie pas l'en-tête `Authorization` venant du navigateur. Les références DSN/credentials PostgreSQL propres au service web sont déclarées dans `[web_database]`, matérialisées dans `/opt/openinfra/config/openinfra.conf`, et jamais exposées au navigateur.
 
 
-## Delta v0.29.19 — ITRM et alertes dashboard
+## Delta v0.29.19 — RSOT et alertes dashboard
 
-Le composant public d’inventaire est exposé sous `IT Ressources Management/ITRM`. Les contrats primaires sont `openinfra itrm *`, `/api/v1/itrm/*`, les rôles `itrm:*` et les permissions `itrm.*`. Les alias historiques `ri` et `sot` restent compatibles uniquement pour migration et sont signalés comme dépréciés afin d’être supprimés progressivement.
+Le composant public d’inventaire est exposé sous `RSOT (Ressource Source of Truth)/RSOT`. Les contrats primaires sont `openinfra rsot *`, `/api/v1/rsot/*`, les rôles `rsot:*` et les permissions `rsot.*`. Les alias historiques `ri` et `sot` restent compatibles uniquement pour migration et sont signalés comme dépréciés afin d’être supprimés progressivement.
 
 Le dashboard d’accueil ne doit plus afficher d’alerte succès permanente `Backend prêt`. L’état backend reste visible dans la sidebar, tandis que les alertes de contenu sont réservées aux erreurs et aux soumissions de formulaire réussies.
 ## Delta v0.29.20 — formulaires web fonctionnels et camemberts responsives
@@ -152,21 +152,21 @@ Le dashboard d’accueil ne doit plus afficher d’alerte succès permanente `Ba
 - Ajout de REQ-00757 et TST-WEB-060 : `openinfra-web` expose `/status` sans secret pour diagnostiquer le trust BFF et l’état des formulaires protégés.
 - Le proxy web assainit toute erreur backend brute `missing bearer token` avant retour navigateur.
 
-## Delta v0.29.23 — historique ITRM as-of et audit par objet
+## Delta v0.29.23 — historique RSOT as-of et audit par objet
 
-- Ajout de REQ-00758 : ITRM expose la restitution historique `as-of` des objets, le filtrage temporel des relations et l’audit par objet.
-- Ajout de TST-ITRM-061 : tests service, API, CLI et repositories pour verrouiller `get-object-as-of`, `object-as-of`, `object-audit`, `target_id` audit et `as_of` sur les relations.
+- Ajout de REQ-00758 : RSOT expose la restitution historique `as-of` des objets, le filtrage temporel des relations et l’audit par objet.
+- Ajout de TST-RSOT-061 : tests service, API, CLI et repositories pour verrouiller `get-object-as-of`, `object-as-of`, `object-audit`, `target_id` audit et `as_of` sur les relations.
 - Les snapshots existants restent compatibles ; aucune migration destructive n’est requise.
 
-## Delta v0.29.24 — réconciliation gouvernée ITRM
+## Delta v0.29.24 — réconciliation gouvernée RSOT
 
-- Ajout de REQ-00759 : ITRM expose une réconciliation gouvernée en dry-run et apply contrôlé.
-- Ajout de TST-ITRM-062 : tests service, API, CLI, frontend et audit pour verrouiller `reconcile-object`, `/api/v1/itrm/reconcile-object`, conflits non autoritatifs et application autoritative.
+- Ajout de REQ-00759 : RSOT expose une réconciliation gouvernée en dry-run et apply contrôlé.
+- Ajout de TST-RSOT-062 : tests service, API, CLI, frontend et audit pour verrouiller `reconcile-object`, `/api/v1/rsot/reconcile-object`, conflits non autoritatifs et application autoritative.
 - Les mises à jour non autoritatives rejetées ne sont jamais appliquées ; les plans et applications sont auditables par objet.
 - v0.29.33 : ajout de la charte graphique premium openinfra-web, appliquée par CSS Bootstrap 5 compatible sans modification de structure ni import d’asset tiers.
 - Ajout REQ-00775 pour l’allègement des ombres de contenu openinfra-web sans modification du header ni du menu latéral.
 
-- La recherche globale du header interroge le backend à partir de la v0.29.38 et regroupe les résultats métiers ITRM, IPAM et Discovery.
+- La recherche globale du header interroge le backend à partir de la v0.29.38 et regroupe les résultats métiers RSOT, IPAM et Discovery.
 
 ### REQ-00786 — Panneau latéral accordéon sans masquage
 

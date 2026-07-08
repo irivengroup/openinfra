@@ -1,4 +1,11 @@
-- 0.29.53 : ajout `TST-P13-ASYNC-EXPORT-STREAMING` pour couvrir EPIC-1302 avec API/CLI/UI de lecture chunkée des artefacts exportés signés.
+## 0.29.54 — RSOT canonique et alias ITRM dépréciés
+
+- Ajout du test roadmap `TST-P08-WEB-RSOT-CANONICAL-NAVIGATION`.
+- Alignement du composant public anciennement ITRM vers RSOT sur UI, API, CLI, RBAC, discovery, OpenAPI et documentation.
+- Alias historiques `itrm`, `sot` et `ri` conservés uniquement comme compatibilité dépréciée pour retrait progressif.
+- Validation UX du bloc statut runtime bleu discret et des boutons de soumission turquoise non-primary.
+
+- 0.29.54 : ajout `TST-P13-ASYNC-EXPORT-STREAMING` pour couvrir EPIC-1302 avec API/CLI/UI de lecture chunkée des artefacts exportés signés.
 ## 0.29.52
 
 L’incrément v0.29.52 réalise un jalon P13 / EPIC-1301 : progression opérable des imports massifs reprenables avec checkpoint, compteurs, CLI `openinfra import bulk-progress`, API `/api/v1/imports/bulk-progress`, OpenAPI/discovery et portail web.
@@ -27,7 +34,7 @@ L’incrément v0.29.51 réalise `EPIC-1205` pour les licences logicielles : ent
 - Ajout `TST-P08-WEB-FIXED-HEADER` pour valider le header fixe et le scroll du contenu sous-jacent.
 ## 0.29.41 - 2026-07-07
 
-- Mise à jour TST-P08-WEB-ITRM-REFERENCE-ICON : l’icône ITRM référentiel/référence doit être pleine et opaque comme les autres SVG de composants.
+- Mise à jour TST-P08-WEB-RSOT-REFERENCE-ICON : l’icône RSOT référentiel/référence doit être pleine et opaque comme les autres SVG de composants.
 
 ## 0.29.41 - 2026-07-07
 
@@ -37,7 +44,7 @@ L’incrément v0.29.51 réalise `EPIC-1205` pour les licences logicielles : ent
 
 ## 0.29.38
 
-- Ajout `TST-P08-WEB-BACKEND-GLOBAL-SEARCH` pour verrouiller la recherche globale backend groupée ITRM/IPAM/Discovery.
+- Ajout `TST-P08-WEB-BACKEND-GLOBAL-SEARCH` pour verrouiller la recherche globale backend groupée RSOT/IPAM/Discovery.
 - Alignement CDC `REQ-00778` sur P08 / EPIC-0801 / 0.29.38.
 
 ## 0.29.37
@@ -84,7 +91,7 @@ L’incrément v0.29.51 réalise `EPIC-1205` pour les licences logicielles : ent
 ## 0.29.29
 
 - P10 étendu : dashboard DCIM énergie/refroidissement aligné sur les contrats API existants.
-- P09 renforcé : sélecteurs ITRM label/value, valeurs internes normalisées conservées et retrait des types obsolètes `physical-server`/`disk`.
+- P09 renforcé : sélecteurs RSOT label/value, valeurs internes normalisées conservées et retrait des types obsolètes `physical-server`/`disk`.
 
 ## v2 / OpenInfra 0.29.29
 
@@ -115,18 +122,18 @@ L’incrément v0.29.51 réalise `EPIC-1205` pour les licences logicielles : ent
 
 ## 0.29.25
 
-- P09 renforcé : taxonomie ITRM complète des catégories et types de ressources datacenter.
+- P09 renforcé : taxonomie RSOT complète des catégories et types de ressources datacenter.
 - Ajout du contrat `resource-taxonomy` en CLI/API et BFF web.
-- Filtrage dynamique du type de ressource par catégorie dans les formulaires ITRM, avec mécanisme générique de listes dépendantes.
-- Alignement CDC `REQ-00760` à `REQ-00762` et ajout de `TST-P09-ITRM-RESOURCE-TAXONOMY`.
+- Filtrage dynamique du type de ressource par catégorie dans les formulaires RSOT, avec mécanisme générique de listes dépendantes.
+- Alignement CDC `REQ-00760` à `REQ-00762` et ajout de `TST-P09-RSOT-RESOURCE-TAXONOMY`.
 
 
-- Ajout de `TST-P09-ITRM-RECONCILIATION` pour verrouiller la réconciliation gouvernée ITRM, le dry-run, l’apply contrôlé et l’audit objet.
+- Ajout de `TST-P09-RSOT-RECONCILIATION` pour verrouiller la réconciliation gouvernée RSOT, le dry-run, l’apply contrôlé et l’audit objet.
 - Alignement P09 avec `REQ-00759`.
 
 ## v2 / OpenInfra 0.29.23
 
-- Ajout de `TST-P09-ITRM-AS-OF-AUDIT` pour verrouiller la restitution historique ITRM, les relations `as_of` et l’audit par objet.
+- Ajout de `TST-P09-RSOT-AS-OF-AUDIT` pour verrouiller la restitution historique RSOT, les relations `as_of` et l’audit par objet.
 - Alignement P09 avec `REQ-00758`.
 
 ## v2 / OpenInfra 0.29.22
@@ -142,7 +149,7 @@ L’incrément v0.29.51 réalise `EPIC-1205` pour les licences logicielles : ent
 
 ## v2 / OpenInfra 0.29.19
 
-- Renommage transversal ITRM : CLI/API/RBAC/frontend primaires en `itrm`, alias `ri` et `sot` compatibles et dépréciés progressivement.
+- Renommage transversal RSOT : CLI/API/RBAC/frontend primaires en `itrm`, alias `ri` et `sot` compatibles et dépréciés progressivement.
 - Ajout de la validation des alertes dashboard contextuelles : suppression de l’alerte succès permanente `Backend prêt` sur l’accueil.
 
 ## v2 / OpenInfra 0.29.19
@@ -170,9 +177,9 @@ L’incrément v0.29.51 réalise `EPIC-1205` pour les licences logicielles : ent
 
 ## 0.29.14
 
-- P09 initialisée par ITRM Quality & Certification.
-- Ajout du pilotage qualité/certification ITRM dans CLI, API et dashboard web.
-- Ajout de la permission `itrm.quality.read` et des audits `itrm.quality.*`.
+- P09 initialisée par RSOT Quality & Certification.
+- Ajout du pilotage qualité/certification RSOT dans CLI, API et dashboard web.
+- Ajout de la permission `rsot.quality.read` et des audits `rsot.quality.*`.
 
 ## 0.29.15
 

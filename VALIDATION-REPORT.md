@@ -1,8 +1,8 @@
-# Rapport de validation — OpenInfra v0.29.53
+# Rapport de validation — OpenInfra v0.29.54
 
 ## Livraison
 
-- Version : 0.29.53
+- Version : 0.29.54
 - Incrément : exports massifs — streaming par chunks signés
 - Base : OpenInfra v0.29.52
 - Date : 2026-07-08
@@ -26,7 +26,7 @@
 | `python -m compileall -q src tests scripts docker` | PASS |
 | `python scripts/validate_frontend.py --project-root .` | PASS |
 | `node --check src/openinfra/interfaces/rendering/static/assets/openinfra-web.js` | PASS |
-| `python -m openinfra.interfaces.cli version` | PASS — 0.29.53 |
+| `python -m openinfra.interfaces.cli version` | PASS — 0.29.54 |
 | `python scripts/security_gate.py --project-root .` | PASS |
 | `python scripts/validate_enterprise_alignment.py --project-root .` | PASS |
 | `python scripts/validate_autonomous_installer.py --root installers` | PASS — 6 profils |

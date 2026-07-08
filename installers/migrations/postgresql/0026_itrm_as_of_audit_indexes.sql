@@ -1,4 +1,4 @@
--- OpenInfra v0.29.23 - ITRM as-of and object audit indexes.
+-- OpenInfra v0.29.23 - RSOT as-of and object audit indexes.
 -- Non-destructive migration: accelerates historical object reconstruction, relation validity
 -- lookups and object-scoped audit reads without modifying existing rows.
 

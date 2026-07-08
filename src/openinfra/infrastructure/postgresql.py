@@ -111,13 +111,6 @@ from openinfra.domain.identity import (
     IdentitySubject,
     IdentityUser,
 )
-from openinfra.domain.itam import (
-    ManufacturerWarranty,
-    PhysicalAssetSupportProfile,
-    SoftwareLicenseEntitlement,
-    ThirdPartySupportContract,
-    ItamDateParser,
-)
 from openinfra.domain.ipam import (
     AutonomousSystem,
     BgpAddressFamily,
@@ -133,6 +126,13 @@ from openinfra.domain.ipam import (
     VlanGroup,
     Vrf,
     VxlanVni,
+)
+from openinfra.domain.itam import (
+    ItamDateParser,
+    ManufacturerWarranty,
+    PhysicalAssetSupportProfile,
+    SoftwareLicenseEntitlement,
+    ThirdPartySupportContract,
 )
 from openinfra.domain.security import ApiTokenCredential, Permission
 from openinfra.domain.source_governance import SourceGovernanceRule, SourceGovernanceRulePage
@@ -4907,16 +4907,18 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
             updated_at=self._row_datetime(row["updated_at"]),
         )
 
-    def _third_party_from_mapping(
-        self, value: Mapping[str, object]
-    ) -> ThirdPartySupportContract:
+    def _third_party_from_mapping(self, value: Mapping[str, object]) -> ThirdPartySupportContract:
         return ThirdPartySupportContract.restore(
             id=EntityId.from_value(str(value["id"])),
             provider=str(value["provider"]),
             contract_reference=str(value["contract_reference"]),
             support_level=str(value["support_level"]),
-            support_start=ItamDateParser.parse_date(str(value["support_start"]), "third-party support start"),
-            support_end=ItamDateParser.parse_date(str(value["support_end"]), "third-party support end"),
+            support_start=ItamDateParser.parse_date(
+                str(value["support_start"]), "third-party support start"
+            ),
+            support_end=ItamDateParser.parse_date(
+                str(value["support_end"]), "third-party support end"
+            ),
             support_contact=str(value["support_contact"]),
             status=str(value["status"]),
             notes=(None if value.get("notes") is None else str(value.get("notes"))),
@@ -4992,7 +4994,9 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
             """,
             {
                 "tenant_id": tenant_id.value,
-                "license_reference": Code.from_value(license_reference, "software license reference").value,
+                "license_reference": Code.from_value(
+                    license_reference, "software license reference"
+                ).value,
             },
         )
         return self._software_license_from_row(row) if row else None
@@ -5006,13 +5010,19 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
             version=(None if row.get("version") is None else str(row.get("version"))),
             license_reference=str(row["license_reference"]),
             contract_reference=(
-                None if row.get("contract_reference") is None else str(row.get("contract_reference"))
+                None
+                if row.get("contract_reference") is None
+                else str(row.get("contract_reference"))
             ),
             metric=str(row["metric"]),
             purchased_quantity=int(row["purchased_quantity"]),
             assigned_quantity=int(row["assigned_quantity"]),
-            entitlement_start=ItamDateParser.parse_date(str(row["entitlement_start"]), "software entitlement start"),
-            entitlement_end=ItamDateParser.parse_date(str(row["entitlement_end"]), "software entitlement end"),
+            entitlement_start=ItamDateParser.parse_date(
+                str(row["entitlement_start"]), "software entitlement start"
+            ),
+            entitlement_end=ItamDateParser.parse_date(
+                str(row["entitlement_end"]), "software entitlement end"
+            ),
             status=str(row["status"]),
             owner=(None if row.get("owner") is None else str(row.get("owner"))),
             notes=(None if row.get("notes") is None else str(row.get("notes"))),

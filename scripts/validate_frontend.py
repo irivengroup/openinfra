@@ -187,6 +187,7 @@ class FrontendContractValidator:
             "aria-current",
             "aria-live",
             "aria-autocomplete",
+            "openinfra-submit-btn",
         ):
             if required_header_fragment not in main_source:
                 raise FrontendValidationError(
@@ -294,7 +295,10 @@ class FrontendContractValidator:
             "background: var(--openinfra-green);",
             "--openinfra-content-shadow: 0 .16rem .55rem rgba(0, 27, 65, .055)",
             "--openinfra-content-shadow-hover: 0 .28rem .8rem rgba(0, 27, 65, .07)",
-            "--openinfra-header-shadow: 0 .95rem 2.25rem rgba(0, 27, 65, .18), 0 .16rem .55rem rgba(0, 61, 143, .16)",
+            (
+                "--openinfra-header-shadow: 0 .95rem 2.25rem rgba(0, 27, 65, .18), "
+                "0 .16rem .55rem rgba(0, 61, 143, .16)"
+            ),
             ".openinfra-top-header.bg-dark",
             ".openinfra-header-stack",
             "position: fixed",
@@ -366,16 +370,24 @@ class FrontendContractValidator:
             ".form-control:focus",
             'fetch("/status"',
             "Formulaires protégés",
+            "openinfra-runtime-status",
+            "openinfra-submit-btn",
+            "#00a3c8",
             "/v1/ipam/ui-search",
             "idempotency_key",
             "endpoint_url",
             "requested_scope",
-            "IT Ressources Management",
+            "RSOT (Ressource Source of Truth)",
             'icon: "reference"',
             "OPENINFRA_ICONS",
             "reference:",
             "asset:",
-            'M1 2a2 2 0 0 1 2-2h1.6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V2zm6.7 0a2 2 0 0 1 2-2h1.6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9.7a2 2 0 0 1-2-2V2zm6.25.55A1.8 1.8 0 0 1 15 4.18v7.64a1.8 1.8 0 0 1-1.05 1.63V2.55z',
+            (
+                "M1 2a2 2 0 0 1 2-2h1.6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2"
+                "H3a2 2 0 0 1-2-2V2zm6.7 0a2 2 0 0 1 2-2h1.6a2 2 0 0 1 "
+                "2 2v12a2 2 0 0 1-2 2H9.7a2 2 0 0 1-2-2V2zm6.25.55A1.8 "
+                "1.8 0 0 1 15 4.18v7.64a1.8 1.8 0 0 1-1.05 1.63V2.55z"
+            ),
             "IT Asset Management",
             "ITAM",
             'icon: "asset"',
@@ -386,7 +398,7 @@ class FrontendContractValidator:
             "OPENINFRA_MODULES.map((module)",
             "agents proxy collectors Enterprise uniquement",
             "Numéro de série",
-            "/v1/itrm/reconcile-object",
+            "/v1/rsot/reconcile-object",
             "Réconcilier une ressource",
             "Catalogue catégories / types",
             "RESOURCE_TAXONOMY",
@@ -480,7 +492,10 @@ class FrontendContractValidator:
             "OPENINFRA_MODULES.slice(0, 6)",
             "Token API",
             "physical-server",
-            'id: "itrm", label: "IT Ressources Management", shortLabel: "ITRM", icon: "table"',
+            (
+                'id: "rsot", label: "RSOT (Ressource Source of Truth)", '
+                'shortLabel: "RSOT", icon: "table"'
+            ),
             "openinfra-method",
             "Search OpenInfra operations",
             "openinfra-search",
@@ -489,6 +504,8 @@ class FrontendContractValidator:
             'config?.authMode || "standard")}</span>',
             "config.authMode || 'standard'",
             "badge text-bg-primary openinfra-edition-badge",
+            'btn btn-primary mt-3" type="button" id="openinfra-execute',
+            'btn btn-primary mt-3" onClick={execute}',
             "var(--openinfra-fuchsia), #c900ff 48%, var(--openinfra-action)",
             "var(--openinfra-fuchsia) 0%, #ff2bd6 52%, #c000a8 100%",
             "#ff2bd6 52%, #c000a8",
@@ -503,8 +520,13 @@ class FrontendContractValidator:
                     "runtime web assets expose a forbidden generic/technical UI fragment: "
                     + forbidden_ui
                 )
-        if 'M3 0h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2zm0 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H3zm3 7V2h1v5.117' in payload:
-            raise FrontendValidationError("ITRM reference icon must use the filled opaque variant")
+        forbidden_reference_outline = (
+            "M3 0h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V2"
+            "a2 2 0 0 1 2-2zm0 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h10a1 "
+            "1 0 0 0 1-1V2a1 1 0 0 0-1-1H3zm3 7V2h1v5.117"
+        )
+        if forbidden_reference_outline in payload:
+            raise FrontendValidationError("RSOT reference icon must use the filled opaque variant")
         for forbidden_alert in (
             "alert alert-info",
             'role="note"',

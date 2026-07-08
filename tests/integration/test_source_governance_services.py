@@ -41,7 +41,7 @@ class TestSourceGovernanceServices:
                 "default",
                 "pytest",
                 "governance-admin",
-                ("itrm:governance-admin",),
+                ("rsot:governance-admin",),
                 token,
             )
         )
@@ -165,7 +165,7 @@ class TestSourceGovernanceServices:
                 "default",
                 "pytest",
                 "reconcile-admin",
-                ("itrm:governance-admin",),
+                ("rsot:governance-admin",),
                 token,
             )
         )
@@ -249,8 +249,8 @@ class TestSourceGovernanceServices:
         }
         assert current["tags"] == ["prod", "reconciled"]
         assert [record.event.action for record in audit.items][:2] == [
-            "itrm.reconciliation.apply",
-            "itrm.reconciliation.plan",
+            "rsot.reconciliation.apply",
+            "rsot.reconciliation.plan",
         ]
 
     def test_cli_reconcile_object_supports_dry_run_and_apply(
@@ -270,7 +270,7 @@ class TestSourceGovernanceServices:
                     "--subject",
                     "reconcile-cli",
                     "--role",
-                    "itrm:operator",
+                    "rsot:operator",
                     "--token",
                     token,
                 ]
@@ -281,7 +281,7 @@ class TestSourceGovernanceServices:
         assert (
             OpenInfraCLI().run(
                 [
-                    "itrm",
+                    "rsot",
                     "upsert-object",
                     "--data",
                     str(data),
@@ -307,7 +307,7 @@ class TestSourceGovernanceServices:
         assert (
             OpenInfraCLI().run(
                 [
-                    "itrm",
+                    "rsot",
                     "reconcile-object",
                     "--data",
                     str(data),
@@ -329,7 +329,7 @@ class TestSourceGovernanceServices:
         assert (
             OpenInfraCLI().run(
                 [
-                    "itrm",
+                    "rsot",
                     "reconcile-object",
                     "--data",
                     str(data),
@@ -408,7 +408,7 @@ class TestSourceGovernanceServices:
                     "--subject",
                     "gov-cli",
                     "--role",
-                    "itrm:governance-admin",
+                    "rsot:governance-admin",
                     "--token",
                     token,
                 ]
@@ -418,7 +418,7 @@ class TestSourceGovernanceServices:
         capsys.readouterr()
         create_code = OpenInfraCLI().run(
             [
-                "itrm",
+                "rsot",
                 "create-governance-rule",
                 "--data",
                 str(data),
@@ -441,7 +441,7 @@ class TestSourceGovernanceServices:
         created = json.loads(capsys.readouterr().out)
         list_code = OpenInfraCLI().run(
             [
-                "itrm",
+                "rsot",
                 "list-governance-rules",
                 "--data",
                 str(data),
@@ -456,7 +456,7 @@ class TestSourceGovernanceServices:
         listed = json.loads(capsys.readouterr().out)
         eval_code = OpenInfraCLI().run(
             [
-                "itrm",
+                "rsot",
                 "evaluate-governance",
                 "--data",
                 str(data),
@@ -477,7 +477,7 @@ class TestSourceGovernanceServices:
         evaluated = json.loads(capsys.readouterr().out)
         deactivate_code = OpenInfraCLI().run(
             [
-                "itrm",
+                "rsot",
                 "deactivate-governance-rule",
                 "--data",
                 str(data),

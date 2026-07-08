@@ -40,7 +40,6 @@ from openinfra.domain.identity import (
     IdentityGroup,
     IdentityUser,
 )
-from openinfra.domain.itam import PhysicalAssetSupportProfile, SoftwareLicenseEntitlement
 from openinfra.domain.ipam import (
     AutonomousSystem,
     BgpPeer,
@@ -58,6 +57,7 @@ from openinfra.domain.ipam import (
     Vrf,
     VxlanVni,
 )
+from openinfra.domain.itam import PhysicalAssetSupportProfile, SoftwareLicenseEntitlement
 from openinfra.domain.security import ApiTokenCredential, Permission
 from openinfra.domain.source_governance import SourceGovernanceRule, SourceGovernanceRulePage
 from openinfra.domain.source_of_truth import (

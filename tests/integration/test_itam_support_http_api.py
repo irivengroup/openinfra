@@ -82,7 +82,8 @@ def test_itam_support_profile_http_contract(tmp_path: Path) -> None:
             token,
         )
         coverage = _get_json(
-            base + "/api/v1/itam/support-coverage?tenant_id=default&asset_tag=srv-http-001&as_of=2026-07-01",
+            base
+            + "/api/v1/itam/support-coverage?tenant_id=default&asset_tag=srv-http-001&as_of=2026-07-01",
             token,
         )
 

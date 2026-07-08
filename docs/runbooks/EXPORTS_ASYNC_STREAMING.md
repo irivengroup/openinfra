@@ -1,6 +1,6 @@
 # OpenInfra — exports asynchrones et streaming signé
 
-Depuis v0.29.53, les artefacts produits par `openinfra export run` peuvent être lus par chunks bornés sans modifier le téléchargement complet existant.
+Depuis v0.29.54, les artefacts produits par `openinfra export run` peuvent être lus par chunks bornés sans modifier le téléchargement complet existant.
 
 ## Flux opérateur
 

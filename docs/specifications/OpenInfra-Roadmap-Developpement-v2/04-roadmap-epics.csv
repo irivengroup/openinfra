@@ -52,8 +52,8 @@ EPIC-0802,P08,STR-FE,P1,Parité CLI/API/UI,Définir matrice commande CLI→API�
 EPIC-0803,P08,STR-FE,P1,Tables paginées et filtres indexés,"Implémenter listes API cursor-based, filtres et tri contrôlé.",Components; API integration.,P08,UI n’appelle jamais d’endpoint non paginé.
 EPIC-0804,P08,STR-FE,P1,Administration éditions et quotas,"Afficher édition active, limites, alertes de quotas et capacités.",Screens; alerts.,P02,Quota visible avant refus opérationnel.
 EPIC-0805,P08,STR-FE,P1,Accessibilité et responsive,Appliquer standards accessibilité et responsive pour exploitation.,A11y tests; UI docs.,P08,Tests a11y critiques passants.
-EPIC-0806,P08,STR-QA,P1,Tests E2E UI,"Automatiser parcours login, ITRM, IPAM, DCIM, install status et admin.",E2E suite.,P08,Parcours critiques stables en CI.
-EPIC-0901,P09,STR-BE,P1,Objets IT Ressources Management,"Livrer devices, interfaces, services, applications, relations et tags.",Domain model; API; UI.,P01,CRUD et historisation fonctionnent.
+EPIC-0806,P08,STR-QA,P1,Tests E2E UI,"Automatiser parcours login, RSOT, IPAM, DCIM, install status et admin.",E2E suite.,P08,Parcours critiques stables en CI.
+EPIC-0901,P09,STR-BE,P1,Objets RSOT (Ressource Source of Truth),"Livrer devices, interfaces, services, applications, relations et tags.",Domain model; API; UI.,P01,CRUD et historisation fonctionnent.
 EPIC-0902,P09,STR-BE,P1,Gouvernance sources autoritatives,Définir source autoritative par attribut et priorité des sources.,Governance service; rules.,P09,Conflit source ne provoque jamais d’écrasement silencieux.
 EPIC-0903,P09,STR-BE,P1,Qualité et certification données,"Calculer scores qualité, fraîcheur et confiance.",Quality engine; dashboards.,P09,Objets incomplets et incohérents visibles.
 EPIC-0904,P09,STR-DATA,P1,Historique time travel,Restituer état à date pour objets et relations.,History schema; API as-of.,P09,Reconstruction à date validée.
@@ -71,7 +71,7 @@ EPIC-1103,P11,STR-BE,P1,DDI DNS/DHCP,"Corréler DNS, reverse, DHCP scopes/leases
 EPIC-1104,P11,STR-BE,P1,ASN/BGP/EVPN/VXLAN/MPLS/NAT,Ajouter objets réseau avancés et relations IPAM.,Advanced network model.,P11,Objets avancés exposés API/UI.
 EPIC-1105,P11,STR-DATA,P1,Indexation IPAM massive,"Optimiser inet/cidr, VRF/site, partitions et requêtes critiques.",Indexes; benchmarks.,P11,Recherche IPAM VRF < objectifs.
 EPIC-1106,P11,STR-QA,P1,Tests IPAM charge,"Tester forte volumétrie, pagination et allocations concurrentes.",Load tests.,P11,Objectifs p95/p99 mesurés.
-EPIC-1201,P12,STR-BE,P1,Modèle ITAM actif physique,"Livrer lifecycle actif, propriétaires, coûts, statuts et localisations.",ITAM model; API; UI.,P09,Actifs liés au ITRM/DCIM.
+EPIC-1201,P12,STR-BE,P1,Modèle ITAM actif physique,"Livrer lifecycle actif, propriétaires, coûts, statuts et localisations.",ITAM model; API; UI.,P09,Actifs liés au RSOT/DCIM.
 EPIC-1202,P12,STR-BE,P1,Garantie constructeur obligatoire,Stocker garantie constructeur obligatoire sur équipement physique.,Warranty model; validations.,P12,Equipement physique incomplet refusé ou marqué non conforme.
 EPIC-1203,P12,STR-BE,P1,Support constructeur initial,Stocker support constructeur initial sans écrasement.,Support model; UI.,P12,Support constructeur visible et non destructible.
 EPIC-1204,P12,STR-BE,P1,Support tiers séparé,Ajouter support tiers sans remplacer constructeur.,Third-party contract model.,P12,Support tiers crée relation séparée.

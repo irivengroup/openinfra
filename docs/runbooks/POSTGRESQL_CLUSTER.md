@@ -92,9 +92,9 @@ openinfra audit export --backend postgresql --tenant default --admin-token "$ADM
 openinfra audit verify-integrity --backend postgresql --tenant default --admin-token "$ADMIN_TOKEN"
 ```
 
-## Migration 0007 IT Ressources Management
+## Migration 0007 RSOT (Ressource Source of Truth)
 
-La migration `0007_source_of_truth_core.sql` ajoute les tables partitionnées `source_objects`, `source_object_snapshots` et `source_relations`. Elle doit être appliquée avec le moteur de migrations OpenInfra afin de conserver l'historique `openinfra_schema_migrations` et les checksums SHA-256. La migration `0026_itrm_as_of_audit_indexes.sql` ajoute les index non destructifs nécessaires à la restitution `as-of`, au filtrage temporel des relations et à l’audit par objet ITRM.
+La migration `0007_source_of_truth_core.sql` ajoute les tables partitionnées `source_objects`, `source_object_snapshots` et `source_relations`. Elle doit être appliquée avec le moteur de migrations OpenInfra afin de conserver l'historique `openinfra_schema_migrations` et les checksums SHA-256. La migration `0026_itrm_as_of_audit_indexes.sql` ajoute les index non destructifs nécessaires à la restitution `as-of`, au filtrage temporel des relations et à l’audit par objet RSOT.
 
 Validation :
 
@@ -108,7 +108,7 @@ PYTHONPATH=src python -m openinfra.interfaces.cli database apply-migrations \
 
 Les index principaux couvrent la recherche par type, tags, attributs JSONB, versions historiques et relations entrantes/sortantes. Les opérations applicatives doivent utiliser la pagination pour éviter toute lecture non bornée.
 
-## Migration 0008 Gouvernance des sources ITRM
+## Migration 0008 Gouvernance des sources RSOT
 
 La migration `0008_source_governance.sql` ajoute la table partitionnée `source_governance_rules`. Elle stocke les règles de source autoritative par tenant, type d'objet optionnel, chemin d'attribut, priorité, fraîcheur optionnelle et stratégie de conflit.
 
@@ -122,7 +122,7 @@ PYTHONPATH=src python -m openinfra.interfaces.cli database apply-migrations \
   --postgres-dsn "$OPENINFRA_DATABASE_DSN"
 ```
 
-Les index couvrent la recherche par type d'objet, chemin d'attribut, source autoritative et audit `itrm.governance.%`. Les opérations applicatives doivent rester transactionnelles avec la mise à jour ITRM afin d'éviter toute divergence entre décision de gouvernance, versionnement et audit.
+Les index couvrent la recherche par type d'objet, chemin d'attribut, source autoritative et audit `rsot.governance.%`. Les opérations applicatives doivent rester transactionnelles avec la mise à jour RSOT afin d'éviter toute divergence entre décision de gouvernance, versionnement et audit.
 
 
 ## Migration 0009 Modèle physique DCIM

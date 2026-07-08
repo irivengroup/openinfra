@@ -125,51 +125,73 @@ class BuiltinRolePolicy:
         "viewer": frozenset(
             (
                 Permission.SCHEMA_READ,
-                Permission.ITRM_READ,
-                Permission.ITRM_QUALITY_READ,
+                Permission.RSOT_READ,
+                Permission.RSOT_QUALITY_READ,
                 Permission.ITAM_READ,
             )
         ),
+        "rsot:reader": frozenset(
+            (Permission.RSOT_READ, Permission.RSOT_QUALITY_READ, Permission.SCHEMA_READ)
+        ),
+        "rsot:operator": frozenset(
+            (
+                Permission.RSOT_READ,
+                Permission.RSOT_WRITE,
+                Permission.RSOT_QUALITY_READ,
+                Permission.SCHEMA_READ,
+            )
+        ),
+        "rsot:governance-admin": frozenset(
+            (
+                Permission.RSOT_READ,
+                Permission.RSOT_WRITE,
+                Permission.RSOT_GOVERNANCE_READ,
+                Permission.RSOT_GOVERNANCE_WRITE,
+                Permission.RSOT_QUALITY_READ,
+                Permission.SCHEMA_READ,
+                Permission.AUDIT_READ,
+            )
+        ),
         "itrm:reader": frozenset(
-            (Permission.ITRM_READ, Permission.ITRM_QUALITY_READ, Permission.SCHEMA_READ)
+            (Permission.RSOT_READ, Permission.RSOT_QUALITY_READ, Permission.SCHEMA_READ)
         ),
         "itrm:operator": frozenset(
             (
-                Permission.ITRM_READ,
-                Permission.ITRM_WRITE,
-                Permission.ITRM_QUALITY_READ,
+                Permission.RSOT_READ,
+                Permission.RSOT_WRITE,
+                Permission.RSOT_QUALITY_READ,
                 Permission.SCHEMA_READ,
             )
         ),
         "itrm:governance-admin": frozenset(
             (
-                Permission.ITRM_READ,
-                Permission.ITRM_WRITE,
-                Permission.ITRM_GOVERNANCE_READ,
-                Permission.ITRM_GOVERNANCE_WRITE,
-                Permission.ITRM_QUALITY_READ,
+                Permission.RSOT_READ,
+                Permission.RSOT_WRITE,
+                Permission.RSOT_GOVERNANCE_READ,
+                Permission.RSOT_GOVERNANCE_WRITE,
+                Permission.RSOT_QUALITY_READ,
                 Permission.SCHEMA_READ,
                 Permission.AUDIT_READ,
             )
         ),
         "ri:reader": frozenset(
-            (Permission.ITRM_READ, Permission.ITRM_QUALITY_READ, Permission.SCHEMA_READ)
+            (Permission.RSOT_READ, Permission.RSOT_QUALITY_READ, Permission.SCHEMA_READ)
         ),
         "ri:operator": frozenset(
             (
-                Permission.ITRM_READ,
-                Permission.ITRM_WRITE,
-                Permission.ITRM_QUALITY_READ,
+                Permission.RSOT_READ,
+                Permission.RSOT_WRITE,
+                Permission.RSOT_QUALITY_READ,
                 Permission.SCHEMA_READ,
             )
         ),
         "ri:governance-admin": frozenset(
             (
-                Permission.ITRM_READ,
-                Permission.ITRM_WRITE,
-                Permission.ITRM_GOVERNANCE_READ,
-                Permission.ITRM_GOVERNANCE_WRITE,
-                Permission.ITRM_QUALITY_READ,
+                Permission.RSOT_READ,
+                Permission.RSOT_WRITE,
+                Permission.RSOT_GOVERNANCE_READ,
+                Permission.RSOT_GOVERNANCE_WRITE,
+                Permission.RSOT_QUALITY_READ,
                 Permission.SCHEMA_READ,
                 Permission.AUDIT_READ,
             )
@@ -181,24 +203,23 @@ class BuiltinRolePolicy:
                 Permission.AUDIT_READ,
             )
         ),
-
         "itam:reader": frozenset((Permission.ITAM_READ, Permission.SCHEMA_READ)),
         "itam:operator": frozenset(
             (Permission.ITAM_READ, Permission.ITAM_WRITE, Permission.SCHEMA_READ)
         ),
         "access:admin": frozenset((Permission.ACCESS_POLICY_ADMIN, Permission.SCHEMA_READ)),
         "audit:reader": frozenset((Permission.AUDIT_READ, Permission.SCHEMA_READ)),
-        "sot:reader": frozenset((Permission.ITRM_READ, Permission.SCHEMA_READ)),
+        "sot:reader": frozenset((Permission.RSOT_READ, Permission.SCHEMA_READ)),
         "sot:operator": frozenset(
-            (Permission.ITRM_READ, Permission.ITRM_WRITE, Permission.SCHEMA_READ)
+            (Permission.RSOT_READ, Permission.RSOT_WRITE, Permission.SCHEMA_READ)
         ),
         "sot:governance-admin": frozenset(
             (
-                Permission.ITRM_READ,
-                Permission.ITRM_WRITE,
-                Permission.ITRM_GOVERNANCE_READ,
-                Permission.ITRM_GOVERNANCE_WRITE,
-                Permission.ITRM_QUALITY_READ,
+                Permission.RSOT_READ,
+                Permission.RSOT_WRITE,
+                Permission.RSOT_GOVERNANCE_READ,
+                Permission.RSOT_GOVERNANCE_WRITE,
+                Permission.RSOT_QUALITY_READ,
                 Permission.SCHEMA_READ,
                 Permission.AUDIT_READ,
             )

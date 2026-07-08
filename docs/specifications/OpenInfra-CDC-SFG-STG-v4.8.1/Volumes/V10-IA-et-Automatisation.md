@@ -39,7 +39,7 @@ Le volume **V10 — IA & Automatisation** décrit les spécifications applicable
 
 ### Finalité
 
-Le volet **Détection d’anomalies** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la IT Ressources Management.
+Le volet **Détection d’anomalies** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la RSOT (Ressource Source of Truth).
 
 ### Règles de conception
 
@@ -60,7 +60,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **Capacity planning** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la IT Ressources Management.
+Le volet **Capacity planning** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la RSOT (Ressource Source of Truth).
 
 ### Règles de conception
 
@@ -81,7 +81,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **Suggestions de placement** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la IT Ressources Management.
+Le volet **Suggestions de placement** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la RSOT (Ressource Source of Truth).
 
 ### Règles de conception
 
@@ -102,7 +102,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **Optimisation des préfixes** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la IT Ressources Management.
+Le volet **Optimisation des préfixes** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la RSOT (Ressource Source of Truth).
 
 ### Règles de conception
 
@@ -123,7 +123,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **Prévision de saturation** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la IT Ressources Management.
+Le volet **Prévision de saturation** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la RSOT (Ressource Source of Truth).
 
 ### Règles de conception
 
@@ -144,7 +144,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **Recherche en langage naturel** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la IT Ressources Management.
+Le volet **Recherche en langage naturel** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la RSOT (Ressource Source of Truth).
 
 ### Règles de conception
 
@@ -165,7 +165,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **Assistant RAG sur le référentiel** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la IT Ressources Management.
+Le volet **Assistant RAG sur le référentiel** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la RSOT (Ressource Source of Truth).
 
 ### Règles de conception
 
@@ -187,7 +187,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### REQ-00013 — N1 — Fonctionnelle
 
-**Exigence :** Les fonctions IA doivent être optionnelles, gouvernées, auditables et ne jamais modifier la IT Ressources Management sans validation explicite.
+**Exigence :** Les fonctions IA doivent être optionnelles, gouvernées, auditables et ne jamais modifier la RSOT (Ressource Source of Truth) sans validation explicite.
 
 **Justification :** Éviter les risques d’automatisation non maîtrisée.
 
@@ -396,6 +396,6 @@ Le volume est recevable si :
 5. les scénarios d’erreur sont testés ;
 6. les journaux d’audit sont exploitables ;
 7. les performances critiques respectent les budgets définis ;
-8. l’intégration à la IT Ressources Management est effective ;
+8. l’intégration à la RSOT (Ressource Source of Truth) est effective ;
 9. la documentation d’exploitation existe ;
 10. les risques résiduels sont acceptés.

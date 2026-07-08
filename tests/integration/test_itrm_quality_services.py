@@ -17,7 +17,7 @@ from openinfra.domain.common import AccessDeniedError
 from openinfra.interfaces.cli import OpenInfraCLI
 
 
-def _bootstrap(app: object, token: str, roles: tuple[str, ...] = ("itrm:operator",)) -> None:
+def _bootstrap(app: object, token: str, roles: tuple[str, ...] = ("rsot:operator",)) -> None:
     app.security_service.bootstrap_token(  # type: ignore[attr-defined]
         BootstrapTokenCommand(
             tenant_id="default",
@@ -32,7 +32,7 @@ def _bootstrap(app: object, token: str, roles: tuple[str, ...] = ("itrm:operator
 def test_itrm_quality_certifies_complete_authoritative_device(tmp_path: Path) -> None:
     app = ApplicationFactory().create_json_application(tmp_path / "state.json")
     token = "r" * 40
-    _bootstrap(app, token, ("itrm:governance-admin",))
+    _bootstrap(app, token, ("rsot:governance-admin",))
     app.source_governance_service.create_rule(
         CreateSourceGovernanceRuleCommand(
             tenant_id="default",
@@ -54,7 +54,7 @@ def test_itrm_quality_certifies_complete_authoritative_device(tmp_path: Path) ->
             admin_token=token,
             key="device/itrm-quality-001",
             kind="device",
-            display_name="ITRM Quality 001",
+            display_name="RSOT Quality 001",
             attributes_json=json.dumps({"serial": "SN001", "site": "PAR1"}),
             tags=("prod",),
             source="discovery-core",
@@ -68,7 +68,7 @@ def test_itrm_quality_certifies_complete_authoritative_device(tmp_path: Path) ->
         ItrmQualitySummaryCommand("default", token, limit=10, kind="device")
     )
 
-    assert report["domain"] == "it_resources_management"
+    assert report["domain"] == "rsot"
     assert report["certification_status"] == "certified"
     assert report["score"] >= 90
     assert summary.certified == 1
@@ -78,7 +78,7 @@ def test_itrm_quality_certifies_complete_authoritative_device(tmp_path: Path) ->
 def test_itrm_quality_rejects_incomplete_and_warns_non_authoritative_source(tmp_path: Path) -> None:
     app = ApplicationFactory().create_json_application(tmp_path / "state.json")
     token = "s" * 40
-    _bootstrap(app, token, ("itrm:governance-admin",))
+    _bootstrap(app, token, ("rsot:governance-admin",))
     app.source_governance_service.create_rule(
         CreateSourceGovernanceRuleCommand(
             tenant_id="default",
@@ -100,7 +100,7 @@ def test_itrm_quality_rejects_incomplete_and_warns_non_authoritative_source(tmp_
             admin_token=token,
             key="device/itrm-quality-002",
             kind="device",
-            display_name="ITRM Quality 002",
+            display_name="RSOT Quality 002",
             attributes_json=json.dumps({"serial": "SN002"}),
             tags=(),
             source="manual",
@@ -122,7 +122,7 @@ def test_itrm_quality_requires_dedicated_read_permission(tmp_path: Path) -> None
     app = ApplicationFactory().create_json_application(tmp_path / "state.json")
     writer_token = "t" * 40
     denied_token = "u" * 40
-    _bootstrap(app, writer_token, ("itrm:operator",))
+    _bootstrap(app, writer_token, ("rsot:operator",))
     app.security_service.bootstrap_token(
         BootstrapTokenCommand(
             tenant_id="default",
@@ -139,7 +139,7 @@ def test_itrm_quality_requires_dedicated_read_permission(tmp_path: Path) -> None
             admin_token=writer_token,
             key="device/itrm-quality-003",
             kind="device",
-            display_name="ITRM Quality 003",
+            display_name="RSOT Quality 003",
             attributes_json=json.dumps({"serial": "SN003", "site": "PAR1"}),
             tags=("prod",),
             source="manual",
@@ -168,7 +168,7 @@ def test_cli_itrm_quality_commands_and_sot_compatibility_alias(
             "--subject",
             "itrm-quality-cli",
             "--role",
-            "itrm:operator",
+            "rsot:operator",
             "--token",
             token,
         ]
@@ -176,7 +176,7 @@ def test_cli_itrm_quality_commands_and_sot_compatibility_alias(
     capsys.readouterr()
     OpenInfraCLI().run(
         [
-            "itrm",
+            "rsot",
             "upsert-object",
             "--data",
             str(data),
@@ -189,7 +189,7 @@ def test_cli_itrm_quality_commands_and_sot_compatibility_alias(
             "--kind",
             "device",
             "--display-name",
-            "ITRM Quality CLI",
+            "RSOT Quality CLI",
             "--attributes-json",
             '{"serial":"SNCLI","site":"PAR1"}',
             "--tag",
@@ -201,7 +201,7 @@ def test_cli_itrm_quality_commands_and_sot_compatibility_alias(
     capsys.readouterr()
     quality_code = OpenInfraCLI().run(
         [
-            "itrm",
+            "rsot",
             "quality-object",
             "--data",
             str(data),
@@ -232,7 +232,7 @@ def test_cli_itrm_quality_commands_and_sot_compatibility_alias(
     summary = json.loads(captured_summary.out)
 
     assert (
-        "DEPRECATION: 'openinfra sot' is a legacy alias; use 'openinfra itrm'"
+        "DEPRECATION: 'openinfra sot' is a legacy alias; use 'openinfra rsot'"
         in captured_summary.err
     )
     assert quality_code == 0

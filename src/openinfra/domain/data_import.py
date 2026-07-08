@@ -153,8 +153,6 @@ class MigrationTemplate:
         }
 
 
-
-
 @dataclass(frozen=True, slots=True)
 class BulkImportProgress:
     job_id: EntityId

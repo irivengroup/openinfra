@@ -98,16 +98,6 @@ from openinfra.application.ipam_services import (
     PreviewDdiReservationCommand,
     RegisterIpAddressCommand,
 )
-from openinfra.application.itam_services import (
-    AddThirdPartySupportCommand,
-    GetAssetSupportCoverageReportCommand,
-    GetAssetSupportProfileCommand,
-    GetSoftwareLicenseCommand,
-    GetSoftwareLicenseComplianceCommand,
-    RegisterManufacturerSupportCommand,
-    RegisterSoftwareLicenseCommand,
-    UpdateSoftwareLicenseAssignmentCommand,
-)
 from openinfra.application.it_resources_management_quality_services import (
     EvaluateItrmObjectQualityCommand,
     ItrmQualitySummaryCommand,
@@ -122,6 +112,16 @@ from openinfra.application.it_resources_management_services import (
     ListSourceRelationsCommand,
     ReconcileSourceObjectCommand,
     UpsertSourceObjectCommand,
+)
+from openinfra.application.itam_services import (
+    AddThirdPartySupportCommand,
+    GetAssetSupportCoverageReportCommand,
+    GetAssetSupportProfileCommand,
+    GetSoftwareLicenseCommand,
+    GetSoftwareLicenseComplianceCommand,
+    RegisterManufacturerSupportCommand,
+    RegisterSoftwareLicenseCommand,
+    UpdateSoftwareLicenseAssignmentCommand,
 )
 from openinfra.application.search_services import GlobalSearchCommand
 from openinfra.application.security_services import (
@@ -191,6 +191,7 @@ class OpenInfraCLI:
         self._add_import_commands(subparsers)
         self._add_export_commands(subparsers)
         self._add_discovery_commands(subparsers)
+        self._add_rsot_commands(subparsers)
         self._add_itrm_commands(subparsers)
         self._add_ri_commands(subparsers)
         self._add_sot_commands(subparsers)
@@ -502,7 +503,7 @@ class OpenInfraCLI:
         search_subparsers = search.add_subparsers(dest="search_command", required=True)
         global_search = search_subparsers.add_parser(
             "global",
-            help="search ITRM, IPAM and authorized Discovery data grouped by component",
+            help="search RSOT, IPAM and authorized Discovery data grouped by component",
         )
         self._add_backend_arguments(global_search)
         global_search.add_argument("--tenant", required=True)
@@ -512,7 +513,6 @@ class OpenInfraCLI:
         global_search.add_argument("--actor", default="cli")
         global_search.add_argument("--include-inactive-discovery", action="store_true")
         global_search.set_defaults(handler=self._handle_search_global)
-
 
     def _add_itam_commands(self, subparsers: Any) -> None:
         itam = subparsers.add_parser("itam", help="IT asset management operations")
@@ -672,7 +672,8 @@ class OpenInfraCLI:
         dataset = import_subparsers.add_parser(
             "dataset",
             help=(
-                "validate or apply a mapped CSV, JSON or XLSX dataset into IT Ressources Management"
+                "validate or apply a mapped CSV, JSON or XLSX dataset into "
+                "RSOT (Ressource Source of Truth)"
             ),
         )
         self._add_backend_arguments(dataset)
@@ -752,7 +753,7 @@ class OpenInfraCLI:
             "migration-plan",
             help=(
                 "simulate a legacy inventory migration and persist a gap report "
-                "without mutating ITRM"
+                "without mutating RSOT"
             ),
         )
         self._add_backend_arguments(migration_plan)
@@ -971,29 +972,38 @@ class OpenInfraCLI:
         artifact_chunk.add_argument("--output", type=Path)
         artifact_chunk.set_defaults(handler=self._handle_export_artifact_chunk)
 
+    def _add_rsot_commands(self, subparsers: Any) -> None:
+        self._add_inventory_commands(
+            subparsers,
+            command_name="rsot",
+            help_text="RSOT (Ressource Source of Truth) objects, relations and governance",
+            command_dest="rsot_command",
+            short_label="RSOT",
+        )
+
     def _add_itrm_commands(self, subparsers: Any) -> None:
         self._add_inventory_commands(
             subparsers,
             command_name="itrm",
-            help_text="IT Ressources Management objects, relations and governance",
+            help_text="deprecated legacy alias for RSOT commands",
             command_dest="itrm_command",
-            short_label="ITRM",
+            short_label="RSOT legacy compatibility",
         )
 
     def _add_ri_commands(self, subparsers: Any) -> None:
         self._add_inventory_commands(
             subparsers,
             command_name="ri",
-            help_text="legacy alias for ITRM commands",
+            help_text="legacy alias for RSOT commands",
             command_dest="ri_command",
-            short_label="ITRM legacy compatibility",
+            short_label="RSOT legacy compatibility",
         )
 
     def _add_sot_commands(self, subparsers: Any) -> None:
         self._add_inventory_commands(
             subparsers,
             command_name="sot",
-            help_text="legacy alias for IT Ressources Management commands",
+            help_text="legacy alias for RSOT (Ressource Source of Truth) commands",
             command_dest="sot_command",
             short_label="SOT compatibility",
         )
@@ -1029,12 +1039,12 @@ class OpenInfraCLI:
         upsert.add_argument(
             "--resource-category",
             choices=ResourceTaxonomy.category_values(),
-            help="ITRM category used to filter compatible resource types",
+            help="RSOT category used to filter compatible resource types",
         )
         upsert.add_argument(
             "--resource-type",
             choices=ResourceTaxonomy.all_type_values(),
-            help="ITRM resource type allowed by the selected category",
+            help="RSOT resource type allowed by the selected category",
         )
         upsert.add_argument("--display-name", required=True)
         upsert.add_argument("--attributes-json", default="{}")
@@ -2396,7 +2406,6 @@ class OpenInfraCLI:
         print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
         return 0
 
-
     def _handle_itam_register_manufacturer_support(self, args: argparse.Namespace) -> int:
         app = self._create_application(args)
         profile = app.itam_support_service.register_manufacturer_support(
@@ -2661,14 +2670,19 @@ class OpenInfraCLI:
         return 0
 
     def _warn_legacy_inventory_alias(self, args: argparse.Namespace) -> None:
-        if hasattr(args, "ri_command"):
+        if hasattr(args, "itrm_command"):
             sys.stderr.write(
-                "DEPRECATION: 'openinfra ri' is a legacy alias; use 'openinfra itrm'. "
+                "DEPRECATION: 'openinfra itrm' is a legacy alias; use 'openinfra rsot'. "
+                "The ITRM alias is scheduled for removal in a future major release.\n"
+            )
+        elif hasattr(args, "ri_command"):
+            sys.stderr.write(
+                "DEPRECATION: 'openinfra ri' is a legacy alias; use 'openinfra rsot'. "
                 "The RI alias is scheduled for removal in a future major release.\n"
             )
         elif hasattr(args, "sot_command"):
             sys.stderr.write(
-                "DEPRECATION: 'openinfra sot' is a legacy alias; use 'openinfra itrm'. "
+                "DEPRECATION: 'openinfra sot' is a legacy alias; use 'openinfra rsot'. "
                 "The SOT alias is scheduled for removal in a future major release.\n"
             )
 

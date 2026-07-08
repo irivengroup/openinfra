@@ -196,7 +196,7 @@ jobs:
             --data "$tmpdir/state.json" \
             --tenant default \
             --subject ci-import-operator \
-            --role itrm:operator \
+            --role rsot:operator \
             --token "$admin_token"
           openinfra import bulk-dataset \
             --data "$tmpdir/state.json" \
@@ -222,9 +222,9 @@ jobs:
             --data "$tmpdir/state.json" \
             --tenant default \
             --subject ci-export-operator \
-            --role itrm:operator \
+            --role rsot:operator \
             --token "$admin_token"
-          openinfra itrm upsert-object \
+          openinfra rsot upsert-object \
             --data "$tmpdir/state.json" \
             --tenant default \
             --admin-token "$admin_token" \
@@ -410,17 +410,17 @@ jobs:
             --tenant default \
             --admin-token "$admin_token"
 
-      - name: Smoke JSON IT Ressources Management governance
+      - name: Smoke JSON RSOT (Ressource Source of Truth) governance
         run: |
           tmpdir="$(mktemp -d)"
           admin_token="$(python -c 'import secrets; print("ci_" + secrets.token_urlsafe(48))')"
           openinfra security bootstrap-token \
             --data "$tmpdir/state.json" \
             --tenant default \
-            --subject ci-itrm-governance \
-            --role itrm:governance-admin \
+            --subject ci-rsot-governance \
+            --role rsot:governance-admin \
             --token "$admin_token"
-          openinfra itrm create-governance-rule \
+          openinfra rsot create-governance-rule \
             --data "$tmpdir/state.json" \
             --tenant default \
             --admin-token "$admin_token" \
@@ -429,12 +429,12 @@ jobs:
             --attribute-path serial \
             --authoritative-source discovery \
             --priority 500
-          openinfra itrm list-governance-rules \
+          openinfra rsot list-governance-rules \
             --data "$tmpdir/state.json" \
             --tenant default \
             --admin-token "$admin_token" \
             --object-kind device
-          openinfra itrm evaluate-governance \
+          openinfra rsot evaluate-governance \
             --data "$tmpdir/state.json" \
             --tenant default \
             --admin-token "$admin_token" \
@@ -442,7 +442,7 @@ jobs:
             --incoming-source manual \
             --existing-attributes-json '{"serial":"A"}' \
             --incoming-attributes-json '{"serial":"B"}'
-          openinfra itrm deactivate-governance-rule \
+          openinfra rsot deactivate-governance-rule \
             --data "$tmpdir/state.json" \
             --tenant default \
             --admin-token "$admin_token" \

@@ -1,3 +1,12 @@
+### v0.29.54 — RSOT canonique, alias ITRM dépréciés et correction Ruff/UI
+
+- Renommage public de `ITRM (IT Ressource Management)` en `RSOT (Ressource Source of Truth)`.
+- Publication canonique de `openinfra rsot`, `/api/v1/rsot/*`, `rsot:*`, `core_rsot`, composant web **RSOT** et groupe de recherche globale `rsot`.
+- Conservation transitoire des alias `itrm`, `sot` et `ri`, documentés comme dépréciés pour retrait progressif.
+- Bloc statut runtime web rendu en bleu léger/discret pour le distinguer des composants de menu.
+- Boutons de soumission des formulaires web rendus en bleu turquoise dédié, sans dépendre de `btn-primary`.
+- Correction du gate CI `ruff format --check src tests scripts docker` ; les fichiers concernés sont formatés et `ruff check` passe également.
+
 ### v0.29.53 — exports massifs streaming par chunks signés
 
 - Ajout `openinfra export artifact-chunk` pour lire un artefact exporté signé par offset/taille bornée.
@@ -6,7 +15,7 @@
 - OpenAPI, discovery, CDC et roadmap alignés sur P13 / EPIC-1302.
 - Non-régression : le téléchargement complet `/api/v1/exports/artifact` et `openinfra export artifact` restent inchangés.
 
-### v0.29.53 — progression opérable des imports massifs reprenables
+### v0.29.52 — progression opérable des imports massifs reprenables
 
 - Ajout du modèle domaine `BulkImportProgress` dérivé des checkpoints et rapports bulk persistés.
 - Ajout du service applicatif `GenericImportService.get_bulk_progress`.

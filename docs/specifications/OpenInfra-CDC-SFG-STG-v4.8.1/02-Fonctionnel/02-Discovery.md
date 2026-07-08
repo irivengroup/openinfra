@@ -29,7 +29,7 @@ La découverte couvre SNMP, SSH, WinRM/WMI, VMware, Proxmox, Hyper-V, Kubernetes
 - `agent` = proxy collector OpenInfra Enterprise uniquement.
 - Les agents sont autorisés seulement en édition Entreprise, en topologie étoile vers les backends servers.
 - Lite et Pro n'utilisent pas d'agents/proxy distribués : les backends servers exécutent eux-mêmes la collecte autorisée.
-- Un agent ne détient aucun ITRM local, n'écrit jamais dans PostgreSQL et ne contourne jamais l'API backend.
+- Un agent ne détient aucun RSOT local, n'écrit jamais dans PostgreSQL et ne contourne jamais l'API backend.
 - Les échanges agent-proxy-backend imposent mTLS, enrôlement technique, scopes explicites, secrets par références sécurisées et audit complet.
 - Agentless signifie aucun agent sur les cibles découvertes ; cela reste compatible avec des agents proxy Enterprise déployés comme collecteurs régionaux.
 

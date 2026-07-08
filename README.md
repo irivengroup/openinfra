@@ -1,3 +1,42 @@
+# OpenInfra v0.29.54
+
+## v0.29.54 — renommage ITRM en RSOT et correction Ruff/UI
+
+OpenInfra v0.29.54 rend **RSOT (Ressource Source of Truth)** canonique à la place de l’ancien composant public **ITRM (IT Ressource Management)**. Les surfaces publiques utilisent désormais `rsot` : CLI, API HTTP, OpenAPI, discovery, portail web, recherche globale, rôles RBAC et documentation.
+
+Les alias historiques `itrm`, `sot` et `ri` restent disponibles uniquement pour compatibilité ascendante, sont documentés comme dépréciés, et doivent être retirés progressivement des automatisations clientes au profit de `rsot`.
+
+### Points clés
+
+- Commande canonique : `openinfra rsot`.
+- API canonique : `/api/v1/rsot/*`.
+- Composant web canonique : **RSOT**.
+- Groupes de recherche globale : `rsot`.
+- Rôles RBAC canoniques : `rsot:reader`, `rsot:operator`, `rsot:governance-admin`.
+- Capability canonique : `core_rsot`.
+- Alias dépréciés conservés : `openinfra itrm`, `openinfra sot`, `openinfra ri`, `/api/v1/itrm/*`, `/api/v1/sot/*`, `/api/v1/ri/*`.
+- Bloc statut runtime web rendu en bleu léger et discret.
+- Boutons de soumission des formulaires web rendus en bleu turquoise dédié, distinct de Bootstrap `primary`.
+- Correction Ruff : `ruff format --check src tests scripts docker` repasse sans reformater de fichier.
+
+### Validations recommandées
+
+```bash
+ruff format --check src tests scripts docker
+ruff check src tests scripts docker
+python -m compileall -q src tests scripts docker installers
+PYTHONPATH=src:. python scripts/validate_frontend.py --project-root .
+node --check src/openinfra/interfaces/rendering/static/assets/openinfra-web.js
+PYTHONPATH=src:. python -m openinfra version
+PYTHONPATH=src:. pytest --collect-only --no-cov
+PYTHONPATH=src:. pytest tests/unit tests/architecture --no-cov
+PYTHONPATH=src:. pytest tests/integration --no-cov
+PYTHONPATH=src:. coverage report --fail-under=98
+PYTHONPATH=src:. python scripts/quality_gate.py --project-root .
+```
+
+---
+
 ### v0.29.53 — exports massifs streaming par chunks signés
 
 - Ajout `openinfra export artifact-chunk` pour lire un artefact exporté signé par offset/taille bornée.
@@ -6,13 +45,14 @@
 - OpenAPI, discovery, CDC et roadmap alignés sur P13 / EPIC-1302.
 - Non-régression : le téléchargement complet `/api/v1/exports/artifact` et `openinfra export artifact` restent inchangés.
 
-# OpenInfra v0.29.53
+## Historique des incréments récents
 
-## v0.29.53 — progression opérable des imports massifs reprenables
 
-OpenInfra v0.29.53 ajoute un incrément P13 / EPIC-1301 dédié à l’exploitation des imports massifs : un opérateur peut consulter l’état d’avancement d’un job bulk sans relire le fichier source et sans recalculer le rapport complet.
+## v0.29.52 — progression opérable des imports massifs reprenables
 
-**Version courante : 0.29.53 — progression d’import massif disponible via domaine, service applicatif, CLI, API HTTP, OpenAPI, discovery et portail web.**
+OpenInfra v0.29.52 ajoute un incrément P13 / EPIC-1301 dédié à l’exploitation des imports massifs : un opérateur peut consulter l’état d’avancement d’un job bulk sans relire le fichier source et sans recalculer le rapport complet.
+
+
 
 ### Points clés
 

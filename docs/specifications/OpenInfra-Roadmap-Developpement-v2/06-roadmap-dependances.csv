@@ -6,13 +6,13 @@ P05,"P03,P04",LVM/PGDATA dépendent du packaging et des services.
 P06,P05,"PostgreSQL HA nécessite PGDATA, LVM et migrations stabilisées."
 P07,"P02,P09",RBAC dépend du modèle édition et des objets utilisateurs/tenants.
 P08,"P01,P07",Frontend dépend API baseline et auth.
-P09,"P01,P05",ITRM dépend du socle API et data.
-P10,P09,DCIM dépend des objets ITRM.
+P09,"P01,P05",RSOT dépend du socle API et data.
+P10,P09,DCIM dépend des objets RSOT.
 P11,"P05,P09",IPAM dépend PostgreSQL et modèle commun.
 P12,"P09,P10",ITAM dépend actifs et localisation.
 P13,"P09,P12",Imports et ITSM externes dépendent du modèle de données.
-P14,"P06,P07,P09","Discovery agents nécessite auth, API, DB HA et ITRM."
-P15,"P09,P11,P14",Dépendances et flux nécessitent ITRM/IPAM/discovery.
+P14,"P06,P07,P09","Discovery agents nécessite auth, API, DB HA et RSOT."
+P15,"P09,P11,P14",Dépendances et flux nécessitent RSOT/IPAM/discovery.
 P16,"P10,P11,P12,P15",Modules avancés se basent sur données consolidées.
 P17,"P06,P14",Multisite et DR nécessitent DB HA et agents.
 P18,P01-P17,GA dépend de tous les lots.

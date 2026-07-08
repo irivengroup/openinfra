@@ -112,7 +112,9 @@ class ManufacturerWarranty:
         if warranty_end < warranty_start:
             raise ValidationError("manufacturer warranty end date cannot be before start date")
         return cls(
-            manufacturer=ItamValidation.normalized_text(manufacturer, "manufacturer", max_length=128),
+            manufacturer=ItamValidation.normalized_text(
+                manufacturer, "manufacturer", max_length=128
+            ),
             warranty_reference=ItamValidation.normalized_code_text(
                 warranty_reference, "manufacturer warranty reference"
             ),
@@ -127,7 +129,9 @@ class ManufacturerWarranty:
             support_level=ItamValidation.normalized_text(
                 support_level, "manufacturer support level", max_length=128
             ),
-            support_contact=ItamValidation.normalized_contact(support_contact, "manufacturer support contact"),
+            support_contact=ItamValidation.normalized_contact(
+                support_contact, "manufacturer support contact"
+            ),
         )
 
     @classmethod
@@ -220,10 +224,14 @@ class ThirdPartySupportContract:
     ) -> Self:
         if support_end < support_start:
             raise ValidationError("third-party support end date cannot be before start date")
-        normalized_notes = ItamValidation.normalized_optional_text(notes, "third-party support notes", 1024)
+        normalized_notes = ItamValidation.normalized_optional_text(
+            notes, "third-party support notes", 1024
+        )
         return cls(
             id=id,
-            provider=ItamValidation.normalized_text(provider, "third-party support provider", max_length=128),
+            provider=ItamValidation.normalized_text(
+                provider, "third-party support provider", max_length=128
+            ),
             contract_reference=ItamValidation.normalized_code_text(
                 contract_reference, "third-party support contract reference"
             ),
@@ -232,10 +240,14 @@ class ThirdPartySupportContract:
             ),
             support_start=support_start,
             support_end=support_end,
-            support_contact=ItamValidation.normalized_contact(support_contact, "third-party support contact"),
+            support_contact=ItamValidation.normalized_contact(
+                support_contact, "third-party support contact"
+            ),
             status=SupportContractStatus(status.strip().lower()),
             notes=normalized_notes,
-            created_at=ItamValidation.normalized_datetime(created_at, "third-party support creation date"),
+            created_at=ItamValidation.normalized_datetime(
+                created_at, "third-party support creation date"
+            ),
         )
 
     def same_business_key(self, other: ThirdPartySupportContract) -> bool:
@@ -306,7 +318,10 @@ class PhysicalAssetSupportProfile:
         updated_at: datetime,
     ) -> Self:
         ordered_contracts = tuple(
-            sorted(third_party_contracts, key=lambda item: (item.provider.lower(), item.contract_reference))
+            sorted(
+                third_party_contracts,
+                key=lambda item: (item.provider.lower(), item.contract_reference),
+            )
         )
         return cls(
             id=id,
@@ -362,7 +377,6 @@ class PhysicalAssetSupportProfile:
         )
 
 
-
 @dataclass(frozen=True, slots=True)
 class PhysicalAssetSupportCoverageReport:
     tenant_id: TenantId
@@ -387,7 +401,10 @@ class PhysicalAssetSupportCoverageReport:
         planned_count = 0
         expired_count = 0
         for contract in profile.third_party_contracts:
-            if contract.status == SupportContractStatus.ACTIVE and contract.support_start <= as_of <= contract.support_end:
+            if (
+                contract.status == SupportContractStatus.ACTIVE
+                and contract.support_start <= as_of <= contract.support_end
+            ):
                 active_count += 1
             elif contract.status == SupportContractStatus.PLANNED or contract.support_start > as_of:
                 planned_count += 1
@@ -530,7 +547,9 @@ class SoftwareLicenseEntitlement:
         updated_at: datetime,
     ) -> Self:
         if entitlement_end < entitlement_start:
-            raise ValidationError("software license entitlement end date cannot be before start date")
+            raise ValidationError(
+                "software license entitlement end date cannot be before start date"
+            )
         if purchased_quantity < 1:
             raise ValidationError("software license purchased quantity must be greater than zero")
         if assigned_quantity < 0:
@@ -547,7 +566,9 @@ class SoftwareLicenseEntitlement:
             id=id,
             tenant_id=tenant_id,
             product_name=Name.from_value(product_name, "software product name"),
-            vendor=ItamValidation.normalized_text(vendor, "software license vendor", max_length=128),
+            vendor=ItamValidation.normalized_text(
+                vendor, "software license vendor", max_length=128
+            ),
             version=ItamValidation.normalized_optional_text(version, "software version", 64),
             license_reference=Code.from_value(license_reference, "software license reference"),
             contract_reference=ItamValidation.normalized_optional_code_text(
@@ -562,9 +583,13 @@ class SoftwareLicenseEntitlement:
             owner=ItamValidation.normalized_optional_text(owner, "software license owner", 128),
             notes=ItamValidation.normalized_optional_text(notes, "software license notes", 1024),
             created_by=ItamValidation.normalized_actor(created_by),
-            created_at=ItamValidation.normalized_datetime(created_at, "software license creation date"),
+            created_at=ItamValidation.normalized_datetime(
+                created_at, "software license creation date"
+            ),
             updated_by=ItamValidation.normalized_actor(updated_by),
-            updated_at=ItamValidation.normalized_datetime(updated_at, "software license update date"),
+            updated_at=ItamValidation.normalized_datetime(
+                updated_at, "software license update date"
+            ),
         )
 
     def with_assignment(
@@ -710,9 +735,7 @@ class ItamValidation:
         return normalized
 
     @staticmethod
-    def normalized_optional_text(
-        value: str | None, field_name: str, max_length: int
-    ) -> str | None:
+    def normalized_optional_text(value: str | None, field_name: str, max_length: int) -> str | None:
         if value is None:
             return None
         normalized = " ".join(value.strip().split())

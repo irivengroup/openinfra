@@ -5,15 +5,21 @@ from datetime import UTC, datetime
 
 from openinfra.application.ports import AuditRepository, ItamSupportRepository, TransactionManager
 from openinfra.application.security_services import AuthenticateTokenCommand, SecurityService
-from openinfra.domain.common import AuditEvent, ConflictError, NotFoundError, TenantId, ValidationError
+from openinfra.domain.common import (
+    AuditEvent,
+    ConflictError,
+    NotFoundError,
+    TenantId,
+    ValidationError,
+)
 from openinfra.domain.itam import (
+    ItamDateParser,
     ManufacturerWarranty,
-    PhysicalAssetSupportProfile,
     PhysicalAssetSupportCoverageReport,
+    PhysicalAssetSupportProfile,
     SoftwareLicenseComplianceReport,
     SoftwareLicenseEntitlement,
     ThirdPartySupportContract,
-    ItamDateParser,
 )
 from openinfra.domain.security import Permission
 
@@ -134,8 +140,12 @@ class ItamSupportService:
             manufacturer=command.manufacturer,
             warranty_reference=command.warranty_reference,
             warranty_level=command.warranty_level,
-            warranty_start=ItamDateParser.parse_date(command.warranty_start, "manufacturer warranty start"),
-            warranty_end=ItamDateParser.parse_date(command.warranty_end, "manufacturer warranty end"),
+            warranty_start=ItamDateParser.parse_date(
+                command.warranty_start, "manufacturer warranty start"
+            ),
+            warranty_end=ItamDateParser.parse_date(
+                command.warranty_end, "manufacturer warranty end"
+            ),
             support_reference=command.support_reference,
             support_level=command.support_level,
             support_contact=command.support_contact,
@@ -145,7 +155,8 @@ class ItamSupportService:
             if existing is not None:
                 if existing.manufacturer_warranty != warranty:
                     raise ConflictError(
-                        "manufacturer warranty/support is immutable; add third-party support separately"
+                        "manufacturer warranty/support is immutable; "
+                        "add third-party support separately"
                     )
                 profile = existing
                 action = "itam.support.manufacturer.confirm"
@@ -188,7 +199,9 @@ class ItamSupportService:
             provider=command.provider,
             contract_reference=command.contract_reference,
             support_level=command.support_level,
-            support_start=ItamDateParser.parse_date(command.support_start, "third-party support start"),
+            support_start=ItamDateParser.parse_date(
+                command.support_start, "third-party support start"
+            ),
             support_end=ItamDateParser.parse_date(command.support_end, "third-party support end"),
             support_contact=command.support_contact,
             status=command.status,
@@ -215,7 +228,9 @@ class ItamSupportService:
                         "asset_tag": profile.asset_tag.value,
                         "provider": contract.provider,
                         "contract_reference": contract.contract_reference,
-                        "manufacturer_support_reference": profile.manufacturer_warranty.support_reference,
+                        "manufacturer_support_reference": (
+                            profile.manufacturer_warranty.support_reference
+                        ),
                         "declared_actor": command.actor,
                     },
                 )
@@ -235,7 +250,6 @@ class ItamSupportService:
             raise NotFoundError("asset support profile not found")
         return profile
 
-
     def get_support_coverage_report(
         self, command: GetAssetSupportCoverageReportCommand
     ) -> PhysicalAssetSupportCoverageReport:
@@ -253,7 +267,6 @@ class ItamSupportService:
         )
         return PhysicalAssetSupportCoverageReport.from_profile(profile, as_of)
 
-
     def register_software_license(
         self, command: RegisterSoftwareLicenseCommand
     ) -> SoftwareLicenseEntitlement:
@@ -269,8 +282,12 @@ class ItamSupportService:
             metric=command.metric,
             purchased_quantity=int(command.purchased_quantity),
             assigned_quantity=int(command.assigned_quantity),
-            entitlement_start=ItamDateParser.parse_date(command.entitlement_start, "software entitlement start"),
-            entitlement_end=ItamDateParser.parse_date(command.entitlement_end, "software entitlement end"),
+            entitlement_start=ItamDateParser.parse_date(
+                command.entitlement_start, "software entitlement start"
+            ),
+            entitlement_end=ItamDateParser.parse_date(
+                command.entitlement_end, "software entitlement end"
+            ),
             actor=command.actor,
             contract_reference=command.contract_reference,
             version=command.version,
@@ -279,8 +296,14 @@ class ItamSupportService:
             notes=command.notes,
         )
         with self._transaction_manager.begin() as unit_of_work:
-            existing = self._repository.find_software_license(tenant_id, license_.license_reference.value)
-            action = "itam.software_license.update" if existing is not None else "itam.software_license.register"
+            existing = self._repository.find_software_license(
+                tenant_id, license_.license_reference.value
+            )
+            action = (
+                "itam.software_license.update"
+                if existing is not None
+                else "itam.software_license.register"
+            )
             if existing is not None and existing.id != license_.id:
                 license_ = SoftwareLicenseEntitlement.restore(
                     id=existing.id,
@@ -362,7 +385,9 @@ class ItamSupportService:
             unit_of_work.commit()
         return updated
 
-    def get_software_license(self, command: GetSoftwareLicenseCommand) -> SoftwareLicenseEntitlement:
+    def get_software_license(
+        self, command: GetSoftwareLicenseCommand
+    ) -> SoftwareLicenseEntitlement:
         tenant_id = TenantId.from_value(command.tenant_id)
         self._security_service.authenticate_token(
             AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITAM_READ)

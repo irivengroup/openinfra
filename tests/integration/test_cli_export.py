@@ -20,7 +20,7 @@ def _bootstrap(data: Path, token: str) -> None:
                 "--subject",
                 "export-cli",
                 "--role",
-                "itrm:operator",
+                "rsot:operator",
                 "--token",
                 token,
             ]
@@ -33,7 +33,7 @@ def _upsert(data: Path, token: str, key: str) -> None:
     assert (
         OpenInfraCLI().run(
             [
-                "itrm",
+                "rsot",
                 "upsert-object",
                 "--data",
                 str(data),

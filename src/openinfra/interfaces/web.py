@@ -473,22 +473,22 @@ class OpenInfraWebRequestHandler(BaseHTTPRequestHandler):
     def log_message(self, _format: str, *_args: object) -> None:
         return None
 
-    def do_GET(self) -> None:
+    def do_GET(self) -> None:  # noqa: N802
         self._handle_without_body()
 
-    def do_HEAD(self) -> None:
+    def do_HEAD(self) -> None:  # noqa: N802
         self._handle_without_body(head_only=True)
 
-    def do_POST(self) -> None:
+    def do_POST(self) -> None:  # noqa: N802
         self._handle_proxy_request()
 
-    def do_PUT(self) -> None:
+    def do_PUT(self) -> None:  # noqa: N802
         self._handle_proxy_request()
 
-    def do_PATCH(self) -> None:
+    def do_PATCH(self) -> None:  # noqa: N802
         self._handle_proxy_request()
 
-    def do_DELETE(self) -> None:
+    def do_DELETE(self) -> None:  # noqa: N802
         self._handle_proxy_request()
 
     def _handle_without_body(self, head_only: bool = False) -> None:
@@ -515,7 +515,9 @@ class OpenInfraWebRequestHandler(BaseHTTPRequestHandler):
 
     def _handle_proxy_request(self) -> None:
         route = self.path.split("?", 1)[0]
-        if route not in {"/docs", "/swagger", "/redoc", "/openapi.yaml"} and not route.startswith("/api/"):
+        if route not in {"/docs", "/swagger", "/redoc", "/openapi.yaml"} and not route.startswith(
+            "/api/"
+        ):
             self._json(HTTPStatus.NOT_FOUND, {"error": "route not served by openinfra-web"})
             return
         try:

@@ -36,7 +36,7 @@ Pratiques retenues :
 
 Pratiques retenues :
 
-- IT Ressources Management gouvernée ;
+- RSOT (Ressource Source of Truth) gouvernée ;
 - qualité de données mesurée ;
 - règles de certification ;
 - traçabilité par attribut critique ;

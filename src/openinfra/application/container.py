@@ -24,7 +24,6 @@ from openinfra.application.edition_services import EditionQueryService, EditionR
 from openinfra.application.export_services import ExportService
 from openinfra.application.identity_services import IdentityService
 from openinfra.application.import_services import GenericImportService
-from openinfra.application.itam_services import ItamSupportService
 from openinfra.application.ipam_services import (
     IpamAllocationService,
     IpamConflictService,
@@ -35,6 +34,7 @@ from openinfra.application.ipam_services import (
 from openinfra.application.it_resources_management_quality_services import (
     ITResourcesManagementQualityService,
 )
+from openinfra.application.itam_services import ItamSupportService
 from openinfra.application.ports import (
     AccessPolicyRepository,
     AuditRepository,

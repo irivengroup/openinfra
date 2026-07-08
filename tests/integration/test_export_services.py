@@ -38,7 +38,7 @@ def _bootstrap(app: Any) -> str:
             tenant_id="default",
             actor="pytest",
             subject="export-admin",
-            roles=("itrm:operator", "audit:reader"),
+            roles=("rsot:operator", "audit:reader"),
             token=token,
         )
     )
@@ -140,7 +140,9 @@ class TestExportService:
             )
         with pytest.raises(ValidationError, match="offset exceeds"):
             app.export_service.get_export_artifact_chunk(
-                GetExportArtifactChunkCommand("default", token, queued.id.value, offset=len(full.content) + 1)
+                GetExportArtifactChunkCommand(
+                    "default", token, queued.id.value, offset=len(full.content) + 1
+                )
             )
 
     def test_json_backend_signing_secret_is_lazy_and_survives_reload(self, tmp_path: Path) -> None:

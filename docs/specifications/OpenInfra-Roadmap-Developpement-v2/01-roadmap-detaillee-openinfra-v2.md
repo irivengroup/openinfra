@@ -1,4 +1,4 @@
-- 0.29.53 : ajout `TST-P13-ASYNC-EXPORT-STREAMING` pour couvrir EPIC-1302 avec API/CLI/UI de lecture chunkée des artefacts exportés signés.
+- 0.29.54 : ajout `TST-P13-ASYNC-EXPORT-STREAMING` pour couvrir EPIC-1302 avec API/CLI/UI de lecture chunkée des artefacts exportés signés.
 ## v0.29.51 — P12 ITAM licences logicielles et contrats
 
 L’incrément v0.29.51 réalise `EPIC-1205` pour les licences logicielles : entitlements, référence contrat, quantités achetées/assignées, conformité à date, API, CLI, portail web, OpenAPI, migration PostgreSQL partitionnée et tests de non-régression via `TST-P12-ITAM-SOFTWARE-LICENSES`.
@@ -74,7 +74,7 @@ Cette roadmap met à jour la trajectoire de développement OpenInfra pour l’al
 | P06 | PostgreSQL HA, synchronisation quasi temps réel et sauvegardes | T0+4 à T0+9 mois | Déployer PostgreSQL géré, Patroni/équivalent, VIP, réplication, PITR, tests failover. | Cluster autonome configuré avec FQDN/IP/mask/VIP/GW/DNS et bascule testée. |
 | P07 | Authentification, LDAP/IPA, RBAC et groupes | T0+5 à T0+10 mois | Livrer auth locale Lite, LDAP/IPA Pro/Entreprise, mapping groupes→rôles, audit et permissions. | Pro/Entreprise s’authentifient via LDAP/IPA; RBAC par groupes testé. |
 | P08 | Frontend React + Bootstrap 5 et parité CLI/API/UI | T0+5 à T0+11 mois | Livrer shell UI web, design system, appels API backend uniquement et parité fonctionnelle CLI/API/UI. | Toute commande CLI livrée dispose d’un parcours API/UI équivalent ou justifié. |
-| P09 | IT Ressources Management, gouvernance et qualité de données | T0+6 à T0+13 mois | Livrer objets, relations, audit, historique, gouvernance source autoritative, scores et réconciliation. | CRUD complet, time travel initial, conflits visibles, qualité mesurée. |
+| P09 | RSOT (Ressource Source of Truth), gouvernance et qualité de données | T0+6 à T0+13 mois | Livrer objets, relations, audit, historique, gouvernance source autoritative, scores et réconciliation. | CRUD complet, time travel initial, conflits visibles, qualité mesurée. |
 | P10 | DCIM, localisation physique et capacité | T0+7 à T0+15 mois | Livrer sites, bâtiments, salles, lignes/colonnes/X/Y/Z, racks, U, câblage, PDU et capacité. | Un équipement physique est localisable univoquement et exploitable terrain. |
 | P11 | IPAM Enterprise++ et DDI | T0+7 à T0+16 mois | Livrer IPv4/IPv6, VRF, ASN, BGP, EVPN/VXLAN, MPLS, NAT, DHCP, DNS, DDI, RPKI et capacité. | Allocation IP concurrente sans conflit, recherche IPAM indexée et audits complets. |
 | P12 | ITAM, garanties/support constructeur et support tiers | T0+9 à T0+17 mois | Livrer actifs, logiciels, contrats, licences, garanties constructeur, support constructeur et support tiers séparé. | Le support tiers n’écrase jamais le support constructeur initial. |
@@ -696,14 +696,14 @@ Cette roadmap met à jour la trajectoire de développement OpenInfra pour l’al
 
 - **Stream :** STR-QA
 - **Priorité :** P1
-- **Résumé :** Automatiser parcours login, ITRM, IPAM, DCIM, install status et admin.
+- **Résumé :** Automatiser parcours login, RSOT, IPAM, DCIM, install status et admin.
 - **Livrables :** E2E suite.
 - **Dépendances :** P08
 - **Acceptation :** Parcours critiques stables en CI.
 
 ---
 
-## P09 — IT Ressources Management, gouvernance et qualité de données
+## P09 — RSOT (Ressource Source of Truth), gouvernance et qualité de données
 
 **Période relative :** T0+6 à T0+13 mois
 
@@ -713,7 +713,7 @@ Cette roadmap met à jour la trajectoire de développement OpenInfra pour l’al
 
 ### Epics
 
-#### EPIC-0901 — Objets IT Ressources Management
+#### EPIC-0901 — Objets RSOT (Ressource Source of Truth)
 
 - **Stream :** STR-BE
 - **Priorité :** P1
@@ -918,7 +918,7 @@ Cette roadmap met à jour la trajectoire de développement OpenInfra pour l’al
 - **Résumé :** Livrer lifecycle actif, propriétaires, coûts, statuts et localisations.
 - **Livrables :** ITAM model; API; UI.
 - **Dépendances :** P09
-- **Acceptation :** Actifs liés au ITRM/DCIM.
+- **Acceptation :** Actifs liés au RSOT/DCIM.
 
 #### EPIC-1202 — Garantie constructeur obligatoire
 
@@ -1371,7 +1371,7 @@ Cette roadmap met à jour la trajectoire de développement OpenInfra pour l’al
 | GATE-00 | Go programme v4.8.1 | P00 | Matrice CDC→roadmap complète; backlog priorisé; risques connus; arbitrages actés. | Programme autorisé uniquement si les décisions v4.8.1 sont tracées. |
 | GATE-01 | Go Foundation Alpha | P01-P02 | CI verte; édition model testé; API baseline; services cibles documentés. | Autorise démarrage installateurs et runtime. |
 | GATE-02 | Go Installer Alpha | P03-P06 | install.ini validé; dépendances installées; PGDATA /data/openinfra; openinfra.service; failover DB démontré. | Autorise MVP Lite/Pro. |
-| GATE-03 | Go Lite MVP | P07-P11 | Limits Lite respectées; all-in-one opérationnel; UI/API/CLI ITRM/DCIM/IPAM. | Autorise pilote Lite. |
+| GATE-03 | Go Lite MVP | P07-P11 | Limits Lite respectées; all-in-one opérationnel; UI/API/CLI RSOT/DCIM/IPAM. | Autorise pilote Lite. |
 | GATE-04 | Go Pro MVP | P07-P13 | Backend/web séparés; LDAP/IPA; RBAC groupes; connecteurs ITSM externes; quotas Pro. | Autorise pilote Pro. |
 | GATE-05 | Go Enterprise Foundation | P14-P17 | Agents, multisite, synchronisation quasi temps réel, cluster frontend/backend, DR testé. | Autorise pilote Entreprise. |
 | GATE-06 | Go RC | P16-P18 | Modules avancés; sécurité; performance; docs; migrations et rollback validés. | Autorise release candidate. |
@@ -1442,13 +1442,13 @@ Le résultat est une roadmap plus exigeante au début, mais beaucoup plus réali
 
 Le jalon P06 est amorcé avant reprise Discovery par le plan installateur PostgreSQL HA/PITR : configuration streaming native, WAL archiving, répertoires PITR/backups, migration de registre HA, commande `database ha-plan` et failover contrôlé opérateur.
 
-### Avancement v0.29.14 — P09 ITRM Quality & Certification
+### Avancement v0.29.14 — P09 RSOT Quality & Certification
 
-P09 démarre par la capacité de qualité et certification ITRM : évaluation individuelle des objets, synthèse tenant, score de complétude/fraîcheur/autorité/confiance, intégration des règles de source autoritative, RBAC `itrm.quality.read`, audit `itrm.quality.*`, API `/api/v1/itrm/quality/*`, CLI `openinfra itrm quality-*` et exposition dans le dashboard web.
+P09 démarre par la capacité de qualité et certification RSOT : évaluation individuelle des objets, synthèse tenant, score de complétude/fraîcheur/autorité/confiance, intégration des règles de source autoritative, RBAC `rsot.quality.read`, audit `rsot.quality.*`, API `/api/v1/rsot/quality/*`, CLI `openinfra rsot quality-*` et exposition dans le dashboard web.
 
 ### Avancement v0.29.15 — P08 Bootstrap 5 Dashboard Theme
 
-P08 est consolidé par l'intégration du thème Bootstrap 5 Dashboard dans `openinfra-web`. Le portail web dispose désormais d'un header principal unique, d'une d'une sidebar Dashboard et d'une zone d'exécution API alignée sur les domaines CLI/API : Dashboard, ITRM, IPAM, DCIM, Discovery, Sécurité/RBAC, Audit et Runtime.
+P08 est consolidé par l'intégration du thème Bootstrap 5 Dashboard dans `openinfra-web`. Le portail web dispose désormais d'un header principal unique, d'une d'une sidebar Dashboard et d'une zone d'exécution API alignée sur les domaines CLI/API : Dashboard, RSOT, IPAM, DCIM, Discovery, Sécurité/RBAC, Audit et Runtime.
 
 Le rendu reste dans le domaine présentation/rendering, les assets Bootstrap sont servis localement, et le navigateur ne reçoit aucun secret ni accès direct aux composants backend ou PostgreSQL.
 
@@ -1464,9 +1464,9 @@ Le rendu reste dans le domaine présentation/rendering, les assets Bootstrap son
 
 P08 est renforcé par une vue d’accueil réellement exploitable : chaque composant métier OpenInfra affiche ses métriques opérationnelles et un camembert lecture/mutation. Cette restitution reste API-only, déterministe et sans exposition de secrets côté navigateur.
 
-### Avancement v0.29.19 — renommage transversal ITRM
+### Avancement v0.29.19 — renommage transversal RSOT
 
-Le composant inventaire public est désormais exposé sous le nom IT Ressources Management (ITRM). Les contrats primaires deviennent `openinfra itrm *`, `/api/v1/itrm/*`, les rôles `itrm:*` et les permissions `itrm.*`. Les anciens alias `ri` et `sot` restent disponibles pour préserver la compatibilité ascendante.
+Le composant inventaire public est désormais exposé sous le nom RSOT (Ressource Source of Truth) (RSOT). Les contrats primaires deviennent `openinfra rsot *`, `/api/v1/rsot/*`, les rôles `rsot:*` et les permissions `rsot.*`. Les anciens alias `ri` et `sot` restent disponibles pour préserver la compatibilité ascendante.
 
 ### Avancement v0.29.19 — alertes dashboard contextuelles
 
@@ -1490,28 +1490,28 @@ Le dashboard d’accueil ne présente plus l’alerte succès permanente `Backen
 - La roadmap P08 ajoute `TST-P08-WEB-BFF-STATUS`.
 
 
-### Avancement v0.29.23 — P09 historique ITRM as-of et audit objet
+### Avancement v0.29.23 — P09 historique RSOT as-of et audit objet
 
-- `openinfra itrm get-object-as-of` et `/api/v1/itrm/object-as-of` restituent un objet ITRM à une date donnée à partir des snapshots existants.
-- `openinfra itrm list-relations --as-of` et le paramètre HTTP `as_of` filtrent les relations valides à une date donnée.
-- `openinfra itrm list-object-audit`, `/api/v1/itrm/object-audit` et le filtre audit `target_id` rendent l’audit consultable par objet.
-- Les formulaires web ITRM exposent ces opérations via le BFF sans token navigateur.
-- La roadmap P09 ajoute `TST-P09-ITRM-AS-OF-AUDIT` et aligne `REQ-00758`.
+- `openinfra rsot get-object-as-of` et `/api/v1/rsot/object-as-of` restituent un objet RSOT à une date donnée à partir des snapshots existants.
+- `openinfra rsot list-relations --as-of` et le paramètre HTTP `as_of` filtrent les relations valides à une date donnée.
+- `openinfra rsot list-object-audit`, `/api/v1/rsot/object-audit` et le filtre audit `target_id` rendent l’audit consultable par objet.
+- Les formulaires web RSOT exposent ces opérations via le BFF sans token navigateur.
+- La roadmap P09 ajoute `TST-P09-RSOT-AS-OF-AUDIT` et aligne `REQ-00758`.
 
-### Avancement v0.29.24 — P09 réconciliation gouvernée ITRM
+### Avancement v0.29.24 — P09 réconciliation gouvernée RSOT
 
-- `openinfra itrm reconcile-object` et `/api/v1/itrm/reconcile-object` produisent un plan de réconciliation déterministe avec chemins modifiés, conflits, règles obsolètes, version planifiée et attributs résultants.
+- `openinfra rsot reconcile-object` et `/api/v1/rsot/reconcile-object` produisent un plan de réconciliation déterministe avec chemins modifiés, conflits, règles obsolètes, version planifiée et attributs résultants.
 - L’application est explicite via `--apply` ou `apply=true` et ne s’exécute que lorsque les règles de source autoritative acceptent la mise à jour.
-- Les plans refusés et applications acceptées sont auditables par objet via `itrm.reconciliation.plan` et `itrm.reconciliation.apply`.
-- La roadmap P09 ajoute `TST-P09-ITRM-RECONCILIATION` et aligne `REQ-00759`.
+- Les plans refusés et applications acceptées sont auditables par objet via `rsot.reconciliation.plan` et `rsot.reconciliation.apply`.
+- La roadmap P09 ajoute `TST-P09-RSOT-RECONCILIATION` et aligne `REQ-00759`.
 
-### Avancement v0.29.25 — P09 taxonomie ITRM catégories / types DC
+### Avancement v0.29.25 — P09 taxonomie RSOT catégories / types DC
 
-- OpenInfra expose un catalogue ITRM structuré par catégories datacenter et types rattachés : serveurs, postes, périphériques, réseau, stockage, énergie, racks/facility, refroidissement, sécurité, télécom, cloud/virtualisation, logiciels/services, câblage et mobile/IoT.
-- `openinfra itrm resource-taxonomy` et `/api/v1/itrm/resource-taxonomy` publient la taxonomie consommable par clients, intégrations et BFF web.
-- Les créations, modifications et réconciliations ITRM acceptent `resource_category` et `resource_type`, valident que le type appartient à la catégorie, et enrichissent les attributs historisés.
+- OpenInfra expose un catalogue RSOT structuré par catégories datacenter et types rattachés : serveurs, postes, périphériques, réseau, stockage, énergie, racks/facility, refroidissement, sécurité, télécom, cloud/virtualisation, logiciels/services, câblage et mobile/IoT.
+- `openinfra rsot resource-taxonomy` et `/api/v1/rsot/resource-taxonomy` publient la taxonomie consommable par clients, intégrations et BFF web.
+- Les créations, modifications et réconciliations RSOT acceptent `resource_category` et `resource_type`, valident que le type appartient à la catégorie, et enrichissent les attributs historisés.
 - Le dashboard web filtre automatiquement le champ type de ressource selon la catégorie choisie ; le mécanisme de listes dépendantes est générique pour les formulaires analogues.
-- La roadmap P09 ajoute `TST-P09-ITRM-RESOURCE-TAXONOMY` et aligne `REQ-00760`, `REQ-00761` et `REQ-00762`.
+- La roadmap P09 ajoute `TST-P09-RSOT-RESOURCE-TAXONOMY` et aligne `REQ-00760`, `REQ-00761` et `REQ-00762`.
 
 ### Avancement v0.29.26 — P10 localisation équipement DCIM API/UI
 
@@ -1589,12 +1589,12 @@ La roadmap P08 ajoute `TST-P08-WEB-GLOBAL-SEARCH-HEADER` et aligne `REQ-00777`. 
 
 ### v0.29.38 — Recherche globale backend groupée par composant
 
-La version 0.29.38 transforme la recherche globale de header en capacité backend réelle. Le service applicatif agrège ITRM, IPAM et Discovery, l’API expose `GET /api/v1/search/global`, la CLI ajoute `openinfra search global` et le portail web affiche les résultats métiers groupés par composant avec fallback local contrôlé.
+La version 0.29.38 transforme la recherche globale de header en capacité backend réelle. Le service applicatif agrège RSOT, IPAM et Discovery, l’API expose `GET /api/v1/search/global`, la CLI ajoute `openinfra search global` et le portail web affiche les résultats métiers groupés par composant avec fallback local contrôlé.
 
 La roadmap P08 ajoute `TST-P08-WEB-BACKEND-GLOBAL-SEARCH` et aligne `REQ-00778`.
 ### 0.29.41 — robustesse recherche globale et palette Dashboard
 
-La version 0.29.41 restaure la palette initiale des camemberts du Dashboard : bleu action pour les lectures et vert pour les mutations. Elle branche aussi réellement les boutons Swagger/ReDoc du double header sur les routes documentaires du backend API via les liens `apiDocumentation` de `/config.json` et le proxy BFF `openinfra-web`. Elle conserve les corrections de recherche globale livrées en 0.29.39, tout en retirant le duo bleu nuit/fuchsia jugé trop agressif visuellement. Le même incrément remplace le pictogramme ITRM par une icône de référentiel/référence afin d’aligner la navigation sur le rôle canonique du composant, puis fixe le double header en haut de viewport afin que la page scrolle sous le bandeau sans recouvrement.
+La version 0.29.41 restaure la palette initiale des camemberts du Dashboard : bleu action pour les lectures et vert pour les mutations. Elle branche aussi réellement les boutons Swagger/ReDoc du double header sur les routes documentaires du backend API via les liens `apiDocumentation` de `/config.json` et le proxy BFF `openinfra-web`. Elle conserve les corrections de recherche globale livrées en 0.29.39, tout en retirant le duo bleu nuit/fuchsia jugé trop agressif visuellement. Le même incrément remplace le pictogramme RSOT par une icône de référentiel/référence afin d’aligner la navigation sur le rôle canonique du composant, puis fixe le double header en haut de viewport afin que la page scrolle sous le bandeau sans recouvrement.
 
 ### 0.29.42 — header fixe et hiérarchie d’ombres
 

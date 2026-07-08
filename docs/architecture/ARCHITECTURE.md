@@ -1,4 +1,4 @@
-### v0.29.53 — exports massifs streaming par chunks signés
+### v0.29.54 — exports massifs streaming par chunks signés
 
 - Ajout `openinfra export artifact-chunk` pour lire un artefact exporté signé par offset/taille bornée.
 - Ajout `GET /api/v1/exports/artifact-chunk` retournant `content_base64`, `chunk_sha256`, `next_offset`, `final_chunk` et métadonnées d’artefact après vérification SHA-256 + HMAC-SHA256 complète.
@@ -191,22 +191,22 @@ La persistance PostgreSQL est ajoutée par `0005_access_policy_abac.sql` avec pa
 
 La v0.9.0 ajoute une couche applicative d’audit consultable indépendamment des modules métier. Les services existants continuent d’écrire des `AuditEvent`; les adaptateurs JSON et PostgreSQL les enrichissent avec `previous_hash` et `record_hash`. Le service `AuditTrailService` expose la liste paginée, l’export JSON/JSONL et la vérification de chaîne avec permission `audit.read`. L’architecture reste hexagonale : le domaine contient les objets d’intégrité, l’application orchestre les cas d’usage, l’infrastructure persiste et calcule le chaînage au plus près de l’écriture transactionnelle, et les interfaces CLI/API exposent des contrats stables.
 
-## v0.10.0 — Alignement roadmap REL-01/P03 IT Ressources Management
+## v0.10.0 — Alignement roadmap REL-01/P03 RSOT (Ressource Source of Truth)
 
-La version 0.10.0 reprend l'ordre de la roadmap et livre le premier incrément P03 avant de poursuivre les extensions P14. Le module IT Ressources Management introduit un agrégat `SourceOfTruthObject` pour les objets génériques et spécialisés, un agrégat `SourceRelation` pour les relations typées et un snapshot `SourceObjectSnapshot` pour l'historisation initiale.
+La version 0.10.0 reprend l'ordre de la roadmap et livre le premier incrément P03 avant de poursuivre les extensions P14. Le module RSOT (Ressource Source of Truth) introduit un agrégat `SourceOfTruthObject` pour les objets génériques et spécialisés, un agrégat `SourceRelation` pour les relations typées et un snapshot `SourceObjectSnapshot` pour l'historisation initiale.
 
 Frontières conservées :
 
 - domaine : invariants clés sûres, type d'objet, tags, attributs JSON, version, relation et validité temporelle ;
-- application : `SourceOfTruthService`, contrôle `itrm.read` / `itrm.write`, audit et transactions ;
+- application : `SourceOfTruthService`, contrôle `rsot.read` / `rsot.write`, audit et transactions ;
 - infrastructure : `JsonSourceOfTruthRepository` et `PostgreSQLSourceOfTruthRepository` ;
-- interfaces : commandes `openinfra itrm *` et endpoints `/api/v1/itrm/*`.
+- interfaces : commandes `openinfra rsot *` et endpoints `/api/v1/rsot/*`.
 
 La migration `0007_source_of_truth_core.sql` reste additive et partitionnée par `tenant_id`. Elle ne modifie pas les migrations existantes et préserve la compatibilité des modules IPAM, DCIM, IAM, ABAC et audit.
 
 ## v0.11.0 — REL-01/P03 EPIC-0306 Gouvernance minimale des sources
 
-La version 0.11.0 poursuit le jalon P03 avec une gouvernance minimale des sources autoritatives. Le domaine `SourceGovernanceRule` définit quel système est autoritatif pour un type d'objet ITRM et un chemin d'attribut donné. L'évaluateur compare les attributs existants et entrants, détecte les chemins modifiés et produit une décision déterministe.
+La version 0.11.0 poursuit le jalon P03 avec une gouvernance minimale des sources autoritatives. Le domaine `SourceGovernanceRule` définit quel système est autoritatif pour un type d'objet RSOT et un chemin d'attribut donné. L'évaluateur compare les attributs existants et entrants, détecte les chemins modifiés et produit une décision déterministe.
 
 Frontières conservées :
 
@@ -214,9 +214,9 @@ Frontières conservées :
 - application : `SourceGovernanceService` et enforcement dans `SourceOfTruthService` avant versionnement d'un objet existant ;
 - ports : `SourceGovernanceRepository` ;
 - infrastructure : `JsonSourceGovernanceRepository` et `PostgreSQLSourceGovernanceRepository` ;
-- interfaces : commandes `openinfra itrm *-governance-*` et endpoints `/api/v1/itrm/governance*`.
+- interfaces : commandes `openinfra rsot *-governance-*` et endpoints `/api/v1/rsot/governance*`.
 
-Le comportement reste compatible : sans règle active applicable, les mises à jour ITRM gardent le comportement v0.10.0. Une règle active peut refuser une modification non autoritative avec `reject`, ou l'accepter avec signalement auditable via `accept_with_audit`. La migration `0008_source_governance.sql` est additive, partitionnée par `tenant_id` et ne modifie aucun schéma antérieur.
+Le comportement reste compatible : sans règle active applicable, les mises à jour RSOT gardent le comportement v0.10.0. Une règle active peut refuser une modification non autoritative avec `reject`, ou l'accepter avec signalement auditable via `accept_with_audit`. La migration `0008_source_governance.sql` est additive, partitionnée par `tenant_id` et ne modifie aucun schéma antérieur.
 
 
 
@@ -404,7 +404,7 @@ L’entrypoint `openinfra-api` écrit également un événement JSON unique sur 
 
 ## v0.25.1 — P06 EPIC-0602 Import massif scalable
 
-La version 0.25.0 a introduit une capacité d’import massif sans modifier le contrat atomique du framework générique livré en 0.24.0. L’architecture reste hexagonale : le domaine décrit les rapports bulk, checkpoints et métriques ; l’application orchestre l’autorisation `itrm.write`, le parsing streaming, les batches, la persistance d’avancement et l’écriture IT Ressources Management ; l’infrastructure fournit les parseurs et les référentiels JSON/PostgreSQL.
+La version 0.25.0 a introduit une capacité d’import massif sans modifier le contrat atomique du framework générique livré en 0.24.0. L’architecture reste hexagonale : le domaine décrit les rapports bulk, checkpoints et métriques ; l’application orchestre l’autorisation `rsot.write`, le parsing streaming, les batches, la persistance d’avancement et l’écriture RSOT (Ressource Source of Truth) ; l’infrastructure fournit les parseurs et les référentiels JSON/PostgreSQL.
 
 Le flux CSV bulk utilise `ImportDatasetParser.iter_rows` pour produire les lignes une par une. Les batches sont bornés par `batch_size`, les checkpoints sont persistés selon `checkpoint_interval`, et la reprise par `resume_job_id` redémarre au `next_row_number` du dernier checkpoint. Les impacts et DLQ restent échantillonnés pour éviter les rapports non bornés sur très gros datasets.
 
@@ -466,7 +466,7 @@ La version `0.29.35` sépare les effets d’élévation visuelle du contenu et d
 
 ## Backend global search v0.29.38
 
-La version `0.29.38` introduit un service applicatif transverse `GlobalSearchService`. Il agrège ITRM, IPAM et Discovery via les ports/services existants, normalise le score de pertinence et retourne un contrat groupé par composant. Le service conserve la séparation Clean Architecture : l’UI et l’API ne lisent pas directement les repositories métiers.
+La version `0.29.38` introduit un service applicatif transverse `GlobalSearchService`. Il agrège RSOT, IPAM et Discovery via les ports/services existants, normalise le score de pertinence et retourne un contrat groupé par composant. Le service conserve la séparation Clean Architecture : l’UI et l’API ne lisent pas directement les repositories métiers.
 
 L’endpoint `GET /api/v1/search/global` expose ce contrat à `openinfra-web` et à tout client API. Les composants protégés qui refusent le jeton courant sont marqués comme non visibles au niveau applicatif, sans fuite de contenu. La commande `openinfra search global` réutilise le même service pour garantir la parité CLI/API/UI.
 
@@ -488,9 +488,9 @@ Par défaut, les liens restent same-origin pour simplifier les déploiements rev
 
 La visualisation des statistiques d’accueil conserve son calcul déterministe lecture/mutation et revient à la palette initiale `action/green`, plus lisible et moins fatigante que le duo bleu nuit/fuchsia. Le changement reste strictement CSS : il ne modifie ni le modèle de données, ni les contrats API, ni les métriques affichées.
 
-### v0.29.41 — pictogramme ITRM orienté référentiel
+### v0.29.41 — pictogramme RSOT orienté référentiel
 
-Le composant ITRM conserve ses contrats API, CLI et formulaires existants, mais son pictogramme UI passe d’une icône tableau à une icône de référentiel/référence. La modification est limitée à la couche interface : elle touche le catalogue d’icônes React/runtime et le choix d’icône du module ITRM, sans modifier les données métier ni les permissions.
+Le composant RSOT conserve ses contrats API, CLI et formulaires existants, mais son pictogramme UI passe d’une icône tableau à une icône de référentiel/référence. La modification est limitée à la couche interface : elle touche le catalogue d’icônes React/runtime et le choix d’icône du module RSOT, sans modifier les données métier ni les permissions.
 
 ### v0.29.39 — robustesse UX de la recherche globale
 

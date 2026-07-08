@@ -1103,7 +1103,7 @@ class TestOpenInfraAccessPolicyCli:
         capsys.readouterr()
         upsert_code = OpenInfraCLI().run(
             [
-                "itrm",
+                "rsot",
                 "upsert-object",
                 "--data",
                 str(data),
@@ -1150,7 +1150,7 @@ class TestOpenInfraAccessPolicyCli:
         assert search_code == 0
         assert payload["query"] == "Paris"
         groups = {group["component"]: group for group in payload["groups"]}
-        assert groups["itrm"]["items"][0]["label"] == "Paris CLI DB 01"
+        assert groups["rsot"]["items"][0]["label"] == "Paris CLI DB 01"
 
 
 def test_itam_support_profile_cli_commands(tmp_path: Path, capsys: object) -> None:

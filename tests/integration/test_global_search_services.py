@@ -6,9 +6,13 @@ import pytest
 
 from openinfra.application.container import ApplicationFactory
 from openinfra.application.discovery_services import RegisterCollectorCommand
-from openinfra.application.ipam_services import AllocateIpCommand, DefineIpPrefixCommand, DefineVrfCommand
-from openinfra.application.search_services import GlobalSearchCommand
+from openinfra.application.ipam_services import (
+    AllocateIpCommand,
+    DefineIpPrefixCommand,
+    DefineVrfCommand,
+)
 from openinfra.application.itam_services import RegisterManufacturerSupportCommand
+from openinfra.application.search_services import GlobalSearchCommand
 from openinfra.application.security_services import BootstrapTokenCommand
 from openinfra.application.source_of_truth_services import UpsertSourceObjectCommand
 from openinfra.domain.common import ValidationError
@@ -38,9 +42,7 @@ def test_global_search_groups_backend_results_by_component(tmp_path) -> None:
             key="server/paris-db-01",
             kind="server",
             display_name="Paris DB 01",
-            attributes_json=json.dumps(
-                {"hostname": "paris-db-01", "serial_number": "SN-DB-01"}
-            ),
+            attributes_json=json.dumps({"hostname": "paris-db-01", "serial_number": "SN-DB-01"}),
             tags=("paris", "database"),
             source="manual",
             resource_category="server",
@@ -91,11 +93,11 @@ def test_global_search_groups_backend_results_by_component(tmp_path) -> None:
 
     assert result["total"] >= 3
     groups = {group["component"]: group for group in result["groups"]}
-    assert {"itrm", "itam", "ipam", "discovery"}.issubset(groups)
-    assert groups["itrm"]["items"][0]["label"] == "Paris DB 01"
+    assert {"rsot", "itam", "ipam", "discovery"}.issubset(groups)
+    assert groups["rsot"]["items"][0]["label"] == "Paris DB 01"
     assert groups["ipam"]["items"]
     assert groups["discovery"]["items"][0]["label"] == "Paris discovery proxy"
-    assert groups["itrm"]["items"][0]["route"].startswith("/api/v1/itrm/objects")
+    assert groups["rsot"]["items"][0]["route"].startswith("/api/v1/rsot/objects")
 
     itam_result = app.global_search_service.search(
         GlobalSearchCommand("default", "pytest", token, "PARIS-ITAM-001", limit=3)

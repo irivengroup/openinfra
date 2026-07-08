@@ -19,7 +19,7 @@ OpenInfra doit répondre à des contraintes enterprise : cohérence, évolutivit
 
 ## Décision
 
-Les fonctions IA produisent recommandations et analyses, mais ne modifient pas la IT Ressources Management sans validation.
+Les fonctions IA produisent recommandations et analyses, mais ne modifient pas la RSOT (Ressource Source of Truth) sans validation.
 
 ## Conséquences positives
 

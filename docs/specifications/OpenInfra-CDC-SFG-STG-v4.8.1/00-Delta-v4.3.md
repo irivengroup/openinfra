@@ -16,7 +16,7 @@ La version 4.3.0 consolide les recommandations précédentes dans un cadre enter
 
 ## Décisions structurantes
 
-1. OpenInfra reste une solution IT Ressources Management, DCIM, ITAM, Discovery, Dependency Mapping, IPAM, conformité, exploitation et automatisation.
+1. OpenInfra reste une solution RSOT (Ressource Source of Truth), DCIM, ITAM, Discovery, Dependency Mapping, IPAM, conformité, exploitation et automatisation.
 2. OpenInfra ne fournit aucun module natif de ticketing, incident, demande, problème, changement ITIL, catalogue de services ITSM ou SLA ticket.
 3. Les éditions Pro et Entreprise doivent pouvoir se connecter aux solutions ITSM externes via connecteurs, API et webhooks.
 4. Les noms systemd sont fonctionnels et identiques quelle que soit l'édition.

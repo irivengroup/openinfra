@@ -783,7 +783,7 @@ const FIELD_SETS = {
   riKind: { name: "kind", label: "Catégorie", type: "select", options: RESOURCE_CATEGORY_OPTIONS },
   tag: { name: "tag", label: "Tag", placeholder: "prod" },
   actor: { name: "actor", label: "Opérateur", required: true, placeholder: "admin@openinfra" },
-  riKey: { name: "key", label: "Clé ITRM", required: true, placeholder: "server/srv-db-01" },
+  riKey: { name: "key", label: "Clé RSOT", required: true, placeholder: "server/srv-db-01" },
   displayName: { name: "display_name", label: "Nom affiché", required: true, placeholder: "srv-db-01" },
   source: { name: "source", label: "Source autoritative", required: true, type: "select", options: SOURCE_OPTIONS },
   serial: { name: "serial", label: "Numéro de série", target: "attributes.serial", placeholder: "SN123456" },
@@ -800,7 +800,7 @@ const FIELD_SETS = {
   tags: { name: "tags", label: "Tags", type: "csv", placeholder: "prod,critical,postgres" },
   asOf: { name: "as_of", label: "Date ISO-8601", required: true, placeholder: "2026-07-06T10:00:00+02:00" },
   edition: { name: "edition", label: "Édition", type: "select", options: ["lite", "pro", "enterprise"], defaultValue: "enterprise" },
-  featureCapability: { name: "capability", label: "Capacité", type: "select", options: ["core_it_resources_management", "dcim", "ipam", "rbac", "audit", "import_export", "distributed_discovery_agents", "installer_agent_scope"], defaultValue: "ipam" },
+  featureCapability: { name: "capability", label: "Capacité", type: "select", options: ["core_rsot", "dcim", "ipam", "rbac", "audit", "import_export", "distributed_discovery_agents", "installer_agent_scope"], defaultValue: "ipam" },
   quotaResource: { name: "resource", label: "Ressource quota", type: "select", options: ["equipment", "subnet_vlan", "ip_dns_record", "user", "discovery_collector"], defaultValue: "equipment" },
   requestedIncrement: { name: "requested_increment", label: "Incrément demandé", type: "number", defaultValue: "1", placeholder: "1" }
 };
@@ -810,16 +810,16 @@ const OPENINFRA_MODULES = [
     { id: "version", label: "Version runtime", method: "GET", path: "/v1/version", query: [] },
     { id: "schema", label: "Statut schéma DB", method: "GET", path: "/v1/database/schema", query: [] }
   ] },
-  { id: "itrm", label: "IT Ressources Management", shortLabel: "ITRM", icon: "reference", description: "Inventaire canonique, relations, versions, gouvernance et certification.", operations: [
-    { id: "itrm-taxonomy", label: "Catalogue catégories / types", method: "GET", path: "/v1/itrm/resource-taxonomy", query: [] },
-    { id: "itrm-list", label: "Lister les objets ITRM", method: "GET", path: "/v1/itrm/objects", query: [FIELD_SETS.resourceCategoryFilter, FIELD_SETS.resourceTypeFilter, FIELD_SETS.tag, FIELD_SETS.limit] },
-    { id: "itrm-upsert", label: "Créer / mettre à jour une ressource", method: "POST", path: "/v1/itrm/objects", body: [FIELD_SETS.actor, FIELD_SETS.riKey, { ...FIELD_SETS.resourceCategory, required: true }, { ...FIELD_SETS.resourceType, required: true }, FIELD_SETS.displayName, FIELD_SETS.source, FIELD_SETS.serial, FIELD_SETS.vendor, FIELD_SETS.model, FIELD_SETS.site, FIELD_SETS.building, FIELD_SETS.room, FIELD_SETS.row, FIELD_SETS.column, FIELD_SETS.rack, FIELD_SETS.managementIp, FIELD_SETS.lifecycle, FIELD_SETS.tags] },
-    { id: "itrm-relations", label: "Lister les relations", method: "GET", path: "/v1/itrm/relations", query: [{ name: "source_key", label: "Ressource source" }, { name: "target_key", label: "Ressource cible" }, { name: "relation_type", label: "Type de relation" }, { ...FIELD_SETS.asOf, required: false }, FIELD_SETS.limit] },
-    { id: "itrm-as-of", label: "Restituer une ressource à date", method: "GET", path: "/v1/itrm/object-as-of", query: [FIELD_SETS.riKey, FIELD_SETS.asOf] },
-    { id: "itrm-object-audit", label: "Audit d’une ressource", method: "GET", path: "/v1/itrm/object-audit", query: [FIELD_SETS.riKey, FIELD_SETS.limit] },
-    { id: "itrm-quality-object", label: "Évaluer la qualité d’une ressource", method: "GET", path: "/v1/itrm/quality/object", query: [FIELD_SETS.riKey] },
-    { id: "itrm-quality-summary", label: "Synthèse qualité / certification", method: "GET", path: "/v1/itrm/quality/summary", query: [FIELD_SETS.resourceCategoryFilter, FIELD_SETS.resourceTypeFilter, FIELD_SETS.tag, FIELD_SETS.limit] },
-    { id: "itrm-governance", label: "Évaluer une règle de gouvernance", method: "POST", path: "/v1/itrm/governance/evaluate", body: [
+  { id: "rsot", label: "RSOT (Ressource Source of Truth)", shortLabel: "RSOT", icon: "reference", description: "Inventaire canonique, relations, versions, gouvernance et certification.", operations: [
+    { id: "rsot-taxonomy", label: "Catalogue catégories / types", method: "GET", path: "/v1/rsot/resource-taxonomy", query: [] },
+    { id: "rsot-list", label: "Lister les objets RSOT", method: "GET", path: "/v1/rsot/objects", query: [FIELD_SETS.resourceCategoryFilter, FIELD_SETS.resourceTypeFilter, FIELD_SETS.tag, FIELD_SETS.limit] },
+    { id: "rsot-upsert", label: "Créer / mettre à jour une ressource", method: "POST", path: "/v1/rsot/objects", body: [FIELD_SETS.actor, FIELD_SETS.riKey, { ...FIELD_SETS.resourceCategory, required: true }, { ...FIELD_SETS.resourceType, required: true }, FIELD_SETS.displayName, FIELD_SETS.source, FIELD_SETS.serial, FIELD_SETS.vendor, FIELD_SETS.model, FIELD_SETS.site, FIELD_SETS.building, FIELD_SETS.room, FIELD_SETS.row, FIELD_SETS.column, FIELD_SETS.rack, FIELD_SETS.managementIp, FIELD_SETS.lifecycle, FIELD_SETS.tags] },
+    { id: "rsot-relations", label: "Lister les relations", method: "GET", path: "/v1/rsot/relations", query: [{ name: "source_key", label: "Ressource source" }, { name: "target_key", label: "Ressource cible" }, { name: "relation_type", label: "Type de relation" }, { ...FIELD_SETS.asOf, required: false }, FIELD_SETS.limit] },
+    { id: "rsot-as-of", label: "Restituer une ressource à date", method: "GET", path: "/v1/rsot/object-as-of", query: [FIELD_SETS.riKey, FIELD_SETS.asOf] },
+    { id: "rsot-object-audit", label: "Audit d’une ressource", method: "GET", path: "/v1/rsot/object-audit", query: [FIELD_SETS.riKey, FIELD_SETS.limit] },
+    { id: "rsot-quality-object", label: "Évaluer la qualité d’une ressource", method: "GET", path: "/v1/rsot/quality/object", query: [FIELD_SETS.riKey] },
+    { id: "rsot-quality-summary", label: "Synthèse qualité / certification", method: "GET", path: "/v1/rsot/quality/summary", query: [FIELD_SETS.resourceCategoryFilter, FIELD_SETS.resourceTypeFilter, FIELD_SETS.tag, FIELD_SETS.limit] },
+    { id: "rsot-governance", label: "Évaluer une règle de gouvernance", method: "POST", path: "/v1/rsot/governance/evaluate", body: [
       { name: "object_kind", label: "Catégorie d’objet", required: true, type: "select", options: RESOURCE_CATEGORY_OPTIONS },
       { name: "incoming_source", label: "Source entrante", required: true, type: "select", options: SOURCE_OPTIONS },
       { name: "existing_serial", label: "Serial existant", target: "existing_attributes.serial" },
@@ -827,7 +827,7 @@ const OPENINFRA_MODULES = [
       { name: "existing_site", label: "Site existant", target: "existing_attributes.site" },
       { name: "incoming_site", label: "Site entrant", target: "incoming_attributes.site" }
     ] },
-    { id: "itrm-reconcile", label: "Réconcilier une ressource", method: "POST", path: "/v1/itrm/reconcile-object", body: [
+    { id: "rsot-reconcile", label: "Réconcilier une ressource", method: "POST", path: "/v1/rsot/reconcile-object", body: [
       FIELD_SETS.actor,
       FIELD_SETS.riKey,
       FIELD_SETS.source,
@@ -938,7 +938,7 @@ class OpenInfraDashboard {
     this.state = {
       activeModuleId: "overview",
       selected: OPENINFRA_MODULES[0].operations[0],
-      openedModules: new Set(["itrm"]),
+      openedModules: new Set(["rsot"]),
       tenant: "default",
       config: null,
       ready: null,
@@ -1193,7 +1193,7 @@ class OpenInfraDashboard {
             <div class="openinfra-sidebar-heading">Pilotage</div>
             ${this.renderSidebar()}
             <div class="openinfra-sidebar-heading">État runtime</div>
-            <div class="px-2 small text-muted">
+            <div class="px-2 small text-muted openinfra-runtime-status">
               <p><span class="openinfra-status-dot ${ready?.ready === true ? "ready" : "warning"}"></span>Backend ${ready?.ready === true ? "prêt" : "à vérifier"}</p>
               <p>Version : <strong>${this.escape(displayedVersion)}</strong></p>
               <p>Trust web/backend : <strong>${this.escape(config?.webBackendTrust || "server-side")}</strong></p>
@@ -1338,7 +1338,7 @@ class OpenInfraDashboard {
         <p class="text-muted">${this.escape(module.description)}</p>
         <div class="row g-3 mb-3"><label class="col-md-4 form-label">Tenant<input id="openinfra-tenant" class="form-control" value="${this.escape(this.state.tenant)}" autocomplete="off"></label></div>
         <div class="row g-3">${fields.map((field) => this.renderField(field)).join("") || "<p>Aucun paramètre requis.</p>"}</div>
-        <button class="btn btn-primary mt-3" type="button" id="openinfra-execute">Exécuter</button>
+        <button class="btn openinfra-submit-btn mt-3" type="button" id="openinfra-execute">Exécuter</button>
       </section>
       <aside class="col-12 col-xxl-4">
         <h3 class="h6 text-uppercase text-muted">Résultat</h3>

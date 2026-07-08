@@ -34,7 +34,7 @@ class BackendFakeHandler(BaseHTTPRequestHandler):
     def log_message(self, _format: str, *_args: object) -> None:
         return None
 
-    def do_GET(self) -> None:
+    def do_GET(self) -> None:  # noqa: N802
         if self.path == "/ready":
             self._json(HTTPStatus.OK, {"ready": True, "backend": "fake"})
             return
@@ -67,7 +67,7 @@ class BackendFakeHandler(BaseHTTPRequestHandler):
             return
         self._json(HTTPStatus.NOT_FOUND, {"error": self.path})
 
-    def do_POST(self) -> None:
+    def do_POST(self) -> None:  # noqa: N802
         if self.path == "/api/v1/echo":
             length = int(self.headers.get("Content-Length", "0"))
             payload = json.loads(self.rfile.read(length).decode("utf-8"))
@@ -175,7 +175,9 @@ class TestOpenInfraWeb:
         assert "Ouvrir ReDoc backend API" in static_js + main_js
         assert "openinfra-api-doc-actions" in static_js + static_css
         assert "openinfra-edition-badge" in static_js + static_css + main_js
-        edition_badge_rule = static_css.split(".badge.openinfra-edition-badge", 1)[1].split("}", 1)[0]
+        edition_badge_rule = static_css.split(".badge.openinfra-edition-badge", 1)[1].split("}", 1)[
+            0
+        ]
         assert "#2a0015 0%, #4b001f 46%, #6a1430 100%" in edition_badge_rule
         assert "#ff2bd6" not in edition_badge_rule
         assert "#c000a8" not in edition_badge_rule
@@ -184,8 +186,8 @@ class TestOpenInfraWeb:
         assert "brown" not in edition_badge_rule.lower()
         assert "badge text-bg-primary openinfra-edition-badge" not in static_js + main_js
         assert "var(--openinfra-action)) !important;" not in edition_badge_rule
-        assert "config?.edition || \"runtime\")}</span>" in static_js
-        assert "config?.authMode || \"standard\")}</span>" not in static_js
+        assert 'config?.edition || "runtime")}</span>' in static_js
+        assert 'config?.authMode || "standard")}</span>' not in static_js
         assert "config.authMode || 'standard'" not in main_js
         assert "openinfra-skip-link" in static_js + static_css + main_js
         assert "Aller au contenu principal" in static_js + main_js
@@ -233,17 +235,31 @@ class TestOpenInfraWeb:
         assert "--bs-btn-padding-x: .5rem" in static_css
         assert "font-size: .72rem" in static_css
         assert "min-width: 2.875rem" in static_css
-        assert "grid-template-columns: minmax(0, 1fr) minmax(18rem, 50%) minmax(0, 1fr)" in static_css
-        assert "IT Ressources Management" in static_js
+        assert (
+            "grid-template-columns: minmax(0, 1fr) minmax(18rem, 50%) minmax(0, 1fr)" in static_css
+        )
+        assert "RSOT (Ressource Source of Truth)" in static_js
         assert 'icon: "reference"' in static_js
-        assert 'icon: \'reference\'' in main_js
-        assert "ITRM" in static_js
-        assert 'M1 2a2 2 0 0 1 2-2h1.6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V2zm6.7 0a2 2 0 0 1 2-2h1.6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9.7a2 2 0 0 1-2-2V2zm6.25.55A1.8 1.8 0 0 1 15 4.18v7.64a1.8 1.8 0 0 1-1.05 1.63V2.55z' in static_js
-        assert 'M1 2a2 2 0 0 1 2-2h1.6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V2zm6.7 0a2 2 0 0 1 2-2h1.6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9.7a2 2 0 0 1-2-2V2zm6.25.55A1.8 1.8 0 0 1 15 4.18v7.64a1.8 1.8 0 0 1-1.05 1.63V2.55z' in main_js
-        assert 'M3 0h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2zm0 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H3zm3 7V2h1v5.117' not in static_js + main_js
-        assert 'id: "itrm", label: "IT Ressources Management", shortLabel: "ITRM", icon: "table"' not in static_js
+        assert "icon: 'reference'" in main_js
+        assert "RSOT" in static_js
+        assert (
+            "M1 2a2 2 0 0 1 2-2h1.6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V2zm6.7 0a2 2 0 0 1 2-2h1.6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9.7a2 2 0 0 1-2-2V2zm6.25.55A1.8 1.8 0 0 1 15 4.18v7.64a1.8 1.8 0 0 1-1.05 1.63V2.55z"
+            in static_js
+        )
+        assert (
+            "M1 2a2 2 0 0 1 2-2h1.6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V2zm6.7 0a2 2 0 0 1 2-2h1.6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9.7a2 2 0 0 1-2-2V2zm6.25.55A1.8 1.8 0 0 1 15 4.18v7.64a1.8 1.8 0 0 1-1.05 1.63V2.55z"
+            in main_js
+        )
+        assert (
+            "M3 0h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2zm0 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H3zm3 7V2h1v5.117"
+            not in static_js + main_js
+        )
+        assert (
+            'id: "rsot", label: "RSOT (Ressource Source of Truth)", shortLabel: "RSOT", icon: "table"'
+            not in static_js
+        )
         assert "bookmark" not in static_js.lower()  # icon remains inline SVG path data only
-        assert "/v1/itrm/objects" in static_js
+        assert "/v1/rsot/objects" in static_js
         assert "Backend prêt" not in static_js
         assert "alert alert-info" not in static_js
         assert 'role="note"' not in static_js
@@ -281,16 +297,25 @@ class TestOpenInfraWeb:
         assert "--openinfra-navy: #001b41" in static_css
         assert "--openinfra-action: #0066ff" in static_css
         assert "--openinfra-green: #15a362" in static_css
-        assert "conic-gradient(var(--openinfra-action) 0 var(--oi-read-end), var(--openinfra-green)" in static_css
+        assert (
+            "conic-gradient(var(--openinfra-action) 0 var(--oi-read-end), var(--openinfra-green)"
+            in static_css
+        )
         assert "background: var(--openinfra-action);" in static_css
         assert "background: var(--openinfra-green);" in static_css
-        assert "conic-gradient(var(--openinfra-navy) 0 var(--oi-read-end), var(--openinfra-fuchsia)" not in static_css
+        assert (
+            "conic-gradient(var(--openinfra-navy) 0 var(--oi-read-end), var(--openinfra-fuchsia)"
+            not in static_css
+        )
         assert "background: var(--openinfra-fuchsia);" not in static_css
         assert ".openinfra-edition-badge" in static_css
         assert ".badge.openinfra-edition-badge" in static_css
         assert "--openinfra-content-shadow: 0 .16rem .55rem rgba(0, 27, 65, .055)" in static_css
         assert "--openinfra-content-shadow-hover: 0 .28rem .8rem rgba(0, 27, 65, .07)" in static_css
-        assert "--openinfra-header-shadow: 0 .95rem 2.25rem rgba(0, 27, 65, .18), 0 .16rem .55rem rgba(0, 61, 143, .16)" in static_css
+        assert (
+            "--openinfra-header-shadow: 0 .95rem 2.25rem rgba(0, 27, 65, .18), 0 .16rem .55rem rgba(0, 61, 143, .16)"
+            in static_css
+        )
         assert "box-shadow: var(--openinfra-content-shadow);" in static_css
         assert "box-shadow: var(--openinfra-content-shadow-hover);" in static_css
         assert "box-shadow: var(--openinfra-header-shadow);" in static_css
@@ -315,7 +340,7 @@ class TestOpenInfraWeb:
         assert "requested_scope" in static_js
         assert 'path: "/api/v1/database/schema"' not in static_js
         assert "Numéro de série" in static_js
-        assert 'path: "/v1/itrm/reconcile-object"' in static_js
+        assert 'path: "/v1/rsot/reconcile-object"' in static_js
         assert "Réconcilier une ressource" in static_js
         assert "Catalogue catégories / types" in static_js
         assert "RESOURCE_TAXONOMY" in static_js
@@ -452,8 +477,8 @@ class TestOpenInfraWeb:
             backend_route = "/api" + operation_path
             if backend_route in api_routes:
                 continue
-            if backend_route.startswith("/api/v1/itrm/"):
-                legacy_route = "/api/v1/sot/" + backend_route.removeprefix("/api/v1/itrm/")
+            if backend_route.startswith("/api/v1/rsot/"):
+                legacy_route = "/api/v1/rsot/" + backend_route.removeprefix("/api/v1/rsot/")
                 assert legacy_route in api_routes
                 continue
             raise AssertionError("dashboard operation route is not backed by API: " + backend_route)

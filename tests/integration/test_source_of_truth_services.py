@@ -31,7 +31,7 @@ class TestSourceOfTruthServices:
                 tenant_id="default",
                 actor="pytest",
                 subject="sot-admin",
-                roles=("itrm:operator", "audit:reader"),
+                roles=("rsot:operator", "audit:reader"),
                 token=admin_token,
             )
         )
@@ -131,7 +131,7 @@ class TestSourceOfTruthServices:
                 tenant_id="default",
                 actor="pytest",
                 subject="itrm-history-admin",
-                roles=("itrm:operator",),
+                roles=("rsot:operator",),
                 token=admin_token,
             )
         )
@@ -230,8 +230,8 @@ class TestSourceOfTruthServices:
         assert len(active_relations.items) == 1
         assert len(expired_relations.items) == 0
         assert [record.event.action for record in audit_page.items] == [
-            "itrm.object.update",
-            "itrm.object.create",
+            "rsot.object.update",
+            "rsot.object.create",
         ]
 
     def test_access_denied_and_validation_errors_are_controlled(self, tmp_path: Path) -> None:
@@ -283,7 +283,7 @@ class TestSourceOfTruthServices:
                 "--subject",
                 "sot-cli-admin",
                 "--role",
-                "itrm:operator",
+                "rsot:operator",
                 "--token",
                 token,
             ]
@@ -291,7 +291,7 @@ class TestSourceOfTruthServices:
         capsys.readouterr()
         create_code = OpenInfraCLI().run(
             [
-                "itrm",
+                "rsot",
                 "upsert-object",
                 "--data",
                 str(data),
@@ -316,7 +316,7 @@ class TestSourceOfTruthServices:
         created = json.loads(capsys.readouterr().out)
         list_code = OpenInfraCLI().run(
             [
-                "itrm",
+                "rsot",
                 "list-objects",
                 "--data",
                 str(data),
@@ -331,7 +331,7 @@ class TestSourceOfTruthServices:
         listed = json.loads(capsys.readouterr().out)
         version_code = OpenInfraCLI().run(
             [
-                "itrm",
+                "rsot",
                 "get-object-version",
                 "--data",
                 str(data),
@@ -368,7 +368,7 @@ class TestSourceOfTruthServices:
                 "--subject",
                 "sot-cli-admin-2",
                 "--role",
-                "itrm:operator",
+                "rsot:operator",
                 "--token",
                 token,
             ]
@@ -377,7 +377,7 @@ class TestSourceOfTruthServices:
         for key, kind in (("application/app-cli", "application"), ("service/svc-cli", "service")):
             OpenInfraCLI().run(
                 [
-                    "itrm",
+                    "rsot",
                     "upsert-object",
                     "--data",
                     str(data),
@@ -398,7 +398,7 @@ class TestSourceOfTruthServices:
             capsys.readouterr()
         relation_code = OpenInfraCLI().run(
             [
-                "itrm",
+                "rsot",
                 "create-relation",
                 "--data",
                 str(data),
@@ -419,7 +419,7 @@ class TestSourceOfTruthServices:
         relation = json.loads(capsys.readouterr().out)
         list_code = OpenInfraCLI().run(
             [
-                "itrm",
+                "rsot",
                 "list-relations",
                 "--data",
                 str(data),
@@ -446,7 +446,7 @@ class TestSourceOfTruthServices:
                 tenant_id="default",
                 actor="pytest",
                 subject="sot-admin-errors",
-                roles=("itrm:operator",),
+                roles=("rsot:operator",),
                 token=token,
             )
         )
@@ -508,7 +508,7 @@ def test_itrm_resource_taxonomy_filters_types_and_validates_category_type(tmp_pa
             tenant_id="default",
             actor="pytest",
             subject="itrm-taxonomy-admin",
-            roles=("itrm:operator",),
+            roles=("rsot:operator",),
             token=admin_token,
         )
     )

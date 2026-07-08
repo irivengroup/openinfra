@@ -206,7 +206,8 @@ def test_software_license_http_contract(tmp_path: Path) -> None:
             token,
         )
         compliance = _get_json(
-            base + "/api/v1/itam/software-license/compliance?tenant_id=default&license_reference=lic-http-001&as_of=2026-07-08",
+            base
+            + "/api/v1/itam/software-license/compliance?tenant_id=default&license_reference=lic-http-001&as_of=2026-07-08",
             token,
         )
 
@@ -223,91 +224,103 @@ def test_software_license_http_contract(tmp_path: Path) -> None:
 def test_software_license_cli_commands(tmp_path: Path, capsys: object) -> None:
     state = tmp_path / "cli-state.json"
     token = "cli" + "d" * 40
-    assert OpenInfraCLI().run(
-        [
-            "security",
-            "bootstrap-token",
-            "--data",
-            str(state),
-            "--tenant",
-            "default",
-            "--actor",
-            "pytest",
-            "--subject",
-            "itam-license-cli",
-            "--role",
-            "admin",
-            "--token",
-            token,
-        ]
-    ) == 0
+    assert (
+        OpenInfraCLI().run(
+            [
+                "security",
+                "bootstrap-token",
+                "--data",
+                str(state),
+                "--tenant",
+                "default",
+                "--actor",
+                "pytest",
+                "--subject",
+                "itam-license-cli",
+                "--role",
+                "admin",
+                "--token",
+                token,
+            ]
+        )
+        == 0
+    )
     capsys.readouterr()
 
-    assert OpenInfraCLI().run(
-        [
-            "itam",
-            "register-software-license",
-            "--data",
-            str(state),
-            "--tenant",
-            "default",
-            "--admin-token",
-            token,
-            "--product-name",
-            "OpenInfra CLI Connector",
-            "--vendor",
-            "Iriven Labs",
-            "--license-reference",
-            "lic-cli-001",
-            "--metric",
-            "device",
-            "--purchased-quantity",
-            "2",
-            "--assigned-quantity",
-            "1",
-            "--entitlement-start",
-            "2026-01-01",
-            "--entitlement-end",
-            "2027-01-01",
-        ]
-    ) == 0
+    assert (
+        OpenInfraCLI().run(
+            [
+                "itam",
+                "register-software-license",
+                "--data",
+                str(state),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--product-name",
+                "OpenInfra CLI Connector",
+                "--vendor",
+                "Iriven Labs",
+                "--license-reference",
+                "lic-cli-001",
+                "--metric",
+                "device",
+                "--purchased-quantity",
+                "2",
+                "--assigned-quantity",
+                "1",
+                "--entitlement-start",
+                "2026-01-01",
+                "--entitlement-end",
+                "2027-01-01",
+            ]
+        )
+        == 0
+    )
     created = json.loads(capsys.readouterr().out)
     assert created["available_quantity"] == 1
 
-    assert OpenInfraCLI().run(
-        [
-            "itam",
-            "update-license-assignment",
-            "--data",
-            str(state),
-            "--tenant",
-            "default",
-            "--admin-token",
-            token,
-            "--license-reference",
-            "lic-cli-001",
-            "--assigned-quantity",
-            "3",
-        ]
-    ) == 0
+    assert (
+        OpenInfraCLI().run(
+            [
+                "itam",
+                "update-license-assignment",
+                "--data",
+                str(state),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--license-reference",
+                "lic-cli-001",
+                "--assigned-quantity",
+                "3",
+            ]
+        )
+        == 0
+    )
     capsys.readouterr()
 
-    assert OpenInfraCLI().run(
-        [
-            "itam",
-            "software-license-compliance",
-            "--data",
-            str(state),
-            "--tenant",
-            "default",
-            "--admin-token",
-            token,
-            "--license-reference",
-            "lic-cli-001",
-            "--as-of",
-            "2026-07-08",
-        ]
-    ) == 0
+    assert (
+        OpenInfraCLI().run(
+            [
+                "itam",
+                "software-license-compliance",
+                "--data",
+                str(state),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--license-reference",
+                "lic-cli-001",
+                "--as-of",
+                "2026-07-08",
+            ]
+        )
+        == 0
+    )
     report = json.loads(capsys.readouterr().out)
     assert report["compliance_state"] == "over_assigned"
 
@@ -417,7 +430,9 @@ def test_software_license_rejects_invalid_fields_and_missing_read(tmp_path: Path
     token = _admin_token(app, "invalid" + "f" * 40)
 
     with pytest.raises(NotFoundError, match="software license entitlement not found"):
-        app.itam_support_service.get_software_license(GetSoftwareLicenseCommand("default", token, "missing"))
+        app.itam_support_service.get_software_license(
+            GetSoftwareLicenseCommand("default", token, "missing")
+        )
 
     with pytest.raises(NotFoundError, match="software license entitlement not found"):
         app.itam_support_service.get_software_license_compliance(
@@ -537,7 +552,8 @@ def test_software_license_http_errors_are_structured(tmp_path: Path) -> None:
         assert isinstance(body["error"], str) and body["error"]
 
         status, body = _request_json_allow_error(
-            base + "/api/v1/itam/software-license/compliance?tenant_id=default&license_reference=missing",
+            base
+            + "/api/v1/itam/software-license/compliance?tenant_id=default&license_reference=missing",
             "GET",
             token=token,
         )
@@ -576,7 +592,11 @@ def test_software_license_http_errors_are_structured(tmp_path: Path) -> None:
         status, body = _request_json_allow_error(
             base + "/api/v1/itam/software-license/assignment",
             "POST",
-            payload={"tenant_id": "default", "license_reference": "missing", "assigned_quantity": 1},
+            payload={
+                "tenant_id": "default",
+                "license_reference": "missing",
+                "assigned_quantity": 1,
+            },
         )
         assert status == 401
         assert body["error"] in {"access_denied", "missing bearer token"}
@@ -585,7 +605,11 @@ def test_software_license_http_errors_are_structured(tmp_path: Path) -> None:
             base + "/api/v1/itam/software-license/assignment",
             "POST",
             token=token,
-            payload={"tenant_id": "default", "license_reference": "missing", "assigned_quantity": 1},
+            payload={
+                "tenant_id": "default",
+                "license_reference": "missing",
+                "assigned_quantity": 1,
+            },
         )
         assert status == 400
         assert isinstance(body["error"], str) and body["error"]

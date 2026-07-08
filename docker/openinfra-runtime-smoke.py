@@ -257,7 +257,7 @@ class RuntimeSmokeScenario:
 
     def _assert_source_of_truth_lifecycle(self) -> None:
         device = self._client.post(
-            "/api/v1/itrm/objects",
+            "/api/v1/rsot/objects",
             {
                 "tenant_id": "default",
                 "actor": "docker-smoke",
@@ -270,7 +270,7 @@ class RuntimeSmokeScenario:
             },
         )
         application = self._client.post(
-            "/api/v1/itrm/objects",
+            "/api/v1/rsot/objects",
             {
                 "tenant_id": "default",
                 "actor": "docker-smoke",
@@ -283,7 +283,7 @@ class RuntimeSmokeScenario:
             },
         )
         relation = self._client.post(
-            "/api/v1/itrm/relations",
+            "/api/v1/rsot/relations",
             {
                 "tenant_id": "default",
                 "actor": "docker-smoke",
@@ -293,9 +293,9 @@ class RuntimeSmokeScenario:
                 "provenance": "docker-smoke",
             },
         )
-        listed = self._client.get("/api/v1/itrm/objects?tenant_id=default&limit=20&kind=device")
+        listed = self._client.get("/api/v1/rsot/objects?tenant_id=default&limit=20&kind=device")
         version = self._client.get(
-            "/api/v1/itrm/object-versions?tenant_id=default&key=device/runtime-srv-001&version=1"
+            "/api/v1/rsot/object-versions?tenant_id=default&key=device/runtime-srv-001&version=1"
         )
         if device.get("key") != "device/runtime-srv-001":
             raise SmokeError("source object creation failed: " + json.dumps(device, sort_keys=True))
@@ -312,7 +312,7 @@ class RuntimeSmokeScenario:
 
     def _assert_source_governance_lifecycle(self) -> None:
         rule = self._client.post(
-            "/api/v1/itrm/governance-rules",
+            "/api/v1/rsot/governance-rules",
             {
                 "tenant_id": "default",
                 "actor": "docker-smoke",
@@ -326,10 +326,10 @@ class RuntimeSmokeScenario:
             },
         )
         listed = self._client.get(
-            "/api/v1/itrm/governance-rules?tenant_id=default&object_kind=device&limit=20"
+            "/api/v1/rsot/governance-rules?tenant_id=default&object_kind=device&limit=20"
         )
         evaluated = self._client.post(
-            "/api/v1/itrm/governance/evaluate",
+            "/api/v1/rsot/governance/evaluate",
             {
                 "tenant_id": "default",
                 "object_kind": "device",

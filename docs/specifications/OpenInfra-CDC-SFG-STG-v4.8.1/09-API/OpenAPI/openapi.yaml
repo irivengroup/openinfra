@@ -85,7 +85,7 @@ paths:
           description: PostgreSQL schema has pending migrations or checksum drift
   /api/v1/search/global:
     get:
-      summary: Search OpenInfra business data across ITRM, IPAM and Discovery
+      summary: Search OpenInfra business data across RSOT, IPAM and Discovery
       description: Returns component-grouped global search results for the web header and CLI. Components the caller cannot access are skipped instead of leaking protected data.
       security:
         - bearerToken: []
@@ -1237,16 +1237,16 @@ paths:
         '401':
           description: Missing or invalid Bearer token when authentication is enabled
 
-  /api/v1/itrm/resource-taxonomy:
+  /api/v1/rsot/resource-taxonomy:
     get:
-      summary: List supported ITRM resource categories and category-filtered resource types
+      summary: List supported RSOT resource categories and category-filtered resource types
       responses:
         '200':
           description: Taxonomy containing categories, default type and allowed types per category
 
-  /api/v1/itrm/objects:
+  /api/v1/rsot/objects:
     get:
-      summary: Get or list IT Ressources Management objects
+      summary: Get or list RSOT (Ressource Source of Truth) objects
       security:
         - bearerToken: []
       parameters:
@@ -1283,11 +1283,11 @@ paths:
           required: false
           schema: {type: string}
       responses:
-        '200': {description: IT Ressources Management object or paginated objects}
+        '200': {description: RSOT (Ressource Source of Truth) object or paginated objects}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid ITRM reader token}
+        '401': {description: Missing or invalid RSOT reader token}
     post:
-      summary: Create or update a IT Ressources Management object with history
+      summary: Create or update a RSOT (Ressource Source of Truth) object with history
       security:
         - bearerToken: []
       requestBody:
@@ -1303,7 +1303,7 @@ paths:
                 key: {type: string}
                 kind:
                   type: string
-                  description: Legacy kind or canonical ITRM category; resource_category is preferred for new clients.
+                  description: Legacy kind or canonical RSOT category; resource_category is preferred for new clients.
                   enum: [server, personal-computer, monitor-peripheral, network-device, storage, power-supply, rack-facility, cooling, security-safety, telecom, cloud-virtualization, software-service, cable-connectivity, mobile-iot, other, generic, device, interface, service, application, database, virtual-machine]
                 display_name: {type: string}
                 resource_category:
@@ -1318,12 +1318,12 @@ paths:
                   items: {type: string}
                 source: {type: string}
       responses:
-        '201': {description: IT Ressources Management object persisted}
+        '201': {description: RSOT (Ressource Source of Truth) object persisted}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid ITRM writer token}
-  /api/v1/itrm/object-versions:
+        '401': {description: Missing or invalid RSOT writer token}
+  /api/v1/rsot/object-versions:
     get:
-      summary: Retrieve a historical IT Ressources Management object snapshot
+      summary: Retrieve a historical RSOT (Ressource Source of Truth) object snapshot
       security:
         - bearerToken: []
       parameters:
@@ -1342,10 +1342,10 @@ paths:
       responses:
         '200': {description: Historical object snapshot}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid ITRM reader token}
-  /api/v1/itrm/object-as-of:
+        '401': {description: Missing or invalid RSOT reader token}
+  /api/v1/rsot/object-as-of:
     get:
-      summary: Retrieve an IT Ressources Management object as of an ISO-8601 datetime
+      summary: Retrieve an RSOT (Ressource Source of Truth) object as of an ISO-8601 datetime
       security:
         - bearerToken: []
       parameters:
@@ -1364,10 +1364,10 @@ paths:
       responses:
         '200': {description: Historical object state resolved from snapshots}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid ITRM reader token}
-  /api/v1/itrm/object-audit:
+        '401': {description: Missing or invalid RSOT reader token}
+  /api/v1/rsot/object-audit:
     get:
-      summary: List audit records for one IT Ressources Management object
+      summary: List audit records for one RSOT (Ressource Source of Truth) object
       security:
         - bearerToken: []
       parameters:
@@ -1390,10 +1390,10 @@ paths:
       responses:
         '200': {description: Paginated object audit records}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid ITRM reader token}
-  /api/v1/itrm/reconcile-object:
+        '401': {description: Missing or invalid RSOT reader token}
+  /api/v1/rsot/reconcile-object:
     post:
-      summary: Plan or apply a governed IT Ressources Management reconciliation
+      summary: Plan or apply a governed RSOT (Ressource Source of Truth) reconciliation
       security:
         - bearerToken: []
       requestBody:
@@ -1423,10 +1423,10 @@ paths:
       responses:
         '200': {description: Reconciliation plan with accepted/applied state, conflicts and resulting attributes}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid ITRM writer token}
-  /api/v1/itrm/relations:
+        '401': {description: Missing or invalid RSOT writer token}
+  /api/v1/rsot/relations:
     get:
-      summary: List IT Ressources Management typed relations
+      summary: List RSOT (Ressource Source of Truth) typed relations
       security:
         - bearerToken: []
       parameters:
@@ -1461,9 +1461,9 @@ paths:
       responses:
         '200': {description: Paginated typed relations}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid ITRM reader token}
+        '401': {description: Missing or invalid RSOT reader token}
     post:
-      summary: Create a typed IT Ressources Management relation
+      summary: Create a typed RSOT (Ressource Source of Truth) relation
       security:
         - bearerToken: []
       requestBody:
@@ -1481,13 +1481,13 @@ paths:
                 target_key: {type: string}
                 provenance: {type: string}
       responses:
-        '201': {description: IT Ressources Management relation persisted}
+        '201': {description: RSOT (Ressource Source of Truth) relation persisted}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid ITRM writer token}
+        '401': {description: Missing or invalid RSOT writer token}
 
-  /api/v1/itrm/quality/object:
+  /api/v1/rsot/quality/object:
     get:
-      summary: Evaluate IT Ressources Management object quality and certification
+      summary: Evaluate RSOT (Ressource Source of Truth) object quality and certification
       security:
         - bearerToken: []
       parameters:
@@ -1500,12 +1500,12 @@ paths:
           required: true
           schema: {type: string}
       responses:
-        '200': {description: ITRM quality report with score, certification status and issues}
+        '200': {description: RSOT quality report with score, certification status and issues}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid ITRM quality reader token}
-  /api/v1/itrm/quality/summary:
+        '401': {description: Missing or invalid RSOT quality reader token}
+  /api/v1/rsot/quality/summary:
     get:
-      summary: Summarize IT Ressources Management quality and certification status
+      summary: Summarize RSOT (Ressource Source of Truth) quality and certification status
       security:
         - bearerToken: []
       parameters:
@@ -1538,13 +1538,13 @@ paths:
           required: false
           schema: {type: string}
       responses:
-        '200': {description: ITRM quality summary and evaluated reports}
+        '200': {description: RSOT quality summary and evaluated reports}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid ITRM quality reader token}
+        '401': {description: Missing or invalid RSOT quality reader token}
 
-  /api/v1/itrm/governance-rules:
+  /api/v1/rsot/governance-rules:
     get:
-      summary: List IT Ressources Management governance rules
+      summary: List RSOT (Ressource Source of Truth) governance rules
       security:
         - bearerToken: []
       parameters:
@@ -1571,9 +1571,9 @@ paths:
       responses:
         '200': {description: Paginated governance rules}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid ITRM governance token}
+        '401': {description: Missing or invalid RSOT governance token}
     post:
-      summary: Create or update a IT Ressources Management authoritative source rule
+      summary: Create or update a RSOT (Ressource Source of Truth) authoritative source rule
       security:
         - bearerToken: []
       requestBody:
@@ -1596,10 +1596,10 @@ paths:
       responses:
         '201': {description: Governance rule persisted}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid ITRM governance token}
-  /api/v1/itrm/governance/evaluate:
+        '401': {description: Missing or invalid RSOT governance token}
+  /api/v1/rsot/governance/evaluate:
     post:
-      summary: Evaluate a IT Ressources Management update against authoritative source rules
+      summary: Evaluate a RSOT (Ressource Source of Truth) update against authoritative source rules
       security:
         - bearerToken: []
       requestBody:
@@ -1618,10 +1618,10 @@ paths:
       responses:
         '200': {description: Governance evaluation result}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid ITRM governance token}
-  /api/v1/itrm/governance/deactivate-rule:
+        '401': {description: Missing or invalid RSOT governance token}
+  /api/v1/rsot/governance/deactivate-rule:
     post:
-      summary: Deactivate a IT Ressources Management governance rule
+      summary: Deactivate a RSOT (Ressource Source of Truth) governance rule
       security:
         - bearerToken: []
       requestBody:
@@ -1638,7 +1638,7 @@ paths:
       responses:
         '200': {description: Governance rule deactivated}
         '400': {description: Validation error}
-        '401': {description: Missing or invalid ITRM governance token}
+        '401': {description: Missing or invalid RSOT governance token}
 
   /api/v1/dcim/power-devices:
     post:
@@ -2127,7 +2127,7 @@ paths:
   /api/v1/exports/jobs:
     post:
       summary: Queue an asynchronous signed export job
-      description: Creates a non-blocking export job for IT Ressources Management data. The job remains queued until an export worker invokes the run endpoint or CLI command.
+      description: Creates a non-blocking export job for RSOT (Ressource Source of Truth) data. The job remains queued until an export worker invokes the run endpoint or CLI command.
       requestBody:
         required: true
         content:
@@ -2189,8 +2189,8 @@ paths:
 
   /api/v1/imports/datasets:
     post:
-      summary: Validate or apply a mapped CSV, JSON or XLSX dataset into IT Ressources Management
-      description: "Performs a dry-run by default. When apply is true, the import is atomic: any invalid row prevents all IT Ressources Management mutations and produces a DLQ report."
+      summary: Validate or apply a mapped CSV, JSON or XLSX dataset into RSOT (Ressource Source of Truth)
+      description: "Performs a dry-run by default. When apply is true, the import is atomic: any invalid row prevents all RSOT (Ressource Source of Truth) mutations and produces a DLQ report."
       requestBody:
         required: true
         content:
@@ -2417,7 +2417,7 @@ paths:
         '400': {description: Validation error or unsupported source}
   /api/v1/imports/migration-plans:
     post:
-      summary: Simulate a legacy inventory migration without mutating IT Ressources Management
+      summary: Simulate a legacy inventory migration without mutating RSOT (Ressource Source of Truth)
       description: "Runs a dry-run migration using a built-in Device42, NetBox, Nautobot, GLPI or generic CSV template, persists a gap report and returns a resume strategy for bulk execution."
       requestBody:
         required: true

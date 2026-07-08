@@ -24,7 +24,7 @@ Le fichier normatif est `Exigences.csv`. Ce document synthétise la volumétrie.
 | OPS | Administration & exploitation | 35 |
 | QA | Qualité & validation | 16 |
 | SEC | Sécurité | 22 |
-| ITRM | IT Ressources Management | 21 |
+| RSOT | RSOT (Ressource Source of Truth) | 21 |
 | WEB | Portail web OpenInfra | 7 |
 
 Les exigences N1 sont obligatoires. Les exigences N2 structurent les releases suivantes. Les exigences N3 ne sont pas utilisées dans cette version pour éviter les options non cadrées.
@@ -82,13 +82,13 @@ Les exigences N1 sont obligatoires. Les exigences N2 structurent les releases su
 - **REQ-00693** — Les tests multisites doivent couvrir Pro centralisé et Entreprise distribué.
 - **REQ-00694** — Les recommandations contradictoires des versions précédentes doivent être corrigées par la v4.7.
 
-- **REQ-00750** — Le composant public anciennement nommé Ressources Inventory/RI doit être exposé partout sous le nom IT Ressources Management/ITRM, avec contrats primaires CLI/API/RBAC itrm et alias ri/sot compatibles.
+- **REQ-00750** — Le composant public anciennement nommé Ressources Inventory/RI doit être exposé partout sous le nom RSOT (Ressource Source of Truth)/RSOT, avec contrats primaires CLI/API/RBAC rsot et alias ri/sot compatibles.
 - **REQ-00751** — Le dashboard d’accueil openinfra-web ne doit pas afficher d’alerte succès permanente de readiness ; les alertes visibles doivent être réservées aux erreurs et aux soumissions de formulaire.
-- **REQ-00759** — ITRM doit exposer une réconciliation gouvernée permettant de planifier ou appliquer une mise à jour d’objet sans écrasement silencieux des attributs protégés.
+- **REQ-00759** — RSOT doit exposer une réconciliation gouvernée permettant de planifier ou appliquer une mise à jour d’objet sans écrasement silencieux des attributs protégés.
 
 - **REQ-00765** — Le dashboard DCIM doit exposer les opérations de câblage terrain patch panel, port et câble via les contrats backend existants.
 - **REQ-00766** — Le dashboard DCIM doit exposer les opérations énergie/refroidissement power devices, circuits, zones, réservations et capacité rack via les contrats backend existants.
-- **REQ-00767** — Les sélecteurs de catégories et types de ressources ITRM doivent afficher les libellés métier, conserver les valeurs normalisées internes et ne plus proposer les types obsolètes `physical-server` et `disk`.
+- **REQ-00767** — Les sélecteurs de catégories et types de ressources RSOT doivent afficher les libellés métier, conserver les valeurs normalisées internes et ne plus proposer les types obsolètes `physical-server` et `disk`.
 - **REQ-00768** — OpenInfra doit exposer un jumeau numérique DCIM initial consolidant plan salle, racks, équipements, câblage et capacité énergie/refroidissement via API, CLI et dashboard.
 
 
@@ -115,11 +115,11 @@ Le header du portail doit exposer un second bandeau dédié à la recherche glob
 
 **Acceptation :** Les assets runtime contiennent `openinfra-global-toolbar`, `openinfra-global-search`, `renderGlobalSearchResults`, les styles de grille 50 %, les liens `/docs` et `/redoc`; les tests frontend vérifient le regroupement par composant et l’absence des anciens contrôles supprimés.
 
-- **REQ-00778** — La recherche globale du header openinfra-web doit interroger le backend OpenInfra et retourner des résultats métiers groupés par composant ITRM, IPAM et Discovery.
+- **REQ-00778** — La recherche globale du header openinfra-web doit interroger le backend OpenInfra et retourner des résultats métiers groupés par composant RSOT, IPAM et Discovery.
 
 ### REQ-00778 — Recherche globale backend OpenInfra
 
-La recherche globale ne doit pas se limiter au filtrage local des opérations visibles. Elle doit appeler un service backend transverse, agréger ITRM, IPAM et Discovery, appliquer les permissions existantes et retourner des résultats groupés par composant avec libellé, description, type, score et route API.
+La recherche globale ne doit pas se limiter au filtrage local des opérations visibles. Elle doit appeler un service backend transverse, agréger RSOT, IPAM et Discovery, appliquer les permissions existantes et retourner des résultats groupés par composant avec libellé, description, type, score et route API.
 
 **Acceptation :** `GET /api/v1/search/global`, `openinfra search global` et le double header web consomment le même contrat applicatif ; les tests vérifient le groupement, les limites de requête et l’absence de fuite de données lorsqu’un composant n’est pas autorisé.
 ### REQ-00779 — Recherche globale tolérante aux erreurs réseau
@@ -143,11 +143,11 @@ La recherche globale ne doit pas se limiter au filtrage local des opérations vi
 
 **Acceptation :** `/config.json` publie `apiDocumentation`; les boutons utilisent `apiDocumentation.swaggerUrl` et `apiDocumentation.redocUrl`; `openinfra-web` proxyfie `/docs`, `/swagger`, `/redoc`, `/openapi.yaml` et `/api/v1/openapi.yaml` vers le backend API lorsque les liens sont same-origin.
 
-### REQ-00782 — Icône ITRM référentiel/référence
+### REQ-00782 — Icône RSOT référentiel/référence
 
-**Exigence :** l’entrée ITRM du portail `openinfra-web` doit utiliser une icône représentant un référentiel ou une référence, et non une table générique.
+**Exigence :** l’entrée RSOT du portail `openinfra-web` doit utiliser une icône représentant un référentiel ou une référence, et non une table générique.
 
-**Acceptation :** les catalogues d’icônes React/runtime exposent `reference`; le module ITRM l’utilise dans le header, le menu latéral et les cartes de composant ; l’ancien mapping `table` est interdit pour ITRM.
+**Acceptation :** les catalogues d’icônes React/runtime exposent `reference`; le module RSOT l’utilise dans le header, le menu latéral et les cartes de composant ; l’ancien mapping `table` est interdit pour RSOT.
 
 ### REQ-00783 — Header fixe openinfra-web
 

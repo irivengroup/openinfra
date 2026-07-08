@@ -32,7 +32,7 @@ classification: Interne / Consultation intégrateurs
 | OPS | Administration & exploitation | 35 |
 | QA | Qualité & validation | 16 |
 | SEC | Sécurité | 22 |
-| ITRM | IT Ressources Management | 21 |
+| RSOT | RSOT (Ressource Source of Truth) | 21 |
 
 Le fichier `11-Matrices/Exigences.csv` constitue la référence contractuelle des exigences.
 

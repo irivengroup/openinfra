@@ -178,20 +178,20 @@ La CI exécute également un smoke test JSON audit et le runtime natif valide le
 
 ## Contrôles ajoutés en v0.10.0
 
-- Tests unitaires du domaine IT Ressources Management : clés sûres, tags, source, relation, snapshots et erreurs contrôlées.
+- Tests unitaires du domaine RSOT (Ressource Source of Truth) : clés sûres, tags, source, relation, snapshots et erreurs contrôlées.
 - Tests d'intégration JSON : objet, mise à jour versionnée, relation, liste paginée, restitution de version et erreurs d'autorisation.
-- Tests CLI : `openinfra itrm upsert-object`, `list-objects`, `get-object-version`, `create-relation`, `list-relations`.
-- Tests API HTTP : `/api/v1/itrm/objects`, `/api/v1/itrm/object-versions`, `/api/v1/itrm/object-as-of`, `/api/v1/itrm/object-audit`, `/api/v1/itrm/relations`.
+- Tests CLI : `openinfra rsot upsert-object`, `list-objects`, `get-object-version`, `create-relation`, `list-relations`.
+- Tests API HTTP : `/api/v1/rsot/objects`, `/api/v1/rsot/object-versions`, `/api/v1/rsot/object-as-of`, `/api/v1/rsot/object-audit`, `/api/v1/rsot/relations`.
 - Tests adaptateur PostgreSQL simulé : insert/update objet, snapshot, relation et requêtes paginées.
 
 ## Contrôles ajoutés en v0.11.0
 
 - Tests unitaires du domaine Source Governance : validation des chemins, wildcard, priorité, fraîcheur et détection de modifications imbriquées.
 - Tests d'intégration JSON : création de règle, inventaire, évaluation, désactivation et enforcement dans `SourceOfTruthService`.
-- Tests CLI : `openinfra itrm create-governance-rule`, `list-governance-rules`, `evaluate-governance`, `deactivate-governance-rule`.
-- Tests API HTTP : `/api/v1/itrm/governance-rules`, `/api/v1/itrm/governance/evaluate`, `/api/v1/itrm/governance/deactivate-rule`.
+- Tests CLI : `openinfra rsot create-governance-rule`, `list-governance-rules`, `evaluate-governance`, `deactivate-governance-rule`.
+- Tests API HTTP : `/api/v1/rsot/governance-rules`, `/api/v1/rsot/governance/evaluate`, `/api/v1/rsot/governance/deactivate-rule`.
 - Tests adaptateur PostgreSQL simulé : persistance, lecture paginée et évaluation via `PostgreSQLSourceGovernanceRepository`.
-- Smoke runtime natif : scénario gouvernance ITRM contre API authentifiée. Le backend PostgreSQL réel peut être testé dans le lab Docker facultatif ou sur un serveur PostgreSQL dédié.
+- Smoke runtime natif : scénario gouvernance RSOT contre API authentifiée. Le backend PostgreSQL réel peut être testé dans le lab Docker facultatif ou sur un serveur PostgreSQL dédié.
 
 
 ## Contrôles ajoutés en v0.12.0
@@ -471,7 +471,7 @@ token="$(python - <<'PY'
 print("b" * 40)
 PY
 )"
-PYTHONPATH=src python -m openinfra.interfaces.cli security bootstrap-token --data "$tmpdir/state.json" --tenant default --subject bulk-import-admin --role itrm:operator --token "$token" >/dev/null
+PYTHONPATH=src python -m openinfra.interfaces.cli security bootstrap-token --data "$tmpdir/state.json" --tenant default --subject bulk-import-admin --role rsot:operator --token "$token" >/dev/null
 printf 'asset_key,kind,name,source,serial\ndevice/bulk-001,device,Bulk 001,csv_import,SN001\ndevice/bulk-002,device,Bulk 002,csv_import,SN002\n' > "$tmpdir/bulk.csv"
 PYTHONPATH=src python -m openinfra.interfaces.cli import bulk-dataset --data "$tmpdir/state.json" --tenant default --actor bulk-import-admin --admin-token "$token" --file "$tmpdir/bulk.csv" --format csv --mapping-json '{"key":"asset_key","kind":"kind","display_name":"name","source":"source","attributes.serial":"serial"}' --batch-size 1000 --checkpoint-interval 1000
 PYTHONPATH=src python -m pytest -q --no-cov tests/unit/test_data_import_domain.py tests/unit/test_import_parsers.py tests/integration/test_import_services.py tests/integration/test_cli_import.py tests/integration/test_http_api.py tests/integration/test_postgresql_migration.py
@@ -502,7 +502,7 @@ La v0.26.0 ajoute les contrôles P06 / EPIC-0603 suivants :
 ```bash
 tmpdir="$(mktemp -d)"
 token="$(python -c 'print("x" * 40)')"
-PYTHONPATH=src python -m openinfra.interfaces.cli security bootstrap-token --data "$tmpdir/state.json" --tenant default --subject export-admin --role itrm:operator --role audit:reader --token "$token" >/dev/null
+PYTHONPATH=src python -m openinfra.interfaces.cli security bootstrap-token --data "$tmpdir/state.json" --tenant default --subject export-admin --role rsot:operator --role audit:reader --token "$token" >/dev/null
 PYTHONPATH=src python -m openinfra.interfaces.cli itrm upsert-object --data "$tmpdir/state.json" --tenant default --admin-token "$token" --key device/export-smoke --kind device --display-name "Export Smoke" --attributes-json '{"serial":"EXPORT-SMOKE"}' --tag prod --source smoke >/dev/null
 PYTHONPATH=src python -m openinfra.interfaces.cli export request --data "$tmpdir/state.json" --tenant default --admin-token "$token" --format json --tag prod
 PYTHONPATH=src python -m openinfra.interfaces.cli export run --data "$tmpdir/state.json" --tenant default --admin-token "$token"
@@ -529,22 +529,22 @@ PYTHONPATH=src:. python -m pytest tests/integration/test_installer_alignment.py 
 
 La validation P06 vérifie le rendu du plan HA/PITR, l'absence de ports et paramètres bas niveau dans `install.ini`, les répertoires internes PITR/backup, le mode quasi temps réel lorsque `identity.peer_nodes` est renseigné, et la migration `0024_postgresql_ha_backup_registry.sql`.
 
-### ITRM Quality & Certification — v0.29.14
+### RSOT Quality & Certification — v0.29.14
 
-Les contrôles de qualité ITRM sont validables via CLI et API :
+Les contrôles de qualité RSOT sont validables via CLI et API :
 
 ```bash
-PYTHONPATH=src python -m openinfra.interfaces.cli ITRM quality-object \
+PYTHONPATH=src python -m openinfra.interfaces.cli RSOT quality-object \
   --data .openinfra.json \
   --tenant default \
   --admin-token "$OPENINFRA_TOKEN" \
   --key device/example
 
-PYTHONPATH=src python -m openinfra.interfaces.cli ITRM quality-summary \
+PYTHONPATH=src python -m openinfra.interfaces.cli RSOT quality-summary \
   --data .openinfra.json \
   --tenant default \
   --admin-token "$OPENINFRA_TOKEN" \
   --kind device
 ```
 
-Critères de validation : score de complétude, fraîcheur, autorité de source, confiance, statut de certification et audit `itrm.quality.*`.
+Critères de validation : score de complétude, fraîcheur, autorité de source, confiance, statut de certification et audit `rsot.quality.*`.

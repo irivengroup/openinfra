@@ -31,7 +31,7 @@
 - Ajout `REQ-00783` et `TST-WEB-086` pour le header fixe openinfra-web avec scroll du contenu sous-jacent.
 ## 0.29.41 - 2026-07-07
 
-- Mise à jour REQ-00782 / TST-WEB-085 : l’icône ITRM de référentiel/référence est désormais pleine et opaque comme les autres SVG de composants.
+- Mise à jour REQ-00782 / TST-WEB-085 : l’icône RSOT de référentiel/référence est désormais pleine et opaque comme les autres SVG de composants.
 
 ## 0.29.41 - 2026-07-07
 
@@ -96,19 +96,19 @@
 - Alignement OpenAPI, discovery API, dashboard et matrices de traçabilité sur `POST /api/v1/dcim/locations`.
 - Conservation des invariants existants : ligne, colonne, salle, rack, face, position U, hauteur U et coordonnées optionnelles sont validés par le service applicatif DCIM.
 
-## Delta v0.29.25 — taxonomie ITRM catégories / types
+## Delta v0.29.25 — taxonomie RSOT catégories / types
 
-- Ajout du catalogue ITRM catégories/types couvrant les ressources datacenter.
+- Ajout du catalogue RSOT catégories/types couvrant les ressources datacenter.
 - Ajout du filtrage dynamique Catégorie -> Type de ressource dans le dashboard.
 - Ajout de la validation backend des couples catégorie/type et du mécanisme générique optionsByField/optionsMap.
 
 ## v4.8.1 / OpenInfra 0.29.24
 
-- Ajout de `REQ-00759` et `TST-ITRM-062` : réconciliation gouvernée ITRM avec dry-run déterministe, apply contrôlé, conflits non autoritatifs non appliqués et audit objet.
+- Ajout de `REQ-00759` et `TST-RSOT-062` : réconciliation gouvernée RSOT avec dry-run déterministe, apply contrôlé, conflits non autoritatifs non appliqués et audit objet.
 
 ## v4.8.1 / OpenInfra 0.29.23
 
-- Ajout de `REQ-00758` et `TST-ITRM-061` : restitution historique `as-of` ITRM, relations filtrées temporellement et audit par objet.
+- Ajout de `REQ-00758` et `TST-RSOT-061` : restitution historique `as-of` RSOT, relations filtrées temporellement et audit par objet.
 - Mise à jour API, CLI, OpenAPI, dashboard web et repositories JSON/PostgreSQL sans migration destructive des snapshots existants.
 
 ## v4.8.1 / OpenInfra 0.29.22
@@ -123,7 +123,7 @@
 
 ## v4.8.1 / OpenInfra 0.29.19
 
-- Ajout `REQ-00750` et `TST-WEB-053` : renommage transversal du composant public en `IT Ressources Management/ITRM`, contrats primaires `itrm` et alias `ri`/`sot` dépréciés mais compatibles.
+- Ajout `REQ-00750` et `TST-WEB-053` : renommage transversal du composant public en `RSOT (Ressource Source of Truth)/RSOT`, contrats primaires `rsot` et alias `ri`/`sot` dépréciés mais compatibles.
 - Ajout `REQ-00751` et `TST-WEB-054` : suppression de l’alerte succès permanente `Backend prêt` sur l’accueil ; alertes visibles réservées aux erreurs et soumissions de formulaire.
 - Ajout `REQ-00749` et `TST-WEB-052` : dashboard d’accueil `openinfra-web` avec statistiques et camemberts par composant métier.
 
@@ -246,7 +246,7 @@ classification: Interne / Consultation intégrateurs
 
 ### Compatibilité
 
-Cette version conserve le périmètre v2 : IT Ressources Management, DCIM, ITAM, Discovery, Dependency Mapping, IPAM avancé et exclusion ITSM intégrée. Elle renforce la granularité documentaire et contractuelle.
+Cette version conserve le périmètre v2 : RSOT (Ressource Source of Truth), DCIM, ITAM, Discovery, Dependency Mapping, IPAM avancé et exclusion ITSM intégrée. Elle renforce la granularité documentaire et contractuelle.
 
 
 ## 4.3.0 - Alignement enterprise, éditions, ITSM externe et support constructeur

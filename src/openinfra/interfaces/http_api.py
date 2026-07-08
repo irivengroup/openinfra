@@ -103,16 +103,6 @@ from openinfra.application.it_resources_management_quality_services import (
     EvaluateItrmObjectQualityCommand,
     ItrmQualitySummaryCommand,
 )
-from openinfra.application.itam_services import (
-    AddThirdPartySupportCommand,
-    GetAssetSupportCoverageReportCommand,
-    GetAssetSupportProfileCommand,
-    GetSoftwareLicenseCommand,
-    GetSoftwareLicenseComplianceCommand,
-    RegisterManufacturerSupportCommand,
-    RegisterSoftwareLicenseCommand,
-    UpdateSoftwareLicenseAssignmentCommand,
-)
 from openinfra.application.it_resources_management_services import (
     CreateSourceRelationCommand,
     GetSourceObjectAsOfCommand,
@@ -123,6 +113,16 @@ from openinfra.application.it_resources_management_services import (
     ListSourceRelationsCommand,
     ReconcileSourceObjectCommand,
     UpsertSourceObjectCommand,
+)
+from openinfra.application.itam_services import (
+    AddThirdPartySupportCommand,
+    GetAssetSupportCoverageReportCommand,
+    GetAssetSupportProfileCommand,
+    GetSoftwareLicenseCommand,
+    GetSoftwareLicenseComplianceCommand,
+    RegisterManufacturerSupportCommand,
+    RegisterSoftwareLicenseCommand,
+    UpdateSoftwareLicenseAssignmentCommand,
 )
 from openinfra.application.search_services import GlobalSearchCommand
 from openinfra.application.security_services import (
@@ -374,7 +374,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 tenant_id = self._first_query_value(query, "tenant_id")
                 actor = "api"
                 if self.server.auth_required:
-                    principal = self._authenticate(tenant_id, Permission.ITRM_READ)
+                    principal = self._authenticate(tenant_id, Permission.RSOT_READ)
                     actor = principal.subject
                 result = self.server.application.global_search_service.search(
                     GlobalSearchCommand(
@@ -459,12 +459,14 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 tenant_id = self._first_query_value(query, "tenant_id")
                 if self.server.auth_required:
                     self._authenticate(tenant_id, Permission.ITAM_READ)
-                report = self.server.application.itam_support_service.get_software_license_compliance(
-                    GetSoftwareLicenseComplianceCommand(
-                        tenant_id=tenant_id,
-                        admin_token=self._bearer_token(),
-                        license_reference=self._first_query_value(query, "license_reference"),
-                        as_of=self._optional_query_value(query, "as_of"),
+                report = (
+                    self.server.application.itam_support_service.get_software_license_compliance(
+                        GetSoftwareLicenseComplianceCommand(
+                            tenant_id=tenant_id,
+                            admin_token=self._bearer_token(),
+                            license_reference=self._first_query_value(query, "license_reference"),
+                            as_of=self._optional_query_value(query, "as_of"),
+                        )
                     )
                 )
                 responder.send(HTTPStatus.OK, report.as_dict())
@@ -706,7 +708,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
-        if route == "/api/v1/sot/governance-rules":
+        if route == "/api/v1/rsot/governance-rules":
             try:
                 query = parse_qs(parsed.query)
                 page = self.server.application.source_governance_service.list_rules(
@@ -728,14 +730,14 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
-        if route == "/api/v1/sot/resource-taxonomy":
+        if route == "/api/v1/rsot/resource-taxonomy":
             responder.send(
                 HTTPStatus.OK,
                 self.server.application.it_resources_management_service.resource_taxonomy(),
             )
             return
 
-        if route == "/api/v1/sot/objects":
+        if route == "/api/v1/rsot/objects":
             try:
                 query = parse_qs(parsed.query)
                 key = query.get("key", [None])[0]
@@ -766,7 +768,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except (ValueError, OpenInfraError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
-        if route == "/api/v1/sot/object-versions":
+        if route == "/api/v1/rsot/object-versions":
             try:
                 query = parse_qs(parsed.query)
                 result = self.server.application.it_resources_management_service.get_object_version(
@@ -783,7 +785,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except (ValueError, OpenInfraError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
-        if route == "/api/v1/sot/object-as-of":
+        if route == "/api/v1/rsot/object-as-of":
             try:
                 query = parse_qs(parsed.query)
                 result = self.server.application.it_resources_management_service.get_object_as_of(
@@ -800,7 +802,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except (ValueError, OpenInfraError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
-        if route == "/api/v1/sot/object-audit":
+        if route == "/api/v1/rsot/object-audit":
             try:
                 query = parse_qs(parsed.query)
                 page = self.server.application.it_resources_management_service.list_object_audit(
@@ -818,7 +820,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except (ValueError, OpenInfraError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
-        if route == "/api/v1/sot/quality/object":
+        if route == "/api/v1/rsot/quality/object":
             try:
                 query = parse_qs(parsed.query)
                 result = (
@@ -836,7 +838,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except (ValueError, OpenInfraError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
-        if route == "/api/v1/sot/quality/summary":
+        if route == "/api/v1/rsot/quality/summary":
             try:
                 query = parse_qs(parsed.query)
                 summary = self.server.application.it_resources_management_quality_service.summarize(
@@ -857,7 +859,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except (ValueError, OpenInfraError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
-        if route == "/api/v1/sot/relations":
+        if route == "/api/v1/rsot/relations":
             try:
                 query = parse_qs(parsed.query)
                 page = self.server.application.it_resources_management_service.list_relations(
@@ -1199,20 +1201,22 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 if self.server.auth_required:
                     principal = self._authenticate(tenant_id, Permission.ITAM_WRITE)
                     actor = principal.subject
-                profile = self.server.application.itam_support_service.register_manufacturer_support(
-                    RegisterManufacturerSupportCommand(
-                        tenant_id=tenant_id,
-                        actor=actor,
-                        admin_token=self._bearer_token(),
-                        asset_tag=str(payload["asset_tag"]),
-                        manufacturer=str(payload["manufacturer"]),
-                        warranty_reference=str(payload["warranty_reference"]),
-                        warranty_level=str(payload["warranty_level"]),
-                        warranty_start=str(payload["warranty_start"]),
-                        warranty_end=str(payload["warranty_end"]),
-                        support_reference=str(payload["support_reference"]),
-                        support_level=str(payload["support_level"]),
-                        support_contact=str(payload["support_contact"]),
+                profile = (
+                    self.server.application.itam_support_service.register_manufacturer_support(
+                        RegisterManufacturerSupportCommand(
+                            tenant_id=tenant_id,
+                            actor=actor,
+                            admin_token=self._bearer_token(),
+                            asset_tag=str(payload["asset_tag"]),
+                            manufacturer=str(payload["manufacturer"]),
+                            warranty_reference=str(payload["warranty_reference"]),
+                            warranty_level=str(payload["warranty_level"]),
+                            warranty_start=str(payload["warranty_start"]),
+                            warranty_end=str(payload["warranty_end"]),
+                            support_reference=str(payload["support_reference"]),
+                            support_level=str(payload["support_level"]),
+                            support_contact=str(payload["support_contact"]),
+                        )
                     )
                 )
                 responder.send(HTTPStatus.CREATED, profile.as_dict())
@@ -1275,9 +1279,13 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         entitlement_start=str(payload["entitlement_start"]),
                         entitlement_end=str(payload["entitlement_end"]),
                         contract_reference=(
-                            None if payload.get("contract_reference") is None else str(payload.get("contract_reference"))
+                            None
+                            if payload.get("contract_reference") is None
+                            else str(payload.get("contract_reference"))
                         ),
-                        version=(None if payload.get("version") is None else str(payload.get("version"))),
+                        version=(
+                            None if payload.get("version") is None else str(payload.get("version"))
+                        ),
                         status=str(payload.get("status", "active")),
                         owner=(None if payload.get("owner") is None else str(payload.get("owner"))),
                         notes=(None if payload.get("notes") is None else str(payload.get("notes"))),
@@ -1298,14 +1306,18 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 if self.server.auth_required:
                     principal = self._authenticate(tenant_id, Permission.ITAM_WRITE)
                     actor = principal.subject
-                license_ = self.server.application.itam_support_service.update_software_license_assignment(
-                    UpdateSoftwareLicenseAssignmentCommand(
-                        tenant_id=tenant_id,
-                        actor=actor,
-                        admin_token=self._bearer_token(),
-                        license_reference=str(payload["license_reference"]),
-                        assigned_quantity=int(payload["assigned_quantity"]),
-                        notes=(None if payload.get("notes") is None else str(payload.get("notes"))),
+                license_ = (
+                    self.server.application.itam_support_service.update_software_license_assignment(
+                        UpdateSoftwareLicenseAssignmentCommand(
+                            tenant_id=tenant_id,
+                            actor=actor,
+                            admin_token=self._bearer_token(),
+                            license_reference=str(payload["license_reference"]),
+                            assigned_quantity=int(payload["assigned_quantity"]),
+                            notes=(
+                                None if payload.get("notes") is None else str(payload.get("notes"))
+                            ),
+                        )
                     )
                 )
                 responder.send(HTTPStatus.OK, license_.as_dict())
@@ -1693,7 +1705,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
-        if route == "/api/v1/sot/governance-rules":
+        if route == "/api/v1/rsot/governance-rules":
             try:
                 payload = self._read_json_body()
                 rule = self.server.application.source_governance_service.create_rule(
@@ -1722,7 +1734,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
-        if route == "/api/v1/sot/governance/evaluate":
+        if route == "/api/v1/rsot/governance/evaluate":
             try:
                 payload = self._read_json_body()
                 result = self.server.application.source_governance_service.evaluate(
@@ -1747,7 +1759,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
-        if route == "/api/v1/sot/governance/deactivate-rule":
+        if route == "/api/v1/rsot/governance/deactivate-rule":
             try:
                 payload = self._read_json_body()
                 result = self.server.application.source_governance_service.deactivate_rule(
@@ -1764,7 +1776,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
-        if route == "/api/v1/sot/reconcile-object":
+        if route == "/api/v1/rsot/reconcile-object":
             try:
                 payload = self._read_json_body()
                 tags_payload = payload.get("tags")
@@ -1805,7 +1817,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
-        if route == "/api/v1/sot/objects":
+        if route == "/api/v1/rsot/objects":
             try:
                 payload = self._read_json_body()
                 tags_payload = payload.get("tags", [])
@@ -1840,7 +1852,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
-        if route == "/api/v1/sot/relations":
+        if route == "/api/v1/rsot/relations":
             try:
                 payload = self._read_json_body()
                 result = self.server.application.it_resources_management_service.create_relation(
@@ -2651,14 +2663,15 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
 
     @staticmethod
     def _canonical_route(route: str) -> str:
-        if route.startswith("/api/v1/itrm/"):
-            return "/api/v1/sot/" + route.removeprefix("/api/v1/itrm/")
-        if route == "/api/v1/itrm":
-            return "/api/v1/sot"
-        if route.startswith("/api/v1/ri/"):
-            return "/api/v1/sot/" + route.removeprefix("/api/v1/ri/")
-        if route == "/api/v1/ri":
-            return "/api/v1/sot"
+        if route.startswith("/api/v1/rsot/"):
+            return route
+        if route == "/api/v1/rsot":
+            return route
+        for legacy_prefix in ("/api/v1/itrm", "/api/v1/sot", "/api/v1/ri"):
+            if route.startswith(legacy_prefix + "/"):
+                return "/api/v1/rsot/" + route.removeprefix(legacy_prefix + "/")
+            if route == legacy_prefix:
+                return "/api/v1/rsot"
         return route
 
     def _read_json_body(self) -> dict[str, Any]:
@@ -2737,19 +2750,20 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "software_license_assignment": "/api/v1/itam/software-license/assignment",
                     "software_license_compliance": "/api/v1/itam/software-license/compliance",
                 },
-                "it_resources_management": {
-                    "objects": "/api/v1/itrm/objects",
-                    "resource_taxonomy": "/api/v1/itrm/resource-taxonomy",
-                    "object_versions": "/api/v1/itrm/object-versions",
-                    "object_as_of": "/api/v1/itrm/object-as-of",
-                    "object_audit": "/api/v1/itrm/object-audit",
-                    "reconcile_object": "/api/v1/itrm/reconcile-object",
-                    "relations": "/api/v1/itrm/relations",
-                    "governance_rules": "/api/v1/itrm/governance-rules",
-                    "quality_object": "/api/v1/itrm/quality/object",
-                    "quality_summary": "/api/v1/itrm/quality/summary",
-                    "legacy_ri_alias": "/api/v1/ri/objects",
-                    "legacy_sot_alias": "/api/v1/sot/objects",
+                "rsot": {
+                    "objects": "/api/v1/rsot/objects",
+                    "resource_taxonomy": "/api/v1/rsot/resource-taxonomy",
+                    "object_versions": "/api/v1/rsot/object-versions",
+                    "object_as_of": "/api/v1/rsot/object-as-of",
+                    "object_audit": "/api/v1/rsot/object-audit",
+                    "reconcile_object": "/api/v1/rsot/reconcile-object",
+                    "relations": "/api/v1/rsot/relations",
+                    "governance_rules": "/api/v1/rsot/governance-rules",
+                    "quality_object": "/api/v1/rsot/quality/object",
+                    "quality_summary": "/api/v1/rsot/quality/summary",
+                    "deprecated_itrm_alias": "/api/v1/itrm/objects",
+                    "deprecated_sot_alias": "/api/v1/sot/objects",
+                    "deprecated_ri_alias": "/api/v1/ri/objects",
                 },
                 "ipam": {
                     "ui_dashboard": "/api/v1/ipam/ui-dashboard",

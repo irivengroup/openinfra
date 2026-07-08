@@ -7,11 +7,17 @@ from typing import Any
 from urllib.parse import quote
 
 from openinfra.application.discovery_services import ListCollectorsCommand
-from openinfra.application.itam_services import GetAssetSupportProfileCommand
 from openinfra.application.ipam_services import IpamSearchCommand
+from openinfra.application.itam_services import GetAssetSupportProfileCommand
 from openinfra.application.ports import AuditRepository, TransactionManager
 from openinfra.application.source_of_truth_services import ListSourceObjectsCommand
-from openinfra.domain.common import AccessDeniedError, AuditEvent, NotFoundError, TenantId, ValidationError
+from openinfra.domain.common import (
+    AccessDeniedError,
+    AuditEvent,
+    NotFoundError,
+    TenantId,
+    ValidationError,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,14 +95,14 @@ class GlobalSearchResult:
 class GlobalSearchService:
     def __init__(
         self,
-        itrm_service: Any,
+        rsot_service: Any,
         ipam_ui_service: Any,
         discovery_service: Any,
         itam_support_service: Any,
         audit_repository: AuditRepository,
         transaction_manager: TransactionManager,
     ) -> None:
-        self._itrm_service = itrm_service
+        self._rsot_service = rsot_service
         self._ipam_ui_service = ipam_ui_service
         self._discovery_service = discovery_service
         self._itam_support_service = itam_support_service
@@ -110,7 +116,7 @@ class GlobalSearchService:
             raise ValidationError("global search query must contain 2 to 128 characters")
         limit = self._normalize_limit(command.limit)
         groups = (
-            self._search_itrm(tenant_id, command, query, limit),
+            self._search_rsot(tenant_id, command, query, limit),
             self._search_itam(tenant_id, command, query, limit),
             self._search_ipam(tenant_id, command, query, limit),
             self._search_discovery(tenant_id, command, query, limit),
@@ -147,11 +153,11 @@ class GlobalSearchService:
             raise ValidationError("global search limit must be between 1 and 25")
         return normalized
 
-    def _search_itrm(
+    def _search_rsot(
         self, tenant_id: TenantId, command: GlobalSearchCommand, query: str, limit: int
     ) -> GlobalSearchGroup:
         try:
-            page = self._itrm_service.list_objects(
+            page = self._rsot_service.list_objects(
                 ListSourceObjectsCommand(
                     tenant_id=tenant_id.value,
                     admin_token=command.admin_token,
@@ -159,7 +165,7 @@ class GlobalSearchService:
                 )
             )
         except AccessDeniedError:
-            return self._skipped("itrm", "ITRM", "permission denied")
+            return self._skipped("rsot", "RSOT", "permission denied")
         matches: list[GlobalSearchItem] = []
         for source_object in page.items:
             row = source_object.as_dict()
@@ -179,7 +185,7 @@ class GlobalSearchService:
             key = str(row.get("key", ""))
             matches.append(
                 GlobalSearchItem(
-                    component="itrm",
+                    component="rsot",
                     kind=str(row.get("resource_type") or row.get("kind") or "object"),
                     label=label,
                     description=(
@@ -187,7 +193,7 @@ class GlobalSearchService:
                         f"source {row.get('source', 'unknown')}"
                     ),
                     route=(
-                        "/api/v1/itrm/objects?tenant_id="
+                        "/api/v1/rsot/objects?tenant_id="
                         f"{quote(tenant_id.value)}&key={quote(key)}"
                     ),
                     score=score,
@@ -200,7 +206,7 @@ class GlobalSearchService:
                     },
                 )
             )
-        return self._ok("itrm", "ITRM", matches, limit)
+        return self._ok("rsot", "RSOT", matches, limit)
 
     def _search_itam(
         self, tenant_id: TenantId, command: GlobalSearchCommand, query: str, limit: int
@@ -274,8 +280,9 @@ class GlobalSearchService:
                 continue
             kind = str(row.get("kind", "ipam"))
             label = self._ipam_label(kind, row)
-            route = "/api/v1/ipam/ui-search?tenant_id={}&query={}".format(
-                quote(tenant_id.value), quote(query)
+            route = (
+                f"/api/v1/ipam/ui-search?tenant_id={quote(tenant_id.value)}"
+                f"&query={quote(query)}"
             )
             vrf = str(row.get("vrf", ""))
             matches.append(

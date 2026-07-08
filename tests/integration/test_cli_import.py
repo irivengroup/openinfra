@@ -38,7 +38,7 @@ def test_cli_import_dataset_dry_run_and_report(tmp_path: Path, capsys: object) -
                 "--subject",
                 "import-cli",
                 "--role",
-                "itrm:operator",
+                "rsot:operator",
                 "--token",
                 token,
             ]
@@ -124,7 +124,7 @@ def test_cli_bulk_import_dataset_report_and_checkpoint(tmp_path: Path, capsys: o
                 "--subject",
                 "bulk-import-cli",
                 "--role",
-                "itrm:operator",
+                "rsot:operator",
                 "--token",
                 token,
             ]
@@ -241,7 +241,7 @@ def test_cli_import_migration_template_plan_and_report(tmp_path: Path, capsys: o
                 "--subject",
                 "migration-cli",
                 "--role",
-                "itrm:operator",
+                "rsot:operator",
                 "--token",
                 token,
             ]

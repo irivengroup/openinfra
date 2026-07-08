@@ -155,7 +155,7 @@ class SourceOfTruthService:
     def upsert_object(self, command: UpsertSourceObjectCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
         principal = self._security_service.authenticate_token(
-            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITRM_WRITE)
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.RSOT_WRITE)
         )
         attributes = self._attributes_from_json(command.attributes_json)
         classification = self._classify_resource(
@@ -181,7 +181,7 @@ class SourceOfTruthService:
                     source=command.source,
                     actor=command.actor,
                 )
-                action = "itrm.object.create"
+                action = "rsot.object.create"
             else:
                 self._enforce_governance(tenant_id, existing, attributes, command.source)
                 source_object = existing.revise(
@@ -192,7 +192,7 @@ class SourceOfTruthService:
                     kind=stored_kind,
                 )
                 self._repository.upsert_object(source_object, command.actor)
-                action = "itrm.object.update"
+                action = "rsot.object.update"
             self._audit_repository.append(
                 AuditEvent.record(
                     tenant_id=tenant_id,
@@ -216,7 +216,7 @@ class SourceOfTruthService:
     def reconcile_object(self, command: ReconcileSourceObjectCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
         principal = self._security_service.authenticate_token(
-            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITRM_WRITE)
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.RSOT_WRITE)
         )
         incoming_attributes = self._attributes_from_json(command.attributes_json)
         incoming_source = SourceSystem.from_value(command.source)
@@ -263,7 +263,7 @@ class SourceOfTruthService:
                     incoming_attributes if evaluation.accepted else existing.attributes
                 ),
             }
-            action = "itrm.reconciliation.plan"
+            action = "rsot.reconciliation.plan"
             if command.apply and evaluation.accepted:
                 revised = existing.revise(
                     display_name=command.display_name,
@@ -284,7 +284,7 @@ class SourceOfTruthService:
                         "object": revised.as_dict(),
                     }
                 )
-                action = "itrm.reconciliation.apply"
+                action = "rsot.reconciliation.apply"
             self._audit_repository.append(
                 AuditEvent.record(
                     tenant_id=tenant_id,
@@ -309,7 +309,7 @@ class SourceOfTruthService:
     def get_object(self, command: GetSourceObjectCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
         self._security_service.authenticate_token(
-            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITRM_READ)
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.RSOT_READ)
         )
         with self._transaction_manager.begin() as unit_of_work:
             source_object = self._repository.find_object(tenant_id, command.key)
@@ -321,7 +321,7 @@ class SourceOfTruthService:
     def list_objects(self, command: ListSourceObjectsCommand) -> SourceObjectPage:
         tenant_id = TenantId.from_value(command.tenant_id)
         principal = self._security_service.authenticate_token(
-            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITRM_READ)
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.RSOT_READ)
         )
         kind = SourceObjectKind(str(command.kind).strip().lower()) if command.kind else None
         resource_type = None
@@ -340,7 +340,7 @@ class SourceOfTruthService:
                 AuditEvent.record(
                     tenant_id=tenant_id,
                     actor=principal.subject,
-                    action="itrm.object.list",
+                    action="rsot.object.list",
                     target_type="source_object",
                     target_id=tenant_id.value,
                     metadata={
@@ -356,7 +356,7 @@ class SourceOfTruthService:
     def get_object_version(self, command: GetSourceObjectVersionCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
         self._security_service.authenticate_token(
-            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITRM_READ)
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.RSOT_READ)
         )
         if int(command.version) < 1:
             raise ValidationError("source object version must be positive")
@@ -374,7 +374,7 @@ class SourceOfTruthService:
     def get_object_as_of(self, command: GetSourceObjectAsOfCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
         self._security_service.authenticate_token(
-            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITRM_READ)
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.RSOT_READ)
         )
         as_of = self._datetime_from_value(command.as_of, "as_of")
         with self._transaction_manager.begin() as unit_of_work:
@@ -391,7 +391,7 @@ class SourceOfTruthService:
     def list_object_audit(self, command: ListSourceObjectAuditCommand) -> AuditEventPage:
         tenant_id = TenantId.from_value(command.tenant_id)
         self._security_service.authenticate_token(
-            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITRM_READ)
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.RSOT_READ)
         )
         normalized_key = command.key.strip().lower()
         if not normalized_key:
@@ -410,7 +410,7 @@ class SourceOfTruthService:
     def create_relation(self, command: CreateSourceRelationCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
         principal = self._security_service.authenticate_token(
-            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITRM_WRITE)
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.RSOT_WRITE)
         )
         with self._transaction_manager.begin() as unit_of_work:
             if self._repository.find_object(tenant_id, command.source_key) is None:
@@ -431,7 +431,7 @@ class SourceOfTruthService:
                 AuditEvent.record(
                     tenant_id=tenant_id,
                     actor=principal.subject,
-                    action="itrm.relation.create",
+                    action="rsot.relation.create",
                     target_type="source_relation",
                     target_id=relation.id.value,
                     metadata={
@@ -448,7 +448,7 @@ class SourceOfTruthService:
     def list_relations(self, command: ListSourceRelationsCommand) -> SourceRelationPage:
         tenant_id = TenantId.from_value(command.tenant_id)
         self._security_service.authenticate_token(
-            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITRM_READ)
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.RSOT_READ)
         )
         pagination = Pagination.from_values(command.limit, command.cursor)
         with self._transaction_manager.begin() as unit_of_work:

@@ -32,7 +32,7 @@ Le script `scripts/validate_roadmap.py` vérifie :
 - présence des tailles PGDATA Lite/Pro/Entreprise ;
 - présence de LDAP/IPA, RBAC, multisite et connecteurs ITSM externes ;
 - absence de marqueurs de brouillon.
-- `TST-P09-ITRM-TAXONOMY-LABELS` verrouille l’affichage des libellés opérateur, la conservation des valeurs internes et l’absence des types obsolètes `physical-server`/`disk`.
+- `TST-P09-RSOT-TAXONOMY-LABELS` verrouille l’affichage des libellés opérateur, la conservation des valeurs internes et l’absence des types obsolètes `physical-server`/`disk`.
 
 
 ## Validation v0.29.31

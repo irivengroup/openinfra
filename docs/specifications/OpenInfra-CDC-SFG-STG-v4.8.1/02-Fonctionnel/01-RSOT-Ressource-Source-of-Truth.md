@@ -7,7 +7,7 @@ statut: Validé
 classification: Interne / Consultation intégrateurs
 ---
 
-# IT Ressources Management
+# RSOT (Ressource Source of Truth)
 
 ## Objectif
 
@@ -50,7 +50,7 @@ Le référentiel doit conserver un historique complet time travel permettant de 
 
 ### REQ-00031
 
-Le périmètre Modèle de données complet du volume Référentiel IT Ressources Management doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
+Le périmètre Modèle de données complet du volume Référentiel RSOT (Ressource Source of Truth) doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
 
 **Acceptation :** Le dossier contient les règles de gestion Modèle de données complet, les critères d’acceptation et au moins un cas d’usage nominal et un cas d’erreur.
 
@@ -68,7 +68,7 @@ Le domaine Modèle de données complet doit supporter l’import/export asynchro
 
 ### REQ-00034
 
-Le périmètre Gestion des équipements du volume Référentiel IT Ressources Management doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
+Le périmètre Gestion des équipements du volume Référentiel RSOT (Ressource Source of Truth) doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
 
 **Acceptation :** Le dossier contient les règles de gestion Gestion des équipements, les critères d’acceptation et au moins un cas d’usage nominal et un cas d’erreur.
 
@@ -86,7 +86,7 @@ Le domaine Gestion des équipements doit supporter l’import/export asynchrone 
 
 ### REQ-00037
 
-Le périmètre Localisation X/Y/Z du volume Référentiel IT Ressources Management doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
+Le périmètre Localisation X/Y/Z du volume Référentiel RSOT (Ressource Source of Truth) doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
 
 **Acceptation :** Le dossier contient les règles de gestion Localisation X/Y/Z, les critères d’acceptation et au moins un cas d’usage nominal et un cas d’erreur.
 
@@ -104,7 +104,7 @@ Le domaine Localisation X/Y/Z doit supporter l’import/export asynchrone lorsqu
 
 ### REQ-00040
 
-Le périmètre Historique du volume Référentiel IT Ressources Management doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
+Le périmètre Historique du volume Référentiel RSOT (Ressource Source of Truth) doit être implémenté par une capacité documentée, exposée par API lorsque pertinent, sécurisée par RBAC et testée.
 
 **Acceptation :** Le dossier contient les règles de gestion Historique, les critères d’acceptation et au moins un cas d’usage nominal et un cas d’erreur.
 
@@ -114,24 +114,24 @@ Le périmètre Historique du volume Référentiel IT Ressources Management doit 
 
 La capacité est acceptée si les scénarios nominaux, erreurs, droits insuffisants, conflits et imports/exports sont validés par tests automatisés et si les journaux d’audit permettent de reconstituer les opérations.
 
-## Complément v0.29.14 — Qualité, certification et score ITRM
+## Complément v0.29.14 — Qualité, certification et score RSOT
 
-OpenInfra doit fournir une capacité native de qualité et certification ITRM exposée par CLI, API et dashboard web.
+OpenInfra doit fournir une capacité native de qualité et certification RSOT exposée par CLI, API et dashboard web.
 
 Règles obligatoires :
 
-- chaque objet ITRM peut être évalué individuellement ;
-- chaque tenant peut obtenir une synthèse paginée des statuts qualité ITRM ;
+- chaque objet RSOT peut être évalué individuellement ;
+- chaque tenant peut obtenir une synthèse paginée des statuts qualité RSOT ;
 - le score agrège au minimum la complétude, la fraîcheur, l’autorité de source et la confiance ;
 - un objet incomplet ou obsolète ne doit jamais être marqué certifié ;
-- une source non autoritative par rapport aux règles de gouvernance ITRM doit produire une alerte visible ;
+- une source non autoritative par rapport aux règles de gouvernance RSOT doit produire une alerte visible ;
 - les évaluations doivent être protégées par RBAC et auditées ;
-- les chemins primaires sont `openinfra itrm quality-object`, `openinfra itrm quality-summary`, `/api/v1/itrm/quality/object` et `/api/v1/itrm/quality/summary` ;
+- les chemins primaires sont `openinfra rsot quality-object`, `openinfra rsot quality-summary`, `/api/v1/rsot/quality/object` et `/api/v1/rsot/quality/summary` ;
 - les alias `sot` restent acceptés uniquement pour compatibilité ascendante.
 
 ## Complément v0.29.25 — Taxonomie catégories / types de ressources
 
-OpenInfra doit gérer les ressources ITRM selon une taxonomie normalisée composée d’une catégorie métier et d’un type rattaché à cette catégorie.
+OpenInfra doit gérer les ressources RSOT selon une taxonomie normalisée composée d’une catégorie métier et d’un type rattaché à cette catégorie.
 
 Catégories minimales obligatoires :
 
@@ -153,13 +153,13 @@ Catégories minimales obligatoires :
 
 Règles obligatoires :
 
-1. Le catalogue doit être exposé par `openinfra itrm resource-taxonomy` et `/api/v1/itrm/resource-taxonomy`.
+1. Le catalogue doit être exposé par `openinfra rsot resource-taxonomy` et `/api/v1/rsot/resource-taxonomy`.
 2. Les opérations de création, modification et réconciliation doivent accepter `resource_category` et `resource_type`.
 3. Le backend doit rejeter tout type incompatible avec la catégorie sélectionnée.
 4. Les objets historisés doivent conserver `resource_category` et `resource_type` dans les attributs et au niveau de la représentation API.
-5. Les anciens `kind` legacy restent tolérés uniquement pendant la période de migration contrôlée vers ITRM.
+5. Les anciens `kind` legacy restent tolérés uniquement pendant la période de migration contrôlée vers RSOT.
 6. Les formulaires web doivent filtrer automatiquement les types selon la catégorie choisie.
 7. Le mécanisme de filtrage dépendant doit être générique et réutilisable par tout composant exposant une structure catégorie/type.
 ### Sélecteurs catégorie/type et valeurs internes
 
-Les interfaces opérateur doivent afficher les libellés métier de la taxonomie ITRM dans les listes déroulantes de catégories et de types. Les valeurs techniques normalisées demeurent internes à la solution et sont les seules transmises aux contrats API/CLI. Les types génériques `physical-server` et `disk` sont retirés car les spécialisations `rack-server`, `blade-server`, `tower-server`, `hdd`, `ssd` et `nvme-drive` couvrent explicitement ces cas.
+Les interfaces opérateur doivent afficher les libellés métier de la taxonomie RSOT dans les listes déroulantes de catégories et de types. Les valeurs techniques normalisées demeurent internes à la solution et sont les seules transmises aux contrats API/CLI. Les types génériques `physical-server` et `disk` sont retirés car les spécialisations `rack-server`, `blade-server`, `tower-server`, `hdd`, `ssd` et `nvme-drive` couvrent explicitement ces cas.

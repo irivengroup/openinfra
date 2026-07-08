@@ -24,9 +24,10 @@ class OpenInfraEdition(StrEnum):
 
 
 class FeatureCapability(StrEnum):
-    CORE_IT_RESOURCES_MANAGEMENT = "core_it_resources_management"
-    CORE_RESSOURCES_INVENTORY = "core_it_resources_management"
-    CORE_SOURCE_OF_TRUTH = "core_it_resources_management"
+    CORE_RSOT = "core_rsot"
+    CORE_IT_RESOURCES_MANAGEMENT = "core_rsot"
+    CORE_RESSOURCES_INVENTORY = "core_rsot"
+    CORE_SOURCE_OF_TRUTH = "core_rsot"
     DCIM = "dcim"
     IPAM = "ipam"
     RBAC = "rbac"
@@ -41,10 +42,12 @@ class FeatureCapability(StrEnum):
             return value
         normalized = value.strip().lower().replace("-", "_")
         aliases = {
-            "core_source_of_truth": "core_it_resources_management",
-            "core_ressources_inventory": "core_it_resources_management",
-            "core_resources_inventory": "core_it_resources_management",
-            "core_ri": "core_it_resources_management",
+            "core_rsot": "core_rsot",
+            "core_source_of_truth": "core_rsot",
+            "core_ressources_inventory": "core_rsot",
+            "core_resources_inventory": "core_rsot",
+            "core_sot": "core_rsot",
+            "core_ri": "core_rsot",
         }
         normalized = aliases.get(normalized, normalized)
         try:
@@ -152,7 +155,7 @@ class EditionPolicyCatalog:
     def __init__(self) -> None:
         shared = frozenset(
             {
-                FeatureCapability.CORE_IT_RESOURCES_MANAGEMENT,
+                FeatureCapability.CORE_RSOT,
                 FeatureCapability.DCIM,
                 FeatureCapability.IPAM,
                 FeatureCapability.RBAC,

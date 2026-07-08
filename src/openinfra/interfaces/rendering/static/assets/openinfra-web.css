@@ -260,6 +260,27 @@ body {
   white-space: pre-wrap;
 }
 
+.openinfra-runtime-status {
+  background: linear-gradient(135deg, rgba(0, 174, 239, .08), rgba(0, 87, 184, .035));
+  border: 1px solid rgba(0, 174, 239, .18);
+  border-radius: .95rem;
+  color: #33556f !important;
+  margin: .25rem .5rem 1rem;
+  padding: .7rem .8rem !important;
+}
+
+.openinfra-runtime-status p {
+  margin-bottom: .35rem;
+}
+
+.openinfra-runtime-status p:last-child {
+  margin-bottom: 0;
+}
+
+.openinfra-runtime-status strong {
+  color: #143d63;
+}
+
 .openinfra-status-dot {
   border-radius: 999px;
   display: inline-block;
@@ -293,6 +314,25 @@ body {
 
 .btn-primary:hover,
 .btn-primary:focus {
+  transform: translateY(-1px);
+}
+
+.openinfra-submit-btn {
+  --bs-btn-bg: #00a3c8;
+  --bs-btn-border-color: #00a3c8;
+  --bs-btn-color: #ffffff;
+  --bs-btn-hover-bg: #008db0;
+  --bs-btn-hover-border-color: #008db0;
+  --bs-btn-active-bg: #007795;
+  --bs-btn-active-border-color: #007795;
+  --bs-btn-focus-shadow-rgb: 0, 163, 200;
+  border-radius: .82rem;
+  box-shadow: 0 .65rem 1.35rem rgba(0, 163, 200, .22);
+  font-weight: 800;
+}
+
+.openinfra-submit-btn:hover,
+.openinfra-submit-btn:focus {
   transform: translateY(-1px);
 }
 

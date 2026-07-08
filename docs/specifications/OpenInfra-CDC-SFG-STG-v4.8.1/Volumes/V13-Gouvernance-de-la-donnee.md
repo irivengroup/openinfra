@@ -8,7 +8,7 @@
 
 ## 1. Objectif
 
-Garantir que la IT Ressources Management reste fiable, certifiée, gouvernée et exploitable contractuellement, même lorsque plusieurs sources automatiques produisent des informations divergentes.
+Garantir que la RSOT (Ressource Source of Truth) reste fiable, certifiée, gouvernée et exploitable contractuellement, même lorsque plusieurs sources automatiques produisent des informations divergentes.
 
 Ce volume complète le socle SFG/STG v3 en ajoutant des capacités fonctionnelles de niveau enterprise. Il conserve les exigences transversales OpenInfra : PostgreSQL Cluster, partitionnement des tables massives, API-first, sécurité Zero Trust, audit immuable, haute disponibilité, concurrence contrôlée, traitements asynchrones et traçabilité exigence → cas d’usage → test.
 

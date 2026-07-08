@@ -108,13 +108,6 @@ from openinfra.domain.identity import (
     IdentitySubject,
     IdentityUser,
 )
-from openinfra.domain.itam import (
-    ManufacturerWarranty,
-    PhysicalAssetSupportProfile,
-    SoftwareLicenseEntitlement,
-    ThirdPartySupportContract,
-    ItamDateParser,
-)
 from openinfra.domain.ipam import (
     AutonomousSystem,
     BgpAddressFamily,
@@ -130,6 +123,13 @@ from openinfra.domain.ipam import (
     VlanGroup,
     Vrf,
     VxlanVni,
+)
+from openinfra.domain.itam import (
+    ItamDateParser,
+    ManufacturerWarranty,
+    PhysicalAssetSupportProfile,
+    SoftwareLicenseEntitlement,
+    ThirdPartySupportContract,
 )
 from openinfra.domain.security import ApiTokenCredential, Permission
 from openinfra.domain.source_governance import SourceGovernanceRule, SourceGovernanceRulePage
@@ -3279,14 +3279,17 @@ class JsonItamSupportRepository(ItamSupportRepository):
             provider=str(value["provider"]),
             contract_reference=str(value["contract_reference"]),
             support_level=str(value["support_level"]),
-            support_start=ItamDateParser.parse_date(str(value["support_start"]), "third-party support start"),
-            support_end=ItamDateParser.parse_date(str(value["support_end"]), "third-party support end"),
+            support_start=ItamDateParser.parse_date(
+                str(value["support_start"]), "third-party support start"
+            ),
+            support_end=ItamDateParser.parse_date(
+                str(value["support_end"]), "third-party support end"
+            ),
             support_contact=str(value["support_contact"]),
             status=str(value["status"]),
             notes=(None if value.get("notes") is None else str(value.get("notes"))),
             created_at=datetime.fromisoformat(str(value["created_at"])),
         )
-
 
     def save_software_license(self, license_: SoftwareLicenseEntitlement) -> None:
         key = self._license_key(license_.tenant_id, license_.license_reference.value)
@@ -3296,7 +3299,9 @@ class JsonItamSupportRepository(ItamSupportRepository):
     def find_software_license(
         self, tenant_id: TenantId, license_reference: str
     ) -> SoftwareLicenseEntitlement | None:
-        key = self._license_key(tenant_id, Code.from_value(license_reference, "software license reference").value)
+        key = self._license_key(
+            tenant_id, Code.from_value(license_reference, "software license reference").value
+        )
         value = self._store.data["software_license_entitlements"].get(key)
         if value is None:
             return None
@@ -3314,7 +3319,9 @@ class JsonItamSupportRepository(ItamSupportRepository):
             version=(None if value.get("version") is None else str(value.get("version"))),
             license_reference=str(value["license_reference"]),
             contract_reference=(
-                None if value.get("contract_reference") is None else str(value.get("contract_reference"))
+                None
+                if value.get("contract_reference") is None
+                else str(value.get("contract_reference"))
             ),
             metric=str(value["metric"]),
             purchased_quantity=int(value["purchased_quantity"]),
@@ -3322,7 +3329,9 @@ class JsonItamSupportRepository(ItamSupportRepository):
             entitlement_start=ItamDateParser.parse_date(
                 str(value["entitlement_start"]), "software entitlement start"
             ),
-            entitlement_end=ItamDateParser.parse_date(str(value["entitlement_end"]), "software entitlement end"),
+            entitlement_end=ItamDateParser.parse_date(
+                str(value["entitlement_end"]), "software entitlement end"
+            ),
             status=str(value["status"]),
             owner=(None if value.get("owner") is None else str(value.get("owner"))),
             notes=(None if value.get("notes") is None else str(value.get("notes"))),

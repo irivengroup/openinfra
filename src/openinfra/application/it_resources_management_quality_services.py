@@ -65,7 +65,7 @@ class ItrmQualityReport:
     def as_dict(self) -> dict[str, object]:
         return {
             "tenant_id": self.tenant_id.value,
-            "domain": "it_resources_management",
+            "domain": "rsot",
             "key": self.key,
             "kind": self.kind,
             "display_name": self.display_name,
@@ -96,7 +96,7 @@ class ItrmQualitySummary:
     def as_dict(self) -> dict[str, object]:
         return {
             "tenant_id": self.tenant_id.value,
-            "domain": "it_resources_management",
+            "domain": "rsot",
             "total": self.total,
             "certified": self.certified,
             "warning": self.warning,
@@ -174,19 +174,21 @@ class ITResourcesManagementQualityService:
             AuthenticateTokenCommand(
                 tenant_id.value,
                 command.admin_token,
-                Permission.ITRM_QUALITY_READ,
+                Permission.RSOT_QUALITY_READ,
             )
         )
         with self._transaction_manager.begin() as unit_of_work:
             source_object = self._repository.find_object(tenant_id, command.key)
             if source_object is None:
-                raise NotFoundError("IT Ressources Management object not found: " + command.key)
+                raise NotFoundError(
+                    "RSOT (Ressource Source of Truth) object not found: " + command.key
+                )
             report = self._evaluate_source_object(source_object)
             self._audit_repository.append(
                 AuditEvent.record(
                     tenant_id=tenant_id,
                     actor=principal.subject,
-                    action="itrm.quality.evaluate",
+                    action="rsot.quality.evaluate",
                     target_type="ri_object",
                     target_id=source_object.key.value,
                     metadata={
@@ -204,7 +206,7 @@ class ITResourcesManagementQualityService:
             AuthenticateTokenCommand(
                 tenant_id.value,
                 command.admin_token,
-                Permission.ITRM_QUALITY_READ,
+                Permission.RSOT_QUALITY_READ,
             )
         )
         pagination = Pagination.from_values(command.limit, command.cursor)
@@ -222,7 +224,7 @@ class ITResourcesManagementQualityService:
                 AuditEvent.record(
                     tenant_id=tenant_id,
                     actor=principal.subject,
-                    action="itrm.quality.summary",
+                    action="rsot.quality.summary",
                     target_type="ri_quality",
                     target_id=tenant_id.value,
                     metadata={
@@ -250,7 +252,7 @@ class ITResourcesManagementQualityService:
                     ItrmQualitySeverity.ERROR,
                     "required_attribute_missing",
                     field,
-                    "mandatory ITRM attribute is missing or empty",
+                    "mandatory RSOT attribute is missing or empty",
                 )
             )
         if not source_object.tags:

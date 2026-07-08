@@ -43,7 +43,7 @@ Le volume **V04 — Discovery** décrit les spécifications applicables au domai
 
 ### Finalité
 
-Le volet **SNMP** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la IT Ressources Management.
+Le volet **SNMP** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la RSOT (Ressource Source of Truth).
 
 ### Règles de conception
 
@@ -64,7 +64,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **SSH** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la IT Ressources Management.
+Le volet **SSH** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la RSOT (Ressource Source of Truth).
 
 ### Règles de conception
 
@@ -85,7 +85,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **VMware** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la IT Ressources Management.
+Le volet **VMware** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la RSOT (Ressource Source of Truth).
 
 ### Règles de conception
 
@@ -106,7 +106,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **Proxmox** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la IT Ressources Management.
+Le volet **Proxmox** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la RSOT (Ressource Source of Truth).
 
 ### Règles de conception
 
@@ -127,7 +127,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **Hyper-V** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la IT Ressources Management.
+Le volet **Hyper-V** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la RSOT (Ressource Source of Truth).
 
 ### Règles de conception
 
@@ -148,7 +148,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **Kubernetes** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la IT Ressources Management.
+Le volet **Kubernetes** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la RSOT (Ressource Source of Truth).
 
 ### Règles de conception
 
@@ -169,7 +169,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **Cloud** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la IT Ressources Management.
+Le volet **Cloud** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la RSOT (Ressource Source of Truth).
 
 ### Règles de conception
 
@@ -190,7 +190,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **LLDP/CDP** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la IT Ressources Management.
+Le volet **LLDP/CDP** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la RSOT (Ressource Source of Truth).
 
 ### Règles de conception
 
@@ -211,7 +211,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **NetFlow/sFlow/IPFIX** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la IT Ressources Management.
+Le volet **NetFlow/sFlow/IPFIX** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la RSOT (Ressource Source of Truth).
 
 ### Règles de conception
 
@@ -232,7 +232,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **Agents optionnels** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la IT Ressources Management.
+Le volet **Agents optionnels** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la RSOT (Ressource Source of Truth).
 
 ### Règles de conception
 
@@ -253,7 +253,7 @@ La capacité est acceptée si un administrateur habilité peut créer, consulter
 
 ### Finalité
 
-Le volet **Réconciliation** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la IT Ressources Management.
+Le volet **Réconciliation** doit être traité comme une capacité d’enterprise, exploitable par interface utilisateur, API, import/export et automatisation lorsque le domaine le justifie. La capacité doit être observable, sécurisée par RBAC/ABAC, historisée et intégrée à la RSOT (Ressource Source of Truth).
 
 ### Règles de conception
 
@@ -592,6 +592,6 @@ Le volume est recevable si :
 5. les scénarios d’erreur sont testés ;
 6. les journaux d’audit sont exploitables ;
 7. les performances critiques respectent les budgets définis ;
-8. l’intégration à la IT Ressources Management est effective ;
+8. l’intégration à la RSOT (Ressource Source of Truth) est effective ;
 9. la documentation d’exploitation existe ;
 10. les risques résiduels sont acceptés.

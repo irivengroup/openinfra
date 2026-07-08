@@ -67,3 +67,4 @@ REQ-00791,Badge édition fuchsia effectif sans héritage bleu Bootstrap,P08,EPIC
 REQ-00792,Badge édition fuchsia très foncé sans rendu marron,P08,EPIC-0805,0.29.49,TST-P08-WEB-EDITION-BADGE-DARK-FUCHSIA
 CDC-WEB-02950,Administration API/UI des éditions et quotas runtime,P08,EPIC-0804,REL-08,"REQ-00793 et TST-WEB-094 valident discovery, OpenAPI, RBAC, UI et CI."
 REQ-00794,ITAM licences logicielles et conformité,P12,EPIC-1205,0.29.51,TST-P12-ITAM-SOFTWARE-LICENSES
+REQ-00795,Progression opérable imports massifs reprenables,P13,EPIC-1301,0.29.52,TST-P13-BULK-IMPORT-PROGRESS

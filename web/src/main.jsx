@@ -715,6 +715,9 @@ const MODULES = [
     { id: 'itam-update-license-assignment', label: 'Mettre à jour affectation licence', path: '/v1/itam/software-license/assignment', method: 'POST', fields: ['Opérateur', 'Référence licence', 'Quantité assignée', 'Notes'] },
   ] },
   { id: 'discovery', label: 'Discovery', icon: 'activity', operations: [{ id: 'collectors-register', label: 'Enregistrer un agent proxy Enterprise', path: '/v1/discovery/collectors', method: 'POST', fields: ['Opérateur', 'Nom agent proxy', 'Type', 'Empreinte certificat', 'Scopes autorisés', 'Version agent', 'Endpoint mTLS'] }] },
+  { id: 'data', label: 'Imports / Exports', shortLabel: 'Data', icon: 'table', operations: [
+    { id: 'import-bulk-progress', label: 'Progression import massif', path: '/v1/imports/bulk-progress', method: 'GET', fields: ['Job ID'] },
+  ] },
   { id: 'security', label: 'Sécurité / RBAC / Audit', shortLabel: 'Sécurité', icon: 'shield', operations: [
     { id: 'edition-policies', label: 'Politiques éditions et quotas', path: '/v1/editions/policies', method: 'GET', fields: [] },
     { id: 'edition-feature-check', label: 'Vérifier une capacité édition', path: '/v1/editions/feature-check', method: 'GET', fields: ['Édition', 'Capacité'] },

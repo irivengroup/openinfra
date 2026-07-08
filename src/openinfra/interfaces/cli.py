@@ -725,6 +725,15 @@ class OpenInfraCLI:
         bulk_checkpoint.add_argument("--job-id", required=True)
         bulk_checkpoint.set_defaults(handler=self._handle_import_bulk_checkpoint)
 
+        bulk_progress = import_subparsers.add_parser(
+            "bulk-progress",
+            help="read resumability and processed-row counters for a bulk import job",
+        )
+        self._add_backend_arguments(bulk_progress)
+        bulk_progress.add_argument("--tenant", required=True)
+        bulk_progress.add_argument("--job-id", required=True)
+        bulk_progress.set_defaults(handler=self._handle_import_bulk_progress)
+
         migration_template = import_subparsers.add_parser(
             "migration-template",
             help=(
@@ -2256,6 +2265,12 @@ class OpenInfraCLI:
         app = self._create_application(args)
         checkpoint = app.import_service.get_bulk_checkpoint(args.tenant, args.job_id)
         print(json.dumps(checkpoint.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_import_bulk_progress(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        progress = app.import_service.get_bulk_progress(args.tenant, args.job_id)
+        print(json.dumps(progress.as_dict(), indent=2, sort_keys=True))
         return 0
 
     def _handle_import_migration_template(self, args: argparse.Namespace) -> int:

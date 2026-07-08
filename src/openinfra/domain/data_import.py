@@ -153,6 +153,71 @@ class MigrationTemplate:
         }
 
 
+
+
+@dataclass(frozen=True, slots=True)
+class BulkImportProgress:
+    job_id: EntityId
+    tenant_id: TenantId
+    status: ImportJobStatus
+    next_row_number: int
+    processed_rows: int
+    valid_rows: int
+    invalid_rows: int
+    create_count: int
+    update_count: int
+    batches_completed: int
+    resumable: bool
+    final_report_available: bool
+
+    @classmethod
+    def create(
+        cls,
+        checkpoint: BulkImportCheckpoint,
+        report: BulkImportReport | None = None,
+    ) -> Self:
+        processed_rows = max(0, checkpoint.next_row_number - 1)
+        if checkpoint.total_rows > processed_rows:
+            processed_rows = checkpoint.total_rows
+        final_report_available = report is not None
+        if report is not None:
+            if report.job_id != checkpoint.job_id:
+                raise ValidationError("bulk import progress report job mismatch")
+            if report.tenant_id != checkpoint.tenant_id:
+                raise ValidationError("bulk import progress report tenant mismatch")
+            processed_rows = report.total_rows
+        return cls(
+            job_id=checkpoint.job_id,
+            tenant_id=checkpoint.tenant_id,
+            status=checkpoint.status,
+            next_row_number=checkpoint.next_row_number,
+            processed_rows=processed_rows,
+            valid_rows=checkpoint.valid_rows,
+            invalid_rows=checkpoint.invalid_rows,
+            create_count=checkpoint.create_count,
+            update_count=checkpoint.update_count,
+            batches_completed=checkpoint.batches_completed,
+            resumable=checkpoint.status is not ImportJobStatus.APPLIED,
+            final_report_available=final_report_available,
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "job_id": self.job_id.value,
+            "tenant_id": self.tenant_id.value,
+            "status": self.status.value,
+            "next_row_number": self.next_row_number,
+            "processed_rows": self.processed_rows,
+            "valid_rows": self.valid_rows,
+            "invalid_rows": self.invalid_rows,
+            "create_count": self.create_count,
+            "update_count": self.update_count,
+            "batches_completed": self.batches_completed,
+            "resumable": self.resumable,
+            "final_report_available": self.final_report_available,
+        }
+
+
 @dataclass(frozen=True, slots=True)
 class MigrationPlanReport:
     job_id: EntityId

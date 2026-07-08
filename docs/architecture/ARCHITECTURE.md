@@ -1,3 +1,13 @@
+# Architecture OpenInfra Python
+
+## v0.29.52 — P13 progression opérable des imports massifs reprenables
+
+La version `0.29.52` ajoute un contrat d’observabilité opérationnelle pour les imports massifs. Le domaine `BulkImportProgress` reste indépendant des interfaces : il agrège les compteurs issus d’un `BulkImportCheckpoint` et, lorsqu’il existe, du `BulkImportReport` final sans relire le fichier source.
+
+Le service applicatif `GenericImportService.get_bulk_progress` applique la normalisation tenant/job, récupère le checkpoint depuis le port `ImportRepository`, enrichit la réponse avec le rapport final s’il est disponible et renvoie un document stable aux interfaces CLI, HTTP et web. Les adaptateurs de persistance JSON et PostgreSQL déjà utilisés par les imports bulk restent la source de vérité ; aucune nouvelle duplication d’état n’est introduite.
+
+Les interfaces exposent le même cas d’usage : `openinfra import bulk-progress`, `GET /api/v1/imports/bulk-progress`, OpenAPI, discovery document et portail web **Imports / Exports**. Cette conception conserve les chemins historiques `bulk-dataset`, `bulk-report` et `bulk-checkpoint` tout en ajoutant une vue opérateur plus directement exploitable pour la reprise et le suivi d’un job long.
+
 ## v0.29.13 — openinfra-web API-only et Compose runtime
 
 - `openinfra-web` est un service applicatif distinct du backend : il sert les assets frontend et proxyfie `/api/*` vers l'API interne.
@@ -62,7 +72,6 @@ La version `0.29.0` ajoute une frontière domaine/application dédiée aux édit
 
 Le comptage runtime est porté par le port `RuntimeUsageRepository`, implémenté en JSON et PostgreSQL. Les requêtes PostgreSQL utilisent des statements statiques par ressource afin d'éviter toute construction SQL dynamique. L'édition active est fournie à la factory applicative via CLI, API ou `OPENINFRA_EDITION`; Enterprise reste la valeur par défaut pour préserver la compatibilité ascendante.
 
-# Architecture OpenInfra Python
 
 
 ## v0.28.1 — Registry collectors et identité forte

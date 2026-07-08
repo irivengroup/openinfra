@@ -213,6 +213,10 @@ class TestOpenInfraWeb:
         assert "/v1/editions/policies" in static_js + main_js
         assert "/v1/editions/feature-check" in static_js + main_js
         assert "/v1/editions/quota-check" in static_js + main_js
+        assert "Imports / Exports" in static_js + main_js
+        assert "Progression import massif" in static_js + main_js
+        assert "/v1/imports/bulk-progress" in static_js + main_js
+        assert "FIELD_SETS.jobId" in static_js
         assert "distributed_discovery_agents" in static_js
         assert "discovery_collector" in static_js
         assert "requested_increment" in static_js

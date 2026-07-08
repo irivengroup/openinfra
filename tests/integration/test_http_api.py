@@ -70,6 +70,16 @@ class TestHttpApi:
                     "report": "/api/v1/exports/jobs",
                     "artifact": "/api/v1/exports/artifact",
                 },
+                "imports": {
+                    "dataset": "/api/v1/imports/datasets",
+                    "bulk_dataset": "/api/v1/imports/bulk-datasets",
+                    "bulk_report": "/api/v1/imports/bulk-report",
+                    "bulk_checkpoint": "/api/v1/imports/bulk-checkpoint",
+                    "bulk_progress": "/api/v1/imports/bulk-progress",
+                    "migration_template": "/api/v1/imports/migration-template",
+                    "migration_plans": "/api/v1/imports/migration-plans",
+                    "migration_report": "/api/v1/imports/migration-report",
+                },
                 "search": {"global": "/api/v1/search/global"},
                 "editions": {
                     "policies": "/api/v1/editions/policies",
@@ -157,6 +167,7 @@ class TestHttpApi:
             assert "/api/v1/ipam/ddi-preview" in openapi
             assert "/api/v1/ipam/topology" in openapi
             assert "/api/v1/search/global" in openapi
+            assert "/api/v1/imports/bulk-progress" in openapi
             assert "/api/v1/editions/policies" in openapi
             assert "/api/v1/editions/feature-check" in openapi
             assert "/api/v1/editions/quota-check" in openapi

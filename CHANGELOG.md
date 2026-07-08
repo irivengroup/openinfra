@@ -1,14 +1,14 @@
-### v0.29.51 — ITAM licences logicielles, contrats et conformité
+### v0.29.52 — progression opérable des imports massifs reprenables
 
-- Ajout du modèle domaine `SoftwareLicenseEntitlement` et du rapport `SoftwareLicenseComplianceReport`.
-- Ajout des commandes applicatives de déclaration, mise à jour d’affectation, lecture et conformité des licences logicielles.
-- Ajout du stockage JSON `software_license_entitlements`.
-- Ajout de la migration PostgreSQL `0028_itam_software_license_entitlements.sql`, partitionnée par tenant avec contraintes et index.
-- Ajout des endpoints API `/api/v1/itam/software-license`, `/api/v1/itam/software-license/assignment` et `/api/v1/itam/software-license/compliance`.
-- Ajout des commandes CLI `itam register-software-license`, `itam update-license-assignment`, `itam software-license`, `itam software-license-compliance`.
-- Ajout des opérations ITAM correspondantes dans le portail web React et runtime statique.
-- Mise à jour OpenAPI, README, architecture, UI, CDC, roadmap et traçabilité.
-- Ajout des tests service/API/CLI/frontend/régression ITAM logiciel.
+- Ajout du modèle domaine `BulkImportProgress` dérivé des checkpoints et rapports bulk persistés.
+- Ajout du service applicatif `GenericImportService.get_bulk_progress`.
+- Ajout de la commande CLI `openinfra import bulk-progress`.
+- Ajout de l’endpoint API `GET /api/v1/imports/bulk-progress`.
+- Publication du contrat dans le discovery document et dans `docs/api/openapi.yaml`.
+- Ajout du module web **Imports / Exports** et de l’opération **Progression import massif**.
+- Ajout d’un smoke CI JSON qui exécute un bulk import, récupère son `job_id` et vérifie la progression.
+- Ajout des tests service, CLI, API, OpenAPI, discovery, frontend et validateur.
+- Alignement CDC `REQ-00795` / `TST-WEB-096` et roadmap `TST-P13-BULK-IMPORT-PROGRESS`.
 
 ### v0.29.50 — administration éditions et quotas API/UI
 

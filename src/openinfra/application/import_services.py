@@ -18,6 +18,7 @@ from openinfra.domain.common import AuditEvent, EntityId, Severity, TenantId, Va
 from openinfra.domain.data_import import (
     BulkImportCheckpoint,
     BulkImportMetrics,
+    BulkImportProgress,
     BulkImportReport,
     ImportCandidate,
     ImportFormat,
@@ -375,6 +376,14 @@ class GenericImportService:
         if checkpoint is None:
             raise ValidationError("bulk import checkpoint not found: " + job_id)
         return checkpoint
+
+    def get_bulk_progress(self, tenant_id: str, job_id: str) -> BulkImportProgress:
+        normalized_tenant = TenantId.from_value(tenant_id)
+        checkpoint = self._import_repository.get_bulk_import_checkpoint(normalized_tenant, job_id)
+        if checkpoint is None:
+            raise ValidationError("bulk import checkpoint not found: " + job_id)
+        report = self._import_repository.get_bulk_import_report(normalized_tenant, job_id)
+        return BulkImportProgress.create(checkpoint, report)
 
     def get_report(self, tenant_id: str, job_id: str) -> ImportReport:
         normalized_tenant = TenantId.from_value(tenant_id)

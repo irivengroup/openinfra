@@ -1,3 +1,18 @@
+## v0.29.52 — P13 / EPIC-1301 progression imports massifs
+
+| Élément | Alignement |
+|---|---|
+| CDC | `REQ-00795` / `TST-WEB-096` |
+| Roadmap | P13 / EPIC-1301 / `TST-P13-BULK-IMPORT-PROGRESS` |
+| Domaine | `BulkImportProgress` |
+| Application | `GenericImportService.get_bulk_progress` |
+| CLI | `openinfra import bulk-progress` |
+| API | `GET /api/v1/imports/bulk-progress` |
+| Web | composant **Imports / Exports**, opération **Progression import massif** |
+| OpenAPI / Discovery | chemin `/api/v1/imports/bulk-progress` et entrée `imports.bulk_progress` |
+| CI | smoke JSON bulk import progress dans `.github/workflows/ci.yml` |
+| Tests | `tests/integration/test_import_services.py`, `test_cli_import.py`, `test_http_api.py`, `test_openinfra_web.py` |
+
 ## v0.29.13 — ITRM, agents proxy Enterprise et dashboard web
 
 | Élément | Alignement |

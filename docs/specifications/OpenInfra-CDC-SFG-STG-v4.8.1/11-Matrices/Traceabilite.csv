@@ -787,3 +787,4 @@ REQ-00791,N2,WEB,UC-WEB-001,TST-WEB-092,Validation frontend et tests intégratio
 REQ-00792,N2,WEB,UC-WEB-001,TST-WEB-093,Validation frontend et tests intégration openinfra-web du badge édition fuchsia très foncé sans retour au bleu Bootstrap ni rendu marron.
 REQ-00793,N2,WEB/API,UC-WEB-001,TST-WEB-094,"Tests API HTTP, OpenAPI, discovery et openinfra-web pour l’administration éditions/capacités/quotas."
 REQ-00794,N1,ITAM,UC-ITAM-005,TST-WEB-095,Tests service/API/CLI/frontend/migration de la gestion des licences logicielles et de la conformité ITAM.
+REQ-00795,N1,IMPORT/API/WEB,UC-IMPORT-001,TST-WEB-096,Tests service/API/CLI/frontend/OpenAPI de la progression des imports massifs reprenables.

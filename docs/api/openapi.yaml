@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.51
+  version: 0.29.52
 components:
   securitySchemes:
     bearerToken:
@@ -2331,6 +2331,17 @@ paths:
       responses:
         '200': {description: Persisted bulk import checkpoint}
         '400': {description: Validation error or unknown bulk checkpoint}
+
+
+  /api/v1/imports/bulk-progress:
+    get:
+      summary: Read resumability and processed-row counters for a bulk import job
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: job_id, in: query, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Bulk import progress state with checkpoint counters}
+        '400': {description: Validation error or unknown bulk import job}
 
 
   /api/v1/discovery/collectors:

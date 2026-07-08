@@ -609,6 +609,18 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
+        if route == "/api/v1/imports/bulk-progress":
+            try:
+                query = parse_qs(parsed.query)
+                progress = self.server.application.import_service.get_bulk_progress(
+                    self._first_query_value(query, "tenant_id"),
+                    self._first_query_value(query, "job_id"),
+                )
+                responder.send(HTTPStatus.OK, progress.as_dict())
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
         if route == "/api/v1/imports/migration-template":
             try:
                 query = parse_qs(parsed.query)
@@ -2678,6 +2690,16 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "run": "/api/v1/exports/run",
                     "report": "/api/v1/exports/jobs",
                     "artifact": "/api/v1/exports/artifact",
+                },
+                "imports": {
+                    "dataset": "/api/v1/imports/datasets",
+                    "bulk_dataset": "/api/v1/imports/bulk-datasets",
+                    "bulk_report": "/api/v1/imports/bulk-report",
+                    "bulk_checkpoint": "/api/v1/imports/bulk-checkpoint",
+                    "bulk_progress": "/api/v1/imports/bulk-progress",
+                    "migration_template": "/api/v1/imports/migration-template",
+                    "migration_plans": "/api/v1/imports/migration-plans",
+                    "migration_report": "/api/v1/imports/migration-report",
                 },
                 "search": {"global": "/api/v1/search/global"},
                 "editions": {

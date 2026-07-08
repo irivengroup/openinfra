@@ -292,6 +292,7 @@ def test_bulk_import_streams_batches_checkpoints_and_persists_report(tmp_path: P
 
     persisted = app.import_service.get_bulk_report("default", report.job_id.value)
     checkpoint = app.import_service.get_bulk_checkpoint("default", report.job_id.value)
+    progress = app.import_service.get_bulk_progress("default", report.job_id.value)
     created = app.source_of_truth_service.get_object(
         GetSourceObjectCommand("default", token, "device/bulk-004")
     )
@@ -308,6 +309,20 @@ def test_bulk_import_streams_batches_checkpoints_and_persists_report(tmp_path: P
     assert len(report.dlq_sample) == 1
     assert persisted.as_dict() == report.as_dict()
     assert checkpoint.next_row_number == 6
+    assert progress.as_dict() == {
+        "job_id": report.job_id.value,
+        "tenant_id": "default",
+        "status": "failed",
+        "next_row_number": 6,
+        "processed_rows": 5,
+        "valid_rows": 4,
+        "invalid_rows": 1,
+        "create_count": 4,
+        "update_count": 0,
+        "batches_completed": 2,
+        "resumable": True,
+        "final_report_available": True,
+    }
     assert created["attributes"]["serial"] == "SN004"
 
 
@@ -335,6 +350,7 @@ def test_bulk_import_resume_skips_rows_before_checkpoint(tmp_path: Path) -> None
         status=ImportJobStatus.QUEUED,
     )
     app.import_repository.save_bulk_import_checkpoint(checkpoint)
+    initial_progress = app.import_service.get_bulk_progress("default", checkpoint.job_id.value)
 
     report = app.import_service.bulk_import_dataset(
         BulkImportDatasetCommand(
@@ -352,6 +368,9 @@ def test_bulk_import_resume_skips_rows_before_checkpoint(tmp_path: Path) -> None
         )
     )
 
+    assert initial_progress.processed_rows == 2
+    assert initial_progress.resumable is True
+    assert initial_progress.final_report_available is False
     assert report.job_id == checkpoint.job_id
     assert report.total_rows == 4
     assert report.valid_rows == 4

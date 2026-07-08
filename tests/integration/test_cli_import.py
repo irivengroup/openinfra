@@ -197,6 +197,28 @@ def test_cli_bulk_import_dataset_report_and_checkpoint(tmp_path: Path, capsys: o
     checkpoint = json.loads(capsys.readouterr().out)
     assert checkpoint["next_row_number"] == 3
 
+    assert (
+        OpenInfraCLI().run(
+            [
+                "import",
+                "bulk-progress",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--job-id",
+                str(created["job_id"]),
+            ]
+        )
+        == 0
+    )
+    progress = json.loads(capsys.readouterr().out)
+    assert progress["job_id"] == created["job_id"]
+    assert progress["next_row_number"] == 3
+    assert progress["processed_rows"] == 2
+    assert progress["batches_completed"] == 2
+    assert progress["final_report_available"] is True
+
 
 def test_cli_import_migration_template_plan_and_report(tmp_path: Path, capsys: object) -> None:
     data = tmp_path / "state.json"

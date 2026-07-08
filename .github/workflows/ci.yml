@@ -182,6 +182,38 @@ jobs:
           openinfra edition quota-check --data "$tmpdir/state.json" --tenant default --edition lite --resource user --increment 1 > "$tmpdir/quota.json"
           python -c 'import json, pathlib, sys; editions=json.loads(pathlib.Path(sys.argv[1]).read_text()); feature=json.loads(pathlib.Path(sys.argv[2]).read_text()); quota=json.loads(pathlib.Path(sys.argv[3]).read_text()); assert {item["edition"] for item in editions} == {"lite", "pro", "enterprise"}; assert feature["allowed"] is True; assert quota["limit"] == 5 and quota["allowed"] is True' "$tmpdir/editions.json" "$tmpdir/feature.json" "$tmpdir/quota.json"
 
+      - name: Smoke JSON bulk import progress
+        run: |
+          tmpdir="$(mktemp -d)"
+          admin_token="$(python -c 'import secrets; print("ci_" + secrets.token_urlsafe(48))')"
+          cat > "$tmpdir/devices.csv" <<'CSV'
+          asset_key,kind,name,source,tags,serial
+          device/ci-bulk-progress-1,device,CI Bulk Progress 1,ci_import,ci,SN-CI-1
+          device/ci-bulk-progress-2,device,CI Bulk Progress 2,ci_import,ci,SN-CI-2
+          CSV
+          mapping='{"key":"asset_key","kind":"kind","display_name":"name","source":"source","tags":"tags","attributes.serial":"serial"}'
+          openinfra security bootstrap-token \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --subject ci-import-operator \
+            --role itrm:operator \
+            --token "$admin_token"
+          openinfra import bulk-dataset \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --admin-token "$admin_token" \
+            --file "$tmpdir/devices.csv" \
+            --format csv \
+            --mapping-json "$mapping" \
+            --batch-size 1 \
+            --checkpoint-interval 1 > "$tmpdir/bulk-report.json"
+          job_id="$(python -c 'import json, pathlib, sys; print(json.loads(pathlib.Path(sys.argv[1]).read_text())["job_id"])' "$tmpdir/bulk-report.json")"
+          openinfra import bulk-progress \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --job-id "$job_id" > "$tmpdir/progress.json"
+          python -c 'import json, pathlib, sys; data=json.loads(pathlib.Path(sys.argv[1]).read_text()); assert data["processed_rows"] == 2; assert data["batches_completed"] == 2; assert data["final_report_available"] is True' "$tmpdir/progress.json"
+
       - name: Smoke JSON security token
         run: |
           tmpdir="$(mktemp -d)"

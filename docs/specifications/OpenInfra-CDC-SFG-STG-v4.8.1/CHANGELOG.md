@@ -1,3 +1,4 @@
+- Ajout de `REQ-00795` et `TST-WEB-096` pour couvrir P13 / EPIC-1301 : progression opérable des imports massifs reprenables via service, CLI, API, OpenAPI et portail web.
 ## v0.29.51 — ITAM licences logicielles, contrats et conformité
 
 - Ajout de `REQ-00794` et `TST-WEB-095` pour couvrir P12 / EPIC-1205.

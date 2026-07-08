@@ -772,6 +772,7 @@ const SOURCE_OPTIONS = ["manual", "import", "backend-discovery", "enterprise-pro
 const FIELD_SETS = {
   tenant: { name: "tenant_id", label: "Tenant", defaultValue: "default", placeholder: "default" },
   limit: { name: "limit", label: "Limite", type: "number", placeholder: "100" },
+  jobId: { name: "job_id", label: "Job ID", required: true, placeholder: "job import massif" },
   resourceCategory: { name: "resource_category", label: "Catégorie", type: "select", options: RESOURCE_CATEGORY_OPTIONS, target: "kind", defaultValue: "server" },
   resourceType: { name: "resource_type", label: "Type de ressource", type: "select", optionsByField: "resource_category", optionsMap: RESOURCE_TAXONOMY, target: "attributes.resource_type", defaultValue: "rack-server" },
   resourceCategoryFilter: { name: "resource_category", label: "Catégorie", type: "select", options: RESOURCE_CATEGORY_OPTIONS },
@@ -911,6 +912,9 @@ const OPENINFRA_MODULES = [
     { id: "collectors-list", label: "Lister les agents proxy Enterprise", method: "GET", path: "/v1/discovery/collectors", query: [{ name: "scope", label: "Scope autorisé" }, FIELD_SETS.limit] },
     { id: "collectors-register", label: "Enregistrer un agent proxy Enterprise", method: "POST", path: "/v1/discovery/collectors", body: [FIELD_SETS.actor, { name: "name", label: "Nom agent proxy", required: true }, { name: "kind", label: "Type", required: true, type: "select", options: ["site-proxy", "network-proxy", "datacenter-proxy"] }, { name: "certificate_fingerprint", label: "Empreinte certificat", required: true }, { name: "scopes", label: "Scopes autorisés", type: "csv", required: true, placeholder: "site/paris,network/core" }, { name: "version", label: "Version agent", required: true, defaultValue: "1.0.0" }, { name: "endpoint_url", label: "Endpoint mTLS", required: true, placeholder: "https://collector-paris.openinfra.local" }] },
     { id: "job-authorize", label: "Autoriser un job collector", method: "POST", path: "/v1/discovery/jobs/authorize", body: [{ name: "collector_id", label: "ID agent proxy", required: true }, { name: "certificate_fingerprint", label: "Empreinte certificat", required: true }, { name: "requested_scope", label: "Scope demandé", required: true }, { name: "job_type", label: "Type de job", required: true, type: "select", options: ["snmp", "ssh", "winrm", "vmware", "kubernetes"] }, { name: "target", label: "Cible", required: true, placeholder: "10.20.30.10" }] }
+  ] },
+  { id: "data", label: "Imports / Exports", shortLabel: "Data", icon: "table", description: "Imports massifs reprenables, checkpoints et états d’avancement opérables.", operations: [
+    { id: "import-bulk-progress", label: "Progression import massif", method: "GET", path: "/v1/imports/bulk-progress", query: [FIELD_SETS.jobId] }
   ] },
   { id: "security", label: "Sécurité / RBAC / Audit", shortLabel: "Sécurité", icon: "shield", description: "Identité, RBAC, tokens, politiques d’accès, audit, éditions et quotas runtime.", operations: [
     { id: "edition-policies", label: "Politiques éditions et quotas", method: "GET", path: "/v1/editions/policies", query: [] },

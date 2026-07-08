@@ -1,4 +1,4 @@
-# OpenInfra Web v0.29.51
+# OpenInfra Web v0.29.52
 
 OpenInfra Web est le portail `openinfra-web` API-only. Il sert l'interface React/Bootstrap 5, expose un proxy applicatif `/api/*` vers le backend `openinfra-api` et fournit un dashboard aligné sur les domaines CLI.
 
@@ -41,7 +41,16 @@ Le service Compose `openinfra-web` dépend de `api:8080`, écoute par défaut su
 L'unité `openinfra-web.service` lance `openinfra-web` depuis le virtualenv géré par l'installateur et lit sa configuration via `EnvironmentFile=/etc/openinfra/openinfra.conf`, chemin compatible pointant vers `/opt/openinfra/config/openinfra.conf`.
 
 
-## v0.29.51 — administration éditions et quotas
+## v0.29.52 — Imports / Exports et progression import massif
+
+Le portail expose désormais le composant **Imports / Exports** avec l’opération **Progression import massif**. Cette opération appelle `GET /api/v1/imports/bulk-progress` via le proxy same-origin et demande uniquement le `job_id` du traitement bulk à inspecter.
+
+Le navigateur n’analyse pas le fichier source importé et ne recalcule pas les métriques : il affiche le document consolidé par le backend à partir des checkpoints et du rapport bulk persistés. Les champs exposés couvrent le statut du job, la prochaine ligne à traiter, les compteurs de lignes valides/invalides, les créations/mises à jour, les batches terminés, l’indicateur de reprise `resumable` et la disponibilité du rapport final.
+
+Cette opération est présente dans la source React, dans le runtime statique et dans `scripts/validate_frontend.py`, ce qui maintient la parité entre développement frontend et assets embarqués.
+
+
+## v0.29.50 — administration éditions et quotas
 
 Le module **Sécurité/RBAC/Audit** expose désormais les opérations d'administration des éditions dans le portail web :
 

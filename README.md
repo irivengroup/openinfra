@@ -1,4 +1,4 @@
-# OpenInfra v0.29.62
+# OpenInfra v0.29.63
 
 ## v0.29.62 — référentiel tenants ITAM
 
@@ -276,3 +276,8 @@ PYTHONPATH=src:. coverage combine
 PYTHONPATH=src:. coverage report --fail-under=98
 PYTHONPATH=src:. python scripts/quality_gate.py --project-root .
 ```
+
+
+## v0.29.63 — Enterprise agent bootstrap plan
+
+OpenInfra prepares Enterprise discovery agents through `openinfra discovery agent-bootstrap-plan` and `POST /api/v1/discovery/agent-bootstrap-plan`. The contract renders an operator-reviewed `openinfra-agent.service` systemd unit, an agent configuration document, mTLS requirements, vault-only enrollment references and API result publication endpoints. No installation is executed and no secret is materialized by OpenInfra during plan generation.

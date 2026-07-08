@@ -174,3 +174,8 @@ OpenInfra ajoute `REQ-00805` pour structurer le panneau latéral `openinfra-web`
 ## v0.29.62 — référentiel tenants ITAM
 
 - `REQ-00806` — OpenInfra doit gérer les tenants ITAM avec CRUD, tenant par défaut unique, retrait logique, sélection web par liste et auto-sélection lorsqu’un seul tenant actif existe.
+
+
+## v0.29.63 — plan bootstrap agent Enterprise
+
+OpenInfra expose `openinfra discovery agent-bootstrap-plan` et `POST /api/v1/discovery/agent-bootstrap-plan` pour produire un plan opérable `openinfra-agent.service` Enterprise. Le plan exige HTTPS, mTLS, secret `vault://`, compte de service non-root, publication de résultats par API et ne réalise ni installation ni matérialisation de secret.

@@ -45,6 +45,7 @@ from openinfra.application.dcim_services import (
 )
 from openinfra.application.discovery_services import (
     AuthorizeDiscoveryJobCommand,
+    BuildEnterpriseAgentBootstrapPlanCommand,
     BuildLocalDiscoveryPlanCommand,
     DisableCollectorCommand,
     EnrollDiscoveryProxyCommand,
@@ -2582,6 +2583,42 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
+        if route == "/api/v1/discovery/agent-bootstrap-plan":
+            try:
+                payload = self._read_json_body()
+                plan = (
+                    self.server.application.discovery_service.build_enterprise_agent_bootstrap_plan(
+                        BuildEnterpriseAgentBootstrapPlanCommand(
+                            tenant_id=str(payload["tenant_id"]),
+                            actor=str(payload.get("actor", "api")),
+                            admin_token=self._bearer_token(),
+                            name=str(payload["name"]),
+                            role=str(payload.get("role", "site")),
+                            scopes=tuple(str(item) for item in payload["scopes"]),
+                            backend_url=str(payload["backend_url"]),
+                            certificate_fingerprint=str(payload["certificate_fingerprint"]),
+                            enrollment_secret_ref=str(payload["enrollment_secret_ref"]),
+                            agent_version=str(payload.get("agent_version", __version__)),
+                            service_user=str(payload.get("service_user", "openinfra-agent")),
+                            config_path=str(
+                                payload.get("config_path", "/etc/openinfra/agent.yaml")
+                            ),
+                            state_directory=str(
+                                payload.get("state_directory", "/var/lib/openinfra-agent")
+                            ),
+                            log_directory=str(
+                                payload.get("log_directory", "/var/log/openinfra-agent")
+                            ),
+                        )
+                    )
+                )
+                responder.send(HTTPStatus.OK, plan.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError, TypeError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
         if route == "/api/v1/discovery/proxy-enrollments":
             try:
                 payload = self._read_json_body()
@@ -3338,6 +3375,7 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                 "discovery": {
                     "collectors": "/api/v1/discovery/collectors",
                     "local_plan": "/api/v1/discovery/local-plan",
+                    "agent_bootstrap_plan": "/api/v1/discovery/agent-bootstrap-plan",
                     "proxy_enrollments": "/api/v1/discovery/proxy-enrollments",
                     "heartbeat": "/api/v1/discovery/collectors/heartbeat",
                     "authorize_job": "/api/v1/discovery/jobs/authorize",

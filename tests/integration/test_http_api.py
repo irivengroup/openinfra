@@ -177,6 +177,7 @@ class TestHttpApi:
                 "discovery": {
                     "collectors": "/api/v1/discovery/collectors",
                     "local_plan": "/api/v1/discovery/local-plan",
+                    "agent_bootstrap_plan": "/api/v1/discovery/agent-bootstrap-plan",
                     "proxy_enrollments": "/api/v1/discovery/proxy-enrollments",
                     "heartbeat": "/api/v1/discovery/collectors/heartbeat",
                     "authorize_job": "/api/v1/discovery/jobs/authorize",
@@ -209,6 +210,7 @@ class TestHttpApi:
             assert "/api/v1/itam/software-license" in openapi
             assert "/api/v1/itam/software-license/compliance" in openapi
             assert "/api/v1/discovery/local-plan" in openapi
+            assert "/api/v1/discovery/agent-bootstrap-plan" in openapi
             assert "/api/v1/discovery/proxy-enrollments" in openapi
             assert "/api/v1/dcim/power-devices" in openapi
             assert "/api/v1/dcim/energy-cooling-capacity" in openapi
@@ -1101,6 +1103,54 @@ class TestHttpApi:
             assert plan["agent_required"] is False
             assert plan["network_scan_executed"] is False
             assert plan["rsot_write_enabled"] is False
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def test_enterprise_agent_bootstrap_plan_api_returns_service_contract(
+        self, tmp_path: Path
+    ) -> None:
+        app = ApplicationFactory().create_json_application(
+            tmp_path / "state.json", edition="enterprise"
+        )
+        token = "a" * 40
+        app.security_service.bootstrap_token(
+            BootstrapTokenCommand(
+                tenant_id="default",
+                actor="pytest",
+                subject="discovery-admin",
+                roles=("security:admin",),
+                token=token,
+            )
+        )
+        server = OpenInfraThreadingServer(("127.0.0.1", 0), app)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base_url = f"http://127.0.0.1:{server.server_port}"
+            plan = self._post_json(
+                base_url + "/api/v1/discovery/agent-bootstrap-plan",
+                {
+                    "tenant_id": "default",
+                    "name": "Agent Enterprise PAR1",
+                    "role": "site",
+                    "scopes": ["site/par1"],
+                    "backend_url": "https://openinfra-api.example.test",
+                    "certificate_fingerprint": "6" * 64,
+                    "enrollment_secret_ref": "vault://openinfra/discovery/agent/par1",
+                    "agent_version": "0.29.63",
+                },
+                token=token,
+            )
+
+            assert plan["edition"] == "enterprise"
+            assert plan["mtls_required"] is True
+            assert plan["publishes_results_via_api"] is True
+            assert "openinfra-agent.service" in plan["systemd_unit_name"]
+            assert plan["config_document"]["identity"]["enrollment_secret_ref"].startswith(
+                "vault://"
+            )
         finally:
             server.shutdown()
             server.server_close()

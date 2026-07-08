@@ -43,6 +43,7 @@ from openinfra.application.dcim_services import (
 )
 from openinfra.application.discovery_services import (
     AuthorizeDiscoveryJobCommand,
+    BuildEnterpriseAgentBootstrapPlanCommand,
     BuildLocalDiscoveryPlanCommand,
     DisableCollectorCommand,
     EnrollDiscoveryProxyCommand,
@@ -1103,6 +1104,29 @@ class OpenInfraCLI:
             help="report partial backend enrollment as a warning instead of an error",
         )
         enroll_verify.set_defaults(handler=self._handle_discovery_proxy_enroll_verify)
+
+        agent_bootstrap = discovery_subparsers.add_parser(
+            "agent-bootstrap-plan",
+            help="build an Enterprise openinfra-agent.service bootstrap plan",
+        )
+        self._add_backend_arguments(agent_bootstrap)
+        agent_bootstrap.add_argument("--tenant", required=True)
+        agent_bootstrap.add_argument("--actor", default="cli")
+        agent_bootstrap.add_argument("--admin-token", required=True)
+        agent_bootstrap.add_argument("--name", required=True)
+        agent_bootstrap.add_argument(
+            "--role", choices=("site", "regional", "datacenter"), default="site"
+        )
+        agent_bootstrap.add_argument("--scope", action="append", required=True)
+        agent_bootstrap.add_argument("--backend-url", required=True)
+        agent_bootstrap.add_argument("--certificate-fingerprint", required=True)
+        agent_bootstrap.add_argument("--enrollment-secret-ref", required=True)
+        agent_bootstrap.add_argument("--agent-version", default=__version__)
+        agent_bootstrap.add_argument("--service-user", default="openinfra-agent")
+        agent_bootstrap.add_argument("--config-path", default="/etc/openinfra/agent.yaml")
+        agent_bootstrap.add_argument("--state-directory", default="/var/lib/openinfra-agent")
+        agent_bootstrap.add_argument("--log-directory", default="/var/log/openinfra-agent")
+        agent_bootstrap.set_defaults(handler=self._handle_discovery_agent_bootstrap_plan)
 
         heartbeat = discovery_subparsers.add_parser(
             "collector-heartbeat", help="record collector heartbeat using strong identity"
@@ -3050,6 +3074,29 @@ class OpenInfraCLI:
                 credential_secret_ref=args.credential_secret_ref,
                 max_concurrency=args.max_concurrency,
                 rate_limit_per_minute=args.rate_limit_per_minute,
+            )
+        )
+        print(json.dumps(plan.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_discovery_agent_bootstrap_plan(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        plan = app.discovery_service.build_enterprise_agent_bootstrap_plan(
+            BuildEnterpriseAgentBootstrapPlanCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                name=args.name,
+                role=args.role,
+                scopes=tuple(args.scope),
+                backend_url=args.backend_url,
+                certificate_fingerprint=args.certificate_fingerprint,
+                enrollment_secret_ref=args.enrollment_secret_ref,
+                agent_version=args.agent_version,
+                service_user=args.service_user,
+                config_path=args.config_path,
+                state_directory=args.state_directory,
+                log_directory=args.log_directory,
             )
         )
         print(json.dumps(plan.as_dict(), indent=2, sort_keys=True))

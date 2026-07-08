@@ -474,3 +474,68 @@ def test_cli_discovery_local_plan_lite_outputs_plan_only_json(
     assert payload["network_scan_executed"] is False
     assert payload["rsot_write_enabled"] is False
     assert payload["jobs"][0]["operation"] == "snmp-inventory-plan"
+
+
+def test_cli_discovery_agent_bootstrap_plan_outputs_enterprise_systemd_unit(
+    tmp_path: Path, capsys: object
+) -> None:
+    data = tmp_path / "state.json"
+    token = "a" * 40
+    cli = OpenInfraCLI()
+    assert (
+        cli.run(
+            [
+                "security",
+                "bootstrap-token",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--subject",
+                "discovery-admin",
+                "--role",
+                "security:admin",
+                "--token",
+                token,
+            ]
+        )
+        == 0
+    )
+    capsys.readouterr()
+
+    code = cli.run(
+        [
+            "discovery",
+            "agent-bootstrap-plan",
+            "--data",
+            str(data),
+            "--tenant",
+            "default",
+            "--admin-token",
+            token,
+            "--name",
+            "Agent Enterprise PAR1",
+            "--role",
+            "site",
+            "--scope",
+            "site/par1",
+            "--backend-url",
+            "https://openinfra-api.example.test",
+            "--certificate-fingerprint",
+            "5" * 64,
+            "--enrollment-secret-ref",
+            "vault://openinfra/discovery/agent/par1",
+            "--agent-version",
+            "0.29.63",
+        ]
+    )
+    plan = json.loads(capsys.readouterr().out)
+
+    assert code == 0
+    assert plan["edition"] == "enterprise"
+    assert plan["systemd_unit_name"] == "openinfra-agent.service"
+    assert plan["install_executed"] is False
+    assert plan["secrets_materialized"] is False
+    assert (
+        plan["config_document"]["backend"]["result_publish_endpoint"] == "/api/v1/discovery/results"
+    )

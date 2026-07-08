@@ -592,3 +592,8 @@ La couche application ajoute `GenericImportService.bulk_import_rollback` comme o
 Le domaine `BulkImportRollbackReport` produit un contrat stable pour CLI, API, discovery, OpenAPI et portail web. Les actions possibles sont déterministes : restauration d’une version précédente, mise en retrait d’un objet créé, saut contrôlé ou conflit bloquant. Aucune suppression physique n’est réalisée ; la correction se matérialise par une nouvelle révision RSOT ou par un statut `retired`.
 
 Les conflits sont traités avant mutation. La politique par défaut `fail` force une validation humaine lorsqu’un objet a changé après l’import. La politique `skip` permet d’appliquer les annulations non conflictuelles sans écraser une modification concurrente.
+
+
+## v0.29.63 — Enterprise agent bootstrap plan
+
+OpenInfra prepares Enterprise discovery agents through `openinfra discovery agent-bootstrap-plan` and `POST /api/v1/discovery/agent-bootstrap-plan`. The contract renders an operator-reviewed `openinfra-agent.service` systemd unit, an agent configuration document, mTLS requirements, vault-only enrollment references and API result publication endpoints. No installation is executed and no secret is materialized by OpenInfra during plan generation.

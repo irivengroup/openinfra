@@ -9,6 +9,7 @@ from openinfra.domain.discovery import (
     DiscoveryCollector,
     DiscoveryJobAuthorization,
     DiscoveryScope,
+    EnterpriseAgentBootstrapPlan,
     LocalDiscoveryPlan,
     LocalDiscoveryProtocol,
     LocalDiscoveryTarget,
@@ -17,6 +18,7 @@ from openinfra.domain.discovery import (
 FINGERPRINT = "a" * 64
 OTHER_FINGERPRINT = "b" * 64
 LOCAL_VAULT_REF = "vault://" + "openinfra/discovery/local/par1"
+AGENT_VAULT_REF = "vault://" + "openinfra/discovery/agent/par1"
 
 
 def test_collector_identity_requires_sha256_fingerprint() -> None:
@@ -247,3 +249,72 @@ def test_local_discovery_plan_validation_edges() -> None:
         LocalDiscoveryTarget.from_value("https://admin:secret@example.test")
     with pytest.raises(ValidationError, match="protocol"):
         LocalDiscoveryProtocol.from_value("telnet")
+
+
+def test_enterprise_agent_bootstrap_plan_is_secure_and_operator_reviewed() -> None:
+    plan = EnterpriseAgentBootstrapPlan.create(
+        tenant_id=TenantId.from_value("default"),
+        edition="enterprise",
+        name="  Agent PAR1  ",
+        role="site",
+        scopes=("site/PAR1", "site/par1", "network/core"),
+        backend_url="https://openinfra-api.example.test/",
+        certificate_fingerprint=FINGERPRINT,
+        enrollment_secret_ref=AGENT_VAULT_REF,
+        agent_version="0.29.63",
+        service_user="openinfra-agent",
+        config_path="/etc/openinfra/agent.yaml",
+        state_directory="/var/lib/openinfra-agent",
+        log_directory="/var/log/openinfra-agent",
+        created_by="admin",
+    )
+
+    payload = plan.as_dict()
+
+    assert plan.name == "Agent PAR1"
+    assert payload["edition"] == "enterprise"
+    assert payload["role"] == "site"
+    assert payload["scopes"] == ["site/par1", "network/core"]
+    assert payload["backend_url"] == "https://openinfra-api.example.test"
+    assert payload["systemd_unit_name"] == "openinfra-agent.service"
+    assert (
+        "ExecStart=/usr/local/bin/openinfra-agent --config /etc/openinfra/agent.yaml"
+        in plan.systemd_unit
+    )
+    assert payload["mtls_required"] is True
+    assert payload["publishes_results_via_api"] is True
+    assert payload["install_executed"] is False
+    assert payload["secrets_materialized"] is False
+    assert payload["config_document"]["identity"]["enrollment_secret_ref"].startswith("vault://")
+    assert "api_result_publication" in payload["safeguards"]
+
+
+def test_enterprise_agent_bootstrap_plan_rejects_unsafe_inputs() -> None:
+    kwargs = {
+        "tenant_id": TenantId.from_value("default"),
+        "edition": "enterprise",
+        "name": "Agent PAR1",
+        "role": "site",
+        "scopes": ("site/par1",),
+        "backend_url": "https://openinfra-api.example.test",
+        "certificate_fingerprint": FINGERPRINT,
+        "enrollment_secret_ref": AGENT_VAULT_REF,
+        "agent_version": "0.29.63",
+        "service_user": "openinfra-agent",
+        "config_path": "/etc/openinfra/agent.yaml",
+        "state_directory": "/var/lib/openinfra-agent",
+        "log_directory": "/var/log/openinfra-agent",
+        "created_by": "admin",
+    }
+    with pytest.raises(ValidationError, match="enterprise"):
+        EnterpriseAgentBootstrapPlan.create(**{**kwargs, "edition": "pro"})
+    with pytest.raises(ValidationError, match="HTTPS origin"):
+        EnterpriseAgentBootstrapPlan.create(**{**kwargs, "backend_url": "http://api.example.test"})
+    with pytest.raises(ValidationError, match="credentials"):
+        EnterpriseAgentBootstrapPlan.create(
+            **{**kwargs, "backend_url": "https://u:p@api.example.test"}
+        )
+    with pytest.raises(ValidationError, match="vault:// safe syntax"):
+        EnterpriseAgentBootstrapPlan.create(**{**kwargs, "enrollment_secret_ref": "env:secret"})
+    with pytest.raises(ValidationError, match="non-root"):
+        EnterpriseAgentBootstrapPlan.create(**{**kwargs, "service_user": "root"})

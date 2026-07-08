@@ -239,3 +239,8 @@ L’incrément v0.29.51 réalise `EPIC-1205` pour les licences logicielles : ent
 ### Validation v0.29.61 — panneau latéral groupé par contexte
 
 La roadmap v2 ajoute `TST-P08-WEB-SIDEBAR-CONTEXT-GROUPS` pour verrouiller la navigation web contextuelle : tous les composants regroupent leurs opérations par contexte métier, les intégrations ITSM sont groupées par fournisseur, aucune opération existante n’est supprimée et OpenService reste absent du portail web OpenInfra.
+
+
+### Validation v0.29.63 — plan bootstrap agent Enterprise
+
+La livraison v0.29.63 ajoute `TST-P14-ENTERPRISE-AGENT-BOOTSTRAP` pour couvrir le contrat Enterprise `openinfra-agent.service`, le rendu systemd, la configuration agent, mTLS, les références `vault://`, les endpoints API de publication et l’absence d’installation ou de secret en clair.

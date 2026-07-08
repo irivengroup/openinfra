@@ -1,59 +1,49 @@
-# OpenInfra 0.29.60 — Ruff hotfix validation report
+# OpenInfra v0.29.63 — Rapport de validation
 
-## Scope
+## Synthèse
 
-This hotfix repackages OpenInfra 0.29.60 after applying Ruff formatting and lint corrections reported by CI. No functional behavior, public CLI/API contract, CDC requirement or roadmap milestone was changed.
+Livraison v0.29.63 validée sur base v0.29.62 PostgreSQL hotfix.
 
-## Files changed by hotfix
+Incrément livré : plan de bootstrap Enterprise `openinfra-agent.service` pour préparer les agents de discovery Enterprise sans installation automatique, sans secret en clair et sans écriture RSOT.
 
-- src/openinfra/application/external_itsm_services.py
-- src/openinfra/application/import_services.py
-- src/openinfra/application/search_services.py
-- src/openinfra/domain/data_import.py
-- src/openinfra/domain/external_itsm.py
-- src/openinfra/interfaces/cli.py
-- src/openinfra/interfaces/http_api.py
-- src/openinfra/interfaces/web.py
-- tests/integration/test_external_itsm_integrations.py
-- tests/integration/test_http_api.py
-- tests/integration/test_import_services.py
-- tests/integration/test_openinfra_web.py
-- tests/integration/test_postgresql_migration.py
-- tests/unit/test_data_import_domain.py
-- tests/unit/test_external_itsm_domain.py
+## Validations exécutées
 
-## Validations executed
+| Validation | Résultat |
+|---|---:|
+| Ruff format `src tests scripts docker` | PASS — 134 fichiers conformes |
+| Ruff check `src tests scripts docker` | PASS |
+| `compileall` | PASS |
+| `scripts/validate_frontend.py` | PASS |
+| `node --check openinfra-web.js` | PASS |
+| CLI version | PASS — 0.29.63 |
+| OpenAPI YAML | PASS |
+| `security_gate.py` | PASS |
+| `validate_enterprise_alignment.py` | PASS |
+| `validate_autonomous_installer.py` | PASS — 6 profils |
+| `native_runtime_smoke.py` | PASS |
+| CDC validation | PASS — 807 exigences, 529 entités |
+| Roadmap validation | PASS — 19 phases, 114 epics, 8 gates, 79 tests |
+| `pytest --collect-only` | PASS — 510 tests collectés |
+| Tests ciblés agent bootstrap/API/CLI/web | PASS — 22 tests |
+| Tests unitaires + architecture | PASS — 202 tests |
+| Tests intégration par lots | PASS — 308 tests |
+| Couverture agrégée par lots | PASS — 98 % |
+| `quality_gate.py` | PASS |
+| `zip -T` | PASS |
+| `verify_artifact.py` | PASS |
+| Nettoyage archive | PASS |
 
-| Command | Status |
-| --- | --- |
-| `python -m ruff format --check src tests scripts docker` | PASS — 133 files already formatted |
-| `python -m ruff check src tests scripts docker` | PASS |
-| `python -m compileall -q src tests scripts docker` | PASS |
-| `python scripts/validate_frontend.py` | PASS |
-| `node --check src/openinfra/interfaces/rendering/static/assets/openinfra-web.js` | PASS |
-| `PYTHONPATH=src python -m openinfra.interfaces.cli version` | PASS — 0.29.60 |
-| `python scripts/security_gate.py` | PASS |
-| `python scripts/validate_enterprise_alignment.py` | PASS |
-| `python scripts/validate_autonomous_installer.py` | PASS — 6 installers |
-| `python scripts/native_runtime_smoke.py` | PASS |
-| `PYTHONPATH=src python -m pytest --collect-only --no-cov` | PASS — 493 tests collected |
-| `PYTHONPATH=src python -m pytest -o addopts='' -q tests/architecture tests/unit` | PASS — 196 tests |
-| integration test batches | PASS — 297 tests |
-| aggregated coverage by deterministic batches | PASS — 98 % |
-| `python scripts/quality_gate.py` | PASS |
-| archive cleanup | PASS |
-| `zip -T openinfra-python-0.29.60.zip` | PASS |
-| `python scripts/verify_artifact.py openinfra-python-0.29.60.zip` | PASS |
+## Contrôles non exécutés localement
 
-## Notes
+Les contrôles suivants n'ont pas pu être exécutés faute de module ou runtime disponible dans l'environnement local :
 
-The monolithic `PYTHONPATH=src python -m pytest` command exceeded the local execution limit before completion. The complete suite was therefore executed by deterministic batches and coverage data was combined with `coverage combine`.
+- `mypy` — module absent ;
+- `bandit` — module absent ;
+- `pip-audit` — module absent ;
+- `python -m build` — module `build` absent ;
+- build Vite complet — binaire `vite` absent ;
+- Docker Compose live — binaire `docker` absent.
 
-## Not executed locally
+## Note d'exécution
 
-- `mypy`
-- `bandit`
-- `pip-audit`
-- `python -m build`
-- Vite production build
-- Docker Compose live runtime
+La tentative monolithique de la suite de tests avec couverture a dépassé la limite locale. La validation complète a donc été rejouée par lots déterministes avec couverture agrégée et seuil 98 % respecté.

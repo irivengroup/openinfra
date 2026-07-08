@@ -17,6 +17,7 @@ from openinfra.domain.discovery import (
     DiscoveryCollector,
     DiscoveryJobAuthorization,
     DiscoveryScope,
+    EnterpriseAgentBootstrapPlan,
     LocalDiscoveryPlan,
 )
 from openinfra.domain.editions import FeatureCapability, QuotaResource
@@ -89,6 +90,24 @@ class ListCollectorsCommand:
 
 
 @dataclass(frozen=True, slots=True)
+class BuildEnterpriseAgentBootstrapPlanCommand:
+    tenant_id: str
+    actor: str
+    admin_token: str
+    name: str
+    role: str
+    scopes: tuple[str, ...]
+    backend_url: str
+    certificate_fingerprint: str
+    enrollment_secret_ref: str
+    agent_version: str
+    service_user: str = "openinfra-agent"
+    config_path: str = "/etc/openinfra/agent.yaml"
+    state_directory: str = "/var/lib/openinfra-agent"
+    log_directory: str = "/var/log/openinfra-agent"
+
+
+@dataclass(frozen=True, slots=True)
 class BuildLocalDiscoveryPlanCommand:
     tenant_id: str
     actor: str
@@ -116,6 +135,73 @@ class DiscoveryCollectorService:
         self._transaction_manager = transaction_manager
         self._security_service = security_service
         self._edition_guard = edition_guard
+
+    def build_enterprise_agent_bootstrap_plan(
+        self, command: BuildEnterpriseAgentBootstrapPlanCommand
+    ) -> EnterpriseAgentBootstrapPlan:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        principal = self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                tenant_id.value, command.admin_token, Permission.SECURITY_ADMIN
+            )
+        )
+        edition = "enterprise"
+        if self._edition_guard is not None:
+            edition = self._edition_guard.edition.value
+            self._edition_guard.require_feature(
+                tenant_id,
+                FeatureCapability.DISTRIBUTED_DISCOVERY_AGENTS,
+                principal.subject,
+                "openinfra_agent",
+                command.name,
+            )
+            self._edition_guard.require_quota(
+                tenant_id,
+                QuotaResource.DISCOVERY_COLLECTOR,
+                1,
+                principal.subject,
+                "openinfra_agent",
+                command.name,
+            )
+        plan = EnterpriseAgentBootstrapPlan.create(
+            tenant_id=tenant_id,
+            edition=edition,
+            name=command.name,
+            role=command.role,
+            scopes=command.scopes,
+            backend_url=command.backend_url,
+            certificate_fingerprint=command.certificate_fingerprint,
+            enrollment_secret_ref=command.enrollment_secret_ref,
+            agent_version=command.agent_version,
+            service_user=command.service_user,
+            config_path=command.config_path,
+            state_directory=command.state_directory,
+            log_directory=command.log_directory,
+            created_by=principal.subject,
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=principal.subject,
+                    action="discovery.agent.bootstrap_plan_built",
+                    target_type="openinfra_agent_bootstrap_plan",
+                    target_id=plan.id.value,
+                    metadata={
+                        "declared_actor": command.actor,
+                        "edition": plan.edition,
+                        "role": plan.role.value,
+                        "scopes": [scope.value for scope in plan.scopes],
+                        "backend_url": plan.backend_url,
+                        "mtls_required": plan.mtls_required,
+                        "publishes_results_via_api": plan.publishes_results_via_api,
+                        "install_executed": plan.install_executed,
+                        "secrets_materialized": plan.secrets_materialized,
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return plan
 
     def build_local_discovery_plan(
         self, command: BuildLocalDiscoveryPlanCommand

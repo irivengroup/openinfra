@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any, Self, cast
+from urllib.parse import urlparse
 
 from openinfra.domain.common import EntityId, TenantId, ValidationError
 
@@ -425,6 +426,246 @@ class ReconciliationDecision:
         if not normalized_reason:
             raise ValidationError("reconciliation reason is mandatory")
         return cls(evidence_id=evidence_id, accepted=accepted, reason=normalized_reason)
+
+
+class EnterpriseAgentRole(StrEnum):
+    SITE = "site"
+    REGIONAL = "regional"
+    DATACENTER = "datacenter"
+
+    @classmethod
+    def from_value(cls, value: str) -> Self:
+        normalized = value.strip().lower().replace("_", "-")
+        aliases = {"region": "regional", "dc": "datacenter", "data-center": "datacenter"}
+        try:
+            return cls(aliases.get(normalized, normalized))
+        except ValueError as exc:
+            raise ValidationError(
+                "enterprise agent role must be site, regional or datacenter"
+            ) from exc
+
+
+@dataclass(frozen=True, slots=True)
+class EnterpriseAgentBootstrapPlan:
+    id: EntityId
+    tenant_id: TenantId
+    edition: str
+    name: str
+    role: EnterpriseAgentRole
+    scopes: tuple[DiscoveryScope, ...]
+    backend_url: str
+    certificate_fingerprint: str
+    enrollment_secret_ref: str
+    agent_version: str
+    service_user: str
+    config_path: str
+    state_directory: str
+    log_directory: str
+    systemd_unit_name: str
+    systemd_unit: str
+    config_document: dict[str, object]
+    mtls_required: bool
+    publishes_results_via_api: bool
+    install_executed: bool
+    secrets_materialized: bool
+    safeguards: tuple[str, ...]
+
+    @classmethod
+    def create(
+        cls,
+        tenant_id: TenantId,
+        edition: str,
+        name: str,
+        role: str,
+        scopes: tuple[str, ...],
+        backend_url: str,
+        certificate_fingerprint: str,
+        enrollment_secret_ref: str,
+        agent_version: str,
+        service_user: str,
+        config_path: str,
+        state_directory: str,
+        log_directory: str,
+        created_by: str,
+    ) -> Self:
+        normalized_edition = edition.strip().lower()
+        if normalized_edition != "enterprise":
+            raise ValidationError("openinfra-agent bootstrap is available only for enterprise")
+        normalized_name = " ".join(name.strip().split())
+        if not 2 <= len(normalized_name) <= 128:
+            raise ValidationError("enterprise agent name must contain 2 to 128 characters")
+        actor = " ".join(created_by.strip().split())
+        if not actor:
+            raise ValidationError("enterprise agent created_by is mandatory")
+        if not scopes:
+            raise ValidationError("enterprise agent requires at least one scope")
+        normalized_role = EnterpriseAgentRole.from_value(role)
+        normalized_scopes = tuple(dict.fromkeys(DiscoveryScope.from_value(item) for item in scopes))
+        endpoint = cls._normalize_backend_url(backend_url)
+        fingerprint = CollectorIdentity._normalize_fingerprint(certificate_fingerprint)
+        secret_ref = CollectorIdentity._normalize_secret_ref(enrollment_secret_ref)
+        if secret_ref is None:
+            raise ValidationError("enterprise agent enrollment_secret_ref is mandatory")
+        version = DiscoveryCollector._normalize_version(agent_version)
+        user = cls._normalize_service_user(service_user)
+        config = cls._normalize_absolute_path(config_path, "config_path")
+        state = cls._normalize_absolute_path(state_directory, "state_directory")
+        logs = cls._normalize_absolute_path(log_directory, "log_directory")
+        unit = cls._render_systemd_unit(user, config, state, logs)
+        config_document: dict[str, object] = {
+            "agent": {
+                "name": normalized_name,
+                "role": normalized_role.value,
+                "version": version,
+                "service_user": user,
+            },
+            "tenant_id": tenant_id.value,
+            "backend": {
+                "url": endpoint,
+                "heartbeat_endpoint": "/api/v1/discovery/collectors/heartbeat",
+                "job_authorize_endpoint": "/api/v1/discovery/jobs/authorize",
+                "result_publish_endpoint": "/api/v1/discovery/results",
+            },
+            "identity": {
+                "certificate_fingerprint": fingerprint,
+                "enrollment_secret_ref": secret_ref,
+                "mtls_required": True,
+            },
+            "discovery": {
+                "scopes": [scope.value for scope in normalized_scopes],
+                "result_publication": "api",
+            },
+            "runtime": {
+                "config_path": config,
+                "state_directory": state,
+                "log_directory": logs,
+            },
+        }
+        return cls(
+            id=EntityId.new(),
+            tenant_id=tenant_id,
+            edition=normalized_edition,
+            name=normalized_name,
+            role=normalized_role,
+            scopes=normalized_scopes,
+            backend_url=endpoint,
+            certificate_fingerprint=fingerprint,
+            enrollment_secret_ref=secret_ref,
+            agent_version=version,
+            service_user=user,
+            config_path=config,
+            state_directory=state,
+            log_directory=logs,
+            systemd_unit_name="openinfra-agent.service",
+            systemd_unit=unit,
+            config_document=config_document,
+            mtls_required=True,
+            publishes_results_via_api=True,
+            install_executed=False,
+            secrets_materialized=False,
+            safeguards=(
+                "enterprise_only",
+                "bootstrap_plan_only",
+                "no_install_executed",
+                "no_secret_materialization",
+                "mtls_required",
+                "vault_secret_reference_only",
+                "api_result_publication",
+                "operator_review_required",
+            ),
+        )
+
+    @staticmethod
+    def _normalize_backend_url(value: str) -> str:
+        normalized = value.strip().rstrip("/")
+        parsed = urlparse(normalized)
+        if parsed.scheme != "https" or not parsed.netloc:
+            raise ValidationError("enterprise agent backend_url must be an HTTPS origin URL")
+        if parsed.username or parsed.password:
+            raise ValidationError("enterprise agent backend_url must not embed credentials")
+        if parsed.params or parsed.query or parsed.fragment:
+            raise ValidationError(
+                "enterprise agent backend_url must not contain params, query or fragment"
+            )
+        if parsed.path not in ("", "/"):
+            raise ValidationError("enterprise agent backend_url must be an origin URL without path")
+        return f"{parsed.scheme}://{parsed.netloc}"
+
+    @staticmethod
+    def _normalize_service_user(value: str) -> str:
+        normalized = value.strip().lower()
+        if normalized in {"", "root"}:
+            raise ValidationError(
+                "enterprise agent service_user must be a dedicated non-root account"
+            )
+        if not re.fullmatch(r"[a-z_][a-z0-9_-]{1,31}", normalized):
+            raise ValidationError("enterprise agent service_user must be a safe Unix account name")
+        return normalized
+
+    @staticmethod
+    def _normalize_absolute_path(value: str, field_name: str) -> str:
+        normalized = value.strip()
+        if not normalized.startswith("/") or "//" in normalized or "/../" in normalized:
+            raise ValidationError(f"enterprise agent {field_name} must be a safe absolute path")
+        if len(normalized) > 255:
+            raise ValidationError(f"enterprise agent {field_name} is too long")
+        return normalized.rstrip("/") if normalized != "/" else normalized
+
+    @staticmethod
+    def _render_systemd_unit(
+        user: str, config_path: str, state_directory: str, log_directory: str
+    ) -> str:
+        return "\n".join(
+            (
+                "[Unit]",
+                "Description=OpenInfra Enterprise Discovery Agent",
+                "After=network-online.target",
+                "Wants=network-online.target",
+                "",
+                "[Service]",
+                "Type=simple",
+                f"User={user}",
+                f"Group={user}",
+                f"ExecStart=/usr/local/bin/openinfra-agent --config {config_path}",
+                "Restart=on-failure",
+                "RestartSec=5s",
+                "NoNewPrivileges=true",
+                "PrivateTmp=true",
+                "ProtectSystem=strict",
+                "ProtectHome=true",
+                f"ReadWritePaths={state_directory} {log_directory}",
+                "",
+                "[Install]",
+                "WantedBy=multi-user.target",
+                "",
+            )
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "id": self.id.value,
+            "tenant_id": self.tenant_id.value,
+            "edition": self.edition,
+            "name": self.name,
+            "role": self.role.value,
+            "scopes": [scope.value for scope in self.scopes],
+            "backend_url": self.backend_url,
+            "certificate_fingerprint": self.certificate_fingerprint,
+            "enrollment_secret_ref": self.enrollment_secret_ref,
+            "agent_version": self.agent_version,
+            "service_user": self.service_user,
+            "config_path": self.config_path,
+            "state_directory": self.state_directory,
+            "log_directory": self.log_directory,
+            "systemd_unit_name": self.systemd_unit_name,
+            "systemd_unit": self.systemd_unit,
+            "config_document": self.config_document,
+            "mtls_required": self.mtls_required,
+            "publishes_results_via_api": self.publishes_results_via_api,
+            "install_executed": self.install_executed,
+            "secrets_materialized": self.secrets_materialized,
+            "safeguards": list(self.safeguards),
+        }
 
 
 class LocalDiscoveryProtocol(StrEnum):

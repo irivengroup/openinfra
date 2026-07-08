@@ -244,6 +244,8 @@ class TestOpenInfraWeb:
         assert "FIELD_SETS.chunkSize" in static_js
         assert "Plan discovery locale Lite/Pro" in static_js + main_js
         assert "/v1/discovery/local-plan" in static_js + main_js
+        assert "Plan bootstrap agent Enterprise" in static_js + main_js
+        assert "/v1/discovery/agent-bootstrap-plan" in static_js + main_js
         assert "no_rsot_write" not in static_js
         assert "distributed_discovery_agents" in static_js
         assert "discovery_collector" in static_js

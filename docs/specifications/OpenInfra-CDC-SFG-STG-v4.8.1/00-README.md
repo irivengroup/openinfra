@@ -240,3 +240,8 @@ OpenInfra ajoute `REQ-00805` et `TST-WEB-106` pour regrouper les opérations du 
 ## v0.29.62 — référentiel tenants ITAM
 
 Ajout du cycle de vie CRUD des tenants ITAM, tenant par défaut unique, retrait logique, sélecteur web et auto-sélection mono-tenant.
+
+
+## v0.29.63 — plan bootstrap agent Enterprise
+
+OpenInfra expose `openinfra discovery agent-bootstrap-plan` et `POST /api/v1/discovery/agent-bootstrap-plan` pour produire un plan opérable `openinfra-agent.service` Enterprise. Le plan exige HTTPS, mTLS, secret `vault://`, compte de service non-root, publication de résultats par API et ne réalise ni installation ni matérialisation de secret.

@@ -108,3 +108,8 @@
 ### v0.29.50 — administration éditions et quotas API/UI
 
 - Exposition des politiques d’édition, des feature gates et des quotas runtime dans API, OpenAPI et portail web.
+
+
+## v0.29.63 — Enterprise agent bootstrap plan
+
+OpenInfra prepares Enterprise discovery agents through `openinfra discovery agent-bootstrap-plan` and `POST /api/v1/discovery/agent-bootstrap-plan`. The contract renders an operator-reviewed `openinfra-agent.service` systemd unit, an agent configuration document, mTLS requirements, vault-only enrollment references and API result publication endpoints. No installation is executed and no secret is materialized by OpenInfra during plan generation.

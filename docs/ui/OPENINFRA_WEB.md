@@ -340,3 +340,8 @@ Les formulaires restent typés métier : produit, éditeur, référence licence,
 Le composant **Imports / Exports** expose l’opération **Rollback import massif**. Le formulaire collecte uniquement les champs nécessaires au backend : opérateur, identifiant du job d’import, fichier source, format, mapping JSON, indicateur d’application et politique de conflit.
 
 La logique de rollback reste intégralement côté backend. Le portail ne restaure aucune version et ne décide aucune mutation locale ; il transmet la demande à `POST /api/v1/imports/bulk-rollback` et affiche le rapport retourné.
+
+
+## v0.29.63 — Enterprise agent bootstrap plan
+
+OpenInfra prepares Enterprise discovery agents through `openinfra discovery agent-bootstrap-plan` and `POST /api/v1/discovery/agent-bootstrap-plan`. The contract renders an operator-reviewed `openinfra-agent.service` systemd unit, an agent configuration document, mTLS requirements, vault-only enrollment references and API result publication endpoints. No installation is executed and no secret is materialized by OpenInfra during plan generation.

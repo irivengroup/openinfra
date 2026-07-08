@@ -359,3 +359,8 @@ La v0.27.0 ajoute une simulation de migration depuis Device42, NetBox, Nautobot,
 | OpenAPI/discovery | `/api/v1/imports/bulk-rollback`, `imports.bulk_rollback`. |
 | Tests | `tests/integration/test_import_services.py`, `tests/integration/test_cli_import.py`, `tests/integration/test_http_api.py`, `tests/integration/test_openinfra_web.py`. |
 | Acceptation | Dry-run par défaut, restauration versionnée, mise en retrait sans suppression physique, conflit bloqué par défaut, publication CLI/API/web/OpenAPI/discovery. |
+
+
+## v0.29.63 — Enterprise agent bootstrap plan
+
+OpenInfra prepares Enterprise discovery agents through `openinfra discovery agent-bootstrap-plan` and `POST /api/v1/discovery/agent-bootstrap-plan`. The contract renders an operator-reviewed `openinfra-agent.service` systemd unit, an agent configuration document, mTLS requirements, vault-only enrollment references and API result publication endpoints. No installation is executed and no secret is materialized by OpenInfra during plan generation.

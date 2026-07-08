@@ -796,3 +796,4 @@ REQ-00802,N1,IMPORT/API/CLI/WEB,UC-IMPORT-001,TST-WEB-103,Tests service/API/CLI/
 REQ-00803,N1,IMPORT/API/CLI/WEB,UC-IMPORT-001,TST-WEB-104,"Tests service/API/CLI/frontend/OpenAPI des guides opérables de migration Device42, NetBox, Nautobot, GLPI et CSV sans mutation RSOT."
 REQ-00804,N1,DISCOVERY/API/CLI/WEB,UC-DISC-001,TST-WEB-105,Tests domaine/service/API/CLI/frontend/OpenAPI du plan discovery locale Lite/Pro sans agent ni mutation RSOT.
 REQ-00805,N2,WEB/UX,UC-WEB-001,TST-WEB-106,Tests frontend/web du regroupement contextuel du panneau latéral sans perte d’opération ni exposition OpenService.
+REQ-00807,N1,DISCOVERY/API/CLI/WEB,UC-DISC-002,TST-WEB-107,Tests domaine/service/API/CLI/OpenAPI/discovery/frontend pour le plan bootstrap openinfra-agent.service Enterprise sans installation ni secret en clair.

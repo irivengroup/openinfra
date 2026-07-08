@@ -718,7 +718,11 @@ const MODULES = [
     { id: 'itam-register-software', label: 'Déclarer licence logicielle', path: '/v1/itam/software-license', method: 'POST', fields: ['Opérateur', 'Produit', 'Éditeur', 'Référence licence', 'Référence contrat', 'Métrique', 'Quantité achetée', 'Quantité assignée', 'Début droit', 'Fin droit', 'Version', 'Statut', 'Propriétaire', 'Notes'] },
     { id: 'itam-update-license-assignment', label: 'Mettre à jour affectation licence', path: '/v1/itam/software-license/assignment', method: 'POST', fields: ['Opérateur', 'Référence licence', 'Quantité assignée', 'Notes'] },
   ] },
-  { id: 'discovery', label: 'Discovery', icon: 'activity', operations: [{ id: 'collectors-register', label: 'Enregistrer un agent proxy Enterprise', path: '/v1/discovery/collectors', method: 'POST', fields: ['Opérateur', 'Nom agent proxy', 'Type', 'Empreinte certificat', 'Scopes autorisés', 'Version agent', 'Endpoint mTLS'] }] },
+  { id: 'discovery', label: 'Discovery', icon: 'activity', operations: [
+    { id: 'local-discovery-plan', label: 'Plan discovery locale Lite/Pro', path: '/v1/discovery/local-plan', method: 'POST', fields: ['Opérateur', 'Nom plan', 'Scope', 'Protocole', 'Cibles', 'Référence secret', 'Concurrence max', 'Rate limit/min'] },
+    { id: 'agent-bootstrap-plan', label: 'Plan bootstrap agent Enterprise', path: '/v1/discovery/agent-bootstrap-plan', method: 'POST', fields: ['Opérateur', 'Nom agent', 'Rôle agent', 'Scopes autorisés', 'URL backend HTTPS', 'Empreinte certificat', 'Référence secret enrollment', 'Version agent', 'Compte service', 'Chemin configuration', 'Répertoire état', 'Répertoire logs'] },
+    { id: 'collectors-register', label: 'Enregistrer un agent proxy Enterprise', path: '/v1/discovery/collectors', method: 'POST', fields: ['Opérateur', 'Nom agent proxy', 'Type', 'Empreinte certificat', 'Scopes autorisés', 'Version agent', 'Endpoint mTLS'] },
+  ] },
   { id: 'data', label: 'Imports / Exports', shortLabel: 'Data', icon: 'table', operations: [
     { id: 'import-bulk-progress', label: 'Progression import massif', path: '/v1/imports/bulk-progress', method: 'GET', fields: ['Job ID'] },
     { id: 'import-bulk-rollback', label: 'Rollback import massif', path: '/v1/imports/bulk-rollback', method: 'POST', fields: ['Opérateur', 'Job ID', 'Fichier source', 'Format', 'Mapping JSON', 'Appliquer', 'Politique conflit'] },
@@ -758,7 +762,7 @@ const SIDEBAR_CONTEXTS = {
   ],
   discovery: [
     { label: 'Locale Lite/Pro', operationIds: ['local-discovery-plan'] },
-    { label: 'Agents Enterprise', operationIds: ['collectors-list', 'collectors-register', 'job-authorize'] },
+    { label: 'Agents Enterprise', operationIds: ['agent-bootstrap-plan', 'collectors-list', 'collectors-register', 'job-authorize'] },
   ],
   data: [
     { label: 'Imports', operationIds: ['import-bulk-progress', 'import-bulk-rollback'] },

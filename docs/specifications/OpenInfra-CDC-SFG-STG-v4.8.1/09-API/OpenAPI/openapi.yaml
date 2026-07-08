@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.62
+  version: 0.29.63
 components:
   securitySchemes:
     bearerToken:
@@ -2453,6 +2453,36 @@ paths:
                 rate_limit_per_minute: {type: integer, minimum: 1, maximum: 10000, default: 120}
       responses:
         '200': {description: Plan-only dry-run discovery jobs with safety guardrails}
+        '400': {description: Validation error or unsupported edition}
+        '401': {description: Security administrator token required}
+  /api/v1/discovery/agent-bootstrap-plan:
+    post:
+      summary: Build an Enterprise openinfra-agent.service bootstrap plan
+      description: Generates an operator-reviewed Enterprise agent bootstrap plan with mTLS, vault secret references, systemd unit content and API result publication metadata; it does not install the service and does not materialize secrets.
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, name, scopes, backend_url, certificate_fingerprint, enrollment_secret_ref]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                name: {type: string}
+                role: {type: string, enum: [site, regional, datacenter], default: site}
+                scopes: {type: array, minItems: 1, items: {type: string}}
+                backend_url: {type: string, format: uri}
+                certificate_fingerprint: {type: string, pattern: '^[a-fA-F0-9:]{64,95}$'}
+                enrollment_secret_ref: {type: string, pattern: '^vault://'}
+                agent_version: {type: string}
+                service_user: {type: string, default: openinfra-agent}
+                config_path: {type: string, default: /etc/openinfra/agent.yaml}
+                state_directory: {type: string, default: /var/lib/openinfra-agent}
+                log_directory: {type: string, default: /var/log/openinfra-agent}
+      responses:
+        '200': {description: Enterprise agent bootstrap plan generated without installation side effects}
         '400': {description: Validation error or unsupported edition}
         '401': {description: Security administrator token required}
   /api/v1/discovery/proxy-enrollments:

@@ -23,6 +23,8 @@ from openinfra.application.authentication_services import AuthProviderPolicyComm
 from openinfra.application.container import ApplicationFactory, OpenInfraApplication
 from openinfra.application.dcim_services import (
     ConnectDcimCableCommand,
+    CreateDcimSiteCommand,
+    DcimTopologyCatalogCommand,
     DefineCoolingZoneCommand,
     DefineDcimPortCommand,
     DefinePatchPanelCommand,
@@ -30,7 +32,10 @@ from openinfra.application.dcim_services import (
     DefinePowerCircuitCommand,
     DefinePowerDeviceCommand,
     DefineRackCommand,
+    DeleteDcimSiteCommand,
     GenerateEquipmentLocatorCommand,
+    GetDcimSiteCommand,
+    ListDcimSitesCommand,
     LocateEquipmentCommand,
     RackCapacityCommand,
     RackEnergyCoolingCapacityCommand,
@@ -39,6 +44,7 @@ from openinfra.application.dcim_services import (
     RenderRoomPlanCommand,
     ReserveEquipmentPowerCommand,
     TraceDcimCableCommand,
+    UpdateDcimSiteCommand,
     VerifyEquipmentScanCommand,
 )
 from openinfra.application.discovery_services import (
@@ -1771,6 +1777,56 @@ class OpenInfraCLI:
     def _add_dcim_commands(self, subparsers: Any) -> None:
         dcim = subparsers.add_parser("dcim", help="dcim operations")
         dcim_subparsers = dcim.add_subparsers(dest="dcim_command", required=True)
+        sites = dcim_subparsers.add_parser("sites", help="list DCIM sites")
+        self._add_backend_arguments(sites)
+        sites.add_argument("--tenant", default="default")
+        sites.add_argument("--include-retired", action="store_true")
+        sites.set_defaults(handler=self._handle_dcim_sites)
+
+        site = dcim_subparsers.add_parser("site", help="show one DCIM site")
+        self._add_backend_arguments(site)
+        site.add_argument("--tenant", default="default")
+        site.add_argument("--code", required=True)
+        site.set_defaults(handler=self._handle_dcim_site)
+
+        create_site = dcim_subparsers.add_parser("site-create", help="create a DCIM site")
+        self._add_backend_arguments(create_site)
+        create_site.add_argument("--tenant", default="default")
+        create_site.add_argument("--actor", default="cli")
+        create_site.add_argument("--code", required=True)
+        create_site.add_argument("--name", required=True)
+        create_site.add_argument("--country", required=True)
+        create_site.add_argument("--city", required=True)
+        create_site.add_argument("--region", default="")
+        create_site.set_defaults(handler=self._handle_dcim_site_create)
+
+        update_site = dcim_subparsers.add_parser("site-update", help="update a DCIM site")
+        self._add_backend_arguments(update_site)
+        update_site.add_argument("--tenant", default="default")
+        update_site.add_argument("--actor", default="cli")
+        update_site.add_argument("--code", required=True)
+        update_site.add_argument("--name")
+        update_site.add_argument("--country")
+        update_site.add_argument("--city")
+        update_site.add_argument("--region")
+        update_site.add_argument("--status", choices=("active", "suspended", "retired"))
+        update_site.set_defaults(handler=self._handle_dcim_site_update)
+
+        delete_site = dcim_subparsers.add_parser("site-delete", help="retire a DCIM site")
+        self._add_backend_arguments(delete_site)
+        delete_site.add_argument("--tenant", default="default")
+        delete_site.add_argument("--actor", default="cli")
+        delete_site.add_argument("--code", required=True)
+        delete_site.set_defaults(handler=self._handle_dcim_site_delete)
+
+        topology_catalog = dcim_subparsers.add_parser(
+            "topology-catalog", help="list active DCIM site/building/room dependencies"
+        )
+        self._add_backend_arguments(topology_catalog)
+        topology_catalog.add_argument("--tenant", default="default")
+        topology_catalog.add_argument("--include-retired", action="store_true")
+        topology_catalog.set_defaults(handler=self._handle_dcim_topology_catalog)
+
         define_room = dcim_subparsers.add_parser(
             "define-room",
             help="define a physical DCIM room hierarchy",
@@ -3783,6 +3839,71 @@ class OpenInfraCLI:
             )
         )
         print(json.dumps(preview.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_dcim_sites(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_topology_service.list_sites(
+            ListDcimSitesCommand(args.tenant, include_retired=args.include_retired)
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_site(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_topology_service.get_site(
+            GetDcimSiteCommand(args.tenant, args.code)
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_site_create(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_topology_service.create_site(
+            CreateDcimSiteCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                code=args.code,
+                name=args.name,
+                country=args.country,
+                city=args.city,
+                region=args.region,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_site_update(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_topology_service.update_site(
+            UpdateDcimSiteCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                code=args.code,
+                name=args.name,
+                country=args.country,
+                city=args.city,
+                region=args.region,
+                status=args.status,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_site_delete(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_topology_service.delete_site(
+            DeleteDcimSiteCommand(args.tenant, args.actor, args.code)
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_topology_catalog(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_topology_service.topology_catalog(
+            DcimTopologyCatalogCommand(args.tenant, include_retired=args.include_retired)
+        )
+        print(json.dumps(result, sort_keys=True))
         return 0
 
     def _handle_dcim_define_room(self, args: argparse.Namespace) -> int:

@@ -16,6 +16,25 @@ from openinfra.domain.dcim import (
 
 
 class TestDcimDomain:
+    def test_site_lifecycle_status_is_normalized_and_selectable(self) -> None:
+        tenant = TenantId.from_value("default")
+        site = Site.create(tenant, "par1", "Paris 1", "fr", "Paris")
+
+        assert site.code.value == "PAR1"
+        assert site.status.value == "active"
+        assert site.selectable() is True
+
+        suspended = site.update(status="suspended")
+        assert suspended.status.value == "suspended"
+        assert suspended.selectable() is False
+
+        retired = suspended.retire()
+        assert retired.status.value == "retired"
+        assert retired.selectable() is False
+
+        with pytest.raises(ValidationError):
+            site.update(status="deleted")
+
     def test_room_requires_rows_and_columns(self) -> None:
         tenant = TenantId.from_value("default")
         room = Room.create(

@@ -690,6 +690,12 @@ const MODULES = [
     { id: 'ipam-ddi-preview', label: 'Prévisualiser DDI', path: '/v1/ipam/ddi-preview', method: 'POST', fields: ['Opérateur', 'VRF', 'Clé d’idempotence', 'Fournisseurs DDI', 'Zone DNS', 'Adresse MAC', 'TTL', 'Appliquer la prévisualisation'] },
   ] },
   { id: 'dcim', label: 'DCIM', icon: 'home', operations: [
+    { id: 'dcim-sites', label: 'Lister les sites DCIM', path: '/v1/dcim/sites', method: 'GET', fields: ['Inclure retirés'] },
+    { id: 'dcim-site', label: 'Consulter un site DCIM', path: '/v1/dcim/site', method: 'GET', fields: ['Site'] },
+    { id: 'dcim-site-create', label: 'Créer un site DCIM', path: '/v1/dcim/site/create', method: 'POST', fields: ['Opérateur', 'Code site', 'Nom site', 'Pays ISO-2', 'Ville', 'Région'] },
+    { id: 'dcim-site-update', label: 'Modifier un site DCIM', path: '/v1/dcim/site/update', method: 'POST', fields: ['Opérateur', 'Site', 'Nom site', 'Pays ISO-2', 'Ville', 'Région', 'Statut'] },
+    { id: 'dcim-site-delete', label: 'Retirer un site DCIM', path: '/v1/dcim/site/delete', method: 'POST', fields: ['Opérateur', 'Site'] },
+    { id: 'dcim-topology-catalog', label: 'Catalogue dépendances DCIM', path: '/v1/dcim/topology-catalog', method: 'GET', fields: ['Inclure retirés'] },
     { id: 'dcim-locate-equipment', label: 'Localiser un équipement', path: '/v1/dcim/locations', method: 'POST', fields: ['Opérateur', 'Numéro d’actif', 'Nom équipement', 'Site', 'Bâtiment', 'Étage', 'Salle', 'Zone', 'Ligne salle', 'Colonne salle', 'Rack', 'Position U', 'Face rack', 'Hauteur U', 'Coordonnée X', 'Coordonnée Y', 'Coordonnée Z'] },
     { id: 'dcim-rack-capacity', label: 'Capacité rack', path: '/v1/dcim/rack-capacity', method: 'GET', fields: ['Site', 'Bâtiment', 'Salle', 'Rack'] },
     { id: 'dcim-room-plan', label: 'Plan de salle', path: '/v1/dcim/room-plan', method: 'GET', fields: ['Site', 'Bâtiment', 'Salle', 'Format rendu'] },
@@ -750,6 +756,7 @@ const SIDEBAR_CONTEXTS = {
     { label: 'Observations & DDI', operationIds: ['ipam-observe-dns', 'ipam-observe-dhcp', 'ipam-conflicts', 'ipam-ddi-preview'] },
   ],
   dcim: [
+    { label: 'Sites & dépendances', operationIds: ['dcim-sites', 'dcim-site', 'dcim-site-create', 'dcim-site-update', 'dcim-site-delete', 'dcim-topology-catalog'] },
     { label: 'Localisation & capacité', operationIds: ['dcim-locate-equipment', 'dcim-rack-capacity', 'dcim-room-plan', 'dcim-rack-elevation'] },
     { label: 'Connectivité', operationIds: ['dcim-patch-panel', 'dcim-port', 'dcim-cable', 'dcim-cable-trace'] },
     { label: 'Énergie & refroidissement', operationIds: ['dcim-power-device', 'dcim-power-circuit', 'dcim-cooling-zone', 'dcim-power-reservation', 'dcim-energy-cooling-capacity'] },

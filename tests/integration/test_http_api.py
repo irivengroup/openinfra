@@ -155,6 +155,12 @@ class TestHttpApi:
                     "ddi_preview": "/api/v1/ipam/ddi-preview",
                 },
                 "dcim": {
+                    "sites": "/api/v1/dcim/sites",
+                    "site": "/api/v1/dcim/site",
+                    "site_create": "/api/v1/dcim/site/create",
+                    "site_update": "/api/v1/dcim/site/update",
+                    "site_delete": "/api/v1/dcim/site/delete",
+                    "topology_catalog": "/api/v1/dcim/topology-catalog",
                     "rooms": "/api/v1/dcim/rooms",
                     "racks": "/api/v1/dcim/racks",
                     "locations": "/api/v1/dcim/locations",
@@ -1139,7 +1145,7 @@ class TestHttpApi:
                     "backend_url": "https://openinfra-api.example.test",
                     "certificate_fingerprint": "6" * 64,
                     "enrollment_secret_ref": "vault://openinfra/discovery/agent/par1",
-                    "agent_version": "0.29.64",
+                    "agent_version": "0.29.65",
                 },
                 token=token,
             )

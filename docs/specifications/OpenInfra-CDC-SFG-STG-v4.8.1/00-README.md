@@ -242,10 +242,16 @@ OpenInfra ajoute `REQ-00805` et `TST-WEB-106` pour regrouper les opérations du 
 Ajout du cycle de vie CRUD des tenants ITAM, tenant par défaut unique, retrait logique, sélecteur web et auto-sélection mono-tenant.
 
 
-## v0.29.64 — plan bootstrap agent Enterprise
+## v0.29.63 — plan bootstrap agent Enterprise
 
 OpenInfra expose `openinfra discovery agent-bootstrap-plan` et `POST /api/v1/discovery/agent-bootstrap-plan` pour produire un plan opérable `openinfra-agent.service` Enterprise. Le plan exige HTTPS, mTLS, secret `vault://`, compte de service non-root, publication de résultats par API et ne réalise ni installation ni matérialisation de secret.
 
 ## v0.29.64 — UX entités propriétaires
 
 Ajout de l’exigence UX `REQ-00808` : `Entité propriétaire` remplace `Tenant` côté portail web, `Organisation` est utilisé lors de la création, et les références tenant sont des listes de sélection.
+## v0.29.65 — DCIM sites, dépendances et responsive mobile
+
+- `REQ-00809` — OpenInfra doit gérer les sites DCIM avec CRUD, retrait logique, conservation d’historique et cascade non destructive vers les dépendances de localisation.
+- `REQ-00810` — Les formulaires web manipulant des références DCIM de localisation doivent utiliser des champs `select` alimentés par le catalogue backend, sans texte libre pour `site`, `bâtiment`, `étage`, `salle`, `zone`, `rack`, `ligne` ou `colonne`.
+- `REQ-00811` — Le portail `openinfra-web`, y compris la sidebar, doit être responsive et exploitable sur tablettes/smartphones sans masquage d’actions.
+

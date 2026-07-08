@@ -257,6 +257,59 @@ class DcimRepository(ABC):
         raise TypeError("adapter contract invoked directly")
 
     @abstractmethod
+    def save_site(self, site: Site) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_building(self, building: Building) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_floor(self, floor: Floor) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_room(self, room: Room) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_zone(self, zone: RoomZone) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_sites(self, tenant_id: TenantId, include_retired: bool = False) -> tuple[Site, ...]:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_buildings(
+        self, tenant_id: TenantId, site: str, include_retired: bool = False
+    ) -> tuple[Building, ...]:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_floors(
+        self, tenant_id: TenantId, site: str, building: str, include_retired: bool = False
+    ) -> tuple[Floor, ...]:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_rooms(
+        self, tenant_id: TenantId, site: str, building: str, include_retired: bool = False
+    ) -> tuple[Room, ...]:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_zones(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+        include_retired: bool = False,
+    ) -> tuple[RoomZone, ...]:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
     def find_site(self, tenant_id: TenantId, site: str) -> Site | None:
         raise TypeError("adapter contract invoked directly")
 

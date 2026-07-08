@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.64
+  version: 0.29.65
 components:
   securitySchemes:
     bearerToken:
@@ -694,6 +694,132 @@ paths:
           description: Validation error
         '401':
           description: Missing or invalid audit reader token
+
+  /api/v1/dcim/sites:
+    get:
+      summary: List DCIM sites
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: {type: string}
+        - name: include_retired
+          in: query
+          required: false
+          schema: {type: boolean}
+      responses:
+        '200': {description: DCIM sites}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM reader token}
+  /api/v1/dcim/site:
+    get:
+      summary: Get a DCIM site
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: {type: string}
+        - name: code
+          in: query
+          required: true
+          schema: {type: string}
+      responses:
+        '200': {description: DCIM site}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM reader token}
+  /api/v1/dcim/site/create:
+    post:
+      summary: Create a DCIM site
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, code, name, country, city]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                code: {type: string}
+                name: {type: string}
+                country: {type: string, minLength: 2, maxLength: 2}
+                city: {type: string}
+                region: {type: string}
+      responses:
+        '201': {description: DCIM site created}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM writer token}
+  /api/v1/dcim/site/update:
+    post:
+      summary: Update a DCIM site
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, code]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                code: {type: string}
+                name: {type: string}
+                country: {type: string, minLength: 2, maxLength: 2}
+                city: {type: string}
+                region: {type: string}
+                status:
+                  type: string
+                  enum: [active, suspended, retired]
+      responses:
+        '200': {description: DCIM site updated}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM writer token}
+  /api/v1/dcim/site/delete:
+    post:
+      summary: Retire a DCIM site and its location dependencies
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, code]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                code: {type: string}
+      responses:
+        '200': {description: DCIM site retired}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM writer token}
+  /api/v1/dcim/topology-catalog:
+    get:
+      summary: Return the DCIM hierarchy catalog used by web selectors
+      security:
+        - bearerToken: []
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: {type: string}
+        - name: include_retired
+          in: query
+          required: false
+          schema: {type: boolean}
+      responses:
+        '200': {description: DCIM topology catalog}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM reader token}
 
   /api/v1/dcim/rooms:
     post:

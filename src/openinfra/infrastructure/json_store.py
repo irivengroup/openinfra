@@ -79,6 +79,7 @@ from openinfra.domain.dcim import (
     DcimCablePathSegment,
     DcimCableStatus,
     DcimConnectorType,
+    DcimLifecycleStatus,
     DcimPort,
     DcimPortEndpoint,
     DcimPortOwnerType,
@@ -789,6 +790,47 @@ class JsonDcimRepository(DcimRepository):
         )
         self._put_unique("room_zones", key, self._zone_to_dict(zone))
 
+    def save_site(self, site: Site) -> None:
+        key = self._key(site.tenant_id, site.code.value)
+        self._store.data["sites"][key] = self._site_to_dict(site)
+        self._store.mark_dirty()
+
+    def save_building(self, building: Building) -> None:
+        key = self._key(building.tenant_id, building.site_code.value, building.code.value)
+        self._store.data["buildings"][key] = self._building_to_dict(building)
+        self._store.mark_dirty()
+
+    def save_floor(self, floor: Floor) -> None:
+        key = self._key(
+            floor.tenant_id,
+            floor.site_code.value,
+            floor.building_code.value,
+            floor.code.value,
+        )
+        self._store.data["floors"][key] = self._floor_to_dict(floor)
+        self._store.mark_dirty()
+
+    def save_room(self, room: Room) -> None:
+        key = self._key(
+            room.tenant_id,
+            room.site_code.value,
+            room.building_code.value,
+            room.code.value,
+        )
+        self._store.data["rooms"][key] = self._room_to_dict(room)
+        self._store.mark_dirty()
+
+    def save_zone(self, zone: RoomZone) -> None:
+        key = self._key(
+            zone.tenant_id,
+            zone.site_code.value,
+            zone.building_code.value,
+            zone.room_code.value,
+            zone.code.value,
+        )
+        self._store.data["room_zones"][key] = self._zone_to_dict(zone)
+        self._store.mark_dirty()
+
     def add_rack(self, rack: Rack) -> None:
         key = self._key(
             rack.tenant_id,
@@ -849,6 +891,85 @@ class JsonDcimRepository(DcimRepository):
             reservation.circuit_id.value,
         )
         self._put_unique("power_reservations", key, self._power_reservation_to_dict(reservation))
+
+    def list_sites(self, tenant_id: TenantId, include_retired: bool = False) -> tuple[Site, ...]:
+        items = [
+            self._site_from_dict(value)
+            for value in self._store.data["sites"].values()
+            if value.get("tenant_id") == tenant_id.value
+        ]
+        if not include_retired:
+            items = [item for item in items if item.selectable()]
+        return tuple(sorted(items, key=lambda item: item.code.value))
+
+    def list_buildings(
+        self, tenant_id: TenantId, site: str, include_retired: bool = False
+    ) -> tuple[Building, ...]:
+        normalized_site = Code.from_value(site, "site code").value
+        items = [
+            self._building_from_dict(value)
+            for value in self._store.data["buildings"].values()
+            if value.get("tenant_id") == tenant_id.value
+            and value.get("site_code") == normalized_site
+        ]
+        if not include_retired:
+            items = [item for item in items if item.selectable()]
+        return tuple(sorted(items, key=lambda item: item.code.value))
+
+    def list_floors(
+        self, tenant_id: TenantId, site: str, building: str, include_retired: bool = False
+    ) -> tuple[Floor, ...]:
+        normalized_site = Code.from_value(site, "site code").value
+        normalized_building = Code.from_value(building, "building code").value
+        items = [
+            self._floor_from_dict(value)
+            for value in self._store.data["floors"].values()
+            if value.get("tenant_id") == tenant_id.value
+            and value.get("site_code") == normalized_site
+            and value.get("building_code") == normalized_building
+        ]
+        if not include_retired:
+            items = [item for item in items if item.selectable()]
+        return tuple(sorted(items, key=lambda item: item.code.value))
+
+    def list_rooms(
+        self, tenant_id: TenantId, site: str, building: str, include_retired: bool = False
+    ) -> tuple[Room, ...]:
+        normalized_site = Code.from_value(site, "site code").value
+        normalized_building = Code.from_value(building, "building code").value
+        items = [
+            self._room_from_dict(value)
+            for value in self._store.data["rooms"].values()
+            if value.get("tenant_id") == tenant_id.value
+            and value.get("site_code") == normalized_site
+            and value.get("building_code") == normalized_building
+        ]
+        if not include_retired:
+            items = [item for item in items if item.selectable()]
+        return tuple(sorted(items, key=lambda item: item.code.value))
+
+    def list_zones(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+        include_retired: bool = False,
+    ) -> tuple[RoomZone, ...]:
+        normalized_site = Code.from_value(site, "site code").value
+        normalized_building = Code.from_value(building, "building code").value
+        normalized_room = Code.from_value(room, "room code").value
+        items = [
+            self._zone_from_dict(value)
+            for value in self._store.data["room_zones"].values()
+            if value.get("tenant_id") == tenant_id.value
+            and value.get("site_code") == normalized_site
+            and value.get("building_code") == normalized_building
+            and value.get("room_code") == normalized_room
+        ]
+        if not include_retired:
+            items = [item for item in items if item.selectable()]
+        return tuple(sorted(items, key=lambda item: item.code.value))
 
     def find_site(self, tenant_id: TenantId, site: str) -> Site | None:
         key = self._key(tenant_id, Code.from_value(site, "site code").value)
@@ -1354,6 +1475,7 @@ class JsonDcimRepository(DcimRepository):
             "country": site.country,
             "city": site.city,
             "region": site.region,
+            "status": site.status.value,
         }
 
     def _site_from_dict(self, value: dict[str, Any]) -> Site:
@@ -1365,6 +1487,7 @@ class JsonDcimRepository(DcimRepository):
             country=value["country"],
             city=value["city"],
             region=value.get("region", ""),
+            status=DcimLifecycleStatus.from_value(value.get("status"), "site status"),
         )
 
     def _building_to_dict(self, building: Building) -> dict[str, Any]:
@@ -1374,6 +1497,7 @@ class JsonDcimRepository(DcimRepository):
             "site_code": building.site_code.value,
             "code": building.code.value,
             "name": building.name.value,
+            "status": building.status.value,
         }
 
     def _building_from_dict(self, value: dict[str, Any]) -> Building:
@@ -1383,6 +1507,7 @@ class JsonDcimRepository(DcimRepository):
             site_code=Code.from_value(value["site_code"]),
             code=Code.from_value(value["code"]),
             name=Name.from_value(value["name"]),
+            status=DcimLifecycleStatus.from_value(value.get("status"), "building status"),
         )
 
     def _floor_to_dict(self, floor: Floor) -> dict[str, Any]:
@@ -1394,6 +1519,7 @@ class JsonDcimRepository(DcimRepository):
             "code": floor.code.value,
             "name": floor.name.value,
             "level_index": floor.level_index,
+            "status": floor.status.value,
         }
 
     def _floor_from_dict(self, value: dict[str, Any]) -> Floor:
@@ -1405,6 +1531,7 @@ class JsonDcimRepository(DcimRepository):
             code=Code.from_value(value["code"]),
             name=Name.from_value(value["name"]),
             level_index=int(value["level_index"]),
+            status=DcimLifecycleStatus.from_value(value.get("status"), "floor status"),
         )
 
     def _room_to_dict(self, room: Room) -> dict[str, Any]:
@@ -1420,6 +1547,7 @@ class JsonDcimRepository(DcimRepository):
             "floor_code": room.floor_code.value if room.floor_code else None,
             "zone_codes": [zone.value for zone in room.zone_codes],
             "coordinates": room.coordinates.as_dict() if room.coordinates else None,
+            "status": room.status.value,
         }
 
     def _room_from_dict(self, value: dict[str, Any]) -> Room:
@@ -1436,6 +1564,7 @@ class JsonDcimRepository(DcimRepository):
             floor_code=Code.from_value(value["floor_code"]) if value.get("floor_code") else None,
             zone_codes=tuple(Code.from_value(zone) for zone in value.get("zone_codes", [])),
             coordinates=Coordinates3D.from_values(**coordinates) if coordinates else None,
+            status=DcimLifecycleStatus.from_value(value.get("status"), "room status"),
         )
 
     def _zone_to_dict(self, zone: RoomZone) -> dict[str, Any]:
@@ -1450,6 +1579,7 @@ class JsonDcimRepository(DcimRepository):
             "name": zone.name.value,
             "rows": list(zone.rows),
             "columns": list(zone.columns),
+            "status": zone.status.value,
         }
 
     def _zone_from_dict(self, value: dict[str, Any]) -> RoomZone:
@@ -1464,6 +1594,7 @@ class JsonDcimRepository(DcimRepository):
             name=Name.from_value(value["name"]),
             rows=tuple(value["rows"]),
             columns=tuple(value["columns"]),
+            status=DcimLifecycleStatus.from_value(value.get("status"), "zone status"),
         )
 
     def _rack_to_dict(self, rack: Rack) -> dict[str, Any]:

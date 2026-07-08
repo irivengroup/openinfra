@@ -476,6 +476,23 @@ body {
   overflow: visible;
 }
 
+
+.openinfra-sidebar-context {
+  border-left: 1px solid rgba(var(--openinfra-action-rgb), .14);
+  margin: .45rem 0 .6rem .15rem;
+  padding-left: .55rem;
+}
+
+.openinfra-sidebar-context-title {
+  color: rgba(var(--openinfra-ink-rgb), .58);
+  font-size: .68rem;
+  font-weight: 900;
+  letter-spacing: .075em;
+  margin: .45rem 0 .18rem;
+  padding-left: .15rem;
+  text-transform: uppercase;
+}
+
 .openinfra-sidebar-operation {
   border-left: .18rem solid transparent;
   border-radius: .65rem;
@@ -853,3 +870,129 @@ body {
 }
 
 /* v0.29.49: edition badge uses a very dark fuchsia gradient tending toward warm prune without becoming brown. */
+
+/* v0.29.65: responsive sidebar and mobile/tablet optimization. */
+.openinfra-sidebar {
+  width: 100%;
+}
+
+@media (max-width: 1199.98px) {
+  :root {
+    --openinfra-sidebar-width: 240px;
+  }
+
+  .openinfra-sidebar-operation {
+    font-size: .8rem;
+  }
+}
+
+@media (max-width: 991.98px) {
+  body {
+    font-size: .86rem;
+  }
+
+  .openinfra-sidebar {
+    border-bottom: 1px solid var(--openinfra-border);
+    border-right: 0;
+    box-shadow: var(--openinfra-content-shadow);
+    margin: .75rem 0 0;
+    max-height: min(42vh, 26rem);
+    min-height: 0;
+    overflow-y: auto;
+    position: relative;
+    top: auto;
+    z-index: 10;
+  }
+
+  .openinfra-main {
+    padding-inline: .75rem;
+  }
+
+  .openinfra-titlebar {
+    margin-top: .75rem;
+  }
+
+  .openinfra-operation-card .card-body,
+  .openinfra-overview-summary .card-body,
+  .openinfra-component-card .card-body {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .openinfra-top-header .container-fluid {
+    gap: .65rem;
+  }
+
+  .openinfra-top-header .nav {
+    width: 100%;
+  }
+
+  .openinfra-top-header .nav-link {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding-inline: .45rem;
+  }
+
+  .openinfra-global-toolbar-inner {
+    gap: .75rem;
+  }
+
+  .openinfra-api-doc-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+    justify-content: center;
+    white-space: normal;
+  }
+
+  .openinfra-result {
+    max-height: 18rem;
+  }
+}
+
+@media (max-width: 575.98px) {
+  body {
+    font-size: .84rem;
+  }
+
+  .openinfra-brand-mark {
+    height: 2.1rem;
+    width: 2.1rem;
+  }
+
+  .openinfra-sidebar {
+    border-radius: 0 0 1rem 1rem;
+    margin-inline: -.75rem;
+    max-height: min(48vh, 24rem);
+    padding: .75rem .65rem;
+  }
+
+  .openinfra-sidebar-heading {
+    padding-inline: .35rem;
+  }
+
+  .openinfra-accordion-toggle,
+  .openinfra-sidebar-dashboard {
+    padding: .58rem .65rem;
+  }
+
+  .openinfra-sidebar-operation {
+    padding: .5rem .55rem;
+  }
+
+  .openinfra-titlebar {
+    border-radius: .95rem;
+  }
+
+  .openinfra-titlebar h1 {
+    font-size: 1.35rem;
+  }
+
+  .form-label,
+  .form-control,
+  .form-select,
+  .btn {
+    font-size: .9rem;
+  }
+}

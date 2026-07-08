@@ -294,6 +294,15 @@ class TestPostgreSQLMigration:
         assert "VALUES ('default', 'Default')" in normalized_sql
         assert "INSERT INTO tenants (id) VALUES ('default')" not in normalized_sql
 
+    def test_dcim_site_lifecycle_migration_adds_status_and_active_indexes(self) -> None:
+        migration = PostgreSQLMigrationCatalog.from_project_root().load("0030_dcim_site_lifecycle")
+        normalized_sql = " ".join(migration.sql.split())
+
+        for table in ("sites", "buildings", "floors", "rooms", "room_zones"):
+            assert f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS status" in normalized_sql
+            assert f"ck_{table}_status" in normalized_sql
+            assert f"idx_{table}_active" in normalized_sql
+
     def test_migration_validator_rejects_partitioned_unique_constraints_missing_partition_key(
         self,
     ) -> None:

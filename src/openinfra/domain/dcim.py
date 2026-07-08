@@ -18,6 +18,25 @@ class DcimGridValidator:
         return normalized
 
 
+class DcimLifecycleStatus(StrEnum):
+    ACTIVE = "active"
+    SUSPENDED = "suspended"
+    RETIRED = "retired"
+
+    @classmethod
+    def from_value(
+        cls, value: str | None, label: str = "DCIM lifecycle status"
+    ) -> DcimLifecycleStatus:
+        normalized = (value or cls.ACTIVE.value).strip().lower()
+        try:
+            return cls(normalized)
+        except ValueError as exc:
+            raise ValidationError(f"{label} must be active, suspended or retired") from exc
+
+    def selectable(self) -> bool:
+        return self == DcimLifecycleStatus.ACTIVE
+
+
 class RackFace(StrEnum):
     FRONT = "front"
     REAR = "rear"
@@ -42,6 +61,7 @@ class Site:
     country: str
     city: str
     region: str = ""
+    status: DcimLifecycleStatus = DcimLifecycleStatus.ACTIVE
 
     @classmethod
     def create(
@@ -56,6 +76,7 @@ class Site:
         normalized_country = country.strip().upper()
         normalized_city = " ".join(city.strip().split())
         normalized_region = " ".join(region.strip().split())
+        lifecycle_status = DcimLifecycleStatus.from_value(None, "site status")
         if len(normalized_country) != 2 or not normalized_country.isalpha():
             raise ValidationError("country must be an ISO-3166 alpha-2 code")
         if not normalized_city:
@@ -70,7 +91,56 @@ class Site:
             country=normalized_country,
             city=normalized_city,
             region=normalized_region,
+            status=lifecycle_status,
         )
+
+    def update(
+        self,
+        *,
+        name: str | None = None,
+        country: str | None = None,
+        city: str | None = None,
+        region: str | None = None,
+        status: str | None = None,
+    ) -> Self:
+        normalized_country = self.country if country is None else country.strip().upper()
+        normalized_city = self.city if city is None else " ".join(city.strip().split())
+        normalized_region = self.region if region is None else " ".join(region.strip().split())
+        if len(normalized_country) != 2 or not normalized_country.isalpha():
+            raise ValidationError("country must be an ISO-3166 alpha-2 code")
+        if not normalized_city:
+            raise ValidationError("site city is mandatory")
+        if len(normalized_region) > 128:
+            raise ValidationError("site region cannot exceed 128 characters")
+        return Site(
+            id=self.id,
+            tenant_id=self.tenant_id,
+            code=self.code,
+            name=self.name if name is None else Name.from_value(name, "site name"),
+            country=normalized_country,
+            city=normalized_city,
+            region=normalized_region,
+            status=DcimLifecycleStatus.from_value(status, "site status") if status else self.status,
+        )
+
+    def retire(self) -> Self:
+        return self.update(status=DcimLifecycleStatus.RETIRED.value)
+
+    def selectable(self) -> bool:
+        return self.status.selectable()
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "id": self.id.value,
+            "tenant_id": self.tenant_id.value,
+            "code": self.code.value,
+            "name": self.name.value,
+            "country": self.country,
+            "city": self.city,
+            "region": self.region,
+            "status": self.status.value,
+            "selectable": self.selectable(),
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,6 +150,7 @@ class Building:
     site_code: Code
     code: Code
     name: Name
+    status: DcimLifecycleStatus = DcimLifecycleStatus.ACTIVE
 
     @classmethod
     def create(cls, tenant_id: TenantId, site_code: str, code: str, name: str) -> Self:
@@ -91,6 +162,35 @@ class Building:
             name=Name.from_value(name, "building name"),
         )
 
+    def update(self, *, name: str | None = None, status: str | None = None) -> Self:
+        return Building(
+            id=self.id,
+            tenant_id=self.tenant_id,
+            site_code=self.site_code,
+            code=self.code,
+            name=self.name if name is None else Name.from_value(name, "building name"),
+            status=DcimLifecycleStatus.from_value(status, "building status")
+            if status
+            else self.status,
+        )
+
+    def retire(self) -> Self:
+        return self.update(status=DcimLifecycleStatus.RETIRED.value)
+
+    def selectable(self) -> bool:
+        return self.status.selectable()
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "id": self.id.value,
+            "tenant_id": self.tenant_id.value,
+            "site": self.site_code.value,
+            "code": self.code.value,
+            "name": self.name.value,
+            "status": self.status.value,
+            "selectable": self.selectable(),
+        }
+
 
 @dataclass(frozen=True, slots=True)
 class Floor:
@@ -101,6 +201,7 @@ class Floor:
     code: Code
     name: Name
     level_index: int
+    status: DcimLifecycleStatus = DcimLifecycleStatus.ACTIVE
 
     @classmethod
     def create(
@@ -125,6 +226,44 @@ class Floor:
             level_index=normalized_level,
         )
 
+    def update(
+        self, *, name: str | None = None, level_index: int | None = None, status: str | None = None
+    ) -> Self:
+        normalized_level = self.level_index if level_index is None else int(level_index)
+        if not -20 <= normalized_level <= 300:
+            raise ValidationError("floor level index must be between -20 and 300")
+        return Floor(
+            id=self.id,
+            tenant_id=self.tenant_id,
+            site_code=self.site_code,
+            building_code=self.building_code,
+            code=self.code,
+            name=self.name if name is None else Name.from_value(name, "floor name"),
+            level_index=normalized_level,
+            status=DcimLifecycleStatus.from_value(status, "floor status")
+            if status
+            else self.status,
+        )
+
+    def retire(self) -> Self:
+        return self.update(status=DcimLifecycleStatus.RETIRED.value)
+
+    def selectable(self) -> bool:
+        return self.status.selectable()
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "id": self.id.value,
+            "tenant_id": self.tenant_id.value,
+            "site": self.site_code.value,
+            "building": self.building_code.value,
+            "code": self.code.value,
+            "name": self.name.value,
+            "level_index": self.level_index,
+            "status": self.status.value,
+            "selectable": self.selectable(),
+        }
+
 
 @dataclass(frozen=True, slots=True)
 class Room:
@@ -139,6 +278,7 @@ class Room:
     floor_code: Code | None = None
     zone_codes: tuple[Code, ...] = ()
     coordinates: Coordinates3D | None = None
+    status: DcimLifecycleStatus = DcimLifecycleStatus.ACTIVE
 
     @classmethod
     def create(
@@ -170,6 +310,57 @@ class Room:
             zone_codes=normalized_zones,
             coordinates=coordinates,
         )
+
+    def update(
+        self,
+        *,
+        name: str | None = None,
+        rows: tuple[str, ...] | None = None,
+        columns: tuple[str, ...] | None = None,
+        status: str | None = None,
+    ) -> Self:
+        return Room(
+            id=self.id,
+            tenant_id=self.tenant_id,
+            site_code=self.site_code,
+            building_code=self.building_code,
+            code=self.code,
+            name=self.name if name is None else Name.from_value(name, "room name"),
+            rows=self.rows
+            if rows is None
+            else DcimGridValidator.normalized_unique_codes(rows, "room row"),
+            columns=(
+                self.columns
+                if columns is None
+                else DcimGridValidator.normalized_unique_codes(columns, "room column")
+            ),
+            floor_code=self.floor_code,
+            zone_codes=self.zone_codes,
+            coordinates=self.coordinates,
+            status=DcimLifecycleStatus.from_value(status, "room status") if status else self.status,
+        )
+
+    def retire(self) -> Self:
+        return self.update(status=DcimLifecycleStatus.RETIRED.value)
+
+    def selectable(self) -> bool:
+        return self.status.selectable()
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "id": self.id.value,
+            "tenant_id": self.tenant_id.value,
+            "site": self.site_code.value,
+            "building": self.building_code.value,
+            "floor": self.floor_code.value if self.floor_code else None,
+            "code": self.code.value,
+            "name": self.name.value,
+            "rows": list(self.rows),
+            "columns": list(self.columns),
+            "zones": [zone.value for zone in self.zone_codes],
+            "status": self.status.value,
+            "selectable": self.selectable(),
+        }
 
     def assert_cell_exists(self, row: str, column: str) -> None:
         if Code.from_value(row, "room row").value not in self.rows:
@@ -211,6 +402,7 @@ class RoomZone:
     name: Name
     rows: tuple[str, ...]
     columns: tuple[str, ...]
+    status: DcimLifecycleStatus = DcimLifecycleStatus.ACTIVE
 
     @classmethod
     def create(
@@ -237,6 +429,56 @@ class RoomZone:
             rows=DcimGridValidator.normalized_unique_codes(rows, "zone row"),
             columns=DcimGridValidator.normalized_unique_codes(columns, "zone column"),
         )
+
+    def update(
+        self,
+        *,
+        name: str | None = None,
+        rows: tuple[str, ...] | None = None,
+        columns: tuple[str, ...] | None = None,
+        status: str | None = None,
+    ) -> Self:
+        return RoomZone(
+            id=self.id,
+            tenant_id=self.tenant_id,
+            site_code=self.site_code,
+            building_code=self.building_code,
+            floor_code=self.floor_code,
+            room_code=self.room_code,
+            code=self.code,
+            name=self.name if name is None else Name.from_value(name, "zone name"),
+            rows=self.rows
+            if rows is None
+            else DcimGridValidator.normalized_unique_codes(rows, "zone row"),
+            columns=(
+                self.columns
+                if columns is None
+                else DcimGridValidator.normalized_unique_codes(columns, "zone column")
+            ),
+            status=DcimLifecycleStatus.from_value(status, "zone status") if status else self.status,
+        )
+
+    def retire(self) -> Self:
+        return self.update(status=DcimLifecycleStatus.RETIRED.value)
+
+    def selectable(self) -> bool:
+        return self.status.selectable()
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "id": self.id.value,
+            "tenant_id": self.tenant_id.value,
+            "site": self.site_code.value,
+            "building": self.building_code.value,
+            "floor": self.floor_code.value,
+            "room": self.room_code.value,
+            "code": self.code.value,
+            "name": self.name.value,
+            "rows": list(self.rows),
+            "columns": list(self.columns),
+            "status": self.status.value,
+            "selectable": self.selectable(),
+        }
 
     def assert_within_room(self, room: Room) -> None:
         if room.floor_code is not None and room.floor_code != self.floor_code:

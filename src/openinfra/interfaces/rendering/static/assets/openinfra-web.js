@@ -768,6 +768,8 @@ const RESOURCE_CATEGORY_OPTIONS = [
   }
 ];
 const SOURCE_OPTIONS = ["manual", "import", "backend-discovery", "enterprise-proxy", "api"];
+const DCIM_REFERENCE_FIELDS = new Set(["site", "site_code", "building", "building_code", "floor", "floor_code", "room", "room_code", "zone", "zone_code", "rack", "row", "column"]);
+const DCIM_REFERENCE_LABELS = { site: "Site", site_code: "Site", building: "Bâtiment", building_code: "Bâtiment", floor: "Étage", floor_code: "Étage", room: "Salle", room_code: "Salle", zone: "Zone", zone_code: "Zone", rack: "Rack", row: "Ligne salle", column: "Colonne salle" };
 
 const FIELD_SETS = {
   tenant: { name: "tenant_id", label: "Entité propriétaire", type: "tenant-select", defaultValue: "default", placeholder: "default" },
@@ -868,6 +870,12 @@ const OPENINFRA_MODULES = [
     { id: "ipam-ddi-preview", label: "Prévisualiser DDI", method: "POST", path: "/v1/ipam/ddi-preview", body: [FIELD_SETS.actor, { name: "vrf", label: "VRF", required: true, placeholder: "global" }, { name: "idempotency_key", label: "Clé d’idempotence", required: true, placeholder: "ipam-alloc-srv-app-01" }, { name: "providers", label: "Fournisseurs DDI", type: "csv", placeholder: "bind,kea" }, { name: "dns_zone", label: "Zone DNS", placeholder: "example.net" }, { name: "mac_address", label: "Adresse MAC", placeholder: "00:11:22:33:44:55" }, { name: "ttl", label: "TTL", type: "number", placeholder: "300" }, { name: "apply_preview", label: "Appliquer la prévisualisation", type: "boolean" }] }
   ] },
   { id: "dcim", label: "DCIM", icon: "home", description: "Sites, salles, zones, racks, ports, câbles, énergie et localisation terrain.", operations: [
+    { id: "dcim-sites", label: "Lister les sites DCIM", method: "GET", path: "/v1/dcim/sites", query: [{ name: "include_retired", label: "Inclure retirés", type: "boolean" }] },
+    { id: "dcim-site", label: "Consulter un site DCIM", method: "GET", path: "/v1/dcim/site", query: [{ name: "code", label: "Site", required: true, defaultValue: "PAR1" }] },
+    { id: "dcim-site-create", label: "Créer un site DCIM", method: "POST", path: "/v1/dcim/site/create", body: [FIELD_SETS.actor, { name: "code", label: "Code site", required: true, placeholder: "PAR1" }, { name: "name", label: "Nom site", required: true, placeholder: "Paris 1" }, { name: "country", label: "Pays ISO-3166", required: true, placeholder: "FR" }, { name: "region", label: "Région", placeholder: "Île-de-France" }, { name: "city", label: "Ville", required: true, placeholder: "Paris" }] },
+    { id: "dcim-site-update", label: "Modifier un site DCIM", method: "POST", path: "/v1/dcim/site/update", body: [FIELD_SETS.actor, { name: "code", label: "Site", required: true, defaultValue: "PAR1" }, { name: "name", label: "Nom site", placeholder: "Paris 1" }, { name: "country", label: "Pays ISO-3166", placeholder: "FR" }, { name: "region", label: "Région", placeholder: "Île-de-France" }, { name: "city", label: "Ville", placeholder: "Paris" }, { name: "status", label: "Statut", type: "select", options: ["", "active", "suspended", "retired"] }] },
+    { id: "dcim-site-delete", label: "Retirer un site DCIM", method: "POST", path: "/v1/dcim/site/delete", body: [FIELD_SETS.actor, { name: "code", label: "Site", required: true, defaultValue: "PAR1" }] },
+    { id: "dcim-topology-catalog", label: "Catalogue dépendances DCIM", method: "GET", path: "/v1/dcim/topology-catalog", query: [{ name: "include_retired", label: "Inclure retirés", type: "boolean" }] },
     { id: "dcim-locate-equipment", label: "Localiser un équipement", method: "POST", path: "/v1/dcim/locations", body: [
       FIELD_SETS.actor,
       { name: "asset_tag", label: "Numéro d’actif", required: true, placeholder: "PAR-SRV-001" },
@@ -918,7 +926,7 @@ const OPENINFRA_MODULES = [
   ] },
   { id: "discovery", label: "Discovery", icon: "activity", description: "Collecte backend locale en Lite/Pro ; agents proxy collectors Enterprise uniquement en topologie étoile.", operations: [
     { id: "local-discovery-plan", label: "Plan discovery locale Lite/Pro", method: "POST", path: "/v1/discovery/local-plan", body: [FIELD_SETS.actor, { name: "name", label: "Nom plan", required: true, placeholder: "Discovery locale PAR1" }, { name: "scope", label: "Scope", required: true, placeholder: "site/par1" }, { name: "protocol", label: "Protocole", required: true, type: "select", options: ["snmp", "ssh", "winrm"] }, { name: "targets", label: "Cibles", type: "csv", required: true, placeholder: "10.20.30.10,srv-app-01" }, { name: "credential_secret_ref", label: "Référence secret", required: true, placeholder: "vault://openinfra/discovery/local/par1" }, { name: "max_concurrency", label: "Concurrence max", type: "number", defaultValue: "4" }, { name: "rate_limit_per_minute", label: "Rate limit/min", type: "number", defaultValue: "120" }] },
-    { id: "agent-bootstrap-plan", label: "Plan bootstrap agent Enterprise", method: "POST", path: "/v1/discovery/agent-bootstrap-plan", body: [FIELD_SETS.actor, { name: "name", label: "Nom agent", required: true, placeholder: "Agent Enterprise PAR1" }, { name: "role", label: "Rôle agent", required: true, type: "select", options: ["site", "regional", "datacenter"], defaultValue: "site" }, { name: "scopes", label: "Scopes autorisés", type: "csv", required: true, placeholder: "site/paris,network/core" }, { name: "backend_url", label: "URL backend HTTPS", required: true, placeholder: "https://openinfra-api.example.com" }, { name: "certificate_fingerprint", label: "Empreinte certificat", required: true }, { name: "enrollment_secret_ref", label: "Référence secret enrollment", required: true, placeholder: "vault://openinfra/discovery/agent/par1" }, { name: "agent_version", label: "Version agent", required: true, defaultValue: "0.29.64" }, { name: "service_user", label: "Compte service", defaultValue: "openinfra-agent" }, { name: "config_path", label: "Chemin configuration", defaultValue: "/etc/openinfra/agent.yaml" }, { name: "state_directory", label: "Répertoire état", defaultValue: "/var/lib/openinfra-agent" }, { name: "log_directory", label: "Répertoire logs", defaultValue: "/var/log/openinfra-agent" }] },
+    { id: "agent-bootstrap-plan", label: "Plan bootstrap agent Enterprise", method: "POST", path: "/v1/discovery/agent-bootstrap-plan", body: [FIELD_SETS.actor, { name: "name", label: "Nom agent", required: true, placeholder: "Agent Enterprise PAR1" }, { name: "role", label: "Rôle agent", required: true, type: "select", options: ["site", "regional", "datacenter"], defaultValue: "site" }, { name: "scopes", label: "Scopes autorisés", type: "csv", required: true, placeholder: "site/paris,network/core" }, { name: "backend_url", label: "URL backend HTTPS", required: true, placeholder: "https://openinfra-api.example.com" }, { name: "certificate_fingerprint", label: "Empreinte certificat", required: true }, { name: "enrollment_secret_ref", label: "Référence secret enrollment", required: true, placeholder: "vault://openinfra/discovery/agent/par1" }, { name: "agent_version", label: "Version agent", required: true, defaultValue: "0.29.65" }, { name: "service_user", label: "Compte service", defaultValue: "openinfra-agent" }, { name: "config_path", label: "Chemin configuration", defaultValue: "/etc/openinfra/agent.yaml" }, { name: "state_directory", label: "Répertoire état", defaultValue: "/var/lib/openinfra-agent" }, { name: "log_directory", label: "Répertoire logs", defaultValue: "/var/log/openinfra-agent" }] },
     { id: "collectors-list", label: "Lister les agents proxy Enterprise", method: "GET", path: "/v1/discovery/collectors", query: [{ name: "scope", label: "Scope autorisé" }, FIELD_SETS.limit] },
     { id: "collectors-register", label: "Enregistrer un agent proxy Enterprise", method: "POST", path: "/v1/discovery/collectors", body: [FIELD_SETS.actor, { name: "name", label: "Nom agent proxy", required: true }, { name: "kind", label: "Type", required: true, type: "select", options: ["site-proxy", "network-proxy", "datacenter-proxy"] }, { name: "certificate_fingerprint", label: "Empreinte certificat", required: true }, { name: "scopes", label: "Scopes autorisés", type: "csv", required: true, placeholder: "site/paris,network/core" }, { name: "version", label: "Version agent", required: true, defaultValue: "1.0.0" }, { name: "endpoint_url", label: "Endpoint mTLS", required: true, placeholder: "https://collector-paris.openinfra.local" }] },
     { id: "job-authorize", label: "Autoriser un job collector", method: "POST", path: "/v1/discovery/jobs/authorize", body: [{ name: "collector_id", label: "ID agent proxy", required: true }, { name: "certificate_fingerprint", label: "Empreinte certificat", required: true }, { name: "requested_scope", label: "Scope demandé", required: true }, { name: "job_type", label: "Type de job", required: true, type: "select", options: ["snmp", "ssh", "winrm", "vmware", "kubernetes"] }, { name: "target", label: "Cible", required: true, placeholder: "10.20.30.10" }] }
@@ -965,6 +973,7 @@ const OPENINFRA_SIDEBAR_CONTEXTS = {
     { label: "Observations & DDI", operationIds: ["ipam-observe-dns", "ipam-observe-dhcp", "ipam-conflicts", "ipam-ddi-preview"] }
   ],
   dcim: [
+    { label: "Sites & dépendances", operationIds: ["dcim-sites", "dcim-site", "dcim-site-create", "dcim-site-update", "dcim-site-delete", "dcim-topology-catalog", "dcim-define-room"] },
     { label: "Localisation & capacité", operationIds: ["dcim-locate-equipment", "dcim-rack-capacity", "dcim-room-plan", "dcim-rack-elevation"] },
     { label: "Connectivité", operationIds: ["dcim-patch-panel", "dcim-port", "dcim-cable", "dcim-cable-trace"] },
     { label: "Énergie & refroidissement", operationIds: ["dcim-power-device", "dcim-power-circuit", "dcim-cooling-zone", "dcim-power-reservation", "dcim-energy-cooling-capacity"] },
@@ -1009,6 +1018,8 @@ class OpenInfraDashboard {
       tenant: "default",
       tenantCatalog: null,
       tenantCatalogError: null,
+      dcimCatalog: null,
+      dcimCatalogError: null,
       config: null,
       ready: null,
       status: null,
@@ -1043,6 +1054,7 @@ class OpenInfraDashboard {
       ]);
       this.state = { ...this.state, config, version, ready, status, error: null };
       await this.refreshTenantCatalog();
+      await this.refreshDcimCatalog();
     } catch (error) {
       this.state = { ...this.state, error };
     }
@@ -1494,6 +1506,13 @@ class OpenInfraDashboard {
       const renderedOptions = options.length > 0 ? options : [{ value: fallback, label: fallback }];
       return `<label class="col-md-6 col-xl-4 form-label">${this.escape(field.label || "Entité propriétaire")}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${required}>${this.renderOptions(renderedOptions, field.defaultValue || this.state.tenant || fallback)}</select></label>`;
     }
+    if (this.isDcimReferenceField(field)) {
+      const options = this.dcimOptions(field);
+      const fallback = field.defaultValue || "";
+      const renderedOptions = options.length > 0 ? options : (fallback ? [{ value: fallback, label: fallback }] : []);
+      const selectedValue = renderedOptions.length === 1 ? this.optionValue(renderedOptions[0]) : fallback;
+      return `<label class="col-md-6 col-xl-4 form-label">${this.escape(field.label || DCIM_REFERENCE_LABELS[this.dcimReferenceLevel(field)] || field.name)}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${required}><option value=""></option>${this.renderOptions(renderedOptions, selectedValue)}</select></label>`;
+    }
     if (field.type === "select") {
       const options = this.selectOptionsForField(field);
       const source = field.optionsByField ? ` data-options-by-field="${this.escape(field.optionsByField)}"` : "";
@@ -1564,8 +1583,10 @@ class OpenInfraDashboard {
     document.getElementById("openinfra-tenant")?.addEventListener("input", (event) => {
       this.state = { ...this.state, tenant: event.target.value };
     });
-    document.getElementById("openinfra-tenant")?.addEventListener("change", (event) => {
+    document.getElementById("openinfra-tenant")?.addEventListener("change", async (event) => {
       this.state = { ...this.state, tenant: event.target.value };
+      await this.refreshDcimCatalog();
+      this.render();
     });
     const globalSearchInput = document.getElementById("openinfra-global-search");
     globalSearchInput?.addEventListener("input", (event) => this.updateGlobalSearch(event.target.value));
@@ -1738,6 +1759,7 @@ class OpenInfraDashboard {
       const data = await this.client().request(this.state.selected, payload);
       if (this.state.selected.id.startsWith("itam-tenant")) {
         await this.refreshTenantCatalog();
+      await this.refreshDcimCatalog();
       }
       this.state = { ...this.state, result: data, error: null };
     } catch (error) {

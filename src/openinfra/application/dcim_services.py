@@ -43,6 +43,54 @@ from openinfra.domain.editions import QuotaResource
 
 
 @dataclass(frozen=True, slots=True)
+class CreateDcimSiteCommand:
+    tenant_id: str
+    actor: str
+    code: str
+    name: str
+    country: str
+    city: str
+    region: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class UpdateDcimSiteCommand:
+    tenant_id: str
+    actor: str
+    code: str
+    name: str | None = None
+    country: str | None = None
+    city: str | None = None
+    region: str | None = None
+    status: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class DeleteDcimSiteCommand:
+    tenant_id: str
+    actor: str
+    code: str
+
+
+@dataclass(frozen=True, slots=True)
+class GetDcimSiteCommand:
+    tenant_id: str
+    code: str
+
+
+@dataclass(frozen=True, slots=True)
+class ListDcimSitesCommand:
+    tenant_id: str
+    include_retired: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class DcimTopologyCatalogCommand:
+    tenant_id: str
+    include_retired: bool = False
+
+
+@dataclass(frozen=True, slots=True)
 class DefinePhysicalRoomCommand:
     tenant_id: str
     actor: str
@@ -307,6 +355,162 @@ class DcimTopologyService:
         self._dcim_repository = dcim_repository
         self._audit_repository = audit_repository
         self._transaction_manager = transaction_manager
+
+    def create_site(self, command: CreateDcimSiteCommand) -> dict[str, object]:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        site = Site.create(
+            tenant_id=tenant_id,
+            code=command.code,
+            name=command.name,
+            country=command.country,
+            city=command.city,
+            region=command.region,
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            if self._dcim_repository.find_site(tenant_id, site.code.value) is not None:
+                raise ConflictError("DCIM site already exists")
+            self._dcim_repository.add_site(site)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=command.actor,
+                    action="dcim.site.created",
+                    target_type="site",
+                    target_id=site.code.value,
+                    metadata=site.as_dict(),
+                )
+            )
+            unit_of_work.commit()
+        return site.as_dict()
+
+    def update_site(self, command: UpdateDcimSiteCommand) -> dict[str, object]:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        site = self._dcim_repository.find_site(tenant_id, command.code)
+        if site is None:
+            raise NotFoundError("DCIM site does not exist")
+        updated = site.update(
+            name=command.name,
+            country=command.country,
+            city=command.city,
+            region=command.region,
+            status=command.status,
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            self._dcim_repository.save_site(updated)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=command.actor,
+                    action="dcim.site.updated",
+                    target_type="site",
+                    target_id=updated.code.value,
+                    metadata=updated.as_dict(),
+                )
+            )
+            unit_of_work.commit()
+        return updated.as_dict()
+
+    def delete_site(self, command: DeleteDcimSiteCommand) -> dict[str, object]:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        site = self._dcim_repository.find_site(tenant_id, command.code)
+        if site is None:
+            raise NotFoundError("DCIM site does not exist")
+        retired_site = site.retire()
+        with self._transaction_manager.begin() as unit_of_work:
+            self._dcim_repository.save_site(retired_site)
+            for building in self._dcim_repository.list_buildings(
+                tenant_id, retired_site.code.value, include_retired=True
+            ):
+                self._dcim_repository.save_building(building.retire())
+                for floor in self._dcim_repository.list_floors(
+                    tenant_id, retired_site.code.value, building.code.value, include_retired=True
+                ):
+                    self._dcim_repository.save_floor(floor.retire())
+                for room in self._dcim_repository.list_rooms(
+                    tenant_id, retired_site.code.value, building.code.value, include_retired=True
+                ):
+                    self._dcim_repository.save_room(room.retire())
+                    for zone in self._dcim_repository.list_zones(
+                        tenant_id,
+                        retired_site.code.value,
+                        building.code.value,
+                        room.code.value,
+                        include_retired=True,
+                    ):
+                        self._dcim_repository.save_zone(zone.retire())
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=command.actor,
+                    action="dcim.site.retired",
+                    target_type="site",
+                    target_id=retired_site.code.value,
+                    metadata={
+                        "site": retired_site.as_dict(),
+                        "cascade": ["buildings", "floors", "rooms", "zones"],
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return retired_site.as_dict()
+
+    def get_site(self, command: GetDcimSiteCommand) -> dict[str, object]:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        site = self._dcim_repository.find_site(tenant_id, command.code)
+        if site is None:
+            raise NotFoundError("DCIM site does not exist")
+        return site.as_dict()
+
+    def list_sites(self, command: ListDcimSitesCommand) -> dict[str, object]:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        items = self._dcim_repository.list_sites(tenant_id, command.include_retired)
+        return {
+            "tenant_id": tenant_id.value,
+            "items": [item.as_dict() for item in items],
+            "count": len(items),
+        }
+
+    def topology_catalog(self, command: DcimTopologyCatalogCommand) -> dict[str, object]:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        sites_payload: list[dict[str, object]] = []
+        for site in self._dcim_repository.list_sites(tenant_id, command.include_retired):
+            buildings_payload: list[dict[str, object]] = []
+            for building in self._dcim_repository.list_buildings(
+                tenant_id, site.code.value, command.include_retired
+            ):
+                floors = self._dcim_repository.list_floors(
+                    tenant_id, site.code.value, building.code.value, command.include_retired
+                )
+                rooms_payload: list[dict[str, object]] = []
+                for room in self._dcim_repository.list_rooms(
+                    tenant_id, site.code.value, building.code.value, command.include_retired
+                ):
+                    zones = self._dcim_repository.list_zones(
+                        tenant_id,
+                        site.code.value,
+                        building.code.value,
+                        room.code.value,
+                        command.include_retired,
+                    )
+                    racks = self._dcim_repository.list_racks_in_room(
+                        tenant_id, site.code.value, building.code.value, room.code.value
+                    )
+                    rooms_payload.append(
+                        {
+                            **room.as_dict(),
+                            "zones": [zone.as_dict() for zone in zones],
+                            "racks": [rack.as_capacity_seed() for rack in racks],
+                        }
+                    )
+                buildings_payload.append(
+                    {
+                        **building.as_dict(),
+                        "floors": [floor.as_dict() for floor in floors],
+                        "rooms": rooms_payload,
+                    }
+                )
+            sites_payload.append({**site.as_dict(), "buildings": buildings_payload})
+        return {"tenant_id": tenant_id.value, "sites": sites_payload}
 
     def define_room(self, command: DefinePhysicalRoomCommand) -> dict[str, Any]:
         tenant_id = TenantId.from_value(command.tenant_id)

@@ -77,6 +77,7 @@ REQ-00802,Rollback conflict-aware des imports massifs appliqués,P13,EPIC-1305,0
 REQ-00803,Guides opérables de migration données P13,P13,EPIC-1306,0.29.60,TST-P13-DATA-MIGRATION-GUIDES
 REQ-00804,Discovery locale Lite/Pro sans agent,P14,EPIC-1401,0.29.61,TST-P14-LOCAL-DISCOVERY-PLAN
 REQ-00806,Référentiel tenants ITAM,P14,EPIC-1402,0.29.62,TST-P14-ITAM-TENANT-LIFECYCLE
-REQ-00807,Plan bootstrap openinfra-agent.service Enterprise,P14,EPIC-1402,0.29.64,TST-P14-ENTERPRISE-AGENT-BOOTSTRAP
+REQ-00807,Plan bootstrap openinfra-agent.service Enterprise,P14,EPIC-1402,0.29.63,TST-P14-ENTERPRISE-AGENT-BOOTSTRAP
 
 REQ-00808,UX entités propriétaires ITAM,P14,EPIC-1402,0.29.64,TST-P14-ITAM-TENANT-UX-LABELS
+REQ-00809;REQ-00810;REQ-00811,DCIM sites dépendances et responsive mobile,P14,EPIC-1403,0.29.65,TST-P14-DCIM-SITE-LIFECYCLE-RESPONSIVE

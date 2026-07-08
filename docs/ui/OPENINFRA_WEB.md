@@ -342,7 +342,7 @@ Le composant **Imports / Exports** expose l’opération **Rollback import massi
 La logique de rollback reste intégralement côté backend. Le portail ne restaure aucune version et ne décide aucune mutation locale ; il transmet la demande à `POST /api/v1/imports/bulk-rollback` et affiche le rapport retourné.
 
 
-## v0.29.64 — Enterprise agent bootstrap plan
+## v0.29.63 — Enterprise agent bootstrap plan
 
 OpenInfra prepares Enterprise discovery agents through `openinfra discovery agent-bootstrap-plan` and `POST /api/v1/discovery/agent-bootstrap-plan`. The contract renders an operator-reviewed `openinfra-agent.service` systemd unit, an agent configuration document, mTLS requirements, vault-only enrollment references and API result publication endpoints. No installation is executed and no secret is materialized by OpenInfra during plan generation.
 
@@ -357,3 +357,7 @@ Règles UX :
 - la création d’une entité propriétaire présente l’identifiant `tenant_id` sous le libellé `Organisation` ;
 - le fallback web reste un `select` avec l’option courante, jamais un champ texte libre ;
 - l’auto-sélection mono-entité reste assurée par le catalogue ITAM.
+## v0.29.65 — DCIM sites, dépendances et responsive mobile
+
+La livraison introduit le référentiel de sites DCIM avec retrait logique et publication du catalogue hiérarchique exploité par le portail. Les formulaires web ne rendent plus les références de localisation DCIM en texte libre : le champ est un `select` alimenté par `/api/v1/dcim/topology-catalog`. La sidebar et les cartes sont adaptées aux breakpoints tablette et smartphone.
+

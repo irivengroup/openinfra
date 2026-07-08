@@ -82,6 +82,7 @@ from openinfra.domain.dcim import (
     DcimCablePathSegment,
     DcimCableStatus,
     DcimConnectorType,
+    DcimLifecycleStatus,
     DcimPort,
     DcimPortEndpoint,
     DcimPortOwnerType,
@@ -1006,10 +1007,10 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
         self._ensure_tenant(site.tenant_id)
         self._execute_without_result(
             """
-            INSERT INTO sites (id, tenant_id, code, name, country, city, region)
+            INSERT INTO sites (id, tenant_id, code, name, country, city, region, status)
             VALUES (
                 %(id)s, %(tenant_id)s, %(code)s, %(name)s, %(country)s,
-                %(city)s, %(region)s
+                %(city)s, %(region)s, %(status)s
             )
             ON CONFLICT (tenant_id, code) DO NOTHING
             """,
@@ -1021,6 +1022,35 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
                 "country": site.country,
                 "city": site.city,
                 "region": site.region,
+                "status": site.status.value,
+            },
+        )
+
+    def save_site(self, site: Site) -> None:
+        self._ensure_tenant(site.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO sites (id, tenant_id, code, name, country, city, region, status)
+            VALUES (
+                %(id)s, %(tenant_id)s, %(code)s, %(name)s, %(country)s,
+                %(city)s, %(region)s, %(status)s
+            )
+            ON CONFLICT (tenant_id, code) DO UPDATE SET
+                name = EXCLUDED.name,
+                country = EXCLUDED.country,
+                city = EXCLUDED.city,
+                region = EXCLUDED.region,
+                status = EXCLUDED.status
+            """,
+            {
+                "id": site.id.value,
+                "tenant_id": site.tenant_id.value,
+                "code": site.code.value,
+                "name": site.name.value,
+                "country": site.country,
+                "city": site.city,
+                "region": site.region,
+                "status": site.status.value,
             },
         )
 
@@ -1028,8 +1058,8 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
         self._ensure_tenant(building.tenant_id)
         self._execute_without_result(
             """
-            INSERT INTO buildings (id, tenant_id, site_code, code, name)
-            VALUES (%(id)s, %(tenant_id)s, %(site_code)s, %(code)s, %(name)s)
+            INSERT INTO buildings (id, tenant_id, site_code, code, name, status)
+            VALUES (%(id)s, %(tenant_id)s, %(site_code)s, %(code)s, %(name)s, %(status)s)
             ON CONFLICT (tenant_id, site_code, code) DO NOTHING
             """,
             {
@@ -1038,6 +1068,23 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
                 "site_code": building.site_code.value,
                 "code": building.code.value,
                 "name": building.name.value,
+                "status": building.status.value,
+            },
+        )
+
+    def save_building(self, building: Building) -> None:
+        self._execute_without_result(
+            """
+            UPDATE buildings
+            SET name = %(name)s, status = %(status)s
+            WHERE tenant_id = %(tenant_id)s AND site_code = %(site_code)s AND code = %(code)s
+            """,
+            {
+                "tenant_id": building.tenant_id.value,
+                "site_code": building.site_code.value,
+                "code": building.code.value,
+                "name": building.name.value,
+                "status": building.status.value,
             },
         )
 
@@ -1045,10 +1092,12 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
         self._ensure_tenant(floor.tenant_id)
         self._execute_without_result(
             """
-            INSERT INTO floors (id, tenant_id, site_code, building_code, code, name, level_index)
+            INSERT INTO floors (
+                id, tenant_id, site_code, building_code, code, name, level_index, status
+            )
             VALUES (
                 %(id)s, %(tenant_id)s, %(site_code)s, %(building_code)s,
-                %(code)s, %(name)s, %(level_index)s
+                %(code)s, %(name)s, %(level_index)s, %(status)s
             )
             ON CONFLICT (tenant_id, site_code, building_code, code) DO NOTHING
             """,
@@ -1060,6 +1109,28 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
                 "code": floor.code.value,
                 "name": floor.name.value,
                 "level_index": floor.level_index,
+                "status": floor.status.value,
+            },
+        )
+
+    def save_floor(self, floor: Floor) -> None:
+        self._execute_without_result(
+            """
+            UPDATE floors
+            SET name = %(name)s, level_index = %(level_index)s, status = %(status)s
+            WHERE tenant_id = %(tenant_id)s
+              AND site_code = %(site_code)s
+              AND building_code = %(building_code)s
+              AND code = %(code)s
+            """,
+            {
+                "tenant_id": floor.tenant_id.value,
+                "site_code": floor.site_code.value,
+                "building_code": floor.building_code.value,
+                "code": floor.code.value,
+                "name": floor.name.value,
+                "level_index": floor.level_index,
+                "status": floor.status.value,
             },
         )
 
@@ -1070,11 +1141,11 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             """
             INSERT INTO rooms (
                 id, tenant_id, site_code, building_code, floor_code, code, name, rows, columns,
-                zone_codes, coordinate_x, coordinate_y, coordinate_z
+                zone_codes, coordinate_x, coordinate_y, coordinate_z, status
             ) VALUES (
                 %(id)s, %(tenant_id)s, %(site_code)s, %(building_code)s, %(floor_code)s,
                 %(code)s, %(name)s, %(rows)s, %(columns)s, %(zone_codes)s,
-                %(coordinate_x)s, %(coordinate_y)s, %(coordinate_z)s
+                %(coordinate_x)s, %(coordinate_y)s, %(coordinate_z)s, %(status)s
             )
             ON CONFLICT (tenant_id, site_code, building_code, code) DO NOTHING
             """,
@@ -1092,6 +1163,37 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
                 "coordinate_x": coordinates.x if coordinates else None,
                 "coordinate_y": coordinates.y if coordinates else None,
                 "coordinate_z": coordinates.z if coordinates else None,
+                "status": room.status.value,
+            },
+        )
+
+    def save_room(self, room: Room) -> None:
+        coordinates = room.coordinates
+        self._execute_without_result(
+            """
+            UPDATE rooms
+            SET name = %(name)s, rows = %(rows)s, columns = %(columns)s,
+                zone_codes = %(zone_codes)s, coordinate_x = %(coordinate_x)s,
+                coordinate_y = %(coordinate_y)s, coordinate_z = %(coordinate_z)s,
+                status = %(status)s
+            WHERE tenant_id = %(tenant_id)s
+              AND site_code = %(site_code)s
+              AND building_code = %(building_code)s
+              AND code = %(code)s
+            """,
+            {
+                "tenant_id": room.tenant_id.value,
+                "site_code": room.site_code.value,
+                "building_code": room.building_code.value,
+                "code": room.code.value,
+                "name": room.name.value,
+                "rows": list(room.rows),
+                "columns": list(room.columns),
+                "zone_codes": [zone.value for zone in room.zone_codes],
+                "coordinate_x": coordinates.x if coordinates else None,
+                "coordinate_y": coordinates.y if coordinates else None,
+                "coordinate_z": coordinates.z if coordinates else None,
+                "status": room.status.value,
             },
         )
 
@@ -1101,10 +1203,10 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             """
             INSERT INTO room_zones (
                 id, tenant_id, site_code, building_code, floor_code, room_code, code,
-                name, rows, columns
+                name, rows, columns, status
             ) VALUES (
                 %(id)s, %(tenant_id)s, %(site_code)s, %(building_code)s, %(floor_code)s,
-                %(room_code)s, %(code)s, %(name)s, %(rows)s, %(columns)s
+                %(room_code)s, %(code)s, %(name)s, %(rows)s, %(columns)s, %(status)s
             )
             ON CONFLICT (tenant_id, site_code, building_code, room_code, code) DO NOTHING
             """,
@@ -1119,6 +1221,31 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
                 "name": zone.name.value,
                 "rows": list(zone.rows),
                 "columns": list(zone.columns),
+                "status": zone.status.value,
+            },
+        )
+
+    def save_zone(self, zone: RoomZone) -> None:
+        self._execute_without_result(
+            """
+            UPDATE room_zones
+            SET name = %(name)s, rows = %(rows)s, columns = %(columns)s, status = %(status)s
+            WHERE tenant_id = %(tenant_id)s
+              AND site_code = %(site_code)s
+              AND building_code = %(building_code)s
+              AND room_code = %(room_code)s
+              AND code = %(code)s
+            """,
+            {
+                "tenant_id": zone.tenant_id.value,
+                "site_code": zone.site_code.value,
+                "building_code": zone.building_code.value,
+                "room_code": zone.room_code.value,
+                "code": zone.code.value,
+                "name": zone.name.value,
+                "rows": list(zone.rows),
+                "columns": list(zone.columns),
+                "status": zone.status.value,
             },
         )
 
@@ -1424,6 +1551,88 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
                 "label": reservation.label,
             },
         )
+
+    def list_sites(self, tenant_id: TenantId, include_retired: bool = False) -> tuple[Site, ...]:
+        where = "tenant_id = %(tenant_id)s"
+        if not include_retired:
+            where += " AND status = 'active'"
+        rows = self._fetch_all(
+            f"SELECT * FROM sites WHERE {where} ORDER BY code", {"tenant_id": tenant_id.value}
+        )
+        return tuple(self._site_from_row(row) for row in rows)
+
+    def list_buildings(
+        self, tenant_id: TenantId, site: str, include_retired: bool = False
+    ) -> tuple[Building, ...]:
+        where = "tenant_id = %(tenant_id)s AND site_code = %(site)s"
+        if not include_retired:
+            where += " AND status = 'active'"
+        rows = self._fetch_all(
+            f"SELECT * FROM buildings WHERE {where} ORDER BY code",
+            {"tenant_id": tenant_id.value, "site": Code.from_value(site, "site code").value},
+        )
+        return tuple(self._building_from_row(row) for row in rows)
+
+    def list_floors(
+        self, tenant_id: TenantId, site: str, building: str, include_retired: bool = False
+    ) -> tuple[Floor, ...]:
+        where = (
+            "tenant_id = %(tenant_id)s AND site_code = %(site)s AND building_code = %(building)s"
+        )
+        if not include_retired:
+            where += " AND status = 'active'"
+        rows = self._fetch_all(
+            f"SELECT * FROM floors WHERE {where} ORDER BY level_index, code",
+            {
+                "tenant_id": tenant_id.value,
+                "site": Code.from_value(site, "site code").value,
+                "building": Code.from_value(building, "building code").value,
+            },
+        )
+        return tuple(self._floor_from_row(row) for row in rows)
+
+    def list_rooms(
+        self, tenant_id: TenantId, site: str, building: str, include_retired: bool = False
+    ) -> tuple[Room, ...]:
+        where = (
+            "tenant_id = %(tenant_id)s AND site_code = %(site)s AND building_code = %(building)s"
+        )
+        if not include_retired:
+            where += " AND status = 'active'"
+        rows = self._fetch_all(
+            f"SELECT * FROM rooms WHERE {where} ORDER BY code",
+            {
+                "tenant_id": tenant_id.value,
+                "site": Code.from_value(site, "site code").value,
+                "building": Code.from_value(building, "building code").value,
+            },
+        )
+        return tuple(self._room_from_row(row) for row in rows)
+
+    def list_zones(
+        self,
+        tenant_id: TenantId,
+        site: str,
+        building: str,
+        room: str,
+        include_retired: bool = False,
+    ) -> tuple[RoomZone, ...]:
+        where = (
+            "tenant_id = %(tenant_id)s AND site_code = %(site)s "
+            "AND building_code = %(building)s AND room_code = %(room)s"
+        )
+        if not include_retired:
+            where += " AND status = 'active'"
+        rows = self._fetch_all(
+            f"SELECT * FROM room_zones WHERE {where} ORDER BY code",
+            {
+                "tenant_id": tenant_id.value,
+                "site": Code.from_value(site, "site code").value,
+                "building": Code.from_value(building, "building code").value,
+                "room": Code.from_value(room, "room code").value,
+            },
+        )
+        return tuple(self._zone_from_row(row) for row in rows)
 
     def find_site(self, tenant_id: TenantId, site: str) -> Site | None:
         row = self._fetch_one(
@@ -1997,6 +2206,9 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             country=str(row["country"]),
             city=str(row["city"]),
             region=str(row.get("region") or ""),
+            status=DcimLifecycleStatus.from_value(
+                str(row.get("status") or "active"), "site status"
+            ),
         )
 
     def _building_from_row(self, row: Mapping[str, object]) -> Building:
@@ -2006,6 +2218,9 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             site_code=Code.from_value(str(row["site_code"]), "site code"),
             code=Code.from_value(str(row["code"]), "building code"),
             name=Name.from_value(str(row["name"]), "building name"),
+            status=DcimLifecycleStatus.from_value(
+                str(row.get("status") or "active"), "building status"
+            ),
         )
 
     def _floor_from_row(self, row: Mapping[str, object]) -> Floor:
@@ -2017,6 +2232,9 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             code=Code.from_value(str(row["code"]), "floor code"),
             name=Name.from_value(str(row["name"]), "floor name"),
             level_index=self._row_int(row, "level_index"),
+            status=DcimLifecycleStatus.from_value(
+                str(row.get("status") or "active"), "floor status"
+            ),
         )
 
     def _room_from_row(self, row: Mapping[str, object]) -> Room:
@@ -2042,6 +2260,9 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             ),
             zone_codes=tuple(Code.from_value(str(value), "zone code") for value in zone_values),
             coordinates=coordinates,
+            status=DcimLifecycleStatus.from_value(
+                str(row.get("status") or "active"), "room status"
+            ),
         )
 
     def _zone_from_row(self, row: Mapping[str, object]) -> RoomZone:
@@ -2056,6 +2277,9 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             name=Name.from_value(str(row["name"]), "zone name"),
             rows=tuple(str(value) for value in self._row_sequence(row, "rows")),
             columns=tuple(str(value) for value in self._row_sequence(row, "columns")),
+            status=DcimLifecycleStatus.from_value(
+                str(row.get("status") or "active"), "zone status"
+            ),
         )
 
     def _rack_from_row(self, row: Mapping[str, object]) -> Rack:

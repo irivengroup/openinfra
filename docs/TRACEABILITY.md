@@ -361,10 +361,14 @@ La v0.27.0 ajoute une simulation de migration depuis Device42, NetBox, Nautobot,
 | Acceptation | Dry-run par défaut, restauration versionnée, mise en retrait sans suppression physique, conflit bloqué par défaut, publication CLI/API/web/OpenAPI/discovery. |
 
 
-## v0.29.64 — Enterprise agent bootstrap plan
+## v0.29.63 — Enterprise agent bootstrap plan
 
 OpenInfra prepares Enterprise discovery agents through `openinfra discovery agent-bootstrap-plan` and `POST /api/v1/discovery/agent-bootstrap-plan`. The contract renders an operator-reviewed `openinfra-agent.service` systemd unit, an agent configuration document, mTLS requirements, vault-only enrollment references and API result publication endpoints. No installation is executed and no secret is materialized by OpenInfra during plan generation.
 
 ## v0.29.64 — UX entités propriétaires ITAM
 
 Traçabilité : exigence UI de remplacement du libellé `Tenant` par `Entité propriétaire`, usage de `Organisation` lors de la création d’une entité propriétaire, et obligation de rendu `select` pour les références tenant dans les autres formulaires web. Les contrats techniques restent inchangés pour préserver la compatibilité ascendante.
+## v0.29.65 — DCIM sites, dépendances et responsive mobile
+
+La livraison introduit le référentiel de sites DCIM avec retrait logique et publication du catalogue hiérarchique exploité par le portail. Les formulaires web ne rendent plus les références de localisation DCIM en texte libre : le champ est un `select` alimenté par `/api/v1/dcim/topology-catalog`. La sidebar et les cartes sont adaptées aux breakpoints tablette et smartphone.
+

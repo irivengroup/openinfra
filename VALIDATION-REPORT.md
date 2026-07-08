@@ -1,49 +1,62 @@
-# OpenInfra v0.29.64 — Rapport de validation
+# OpenInfra v0.29.65 — Validation Report
 
-## Synthèse
+## Scope
 
-Livraison v0.29.64 validée sur base v0.29.62 PostgreSQL hotfix.
+Release: `0.29.65`
 
-Incrément livré : plan de bootstrap Enterprise `openinfra-agent.service` pour préparer les agents de discovery Enterprise sans installation automatique, sans secret en clair et sans écriture RSOT.
+Implemented scope:
 
-## Validations exécutées
+- DCIM site lifecycle CRUD.
+- DCIM topology catalog for site/building/floor/room/zone/rack selectors.
+- Non-destructive retirement cascade for site dependencies.
+- Web forms: no free-text fields for DCIM references (`site`, `site_code`, `building`, `building_code`, `floor`, `floor_code`, `room`, `room_code`, `zone`, `zone_code`, `rack`, `row`, `column`).
+- Responsive sidebar and mobile/tablet display optimization.
 
-| Validation | Résultat |
+## Validation results
+
+| Validation | Result |
 |---|---:|
-| Ruff format `src tests scripts docker` | PASS — 134 fichiers conformes |
-| Ruff check `src tests scripts docker` | PASS |
-| `compileall` | PASS |
-| `scripts/validate_frontend.py` | PASS |
+| Ruff format check on `src tests scripts docker` | PASS |
+| Ruff check on `src tests scripts docker` | PASS |
+| `compileall` on `src tests scripts` | PASS |
 | `node --check openinfra-web.js` | PASS |
-| CLI version | PASS — 0.29.64 |
-| OpenAPI YAML | PASS |
-| `security_gate.py` | PASS |
-| `validate_enterprise_alignment.py` | PASS |
-| `validate_autonomous_installer.py` | PASS — 6 profils |
-| `native_runtime_smoke.py` | PASS |
-| CDC validation | PASS — 807 exigences, 529 entités |
-| Roadmap validation | PASS — 19 phases, 114 epics, 8 gates, 79 tests |
-| `pytest --collect-only` | PASS — 510 tests collectés |
-| Tests ciblés agent bootstrap/API/CLI/web | PASS — 22 tests |
-| Tests unitaires + architecture | PASS — 202 tests |
-| Tests intégration par lots | PASS — 308 tests |
-| Couverture agrégée par lots | PASS — 98 % |
-| `quality_gate.py` | PASS |
-| `zip -T` | PASS |
-| `verify_artifact.py` | PASS |
-| Nettoyage archive | PASS |
+| Frontend validator | PASS |
+| CLI version | PASS — `0.29.65` |
+| OpenAPI YAML parse | PASS |
+| Security gate | PASS |
+| Enterprise alignment | PASS |
+| Autonomous installer validation | PASS — 6 profiles |
+| Native runtime smoke | PASS |
+| CDC validation | PASS — 811 requirements, 610 tests |
+| Roadmap validation | PASS — 19 phases, 114 epics, 8 gates, 80 tests |
+| `pytest --collect-only` | PASS — 515 tests collected |
+| Unit + architecture tests | PASS — 203 tests |
+| Integration tests by deterministic lots | PASS — 312 tests |
+| Coverage gate | PASS — 98% |
+| Quality gate | PASS |
 
-## Contrôles non exécutés localement
+## Integration test lots
 
-Les contrôles suivants n'ont pas pu être exécutés faute de module ou runtime disponible dans l'environnement local :
+| Lot | Result |
+|---|---:|
+| CLI / access / audit / autonomous installers / import-export / discovery CLI | PASS — 50 tests |
+| DCIM / discovery | PASS — 48 tests |
+| editions / export / external auth / ITSM / search / HTTP / identity / import | PASS — 86 tests |
+| installer / IPAM | PASS — 32 tests |
+| ITAM / ITRM | PASS — 19 tests |
+| JSON store / web / PostgreSQL / runtime / security / services / source governance / source of truth | PASS — 85 tests |
 
-- `mypy` — module absent ;
-- `bandit` — module absent ;
-- `pip-audit` — module absent ;
-- `python -m build` — module `build` absent ;
-- build Vite complet — binaire `vite` absent ;
-- Docker Compose live — binaire `docker` absent.
+## Non executed locally
 
-## Note d'exécution
+The following validations were not executed in the current runtime because the tools or live environment were unavailable:
 
-La tentative monolithique de la suite de tests avec couverture a dépassé la limite locale. La validation complète a donc été rejouée par lots déterministes avec couverture agrégée et seuil 98 % respecté.
+- `mypy`
+- `bandit`
+- `pip-audit`
+- `python -m build`
+- full Vite production build
+- Docker Compose live runtime
+
+## Packaging
+
+Archives were cleaned before packaging. Runtime caches and temporary validation artifacts are excluded from the release package.

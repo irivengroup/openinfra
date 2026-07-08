@@ -1,3 +1,11 @@
+## v0.29.65 — DCIM sites, dépendances et responsive mobile
+
+- Ajout du cycle de vie CRUD des sites DCIM avec retrait logique.
+- Ajout du catalogue hiérarchique DCIM pour alimenter les sélecteurs de site/bâtiment/étage/salle/zone/rack/ligne/colonne.
+- Remplacement web des saisies libres de localisation par des champs `select`.
+- Ajout de la migration PostgreSQL `0030_dcim_site_lifecycle.sql`.
+- Optimisation responsive du portail et de la sidebar pour tablettes/smartphones.
+
 ## v0.29.64 — UX entités propriétaires ITAM
 
 - Renommage UI de `Tenant` en `Entité propriétaire` pour les formulaires et menus web.
@@ -117,6 +125,6 @@
 - Exposition des politiques d’édition, des feature gates et des quotas runtime dans API, OpenAPI et portail web.
 
 
-## v0.29.64 — Enterprise agent bootstrap plan
+## v0.29.63 — Enterprise agent bootstrap plan
 
 OpenInfra prepares Enterprise discovery agents through `openinfra discovery agent-bootstrap-plan` and `POST /api/v1/discovery/agent-bootstrap-plan`. The contract renders an operator-reviewed `openinfra-agent.service` systemd unit, an agent configuration document, mTLS requirements, vault-only enrollment references and API result publication endpoints. No installation is executed and no secret is materialized by OpenInfra during plan generation.

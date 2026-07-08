@@ -25,6 +25,8 @@ from openinfra.application.audit_services import (
 from openinfra.application.container import ApplicationFactory, OpenInfraApplication
 from openinfra.application.dcim_services import (
     ConnectDcimCableCommand,
+    CreateDcimSiteCommand,
+    DcimTopologyCatalogCommand,
     DefineCoolingZoneCommand,
     DefineDcimPortCommand,
     DefinePatchPanelCommand,
@@ -32,7 +34,10 @@ from openinfra.application.dcim_services import (
     DefinePowerCircuitCommand,
     DefinePowerDeviceCommand,
     DefineRackCommand,
+    DeleteDcimSiteCommand,
     GenerateEquipmentLocatorCommand,
+    GetDcimSiteCommand,
+    ListDcimSitesCommand,
     LocateEquipmentCommand,
     RackCapacityCommand,
     RackEnergyCoolingCapacityCommand,
@@ -41,6 +46,7 @@ from openinfra.application.dcim_services import (
     RenderRoomPlanCommand,
     ReserveEquipmentPowerCommand,
     TraceDcimCableCommand,
+    UpdateDcimSiteCommand,
     VerifyEquipmentScanCommand,
 )
 from openinfra.application.discovery_services import (
@@ -951,6 +957,69 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except (ValueError, OpenInfraError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
+        if route == "/api/v1/dcim/sites":
+            try:
+                query = parse_qs(parsed.query)
+                tenant_id = self._first_query_value(query, "tenant_id")
+                if self.server.auth_required:
+                    self._authenticate(tenant_id, Permission.DCIM_READ)
+                result = self.server.application.dcim_topology_service.list_sites(
+                    ListDcimSitesCommand(
+                        tenant_id=tenant_id,
+                        include_retired=self._first_query_value(
+                            query, "include_retired", "false"
+                        ).lower()
+                        == "true",
+                    )
+                )
+                responder.send(HTTPStatus.OK, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/dcim/site":
+            try:
+                query = parse_qs(parsed.query)
+                tenant_id = self._first_query_value(query, "tenant_id")
+                if self.server.auth_required:
+                    self._authenticate(tenant_id, Permission.DCIM_READ)
+                result = self.server.application.dcim_topology_service.get_site(
+                    GetDcimSiteCommand(
+                        tenant_id=tenant_id,
+                        code=self._first_query_value(query, "code"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/dcim/topology-catalog":
+            try:
+                query = parse_qs(parsed.query)
+                tenant_id = self._first_query_value(query, "tenant_id")
+                if self.server.auth_required:
+                    self._authenticate(tenant_id, Permission.DCIM_READ)
+                result = self.server.application.dcim_topology_service.topology_catalog(
+                    DcimTopologyCatalogCommand(
+                        tenant_id=tenant_id,
+                        include_retired=self._first_query_value(
+                            query, "include_retired", "false"
+                        ).lower()
+                        == "true",
+                    )
+                )
+                responder.send(HTTPStatus.OK, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
         if route == "/api/v1/dcim/rack-capacity":
             try:
                 query = parse_qs(parsed.query)
@@ -1773,6 +1842,83 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     )
                 )
                 responder.send(HTTPStatus.OK, license_.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/dcim/site/create":
+            try:
+                payload = self._read_json_body()
+                tenant_id = str(payload["tenant_id"])
+                actor = str(payload.get("actor", "api"))
+                if self.server.auth_required:
+                    principal = self._authenticate(tenant_id, Permission.DCIM_WRITE)
+                    actor = principal.subject
+                result = self.server.application.dcim_topology_service.create_site(
+                    CreateDcimSiteCommand(
+                        tenant_id=tenant_id,
+                        actor=actor,
+                        code=str(payload["code"]),
+                        name=str(payload["name"]),
+                        country=str(payload["country"]),
+                        city=str(payload["city"]),
+                        region=str(payload.get("region", "")),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/dcim/site/update":
+            try:
+                payload = self._read_json_body()
+                tenant_id = str(payload["tenant_id"])
+                actor = str(payload.get("actor", "api"))
+                if self.server.auth_required:
+                    principal = self._authenticate(tenant_id, Permission.DCIM_WRITE)
+                    actor = principal.subject
+                result = self.server.application.dcim_topology_service.update_site(
+                    UpdateDcimSiteCommand(
+                        tenant_id=tenant_id,
+                        actor=actor,
+                        code=str(payload["code"]),
+                        name=str(payload["name"]) if payload.get("name") else None,
+                        country=str(payload["country"]) if payload.get("country") else None,
+                        city=str(payload["city"]) if payload.get("city") else None,
+                        region=str(payload["region"])
+                        if payload.get("region") is not None
+                        else None,
+                        status=str(payload["status"]) if payload.get("status") else None,
+                    )
+                )
+                responder.send(HTTPStatus.OK, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/dcim/site/delete":
+            try:
+                payload = self._read_json_body()
+                tenant_id = str(payload["tenant_id"])
+                actor = str(payload.get("actor", "api"))
+                if self.server.auth_required:
+                    principal = self._authenticate(tenant_id, Permission.DCIM_WRITE)
+                    actor = principal.subject
+                result = self.server.application.dcim_topology_service.delete_site(
+                    DeleteDcimSiteCommand(
+                        tenant_id=tenant_id,
+                        actor=actor,
+                        code=str(payload["code"]),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result)
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
@@ -3353,6 +3499,12 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "ddi_preview": "/api/v1/ipam/ddi-preview",
                 },
                 "dcim": {
+                    "sites": "/api/v1/dcim/sites",
+                    "site": "/api/v1/dcim/site",
+                    "site_create": "/api/v1/dcim/site/create",
+                    "site_update": "/api/v1/dcim/site/update",
+                    "site_delete": "/api/v1/dcim/site/delete",
+                    "topology_catalog": "/api/v1/dcim/topology-catalog",
                     "rooms": "/api/v1/dcim/rooms",
                     "racks": "/api/v1/dcim/racks",
                     "locations": "/api/v1/dcim/locations",

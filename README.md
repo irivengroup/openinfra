@@ -1,4 +1,27 @@
-# OpenInfra v0.29.64
+# OpenInfra v0.29.65
+
+## v0.29.65 — DCIM sites, dépendances et responsive mobile
+
+OpenInfra v0.29.65 ajoute un référentiel DCIM des sites avec cycle de vie CRUD, retrait logique et cascade non destructive vers les dépendances de localisation connues. Le portail web expose les sites et le catalogue hiérarchique DCIM pour alimenter les formulaires par listes déroulantes : les champs `site`, `building`, `floor`, `room`, `zone`, `rack`, `row` et `column` ne sont plus rendus en saisie libre dans les formulaires métier.
+
+La même livraison optimise `openinfra-web` pour les tablettes et smartphones : sidebar responsive, hauteur bornée sur écrans intermédiaires, blocs plus compacts, formulaires adaptatifs et actions API mieux empilées sur mobile.
+
+### Surfaces exposées
+
+- Domaine : statuts de cycle de vie DCIM `active`, `suspended`, `retired` pour site, bâtiment, étage, salle et zone.
+- Service applicatif : CRUD site et catalogue de topologie DCIM.
+- Persistance : JSON store et PostgreSQL avec migration `0030_dcim_site_lifecycle.sql`.
+- CLI : `openinfra dcim sites`, `site`, `site-create`, `site-update`, `site-delete`, `topology-catalog`.
+- API : `/api/v1/dcim/sites`, `/site`, `/site/create`, `/site/update`, `/site/delete`, `/topology-catalog`.
+- Web : groupe **Sites & dépendances** et sélecteurs DCIM obligatoires pour les références de localisation.
+
+### Garde-fous
+
+- Aucune suppression physique lors du retrait d’un site.
+- Les dépendances bâtiment/étage/salle/zone sont retirées logiquement avec le site.
+- Les références DCIM côté web sont sélectionnées depuis le catalogue backend, avec option courante conservée si le catalogue est temporairement vide.
+- Le responsive n’altère pas les contrats API ni la sidebar contextuelle existante.
+
 
 ## v0.29.64 — UX entités propriétaires ITAM
 
@@ -282,6 +305,6 @@ PYTHONPATH=src:. python scripts/quality_gate.py --project-root .
 ```
 
 
-## v0.29.64 — Enterprise agent bootstrap plan
+## v0.29.63 — Enterprise agent bootstrap plan
 
 OpenInfra prepares Enterprise discovery agents through `openinfra discovery agent-bootstrap-plan` and `POST /api/v1/discovery/agent-bootstrap-plan`. The contract renders an operator-reviewed `openinfra-agent.service` systemd unit, an agent configuration document, mTLS requirements, vault-only enrollment references and API result publication endpoints. No installation is executed and no secret is materialized by OpenInfra during plan generation.

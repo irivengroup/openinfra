@@ -142,3 +142,9 @@ Le DCIM doit exposer un jumeau numérique initial de salle consolidant, pour un 
 ## Critères d’acceptation
 
 La capacité est acceptée si les scénarios nominaux, erreurs, droits insuffisants, conflits et imports/exports sont validés par tests automatisés et si les journaux d’audit permettent de reconstituer les opérations.
+## v0.29.65 — Sites DCIM et dépendances
+
+Les sites DCIM sont des objets de référence gérés avec cycle de vie : création, consultation, liste, modification et retrait logique. Le retrait d’un site retire logiquement les bâtiments, étages, salles et zones rattachés afin d’éviter les localisations orphelines sans supprimer l’historique.
+
+Le portail web doit consommer le catalogue `/api/v1/dcim/topology-catalog` pour proposer des listes déroulantes dans les formulaires de création ou d’exploitation de ressources. Aucune saisie libre n’est autorisée pour les références `site`, `bâtiment`, `étage`, `salle`, `zone`, `rack`, `ligne` ou `colonne`.
+

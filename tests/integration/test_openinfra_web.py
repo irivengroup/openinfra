@@ -325,6 +325,7 @@ class TestOpenInfraWeb:
             "Réseau L2/L3",
             "Observations & DDI",
             "Localisation & capacité",
+            "Sites & dépendances",
             "Connectivité",
             "Énergie & refroidissement",
             "Jumeau numérique",
@@ -369,6 +370,10 @@ class TestOpenInfraWeb:
         assert "Formulaires protégés" in static_js
         assert 'fetch("/status"' in static_js
         assert "@media (max-width: 575.98px)" in static_css
+        assert "v0.29.65: responsive sidebar" in static_css
+        assert "@media (max-width: 991.98px)" in static_css
+        assert "@media (max-width: 767.98px)" in static_css
+        assert "max-height: min(42vh, 26rem)" in static_css
         assert "--openinfra-navy: #001b41" in static_css
         assert "--openinfra-action: #0066ff" in static_css
         assert "--openinfra-green: #15a362" in static_css
@@ -515,6 +520,25 @@ class TestOpenInfraWeb:
         assert 'path: "/v1/dcim/digital-twin"' in static_js
         assert "Jumeau numérique salle" in static_js
         assert "Chaîne électrique" in static_js
+        assert 'path: "/v1/dcim/sites"' in static_js + main_js
+        assert 'path: "/v1/dcim/site/create"' in static_js + main_js
+        assert 'path: "/v1/dcim/site/update"' in static_js + main_js
+        assert 'path: "/v1/dcim/site/delete"' in static_js + main_js
+        assert 'path: "/v1/dcim/topology-catalog"' in static_js + main_js
+        assert "Lister les sites DCIM" in static_js + main_js
+        assert "Créer un site DCIM" in static_js + main_js
+        assert "Catalogue dépendances DCIM" in static_js + main_js
+        assert "DCIM_REFERENCE_FIELDS" in static_js
+        assert "isDcimReferenceField(field)" in static_js
+        assert "refreshDcimCatalog" in static_js
+        assert "dcimCatalog" in static_js
+        assert "data-field" in static_js
+        assert (
+            'type="text"'
+            not in static_js.split("isDcimReferenceField(field)", 1)[1].split(
+                'if (field.type === "select")', 1
+            )[0]
+        )
         assert 'path: "/v1/itam/support-profile"' in static_js
         assert "Profil support actif" in static_js
         assert 'path: "/v1/itam/support-coverage"' in static_js

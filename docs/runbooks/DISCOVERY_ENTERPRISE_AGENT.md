@@ -1,6 +1,6 @@
 # Discovery Enterprise agent bootstrap
 
-OpenInfra v0.29.64 prepares the future `openinfra-agent.service` runtime through a backend/CLI/API bootstrap plan. The plan is Enterprise-only and is intentionally side-effect free.
+OpenInfra v0.29.63 prepares the future `openinfra-agent.service` runtime through a backend/CLI/API bootstrap plan. The plan is Enterprise-only and is intentionally side-effect free.
 
 ## CLI
 

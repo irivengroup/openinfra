@@ -398,7 +398,7 @@ def test_json_store_datetime_cursor_and_filter_edges(tmp_path: Path) -> None:
         "application/fw-policy",
         "device/fw-edge",
         "manual",
-        valid_to=datetime(2026, 7, 8, 0, 0, tzinfo=UTC),
+        valid_to=datetime(2027, 7, 8, 0, 0, tzinfo=UTC),
     )
     sot.add_relation(relation)
     relation_key = next(iter(store.data["source_relations"]))

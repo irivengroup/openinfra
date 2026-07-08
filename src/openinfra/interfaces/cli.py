@@ -101,7 +101,11 @@ from openinfra.application.itam_services import (
     AddThirdPartySupportCommand,
     GetAssetSupportCoverageReportCommand,
     GetAssetSupportProfileCommand,
+    GetSoftwareLicenseCommand,
+    GetSoftwareLicenseComplianceCommand,
     RegisterManufacturerSupportCommand,
+    RegisterSoftwareLicenseCommand,
+    UpdateSoftwareLicenseAssignmentCommand,
 )
 from openinfra.application.it_resources_management_quality_services import (
     EvaluateItrmObjectQualityCommand,
@@ -568,6 +572,63 @@ class OpenInfraCLI:
         coverage.add_argument("--asset-tag", required=True)
         coverage.add_argument("--as-of")
         coverage.set_defaults(handler=self._handle_itam_support_coverage)
+
+        software_license = itam_subparsers.add_parser(
+            "register-software-license",
+            help="register or update software license entitlement and contract metadata",
+        )
+        self._add_backend_arguments(software_license)
+        software_license.add_argument("--tenant", required=True)
+        software_license.add_argument("--actor", default="cli")
+        software_license.add_argument("--admin-token", required=True)
+        software_license.add_argument("--product-name", required=True)
+        software_license.add_argument("--vendor", required=True)
+        software_license.add_argument("--license-reference", required=True)
+        software_license.add_argument("--metric", required=True)
+        software_license.add_argument("--purchased-quantity", required=True, type=int)
+        software_license.add_argument("--assigned-quantity", default=0, type=int)
+        software_license.add_argument("--entitlement-start", required=True)
+        software_license.add_argument("--entitlement-end", required=True)
+        software_license.add_argument("--contract-reference")
+        software_license.add_argument("--version")
+        software_license.add_argument("--status", default="active")
+        software_license.add_argument("--owner")
+        software_license.add_argument("--notes")
+        software_license.set_defaults(handler=self._handle_itam_register_software_license)
+
+        software_assignment = itam_subparsers.add_parser(
+            "update-license-assignment",
+            help="update assigned quantity for a software license entitlement",
+        )
+        self._add_backend_arguments(software_assignment)
+        software_assignment.add_argument("--tenant", required=True)
+        software_assignment.add_argument("--actor", default="cli")
+        software_assignment.add_argument("--admin-token", required=True)
+        software_assignment.add_argument("--license-reference", required=True)
+        software_assignment.add_argument("--assigned-quantity", required=True, type=int)
+        software_assignment.add_argument("--notes")
+        software_assignment.set_defaults(handler=self._handle_itam_update_license_assignment)
+
+        software_show = itam_subparsers.add_parser(
+            "software-license",
+            help="show software license entitlement",
+        )
+        self._add_backend_arguments(software_show)
+        software_show.add_argument("--tenant", required=True)
+        software_show.add_argument("--admin-token", required=True)
+        software_show.add_argument("--license-reference", required=True)
+        software_show.set_defaults(handler=self._handle_itam_software_license)
+
+        software_compliance = itam_subparsers.add_parser(
+            "software-license-compliance",
+            help="evaluate software license compliance and utilization",
+        )
+        self._add_backend_arguments(software_compliance)
+        software_compliance.add_argument("--tenant", required=True)
+        software_compliance.add_argument("--admin-token", required=True)
+        software_compliance.add_argument("--license-reference", required=True)
+        software_compliance.add_argument("--as-of")
+        software_compliance.set_defaults(handler=self._handle_itam_software_license_compliance)
 
     def _add_audit_commands(self, subparsers: Any) -> None:
         audit = subparsers.add_parser("audit", help="audit trail operations")
@@ -2369,6 +2430,71 @@ class OpenInfraCLI:
                 tenant_id=args.tenant,
                 admin_token=args.admin_token,
                 asset_tag=args.asset_tag,
+                as_of=args.as_of,
+            )
+        )
+        print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_itam_register_software_license(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        license_ = app.itam_support_service.register_software_license(
+            RegisterSoftwareLicenseCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                product_name=args.product_name,
+                vendor=args.vendor,
+                license_reference=args.license_reference,
+                metric=args.metric,
+                purchased_quantity=args.purchased_quantity,
+                assigned_quantity=args.assigned_quantity,
+                entitlement_start=args.entitlement_start,
+                entitlement_end=args.entitlement_end,
+                contract_reference=args.contract_reference,
+                version=args.version,
+                status=args.status,
+                owner=args.owner,
+                notes=args.notes,
+            )
+        )
+        print(json.dumps(license_.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_itam_update_license_assignment(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        license_ = app.itam_support_service.update_software_license_assignment(
+            UpdateSoftwareLicenseAssignmentCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                license_reference=args.license_reference,
+                assigned_quantity=args.assigned_quantity,
+                notes=args.notes,
+            )
+        )
+        print(json.dumps(license_.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_itam_software_license(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        license_ = app.itam_support_service.get_software_license(
+            GetSoftwareLicenseCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                license_reference=args.license_reference,
+            )
+        )
+        print(json.dumps(license_.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_itam_software_license_compliance(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        report = app.itam_support_service.get_software_license_compliance(
+            GetSoftwareLicenseComplianceCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                license_reference=args.license_reference,
                 as_of=args.as_of,
             )
         )

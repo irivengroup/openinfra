@@ -57,7 +57,7 @@
 | CDC | Matrices `install.ini` et pages technique/exploitation mises à jour. |
 
 
-## v0.29.50 — API/UI administration éditions et quotas
+## v0.29.51 — API/UI administration éditions et quotas
 
 | Axe | Alignement réalisé |
 | --- | --- |
@@ -273,3 +273,16 @@ La v0.27.0 ajoute une simulation de migration depuis Device42, NetBox, Nautobot,
 | Sécurité | `openinfra-web` ne demande pas de token API à l'opérateur et ne relaie pas `Authorization` venant du navigateur. |
 | Runtime | `[web_database]` dans `install.ini` alimente `OPENINFRA_WEB_DATABASE_*_REF` dans `/opt/openinfra/config/openinfra.conf`. |
 | CDC | `REQ-00747` et `TST-WEB-050` couvrent le contrat formulaires typés, version package fiable et trust server-side. |
+
+## v0.29.51 — ITAM licences logicielles et contrats
+
+| Élément | Couverture |
+| --- | --- |
+| CDC | `REQ-00794` / `TST-WEB-095` |
+| Roadmap | P12 / EPIC-1205 / `TST-P12-ITAM-SOFTWARE-LICENSES` |
+| Domaine | `SoftwareLicenseEntitlement`, `SoftwareLicenseComplianceReport` |
+| Application | `RegisterSoftwareLicenseCommand`, `UpdateSoftwareLicenseAssignmentCommand`, `GetSoftwareLicenseCommand`, `GetSoftwareLicenseComplianceCommand` |
+| API | `/api/v1/itam/software-license`, `/api/v1/itam/software-license/assignment`, `/api/v1/itam/software-license/compliance` |
+| CLI | `openinfra itam register-software-license`, `update-license-assignment`, `software-license`, `software-license-compliance` |
+| PostgreSQL | `0028_itam_software_license_entitlements.sql` |
+| Tests | `tests/integration/test_itam_software_license_services.py` |

@@ -81,6 +81,9 @@ class TestHttpApi:
                     "support_coverage": "/api/v1/itam/support-coverage",
                     "manufacturer_support": "/api/v1/itam/support-profile/manufacturer",
                     "third_party_support": "/api/v1/itam/support-profile/third-party",
+                    "software_license": "/api/v1/itam/software-license",
+                    "software_license_assignment": "/api/v1/itam/software-license/assignment",
+                    "software_license_compliance": "/api/v1/itam/software-license/compliance",
                 },
                 "it_resources_management": {
                     "objects": "/api/v1/itrm/objects",
@@ -159,6 +162,8 @@ class TestHttpApi:
             assert "/api/v1/editions/quota-check" in openapi
             assert "/api/v1/itam/support-profile" in openapi
             assert "/api/v1/itam/support-coverage" in openapi
+            assert "/api/v1/itam/software-license" in openapi
+            assert "/api/v1/itam/software-license/compliance" in openapi
             assert "/api/v1/discovery/proxy-enrollments" in openapi
             assert "/api/v1/dcim/power-devices" in openapi
             assert "/api/v1/dcim/energy-cooling-capacity" in openapi

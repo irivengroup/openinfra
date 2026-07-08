@@ -1,3 +1,10 @@
+## v0.29.51 — ITAM licences logicielles, contrats et conformité
+
+- Ajout de `REQ-00794` et `TST-WEB-095` pour couvrir P12 / EPIC-1205.
+- Les licences logicielles ITAM portent référence licence, référence contrat, produit, éditeur, métrique, quantité achetée, quantité assignée, période de droit, statut, propriétaire et notes.
+- Le rapport de conformité calcule `compliant`, `over_assigned`, `expired` ou `planned` sans dupliquer les règles dans le portail web.
+- La migration PostgreSQL `0028_itam_software_license_entitlements.sql` ajoute une table partitionnée par tenant avec contraintes et index.
+
 ## v0.29.50 — Administration éditions et quotas API/UI
 
 - Ajout `REQ-00793` : le portail openinfra-web et l’API HTTP exposent en lecture les politiques d’édition, les décisions de capacité et les décisions de quota runtime.

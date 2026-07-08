@@ -518,3 +518,5 @@ ops,InstallationPostCheck,Rapport de validation post-installation.,standard,non 
 ,installer_network_profile,Paramètres FQDN IP mask VIP gateway DNS du nœud,,,,
 ,installer_storage_profile,Paramètres LVM applicatifs et PostgreSQL,,,,
 ,installer_scope_profile,Profil édition/scope/service/migrations,,,,
+software_license_entitlements,ITAM,Entitlement licence logicielle partitionné par tenant,"tenant_id,license_reference",PostgreSQL partitionné + JSON runtime
+software_license_compliance_report,ITAM,Rapport de conformité licence logicielle à date,"tenant_id,license_reference,as_of",Calcul applicatif déterministe

@@ -10,6 +10,8 @@ from openinfra.domain.itam import (
     ManufacturerWarranty,
     PhysicalAssetSupportProfile,
     PhysicalAssetSupportCoverageReport,
+    SoftwareLicenseComplianceReport,
+    SoftwareLicenseEntitlement,
     ThirdPartySupportContract,
     ItamDateParser,
 )
@@ -60,6 +62,51 @@ class GetAssetSupportCoverageReportCommand:
     tenant_id: str
     admin_token: str
     asset_tag: str
+    as_of: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class RegisterSoftwareLicenseCommand:
+    tenant_id: str
+    actor: str
+    admin_token: str
+    product_name: str
+    vendor: str
+    license_reference: str
+    metric: str
+    purchased_quantity: int
+    assigned_quantity: int
+    entitlement_start: str
+    entitlement_end: str
+    contract_reference: str | None = None
+    version: str | None = None
+    status: str = "active"
+    owner: str | None = None
+    notes: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class UpdateSoftwareLicenseAssignmentCommand:
+    tenant_id: str
+    actor: str
+    admin_token: str
+    license_reference: str
+    assigned_quantity: int
+    notes: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class GetSoftwareLicenseCommand:
+    tenant_id: str
+    admin_token: str
+    license_reference: str
+
+
+@dataclass(frozen=True, slots=True)
+class GetSoftwareLicenseComplianceCommand:
+    tenant_id: str
+    admin_token: str
+    license_reference: str
     as_of: str | None = None
 
 
@@ -205,3 +252,139 @@ class ItamSupportService:
             else datetime.now(UTC).date()
         )
         return PhysicalAssetSupportCoverageReport.from_profile(profile, as_of)
+
+
+    def register_software_license(
+        self, command: RegisterSoftwareLicenseCommand
+    ) -> SoftwareLicenseEntitlement:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        principal = self._security_service.authenticate_token(
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITAM_WRITE)
+        )
+        license_ = SoftwareLicenseEntitlement.create(
+            tenant_id=tenant_id,
+            product_name=command.product_name,
+            vendor=command.vendor,
+            license_reference=command.license_reference,
+            metric=command.metric,
+            purchased_quantity=int(command.purchased_quantity),
+            assigned_quantity=int(command.assigned_quantity),
+            entitlement_start=ItamDateParser.parse_date(command.entitlement_start, "software entitlement start"),
+            entitlement_end=ItamDateParser.parse_date(command.entitlement_end, "software entitlement end"),
+            actor=command.actor,
+            contract_reference=command.contract_reference,
+            version=command.version,
+            status=command.status,
+            owner=command.owner,
+            notes=command.notes,
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            existing = self._repository.find_software_license(tenant_id, license_.license_reference.value)
+            action = "itam.software_license.update" if existing is not None else "itam.software_license.register"
+            if existing is not None and existing.id != license_.id:
+                license_ = SoftwareLicenseEntitlement.restore(
+                    id=existing.id,
+                    tenant_id=license_.tenant_id,
+                    product_name=license_.product_name.value,
+                    vendor=license_.vendor,
+                    license_reference=license_.license_reference.value,
+                    contract_reference=license_.contract_reference,
+                    metric=license_.metric.value,
+                    purchased_quantity=license_.purchased_quantity,
+                    assigned_quantity=license_.assigned_quantity,
+                    entitlement_start=license_.entitlement_start,
+                    entitlement_end=license_.entitlement_end,
+                    status=license_.status.value,
+                    owner=license_.owner,
+                    version=license_.version,
+                    notes=license_.notes,
+                    created_by=existing.created_by,
+                    created_at=existing.created_at,
+                    updated_by=command.actor,
+                    updated_at=datetime.now(UTC),
+                )
+            self._repository.save_software_license(license_)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=principal.subject,
+                    action=action,
+                    target_type="software_license",
+                    target_id=license_.license_reference.value,
+                    metadata={
+                        "license_reference": license_.license_reference.value,
+                        "product_name": license_.product_name.value,
+                        "vendor": license_.vendor,
+                        "metric": license_.metric.value,
+                        "purchased_quantity": license_.purchased_quantity,
+                        "assigned_quantity": license_.assigned_quantity,
+                        "declared_actor": command.actor,
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return license_
+
+    def update_software_license_assignment(
+        self, command: UpdateSoftwareLicenseAssignmentCommand
+    ) -> SoftwareLicenseEntitlement:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        principal = self._security_service.authenticate_token(
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITAM_WRITE)
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            existing = self._repository.find_software_license(tenant_id, command.license_reference)
+            if existing is None:
+                raise NotFoundError("software license entitlement not found")
+            updated = existing.with_assignment(
+                assigned_quantity=int(command.assigned_quantity),
+                actor=command.actor,
+                notes=command.notes,
+            )
+            self._repository.save_software_license(updated)
+            report = SoftwareLicenseComplianceReport.from_license(updated, datetime.now(UTC).date())
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=principal.subject,
+                    action="itam.software_license.assignment.update",
+                    target_type="software_license",
+                    target_id=updated.license_reference.value,
+                    metadata={
+                        "license_reference": updated.license_reference.value,
+                        "assigned_quantity": updated.assigned_quantity,
+                        "available_quantity": updated.available_quantity(),
+                        "compliance_state": report.compliance_state.value,
+                        "declared_actor": command.actor,
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return updated
+
+    def get_software_license(self, command: GetSoftwareLicenseCommand) -> SoftwareLicenseEntitlement:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        self._security_service.authenticate_token(
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITAM_READ)
+        )
+        license_ = self._repository.find_software_license(tenant_id, command.license_reference)
+        if license_ is None:
+            raise NotFoundError("software license entitlement not found")
+        return license_
+
+    def get_software_license_compliance(
+        self, command: GetSoftwareLicenseComplianceCommand
+    ) -> SoftwareLicenseComplianceReport:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        self._security_service.authenticate_token(
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITAM_READ)
+        )
+        license_ = self._repository.find_software_license(tenant_id, command.license_reference)
+        if license_ is None:
+            raise NotFoundError("software license entitlement not found")
+        as_of = (
+            ItamDateParser.parse_date(command.as_of, "software license compliance date")
+            if command.as_of is not None
+            else datetime.now(UTC).date()
+        )
+        return SoftwareLicenseComplianceReport.from_license(license_, as_of)

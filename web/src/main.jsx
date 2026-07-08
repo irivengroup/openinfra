@@ -709,6 +709,10 @@ const MODULES = [
     { id: 'itam-support-coverage', label: 'Couverture support actif', path: '/v1/itam/support-coverage', method: 'GET', fields: ['Numéro d’actif', 'Date de référence'] },
     { id: 'itam-register-manufacturer', label: 'Déclarer garantie constructeur', path: '/v1/itam/support-profile/manufacturer', method: 'POST', fields: ['Opérateur', 'Numéro d’actif', 'Constructeur', 'Référence garantie', 'Niveau garantie', 'Début garantie', 'Fin garantie', 'Référence support', 'Niveau support', 'Contact support'] },
     { id: 'itam-add-third-party', label: 'Ajouter support tiers', path: '/v1/itam/support-profile/third-party', method: 'POST', fields: ['Opérateur', 'Numéro d’actif', 'Prestataire', 'Référence contrat', 'Niveau support', 'Début support', 'Fin support', 'Contact support', 'Statut', 'Notes'] },
+    { id: 'itam-software-license', label: 'Licence logicielle', path: '/v1/itam/software-license', method: 'GET', fields: ['Référence licence'] },
+    { id: 'itam-software-compliance', label: 'Conformité licence', path: '/v1/itam/software-license/compliance', method: 'GET', fields: ['Référence licence', 'Date de référence'] },
+    { id: 'itam-register-software', label: 'Déclarer licence logicielle', path: '/v1/itam/software-license', method: 'POST', fields: ['Opérateur', 'Produit', 'Éditeur', 'Référence licence', 'Référence contrat', 'Métrique', 'Quantité achetée', 'Quantité assignée', 'Début droit', 'Fin droit', 'Version', 'Statut', 'Propriétaire', 'Notes'] },
+    { id: 'itam-update-license-assignment', label: 'Mettre à jour affectation licence', path: '/v1/itam/software-license/assignment', method: 'POST', fields: ['Opérateur', 'Référence licence', 'Quantité assignée', 'Notes'] },
   ] },
   { id: 'discovery', label: 'Discovery', icon: 'activity', operations: [{ id: 'collectors-register', label: 'Enregistrer un agent proxy Enterprise', path: '/v1/discovery/collectors', method: 'POST', fields: ['Opérateur', 'Nom agent proxy', 'Type', 'Empreinte certificat', 'Scopes autorisés', 'Version agent', 'Endpoint mTLS'] }] },
   { id: 'security', label: 'Sécurité / RBAC / Audit', shortLabel: 'Sécurité', icon: 'shield', operations: [

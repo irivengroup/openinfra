@@ -114,6 +114,7 @@ from openinfra.domain.identity import (
 from openinfra.domain.itam import (
     ManufacturerWarranty,
     PhysicalAssetSupportProfile,
+    SoftwareLicenseEntitlement,
     ThirdPartySupportContract,
     ItamDateParser,
 )
@@ -4920,6 +4921,105 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
             status=str(value["status"]),
             notes=(None if value.get("notes") is None else str(value.get("notes"))),
             created_at=self._row_datetime(value["created_at"]),
+        )
+
+    def save_software_license(self, license_: SoftwareLicenseEntitlement) -> None:
+        self._ensure_tenant(license_.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO software_license_entitlements (
+                id, tenant_id, product_name, vendor, version, license_reference,
+                contract_reference, metric, purchased_quantity, assigned_quantity,
+                entitlement_start, entitlement_end, status, owner, notes,
+                created_by, created_at, updated_by, updated_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(product_name)s, %(vendor)s, %(version)s,
+                %(license_reference)s, %(contract_reference)s, %(metric)s,
+                %(purchased_quantity)s, %(assigned_quantity)s, %(entitlement_start)s,
+                %(entitlement_end)s, %(status)s, %(owner)s, %(notes)s,
+                %(created_by)s, %(created_at)s, %(updated_by)s, %(updated_at)s
+            )
+            ON CONFLICT (tenant_id, license_reference) DO UPDATE SET
+                product_name = EXCLUDED.product_name,
+                vendor = EXCLUDED.vendor,
+                version = EXCLUDED.version,
+                contract_reference = EXCLUDED.contract_reference,
+                metric = EXCLUDED.metric,
+                purchased_quantity = EXCLUDED.purchased_quantity,
+                assigned_quantity = EXCLUDED.assigned_quantity,
+                entitlement_start = EXCLUDED.entitlement_start,
+                entitlement_end = EXCLUDED.entitlement_end,
+                status = EXCLUDED.status,
+                owner = EXCLUDED.owner,
+                notes = EXCLUDED.notes,
+                updated_by = EXCLUDED.updated_by,
+                updated_at = EXCLUDED.updated_at
+            """,
+            {
+                "id": license_.id.value,
+                "tenant_id": license_.tenant_id.value,
+                "product_name": license_.product_name.value,
+                "vendor": license_.vendor,
+                "version": license_.version,
+                "license_reference": license_.license_reference.value,
+                "contract_reference": license_.contract_reference,
+                "metric": license_.metric.value,
+                "purchased_quantity": license_.purchased_quantity,
+                "assigned_quantity": license_.assigned_quantity,
+                "entitlement_start": license_.entitlement_start,
+                "entitlement_end": license_.entitlement_end,
+                "status": license_.status.value,
+                "owner": license_.owner,
+                "notes": license_.notes,
+                "created_by": license_.created_by,
+                "created_at": license_.created_at,
+                "updated_by": license_.updated_by,
+                "updated_at": license_.updated_at,
+            },
+        )
+
+    def find_software_license(
+        self, tenant_id: TenantId, license_reference: str
+    ) -> SoftwareLicenseEntitlement | None:
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, product_name, vendor, version, license_reference,
+                   contract_reference, metric, purchased_quantity, assigned_quantity,
+                   entitlement_start, entitlement_end, status, owner, notes,
+                   created_by, created_at, updated_by, updated_at
+            FROM software_license_entitlements
+            WHERE tenant_id = %(tenant_id)s AND license_reference = %(license_reference)s
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "license_reference": Code.from_value(license_reference, "software license reference").value,
+            },
+        )
+        return self._software_license_from_row(row) if row else None
+
+    def _software_license_from_row(self, row: Mapping[str, object]) -> SoftwareLicenseEntitlement:
+        return SoftwareLicenseEntitlement.restore(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            product_name=str(row["product_name"]),
+            vendor=str(row["vendor"]),
+            version=(None if row.get("version") is None else str(row.get("version"))),
+            license_reference=str(row["license_reference"]),
+            contract_reference=(
+                None if row.get("contract_reference") is None else str(row.get("contract_reference"))
+            ),
+            metric=str(row["metric"]),
+            purchased_quantity=int(row["purchased_quantity"]),
+            assigned_quantity=int(row["assigned_quantity"]),
+            entitlement_start=ItamDateParser.parse_date(str(row["entitlement_start"]), "software entitlement start"),
+            entitlement_end=ItamDateParser.parse_date(str(row["entitlement_end"]), "software entitlement end"),
+            status=str(row["status"]),
+            owner=(None if row.get("owner") is None else str(row.get("owner"))),
+            notes=(None if row.get("notes") is None else str(row.get("notes"))),
+            created_by=str(row["created_by"]),
+            created_at=self._row_datetime(row["created_at"]),
+            updated_by=str(row["updated_by"]),
+            updated_at=self._row_datetime(row["updated_at"]),
         )
 
     def _json_mapping(self, value: object) -> Mapping[str, object]:

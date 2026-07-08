@@ -106,7 +106,11 @@ from openinfra.application.itam_services import (
     AddThirdPartySupportCommand,
     GetAssetSupportCoverageReportCommand,
     GetAssetSupportProfileCommand,
+    GetSoftwareLicenseCommand,
+    GetSoftwareLicenseComplianceCommand,
     RegisterManufacturerSupportCommand,
+    RegisterSoftwareLicenseCommand,
+    UpdateSoftwareLicenseAssignmentCommand,
 )
 from openinfra.application.it_resources_management_services import (
     CreateSourceRelationCommand,
@@ -420,6 +424,45 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         tenant_id=tenant_id,
                         admin_token=self._bearer_token(),
                         asset_tag=self._first_query_value(query, "asset_tag"),
+                        as_of=self._optional_query_value(query, "as_of"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, report.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except OpenInfraError as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/itam/software-license":
+            try:
+                query = parse_qs(parsed.query)
+                tenant_id = self._first_query_value(query, "tenant_id")
+                if self.server.auth_required:
+                    self._authenticate(tenant_id, Permission.ITAM_READ)
+                license_ = self.server.application.itam_support_service.get_software_license(
+                    GetSoftwareLicenseCommand(
+                        tenant_id=tenant_id,
+                        admin_token=self._bearer_token(),
+                        license_reference=self._first_query_value(query, "license_reference"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, license_.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except OpenInfraError as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/itam/software-license/compliance":
+            try:
+                query = parse_qs(parsed.query)
+                tenant_id = self._first_query_value(query, "tenant_id")
+                if self.server.auth_required:
+                    self._authenticate(tenant_id, Permission.ITAM_READ)
+                report = self.server.application.itam_support_service.get_software_license_compliance(
+                    GetSoftwareLicenseComplianceCommand(
+                        tenant_id=tenant_id,
+                        admin_token=self._bearer_token(),
+                        license_reference=self._first_query_value(query, "license_reference"),
                         as_of=self._optional_query_value(query, "as_of"),
                     )
                 )
@@ -1175,6 +1218,68 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except OpenInfraError as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/itam/software-license":
+            try:
+                payload = self._read_json_body()
+                tenant_id = str(payload["tenant_id"])
+                actor = str(payload.get("actor", "api"))
+                if self.server.auth_required:
+                    principal = self._authenticate(tenant_id, Permission.ITAM_WRITE)
+                    actor = principal.subject
+                license_ = self.server.application.itam_support_service.register_software_license(
+                    RegisterSoftwareLicenseCommand(
+                        tenant_id=tenant_id,
+                        actor=actor,
+                        admin_token=self._bearer_token(),
+                        product_name=str(payload["product_name"]),
+                        vendor=str(payload["vendor"]),
+                        license_reference=str(payload["license_reference"]),
+                        metric=str(payload["metric"]),
+                        purchased_quantity=int(payload["purchased_quantity"]),
+                        assigned_quantity=int(payload.get("assigned_quantity", 0)),
+                        entitlement_start=str(payload["entitlement_start"]),
+                        entitlement_end=str(payload["entitlement_end"]),
+                        contract_reference=(
+                            None if payload.get("contract_reference") is None else str(payload.get("contract_reference"))
+                        ),
+                        version=(None if payload.get("version") is None else str(payload.get("version"))),
+                        status=str(payload.get("status", "active")),
+                        owner=(None if payload.get("owner") is None else str(payload.get("owner"))),
+                        notes=(None if payload.get("notes") is None else str(payload.get("notes"))),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, license_.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/itam/software-license/assignment":
+            try:
+                payload = self._read_json_body()
+                tenant_id = str(payload["tenant_id"])
+                actor = str(payload.get("actor", "api"))
+                if self.server.auth_required:
+                    principal = self._authenticate(tenant_id, Permission.ITAM_WRITE)
+                    actor = principal.subject
+                license_ = self.server.application.itam_support_service.update_software_license_assignment(
+                    UpdateSoftwareLicenseAssignmentCommand(
+                        tenant_id=tenant_id,
+                        actor=actor,
+                        admin_token=self._bearer_token(),
+                        license_reference=str(payload["license_reference"]),
+                        assigned_quantity=int(payload["assigned_quantity"]),
+                        notes=(None if payload.get("notes") is None else str(payload.get("notes"))),
+                    )
+                )
+                responder.send(HTTPStatus.OK, license_.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
@@ -2585,6 +2690,9 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "support_coverage": "/api/v1/itam/support-coverage",
                     "manufacturer_support": "/api/v1/itam/support-profile/manufacturer",
                     "third_party_support": "/api/v1/itam/support-profile/third-party",
+                    "software_license": "/api/v1/itam/software-license",
+                    "software_license_assignment": "/api/v1/itam/software-license/assignment",
+                    "software_license_compliance": "/api/v1/itam/software-license/compliance",
                 },
                 "it_resources_management": {
                     "objects": "/api/v1/itrm/objects",

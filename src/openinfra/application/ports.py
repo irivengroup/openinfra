@@ -40,7 +40,7 @@ from openinfra.domain.identity import (
     IdentityGroup,
     IdentityUser,
 )
-from openinfra.domain.itam import PhysicalAssetSupportProfile
+from openinfra.domain.itam import PhysicalAssetSupportProfile, SoftwareLicenseEntitlement
 from openinfra.domain.ipam import (
     AutonomousSystem,
     BgpPeer,
@@ -130,6 +130,16 @@ class ItamSupportRepository(ABC):
     def find_support_profile(
         self, tenant_id: TenantId, asset_tag: str
     ) -> PhysicalAssetSupportProfile | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_software_license(self, license_: SoftwareLicenseEntitlement) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_software_license(
+        self, tenant_id: TenantId, license_reference: str
+    ) -> SoftwareLicenseEntitlement | None:
         raise TypeError("adapter contract invoked directly")
 
 

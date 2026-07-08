@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.50
+  version: 0.29.51
 components:
   securitySchemes:
     bearerToken:
@@ -2534,6 +2534,81 @@ paths:
         '201': {description: Third-party support contract added separately}
         '401': {description: ITAM write token required}
         '400': {description: Validation error or missing manufacturer support profile}
+
+  /api/v1/itam/software-license:
+    get:
+      summary: Read an ITAM software license entitlement
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: license_reference, in: query, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Software license entitlement with quantities and contract metadata}
+        '401': {description: ITAM read token required}
+        '400': {description: Validation error or unknown license entitlement}
+    post:
+      summary: Register or update an ITAM software license entitlement
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, product_name, vendor, license_reference, metric, purchased_quantity, entitlement_start, entitlement_end]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                product_name: {type: string}
+                vendor: {type: string}
+                version: {type: string}
+                license_reference: {type: string}
+                contract_reference: {type: string}
+                metric: {type: string, enum: [device, user, core, socket, instance, subscription]}
+                purchased_quantity: {type: integer, minimum: 1}
+                assigned_quantity: {type: integer, minimum: 0, default: 0}
+                entitlement_start: {type: string, format: date}
+                entitlement_end: {type: string, format: date}
+                status: {type: string, enum: [active, expired, planned, terminated], default: active}
+                owner: {type: string}
+                notes: {type: string}
+      responses:
+        '201': {description: Software license entitlement registered or updated}
+        '401': {description: ITAM write token required}
+        '400': {description: Validation error}
+  /api/v1/itam/software-license/assignment:
+    post:
+      summary: Update assigned quantity for a software license entitlement
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, license_reference, assigned_quantity]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                license_reference: {type: string}
+                assigned_quantity: {type: integer, minimum: 0}
+                notes: {type: string}
+      responses:
+        '200': {description: Software license assignment updated}
+        '401': {description: ITAM write token required}
+        '400': {description: Validation error or unknown license entitlement}
+  /api/v1/itam/software-license/compliance:
+    get:
+      summary: Evaluate ITAM software license compliance and utilization
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: license_reference, in: query, required: true, schema: {type: string}}
+        - {name: as_of, in: query, required: false, schema: {type: string, format: date}}
+      responses:
+        '200': {description: Compliance state, quantities, utilization and expiration}
+        '401': {description: ITAM read token required}
+        '400': {description: Validation error or unknown license entitlement}
 
   /api/v1/imports/migration-template:
     get:

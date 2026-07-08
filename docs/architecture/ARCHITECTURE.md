@@ -520,7 +520,7 @@ Le header openinfra-web rend le badge d’édition à côté de la marque OpenIn
 
 Le badge d’édition reste dans le header principal, immédiatement après la marque OpenInfra. Le gabarit `.badge` est conservé sans modification dimensionnelle, mais le fond dédié passe à un dégradé fuchsia très foncé `#2a0015 → #4b001f → #6a1430`. La palette vise un rendu prune chaud/bruné sans utiliser de marron explicite ni de bleu Bootstrap. Les assets statiques et React partagent la même règle CSS afin d’éviter toute divergence runtime/build.
 
-## API/UI éditions et quotas — v0.29.50
+## API/UI éditions et quotas — v0.29.51
 
 Les règles d'édition livrées en v0.29.0 sont désormais exposées comme contrat HTTP et opérateur web sans déplacer la logique métier hors de la couche application. L'adaptateur HTTP ajoute trois lectures administratives :
 
@@ -531,3 +531,13 @@ Les règles d'édition livrées en v0.29.0 sont désormais exposées comme contr
 Ces endpoints délèguent exclusivement à `EditionQueryService` et réutilisent les commandes applicatives `CheckFeatureCommand` et `CheckQuotaCommand`. Lorsque l'authentification API est activée, ils exigent `Permission.SECURITY_ADMIN`, ce qui évite d'exposer des informations d'administration édition à un opérateur non autorisé. Le document de découverte et OpenAPI publient les mêmes chemins afin que CLI, API et portail restent alignés.
 
 Le portail `openinfra-web` ajoute les opérations correspondantes dans le composant Sécurité/RBAC/Audit. Les formulaires collectent uniquement les paramètres métier nécessaires (`edition`, `capability`, `resource`, `requested_increment`) et appellent le backend via le proxy API same-origin. Aucune règle de quota ou de feature gate n'est dupliquée dans les assets navigateur.
+
+## ITAM licences logicielles et conformité — v0.29.51
+
+L’incrément v0.29.51 ajoute un sous-domaine ITAM logiciel sans modifier le modèle support constructeur/tiers existant.
+
+- **Domaine** : `SoftwareLicenseEntitlement` porte la référence de licence, le produit, l’éditeur, la métrique, les quantités achetées/assignées, la période d’entitlement et la référence contrat. `SoftwareLicenseComplianceReport` calcule l’état `compliant`, `over_assigned`, `expired` ou `planned`.
+- **Application** : `ItamSupportService` orchestre les commandes de déclaration, d’affectation, de lecture et de conformité avec contrôle `ITAM_READ`/`ITAM_WRITE`.
+- **Infrastructure** : les repositories JSON et PostgreSQL implémentent le même port. PostgreSQL utilise `software_license_entitlements`, partitionnée par hash de tenant, avec contraintes métier et index de recherche/conformité.
+- **Interfaces** : API HTTP, CLI et portail web consomment les mêmes services applicatifs. OpenAPI et discovery documentent les routes publiques.
+- **Audit** : les actions `itam.software_license.register`, `itam.software_license.update` et `itam.software_license.assignment.update` sont tracées avec la référence licence et l’état de conformité utile.

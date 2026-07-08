@@ -1,8 +1,8 @@
-# OpenInfra v0.29.50 — rapport de validation
+# OpenInfra v0.29.51 — rapport de validation
 
 ## Objet de livraison
 
-OpenInfra v0.29.50 expose l'administration en lecture des éditions et quotas runtime dans l'API HTTP et dans le portail `openinfra-web`, sans déplacer ni dupliquer les règles métier hors de `EditionQueryService`.
+OpenInfra v0.29.51 expose l'administration en lecture des éditions et quotas runtime dans l'API HTTP et dans le portail `openinfra-web`, sans déplacer ni dupliquer les règles métier hors de `EditionQueryService`.
 
 ## Changements fonctionnels
 
@@ -49,7 +49,7 @@ OpenInfra v0.29.50 expose l'administration en lecture des éditions et quotas ru
 | `PYTHONPATH=src python -m compileall -q src tests scripts docker installers` | PASS |
 | `PYTHONPATH=src python scripts/validate_frontend.py --project-root .` | PASS |
 | `node --check src/openinfra/interfaces/rendering/static/assets/openinfra-web.js` | PASS |
-| `PYTHONPATH=src python -m openinfra.interfaces.cli version` | PASS — `0.29.50` |
+| `PYTHONPATH=src python -m openinfra.interfaces.cli version` | PASS — `0.29.51` |
 | `PYTHONPATH=src python scripts/security_gate.py --project-root .` | PASS |
 | `PYTHONPATH=src python scripts/validate_enterprise_alignment.py --project-root .` | PASS |
 | `PYTHONPATH=src python scripts/validate_autonomous_installer.py --root installers` | PASS — 6 profils |

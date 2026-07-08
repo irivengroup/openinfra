@@ -1,4 +1,4 @@
-# OpenInfra Web v0.29.50
+# OpenInfra Web v0.29.51
 
 OpenInfra Web est le portail `openinfra-web` API-only. Il sert l'interface React/Bootstrap 5, expose un proxy applicatif `/api/*` vers le backend `openinfra-api` et fournit un dashboard aligné sur les domaines CLI.
 
@@ -41,7 +41,7 @@ Le service Compose `openinfra-web` dépend de `api:8080`, écoute par défaut su
 L'unité `openinfra-web.service` lance `openinfra-web` depuis le virtualenv géré par l'installateur et lit sa configuration via `EnvironmentFile=/etc/openinfra/openinfra.conf`, chemin compatible pointant vers `/opt/openinfra/config/openinfra.conf`.
 
 
-## v0.29.50 — administration éditions et quotas
+## v0.29.51 — administration éditions et quotas
 
 Le module **Sécurité/RBAC/Audit** expose désormais les opérations d'administration des éditions dans le portail web :
 
@@ -274,3 +274,14 @@ Le badge d’édition conserve sa position après le logo OpenInfra et son gabar
 ## v0.29.48 — badge édition fuchsia effectif
 
 Le badge d’édition reste placé immédiatement après le logo OpenInfra. Il conserve la classe Bootstrap `badge` pour préserver son gabarit, mais n’utilise plus `text-bg-primary` afin de supprimer l’héritage bleu. Le fond est appliqué par `badge.openinfra-edition-badge` avec un dégradé fuchsia dédié.
+
+## v0.29.51 — ITAM licences logicielles
+
+Le composant **IT Asset Management** expose désormais les opérations web suivantes, toujours via les endpoints backend `/api/v1` réels :
+
+- lecture d’une licence logicielle par référence ;
+- rapport de conformité licence à date ;
+- déclaration/mise à jour d’une licence logicielle ;
+- mise à jour de la quantité assignée.
+
+Les formulaires restent typés métier : produit, éditeur, référence licence, référence contrat, métrique, quantités, période de droit, statut, propriétaire et notes. Aucune logique de conformité n’est dupliquée côté navigateur ; le navigateur délègue au service applicatif ITAM.

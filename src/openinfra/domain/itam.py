@@ -29,6 +29,29 @@ class AssetCoverageState(StrEnum):
     EXPIRED = "expired"
 
 
+class SoftwareLicenseMetric(StrEnum):
+    DEVICE = "device"
+    USER = "user"
+    CORE = "core"
+    SOCKET = "socket"
+    INSTANCE = "instance"
+    SUBSCRIPTION = "subscription"
+
+
+class SoftwareLicenseStatus(StrEnum):
+    ACTIVE = "active"
+    EXPIRED = "expired"
+    PLANNED = "planned"
+    TERMINATED = "terminated"
+
+
+class SoftwareLicenseComplianceState(StrEnum):
+    COMPLIANT = "compliant"
+    OVER_ASSIGNED = "over_assigned"
+    EXPIRED = "expired"
+    PLANNED = "planned"
+
+
 @dataclass(frozen=True, slots=True)
 class Asset:
     id: EntityId
@@ -420,6 +443,253 @@ class PhysicalAssetSupportCoverageReport:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class SoftwareLicenseEntitlement:
+    id: EntityId
+    tenant_id: TenantId
+    product_name: Name
+    vendor: str
+    version: str | None
+    license_reference: Code
+    contract_reference: str | None
+    metric: SoftwareLicenseMetric
+    purchased_quantity: int
+    assigned_quantity: int
+    entitlement_start: date
+    entitlement_end: date
+    status: SoftwareLicenseStatus
+    owner: str | None
+    notes: str | None
+    created_by: str
+    created_at: datetime
+    updated_by: str
+    updated_at: datetime
+
+    @classmethod
+    def create(
+        cls,
+        tenant_id: TenantId,
+        product_name: str,
+        vendor: str,
+        license_reference: str,
+        metric: str,
+        purchased_quantity: int,
+        assigned_quantity: int,
+        entitlement_start: date,
+        entitlement_end: date,
+        actor: str,
+        contract_reference: str | None = None,
+        version: str | None = None,
+        status: str = "active",
+        owner: str | None = None,
+        notes: str | None = None,
+    ) -> Self:
+        return cls.restore(
+            id=EntityId.new(),
+            tenant_id=tenant_id,
+            product_name=product_name,
+            vendor=vendor,
+            license_reference=license_reference,
+            contract_reference=contract_reference,
+            metric=metric,
+            purchased_quantity=purchased_quantity,
+            assigned_quantity=assigned_quantity,
+            entitlement_start=entitlement_start,
+            entitlement_end=entitlement_end,
+            status=status,
+            owner=owner,
+            version=version,
+            notes=notes,
+            created_by=actor,
+            created_at=datetime.now(UTC),
+            updated_by=actor,
+            updated_at=datetime.now(UTC),
+        )
+
+    @classmethod
+    def restore(
+        cls,
+        id: EntityId,
+        tenant_id: TenantId,
+        product_name: str,
+        vendor: str,
+        license_reference: str,
+        contract_reference: str | None,
+        metric: str,
+        purchased_quantity: int,
+        assigned_quantity: int,
+        entitlement_start: date,
+        entitlement_end: date,
+        status: str,
+        owner: str | None,
+        version: str | None,
+        notes: str | None,
+        created_by: str,
+        created_at: datetime,
+        updated_by: str,
+        updated_at: datetime,
+    ) -> Self:
+        if entitlement_end < entitlement_start:
+            raise ValidationError("software license entitlement end date cannot be before start date")
+        if purchased_quantity < 1:
+            raise ValidationError("software license purchased quantity must be greater than zero")
+        if assigned_quantity < 0:
+            raise ValidationError("software license assigned quantity cannot be negative")
+        try:
+            metric_value = SoftwareLicenseMetric(metric.strip().lower())
+        except ValueError as exc:
+            raise ValidationError("unsupported software license metric") from exc
+        try:
+            status_value = SoftwareLicenseStatus(status.strip().lower())
+        except ValueError as exc:
+            raise ValidationError("unsupported software license status") from exc
+        return cls(
+            id=id,
+            tenant_id=tenant_id,
+            product_name=Name.from_value(product_name, "software product name"),
+            vendor=ItamValidation.normalized_text(vendor, "software license vendor", max_length=128),
+            version=ItamValidation.normalized_optional_text(version, "software version", 64),
+            license_reference=Code.from_value(license_reference, "software license reference"),
+            contract_reference=ItamValidation.normalized_optional_code_text(
+                contract_reference, "software contract reference"
+            ),
+            metric=metric_value,
+            purchased_quantity=purchased_quantity,
+            assigned_quantity=assigned_quantity,
+            entitlement_start=entitlement_start,
+            entitlement_end=entitlement_end,
+            status=status_value,
+            owner=ItamValidation.normalized_optional_text(owner, "software license owner", 128),
+            notes=ItamValidation.normalized_optional_text(notes, "software license notes", 1024),
+            created_by=ItamValidation.normalized_actor(created_by),
+            created_at=ItamValidation.normalized_datetime(created_at, "software license creation date"),
+            updated_by=ItamValidation.normalized_actor(updated_by),
+            updated_at=ItamValidation.normalized_datetime(updated_at, "software license update date"),
+        )
+
+    def with_assignment(
+        self,
+        assigned_quantity: int,
+        actor: str,
+        notes: str | None = None,
+    ) -> SoftwareLicenseEntitlement:
+        return self.restore(
+            id=self.id,
+            tenant_id=self.tenant_id,
+            product_name=self.product_name.value,
+            vendor=self.vendor,
+            license_reference=self.license_reference.value,
+            contract_reference=self.contract_reference,
+            metric=self.metric.value,
+            purchased_quantity=self.purchased_quantity,
+            assigned_quantity=assigned_quantity,
+            entitlement_start=self.entitlement_start,
+            entitlement_end=self.entitlement_end,
+            status=self.status.value,
+            owner=self.owner,
+            version=self.version,
+            notes=self.notes if notes is None else notes,
+            created_by=self.created_by,
+            created_at=self.created_at,
+            updated_by=actor,
+            updated_at=datetime.now(UTC),
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "id": self.id.value,
+            "tenant_id": self.tenant_id.value,
+            "product_name": self.product_name.value,
+            "vendor": self.vendor,
+            "version": self.version,
+            "license_reference": self.license_reference.value,
+            "contract_reference": self.contract_reference,
+            "metric": self.metric.value,
+            "purchased_quantity": self.purchased_quantity,
+            "assigned_quantity": self.assigned_quantity,
+            "available_quantity": self.available_quantity(),
+            "entitlement_start": self.entitlement_start.isoformat(),
+            "entitlement_end": self.entitlement_end.isoformat(),
+            "status": self.status.value,
+            "owner": self.owner,
+            "notes": self.notes,
+            "created_by": self.created_by,
+            "created_at": self.created_at.isoformat(),
+            "updated_by": self.updated_by,
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+    def available_quantity(self) -> int:
+        return self.purchased_quantity - self.assigned_quantity
+
+
+@dataclass(frozen=True, slots=True)
+class SoftwareLicenseComplianceReport:
+    tenant_id: TenantId
+    license_reference: Code
+    product_name: Name
+    vendor: str
+    as_of: date
+    metric: SoftwareLicenseMetric
+    purchased_quantity: int
+    assigned_quantity: int
+    available_quantity: int
+    utilization_percent: float
+    entitlement_status: SoftwareLicenseStatus
+    compliance_state: SoftwareLicenseComplianceState
+    days_until_expiration: int
+    contract_reference: str | None
+
+    @classmethod
+    def from_license(cls, license_: SoftwareLicenseEntitlement, as_of: date) -> Self:
+        if as_of < license_.entitlement_start or license_.status == SoftwareLicenseStatus.PLANNED:
+            compliance_state = SoftwareLicenseComplianceState.PLANNED
+        elif as_of > license_.entitlement_end or license_.status in {
+            SoftwareLicenseStatus.EXPIRED,
+            SoftwareLicenseStatus.TERMINATED,
+        }:
+            compliance_state = SoftwareLicenseComplianceState.EXPIRED
+        elif license_.assigned_quantity > license_.purchased_quantity:
+            compliance_state = SoftwareLicenseComplianceState.OVER_ASSIGNED
+        else:
+            compliance_state = SoftwareLicenseComplianceState.COMPLIANT
+        utilization = round((license_.assigned_quantity / license_.purchased_quantity) * 100, 2)
+        return cls(
+            tenant_id=license_.tenant_id,
+            license_reference=license_.license_reference,
+            product_name=license_.product_name,
+            vendor=license_.vendor,
+            as_of=as_of,
+            metric=license_.metric,
+            purchased_quantity=license_.purchased_quantity,
+            assigned_quantity=license_.assigned_quantity,
+            available_quantity=license_.available_quantity(),
+            utilization_percent=utilization,
+            entitlement_status=license_.status,
+            compliance_state=compliance_state,
+            days_until_expiration=(license_.entitlement_end - as_of).days,
+            contract_reference=license_.contract_reference,
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "tenant_id": self.tenant_id.value,
+            "license_reference": self.license_reference.value,
+            "product_name": self.product_name.value,
+            "vendor": self.vendor,
+            "as_of": self.as_of.isoformat(),
+            "metric": self.metric.value,
+            "purchased_quantity": self.purchased_quantity,
+            "assigned_quantity": self.assigned_quantity,
+            "available_quantity": self.available_quantity,
+            "utilization_percent": self.utilization_percent,
+            "entitlement_status": self.entitlement_status.value,
+            "compliance_state": self.compliance_state.value,
+            "days_until_expiration": self.days_until_expiration,
+            "contract_reference": self.contract_reference,
+        }
+
+
 class ItamDateParser:
     @staticmethod
     def parse_date(value: str | date, field_name: str) -> date:
@@ -455,6 +725,17 @@ class ItamValidation:
     @staticmethod
     def normalized_code_text(value: str, field_name: str) -> str:
         normalized = value.strip().upper()
+        if not re.fullmatch(r"[A-Z0-9][A-Z0-9_.:/#-]{0,127}", normalized):
+            raise ValidationError(f"{field_name} must use 1 to 128 safe reference characters")
+        return normalized
+
+    @staticmethod
+    def normalized_optional_code_text(value: str | None, field_name: str) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip().upper()
+        if not normalized:
+            return None
         if not re.fullmatch(r"[A-Z0-9][A-Z0-9_.:/#-]{0,127}", normalized):
             raise ValidationError(f"{field_name} must use 1 to 128 safe reference characters")
         return normalized

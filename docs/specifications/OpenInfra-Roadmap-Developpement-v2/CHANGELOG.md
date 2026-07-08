@@ -1,3 +1,7 @@
+## v0.29.51 — P12 ITAM licences logicielles et contrats
+
+L’incrément v0.29.51 réalise `EPIC-1205` pour les licences logicielles : entitlements, référence contrat, quantités achetées/assignées, conformité à date, API, CLI, portail web, OpenAPI, migration PostgreSQL partitionnée et tests de non-régression via `TST-P12-ITAM-SOFTWARE-LICENSES`.
+
 ## 0.29.50
 
 - Ajout du test roadmap `TST-P08-WEB-EDITION-ADMIN-QUOTAS`.

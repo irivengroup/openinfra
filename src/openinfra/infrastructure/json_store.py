@@ -111,6 +111,7 @@ from openinfra.domain.identity import (
 from openinfra.domain.itam import (
     ManufacturerWarranty,
     PhysicalAssetSupportProfile,
+    SoftwareLicenseEntitlement,
     ThirdPartySupportContract,
     ItamDateParser,
 )
@@ -252,6 +253,7 @@ class JsonDocumentStore:
             "export_artifacts": {},
             "discovery_collectors": {},
             "asset_support_profiles": {},
+            "software_license_entitlements": {},
         }
 
 
@@ -699,6 +701,7 @@ class JsonReadinessProbe(ReadinessProbe):
                     "export_artifacts",
                     "discovery_collectors",
                     "asset_support_profiles",
+                    "software_license_entitlements",
                 )
             )
         detail = (
@@ -3282,4 +3285,49 @@ class JsonItamSupportRepository(ItamSupportRepository):
             status=str(value["status"]),
             notes=(None if value.get("notes") is None else str(value.get("notes"))),
             created_at=datetime.fromisoformat(str(value["created_at"])),
+        )
+
+
+    def save_software_license(self, license_: SoftwareLicenseEntitlement) -> None:
+        key = self._license_key(license_.tenant_id, license_.license_reference.value)
+        self._store.data["software_license_entitlements"][key] = license_.as_dict()
+        self._store.mark_dirty()
+
+    def find_software_license(
+        self, tenant_id: TenantId, license_reference: str
+    ) -> SoftwareLicenseEntitlement | None:
+        key = self._license_key(tenant_id, Code.from_value(license_reference, "software license reference").value)
+        value = self._store.data["software_license_entitlements"].get(key)
+        if value is None:
+            return None
+        return self._software_license_from_dict(value)
+
+    def _license_key(self, tenant_id: TenantId, license_reference: str) -> str:
+        return f"{tenant_id.value}:{license_reference.upper()}"
+
+    def _software_license_from_dict(self, value: dict[str, Any]) -> SoftwareLicenseEntitlement:
+        return SoftwareLicenseEntitlement.restore(
+            id=EntityId.from_value(str(value["id"])),
+            tenant_id=TenantId.from_value(str(value["tenant_id"])),
+            product_name=str(value["product_name"]),
+            vendor=str(value["vendor"]),
+            version=(None if value.get("version") is None else str(value.get("version"))),
+            license_reference=str(value["license_reference"]),
+            contract_reference=(
+                None if value.get("contract_reference") is None else str(value.get("contract_reference"))
+            ),
+            metric=str(value["metric"]),
+            purchased_quantity=int(value["purchased_quantity"]),
+            assigned_quantity=int(value["assigned_quantity"]),
+            entitlement_start=ItamDateParser.parse_date(
+                str(value["entitlement_start"]), "software entitlement start"
+            ),
+            entitlement_end=ItamDateParser.parse_date(str(value["entitlement_end"]), "software entitlement end"),
+            status=str(value["status"]),
+            owner=(None if value.get("owner") is None else str(value.get("owner"))),
+            notes=(None if value.get("notes") is None else str(value.get("notes"))),
+            created_by=str(value["created_by"]),
+            created_at=datetime.fromisoformat(str(value["created_at"])),
+            updated_by=str(value["updated_by"]),
+            updated_at=datetime.fromisoformat(str(value["updated_at"])),
         )

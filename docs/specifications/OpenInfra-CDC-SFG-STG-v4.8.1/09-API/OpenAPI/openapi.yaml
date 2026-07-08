@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.61
+  version: 0.29.62
 components:
   securitySchemes:
     bearerToken:
@@ -2540,6 +2540,93 @@ paths:
         '200': {description: Collector disabled}
         '401': {description: Security administrator token required}
         '400': {description: Validation error}
+
+  /api/v1/itam/tenants:
+    get:
+      summary: List ITAM tenants and default selection metadata
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: false, schema: {type: string, default: default}}
+        - {name: include_retired, in: query, required: false, schema: {type: boolean, default: false}}
+      responses:
+        '200': {description: ITAM tenant catalog with default and auto-selected tenant metadata}
+        '401': {description: ITAM read token required}
+        '400': {description: Validation error}
+  /api/v1/itam/tenant:
+    get:
+      summary: Read one ITAM tenant
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+      responses:
+        '200': {description: ITAM tenant lifecycle record}
+        '401': {description: ITAM read token required}
+        '400': {description: Validation error or unknown ITAM tenant}
+  /api/v1/itam/tenant/create:
+    post:
+      summary: Create an ITAM tenant
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, name]
+              properties:
+                tenant_id: {type: string}
+                scope_tenant_id: {type: string, default: default}
+                actor: {type: string, default: api}
+                name: {type: string}
+                status: {type: string, enum: [active, suspended, retired], default: active}
+                is_default: {type: boolean, default: false}
+                description: {type: string}
+      responses:
+        '201': {description: ITAM tenant created}
+        '401': {description: ITAM write token required}
+        '400': {description: Validation error or tenant conflict}
+  /api/v1/itam/tenant/update:
+    post:
+      summary: Update ITAM tenant lifecycle metadata or default flag
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id]
+              properties:
+                tenant_id: {type: string}
+                scope_tenant_id: {type: string, default: default}
+                actor: {type: string, default: api}
+                name: {type: string}
+                status: {type: string, enum: [active, suspended, retired]}
+                is_default: {type: boolean}
+                description: {type: string}
+      responses:
+        '200': {description: ITAM tenant updated}
+        '401': {description: ITAM write token required}
+        '400': {description: Validation error or unknown ITAM tenant}
+  /api/v1/itam/tenant/delete:
+    post:
+      summary: Retire an ITAM tenant without destructive deletion
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id]
+              properties:
+                tenant_id: {type: string}
+                scope_tenant_id: {type: string, default: default}
+                actor: {type: string, default: api}
+      responses:
+        '200': {description: ITAM tenant retired}
+        '401': {description: ITAM write token required}
+        '400': {description: Validation error or unknown ITAM tenant}
 
   /api/v1/itam/support-profile:
     get:

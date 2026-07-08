@@ -131,12 +131,17 @@ from openinfra.application.it_resources_management_services import (
 )
 from openinfra.application.itam_services import (
     AddThirdPartySupportCommand,
+    CreateItamTenantCommand,
+    DeleteItamTenantCommand,
     GetAssetSupportCoverageReportCommand,
     GetAssetSupportProfileCommand,
+    GetItamTenantCommand,
     GetSoftwareLicenseCommand,
     GetSoftwareLicenseComplianceCommand,
+    ListItamTenantsCommand,
     RegisterManufacturerSupportCommand,
     RegisterSoftwareLicenseCommand,
+    UpdateItamTenantCommand,
     UpdateSoftwareLicenseAssignmentCommand,
 )
 from openinfra.application.search_services import GlobalSearchCommand
@@ -405,6 +410,45 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     )
                 )
                 responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/itam/tenants":
+            try:
+                query = parse_qs(parsed.query)
+                tenant_id = self._first_query_value(query, "tenant_id", "default")
+                if self.server.auth_required:
+                    self._authenticate(tenant_id, Permission.ITAM_READ)
+                catalog = self.server.application.itam_support_service.list_tenants(
+                    ListItamTenantsCommand(
+                        tenant_id=tenant_id,
+                        admin_token=self._bearer_token(),
+                        include_retired=(
+                            self._first_query_value(query, "include_retired", "false") == "true"
+                        ),
+                    )
+                )
+                responder.send(HTTPStatus.OK, catalog.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/itam/tenant":
+            try:
+                query = parse_qs(parsed.query)
+                tenant_id = self._first_query_value(query, "tenant_id")
+                if self.server.auth_required:
+                    self._authenticate(tenant_id, Permission.ITAM_READ)
+                tenant = self.server.application.itam_support_service.get_tenant(
+                    GetItamTenantCommand(
+                        tenant_id=tenant_id,
+                        admin_token=self._bearer_token(),
+                    )
+                )
+                responder.send(HTTPStatus.OK, tenant.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (ValueError, OpenInfraError) as exc:
@@ -1500,6 +1544,100 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     )
                 )
                 responder.send(HTTPStatus.OK, plan.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/itam/tenant/create":
+            try:
+                payload = self._read_json_body()
+                tenant_id = str(payload["tenant_id"])
+                actor = str(payload.get("actor", "api"))
+                scope_tenant_id = str(payload.get("scope_tenant_id", "default"))
+                if self.server.auth_required:
+                    principal = self._authenticate(scope_tenant_id, Permission.ITAM_WRITE)
+                    actor = principal.subject
+                tenant = self.server.application.itam_support_service.create_tenant(
+                    CreateItamTenantCommand(
+                        tenant_id=tenant_id,
+                        actor=actor,
+                        admin_token=self._bearer_token(),
+                        name=str(payload["name"]),
+                        scope_tenant_id=scope_tenant_id,
+                        status=str(payload.get("status", "active")),
+                        is_default=bool(payload.get("is_default", False)),
+                        description=(
+                            None
+                            if payload.get("description") is None
+                            else str(payload.get("description"))
+                        ),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, tenant.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/itam/tenant/update":
+            try:
+                payload = self._read_json_body()
+                tenant_id = str(payload["tenant_id"])
+                actor = str(payload.get("actor", "api"))
+                scope_tenant_id = str(payload.get("scope_tenant_id", "default"))
+                if self.server.auth_required:
+                    principal = self._authenticate(scope_tenant_id, Permission.ITAM_WRITE)
+                    actor = principal.subject
+                tenant = self.server.application.itam_support_service.update_tenant(
+                    UpdateItamTenantCommand(
+                        tenant_id=tenant_id,
+                        actor=actor,
+                        admin_token=self._bearer_token(),
+                        scope_tenant_id=scope_tenant_id,
+                        name=(None if payload.get("name") is None else str(payload.get("name"))),
+                        status=(
+                            None if payload.get("status") is None else str(payload.get("status"))
+                        ),
+                        is_default=(
+                            None
+                            if payload.get("is_default") is None
+                            else bool(payload.get("is_default"))
+                        ),
+                        description=(
+                            None
+                            if payload.get("description") is None
+                            else str(payload.get("description"))
+                        ),
+                    )
+                )
+                responder.send(HTTPStatus.OK, tenant.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/itam/tenant/delete":
+            try:
+                payload = self._read_json_body()
+                tenant_id = str(payload["tenant_id"])
+                actor = str(payload.get("actor", "api"))
+                scope_tenant_id = str(payload.get("scope_tenant_id", "default"))
+                if self.server.auth_required:
+                    principal = self._authenticate(scope_tenant_id, Permission.ITAM_WRITE)
+                    actor = principal.subject
+                tenant = self.server.application.itam_support_service.delete_tenant(
+                    DeleteItamTenantCommand(
+                        tenant_id=tenant_id,
+                        actor=actor,
+                        admin_token=self._bearer_token(),
+                        scope_tenant_id=scope_tenant_id,
+                    )
+                )
+                responder.send(HTTPStatus.OK, tenant.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
@@ -3126,6 +3264,11 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     ),
                 },
                 "itam": {
+                    "tenants": "/api/v1/itam/tenants",
+                    "tenant": "/api/v1/itam/tenant",
+                    "tenant_create": "/api/v1/itam/tenant/create",
+                    "tenant_update": "/api/v1/itam/tenant/update",
+                    "tenant_delete": "/api/v1/itam/tenant/delete",
                     "support_profile": "/api/v1/itam/support-profile",
                     "support_coverage": "/api/v1/itam/support-coverage",
                     "manufacturer_support": "/api/v1/itam/support-profile/manufacturer",

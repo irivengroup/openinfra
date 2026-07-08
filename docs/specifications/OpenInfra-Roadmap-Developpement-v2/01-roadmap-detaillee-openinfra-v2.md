@@ -1639,3 +1639,7 @@ La livraison v0.29.61 réalise le premier incrément P14 / EPIC-1401 avec un pla
 ### Validation v0.29.61 — panneau latéral groupé par contexte
 
 La roadmap v2 ajoute `TST-P08-WEB-SIDEBAR-CONTEXT-GROUPS` pour verrouiller la navigation web contextuelle : tous les composants regroupent leurs opérations par contexte métier, les intégrations ITSM sont groupées par fournisseur, aucune opération existante n’est supprimée et OpenService reste absent du portail web OpenInfra.
+
+### Validation v0.29.62 — référentiel tenants ITAM
+
+La livraison v0.29.62 ajoute le référentiel tenants ITAM avec CRUD, tenant par défaut unique, retrait logique, persistance JSON/PostgreSQL, CLI/API/OpenAPI/discovery, sélecteur web et auto-sélection lorsqu’un seul tenant actif existe.

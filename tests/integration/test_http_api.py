@@ -103,6 +103,11 @@ class TestHttpApi:
                     "openservice_cmdb_sync_plan": "/api/v1/integrations/itsm/openservice/cmdb-sync-plan",
                 },
                 "itam": {
+                    "tenants": "/api/v1/itam/tenants",
+                    "tenant": "/api/v1/itam/tenant",
+                    "tenant_create": "/api/v1/itam/tenant/create",
+                    "tenant_update": "/api/v1/itam/tenant/update",
+                    "tenant_delete": "/api/v1/itam/tenant/delete",
                     "support_profile": "/api/v1/itam/support-profile",
                     "support_coverage": "/api/v1/itam/support-coverage",
                     "manufacturer_support": "/api/v1/itam/support-profile/manufacturer",

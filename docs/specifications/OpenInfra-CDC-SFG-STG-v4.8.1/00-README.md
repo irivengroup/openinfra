@@ -236,3 +236,7 @@ OpenInfra ajoute `REQ-00804` pour exposer un plan de discovery locale Lite/Pro v
 ## v0.29.61 — panneau latéral web groupé par contexte
 
 OpenInfra ajoute `REQ-00805` et `TST-WEB-106` pour regrouper les opérations du panneau latéral par contexte fonctionnel sous chaque composant. Le composant Intégrations est structuré par fournisseur ServiceNow, Jira Assets, GLPI Inventory et Freshservice Assets, sans publier OpenService dans `openinfra-web`.
+
+## v0.29.62 — référentiel tenants ITAM
+
+Ajout du cycle de vie CRUD des tenants ITAM, tenant par défaut unique, retrait logique, sélecteur web et auto-sélection mono-tenant.

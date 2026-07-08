@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, date, datetime
 
 import pytest
 
 from openinfra.domain.common import TenantId, ValidationError
 from openinfra.domain.itam import (
+    ItamTenant,
+    ItamTenantCatalog,
     ManufacturerWarranty,
     PhysicalAssetSupportCoverageReport,
     PhysicalAssetSupportProfile,
@@ -110,3 +112,33 @@ def test_support_coverage_report_classifies_manufacturer_and_third_party_periods
     assert report["third_party_active_count"] == 1
     assert report["coverage_state"] == "third_party_only"
     assert report["manufacturer_support_reference"] == "SUP-COV"
+
+
+def test_itam_tenant_catalog_default_and_single_auto_selection() -> None:
+    tenant = ItamTenant.create(
+        tenant_id="default",
+        name="Default",
+        actor="pytest",
+        is_default=False,
+    )
+
+    catalog = ItamTenantCatalog.from_items((tenant,)).as_dict()
+
+    assert catalog["auto_selected_tenant_id"] == "default"
+    assert catalog["default_tenant_id"] == "default"
+    assert catalog["items"][0]["selectable"] is True
+
+
+def test_itam_tenant_restore_rejects_invalid_status() -> None:
+    with pytest.raises(ValidationError):
+        ItamTenant.restore(
+            tenant_id="default",
+            name="Default",
+            status="deleted",
+            is_default=False,
+            description=None,
+            created_by="pytest",
+            created_at=datetime.now(UTC),
+            updated_by="pytest",
+            updated_at=datetime.now(UTC),
+        )

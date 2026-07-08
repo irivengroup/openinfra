@@ -1,4 +1,25 @@
-# OpenInfra v0.29.61
+# OpenInfra v0.29.62
+
+## v0.29.62 — référentiel tenants ITAM
+
+OpenInfra v0.29.62 ajoute un référentiel ITAM des tenants avec cycle de vie CRUD, sélection opérateur dans les formulaires web et choix automatique lorsqu’un seul tenant actif existe. La fonctionnalité reste non destructive : la suppression logique retire le tenant sans effacer l’historique ni les audits.
+
+### Surfaces exposées
+
+- Domaine : `ItamTenant`, `ItamTenantStatus`, `ItamTenantCatalog`.
+- Service applicatif : `ItamSupportService.create_tenant`, `update_tenant`, `delete_tenant`, `get_tenant`, `list_tenants`.
+- Persistance : JSON store et PostgreSQL avec migration `0029_itam_tenant_lifecycle.sql`.
+- CLI : `openinfra itam tenants`, `tenant`, `tenant-create`, `tenant-update`, `tenant-delete`.
+- API : `/api/v1/itam/tenants`, `/api/v1/itam/tenant`, `/api/v1/itam/tenant/create`, `/api/v1/itam/tenant/update`, `/api/v1/itam/tenant/delete`.
+- Web : champ tenant global rendu en `select` dès que le catalogue ITAM est disponible ; fallback texte conservé si le backend est indisponible.
+
+### Garde-fous
+
+- Un seul tenant actif peut être marqué par défaut à un instant donné.
+- Un tenant retiré ou suspendu ne peut pas être défini comme tenant par défaut.
+- Si un seul tenant actif existe, il est sélectionné automatiquement dans les formulaires.
+- Le retrait est logique (`status=retired`) et non destructif.
+- Les formulaires existants conservent leur contrat et bénéficient du sélecteur tenant sans changement d’API publique.
 
 ## v0.29.61 — discovery locale Lite/Pro sans agent
 

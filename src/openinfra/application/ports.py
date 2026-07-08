@@ -57,7 +57,11 @@ from openinfra.domain.ipam import (
     Vrf,
     VxlanVni,
 )
-from openinfra.domain.itam import PhysicalAssetSupportProfile, SoftwareLicenseEntitlement
+from openinfra.domain.itam import (
+    ItamTenant,
+    PhysicalAssetSupportProfile,
+    SoftwareLicenseEntitlement,
+)
 from openinfra.domain.security import ApiTokenCredential, Permission
 from openinfra.domain.source_governance import SourceGovernanceRule, SourceGovernanceRulePage
 from openinfra.domain.source_of_truth import (
@@ -122,6 +126,22 @@ class ReadinessStatus:
 
 
 class ItamSupportRepository(ABC):
+    @abstractmethod
+    def save_tenant(self, tenant: ItamTenant) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_tenant(self, tenant_id: TenantId) -> ItamTenant | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_tenants(self, include_retired: bool = False) -> tuple[ItamTenant, ...]:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def clear_default_tenant(self, except_tenant_id: TenantId | None = None) -> None:
+        raise TypeError("adapter contract invoked directly")
+
     @abstractmethod
     def save_support_profile(self, profile: PhysicalAssetSupportProfile) -> None:
         raise TypeError("adapter contract invoked directly")

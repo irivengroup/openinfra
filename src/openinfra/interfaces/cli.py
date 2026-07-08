@@ -130,12 +130,17 @@ from openinfra.application.it_resources_management_services import (
 )
 from openinfra.application.itam_services import (
     AddThirdPartySupportCommand,
+    CreateItamTenantCommand,
+    DeleteItamTenantCommand,
     GetAssetSupportCoverageReportCommand,
     GetAssetSupportProfileCommand,
+    GetItamTenantCommand,
     GetSoftwareLicenseCommand,
     GetSoftwareLicenseComplianceCommand,
+    ListItamTenantsCommand,
     RegisterManufacturerSupportCommand,
     RegisterSoftwareLicenseCommand,
+    UpdateItamTenantCommand,
     UpdateSoftwareLicenseAssignmentCommand,
 )
 from openinfra.application.search_services import GlobalSearchCommand
@@ -533,6 +538,56 @@ class OpenInfraCLI:
     def _add_itam_commands(self, subparsers: Any) -> None:
         itam = subparsers.add_parser("itam", help="IT asset management operations")
         itam_subparsers = itam.add_subparsers(dest="itam_command", required=True)
+
+        tenant_list = itam_subparsers.add_parser("tenants", help="list ITAM tenants")
+        self._add_backend_arguments(tenant_list)
+        tenant_list.add_argument("--tenant", default="default", help="security tenant scope")
+        tenant_list.add_argument("--admin-token", required=True)
+        tenant_list.add_argument("--include-retired", action="store_true")
+        tenant_list.set_defaults(handler=self._handle_itam_tenants)
+
+        tenant_create = itam_subparsers.add_parser("tenant-create", help="create ITAM tenant")
+        self._add_backend_arguments(tenant_create)
+        tenant_create.add_argument("--tenant", required=True, help="ITAM tenant id to create")
+        tenant_create.add_argument("--actor", default="cli")
+        tenant_create.add_argument("--admin-token", required=True)
+        tenant_create.add_argument("--scope-tenant", default="default")
+        tenant_create.add_argument("--name", required=True)
+        tenant_create.add_argument(
+            "--status", default="active", choices=("active", "suspended", "retired")
+        )
+        tenant_create.add_argument("--default", action="store_true", dest="is_default")
+        tenant_create.add_argument("--description")
+        tenant_create.set_defaults(handler=self._handle_itam_tenant_create)
+
+        tenant_show = itam_subparsers.add_parser("tenant", help="show ITAM tenant")
+        self._add_backend_arguments(tenant_show)
+        tenant_show.add_argument("--tenant", required=True)
+        tenant_show.add_argument("--admin-token", required=True)
+        tenant_show.set_defaults(handler=self._handle_itam_tenant)
+
+        tenant_update = itam_subparsers.add_parser("tenant-update", help="update ITAM tenant")
+        self._add_backend_arguments(tenant_update)
+        tenant_update.add_argument("--tenant", required=True)
+        tenant_update.add_argument("--actor", default="cli")
+        tenant_update.add_argument("--admin-token", required=True)
+        tenant_update.add_argument("--scope-tenant", default="default")
+        tenant_update.add_argument("--name")
+        tenant_update.add_argument("--status", choices=("active", "suspended", "retired"))
+        tenant_update.add_argument("--default", action="store_true", dest="is_default")
+        tenant_update.add_argument("--clear-default", action="store_true")
+        tenant_update.add_argument("--description")
+        tenant_update.set_defaults(handler=self._handle_itam_tenant_update)
+
+        tenant_delete = itam_subparsers.add_parser(
+            "tenant-delete", help="retire ITAM tenant without destructive deletion"
+        )
+        self._add_backend_arguments(tenant_delete)
+        tenant_delete.add_argument("--tenant", required=True)
+        tenant_delete.add_argument("--actor", default="cli")
+        tenant_delete.add_argument("--admin-token", required=True)
+        tenant_delete.add_argument("--scope-tenant", default="default")
+        tenant_delete.set_defaults(handler=self._handle_itam_tenant_delete)
 
         register_manufacturer = itam_subparsers.add_parser(
             "register-manufacturer-support",
@@ -2775,6 +2830,78 @@ class OpenInfraCLI:
             )
         )
         print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_itam_tenants(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        catalog = app.itam_support_service.list_tenants(
+            ListItamTenantsCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                include_retired=args.include_retired,
+            )
+        )
+        print(json.dumps(catalog.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_itam_tenant_create(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        tenant = app.itam_support_service.create_tenant(
+            CreateItamTenantCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                name=args.name,
+                scope_tenant_id=args.scope_tenant,
+                status=args.status,
+                is_default=args.is_default,
+                description=args.description,
+            )
+        )
+        print(json.dumps(tenant.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_itam_tenant(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        tenant = app.itam_support_service.get_tenant(
+            GetItamTenantCommand(tenant_id=args.tenant, admin_token=args.admin_token)
+        )
+        print(json.dumps(tenant.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_itam_tenant_update(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        is_default = None
+        if args.is_default:
+            is_default = True
+        elif args.clear_default:
+            is_default = False
+        tenant = app.itam_support_service.update_tenant(
+            UpdateItamTenantCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                scope_tenant_id=args.scope_tenant,
+                name=args.name,
+                status=args.status,
+                is_default=is_default,
+                description=args.description,
+            )
+        )
+        print(json.dumps(tenant.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_itam_tenant_delete(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        tenant = app.itam_support_service.delete_tenant(
+            DeleteItamTenantCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                scope_tenant_id=args.scope_tenant,
+            )
+        )
+        print(json.dumps(tenant.as_dict(), indent=2, sort_keys=True))
         return 0
 
     def _handle_itam_register_manufacturer_support(self, args: argparse.Namespace) -> int:

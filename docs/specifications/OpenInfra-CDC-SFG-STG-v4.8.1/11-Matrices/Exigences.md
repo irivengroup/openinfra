@@ -170,3 +170,7 @@ OpenInfra ajoute `REQ-00804` pour produire des plans discovery locale Lite/Pro a
 ## v0.29.61 — panneau latéral groupé par contexte
 
 OpenInfra ajoute `REQ-00805` pour structurer le panneau latéral `openinfra-web` par contextes fonctionnels sous chaque composant. Les groupes couvrent RSOT, IPAM, DCIM, ITAM, Discovery, Imports/Exports, Intégrations externes et Sécurité. Les connecteurs Intégrations sont groupés par fournisseur ServiceNow, Jira Assets, GLPI Inventory et Freshservice Assets ; OpenService reste absent du portail web OpenInfra.
+
+## v0.29.62 — référentiel tenants ITAM
+
+- `REQ-00806` — OpenInfra doit gérer les tenants ITAM avec CRUD, tenant par défaut unique, retrait logique, sélection web par liste et auto-sélection lorsqu’un seul tenant actif existe.

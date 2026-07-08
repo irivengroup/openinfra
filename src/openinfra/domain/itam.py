@@ -52,6 +52,153 @@ class SoftwareLicenseComplianceState(StrEnum):
     PLANNED = "planned"
 
 
+class ItamTenantStatus(StrEnum):
+    ACTIVE = "active"
+    SUSPENDED = "suspended"
+    RETIRED = "retired"
+
+
+@dataclass(frozen=True, slots=True)
+class ItamTenant:
+    id: TenantId
+    name: Name
+    status: ItamTenantStatus
+    is_default: bool
+    description: str | None
+    created_by: str
+    created_at: datetime
+    updated_by: str
+    updated_at: datetime
+
+    @classmethod
+    def create(
+        cls,
+        tenant_id: str | TenantId,
+        name: str,
+        actor: str,
+        status: str = "active",
+        is_default: bool = False,
+        description: str | None = None,
+    ) -> Self:
+        identifier = (
+            tenant_id if isinstance(tenant_id, TenantId) else TenantId.from_value(tenant_id)
+        )
+        now = datetime.now(UTC)
+        return cls.restore(
+            tenant_id=identifier,
+            name=name,
+            status=status,
+            is_default=is_default,
+            description=description,
+            created_by=actor,
+            created_at=now,
+            updated_by=actor,
+            updated_at=now,
+        )
+
+    @classmethod
+    def restore(
+        cls,
+        tenant_id: str | TenantId,
+        name: str,
+        status: str,
+        is_default: bool,
+        description: str | None,
+        created_by: str,
+        created_at: datetime,
+        updated_by: str,
+        updated_at: datetime,
+    ) -> Self:
+        identifier = (
+            tenant_id if isinstance(tenant_id, TenantId) else TenantId.from_value(tenant_id)
+        )
+        try:
+            status_value = ItamTenantStatus(status.strip().lower())
+        except ValueError as exc:
+            raise ValidationError(
+                "ITAM tenant status must be active, suspended or retired"
+            ) from exc
+        return cls(
+            id=identifier,
+            name=Name.from_value(name, "ITAM tenant name"),
+            status=status_value,
+            is_default=bool(is_default),
+            description=ItamValidation.normalized_optional_text(
+                description, "ITAM tenant description", 1024
+            ),
+            created_by=ItamValidation.normalized_actor(created_by),
+            created_at=ItamValidation.normalized_datetime(created_at, "ITAM tenant creation date"),
+            updated_by=ItamValidation.normalized_actor(updated_by),
+            updated_at=ItamValidation.normalized_datetime(updated_at, "ITAM tenant update date"),
+        )
+
+    def update(
+        self,
+        *,
+        actor: str,
+        name: str | None = None,
+        status: str | None = None,
+        is_default: bool | None = None,
+        description: str | None = None,
+    ) -> Self:
+        return self.restore(
+            tenant_id=self.id,
+            name=self.name.value if name is None else name,
+            status=self.status.value if status is None else status,
+            is_default=self.is_default if is_default is None else is_default,
+            description=self.description if description is None else description,
+            created_by=self.created_by,
+            created_at=self.created_at,
+            updated_by=actor,
+            updated_at=datetime.now(UTC),
+        )
+
+    def retire(self, actor: str) -> Self:
+        return self.update(actor=actor, status=ItamTenantStatus.RETIRED.value, is_default=False)
+
+    def selectable(self) -> bool:
+        return self.status == ItamTenantStatus.ACTIVE
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "tenant_id": self.id.value,
+            "name": self.name.value,
+            "status": self.status.value,
+            "is_default": self.is_default,
+            "description": self.description,
+            "selectable": self.selectable(),
+            "created_by": self.created_by,
+            "created_at": self.created_at.isoformat(),
+            "updated_by": self.updated_by,
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ItamTenantCatalog:
+    items: tuple[ItamTenant, ...]
+    default_tenant_id: str | None
+    auto_selected_tenant_id: str | None
+
+    @classmethod
+    def from_items(cls, items: tuple[ItamTenant, ...]) -> Self:
+        active = tuple(item for item in items if item.selectable())
+        explicit_default = next((item.id.value for item in active if item.is_default), None)
+        auto_selected = active[0].id.value if len(active) == 1 else None
+        return cls(
+            items=items,
+            default_tenant_id=explicit_default or auto_selected,
+            auto_selected_tenant_id=auto_selected,
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "items": [item.as_dict() for item in self.items],
+            "default_tenant_id": self.default_tenant_id,
+            "auto_selected_tenant_id": self.auto_selected_tenant_id,
+        }
+
+
 @dataclass(frozen=True, slots=True)
 class Asset:
     id: EntityId

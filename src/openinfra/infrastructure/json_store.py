@@ -126,6 +126,7 @@ from openinfra.domain.ipam import (
 )
 from openinfra.domain.itam import (
     ItamDateParser,
+    ItamTenant,
     ManufacturerWarranty,
     PhysicalAssetSupportProfile,
     SoftwareLicenseEntitlement,
@@ -252,6 +253,7 @@ class JsonDocumentStore:
             "export_jobs": {},
             "export_artifacts": {},
             "discovery_collectors": {},
+            "itam_tenants": {},
             "asset_support_profiles": {},
             "software_license_entitlements": {},
         }
@@ -3222,6 +3224,69 @@ class IterableSerializer:
 class JsonItamSupportRepository(ItamSupportRepository):
     def __init__(self, store: JsonDocumentStore) -> None:
         self._store = store
+
+    def save_tenant(self, tenant: ItamTenant) -> None:
+        self._store.data["itam_tenants"][tenant.id.value] = tenant.as_dict()
+        self._store.mark_dirty()
+
+    def find_tenant(self, tenant_id: TenantId) -> ItamTenant | None:
+        value = self._store.data["itam_tenants"].get(tenant_id.value)
+        if value is None:
+            return None
+        return self._tenant_from_dict(value)
+
+    def list_tenants(self, include_retired: bool = False) -> tuple[ItamTenant, ...]:
+        tenants = tuple(
+            sorted(
+                (
+                    self._tenant_from_dict(value)
+                    for value in self._store.data["itam_tenants"].values()
+                    if isinstance(value, dict)
+                ),
+                key=lambda item: (not item.is_default, item.name.value.lower(), item.id.value),
+            )
+        )
+        if not include_retired:
+            tenants = tuple(item for item in tenants if item.status.value != "retired")
+        if tenants:
+            return tenants
+        default = ItamTenant.create(
+            tenant_id="default",
+            name="Default",
+            actor="system",
+            is_default=True,
+            description="Default ITAM tenant created for single-tenant installations.",
+        )
+        self.save_tenant(default)
+        return (default,)
+
+    def clear_default_tenant(self, except_tenant_id: TenantId | None = None) -> None:
+        changed = False
+        for key, value in list(self._store.data["itam_tenants"].items()):
+            if not isinstance(value, dict) or not bool(value.get("is_default")):
+                continue
+            if except_tenant_id is not None and key == except_tenant_id.value:
+                continue
+            tenant = self._tenant_from_dict(value).update(actor="system", is_default=False)
+            self._store.data["itam_tenants"][key] = tenant.as_dict()
+            changed = True
+        if changed:
+            self._store.mark_dirty()
+
+    def _tenant_from_dict(self, value: dict[str, Any]) -> ItamTenant:
+        return ItamTenant.restore(
+            tenant_id=str(value["tenant_id"]),
+            name=str(value["name"]),
+            status=str(value["status"]),
+            is_default=bool(value.get("is_default", False)),
+            description=(
+                None if value.get("description") is None else str(value.get("description"))
+            ),
+            created_by=str(value["created_by"]),
+            created_at=datetime.fromisoformat(str(value["created_at"])),
+            updated_by=str(value["updated_by"]),
+            updated_at=datetime.fromisoformat(str(value["updated_at"])),
+        )
 
     def save_support_profile(self, profile: PhysicalAssetSupportProfile) -> None:
         key = self._key(profile.tenant_id, profile.asset_tag.value)

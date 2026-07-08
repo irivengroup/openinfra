@@ -14,6 +14,9 @@ from openinfra.domain.common import (
 )
 from openinfra.domain.itam import (
     ItamDateParser,
+    ItamTenant,
+    ItamTenantCatalog,
+    ItamTenantStatus,
     ManufacturerWarranty,
     PhysicalAssetSupportCoverageReport,
     PhysicalAssetSupportProfile,
@@ -22,6 +25,51 @@ from openinfra.domain.itam import (
     ThirdPartySupportContract,
 )
 from openinfra.domain.security import Permission
+
+
+@dataclass(frozen=True, slots=True)
+class CreateItamTenantCommand:
+    tenant_id: str
+    actor: str
+    admin_token: str
+    name: str
+    scope_tenant_id: str = "default"
+    status: str = "active"
+    is_default: bool = False
+    description: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class UpdateItamTenantCommand:
+    tenant_id: str
+    actor: str
+    admin_token: str
+    scope_tenant_id: str = "default"
+    name: str | None = None
+    status: str | None = None
+    is_default: bool | None = None
+    description: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class DeleteItamTenantCommand:
+    tenant_id: str
+    actor: str
+    admin_token: str
+    scope_tenant_id: str = "default"
+
+
+@dataclass(frozen=True, slots=True)
+class GetItamTenantCommand:
+    tenant_id: str
+    admin_token: str
+
+
+@dataclass(frozen=True, slots=True)
+class ListItamTenantsCommand:
+    tenant_id: str
+    admin_token: str
+    include_retired: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -128,6 +176,144 @@ class ItamSupportService:
         self._audit_repository = audit_repository
         self._transaction_manager = transaction_manager
         self._security_service = security_service
+
+    def create_tenant(self, command: CreateItamTenantCommand) -> ItamTenant:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        scope_tenant_id = TenantId.from_value(command.scope_tenant_id)
+        principal = self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                scope_tenant_id.value, command.admin_token, Permission.ITAM_WRITE
+            )
+        )
+        tenant = ItamTenant.create(
+            tenant_id=tenant_id,
+            name=command.name,
+            actor=command.actor,
+            status=command.status,
+            is_default=command.is_default,
+            description=command.description,
+        )
+        if tenant.is_default and not tenant.selectable():
+            raise ValidationError("only an active ITAM tenant can be the default")
+        with self._transaction_manager.begin() as unit_of_work:
+            existing = self._repository.find_tenant(tenant.id)
+            if existing is not None and existing.status != ItamTenantStatus.RETIRED:
+                raise ConflictError("ITAM tenant already exists")
+            if tenant.is_default:
+                self._repository.clear_default_tenant(except_tenant_id=tenant.id)
+            self._repository.save_tenant(tenant)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant.id,
+                    actor=principal.subject,
+                    action="itam.tenant.create",
+                    target_type="itam_tenant",
+                    target_id=tenant.id.value,
+                    metadata={
+                        "tenant_id": tenant.id.value,
+                        "name": tenant.name.value,
+                        "status": tenant.status.value,
+                        "is_default": tenant.is_default,
+                        "declared_actor": command.actor,
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return tenant
+
+    def update_tenant(self, command: UpdateItamTenantCommand) -> ItamTenant:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        scope_tenant_id = TenantId.from_value(command.scope_tenant_id)
+        principal = self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                scope_tenant_id.value, command.admin_token, Permission.ITAM_WRITE
+            )
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            existing = self._repository.find_tenant(tenant_id)
+            if existing is None:
+                raise NotFoundError("ITAM tenant not found")
+            updated = existing.update(
+                actor=command.actor,
+                name=command.name,
+                status=command.status,
+                is_default=command.is_default,
+                description=command.description,
+            )
+            if updated.is_default and not updated.selectable():
+                raise ValidationError("only an active ITAM tenant can be the default")
+            if updated.is_default:
+                self._repository.clear_default_tenant(except_tenant_id=updated.id)
+            self._repository.save_tenant(updated)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=principal.subject,
+                    action="itam.tenant.update",
+                    target_type="itam_tenant",
+                    target_id=updated.id.value,
+                    metadata={
+                        "tenant_id": updated.id.value,
+                        "name": updated.name.value,
+                        "status": updated.status.value,
+                        "is_default": updated.is_default,
+                        "declared_actor": command.actor,
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return updated
+
+    def delete_tenant(self, command: DeleteItamTenantCommand) -> ItamTenant:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        scope_tenant_id = TenantId.from_value(command.scope_tenant_id)
+        principal = self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                scope_tenant_id.value, command.admin_token, Permission.ITAM_WRITE
+            )
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            existing = self._repository.find_tenant(tenant_id)
+            if existing is None:
+                raise NotFoundError("ITAM tenant not found")
+            retired = existing.retire(command.actor)
+            self._repository.save_tenant(retired)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=principal.subject,
+                    action="itam.tenant.retire",
+                    target_type="itam_tenant",
+                    target_id=retired.id.value,
+                    metadata={
+                        "tenant_id": retired.id.value,
+                        "name": retired.name.value,
+                        "declared_actor": command.actor,
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return retired
+
+    def get_tenant(self, command: GetItamTenantCommand) -> ItamTenant:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        self._security_service.authenticate_token(
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITAM_READ)
+        )
+        tenant = self._repository.find_tenant(tenant_id)
+        if tenant is None:
+            raise NotFoundError("ITAM tenant not found")
+        return tenant
+
+    def list_tenants(self, command: ListItamTenantsCommand) -> ItamTenantCatalog:
+        scope_tenant_id = TenantId.from_value(command.tenant_id)
+        self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                scope_tenant_id.value, command.admin_token, Permission.ITAM_READ
+            )
+        )
+        tenants = self._repository.list_tenants(command.include_retired)
+        return ItamTenantCatalog.from_items(tenants)
 
     def register_manufacturer_support(
         self, command: RegisterManufacturerSupportCommand

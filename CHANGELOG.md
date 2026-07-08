@@ -1,3 +1,12 @@
+### v0.29.62 — référentiel tenants ITAM
+
+- Ajout du domaine `ItamTenant`, `ItamTenantStatus` et `ItamTenantCatalog` pour gérer le cycle de vie des tenants ITAM.
+- Ajout CLI/API pour créer, lire, lister, modifier et retirer logiquement les tenants ITAM.
+- Ajout de la persistance JSON/PostgreSQL et de la migration `0029_itam_tenant_lifecycle.sql`.
+- Ajout d’un sélecteur tenant web alimenté par le catalogue ITAM, avec fallback texte et auto-sélection lorsqu’un seul tenant actif existe.
+- Ajout de garde-fous : un seul tenant par défaut, impossibilité de définir un tenant suspendu/retiré comme défaut, suppression non destructive.
+- Ajout de tests domaine, services, API HTTP, CLI, PostgreSQL migration et portail web.
+
 ### v0.29.61 — discovery locale Lite/Pro sans agent
 
 - Ajout du domaine de planification discovery locale : `LocalDiscoveryPlan`, `LocalDiscoveryJobPlan`, `LocalDiscoveryProtocol`, `LocalDiscoveryTarget`.

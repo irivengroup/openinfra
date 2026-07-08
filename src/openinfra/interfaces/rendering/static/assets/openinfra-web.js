@@ -902,6 +902,11 @@ const OPENINFRA_MODULES = [
     { id: "dcim-energy-cooling-capacity", label: "Capacité énergie/refroidissement", method: "GET", path: "/v1/dcim/energy-cooling-capacity", query: [{ name: "site", label: "Site", required: true, placeholder: "PAR1" }, { name: "building", label: "Bâtiment", required: true, placeholder: "BAT-A" }, { name: "room", label: "Salle", required: true, placeholder: "MMR1" }, { name: "rack", label: "Rack", required: true, placeholder: "R01" }] }
   ] },
   { id: "itam", label: "IT Asset Management", shortLabel: "ITAM", icon: "asset", description: "Inventaire financier et opérationnel des actifs, garanties constructeur, supports tiers et couverture renouvellement.", operations: [
+    { id: "itam-tenants", label: "Lister les tenants ITAM", method: "GET", path: "/v1/itam/tenants", query: [{ name: "include_retired", label: "Inclure retirés", type: "boolean" }] },
+    { id: "itam-tenant", label: "Voir un tenant ITAM", method: "GET", path: "/v1/itam/tenant", query: [] },
+    { id: "itam-tenant-create", label: "Créer tenant ITAM", method: "POST", path: "/v1/itam/tenant/create", body: [{ name: "tenant_id", label: "ID tenant", required: true, placeholder: "production" }, FIELD_SETS.actor, { name: "scope_tenant_id", label: "Tenant de sécurité", placeholder: "default" }, { name: "name", label: "Nom tenant", required: true, placeholder: "Production" }, { name: "status", label: "Statut", type: "select", options: ["active", "suspended", "retired"], defaultValue: "active" }, { name: "is_default", label: "Tenant par défaut", type: "boolean" }, { name: "description", label: "Description", placeholder: "Périmètre du tenant" }] },
+    { id: "itam-tenant-update", label: "Modifier tenant ITAM", method: "POST", path: "/v1/itam/tenant/update", body: [FIELD_SETS.actor, { name: "scope_tenant_id", label: "Tenant de sécurité", placeholder: "default" }, { name: "name", label: "Nom tenant", placeholder: "Production" }, { name: "status", label: "Statut", type: "select", options: ["", "active", "suspended", "retired"] }, { name: "is_default", label: "Tenant par défaut", type: "boolean" }, { name: "description", label: "Description", placeholder: "Périmètre du tenant" }] },
+    { id: "itam-tenant-delete", label: "Retirer tenant ITAM", method: "POST", path: "/v1/itam/tenant/delete", body: [FIELD_SETS.actor, { name: "scope_tenant_id", label: "Tenant de sécurité", placeholder: "default" }] },
     { id: "itam-support-profile", label: "Profil support actif", method: "GET", path: "/v1/itam/support-profile", query: [{ name: "asset_tag", label: "Numéro d’actif", required: true, placeholder: "PAR-SRV-001" }] },
     { id: "itam-support-coverage", label: "Couverture support actif", method: "GET", path: "/v1/itam/support-coverage", query: [{ name: "asset_tag", label: "Numéro d’actif", required: true, placeholder: "PAR-SRV-001" }, { name: "as_of", label: "Date de référence", placeholder: "2026-07-07" }] },
     { id: "itam-register-manufacturer", label: "Déclarer garantie constructeur", method: "POST", path: "/v1/itam/support-profile/manufacturer", body: [FIELD_SETS.actor, { name: "asset_tag", label: "Numéro d’actif", required: true, placeholder: "PAR-SRV-001" }, { name: "manufacturer", label: "Constructeur", required: true, placeholder: "Dell" }, { name: "warranty_reference", label: "Référence garantie", required: true, placeholder: "WR-123" }, { name: "warranty_level", label: "Niveau garantie", required: true, placeholder: "ProSupport" }, { name: "warranty_start", label: "Début garantie", required: true, placeholder: "2026-01-01" }, { name: "warranty_end", label: "Fin garantie", required: true, placeholder: "2029-01-01" }, { name: "support_reference", label: "Référence support", required: true, placeholder: "SUP-123" }, { name: "support_level", label: "Niveau support", required: true, placeholder: "24x7" }, { name: "support_contact", label: "Contact support", required: true, placeholder: "support@example.com" }] },
@@ -965,6 +970,7 @@ const OPENINFRA_SIDEBAR_CONTEXTS = {
     { label: "Jumeau numérique", operationIds: ["dcim-digital-twin"] }
   ],
   itam: [
+    { label: "Tenants", operationIds: ["itam-tenants", "itam-tenant", "itam-tenant-create", "itam-tenant-update", "itam-tenant-delete"] },
     { label: "Support matériel", operationIds: ["itam-support-profile", "itam-support-coverage", "itam-register-manufacturer", "itam-add-third-party"] },
     { label: "Licences logicielles", operationIds: ["itam-software-license", "itam-software-compliance", "itam-register-software", "itam-update-license-assignment"] }
   ],
@@ -1000,6 +1006,8 @@ class OpenInfraDashboard {
       selected: OPENINFRA_MODULES[0].operations[0],
       openedModules: new Set(["rsot"]),
       tenant: "default",
+      tenantCatalog: null,
+      tenantCatalogError: null,
       config: null,
       ready: null,
       status: null,
@@ -1033,9 +1041,51 @@ class OpenInfraDashboard {
         fetch("/status", { credentials: "same-origin", headers: { Accept: "application/json" } }).then((response) => response.ok ? response.json() : { protectedForms: "unknown", trust: {} })
       ]);
       this.state = { ...this.state, config, version, ready, status, error: null };
+      await this.refreshTenantCatalog();
     } catch (error) {
       this.state = { ...this.state, error };
     }
+  }
+
+  async refreshTenantCatalog() {
+    try {
+      const base = String(this.state.config?.apiBaseUrl || "/api").replace(/\/$/, "");
+      const response = await fetch(`${base}/v1/itam/tenants?tenant_id=${encodeURIComponent(this.state.tenant || "default")}`, {
+        credentials: "same-origin",
+        headers: { Accept: "application/json" }
+      });
+      if (!response.ok) {
+        throw new Error(`ITAM tenant catalog returned ${response.status}`);
+      }
+      const catalog = await response.json();
+      const selectable = (catalog.items || []).filter((item) => item.selectable !== false && item.status === "active");
+      const selected = catalog.auto_selected_tenant_id || catalog.default_tenant_id || this.state.tenant;
+      this.state = {
+        ...this.state,
+        tenantCatalog: catalog,
+        tenantCatalogError: null,
+        tenant: selectable.some((item) => item.tenant_id === selected) ? selected : this.state.tenant
+      };
+    } catch (error) {
+      this.state = { ...this.state, tenantCatalog: null, tenantCatalogError: error };
+    }
+  }
+
+  tenantOptions() {
+    return (this.state.tenantCatalog?.items || [])
+      .filter((tenant) => tenant.selectable !== false && tenant.status === "active")
+      .map((tenant) => ({
+        value: tenant.tenant_id,
+        label: `${tenant.name || tenant.tenant_id}${tenant.is_default ? " — défaut" : ""}`
+      }));
+  }
+
+  renderTenantSelector() {
+    const options = this.tenantOptions();
+    if (options.length > 0) {
+      return `<label class="col-md-4 form-label">Tenant<select id="openinfra-tenant" class="form-select">${this.renderOptions(options, this.state.tenant)}</select></label>`;
+    }
+    return `<label class="col-md-4 form-label">Tenant<input id="openinfra-tenant" class="form-control" value="${this.escape(this.state.tenant)}" autocomplete="off"></label>`;
   }
 
   client() {
@@ -1421,7 +1471,7 @@ class OpenInfraDashboard {
       <section class="col-12 col-xxl-8">
         <h2 class="h4">${this.escape(operation.label)}</h2>
         <p class="text-muted">${this.escape(module.description)}</p>
-        <div class="row g-3 mb-3"><label class="col-md-4 form-label">Tenant<input id="openinfra-tenant" class="form-control" value="${this.escape(this.state.tenant)}" autocomplete="off"></label></div>
+        <div class="row g-3 mb-3">${this.renderTenantSelector()}</div>
         <div class="row g-3">${fields.map((field) => this.renderField(field)).join("") || "<p>Aucun paramètre requis.</p>"}</div>
         <button class="btn btn-primary mt-3" type="button" id="openinfra-execute">Exécuter</button>
       </section>
@@ -1504,6 +1554,9 @@ class OpenInfraDashboard {
   bindEvents() {
     document.getElementById("openinfra-execute")?.addEventListener("click", () => this.executeSelected());
     document.getElementById("openinfra-tenant")?.addEventListener("input", (event) => {
+      this.state = { ...this.state, tenant: event.target.value };
+    });
+    document.getElementById("openinfra-tenant")?.addEventListener("change", (event) => {
       this.state = { ...this.state, tenant: event.target.value };
     });
     const globalSearchInput = document.getElementById("openinfra-global-search");
@@ -1675,6 +1728,9 @@ class OpenInfraDashboard {
         payload[input.dataset.field] = input.value;
       }
       const data = await this.client().request(this.state.selected, payload);
+      if (this.state.selected.id.startsWith("itam-tenant")) {
+        await this.refreshTenantCatalog();
+      }
       this.state = { ...this.state, result: data, error: null };
     } catch (error) {
       this.state = { ...this.state, error, result: null };

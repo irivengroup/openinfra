@@ -76,3 +76,4 @@ REQ-00801,Préparation OpenService CMDB autonome sans UI openinfra-web,P25,EPIC-
 REQ-00802,Rollback conflict-aware des imports massifs appliqués,P13,EPIC-1305,0.29.59,TST-P13-BULK-IMPORT-ROLLBACK-CONFLICT-AWARE
 REQ-00803,Guides opérables de migration données P13,P13,EPIC-1306,0.29.60,TST-P13-DATA-MIGRATION-GUIDES
 REQ-00804,Discovery locale Lite/Pro sans agent,P14,EPIC-1401,0.29.61,TST-P14-LOCAL-DISCOVERY-PLAN
+REQ-00806,Référentiel tenants ITAM,P14,EPIC-1402,0.29.62,TST-P14-ITAM-TENANT-LIFECYCLE

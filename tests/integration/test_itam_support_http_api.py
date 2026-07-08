@@ -96,3 +96,61 @@ def test_itam_support_profile_http_contract(tmp_path: Path) -> None:
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
+
+
+def test_itam_tenant_http_contract(tmp_path: Path) -> None:
+    app = ApplicationFactory().create_json_application(tmp_path / "state-tenants.json")
+    token = "t" * 40
+    app.security_service.bootstrap_token(
+        BootstrapTokenCommand(
+            tenant_id="default",
+            actor="pytest",
+            subject="itam-tenant-http",
+            roles=("admin",),
+            token=token,
+        )
+    )
+    server = OpenInfraThreadingServer(("127.0.0.1", 0), app, auth_required=True)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        base = f"http://127.0.0.1:{server.server_port}"
+        catalog = _get_json(base + "/api/v1/itam/tenants?tenant_id=default", token)
+        assert catalog["auto_selected_tenant_id"] == "default"
+
+        created = _post_json(
+            base + "/api/v1/itam/tenant/create",
+            {
+                "tenant_id": "finance",
+                "scope_tenant_id": "default",
+                "name": "Finance",
+                "is_default": True,
+            },
+            token,
+        )
+        assert created["tenant_id"] == "finance"
+        assert created["is_default"] is True
+
+        updated = _post_json(
+            base + "/api/v1/itam/tenant/update",
+            {
+                "tenant_id": "finance",
+                "scope_tenant_id": "default",
+                "name": "Finance IT",
+                "is_default": False,
+            },
+            token,
+        )
+        assert updated["name"] == "Finance IT"
+        assert updated["is_default"] is False
+
+        retired = _post_json(
+            base + "/api/v1/itam/tenant/delete",
+            {"tenant_id": "finance", "scope_tenant_id": "default"},
+            token,
+        )
+        assert retired["status"] == "retired"
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)

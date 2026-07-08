@@ -129,6 +129,7 @@ from openinfra.domain.ipam import (
 )
 from openinfra.domain.itam import (
     ItamDateParser,
+    ItamTenant,
     ManufacturerWarranty,
     PhysicalAssetSupportProfile,
     SoftwareLicenseEntitlement,
@@ -4822,6 +4823,103 @@ class PostgreSQLSourceOfTruthRepository(PostgreSQLRepositoryBase, SourceOfTruthR
 
 
 class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepository):
+    def save_tenant(self, tenant: ItamTenant) -> None:
+        self._ensure_tenant(tenant.id)
+        self._execute_without_result(
+            """
+            INSERT INTO itam_tenants (
+                tenant_id, name, status, is_default, description,
+                created_by, created_at, updated_by, updated_at
+            ) VALUES (
+                %(tenant_id)s, %(name)s, %(status)s, %(is_default)s, %(description)s,
+                %(created_by)s, %(created_at)s, %(updated_by)s, %(updated_at)s
+            )
+            ON CONFLICT (tenant_id) DO UPDATE SET
+                name = EXCLUDED.name,
+                status = EXCLUDED.status,
+                is_default = EXCLUDED.is_default,
+                description = EXCLUDED.description,
+                updated_by = EXCLUDED.updated_by,
+                updated_at = EXCLUDED.updated_at
+            """,
+            {
+                "tenant_id": tenant.id.value,
+                "name": tenant.name.value,
+                "status": tenant.status.value,
+                "is_default": tenant.is_default,
+                "description": tenant.description,
+                "created_by": tenant.created_by,
+                "created_at": tenant.created_at,
+                "updated_by": tenant.updated_by,
+                "updated_at": tenant.updated_at,
+            },
+        )
+
+    def find_tenant(self, tenant_id: TenantId) -> ItamTenant | None:
+        row = self._fetch_one(
+            """
+            SELECT tenant_id, name, status, is_default, description,
+                   created_by, created_at, updated_by, updated_at
+            FROM itam_tenants
+            WHERE tenant_id = %(tenant_id)s
+            """,
+            {"tenant_id": tenant_id.value},
+        )
+        return self._tenant_from_row(row) if row else None
+
+    def list_tenants(self, include_retired: bool = False) -> tuple[ItamTenant, ...]:
+        where = "" if include_retired else "WHERE status <> 'retired'"
+        rows = self._fetch_all(
+            f"""
+            SELECT tenant_id, name, status, is_default, description,
+                   created_by, created_at, updated_by, updated_at
+            FROM itam_tenants
+            {where}
+            ORDER BY is_default DESC, name ASC, tenant_id ASC
+            """,
+            {},
+        )
+        if rows:
+            return tuple(self._tenant_from_row(row) for row in rows)
+        default = ItamTenant.create(
+            tenant_id="default",
+            name="Default",
+            actor="system",
+            is_default=True,
+            description="Default ITAM tenant created for single-tenant installations.",
+        )
+        self.save_tenant(default)
+        return (default,)
+
+    def clear_default_tenant(self, except_tenant_id: TenantId | None = None) -> None:
+        if except_tenant_id is None:
+            self._execute_without_result(
+                "UPDATE itam_tenants SET is_default = false WHERE is_default = true",
+                {},
+            )
+            return
+        self._execute_without_result(
+            """
+            UPDATE itam_tenants
+            SET is_default = false
+            WHERE is_default = true AND tenant_id <> %(tenant_id)s
+            """,
+            {"tenant_id": except_tenant_id.value},
+        )
+
+    def _tenant_from_row(self, row: Mapping[str, object]) -> ItamTenant:
+        return ItamTenant.restore(
+            tenant_id=str(row["tenant_id"]),
+            name=str(row["name"]),
+            status=str(row["status"]),
+            is_default=bool(row["is_default"]),
+            description=(None if row.get("description") is None else str(row.get("description"))),
+            created_by=str(row["created_by"]),
+            created_at=self._row_datetime(row["created_at"]),
+            updated_by=str(row["updated_by"]),
+            updated_at=self._row_datetime(row["updated_at"]),
+        )
+
     def save_support_profile(self, profile: PhysicalAssetSupportProfile) -> None:
         self._ensure_tenant(profile.tenant_id)
         self._execute_without_result(

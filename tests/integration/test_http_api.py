@@ -87,6 +87,11 @@ class TestHttpApi:
                     "feature_check": "/api/v1/editions/feature-check",
                     "quota_check": "/api/v1/editions/quota-check",
                 },
+                "integrations": {
+                    "itsm_providers": "/api/v1/integrations/itsm/providers",
+                    "servicenow_validate": "/api/v1/integrations/itsm/servicenow/validate",
+                    "servicenow_ci_sync_plan": "/api/v1/integrations/itsm/servicenow/ci-sync-plan",
+                },
                 "itam": {
                     "support_profile": "/api/v1/itam/support-profile",
                     "support_coverage": "/api/v1/itam/support-coverage",
@@ -173,6 +178,9 @@ class TestHttpApi:
             assert "/api/v1/editions/policies" in openapi
             assert "/api/v1/editions/feature-check" in openapi
             assert "/api/v1/editions/quota-check" in openapi
+            assert "/api/v1/integrations/itsm/providers" in openapi
+            assert "/api/v1/integrations/itsm/servicenow/validate" in openapi
+            assert "/api/v1/integrations/itsm/servicenow/ci-sync-plan" in openapi
             assert "/api/v1/itam/support-profile" in openapi
             assert "/api/v1/itam/support-coverage" in openapi
             assert "/api/v1/itam/software-license" in openapi

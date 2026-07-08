@@ -261,12 +261,8 @@ body {
 }
 
 .openinfra-runtime-status {
-  background: linear-gradient(135deg, rgba(0, 174, 239, .08), rgba(0, 87, 184, .035));
-  border: 1px solid rgba(0, 174, 239, .18);
-  border-radius: .95rem;
-  color: #33556f !important;
+  color: #003D8F !important;
   margin: .25rem .5rem 1rem;
-  padding: .7rem .8rem !important;
 }
 
 .openinfra-runtime-status p {
@@ -278,7 +274,7 @@ body {
 }
 
 .openinfra-runtime-status strong {
-  color: #143d63;
+  color: #003D8F;
 }
 
 .openinfra-status-dot {
@@ -300,15 +296,21 @@ body {
 }
 
 .btn-primary {
-  --bs-btn-bg: var(--openinfra-action);
-  --bs-btn-border-color: var(--openinfra-action);
-  --bs-btn-hover-bg: var(--openinfra-blue);
-  --bs-btn-hover-border-color: var(--openinfra-blue);
-  --bs-btn-active-bg: var(--openinfra-navy-2);
-  --bs-btn-active-border-color: var(--openinfra-navy-2);
-  --bs-btn-focus-shadow-rgb: var(--openinfra-action-rgb);
+  --bs-btn-bg: #24d8ab;
+  --bs-btn-border-color: #24d8ab;
+  --bs-btn-color: #06251f;
+  --bs-btn-hover-bg: #1fc79d;
+  --bs-btn-hover-border-color: #1fc79d;
+  --bs-btn-hover-color: #041b17;
+  --bs-btn-active-bg: #18ad88;
+  --bs-btn-active-border-color: #18ad88;
+  --bs-btn-active-color: #ffffff;
+  --bs-btn-disabled-bg: #8fe8d3;
+  --bs-btn-disabled-border-color: #8fe8d3;
+  --bs-btn-disabled-color: #31564e;
+  --bs-btn-focus-shadow-rgb: 36, 216, 171;
   border-radius: .82rem;
-  box-shadow: 0 .65rem 1.35rem rgba(0, 102, 255, .22);
+  box-shadow: 0 .65rem 1.35rem rgba(36, 216, 171, .22);
   font-weight: 800;
 }
 
@@ -317,23 +319,10 @@ body {
   transform: translateY(-1px);
 }
 
-.openinfra-submit-btn {
-  --bs-btn-bg: #00a3c8;
-  --bs-btn-border-color: #00a3c8;
-  --bs-btn-color: #ffffff;
-  --bs-btn-hover-bg: #008db0;
-  --bs-btn-hover-border-color: #008db0;
-  --bs-btn-active-bg: #007795;
-  --bs-btn-active-border-color: #007795;
-  --bs-btn-focus-shadow-rgb: 0, 163, 200;
-  border-radius: .82rem;
-  box-shadow: 0 .65rem 1.35rem rgba(0, 163, 200, .22);
-  font-weight: 800;
-}
-
-.openinfra-submit-btn:hover,
-.openinfra-submit-btn:focus {
-  transform: translateY(-1px);
+.btn-primary:focus-visible {
+  box-shadow:
+    0 0 0 .18rem rgba(36, 216, 171, .35),
+    0 .65rem 1.35rem rgba(36, 216, 171, .22);
 }
 
 .badge.text-bg-primary {

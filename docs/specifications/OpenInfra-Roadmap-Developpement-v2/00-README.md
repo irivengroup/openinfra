@@ -1,3 +1,4 @@
+- 0.29.55 : ajout `TST-P25-ITSM-SERVICENOW-EXTERNAL-CONNECTOR` pour couvrir les connecteurs ITSM externes ServiceNow, sans ticketing natif, et la correction thème Bootstrap `btn-primary`/statut runtime.
 - 0.29.54 : ajout `TST-P13-ASYNC-EXPORT-STREAMING` pour couvrir EPIC-1302 avec API/CLI/UI de lecture chunkée des artefacts exportés signés.
 ## v0.29.51 — P12 ITAM licences logicielles et contrats
 

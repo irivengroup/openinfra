@@ -116,3 +116,117 @@ def test_global_search_validates_query_and_limit(tmp_path) -> None:
         app.global_search_service.search(
             GlobalSearchCommand("default", "pytest", token, "valid", limit=26)
         )
+
+
+def test_global_search_handles_skipped_groups_and_ipam_label_variants(tmp_path) -> None:
+    from openinfra.domain.common import AccessDeniedError
+
+    app = ApplicationFactory().create_json_application(tmp_path / "store.json", seed=True)
+    token = _admin_token(app)
+
+    class DenyRsot:
+        def list_objects(self, _command: object) -> object:
+            raise AccessDeniedError("rsot denied")
+
+    class DenyItam:
+        def get_support_profile(self, _command: object) -> object:
+            raise AccessDeniedError("itam denied")
+
+    class DenyDiscovery:
+        def list_collectors(self, _command: object) -> object:
+            raise AccessDeniedError("discovery denied")
+
+    class IpamWithVariants:
+        def search(self, _command: object) -> dict[str, object]:
+            return {
+                "items": [
+                    "ignored-row",
+                    {"kind": "prefix", "prefix": "alpha-prefix", "vrf": "global"},
+                    {
+                        "kind": "reservation",
+                        "address": "10.0.0.7",
+                        "hostname": "alpha-reservation",
+                        "vrf": "global",
+                    },
+                    {
+                        "kind": "dns",
+                        "hostname": "alpha.example.org",
+                        "address": "10.0.0.8",
+                        "vrf": "global",
+                    },
+                    {
+                        "kind": "dhcp_lease",
+                        "address": "10.0.0.9",
+                        "mac_address": "aa:bb:cc:dd:ee:ff",
+                        "comment": "alpha lease",
+                        "vrf": "global",
+                    },
+                    {"kind": "address", "address": "10.0.0.10", "hostname": "alpha-host"},
+                    {"kind": "address", "address": "10.0.0.11", "hostname": "beta-host"},
+                ]
+            }
+
+    app.global_search_service._rsot_service = DenyRsot()
+    app.global_search_service._itam_support_service = DenyItam()
+    app.global_search_service._discovery_service = DenyDiscovery()
+    app.global_search_service._ipam_ui_service = IpamWithVariants()
+
+    result = app.global_search_service.search(
+        GlobalSearchCommand("default", "pytest", token, "alpha", limit=10)
+    ).as_dict()
+
+    groups = {group["component"]: group for group in result["groups"]}
+    assert groups["rsot"]["reason"] == "permission denied"
+    assert groups["itam"]["reason"] == "permission denied"
+    assert groups["discovery"]["reason"] == "permission denied"
+    ipam_items = groups["ipam"]["items"]
+    assert {item["kind"] for item in ipam_items} == {
+        "prefix",
+        "reservation",
+        "dns",
+        "dhcp_lease",
+        "address",
+    }
+    labels_by_kind = {item["kind"]: item["label"] for item in ipam_items}
+    assert labels_by_kind["reservation"] == "10.0.0.7 · alpha-reservation"
+    assert labels_by_kind["dns"] == "alpha.example.org → 10.0.0.8"
+
+
+def test_global_search_empty_itam_result_when_profile_fields_do_not_match(tmp_path) -> None:
+    app = ApplicationFactory().create_json_application(tmp_path / "store.json", seed=True)
+    token = _admin_token(app)
+
+    class EmptyPage:
+        items: tuple[object, ...] = ()
+
+    class EmptyRsot:
+        def list_objects(self, _command: object) -> EmptyPage:
+            return EmptyPage()
+
+    class ItamProfileWithoutMatchingFields:
+        def as_dict(self) -> dict[str, object]:
+            return {"asset_tag": "OTHER-ASSET", "manufacturer_warranty": "invalid-shape"}
+
+    class ItamWithProfile:
+        def get_support_profile(self, _command: object) -> ItamProfileWithoutMatchingFields:
+            return ItamProfileWithoutMatchingFields()
+
+    class EmptyIpam:
+        def search(self, _command: object) -> dict[str, object]:
+            return {"items": []}
+
+    class EmptyDiscovery:
+        def list_collectors(self, _command: object) -> EmptyPage:
+            return EmptyPage()
+
+    app.global_search_service._rsot_service = EmptyRsot()
+    app.global_search_service._itam_support_service = ItamWithProfile()
+    app.global_search_service._ipam_ui_service = EmptyIpam()
+    app.global_search_service._discovery_service = EmptyDiscovery()
+
+    result = app.global_search_service.search(
+        GlobalSearchCommand("default", "pytest", token, "nomatch", limit=5)
+    ).as_dict()
+
+    groups = {group["component"]: group for group in result["groups"]}
+    assert groups["itam"]["items"] == []

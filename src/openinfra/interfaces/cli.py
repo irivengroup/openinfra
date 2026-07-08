@@ -61,6 +61,10 @@ from openinfra.application.export_services import (
     RequestExportCommand,
     RunExportJobCommand,
 )
+from openinfra.application.external_itsm_services import (
+    BuildServiceNowCiSyncPlanCommand,
+    ValidateServiceNowConnectorCommand,
+)
 from openinfra.application.identity_services import (
     AddUserToGroupCommand,
     CreateGroupCommand,
@@ -190,6 +194,7 @@ class OpenInfraCLI:
         self._add_itam_commands(subparsers)
         self._add_import_commands(subparsers)
         self._add_export_commands(subparsers)
+        self._add_integrations_commands(subparsers)
         self._add_discovery_commands(subparsers)
         self._add_rsot_commands(subparsers)
         self._add_itrm_commands(subparsers)
@@ -775,6 +780,41 @@ class OpenInfraCLI:
         migration_report.add_argument("--tenant", required=True)
         migration_report.add_argument("--job-id", required=True)
         migration_report.set_defaults(handler=self._handle_import_migration_report)
+
+    def _add_integrations_commands(self, subparsers: Any) -> None:
+        integrations = subparsers.add_parser(
+            "integrations", help="external integration connectors without native ITSM ticketing"
+        )
+        integration_subparsers = integrations.add_subparsers(
+            dest="integrations_command", required=True
+        )
+
+        providers = integration_subparsers.add_parser(
+            "itsm-providers", help="list supported external ITSM connector policies"
+        )
+        self._add_backend_arguments(providers)
+        providers.set_defaults(handler=self._handle_integrations_itsm_providers)
+
+        validate = integration_subparsers.add_parser(
+            "servicenow-validate", help="validate a ServiceNow external connector profile"
+        )
+        self._add_backend_arguments(validate)
+        validate.add_argument("--tenant", required=True)
+        validate.add_argument("--instance-url", required=True)
+        validate.add_argument("--table-name", default="cmdb_ci")
+        validate.add_argument("--auth-secret-ref", required=True)
+        validate.add_argument("--disabled", action="store_true")
+        validate.set_defaults(handler=self._handle_integrations_servicenow_validate)
+
+        plan = integration_subparsers.add_parser(
+            "servicenow-ci-sync-plan", help="build a safe ServiceNow CI sync plan"
+        )
+        self._add_backend_arguments(plan)
+        plan.add_argument("--tenant", required=True)
+        plan.add_argument("--resource-key", required=True)
+        plan.add_argument("--direction", default="push_ci")
+        plan.add_argument("--target-table", default="cmdb_ci")
+        plan.set_defaults(handler=self._handle_integrations_servicenow_ci_sync_plan)
 
     def _add_discovery_commands(self, subparsers: Any) -> None:
         discovery = subparsers.add_parser(
@@ -2324,6 +2364,48 @@ class OpenInfraCLI:
         app = self._create_application(args)
         report = app.import_service.get_migration_plan(args.tenant, args.job_id)
         print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_integrations_itsm_providers(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        print(
+            json.dumps(
+                {
+                    "items": [
+                        policy.as_dict() for policy in app.external_itsm_service.list_policies()
+                    ]
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return 0
+
+    def _handle_integrations_servicenow_validate(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        profile = app.external_itsm_service.validate_servicenow_connector(
+            ValidateServiceNowConnectorCommand(
+                tenant_id=args.tenant,
+                instance_url=args.instance_url,
+                table_name=args.table_name,
+                auth_secret_ref=args.auth_secret_ref,
+                enabled=not args.disabled,
+            )
+        )
+        print(json.dumps(profile.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_integrations_servicenow_ci_sync_plan(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        plan = app.external_itsm_service.build_servicenow_ci_sync_plan(
+            BuildServiceNowCiSyncPlanCommand(
+                tenant_id=args.tenant,
+                resource_key=args.resource_key,
+                direction=args.direction,
+                target_table=args.target_table,
+            )
+        )
+        print(json.dumps(plan.as_dict(), indent=2, sort_keys=True))
         return 0
 
     def _handle_discovery_collector_register(self, args: argparse.Namespace) -> int:

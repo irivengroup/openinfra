@@ -308,3 +308,113 @@ def test_http_api_authenticated_bad_request_branches_and_entrypoint(
         )
         is sentinel
     )
+
+
+def test_http_api_authenticated_external_itsm_and_read_routes_cover_error_branches(
+    tmp_path: Path,
+) -> None:
+    app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+    admin_token = "t" * 40
+    app.security_service.bootstrap_token(
+        BootstrapTokenCommand("default", "pytest", "api-admin", ("admin",), admin_token)
+    )
+    server = OpenInfraThreadingServer(("127.0.0.1", 0), app, auth_required=True)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        base = f"http://127.0.0.1:{server.server_port}"
+        unauthorized_gets = (
+            "/api/v1/editions/policies?tenant_id=default",
+            "/api/v1/editions/feature-check?tenant_id=default&edition=enterprise&capability=core_rsot",
+            "/api/v1/editions/quota-check?tenant_id=default&edition=enterprise&resource=rsot_objects",
+            "/api/v1/search/global?tenant_id=default&query=server",
+            "/api/v1/itam/support-profile?tenant_id=default&asset_tag=A-1",
+            "/api/v1/itam/support-coverage?tenant_id=default&asset_tag=A-1",
+            "/api/v1/itam/software-license?tenant_id=default&license_reference=L-1",
+            "/api/v1/itam/software-license/compliance?tenant_id=default&license_reference=L-1",
+            "/api/v1/exports/jobs?tenant_id=default&job_id=missing",
+            "/api/v1/exports/artifact?tenant_id=default&job_id=missing",
+            "/api/v1/exports/artifact-chunk?tenant_id=default&job_id=missing",
+            "/api/v1/rsot/governance-rules?tenant_id=default",
+        )
+        for route in unauthorized_gets:
+            code, payload = _request_json(base + route, "GET")
+            assert code == 401
+            assert "error" in payload
+
+        taxonomy_code, taxonomy = _request_json(
+            base + "/api/v1/rsot/resource-taxonomy", "GET", token=admin_token
+        )
+        assert taxonomy_code == 200
+        assert "categories" in taxonomy
+
+        bad_gets = (
+            "/api/v1/editions/feature-check?tenant_id=default",
+            "/api/v1/editions/quota-check?tenant_id=default",
+            "/api/v1/search/global?tenant_id=default",
+            "/api/v1/itam/support-profile?tenant_id=default",
+            "/api/v1/itam/support-coverage?tenant_id=default",
+            "/api/v1/itam/software-license?tenant_id=default",
+            "/api/v1/itam/software-license/compliance?tenant_id=default",
+            "/api/v1/imports/report?tenant_id=default",
+            "/api/v1/imports/bulk-report?tenant_id=default",
+            "/api/v1/imports/bulk-checkpoint?tenant_id=default",
+            "/api/v1/imports/bulk-progress?tenant_id=default",
+            "/api/v1/imports/migration-template",
+            "/api/v1/imports/migration-report?tenant_id=default",
+            "/api/v1/exports/jobs?tenant_id=default",
+            "/api/v1/exports/artifact?tenant_id=default",
+            "/api/v1/exports/artifact-chunk?tenant_id=default",
+            "/api/v1/rsot/governance-rules?tenant_id=default&limit=bad",
+        )
+        for route in bad_gets:
+            code, payload = _request_json(base + route, "GET", token=admin_token)
+            assert code == 400
+            assert "error" in payload
+
+        unauthorized_posts: tuple[tuple[str, dict[str, object]], ...] = (
+            (
+                "/api/v1/integrations/itsm/servicenow/validate",
+                {
+                    "tenant_id": "default",
+                    "instance_url": "https://instance.service-now.com",
+                    "table_name": "cmdb_ci",
+                    "auth_secret_ref": "vault://openinfra/servicenow/oauth",
+                },
+            ),
+            (
+                "/api/v1/integrations/itsm/servicenow/ci-sync-plan",
+                {"tenant_id": "default", "resource_key": "SRV-PAR1-001"},
+            ),
+        )
+        for route, body in unauthorized_posts:
+            code, payload = _request_json(base + route, "POST", body)
+            assert code == 401
+            assert "error" in payload
+
+        bad_posts: tuple[tuple[str, dict[str, object]], ...] = (
+            (
+                "/api/v1/integrations/itsm/servicenow/validate",
+                {
+                    "tenant_id": "default",
+                    "instance_url": "http://snow",
+                    "auth_secret_ref": "vault://ok",
+                },
+            ),
+            (
+                "/api/v1/integrations/itsm/servicenow/ci-sync-plan",
+                {"tenant_id": "default", "resource_key": "SRV-PAR1-001", "mapping": "bad"},
+            ),
+            (
+                "/api/v1/integrations/itsm/servicenow/ci-sync-plan",
+                {"tenant_id": "default", "resource_key": "x"},
+            ),
+        )
+        for route, body in bad_posts:
+            code, payload = _request_json(base + route, "POST", body, token=admin_token)
+            assert code == 400
+            assert "error" in payload
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)

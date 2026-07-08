@@ -69,3 +69,4 @@ CDC-WEB-02950,Administration API/UI des éditions et quotas runtime,P08,EPIC-080
 REQ-00794,ITAM licences logicielles et conformité,P12,EPIC-1205,0.29.51,TST-P12-ITAM-SOFTWARE-LICENSES
 REQ-00795,Progression opérable imports massifs reprenables,P13,EPIC-1301,0.29.52,TST-P13-BULK-IMPORT-PROGRESS
 REQ-00796,Streaming exports massifs signés,P13,EPIC-1302,0.29.54,TST-P13-ASYNC-EXPORT-STREAMING
+REQ-00798,Connecteurs ITSM externes ServiceNow et thème Bootstrap corrigé,P25,EPIC-2506,0.29.55,TST-P25-ITSM-SERVICENOW-EXTERNAL-CONNECTOR

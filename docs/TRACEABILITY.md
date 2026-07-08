@@ -1,3 +1,10 @@
+### v0.29.55 — intégrations ITSM externes ServiceNow et thème UI corrigé
+
+- Ajout d'un composant web **Intégrations externes** exposant les politiques ITSM externes, la validation de connecteur ServiceNow et le plan de synchronisation CI.
+- Les connecteurs ITSM restent strictement externes : aucun ticket, incident, demande ou changement natif n'est créé dans OpenInfra.
+- Les formulaires utilisent à nouveau la classe Bootstrap 5 standard `btn btn-primary`; le turquoise `#24d8ab` est porté par la surcharge de thème.
+- Le bloc `openinfra-runtime-status` est distingué uniquement par la couleur de texte `#003D8F`, sans fond, bordure ni padding supplémentaire.
+
 ### v0.29.54 — exports massifs streaming par chunks signés
 
 - Ajout `openinfra export artifact-chunk` pour lire un artefact exporté signé par offset/taille bornée.

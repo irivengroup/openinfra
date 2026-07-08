@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.54
+  version: 0.29.55
 components:
   securitySchemes:
     bearerToken:
@@ -2696,3 +2696,61 @@ paths:
         '200': {description: Dry-run recommendation}
         '201': {description: Reservation allocated}
         '400': {description: Validation error}
+  /api/v1/integrations/itsm/providers:
+    get:
+      summary: List external ITSM connector policies
+      description: Lists supported external ITSM connectors without enabling native OpenInfra ticketing.
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: false, schema: {type: string, default: default}}
+      responses:
+        '200': {description: External ITSM connector policies}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid security administrator token when authentication is enabled}
+  /api/v1/integrations/itsm/servicenow/validate:
+    post:
+      summary: Validate a ServiceNow external connector profile
+      description: Validates endpoint, table and secret reference for an external ServiceNow CMDB connector without storing secret material.
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, instance_url, auth_secret_ref]
+              properties:
+                tenant_id: {type: string}
+                instance_url: {type: string, format: uri}
+                table_name: {type: string, default: cmdb_ci}
+                auth_secret_ref: {type: string}
+                enabled: {type: boolean, default: true}
+      responses:
+        '200': {description: Validated ServiceNow connector profile}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid security administrator token when authentication is enabled}
+  /api/v1/integrations/itsm/servicenow/ci-sync-plan:
+    post:
+      summary: Build a ServiceNow CI synchronization plan
+      description: Builds a deterministic external CI synchronization plan; no native ticket, incident, request or change is created in OpenInfra.
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, resource_key]
+              properties:
+                tenant_id: {type: string}
+                resource_key: {type: string}
+                direction: {type: string, enum: [push_ci, enrich_external_ticket, link_external_ticket], default: push_ci}
+                target_table: {type: string, default: cmdb_ci}
+                mapping: {type: object, additionalProperties: {type: string}}
+      responses:
+        '200': {description: ServiceNow CI synchronization plan}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid security administrator token when authentication is enabled}

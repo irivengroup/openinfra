@@ -85,6 +85,22 @@ class BackendFakeHandler(BaseHTTPRequestHandler):
         if self.path == "/api/v1/raw-missing-bearer":
             self._json(HTTPStatus.UNAUTHORIZED, {"error": "missing bearer token"})
             return
+        if self.path == "/api/v1/plain-unauthorized":
+            body = b"not-json"
+            self.send_response(HTTPStatus.UNAUTHORIZED.value)
+            self.send_header("Content-Type", "text/plain")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if self.path == "/api/v1/array-unauthorized":
+            body = b"[]"
+            self.send_response(HTTPStatus.UNAUTHORIZED.value)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         self._json(HTTPStatus.NOT_FOUND, {"error": self.path})
 
     def _json(self, status: HTTPStatus, payload: dict[str, Any]) -> None:
@@ -331,9 +347,19 @@ class TestOpenInfraWeb:
         assert "syncFixedHeaderOffset" in static_js
         assert "syncHeaderOffset" in main_js
         assert ".btn-primary" in static_css
+        assert "--bs-btn-bg: #24d8ab" in static_css
+        assert "--bs-btn-focus-shadow-rgb: 36, 216, 171" in static_css
+        assert "openinfra-submit-btn" not in static_js + main_js + static_css
+        assert "color: #003D8F !important" in static_css
+        assert "background: linear-gradient(135deg, rgba(0, 174, 239, .08)" not in static_css
+        assert "border: 1px solid rgba(0, 174, 239, .18)" not in static_css
         assert ".form-control:focus" in static_css
         assert "#0d6efd" not in static_css
         assert "Camembert" in static_js
+        assert 'path: "/v1/integrations/itsm/providers"' in static_js
+        assert 'path: "/v1/integrations/itsm/servicenow/validate"' in static_js
+        assert 'path: "/v1/integrations/itsm/servicenow/ci-sync-plan"' in static_js
+        assert "Valider connecteur ServiceNow" in static_js
         assert 'path: "/v1/ipam/ui-search"' in static_js
         assert "idempotency_key" in static_js
         assert "endpoint_url" in static_js
@@ -538,6 +564,57 @@ class TestOpenInfraWeb:
                 )
             )
 
+    def test_public_api_documentation_roots_and_docs_url_validation(self) -> None:
+        static_root = OpenInfraWebStaticLocator().resolve(None)
+        explicit_docs = OpenInfraWebConfig(
+            host="127.0.0.1",
+            port=0,
+            backend_url="https://backend.example.net",
+            public_api_base_url="/api",
+            public_api_docs_base_url="https://docs.example.net",
+            static_root=static_root,
+            edition="enterprise",
+            auth_mode="standard",
+            allow_insecure_backend=False,
+        )
+        origin_docs = OpenInfraWebConfig(
+            host="127.0.0.1",
+            port=0,
+            backend_url="https://backend.example.net",
+            public_api_base_url="https://api.example.net/api",
+            public_api_docs_base_url="",
+            static_root=static_root,
+            edition="enterprise",
+            auth_mode="standard",
+            allow_insecure_backend=False,
+        )
+
+        assert (
+            explicit_docs.api_documentation_links()["swaggerUrl"] == "https://docs.example.net/docs"
+        )
+        assert origin_docs.api_documentation_links()["redocUrl"] == "https://api.example.net/redoc"
+
+        validator = OpenInfraWebConfigValidator()
+        for public_docs_url in (
+            "ftp://docs.example.net",
+            "https://user:secret@docs.example.net",
+            "https://docs.example.net?debug=true",
+        ):
+            with pytest.raises(OpenInfraError):
+                validator.validate(
+                    OpenInfraWebConfig(
+                        host="127.0.0.1",
+                        port=0,
+                        backend_url="https://backend.example.net",
+                        public_api_base_url="/api",
+                        public_api_docs_base_url=public_docs_url,
+                        static_root=static_root,
+                        edition="enterprise",
+                        auth_mode="standard",
+                        allow_insecure_backend=False,
+                    )
+                )
+
     def test_web_injects_server_side_backend_bearer_token_without_exposing_it(self) -> None:
         with RunningServer(ThreadingHTTPServer(("127.0.0.1", 0), BackendFakeHandler)) as backend:
             config = self._config(backend.base_url, backend_bearer_token=_test_server_side_bearer())
@@ -602,12 +679,18 @@ class TestOpenInfraWeb:
                 with pytest.raises(urllib.error.HTTPError) as exc:
                     self._post_json(web.base_url + "/api/v1/raw-missing-bearer", {})
                 payload = json.loads(exc.value.read().decode("utf-8"))
+                with pytest.raises(urllib.error.HTTPError) as plain_error:
+                    self._post_json(web.base_url + "/api/v1/plain-unauthorized", {})
+                with pytest.raises(urllib.error.HTTPError) as array_error:
+                    self._post_json(web.base_url + "/api/v1/array-unauthorized", {})
 
         assert exc.value.code == HTTPStatus.BAD_GATEWAY.value
         assert payload == {
             "error": "backend authentication failed through openinfra-web",
             "reason": "server-side backend bearer token was not accepted by the API",
         }
+        assert plain_error.value.code == HTTPStatus.UNAUTHORIZED.value
+        assert array_error.value.code == HTTPStatus.UNAUTHORIZED.value
         assert "missing bearer token" not in json.dumps(payload)
 
     def test_entrypoint_returns_success_and_keyboard_interrupt(

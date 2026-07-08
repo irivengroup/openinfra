@@ -1,3 +1,9 @@
+## 0.29.55 — ServiceNow externe et thème Bootstrap corrigé
+
+- Ajout `TST-P25-ITSM-SERVICENOW-EXTERNAL-CONNECTOR`.
+- ServiceNow est traité comme connecteur ITSM externe uniquement : aucun ticketing natif OpenInfra.
+- Correction UX : `btn-primary` Bootstrap est surchargé en turquoise, le statut runtime porte uniquement la couleur texte `#003D8F`.
+
 ## 0.29.54 — RSOT canonique et alias ITRM dépréciés
 
 - Ajout du test roadmap `TST-P08-WEB-RSOT-CANONICAL-NAVIGATION`.

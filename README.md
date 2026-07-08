@@ -1,23 +1,35 @@
-# OpenInfra v0.29.54
+# OpenInfra v0.29.55
 
-## v0.29.54 — renommage ITRM en RSOT et correction Ruff/UI
+## v0.29.55 — connecteur externe ServiceNow + corrections thème Bootstrap
 
-OpenInfra v0.29.54 rend **RSOT (Ressource Source of Truth)** canonique à la place de l’ancien composant public **ITRM (IT Ressource Management)**. Les surfaces publiques utilisent désormais `rsot` : CLI, API HTTP, OpenAPI, discovery, portail web, recherche globale, rôles RBAC et documentation.
+OpenInfra v0.29.55 ajoute les premiers contrats d'intégration **ITSM externe ServiceNow** sans introduire de ticketing natif : politiques de connecteurs, validation de profil ServiceNow et plan déterministe de synchronisation CI depuis RSOT vers une table CMDB externe.
 
-Les alias historiques `itrm`, `sot` et `ri` restent disponibles uniquement pour compatibilité ascendante, sont documentés comme dépréciés, et doivent être retirés progressivement des automatisations clientes au profit de `rsot`.
+Cette livraison corrige aussi les ajustements UI issus de v0.29.54 :
 
-### Points clés
+- les boutons de soumission restent des boutons Bootstrap 5 standards `btn btn-primary` ;
+- la classe dédiée `openinfra-submit-btn` est supprimée ;
+- `.btn-primary` est surchargée dans le thème OpenInfra avec le turquoise `#24d8ab` et ses états `hover`, `active`, `focus-visible`, `disabled` ;
+- le bloc runtime `openinfra-runtime-status` ne reçoit plus de fond, bordure ni padding ajoutés ; seul son texte, y compris les valeurs `<strong>`, utilise le bleu `#003D8F`.
 
-- Commande canonique : `openinfra rsot`.
-- API canonique : `/api/v1/rsot/*`.
-- Composant web canonique : **RSOT**.
-- Groupes de recherche globale : `rsot`.
-- Rôles RBAC canoniques : `rsot:reader`, `rsot:operator`, `rsot:governance-admin`.
-- Capability canonique : `core_rsot`.
-- Alias dépréciés conservés : `openinfra itrm`, `openinfra sot`, `openinfra ri`, `/api/v1/itrm/*`, `/api/v1/sot/*`, `/api/v1/ri/*`.
-- Bloc statut runtime web rendu en bleu léger et discret.
-- Boutons de soumission des formulaires web rendus en bleu turquoise dédié, distinct de Bootstrap `primary`.
-- Correction Ruff : `ruff format --check src tests scripts docker` repasse sans reformater de fichier.
+### Surfaces ServiceNow ajoutées
+
+- CLI :
+  - `openinfra integrations itsm-providers`
+  - `openinfra integrations servicenow-validate`
+  - `openinfra integrations servicenow-ci-sync-plan`
+- API :
+  - `GET /api/v1/integrations/itsm/providers`
+  - `POST /api/v1/integrations/itsm/servicenow/validate`
+  - `POST /api/v1/integrations/itsm/servicenow/ci-sync-plan`
+- Web : composant **Intégrations externes** avec opérations ServiceNow.
+- OpenAPI/discovery : chemins publiés.
+
+### Garde-fous
+
+- OpenInfra ne crée aucun ticket, incident, demande ou changement ITSM natif.
+- Les secrets ServiceNow sont référencés par `auth_secret_ref` et ne sont jamais fournis en clair.
+- Les URL d'instance ServiceNow doivent être HTTPS et ne peuvent pas contenir d'identifiants embarqués.
+- Les mappings CI exigent au minimum `resource_key`, `display_name` et `resource_type`.
 
 ### Validations recommandées
 
@@ -36,7 +48,6 @@ PYTHONPATH=src:. python scripts/quality_gate.py --project-root .
 ```
 
 ---
-
 ### v0.29.53 — exports massifs streaming par chunks signés
 
 - Ajout `openinfra export artifact-chunk` pour lire un artefact exporté signé par offset/taille bornée.

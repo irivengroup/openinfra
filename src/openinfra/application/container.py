@@ -22,6 +22,7 @@ from openinfra.application.dcim_services import (
 from openinfra.application.discovery_services import DiscoveryCollectorService
 from openinfra.application.edition_services import EditionQueryService, EditionRuntimeGuard
 from openinfra.application.export_services import ExportService
+from openinfra.application.external_itsm_services import ExternalItsmIntegrationService
 from openinfra.application.identity_services import IdentityService
 from openinfra.application.import_services import GenericImportService
 from openinfra.application.ipam_services import (
@@ -131,6 +132,7 @@ class OpenInfraApplication:
     security_service: SecurityService
     identity_service: IdentityService
     external_authentication_service: ExternalAuthenticationService
+    external_itsm_service: ExternalItsmIntegrationService
     auth_provider_policy_service: AuthProviderPolicyService
     access_policy_service: AccessPolicyService
     audit_service: AuditTrailService
@@ -461,6 +463,7 @@ class ApplicationFactory:
             security_service=security_service,
             identity_service=identity_service,
             external_authentication_service=external_authentication_service,
+            external_itsm_service=ExternalItsmIntegrationService(),
             auth_provider_policy_service=auth_provider_policy_service,
             source_of_truth_service=source_of_truth_service,
             source_governance_service=SourceGovernanceService(

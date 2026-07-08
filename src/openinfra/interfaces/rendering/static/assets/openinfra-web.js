@@ -920,6 +920,11 @@ const OPENINFRA_MODULES = [
     { id: "import-bulk-progress", label: "Progression import massif", method: "GET", path: "/v1/imports/bulk-progress", query: [FIELD_SETS.jobId] },
     { id: "export-artifact-chunk", label: "Chunk export signé", method: "GET", path: "/v1/exports/artifact-chunk", query: [FIELD_SETS.exportJobId, FIELD_SETS.chunkOffset, FIELD_SETS.chunkSize] }
   ] },
+  { id: "integrations", label: "Intégrations externes", shortLabel: "Intégrations", icon: "grid", description: "Connecteurs externes ITSM sans ticketing natif : ServiceNow CMDB, enrichissement et liens externes auditables.", operations: [
+    { id: "itsm-providers", label: "Politiques connecteurs ITSM", method: "GET", path: "/v1/integrations/itsm/providers", query: [] },
+    { id: "servicenow-validate", label: "Valider connecteur ServiceNow", method: "POST", path: "/v1/integrations/itsm/servicenow/validate", body: [FIELD_SETS.actor, { name: "instance_url", label: "URL instance HTTPS", required: true, placeholder: "https://instance.service-now.com" }, { name: "table_name", label: "Table CI", type: "select", options: ["cmdb_ci", "cmdb_ci_server", "cmdb_ci_netgear", "cmdb_ci_computer"], defaultValue: "cmdb_ci" }, { name: "auth_secret_ref", label: "Référence secret", required: true, placeholder: "vault://openinfra/servicenow/oauth" }, { name: "enabled", label: "Connecteur actif", type: "boolean" }] },
+    { id: "servicenow-ci-sync-plan", label: "Plan synchro CI ServiceNow", method: "POST", path: "/v1/integrations/itsm/servicenow/ci-sync-plan", body: [FIELD_SETS.actor, { name: "resource_key", label: "Clé ressource RSOT", required: true, placeholder: "SRV-PAR1-001" }, { name: "direction", label: "Direction", type: "select", options: ["push_ci", "enrich_external_ticket", "link_external_ticket"], defaultValue: "push_ci" }, { name: "target_table", label: "Table cible", type: "select", options: ["cmdb_ci", "cmdb_ci_server", "cmdb_ci_netgear", "cmdb_ci_computer"], defaultValue: "cmdb_ci" }] }
+  ] },
   { id: "security", label: "Sécurité / RBAC / Audit", shortLabel: "Sécurité", icon: "shield", description: "Identité, RBAC, tokens, politiques d’accès, audit, éditions et quotas runtime.", operations: [
     { id: "edition-policies", label: "Politiques éditions et quotas", method: "GET", path: "/v1/editions/policies", query: [] },
     { id: "edition-feature-check", label: "Vérifier une capacité édition", method: "GET", path: "/v1/editions/feature-check", query: [FIELD_SETS.edition, FIELD_SETS.featureCapability] },
@@ -1338,7 +1343,7 @@ class OpenInfraDashboard {
         <p class="text-muted">${this.escape(module.description)}</p>
         <div class="row g-3 mb-3"><label class="col-md-4 form-label">Tenant<input id="openinfra-tenant" class="form-control" value="${this.escape(this.state.tenant)}" autocomplete="off"></label></div>
         <div class="row g-3">${fields.map((field) => this.renderField(field)).join("") || "<p>Aucun paramètre requis.</p>"}</div>
-        <button class="btn openinfra-submit-btn mt-3" type="button" id="openinfra-execute">Exécuter</button>
+        <button class="btn btn-primary mt-3" type="button" id="openinfra-execute">Exécuter</button>
       </section>
       <aside class="col-12 col-xxl-4">
         <h3 class="h6 text-uppercase text-muted">Résultat</h3>

@@ -1,4 +1,14 @@
-### v0.29.54 — RSOT canonique, alias ITRM dépréciés et correction Ruff/UI
+### v0.29.55 — connecteur externe ServiceNow et corrections thème Bootstrap
+
+- Ajout du domaine `external_itsm` pour représenter les connecteurs ITSM externes sans ticketing natif.
+- Ajout du service applicatif `ExternalItsmIntegrationService`.
+- Ajout CLI/API/UI/OpenAPI/discovery pour les politiques ITSM externes et les flux ServiceNow.
+- Validation ServiceNow : instance HTTPS obligatoire, secrets uniquement par référence, tables CI autorisées.
+- Plan de synchronisation CI ServiceNow déterministe depuis RSOT avec mapping minimal obligatoire.
+- Correction UI : les boutons de soumission restent `btn btn-primary` et Bootstrap est surchargé en turquoise `#24d8ab`.
+- Correction UI : le bloc runtime utilise uniquement une couleur de texte `#003D8F`, sans fond ni bordure dédiés.
+
+### v0.29.55 — RSOT canonique, alias ITRM dépréciés et correction Ruff/UI
 
 - Renommage public de `ITRM (IT Ressource Management)` en `RSOT (Ressource Source of Truth)`.
 - Publication canonique de `openinfra rsot`, `/api/v1/rsot/*`, `rsot:*`, `core_rsot`, composant web **RSOT** et groupe de recherche globale `rsot`.

@@ -1,59 +1,46 @@
-# Rapport de validation — OpenInfra v0.29.54
+# OpenInfra v0.29.55 — rapport de validation
 
-## Livraison
+## Périmètre livré
 
-- Version : 0.29.54
-- Incrément : exports massifs — streaming par chunks signés
-- Base : OpenInfra v0.29.52
-- Date : 2026-07-08
-
-## Changements validés
-
-- Ajout du contrat applicatif `GetExportArtifactChunkCommand`.
-- Ajout du modèle de réponse `ExportArtifactChunkDownload`.
-- Ajout du service `ExportService.get_export_artifact_chunk` avec validation HMAC/digest de l’artefact complet avant découpage.
-- Ajout CLI : `openinfra export artifact-chunk`.
-- Ajout API : `GET /api/v1/exports/artifact-chunk`.
-- Publication discovery/OpenAPI.
-- Ajout UI web : opération `Chunk export signé` dans Data / Imports / Exports.
-- Ajout smoke CI pour lecture d’un chunk d’export signé.
-- Documentation, CDC et roadmap alignés.
+- Intégration externe ITSM ServiceNow sans fonctionnalité ITSM native OpenInfra.
+- API/CLI/UI pour lister les politiques ITSM externes, valider un connecteur ServiceNow et produire un plan de synchronisation CI.
+- Correction UI demandée : les boutons de soumission restent en Bootstrap 5 `btn-primary`, avec surcharge thème turquoise `#24d8ab`.
+- Correction UI demandée : le bloc statut runtime web utilise uniquement la couleur de texte `#003D8F`, sans fond, bordure ni padding ajouté.
+- Non-régression RSOT canonique issue de v0.29.54 conservée ; alias historiques ITRM/SOT/RI restent dépréciés.
 
 ## Validations exécutées
 
-| Validation | Résultat |
+| Validation | Statut |
 |---|---:|
-| `python -m compileall -q src tests scripts docker` | PASS |
+| `ruff format --check src tests scripts docker` | PASS |
+| `ruff check src tests scripts docker` | PASS |
+| `python -m compileall -q src tests scripts docker installers` | PASS |
 | `python scripts/validate_frontend.py --project-root .` | PASS |
 | `node --check src/openinfra/interfaces/rendering/static/assets/openinfra-web.js` | PASS |
-| `python -m openinfra.interfaces.cli version` | PASS — 0.29.54 |
-| `python scripts/security_gate.py --project-root .` | PASS |
-| `python scripts/validate_enterprise_alignment.py --project-root .` | PASS |
-| `python scripts/validate_autonomous_installer.py --root installers` | PASS — 6 profils |
-| `python scripts/native_runtime_smoke.py --project-root .` | PASS |
-| Validation CDC | PASS — 796 exigences, 598 tests |
-| Validation roadmap | PASS — 19 phases, 114 epics, 8 gates, 69 tests |
-| `pytest --collect-only --no-cov -q` | PASS — 456 tests collectés |
-| Tests ciblés exports/CLI/API/web | PASS — 50 tests |
-| Tests unitaires + architecture | PASS — 177 tests |
-| Tests intégration en lots | PASS — 279 tests |
-| Couverture reconstruite par lots | PASS — 98 % |
-| `coverage report --fail-under=98` | PASS — 98 % |
-| `quality_gate.py` | PASS |
-| `zip -T` | PASS |
-| `verify_artifact.py` | PASS |
-| Nettoyage archive | PASS |
+| `python -m openinfra version` | PASS — 0.29.55 |
+| `python scripts/security_gate.py` | PASS |
+| `python scripts/validate_enterprise_alignment.py` | PASS |
+| `python scripts/validate_autonomous_installer.py` | PASS — 6 profils |
+| `python scripts/native_runtime_smoke.py` | PASS |
+| `python -m openinfra spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1` | PASS — 798 exigences, 600 tests |
+| `python docs/specifications/OpenInfra-Roadmap-Developpement-v2/scripts/validate_roadmap.py docs/specifications/OpenInfra-Roadmap-Developpement-v2` | PASS — 19 phases, 114 epics, 8 gates, 70 tests |
+| `pytest --collect-only --no-cov` | PASS — 471 tests collectés |
+| `pytest tests/unit tests/architecture --no-cov` | PASS — 185 tests collectés dans ce périmètre |
+| `pytest tests/integration --no-cov` exécuté en lots | PASS — 286 tests collectés dans ce périmètre |
+| Couverture reconstruite par lots + `coverage report --fail-under=98` | PASS — 98.00 % |
+| `python scripts/quality_gate.py --project-root .` | PASS |
 
-## Note sur les timeouts
+## Validations non exécutées / non disponibles localement
 
-La commande monolithique `pytest -q` a atteint le timeout de l’environnement après progression sans échec visible. Les mêmes 456 tests collectés ont ensuite été exécutés et validés en lots complets, avec couverture globale reconstruite à 98 %.
+| Validation | Résultat |
+|---|---|
+| `mypy src/openinfra` | Non exécuté — binaire `mypy` absent |
+| `bandit -q -r src/openinfra` | Non exécuté — binaire `bandit` absent |
+| `pip-audit` | Non exécuté — binaire `pip-audit` absent |
+| `python -m build` | Non exécuté — module Python `build` absent |
+| `npm run build --prefix web` | Non exécuté jusqu’au bout — `vite` absent car `web/node_modules` absent |
+| Docker Compose live | Non exécuté — binaire `docker` absent |
 
-## Validations non exécutées localement
+## Résultat
 
-- `ruff` : binaire absent.
-- `mypy` : binaire absent.
-- `bandit` : binaire absent.
-- `pip-audit` : binaire absent.
-- `python -m build` : module `build` absent.
-- Build Vite complet : `web/node_modules` absent.
-- Docker Compose live : Docker absent.
+La livraison v0.29.55 est validée par les contrôles disponibles dans l’environnement. Les contrôles dépendant d’outils absents sont explicitement listés ci-dessus.

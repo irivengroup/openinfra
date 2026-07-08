@@ -62,6 +62,10 @@ from openinfra.application.export_services import (
     RequestExportCommand,
     RunExportJobCommand,
 )
+from openinfra.application.external_itsm_services import (
+    BuildServiceNowCiSyncPlanCommand,
+    ValidateServiceNowConnectorCommand,
+)
 from openinfra.application.identity_services import (
     AddUserToGroupCommand,
     CreateGroupCommand,
@@ -954,6 +958,23 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except (ValueError, OpenInfraError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
+        if route == "/api/v1/integrations/itsm/providers":
+            try:
+                query = parse_qs(parsed.query)
+                tenant_id = self._first_query_value(query, "tenant_id", "default")
+                if self.server.auth_required:
+                    self._authenticate(tenant_id, Permission.SECURITY_ADMIN)
+                policies = self.server.application.external_itsm_service.list_policies()
+                responder.send(
+                    HTTPStatus.OK,
+                    {"items": [policy.as_dict() for policy in policies]},
+                )
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except OpenInfraError as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
         if route == "/api/v1/dcim/rack-elevation":
             try:
                 query = parse_qs(parsed.query)
@@ -1192,6 +1213,62 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         route = self._canonical_route(urlparse(self.path).path)
         result: Any
         rule: Any
+
+        if route == "/api/v1/integrations/itsm/servicenow/validate":
+            try:
+                payload = self._read_json_body()
+                tenant_id = self._required_payload_value(payload, "tenant_id")
+                if self.server.auth_required:
+                    self._authenticate(tenant_id, Permission.SECURITY_ADMIN)
+                profile = (
+                    self.server.application.external_itsm_service.validate_servicenow_connector(
+                        ValidateServiceNowConnectorCommand(
+                            tenant_id=tenant_id,
+                            instance_url=self._required_payload_value(payload, "instance_url"),
+                            table_name=str(payload.get("table_name", "cmdb_ci")),
+                            auth_secret_ref=self._required_payload_value(
+                                payload, "auth_secret_ref"
+                            ),
+                            enabled=bool(payload.get("enabled", True)),
+                        )
+                    )
+                )
+                responder.send(HTTPStatus.OK, profile.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except OpenInfraError as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/integrations/itsm/servicenow/ci-sync-plan":
+            try:
+                payload = self._read_json_body()
+                tenant_id = self._required_payload_value(payload, "tenant_id")
+                if self.server.auth_required:
+                    self._authenticate(tenant_id, Permission.SECURITY_ADMIN)
+                raw_mapping = payload.get("mapping")
+                if raw_mapping is not None and not isinstance(raw_mapping, dict):
+                    raise OpenInfraError("mapping must be a JSON object")
+                mapping = (
+                    {str(key): str(value) for key, value in raw_mapping.items()}
+                    if isinstance(raw_mapping, dict)
+                    else None
+                )
+                plan = self.server.application.external_itsm_service.build_servicenow_ci_sync_plan(
+                    BuildServiceNowCiSyncPlanCommand(
+                        tenant_id=tenant_id,
+                        resource_key=self._required_payload_value(payload, "resource_key"),
+                        direction=str(payload.get("direction", "push_ci")),
+                        target_table=str(payload.get("target_table", "cmdb_ci")),
+                        mapping=mapping,
+                    )
+                )
+                responder.send(HTTPStatus.OK, plan.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except OpenInfraError as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
 
         if route == "/api/v1/itam/support-profile/manufacturer":
             try:
@@ -2655,6 +2732,12 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             return None
         return str(value)
 
+    def _required_payload_value(self, payload: dict[str, Any], name: str) -> str:
+        value = self._optional_payload_value(payload, name)
+        if value is None:
+            raise OpenInfraError(name + " is required")
+        return value
+
     def _roles_from_payload(self, payload: dict[str, Any]) -> tuple[str, ...]:
         roles_payload = payload.get("roles", [])
         if not isinstance(roles_payload, list):
@@ -2740,6 +2823,11 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "policies": "/api/v1/editions/policies",
                     "feature_check": "/api/v1/editions/feature-check",
                     "quota_check": "/api/v1/editions/quota-check",
+                },
+                "integrations": {
+                    "itsm_providers": "/api/v1/integrations/itsm/providers",
+                    "servicenow_validate": "/api/v1/integrations/itsm/servicenow/validate",
+                    "servicenow_ci_sync_plan": "/api/v1/integrations/itsm/servicenow/ci-sync-plan",
                 },
                 "itam": {
                     "support_profile": "/api/v1/itam/support-profile",

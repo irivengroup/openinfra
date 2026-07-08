@@ -1553,22 +1553,36 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
         )
 
     def list_sites(self, tenant_id: TenantId, include_retired: bool = False) -> tuple[Site, ...]:
-        where = "tenant_id = %(tenant_id)s"
+        query = """
+            SELECT * FROM sites
+            WHERE tenant_id = %(tenant_id)s
+            ORDER BY code
+            """
         if not include_retired:
-            where += " AND status = 'active'"
-        rows = self._fetch_all(
-            f"SELECT * FROM sites WHERE {where} ORDER BY code", {"tenant_id": tenant_id.value}
-        )
+            query = """
+                SELECT * FROM sites
+                WHERE tenant_id = %(tenant_id)s AND status = 'active'
+                ORDER BY code
+                """
+        rows = self._fetch_all(query, {"tenant_id": tenant_id.value})
         return tuple(self._site_from_row(row) for row in rows)
 
     def list_buildings(
         self, tenant_id: TenantId, site: str, include_retired: bool = False
     ) -> tuple[Building, ...]:
-        where = "tenant_id = %(tenant_id)s AND site_code = %(site)s"
+        query = """
+            SELECT * FROM buildings
+            WHERE tenant_id = %(tenant_id)s AND site_code = %(site)s
+            ORDER BY code
+            """
         if not include_retired:
-            where += " AND status = 'active'"
+            query = """
+                SELECT * FROM buildings
+                WHERE tenant_id = %(tenant_id)s AND site_code = %(site)s AND status = 'active'
+                ORDER BY code
+                """
         rows = self._fetch_all(
-            f"SELECT * FROM buildings WHERE {where} ORDER BY code",
+            query,
             {"tenant_id": tenant_id.value, "site": Code.from_value(site, "site code").value},
         )
         return tuple(self._building_from_row(row) for row in rows)
@@ -1576,13 +1590,24 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
     def list_floors(
         self, tenant_id: TenantId, site: str, building: str, include_retired: bool = False
     ) -> tuple[Floor, ...]:
-        where = (
-            "tenant_id = %(tenant_id)s AND site_code = %(site)s AND building_code = %(building)s"
-        )
+        query = """
+            SELECT * FROM floors
+            WHERE tenant_id = %(tenant_id)s
+              AND site_code = %(site)s
+              AND building_code = %(building)s
+            ORDER BY level_index, code
+            """
         if not include_retired:
-            where += " AND status = 'active'"
+            query = """
+                SELECT * FROM floors
+                WHERE tenant_id = %(tenant_id)s
+                  AND site_code = %(site)s
+                  AND building_code = %(building)s
+                  AND status = 'active'
+                ORDER BY level_index, code
+                """
         rows = self._fetch_all(
-            f"SELECT * FROM floors WHERE {where} ORDER BY level_index, code",
+            query,
             {
                 "tenant_id": tenant_id.value,
                 "site": Code.from_value(site, "site code").value,
@@ -1594,13 +1619,24 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
     def list_rooms(
         self, tenant_id: TenantId, site: str, building: str, include_retired: bool = False
     ) -> tuple[Room, ...]:
-        where = (
-            "tenant_id = %(tenant_id)s AND site_code = %(site)s AND building_code = %(building)s"
-        )
+        query = """
+            SELECT * FROM rooms
+            WHERE tenant_id = %(tenant_id)s
+              AND site_code = %(site)s
+              AND building_code = %(building)s
+            ORDER BY code
+            """
         if not include_retired:
-            where += " AND status = 'active'"
+            query = """
+                SELECT * FROM rooms
+                WHERE tenant_id = %(tenant_id)s
+                  AND site_code = %(site)s
+                  AND building_code = %(building)s
+                  AND status = 'active'
+                ORDER BY code
+                """
         rows = self._fetch_all(
-            f"SELECT * FROM rooms WHERE {where} ORDER BY code",
+            query,
             {
                 "tenant_id": tenant_id.value,
                 "site": Code.from_value(site, "site code").value,
@@ -1617,14 +1653,26 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
         room: str,
         include_retired: bool = False,
     ) -> tuple[RoomZone, ...]:
-        where = (
-            "tenant_id = %(tenant_id)s AND site_code = %(site)s "
-            "AND building_code = %(building)s AND room_code = %(room)s"
-        )
+        query = """
+            SELECT * FROM room_zones
+            WHERE tenant_id = %(tenant_id)s
+              AND site_code = %(site)s
+              AND building_code = %(building)s
+              AND room_code = %(room)s
+            ORDER BY code
+            """
         if not include_retired:
-            where += " AND status = 'active'"
+            query = """
+                SELECT * FROM room_zones
+                WHERE tenant_id = %(tenant_id)s
+                  AND site_code = %(site)s
+                  AND building_code = %(building)s
+                  AND room_code = %(room)s
+                  AND status = 'active'
+                ORDER BY code
+                """
         rows = self._fetch_all(
-            f"SELECT * FROM room_zones WHERE {where} ORDER BY code",
+            query,
             {
                 "tenant_id": tenant_id.value,
                 "site": Code.from_value(site, "site code").value,
@@ -5092,17 +5140,21 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
         return self._tenant_from_row(row) if row else None
 
     def list_tenants(self, include_retired: bool = False) -> tuple[ItamTenant, ...]:
-        where = "" if include_retired else "WHERE status <> 'retired'"
-        rows = self._fetch_all(
-            f"""
+        query = """
             SELECT tenant_id, name, status, is_default, description,
                    created_by, created_at, updated_by, updated_at
             FROM itam_tenants
-            {where}
             ORDER BY is_default DESC, name ASC, tenant_id ASC
-            """,
-            {},
-        )
+            """
+        if not include_retired:
+            query = """
+                SELECT tenant_id, name, status, is_default, description,
+                       created_by, created_at, updated_by, updated_at
+                FROM itam_tenants
+                WHERE status <> 'retired'
+                ORDER BY is_default DESC, name ASC, tenant_id ASC
+                """
+        rows = self._fetch_all(query, {})
         if rows:
             return tuple(self._tenant_from_row(row) for row in rows)
         default = ItamTenant.create(
@@ -5337,8 +5389,8 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
                 else str(row.get("contract_reference"))
             ),
             metric=str(row["metric"]),
-            purchased_quantity=int(row["purchased_quantity"]),
-            assigned_quantity=int(row["assigned_quantity"]),
+            purchased_quantity=int(str(row["purchased_quantity"])),
+            assigned_quantity=int(str(row["assigned_quantity"])),
             entitlement_start=ItamDateParser.parse_date(
                 str(row["entitlement_start"]), "software entitlement start"
             ),

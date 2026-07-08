@@ -565,12 +565,16 @@ class TestOpenInfraWeb:
         assert "isDcimReferenceField(field)" in static_js
         assert "DCIM topology catalog returned" in static_js
         assert 'this.state.selected.id.startsWith("dcim-")' in static_js
-        toggle_body = static_js.split("toggleAccordion(moduleId)", 1)[1].split("toggleSidebarContext", 1)[0]
+        toggle_body = static_js.split("toggleAccordion(moduleId)", 1)[1].split(
+            "toggleSidebarContext", 1
+        )[0]
         assert "activeNavigationModuleId: module.id" in toggle_body
         assert "openedModules: wasOpen ? new Set() : new Set([moduleId])" in toggle_body
         assert "activeModuleId: module.id" not in toggle_body
         assert "selected: module.operations[0]" not in toggle_body
-        context_body = static_js.split("toggleSidebarContext(moduleId, contextLabel)", 1)[1].split("selectModule", 1)[0]
+        context_body = static_js.split("toggleSidebarContext(moduleId, contextLabel)", 1)[1].split(
+            "selectModule", 1
+        )[0]
         assert "activeNavigationModuleId: module.id" in context_body
         assert "openedModules: new Set([moduleId])" in context_body
         assert "openedContexts.add(contextKey)" in context_body

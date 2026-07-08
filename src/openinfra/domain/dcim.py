@@ -102,7 +102,7 @@ class Site:
         city: str | None = None,
         region: str | None = None,
         status: str | None = None,
-    ) -> Self:
+    ) -> Site:
         normalized_country = self.country if country is None else country.strip().upper()
         normalized_city = self.city if city is None else " ".join(city.strip().split())
         normalized_region = self.region if region is None else " ".join(region.strip().split())
@@ -123,7 +123,7 @@ class Site:
             status=DcimLifecycleStatus.from_value(status, "site status") if status else self.status,
         )
 
-    def retire(self) -> Self:
+    def retire(self) -> Site:
         return self.update(status=DcimLifecycleStatus.RETIRED.value)
 
     def selectable(self) -> bool:
@@ -162,7 +162,7 @@ class Building:
             name=Name.from_value(name, "building name"),
         )
 
-    def update(self, *, name: str | None = None, status: str | None = None) -> Self:
+    def update(self, *, name: str | None = None, status: str | None = None) -> Building:
         return Building(
             id=self.id,
             tenant_id=self.tenant_id,
@@ -174,7 +174,7 @@ class Building:
             else self.status,
         )
 
-    def retire(self) -> Self:
+    def retire(self) -> Building:
         return self.update(status=DcimLifecycleStatus.RETIRED.value)
 
     def selectable(self) -> bool:
@@ -228,7 +228,7 @@ class Floor:
 
     def update(
         self, *, name: str | None = None, level_index: int | None = None, status: str | None = None
-    ) -> Self:
+    ) -> Floor:
         normalized_level = self.level_index if level_index is None else int(level_index)
         if not -20 <= normalized_level <= 300:
             raise ValidationError("floor level index must be between -20 and 300")
@@ -245,7 +245,7 @@ class Floor:
             else self.status,
         )
 
-    def retire(self) -> Self:
+    def retire(self) -> Floor:
         return self.update(status=DcimLifecycleStatus.RETIRED.value)
 
     def selectable(self) -> bool:
@@ -318,7 +318,7 @@ class Room:
         rows: tuple[str, ...] | None = None,
         columns: tuple[str, ...] | None = None,
         status: str | None = None,
-    ) -> Self:
+    ) -> Room:
         return Room(
             id=self.id,
             tenant_id=self.tenant_id,
@@ -340,7 +340,7 @@ class Room:
             status=DcimLifecycleStatus.from_value(status, "room status") if status else self.status,
         )
 
-    def retire(self) -> Self:
+    def retire(self) -> Room:
         return self.update(status=DcimLifecycleStatus.RETIRED.value)
 
     def selectable(self) -> bool:
@@ -437,7 +437,7 @@ class RoomZone:
         rows: tuple[str, ...] | None = None,
         columns: tuple[str, ...] | None = None,
         status: str | None = None,
-    ) -> Self:
+    ) -> RoomZone:
         return RoomZone(
             id=self.id,
             tenant_id=self.tenant_id,
@@ -458,7 +458,7 @@ class RoomZone:
             status=DcimLifecycleStatus.from_value(status, "zone status") if status else self.status,
         )
 
-    def retire(self) -> Self:
+    def retire(self) -> RoomZone:
         return self.update(status=DcimLifecycleStatus.RETIRED.value)
 
     def selectable(self) -> bool:

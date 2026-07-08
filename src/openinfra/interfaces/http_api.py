@@ -379,7 +379,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 tenant_id = self._first_query_value(query, "tenant_id")
                 if self.server.auth_required:
                     self._authenticate(tenant_id, Permission.SECURITY_ADMIN)
-                decision = self.server.application.edition_query_service.quota_decision(
+                quota_decision = self.server.application.edition_query_service.quota_decision(
                     CheckQuotaCommand(
                         tenant_id=tenant_id,
                         edition=self._first_query_value(query, "edition"),
@@ -389,7 +389,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         ),
                     )
                 )
-                responder.send(HTTPStatus.OK, decision.as_dict())
+                responder.send(HTTPStatus.OK, quota_decision.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (ValueError, OpenInfraError) as exc:
@@ -769,7 +769,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         if route == "/api/v1/exports/artifact-chunk":
             try:
                 query = parse_qs(parsed.query)
-                download = self.server.application.export_service.get_export_artifact_chunk(
+                chunk_download = self.server.application.export_service.get_export_artifact_chunk(
                     GetExportArtifactChunkCommand(
                         tenant_id=self._first_query_value(query, "tenant_id"),
                         admin_token=self._bearer_token(),
@@ -778,7 +778,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         size=int(self._first_query_value(query, "size", "65536")),
                     )
                 )
-                responder.send(HTTPStatus.OK, download.as_dict())
+                responder.send(HTTPStatus.OK, chunk_download.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (ValueError, OpenInfraError) as exc:
@@ -962,7 +962,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 query = parse_qs(parsed.query)
                 tenant_id = self._first_query_value(query, "tenant_id")
                 if self.server.auth_required:
-                    self._authenticate(tenant_id, Permission.DCIM_READ)
+                    self._authenticate(tenant_id, Permission.DCIM_LOCATE)
                 result = self.server.application.dcim_topology_service.list_sites(
                     ListDcimSitesCommand(
                         tenant_id=tenant_id,
@@ -984,7 +984,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 query = parse_qs(parsed.query)
                 tenant_id = self._first_query_value(query, "tenant_id")
                 if self.server.auth_required:
-                    self._authenticate(tenant_id, Permission.DCIM_READ)
+                    self._authenticate(tenant_id, Permission.DCIM_LOCATE)
                 result = self.server.application.dcim_topology_service.get_site(
                     GetDcimSiteCommand(
                         tenant_id=tenant_id,
@@ -1003,7 +1003,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 query = parse_qs(parsed.query)
                 tenant_id = self._first_query_value(query, "tenant_id")
                 if self.server.auth_required:
-                    self._authenticate(tenant_id, Permission.DCIM_READ)
+                    self._authenticate(tenant_id, Permission.DCIM_LOCATE)
                 result = self.server.application.dcim_topology_service.topology_catalog(
                     DcimTopologyCatalogCommand(
                         tenant_id=tenant_id,
@@ -1388,7 +1388,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     else None
                 )
                 service = self.server.application.external_itsm_service
-                plan = service.build_servicenow_ci_sync_plan(
+                servicenow_ci_sync_plan = service.build_servicenow_ci_sync_plan(
                     BuildServiceNowCiSyncPlanCommand(
                         tenant_id=tenant_id,
                         resource_key=self._required_payload_value(payload, "resource_key"),
@@ -1397,7 +1397,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         mapping=mapping,
                     )
                 )
-                responder.send(HTTPStatus.OK, plan.as_dict())
+                responder.send(HTTPStatus.OK, servicenow_ci_sync_plan.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
@@ -1722,7 +1722,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 if self.server.auth_required:
                     principal = self._authenticate(tenant_id, Permission.ITAM_WRITE)
                     actor = principal.subject
-                profile = (
+                manufacturer_support_profile = (
                     self.server.application.itam_support_service.register_manufacturer_support(
                         RegisterManufacturerSupportCommand(
                             tenant_id=tenant_id,
@@ -1740,7 +1740,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         )
                     )
                 )
-                responder.send(HTTPStatus.CREATED, profile.as_dict())
+                responder.send(HTTPStatus.CREATED, manufacturer_support_profile.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
@@ -1755,23 +1755,27 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 if self.server.auth_required:
                     principal = self._authenticate(tenant_id, Permission.ITAM_WRITE)
                     actor = principal.subject
-                profile = self.server.application.itam_support_service.add_third_party_support(
-                    AddThirdPartySupportCommand(
-                        tenant_id=tenant_id,
-                        actor=actor,
-                        admin_token=self._bearer_token(),
-                        asset_tag=str(payload["asset_tag"]),
-                        provider=str(payload["provider"]),
-                        contract_reference=str(payload["contract_reference"]),
-                        support_level=str(payload["support_level"]),
-                        support_start=str(payload["support_start"]),
-                        support_end=str(payload["support_end"]),
-                        support_contact=str(payload["support_contact"]),
-                        status=str(payload.get("status", "active")),
-                        notes=(None if payload.get("notes") is None else str(payload.get("notes"))),
+                third_party_support_profile = (
+                    self.server.application.itam_support_service.add_third_party_support(
+                        AddThirdPartySupportCommand(
+                            tenant_id=tenant_id,
+                            actor=actor,
+                            admin_token=self._bearer_token(),
+                            asset_tag=str(payload["asset_tag"]),
+                            provider=str(payload["provider"]),
+                            contract_reference=str(payload["contract_reference"]),
+                            support_level=str(payload["support_level"]),
+                            support_start=str(payload["support_start"]),
+                            support_end=str(payload["support_end"]),
+                            support_contact=str(payload["support_contact"]),
+                            status=str(payload.get("status", "active")),
+                            notes=(
+                                None if payload.get("notes") is None else str(payload.get("notes"))
+                            ),
+                        )
                     )
                 )
-                responder.send(HTTPStatus.CREATED, profile.as_dict())
+                responder.send(HTTPStatus.CREATED, third_party_support_profile.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
@@ -2708,21 +2712,23 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         if route == "/api/v1/discovery/local-plan":
             try:
                 payload = self._read_json_body()
-                plan = self.server.application.discovery_service.build_local_discovery_plan(
-                    BuildLocalDiscoveryPlanCommand(
-                        tenant_id=str(payload["tenant_id"]),
-                        actor=str(payload.get("actor", "api")),
-                        admin_token=self._bearer_token(),
-                        name=str(payload["name"]),
-                        scope=str(payload["scope"]),
-                        protocol=str(payload["protocol"]),
-                        targets=tuple(str(item) for item in payload["targets"]),
-                        credential_secret_ref=str(payload["credential_secret_ref"]),
-                        max_concurrency=int(payload.get("max_concurrency", 4)),
-                        rate_limit_per_minute=int(payload.get("rate_limit_per_minute", 120)),
+                local_discovery_plan = (
+                    self.server.application.discovery_service.build_local_discovery_plan(
+                        BuildLocalDiscoveryPlanCommand(
+                            tenant_id=str(payload["tenant_id"]),
+                            actor=str(payload.get("actor", "api")),
+                            admin_token=self._bearer_token(),
+                            name=str(payload["name"]),
+                            scope=str(payload["scope"]),
+                            protocol=str(payload["protocol"]),
+                            targets=tuple(str(item) for item in payload["targets"]),
+                            credential_secret_ref=str(payload["credential_secret_ref"]),
+                            max_concurrency=int(payload.get("max_concurrency", 4)),
+                            rate_limit_per_minute=int(payload.get("rate_limit_per_minute", 120)),
+                        )
                     )
                 )
-                responder.send(HTTPStatus.OK, plan.as_dict())
+                responder.send(HTTPStatus.OK, local_discovery_plan.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError, TypeError) as exc:
@@ -2732,7 +2738,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         if route == "/api/v1/discovery/agent-bootstrap-plan":
             try:
                 payload = self._read_json_body()
-                plan = (
+                agent_bootstrap_plan = (
                     self.server.application.discovery_service.build_enterprise_agent_bootstrap_plan(
                         BuildEnterpriseAgentBootstrapPlanCommand(
                             tenant_id=str(payload["tenant_id"]),
@@ -2758,7 +2764,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         )
                     )
                 )
-                responder.send(HTTPStatus.OK, plan.as_dict())
+                responder.send(HTTPStatus.OK, agent_bootstrap_plan.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError, TypeError) as exc:

@@ -1,3 +1,13 @@
+## v0.29.70 — CI sécurité PostgreSQL et formatage web
+
+- Suppression des constructions SQL dynamiques signalées par Bandit B608 dans le référentiel PostgreSQL DCIM et ITAM.
+- Remplacement des fragments `WHERE` assemblés dynamiquement par des requêtes statiques sélectionnées par branche métier.
+- Conservation stricte des paramètres SQL nommés pour toutes les valeurs utilisateur.
+- Formatage Ruff du test d’intégration web `tests/integration/test_openinfra_web.py`.
+- Correction des incohérences mypy DCIM/HTTP API révélées après installation locale des outils CI.
+- Validation `python -m build` réalisée ; les artefacts `dist/` sont exclus de l’archive source livrée.
+- Aucun changement de contrat API, CLI, migration ou comportement fonctionnel UI.
+
 ## v0.29.69 — Sidebar fermée par défaut et contextes actifs fluides
 
 - Démarrage de la sidebar avec tous les composants fermés et Dashboard actif.

@@ -1,3 +1,10 @@
+## v0.29.71 — Hotfix CI edition feature-check data backend
+
+- Corrige la régression CLI `openinfra edition feature-check --data ...` utilisée par la CI.
+- Aligne `edition feature-check` sur les autres commandes `edition` en acceptant les options backend JSON/PostgreSQL sans changer la décision métier.
+- Ajoute une régression d'intégration garantissant que `list`, `feature-check` et `quota-check` acceptent `--data` dans le même smoke CI.
+- Met à jour CDC et roadmap livrés avec l'archive.
+
 ## v0.29.70 — CI sécurité PostgreSQL et formatage web
 
 - Suppression des constructions SQL dynamiques signalées par Bandit B608 dans le référentiel PostgreSQL DCIM et ITAM.

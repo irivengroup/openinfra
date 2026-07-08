@@ -277,6 +277,9 @@ class OpenInfraCLI:
         feature_check = edition_subparsers.add_parser(
             "feature-check", help="check whether an edition allows a feature capability"
         )
+        feature_check.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        feature_check.add_argument("--data", type=Path, default=Path(".openinfra.json"))
+        feature_check.add_argument("--postgres-dsn")
         feature_check.add_argument("--tenant", default="default")
         feature_check.add_argument(
             "--edition", choices=("lite", "pro", "enterprise"), required=True

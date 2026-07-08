@@ -526,7 +526,7 @@ def test_cli_discovery_agent_bootstrap_plan_outputs_enterprise_systemd_unit(
             "--enrollment-secret-ref",
             "vault://openinfra/discovery/agent/par1",
             "--agent-version",
-            "0.29.70",
+            "0.29.71",
         ]
     )
     plan = json.loads(capsys.readouterr().out)

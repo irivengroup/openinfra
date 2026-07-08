@@ -254,4 +254,7 @@ Ajout de l’exigence UX `REQ-00808` : `Entité propriétaire` remplace `Tenant`
 - `REQ-00809` — OpenInfra doit gérer les sites DCIM avec CRUD, retrait logique, conservation d’historique et cascade non destructive vers les dépendances de localisation.
 - `REQ-00810` — Les formulaires web manipulant des références DCIM de localisation doivent utiliser des champs `select` alimentés par le catalogue backend, sans texte libre pour `site`, `bâtiment`, `étage`, `salle`, `zone`, `rack`, `ligne` ou `colonne`.
 - `REQ-00811` — Le portail `openinfra-web`, y compris la sidebar, doit être responsive et exploitable sur tablettes/smartphones sans masquage d’actions.
+### v0.29.71 — compatibilité CLI/CI des commandes édition
+
+La commande `openinfra edition feature-check` accepte désormais les options backend homogènes, dont `--data`, comme `edition list` et `edition quota-check`. Cette exigence verrouille la parité CLI/CI des smoke tests d'administration des éditions sans modifier les décisions métier Lite/Pro/Enterprise.
 

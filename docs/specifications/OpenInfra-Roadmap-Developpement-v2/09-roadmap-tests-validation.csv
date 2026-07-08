@@ -80,3 +80,4 @@ TST-P14-ITAM-TENANT-LIFECYCLE,P14,Référentiel tenants ITAM,"Valider CRUD tenan
 TST-P14-ENTERPRISE-AGENT-BOOTSTRAP,P14,Plan bootstrap openinfra-agent.service Enterprise,"Valider domaine/service/CLI/API/OpenAPI/discovery/web pour le plan Enterprise mTLS, rendu systemd, secret vault://, publication API, install_executed=false et refus Lite/Pro.",Domain/Service/API/CLI/frontend/OpenAPI/Security/Regression
 
 TST-P14-ITAM-TENANT-UX-LABELS,P14,UX entités propriétaires ITAM,"Valider le remplacement UI de Tenant par Entité propriétaire, le libellé Organisation lors de la création et les champs select pour les références tenant.",Frontend/Web/Regression
+TST-P08-CLI-EDITION-DATA-COMPAT,P08,Parité CLI/CI des commandes édition,"Valider que `edition list`, `feature-check` et `quota-check` acceptent les options backend homogènes utilisées par le smoke CI, notamment `--data`.",CLI/CI/Regression

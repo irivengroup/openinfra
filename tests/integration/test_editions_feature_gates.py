@@ -313,6 +313,8 @@ def test_edition_cli_commands_report_policy_feature_and_quota(
             [
                 "edition",
                 "feature-check",
+                "--data",
+                str(data_path),
                 "--tenant",
                 "default",
                 "--edition",
@@ -325,6 +327,26 @@ def test_edition_cli_commands_report_policy_feature_and_quota(
     )
     denied = capsys.readouterr().out
     assert '"allowed": false' in denied
+
+    assert (
+        cli.run(
+            [
+                "edition",
+                "feature-check",
+                "--data",
+                str(data_path),
+                "--tenant",
+                "default",
+                "--edition",
+                "enterprise",
+                "--capability",
+                "distributed_discovery_agents",
+            ]
+        )
+        == 0
+    )
+    allowed = capsys.readouterr().out
+    assert '"allowed": true' in allowed
 
     assert (
         cli.run(

@@ -1655,4 +1655,7 @@ La livraison v0.29.64 ajoute `TST-P14-ITAM-TENANT-UX-LABELS` pour couvrir les li
 ### Validation v0.29.65 — DCIM sites et responsive mobile
 
 La livraison v0.29.65 ajoute `TST-P14-DCIM-SITE-LIFECYCLE-RESPONSIVE` pour couvrir le CRUD des sites DCIM, la cascade non destructive vers les dépendances, le catalogue hiérarchique, les sélecteurs obligatoires pour les références de localisation et l’optimisation responsive du portail.
+### Validation v0.29.71 — compatibilité CLI/CI des commandes édition
+
+La livraison v0.29.71 ajoute `TST-P08-CLI-EDITION-DATA-COMPAT` pour verrouiller la parité des commandes `openinfra edition list`, `openinfra edition feature-check --data` et `openinfra edition quota-check --data` dans les smoke tests CI, sans modifier les règles métier d'édition.
 

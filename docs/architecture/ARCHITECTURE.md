@@ -1,4 +1,4 @@
-## v0.29.70 — Architecture UI sidebar contextuelle
+## v0.29.71 — Architecture UI sidebar contextuelle
 
 L’état de navigation visuelle (`activeNavigationModuleId`) est séparé de l’état fonctionnel de page (`activeModuleId`). Cette séparation évite qu’un simple clic sur un composant ou un contexte charge une action métier implicite, tout en permettant de désigner correctement le composant actif.
 

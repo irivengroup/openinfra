@@ -1,4 +1,4 @@
-## v0.29.70 — Traçabilité UX sidebar contextuelle
+## v0.29.71 — Traçabilité UX sidebar contextuelle
 
 - Exigence : chargement initial avec Dashboard actif et composants fermés.
 - Exigence : clic composant ou contexte désigne le composant actif.

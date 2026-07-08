@@ -1,3 +1,9 @@
+## v0.29.71 — compatibilité CLI/CI des commandes édition
+
+- Ajout `REQ-00812` pour rendre homogènes les options backend des commandes CLI d'administration des éditions.
+- Ajout `TST-CLI-111` afin de verrouiller `openinfra edition feature-check --data ...` dans les smoke tests CI.
+- Mise à jour de la roadmap avec `TST-P08-CLI-EDITION-DATA-COMPAT`.
+
 ## 0.29.60 — guides opérables de migration données
 
 - Ajout `REQ-00803` pour les guides structurés Device42, NetBox, Nautobot, GLPI et CSV.

@@ -1145,7 +1145,7 @@ class TestHttpApi:
                     "backend_url": "https://openinfra-api.example.test",
                     "certificate_fingerprint": "6" * 64,
                     "enrollment_secret_ref": "vault://openinfra/discovery/agent/par1",
-                    "agent_version": "0.29.70",
+                    "agent_version": "0.29.71",
                 },
                 token=token,
             )

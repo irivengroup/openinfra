@@ -81,10 +81,15 @@ La roadmap v2 ajoute `TST-P08-WEB-SIDEBAR-CONTEXT-GROUPS` pour verrouiller la na
 
 La livraison v0.29.63 ajoute `TST-P14-ENTERPRISE-AGENT-BOOTSTRAP` pour couvrir le contrat Enterprise `openinfra-agent.service`, le rendu systemd, la configuration agent, mTLS, les références `vault://`, les endpoints API de publication et l’absence d’installation ou de secret en clair.
 
-### Validation v0.29.64 — UX entités propriétaires
+### Validation v0.29.64 — UX tenants ITAM
 
-La livraison v0.29.64 ajoute `TST-P14-ITAM-TENANT-UX-LABELS` pour couvrir les libellés `Entité propriétaire`, `Organisation` en création, et le rendu select des références tenant côté portail web.
+La livraison v0.29.64 a introduit `TST-P14-ITAM-TENANT-UX-LABELS`, désormais réaligné : le portail distingue `Organisation` comme entreprise/groupe client et `Tenant` comme subdivision rattachée, sans libellé ambigu `Entité propriétaire`.
 ### Validation v0.29.65 — DCIM sites et responsive mobile
 
 La livraison v0.29.65 ajoute `TST-P14-DCIM-SITE-LIFECYCLE-RESPONSIVE` pour couvrir le CRUD des sites DCIM, la cascade non destructive vers les dépendances, le catalogue hiérarchique, les sélecteurs obligatoires pour les références de localisation et l’optimisation responsive du portail.
 
+
+
+### Validation v0.29.73 — Organisations ITAM parent des tenants
+
+La roadmap v2 ajoute `TST-P14-ITAM-ORGANIZATION-IDENTITY` pour couvrir le référentiel organisations, la carte d’identité entreprise, le rattachement obligatoire tenant/support/licence, le filtrage UI Organisation → Tenant, le tenant implicite et la cascade de retrait logique.

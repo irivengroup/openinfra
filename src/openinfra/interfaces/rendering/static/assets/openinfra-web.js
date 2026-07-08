@@ -773,7 +773,7 @@ const DCIM_REFERENCE_FIELDS = new Set(["site", "site_code", "building", "buildin
 const DCIM_REFERENCE_LABELS = { site: "Site", site_code: "Site", building: "Bâtiment", building_code: "Bâtiment", floor: "Étage", floor_code: "Étage", room: "Salle", room_code: "Salle", zone: "Zone", zone_code: "Zone", rack: "Rack", row: "Ligne salle", column: "Colonne salle" };
 
 const FIELD_SETS = {
-  tenant: { name: "tenant_id", label: "Entité propriétaire", type: "tenant-select", defaultValue: "default", placeholder: "default" },
+  tenant: { name: "tenant_id", label: "Tenant", type: "tenant-select", defaultValue: "default", placeholder: "default" },
   limit: { name: "limit", label: "Limite", type: "number", placeholder: "100" },
   jobId: { name: "job_id", label: "Job ID", required: true, placeholder: "job import massif" },
   exportJobId: { name: "job_id", label: "Job export", required: true, placeholder: "job export signé" },
@@ -876,6 +876,26 @@ const OPENINFRA_MODULES = [
     { id: "dcim-site-create", label: "Créer un site DCIM", method: "POST", path: "/v1/dcim/site/create", body: [FIELD_SETS.actor, { name: "code", label: "Code site", required: true, placeholder: "PAR1" }, { name: "name", label: "Nom site", required: true, placeholder: "Paris 1" }, { name: "country", label: "Pays ISO-3166", required: true, placeholder: "FR" }, { name: "region", label: "Région", placeholder: "Île-de-France" }, { name: "city", label: "Ville", required: true, placeholder: "Paris" }] },
     { id: "dcim-site-update", label: "Modifier un site DCIM", method: "POST", path: "/v1/dcim/site/update", body: [FIELD_SETS.actor, { name: "code", label: "Site", required: true, defaultValue: "PAR1" }, { name: "name", label: "Nom site", placeholder: "Paris 1" }, { name: "country", label: "Pays ISO-3166", placeholder: "FR" }, { name: "region", label: "Région", placeholder: "Île-de-France" }, { name: "city", label: "Ville", placeholder: "Paris" }, { name: "status", label: "Statut", type: "select", options: ["", "active", "suspended", "retired"] }] },
     { id: "dcim-site-delete", label: "Retirer un site DCIM", method: "POST", path: "/v1/dcim/site/delete", body: [FIELD_SETS.actor, { name: "code", label: "Site", required: true, defaultValue: "PAR1" }] },
+    { id: "dcim-buildings", label: "Lister les bâtiments", method: "GET", path: "/v1/dcim/buildings", query: [{ name: "site", label: "Site", required: true }, { name: "include_retired", label: "Inclure retirés", type: "boolean" }] },
+    { id: "dcim-building", label: "Consulter un bâtiment", method: "GET", path: "/v1/dcim/building", query: [{ name: "site", label: "Site", required: true }, { name: "code", label: "Code bâtiment", required: true, placeholder: "BAT-A" }] },
+    { id: "dcim-building-create", label: "Créer un bâtiment", method: "POST", path: "/v1/dcim/building/create", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true }, { name: "code", label: "Code bâtiment", required: true, placeholder: "BAT-A" }, { name: "name", label: "Nom bâtiment", required: true, placeholder: "Bâtiment A" }] },
+    { id: "dcim-building-update", label: "Modifier un bâtiment", method: "POST", path: "/v1/dcim/building/update", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true }, { name: "code", label: "Code bâtiment", required: true, placeholder: "BAT-A" }, { name: "name", label: "Nom bâtiment", placeholder: "Bâtiment A" }, { name: "status", label: "Statut", type: "select", options: ["", "active", "suspended", "retired"] }] },
+    { id: "dcim-building-delete", label: "Retirer un bâtiment", method: "POST", path: "/v1/dcim/building/delete", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true }, { name: "code", label: "Code bâtiment", required: true, placeholder: "BAT-A" }] },
+    { id: "dcim-floors", label: "Lister les étages", method: "GET", path: "/v1/dcim/floors", query: [{ name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "include_retired", label: "Inclure retirés", type: "boolean" }] },
+    { id: "dcim-floor", label: "Consulter un étage", method: "GET", path: "/v1/dcim/floor", query: [{ name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "code", label: "Code étage", required: true, placeholder: "F01" }] },
+    { id: "dcim-floor-create", label: "Créer un étage", method: "POST", path: "/v1/dcim/floor/create", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "code", label: "Code étage", required: true, placeholder: "F01" }, { name: "name", label: "Nom étage", required: true, placeholder: "Étage 1" }, { name: "level_index", label: "Niveau", type: "number", required: true, placeholder: "1" }] },
+    { id: "dcim-floor-update", label: "Modifier un étage", method: "POST", path: "/v1/dcim/floor/update", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "code", label: "Code étage", required: true, placeholder: "F01" }, { name: "name", label: "Nom étage", placeholder: "Étage 1" }, { name: "level_index", label: "Niveau", type: "number", placeholder: "1" }, { name: "status", label: "Statut", type: "select", options: ["", "active", "suspended", "retired"] }] },
+    { id: "dcim-floor-delete", label: "Retirer un étage", method: "POST", path: "/v1/dcim/floor/delete", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "code", label: "Code étage", required: true, placeholder: "F01" }] },
+    { id: "dcim-rooms-list", label: "Lister les salles", method: "GET", path: "/v1/dcim/rooms", query: [{ name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "include_retired", label: "Inclure retirés", type: "boolean" }] },
+    { id: "dcim-room", label: "Consulter une salle", method: "GET", path: "/v1/dcim/room", query: [{ name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "code", label: "Code salle", required: true, placeholder: "MMR1" }] },
+    { id: "dcim-room-create", label: "Créer une salle", method: "POST", path: "/v1/dcim/room/create", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "floor", label: "Étage", required: true }, { name: "code", label: "Code salle", required: true, placeholder: "MMR1" }, { name: "name", label: "Nom salle", required: true, placeholder: "Meet-Me Room" }, { name: "rows", label: "Lignes salle", type: "csv", required: true, placeholder: "A,B,C" }, { name: "columns", label: "Colonnes salle", type: "csv", required: true, placeholder: "01,02,03" }] },
+    { id: "dcim-room-update", label: "Modifier une salle", method: "POST", path: "/v1/dcim/room/update", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "code", label: "Code salle", required: true, placeholder: "MMR1" }, { name: "name", label: "Nom salle", placeholder: "Meet-Me Room" }, { name: "rows", label: "Lignes salle", type: "csv", placeholder: "A,B,C" }, { name: "columns", label: "Colonnes salle", type: "csv", placeholder: "01,02,03" }, { name: "status", label: "Statut", type: "select", options: ["", "active", "suspended", "retired"] }] },
+    { id: "dcim-room-delete", label: "Retirer une salle", method: "POST", path: "/v1/dcim/room/delete", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "code", label: "Code salle", required: true, placeholder: "MMR1" }] },
+    { id: "dcim-zones", label: "Lister les zones", method: "GET", path: "/v1/dcim/zones", query: [{ name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "room", label: "Salle", required: true }, { name: "include_retired", label: "Inclure retirés", type: "boolean" }] },
+    { id: "dcim-zone", label: "Consulter une zone", method: "GET", path: "/v1/dcim/zone", query: [{ name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "room", label: "Salle", required: true }, { name: "code", label: "Code zone", required: true, placeholder: "Z1" }] },
+    { id: "dcim-zone-create", label: "Créer une zone", method: "POST", path: "/v1/dcim/zone/create", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "room", label: "Salle", required: true }, { name: "code", label: "Code zone", required: true, placeholder: "Z1" }, { name: "name", label: "Nom zone", required: true, placeholder: "Zone froide 1" }, { name: "rows", label: "Lignes zone", type: "csv", required: true, placeholder: "A" }, { name: "columns", label: "Colonnes zone", type: "csv", required: true, placeholder: "01" }] },
+    { id: "dcim-zone-update", label: "Modifier une zone", method: "POST", path: "/v1/dcim/zone/update", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "room", label: "Salle", required: true }, { name: "code", label: "Code zone", required: true, placeholder: "Z1" }, { name: "name", label: "Nom zone", placeholder: "Zone froide 1" }, { name: "rows", label: "Lignes zone", type: "csv", placeholder: "A" }, { name: "columns", label: "Colonnes zone", type: "csv", placeholder: "01" }, { name: "status", label: "Statut", type: "select", options: ["", "active", "suspended", "retired"] }] },
+    { id: "dcim-zone-delete", label: "Retirer une zone", method: "POST", path: "/v1/dcim/zone/delete", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "room", label: "Salle", required: true }, { name: "code", label: "Code zone", required: true, placeholder: "Z1" }] },
     { id: "dcim-topology-catalog", label: "Catalogue dépendances DCIM", method: "GET", path: "/v1/dcim/topology-catalog", query: [{ name: "include_retired", label: "Inclure retirés", type: "boolean" }] },
     { id: "dcim-locate-equipment", label: "Localiser un équipement", method: "POST", path: "/v1/dcim/locations", body: [
       FIELD_SETS.actor,
@@ -911,11 +931,16 @@ const OPENINFRA_MODULES = [
     { id: "dcim-energy-cooling-capacity", label: "Capacité énergie/refroidissement", method: "GET", path: "/v1/dcim/energy-cooling-capacity", query: [{ name: "site", label: "Site", required: true, placeholder: "PAR1" }, { name: "building", label: "Bâtiment", required: true, placeholder: "BAT-A" }, { name: "room", label: "Salle", required: true, placeholder: "MMR1" }, { name: "rack", label: "Rack", required: true, placeholder: "R01" }] }
   ] },
   { id: "itam", label: "IT Asset Management", shortLabel: "ITAM", icon: "asset", description: "Inventaire financier et opérationnel des actifs, garanties constructeur, supports tiers et couverture renouvellement.", operations: [
-    { id: "itam-tenants", label: "Lister les entités propriétaires ITAM", method: "GET", path: "/v1/itam/tenants", query: [{ name: "include_retired", label: "Inclure retirés", type: "boolean" }] },
-    { id: "itam-tenant", label: "Voir une entité propriétaire ITAM", method: "GET", path: "/v1/itam/tenant", query: [] },
-    { id: "itam-tenant-create", label: "Créer une entité propriétaire ITAM", method: "POST", path: "/v1/itam/tenant/create", body: [{ name: "tenant_id", label: "Organisation", required: true, placeholder: "production" }, FIELD_SETS.actor, { name: "scope_tenant_id", label: "Entité propriétaire de sécurité", type: "tenant-select", placeholder: "default" }, { name: "name", label: "Nom entité propriétaire", required: true, placeholder: "Production" }, { name: "status", label: "Statut", type: "select", options: ["active", "suspended", "retired"], defaultValue: "active" }, { name: "is_default", label: "Entité propriétaire par défaut", type: "boolean" }, { name: "description", label: "Description", placeholder: "Périmètre de l’entité propriétaire" }] },
-    { id: "itam-tenant-update", label: "Modifier une entité propriétaire ITAM", method: "POST", path: "/v1/itam/tenant/update", body: [FIELD_SETS.actor, { name: "scope_tenant_id", label: "Entité propriétaire de sécurité", type: "tenant-select", placeholder: "default" }, { name: "name", label: "Nom entité propriétaire", placeholder: "Production" }, { name: "status", label: "Statut", type: "select", options: ["", "active", "suspended", "retired"] }, { name: "is_default", label: "Entité propriétaire par défaut", type: "boolean" }, { name: "description", label: "Description", placeholder: "Périmètre de l’entité propriétaire" }] },
-    { id: "itam-tenant-delete", label: "Retirer une entité propriétaire ITAM", method: "POST", path: "/v1/itam/tenant/delete", body: [FIELD_SETS.actor, { name: "scope_tenant_id", label: "Entité propriétaire de sécurité", type: "tenant-select", placeholder: "default" }] },
+    { id: "itam-organizations", label: "Lister les organisations", method: "GET", path: "/v1/itam/organizations", query: [{ name: "include_retired", label: "Inclure retirées", type: "boolean" }] },
+    { id: "itam-organization", label: "Voir une organisation", method: "GET", path: "/v1/itam/organization", query: [{ name: "organization_id", label: "Organisation", type: "organization-select", required: true }] },
+    { id: "itam-organization-create", label: "Créer une organisation", method: "POST", path: "/v1/itam/organization/create", body: [{ name: "organization_id", label: "Code organisation", required: true, placeholder: "orange" }, FIELD_SETS.actor, { name: "scope_tenant_id", label: "Tenant de sécurité", type: "tenant-select", placeholder: "default" }, { name: "legal_name", label: "Raison sociale", required: true, placeholder: "Orange SA" }, { name: "display_name", label: "Nom d’usage", placeholder: "Orange" }, { name: "registration_number", label: "N° immatriculation", required: true, placeholder: "RCS Paris ..." }, { name: "tax_identifier", label: "Identifiant fiscal / TVA", required: true, placeholder: "FR..." }, { name: "country_code", label: "Pays", required: true, placeholder: "FR" }, { name: "city", label: "Ville", required: true, placeholder: "Paris" }, { name: "address", label: "Adresse siège", required: true, placeholder: "111 Quai du Président Roosevelt" }, { name: "contact_email", label: "Email contact", required: true, placeholder: "contact@orange.com" }, { name: "support_contact", label: "Contact support", required: true, placeholder: "support@orange.com" }, { name: "status", label: "Statut", type: "select", options: ["active", "suspended", "retired"], defaultValue: "active" }, { name: "description", label: "Description", placeholder: "Carte d’identité entreprise" }] },
+    { id: "itam-organization-update", label: "Modifier une organisation", method: "POST", path: "/v1/itam/organization/update", body: [{ name: "organization_id", label: "Organisation", type: "organization-select", required: true }, FIELD_SETS.actor, { name: "scope_tenant_id", label: "Tenant de sécurité", type: "tenant-select", placeholder: "default" }, { name: "legal_name", label: "Raison sociale" }, { name: "display_name", label: "Nom d’usage" }, { name: "registration_number", label: "N° immatriculation" }, { name: "tax_identifier", label: "Identifiant fiscal / TVA" }, { name: "country_code", label: "Pays" }, { name: "city", label: "Ville" }, { name: "address", label: "Adresse siège" }, { name: "contact_email", label: "Email contact" }, { name: "support_contact", label: "Contact support" }, { name: "status", label: "Statut", type: "select", options: ["", "active", "suspended", "retired"] }, { name: "description", label: "Description" }] },
+    { id: "itam-organization-delete", label: "Retirer une organisation", method: "POST", path: "/v1/itam/organization/delete", body: [{ name: "organization_id", label: "Organisation", type: "organization-select", required: true }, FIELD_SETS.actor, { name: "scope_tenant_id", label: "Tenant de sécurité", type: "tenant-select", placeholder: "default" }] },
+    { id: "itam-tenants", label: "Lister les tenants", method: "GET", path: "/v1/itam/tenants", query: [{ name: "include_retired", label: "Inclure retirés", type: "boolean" }] },
+    { id: "itam-tenant", label: "Voir un tenant", method: "GET", path: "/v1/itam/tenant", query: [] },
+    { id: "itam-tenant-create", label: "Créer un tenant", method: "POST", path: "/v1/itam/tenant/create", body: [{ name: "organization_id", label: "Organisation", type: "organization-select", required: true }, { name: "tenant_id", label: "Tenant", required: true, placeholder: "dsi" }, FIELD_SETS.actor, { name: "scope_tenant_id", label: "Tenant de sécurité", type: "tenant-select", placeholder: "default" }, { name: "name", label: "Nom tenant", required: true, placeholder: "DSI" }, { name: "status", label: "Statut", type: "select", options: ["active", "suspended", "retired"], defaultValue: "active" }, { name: "is_default", label: "Tenant par défaut", type: "boolean" }, { name: "description", label: "Description", placeholder: "Périmètre interne du tenant" }] },
+    { id: "itam-tenant-update", label: "Modifier un tenant", method: "POST", path: "/v1/itam/tenant/update", body: [{ name: "organization_id", label: "Organisation", type: "organization-select" }, FIELD_SETS.actor, { name: "scope_tenant_id", label: "Tenant de sécurité", type: "tenant-select", placeholder: "default" }, { name: "name", label: "Nom tenant", placeholder: "DSI" }, { name: "status", label: "Statut", type: "select", options: ["", "active", "suspended", "retired"] }, { name: "is_default", label: "Tenant par défaut", type: "boolean" }, { name: "description", label: "Description", placeholder: "Périmètre interne du tenant" }] },
+    { id: "itam-tenant-delete", label: "Retirer un tenant", method: "POST", path: "/v1/itam/tenant/delete", body: [FIELD_SETS.actor, { name: "scope_tenant_id", label: "Tenant de sécurité", type: "tenant-select", placeholder: "default" }] },
     { id: "itam-support-profile", label: "Profil support actif", method: "GET", path: "/v1/itam/support-profile", query: [{ name: "asset_tag", label: "Numéro d’actif", required: true, placeholder: "PAR-SRV-001" }] },
     { id: "itam-support-coverage", label: "Couverture support actif", method: "GET", path: "/v1/itam/support-coverage", query: [{ name: "asset_tag", label: "Numéro d’actif", required: true, placeholder: "PAR-SRV-001" }, { name: "as_of", label: "Date de référence", placeholder: "2026-07-07" }] },
     { id: "itam-register-manufacturer", label: "Déclarer garantie constructeur", method: "POST", path: "/v1/itam/support-profile/manufacturer", body: [FIELD_SETS.actor, { name: "asset_tag", label: "Numéro d’actif", required: true, placeholder: "PAR-SRV-001" }, { name: "manufacturer", label: "Constructeur", required: true, placeholder: "Dell" }, { name: "warranty_reference", label: "Référence garantie", required: true, placeholder: "WR-123" }, { name: "warranty_level", label: "Niveau garantie", required: true, placeholder: "ProSupport" }, { name: "warranty_start", label: "Début garantie", required: true, placeholder: "2026-01-01" }, { name: "warranty_end", label: "Fin garantie", required: true, placeholder: "2029-01-01" }, { name: "support_reference", label: "Référence support", required: true, placeholder: "SUP-123" }, { name: "support_level", label: "Niveau support", required: true, placeholder: "24x7" }, { name: "support_contact", label: "Contact support", required: true, placeholder: "support@example.com" }] },
@@ -974,14 +999,15 @@ const OPENINFRA_SIDEBAR_CONTEXTS = {
     { label: "Observations & DDI", operationIds: ["ipam-observe-dns", "ipam-observe-dhcp", "ipam-conflicts", "ipam-ddi-preview"] }
   ],
   dcim: [
-    { label: "Sites & dépendances", operationIds: ["dcim-sites", "dcim-site", "dcim-site-create", "dcim-site-update", "dcim-site-delete", "dcim-topology-catalog", "dcim-define-room"] },
+    { label: "Sites & dépendances", operationIds: ["dcim-sites", "dcim-site", "dcim-site-create", "dcim-site-update", "dcim-site-delete", "dcim-buildings", "dcim-building", "dcim-building-create", "dcim-building-update", "dcim-building-delete", "dcim-floors", "dcim-floor", "dcim-floor-create", "dcim-floor-update", "dcim-floor-delete", "dcim-rooms-list", "dcim-room", "dcim-room-create", "dcim-room-update", "dcim-room-delete", "dcim-zones", "dcim-zone", "dcim-zone-create", "dcim-zone-update", "dcim-zone-delete", "dcim-topology-catalog", "dcim-define-room"] },
     { label: "Localisation & capacité", operationIds: ["dcim-locate-equipment", "dcim-rack-capacity", "dcim-room-plan", "dcim-rack-elevation"] },
     { label: "Connectivité", operationIds: ["dcim-patch-panel", "dcim-port", "dcim-cable", "dcim-cable-trace"] },
     { label: "Énergie & refroidissement", operationIds: ["dcim-power-device", "dcim-power-circuit", "dcim-cooling-zone", "dcim-power-reservation", "dcim-energy-cooling-capacity"] },
     { label: "Jumeau numérique", operationIds: ["dcim-digital-twin"] }
   ],
   itam: [
-    { label: "Entités propriétaires", operationIds: ["itam-tenants", "itam-tenant", "itam-tenant-create", "itam-tenant-update", "itam-tenant-delete"] },
+    { label: "Organisations", operationIds: ["itam-organizations", "itam-organization", "itam-organization-create", "itam-organization-update", "itam-organization-delete"] },
+    { label: "Tenants", operationIds: ["itam-tenants", "itam-tenant", "itam-tenant-create", "itam-tenant-update", "itam-tenant-delete"] },
     { label: "Support matériel", operationIds: ["itam-support-profile", "itam-support-coverage", "itam-register-manufacturer", "itam-add-third-party"] },
     { label: "Licences logicielles", operationIds: ["itam-software-license", "itam-software-compliance", "itam-register-software", "itam-update-license-assignment"] }
   ],
@@ -1018,6 +1044,9 @@ class OpenInfraDashboard {
       selected: OPENINFRA_MODULES[0].operations[0],
       openedModules: new Set(),
       openedContexts: new Set(),
+      organization: "default",
+      organizationCatalog: null,
+      organizationCatalogError: null,
       tenant: "default",
       tenantCatalog: null,
       tenantCatalogError: null,
@@ -1057,10 +1086,32 @@ class OpenInfraDashboard {
         fetch("/status", { credentials: "same-origin", headers: { Accept: "application/json" } }).then((response) => response.ok ? response.json() : { protectedForms: "unknown", trust: {} })
       ]);
       this.state = { ...this.state, config, version, ready, status, error: null };
+      await this.refreshOrganizationCatalog();
       await this.refreshTenantCatalog();
       await this.refreshDcimCatalog();
     } catch (error) {
       this.state = { ...this.state, error };
+    }
+  }
+
+
+  async refreshOrganizationCatalog() {
+    try {
+      const base = String(this.state.config?.apiBaseUrl || "/api").replace(/\/$/, "");
+      const response = await fetch(`${base}/v1/itam/organizations?tenant_id=${encodeURIComponent(this.state.tenant || "default")}`, {
+        credentials: "same-origin",
+        headers: { Accept: "application/json" }
+      });
+      if (!response.ok) {
+        throw new Error(`ITAM organization catalog returned ${response.status}`);
+      }
+      const catalog = await response.json();
+      const selectable = (catalog.items || []).filter((item) => item.selectable !== false && item.status === "active");
+      const selected = catalog.auto_selected_organization_id || catalog.default_organization_id || this.state.organization;
+      const organization = selectable.some((item) => item.organization_id === selected) ? selected : this.state.organization;
+      this.state = { ...this.state, organizationCatalog: catalog, organizationCatalogError: null, organization };
+    } catch (error) {
+      this.state = { ...this.state, organizationCatalog: null, organizationCatalogError: error };
     }
   }
 
@@ -1075,13 +1126,18 @@ class OpenInfraDashboard {
         throw new Error(`ITAM tenant catalog returned ${response.status}`);
       }
       const catalog = await response.json();
-      const selectable = (catalog.items || []).filter((item) => item.selectable !== false && item.status === "active");
+      const selectable = (catalog.items || []).filter((item) => {
+        return item.selectable !== false && item.status === "active" && item.organization_id === this.state.organization;
+      });
       const selected = catalog.auto_selected_tenant_id || catalog.default_tenant_id || this.state.tenant;
+      const tenant = selectable.some((item) => item.tenant_id === selected)
+        ? selected
+        : (selectable[0]?.tenant_id || this.state.organization || this.state.tenant);
       this.state = {
         ...this.state,
         tenantCatalog: catalog,
         tenantCatalogError: null,
-        tenant: selectable.some((item) => item.tenant_id === selected) ? selected : this.state.tenant
+        tenant
       };
     } catch (error) {
       this.state = { ...this.state, tenantCatalog: null, tenantCatalogError: error };
@@ -1106,22 +1162,48 @@ class OpenInfraDashboard {
     }
   }
 
-  tenantOptions() {
-    return (this.state.tenantCatalog?.items || [])
-      .filter((tenant) => tenant.selectable !== false && tenant.status === "active")
+  organizationOptions() {
+    return (this.state.organizationCatalog?.items || [])
+      .filter((organization) => organization.selectable !== false && organization.status === "active")
+      .map((organization) => ({
+        value: organization.organization_id,
+        label: `${organization.display_name || organization.legal_name || organization.organization_id} — ${organization.organization_id}`
+      }));
+  }
+
+  organizationLabel(organizationId) {
+    const organization = (this.state.organizationCatalog?.items || []).find((item) => item.organization_id === organizationId);
+    return organization?.display_name || organization?.legal_name || organizationId;
+  }
+
+  tenantOptions(organizationId = this.state.organization) {
+    const tenants = (this.state.tenantCatalog?.items || [])
+      .filter((tenant) => tenant.selectable !== false && tenant.status === "active" && tenant.organization_id === organizationId)
       .map((tenant) => ({
         value: tenant.tenant_id,
         label: `${tenant.name || tenant.tenant_id}${tenant.is_default ? " — défaut" : ""}`
       }));
+    if (tenants.length > 0) {
+      return tenants;
+    }
+    if (organizationId) {
+      return [{ value: organizationId, label: `${this.organizationLabel(organizationId)} — tenant implicite` }];
+    }
+    return [];
+  }
+
+  renderOrganizationSelector() {
+    const options = this.organizationOptions();
+    const fallback = this.state.organization || "default";
+    const renderedOptions = options.length > 0 ? options : [{ value: fallback, label: fallback }];
+    return `<label class="col-md-4 form-label">Organisation<select id="openinfra-organization" class="form-select">${this.renderOptions(renderedOptions, fallback)}</select></label>`;
   }
 
   renderTenantSelector() {
-    const options = this.tenantOptions();
-    if (options.length > 0) {
-      return `<label class="col-md-4 form-label">Entité propriétaire<select id="openinfra-tenant" class="form-select">${this.renderOptions(options, this.state.tenant)}</select></label>`;
-    }
-    const fallback = this.state.tenant || "default";
-    return `<label class="col-md-4 form-label">Entité propriétaire<select id="openinfra-tenant" class="form-select">${this.renderOptions([{ value: fallback, label: fallback }], fallback)}</select></label>`;
+    const options = this.tenantOptions(this.state.organization);
+    const fallback = this.state.tenant || this.state.organization || "default";
+    const renderedOptions = options.length > 0 ? options : [{ value: fallback, label: fallback }];
+    return `<label class="col-md-4 form-label">Tenant<select id="openinfra-tenant" class="form-select">${this.renderOptions(renderedOptions, fallback)}</select></label>`;
   }
 
   client() {
@@ -1540,7 +1622,7 @@ class OpenInfraDashboard {
       <section class="col-12 col-xxl-8">
         <h2 class="h4">${this.escape(operation.label)}</h2>
         <p class="text-muted">${this.escape(module.description)}</p>
-        <div class="row g-3 mb-3">${this.renderTenantSelector()}</div>
+        <div class="row g-3 mb-3">${this.renderOrganizationSelector()}${this.renderTenantSelector()}</div>
         <div class="row g-3">${fields.map((field) => this.renderField(field)).join("") || "<p>Aucun paramètre requis.</p>"}</div>
         <button class="btn btn-primary mt-3" type="button" id="openinfra-execute">Exécuter</button>
       </section>
@@ -1555,11 +1637,17 @@ class OpenInfraDashboard {
     const required = field.required ? " required" : "";
     const requiredText = field.required ? " *" : "";
     const value = field.defaultValue || "";
+    if (field.type === "organization-select") {
+      const options = this.organizationOptions();
+      const fallback = field.defaultValue || this.state.organization || "default";
+      const renderedOptions = options.length > 0 ? options : [{ value: fallback, label: fallback }];
+      return `<label class="col-md-6 col-xl-4 form-label">${this.escape(field.label || "Organisation")}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${required}>${this.renderOptions(renderedOptions, fallback)}</select></label>`;
+    }
     if (field.type === "tenant-select") {
       const options = this.tenantOptions();
-      const fallback = field.defaultValue || this.state.tenant || "default";
+      const fallback = field.defaultValue || this.state.tenant || this.state.organization || "default";
       const renderedOptions = options.length > 0 ? options : [{ value: fallback, label: fallback }];
-      return `<label class="col-md-6 col-xl-4 form-label">${this.escape(field.label || "Entité propriétaire")}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${required}>${this.renderOptions(renderedOptions, field.defaultValue || this.state.tenant || fallback)}</select></label>`;
+      return `<label class="col-md-6 col-xl-4 form-label">${this.escape(field.label || "Tenant")}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${required}>${this.renderOptions(renderedOptions, field.defaultValue || this.state.tenant || fallback)}</select></label>`;
     }
     if (this.isDcimReferenceField(field)) {
       const options = this.dcimOptions(field);
@@ -1726,6 +1814,13 @@ class OpenInfraDashboard {
 
   bindEvents() {
     document.getElementById("openinfra-execute")?.addEventListener("click", () => this.executeSelected());
+    document.getElementById("openinfra-organization")?.addEventListener("change", async (event) => {
+      const organization = event.target.value;
+      const tenant = this.tenantOptions(organization)[0]?.value || organization;
+      this.state = { ...this.state, organization, tenant };
+      await this.refreshDcimCatalog();
+      this.render();
+    });
     document.getElementById("openinfra-tenant")?.addEventListener("input", (event) => {
       this.state = { ...this.state, tenant: event.target.value };
     });
@@ -1972,6 +2067,10 @@ class OpenInfraDashboard {
         payload[input.dataset.field] = input.value;
       }
       const data = await this.client().request(this.state.selected, payload);
+      if (this.state.selected.id.startsWith("itam-organization")) {
+        await this.refreshOrganizationCatalog();
+        await this.refreshTenantCatalog();
+      }
       if (this.state.selected.id.startsWith("itam-tenant")) {
         await this.refreshTenantCatalog();
       }

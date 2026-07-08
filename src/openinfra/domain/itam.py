@@ -6,7 +6,14 @@ from datetime import UTC, date, datetime
 from enum import StrEnum
 from typing import Self
 
-from openinfra.domain.common import Code, EntityId, LifecycleStatus, Name, TenantId, ValidationError
+from openinfra.domain.common import (
+    Code,
+    EntityId,
+    LifecycleStatus,
+    Name,
+    TenantId,
+    ValidationError,
+)
 
 
 class SupportContractStatus(StrEnum):
@@ -52,6 +59,234 @@ class SoftwareLicenseComplianceState(StrEnum):
     PLANNED = "planned"
 
 
+class ItamOrganizationStatus(StrEnum):
+    ACTIVE = "active"
+    SUSPENDED = "suspended"
+    RETIRED = "retired"
+
+
+@dataclass(frozen=True, slots=True)
+class ItamOrganization:
+    id: TenantId
+    legal_name: Name
+    display_name: Name
+    status: ItamOrganizationStatus
+    registration_number: str
+    tax_identifier: str
+    country_code: str
+    city: str
+    address: str
+    contact_email: str
+    support_contact: str
+    description: str | None
+    created_by: str
+    created_at: datetime
+    updated_by: str
+    updated_at: datetime
+
+    @classmethod
+    def create(
+        cls,
+        organization_id: str | TenantId,
+        legal_name: str,
+        actor: str,
+        display_name: str | None = None,
+        status: str = "active",
+        registration_number: str = "N/A",
+        tax_identifier: str = "N/A",
+        country_code: str = "FR",
+        city: str = "Non renseigné",
+        address: str = "Non renseigné",
+        contact_email: str = "contact@example.invalid",
+        support_contact: str = "support@example.invalid",
+        description: str | None = None,
+    ) -> Self:
+        identifier = (
+            organization_id
+            if isinstance(organization_id, TenantId)
+            else TenantId.from_value(organization_id)
+        )
+        now = datetime.now(UTC)
+        return cls.restore(
+            organization_id=identifier,
+            legal_name=legal_name,
+            display_name=display_name or legal_name,
+            status=status,
+            registration_number=registration_number,
+            tax_identifier=tax_identifier,
+            country_code=country_code,
+            city=city,
+            address=address,
+            contact_email=contact_email,
+            support_contact=support_contact,
+            description=description,
+            created_by=actor,
+            created_at=now,
+            updated_by=actor,
+            updated_at=now,
+        )
+
+    @classmethod
+    def restore(
+        cls,
+        organization_id: str | TenantId,
+        legal_name: str,
+        display_name: str,
+        status: str,
+        registration_number: str,
+        tax_identifier: str,
+        country_code: str,
+        city: str,
+        address: str,
+        contact_email: str,
+        support_contact: str,
+        description: str | None,
+        created_by: str,
+        created_at: datetime,
+        updated_by: str,
+        updated_at: datetime,
+    ) -> Self:
+        identifier = (
+            organization_id
+            if isinstance(organization_id, TenantId)
+            else TenantId.from_value(organization_id)
+        )
+        try:
+            status_value = ItamOrganizationStatus(status.strip().lower())
+        except ValueError as exc:
+            raise ValidationError(
+                "ITAM organization status must be active, suspended or retired"
+            ) from exc
+        normalized_country = country_code.strip().upper()
+        if not re.fullmatch(r"[A-Z]{2}", normalized_country):
+            raise ValidationError(
+                "ITAM organization country code must use ISO 3166-1 alpha-2 format"
+            )
+        return cls(
+            id=identifier,
+            legal_name=Name.from_value(legal_name, "ITAM organization legal name"),
+            display_name=Name.from_value(display_name, "ITAM organization display name"),
+            status=status_value,
+            registration_number=ItamValidation.normalized_required_text(
+                registration_number, "ITAM organization registration number", 128
+            ),
+            tax_identifier=ItamValidation.normalized_required_text(
+                tax_identifier, "ITAM organization tax identifier", 128
+            ),
+            country_code=normalized_country,
+            city=ItamValidation.normalized_required_text(city, "ITAM organization city", 128),
+            address=ItamValidation.normalized_required_text(
+                address, "ITAM organization address", 512
+            ),
+            contact_email=ItamValidation.normalized_email(
+                contact_email, "ITAM organization contact email"
+            ),
+            support_contact=ItamValidation.normalized_required_text(
+                support_contact, "ITAM organization support contact", 255
+            ),
+            description=ItamValidation.normalized_optional_text(
+                description, "ITAM organization description", 1024
+            ),
+            created_by=ItamValidation.normalized_actor(created_by),
+            created_at=ItamValidation.normalized_datetime(
+                created_at, "ITAM organization creation date"
+            ),
+            updated_by=ItamValidation.normalized_actor(updated_by),
+            updated_at=ItamValidation.normalized_datetime(
+                updated_at, "ITAM organization update date"
+            ),
+        )
+
+    def update(
+        self,
+        *,
+        actor: str,
+        legal_name: str | None = None,
+        display_name: str | None = None,
+        status: str | None = None,
+        registration_number: str | None = None,
+        tax_identifier: str | None = None,
+        country_code: str | None = None,
+        city: str | None = None,
+        address: str | None = None,
+        contact_email: str | None = None,
+        support_contact: str | None = None,
+        description: str | None = None,
+    ) -> Self:
+        return self.restore(
+            organization_id=self.id,
+            legal_name=self.legal_name.value if legal_name is None else legal_name,
+            display_name=self.display_name.value if display_name is None else display_name,
+            status=self.status.value if status is None else status,
+            registration_number=(
+                self.registration_number if registration_number is None else registration_number
+            ),
+            tax_identifier=self.tax_identifier if tax_identifier is None else tax_identifier,
+            country_code=self.country_code if country_code is None else country_code,
+            city=self.city if city is None else city,
+            address=self.address if address is None else address,
+            contact_email=self.contact_email if contact_email is None else contact_email,
+            support_contact=self.support_contact if support_contact is None else support_contact,
+            description=self.description if description is None else description,
+            created_by=self.created_by,
+            created_at=self.created_at,
+            updated_by=actor,
+            updated_at=datetime.now(UTC),
+        )
+
+    def retire(self, actor: str) -> Self:
+        return self.update(actor=actor, status=ItamOrganizationStatus.RETIRED.value)
+
+    def selectable(self) -> bool:
+        return self.status == ItamOrganizationStatus.ACTIVE
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "organization_id": self.id.value,
+            "legal_name": self.legal_name.value,
+            "display_name": self.display_name.value,
+            "status": self.status.value,
+            "registration_number": self.registration_number,
+            "tax_identifier": self.tax_identifier,
+            "country_code": self.country_code,
+            "city": self.city,
+            "address": self.address,
+            "contact_email": self.contact_email,
+            "support_contact": self.support_contact,
+            "description": self.description,
+            "selectable": self.selectable(),
+            "created_by": self.created_by,
+            "created_at": self.created_at.isoformat(),
+            "updated_by": self.updated_by,
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ItamOrganizationCatalog:
+    items: tuple[ItamOrganization, ...]
+    default_organization_id: str | None
+    auto_selected_organization_id: str | None
+
+    @classmethod
+    def from_items(cls, items: tuple[ItamOrganization, ...]) -> Self:
+        active = tuple(item for item in items if item.selectable())
+        auto_selected = active[0].id.value if len(active) == 1 else None
+        default = "default" if any(item.id.value == "default" for item in active) else auto_selected
+        return cls(
+            items=items,
+            default_organization_id=default,
+            auto_selected_organization_id=auto_selected,
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "items": [item.as_dict() for item in self.items],
+            "default_organization_id": self.default_organization_id,
+            "auto_selected_organization_id": self.auto_selected_organization_id,
+        }
+
+
 class ItamTenantStatus(StrEnum):
     ACTIVE = "active"
     SUSPENDED = "suspended"
@@ -61,6 +296,7 @@ class ItamTenantStatus(StrEnum):
 @dataclass(frozen=True, slots=True)
 class ItamTenant:
     id: TenantId
+    organization_id: TenantId
     name: Name
     status: ItamTenantStatus
     is_default: bool
@@ -76,6 +312,7 @@ class ItamTenant:
         tenant_id: str | TenantId,
         name: str,
         actor: str,
+        organization_id: str | TenantId = "default",
         status: str = "active",
         is_default: bool = False,
         description: str | None = None,
@@ -86,6 +323,7 @@ class ItamTenant:
         now = datetime.now(UTC)
         return cls.restore(
             tenant_id=identifier,
+            organization_id=organization_id,
             name=name,
             status=status,
             is_default=is_default,
@@ -108,9 +346,15 @@ class ItamTenant:
         created_at: datetime,
         updated_by: str,
         updated_at: datetime,
+        organization_id: str | TenantId = "default",
     ) -> Self:
         identifier = (
             tenant_id if isinstance(tenant_id, TenantId) else TenantId.from_value(tenant_id)
+        )
+        organization_identifier = (
+            organization_id
+            if isinstance(organization_id, TenantId)
+            else TenantId.from_value(organization_id)
         )
         try:
             status_value = ItamTenantStatus(status.strip().lower())
@@ -120,6 +364,7 @@ class ItamTenant:
             ) from exc
         return cls(
             id=identifier,
+            organization_id=organization_identifier,
             name=Name.from_value(name, "ITAM tenant name"),
             status=status_value,
             is_default=bool(is_default),
@@ -143,6 +388,7 @@ class ItamTenant:
     ) -> Self:
         return self.restore(
             tenant_id=self.id,
+            organization_id=self.organization_id,
             name=self.name.value if name is None else name,
             status=self.status.value if status is None else status,
             is_default=self.is_default if is_default is None else is_default,
@@ -162,6 +408,7 @@ class ItamTenant:
     def as_dict(self) -> dict[str, object]:
         return {
             "tenant_id": self.id.value,
+            "organization_id": self.organization_id.value,
             "name": self.name.value,
             "status": self.status.value,
             "is_default": self.is_default,
@@ -879,6 +1126,19 @@ class ItamValidation:
         normalized = " ".join(value.strip().split())
         if not 1 <= len(normalized) <= max_length:
             raise ValidationError(f"{field_name} must contain 1 to {max_length} characters")
+        return normalized
+
+    @staticmethod
+    def normalized_required_text(value: str, field_name: str, max_length: int) -> str:
+        return ItamValidation.normalized_text(value, field_name, max_length)
+
+    @staticmethod
+    def normalized_email(value: str, field_name: str) -> str:
+        normalized = " ".join(value.strip().split()).lower()
+        if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", normalized):
+            raise ValidationError(f"{field_name} must be a valid email address")
+        if len(normalized) > 255:
+            raise ValidationError(f"{field_name} must contain at most 255 characters")
         return normalized
 
     @staticmethod

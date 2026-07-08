@@ -127,6 +127,7 @@ from openinfra.domain.ipam import (
 )
 from openinfra.domain.itam import (
     ItamDateParser,
+    ItamOrganization,
     ItamTenant,
     ManufacturerWarranty,
     PhysicalAssetSupportProfile,
@@ -254,6 +255,7 @@ class JsonDocumentStore:
             "export_jobs": {},
             "export_artifacts": {},
             "discovery_collectors": {},
+            "itam_organizations": {},
             "itam_tenants": {},
             "asset_support_profiles": {},
             "software_license_entitlements": {},
@@ -3356,7 +3358,94 @@ class JsonItamSupportRepository(ItamSupportRepository):
     def __init__(self, store: JsonDocumentStore) -> None:
         self._store = store
 
+    def save_organization(self, organization: ItamOrganization) -> None:
+        self._store.data.setdefault("itam_organizations", {})[organization.id.value] = (
+            organization.as_dict()
+        )
+        self._store.mark_dirty()
+
+    def find_organization(self, organization_id: str) -> ItamOrganization | None:
+        value = self._store.data.setdefault("itam_organizations", {}).get(
+            TenantId.from_value(organization_id).value
+        )
+        if value is None:
+            return None
+        return self._organization_from_dict(value)
+
+    def list_organizations(self, include_retired: bool = False) -> tuple[ItamOrganization, ...]:
+        organizations = tuple(
+            sorted(
+                (
+                    self._organization_from_dict(value)
+                    for value in self._store.data.setdefault("itam_organizations", {}).values()
+                    if isinstance(value, dict)
+                ),
+                key=lambda item: (item.display_name.value.lower(), item.id.value),
+            )
+        )
+        if not include_retired:
+            organizations = tuple(item for item in organizations if item.status.value != "retired")
+        if organizations:
+            return organizations
+        default = ItamOrganization.create(
+            organization_id="default",
+            legal_name="Default Organization",
+            display_name="Default",
+            actor="system",
+            registration_number="N/A",
+            tax_identifier="N/A",
+            country_code="FR",
+            city="Non renseigné",
+            address="Non renseigné",
+            contact_email="contact@example.invalid",
+            support_contact="support@example.invalid",
+            description="Compatibility organization for single-tenant installations.",
+        )
+        self.save_organization(default)
+        return (default,)
+
+    def _organization_from_dict(self, value: dict[str, Any]) -> ItamOrganization:
+        return ItamOrganization.restore(
+            organization_id=str(value["organization_id"]),
+            legal_name=str(value["legal_name"]),
+            display_name=str(value.get("display_name", value["legal_name"])),
+            status=str(value.get("status", "active")),
+            registration_number=str(value.get("registration_number", "N/A")),
+            tax_identifier=str(value.get("tax_identifier", "N/A")),
+            country_code=str(value.get("country_code", "FR")),
+            city=str(value.get("city", "Non renseigné")),
+            address=str(value.get("address", "Non renseigné")),
+            contact_email=str(value.get("contact_email", "contact@example.invalid")),
+            support_contact=str(value.get("support_contact", "support@example.invalid")),
+            description=(
+                None if value.get("description") is None else str(value.get("description"))
+            ),
+            created_by=str(value.get("created_by", "system")),
+            created_at=datetime.fromisoformat(str(value.get("created_at"))),
+            updated_by=str(value.get("updated_by", "system")),
+            updated_at=datetime.fromisoformat(str(value.get("updated_at"))),
+        )
+
     def save_tenant(self, tenant: ItamTenant) -> None:
+        if self.find_organization(tenant.organization_id.value) is None:
+            self.save_organization(
+                ItamOrganization.create(
+                    organization_id=tenant.organization_id.value,
+                    legal_name=tenant.organization_id.value,
+                    display_name=tenant.organization_id.value,
+                    actor="system",
+                    registration_number="N/A",
+                    tax_identifier="N/A",
+                    country_code="FR",
+                    city="Non renseigné",
+                    address="Non renseigné",
+                    contact_email="contact@example.invalid",
+                    support_contact="support@example.invalid",
+                    description=(
+                        "Compatibility organization automatically created for tenant attachment."
+                    ),
+                )
+            )
         self._store.data["itam_tenants"][tenant.id.value] = tenant.as_dict()
         self._store.mark_dirty()
 
@@ -3407,6 +3496,7 @@ class JsonItamSupportRepository(ItamSupportRepository):
     def _tenant_from_dict(self, value: dict[str, Any]) -> ItamTenant:
         return ItamTenant.restore(
             tenant_id=str(value["tenant_id"]),
+            organization_id=str(value.get("organization_id", "default")),
             name=str(value["name"]),
             status=str(value["status"]),
             is_default=bool(value.get("is_default", False)),

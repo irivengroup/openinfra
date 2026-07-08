@@ -696,6 +696,26 @@ const MODULES = [
     { id: 'dcim-site-create', label: 'Créer un site DCIM', path: '/v1/dcim/site/create', method: 'POST', fields: ['Opérateur', 'Code site', 'Nom site', 'Pays ISO-2', 'Ville', 'Région'] },
     { id: 'dcim-site-update', label: 'Modifier un site DCIM', path: '/v1/dcim/site/update', method: 'POST', fields: ['Opérateur', 'Site', 'Nom site', 'Pays ISO-2', 'Ville', 'Région', 'Statut'] },
     { id: 'dcim-site-delete', label: 'Retirer un site DCIM', path: '/v1/dcim/site/delete', method: 'POST', fields: ['Opérateur', 'Site'] },
+    { id: 'dcim-buildings', label: 'Lister les bâtiments', path: '/v1/dcim/buildings', method: 'GET', fields: ['Site', 'Inclure retirés'] },
+    { id: 'dcim-building', label: 'Consulter un bâtiment', path: '/v1/dcim/building', method: 'GET', fields: ['Site', 'Code bâtiment'] },
+    { id: 'dcim-building-create', label: 'Créer un bâtiment', path: '/v1/dcim/building/create', method: 'POST', fields: ['Opérateur', 'Site', 'Code bâtiment', 'Nom bâtiment'] },
+    { id: 'dcim-building-update', label: 'Modifier un bâtiment', path: '/v1/dcim/building/update', method: 'POST', fields: ['Opérateur', 'Site', 'Code bâtiment', 'Nom bâtiment', 'Statut'] },
+    { id: 'dcim-building-delete', label: 'Retirer un bâtiment', path: '/v1/dcim/building/delete', method: 'POST', fields: ['Opérateur', 'Site', 'Code bâtiment'] },
+    { id: 'dcim-floors', label: 'Lister les étages', path: '/v1/dcim/floors', method: 'GET', fields: ['Site', 'Bâtiment', 'Inclure retirés'] },
+    { id: 'dcim-floor', label: 'Consulter un étage', path: '/v1/dcim/floor', method: 'GET', fields: ['Site', 'Bâtiment', 'Code étage'] },
+    { id: 'dcim-floor-create', label: 'Créer un étage', path: '/v1/dcim/floor/create', method: 'POST', fields: ['Opérateur', 'Site', 'Bâtiment', 'Code étage', 'Nom étage', 'Niveau'] },
+    { id: 'dcim-floor-update', label: 'Modifier un étage', path: '/v1/dcim/floor/update', method: 'POST', fields: ['Opérateur', 'Site', 'Bâtiment', 'Code étage', 'Nom étage', 'Niveau', 'Statut'] },
+    { id: 'dcim-floor-delete', label: 'Retirer un étage', path: '/v1/dcim/floor/delete', method: 'POST', fields: ['Opérateur', 'Site', 'Bâtiment', 'Code étage'] },
+    { id: 'dcim-rooms-list', label: 'Lister les salles', path: '/v1/dcim/rooms', method: 'GET', fields: ['Site', 'Bâtiment', 'Inclure retirés'] },
+    { id: 'dcim-room', label: 'Consulter une salle', path: '/v1/dcim/room', method: 'GET', fields: ['Site', 'Bâtiment', 'Code salle'] },
+    { id: 'dcim-room-create', label: 'Créer une salle', path: '/v1/dcim/room/create', method: 'POST', fields: ['Opérateur', 'Site', 'Bâtiment', 'Étage', 'Code salle', 'Nom salle', 'Lignes salle', 'Colonnes salle'] },
+    { id: 'dcim-room-update', label: 'Modifier une salle', path: '/v1/dcim/room/update', method: 'POST', fields: ['Opérateur', 'Site', 'Bâtiment', 'Code salle', 'Nom salle', 'Lignes salle', 'Colonnes salle', 'Statut'] },
+    { id: 'dcim-room-delete', label: 'Retirer une salle', path: '/v1/dcim/room/delete', method: 'POST', fields: ['Opérateur', 'Site', 'Bâtiment', 'Code salle'] },
+    { id: 'dcim-zones', label: 'Lister les zones', path: '/v1/dcim/zones', method: 'GET', fields: ['Site', 'Bâtiment', 'Salle', 'Inclure retirés'] },
+    { id: 'dcim-zone', label: 'Consulter une zone', path: '/v1/dcim/zone', method: 'GET', fields: ['Site', 'Bâtiment', 'Salle', 'Code zone'] },
+    { id: 'dcim-zone-create', label: 'Créer une zone', path: '/v1/dcim/zone/create', method: 'POST', fields: ['Opérateur', 'Site', 'Bâtiment', 'Salle', 'Code zone', 'Nom zone', 'Lignes zone', 'Colonnes zone'] },
+    { id: 'dcim-zone-update', label: 'Modifier une zone', path: '/v1/dcim/zone/update', method: 'POST', fields: ['Opérateur', 'Site', 'Bâtiment', 'Salle', 'Code zone', 'Nom zone', 'Lignes zone', 'Colonnes zone', 'Statut'] },
+    { id: 'dcim-zone-delete', label: 'Retirer une zone', path: '/v1/dcim/zone/delete', method: 'POST', fields: ['Opérateur', 'Site', 'Bâtiment', 'Salle', 'Code zone'] },
     { id: 'dcim-topology-catalog', label: 'Catalogue dépendances DCIM', path: '/v1/dcim/topology-catalog', method: 'GET', fields: ['Inclure retirés'] },
     { id: 'dcim-locate-equipment', label: 'Localiser un équipement', path: '/v1/dcim/locations', method: 'POST', fields: ['Opérateur', 'Numéro d’actif', 'Nom équipement', 'Site', 'Bâtiment', 'Étage', 'Salle', 'Zone', 'Ligne salle', 'Colonne salle', 'Rack', 'Position U', 'Face rack', 'Hauteur U', 'Coordonnée X', 'Coordonnée Y', 'Coordonnée Z'] },
     { id: 'dcim-rack-capacity', label: 'Capacité rack', path: '/v1/dcim/rack-capacity', method: 'GET', fields: ['Site', 'Bâtiment', 'Salle', 'Rack'] },
@@ -712,10 +732,12 @@ const MODULES = [
     { id: 'dcim-energy-cooling-capacity', label: 'Capacité énergie/refroidissement', path: '/v1/dcim/energy-cooling-capacity', method: 'GET', fields: ['Site', 'Bâtiment', 'Salle', 'Rack'] },
   ] },
   { id: 'itam', label: 'IT Asset Management', shortLabel: 'ITAM', icon: 'asset', operations: [
-    { id: 'itam-tenants', label: 'Lister les entités propriétaires ITAM', path: '/v1/itam/tenants', method: 'GET', fields: ['Inclure retirés'] },
-    { id: 'itam-tenant-create', label: 'Créer une entité propriétaire ITAM', path: '/v1/itam/tenant/create', method: 'POST', fields: ['Organisation', 'Opérateur', 'Entité propriétaire de sécurité', 'Nom entité propriétaire', 'Statut', 'Entité propriétaire par défaut', 'Description'] },
-    { id: 'itam-tenant-update', label: 'Modifier une entité propriétaire ITAM', path: '/v1/itam/tenant/update', method: 'POST', fields: ['Opérateur', 'Entité propriétaire de sécurité', 'Nom entité propriétaire', 'Statut', 'Entité propriétaire par défaut', 'Description'] },
-    { id: 'itam-tenant-delete', label: 'Retirer une entité propriétaire ITAM', path: '/v1/itam/tenant/delete', method: 'POST', fields: ['Opérateur', 'Entité propriétaire de sécurité'] },
+    { id: 'itam-organizations', label: 'Lister les organisations', path: '/v1/itam/organizations', method: 'GET', fields: ['Inclure retirées'] },
+    { id: 'itam-organization-create', label: 'Créer une organisation', path: '/v1/itam/organization/create', method: 'POST', fields: ['Code organisation', 'Opérateur', 'Raison sociale', 'N° immatriculation', 'Identifiant fiscal / TVA', 'Pays', 'Ville', 'Adresse siège', 'Email contact', 'Contact support'] },
+    { id: 'itam-tenants', label: 'Lister les tenants', path: '/v1/itam/tenants', method: 'GET', fields: ['Inclure retirés'] },
+    { id: 'itam-tenant-create', label: 'Créer un tenant', path: '/v1/itam/tenant/create', method: 'POST', fields: ['Organisation', 'Tenant', 'Opérateur', 'Tenant de sécurité', 'Nom tenant', 'Statut', 'Tenant par défaut', 'Description'] },
+    { id: 'itam-tenant-update', label: 'Modifier un tenant', path: '/v1/itam/tenant/update', method: 'POST', fields: ['Organisation', 'Opérateur', 'Tenant de sécurité', 'Nom tenant', 'Statut', 'Tenant par défaut', 'Description'] },
+    { id: 'itam-tenant-delete', label: 'Retirer un tenant', path: '/v1/itam/tenant/delete', method: 'POST', fields: ['Opérateur', 'Tenant de sécurité'] },
     { id: 'itam-support-profile', label: 'Profil support actif', path: '/v1/itam/support-profile', method: 'GET', fields: ['Numéro d’actif'] },
     { id: 'itam-support-coverage', label: 'Couverture support actif', path: '/v1/itam/support-coverage', method: 'GET', fields: ['Numéro d’actif', 'Date de référence'] },
     { id: 'itam-register-manufacturer', label: 'Déclarer garantie constructeur', path: '/v1/itam/support-profile/manufacturer', method: 'POST', fields: ['Opérateur', 'Numéro d’actif', 'Constructeur', 'Référence garantie', 'Niveau garantie', 'Début garantie', 'Fin garantie', 'Référence support', 'Niveau support', 'Contact support'] },
@@ -757,14 +779,15 @@ const SIDEBAR_CONTEXTS = {
     { label: 'Observations & DDI', operationIds: ['ipam-observe-dns', 'ipam-observe-dhcp', 'ipam-conflicts', 'ipam-ddi-preview'] },
   ],
   dcim: [
-    { label: 'Sites & dépendances', operationIds: ['dcim-sites', 'dcim-site', 'dcim-site-create', 'dcim-site-update', 'dcim-site-delete', 'dcim-topology-catalog'] },
+    { label: 'Sites & dépendances', operationIds: ['dcim-sites', 'dcim-site', 'dcim-site-create', 'dcim-site-update', 'dcim-site-delete', 'dcim-buildings', 'dcim-building', 'dcim-building-create', 'dcim-building-update', 'dcim-building-delete', 'dcim-floors', 'dcim-floor', 'dcim-floor-create', 'dcim-floor-update', 'dcim-floor-delete', 'dcim-rooms-list', 'dcim-room', 'dcim-room-create', 'dcim-room-update', 'dcim-room-delete', 'dcim-zones', 'dcim-zone', 'dcim-zone-create', 'dcim-zone-update', 'dcim-zone-delete', 'dcim-topology-catalog'] },
     { label: 'Localisation & capacité', operationIds: ['dcim-locate-equipment', 'dcim-rack-capacity', 'dcim-room-plan', 'dcim-rack-elevation'] },
     { label: 'Connectivité', operationIds: ['dcim-patch-panel', 'dcim-port', 'dcim-cable', 'dcim-cable-trace'] },
     { label: 'Énergie & refroidissement', operationIds: ['dcim-power-device', 'dcim-power-circuit', 'dcim-cooling-zone', 'dcim-power-reservation', 'dcim-energy-cooling-capacity'] },
     { label: 'Jumeau numérique', operationIds: ['dcim-digital-twin'] },
   ],
   itam: [
-    { label: 'Entités propriétaires', operationIds: ['itam-tenants', 'itam-tenant', 'itam-tenant-create', 'itam-tenant-update', 'itam-tenant-delete'] },
+    { label: 'Organisations', operationIds: ['itam-organizations', 'itam-organization-create'] },
+    { label: 'Tenants', operationIds: ['itam-tenants', 'itam-tenant', 'itam-tenant-create', 'itam-tenant-update', 'itam-tenant-delete'] },
     { label: 'Support matériel', operationIds: ['itam-support-profile', 'itam-support-coverage', 'itam-register-manufacturer', 'itam-add-third-party'] },
     { label: 'Licences logicielles', operationIds: ['itam-software-license', 'itam-software-compliance', 'itam-register-software', 'itam-update-license-assignment'] },
   ],
@@ -1116,7 +1139,7 @@ function Dashboard() {
       </div>
     </div>
   </section>;
-})}</nav><main id="openinfra-main-content" ref={mainContentRef} tabIndex={-1} className="col-lg-9 col-xl-10 ms-sm-auto openinfra-main"><div className="pb-2 mb-3 openinfra-titlebar"><h1 className="h2">{pageTitle}</h1><p className="text-muted mb-0">{pageSubtitle}</p></div>{submissionCompleted && activeModuleId !== 'overview' && <div className="alert alert-success" role="status">Soumission exécutée avec succès.</div>}{activeModuleId === 'overview' && <div className="row g-3 mb-4 openinfra-dashboard-metrics" aria-label="Métriques du dashboard"><Metric title="Version" value={displayedVersion} /><Metric title="API" value={config.apiBaseUrl || '/api'} /><Metric title="Trust" value={config.webBackendTrust || 'server-side'} /><Metric title="Formulaires" value={protectedForms} /><Metric title="Modules" value={`${operationsCount} opérations`} /></div>}{activeModuleId === 'overview' ? <OverviewStats modules={businessModules} fieldsCount={businessFieldsCount} /> : <section className="card openinfra-operation-card"><div className="card-body"><h2 className="h4">{selected.label}</h2><div className="row g-3 mb-3"><label className="col-md-4 form-label">Entité propriétaire<select className="form-select" value={tenant} onChange={(event) => setTenant(event.target.value)}><option value="default">Default</option></select></label></div><div className="row g-3">{selected.fields.map((field) => <label className="col-md-6 col-xl-4 form-label" key={field}>{field}<input className="form-control" /></label>)}</div><button type="button" className="btn btn-primary mt-3" onClick={execute}>Exécuter</button><pre className="openinfra-result mt-3" aria-live="polite" aria-label="Résultat de l’opération">{result}</pre></div></section>}</main></div></div>
+})}</nav><main id="openinfra-main-content" ref={mainContentRef} tabIndex={-1} className="col-lg-9 col-xl-10 ms-sm-auto openinfra-main"><div className="pb-2 mb-3 openinfra-titlebar"><h1 className="h2">{pageTitle}</h1><p className="text-muted mb-0">{pageSubtitle}</p></div>{submissionCompleted && activeModuleId !== 'overview' && <div className="alert alert-success" role="status">Soumission exécutée avec succès.</div>}{activeModuleId === 'overview' && <div className="row g-3 mb-4 openinfra-dashboard-metrics" aria-label="Métriques du dashboard"><Metric title="Version" value={displayedVersion} /><Metric title="API" value={config.apiBaseUrl || '/api'} /><Metric title="Trust" value={config.webBackendTrust || 'server-side'} /><Metric title="Formulaires" value={protectedForms} /><Metric title="Modules" value={`${operationsCount} opérations`} /></div>}{activeModuleId === 'overview' ? <OverviewStats modules={businessModules} fieldsCount={businessFieldsCount} /> : <section className="card openinfra-operation-card"><div className="card-body"><h2 className="h4">{selected.label}</h2><div className="row g-3 mb-3"><label className="col-md-4 form-label">Organisation<select className="form-select" value={tenant} onChange={(event) => setTenant(event.target.value)}><option value="default">Default</option></select></label></div><div className="row g-3">{selected.fields.map((field) => <label className="col-md-6 col-xl-4 form-label" key={field}>{field}<input className="form-control" /></label>)}</div><button type="button" className="btn btn-primary mt-3" onClick={execute}>Exécuter</button><pre className="openinfra-result mt-3" aria-live="polite" aria-label="Résultat de l’opération">{result}</pre></div></section>}</main></div></div>
   </div>;
 }
 

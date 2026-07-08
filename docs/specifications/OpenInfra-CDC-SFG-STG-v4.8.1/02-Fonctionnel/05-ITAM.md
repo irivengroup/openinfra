@@ -113,3 +113,14 @@ Le domaine Garanties doit supporter l’import/export asynchrone lorsque le volu
 ## Critères d’acceptation
 
 La capacité est acceptée si les scénarios nominaux, erreurs, droits insuffisants, conflits et imports/exports sont validés par tests automatisés et si les journaux d’audit permettent de reconstituer les opérations.
+
+
+### REQ-00814 — Organisations ITAM parent des tenants
+
+Le domaine ITAM doit gérer les organisations comme référentiel parent des tenants. Une organisation représente l’entreprise, le groupe ou l’entité juridique cliente ; un tenant représente une subdivision rattachée, par exemple `organisation=Orange` et `tenant=DSI`.
+
+**Carte d’identité entreprise obligatoire :** code organisation, raison sociale, nom d’usage, numéro d’immatriculation, identifiant fiscal, pays ISO 3166-1 alpha-2, ville, adresse siège, email de contact, contact support, statut et description.
+
+**Règles métier :** aucun tenant, support ou enregistrement de licence ne doit être créé sans tenant actif rattaché à une organisation active. Les formulaires de ressources sélectionnent l’organisation, filtrent les tenants associés et proposent l’organisation comme tenant implicite si aucun tenant actif n’existe encore. Le retrait d’une organisation est logique et retire ses tenants sans supprimer l’historique.
+
+**Acceptation :** services, CLI, API HTTP, OpenAPI, migration PostgreSQL, portail web et tests de non-régression valident le modèle Organisation → Tenant et l’absence de libellé ambigu `Entité propriétaire` dans les formulaires actifs.

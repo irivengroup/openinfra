@@ -148,3 +148,21 @@ Les sites DCIM sont des objets de référence gérés avec cycle de vie : créat
 
 Le portail web doit consommer le catalogue `/api/v1/dcim/topology-catalog` pour proposer des listes déroulantes dans les formulaires de création ou d’exploitation de ressources. Aucune saisie libre n’est autorisée pour les références `site`, `bâtiment`, `étage`, `salle`, `zone`, `rack`, `ligne` ou `colonne`.
 
+
+## Cycle de vie explicite des dépendances topologiques
+
+OpenInfra doit administrer explicitement les dépendances topologiques DCIM suivantes :
+
+- bâtiments rattachés à un site actif ;
+- étages rattachés à un bâtiment actif ;
+- salles rattachées à un étage actif ;
+- zones rattachées à une salle active et contraintes par la grille de lignes/colonnes de la salle.
+
+Toute création doit refuser un parent absent, suspendu ou retiré. Toute suppression métier est un retrait logique (`status=retired`) et ne supprime aucune donnée physique. Les cascades non destructives sont obligatoires :
+
+- retrait bâtiment → retrait des étages, salles et zones rattachés ;
+- retrait étage → retrait des salles de l'étage et de leurs zones ;
+- retrait salle → retrait des zones rattachées ;
+- retrait zone → zone uniquement.
+
+L'opération composite `define-room` reste compatible pour les scénarios d'initialisation rapide, mais le CRUD dédié des dépendances est le contrat d'administration courant.

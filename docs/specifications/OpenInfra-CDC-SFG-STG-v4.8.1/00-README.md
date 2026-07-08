@@ -246,9 +246,9 @@ Ajout du cycle de vie CRUD des tenants ITAM, tenant par défaut unique, retrait 
 
 OpenInfra expose `openinfra discovery agent-bootstrap-plan` et `POST /api/v1/discovery/agent-bootstrap-plan` pour produire un plan opérable `openinfra-agent.service` Enterprise. Le plan exige HTTPS, mTLS, secret `vault://`, compte de service non-root, publication de résultats par API et ne réalise ni installation ni matérialisation de secret.
 
-## v0.29.64 — UX entités propriétaires
+## v0.29.64 — UX tenants ITAM
 
-Ajout de l’exigence UX `REQ-00808` : `Entité propriétaire` remplace `Tenant` côté portail web, `Organisation` est utilisé lors de la création, et les références tenant sont des listes de sélection.
+Ajout initial de l’exigence UX `REQ-00808`, désormais réalignée par `REQ-00814` : le portail distingue `Organisation` comme entreprise/groupe client et `Tenant` comme subdivision rattachée ; les références tenant restent des listes de sélection.
 ## v0.29.65 — DCIM sites, dépendances et responsive mobile
 
 - `REQ-00809` — OpenInfra doit gérer les sites DCIM avec CRUD, retrait logique, conservation d’historique et cascade non destructive vers les dépendances de localisation.
@@ -258,3 +258,12 @@ Ajout de l’exigence UX `REQ-00808` : `Entité propriétaire` remplace `Tenant`
 
 La commande `openinfra edition feature-check` accepte désormais les options backend homogènes, dont `--data`, comme `edition list` et `edition quota-check`. Cette exigence verrouille la parité CLI/CI des smoke tests d'administration des éditions sans modifier les décisions métier Lite/Pro/Enterprise.
 
+
+### v0.29.72 — CRUD dépendances topologiques DCIM
+
+La livraison v0.29.72 ajoute l'exigence `REQ-00813` et le test `TST-WEB-112` afin de gérer explicitement bâtiments, étages, salles et zones, avec validation de parents actifs, retrait logique et cascade non destructive vers les niveaux inférieurs.
+
+
+## v0.29.73 — Organisations ITAM parent des tenants
+
+Ajout de `REQ-00814` et `TST-WEB-113` : OpenInfra gère un référentiel Organisations ITAM avec carte d’identité entreprise complète. Les tenants, supports et licences doivent être rattachés à une organisation active. Le portail sélectionne d’abord l’organisation, filtre les tenants associés et propose un tenant implicite lorsque l’organisation n’a pas encore de tenant matérialisé.

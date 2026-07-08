@@ -14,6 +14,9 @@ from openinfra.domain.common import (
 )
 from openinfra.domain.itam import (
     ItamDateParser,
+    ItamOrganization,
+    ItamOrganizationCatalog,
+    ItamOrganizationStatus,
     ItamTenant,
     ItamTenantCatalog,
     ItamTenantStatus,
@@ -28,12 +31,73 @@ from openinfra.domain.security import Permission
 
 
 @dataclass(frozen=True, slots=True)
+class CreateItamOrganizationCommand:
+    organization_id: str
+    actor: str
+    admin_token: str
+    legal_name: str
+    scope_tenant_id: str = "default"
+    display_name: str | None = None
+    status: str = "active"
+    registration_number: str = "N/A"
+    tax_identifier: str = "N/A"
+    country_code: str = "FR"
+    city: str = "Non renseigné"
+    address: str = "Non renseigné"
+    contact_email: str = "contact@example.invalid"
+    support_contact: str = "support@example.invalid"
+    description: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class UpdateItamOrganizationCommand:
+    organization_id: str
+    actor: str
+    admin_token: str
+    scope_tenant_id: str = "default"
+    legal_name: str | None = None
+    display_name: str | None = None
+    status: str | None = None
+    registration_number: str | None = None
+    tax_identifier: str | None = None
+    country_code: str | None = None
+    city: str | None = None
+    address: str | None = None
+    contact_email: str | None = None
+    support_contact: str | None = None
+    description: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class DeleteItamOrganizationCommand:
+    organization_id: str
+    actor: str
+    admin_token: str
+    scope_tenant_id: str = "default"
+
+
+@dataclass(frozen=True, slots=True)
+class GetItamOrganizationCommand:
+    organization_id: str
+    admin_token: str
+    scope_tenant_id: str = "default"
+
+
+@dataclass(frozen=True, slots=True)
+class ListItamOrganizationsCommand:
+    tenant_id: str
+    admin_token: str
+    include_retired: bool = False
+
+
+@dataclass(frozen=True, slots=True)
 class CreateItamTenantCommand:
     tenant_id: str
     actor: str
     admin_token: str
     name: str
     scope_tenant_id: str = "default"
+    organization_id: str = "default"
     status: str = "active"
     is_default: bool = False
     description: str | None = None
@@ -45,6 +109,7 @@ class UpdateItamTenantCommand:
     actor: str
     admin_token: str
     scope_tenant_id: str = "default"
+    organization_id: str | None = None
     name: str | None = None
     status: str | None = None
     is_default: bool | None = None
@@ -177,6 +242,218 @@ class ItamSupportService:
         self._transaction_manager = transaction_manager
         self._security_service = security_service
 
+    def create_organization(self, command: CreateItamOrganizationCommand) -> ItamOrganization:
+        scope_tenant_id = TenantId.from_value(command.scope_tenant_id)
+        principal = self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                scope_tenant_id.value, command.admin_token, Permission.ITAM_WRITE
+            )
+        )
+        organization = ItamOrganization.create(
+            organization_id=command.organization_id,
+            legal_name=command.legal_name,
+            display_name=command.display_name,
+            actor=command.actor,
+            status=command.status,
+            registration_number=command.registration_number,
+            tax_identifier=command.tax_identifier,
+            country_code=command.country_code,
+            city=command.city,
+            address=command.address,
+            contact_email=command.contact_email,
+            support_contact=command.support_contact,
+            description=command.description,
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            existing = self._repository.find_organization(organization.id.value)
+            if existing is not None and existing.status != ItamOrganizationStatus.RETIRED:
+                raise ConflictError("ITAM organization already exists")
+            self._repository.save_organization(organization)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=scope_tenant_id,
+                    actor=principal.subject,
+                    action="itam.organization.create",
+                    target_type="itam_organization",
+                    target_id=organization.id.value,
+                    metadata={
+                        "organization_id": organization.id.value,
+                        "legal_name": organization.legal_name.value,
+                        "status": organization.status.value,
+                        "declared_actor": command.actor,
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return organization
+
+    def update_organization(self, command: UpdateItamOrganizationCommand) -> ItamOrganization:
+        scope_tenant_id = TenantId.from_value(command.scope_tenant_id)
+        principal = self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                scope_tenant_id.value, command.admin_token, Permission.ITAM_WRITE
+            )
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            existing = self._repository.find_organization(command.organization_id)
+            if existing is None:
+                raise NotFoundError("ITAM organization not found")
+            updated = existing.update(
+                actor=command.actor,
+                legal_name=command.legal_name,
+                display_name=command.display_name,
+                status=command.status,
+                registration_number=command.registration_number,
+                tax_identifier=command.tax_identifier,
+                country_code=command.country_code,
+                city=command.city,
+                address=command.address,
+                contact_email=command.contact_email,
+                support_contact=command.support_contact,
+                description=command.description,
+            )
+            self._repository.save_organization(updated)
+            if updated.status == ItamOrganizationStatus.RETIRED:
+                self._retire_organization_tenants(updated.id.value, command.actor)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=scope_tenant_id,
+                    actor=principal.subject,
+                    action="itam.organization.update",
+                    target_type="itam_organization",
+                    target_id=updated.id.value,
+                    metadata={
+                        "organization_id": updated.id.value,
+                        "legal_name": updated.legal_name.value,
+                        "status": updated.status.value,
+                        "declared_actor": command.actor,
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return updated
+
+    def delete_organization(self, command: DeleteItamOrganizationCommand) -> ItamOrganization:
+        scope_tenant_id = TenantId.from_value(command.scope_tenant_id)
+        principal = self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                scope_tenant_id.value, command.admin_token, Permission.ITAM_WRITE
+            )
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            existing = self._repository.find_organization(command.organization_id)
+            if existing is None:
+                raise NotFoundError("ITAM organization not found")
+            retired = existing.retire(command.actor)
+            self._repository.save_organization(retired)
+            self._retire_organization_tenants(retired.id.value, command.actor)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=scope_tenant_id,
+                    actor=principal.subject,
+                    action="itam.organization.retire",
+                    target_type="itam_organization",
+                    target_id=retired.id.value,
+                    metadata={
+                        "organization_id": retired.id.value,
+                        "legal_name": retired.legal_name.value,
+                        "declared_actor": command.actor,
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return retired
+
+    def get_organization(self, command: GetItamOrganizationCommand) -> ItamOrganization:
+        scope_tenant_id = TenantId.from_value(command.scope_tenant_id)
+        self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                scope_tenant_id.value, command.admin_token, Permission.ITAM_READ
+            )
+        )
+        organization = self._repository.find_organization(command.organization_id)
+        if organization is None:
+            raise NotFoundError("ITAM organization not found")
+        return organization
+
+    def list_organizations(self, command: ListItamOrganizationsCommand) -> ItamOrganizationCatalog:
+        scope_tenant_id = TenantId.from_value(command.tenant_id)
+        self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                scope_tenant_id.value, command.admin_token, Permission.ITAM_READ
+            )
+        )
+        organizations = self._repository.list_organizations(command.include_retired)
+        return ItamOrganizationCatalog.from_items(organizations)
+
+    def _ensure_default_organization(self) -> ItamOrganization:
+        existing = self._repository.find_organization("default")
+        if existing is not None:
+            return existing
+        organization = ItamOrganization.create(
+            organization_id="default",
+            legal_name="Default Organization",
+            display_name="Default",
+            actor="system",
+            registration_number="N/A",
+            tax_identifier="N/A",
+            country_code="FR",
+            city="Non renseigné",
+            address="Non renseigné",
+            contact_email="contact@example.invalid",
+            support_contact="support@example.invalid",
+            description="Compatibility organization for single-tenant installations.",
+        )
+        self._repository.save_organization(organization)
+        return organization
+
+    def _require_active_organization(self, organization_id: str) -> ItamOrganization:
+        if organization_id == "default":
+            return self._ensure_default_organization()
+        organization = self._repository.find_organization(organization_id)
+        if organization is None or not organization.selectable():
+            raise ValidationError("an active ITAM organization is required")
+        return organization
+
+    def _materialize_implicit_tenant_for_organization(
+        self, tenant_id: TenantId
+    ) -> ItamTenant | None:
+        organization = self._repository.find_organization(tenant_id.value)
+        if organization is None or not organization.selectable():
+            return None
+        tenant = ItamTenant.create(
+            tenant_id=tenant_id,
+            organization_id=organization.id,
+            name=organization.display_name.value,
+            actor="system",
+            description="Implicit ITAM tenant materialized from its organization.",
+        )
+        self._repository.save_tenant(tenant)
+        return tenant
+
+    def _require_active_tenant(self, tenant_id: TenantId) -> ItamTenant:
+        if tenant_id.value == "default":
+            self._ensure_default_organization()
+        tenant = self._repository.find_tenant(tenant_id)
+        if tenant is None:
+            tenant = self._materialize_implicit_tenant_for_organization(tenant_id)
+        if tenant is None or not tenant.selectable():
+            raise ValidationError(
+                "an active ITAM tenant attached to an active organization is required"
+            )
+        organization = self._require_active_organization(tenant.organization_id.value)
+        if organization.id != tenant.organization_id:
+            raise ValidationError("ITAM tenant organization reference is inconsistent")
+        return tenant
+
+    def _retire_organization_tenants(self, organization_id: str, actor: str) -> None:
+        for tenant in self._repository.list_tenants(include_retired=True):
+            if (
+                tenant.organization_id.value == organization_id
+                and tenant.status != ItamTenantStatus.RETIRED
+            ):
+                self._repository.save_tenant(tenant.retire(actor))
+
     def create_tenant(self, command: CreateItamTenantCommand) -> ItamTenant:
         tenant_id = TenantId.from_value(command.tenant_id)
         scope_tenant_id = TenantId.from_value(command.scope_tenant_id)
@@ -185,8 +462,10 @@ class ItamSupportService:
                 scope_tenant_id.value, command.admin_token, Permission.ITAM_WRITE
             )
         )
+        organization = self._require_active_organization(command.organization_id)
         tenant = ItamTenant.create(
             tenant_id=tenant_id,
+            organization_id=organization.id,
             name=command.name,
             actor=command.actor,
             status=command.status,
@@ -211,6 +490,7 @@ class ItamSupportService:
                     target_id=tenant.id.value,
                     metadata={
                         "tenant_id": tenant.id.value,
+                        "organization_id": tenant.organization_id.value,
                         "name": tenant.name.value,
                         "status": tenant.status.value,
                         "is_default": tenant.is_default,
@@ -233,12 +513,24 @@ class ItamSupportService:
             existing = self._repository.find_tenant(tenant_id)
             if existing is None:
                 raise NotFoundError("ITAM tenant not found")
-            updated = existing.update(
-                actor=command.actor,
-                name=command.name,
-                status=command.status,
-                is_default=command.is_default,
-                description=command.description,
+            organization_id = existing.organization_id
+            if command.organization_id is not None:
+                organization_id = self._require_active_organization(command.organization_id).id
+            updated = ItamTenant.restore(
+                tenant_id=existing.id,
+                organization_id=organization_id,
+                name=existing.name.value if command.name is None else command.name,
+                status=existing.status.value if command.status is None else command.status,
+                is_default=existing.is_default
+                if command.is_default is None
+                else command.is_default,
+                description=existing.description
+                if command.description is None
+                else command.description,
+                created_by=existing.created_by,
+                created_at=existing.created_at,
+                updated_by=command.actor,
+                updated_at=datetime.now(UTC),
             )
             if updated.is_default and not updated.selectable():
                 raise ValidationError("only an active ITAM tenant can be the default")
@@ -254,6 +546,7 @@ class ItamSupportService:
                     target_id=updated.id.value,
                     metadata={
                         "tenant_id": updated.id.value,
+                        "organization_id": updated.organization_id.value,
                         "name": updated.name.value,
                         "status": updated.status.value,
                         "is_default": updated.is_default,
@@ -312,6 +605,7 @@ class ItamSupportService:
                 scope_tenant_id.value, command.admin_token, Permission.ITAM_READ
             )
         )
+        self._ensure_default_organization()
         tenants = self._repository.list_tenants(command.include_retired)
         return ItamTenantCatalog.from_items(tenants)
 
@@ -322,6 +616,7 @@ class ItamSupportService:
         principal = self._security_service.authenticate_token(
             AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITAM_WRITE)
         )
+        self._require_active_tenant(tenant_id)
         warranty = ManufacturerWarranty.create(
             manufacturer=command.manufacturer,
             warranty_reference=command.warranty_reference,
@@ -381,6 +676,7 @@ class ItamSupportService:
         principal = self._security_service.authenticate_token(
             AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITAM_WRITE)
         )
+        self._require_active_tenant(tenant_id)
         contract = ThirdPartySupportContract.create(
             provider=command.provider,
             contract_reference=command.contract_reference,
@@ -431,6 +727,7 @@ class ItamSupportService:
         self._security_service.authenticate_token(
             AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITAM_READ)
         )
+        self._require_active_tenant(tenant_id)
         profile = self._repository.find_support_profile(tenant_id, command.asset_tag)
         if profile is None:
             raise NotFoundError("asset support profile not found")
@@ -443,6 +740,7 @@ class ItamSupportService:
         self._security_service.authenticate_token(
             AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITAM_READ)
         )
+        self._require_active_tenant(tenant_id)
         profile = self._repository.find_support_profile(tenant_id, command.asset_tag)
         if profile is None:
             raise NotFoundError("asset support profile not found")
@@ -460,6 +758,7 @@ class ItamSupportService:
         principal = self._security_service.authenticate_token(
             AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITAM_WRITE)
         )
+        self._require_active_tenant(tenant_id)
         license_ = SoftwareLicenseEntitlement.create(
             tenant_id=tenant_id,
             product_name=command.product_name,
@@ -542,6 +841,7 @@ class ItamSupportService:
             AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITAM_WRITE)
         )
         with self._transaction_manager.begin() as unit_of_work:
+            self._require_active_tenant(tenant_id)
             existing = self._repository.find_software_license(tenant_id, command.license_reference)
             if existing is None:
                 raise NotFoundError("software license entitlement not found")
@@ -578,6 +878,7 @@ class ItamSupportService:
         self._security_service.authenticate_token(
             AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITAM_READ)
         )
+        self._require_active_tenant(tenant_id)
         license_ = self._repository.find_software_license(tenant_id, command.license_reference)
         if license_ is None:
             raise NotFoundError("software license entitlement not found")
@@ -590,6 +891,7 @@ class ItamSupportService:
         self._security_service.authenticate_token(
             AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITAM_READ)
         )
+        self._require_active_tenant(tenant_id)
         license_ = self._repository.find_software_license(tenant_id, command.license_reference)
         if license_ is None:
             raise NotFoundError("software license entitlement not found")

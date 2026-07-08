@@ -130,6 +130,7 @@ from openinfra.domain.ipam import (
 )
 from openinfra.domain.itam import (
     ItamDateParser,
+    ItamOrganization,
     ItamTenant,
     ManufacturerWarranty,
     PhysicalAssetSupportProfile,
@@ -1036,6 +1037,7 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
                 %(city)s, %(region)s, %(status)s
             )
             ON CONFLICT (tenant_id, code) DO UPDATE SET
+                organization_id = EXCLUDED.organization_id,
                 name = EXCLUDED.name,
                 country = EXCLUDED.country,
                 city = EXCLUDED.city,
@@ -1394,6 +1396,7 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
                 %(coordinate_x)s, %(coordinate_y)s, %(coordinate_z)s
             )
             ON CONFLICT (tenant_id, asset_tag) DO UPDATE SET
+                organization_id = EXCLUDED.organization_id,
                 name = EXCLUDED.name,
                 site_code = EXCLUDED.site_code,
                 building_code = EXCLUDED.building_code,
@@ -1685,7 +1688,7 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
     def find_site(self, tenant_id: TenantId, site: str) -> Site | None:
         row = self._fetch_one(
             """
-            SELECT id, tenant_id, code, name, country, city, region
+            SELECT id, tenant_id, code, name, country, city, region, status
             FROM sites
             WHERE tenant_id = %(tenant_id)s AND code = %(code)s
             """,
@@ -1699,7 +1702,7 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
     def find_building(self, tenant_id: TenantId, site: str, building: str) -> Building | None:
         row = self._fetch_one(
             """
-            SELECT id, tenant_id, site_code, code, name
+            SELECT id, tenant_id, site_code, code, name, status
             FROM buildings
             WHERE tenant_id = %(tenant_id)s AND site_code = %(site_code)s
               AND code = %(code)s
@@ -1721,7 +1724,7 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
     ) -> Floor | None:
         row = self._fetch_one(
             """
-            SELECT id, tenant_id, site_code, building_code, code, name, level_index
+            SELECT id, tenant_id, site_code, building_code, code, name, level_index, status
             FROM floors
             WHERE tenant_id = %(tenant_id)s AND site_code = %(site_code)s
               AND building_code = %(building_code)s AND code = %(code)s
@@ -1739,7 +1742,7 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
         row = self._fetch_one(
             """
             SELECT id, tenant_id, site_code, building_code, floor_code, code, name, rows, columns,
-                   zone_codes, coordinate_x, coordinate_y, coordinate_z
+                   zone_codes, coordinate_x, coordinate_y, coordinate_z, status
             FROM rooms
             WHERE tenant_id = %(tenant_id)s AND site_code = %(site_code)s
               AND building_code = %(building_code)s AND code = %(code)s
@@ -1764,7 +1767,7 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
         row = self._fetch_one(
             """
             SELECT id, tenant_id, site_code, building_code, floor_code, room_code, code,
-                   name, rows, columns
+                   name, rows, columns, status
             FROM room_zones
             WHERE tenant_id = %(tenant_id)s AND site_code = %(site_code)s
               AND building_code = %(building_code)s
@@ -3460,6 +3463,7 @@ class PostgreSQLDiscoveryRepository(PostgreSQLRepositoryBase, DiscoveryRepositor
                 %(last_heartbeat_status)s, %(last_seen_version)s, %(disabled_reason)s, now()
             )
             ON CONFLICT (tenant_id, id) DO UPDATE SET
+                organization_id = EXCLUDED.organization_id,
                 name = EXCLUDED.name,
                 kind = EXCLUDED.kind,
                 certificate_fingerprint = EXCLUDED.certificate_fingerprint,
@@ -5095,18 +5099,167 @@ class PostgreSQLSourceOfTruthRepository(PostgreSQLRepositoryBase, SourceOfTruthR
 
 
 class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepository):
+    def save_organization(self, organization: ItamOrganization) -> None:
+        self._execute_without_result(
+            """
+            INSERT INTO itam_organizations (
+                organization_id, legal_name, display_name, status,
+                registration_number, tax_identifier, country_code, city, address,
+                contact_email, support_contact, description,
+                created_by, created_at, updated_by, updated_at
+            ) VALUES (
+                %(organization_id)s, %(legal_name)s, %(display_name)s, %(status)s,
+                %(registration_number)s, %(tax_identifier)s, %(country_code)s, %(city)s,
+                %(address)s, %(contact_email)s, %(support_contact)s, %(description)s,
+                %(created_by)s, %(created_at)s, %(updated_by)s, %(updated_at)s
+            )
+            ON CONFLICT (organization_id) DO UPDATE SET
+                legal_name = EXCLUDED.legal_name,
+                display_name = EXCLUDED.display_name,
+                status = EXCLUDED.status,
+                registration_number = EXCLUDED.registration_number,
+                tax_identifier = EXCLUDED.tax_identifier,
+                country_code = EXCLUDED.country_code,
+                city = EXCLUDED.city,
+                address = EXCLUDED.address,
+                contact_email = EXCLUDED.contact_email,
+                support_contact = EXCLUDED.support_contact,
+                description = EXCLUDED.description,
+                updated_by = EXCLUDED.updated_by,
+                updated_at = EXCLUDED.updated_at
+            """,
+            {
+                "organization_id": organization.id.value,
+                "legal_name": organization.legal_name.value,
+                "display_name": organization.display_name.value,
+                "status": organization.status.value,
+                "registration_number": organization.registration_number,
+                "tax_identifier": organization.tax_identifier,
+                "country_code": organization.country_code,
+                "city": organization.city,
+                "address": organization.address,
+                "contact_email": organization.contact_email,
+                "support_contact": organization.support_contact,
+                "description": organization.description,
+                "created_by": organization.created_by,
+                "created_at": organization.created_at,
+                "updated_by": organization.updated_by,
+                "updated_at": organization.updated_at,
+            },
+        )
+
+    def find_organization(self, organization_id: str) -> ItamOrganization | None:
+        row = self._fetch_one(
+            """
+            SELECT organization_id, legal_name, display_name, status,
+                   registration_number, tax_identifier, country_code, city, address,
+                   contact_email, support_contact, description,
+                   created_by, created_at, updated_by, updated_at
+            FROM itam_organizations
+            WHERE organization_id = %(organization_id)s
+            """,
+            {"organization_id": TenantId.from_value(organization_id).value},
+        )
+        return self._organization_from_row(row) if row else None
+
+    def list_organizations(self, include_retired: bool = False) -> tuple[ItamOrganization, ...]:
+        if include_retired:
+            rows = self._fetch_all(
+                """
+                SELECT organization_id, legal_name, display_name, status,
+                       registration_number, tax_identifier, country_code, city, address,
+                       contact_email, support_contact, description,
+                       created_by, created_at, updated_by, updated_at
+                FROM itam_organizations
+                ORDER BY display_name ASC, organization_id ASC
+                """,
+                {},
+            )
+        else:
+            rows = self._fetch_all(
+                """
+                SELECT organization_id, legal_name, display_name, status,
+                       registration_number, tax_identifier, country_code, city, address,
+                       contact_email, support_contact, description,
+                       created_by, created_at, updated_by, updated_at
+                FROM itam_organizations
+                WHERE status <> 'retired'
+                ORDER BY display_name ASC, organization_id ASC
+                """,
+                {},
+            )
+        if rows:
+            return tuple(self._organization_from_row(row) for row in rows)
+        default = ItamOrganization.create(
+            organization_id="default",
+            legal_name="Default Organization",
+            display_name="Default",
+            actor="system",
+            registration_number="N/A",
+            tax_identifier="N/A",
+            country_code="FR",
+            city="Non renseigné",
+            address="Non renseigné",
+            contact_email="contact@example.invalid",
+            support_contact="support@example.invalid",
+            description="Compatibility organization for single-tenant installations.",
+        )
+        self.save_organization(default)
+        return (default,)
+
+    def _organization_from_row(self, row: Mapping[str, object]) -> ItamOrganization:
+        return ItamOrganization.restore(
+            organization_id=str(row["organization_id"]),
+            legal_name=str(row["legal_name"]),
+            display_name=str(row["display_name"]),
+            status=str(row["status"]),
+            registration_number=str(row["registration_number"]),
+            tax_identifier=str(row["tax_identifier"]),
+            country_code=str(row["country_code"]),
+            city=str(row["city"]),
+            address=str(row["address"]),
+            contact_email=str(row["contact_email"]),
+            support_contact=str(row["support_contact"]),
+            description=(None if row.get("description") is None else str(row.get("description"))),
+            created_by=str(row["created_by"]),
+            created_at=self._row_datetime(row["created_at"]),
+            updated_by=str(row["updated_by"]),
+            updated_at=self._row_datetime(row["updated_at"]),
+        )
+
     def save_tenant(self, tenant: ItamTenant) -> None:
+        if self.find_organization(tenant.organization_id.value) is None:
+            self.save_organization(
+                ItamOrganization.create(
+                    organization_id=tenant.organization_id.value,
+                    legal_name=tenant.organization_id.value,
+                    display_name=tenant.organization_id.value,
+                    actor="system",
+                    registration_number="N/A",
+                    tax_identifier="N/A",
+                    country_code="FR",
+                    city="Non renseigné",
+                    address="Non renseigné",
+                    contact_email="contact@example.invalid",
+                    support_contact="support@example.invalid",
+                    description=(
+                        "Compatibility organization automatically created for tenant attachment."
+                    ),
+                )
+            )
         self._ensure_tenant(tenant.id)
         self._execute_without_result(
             """
             INSERT INTO itam_tenants (
-                tenant_id, name, status, is_default, description,
+                tenant_id, organization_id, name, status, is_default, description,
                 created_by, created_at, updated_by, updated_at
             ) VALUES (
-                %(tenant_id)s, %(name)s, %(status)s, %(is_default)s, %(description)s,
-                %(created_by)s, %(created_at)s, %(updated_by)s, %(updated_at)s
+                %(tenant_id)s, %(organization_id)s, %(name)s, %(status)s,
+                %(is_default)s, %(description)s, %(created_by)s, %(created_at)s,
+                %(updated_by)s, %(updated_at)s
             )
             ON CONFLICT (tenant_id) DO UPDATE SET
+                organization_id = EXCLUDED.organization_id,
                 name = EXCLUDED.name,
                 status = EXCLUDED.status,
                 is_default = EXCLUDED.is_default,
@@ -5116,6 +5269,7 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
             """,
             {
                 "tenant_id": tenant.id.value,
+                "organization_id": tenant.organization_id.value,
                 "name": tenant.name.value,
                 "status": tenant.status.value,
                 "is_default": tenant.is_default,
@@ -5130,7 +5284,7 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
     def find_tenant(self, tenant_id: TenantId) -> ItamTenant | None:
         row = self._fetch_one(
             """
-            SELECT tenant_id, name, status, is_default, description,
+            SELECT tenant_id, organization_id, name, status, is_default, description,
                    created_by, created_at, updated_by, updated_at
             FROM itam_tenants
             WHERE tenant_id = %(tenant_id)s
@@ -5141,14 +5295,14 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
 
     def list_tenants(self, include_retired: bool = False) -> tuple[ItamTenant, ...]:
         query = """
-            SELECT tenant_id, name, status, is_default, description,
+            SELECT tenant_id, organization_id, name, status, is_default, description,
                    created_by, created_at, updated_by, updated_at
             FROM itam_tenants
             ORDER BY is_default DESC, name ASC, tenant_id ASC
             """
         if not include_retired:
             query = """
-                SELECT tenant_id, name, status, is_default, description,
+                SELECT tenant_id, organization_id, name, status, is_default, description,
                        created_by, created_at, updated_by, updated_at
                 FROM itam_tenants
                 WHERE status <> 'retired'
@@ -5159,6 +5313,7 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
             return tuple(self._tenant_from_row(row) for row in rows)
         default = ItamTenant.create(
             tenant_id="default",
+            organization_id="default",
             name="Default",
             actor="system",
             is_default=True,
@@ -5186,6 +5341,7 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
     def _tenant_from_row(self, row: Mapping[str, object]) -> ItamTenant:
         return ItamTenant.restore(
             tenant_id=str(row["tenant_id"]),
+            organization_id=str(row.get("organization_id", "default")),
             name=str(row["name"]),
             status=str(row["status"]),
             is_default=bool(row["is_default"]),

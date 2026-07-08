@@ -103,6 +103,11 @@ class TestHttpApi:
                     "openservice_cmdb_sync_plan": "/api/v1/integrations/itsm/openservice/cmdb-sync-plan",
                 },
                 "itam": {
+                    "organizations": "/api/v1/itam/organizations",
+                    "organization": "/api/v1/itam/organization",
+                    "organization_create": "/api/v1/itam/organization/create",
+                    "organization_update": "/api/v1/itam/organization/update",
+                    "organization_delete": "/api/v1/itam/organization/delete",
                     "tenants": "/api/v1/itam/tenants",
                     "tenant": "/api/v1/itam/tenant",
                     "tenant_create": "/api/v1/itam/tenant/create",
@@ -160,6 +165,26 @@ class TestHttpApi:
                     "site_create": "/api/v1/dcim/site/create",
                     "site_update": "/api/v1/dcim/site/update",
                     "site_delete": "/api/v1/dcim/site/delete",
+                    "buildings": "/api/v1/dcim/buildings",
+                    "building": "/api/v1/dcim/building",
+                    "building_create": "/api/v1/dcim/building/create",
+                    "building_update": "/api/v1/dcim/building/update",
+                    "building_delete": "/api/v1/dcim/building/delete",
+                    "floors": "/api/v1/dcim/floors",
+                    "floor": "/api/v1/dcim/floor",
+                    "floor_create": "/api/v1/dcim/floor/create",
+                    "floor_update": "/api/v1/dcim/floor/update",
+                    "floor_delete": "/api/v1/dcim/floor/delete",
+                    "rooms_list": "/api/v1/dcim/rooms",
+                    "room": "/api/v1/dcim/room",
+                    "room_create": "/api/v1/dcim/room/create",
+                    "room_update": "/api/v1/dcim/room/update",
+                    "room_delete": "/api/v1/dcim/room/delete",
+                    "zones": "/api/v1/dcim/zones",
+                    "zone": "/api/v1/dcim/zone",
+                    "zone_create": "/api/v1/dcim/zone/create",
+                    "zone_update": "/api/v1/dcim/zone/update",
+                    "zone_delete": "/api/v1/dcim/zone/delete",
                     "topology_catalog": "/api/v1/dcim/topology-catalog",
                     "rooms": "/api/v1/dcim/rooms",
                     "racks": "/api/v1/dcim/racks",
@@ -1035,6 +1060,51 @@ class TestHttpApi:
             server.server_close()
             thread.join(timeout=5)
 
+    def test_documented_api_routes_fail_safely_on_incomplete_requests(self, tmp_path: Path) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "route-smoke.json")
+        server = OpenInfraThreadingServer(("127.0.0.1", 0), app)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base_url = f"http://127.0.0.1:{server.server_port}"
+            documentation = self._get_json(base_url + "/")["documentation"]
+            paths: set[str] = set()
+
+            def collect(value: object) -> None:
+                if isinstance(value, str) and value.startswith("/api/v1/"):
+                    paths.add(value)
+                elif isinstance(value, dict):
+                    for child in value.values():
+                        collect(child)
+
+            collect(documentation)
+            assert "/api/v1/itam/organizations" in paths
+            assert "/api/v1/itam/organization/create" in paths
+
+            for path in sorted(paths):
+                request = urllib.request.Request(base_url + path, method="GET")
+                try:
+                    with urllib.request.urlopen(request, timeout=5) as response:
+                        assert response.status < 500
+                except urllib.error.HTTPError as exc:
+                    assert exc.code < 500
+
+                post_request = urllib.request.Request(
+                    base_url + path,
+                    data=b"{}",
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                try:
+                    with urllib.request.urlopen(post_request, timeout=5) as response:
+                        assert response.status < 500
+                except urllib.error.HTTPError as exc:
+                    assert exc.code < 500
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
     def _get_json(self, url: str, token: str | None = None) -> dict[str, object]:
         headers = {}
         if token is not None:
@@ -1145,7 +1215,7 @@ class TestHttpApi:
                     "backend_url": "https://openinfra-api.example.test",
                     "certificate_fingerprint": "6" * 64,
                     "enrollment_secret_ref": "vault://openinfra/discovery/agent/par1",
-                    "agent_version": "0.29.71",
+                    "agent_version": "0.29.73",
                 },
                 token=token,
             )

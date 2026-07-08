@@ -58,6 +58,7 @@ from openinfra.domain.ipam import (
     VxlanVni,
 )
 from openinfra.domain.itam import (
+    ItamOrganization,
     ItamTenant,
     PhysicalAssetSupportProfile,
     SoftwareLicenseEntitlement,
@@ -126,6 +127,18 @@ class ReadinessStatus:
 
 
 class ItamSupportRepository(ABC):
+    @abstractmethod
+    def save_organization(self, organization: ItamOrganization) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_organization(self, organization_id: str) -> ItamOrganization | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_organizations(self, include_retired: bool = False) -> tuple[ItamOrganization, ...]:
+        raise TypeError("adapter contract invoked directly")
+
     @abstractmethod
     def save_tenant(self, tenant: ItamTenant) -> None:
         raise TypeError("adapter contract invoked directly")

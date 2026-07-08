@@ -23,7 +23,11 @@ from openinfra.application.authentication_services import AuthProviderPolicyComm
 from openinfra.application.container import ApplicationFactory, OpenInfraApplication
 from openinfra.application.dcim_services import (
     ConnectDcimCableCommand,
+    CreateDcimBuildingCommand,
+    CreateDcimFloorCommand,
+    CreateDcimRoomCommand,
     CreateDcimSiteCommand,
+    CreateDcimZoneCommand,
     DcimTopologyCatalogCommand,
     DefineCoolingZoneCommand,
     DefineDcimPortCommand,
@@ -32,10 +36,22 @@ from openinfra.application.dcim_services import (
     DefinePowerCircuitCommand,
     DefinePowerDeviceCommand,
     DefineRackCommand,
+    DeleteDcimBuildingCommand,
+    DeleteDcimFloorCommand,
+    DeleteDcimRoomCommand,
     DeleteDcimSiteCommand,
+    DeleteDcimZoneCommand,
     GenerateEquipmentLocatorCommand,
+    GetDcimBuildingCommand,
+    GetDcimFloorCommand,
+    GetDcimRoomCommand,
     GetDcimSiteCommand,
+    GetDcimZoneCommand,
+    ListDcimBuildingsCommand,
+    ListDcimFloorsCommand,
+    ListDcimRoomsCommand,
     ListDcimSitesCommand,
+    ListDcimZonesCommand,
     LocateEquipmentCommand,
     RackCapacityCommand,
     RackEnergyCoolingCapacityCommand,
@@ -44,7 +60,11 @@ from openinfra.application.dcim_services import (
     RenderRoomPlanCommand,
     ReserveEquipmentPowerCommand,
     TraceDcimCableCommand,
+    UpdateDcimBuildingCommand,
+    UpdateDcimFloorCommand,
+    UpdateDcimRoomCommand,
     UpdateDcimSiteCommand,
+    UpdateDcimZoneCommand,
     VerifyEquipmentScanCommand,
 )
 from openinfra.application.discovery_services import (
@@ -137,16 +157,21 @@ from openinfra.application.it_resources_management_services import (
 )
 from openinfra.application.itam_services import (
     AddThirdPartySupportCommand,
+    CreateItamOrganizationCommand,
     CreateItamTenantCommand,
+    DeleteItamOrganizationCommand,
     DeleteItamTenantCommand,
     GetAssetSupportCoverageReportCommand,
     GetAssetSupportProfileCommand,
+    GetItamOrganizationCommand,
     GetItamTenantCommand,
     GetSoftwareLicenseCommand,
     GetSoftwareLicenseComplianceCommand,
+    ListItamOrganizationsCommand,
     ListItamTenantsCommand,
     RegisterManufacturerSupportCommand,
     RegisterSoftwareLicenseCommand,
+    UpdateItamOrganizationCommand,
     UpdateItamTenantCommand,
     UpdateSoftwareLicenseAssignmentCommand,
 )
@@ -549,6 +574,78 @@ class OpenInfraCLI:
         itam = subparsers.add_parser("itam", help="IT asset management operations")
         itam_subparsers = itam.add_subparsers(dest="itam_command", required=True)
 
+        organization_list = itam_subparsers.add_parser(
+            "organizations", help="list ITAM organizations"
+        )
+        self._add_backend_arguments(organization_list)
+        organization_list.add_argument("--tenant", default="default", help="security tenant scope")
+        organization_list.add_argument("--admin-token", required=True)
+        organization_list.add_argument("--include-retired", action="store_true")
+        organization_list.set_defaults(handler=self._handle_itam_organizations)
+
+        organization_create = itam_subparsers.add_parser(
+            "organization-create", help="create ITAM organization identity"
+        )
+        self._add_backend_arguments(organization_create)
+        organization_create.add_argument("--organization", required=True)
+        organization_create.add_argument("--actor", default="cli")
+        organization_create.add_argument("--admin-token", required=True)
+        organization_create.add_argument("--scope-tenant", default="default")
+        organization_create.add_argument("--legal-name", required=True)
+        organization_create.add_argument("--display-name")
+        organization_create.add_argument(
+            "--status", default="active", choices=("active", "suspended", "retired")
+        )
+        organization_create.add_argument("--registration-number", required=True)
+        organization_create.add_argument("--tax-identifier", required=True)
+        organization_create.add_argument("--country-code", required=True)
+        organization_create.add_argument("--city", required=True)
+        organization_create.add_argument("--address", required=True)
+        organization_create.add_argument("--contact-email", required=True)
+        organization_create.add_argument("--support-contact", required=True)
+        organization_create.add_argument("--description")
+        organization_create.set_defaults(handler=self._handle_itam_organization_create)
+
+        organization_show = itam_subparsers.add_parser(
+            "organization", help="show ITAM organization"
+        )
+        self._add_backend_arguments(organization_show)
+        organization_show.add_argument("--organization", required=True)
+        organization_show.add_argument("--tenant", default="default", help="security tenant scope")
+        organization_show.add_argument("--admin-token", required=True)
+        organization_show.set_defaults(handler=self._handle_itam_organization)
+
+        organization_update = itam_subparsers.add_parser(
+            "organization-update", help="update ITAM organization identity"
+        )
+        self._add_backend_arguments(organization_update)
+        organization_update.add_argument("--organization", required=True)
+        organization_update.add_argument("--actor", default="cli")
+        organization_update.add_argument("--admin-token", required=True)
+        organization_update.add_argument("--scope-tenant", default="default")
+        organization_update.add_argument("--legal-name")
+        organization_update.add_argument("--display-name")
+        organization_update.add_argument("--status", choices=("active", "suspended", "retired"))
+        organization_update.add_argument("--registration-number")
+        organization_update.add_argument("--tax-identifier")
+        organization_update.add_argument("--country-code")
+        organization_update.add_argument("--city")
+        organization_update.add_argument("--address")
+        organization_update.add_argument("--contact-email")
+        organization_update.add_argument("--support-contact")
+        organization_update.add_argument("--description")
+        organization_update.set_defaults(handler=self._handle_itam_organization_update)
+
+        organization_delete = itam_subparsers.add_parser(
+            "organization-delete", help="retire ITAM organization and attached tenants"
+        )
+        self._add_backend_arguments(organization_delete)
+        organization_delete.add_argument("--organization", required=True)
+        organization_delete.add_argument("--actor", default="cli")
+        organization_delete.add_argument("--admin-token", required=True)
+        organization_delete.add_argument("--scope-tenant", default="default")
+        organization_delete.set_defaults(handler=self._handle_itam_organization_delete)
+
         tenant_list = itam_subparsers.add_parser("tenants", help="list ITAM tenants")
         self._add_backend_arguments(tenant_list)
         tenant_list.add_argument("--tenant", default="default", help="security tenant scope")
@@ -559,6 +656,9 @@ class OpenInfraCLI:
         tenant_create = itam_subparsers.add_parser("tenant-create", help="create ITAM tenant")
         self._add_backend_arguments(tenant_create)
         tenant_create.add_argument("--tenant", required=True, help="ITAM tenant id to create")
+        tenant_create.add_argument(
+            "--organization", default="default", help="parent ITAM organization id"
+        )
         tenant_create.add_argument("--actor", default="cli")
         tenant_create.add_argument("--admin-token", required=True)
         tenant_create.add_argument("--scope-tenant", default="default")
@@ -579,6 +679,7 @@ class OpenInfraCLI:
         tenant_update = itam_subparsers.add_parser("tenant-update", help="update ITAM tenant")
         self._add_backend_arguments(tenant_update)
         tenant_update.add_argument("--tenant", required=True)
+        tenant_update.add_argument("--organization", help="parent ITAM organization id")
         tenant_update.add_argument("--actor", default="cli")
         tenant_update.add_argument("--admin-token", required=True)
         tenant_update.add_argument("--scope-tenant", default="default")
@@ -1830,6 +1931,207 @@ class OpenInfraCLI:
         topology_catalog.add_argument("--include-retired", action="store_true")
         topology_catalog.set_defaults(handler=self._handle_dcim_topology_catalog)
 
+        buildings = dcim_subparsers.add_parser("buildings", help="list DCIM buildings for a site")
+        self._add_backend_arguments(buildings)
+        buildings.add_argument("--tenant", default="default")
+        buildings.add_argument("--site", required=True)
+        buildings.add_argument("--include-retired", action="store_true")
+        buildings.set_defaults(handler=self._handle_dcim_buildings)
+
+        building = dcim_subparsers.add_parser("building", help="show one DCIM building")
+        self._add_backend_arguments(building)
+        building.add_argument("--tenant", default="default")
+        building.add_argument("--site", required=True)
+        building.add_argument("--code", required=True)
+        building.set_defaults(handler=self._handle_dcim_building)
+
+        create_building = dcim_subparsers.add_parser(
+            "building-create", help="create a DCIM building"
+        )
+        self._add_backend_arguments(create_building)
+        create_building.add_argument("--tenant", default="default")
+        create_building.add_argument("--actor", default="cli")
+        create_building.add_argument("--site", required=True)
+        create_building.add_argument("--code", required=True)
+        create_building.add_argument("--name", required=True)
+        create_building.set_defaults(handler=self._handle_dcim_building_create)
+
+        update_building = dcim_subparsers.add_parser(
+            "building-update", help="update a DCIM building"
+        )
+        self._add_backend_arguments(update_building)
+        update_building.add_argument("--tenant", default="default")
+        update_building.add_argument("--actor", default="cli")
+        update_building.add_argument("--site", required=True)
+        update_building.add_argument("--code", required=True)
+        update_building.add_argument("--name")
+        update_building.add_argument("--status", choices=("active", "suspended", "retired"))
+        update_building.set_defaults(handler=self._handle_dcim_building_update)
+
+        delete_building = dcim_subparsers.add_parser(
+            "building-delete", help="retire a DCIM building"
+        )
+        self._add_backend_arguments(delete_building)
+        delete_building.add_argument("--tenant", default="default")
+        delete_building.add_argument("--actor", default="cli")
+        delete_building.add_argument("--site", required=True)
+        delete_building.add_argument("--code", required=True)
+        delete_building.set_defaults(handler=self._handle_dcim_building_delete)
+
+        floors = dcim_subparsers.add_parser("floors", help="list DCIM floors for a building")
+        self._add_backend_arguments(floors)
+        floors.add_argument("--tenant", default="default")
+        floors.add_argument("--site", required=True)
+        floors.add_argument("--building", required=True)
+        floors.add_argument("--include-retired", action="store_true")
+        floors.set_defaults(handler=self._handle_dcim_floors)
+
+        floor = dcim_subparsers.add_parser("floor", help="show one DCIM floor")
+        self._add_backend_arguments(floor)
+        floor.add_argument("--tenant", default="default")
+        floor.add_argument("--site", required=True)
+        floor.add_argument("--building", required=True)
+        floor.add_argument("--code", required=True)
+        floor.set_defaults(handler=self._handle_dcim_floor)
+
+        create_floor = dcim_subparsers.add_parser("floor-create", help="create a DCIM floor")
+        self._add_backend_arguments(create_floor)
+        create_floor.add_argument("--tenant", default="default")
+        create_floor.add_argument("--actor", default="cli")
+        create_floor.add_argument("--site", required=True)
+        create_floor.add_argument("--building", required=True)
+        create_floor.add_argument("--code", required=True)
+        create_floor.add_argument("--name", required=True)
+        create_floor.add_argument("--level-index", type=int, required=True)
+        create_floor.set_defaults(handler=self._handle_dcim_floor_create)
+
+        update_floor = dcim_subparsers.add_parser("floor-update", help="update a DCIM floor")
+        self._add_backend_arguments(update_floor)
+        update_floor.add_argument("--tenant", default="default")
+        update_floor.add_argument("--actor", default="cli")
+        update_floor.add_argument("--site", required=True)
+        update_floor.add_argument("--building", required=True)
+        update_floor.add_argument("--code", required=True)
+        update_floor.add_argument("--name")
+        update_floor.add_argument("--level-index", type=int)
+        update_floor.add_argument("--status", choices=("active", "suspended", "retired"))
+        update_floor.set_defaults(handler=self._handle_dcim_floor_update)
+
+        delete_floor = dcim_subparsers.add_parser("floor-delete", help="retire a DCIM floor")
+        self._add_backend_arguments(delete_floor)
+        delete_floor.add_argument("--tenant", default="default")
+        delete_floor.add_argument("--actor", default="cli")
+        delete_floor.add_argument("--site", required=True)
+        delete_floor.add_argument("--building", required=True)
+        delete_floor.add_argument("--code", required=True)
+        delete_floor.set_defaults(handler=self._handle_dcim_floor_delete)
+
+        rooms = dcim_subparsers.add_parser("rooms", help="list DCIM rooms for a building")
+        self._add_backend_arguments(rooms)
+        rooms.add_argument("--tenant", default="default")
+        rooms.add_argument("--site", required=True)
+        rooms.add_argument("--building", required=True)
+        rooms.add_argument("--include-retired", action="store_true")
+        rooms.set_defaults(handler=self._handle_dcim_rooms)
+
+        room = dcim_subparsers.add_parser("room", help="show one DCIM room")
+        self._add_backend_arguments(room)
+        room.add_argument("--tenant", default="default")
+        room.add_argument("--site", required=True)
+        room.add_argument("--building", required=True)
+        room.add_argument("--code", required=True)
+        room.set_defaults(handler=self._handle_dcim_room)
+
+        create_room = dcim_subparsers.add_parser("room-create", help="create a DCIM room")
+        self._add_backend_arguments(create_room)
+        create_room.add_argument("--tenant", default="default")
+        create_room.add_argument("--actor", default="cli")
+        create_room.add_argument("--site", required=True)
+        create_room.add_argument("--building", required=True)
+        create_room.add_argument("--floor", required=True)
+        create_room.add_argument("--code", required=True)
+        create_room.add_argument("--name", required=True)
+        create_room.add_argument("--row", action="append", required=True)
+        create_room.add_argument("--column", action="append", required=True)
+        create_room.set_defaults(handler=self._handle_dcim_room_create)
+
+        update_room = dcim_subparsers.add_parser("room-update", help="update a DCIM room")
+        self._add_backend_arguments(update_room)
+        update_room.add_argument("--tenant", default="default")
+        update_room.add_argument("--actor", default="cli")
+        update_room.add_argument("--site", required=True)
+        update_room.add_argument("--building", required=True)
+        update_room.add_argument("--code", required=True)
+        update_room.add_argument("--name")
+        update_room.add_argument("--row", action="append")
+        update_room.add_argument("--column", action="append")
+        update_room.add_argument("--status", choices=("active", "suspended", "retired"))
+        update_room.set_defaults(handler=self._handle_dcim_room_update)
+
+        delete_room = dcim_subparsers.add_parser("room-delete", help="retire a DCIM room")
+        self._add_backend_arguments(delete_room)
+        delete_room.add_argument("--tenant", default="default")
+        delete_room.add_argument("--actor", default="cli")
+        delete_room.add_argument("--site", required=True)
+        delete_room.add_argument("--building", required=True)
+        delete_room.add_argument("--code", required=True)
+        delete_room.set_defaults(handler=self._handle_dcim_room_delete)
+
+        zones = dcim_subparsers.add_parser("zones", help="list DCIM zones for a room")
+        self._add_backend_arguments(zones)
+        zones.add_argument("--tenant", default="default")
+        zones.add_argument("--site", required=True)
+        zones.add_argument("--building", required=True)
+        zones.add_argument("--room", required=True)
+        zones.add_argument("--include-retired", action="store_true")
+        zones.set_defaults(handler=self._handle_dcim_zones)
+
+        zone = dcim_subparsers.add_parser("zone", help="show one DCIM zone")
+        self._add_backend_arguments(zone)
+        zone.add_argument("--tenant", default="default")
+        zone.add_argument("--site", required=True)
+        zone.add_argument("--building", required=True)
+        zone.add_argument("--room", required=True)
+        zone.add_argument("--code", required=True)
+        zone.set_defaults(handler=self._handle_dcim_zone)
+
+        create_zone = dcim_subparsers.add_parser("zone-create", help="create a DCIM room zone")
+        self._add_backend_arguments(create_zone)
+        create_zone.add_argument("--tenant", default="default")
+        create_zone.add_argument("--actor", default="cli")
+        create_zone.add_argument("--site", required=True)
+        create_zone.add_argument("--building", required=True)
+        create_zone.add_argument("--room", required=True)
+        create_zone.add_argument("--code", required=True)
+        create_zone.add_argument("--name", required=True)
+        create_zone.add_argument("--row", action="append", required=True)
+        create_zone.add_argument("--column", action="append", required=True)
+        create_zone.set_defaults(handler=self._handle_dcim_zone_create)
+
+        update_zone = dcim_subparsers.add_parser("zone-update", help="update a DCIM room zone")
+        self._add_backend_arguments(update_zone)
+        update_zone.add_argument("--tenant", default="default")
+        update_zone.add_argument("--actor", default="cli")
+        update_zone.add_argument("--site", required=True)
+        update_zone.add_argument("--building", required=True)
+        update_zone.add_argument("--room", required=True)
+        update_zone.add_argument("--code", required=True)
+        update_zone.add_argument("--name")
+        update_zone.add_argument("--row", action="append")
+        update_zone.add_argument("--column", action="append")
+        update_zone.add_argument("--status", choices=("active", "suspended", "retired"))
+        update_zone.set_defaults(handler=self._handle_dcim_zone_update)
+
+        delete_zone = dcim_subparsers.add_parser("zone-delete", help="retire a DCIM room zone")
+        self._add_backend_arguments(delete_zone)
+        delete_zone.add_argument("--tenant", default="default")
+        delete_zone.add_argument("--actor", default="cli")
+        delete_zone.add_argument("--site", required=True)
+        delete_zone.add_argument("--building", required=True)
+        delete_zone.add_argument("--room", required=True)
+        delete_zone.add_argument("--code", required=True)
+        delete_zone.set_defaults(handler=self._handle_dcim_zone_delete)
+
         define_room = dcim_subparsers.add_parser(
             "define-room",
             help="define a physical DCIM room hierarchy",
@@ -2915,6 +3217,91 @@ class OpenInfraCLI:
         print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
         return 0
 
+    def _handle_itam_organizations(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        catalog = app.itam_support_service.list_organizations(
+            ListItamOrganizationsCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                include_retired=args.include_retired,
+            )
+        )
+        print(json.dumps(catalog.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_itam_organization_create(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        organization = app.itam_support_service.create_organization(
+            CreateItamOrganizationCommand(
+                organization_id=args.organization,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                scope_tenant_id=args.scope_tenant,
+                legal_name=args.legal_name,
+                display_name=args.display_name,
+                status=args.status,
+                registration_number=args.registration_number,
+                tax_identifier=args.tax_identifier,
+                country_code=args.country_code,
+                city=args.city,
+                address=args.address,
+                contact_email=args.contact_email,
+                support_contact=args.support_contact,
+                description=args.description,
+            )
+        )
+        print(json.dumps(organization.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_itam_organization(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        organization = app.itam_support_service.get_organization(
+            GetItamOrganizationCommand(
+                organization_id=args.organization,
+                scope_tenant_id=args.tenant,
+                admin_token=args.admin_token,
+            )
+        )
+        print(json.dumps(organization.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_itam_organization_update(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        organization = app.itam_support_service.update_organization(
+            UpdateItamOrganizationCommand(
+                organization_id=args.organization,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                scope_tenant_id=args.scope_tenant,
+                legal_name=args.legal_name,
+                display_name=args.display_name,
+                status=args.status,
+                registration_number=args.registration_number,
+                tax_identifier=args.tax_identifier,
+                country_code=args.country_code,
+                city=args.city,
+                address=args.address,
+                contact_email=args.contact_email,
+                support_contact=args.support_contact,
+                description=args.description,
+            )
+        )
+        print(json.dumps(organization.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_itam_organization_delete(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        organization = app.itam_support_service.delete_organization(
+            DeleteItamOrganizationCommand(
+                organization_id=args.organization,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                scope_tenant_id=args.scope_tenant,
+            )
+        )
+        print(json.dumps(organization.as_dict(), indent=2, sort_keys=True))
+        return 0
+
     def _handle_itam_tenants(self, args: argparse.Namespace) -> int:
         app = self._create_application(args)
         catalog = app.itam_support_service.list_tenants(
@@ -2936,6 +3323,7 @@ class OpenInfraCLI:
                 admin_token=args.admin_token,
                 name=args.name,
                 scope_tenant_id=args.scope_tenant,
+                organization_id=args.organization,
                 status=args.status,
                 is_default=args.is_default,
                 description=args.description,
@@ -2965,6 +3353,7 @@ class OpenInfraCLI:
                 actor=args.actor,
                 admin_token=args.admin_token,
                 scope_tenant_id=args.scope_tenant,
+                organization_id=args.organization,
                 name=args.name,
                 status=args.status,
                 is_default=is_default,
@@ -3905,6 +4294,230 @@ class OpenInfraCLI:
         application = self._create_application(args)
         result = application.dcim_topology_service.topology_catalog(
             DcimTopologyCatalogCommand(args.tenant, include_retired=args.include_retired)
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_buildings(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_topology_service.list_buildings(
+            ListDcimBuildingsCommand(args.tenant, args.site, args.include_retired)
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_building(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_topology_service.get_building(
+            GetDcimBuildingCommand(args.tenant, args.site, args.code)
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_building_create(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_topology_service.create_building(
+            CreateDcimBuildingCommand(args.tenant, args.actor, args.site, args.code, args.name)
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_building_update(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_topology_service.update_building(
+            UpdateDcimBuildingCommand(
+                args.tenant, args.actor, args.site, args.code, args.name, args.status
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_building_delete(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_topology_service.delete_building(
+            DeleteDcimBuildingCommand(args.tenant, args.actor, args.site, args.code)
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_floors(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_topology_service.list_floors(
+            ListDcimFloorsCommand(args.tenant, args.site, args.building, args.include_retired)
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_floor(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_topology_service.get_floor(
+            GetDcimFloorCommand(args.tenant, args.site, args.building, args.code)
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_floor_create(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_topology_service.create_floor(
+            CreateDcimFloorCommand(
+                args.tenant,
+                args.actor,
+                args.site,
+                args.building,
+                args.code,
+                args.name,
+                args.level_index,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_floor_update(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_topology_service.update_floor(
+            UpdateDcimFloorCommand(
+                args.tenant,
+                args.actor,
+                args.site,
+                args.building,
+                args.code,
+                args.name,
+                args.level_index,
+                args.status,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_floor_delete(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_topology_service.delete_floor(
+            DeleteDcimFloorCommand(args.tenant, args.actor, args.site, args.building, args.code)
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_rooms(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_topology_service.list_rooms(
+            ListDcimRoomsCommand(args.tenant, args.site, args.building, args.include_retired)
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_room(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_topology_service.get_room(
+            GetDcimRoomCommand(args.tenant, args.site, args.building, args.code)
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_room_create(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_topology_service.create_room(
+            CreateDcimRoomCommand(
+                args.tenant,
+                args.actor,
+                args.site,
+                args.building,
+                args.floor,
+                args.code,
+                args.name,
+                tuple(args.row),
+                tuple(args.column),
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_room_update(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_topology_service.update_room(
+            UpdateDcimRoomCommand(
+                args.tenant,
+                args.actor,
+                args.site,
+                args.building,
+                args.code,
+                args.name,
+                tuple(args.row) if args.row else None,
+                tuple(args.column) if args.column else None,
+                args.status,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_room_delete(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_topology_service.delete_room(
+            DeleteDcimRoomCommand(args.tenant, args.actor, args.site, args.building, args.code)
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_zones(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_topology_service.list_zones(
+            ListDcimZonesCommand(
+                args.tenant, args.site, args.building, args.room, args.include_retired
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_zone(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_topology_service.get_zone(
+            GetDcimZoneCommand(args.tenant, args.site, args.building, args.room, args.code)
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_zone_create(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_topology_service.create_zone(
+            CreateDcimZoneCommand(
+                args.tenant,
+                args.actor,
+                args.site,
+                args.building,
+                args.room,
+                args.code,
+                args.name,
+                tuple(args.row),
+                tuple(args.column),
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_zone_update(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_topology_service.update_zone(
+            UpdateDcimZoneCommand(
+                args.tenant,
+                args.actor,
+                args.site,
+                args.building,
+                args.room,
+                args.code,
+                args.name,
+                tuple(args.row) if args.row else None,
+                tuple(args.column) if args.column else None,
+                args.status,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_zone_delete(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_topology_service.delete_zone(
+            DeleteDcimZoneCommand(
+                args.tenant, args.actor, args.site, args.building, args.room, args.code
+            )
         )
         print(json.dumps(result, sort_keys=True))
         return 0

@@ -1,4 +1,27 @@
-# OpenInfra v0.29.65
+# OpenInfra v0.29.73
+
+## v0.29.73 — Organisations ITAM parent des tenants
+
+OpenInfra v0.29.73 réaligne le modèle ITAM autour d’un référentiel **Organisations** : l’organisation représente l’entreprise, le groupe ou l’entité juridique cliente ; le tenant représente une subdivision rattachée à cette organisation, par exemple `organisation=Orange` et `tenant=DSI`.
+
+La création d’une organisation exige une carte d’identité entreprise complète : code organisation, raison sociale, nom d’usage, numéro d’immatriculation, identifiant fiscal, pays ISO 3166-1 alpha-2, ville, adresse siège, email de contact, contact support, statut et description. Les tenants, supports et licences ne peuvent plus être opérés sans tenant actif rattaché à une organisation active.
+
+### Surfaces exposées
+
+- Domaine : `ItamOrganization`, `ItamOrganizationStatus`, `ItamOrganizationCatalog` et rattachement `ItamTenant.organization_id`.
+- Service applicatif : CRUD organisations, validation d’organisation active, tenant implicite lorsque l’organisation n’a aucun tenant et cascade de retrait logique des tenants.
+- Persistance : JSON store et PostgreSQL avec migration `0031_itam_organization_identity.sql`.
+- CLI : `openinfra itam organizations`, `organization`, `organization-create`, `organization-update`, `organization-delete`.
+- API : `/api/v1/itam/organizations`, `/organization`, `/organization/create`, `/organization/update`, `/organization/delete`.
+- Web : sélection Organisation avant Tenant, filtrage des tenants par organisation, proposition du tenant implicite et suppression du libellé ambigu `Entité propriétaire`.
+
+### Garde-fous
+
+- Aucun tenant ne peut être créé sans organisation active.
+- Les supports et licences vérifient l’existence d’un tenant actif rattaché à une organisation active.
+- Le retrait d’une organisation est non destructif et retire logiquement les tenants rattachés.
+- Une organisation de compatibilité `default` est matérialisée pour préserver les installations mono-tenant existantes.
+- Les anciens contrats `tenant_id` restent compatibles ; l’organisation devient le référentiel métier parent.
 
 ## v0.29.65 — DCIM sites, dépendances et responsive mobile
 
@@ -23,9 +46,9 @@ La même livraison optimise `openinfra-web` pour les tablettes et smartphones : 
 - Le responsive n’altère pas les contrats API ni la sidebar contextuelle existante.
 
 
-## v0.29.64 — UX entités propriétaires ITAM
+## v0.29.64 — UX tenants ITAM, remplacée par v0.29.73
 
-Le portail web utilise désormais le libellé `Entité propriétaire` à la place de `Tenant`. Lors de la création d’une entité propriétaire ITAM, l’identifiant fonctionnel est présenté comme `Organisation`. Les autres références à une entité propriétaire sont rendues via une liste déroulante alimentée par le catalogue ITAM, ou par l’option sûre `default` lorsque le catalogue est temporairement indisponible.
+La livraison v0.29.64 avait introduit une première correction UX autour des tenants. Ce comportement est désormais remplacé par le modèle v0.29.73 : **Organisation** représente l’entreprise, le groupe ou l’entité juridique cliente ; **Tenant** représente une subdivision interne rattachée. Les formulaires actifs exposent donc Organisation puis Tenant, avec filtrage des tenants par organisation et tenant implicite lorsqu’une organisation active ne dispose encore d’aucun tenant.
 
 ## v0.29.62 — référentiel tenants ITAM
 

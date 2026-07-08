@@ -7,13 +7,34 @@ from pathlib import Path
 
 from openinfra.application.container import ApplicationFactory
 from openinfra.application.dcim_services import (
+    CreateDcimBuildingCommand,
+    CreateDcimFloorCommand,
+    CreateDcimRoomCommand,
     CreateDcimSiteCommand,
+    CreateDcimZoneCommand,
     DcimTopologyCatalogCommand,
     DefinePhysicalRoomCommand,
+    DeleteDcimBuildingCommand,
+    DeleteDcimFloorCommand,
+    DeleteDcimRoomCommand,
     DeleteDcimSiteCommand,
+    DeleteDcimZoneCommand,
+    GetDcimBuildingCommand,
+    GetDcimFloorCommand,
+    GetDcimRoomCommand,
+    GetDcimZoneCommand,
+    ListDcimBuildingsCommand,
+    ListDcimFloorsCommand,
+    ListDcimRoomsCommand,
     ListDcimSitesCommand,
+    ListDcimZonesCommand,
+    UpdateDcimBuildingCommand,
+    UpdateDcimFloorCommand,
+    UpdateDcimRoomCommand,
     UpdateDcimSiteCommand,
+    UpdateDcimZoneCommand,
 )
+from openinfra.application.security_services import BootstrapTokenCommand
 from openinfra.interfaces.cli import OpenInfraCLI
 from openinfra.interfaces.http_api import OpenInfraThreadingServer
 
@@ -87,6 +108,106 @@ class TestDcimSiteLifecycle:
         assert building["floors"][0]["status"] == "retired"
         assert building["rooms"][0]["status"] == "retired"
         assert building["rooms"][0]["zones"][0]["status"] == "retired"
+
+    def test_dependency_crud_cascade_and_catalog(self, tmp_path: Path) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json", seed=False)
+        service = app.dcim_topology_service
+
+        service.create_site(
+            CreateDcimSiteCommand(
+                tenant_id="default",
+                actor="pytest",
+                code="TLS2",
+                name="Toulouse 2",
+                country="FR",
+                city="Toulouse",
+            )
+        )
+        building = service.create_building(
+            CreateDcimBuildingCommand("default", "pytest", "TLS2", "BAT-A", "Building A")
+        )
+        floor = service.create_floor(
+            CreateDcimFloorCommand("default", "pytest", "TLS2", "BAT-A", "F01", "Floor 1", 1)
+        )
+        room = service.create_room(
+            CreateDcimRoomCommand(
+                "default", "pytest", "TLS2", "BAT-A", "F01", "MMR1", "Main Room", ("A",), ("01",)
+            )
+        )
+        zone = service.create_zone(
+            CreateDcimZoneCommand(
+                "default", "pytest", "TLS2", "BAT-A", "MMR1", "Z1", "Zone 1", ("A",), ("01",)
+            )
+        )
+        fetched_building = service.get_building(GetDcimBuildingCommand("default", "TLS2", "BAT-A"))
+        updated_building = service.update_building(
+            UpdateDcimBuildingCommand("default", "pytest", "TLS2", "BAT-A", name="Building A Prime")
+        )
+        fetched_floor = service.get_floor(GetDcimFloorCommand("default", "TLS2", "BAT-A", "F01"))
+        updated_floor = service.update_floor(
+            UpdateDcimFloorCommand("default", "pytest", "TLS2", "BAT-A", "F01", level_index=2)
+        )
+        fetched_room = service.get_room(GetDcimRoomCommand("default", "TLS2", "BAT-A", "MMR1"))
+        updated_room = service.update_room(
+            UpdateDcimRoomCommand(
+                "default", "pytest", "TLS2", "BAT-A", "MMR1", name="Main Meet-Me Room"
+            )
+        )
+        fetched_zone = service.get_zone(
+            GetDcimZoneCommand("default", "TLS2", "BAT-A", "MMR1", "Z1")
+        )
+        updated_zone = service.update_zone(
+            UpdateDcimZoneCommand(
+                "default", "pytest", "TLS2", "BAT-A", "MMR1", "Z1", name="Zone One"
+            )
+        )
+        listed_buildings = service.list_buildings(ListDcimBuildingsCommand("default", "TLS2"))
+        listed_floors = service.list_floors(ListDcimFloorsCommand("default", "TLS2", "BAT-A"))
+        listed_rooms = service.list_rooms(ListDcimRoomsCommand("default", "TLS2", "BAT-A"))
+        listed_zones = service.list_zones(ListDcimZonesCommand("default", "TLS2", "BAT-A", "MMR1"))
+        active_catalog = service.topology_catalog(DcimTopologyCatalogCommand("default"))
+        retired_zone = service.delete_zone(
+            DeleteDcimZoneCommand("default", "pytest", "TLS2", "BAT-A", "MMR1", "Z1")
+        )
+        retired_room = service.delete_room(
+            DeleteDcimRoomCommand("default", "pytest", "TLS2", "BAT-A", "MMR1")
+        )
+        retired_floor = service.delete_floor(
+            DeleteDcimFloorCommand("default", "pytest", "TLS2", "BAT-A", "F01")
+        )
+        retired = service.delete_building(
+            DeleteDcimBuildingCommand("default", "pytest", "TLS2", "BAT-A")
+        )
+        after_retire = service.topology_catalog(
+            DcimTopologyCatalogCommand("default", include_retired=True)
+        )
+
+        assert building["code"] == "BAT-A"
+        assert floor["level_index"] == 1
+        assert room["rows"] == ["A"]
+        assert zone["columns"] == ["01"]
+        assert fetched_building["code"] == "BAT-A"
+        assert updated_building["name"] == "Building A Prime"
+        assert fetched_floor["code"] == "F01"
+        assert updated_floor["level_index"] == 2
+        assert fetched_room["code"] == "MMR1"
+        assert updated_room["name"] == "Main Meet-Me Room"
+        assert fetched_zone["code"] == "Z1"
+        assert updated_zone["name"] == "Zone One"
+        assert listed_buildings["count"] == 1
+        assert listed_floors["count"] == 1
+        assert listed_rooms["count"] == 1
+        assert listed_zones["count"] == 1
+        assert active_catalog["sites"][0]["buildings"][0]["rooms"][0]["zones"][0]["code"] == "Z1"
+        assert retired_zone["status"] == "retired"
+        assert retired_room["status"] == "retired"
+        assert retired_floor["status"] == "retired"
+        assert retired["status"] == "retired"
+        retired_building = after_retire["sites"][0]["buildings"][0]
+        assert retired_building["status"] == "retired"
+        assert retired_building["floors"][0]["status"] == "retired"
+        assert retired_building["rooms"][0]["status"] == "retired"
+        assert retired_building["rooms"][0]["zones"][0]["status"] == "retired"
 
     def test_dcim_site_cli_contract(self, tmp_path: Path, capsys: object) -> None:
         data = tmp_path / "state.json"
@@ -165,6 +286,140 @@ class TestDcimSiteLifecycle:
         assert any(site["code"] == "LYO1" for site in catalog["sites"])
         assert deleted["status"] == "retired"
 
+    def test_dcim_dependency_cli_contract(self, tmp_path: Path, capsys: object) -> None:
+        data = tmp_path / "state.json"
+        commands = [
+            [
+                "dcim",
+                "site-create",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--code",
+                "CLI1",
+                "--name",
+                "CLI Site",
+                "--country",
+                "FR",
+                "--city",
+                "Paris",
+            ],
+            [
+                "dcim",
+                "building-create",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--site",
+                "CLI1",
+                "--code",
+                "BAT-C",
+                "--name",
+                "Building C",
+            ],
+            [
+                "dcim",
+                "floor-create",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--site",
+                "CLI1",
+                "--building",
+                "BAT-C",
+                "--code",
+                "F01",
+                "--name",
+                "Floor 1",
+                "--level-index",
+                "1",
+            ],
+            [
+                "dcim",
+                "room-create",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--site",
+                "CLI1",
+                "--building",
+                "BAT-C",
+                "--floor",
+                "F01",
+                "--code",
+                "RM1",
+                "--name",
+                "Room 1",
+                "--row",
+                "A",
+                "--column",
+                "01",
+            ],
+            [
+                "dcim",
+                "zone-create",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--site",
+                "CLI1",
+                "--building",
+                "BAT-C",
+                "--room",
+                "RM1",
+                "--code",
+                "Z1",
+                "--name",
+                "Zone 1",
+                "--row",
+                "A",
+                "--column",
+                "01",
+            ],
+            [
+                "dcim",
+                "zones",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--site",
+                "CLI1",
+                "--building",
+                "BAT-C",
+                "--room",
+                "RM1",
+            ],
+            [
+                "dcim",
+                "building-delete",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--site",
+                "CLI1",
+                "--code",
+                "BAT-C",
+            ],
+        ]
+        outputs: list[dict[str, object]] = []
+        for command in commands:
+            assert OpenInfraCLI().run(command) == 0
+            outputs.append(json.loads(capsys.readouterr().out))
+
+        assert outputs[1]["code"] == "BAT-C"
+        assert outputs[2]["code"] == "F01"
+        assert outputs[3]["code"] == "RM1"
+        assert outputs[4]["code"] == "Z1"
+        assert outputs[5]["count"] == 1
+        assert outputs[6]["status"] == "retired"
+
     def test_dcim_site_http_contract(self, tmp_path: Path) -> None:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json", seed=False)
         server = OpenInfraThreadingServer(("127.0.0.1", 0), app, auth_required=False)
@@ -213,17 +468,688 @@ class TestDcimSiteLifecycle:
         assert updated["status"] == "suspended"
         assert deleted["status"] == "retired"
 
-    def _post_json(self, url: str, payload: dict[str, object]) -> dict[str, object]:
-        body = json.dumps(payload).encode("utf-8")
-        request = urllib.request.Request(
-            url,
-            data=body,
-            headers={"Content-Type": "application/json"},
-            method="POST",
+    def test_dcim_dependency_http_contract(self, tmp_path: Path) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json", seed=False)
+        server = OpenInfraThreadingServer(("127.0.0.1", 0), app, auth_required=False)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        base_url = f"http://127.0.0.1:{server.server_port}"
+        try:
+            self._post_json(
+                base_url + "/api/v1/dcim/site/create",
+                {
+                    "tenant_id": "default",
+                    "actor": "pytest",
+                    "code": "HTTP1",
+                    "name": "HTTP Site",
+                    "country": "FR",
+                    "city": "Paris",
+                },
+            )
+            building = self._post_json(
+                base_url + "/api/v1/dcim/building/create",
+                {
+                    "tenant_id": "default",
+                    "actor": "pytest",
+                    "site": "HTTP1",
+                    "code": "BAT-H",
+                    "name": "Building H",
+                },
+            )
+            floor = self._post_json(
+                base_url + "/api/v1/dcim/floor/create",
+                {
+                    "tenant_id": "default",
+                    "actor": "pytest",
+                    "site": "HTTP1",
+                    "building": "BAT-H",
+                    "code": "F01",
+                    "name": "Floor 1",
+                    "level_index": 1,
+                },
+            )
+            room = self._post_json(
+                base_url + "/api/v1/dcim/room/create",
+                {
+                    "tenant_id": "default",
+                    "actor": "pytest",
+                    "site": "HTTP1",
+                    "building": "BAT-H",
+                    "floor": "F01",
+                    "code": "RM1",
+                    "name": "Room 1",
+                    "rows": ["A"],
+                    "columns": ["01"],
+                },
+            )
+            zone = self._post_json(
+                base_url + "/api/v1/dcim/zone/create",
+                {
+                    "tenant_id": "default",
+                    "actor": "pytest",
+                    "site": "HTTP1",
+                    "building": "BAT-H",
+                    "room": "RM1",
+                    "code": "Z1",
+                    "name": "Zone 1",
+                    "rows": ["A"],
+                    "columns": ["01"],
+                },
+            )
+            rooms = self._get_json(
+                base_url + "/api/v1/dcim/rooms?tenant_id=default&site=HTTP1&building=BAT-H"
+            )
+            zones = self._get_json(
+                base_url + "/api/v1/dcim/zones?tenant_id=default&site=HTTP1&building=BAT-H&room=RM1"
+            )
+            deleted = self._post_json(
+                base_url + "/api/v1/dcim/room/delete",
+                {
+                    "tenant_id": "default",
+                    "actor": "pytest",
+                    "site": "HTTP1",
+                    "building": "BAT-H",
+                    "code": "RM1",
+                },
+            )
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+        assert building["code"] == "BAT-H"
+        assert floor["code"] == "F01"
+        assert room["code"] == "RM1"
+        assert zone["code"] == "Z1"
+        assert rooms["count"] == 1
+        assert zones["items"][0]["code"] == "Z1"
+        assert deleted["status"] == "retired"
+
+    def test_dcim_dependency_cli_full_lifecycle_contract(
+        self, tmp_path: Path, capsys: object
+    ) -> None:
+        data = tmp_path / "state-full-cli.json"
+        common = ["--data", str(data), "--tenant", "default"]
+        commands = [
+            [
+                "dcim",
+                "site-create",
+                *common,
+                "--code",
+                "CLI2",
+                "--name",
+                "CLI Site 2",
+                "--country",
+                "FR",
+                "--city",
+                "Paris",
+            ],
+            [
+                "dcim",
+                "building-create",
+                *common,
+                "--site",
+                "CLI2",
+                "--code",
+                "BAT-D",
+                "--name",
+                "Building D",
+            ],
+            [
+                "dcim",
+                "floor-create",
+                *common,
+                "--site",
+                "CLI2",
+                "--building",
+                "BAT-D",
+                "--code",
+                "F01",
+                "--name",
+                "Floor 1",
+                "--level-index",
+                "1",
+            ],
+            [
+                "dcim",
+                "room-create",
+                *common,
+                "--site",
+                "CLI2",
+                "--building",
+                "BAT-D",
+                "--floor",
+                "F01",
+                "--code",
+                "RM1",
+                "--name",
+                "Room 1",
+                "--row",
+                "A",
+                "--column",
+                "01",
+            ],
+            [
+                "dcim",
+                "zone-create",
+                *common,
+                "--site",
+                "CLI2",
+                "--building",
+                "BAT-D",
+                "--room",
+                "RM1",
+                "--code",
+                "Z1",
+                "--name",
+                "Zone 1",
+                "--row",
+                "A",
+                "--column",
+                "01",
+            ],
+            ["dcim", "buildings", *common, "--site", "CLI2"],
+            ["dcim", "building", *common, "--site", "CLI2", "--code", "BAT-D"],
+            [
+                "dcim",
+                "building-update",
+                *common,
+                "--site",
+                "CLI2",
+                "--code",
+                "BAT-D",
+                "--name",
+                "Building Delta",
+            ],
+            ["dcim", "floors", *common, "--site", "CLI2", "--building", "BAT-D"],
+            ["dcim", "floor", *common, "--site", "CLI2", "--building", "BAT-D", "--code", "F01"],
+            [
+                "dcim",
+                "floor-update",
+                *common,
+                "--site",
+                "CLI2",
+                "--building",
+                "BAT-D",
+                "--code",
+                "F01",
+                "--name",
+                "Floor One",
+                "--level-index",
+                "2",
+            ],
+            ["dcim", "rooms", *common, "--site", "CLI2", "--building", "BAT-D"],
+            ["dcim", "room", *common, "--site", "CLI2", "--building", "BAT-D", "--code", "RM1"],
+            [
+                "dcim",
+                "room-update",
+                *common,
+                "--site",
+                "CLI2",
+                "--building",
+                "BAT-D",
+                "--code",
+                "RM1",
+                "--name",
+                "Room One",
+                "--row",
+                "A",
+                "--column",
+                "01",
+            ],
+            ["dcim", "zones", *common, "--site", "CLI2", "--building", "BAT-D", "--room", "RM1"],
+            [
+                "dcim",
+                "zone",
+                *common,
+                "--site",
+                "CLI2",
+                "--building",
+                "BAT-D",
+                "--room",
+                "RM1",
+                "--code",
+                "Z1",
+            ],
+            [
+                "dcim",
+                "zone-update",
+                *common,
+                "--site",
+                "CLI2",
+                "--building",
+                "BAT-D",
+                "--room",
+                "RM1",
+                "--code",
+                "Z1",
+                "--name",
+                "Zone One",
+                "--row",
+                "A",
+                "--column",
+                "01",
+            ],
+            [
+                "dcim",
+                "zone-delete",
+                *common,
+                "--site",
+                "CLI2",
+                "--building",
+                "BAT-D",
+                "--room",
+                "RM1",
+                "--code",
+                "Z1",
+            ],
+            [
+                "dcim",
+                "room-delete",
+                *common,
+                "--site",
+                "CLI2",
+                "--building",
+                "BAT-D",
+                "--code",
+                "RM1",
+            ],
+            [
+                "dcim",
+                "floor-delete",
+                *common,
+                "--site",
+                "CLI2",
+                "--building",
+                "BAT-D",
+                "--code",
+                "F01",
+            ],
+            ["dcim", "building-delete", *common, "--site", "CLI2", "--code", "BAT-D"],
+        ]
+        outputs: list[dict[str, object]] = []
+        for command in commands:
+            assert OpenInfraCLI().run(command) == 0
+            outputs.append(json.loads(capsys.readouterr().out))
+
+        assert outputs[5]["count"] == 1
+        assert outputs[7]["name"] == "Building Delta"
+        assert outputs[8]["count"] == 1
+        assert outputs[10]["level_index"] == 2
+        assert outputs[11]["count"] == 1
+        assert outputs[13]["name"] == "Room One"
+        assert outputs[14]["count"] == 1
+        assert outputs[16]["name"] == "Zone One"
+        assert outputs[17]["status"] == "retired"
+        assert outputs[18]["status"] == "retired"
+        assert outputs[19]["status"] == "retired"
+        assert outputs[20]["status"] == "retired"
+
+    def test_dcim_dependency_http_full_lifecycle_contract(self, tmp_path: Path) -> None:
+        app = ApplicationFactory().create_json_application(
+            tmp_path / "state-full-http.json", seed=False
         )
+        server = OpenInfraThreadingServer(("127.0.0.1", 0), app, auth_required=False)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        base_url = f"http://127.0.0.1:{server.server_port}"
+        try:
+            self._post_json(
+                base_url + "/api/v1/dcim/site/create",
+                {
+                    "tenant_id": "default",
+                    "actor": "pytest",
+                    "code": "HTTP2",
+                    "name": "HTTP Site 2",
+                    "country": "FR",
+                    "city": "Paris",
+                },
+            )
+            self._post_json(
+                base_url + "/api/v1/dcim/building/create",
+                {
+                    "tenant_id": "default",
+                    "actor": "pytest",
+                    "site": "HTTP2",
+                    "code": "BAT-H2",
+                    "name": "Building H2",
+                },
+            )
+            self._post_json(
+                base_url + "/api/v1/dcim/floor/create",
+                {
+                    "tenant_id": "default",
+                    "actor": "pytest",
+                    "site": "HTTP2",
+                    "building": "BAT-H2",
+                    "code": "F01",
+                    "name": "Floor 1",
+                    "level_index": 1,
+                },
+            )
+            self._post_json(
+                base_url + "/api/v1/dcim/room/create",
+                {
+                    "tenant_id": "default",
+                    "actor": "pytest",
+                    "site": "HTTP2",
+                    "building": "BAT-H2",
+                    "floor": "F01",
+                    "code": "RM1",
+                    "name": "Room 1",
+                    "rows": ["A"],
+                    "columns": ["01"],
+                },
+            )
+            self._post_json(
+                base_url + "/api/v1/dcim/zone/create",
+                {
+                    "tenant_id": "default",
+                    "actor": "pytest",
+                    "site": "HTTP2",
+                    "building": "BAT-H2",
+                    "room": "RM1",
+                    "code": "Z1",
+                    "name": "Zone 1",
+                    "rows": ["A"],
+                    "columns": ["01"],
+                },
+            )
+            buildings = self._get_json(
+                base_url + "/api/v1/dcim/buildings?tenant_id=default&site=HTTP2"
+            )
+            building = self._get_json(
+                base_url + "/api/v1/dcim/building?tenant_id=default&site=HTTP2&code=BAT-H2"
+            )
+            building_update = self._post_json(
+                base_url + "/api/v1/dcim/building/update",
+                {
+                    "tenant_id": "default",
+                    "actor": "pytest",
+                    "site": "HTTP2",
+                    "code": "BAT-H2",
+                    "name": "Building HTTP 2",
+                },
+            )
+            floors = self._get_json(
+                base_url + "/api/v1/dcim/floors?tenant_id=default&site=HTTP2&building=BAT-H2"
+            )
+            floor = self._get_json(
+                base_url
+                + "/api/v1/dcim/floor?tenant_id=default&site=HTTP2&building=BAT-H2&code=F01"
+            )
+            floor_update = self._post_json(
+                base_url + "/api/v1/dcim/floor/update",
+                {
+                    "tenant_id": "default",
+                    "actor": "pytest",
+                    "site": "HTTP2",
+                    "building": "BAT-H2",
+                    "code": "F01",
+                    "name": "Floor One",
+                    "level_index": 2,
+                },
+            )
+            rooms = self._get_json(
+                base_url + "/api/v1/dcim/rooms?tenant_id=default&site=HTTP2&building=BAT-H2"
+            )
+            room = self._get_json(
+                base_url + "/api/v1/dcim/room?tenant_id=default&site=HTTP2&building=BAT-H2&code=RM1"
+            )
+            room_update = self._post_json(
+                base_url + "/api/v1/dcim/room/update",
+                {
+                    "tenant_id": "default",
+                    "actor": "pytest",
+                    "site": "HTTP2",
+                    "building": "BAT-H2",
+                    "code": "RM1",
+                    "name": "Room One",
+                    "rows": ["A"],
+                    "columns": ["01"],
+                },
+            )
+            zones = self._get_json(
+                base_url
+                + "/api/v1/dcim/zones?tenant_id=default&site=HTTP2&building=BAT-H2&room=RM1"
+            )
+            zone = self._get_json(
+                base_url
+                + "/api/v1/dcim/zone?tenant_id=default&site=HTTP2&building=BAT-H2&room=RM1&code=Z1"
+            )
+            zone_update = self._post_json(
+                base_url + "/api/v1/dcim/zone/update",
+                {
+                    "tenant_id": "default",
+                    "actor": "pytest",
+                    "site": "HTTP2",
+                    "building": "BAT-H2",
+                    "room": "RM1",
+                    "code": "Z1",
+                    "name": "Zone One",
+                    "rows": ["A"],
+                    "columns": ["01"],
+                },
+            )
+            zone_delete = self._post_json(
+                base_url + "/api/v1/dcim/zone/delete",
+                {
+                    "tenant_id": "default",
+                    "actor": "pytest",
+                    "site": "HTTP2",
+                    "building": "BAT-H2",
+                    "room": "RM1",
+                    "code": "Z1",
+                },
+            )
+            room_delete = self._post_json(
+                base_url + "/api/v1/dcim/room/delete",
+                {
+                    "tenant_id": "default",
+                    "actor": "pytest",
+                    "site": "HTTP2",
+                    "building": "BAT-H2",
+                    "code": "RM1",
+                },
+            )
+            floor_delete = self._post_json(
+                base_url + "/api/v1/dcim/floor/delete",
+                {
+                    "tenant_id": "default",
+                    "actor": "pytest",
+                    "site": "HTTP2",
+                    "building": "BAT-H2",
+                    "code": "F01",
+                },
+            )
+            building_delete = self._post_json(
+                base_url + "/api/v1/dcim/building/delete",
+                {"tenant_id": "default", "actor": "pytest", "site": "HTTP2", "code": "BAT-H2"},
+            )
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+        assert buildings["count"] == 1
+        assert building["code"] == "BAT-H2"
+        assert building_update["name"] == "Building HTTP 2"
+        assert floors["count"] == 1
+        assert floor["code"] == "F01"
+        assert floor_update["level_index"] == 2
+        assert rooms["count"] == 1
+        assert room["code"] == "RM1"
+        assert room_update["name"] == "Room One"
+        assert zones["count"] == 1
+        assert zone["code"] == "Z1"
+        assert zone_update["name"] == "Zone One"
+        assert zone_delete["status"] == "retired"
+        assert room_delete["status"] == "retired"
+        assert floor_delete["status"] == "retired"
+        assert building_delete["status"] == "retired"
+
+    def test_dcim_dependency_http_auth_and_error_branches(self, tmp_path: Path) -> None:
+        app = ApplicationFactory().create_json_application(
+            tmp_path / "state-auth-http.json", seed=False
+        )
+        token = "d" * 40
+        app.security_service.bootstrap_token(
+            BootstrapTokenCommand("default", "pytest", "dcim-admin", ("admin",), token)
+        )
+        server = OpenInfraThreadingServer(("127.0.0.1", 0), app, auth_required=True)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        base_url = f"http://127.0.0.1:{server.server_port}"
+        try:
+            self._post_json(
+                base_url + "/api/v1/dcim/site/create",
+                {
+                    "tenant_id": "default",
+                    "code": "AUTH1",
+                    "name": "Auth Site",
+                    "country": "FR",
+                    "city": "Paris",
+                },
+                token=token,
+            )
+            self._post_json(
+                base_url + "/api/v1/dcim/building/create",
+                {"tenant_id": "default", "site": "AUTH1", "code": "BAT-A", "name": "Auth Building"},
+                token=token,
+            )
+            self._post_json(
+                base_url + "/api/v1/dcim/floor/create",
+                {
+                    "tenant_id": "default",
+                    "site": "AUTH1",
+                    "building": "BAT-A",
+                    "code": "F01",
+                    "name": "Auth Floor",
+                    "level_index": 1,
+                },
+                token=token,
+            )
+            self._post_json(
+                base_url + "/api/v1/dcim/room/create",
+                {
+                    "tenant_id": "default",
+                    "site": "AUTH1",
+                    "building": "BAT-A",
+                    "floor": "F01",
+                    "code": "RM1",
+                    "name": "Auth Room",
+                    "rows": ["A"],
+                    "columns": ["01"],
+                },
+                token=token,
+            )
+            self._post_json(
+                base_url + "/api/v1/dcim/zone/create",
+                {
+                    "tenant_id": "default",
+                    "site": "AUTH1",
+                    "building": "BAT-A",
+                    "room": "RM1",
+                    "code": "Z1",
+                    "name": "Auth Zone",
+                    "rows": ["A"],
+                    "columns": ["01"],
+                },
+                token=token,
+            )
+
+            authorized_gets = (
+                "/api/v1/dcim/sites?tenant_id=default",
+                "/api/v1/dcim/site?tenant_id=default&code=AUTH1",
+                "/api/v1/dcim/buildings?tenant_id=default&site=AUTH1",
+                "/api/v1/dcim/building?tenant_id=default&site=AUTH1&code=BAT-A",
+                "/api/v1/dcim/floors?tenant_id=default&site=AUTH1&building=BAT-A",
+                "/api/v1/dcim/floor?tenant_id=default&site=AUTH1&building=BAT-A&code=F01",
+                "/api/v1/dcim/rooms?tenant_id=default&site=AUTH1&building=BAT-A",
+                "/api/v1/dcim/room?tenant_id=default&site=AUTH1&building=BAT-A&code=RM1",
+                "/api/v1/dcim/zones?tenant_id=default&site=AUTH1&building=BAT-A&room=RM1",
+                "/api/v1/dcim/zone?tenant_id=default&site=AUTH1&building=BAT-A&room=RM1&code=Z1",
+            )
+            for route in authorized_gets:
+                assert self._get_json(base_url + route, token=token)
+
+            for route in authorized_gets:
+                try:
+                    self._get_json(base_url + route)
+                except Exception as exc:
+                    assert getattr(exc, "code", None) == 401
+
+            for route in (
+                "/api/v1/dcim/building/update",
+                "/api/v1/dcim/building/delete",
+                "/api/v1/dcim/floor/update",
+                "/api/v1/dcim/floor/delete",
+                "/api/v1/dcim/room/update",
+                "/api/v1/dcim/room/delete",
+                "/api/v1/dcim/zone/update",
+                "/api/v1/dcim/zone/delete",
+            ):
+                try:
+                    self._post_json(base_url + route, {"tenant_id": "default"}, token=token)
+                except Exception as exc:
+                    assert getattr(exc, "code", None) == 400
+
+            assert (
+                self._post_json(
+                    base_url + "/api/v1/dcim/zone/delete",
+                    {
+                        "tenant_id": "default",
+                        "site": "AUTH1",
+                        "building": "BAT-A",
+                        "room": "RM1",
+                        "code": "Z1",
+                    },
+                    token=token,
+                )["status"]
+                == "retired"
+            )
+            assert (
+                self._post_json(
+                    base_url + "/api/v1/dcim/room/delete",
+                    {"tenant_id": "default", "site": "AUTH1", "building": "BAT-A", "code": "RM1"},
+                    token=token,
+                )["status"]
+                == "retired"
+            )
+            assert (
+                self._post_json(
+                    base_url + "/api/v1/dcim/floor/delete",
+                    {"tenant_id": "default", "site": "AUTH1", "building": "BAT-A", "code": "F01"},
+                    token=token,
+                )["status"]
+                == "retired"
+            )
+            assert (
+                self._post_json(
+                    base_url + "/api/v1/dcim/building/delete",
+                    {"tenant_id": "default", "site": "AUTH1", "code": "BAT-A"},
+                    token=token,
+                )["status"]
+                == "retired"
+            )
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def _post_json(
+        self, url: str, payload: dict[str, object], token: str | None = None
+    ) -> dict[str, object]:
+        body = json.dumps(payload).encode("utf-8")
+        headers = {"Content-Type": "application/json"}
+        if token is not None:
+            headers["Authorization"] = "Bearer " + token
+        request = urllib.request.Request(url, data=body, headers=headers, method="POST")
         with urllib.request.urlopen(request, timeout=5) as response:
             return json.loads(response.read().decode("utf-8"))
 
-    def _get_json(self, url: str) -> dict[str, object]:
-        with urllib.request.urlopen(url, timeout=5) as response:
+    def _get_json(self, url: str, token: str | None = None) -> dict[str, object]:
+        headers = {"Authorization": "Bearer " + token} if token is not None else {}
+        request = urllib.request.Request(url, headers=headers, method="GET")
+        with urllib.request.urlopen(request, timeout=5) as response:
             return json.loads(response.read().decode("utf-8"))

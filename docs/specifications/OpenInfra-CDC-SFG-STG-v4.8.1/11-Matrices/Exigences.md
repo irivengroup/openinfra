@@ -182,10 +182,15 @@ OpenInfra expose `openinfra discovery agent-bootstrap-plan` et `POST /api/v1/dis
 
 ## v0.29.64 — UX entités propriétaires
 
-- `REQ-00808` — Le portail web doit afficher `Entité propriétaire` à la place de `Tenant`, libeller `Organisation` l’identifiant lors de la création d’une entité propriétaire, et rendre les références tenant des autres formulaires en champs `select`.
+- `REQ-00808` — Le portail web doit conserver les références tenant sous forme de champs `select`, désormais réalignées par `REQ-00814` autour du modèle `Organisation → Tenant`.
 ## v0.29.65 — DCIM sites, dépendances et responsive mobile
 
 - `REQ-00809` — OpenInfra doit gérer les sites DCIM avec CRUD, retrait logique, conservation d’historique et cascade non destructive vers les dépendances de localisation.
 - `REQ-00810` — Les formulaires web manipulant des références DCIM de localisation doivent utiliser des champs `select` alimentés par le catalogue backend, sans texte libre pour `site`, `bâtiment`, `étage`, `salle`, `zone`, `rack`, `ligne` ou `colonne`.
 - `REQ-00811` — Le portail `openinfra-web`, y compris la sidebar, doit être responsive et exploitable sur tablettes/smartphones sans masquage d’actions.
 
+
+
+## v0.29.73 — Organisations ITAM parent des tenants
+
+Ajout de `REQ-00814` et `TST-WEB-113` : OpenInfra gère un référentiel Organisations ITAM avec carte d’identité entreprise complète. Les tenants, supports et licences doivent être rattachés à une organisation active. Le portail sélectionne d’abord l’organisation, filtre les tenants associés et propose un tenant implicite lorsque l’organisation n’a pas encore de tenant matérialisé.

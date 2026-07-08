@@ -1,3 +1,10 @@
+## v0.29.64 — UX entités propriétaires ITAM
+
+- Renommage UI de `Tenant` en `Entité propriétaire` pour les formulaires et menus web.
+- Dans la création d’une entité propriétaire ITAM, le champ technique `tenant_id` est libellé `Organisation` côté UI.
+- Les références de tenant dans les formulaires web sont rendues en champs `select`, avec fallback `default` en cas d’indisponibilité temporaire du catalogue.
+- Aucun changement de contrat API/CLI : les noms techniques `tenant_id` et `scope_tenant_id` restent compatibles.
+
 ### v0.29.62 — référentiel tenants ITAM
 
 ### v0.29.62-postgresql-hotfix
@@ -9,7 +16,7 @@
 - Ajout du domaine `ItamTenant`, `ItamTenantStatus` et `ItamTenantCatalog` pour gérer le cycle de vie des tenants ITAM.
 - Ajout CLI/API pour créer, lire, lister, modifier et retirer logiquement les tenants ITAM.
 - Ajout de la persistance JSON/PostgreSQL et de la migration `0029_itam_tenant_lifecycle.sql`.
-- Ajout d’un sélecteur tenant web alimenté par le catalogue ITAM, avec fallback texte et auto-sélection lorsqu’un seul tenant actif existe.
+- Ajout d’un sélecteur tenant web alimenté par le catalogue ITAM, avec fallback select et auto-sélection lorsqu’un seul tenant actif existe.
 - Ajout de garde-fous : un seul tenant par défaut, impossibilité de définir un tenant suspendu/retiré comme défaut, suppression non destructive.
 - Ajout de tests domaine, services, API HTTP, CLI, PostgreSQL migration et portail web.
 
@@ -110,6 +117,6 @@
 - Exposition des politiques d’édition, des feature gates et des quotas runtime dans API, OpenAPI et portail web.
 
 
-## v0.29.63 — Enterprise agent bootstrap plan
+## v0.29.64 — Enterprise agent bootstrap plan
 
 OpenInfra prepares Enterprise discovery agents through `openinfra discovery agent-bootstrap-plan` and `POST /api/v1/discovery/agent-bootstrap-plan`. The contract renders an operator-reviewed `openinfra-agent.service` systemd unit, an agent configuration document, mTLS requirements, vault-only enrollment references and API result publication endpoints. No installation is executed and no secret is materialized by OpenInfra during plan generation.

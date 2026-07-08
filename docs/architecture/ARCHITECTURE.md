@@ -594,6 +594,6 @@ Le domaine `BulkImportRollbackReport` produit un contrat stable pour CLI, API, d
 Les conflits sont traités avant mutation. La politique par défaut `fail` force une validation humaine lorsqu’un objet a changé après l’import. La politique `skip` permet d’appliquer les annulations non conflictuelles sans écraser une modification concurrente.
 
 
-## v0.29.63 — Enterprise agent bootstrap plan
+## v0.29.64 — Enterprise agent bootstrap plan
 
 OpenInfra prepares Enterprise discovery agents through `openinfra discovery agent-bootstrap-plan` and `POST /api/v1/discovery/agent-bootstrap-plan`. The contract renders an operator-reviewed `openinfra-agent.service` systemd unit, an agent configuration document, mTLS requirements, vault-only enrollment references and API result publication endpoints. No installation is executed and no secret is materialized by OpenInfra during plan generation.

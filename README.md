@@ -1,4 +1,8 @@
-# OpenInfra v0.29.63
+# OpenInfra v0.29.64
+
+## v0.29.64 — UX entités propriétaires ITAM
+
+Le portail web utilise désormais le libellé `Entité propriétaire` à la place de `Tenant`. Lors de la création d’une entité propriétaire ITAM, l’identifiant fonctionnel est présenté comme `Organisation`. Les autres références à une entité propriétaire sont rendues via une liste déroulante alimentée par le catalogue ITAM, ou par l’option sûre `default` lorsque le catalogue est temporairement indisponible.
 
 ## v0.29.62 — référentiel tenants ITAM
 
@@ -11,7 +15,7 @@ OpenInfra v0.29.62 ajoute un référentiel ITAM des tenants avec cycle de vie CR
 - Persistance : JSON store et PostgreSQL avec migration `0029_itam_tenant_lifecycle.sql`.
 - CLI : `openinfra itam tenants`, `tenant`, `tenant-create`, `tenant-update`, `tenant-delete`.
 - API : `/api/v1/itam/tenants`, `/api/v1/itam/tenant`, `/api/v1/itam/tenant/create`, `/api/v1/itam/tenant/update`, `/api/v1/itam/tenant/delete`.
-- Web : champ tenant global rendu en `select` dès que le catalogue ITAM est disponible ; fallback texte conservé si le backend est indisponible.
+- Web : champ tenant global rendu en `select` dès que le catalogue ITAM est disponible ; fallback select conservé avec option courante si le backend est indisponible.
 
 ### Garde-fous
 
@@ -278,6 +282,6 @@ PYTHONPATH=src:. python scripts/quality_gate.py --project-root .
 ```
 
 
-## v0.29.63 — Enterprise agent bootstrap plan
+## v0.29.64 — Enterprise agent bootstrap plan
 
 OpenInfra prepares Enterprise discovery agents through `openinfra discovery agent-bootstrap-plan` and `POST /api/v1/discovery/agent-bootstrap-plan`. The contract renders an operator-reviewed `openinfra-agent.service` systemd unit, an agent configuration document, mTLS requirements, vault-only enrollment references and API result publication endpoints. No installation is executed and no secret is materialized by OpenInfra during plan generation.

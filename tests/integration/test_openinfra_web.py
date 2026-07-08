@@ -221,6 +221,17 @@ class TestOpenInfraWeb:
         assert 'icon: "asset"' in static_js
         assert "ITAM" in main_js
         assert "asset: '" in main_js
+        assert "Entité propriétaire" in static_js + main_js
+        assert 'label: "Tenant"' not in static_js
+        assert '<label class="col-md-4 form-label">Tenant' not in static_js
+        assert '<input id="openinfra-tenant"' not in static_js
+        assert 'type: "tenant-select"' in static_js
+        assert 'label: "Organisation"' in static_js
+        assert 'label: "Entité propriétaire de sécurité", type: "tenant-select"' in static_js
+        assert "Lister les entités propriétaires ITAM" in static_js + main_js
+        assert "Créer une entité propriétaire ITAM" in static_js + main_js
+        assert "Modifier une entité propriétaire ITAM" in static_js + main_js
+        assert "Retirer une entité propriétaire ITAM" in static_js + main_js
         assert "/v1/itam/support-profile" in static_js + main_js
         assert "/v1/itam/support-coverage" in static_js + main_js
         assert "Déclarer garantie constructeur" in static_js + main_js

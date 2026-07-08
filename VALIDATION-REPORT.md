@@ -1,8 +1,8 @@
-# OpenInfra v0.29.63 — Rapport de validation
+# OpenInfra v0.29.64 — Rapport de validation
 
 ## Synthèse
 
-Livraison v0.29.63 validée sur base v0.29.62 PostgreSQL hotfix.
+Livraison v0.29.64 validée sur base v0.29.62 PostgreSQL hotfix.
 
 Incrément livré : plan de bootstrap Enterprise `openinfra-agent.service` pour préparer les agents de discovery Enterprise sans installation automatique, sans secret en clair et sans écriture RSOT.
 
@@ -15,7 +15,7 @@ Incrément livré : plan de bootstrap Enterprise `openinfra-agent.service` pour 
 | `compileall` | PASS |
 | `scripts/validate_frontend.py` | PASS |
 | `node --check openinfra-web.js` | PASS |
-| CLI version | PASS — 0.29.63 |
+| CLI version | PASS — 0.29.64 |
 | OpenAPI YAML | PASS |
 | `security_gate.py` | PASS |
 | `validate_enterprise_alignment.py` | PASS |

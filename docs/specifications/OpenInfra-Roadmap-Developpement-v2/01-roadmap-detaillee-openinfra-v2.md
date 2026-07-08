@@ -1645,6 +1645,10 @@ La roadmap v2 ajoute `TST-P08-WEB-SIDEBAR-CONTEXT-GROUPS` pour verrouiller la na
 La livraison v0.29.62 ajoute le référentiel tenants ITAM avec CRUD, tenant par défaut unique, retrait logique, persistance JSON/PostgreSQL, CLI/API/OpenAPI/discovery, sélecteur web et auto-sélection lorsqu’un seul tenant actif existe.
 
 
-### Validation v0.29.63 — plan bootstrap agent Enterprise
+### Validation v0.29.64 — plan bootstrap agent Enterprise
 
-La livraison v0.29.63 ajoute `TST-P14-ENTERPRISE-AGENT-BOOTSTRAP` pour couvrir le contrat Enterprise `openinfra-agent.service`, le rendu systemd, la configuration agent, mTLS, les références `vault://`, les endpoints API de publication et l’absence d’installation ou de secret en clair.
+La livraison v0.29.64 ajoute `TST-P14-ENTERPRISE-AGENT-BOOTSTRAP` pour couvrir le contrat Enterprise `openinfra-agent.service`, le rendu systemd, la configuration agent, mTLS, les références `vault://`, les endpoints API de publication et l’absence d’installation ou de secret en clair.
+
+### Validation v0.29.64 — UX entités propriétaires
+
+La livraison v0.29.64 ajoute `TST-P14-ITAM-TENANT-UX-LABELS` pour couvrir les libellés `Entité propriétaire`, `Organisation` en création, et le rendu select des références tenant côté portail web.

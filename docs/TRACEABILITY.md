@@ -1,6 +1,19 @@
+## v0.29.60 — guides opérables de migration données
+
+| Élément | Couverture |
+| --- | --- |
+| CDC | `REQ-00803` |
+| Roadmap | P13 / EPIC-1306 / `TST-P13-DATA-MIGRATION-GUIDES` |
+| Domaine | `MigrationGuide`, `MigrationGuideStep` |
+| Application | `GenericImportService.get_migration_guide` |
+| CLI | `openinfra import migration-guide` |
+| API | `GET /api/v1/imports/migration-guide` |
+| Web | `Imports / Exports > Guide migration données` |
+| Garde-fou | Aucune mutation RSOT ; `native_ticketing_enabled=false` ; RSOT canonique. |
+
 ### v0.29.58 — préparation OpenService autonome
 
-OpenInfra prépare le raccordement futur d’OpenService comme ITSM/CMDB externe autonome : fournisseur domaine `openservice`, validation de profil, plan de synchronisation CMDB depuis RSOT, CLI, API, OpenAPI et discovery. OpenService n’est pas développé dans OpenInfra et garde sa propre interface web ; aucun écran OpenService n’est ajouté à `openinfra-web`. Les exigences couvertes sont `REQ-00801` / `TST-WEB-101` et `TST-P25-ITSM-OPENSERVICE-FUTURE-CMDB-CONNECTOR`.
+OpenInfra prépare le raccordement futur d’OpenService comme ITSM/CMDB externe autonome : fournisseur domaine `openservice`, validation de profil, plan de synchronisation CMDB depuis RSOT, CLI, API, OpenAPI et discovery. OpenService n’est pas développé dans OpenInfra et garde sa propre interface web ; aucun écran OpenService n’est ajouté à `openinfra-web`. Les exigences couvertes sont `REQ-00801` / `TST-WEB-102` et `TST-P25-ITSM-OPENSERVICE-FUTURE-CMDB-CONNECTOR`.
 
 ### v0.29.57 — intégrations externes GLPI Inventory et Freshservice Assets
 
@@ -328,3 +341,17 @@ La v0.27.0 ajoute une simulation de migration depuis Device42, NetBox, Nautobot,
 | CLI | `openinfra itam register-software-license`, `update-license-assignment`, `software-license`, `software-license-compliance` |
 | PostgreSQL | `0028_itam_software_license_entitlements.sql` |
 | Tests | `tests/integration/test_itam_software_license_services.py` |
+
+
+## v0.29.59 — rollback conflict-aware imports massifs
+
+| Élément | Traçabilité |
+| --- | --- |
+| Roadmap | P13 / EPIC-1305 — rollback opérable des imports massifs. |
+| CDC | `REQ-00802`, `TST-WEB-103`. |
+| Domaine | `BulkImportRollbackAction`, `BulkImportRollbackItem`, `BulkImportRollbackReport`. |
+| Application | `GenericImportService.bulk_import_rollback`. |
+| Interfaces | `openinfra import bulk-rollback`, `POST /api/v1/imports/bulk-rollback`, opération web **Rollback import massif**. |
+| OpenAPI/discovery | `/api/v1/imports/bulk-rollback`, `imports.bulk_rollback`. |
+| Tests | `tests/integration/test_import_services.py`, `tests/integration/test_cli_import.py`, `tests/integration/test_http_api.py`, `tests/integration/test_openinfra_web.py`. |
+| Acceptation | Dry-run par défaut, restauration versionnée, mise en retrait sans suppression physique, conflit bloqué par défaut, publication CLI/API/web/OpenAPI/discovery. |

@@ -1,7 +1,18 @@
+## 0.29.60 — guides opérables de migration données
+
+- Ajout `REQ-00803` pour les guides structurés Device42, NetBox, Nautobot, GLPI et CSV.
+- Ajout `TST-WEB-104` pour valider domaine, service, CLI, API, OpenAPI, discovery et portail web sans mutation RSOT.
+
+## 0.29.59 — rollback conflict-aware imports massifs
+
+- Ajout `REQ-00802` pour couvrir le rollback opérable, non destructif et conflict-aware des imports massifs appliqués.
+- Ajout `TST-WEB-103` pour verrouiller service, CLI, API, OpenAPI, discovery, portail web, dry-run par défaut, restauration versionnée et mise en retrait sans suppression physique.
+- Publication du contrat `POST /api/v1/imports/bulk-rollback` et de l’opération web **Rollback import massif**.
+
 ## 0.29.58 — préparation OpenService autonome
 
 - Ajout `REQ-00801` pour préparer OpenService comme ITSM/CMDB externe futur, autonome et sans interface dans `openinfra-web`.
-- Ajout `TST-WEB-101` pour verrouiller CLI/API/OpenAPI/discovery, sécurité et non-exposition web OpenInfra.
+- Ajout `TST-WEB-102` pour verrouiller CLI/API/OpenAPI/discovery, sécurité et non-exposition web OpenInfra.
 - Ajout des entités `external_itsm_openservice_connector_profile` et `external_itsm_openservice_cmdb_sync_plan`.
 
 - Ajout de `REQ-00800` et `TST-WEB-101` pour couvrir GLPI Inventory et Freshservice Assets comme connecteurs ITSM externes sans ticketing natif.

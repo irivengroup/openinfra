@@ -77,7 +77,9 @@ class TestHttpApi:
                     "bulk_report": "/api/v1/imports/bulk-report",
                     "bulk_checkpoint": "/api/v1/imports/bulk-checkpoint",
                     "bulk_progress": "/api/v1/imports/bulk-progress",
+                    "bulk_rollback": "/api/v1/imports/bulk-rollback",
                     "migration_template": "/api/v1/imports/migration-template",
+                    "migration_guide": "/api/v1/imports/migration-guide",
                     "migration_plans": "/api/v1/imports/migration-plans",
                     "migration_report": "/api/v1/imports/migration-report",
                 },
@@ -183,6 +185,7 @@ class TestHttpApi:
             assert "/api/v1/ipam/topology" in openapi
             assert "/api/v1/search/global" in openapi
             assert "/api/v1/imports/bulk-progress" in openapi
+            assert "/api/v1/imports/bulk-rollback" in openapi
             assert "/api/v1/editions/policies" in openapi
             assert "/api/v1/editions/feature-check" in openapi
             assert "/api/v1/editions/quota-check" in openapi
@@ -786,6 +789,83 @@ class TestHttpApi:
             server.server_close()
             thread.join(timeout=5)
 
+
+    def test_bulk_import_rollback_api_endpoint(self, tmp_path: Path) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+        token = "q" * 40
+        csv_file = tmp_path / "api-bulk-rollback.csv"
+        csv_file.write_text(
+            "asset_key,kind,name,source,tags,serial\n"
+            "device/api-rollback-801,device,API Rollback 801,api_import,prod,SN801\n",
+            encoding="utf-8",
+        )
+        mapping = {
+            "key": "asset_key",
+            "kind": "kind",
+            "display_name": "name",
+            "source": "source",
+            "tags": "tags",
+            "attributes.serial": "serial",
+        }
+        app.security_service.bootstrap_token(
+            BootstrapTokenCommand(
+                tenant_id="default",
+                actor="pytest",
+                subject="api-bulk-rollback-admin",
+                roles=("rsot:operator",),
+                token=token,
+            )
+        )
+        server = OpenInfraThreadingServer(("127.0.0.1", 0), app)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base_url = f"http://127.0.0.1:{server.server_port}"
+            imported = self._post_json(
+                base_url + "/api/v1/imports/bulk-datasets",
+                {
+                    "tenant_id": "default",
+                    "actor": "pytest",
+                    "admin_token": token,
+                    "file_path": str(csv_file),
+                    "format": "csv",
+                    "mapping": mapping,
+                    "apply": True,
+                    "batch_size": 1,
+                    "checkpoint_interval": 1,
+                },
+            )
+            rollback = self._post_json(
+                base_url + "/api/v1/imports/bulk-rollback",
+                {
+                    "tenant_id": "default",
+                    "actor": "pytest",
+                    "admin_token": token,
+                    "job_id": imported["job_id"],
+                    "file_path": str(csv_file),
+                    "format": "csv",
+                    "mapping": mapping,
+                },
+            )
+            bad_request = urllib.request.Request(
+                base_url + "/api/v1/imports/bulk-rollback",
+                data=b"{}",
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            try:
+                urllib.request.urlopen(bad_request, timeout=5)
+            except urllib.error.HTTPError as exc:
+                assert exc.code == 400
+
+            assert imported["status"] == "applied"
+            assert rollback["status"] == "validated"
+            assert rollback["items"][0]["action"] == "retire-created"
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
     def test_migration_plan_api_endpoints(self, tmp_path: Path) -> None:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json")
         token = "p" * 40
@@ -809,6 +889,7 @@ class TestHttpApi:
         try:
             base_url = f"http://127.0.0.1:{server.server_port}"
             template = self._get_json(base_url + "/api/v1/imports/migration-template?source=netbox")
+            guide = self._get_json(base_url + "/api/v1/imports/migration-guide?source=netbox")
             report = self._post_json(
                 base_url + "/api/v1/imports/migration-plans",
                 {
@@ -828,6 +909,7 @@ class TestHttpApi:
 
             for bad_url in (
                 base_url + "/api/v1/imports/migration-template?source=unknown",
+                base_url + "/api/v1/imports/migration-guide?source=unknown",
                 base_url + "/api/v1/imports/migration-report?tenant_id=default&job_id=missing",
             ):
                 try:
@@ -846,6 +928,8 @@ class TestHttpApi:
                 assert exc.code == 400
 
             assert template["source"] == "netbox"
+            assert guide["source"] == "netbox"
+            assert guide["steps"][0]["phase"] == "extract"
             assert report["status"] == "validated"
             assert any(gap["field"] == "extra" for gap in report["gaps"])
             assert persisted["job_id"] == report["job_id"]

@@ -1,3 +1,15 @@
+## Validation guides migration données — v0.29.60
+
+```bash
+PYTHONPATH=src python -m pytest -q   tests/unit/test_data_import_domain.py   tests/integration/test_import_services.py   tests/integration/test_cli_import.py   tests/integration/test_http_api.py   tests/integration/test_http_api_error_contracts.py   tests/integration/test_openinfra_web.py   -o addopts=""
+PYTHONPATH=src python scripts/validate_frontend.py --project-root .
+node --check src/openinfra/interfaces/rendering/static/assets/openinfra-web.js
+PYTHONPATH=src python -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1
+PYTHONPATH=src python docs/specifications/OpenInfra-Roadmap-Developpement-v2/scripts/validate_roadmap.py --root docs/specifications/OpenInfra-Roadmap-Developpement-v2
+```
+
+Ces contrôles garantissent que les guides Device42, NetBox, Nautobot, GLPI et CSV exposent template, étapes, contrôles, rollback et critères de succès via CLI/API/discovery/OpenAPI/portail web, sans mutation RSOT ni ticketing natif.
+
 ## Validation openinfra-web / Compose — v0.29.13
 
 ```bash
@@ -552,3 +564,21 @@ Critères de validation : score de complétude, fraîcheur, autorité de source,
 ## v0.29.58 — préparation OpenService autonome
 
 La v0.29.58 ajoute les contrôles P25 / EPIC-2506 suivants : fournisseur externe `openservice`, alias contrôlés, validation de profil, plan CMDB, CLI, API, OpenAPI, discovery et contrôle négatif de non-exposition dans `openinfra-web`. Les tests de non-régression vérifient que `native_ticketing_enabled=false`, `openinfra_web_ui_enabled=false`, que les secrets restent des références et qu’aucun formulaire OpenService n’est publié dans le portail web OpenInfra.
+
+
+## v0.29.59 — validations rollback imports massifs
+
+```bash
+python -m compileall -q src tests scripts docker
+python scripts/validate_frontend.py --project-root .
+node --check src/openinfra/interfaces/rendering/static/assets/openinfra-web.js
+PYTHONPATH=src python -m openinfra.interfaces.cli version
+PYTHONPATH=src python scripts/security_gate.py
+PYTHONPATH=src python scripts/validate_enterprise_alignment.py --project-root .
+PYTHONPATH=src python scripts/validate_autonomous_installer.py --root installers
+PYTHONPATH=src python -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1
+python docs/specifications/OpenInfra-Roadmap-Developpement-v2/scripts/validate_roadmap.py
+PYTHONPATH=src python -m pytest --collect-only -q -o addopts='' --no-cov
+PYTHONPATH=src python -m pytest -q tests/integration/test_import_services.py tests/integration/test_cli_import.py -o addopts=''
+PYTHONPATH=src python -m pytest -q tests/integration/test_http_api.py::TestHttpApi::test_bulk_import_rollback_api_endpoint -o addopts=''
+```

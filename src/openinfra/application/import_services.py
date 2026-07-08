@@ -20,6 +20,8 @@ from openinfra.domain.data_import import (
     BulkImportMetrics,
     BulkImportProgress,
     BulkImportReport,
+    BulkImportRollbackItem,
+    BulkImportRollbackReport,
     ImportCandidate,
     ImportFormat,
     ImportJobStatus,
@@ -29,10 +31,13 @@ from openinfra.domain.data_import import (
     ImportRowIssue,
     LegacyMigrationSource,
     MigrationGap,
+    MigrationGuide,
+    MigrationGuideStep,
     MigrationPlanReport,
     MigrationTemplate,
 )
 from openinfra.domain.security import Permission
+from openinfra.domain.source_of_truth import SourceOfTruthObject
 
 
 class DatasetParser(Protocol):
@@ -70,8 +75,28 @@ class BulkImportDatasetCommand:
     sample_limit: int = 100
 
 
+
+
+@dataclass(frozen=True, slots=True)
+class BulkImportRollbackCommand:
+    tenant_id: str
+    actor: str
+    admin_token: str
+    import_job_id: str
+    file_path: Path
+    format: str
+    mapping_json: str
+    dry_run: bool = True
+    conflict_policy: str = "fail"
+
+
 @dataclass(frozen=True, slots=True)
 class MigrationTemplateCommand:
+    source: str
+
+
+@dataclass(frozen=True, slots=True)
+class MigrationGuideCommand:
     source: str
 
 
@@ -107,6 +132,10 @@ class GenericImportService:
 
     def get_migration_template(self, command: MigrationTemplateCommand) -> MigrationTemplate:
         return self._migration_template(LegacyMigrationSource.from_value(command.source))
+
+    def get_migration_guide(self, command: MigrationGuideCommand) -> MigrationGuide:
+        source = LegacyMigrationSource.from_value(command.source)
+        return self._migration_guide(source)
 
     def plan_migration(self, command: PlanMigrationCommand) -> MigrationPlanReport:
         tenant_id = TenantId.from_value(command.tenant_id)
@@ -363,6 +392,70 @@ class GenericImportService:
             unit_of_work.commit()
         return report
 
+    def bulk_import_rollback(self, command: BulkImportRollbackCommand) -> BulkImportRollbackReport:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        principal = self._security_service.authenticate_token(
+            AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.RSOT_WRITE)
+        )
+        import_format = ImportFormat.from_value(command.format)
+        mapping = ImportMapping.from_json(command.mapping_json)
+        conflict_policy = self._normalize_conflict_policy(command.conflict_policy)
+        source_report = self.get_bulk_report(tenant_id.value, command.import_job_id)
+        if source_report.dry_run:
+            raise ValidationError("dry-run bulk import cannot be rolled back")
+        checkpoint = self.get_bulk_checkpoint(tenant_id.value, command.import_job_id)
+        if checkpoint.job_id != source_report.job_id:
+            raise ValidationError("bulk import rollback checkpoint job mismatch")
+        rows_limit = max(0, checkpoint.next_row_number - 1)
+        rows = self._rollback_candidates_by_key(
+            command.file_path,
+            import_format,
+            mapping,
+            rows_limit,
+        )
+        planned_items = self._build_rollback_items(tenant_id, rows, conflict_policy)
+        blocked_items = tuple(item for item in planned_items if item.status == "blocked")
+        if blocked_items or command.dry_run:
+            report = BulkImportRollbackReport.create(
+                tenant_id=tenant_id,
+                import_job_id=command.import_job_id,
+                dry_run=True,
+                processed_rows=rows_limit,
+                items=planned_items,
+            )
+        else:
+            applied_items = self._apply_rollback_items(tenant_id, command.actor, planned_items)
+            report = BulkImportRollbackReport.create(
+                tenant_id=tenant_id,
+                import_job_id=command.import_job_id,
+                dry_run=False,
+                processed_rows=rows_limit,
+                items=applied_items,
+            )
+        with self._transaction_manager.begin() as unit_of_work:
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=principal.subject,
+                    action="import.bulk_rollback." + report.status.value,
+                    target_type="bulk_import_job",
+                    target_id=source_report.job_id.value,
+                    metadata={
+                        "declared_actor": command.actor,
+                        "rollback_job_id": report.job_id.value,
+                        "dry_run": report.dry_run,
+                        "processed_rows": report.processed_rows,
+                        "affected_objects": report.affected_objects,
+                        "blocked_count": report.as_dict()["blocked_count"],
+                    },
+                    severity=Severity.ERROR
+                    if report.status == ImportJobStatus.FAILED
+                    else Severity.INFO,
+                )
+            )
+            unit_of_work.commit()
+        return report
+
     def get_bulk_report(self, tenant_id: str, job_id: str) -> BulkImportReport:
         normalized_tenant = TenantId.from_value(tenant_id)
         report = self._import_repository.get_bulk_import_report(normalized_tenant, job_id)
@@ -391,6 +484,191 @@ class GenericImportService:
         if report is None:
             raise ValidationError("import job not found: " + job_id)
         return report
+
+
+    def _normalize_conflict_policy(self, value: str) -> str:
+        normalized = value.strip().lower().replace("_", "-")
+        if normalized not in {"fail", "skip"}:
+            raise ValidationError("bulk import rollback conflict policy must be fail or skip")
+        return normalized
+
+    def _rollback_candidates_by_key(
+        self,
+        path: Path,
+        import_format: ImportFormat,
+        mapping: ImportMapping,
+        rows_limit: int,
+    ) -> dict[str, tuple[int, ImportCandidate, int]]:
+        candidates: dict[str, tuple[int, ImportCandidate, int]] = {}
+        for row_number, row in self._iter_rows(path, import_format):
+            if row_number > rows_limit:
+                break
+            candidate, row_issues = self._candidate_from_row(row_number, row, mapping)
+            if candidate is None or row_issues:
+                continue
+            previous = candidates.get(candidate.key)
+            occurrences = 1 if previous is None else previous[2] + 1
+            candidates[candidate.key] = (row_number, candidate, occurrences)
+        return candidates
+
+    def _build_rollback_items(
+        self,
+        tenant_id: TenantId,
+        candidates_by_key: dict[str, tuple[int, ImportCandidate, int]],
+        conflict_policy: str,
+    ) -> tuple[BulkImportRollbackItem, ...]:
+        items: list[BulkImportRollbackItem] = []
+        for key in sorted(candidates_by_key):
+            row_number, candidate, occurrences = candidates_by_key[key]
+            current = self._source_repository.find_object(tenant_id, key)
+            if current is None:
+                items.append(
+                    BulkImportRollbackItem.create(
+                        row_number,
+                        key,
+                        "skip",
+                        "skipped",
+                        None,
+                        None,
+                        "current RSOT object is already absent; no rollback action required",
+                    )
+                )
+                continue
+            if not self._matches_candidate(current, candidate):
+                status = "blocked" if conflict_policy == "fail" else "skipped"
+                action = "conflict" if conflict_policy == "fail" else "skip"
+                items.append(
+                    BulkImportRollbackItem.create(
+                        row_number,
+                        key,
+                        action,
+                        status,
+                        current.version,
+                        None,
+                        "current RSOT object no longer matches the imported row; "
+                        "manual reconciliation is required",
+                    )
+                )
+                continue
+            target_version = current.version - occurrences
+            if target_version >= 1:
+                snapshot = self._source_repository.find_object_version(
+                    tenant_id, key, target_version
+                )
+                if snapshot is None:
+                    items.append(
+                        BulkImportRollbackItem.create(
+                            row_number,
+                            key,
+                            "conflict",
+                            "blocked",
+                            current.version,
+                            target_version,
+                            "previous RSOT snapshot is missing; rollback is blocked",
+                        )
+                    )
+                    continue
+                items.append(
+                    BulkImportRollbackItem.create(
+                        row_number,
+                        key,
+                        "restore-previous-version",
+                        "planned",
+                        current.version,
+                        target_version,
+                        "restore object from the snapshot that predates the bulk import",
+                    )
+                )
+                continue
+            items.append(
+                BulkImportRollbackItem.create(
+                    row_number,
+                    key,
+                    "retire-created",
+                    "planned",
+                    current.version,
+                    None,
+                    "retire object created by the bulk import without physical deletion",
+                )
+            )
+        return tuple(items)
+
+    def _apply_rollback_items(
+        self,
+        tenant_id: TenantId,
+        actor: str,
+        planned_items: tuple[BulkImportRollbackItem, ...],
+    ) -> tuple[BulkImportRollbackItem, ...]:
+        applied: list[BulkImportRollbackItem] = []
+        with self._transaction_manager.begin() as unit_of_work:
+            for item in planned_items:
+                current = self._source_repository.find_object(tenant_id, item.object_key.value)
+                if item.status != "planned" or current is None:
+                    applied.append(item)
+                    continue
+                if item.action.value == "restore-previous-version" and item.target_version:
+                    snapshot = self._source_repository.find_object_version(
+                        tenant_id, item.object_key.value, item.target_version
+                    )
+                    if snapshot is None:
+                        raise ValidationError(
+                            "previous RSOT snapshot disappeared during rollback: "
+                            + item.object_key.value
+                        )
+                    restored = self._object_from_snapshot_payload(current, snapshot.payload)
+                    self._source_repository.upsert_object(restored, actor)
+                elif item.action.value == "retire-created":
+                    self._source_repository.upsert_object(
+                        current.revise(
+                            display_name=None,
+                            attributes=None,
+                            tags=None,
+                            source=None,
+                            status="retired",
+                        ),
+                        actor,
+                    )
+                applied.append(
+                    BulkImportRollbackItem.create(
+                        item.row_number,
+                        item.object_key.value,
+                        item.action.value,
+                        "applied",
+                        item.current_version,
+                        item.target_version,
+                        item.message,
+                    )
+                )
+            unit_of_work.commit()
+        return tuple(applied)
+
+    def _matches_candidate(self, current: SourceOfTruthObject, candidate: ImportCandidate) -> bool:
+        return (
+            current.kind.value == candidate.kind
+            and current.display_name == candidate.display_name
+            and current.attributes == candidate.attributes
+            and tuple(tag.value for tag in current.tags) == tuple(sorted(set(candidate.tags)))
+            and current.source.value == candidate.source
+            and current.status.value == "active"
+        )
+
+    def _object_from_snapshot_payload(
+        self, current: SourceOfTruthObject, payload: dict[str, object]
+    ) -> SourceOfTruthObject:
+        tags_payload = payload.get("tags", [])
+        if not isinstance(tags_payload, list):
+            raise ValidationError("snapshot tags payload is invalid")
+        attributes_payload = payload.get("attributes", {})
+        if not isinstance(attributes_payload, dict):
+            raise ValidationError("snapshot attributes payload is invalid")
+        return current.revise(
+            display_name=str(payload["display_name"]),
+            attributes=dict(attributes_payload),
+            tags=tuple(str(tag) for tag in tags_payload),
+            source=str(payload["source"]),
+            status=str(payload.get("status", "active")),
+            kind=str(payload["kind"]),
+        )
 
     def _normalize_bulk_batch_size(self, value: int) -> int:
         normalized = int(value)
@@ -614,6 +892,93 @@ class GenericImportService:
             required_columns=required,
             recommended_columns=recommended,
             notes=notes,
+        )
+
+    def _migration_guide(self, source: LegacyMigrationSource) -> MigrationGuide:
+        template = self._migration_template(source)
+        title_by_source = {
+            LegacyMigrationSource.DEVICE42: "Device42 to OpenInfra RSOT migration guide",
+            LegacyMigrationSource.NETBOX: "NetBox to OpenInfra RSOT migration guide",
+            LegacyMigrationSource.NAUTOBOT: "Nautobot to OpenInfra RSOT migration guide",
+            LegacyMigrationSource.GLPI: "GLPI inventory to OpenInfra RSOT migration guide",
+            LegacyMigrationSource.CSV: "Generic CSV to OpenInfra RSOT migration guide",
+        }
+        extract_note_by_source = {
+            LegacyMigrationSource.DEVICE42: "Export Device42 devices with device_name as immutable natural key.",
+            LegacyMigrationSource.NETBOX: "Export NetBox devices with name, status, role, site, rack and serial columns.",
+            LegacyMigrationSource.NAUTOBOT: "Export Nautobot devices with location and platform fields preserved.",
+            LegacyMigrationSource.GLPI: "Export GLPI computers or inventory items with name and inventory metadata.",
+            LegacyMigrationSource.CSV: "Prepare an explicit RSOT CSV with key, kind, display_name and source columns.",
+        }
+        source_value = source.value
+        steps = (
+            MigrationGuideStep.create(
+                1,
+                "extract",
+                extract_note_by_source[source],
+                f"openinfra import migration-template --source {source_value}",
+                "The built-in mapping template and expected columns are reviewed before extraction.",
+            ),
+            MigrationGuideStep.create(
+                2,
+                "profile",
+                "Run a dry-run migration plan to detect missing required columns and unmapped data.",
+                (
+                    "openinfra import migration-plan --tenant <tenant> --admin-token <token> "
+                    f"--source {source_value} --file <dataset> --format csv"
+                ),
+                "A persisted migration plan reports gaps, impacts and a bulk resume strategy.",
+            ),
+            MigrationGuideStep.create(
+                3,
+                "remediate",
+                "Fix blocking gaps and enrich the dataset until the migration plan is validated.",
+                "openinfra import migration-report --tenant <tenant> --job-id <plan_job_id>",
+                "The latest plan is auditable and contains no blocking required-column gap.",
+            ),
+            MigrationGuideStep.create(
+                4,
+                "load",
+                "Apply the dataset through resumable bulk import only after operator approval.",
+                (
+                    "openinfra import bulk-dataset --tenant <tenant> --admin-token <token> "
+                    "--file <dataset> --format csv --mapping-json '<mapping>' --apply"
+                ),
+                "The RSOT import is checkpointed, auditable and resumable after interruption.",
+            ),
+            MigrationGuideStep.create(
+                5,
+                "rollback",
+                "Plan rollback before applying it to confirm no concurrent RSOT conflict exists.",
+                (
+                    "openinfra import bulk-rollback --tenant <tenant> --admin-token <token> "
+                    "--job-id <bulk_job_id> --file <dataset> --format csv --mapping-json '<mapping>'"
+                ),
+                "Rollback remains dry-run by default and reports restore, retire or conflict actions.",
+            ),
+        )
+        return MigrationGuide.create(
+            source=source,
+            title=title_by_source[source],
+            version="1.0",
+            template=template,
+            steps=steps,
+            required_controls=(
+                "Run migration-template before extraction and preserve the returned required columns.",
+                "Run migration-plan in dry-run mode before any RSOT mutation.",
+                "Keep source exports immutable and archived with checksum outside OpenInfra.",
+                "Use bulk-dataset for production loads to retain checkpoints and restart capability.",
+            ),
+            rollback_controls=(
+                "Run bulk-rollback without --apply first and inspect all conflict actions.",
+                "Use conflict_policy=fail by default to protect concurrent RSOT changes.",
+                "Never hard-delete imported RSOT objects; created objects are retired when rollback applies.",
+            ),
+            success_criteria=(
+                "Migration plan status is validated and contains no missing-required gap.",
+                "Bulk import report status is applied with expected create and update counts.",
+                "Post-load reconciliation confirms RSOT remains canonical for migrated objects.",
+            ),
         )
 
     def _effective_migration_template(

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.58
+  version: 0.29.60
 components:
   securitySchemes:
     bearerToken:
@@ -2346,6 +2346,41 @@ paths:
         '400': {description: Validation error or unknown bulk checkpoint}
 
 
+
+  /api/v1/imports/bulk-rollback:
+    post:
+      summary: Plan or apply a safe rollback for an applied bulk import job
+      description: "Replays the processed dataset up to the persisted checkpoint, detects conflicts, restores previous RSOT versions for updated objects and retires objects created by the bulk import without physical deletion."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, admin_token, job_id, file_path, format, mapping]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                admin_token: {type: string}
+                job_id: {type: string}
+                file_path: {type: string}
+                format: {type: string, enum: [csv, json, xlsx]}
+                apply: {type: boolean, default: false}
+                conflict_policy: {type: string, enum: [fail, skip], default: fail}
+                mapping:
+                  type: object
+                  additionalProperties: {type: string}
+                  example:
+                    key: asset_key
+                    kind: kind
+                    display_name: name
+                    source: source
+                    attributes.serial: serial
+      responses:
+        '200': {description: Dry-run rollback plan with conflict information}
+        '201': {description: Applied rollback report}
+        '400': {description: Validation error, access error, unknown job or rollback conflict}
+
   /api/v1/imports/bulk-progress:
     get:
       summary: Read resumability and processed-row counters for a bulk import job
@@ -2825,6 +2860,15 @@ paths:
         - {name: source, in: query, required: true, schema: {type: string, enum: [device42, netbox, nautobot, glpi, csv]}}
       responses:
         '200': {description: Built-in mapping template and expected columns}
+        '400': {description: Validation error or unsupported source}
+  /api/v1/imports/migration-guide:
+    get:
+      summary: Read an operator migration guide for a supported legacy source
+      description: "Returns deterministic extraction, dry-run, remediation, bulk load, rollback and success controls for Device42, NetBox, Nautobot, GLPI or generic CSV migrations without mutating RSOT."
+      parameters:
+        - {name: source, in: query, required: true, schema: {type: string, enum: [device42, netbox, nautobot, glpi, csv]}}
+      responses:
+        '200': {description: Structured migration guide with template, steps, controls and success criteria}
         '400': {description: Validation error or unsupported source}
   /api/v1/imports/migration-plans:
     post:

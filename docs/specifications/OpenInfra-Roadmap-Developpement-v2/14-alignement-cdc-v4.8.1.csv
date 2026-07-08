@@ -73,3 +73,5 @@ REQ-00798,Connecteurs ITSM externes ServiceNow et thème Bootstrap corrigé,P25,
 REQ-00799,Connecteur ITSM externe Jira Service Management Assets,P25,EPIC-2506,0.29.56,TST-P25-ITSM-JIRA-ASSETS-EXTERNAL-CONNECTOR
 REQ-00800,Connecteurs ITSM externes GLPI Inventory et Freshservice Assets,P25,EPIC-2506,0.29.57,TST-P25-ITSM-GLPI-FRESHSERVICE-EXTERNAL-CONNECTORS
 REQ-00801,Préparation OpenService CMDB autonome sans UI openinfra-web,P25,EPIC-2506,0.29.58,TST-P25-ITSM-OPENSERVICE-FUTURE-CMDB-CONNECTOR
+REQ-00802,Rollback conflict-aware des imports massifs appliqués,P13,EPIC-1305,0.29.59,TST-P13-BULK-IMPORT-ROLLBACK-CONFLICT-AWARE
+REQ-00803,Guides opérables de migration données P13,P13,EPIC-1306,0.29.60,TST-P13-DATA-MIGRATION-GUIDES

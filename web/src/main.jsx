@@ -717,6 +717,8 @@ const MODULES = [
   { id: 'discovery', label: 'Discovery', icon: 'activity', operations: [{ id: 'collectors-register', label: 'Enregistrer un agent proxy Enterprise', path: '/v1/discovery/collectors', method: 'POST', fields: ['Opérateur', 'Nom agent proxy', 'Type', 'Empreinte certificat', 'Scopes autorisés', 'Version agent', 'Endpoint mTLS'] }] },
   { id: 'data', label: 'Imports / Exports', shortLabel: 'Data', icon: 'table', operations: [
     { id: 'import-bulk-progress', label: 'Progression import massif', path: '/v1/imports/bulk-progress', method: 'GET', fields: ['Job ID'] },
+    { id: 'import-bulk-rollback', label: 'Rollback import massif', path: '/v1/imports/bulk-rollback', method: 'POST', fields: ['Opérateur', 'Job ID', 'Fichier source', 'Format', 'Mapping JSON', 'Appliquer', 'Politique conflit'] },
+    { id: 'import-migration-guide', label: 'Guide migration données', path: '/v1/imports/migration-guide', method: 'GET', fields: ['Source migration'] },
     { id: 'export-artifact-chunk', label: 'Chunk export signé', path: '/v1/exports/artifact-chunk', method: 'GET', fields: ['Job export', 'Offset octets', 'Taille chunk'] },
   ] },
   { id: 'security', label: 'Sécurité / RBAC / Audit', shortLabel: 'Sécurité', icon: 'shield', operations: [

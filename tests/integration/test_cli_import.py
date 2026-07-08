@@ -271,6 +271,24 @@ def test_cli_import_migration_template_plan_and_report(tmp_path: Path, capsys: o
         OpenInfraCLI().run(
             [
                 "import",
+                "migration-guide",
+                "--data",
+                str(data),
+                "--source",
+                "glpi",
+            ]
+        )
+        == 0
+    )
+    guide = json.loads(capsys.readouterr().out)
+    assert guide["source"] == "glpi"
+    assert guide["steps"][0]["phase"] == "extract"
+    assert guide["native_ticketing_enabled"] is False
+
+    assert (
+        OpenInfraCLI().run(
+            [
+                "import",
                 "migration-plan",
                 "--data",
                 str(data),
@@ -308,3 +326,102 @@ def test_cli_import_migration_template_plan_and_report(tmp_path: Path, capsys: o
     )
     persisted = json.loads(capsys.readouterr().out)
     assert persisted["job_id"] == report["job_id"]
+
+
+def test_cli_bulk_import_rollback_plan(tmp_path: Path, capsys: object) -> None:
+    data = tmp_path / "rollback-state.json"
+    token = "r" * 40
+    csv_file = tmp_path / "rollback.csv"
+    csv_file.write_text(
+        "asset_key,kind,name,source,tags,serial\n"
+        "device/cli-rollback-1,device,CLI Rollback 1,cli_import,prod,SNRB1\n",
+        encoding="utf-8",
+    )
+    mapping = json.dumps(
+        {
+            "key": "asset_key",
+            "kind": "kind",
+            "display_name": "name",
+            "source": "source",
+            "tags": "tags",
+            "attributes.serial": "serial",
+        }
+    )
+
+    assert (
+        OpenInfraCLI().run(
+            [
+                "security",
+                "bootstrap-token",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--subject",
+                "rollback-cli",
+                "--role",
+                "rsot:operator",
+                "--token",
+                token,
+            ]
+        )
+        == 0
+    )
+    capsys.readouterr()
+
+    assert (
+        OpenInfraCLI().run(
+            [
+                "import",
+                "bulk-dataset",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--file",
+                str(csv_file),
+                "--format",
+                "csv",
+                "--mapping-json",
+                mapping,
+                "--apply",
+                "--batch-size",
+                "1",
+                "--checkpoint-interval",
+                "1",
+            ]
+        )
+        == 0
+    )
+    imported = json.loads(capsys.readouterr().out)
+
+    assert (
+        OpenInfraCLI().run(
+            [
+                "import",
+                "bulk-rollback",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--job-id",
+                imported["job_id"],
+                "--file",
+                str(csv_file),
+                "--format",
+                "csv",
+                "--mapping-json",
+                mapping,
+            ]
+        )
+        == 0
+    )
+    rollback = json.loads(capsys.readouterr().out)
+
+    assert rollback["status"] == "validated"
+    assert rollback["items"][0]["action"] == "retire-created"
+    assert rollback["items"][0]["status"] == "planned"

@@ -154,3 +154,11 @@ La recherche globale ne doit pas se limiter au filtrage local des opérations vi
 **Exigence :** le double header `openinfra-web` doit rester fixe en haut de viewport, porter une ombre plus prononcée que les blocs de contenu et laisser les pages scroller exactement sous ce bandeau sur toute la largeur lorsque le contenu dépasse la hauteur disponible.
 
 **Acceptation :** les assets runtime exposent `openinfra-header-stack`, `--openinfra-header-shadow`, `--openinfra-fixed-header-height`, `scroll-padding-top`, un calcul dynamique d’offset et des règles CSS évitant le recouvrement du contenu principal et du menu latéral. L’ombre du header est supérieure aux ombres de contenu allégées.
+
+## v0.29.59 — rollback conflict-aware des imports massifs
+
+OpenInfra ajoute `REQ-00802` pour couvrir le rollback opérable des imports massifs appliqués : dry-run par défaut, restauration versionnée RSOT, mise en retrait sans suppression physique, détection de conflits et publication CLI/API/OpenAPI/discovery/portail web.
+
+## v0.29.60 — guides migration données
+
+OpenInfra ajoute `REQ-00803` pour couvrir les guides opérables de migration depuis Device42, NetBox, Nautobot, GLPI et CSV : template, étapes, contrôles, rollback, critères de succès et publication CLI/API/OpenAPI/discovery/portail web sans mutation RSOT.

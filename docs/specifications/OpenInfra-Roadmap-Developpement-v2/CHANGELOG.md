@@ -1,3 +1,13 @@
+## 0.29.60 — guides opérables de migration données
+
+- Ajout `TST-P13-DATA-MIGRATION-GUIDES`.
+- Alignement `REQ-00803` sur P13 / EPIC-1306 pour guides Device42, NetBox, Nautobot, GLPI et CSV sans mutation RSOT.
+
+## 0.29.59 — rollback conflict-aware imports massifs
+
+- Ajout `TST-P13-BULK-IMPORT-ROLLBACK-CONFLICT-AWARE`.
+- Alignement `REQ-00802` pour rollback d’import massif avec dry-run, restauration versionnée, mise en retrait non destructive, conflit bloqué par défaut et publication CLI/API/OpenAPI/discovery/web.
+
 ## 0.29.58 — préparation OpenService autonome
 
 - Ajout `TST-P25-ITSM-OPENSERVICE-FUTURE-CMDB-CONNECTOR`.

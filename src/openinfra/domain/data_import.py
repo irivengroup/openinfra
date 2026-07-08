@@ -7,7 +7,7 @@ from enum import StrEnum
 from typing import Self
 
 from openinfra.domain.common import EntityId, Severity, TenantId, ValidationError
-from openinfra.domain.source_of_truth import SourceObjectKind, SourceSystem
+from openinfra.domain.source_of_truth import SourceObjectKey, SourceObjectKind, SourceSystem
 
 
 class ImportFormat(StrEnum):
@@ -29,6 +29,138 @@ class ImportJobStatus(StrEnum):
     VALIDATED = "validated"
     APPLIED = "applied"
     FAILED = "failed"
+
+
+class BulkImportRollbackAction(StrEnum):
+    RESTORE_PREVIOUS_VERSION = "restore-previous-version"
+    RETIRE_CREATED = "retire-created"
+    SKIP = "skip"
+    CONFLICT = "conflict"
+
+    @classmethod
+    def from_value(cls, value: str) -> Self:
+        normalized = value.strip().lower().replace("_", "-")
+        try:
+            return cls(normalized)
+        except ValueError as exc:
+            raise ValidationError(
+                "bulk import rollback action must be restore-previous-version, "
+                "retire-created, skip or conflict"
+            ) from exc
+
+
+@dataclass(frozen=True, slots=True)
+class BulkImportRollbackItem:
+    row_number: int
+    object_key: SourceObjectKey
+    action: BulkImportRollbackAction
+    status: str
+    current_version: int | None
+    target_version: int | None
+    message: str
+
+    @classmethod
+    def create(
+        cls,
+        row_number: int,
+        object_key: str,
+        action: str,
+        status: str,
+        current_version: int | None,
+        target_version: int | None,
+        message: str,
+    ) -> Self:
+        if row_number < 1:
+            raise ValidationError("bulk import rollback row number must be positive")
+        normalized_status = status.strip().lower().replace("_", "-")
+        if normalized_status not in {"planned", "applied", "blocked", "skipped"}:
+            raise ValidationError("bulk import rollback status is invalid")
+        if current_version is not None and int(current_version) < 1:
+            raise ValidationError("bulk import rollback current version must be positive")
+        if target_version is not None and int(target_version) < 1:
+            raise ValidationError("bulk import rollback target version must be positive")
+        normalized_message = " ".join(message.strip().split())
+        if not normalized_message:
+            raise ValidationError("bulk import rollback message is mandatory")
+        return cls(
+            row_number=row_number,
+            object_key=SourceObjectKey.from_value(object_key),
+            action=BulkImportRollbackAction.from_value(action),
+            status=normalized_status,
+            current_version=None if current_version is None else int(current_version),
+            target_version=None if target_version is None else int(target_version),
+            message=normalized_message,
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "row_number": self.row_number,
+            "object_key": self.object_key.value,
+            "action": self.action.value,
+            "status": self.status,
+            "current_version": self.current_version,
+            "target_version": self.target_version,
+            "message": self.message,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class BulkImportRollbackReport:
+    job_id: EntityId
+    tenant_id: TenantId
+    import_job_id: EntityId
+    dry_run: bool
+    status: ImportJobStatus
+    processed_rows: int
+    affected_objects: int
+    items: tuple[BulkImportRollbackItem, ...]
+
+    @classmethod
+    def create(
+        cls,
+        tenant_id: TenantId,
+        import_job_id: str,
+        dry_run: bool,
+        processed_rows: int,
+        items: tuple[BulkImportRollbackItem, ...],
+        job_id: EntityId | None = None,
+    ) -> Self:
+        if processed_rows < 0:
+            raise ValidationError("bulk import rollback processed rows cannot be negative")
+        blocked = any(item.status == "blocked" for item in items)
+        status = (
+            ImportJobStatus.FAILED
+            if blocked
+            else ImportJobStatus.VALIDATED
+            if dry_run
+            else ImportJobStatus.APPLIED
+        )
+        return cls(
+            job_id=job_id or EntityId.new(),
+            tenant_id=tenant_id,
+            import_job_id=EntityId.from_value(import_job_id),
+            dry_run=bool(dry_run),
+            status=status,
+            processed_rows=int(processed_rows),
+            affected_objects=len({item.object_key.value for item in items}),
+            items=items,
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "job_id": self.job_id.value,
+            "tenant_id": self.tenant_id.value,
+            "import_job_id": self.import_job_id.value,
+            "dry_run": self.dry_run,
+            "status": self.status.value,
+            "processed_rows": self.processed_rows,
+            "affected_objects": self.affected_objects,
+            "planned_count": sum(1 for item in self.items if item.status == "planned"),
+            "applied_count": sum(1 for item in self.items if item.status == "applied"),
+            "blocked_count": sum(1 for item in self.items if item.status == "blocked"),
+            "skipped_count": sum(1 for item in self.items if item.status == "skipped"),
+            "items": [item.as_dict() for item in self.items],
+        }
 
 
 class LegacyMigrationSource(StrEnum):
@@ -152,6 +284,134 @@ class MigrationTemplate:
             "notes": list(self.notes),
         }
 
+
+
+
+@dataclass(frozen=True, slots=True)
+class MigrationGuideStep:
+    order: int
+    phase: str
+    action: str
+    command: str
+    expected_result: str
+
+    @classmethod
+    def create(
+        cls,
+        order: int,
+        phase: str,
+        action: str,
+        command: str,
+        expected_result: str,
+    ) -> Self:
+        if int(order) < 1:
+            raise ValidationError("migration guide step order must be positive")
+        normalized_phase = " ".join(phase.strip().split())
+        normalized_action = " ".join(action.strip().split())
+        normalized_command = " ".join(command.strip().split())
+        normalized_expected = " ".join(expected_result.strip().split())
+        if not normalized_phase:
+            raise ValidationError("migration guide step phase is mandatory")
+        if not normalized_action:
+            raise ValidationError("migration guide step action is mandatory")
+        if not normalized_command:
+            raise ValidationError("migration guide step command is mandatory")
+        if not normalized_expected:
+            raise ValidationError("migration guide step expected result is mandatory")
+        return cls(
+            order=int(order),
+            phase=normalized_phase,
+            action=normalized_action,
+            command=normalized_command,
+            expected_result=normalized_expected,
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "order": self.order,
+            "phase": self.phase,
+            "action": self.action,
+            "command": self.command,
+            "expected_result": self.expected_result,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class MigrationGuide:
+    source: LegacyMigrationSource
+    title: str
+    version: str
+    template: MigrationTemplate
+    steps: tuple[MigrationGuideStep, ...]
+    required_controls: tuple[str, ...]
+    rollback_controls: tuple[str, ...]
+    success_criteria: tuple[str, ...]
+
+    @classmethod
+    def create(
+        cls,
+        source: LegacyMigrationSource,
+        title: str,
+        version: str,
+        template: MigrationTemplate,
+        steps: tuple[MigrationGuideStep, ...],
+        required_controls: tuple[str, ...],
+        rollback_controls: tuple[str, ...],
+        success_criteria: tuple[str, ...],
+    ) -> Self:
+        normalized_title = " ".join(title.strip().split())
+        normalized_version = version.strip()
+        if not normalized_title:
+            raise ValidationError("migration guide title is mandatory")
+        if not normalized_version:
+            raise ValidationError("migration guide version is mandatory")
+        if template.source is not source:
+            raise ValidationError("migration guide template source mismatch")
+        if not steps:
+            raise ValidationError("migration guide requires at least one step")
+        orders = [step.order for step in steps]
+        if len(set(orders)) != len(orders):
+            raise ValidationError("migration guide step orders must be unique")
+        normalized_required = cls._normalize_text_tuple(
+            required_controls, "migration guide required controls are mandatory"
+        )
+        normalized_rollback = cls._normalize_text_tuple(
+            rollback_controls, "migration guide rollback controls are mandatory"
+        )
+        normalized_success = cls._normalize_text_tuple(
+            success_criteria, "migration guide success criteria are mandatory"
+        )
+        return cls(
+            source=source,
+            title=normalized_title,
+            version=normalized_version,
+            template=template,
+            steps=tuple(sorted(steps, key=lambda step: step.order)),
+            required_controls=normalized_required,
+            rollback_controls=normalized_rollback,
+            success_criteria=normalized_success,
+        )
+
+    @staticmethod
+    def _normalize_text_tuple(values: tuple[str, ...], message: str) -> tuple[str, ...]:
+        normalized = tuple(" ".join(value.strip().split()) for value in values if value.strip())
+        if not normalized:
+            raise ValidationError(message)
+        return tuple(dict.fromkeys(normalized))
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "source": self.source.value,
+            "title": self.title,
+            "version": self.version,
+            "template": self.template.as_dict(),
+            "steps": [step.as_dict() for step in self.steps],
+            "required_controls": list(self.required_controls),
+            "rollback_controls": list(self.rollback_controls),
+            "success_criteria": list(self.success_criteria),
+            "native_ticketing_enabled": False,
+            "rsot_authoritative": True,
+        }
 
 @dataclass(frozen=True, slots=True)
 class BulkImportProgress:

@@ -10,12 +10,14 @@ import pytest
 from openinfra.application.container import ApplicationFactory
 from openinfra.application.import_services import (
     BulkImportDatasetCommand,
+    BulkImportRollbackCommand,
     ImportDatasetCommand,
+    MigrationGuideCommand,
     MigrationTemplateCommand,
     PlanMigrationCommand,
 )
 from openinfra.application.security_services import BootstrapTokenCommand
-from openinfra.application.source_of_truth_services import GetSourceObjectCommand
+from openinfra.application.source_of_truth_services import GetSourceObjectCommand, UpsertSourceObjectCommand
 from openinfra.domain.common import NotFoundError, TenantId, ValidationError
 from openinfra.domain.data_import import BulkImportCheckpoint, ImportFormat, ImportJobStatus
 from openinfra.infrastructure.import_parsers import ImportDatasetParser
@@ -519,6 +521,23 @@ def test_bulk_import_update_resume_errors_limits_and_mapping_edges(tmp_path: Pat
     app.import_service._MAX_ROWS = 1_000_000
 
 
+def test_legacy_migration_guides_cover_all_supported_sources(tmp_path: Path) -> None:
+    app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+
+    for source in ("device42", "netbox", "nautobot", "glpi", "csv"):
+        guide = app.import_service.get_migration_guide(MigrationGuideCommand(source))
+        payload = guide.as_dict()
+        assert payload["source"] == source
+        assert payload["template"]["source"] == source
+        assert payload["steps"][0]["command"].endswith(f"--source {source}")
+        assert payload["steps"][-1]["phase"] == "rollback"
+        assert payload["required_controls"]
+        assert payload["rollback_controls"]
+        assert payload["success_criteria"]
+        assert payload["native_ticketing_enabled"] is False
+        assert payload["rsot_authoritative"] is True
+
+
 def test_legacy_migration_plan_uses_template_and_reports_gaps(tmp_path: Path) -> None:
     app = ApplicationFactory().create_json_application(tmp_path / "state.json")
     token = _bootstrap(app)
@@ -529,6 +548,7 @@ def test_legacy_migration_plan_uses_template_and_reports_gaps(tmp_path: Path) ->
     )
 
     template = app.import_service.get_migration_template(MigrationTemplateCommand("netbox"))
+    guide = app.import_service.get_migration_guide(MigrationGuideCommand("netbox"))
     report = app.import_service.plan_migration(
         PlanMigrationCommand(
             tenant_id="default",
@@ -543,6 +563,8 @@ def test_legacy_migration_plan_uses_template_and_reports_gaps(tmp_path: Path) ->
     persisted = app.import_service.get_migration_plan("default", report.job_id.value)
 
     assert template.as_dict()["mapping"]["source"] == "literal:netbox_migration"
+    assert guide.as_dict()["steps"][0]["phase"] == "extract"
+    assert guide.as_dict()["success_criteria"]
     assert report.status.value == "validated"
     assert report.total_rows == 1
     assert report.import_report.impacts[0].object_key == "sw-01"
@@ -605,3 +627,147 @@ def test_legacy_migration_plan_limit_not_found_and_corrupt_store_errors(tmp_path
     app.store.data["migration_plans"][key]["gaps"] = {}
     with pytest.raises(ValidationError, match="plan details"):
         app.import_service.get_migration_plan("default", report.job_id.value)
+
+
+
+def test_bulk_import_rollback_plan_and_apply_retires_created_objects(tmp_path: Path) -> None:
+    app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+    token = _bootstrap(app)
+    csv_file = tmp_path / "rollback-created.csv"
+    csv_file.write_text(
+        "asset_key,kind,name,source,tags,serial,critical\n"
+        "device/rollback-created-1,device,Rollback Created,csv_import,prod,SN-RB,true\n",
+        encoding="utf-8",
+    )
+    imported = app.import_service.bulk_import_dataset(
+        BulkImportDatasetCommand(
+            "default", "pytest", token, csv_file, "csv", _MAPPING, False, 10, 10, None, 10
+        )
+    )
+
+    plan = app.import_service.bulk_import_rollback(
+        BulkImportRollbackCommand(
+            "default",
+            "pytest",
+            token,
+            imported.job_id.value,
+            csv_file,
+            "csv",
+            _MAPPING,
+            True,
+            "fail",
+        )
+    )
+    applied = app.import_service.bulk_import_rollback(
+        BulkImportRollbackCommand(
+            "default",
+            "pytest",
+            token,
+            imported.job_id.value,
+            csv_file,
+            "csv",
+            _MAPPING,
+            False,
+            "fail",
+        )
+    )
+    current = app.source_of_truth_service.get_object(
+        GetSourceObjectCommand("default", token, "device/rollback-created-1")
+    )
+
+    assert plan.status.value == "validated"
+    assert plan.items[0].action.value == "retire-created"
+    assert plan.items[0].status == "planned"
+    assert applied.status.value == "applied"
+    assert applied.items[0].status == "applied"
+    assert current["status"] == "retired"
+
+
+def test_bulk_import_rollback_restores_previous_version_and_blocks_conflicts(
+    tmp_path: Path,
+) -> None:
+    app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+    token = _bootstrap(app)
+    csv_file = tmp_path / "rollback-update.csv"
+    csv_file.write_text(
+        "asset_key,kind,name,source,tags,serial,critical\n"
+        "device/rollback-update-1,device,Rollback Updated,csv_import,prod,SN-NEW,true\n",
+        encoding="utf-8",
+    )
+    app.source_of_truth_service.upsert_object(
+        UpsertSourceObjectCommand(
+            tenant_id="default",
+            actor="pytest",
+            admin_token=token,
+            key="device/rollback-update-1",
+            kind="device",
+            display_name="Rollback Original",
+            attributes_json=json.dumps({"serial": "SN-OLD", "critical": False}),
+            tags=("legacy",),
+            source="manual",
+        )
+    )
+    imported = app.import_service.bulk_import_dataset(
+        BulkImportDatasetCommand(
+            "default", "pytest", token, csv_file, "csv", _MAPPING, False, 10, 10, None, 10
+        )
+    )
+    applied = app.import_service.bulk_import_rollback(
+        BulkImportRollbackCommand(
+            "default",
+            "pytest",
+            token,
+            imported.job_id.value,
+            csv_file,
+            "csv",
+            _MAPPING,
+            False,
+            "fail",
+        )
+    )
+    restored = app.source_of_truth_service.get_object(
+        GetSourceObjectCommand("default", token, "device/rollback-update-1")
+    )
+
+    assert applied.items[0].action.value == "restore-previous-version"
+    assert applied.items[0].target_version == 1
+    assert restored["display_name"] == "Rollback Original"
+    assert restored["attributes"]["serial"] == "SN-OLD"
+    assert restored["tags"] == ["legacy"]
+
+    conflict_import = app.import_service.bulk_import_dataset(
+        BulkImportDatasetCommand(
+            "default", "pytest", token, csv_file, "csv", _MAPPING, False, 10, 10, None, 10
+        )
+    )
+    app.source_of_truth_service.upsert_object(
+        UpsertSourceObjectCommand(
+            tenant_id="default",
+            actor="pytest",
+            admin_token=token,
+            key="device/rollback-update-1",
+            kind="device",
+            display_name="Concurrent Manual Change",
+            attributes_json=json.dumps({"serial": "SN-MANUAL"}),
+            tags=("manual",),
+            source="manual",
+        )
+    )
+    blocked = app.import_service.bulk_import_rollback(
+        BulkImportRollbackCommand(
+            "default",
+            "pytest",
+            token,
+            conflict_import.job_id.value,
+            csv_file,
+            "csv",
+            _MAPPING,
+            False,
+            "fail",
+        )
+    )
+
+    assert blocked.status.value == "failed"
+    assert blocked.dry_run is True
+    assert blocked.items[0].action.value == "conflict"
+    assert blocked.items[0].status == "blocked"

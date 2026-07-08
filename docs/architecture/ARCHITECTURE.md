@@ -1,3 +1,7 @@
+## v0.29.60 — guides opérables de migration données
+
+L’application expose désormais des guides structurés pour migrations Device42, NetBox, Nautobot, GLPI et CSV. Le domaine `MigrationGuide` reste pur et sérialisable ; l’application construit les guides à partir des templates existants ; les interfaces CLI/API/web publient une lecture sans mutation. RSOT reste canonique et les opérations de chargement/rollback restent explicitement séparées.
+
 ### v0.29.58 — point d’extension OpenService autonome
 
 OpenInfra ajoute un contrat d’intégration pour le futur produit OpenService sans coupler son architecture à un produit non encore développé. Le domaine expose un fournisseur `openservice` et des collections CMDB bornées ; l’application produit des profils validés et des plans déterministes de synchronisation CMDB depuis RSOT ; l’interface publique est limitée à CLI/API/OpenAPI/discovery. L’interface web opérateur relève exclusivement d’OpenService, donc `openinfra-web` ne publie aucun formulaire OpenService.
@@ -573,3 +577,12 @@ L’incrément v0.29.51 ajoute un sous-domaine ITAM logiciel sans modifier le mo
 - **Infrastructure** : les repositories JSON et PostgreSQL implémentent le même port. PostgreSQL utilise `software_license_entitlements`, partitionnée par hash de tenant, avec contraintes métier et index de recherche/conformité.
 - **Interfaces** : API HTTP, CLI et portail web consomment les mêmes services applicatifs. OpenAPI et discovery documentent les routes publiques.
 - **Audit** : les actions `itam.software_license.register`, `itam.software_license.update` et `itam.software_license.assignment.update` sont tracées avec la référence licence et l’état de conformité utile.
+
+
+## v0.29.59 — rollback conflict-aware des imports massifs
+
+La couche application ajoute `GenericImportService.bulk_import_rollback` comme orchestration transactionnelle des annulations d’imports massifs. Le service relit le dataset source avec le mapping d’origine, limite le traitement au checkpoint persistant, reconstruit les clés RSOT concernées puis compare l’état courant à l’état attendu après import.
+
+Le domaine `BulkImportRollbackReport` produit un contrat stable pour CLI, API, discovery, OpenAPI et portail web. Les actions possibles sont déterministes : restauration d’une version précédente, mise en retrait d’un objet créé, saut contrôlé ou conflit bloquant. Aucune suppression physique n’est réalisée ; la correction se matérialise par une nouvelle révision RSOT ou par un statut `retired`.
+
+Les conflits sont traités avant mutation. La politique par défaut `fail` force une validation humaine lorsqu’un objet a changé après l’import. La politique `skip` permet d’appliquer les annulations non conflictuelles sans écraser une modification concurrente.

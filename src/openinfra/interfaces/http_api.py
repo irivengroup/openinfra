@@ -84,7 +84,9 @@ from openinfra.application.identity_services import (
 )
 from openinfra.application.import_services import (
     BulkImportDatasetCommand,
+    BulkImportRollbackCommand,
     ImportDatasetCommand,
+    MigrationGuideCommand,
     MigrationTemplateCommand,
     PlanMigrationCommand,
 )
@@ -643,6 +645,17 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     MigrationTemplateCommand(self._first_query_value(query, "source"))
                 )
                 responder.send(HTTPStatus.OK, template.as_dict())
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/imports/migration-guide":
+            try:
+                query = parse_qs(parsed.query)
+                guide = self.server.application.import_service.get_migration_guide(
+                    MigrationGuideCommand(self._first_query_value(query, "source"))
+                )
+                responder.send(HTTPStatus.OK, guide.as_dict())
             except (ValueError, OpenInfraError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
@@ -1243,7 +1256,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.OK, profile.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
-            except OpenInfraError as exc:
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
@@ -1274,7 +1287,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.OK, plan.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
-            except OpenInfraError as exc:
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
@@ -1299,7 +1312,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.OK, profile.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
-            except OpenInfraError as exc:
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
@@ -1330,7 +1343,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.OK, plan.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
-            except OpenInfraError as exc:
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
@@ -1355,7 +1368,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.OK, profile.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
-            except OpenInfraError as exc:
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
@@ -1386,7 +1399,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.OK, plan.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
-            except OpenInfraError as exc:
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
@@ -1411,7 +1424,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.OK, profile.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
-            except OpenInfraError as exc:
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
@@ -1442,7 +1455,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.OK, plan.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
-            except OpenInfraError as exc:
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
@@ -1467,7 +1480,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.OK, profile.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
-            except OpenInfraError as exc:
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
@@ -1498,7 +1511,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.OK, plan.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
-            except OpenInfraError as exc:
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
@@ -1531,7 +1544,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.CREATED, profile.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
-            except OpenInfraError as exc:
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
@@ -1562,7 +1575,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.CREATED, profile.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
-            except OpenInfraError as exc:
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
@@ -1603,7 +1616,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.CREATED, license_.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
-            except (ValueError, OpenInfraError) as exc:
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
@@ -1632,7 +1645,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.OK, license_.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
-            except (ValueError, OpenInfraError) as exc:
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
@@ -2640,6 +2653,29 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
+
+        if route == "/api/v1/imports/bulk-rollback":
+            try:
+                payload = self._read_json_body()
+                rollback_report = self.server.application.import_service.bulk_import_rollback(
+                    BulkImportRollbackCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=str(payload["admin_token"]),
+                        import_job_id=str(payload["job_id"]),
+                        file_path=Path(str(payload["file_path"])),
+                        format=str(payload["format"]),
+                        mapping_json=json.dumps(payload["mapping"], sort_keys=True),
+                        dry_run=not bool(payload.get("apply", False)),
+                        conflict_policy=str(payload.get("conflict_policy", "fail")),
+                    )
+                )
+                status = HTTPStatus.OK if rollback_report.dry_run else HTTPStatus.CREATED
+                responder.send(status, rollback_report.as_dict())
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
         if route in (
             "/api/v1/ipam/vrfs",
             "/api/v1/ipam/aggregates",
@@ -3046,7 +3082,9 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "bulk_report": "/api/v1/imports/bulk-report",
                     "bulk_checkpoint": "/api/v1/imports/bulk-checkpoint",
                     "bulk_progress": "/api/v1/imports/bulk-progress",
+                    "bulk_rollback": "/api/v1/imports/bulk-rollback",
                     "migration_template": "/api/v1/imports/migration-template",
+                    "migration_guide": "/api/v1/imports/migration-guide",
                     "migration_plans": "/api/v1/imports/migration-plans",
                     "migration_report": "/api/v1/imports/migration-report",
                 },

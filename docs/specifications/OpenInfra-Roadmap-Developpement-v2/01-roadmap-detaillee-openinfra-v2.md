@@ -1627,3 +1627,7 @@ La version 0.29.49 affine le rendu visuel du badge d’édition sans changer son
 P08 ajoute l’exposition opérateur des garde-fous d’édition déjà disponibles côté domaine/application. Le portail web doit permettre de consulter le catalogue Lite/Pro/Enterprise, de vérifier une capacité et de vérifier un quota via les endpoints backend dédiés, sans dupliquer les règles d’édition dans le navigateur.
 
 Critères : discovery/OpenAPI à jour, routes protégées par `security:admin` lorsque l’authentification est active, opérations visibles dans Sécurité/RBAC/Audit, et test CI CLI conservant la parité `openinfra edition list|feature-check|quota-check`.
+
+### Validation v0.29.60 — guides opérables de migration données
+
+La livraison v0.29.60 réalise P13 / EPIC-1306 avec des guides structurés Device42, NetBox, Nautobot, GLPI et CSV, publiés CLI/API/OpenAPI/discovery/portail web, sans mutation RSOT.

@@ -1,3 +1,31 @@
+# OpenInfra v0.29.60
+
+## v0.29.60 — guides opérables de migration données
+
+OpenInfra v0.29.60 finalise P13 / EPIC-1306 avec des guides de migration structurés pour Device42, NetBox, Nautobot, GLPI et CSV générique. Ces guides exposent template, étapes, contrôles requis, rollback et critères de succès via CLI, API, OpenAPI, discovery et portail web, sans mutation RSOT.
+
+# OpenInfra v0.29.59
+
+## v0.29.59 — rollback conflict-aware des imports massifs
+
+OpenInfra v0.29.59 complète l’exploitation des imports massifs avec un rollback opérable, auditables et non destructif. Un import massif appliqué peut être rejoué en mode planification pour produire les actions de rollback, puis appliqué explicitement si aucun conflit bloquant n’est détecté.
+
+### Surfaces exposées
+
+- Service applicatif : `GenericImportService.bulk_import_rollback`.
+- CLI : `openinfra import bulk-rollback`.
+- API : `POST /api/v1/imports/bulk-rollback`.
+- Discovery/OpenAPI : contrat publié sous `imports.bulk_rollback`.
+- Web : opération **Rollback import massif** dans le composant **Imports / Exports**.
+
+### Garde-fous
+
+- Dry-run par défaut côté CLI/API.
+- Aucun hard delete : les objets créés par import sont mis en retrait avec `status=retired`.
+- Les objets déjà existants sont restaurés par nouvelle révision RSOT depuis le snapshot précédent.
+- Les modifications concurrentes sont bloquées par défaut (`conflict_policy=fail`) ou ignorables explicitement (`conflict_policy=skip`).
+- Le rollback relit le dataset source et le checkpoint persistant pour limiter l’annulation aux lignes réellement traitées.
+
 ## v0.29.58 — préparation connecteur futur OpenService CMDB
 
 OpenInfra v0.29.58 prépare les briques d’intégration pour **OpenService**, solution ITSM autonome future disposant de sa propre interface web. OpenInfra ne développe pas OpenService et n’ajoute aucune fonctionnalité de ticketing natif : il expose uniquement les contrats backend/API, CLI, discovery et OpenAPI nécessaires au raccordement futur Pro/Enterprise.

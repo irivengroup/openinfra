@@ -1,3 +1,21 @@
+### v0.29.60 — guides opérables de migration données
+
+- Ajout du domaine `MigrationGuide` et `MigrationGuideStep`.
+- Ajout service `GenericImportService.get_migration_guide`.
+- Ajout CLI `openinfra import migration-guide`.
+- Ajout API `GET /api/v1/imports/migration-guide`.
+- Publication discovery, OpenAPI et portail web `Imports / Exports > Guide migration données`.
+- Ajout runbook `IMPORTS_MIGRATION_GUIDES.md`.
+- Alignement CDC `REQ-00803` et roadmap `TST-P13-DATA-MIGRATION-GUIDES`.
+
+### v0.29.59 — rollback conflict-aware des imports massifs
+
+- Ajout du domaine de rollback d’import massif avec plan dry-run, actions `restore-previous-version`, `retire-created`, `skip` et `conflict`.
+- Ajout du service applicatif `GenericImportService.bulk_import_rollback`, protégé par `rsot.write`, avec détection de modifications concurrentes.
+- Ajout CLI/API/OpenAPI/discovery et portail web Imports / Exports pour planifier ou appliquer un rollback d’import massif.
+- Les objets créés par import sont mis en retrait (`status=retired`) sans suppression physique ; les objets modifiés sont restaurés par nouvelle révision RSOT depuis le snapshot précédent.
+- Ajout de tests service, CLI, API HTTP, OpenAPI, discovery et frontend pour verrouiller le dry-run par défaut, l’application, les conflits et l’absence de suppression destructive.
+
 ### v0.29.58 — préparation intégration future OpenService CMDB
 
 - Ajout du fournisseur ITSM externe `openservice`, réservé aux éditions Pro et Enterprise, sans ticketing natif OpenInfra.

@@ -1,3 +1,7 @@
+## v0.29.60 — guide migration données
+
+Le composant **Imports / Exports** expose l’opération **Guide migration données**. Le formulaire demande uniquement la source de migration (`device42`, `netbox`, `nautobot`, `glpi` ou `csv`) et appelle `GET /api/v1/imports/migration-guide` via le proxy same-origin. L’opération est informative et ne mute pas RSOT.
+
 ### v0.29.58 — OpenService non exposé dans openinfra-web
 
 OpenService est préparé comme ITSM/CMDB externe autonome avec sa propre interface web. `openinfra-web` ne contient volontairement aucun bouton, formulaire, route proxy dédiée ou opération OpenService. Les contrats disponibles côté OpenInfra sont backend/API, CLI, discovery et OpenAPI pour être consommés par OpenService ou par l’exploitation Pro/Enterprise.
@@ -321,3 +325,10 @@ Le composant **IT Asset Management** expose désormais les opérations web suiva
 - mise à jour de la quantité assignée.
 
 Les formulaires restent typés métier : produit, éditeur, référence licence, référence contrat, métrique, quantités, période de droit, statut, propriétaire et notes. Aucune logique de conformité n’est dupliquée côté navigateur ; le navigateur délègue au service applicatif ITAM.
+
+
+## v0.29.59 — rollback import massif
+
+Le composant **Imports / Exports** expose l’opération **Rollback import massif**. Le formulaire collecte uniquement les champs nécessaires au backend : opérateur, identifiant du job d’import, fichier source, format, mapping JSON, indicateur d’application et politique de conflit.
+
+La logique de rollback reste intégralement côté backend. Le portail ne restaure aucune version et ne décide aucune mutation locale ; il transmet la demande à `POST /api/v1/imports/bulk-rollback` et affiche le rapport retourné.

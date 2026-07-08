@@ -177,3 +177,5 @@ Le panneau latéral openinfra-web doit ouvrir les accordéons de composants dans
 - Ajout de REQ-00793 : le portail openinfra-web et l’API HTTP exposent en lecture les politiques d’édition, les décisions de capacité et les décisions de quota runtime.
 - Ajout de TST-WEB-094 : validation discovery, OpenAPI, routes HTTP protégées par `security:admin`, opérations web Sécurité/RBAC/Audit et parité CLI/API.
 - Les règles métier restent centralisées dans `EditionQueryService` ; le navigateur ne duplique aucune règle de licence, quota ou feature gate.
+
+- Ajout de `REQ-00803` et `TST-WEB-104` pour couvrir P13 / EPIC-1306 : guides opérables de migration données Device42, NetBox, Nautobot, GLPI et CSV, publiés CLI/API/OpenAPI/discovery/portail web sans mutation RSOT.

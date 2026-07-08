@@ -336,6 +336,19 @@ def test_http_api_authenticated_external_itsm_and_read_routes_cover_error_branch
             "/api/v1/exports/artifact?tenant_id=default&job_id=missing",
             "/api/v1/exports/artifact-chunk?tenant_id=default&job_id=missing",
             "/api/v1/rsot/governance-rules?tenant_id=default",
+            "/api/v1/rsot/object-as-of?tenant_id=default&key=missing&as_of=2026-01-01T00:00:00Z",
+            "/api/v1/rsot/object-audit?tenant_id=default&key=missing",
+            "/api/v1/rsot/quality/object?tenant_id=default&key=missing",
+            "/api/v1/rsot/quality/summary?tenant_id=default",
+            "/api/v1/rsot/relations?tenant_id=default",
+            "/api/v1/dcim/locator-sheet?tenant_id=default&asset_tag=ERR-QR-1",
+            "/api/v1/dcim/room-plan?tenant_id=default&site=PAR1&building=BAT-A&room=MMR1",
+            "/api/v1/dcim/rack-elevation?tenant_id=default&site=PAR1&building=BAT-A&room=MMR1&rack=R1",
+            "/api/v1/dcim/digital-twin?tenant_id=default&site=PAR1&building=BAT-A&room=MMR1",
+            "/api/v1/dcim/cable-trace?tenant_id=default&cable_id=C-1",
+            "/api/v1/dcim/energy-cooling-capacity?tenant_id=default&site=PAR1&building=BAT-A&room=MMR1&rack=R1",
+            "/api/v1/identity/effective?tenant_id=default&subject=someone",
+            "/api/v1/integrations/itsm/providers?tenant_id=default",
         )
         for route in unauthorized_gets:
             code, payload = _request_json(base + route, "GET")
@@ -361,11 +374,30 @@ def test_http_api_authenticated_external_itsm_and_read_routes_cover_error_branch
             "/api/v1/imports/bulk-checkpoint?tenant_id=default",
             "/api/v1/imports/bulk-progress?tenant_id=default",
             "/api/v1/imports/migration-template",
+            "/api/v1/imports/migration-guide",
             "/api/v1/imports/migration-report?tenant_id=default",
             "/api/v1/exports/jobs?tenant_id=default",
             "/api/v1/exports/artifact?tenant_id=default",
             "/api/v1/exports/artifact-chunk?tenant_id=default",
             "/api/v1/rsot/governance-rules?tenant_id=default&limit=bad",
+            "/api/v1/rsot/object-as-of?tenant_id=default",
+            "/api/v1/rsot/object-audit?tenant_id=default&limit=bad",
+            "/api/v1/rsot/quality/object?tenant_id=default",
+            "/api/v1/rsot/quality/summary?tenant_id=default&limit=bad",
+            "/api/v1/dcim/rack-capacity?tenant_id=default&site=PAR1",
+            "/api/v1/dcim/room-plan?tenant_id=default",
+            "/api/v1/dcim/rack-elevation?tenant_id=default",
+            "/api/v1/dcim/digital-twin?tenant_id=default",
+            "/api/v1/dcim/cable-trace?tenant_id=default",
+            "/api/v1/dcim/energy-cooling-capacity?tenant_id=default",
+            "/api/v1/identity/effective?tenant_id=default",
+            "/api/v1/ipam/ui-dashboard",
+            "/api/v1/ipam/ui-search?tenant_id=default",
+            "/api/v1/ipam/prefixes?tenant_id=default",
+            "/api/v1/ipam/capacity?tenant_id=default",
+            "/api/v1/ipam/network-bindings",
+            "/api/v1/ipam/topology",
+            "/api/v1/ipam/conflicts",
         )
         for route in bad_gets:
             code, payload = _request_json(base + route, "GET", token=admin_token)
@@ -385,6 +417,38 @@ def test_http_api_authenticated_external_itsm_and_read_routes_cover_error_branch
             (
                 "/api/v1/integrations/itsm/servicenow/ci-sync-plan",
                 {"tenant_id": "default", "resource_key": "SRV-PAR1-001"},
+            ),
+            (
+                "/api/v1/integrations/itsm/jira/validate",
+                {
+                    "tenant_id": "default",
+                    "instance_url": "https://acme.atlassian.net",
+                    "auth_secret_ref": "vault://openinfra/jira/token",
+                },
+            ),
+            (
+                "/api/v1/integrations/itsm/glpi/validate",
+                {
+                    "tenant_id": "default",
+                    "instance_url": "https://glpi.example.org",
+                    "auth_secret_ref": "vault://openinfra/glpi/token",
+                },
+            ),
+            (
+                "/api/v1/integrations/itsm/freshservice/validate",
+                {
+                    "tenant_id": "default",
+                    "instance_url": "https://acme.freshservice.com",
+                    "auth_secret_ref": "vault://openinfra/freshservice/token",
+                },
+            ),
+            (
+                "/api/v1/integrations/itsm/openservice/validate",
+                {
+                    "tenant_id": "default",
+                    "instance_url": "https://openservice.example.org",
+                    "auth_secret_ref": "vault://openinfra/openservice/token",
+                },
             ),
         )
         for route, body in unauthorized_posts:
@@ -409,6 +473,67 @@ def test_http_api_authenticated_external_itsm_and_read_routes_cover_error_branch
                 "/api/v1/integrations/itsm/servicenow/ci-sync-plan",
                 {"tenant_id": "default", "resource_key": "x"},
             ),
+            (
+                "/api/v1/integrations/itsm/jira/validate",
+                {
+                    "tenant_id": "default",
+                    "instance_url": "http://jira",
+                    "auth_secret_ref": "vault://ok",
+                },
+            ),
+            (
+                "/api/v1/integrations/itsm/jira/asset-sync-plan",
+                {"tenant_id": "default", "resource_key": "SRV", "mapping": "bad"},
+            ),
+            (
+                "/api/v1/integrations/itsm/glpi/validate",
+                {
+                    "tenant_id": "default",
+                    "instance_url": "http://glpi",
+                    "auth_secret_ref": "vault://ok",
+                },
+            ),
+            (
+                "/api/v1/integrations/itsm/glpi/asset-sync-plan",
+                {"tenant_id": "default", "resource_key": "SRV", "mapping": "bad"},
+            ),
+            (
+                "/api/v1/integrations/itsm/freshservice/validate",
+                {
+                    "tenant_id": "default",
+                    "instance_url": "http://freshservice",
+                    "auth_secret_ref": "vault://ok",
+                },
+            ),
+            (
+                "/api/v1/integrations/itsm/freshservice/asset-sync-plan",
+                {"tenant_id": "default", "resource_key": "SRV", "mapping": "bad"},
+            ),
+            (
+                "/api/v1/integrations/itsm/openservice/validate",
+                {
+                    "tenant_id": "default",
+                    "instance_url": "http://openservice",
+                    "auth_secret_ref": "vault://ok",
+                },
+            ),
+            (
+                "/api/v1/integrations/itsm/openservice/cmdb-sync-plan",
+                {"tenant_id": "default", "resource_key": "SRV", "mapping": "bad"},
+            ),
+            ("/api/v1/itam/support-profile/manufacturer", {"tenant_id": "default"}),
+            ("/api/v1/itam/support-profile/third-party", {"tenant_id": "default"}),
+            ("/api/v1/itam/software-license", {"tenant_id": "default"}),
+            ("/api/v1/itam/software-license/assignment", {"tenant_id": "default"}),
+            ("/api/v1/discovery/proxy-enrollments", {"tenant_id": "default"}),
+            ("/api/v1/discovery/collectors", {"tenant_id": "default"}),
+            ("/api/v1/discovery/collectors/heartbeat", {"tenant_id": "default"}),
+            ("/api/v1/discovery/collectors/disable", {"tenant_id": "default"}),
+            ("/api/v1/imports/migration-plans", {"tenant_id": "default"}),
+            ("/api/v1/exports/jobs", {"tenant_id": "default", "admin_token": "bad"}),
+            ("/api/v1/exports/run", {"tenant_id": "default", "admin_token": "bad"}),
+            ("/api/v1/ipam/ddi-preview", {"tenant_id": "default", "providers": "bad"}),
+            ("/api/v1/ipam/reservation-wizard", {"tenant_id": "default"}),
         )
         for route, body in bad_posts:
             code, payload = _request_json(base + route, "POST", body, token=admin_token)

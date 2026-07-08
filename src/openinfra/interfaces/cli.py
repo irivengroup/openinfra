@@ -83,7 +83,9 @@ from openinfra.application.identity_services import (
 )
 from openinfra.application.import_services import (
     BulkImportDatasetCommand,
+    BulkImportRollbackCommand,
     ImportDatasetCommand,
+    MigrationGuideCommand,
     MigrationTemplateCommand,
     PlanMigrationCommand,
 )
@@ -724,6 +726,23 @@ class OpenInfraCLI:
         report.add_argument("--job-id", required=True)
         report.set_defaults(handler=self._handle_import_report)
 
+
+        bulk_rollback = import_subparsers.add_parser(
+            "bulk-rollback",
+            help="plan or apply a safe rollback for an applied bulk import job",
+        )
+        self._add_backend_arguments(bulk_rollback)
+        bulk_rollback.add_argument("--tenant", required=True)
+        bulk_rollback.add_argument("--actor", default="cli")
+        bulk_rollback.add_argument("--admin-token", required=True)
+        bulk_rollback.add_argument("--job-id", required=True)
+        bulk_rollback.add_argument("--file", type=Path, required=True)
+        bulk_rollback.add_argument("--format", choices=("csv", "json", "xlsx"), required=True)
+        bulk_rollback.add_argument("--mapping-json", required=True)
+        bulk_rollback.add_argument("--apply", action="store_true")
+        bulk_rollback.add_argument("--conflict-policy", choices=("fail", "skip"), default="fail")
+        bulk_rollback.set_defaults(handler=self._handle_import_bulk_rollback)
+
         bulk_report = import_subparsers.add_parser(
             "bulk-report", help="read a persisted bulk import report"
         )
@@ -761,6 +780,19 @@ class OpenInfraCLI:
             "--source", choices=("device42", "netbox", "nautobot", "glpi", "csv"), required=True
         )
         migration_template.set_defaults(handler=self._handle_import_migration_template)
+
+        migration_guide = import_subparsers.add_parser(
+            "migration-guide",
+            help=(
+                "print an operator migration guide for Device42, "
+                "NetBox, Nautobot, GLPI or generic CSV"
+            ),
+        )
+        self._add_backend_arguments(migration_guide)
+        migration_guide.add_argument(
+            "--source", choices=("device42", "netbox", "nautobot", "glpi", "csv"), required=True
+        )
+        migration_guide.set_defaults(handler=self._handle_import_migration_guide)
 
         migration_plan = import_subparsers.add_parser(
             "migration-plan",
@@ -2430,6 +2462,24 @@ class OpenInfraCLI:
         print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
         return 0
 
+    def _handle_import_bulk_rollback(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        report = app.import_service.bulk_import_rollback(
+            BulkImportRollbackCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                import_job_id=args.job_id,
+                file_path=args.file,
+                format=args.format,
+                mapping_json=args.mapping_json,
+                dry_run=not bool(args.apply),
+                conflict_policy=args.conflict_policy,
+            )
+        )
+        print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
+        return 0
+
     def _handle_import_bulk_report(self, args: argparse.Namespace) -> int:
         app = self._create_application(args)
         report = app.import_service.get_bulk_report(args.tenant, args.job_id)
@@ -2454,6 +2504,12 @@ class OpenInfraCLI:
             MigrationTemplateCommand(source=args.source)
         )
         print(json.dumps(template.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_import_migration_guide(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        guide = app.import_service.get_migration_guide(MigrationGuideCommand(source=args.source))
+        print(json.dumps(guide.as_dict(), indent=2, sort_keys=True))
         return 0
 
     def _handle_import_migration_plan(self, args: argparse.Namespace) -> int:

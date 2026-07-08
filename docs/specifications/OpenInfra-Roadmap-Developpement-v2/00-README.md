@@ -1,3 +1,4 @@
+- 0.29.59 : ajout `TST-P13-BULK-IMPORT-ROLLBACK-CONFLICT-AWARE` pour couvrir le rollback conflict-aware des imports massifs appliqués, avec dry-run, restauration versionnée, mise en retrait non destructive et publication CLI/API/OpenAPI/discovery/web.
 - 0.29.58 : ajout `TST-P25-ITSM-OPENSERVICE-FUTURE-CMDB-CONNECTOR` pour préparer OpenService comme ITSM/CMDB externe autonome, sans UI dans openinfra-web et sans ticketing natif.
 - 0.29.57 : ajout `TST-P25-ITSM-GLPI-FRESHSERVICE-EXTERNAL-CONNECTORS` pour couvrir GLPI Inventory et Freshservice Assets comme connecteurs ITSM externes sans ticketing natif.
 - 0.29.56 : ajout `TST-P25-ITSM-JIRA-ASSETS-EXTERNAL-CONNECTOR` pour couvrir Jira Service Management Assets comme connecteur ITSM externe sans ticketing natif.
@@ -64,3 +65,5 @@ Ajout du test `TST-P11-IPAM-TOPOLOGY` pour verrouiller la consolidation nodes/ed
 
 Ajout du test `TST-P11-DISCOVERY-PROXY-CLI-ENROLLMENT` pour verrouiller l’enrôlement CLI local/distant des proxies Discovery Enterprise auprès des backends, avec refus Lite/Pro.
 - v0.29.33 : P08 ajoute la charte graphique premium Bootstrap 5 openinfra-web, sans changement de structure page, validée par TST-P08-WEB-PREMIUM-THEME.
+
+- 0.29.60 : ajout `TST-P13-DATA-MIGRATION-GUIDES` pour couvrir EPIC-1306 avec guides Device42/NetBox/Nautobot/GLPI/CSV exposés CLI/API/OpenAPI/discovery/web sans mutation RSOT.

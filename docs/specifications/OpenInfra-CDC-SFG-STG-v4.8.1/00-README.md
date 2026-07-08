@@ -220,3 +220,11 @@ L'installateur doit valider ce fichier avant toute action système, produire un 
 - Ajout `REQ-00793` : le portail openinfra-web et l’API HTTP exposent en lecture les politiques d’édition, les décisions de capacité et les décisions de quota runtime.
 - Les routes `/api/v1/editions/policies`, `/api/v1/editions/feature-check` et `/api/v1/editions/quota-check` sont publiées par discovery/OpenAPI et protégées par `security:admin` lorsque l’authentification est active.
 - Le composant Sécurité/RBAC/Audit du portail expose les trois opérations sans dupliquer les règles métier côté navigateur.
+
+## v0.29.59 — rollback conflict-aware des imports massifs
+
+OpenInfra ajoute `REQ-00802` pour couvrir le rollback opérable des imports massifs appliqués : dry-run par défaut, restauration versionnée RSOT, mise en retrait sans suppression physique, détection de conflits et publication CLI/API/OpenAPI/discovery/portail web.
+
+## v0.29.60 — guides opérables de migration données
+
+OpenInfra ajoute `REQ-00803` pour exposer des guides structurés de migration Device42, NetBox, Nautobot, GLPI et CSV via CLI/API/OpenAPI/discovery/portail web, sans mutation RSOT.

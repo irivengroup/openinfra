@@ -17,6 +17,8 @@ from openinfra.domain.data_import import (
     ImportRowIssue,
     LegacyMigrationSource,
     MigrationGap,
+    MigrationGuide,
+    MigrationGuideStep,
     MigrationPlanReport,
     MigrationTemplate,
 )
@@ -353,6 +355,188 @@ def test_legacy_migration_template_and_plan_are_serializable() -> None:
     assert payload["status"] == "validated"
     assert payload["gaps"][0]["category"] == "unmapped-source"
     assert payload["template"]["mapping"]["kind"] == "literal:device"
+
+
+def test_legacy_migration_guide_step_and_metadata_validation_errors() -> None:
+    mapping = ImportMapping.from_dict(
+        {
+            "key": "name",
+            "kind": "literal:device",
+            "display_name": "name",
+            "source": "literal:netbox_migration",
+        }
+    )
+    template = MigrationTemplate.create(
+        LegacyMigrationSource.NETBOX,
+        "NetBox devices",
+        "1.0",
+        mapping,
+        ("name",),
+    )
+    valid_step = MigrationGuideStep.create(1, "phase", "action", "command", "result")
+
+    for factory, message in (
+        (lambda: MigrationGuideStep.create(0, "phase", "action", "command", "result"), "order"),
+        (lambda: MigrationGuideStep.create(1, " ", "action", "command", "result"), "phase"),
+        (lambda: MigrationGuideStep.create(1, "phase", " ", "command", "result"), "action"),
+        (lambda: MigrationGuideStep.create(1, "phase", "action", " ", "result"), "command"),
+        (lambda: MigrationGuideStep.create(1, "phase", "action", "command", " "), "expected result"),
+        (
+            lambda: MigrationGuide.create(
+                LegacyMigrationSource.NETBOX,
+                " ",
+                "1.0",
+                template,
+                (valid_step,),
+                ("control",),
+                ("rollback",),
+                ("success",),
+            ),
+            "title",
+        ),
+        (
+            lambda: MigrationGuide.create(
+                LegacyMigrationSource.NETBOX,
+                "Guide",
+                " ",
+                template,
+                (valid_step,),
+                ("control",),
+                ("rollback",),
+                ("success",),
+            ),
+            "version",
+        ),
+        (
+            lambda: MigrationGuide.create(
+                LegacyMigrationSource.NETBOX,
+                "Guide",
+                "1.0",
+                template,
+                (),
+                ("control",),
+                ("rollback",),
+                ("success",),
+            ),
+            "at least one step",
+        ),
+        (
+            lambda: MigrationGuide.create(
+                LegacyMigrationSource.NETBOX,
+                "Guide",
+                "1.0",
+                template,
+                (valid_step, MigrationGuideStep.create(1, "other", "action", "command", "result")),
+                ("control",),
+                ("rollback",),
+                ("success",),
+            ),
+            "orders",
+        ),
+        (
+            lambda: MigrationGuide.create(
+                LegacyMigrationSource.NETBOX,
+                "Guide",
+                "1.0",
+                template,
+                (valid_step,),
+                (),
+                ("rollback",),
+                ("success",),
+            ),
+            "required controls",
+        ),
+        (
+            lambda: MigrationGuide.create(
+                LegacyMigrationSource.NETBOX,
+                "Guide",
+                "1.0",
+                template,
+                (valid_step,),
+                ("control",),
+                (),
+                ("success",),
+            ),
+            "rollback controls",
+        ),
+        (
+            lambda: MigrationGuide.create(
+                LegacyMigrationSource.NETBOX,
+                "Guide",
+                "1.0",
+                template,
+                (valid_step,),
+                ("control",),
+                ("rollback",),
+                (),
+            ),
+            "success criteria",
+        ),
+    ):
+        with pytest.raises(ValidationError, match=message):
+            factory()
+
+
+def test_legacy_migration_guide_is_serializable_and_guarded() -> None:
+    mapping = ImportMapping.from_dict(
+        {
+            "key": "name",
+            "kind": "literal:device",
+            "display_name": "name",
+            "source": "literal:netbox_migration",
+        }
+    )
+    template = MigrationTemplate.create(
+        LegacyMigrationSource.NETBOX,
+        "NetBox devices",
+        "1.0",
+        mapping,
+        ("name",),
+    )
+    guide = MigrationGuide.create(
+        LegacyMigrationSource.NETBOX,
+        "NetBox migration guide",
+        "1.0",
+        template,
+        (
+            MigrationGuideStep.create(
+                2,
+                "profile",
+                "Plan the migration",
+                "openinfra import migration-plan --source netbox",
+                "A dry-run plan is persisted.",
+            ),
+            MigrationGuideStep.create(
+                1,
+                "extract",
+                "Read template",
+                "openinfra import migration-template --source netbox",
+                "Required columns are known.",
+            ),
+        ),
+        ("Dry-run before apply",),
+        ("Rollback is dry-run first",),
+        ("Plan is validated",),
+    )
+
+    payload = guide.as_dict()
+
+    assert payload["source"] == "netbox"
+    assert payload["native_ticketing_enabled"] is False
+    assert payload["rsot_authoritative"] is True
+    assert [step["order"] for step in payload["steps"]] == [1, 2]
+
+    with pytest.raises(ValidationError, match="template source mismatch"):
+        MigrationGuide.create(
+            LegacyMigrationSource.GLPI,
+            "Bad",
+            "1.0",
+            template,
+            (MigrationGuideStep.create(1, "x", "y", "z", "r"),),
+            ("control",),
+            ("rollback",),
+            ("success",),
+        )
 
 
 @pytest.mark.parametrize(

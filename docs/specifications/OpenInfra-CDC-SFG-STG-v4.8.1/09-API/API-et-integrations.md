@@ -64,3 +64,11 @@ L'API backend doit exposer, pour Pro et Entreprise, des endpoints d'administrati
 - consulter l'état du compte système et du stockage LVM via endpoints d'administration réservés.
 
 Ces endpoints sont interdits à l'édition Lite sauf consultation locale strictement nécessaire.
+
+## v0.29.59 — rollback conflict-aware des imports massifs
+
+OpenInfra ajoute `REQ-00802` pour couvrir le rollback opérable des imports massifs appliqués : dry-run par défaut, restauration versionnée RSOT, mise en retrait sans suppression physique, détection de conflits et publication CLI/API/OpenAPI/discovery/portail web.
+
+## v0.29.60 — guides migration données
+
+`GET /api/v1/imports/migration-guide` retourne un guide structuré par source avec template, étapes, contrôles requis, rollback et critères de succès. L’endpoint ne modifie pas RSOT.

@@ -791,3 +791,6 @@ REQ-00795,N1,IMPORT/API/WEB,UC-IMPORT-001,TST-WEB-096,Tests service/API/CLI/fron
 REQ-00796,N1,EXPORT/API/WEB,UC-IMPORT-001,TST-WEB-097,Tests service/API/CLI/frontend/OpenAPI du streaming par chunks des artefacts exportés signés.
 REQ-00799,,,,TST-WEB-100,
 REQ-00800,N1,INTEGRATIONS-ITSM,UC-INTEGRATIONS-ITSM-001,TST-WEB-101,Tests domaine/service/API/CLI/frontend/OpenAPI des connecteurs externes GLPI Inventory et Freshservice Assets sans ticketing natif.
+REQ-00801,N1,INTEGRATIONS-ITSM/API/CLI,UC-INTEGRATIONS-ITSM-001,TST-WEB-102,Tests domaine/service/API/CLI/OpenAPI/discovery et contrôle négatif frontend pour OpenService autonome sans UI openinfra-web.
+REQ-00802,N1,IMPORT/API/CLI/WEB,UC-IMPORT-001,TST-WEB-103,Tests service/API/CLI/frontend/OpenAPI du rollback conflict-aware des imports massifs sans suppression physique.
+REQ-00803,N1,IMPORT/API/CLI/WEB,UC-IMPORT-001,TST-WEB-104,"Tests service/API/CLI/frontend/OpenAPI des guides opérables de migration Device42, NetBox, Nautobot, GLPI et CSV sans mutation RSOT."

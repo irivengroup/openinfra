@@ -150,6 +150,8 @@ class FrontendContractValidator:
             or "/v1/editions/policies" not in main_source
             or "/v1/editions/feature-check" not in main_source
             or "/v1/editions/quota-check" not in main_source
+            or "Guide migration données" not in main_source
+            or "/v1/imports/migration-guide" not in main_source
             or "Chunk export signé" not in main_source
             or "/v1/exports/artifact-chunk" not in main_source
             or "badge text-bg-primary openinfra-edition-badge" in main_source

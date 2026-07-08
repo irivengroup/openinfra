@@ -100,3 +100,11 @@ La roadmap v2 intègre `TST-P08-WEB-EDITION-BADGE-DARK-FUCHSIA` pour verrouiller
 La roadmap v2 intègre `TST-P08-WEB-EDITION-ADMIN-QUOTAS` pour verrouiller l’exposition opérateur des politiques d’édition, des feature gates et des quotas runtime. L’alignement CDC ajoute `REQ-00793` sur P08 / EPIC-0804 / release 0.29.50, avec validation discovery, OpenAPI, RBAC `security:admin`, portail web Sécurité/RBAC/Audit et CI CLI équivalente.
 
 La roadmap v2 intègre `TST-P25-ITSM-OPENSERVICE-FUTURE-CMDB-CONNECTOR` pour préparer OpenService comme ITSM/CMDB externe futur. L’alignement CDC ajoute `REQ-00801` sur P25 / EPIC-2506 / release 0.29.58, avec validation domaine, service, CLI, API, OpenAPI, discovery et absence d’opération OpenService dans `openinfra-web`.
+
+## Validation v0.29.59 — rollback conflict-aware imports massifs
+
+La roadmap v2 intègre `TST-P13-BULK-IMPORT-ROLLBACK-CONFLICT-AWARE` pour verrouiller le rollback opérable des imports massifs appliqués. L’alignement CDC ajoute `REQ-00802` sur P13 / EPIC-1305 / release 0.29.59, avec validation service, CLI, API, OpenAPI, discovery, portail web, dry-run par défaut, restauration versionnée, mise en retrait sans suppression physique et blocage des conflits.
+
+## Validation v0.29.60 — guides opérables de migration données
+
+La roadmap v2 intègre `TST-P13-DATA-MIGRATION-GUIDES` pour verrouiller les guides structurés Device42, NetBox, Nautobot, GLPI et CSV. L’alignement CDC ajoute `REQ-00803` sur P13 / EPIC-1306 / release 0.29.60, avec validation domaine, service, CLI, API, OpenAPI, discovery, portail web et absence de mutation RSOT.

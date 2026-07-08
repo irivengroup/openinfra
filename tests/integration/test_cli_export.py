@@ -156,6 +156,36 @@ def test_cli_export_request_run_report_and_artifact(tmp_path: Path, capsys: obje
     assert artifact_result["content_size_bytes"] == output.stat().st_size
     assert json.loads(output.read_text(encoding="utf-8"))[0]["key"] == "device/cli-export-1"
 
+    chunk_output = tmp_path / "export.chunk"
+    assert (
+        OpenInfraCLI().run(
+            [
+                "export",
+                "artifact-chunk",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--job-id",
+                queued["job_id"],
+                "--offset",
+                "0",
+                "--size",
+                "16",
+                "--output",
+                str(chunk_output),
+            ]
+        )
+        == 0
+    )
+    chunk = json.loads(capsys.readouterr().out)
+    assert chunk["chunk_size_bytes"] == chunk_output.stat().st_size == 16
+    assert chunk["next_offset"] == 16
+    assert chunk["final_chunk"] is False
+    assert chunk["content_base64"]
+
 
 def test_cli_export_xlsx_artifact(tmp_path: Path, capsys: object) -> None:
     data = tmp_path / "state-xlsx.json"

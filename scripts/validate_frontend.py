@@ -150,6 +150,8 @@ class FrontendContractValidator:
             or "/v1/editions/policies" not in main_source
             or "/v1/editions/feature-check" not in main_source
             or "/v1/editions/quota-check" not in main_source
+            or "Chunk export signé" not in main_source
+            or "/v1/exports/artifact-chunk" not in main_source
             or "badge text-bg-primary openinfra-edition-badge" in main_source
         ):
             raise FrontendValidationError(
@@ -337,12 +339,17 @@ class FrontendContractValidator:
             "Politiques éditions et quotas",
             "Vérifier une capacité édition",
             "Vérifier un quota édition",
+            "Chunk export signé",
+            "/v1/exports/artifact-chunk",
             "/v1/editions/policies",
             "/v1/editions/feature-check",
             "/v1/editions/quota-check",
             "distributed_discovery_agents",
             "discovery_collector",
             "requested_increment",
+            "exportJobId",
+            "chunkOffset",
+            "chunkSize",
             "#2a0015 0%, #4b001f 46%, #6a1430 100%",
             ".badge.openinfra-edition-badge",
             "openinfra-skip-link",

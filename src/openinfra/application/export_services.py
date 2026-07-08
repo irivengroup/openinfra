@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import csv
 import hashlib
 import hmac
@@ -65,6 +66,15 @@ class GetExportArtifactCommand:
 
 
 @dataclass(frozen=True, slots=True)
+class GetExportArtifactChunkCommand:
+    tenant_id: str
+    admin_token: str
+    job_id: str
+    offset: int = 0
+    size: int = 65_536
+
+
+@dataclass(frozen=True, slots=True)
 class ExportArtifactDownload:
     job: ExportJob
     content: bytes
@@ -74,6 +84,43 @@ class ExportArtifactDownload:
         payload["content_sha256"] = hashlib.sha256(self.content).hexdigest()
         payload["content_size_bytes"] = len(self.content)
         return payload
+
+
+@dataclass(frozen=True, slots=True)
+class ExportArtifactChunkDownload:
+    job: ExportJob
+    offset: int
+    requested_size_bytes: int
+    content_total_size_bytes: int
+    content: bytes
+
+    @property
+    def next_offset(self) -> int | None:
+        candidate = self.offset + len(self.content)
+        return None if candidate >= self.content_total_size_bytes else candidate
+
+    @property
+    def final_chunk(self) -> bool:
+        return self.next_offset is None
+
+    def as_dict(self) -> dict[str, object]:
+        artifact = self.job.artifact.as_dict() if self.job.artifact is not None else None
+        return {
+            "job_id": self.job.id.value,
+            "tenant_id": self.job.tenant_id.value,
+            "resource": self.job.resource.value,
+            "format": self.job.format.value,
+            "status": self.job.status.value,
+            "artifact": artifact,
+            "offset": self.offset,
+            "requested_size_bytes": self.requested_size_bytes,
+            "chunk_size_bytes": len(self.content),
+            "content_total_size_bytes": self.content_total_size_bytes,
+            "next_offset": self.next_offset,
+            "final_chunk": self.final_chunk,
+            "chunk_sha256": hashlib.sha256(self.content).hexdigest(),
+            "content_base64": base64.b64encode(self.content).decode("ascii"),
+        }
 
 
 class ExportService:
@@ -213,6 +260,26 @@ class ExportService:
             raise ValidationError("export artifact signature verification failed")
         return ExportArtifactDownload(job=job, content=content)
 
+    def get_export_artifact_chunk(
+        self, command: GetExportArtifactChunkCommand
+    ) -> ExportArtifactChunkDownload:
+        offset = self._normalize_chunk_offset(command.offset)
+        size = self._normalize_chunk_size(command.size)
+        download = self.get_export_artifact(
+            GetExportArtifactCommand(command.tenant_id, command.admin_token, command.job_id)
+        )
+        total_size = len(download.content)
+        if offset > total_size:
+            raise ValidationError("export artifact chunk offset exceeds artifact size")
+        chunk = download.content[offset : offset + size]
+        return ExportArtifactChunkDownload(
+            job=download.job,
+            offset=offset,
+            requested_size_bytes=size,
+            content_total_size_bytes=total_size,
+            content=chunk,
+        )
+
     def _load_runnable_job(self, tenant_id: TenantId, job_id: str | None) -> ExportJob:
         job = (
             self._export_repository.get_export_job(tenant_id, job_id.strip())
@@ -306,6 +373,18 @@ class ExportService:
         normalized = int(value)
         if not 1 <= normalized <= 500:
             raise ValidationError("export page size must be between 1 and 500")
+        return normalized
+
+    def _normalize_chunk_offset(self, value: int) -> int:
+        normalized = int(value)
+        if normalized < 0:
+            raise ValidationError("export artifact chunk offset cannot be negative")
+        return normalized
+
+    def _normalize_chunk_size(self, value: int) -> int:
+        normalized = int(value)
+        if not 1 <= normalized <= 1_048_576:
+            raise ValidationError("export artifact chunk size must be between 1 and 1048576")
         return normalized
 
     def _flat_row(self, row: dict[str, object]) -> dict[str, object]:

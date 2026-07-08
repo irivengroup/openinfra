@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.52
+  version: 0.29.53
 components:
   securitySchemes:
     bearerToken:
@@ -2234,6 +2234,19 @@ paths:
         - {name: admin_token, in: query, required: false, schema: {type: string}}
       responses:
         '200': {description: Binary export artifact}
+        '400': {description: Validation error, unavailable artifact or integrity failure}
+  /api/v1/exports/artifact-chunk:
+    get:
+      summary: Read one verified byte chunk from a signed export artifact
+      description: Verifies artifact SHA-256 and HMAC signature before returning a bounded base64 chunk with next_offset for streaming download clients.
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: job_id, in: query, required: true, schema: {type: string}}
+        - {name: offset, in: query, required: false, schema: {type: integer, minimum: 0, default: 0}}
+        - {name: size, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 1048576, default: 65536}}
+        - {name: admin_token, in: query, required: false, schema: {type: string}}
+      responses:
+        '200': {description: JSON chunk containing base64 content, chunk digest and next offset}
         '400': {description: Validation error, unavailable artifact or integrity failure}
 
   /api/v1/imports/datasets:

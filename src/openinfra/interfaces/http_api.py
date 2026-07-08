@@ -56,6 +56,7 @@ from openinfra.application.edition_services import (
     CheckQuotaCommand,
 )
 from openinfra.application.export_services import (
+    GetExportArtifactChunkCommand,
     GetExportArtifactCommand,
     GetExportJobCommand,
     RequestExportCommand,
@@ -680,6 +681,25 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     artifact.media_type,
                     artifact.filename,
                 )
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/exports/artifact-chunk":
+            try:
+                query = parse_qs(parsed.query)
+                download = self.server.application.export_service.get_export_artifact_chunk(
+                    GetExportArtifactChunkCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        job_id=self._first_query_value(query, "job_id"),
+                        offset=int(self._first_query_value(query, "offset", "0")),
+                        size=int(self._first_query_value(query, "size", "65536")),
+                    )
+                )
+                responder.send(HTTPStatus.OK, download.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (ValueError, OpenInfraError) as exc:
@@ -2690,6 +2710,7 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "run": "/api/v1/exports/run",
                     "report": "/api/v1/exports/jobs",
                     "artifact": "/api/v1/exports/artifact",
+                    "artifact_chunk": "/api/v1/exports/artifact-chunk",
                 },
                 "imports": {
                     "dataset": "/api/v1/imports/datasets",

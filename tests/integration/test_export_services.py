@@ -12,6 +12,7 @@ import pytest
 
 from openinfra.application.container import ApplicationFactory
 from openinfra.application.export_services import (
+    GetExportArtifactChunkCommand,
     GetExportArtifactCommand,
     GetExportJobCommand,
     RequestExportCommand,
@@ -100,6 +101,47 @@ class TestExportService:
         assert len(completed.artifact.signature) == 64
         assert payload[0]["key"] == "device/export-001"
         assert download.as_dict()["content_size_bytes"] == len(download.content)
+
+    def test_signed_artifact_chunk_is_bounded_and_resumable(self, tmp_path: Path) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+        token = _bootstrap(app)
+        _create_object(app, token, "device/export-chunk-001")
+
+        queued = app.export_service.request_export(
+            RequestExportCommand("default", "pytest", token, format="json", limit=10)
+        )
+        app.export_service.run_export_job(
+            RunExportJobCommand("default", "pytest", token, queued.id.value, page_size=1)
+        )
+
+        first = app.export_service.get_export_artifact_chunk(
+            GetExportArtifactChunkCommand("default", token, queued.id.value, offset=0, size=24)
+        )
+        second = app.export_service.get_export_artifact_chunk(
+            GetExportArtifactChunkCommand(
+                "default", token, queued.id.value, offset=first.next_offset or 0, size=4096
+            )
+        )
+        combined = first.content + second.content
+        full = app.export_service.get_export_artifact(
+            GetExportArtifactCommand("default", token, queued.id.value)
+        )
+
+        assert first.as_dict()["chunk_size_bytes"] == 24
+        assert first.as_dict()["next_offset"] == 24
+        assert first.as_dict()["final_chunk"] is False
+        assert second.as_dict()["final_chunk"] is True
+        assert second.as_dict()["content_base64"]
+        assert combined == full.content
+
+        with pytest.raises(ValidationError, match="chunk size"):
+            app.export_service.get_export_artifact_chunk(
+                GetExportArtifactChunkCommand("default", token, queued.id.value, size=0)
+            )
+        with pytest.raises(ValidationError, match="offset exceeds"):
+            app.export_service.get_export_artifact_chunk(
+                GetExportArtifactChunkCommand("default", token, queued.id.value, offset=len(full.content) + 1)
+            )
 
     def test_json_backend_signing_secret_is_lazy_and_survives_reload(self, tmp_path: Path) -> None:
         state_path = tmp_path / "state.json"

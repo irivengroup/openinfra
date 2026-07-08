@@ -1,3 +1,11 @@
+### v0.29.53 — exports massifs streaming par chunks signés
+
+- Ajout `openinfra export artifact-chunk` pour lire un artefact exporté signé par offset/taille bornée.
+- Ajout `GET /api/v1/exports/artifact-chunk` retournant `content_base64`, `chunk_sha256`, `next_offset`, `final_chunk` et métadonnées d’artefact après vérification SHA-256 + HMAC-SHA256 complète.
+- Ajout de l’opération portail `Imports / Exports > Chunk export signé`.
+- OpenAPI, discovery, CDC et roadmap alignés sur P13 / EPIC-1302.
+- Non-régression : le téléchargement complet `/api/v1/exports/artifact` et `openinfra export artifact` restent inchangés.
+
 # Architecture OpenInfra Python
 
 ## v0.29.52 — P13 progression opérable des imports massifs reprenables

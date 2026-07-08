@@ -69,6 +69,7 @@ class TestHttpApi:
                     "run": "/api/v1/exports/run",
                     "report": "/api/v1/exports/jobs",
                     "artifact": "/api/v1/exports/artifact",
+                    "artifact_chunk": "/api/v1/exports/artifact-chunk",
                 },
                 "imports": {
                     "dataset": "/api/v1/imports/datasets",
@@ -894,11 +895,22 @@ class TestHttpApi:
                 + str(queued["job_id"]),
                 token=token,
             )
+            chunk = self._get_json(
+                base_url
+                + "/api/v1/exports/artifact-chunk?tenant_id=default&job_id="
+                + str(queued["job_id"])
+                + "&offset=0&size=32",
+                token=token,
+            )
 
             assert queued["status"] == "queued"
             assert completed["status"] == "completed"
             assert persisted["artifact"]["signature_algorithm"] == "hmac-sha256"
             assert json.loads(artifact.decode("utf-8"))[0]["key"] == "device/api-export-801"
+            assert chunk["chunk_size_bytes"] == 32
+            assert chunk["content_total_size_bytes"] == len(artifact)
+            assert chunk["next_offset"] == 32
+            assert chunk["content_base64"]
         finally:
             server.shutdown()
             server.server_close()

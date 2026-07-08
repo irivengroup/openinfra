@@ -216,7 +216,12 @@ class TestOpenInfraWeb:
         assert "Imports / Exports" in static_js + main_js
         assert "Progression import massif" in static_js + main_js
         assert "/v1/imports/bulk-progress" in static_js + main_js
+        assert "Chunk export signé" in static_js + main_js
+        assert "/v1/exports/artifact-chunk" in static_js + main_js
         assert "FIELD_SETS.jobId" in static_js
+        assert "FIELD_SETS.exportJobId" in static_js
+        assert "FIELD_SETS.chunkOffset" in static_js
+        assert "FIELD_SETS.chunkSize" in static_js
         assert "distributed_discovery_agents" in static_js
         assert "discovery_collector" in static_js
         assert "requested_increment" in static_js

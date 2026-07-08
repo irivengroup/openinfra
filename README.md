@@ -1,10 +1,18 @@
-# OpenInfra v0.29.52
+### v0.29.53 — exports massifs streaming par chunks signés
 
-## v0.29.52 — progression opérable des imports massifs reprenables
+- Ajout `openinfra export artifact-chunk` pour lire un artefact exporté signé par offset/taille bornée.
+- Ajout `GET /api/v1/exports/artifact-chunk` retournant `content_base64`, `chunk_sha256`, `next_offset`, `final_chunk` et métadonnées d’artefact après vérification SHA-256 + HMAC-SHA256 complète.
+- Ajout de l’opération portail `Imports / Exports > Chunk export signé`.
+- OpenAPI, discovery, CDC et roadmap alignés sur P13 / EPIC-1302.
+- Non-régression : le téléchargement complet `/api/v1/exports/artifact` et `openinfra export artifact` restent inchangés.
 
-OpenInfra v0.29.52 ajoute un incrément P13 / EPIC-1301 dédié à l’exploitation des imports massifs : un opérateur peut consulter l’état d’avancement d’un job bulk sans relire le fichier source et sans recalculer le rapport complet.
+# OpenInfra v0.29.53
 
-**Version courante : 0.29.52 — progression d’import massif disponible via domaine, service applicatif, CLI, API HTTP, OpenAPI, discovery et portail web.**
+## v0.29.53 — progression opérable des imports massifs reprenables
+
+OpenInfra v0.29.53 ajoute un incrément P13 / EPIC-1301 dédié à l’exploitation des imports massifs : un opérateur peut consulter l’état d’avancement d’un job bulk sans relire le fichier source et sans recalculer le rapport complet.
+
+**Version courante : 0.29.53 — progression d’import massif disponible via domaine, service applicatif, CLI, API HTTP, OpenAPI, discovery et portail web.**
 
 ### Points clés
 

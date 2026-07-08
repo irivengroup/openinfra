@@ -1,3 +1,4 @@
+- Ajout de `REQ-00796` et `TST-WEB-097` pour couvrir P13 / EPIC-1302 : lecture streaming par chunks des artefacts d’export massifs signés avec offset, SHA-256 chunk et reprise client.
 - Ajout de `REQ-00795` et `TST-WEB-096` pour couvrir P13 / EPIC-1301 : progression opérable des imports massifs reprenables via service, CLI, API, OpenAPI et portail web.
 ## v0.29.51 — ITAM licences logicielles, contrats et conformité
 

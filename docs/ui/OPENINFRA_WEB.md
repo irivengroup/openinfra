@@ -1,3 +1,11 @@
+### v0.29.53 — exports massifs streaming par chunks signés
+
+- Ajout `openinfra export artifact-chunk` pour lire un artefact exporté signé par offset/taille bornée.
+- Ajout `GET /api/v1/exports/artifact-chunk` retournant `content_base64`, `chunk_sha256`, `next_offset`, `final_chunk` et métadonnées d’artefact après vérification SHA-256 + HMAC-SHA256 complète.
+- Ajout de l’opération portail `Imports / Exports > Chunk export signé`.
+- OpenAPI, discovery, CDC et roadmap alignés sur P13 / EPIC-1302.
+- Non-régression : le téléchargement complet `/api/v1/exports/artifact` et `openinfra export artifact` restent inchangés.
+
 # OpenInfra Web v0.29.52
 
 OpenInfra Web est le portail `openinfra-web` API-only. Il sert l'interface React/Bootstrap 5, expose un proxy applicatif `/api/*` vers le backend `openinfra-api` et fournit un dashboard aligné sur les domaines CLI.

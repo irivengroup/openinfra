@@ -214,6 +214,48 @@ jobs:
             --job-id "$job_id" > "$tmpdir/progress.json"
           python -c 'import json, pathlib, sys; data=json.loads(pathlib.Path(sys.argv[1]).read_text()); assert data["processed_rows"] == 2; assert data["batches_completed"] == 2; assert data["final_report_available"] is True' "$tmpdir/progress.json"
 
+      - name: Smoke JSON export artifact chunk
+        run: |
+          tmpdir="$(mktemp -d)"
+          admin_token="$(python -c 'import secrets; print("ci_" + secrets.token_urlsafe(48))')"
+          openinfra security bootstrap-token \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --subject ci-export-operator \
+            --role itrm:operator \
+            --token "$admin_token"
+          openinfra itrm upsert-object \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --admin-token "$admin_token" \
+            --key device/ci-export-stream-1 \
+            --kind device \
+            --display-name "CI Export Stream" \
+            --attributes-json '{"serial":"SN-CI-EXPORT"}' \
+            --tag ci \
+            --source ci_export
+          openinfra export request \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --admin-token "$admin_token" \
+            --format json \
+            --kind device \
+            --tag ci > "$tmpdir/export-job.json"
+          job_id="$(python -c 'import json, pathlib, sys; print(json.loads(pathlib.Path(sys.argv[1]).read_text())["job_id"])' "$tmpdir/export-job.json")"
+          openinfra export run \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --admin-token "$admin_token" \
+            --job-id "$job_id" > "$tmpdir/export-completed.json"
+          openinfra export artifact-chunk \
+            --data "$tmpdir/state.json" \
+            --tenant default \
+            --admin-token "$admin_token" \
+            --job-id "$job_id" \
+            --offset 0 \
+            --size 16 > "$tmpdir/export-chunk.json"
+          python -c 'import base64, json, pathlib, sys; data=json.loads(pathlib.Path(sys.argv[1]).read_text()); assert data["chunk_size_bytes"] == 16; assert data["next_offset"] == 16; assert data["content_base64"]; base64.b64decode(data["content_base64"])' "$tmpdir/export-chunk.json"
+
       - name: Smoke JSON security token
         run: |
           tmpdir="$(mktemp -d)"

@@ -55,6 +55,7 @@ from openinfra.application.edition_services import (
     EditionPolicyService,
 )
 from openinfra.application.export_services import (
+    GetExportArtifactChunkCommand,
     GetExportArtifactCommand,
     GetExportJobCommand,
     RequestExportCommand,
@@ -957,6 +958,18 @@ class OpenInfraCLI:
         artifact.add_argument("--job-id", required=True)
         artifact.add_argument("--output", type=Path, required=True)
         artifact.set_defaults(handler=self._handle_export_artifact)
+
+        artifact_chunk = export_subparsers.add_parser(
+            "artifact-chunk", help="download and verify one signed artifact byte chunk"
+        )
+        self._add_backend_arguments(artifact_chunk)
+        artifact_chunk.add_argument("--tenant", required=True)
+        artifact_chunk.add_argument("--admin-token", required=True)
+        artifact_chunk.add_argument("--job-id", required=True)
+        artifact_chunk.add_argument("--offset", type=int, default=0)
+        artifact_chunk.add_argument("--size", type=int, default=65_536)
+        artifact_chunk.add_argument("--output", type=Path)
+        artifact_chunk.set_defaults(handler=self._handle_export_artifact_chunk)
 
     def _add_itrm_commands(self, subparsers: Any) -> None:
         self._add_inventory_commands(
@@ -2627,6 +2640,23 @@ class OpenInfraCLI:
         )
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_bytes(download.content)
+        print(json.dumps(download.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_export_artifact_chunk(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        download = app.export_service.get_export_artifact_chunk(
+            GetExportArtifactChunkCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                job_id=args.job_id,
+                offset=args.offset,
+                size=args.size,
+            )
+        )
+        if args.output is not None:
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_bytes(download.content)
         print(json.dumps(download.as_dict(), indent=2, sort_keys=True))
         return 0
 

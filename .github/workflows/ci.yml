@@ -256,6 +256,18 @@ jobs:
             --size 16 > "$tmpdir/export-chunk.json"
           python -c 'import base64, json, pathlib, sys; data=json.loads(pathlib.Path(sys.argv[1]).read_text()); assert data["chunk_size_bytes"] == 16; assert data["next_offset"] == 16; assert data["content_base64"]; base64.b64decode(data["content_base64"])' "$tmpdir/export-chunk.json"
 
+      - name: Smoke JSON external ITSM connectors
+        run: |
+          tmpdir="$(mktemp -d)"
+          openinfra integrations itsm-providers --data "$tmpdir/state.json" > "$tmpdir/providers.json"
+          openinfra integrations servicenow-validate --data "$tmpdir/state.json" --tenant default --instance-url https://instance.service-now.com --table-name cmdb_ci --auth-secret-ref vault://openinfra/servicenow/oauth > "$tmpdir/servicenow.json"
+          openinfra integrations jira-validate --data "$tmpdir/state.json" --tenant default --instance-url https://tenant.atlassian.net --object-type server --auth-secret-ref vault://openinfra/jira/api-token > "$tmpdir/jira.json"
+          openinfra integrations glpi-validate --data "$tmpdir/state.json" --tenant default --instance-url https://glpi.example.com --item-type computer --auth-secret-ref vault://openinfra/glpi/tokens > "$tmpdir/glpi.json"
+          openinfra integrations freshservice-validate --data "$tmpdir/state.json" --tenant default --instance-url https://tenant.freshservice.com --asset-type server --auth-secret-ref vault://openinfra/freshservice/api-token > "$tmpdir/freshservice.json"
+          openinfra integrations glpi-asset-sync-plan --data "$tmpdir/state.json" --tenant default --resource-key SRV-PAR1-001 --item-type computer > "$tmpdir/glpi-plan.json"
+          openinfra integrations freshservice-asset-sync-plan --data "$tmpdir/state.json" --tenant default --resource-key SRV-PAR1-001 --asset-type server > "$tmpdir/freshservice-plan.json"
+          python -c 'import json, pathlib, sys; root=pathlib.Path(sys.argv[1]); providers=json.loads((root/"providers.json").read_text()); names=[item["provider"] for item in providers["items"]]; assert names == ["servicenow", "jira_service_management", "glpi", "freshservice"]; assert json.loads((root/"glpi-plan.json").read_text())["native_ticketing_enabled"] is False; assert json.loads((root/"freshservice-plan.json").read_text())["target_table"] == "server"' "$tmpdir"
+
       - name: Smoke JSON security token
         run: |
           tmpdir="$(mktemp -d)"

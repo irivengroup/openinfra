@@ -1,4 +1,18 @@
-### v0.29.55 — connecteur externe ServiceNow et corrections thème Bootstrap
+### v0.29.57 — connecteurs externes GLPI Inventory et Freshservice Assets
+
+- Ajout des fournisseurs `glpi` et `freshservice` dans le domaine `external_itsm`, avec alias contrôlés.
+- Ajout CLI/API/UI/OpenAPI/discovery pour valider les profils GLPI/Freshservice et générer des plans de synchronisation d’assets depuis RSOT.
+- Validation sécurité conservée : URL HTTPS obligatoire, aucun credential embarqué, secrets uniquement par référence, aucun ticketing natif.
+- Non-régression ServiceNow, Jira Assets, RSOT et thème Bootstrap conservée.
+
+### v0.29.56 — connecteur externe Jira Service Management Assets
+
+- Ajout du fournisseur `jira_service_management` dans le domaine `external_itsm`, avec alias `jira`, `jsm`, `jira-assets` et `jira-service-management`.
+- Ajout CLI/API/UI/OpenAPI/discovery pour valider un connecteur Jira Assets et générer un plan de synchronisation d’assets depuis RSOT.
+- Validation sécurité conservée : URL HTTPS obligatoire, aucun credential embarqué, secrets uniquement par référence, aucun ticketing natif.
+- Non-régression ServiceNow, RSOT et thème Bootstrap conservée.
+
+### v0.29.56 — connecteur externe ServiceNow et corrections thème Bootstrap
 
 - Ajout du domaine `external_itsm` pour représenter les connecteurs ITSM externes sans ticketing natif.
 - Ajout du service applicatif `ExternalItsmIntegrationService`.
@@ -8,7 +22,7 @@
 - Correction UI : les boutons de soumission restent `btn btn-primary` et Bootstrap est surchargé en turquoise `#24d8ab`.
 - Correction UI : le bloc runtime utilise uniquement une couleur de texte `#003D8F`, sans fond ni bordure dédiés.
 
-### v0.29.55 — RSOT canonique, alias ITRM dépréciés et correction Ruff/UI
+### v0.29.56 — RSOT canonique, alias ITRM dépréciés et correction Ruff/UI
 
 - Renommage public de `ITRM (IT Ressource Management)` en `RSOT (Ressource Source of Truth)`.
 - Publication canonique de `openinfra rsot`, `/api/v1/rsot/*`, `rsot:*`, `core_rsot`, composant web **RSOT** et groupe de recherche globale `rsot`.

@@ -10,17 +10,35 @@ from openinfra.domain.common import TenantId, ValidationError
 
 class ExternalItsmProvider(StrEnum):
     SERVICENOW = "servicenow"
+    JIRA_SERVICE_MANAGEMENT = "jira_service_management"
+    GLPI = "glpi"
+    FRESHSERVICE = "freshservice"
 
     @classmethod
     def from_value(cls, value: str | ExternalItsmProvider) -> Self:
         if isinstance(value, cls):
             return value
         normalized = value.strip().lower().replace("_", "-")
-        aliases = {"service-now": "servicenow", "snow": "servicenow"}
+        aliases = {
+            "service-now": "servicenow",
+            "snow": "servicenow",
+            "jira": "jira_service_management",
+            "jira-assets": "jira_service_management",
+            "jira-service-management": "jira_service_management",
+            "jsm": "jira_service_management",
+            "glpi-assets": "glpi",
+            "glpi-inventory": "glpi",
+            "fresh-service": "freshservice",
+            "freshservice-assets": "freshservice",
+            "freshworks": "freshservice",
+        }
         try:
             return cls(aliases.get(normalized, normalized))
         except ValueError as exc:
-            raise ValidationError("external ITSM provider must be one of: servicenow") from exc
+            supported = ", ".join(item.value for item in cls)
+            raise ValidationError(
+                f"external ITSM provider must be one of: {supported}"
+            ) from exc
 
 
 class ExternalItsmSyncDirection(StrEnum):
@@ -75,6 +93,79 @@ class ExternalItsmConnectorPolicy:
             ),
         )
 
+    @classmethod
+    def jira_service_management(cls) -> Self:
+        return cls(
+            provider=ExternalItsmProvider.JIRA_SERVICE_MANAGEMENT,
+            editions=("pro", "enterprise"),
+            supported_directions=(
+                ExternalItsmSyncDirection.PUSH_CI,
+                ExternalItsmSyncDirection.ENRICH_EXTERNAL_TICKET,
+                ExternalItsmSyncDirection.LINK_EXTERNAL_TICKET,
+            ),
+            native_ticketing_enabled=False,
+            required_secret_refs=(
+                "OPENINFRA_JIRA_BASE_URL",
+                "OPENINFRA_JIRA_TOKEN_REF",
+            ),
+            required_ci_fields=(
+                "resource_key",
+                "display_name",
+                "resource_type",
+                "workspace_id",
+                "source",
+            ),
+        )
+
+    @classmethod
+    def glpi(cls) -> Self:
+        return cls(
+            provider=ExternalItsmProvider.GLPI,
+            editions=("pro", "enterprise"),
+            supported_directions=(
+                ExternalItsmSyncDirection.PUSH_CI,
+                ExternalItsmSyncDirection.ENRICH_EXTERNAL_TICKET,
+                ExternalItsmSyncDirection.LINK_EXTERNAL_TICKET,
+            ),
+            native_ticketing_enabled=False,
+            required_secret_refs=(
+                "OPENINFRA_GLPI_BASE_URL",
+                "OPENINFRA_GLPI_APP_TOKEN_REF",
+                "OPENINFRA_GLPI_SESSION_TOKEN_REF",
+            ),
+            required_ci_fields=(
+                "resource_key",
+                "display_name",
+                "resource_type",
+                "entity",
+                "source",
+            ),
+        )
+
+    @classmethod
+    def freshservice(cls) -> Self:
+        return cls(
+            provider=ExternalItsmProvider.FRESHSERVICE,
+            editions=("pro", "enterprise"),
+            supported_directions=(
+                ExternalItsmSyncDirection.PUSH_CI,
+                ExternalItsmSyncDirection.ENRICH_EXTERNAL_TICKET,
+                ExternalItsmSyncDirection.LINK_EXTERNAL_TICKET,
+            ),
+            native_ticketing_enabled=False,
+            required_secret_refs=(
+                "OPENINFRA_FRESHSERVICE_BASE_URL",
+                "OPENINFRA_FRESHSERVICE_API_TOKEN_REF",
+            ),
+            required_ci_fields=(
+                "resource_key",
+                "display_name",
+                "resource_type",
+                "asset_tag",
+                "source",
+            ),
+        )
+
     def as_dict(self) -> dict[str, object]:
         return {
             "provider": self.provider.value,
@@ -110,7 +201,7 @@ class ExternalItsmConnectorProfile:
         )
         normalized_provider = ExternalItsmProvider.from_value(provider)
         normalized_url = cls._normalize_instance_url(instance_url)
-        normalized_table = cls._normalize_table_name(table_name)
+        normalized_table = cls._normalize_table_name(table_name, normalized_provider)
         normalized_secret_ref = cls._normalize_secret_ref(auth_secret_ref)
         return cls(
             tenant_id=normalized_tenant,
@@ -126,18 +217,54 @@ class ExternalItsmConnectorProfile:
         normalized = value.strip().rstrip("/")
         parsed = urlparse(normalized)
         if parsed.scheme != "https" or not parsed.netloc:
-            raise ValidationError("ServiceNow instance URL must be an absolute HTTPS URL")
+            raise ValidationError("external ITSM instance URL must be an absolute HTTPS URL")
         if parsed.username or parsed.password:
-            raise ValidationError("ServiceNow instance URL must not embed credentials")
+            raise ValidationError("external ITSM instance URL must not embed credentials")
         return normalized
 
     @staticmethod
-    def _normalize_table_name(value: str) -> str:
+    def _normalize_table_name(value: str, provider: ExternalItsmProvider) -> str:
         normalized = value.strip().lower()
-        allowed = {"cmdb_ci", "cmdb_ci_server", "cmdb_ci_netgear", "cmdb_ci_computer"}
+        allowed_by_provider = {
+            ExternalItsmProvider.SERVICENOW: {
+                "cmdb_ci",
+                "cmdb_ci_server",
+                "cmdb_ci_netgear",
+                "cmdb_ci_computer",
+            },
+            ExternalItsmProvider.JIRA_SERVICE_MANAGEMENT: {
+                "object",
+                "server",
+                "network_device",
+                "computer",
+                "software",
+            },
+            ExternalItsmProvider.GLPI: {
+                "computer",
+                "network_equipment",
+                "monitor",
+                "printer",
+                "software",
+                "rack",
+            },
+            ExternalItsmProvider.FRESHSERVICE: {
+                "asset",
+                "hardware",
+                "server",
+                "network_device",
+                "software",
+            },
+        }
+        allowed = allowed_by_provider[provider]
         if normalized not in allowed:
+            labels = {
+                ExternalItsmProvider.SERVICENOW: "ServiceNow CI table",
+                ExternalItsmProvider.JIRA_SERVICE_MANAGEMENT: "Jira Assets object type",
+                ExternalItsmProvider.GLPI: "GLPI inventory item type",
+                ExternalItsmProvider.FRESHSERVICE: "Freshservice asset type",
+            }
             raise ValidationError(
-                "ServiceNow CI table must be one of: " + ", ".join(sorted(allowed))
+                f"{labels[provider]} must be one of: " + ", ".join(sorted(allowed))
             )
         return normalized
 
@@ -145,10 +272,10 @@ class ExternalItsmConnectorProfile:
     def _normalize_secret_ref(value: str) -> str:
         normalized = value.strip()
         if not normalized:
-            raise ValidationError("ServiceNow auth secret reference cannot be empty")
+            raise ValidationError("external ITSM auth secret reference cannot be empty")
         if any(token in normalized.lower() for token in ("password=", "secret=", "token=")):
             raise ValidationError(
-                "ServiceNow auth secret reference must not contain secret material"
+                "external ITSM auth secret reference must not contain secret material"
             )
         return normalized
 
@@ -193,7 +320,9 @@ class ExternalItsmCiSyncPlan:
         normalized_resource_key = " ".join(resource_key.strip().split())
         if not 3 <= len(normalized_resource_key) <= 128:
             raise ValidationError("resource key must contain 3 to 128 characters")
-        normalized_table = ExternalItsmConnectorProfile._normalize_table_name(target_table)
+        normalized_table = ExternalItsmConnectorProfile._normalize_table_name(
+            target_table, normalized_provider
+        )
         normalized_mapping = cls._normalize_mapping(mapping)
         actions = cls._actions_for(normalized_direction)
         return cls(
@@ -210,23 +339,23 @@ class ExternalItsmCiSyncPlan:
     @staticmethod
     def _normalize_mapping(mapping: dict[str, str]) -> dict[str, str]:
         if not mapping:
-            raise ValidationError("ServiceNow CI mapping cannot be empty")
+            raise ValidationError("external ITSM CI mapping cannot be empty")
         normalized: dict[str, str] = {}
         for source_field, target_field in mapping.items():
             source = source_field.strip().lower()
             target = target_field.strip().lower()
             if not source or not target:
-                raise ValidationError("ServiceNow CI mapping fields cannot be empty")
+                raise ValidationError("external ITSM CI mapping fields cannot be empty")
             if not source.replace("_", "").isalnum() or not target.replace("_", "").isalnum():
                 raise ValidationError(
-                    "ServiceNow CI mapping fields must use safe field identifiers"
+                    "external ITSM CI mapping fields must use safe field identifiers"
                 )
             normalized[source] = target
         required = {"resource_key", "display_name", "resource_type"}
         missing = sorted(required - set(normalized))
         if missing:
             raise ValidationError(
-                "ServiceNow CI mapping misses required fields: " + ", ".join(missing)
+                "external ITSM CI mapping misses required fields: " + ", ".join(missing)
             )
         return dict(sorted(normalized.items()))
 

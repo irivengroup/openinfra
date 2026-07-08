@@ -63,7 +63,13 @@ from openinfra.application.export_services import (
     RunExportJobCommand,
 )
 from openinfra.application.external_itsm_services import (
+    BuildFreshserviceAssetSyncPlanCommand,
+    BuildGlpiAssetSyncPlanCommand,
+    BuildJiraServiceManagementAssetSyncPlanCommand,
     BuildServiceNowCiSyncPlanCommand,
+    ValidateFreshserviceConnectorCommand,
+    ValidateGlpiConnectorCommand,
+    ValidateJiraServiceManagementConnectorCommand,
     ValidateServiceNowConnectorCommand,
 )
 from openinfra.application.identity_services import (
@@ -1220,17 +1226,16 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 tenant_id = self._required_payload_value(payload, "tenant_id")
                 if self.server.auth_required:
                     self._authenticate(tenant_id, Permission.SECURITY_ADMIN)
-                profile = (
-                    self.server.application.external_itsm_service.validate_servicenow_connector(
-                        ValidateServiceNowConnectorCommand(
-                            tenant_id=tenant_id,
-                            instance_url=self._required_payload_value(payload, "instance_url"),
-                            table_name=str(payload.get("table_name", "cmdb_ci")),
-                            auth_secret_ref=self._required_payload_value(
-                                payload, "auth_secret_ref"
-                            ),
-                            enabled=bool(payload.get("enabled", True)),
-                        )
+                service = self.server.application.external_itsm_service
+                profile = service.validate_servicenow_connector(
+                    ValidateServiceNowConnectorCommand(
+                        tenant_id=tenant_id,
+                        instance_url=self._required_payload_value(payload, "instance_url"),
+                        table_name=str(payload.get("table_name", "cmdb_ci")),
+                        auth_secret_ref=self._required_payload_value(
+                            payload, "auth_secret_ref"
+                        ),
+                        enabled=bool(payload.get("enabled", True)),
                     )
                 )
                 responder.send(HTTPStatus.OK, profile.as_dict())
@@ -1254,12 +1259,181 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     if isinstance(raw_mapping, dict)
                     else None
                 )
-                plan = self.server.application.external_itsm_service.build_servicenow_ci_sync_plan(
+                service = self.server.application.external_itsm_service
+                plan = service.build_servicenow_ci_sync_plan(
                     BuildServiceNowCiSyncPlanCommand(
                         tenant_id=tenant_id,
                         resource_key=self._required_payload_value(payload, "resource_key"),
                         direction=str(payload.get("direction", "push_ci")),
                         target_table=str(payload.get("target_table", "cmdb_ci")),
+                        mapping=mapping,
+                    )
+                )
+                responder.send(HTTPStatus.OK, plan.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except OpenInfraError as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/integrations/itsm/jira/validate":
+            try:
+                payload = self._read_json_body()
+                tenant_id = self._required_payload_value(payload, "tenant_id")
+                if self.server.auth_required:
+                    self._authenticate(tenant_id, Permission.SECURITY_ADMIN)
+                service = self.server.application.external_itsm_service
+                profile = service.validate_jira_service_management_connector(
+                    ValidateJiraServiceManagementConnectorCommand(
+                        tenant_id=tenant_id,
+                        instance_url=self._required_payload_value(payload, "instance_url"),
+                        object_type=str(payload.get("object_type", "object")),
+                        auth_secret_ref=self._required_payload_value(
+                            payload, "auth_secret_ref"
+                        ),
+                        enabled=bool(payload.get("enabled", True)),
+                    )
+                )
+                responder.send(HTTPStatus.OK, profile.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except OpenInfraError as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/integrations/itsm/jira/asset-sync-plan":
+            try:
+                payload = self._read_json_body()
+                tenant_id = self._required_payload_value(payload, "tenant_id")
+                if self.server.auth_required:
+                    self._authenticate(tenant_id, Permission.SECURITY_ADMIN)
+                raw_mapping = payload.get("mapping")
+                if raw_mapping is not None and not isinstance(raw_mapping, dict):
+                    raise OpenInfraError("mapping must be a JSON object")
+                mapping = (
+                    {str(key): str(value) for key, value in raw_mapping.items()}
+                    if isinstance(raw_mapping, dict)
+                    else None
+                )
+                service = self.server.application.external_itsm_service
+                plan = service.build_jira_service_management_asset_sync_plan(
+                    BuildJiraServiceManagementAssetSyncPlanCommand(
+                        tenant_id=tenant_id,
+                        resource_key=self._required_payload_value(payload, "resource_key"),
+                        direction=str(payload.get("direction", "push_ci")),
+                        object_type=str(payload.get("object_type", "object")),
+                        mapping=mapping,
+                    )
+                )
+                responder.send(HTTPStatus.OK, plan.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except OpenInfraError as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/integrations/itsm/glpi/validate":
+            try:
+                payload = self._read_json_body()
+                tenant_id = self._required_payload_value(payload, "tenant_id")
+                if self.server.auth_required:
+                    self._authenticate(tenant_id, Permission.SECURITY_ADMIN)
+                service = self.server.application.external_itsm_service
+                profile = service.validate_glpi_connector(
+                    ValidateGlpiConnectorCommand(
+                        tenant_id=tenant_id,
+                        instance_url=self._required_payload_value(payload, "instance_url"),
+                        item_type=str(payload.get("item_type", "computer")),
+                        auth_secret_ref=self._required_payload_value(
+                            payload, "auth_secret_ref"
+                        ),
+                        enabled=bool(payload.get("enabled", True)),
+                    )
+                )
+                responder.send(HTTPStatus.OK, profile.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except OpenInfraError as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/integrations/itsm/glpi/asset-sync-plan":
+            try:
+                payload = self._read_json_body()
+                tenant_id = self._required_payload_value(payload, "tenant_id")
+                if self.server.auth_required:
+                    self._authenticate(tenant_id, Permission.SECURITY_ADMIN)
+                raw_mapping = payload.get("mapping")
+                if raw_mapping is not None and not isinstance(raw_mapping, dict):
+                    raise OpenInfraError("mapping must be a JSON object")
+                mapping = (
+                    {str(key): str(value) for key, value in raw_mapping.items()}
+                    if isinstance(raw_mapping, dict)
+                    else None
+                )
+                service = self.server.application.external_itsm_service
+                plan = service.build_glpi_asset_sync_plan(
+                    BuildGlpiAssetSyncPlanCommand(
+                        tenant_id=tenant_id,
+                        resource_key=self._required_payload_value(payload, "resource_key"),
+                        direction=str(payload.get("direction", "push_ci")),
+                        item_type=str(payload.get("item_type", "computer")),
+                        mapping=mapping,
+                    )
+                )
+                responder.send(HTTPStatus.OK, plan.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except OpenInfraError as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/integrations/itsm/freshservice/validate":
+            try:
+                payload = self._read_json_body()
+                tenant_id = self._required_payload_value(payload, "tenant_id")
+                if self.server.auth_required:
+                    self._authenticate(tenant_id, Permission.SECURITY_ADMIN)
+                service = self.server.application.external_itsm_service
+                profile = service.validate_freshservice_connector(
+                    ValidateFreshserviceConnectorCommand(
+                        tenant_id=tenant_id,
+                        instance_url=self._required_payload_value(payload, "instance_url"),
+                        asset_type=str(payload.get("asset_type", "asset")),
+                        auth_secret_ref=self._required_payload_value(
+                            payload, "auth_secret_ref"
+                        ),
+                        enabled=bool(payload.get("enabled", True)),
+                    )
+                )
+                responder.send(HTTPStatus.OK, profile.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except OpenInfraError as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/integrations/itsm/freshservice/asset-sync-plan":
+            try:
+                payload = self._read_json_body()
+                tenant_id = self._required_payload_value(payload, "tenant_id")
+                if self.server.auth_required:
+                    self._authenticate(tenant_id, Permission.SECURITY_ADMIN)
+                raw_mapping = payload.get("mapping")
+                if raw_mapping is not None and not isinstance(raw_mapping, dict):
+                    raise OpenInfraError("mapping must be a JSON object")
+                mapping = (
+                    {str(key): str(value) for key, value in raw_mapping.items()}
+                    if isinstance(raw_mapping, dict)
+                    else None
+                )
+                service = self.server.application.external_itsm_service
+                plan = service.build_freshservice_asset_sync_plan(
+                    BuildFreshserviceAssetSyncPlanCommand(
+                        tenant_id=tenant_id,
+                        resource_key=self._required_payload_value(payload, "resource_key"),
+                        direction=str(payload.get("direction", "push_ci")),
+                        asset_type=str(payload.get("asset_type", "asset")),
                         mapping=mapping,
                     )
                 )
@@ -2828,6 +3002,12 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "itsm_providers": "/api/v1/integrations/itsm/providers",
                     "servicenow_validate": "/api/v1/integrations/itsm/servicenow/validate",
                     "servicenow_ci_sync_plan": "/api/v1/integrations/itsm/servicenow/ci-sync-plan",
+                    "jira_validate": "/api/v1/integrations/itsm/jira/validate",
+                    "jira_asset_sync_plan": "/api/v1/integrations/itsm/jira/asset-sync-plan",
+                    "glpi_validate": "/api/v1/integrations/itsm/glpi/validate",
+                    "glpi_asset_sync_plan": "/api/v1/integrations/itsm/glpi/asset-sync-plan",
+                    "freshservice_validate": "/api/v1/integrations/itsm/freshservice/validate",
+                    "freshservice_asset_sync_plan": "/api/v1/integrations/itsm/freshservice/asset-sync-plan",
                 },
                 "itam": {
                     "support_profile": "/api/v1/itam/support-profile",

@@ -1,4 +1,12 @@
-### v0.29.55 — intégrations ITSM externes ServiceNow et thème UI corrigé
+### v0.29.57 — intégrations externes GLPI Inventory et Freshservice Assets
+
+OpenInfra publie GLPI Inventory et Freshservice Assets comme connecteurs ITSM externes de contexte : validation de profil, plans de synchronisation d’assets RSOT, API, CLI, portail web, OpenAPI et discovery. Aucun ticketing natif n’est introduit ; les secrets restent des références et les endpoints sont protégés par `security:admin` quand l’authentification API est active.
+
+### v0.29.56 — intégration externe Jira Service Management Assets
+
+OpenInfra publie Jira Service Management Assets comme connecteur ITSM externe de contexte : validation de profil, plan de synchronisation d’assets RSOT, API, CLI, portail web, OpenAPI et discovery. Aucun ticketing natif n’est introduit ; les secrets restent des références et les endpoints sont protégés par `security:admin` quand l’authentification API est active.
+
+### v0.29.56 — intégrations ITSM externes ServiceNow et thème UI corrigé
 
 - Ajout d'un composant web **Intégrations externes** exposant les politiques ITSM externes, la validation de connecteur ServiceNow et le plan de synchronisation CI.
 - Les connecteurs ITSM restent strictement externes : aucun ticket, incident, demande ou changement natif n'est créé dans OpenInfra.

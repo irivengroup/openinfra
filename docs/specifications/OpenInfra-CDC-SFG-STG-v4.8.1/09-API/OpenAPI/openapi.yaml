@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.43
+  version: 0.29.57
 components:
   securitySchemes:
     bearerToken:
@@ -101,6 +101,55 @@ paths:
           description: Validation error
         '401':
           description: Missing or invalid Bearer token when authentication is enabled
+
+  /api/v1/editions/policies:
+    get:
+      summary: List edition capabilities and quota policies
+      description: Returns Lite, Pro and Enterprise feature capabilities and runtime quota limits used by CLI, API and the web administration panel.
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: false, schema: {type: string, default: default}}
+      responses:
+        '200':
+          description: Edition policy catalog
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid security administrator token when authentication is enabled
+  /api/v1/editions/feature-check:
+    get:
+      summary: Check whether an edition allows a capability
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: edition, in: query, required: true, schema: {type: string, enum: [lite, pro, enterprise]}}
+        - {name: capability, in: query, required: true, schema: {type: string, enum: [core_rsot, dcim, ipam, rbac, audit, import_export, distributed_discovery_agents, installer_agent_scope]}}
+      responses:
+        '200':
+          description: Feature gate decision
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid security administrator token when authentication is enabled
+  /api/v1/editions/quota-check:
+    get:
+      summary: Check tenant usage against an edition quota
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: edition, in: query, required: true, schema: {type: string, enum: [lite, pro, enterprise]}}
+        - {name: resource, in: query, required: true, schema: {type: string, enum: [equipment, subnet_vlan, ip_dns_record, user, discovery_collector]}}
+        - {name: requested_increment, in: query, required: false, schema: {type: integer, minimum: 0, default: 1}}
+      responses:
+        '200':
+          description: Runtime quota decision
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid security administrator token when authentication is enabled
 
   /api/v1/security/whoami:
     post:
@@ -2186,6 +2235,19 @@ paths:
       responses:
         '200': {description: Binary export artifact}
         '400': {description: Validation error, unavailable artifact or integrity failure}
+  /api/v1/exports/artifact-chunk:
+    get:
+      summary: Read one verified byte chunk from a signed export artifact
+      description: Verifies artifact SHA-256 and HMAC signature before returning a bounded base64 chunk with next_offset for streaming download clients.
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: job_id, in: query, required: true, schema: {type: string}}
+        - {name: offset, in: query, required: false, schema: {type: integer, minimum: 0, default: 0}}
+        - {name: size, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 1048576, default: 65536}}
+        - {name: admin_token, in: query, required: false, schema: {type: string}}
+      responses:
+        '200': {description: JSON chunk containing base64 content, chunk digest and next offset}
+        '400': {description: Validation error, unavailable artifact or integrity failure}
 
   /api/v1/imports/datasets:
     post:
@@ -2282,6 +2344,17 @@ paths:
       responses:
         '200': {description: Persisted bulk import checkpoint}
         '400': {description: Validation error or unknown bulk checkpoint}
+
+
+  /api/v1/imports/bulk-progress:
+    get:
+      summary: Read resumability and processed-row counters for a bulk import job
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: job_id, in: query, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Bulk import progress state with checkpoint counters}
+        '400': {description: Validation error or unknown bulk import job}
 
 
   /api/v1/discovery/collectors:
@@ -2407,6 +2480,298 @@ paths:
         '401': {description: Security administrator token required}
         '400': {description: Validation error}
 
+  /api/v1/itam/support-profile:
+    get:
+      summary: Read an ITAM physical asset support profile
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: asset_tag, in: query, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Manufacturer warranty and separated third-party support contracts}
+        '401': {description: ITAM read token required}
+        '400': {description: Validation error or unknown asset support profile}
+  /api/v1/itam/support-coverage:
+    get:
+      summary: Evaluate manufacturer warranty and third-party support coverage for an ITAM asset
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: asset_tag, in: query, required: true, schema: {type: string}}
+        - {name: as_of, in: query, required: false, schema: {type: string, format: date}}
+      responses:
+        '200': {description: Coverage status with manufacturer warranty state and third-party support counters}
+        '401': {description: ITAM read token required}
+        '400': {description: Validation error or unknown asset support profile}
+
+  /api/v1/integrations/itsm/jira/validate:
+    post:
+      summary: Validate a Jira Service Management Assets external connector profile
+      description: Validates endpoint, object type and secret reference for an external Jira Service Management Assets connector without storing secret material or enabling native ticketing.
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, instance_url, auth_secret_ref]
+              properties:
+                tenant_id: {type: string}
+                instance_url: {type: string, format: uri}
+                object_type: {type: string, default: object}
+                auth_secret_ref: {type: string}
+                enabled: {type: boolean, default: true}
+      responses:
+        '200': {description: Validated Jira Service Management Assets connector profile}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid security administrator token when authentication is enabled}
+  /api/v1/integrations/itsm/jira/asset-sync-plan:
+    post:
+      summary: Build a Jira Service Management Assets synchronization plan
+      description: Builds a deterministic external asset synchronization plan; no native ticket, incident, request or change is created in OpenInfra.
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, resource_key]
+              properties:
+                tenant_id: {type: string}
+                resource_key: {type: string}
+                direction: {type: string, enum: [push_ci, enrich_external_ticket, link_external_ticket], default: push_ci}
+                object_type: {type: string, default: object}
+                mapping: {type: object, additionalProperties: {type: string}}
+      responses:
+        '200': {description: Jira Service Management Assets synchronization plan}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid security administrator token when authentication is enabled}
+  /api/v1/integrations/itsm/glpi/validate:
+    post:
+      summary: Validate a GLPI Inventory external connector profile
+      description: Validates endpoint, inventory item type and secret reference for an external GLPI Inventory connector without storing secret material or enabling native ticketing.
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, instance_url, auth_secret_ref]
+              properties:
+                tenant_id: {type: string}
+                instance_url: {type: string, format: uri}
+                item_type: {type: string, default: computer}
+                auth_secret_ref: {type: string}
+                enabled: {type: boolean, default: true}
+      responses:
+        '200': {description: Validated GLPI Inventory connector profile}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid security administrator token when authentication is enabled}
+  /api/v1/integrations/itsm/glpi/asset-sync-plan:
+    post:
+      summary: Build a GLPI Inventory asset synchronization plan
+      description: Builds a deterministic external asset synchronization plan; no native ticket, incident, request or change is created in OpenInfra.
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, resource_key]
+              properties:
+                tenant_id: {type: string}
+                resource_key: {type: string}
+                direction: {type: string, enum: [push_ci, enrich_external_ticket, link_external_ticket], default: push_ci}
+                item_type: {type: string, default: computer}
+                mapping: {type: object, additionalProperties: {type: string}}
+      responses:
+        '200': {description: GLPI Inventory asset synchronization plan}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid security administrator token when authentication is enabled}
+  /api/v1/integrations/itsm/freshservice/validate:
+    post:
+      summary: Validate a Freshservice Assets external connector profile
+      description: Validates endpoint, asset type and secret reference for an external Freshservice Assets connector without storing secret material or enabling native ticketing.
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, instance_url, auth_secret_ref]
+              properties:
+                tenant_id: {type: string}
+                instance_url: {type: string, format: uri}
+                asset_type: {type: string, default: asset}
+                auth_secret_ref: {type: string}
+                enabled: {type: boolean, default: true}
+      responses:
+        '200': {description: Validated Freshservice Assets connector profile}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid security administrator token when authentication is enabled}
+  /api/v1/integrations/itsm/freshservice/asset-sync-plan:
+    post:
+      summary: Build a Freshservice Assets synchronization plan
+      description: Builds a deterministic external asset synchronization plan; no native ticket, incident, request or change is created in OpenInfra.
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, resource_key]
+              properties:
+                tenant_id: {type: string}
+                resource_key: {type: string}
+                direction: {type: string, enum: [push_ci, enrich_external_ticket, link_external_ticket], default: push_ci}
+                asset_type: {type: string, default: asset}
+                mapping: {type: object, additionalProperties: {type: string}}
+      responses:
+        '200': {description: Freshservice Assets synchronization plan}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid security administrator token when authentication is enabled}
+  /api/v1/itam/support-profile/manufacturer:
+    post:
+      summary: Register immutable manufacturer warranty and initial support for an asset
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, asset_tag, manufacturer, warranty_reference, warranty_level, warranty_start, warranty_end, support_reference, support_level, support_contact]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                asset_tag: {type: string}
+                manufacturer: {type: string}
+                warranty_reference: {type: string}
+                warranty_level: {type: string}
+                warranty_start: {type: string, format: date}
+                warranty_end: {type: string, format: date}
+                support_reference: {type: string}
+                support_level: {type: string}
+                support_contact: {type: string}
+      responses:
+        '201': {description: Manufacturer warranty/support registered}
+        '401': {description: ITAM write token required}
+        '400': {description: Validation error or immutable manufacturer support conflict}
+  /api/v1/itam/support-profile/third-party:
+    post:
+      summary: Add separated third-party support without modifying manufacturer support
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, asset_tag, provider, contract_reference, support_level, support_start, support_end, support_contact]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                asset_tag: {type: string}
+                provider: {type: string}
+                contract_reference: {type: string}
+                support_level: {type: string}
+                support_start: {type: string, format: date}
+                support_end: {type: string, format: date}
+                support_contact: {type: string}
+                status: {type: string, enum: [active, expired, planned, terminated], default: active}
+                notes: {type: string}
+      responses:
+        '201': {description: Third-party support contract added separately}
+        '401': {description: ITAM write token required}
+        '400': {description: Validation error or missing manufacturer support profile}
+
+  /api/v1/itam/software-license:
+    get:
+      summary: Read an ITAM software license entitlement
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: license_reference, in: query, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Software license entitlement with quantities and contract metadata}
+        '401': {description: ITAM read token required}
+        '400': {description: Validation error or unknown license entitlement}
+    post:
+      summary: Register or update an ITAM software license entitlement
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, product_name, vendor, license_reference, metric, purchased_quantity, entitlement_start, entitlement_end]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                product_name: {type: string}
+                vendor: {type: string}
+                version: {type: string}
+                license_reference: {type: string}
+                contract_reference: {type: string}
+                metric: {type: string, enum: [device, user, core, socket, instance, subscription]}
+                purchased_quantity: {type: integer, minimum: 1}
+                assigned_quantity: {type: integer, minimum: 0, default: 0}
+                entitlement_start: {type: string, format: date}
+                entitlement_end: {type: string, format: date}
+                status: {type: string, enum: [active, expired, planned, terminated], default: active}
+                owner: {type: string}
+                notes: {type: string}
+      responses:
+        '201': {description: Software license entitlement registered or updated}
+        '401': {description: ITAM write token required}
+        '400': {description: Validation error}
+  /api/v1/itam/software-license/assignment:
+    post:
+      summary: Update assigned quantity for a software license entitlement
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, license_reference, assigned_quantity]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                license_reference: {type: string}
+                assigned_quantity: {type: integer, minimum: 0}
+                notes: {type: string}
+      responses:
+        '200': {description: Software license assignment updated}
+        '401': {description: ITAM write token required}
+        '400': {description: Validation error or unknown license entitlement}
+  /api/v1/itam/software-license/compliance:
+    get:
+      summary: Evaluate ITAM software license compliance and utilization
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: license_reference, in: query, required: true, schema: {type: string}}
+        - {name: as_of, in: query, required: false, schema: {type: string, format: date}}
+      responses:
+        '200': {description: Compliance state, quantities, utilization and expiration}
+        '401': {description: ITAM read token required}
+        '400': {description: Validation error or unknown license entitlement}
+
   /api/v1/imports/migration-template:
     get:
       summary: Read a built-in legacy migration mapping template
@@ -2469,3 +2834,61 @@ paths:
         '200': {description: Dry-run recommendation}
         '201': {description: Reservation allocated}
         '400': {description: Validation error}
+  /api/v1/integrations/itsm/providers:
+    get:
+      summary: List external ITSM connector policies
+      description: Lists supported external ITSM connectors without enabling native OpenInfra ticketing.
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: false, schema: {type: string, default: default}}
+      responses:
+        '200': {description: External ITSM connector policies}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid security administrator token when authentication is enabled}
+  /api/v1/integrations/itsm/servicenow/validate:
+    post:
+      summary: Validate a ServiceNow external connector profile
+      description: Validates endpoint, table and secret reference for an external ServiceNow CMDB connector without storing secret material.
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, instance_url, auth_secret_ref]
+              properties:
+                tenant_id: {type: string}
+                instance_url: {type: string, format: uri}
+                table_name: {type: string, default: cmdb_ci}
+                auth_secret_ref: {type: string}
+                enabled: {type: boolean, default: true}
+      responses:
+        '200': {description: Validated ServiceNow connector profile}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid security administrator token when authentication is enabled}
+  /api/v1/integrations/itsm/servicenow/ci-sync-plan:
+    post:
+      summary: Build a ServiceNow CI synchronization plan
+      description: Builds a deterministic external CI synchronization plan; no native ticket, incident, request or change is created in OpenInfra.
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, resource_key]
+              properties:
+                tenant_id: {type: string}
+                resource_key: {type: string}
+                direction: {type: string, enum: [push_ci, enrich_external_ticket, link_external_ticket], default: push_ci}
+                target_table: {type: string, default: cmdb_ci}
+                mapping: {type: object, additionalProperties: {type: string}}
+      responses:
+        '200': {description: ServiceNow CI synchronization plan}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid security administrator token when authentication is enabled}

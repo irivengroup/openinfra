@@ -1,4 +1,4 @@
-# Intégrations ITSM externes ServiceNow — OpenInfra v0.29.55
+# Intégrations ITSM externes ServiceNow — OpenInfra v0.29.56
 
 OpenInfra expose des contrats de connexion vers ServiceNow comme ITSM externe. Cette capacité ne crée aucun module natif de ticketing, incident, demande ou changement dans OpenInfra.
 

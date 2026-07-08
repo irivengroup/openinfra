@@ -1,46 +1,58 @@
-# OpenInfra v0.29.55 — rapport de validation
+# Rapport de validation — OpenInfra v0.29.57
 
-## Périmètre livré
+## Incrément livré
 
-- Intégration externe ITSM ServiceNow sans fonctionnalité ITSM native OpenInfra.
-- API/CLI/UI pour lister les politiques ITSM externes, valider un connecteur ServiceNow et produire un plan de synchronisation CI.
-- Correction UI demandée : les boutons de soumission restent en Bootstrap 5 `btn-primary`, avec surcharge thème turquoise `#24d8ab`.
-- Correction UI demandée : le bloc statut runtime web utilise uniquement la couleur de texte `#003D8F`, sans fond, bordure ni padding ajouté.
-- Non-régression RSOT canonique issue de v0.29.54 conservée ; alias historiques ITRM/SOT/RI restent dépréciés.
+OpenInfra v0.29.57 complète l'incrément EPIC-1304/P13 des intégrations ITSM externes en ajoutant les connecteurs **GLPI Inventory** et **Freshservice Assets**, sans ticketing natif OpenInfra.
+
+## Changements fonctionnels validés
+
+- Ajout fournisseur domaine `glpi` avec alias contrôlés `glpi-assets`, `glpi-inventory`.
+- Ajout fournisseur domaine `freshservice` avec alias contrôlés `fresh-service`, `freshservice-assets`, `freshworks`.
+- Ajout politiques de connecteurs externes, validation HTTPS, refus credentials URL, secrets uniquement par `auth_secret_ref`.
+- Ajout plans déterministes de synchronisation CI depuis RSOT vers GLPI/Freshservice.
+- Ajout commandes CLI `glpi-validate`, `glpi-asset-sync-plan`, `freshservice-validate`, `freshservice-asset-sync-plan`.
+- Ajout routes API REST `POST /api/v1/integrations/itsm/glpi/*` et `POST /api/v1/integrations/itsm/freshservice/*`.
+- Ajout publication OpenAPI, discovery document, UI, README, CHANGELOG, architecture, runbook, CDC et roadmap.
+- Mise à jour cohérente des versions runtime/package/Docker vers `0.29.57`.
 
 ## Validations exécutées
 
-| Validation | Statut |
+| Validation | Résultat |
 |---|---:|
-| `ruff format --check src tests scripts docker` | PASS |
-| `ruff check src tests scripts docker` | PASS |
-| `python -m compileall -q src tests scripts docker installers` | PASS |
+| `python -m compileall -q src tests scripts docker` | PASS |
 | `python scripts/validate_frontend.py --project-root .` | PASS |
 | `node --check src/openinfra/interfaces/rendering/static/assets/openinfra-web.js` | PASS |
-| `python -m openinfra version` | PASS — 0.29.55 |
-| `python scripts/security_gate.py` | PASS |
-| `python scripts/validate_enterprise_alignment.py` | PASS |
-| `python scripts/validate_autonomous_installer.py` | PASS — 6 profils |
-| `python scripts/native_runtime_smoke.py` | PASS |
-| `python -m openinfra spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1` | PASS — 798 exigences, 600 tests |
-| `python docs/specifications/OpenInfra-Roadmap-Developpement-v2/scripts/validate_roadmap.py docs/specifications/OpenInfra-Roadmap-Developpement-v2` | PASS — 19 phases, 114 epics, 8 gates, 70 tests |
-| `pytest --collect-only --no-cov` | PASS — 471 tests collectés |
-| `pytest tests/unit tests/architecture --no-cov` | PASS — 185 tests collectés dans ce périmètre |
-| `pytest tests/integration --no-cov` exécuté en lots | PASS — 286 tests collectés dans ce périmètre |
-| Couverture reconstruite par lots + `coverage report --fail-under=98` | PASS — 98.00 % |
-| `python scripts/quality_gate.py --project-root .` | PASS |
+| `python -m openinfra version` | PASS — `0.29.57` |
+| `python scripts/security_gate.py --project-root .` | PASS |
+| `python scripts/validate_enterprise_alignment.py --project-root .` | PASS |
+| `python scripts/validate_autonomous_installer.py --root installers` | PASS — 6 profils |
+| `python docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1/scripts/validate_docs.py` | PASS — 800 exigences, 525 entités |
+| `python docs/specifications/OpenInfra-Roadmap-Developpement-v2/scripts/validate_roadmap.py` | PASS — 19 phases, 114 epics, 8 gates, 72 tests |
+| `python -m pytest --collect-only --no-cov` | PASS — 481 tests collectés |
+| Tests ciblés domaine/service/API/web ITSM externes | PASS — 60 tests |
+| Tests unitaires + architecture | PASS — 191 tests |
+| Tests intégration par lots | PASS — 290 tests |
+| Couverture globale reconstruite par lots | PASS — 98 % |
+| `python scripts/quality_gate.py` | PASS |
 
-## Validations non exécutées / non disponibles localement
+## Validation CLI connecteurs externes
 
-| Validation | Résultat |
-|---|---|
-| `mypy src/openinfra` | Non exécuté — binaire `mypy` absent |
-| `bandit -q -r src/openinfra` | Non exécuté — binaire `bandit` absent |
-| `pip-audit` | Non exécuté — binaire `pip-audit` absent |
-| `python -m build` | Non exécuté — module Python `build` absent |
-| `npm run build --prefix web` | Non exécuté jusqu’au bout — `vite` absent car `web/node_modules` absent |
-| Docker Compose live | Non exécuté — binaire `docker` absent |
+- `openinfra integrations itsm-providers` : PASS — `servicenow`, `jira_service_management`, `glpi`, `freshservice`.
+- `openinfra integrations glpi-validate` : PASS.
+- `openinfra integrations glpi-asset-sync-plan` : PASS.
+- `openinfra integrations freshservice-validate` : PASS.
+- `openinfra integrations freshservice-asset-sync-plan` : PASS.
 
-## Résultat
+## Validation non monolithique
 
-La livraison v0.29.55 est validée par les contrôles disponibles dans l’environnement. Les contrôles dépendant d’outils absents sont explicitement listés ci-dessus.
+La commande `python -m pytest -q` en exécution monolithique a démarré mais a dépassé la limite d'exécution locale avant la fin. La validation complète a donc été rejouée par lots déterministes avec couverture agrégée, sans échec, pour couvrir les 481 tests collectés.
+
+## Non exécuté localement
+
+Les outils suivants ne sont pas disponibles dans l'environnement courant : `ruff`, `mypy`, `bandit`, `pip-audit`, `build`. Le build Vite complet et Docker Compose live ne sont pas exécutés faute de runtime Node/Vite/Docker live validé ici. Les hooks CI correspondants restent déclarés dans la GitHub Actions du projet.
+
+## Risques résiduels
+
+- Les connecteurs GLPI/Freshservice sont validés contractuellement, sans appel live vers des instances externes.
+- Les credentials restent volontairement abstraits par références de secrets ; leur résolution dépend de l'environnement cible.
+- Les tests live GLPI/Freshservice devront être exécutés dans un environnement d'intégration disposant d'instances dédiées.

@@ -21,12 +21,30 @@ def test_servicenow_policy_excludes_native_ticketing() -> None:
     assert "push_ci" in policy["supported_directions"]
 
 
+def test_jira_service_management_policy_excludes_native_ticketing() -> None:
+    policy = ExternalItsmConnectorPolicy.jira_service_management().as_dict()
+
+    assert policy["provider"] == "jira_service_management"
+    assert policy["native_ticketing_enabled"] is False
+    assert policy["editions"] == ["pro", "enterprise"]
+    assert "OPENINFRA_JIRA_TOKEN_REF" in policy["required_secret_refs"]
+    assert "workspace_id" in policy["required_ci_fields"]
+
+
 def test_servicenow_provider_and_direction_reject_unknown_values() -> None:
     assert (
         ExternalItsmProvider.from_value(ExternalItsmProvider.SERVICENOW)
         is ExternalItsmProvider.SERVICENOW
     )
     assert ExternalItsmProvider.from_value("snow") is ExternalItsmProvider.SERVICENOW
+    assert (
+        ExternalItsmProvider.from_value("jira")
+        is ExternalItsmProvider.JIRA_SERVICE_MANAGEMENT
+    )
+    assert (
+        ExternalItsmProvider.from_value("jsm")
+        is ExternalItsmProvider.JIRA_SERVICE_MANAGEMENT
+    )
     assert (
         ExternalItsmSyncDirection.from_value(ExternalItsmSyncDirection.PUSH_CI)
         is ExternalItsmSyncDirection.PUSH_CI
@@ -37,7 +55,7 @@ def test_servicenow_provider_and_direction_reject_unknown_values() -> None:
     )
 
     with pytest.raises(ValidationError):
-        ExternalItsmProvider.from_value("jira")
+        ExternalItsmProvider.from_value("unknown")
     with pytest.raises(ValidationError):
         ExternalItsmSyncDirection.from_value("open-ticket")
 
@@ -95,6 +113,47 @@ def test_servicenow_profile_normalizes_safe_values() -> None:
         "enabled": True,
         "native_ticketing_enabled": False,
     }
+
+
+
+def test_jira_service_management_profile_and_asset_plan_normalize_safe_values() -> None:
+    profile = ExternalItsmConnectorProfile.create(
+        "default",
+        "jira",
+        "https://tenant.atlassian.net/",
+        "SERVER",
+        "vault://openinfra/jira/api-token",
+    )
+    plan = ExternalItsmCiSyncPlan.create(
+        "default",
+        "jira_service_management",
+        "push_ci",
+        "SRV-PAR1-001",
+        "server",
+        {
+            "resource_key": "external_id",
+            "display_name": "name",
+            "resource_type": "object_type",
+            "workspace_id": "workspace_id",
+        },
+    )
+
+    assert profile.as_dict()["provider"] == "jira_service_management"
+    assert profile.as_dict()["table_name"] == "server"
+    assert plan.as_dict()["target_table"] == "server"
+    assert plan.as_dict()["mapping"]["workspace_id"] == "workspace_id"
+    assert plan.as_dict()["native_ticketing_enabled"] is False
+
+
+def test_jira_service_management_rejects_unknown_object_type() -> None:
+    with pytest.raises(ValidationError):
+        ExternalItsmConnectorProfile.create(
+            "default",
+            "jira",
+            "https://tenant.atlassian.net",
+            "incident",
+            "vault://openinfra/jira/api-token",
+        )
 
 
 def test_servicenow_ci_sync_plan_validates_required_mapping() -> None:
@@ -190,3 +249,91 @@ def test_servicenow_ci_sync_plan_supports_ticket_enrichment_and_link_actions() -
         "create_openinfra_external_link",
         "audit_external_link",
     ]
+
+
+def test_glpi_and_freshservice_policies_exclude_native_ticketing() -> None:
+    glpi = ExternalItsmConnectorPolicy.glpi().as_dict()
+    freshservice = ExternalItsmConnectorPolicy.freshservice().as_dict()
+
+    assert glpi["provider"] == "glpi"
+    assert glpi["native_ticketing_enabled"] is False
+    assert "OPENINFRA_GLPI_APP_TOKEN_REF" in glpi["required_secret_refs"]
+    assert "entity" in glpi["required_ci_fields"]
+    assert freshservice["provider"] == "freshservice"
+    assert freshservice["native_ticketing_enabled"] is False
+    assert "OPENINFRA_FRESHSERVICE_API_TOKEN_REF" in freshservice["required_secret_refs"]
+    assert "asset_tag" in freshservice["required_ci_fields"]
+
+
+def test_glpi_and_freshservice_aliases_profiles_and_asset_plans_are_safe() -> None:
+    assert ExternalItsmProvider.from_value("glpi-assets") is ExternalItsmProvider.GLPI
+    assert ExternalItsmProvider.from_value("fresh-service") is ExternalItsmProvider.FRESHSERVICE
+
+    glpi_profile = ExternalItsmConnectorProfile.create(
+        "default",
+        "glpi-inventory",
+        "https://glpi.example.com/",
+        "NETWORK_EQUIPMENT",
+        "vault://openinfra/glpi/tokens",
+    )
+    glpi_plan = ExternalItsmCiSyncPlan.create(
+        "default",
+        "glpi",
+        "push_ci",
+        "NET-PAR1-001",
+        "network_equipment",
+        {
+            "resource_key": "serial",
+            "display_name": "name",
+            "resource_type": "itemtype",
+            "entity": "entities_id",
+        },
+    )
+    freshservice_profile = ExternalItsmConnectorProfile.create(
+        "default",
+        "freshservice-assets",
+        "https://tenant.freshservice.com/",
+        "SERVER",
+        "vault://openinfra/freshservice/api-token",
+    )
+    freshservice_plan = ExternalItsmCiSyncPlan.create(
+        "default",
+        "freshworks",
+        "push_ci",
+        "SRV-PAR1-001",
+        "server",
+        {
+            "resource_key": "asset_tag",
+            "display_name": "name",
+            "resource_type": "asset_type_name",
+            "asset_tag": "asset_tag",
+        },
+    )
+
+    assert glpi_profile.as_dict()["provider"] == "glpi"
+    assert glpi_profile.as_dict()["table_name"] == "network_equipment"
+    assert glpi_plan.as_dict()["target_table"] == "network_equipment"
+    assert glpi_plan.as_dict()["mapping"]["entity"] == "entities_id"
+    assert freshservice_profile.as_dict()["provider"] == "freshservice"
+    assert freshservice_profile.as_dict()["table_name"] == "server"
+    assert freshservice_plan.as_dict()["target_table"] == "server"
+    assert freshservice_plan.as_dict()["mapping"]["asset_tag"] == "asset_tag"
+
+
+def test_glpi_and_freshservice_reject_invalid_asset_types() -> None:
+    with pytest.raises(ValidationError):
+        ExternalItsmConnectorProfile.create(
+            "default",
+            "glpi",
+            "https://glpi.example.com",
+            "ticket",
+            "vault://openinfra/glpi/tokens",
+        )
+    with pytest.raises(ValidationError):
+        ExternalItsmConnectorProfile.create(
+            "default",
+            "freshservice",
+            "https://tenant.freshservice.com",
+            "change",
+            "vault://openinfra/freshservice/api-token",
+        )

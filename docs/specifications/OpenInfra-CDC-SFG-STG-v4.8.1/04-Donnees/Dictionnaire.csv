@@ -518,5 +518,9 @@ ops,InstallationPostCheck,Rapport de validation post-installation.,standard,non 
 ,installer_network_profile,Paramètres FQDN IP mask VIP gateway DNS du nœud,,,,
 ,installer_storage_profile,Paramètres LVM applicatifs et PostgreSQL,,,,
 ,installer_scope_profile,Profil édition/scope/service/migrations,,,,
-software_license_entitlements,ITAM,Entitlement licence logicielle partitionné par tenant,"tenant_id,license_reference",PostgreSQL partitionné + JSON runtime
-software_license_compliance_report,ITAM,Rapport de conformité licence logicielle à date,"tenant_id,license_reference,as_of",Calcul applicatif déterministe
+software_license_entitlements,ITAM,Entitlement licence logicielle partitionné par tenant,"tenant_id,license_reference",PostgreSQL partitionné + JSON runtime,,
+software_license_compliance_report,ITAM,Rapport de conformité licence logicielle à date,"tenant_id,license_reference,as_of",Calcul applicatif déterministe,,
+integrations,external_itsm_glpi_connector_profile,Profil connecteur externe GLPI Inventory sans secret en clair,Faible par tenant,tenant_id,"tenant_id,provider,table_name",Validation profil et changements d’activation
+integrations,external_itsm_glpi_asset_sync_plan,Plan déterministe de synchronisation assets RSOT vers GLPI Inventory,Par opération opérateur,tenant_id,"tenant_id,resource_key,target_table",Plan généré et cible externe
+integrations,external_itsm_freshservice_connector_profile,Profil connecteur externe Freshservice Assets sans secret en clair,Faible par tenant,tenant_id,"tenant_id,provider,table_name",Validation profil et changements d’activation
+integrations,external_itsm_freshservice_asset_sync_plan,Plan déterministe de synchronisation assets RSOT vers Freshservice Assets,Par opération opérateur,tenant_id,"tenant_id,resource_key,target_table",Plan généré et cible externe

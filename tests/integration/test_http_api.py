@@ -91,6 +91,12 @@ class TestHttpApi:
                     "itsm_providers": "/api/v1/integrations/itsm/providers",
                     "servicenow_validate": "/api/v1/integrations/itsm/servicenow/validate",
                     "servicenow_ci_sync_plan": "/api/v1/integrations/itsm/servicenow/ci-sync-plan",
+                    "jira_validate": "/api/v1/integrations/itsm/jira/validate",
+                    "jira_asset_sync_plan": "/api/v1/integrations/itsm/jira/asset-sync-plan",
+                    "glpi_validate": "/api/v1/integrations/itsm/glpi/validate",
+                    "glpi_asset_sync_plan": "/api/v1/integrations/itsm/glpi/asset-sync-plan",
+                    "freshservice_validate": "/api/v1/integrations/itsm/freshservice/validate",
+                    "freshservice_asset_sync_plan": "/api/v1/integrations/itsm/freshservice/asset-sync-plan",
                 },
                 "itam": {
                     "support_profile": "/api/v1/itam/support-profile",
@@ -181,6 +187,8 @@ class TestHttpApi:
             assert "/api/v1/integrations/itsm/providers" in openapi
             assert "/api/v1/integrations/itsm/servicenow/validate" in openapi
             assert "/api/v1/integrations/itsm/servicenow/ci-sync-plan" in openapi
+            assert "/api/v1/integrations/itsm/jira/validate" in openapi
+            assert "/api/v1/integrations/itsm/jira/asset-sync-plan" in openapi
             assert "/api/v1/itam/support-profile" in openapi
             assert "/api/v1/itam/support-coverage" in openapi
             assert "/api/v1/itam/software-license" in openapi

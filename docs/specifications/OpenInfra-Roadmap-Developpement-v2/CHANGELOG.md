@@ -1,4 +1,14 @@
-## 0.29.55 — ServiceNow externe et thème Bootstrap corrigé
+## 0.29.57 — GLPI Inventory et Freshservice Assets externes
+
+- Ajout `TST-P25-ITSM-GLPI-FRESHSERVICE-EXTERNAL-CONNECTORS`.
+- Alignement `REQ-00800` pour GLPI Inventory et Freshservice Assets externes sans ticketing natif.
+
+## 0.29.56 — Jira Assets externe
+
+- Ajout `TST-P25-ITSM-JIRA-ASSETS-EXTERNAL-CONNECTOR`.
+- Alignement `REQ-00799` pour Jira Service Management Assets externe sans ticketing natif.
+
+## 0.29.56 — ServiceNow externe et thème Bootstrap corrigé
 
 - Ajout `TST-P25-ITSM-SERVICENOW-EXTERNAL-CONNECTOR`.
 - ServiceNow est traité comme connecteur ITSM externe uniquement : aucun ticketing natif OpenInfra.

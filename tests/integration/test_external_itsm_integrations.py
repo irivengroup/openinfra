@@ -8,7 +8,13 @@ from pathlib import Path
 
 from openinfra.application.container import ApplicationFactory
 from openinfra.application.external_itsm_services import (
+    BuildFreshserviceAssetSyncPlanCommand,
+    BuildGlpiAssetSyncPlanCommand,
+    BuildJiraServiceManagementAssetSyncPlanCommand,
     BuildServiceNowCiSyncPlanCommand,
+    ValidateFreshserviceConnectorCommand,
+    ValidateGlpiConnectorCommand,
+    ValidateJiraServiceManagementConnectorCommand,
     ValidateServiceNowConnectorCommand,
 )
 from openinfra.application.security_services import BootstrapTokenCommand
@@ -42,6 +48,33 @@ class TestExternalItsmIntegrations:
         assert profile.as_dict()["native_ticketing_enabled"] is False
         assert plan.as_dict()["mapping"]["resource_key"] == "correlation_id"
         assert plan.as_dict()["native_ticketing_enabled"] is False
+
+
+    def test_service_validates_jira_connector_and_plan(self, tmp_path: Path) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+        auth_ref = "vault://openinfra/jira/api-token"
+
+        profile = app.external_itsm_service.validate_jira_service_management_connector(
+            ValidateJiraServiceManagementConnectorCommand(
+                tenant_id="default",
+                instance_url="https://tenant.atlassian.net",
+                object_type="server",
+                auth_secret_ref=auth_ref,
+            )
+        )
+        plan = app.external_itsm_service.build_jira_service_management_asset_sync_plan(
+            BuildJiraServiceManagementAssetSyncPlanCommand(
+                tenant_id="default",
+                resource_key="SRV-PAR1-001",
+                direction="push_ci",
+                object_type="server",
+            )
+        )
+
+        assert profile.provider.value == "jira_service_management"
+        assert profile.as_dict()["native_ticketing_enabled"] is False
+        assert plan.as_dict()["mapping"]["resource_key"] == "external_id"
+        assert plan.as_dict()["target_table"] == "server"
 
     def test_cli_servicenow_contracts(self, tmp_path: Path, capsys: object) -> None:
         data = tmp_path / "state.json"
@@ -82,6 +115,171 @@ class TestExternalItsmIntegrations:
         assert profile["native_ticketing_enabled"] is False
         assert plan["target_table"] == "cmdb_ci"
 
+
+    def test_cli_jira_contracts(self, tmp_path: Path, capsys: object) -> None:
+        data = tmp_path / "state.json"
+        auth_ref = "vault://openinfra/jira/api-token"
+        code = OpenInfraCLI().run(
+            [
+                "integrations",
+                "jira-validate",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--instance-url",
+                "https://tenant.atlassian.net",
+                "--object-type",
+                "server",
+                "--auth-secret-ref",
+                auth_ref,
+            ]
+        )
+        profile = json.loads(capsys.readouterr().out)
+        plan_code = OpenInfraCLI().run(
+            [
+                "integrations",
+                "jira-asset-sync-plan",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--resource-key",
+                "SRV-PAR1-001",
+                "--object-type",
+                "server",
+            ]
+        )
+        plan = json.loads(capsys.readouterr().out)
+
+        assert code == 0
+        assert plan_code == 0
+        assert profile["provider"] == "jira_service_management"
+        assert plan["target_table"] == "server"
+
+    def test_service_validates_glpi_and_freshservice_connectors_and_plans(
+        self, tmp_path: Path
+    ) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+
+        glpi_profile = app.external_itsm_service.validate_glpi_connector(
+            ValidateGlpiConnectorCommand(
+                tenant_id="default",
+                instance_url="https://glpi.example.com",
+                item_type="computer",
+                auth_secret_ref="vault://openinfra/glpi/tokens",
+            )
+        )
+        glpi_plan = app.external_itsm_service.build_glpi_asset_sync_plan(
+            BuildGlpiAssetSyncPlanCommand(
+                tenant_id="default",
+                resource_key="SRV-PAR1-001",
+                direction="push_ci",
+                item_type="computer",
+            )
+        )
+        freshservice_profile = app.external_itsm_service.validate_freshservice_connector(
+            ValidateFreshserviceConnectorCommand(
+                tenant_id="default",
+                instance_url="https://tenant.freshservice.com",
+                asset_type="server",
+                auth_secret_ref="vault://openinfra/freshservice/api-token",
+            )
+        )
+        freshservice_plan = app.external_itsm_service.build_freshservice_asset_sync_plan(
+            BuildFreshserviceAssetSyncPlanCommand(
+                tenant_id="default",
+                resource_key="SRV-PAR1-001",
+                direction="push_ci",
+                asset_type="server",
+            )
+        )
+
+        assert glpi_profile.provider.value == "glpi"
+        assert glpi_profile.as_dict()["native_ticketing_enabled"] is False
+        assert glpi_plan.as_dict()["mapping"]["resource_key"] == "serial"
+        assert freshservice_profile.provider.value == "freshservice"
+        assert freshservice_profile.as_dict()["native_ticketing_enabled"] is False
+        assert freshservice_plan.as_dict()["mapping"]["resource_key"] == "asset_tag"
+
+    def test_cli_glpi_and_freshservice_contracts(
+        self, tmp_path: Path, capsys: object
+    ) -> None:
+        data = tmp_path / "state.json"
+        glpi_code = OpenInfraCLI().run(
+            [
+                "integrations",
+                "glpi-validate",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--instance-url",
+                "https://glpi.example.com",
+                "--item-type",
+                "computer",
+                "--auth-secret-ref",
+                "vault://openinfra/glpi/tokens",
+            ]
+        )
+        glpi_profile = json.loads(capsys.readouterr().out)
+        glpi_plan_code = OpenInfraCLI().run(
+            [
+                "integrations",
+                "glpi-asset-sync-plan",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--resource-key",
+                "SRV-PAR1-001",
+                "--item-type",
+                "computer",
+            ]
+        )
+        glpi_plan = json.loads(capsys.readouterr().out)
+        freshservice_code = OpenInfraCLI().run(
+            [
+                "integrations",
+                "freshservice-validate",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--instance-url",
+                "https://tenant.freshservice.com",
+                "--asset-type",
+                "server",
+                "--auth-secret-ref",
+                "vault://openinfra/freshservice/api-token",
+            ]
+        )
+        freshservice_profile = json.loads(capsys.readouterr().out)
+        freshservice_plan_code = OpenInfraCLI().run(
+            [
+                "integrations",
+                "freshservice-asset-sync-plan",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--resource-key",
+                "SRV-PAR1-001",
+                "--asset-type",
+                "server",
+            ]
+        )
+        freshservice_plan = json.loads(capsys.readouterr().out)
+
+        assert glpi_code == 0
+        assert glpi_plan_code == 0
+        assert glpi_profile["provider"] == "glpi"
+        assert glpi_plan["target_table"] == "computer"
+        assert freshservice_code == 0
+        assert freshservice_plan_code == 0
+        assert freshservice_profile["provider"] == "freshservice"
+        assert freshservice_plan["target_table"] == "server"
+
     def test_http_servicenow_contracts_are_security_admin_protected(self, tmp_path: Path) -> None:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json")
         auth_ref = "vault://openinfra/servicenow/oauth"
@@ -117,9 +315,64 @@ class TestExternalItsmIntegrations:
             except urllib.error.HTTPError as exc:
                 assert exc.code == 401
 
+            jira_profile = self._post_json(
+                base_url + "/api/v1/integrations/itsm/jira/validate",
+                {
+                    "tenant_id": "default",
+                    "instance_url": "https://tenant.atlassian.net",
+                    "object_type": "server",
+                    "auth_secret_ref": "vault://openinfra/jira/api-token",
+                },
+                token=token,
+            )
+            jira_plan = self._post_json(
+                base_url + "/api/v1/integrations/itsm/jira/asset-sync-plan",
+                {"tenant_id": "default", "resource_key": "SRV-PAR1-001", "object_type": "server"},
+                token=token,
+            )
+            glpi_profile = self._post_json(
+                base_url + "/api/v1/integrations/itsm/glpi/validate",
+                {
+                    "tenant_id": "default",
+                    "instance_url": "https://glpi.example.com",
+                    "item_type": "computer",
+                    "auth_secret_ref": "vault://openinfra/glpi/tokens",
+                },
+                token=token,
+            )
+            glpi_plan = self._post_json(
+                base_url + "/api/v1/integrations/itsm/glpi/asset-sync-plan",
+                {"tenant_id": "default", "resource_key": "SRV-PAR1-001", "item_type": "computer"},
+                token=token,
+            )
+            freshservice_profile = self._post_json(
+                base_url + "/api/v1/integrations/itsm/freshservice/validate",
+                {
+                    "tenant_id": "default",
+                    "instance_url": "https://tenant.freshservice.com",
+                    "asset_type": "server",
+                    "auth_secret_ref": "vault://openinfra/freshservice/api-token",
+                },
+                token=token,
+            )
+            freshservice_plan = self._post_json(
+                base_url + "/api/v1/integrations/itsm/freshservice/asset-sync-plan",
+                {"tenant_id": "default", "resource_key": "SRV-PAR1-001", "asset_type": "server"},
+                token=token,
+            )
+
             assert policies["items"][0]["provider"] == "servicenow"
+            assert policies["items"][1]["provider"] == "jira_service_management"
+            assert policies["items"][2]["provider"] == "glpi"
+            assert policies["items"][3]["provider"] == "freshservice"
             assert profile["native_ticketing_enabled"] is False
             assert plan["direction"] == "push_ci"
+            assert jira_profile["provider"] == "jira_service_management"
+            assert jira_plan["target_table"] == "server"
+            assert glpi_profile["provider"] == "glpi"
+            assert glpi_plan["target_table"] == "computer"
+            assert freshservice_profile["provider"] == "freshservice"
+            assert freshservice_plan["target_table"] == "server"
         finally:
             server.shutdown()
             server.server_close()

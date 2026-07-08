@@ -1,8 +1,58 @@
-# OpenInfra v0.29.55
+## v0.29.57 — connecteurs externes GLPI Inventory et Freshservice Assets
 
-## v0.29.55 — connecteur externe ServiceNow + corrections thème Bootstrap
+OpenInfra v0.29.57 complète les connecteurs ITSM externes P13 avec **GLPI Inventory** et **Freshservice Assets**, sans introduire de ticketing natif OpenInfra. Les contrats ServiceNow et Jira Service Management Assets restent inchangés.
 
-OpenInfra v0.29.55 ajoute les premiers contrats d'intégration **ITSM externe ServiceNow** sans introduire de ticketing natif : politiques de connecteurs, validation de profil ServiceNow et plan déterministe de synchronisation CI depuis RSOT vers une table CMDB externe.
+### Surfaces GLPI/Freshservice ajoutées
+
+- CLI :
+  - `openinfra integrations glpi-validate`
+  - `openinfra integrations glpi-asset-sync-plan`
+  - `openinfra integrations freshservice-validate`
+  - `openinfra integrations freshservice-asset-sync-plan`
+- API :
+  - `POST /api/v1/integrations/itsm/glpi/validate`
+  - `POST /api/v1/integrations/itsm/glpi/asset-sync-plan`
+  - `POST /api/v1/integrations/itsm/freshservice/validate`
+  - `POST /api/v1/integrations/itsm/freshservice/asset-sync-plan`
+- Web : composant **Intégrations externes** avec opérations GLPI Inventory et Freshservice Assets.
+- OpenAPI/discovery : contrats publiés sous `integrations.glpi_*` et `integrations.freshservice_*`.
+
+### Garde-fous
+
+- OpenInfra ne crée aucun ticket, incident, demande ou changement ITSM natif.
+- Les secrets GLPI/Freshservice sont référencés par `auth_secret_ref` et ne sont jamais fournis en clair.
+- Les URL d’instance doivent être HTTPS et ne peuvent pas contenir d'identifiants embarqués.
+- `native_ticketing_enabled` reste systématiquement `false`.
+
+# OpenInfra v0.29.56
+
+## v0.29.56 — connecteur externe Jira Service Management Assets
+
+OpenInfra v0.29.56 étend les intégrations ITSM externes avec **Jira Service Management Assets**, sans introduire de ticketing natif OpenInfra. Les contrats ServiceNow livrés précédemment restent inchangés.
+
+### Surfaces Jira ajoutées
+
+- CLI :
+  - `openinfra integrations jira-validate`
+  - `openinfra integrations jira-asset-sync-plan`
+- API :
+  - `POST /api/v1/integrations/itsm/jira/validate`
+  - `POST /api/v1/integrations/itsm/jira/asset-sync-plan`
+- Web : composant **Intégrations externes** avec opérations Jira Assets.
+- OpenAPI/discovery : chemins publiés.
+
+### Garde-fous
+
+- OpenInfra ne crée aucun ticket, incident, demande ou changement ITSM natif.
+- Les secrets Jira sont référencés par `auth_secret_ref` et ne sont jamais fournis en clair.
+- Les URL Jira doivent être HTTPS et ne peuvent pas contenir d'identifiants embarqués.
+- Les types d’objets Assets sont bornés : `object`, `server`, `network_device`, `computer`, `software`.
+- Les mappings exigent au minimum `resource_key`, `display_name` et `resource_type`.
+
+
+## v0.29.56 — connecteur externe ServiceNow + corrections thème Bootstrap
+
+OpenInfra v0.29.56 ajoute les premiers contrats d'intégration **ITSM externe ServiceNow** sans introduire de ticketing natif : politiques de connecteurs, validation de profil ServiceNow et plan déterministe de synchronisation CI depuis RSOT vers une table CMDB externe.
 
 Cette livraison corrige aussi les ajustements UI issus de v0.29.54 :
 

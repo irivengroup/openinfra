@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.55
+  version: 0.29.57
 components:
   securitySchemes:
     bearerToken:
@@ -2504,6 +2504,144 @@ paths:
         '401': {description: ITAM read token required}
         '400': {description: Validation error or unknown asset support profile}
 
+  /api/v1/integrations/itsm/jira/validate:
+    post:
+      summary: Validate a Jira Service Management Assets external connector profile
+      description: Validates endpoint, object type and secret reference for an external Jira Service Management Assets connector without storing secret material or enabling native ticketing.
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, instance_url, auth_secret_ref]
+              properties:
+                tenant_id: {type: string}
+                instance_url: {type: string, format: uri}
+                object_type: {type: string, default: object}
+                auth_secret_ref: {type: string}
+                enabled: {type: boolean, default: true}
+      responses:
+        '200': {description: Validated Jira Service Management Assets connector profile}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid security administrator token when authentication is enabled}
+  /api/v1/integrations/itsm/jira/asset-sync-plan:
+    post:
+      summary: Build a Jira Service Management Assets synchronization plan
+      description: Builds a deterministic external asset synchronization plan; no native ticket, incident, request or change is created in OpenInfra.
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, resource_key]
+              properties:
+                tenant_id: {type: string}
+                resource_key: {type: string}
+                direction: {type: string, enum: [push_ci, enrich_external_ticket, link_external_ticket], default: push_ci}
+                object_type: {type: string, default: object}
+                mapping: {type: object, additionalProperties: {type: string}}
+      responses:
+        '200': {description: Jira Service Management Assets synchronization plan}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid security administrator token when authentication is enabled}
+  /api/v1/integrations/itsm/glpi/validate:
+    post:
+      summary: Validate a GLPI Inventory external connector profile
+      description: Validates endpoint, inventory item type and secret reference for an external GLPI Inventory connector without storing secret material or enabling native ticketing.
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, instance_url, auth_secret_ref]
+              properties:
+                tenant_id: {type: string}
+                instance_url: {type: string, format: uri}
+                item_type: {type: string, default: computer}
+                auth_secret_ref: {type: string}
+                enabled: {type: boolean, default: true}
+      responses:
+        '200': {description: Validated GLPI Inventory connector profile}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid security administrator token when authentication is enabled}
+  /api/v1/integrations/itsm/glpi/asset-sync-plan:
+    post:
+      summary: Build a GLPI Inventory asset synchronization plan
+      description: Builds a deterministic external asset synchronization plan; no native ticket, incident, request or change is created in OpenInfra.
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, resource_key]
+              properties:
+                tenant_id: {type: string}
+                resource_key: {type: string}
+                direction: {type: string, enum: [push_ci, enrich_external_ticket, link_external_ticket], default: push_ci}
+                item_type: {type: string, default: computer}
+                mapping: {type: object, additionalProperties: {type: string}}
+      responses:
+        '200': {description: GLPI Inventory asset synchronization plan}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid security administrator token when authentication is enabled}
+  /api/v1/integrations/itsm/freshservice/validate:
+    post:
+      summary: Validate a Freshservice Assets external connector profile
+      description: Validates endpoint, asset type and secret reference for an external Freshservice Assets connector without storing secret material or enabling native ticketing.
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, instance_url, auth_secret_ref]
+              properties:
+                tenant_id: {type: string}
+                instance_url: {type: string, format: uri}
+                asset_type: {type: string, default: asset}
+                auth_secret_ref: {type: string}
+                enabled: {type: boolean, default: true}
+      responses:
+        '200': {description: Validated Freshservice Assets connector profile}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid security administrator token when authentication is enabled}
+  /api/v1/integrations/itsm/freshservice/asset-sync-plan:
+    post:
+      summary: Build a Freshservice Assets synchronization plan
+      description: Builds a deterministic external asset synchronization plan; no native ticket, incident, request or change is created in OpenInfra.
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, resource_key]
+              properties:
+                tenant_id: {type: string}
+                resource_key: {type: string}
+                direction: {type: string, enum: [push_ci, enrich_external_ticket, link_external_ticket], default: push_ci}
+                asset_type: {type: string, default: asset}
+                mapping: {type: object, additionalProperties: {type: string}}
+      responses:
+        '200': {description: Freshservice Assets synchronization plan}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid security administrator token when authentication is enabled}
   /api/v1/itam/support-profile/manufacturer:
     post:
       summary: Register immutable manufacturer warranty and initial support for an asset

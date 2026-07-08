@@ -62,7 +62,13 @@ from openinfra.application.export_services import (
     RunExportJobCommand,
 )
 from openinfra.application.external_itsm_services import (
+    BuildFreshserviceAssetSyncPlanCommand,
+    BuildGlpiAssetSyncPlanCommand,
+    BuildJiraServiceManagementAssetSyncPlanCommand,
     BuildServiceNowCiSyncPlanCommand,
+    ValidateFreshserviceConnectorCommand,
+    ValidateGlpiConnectorCommand,
+    ValidateJiraServiceManagementConnectorCommand,
     ValidateServiceNowConnectorCommand,
 )
 from openinfra.application.identity_services import (
@@ -815,6 +821,77 @@ class OpenInfraCLI:
         plan.add_argument("--direction", default="push_ci")
         plan.add_argument("--target-table", default="cmdb_ci")
         plan.set_defaults(handler=self._handle_integrations_servicenow_ci_sync_plan)
+
+        jira_validate = integration_subparsers.add_parser(
+            "jira-validate",
+            help="validate a Jira Service Management Assets external connector profile",
+        )
+        self._add_backend_arguments(jira_validate)
+        jira_validate.add_argument("--tenant", required=True)
+        jira_validate.add_argument("--instance-url", required=True)
+        jira_validate.add_argument("--object-type", default="object")
+        jira_validate.add_argument("--auth-secret-ref", required=True)
+        jira_validate.add_argument("--disabled", action="store_true")
+        jira_validate.set_defaults(handler=self._handle_integrations_jira_validate)
+
+        jira_plan = integration_subparsers.add_parser(
+            "jira-asset-sync-plan",
+            help="build a safe Jira Service Management Assets synchronization plan",
+        )
+        self._add_backend_arguments(jira_plan)
+        jira_plan.add_argument("--tenant", required=True)
+        jira_plan.add_argument("--resource-key", required=True)
+        jira_plan.add_argument("--direction", default="push_ci")
+        jira_plan.add_argument("--object-type", default="object")
+        jira_plan.set_defaults(handler=self._handle_integrations_jira_asset_sync_plan)
+
+        glpi_validate = integration_subparsers.add_parser(
+            "glpi-validate",
+            help="validate a GLPI Inventory external connector profile",
+        )
+        self._add_backend_arguments(glpi_validate)
+        glpi_validate.add_argument("--tenant", required=True)
+        glpi_validate.add_argument("--instance-url", required=True)
+        glpi_validate.add_argument("--item-type", default="computer")
+        glpi_validate.add_argument("--auth-secret-ref", required=True)
+        glpi_validate.add_argument("--disabled", action="store_true")
+        glpi_validate.set_defaults(handler=self._handle_integrations_glpi_validate)
+
+        glpi_plan = integration_subparsers.add_parser(
+            "glpi-asset-sync-plan",
+            help="build a safe GLPI Inventory asset synchronization plan",
+        )
+        self._add_backend_arguments(glpi_plan)
+        glpi_plan.add_argument("--tenant", required=True)
+        glpi_plan.add_argument("--resource-key", required=True)
+        glpi_plan.add_argument("--direction", default="push_ci")
+        glpi_plan.add_argument("--item-type", default="computer")
+        glpi_plan.set_defaults(handler=self._handle_integrations_glpi_asset_sync_plan)
+
+        freshservice_validate = integration_subparsers.add_parser(
+            "freshservice-validate",
+            help="validate a Freshservice Assets external connector profile",
+        )
+        self._add_backend_arguments(freshservice_validate)
+        freshservice_validate.add_argument("--tenant", required=True)
+        freshservice_validate.add_argument("--instance-url", required=True)
+        freshservice_validate.add_argument("--asset-type", default="asset")
+        freshservice_validate.add_argument("--auth-secret-ref", required=True)
+        freshservice_validate.add_argument("--disabled", action="store_true")
+        freshservice_validate.set_defaults(handler=self._handle_integrations_freshservice_validate)
+
+        freshservice_plan = integration_subparsers.add_parser(
+            "freshservice-asset-sync-plan",
+            help="build a safe Freshservice Assets synchronization plan",
+        )
+        self._add_backend_arguments(freshservice_plan)
+        freshservice_plan.add_argument("--tenant", required=True)
+        freshservice_plan.add_argument("--resource-key", required=True)
+        freshservice_plan.add_argument("--direction", default="push_ci")
+        freshservice_plan.add_argument("--asset-type", default="asset")
+        freshservice_plan.set_defaults(
+            handler=self._handle_integrations_freshservice_asset_sync_plan
+        )
 
     def _add_discovery_commands(self, subparsers: Any) -> None:
         discovery = subparsers.add_parser(
@@ -2403,6 +2480,91 @@ class OpenInfraCLI:
                 resource_key=args.resource_key,
                 direction=args.direction,
                 target_table=args.target_table,
+            )
+        )
+        print(json.dumps(plan.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_integrations_jira_validate(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        profile = app.external_itsm_service.validate_jira_service_management_connector(
+            ValidateJiraServiceManagementConnectorCommand(
+                tenant_id=args.tenant,
+                instance_url=args.instance_url,
+                object_type=args.object_type,
+                auth_secret_ref=args.auth_secret_ref,
+                enabled=not args.disabled,
+            )
+        )
+        print(json.dumps(profile.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_integrations_jira_asset_sync_plan(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        plan = app.external_itsm_service.build_jira_service_management_asset_sync_plan(
+            BuildJiraServiceManagementAssetSyncPlanCommand(
+                tenant_id=args.tenant,
+                resource_key=args.resource_key,
+                direction=args.direction,
+                object_type=args.object_type,
+            )
+        )
+        print(json.dumps(plan.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_integrations_glpi_validate(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        profile = app.external_itsm_service.validate_glpi_connector(
+            ValidateGlpiConnectorCommand(
+                tenant_id=args.tenant,
+                instance_url=args.instance_url,
+                item_type=args.item_type,
+                auth_secret_ref=args.auth_secret_ref,
+                enabled=not args.disabled,
+            )
+        )
+        print(json.dumps(profile.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_integrations_glpi_asset_sync_plan(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        plan = app.external_itsm_service.build_glpi_asset_sync_plan(
+            BuildGlpiAssetSyncPlanCommand(
+                tenant_id=args.tenant,
+                resource_key=args.resource_key,
+                direction=args.direction,
+                item_type=args.item_type,
+            )
+        )
+        print(json.dumps(plan.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_integrations_freshservice_validate(
+        self, args: argparse.Namespace
+    ) -> int:
+        app = self._create_application(args)
+        profile = app.external_itsm_service.validate_freshservice_connector(
+            ValidateFreshserviceConnectorCommand(
+                tenant_id=args.tenant,
+                instance_url=args.instance_url,
+                asset_type=args.asset_type,
+                auth_secret_ref=args.auth_secret_ref,
+                enabled=not args.disabled,
+            )
+        )
+        print(json.dumps(profile.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_integrations_freshservice_asset_sync_plan(
+        self, args: argparse.Namespace
+    ) -> int:
+        app = self._create_application(args)
+        plan = app.external_itsm_service.build_freshservice_asset_sync_plan(
+            BuildFreshserviceAssetSyncPlanCommand(
+                tenant_id=args.tenant,
+                resource_key=args.resource_key,
+                direction=args.direction,
+                asset_type=args.asset_type,
             )
         )
         print(json.dumps(plan.as_dict(), indent=2, sort_keys=True))

@@ -359,7 +359,16 @@ class TestOpenInfraWeb:
         assert 'path: "/v1/integrations/itsm/providers"' in static_js
         assert 'path: "/v1/integrations/itsm/servicenow/validate"' in static_js
         assert 'path: "/v1/integrations/itsm/servicenow/ci-sync-plan"' in static_js
+        assert 'path: "/v1/integrations/itsm/jira/validate"' in static_js
+        assert 'path: "/v1/integrations/itsm/jira/asset-sync-plan"' in static_js
+        assert 'path: "/v1/integrations/itsm/glpi/validate"' in static_js
+        assert 'path: "/v1/integrations/itsm/glpi/asset-sync-plan"' in static_js
+        assert 'path: "/v1/integrations/itsm/freshservice/validate"' in static_js
+        assert 'path: "/v1/integrations/itsm/freshservice/asset-sync-plan"' in static_js
         assert "Valider connecteur ServiceNow" in static_js
+        assert "Valider connecteur Jira Assets" in static_js
+        assert "Valider connecteur GLPI Inventory" in static_js
+        assert "Valider connecteur Freshservice Assets" in static_js
         assert 'path: "/v1/ipam/ui-search"' in static_js
         assert "idempotency_key" in static_js
         assert "endpoint_url" in static_js

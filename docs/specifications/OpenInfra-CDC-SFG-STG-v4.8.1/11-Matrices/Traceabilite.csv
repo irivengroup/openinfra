@@ -789,3 +789,5 @@ REQ-00793,N2,WEB/API,UC-WEB-001,TST-WEB-094,"Tests API HTTP, OpenAPI, discovery 
 REQ-00794,N1,ITAM,UC-ITAM-005,TST-WEB-095,Tests service/API/CLI/frontend/migration de la gestion des licences logicielles et de la conformité ITAM.
 REQ-00795,N1,IMPORT/API/WEB,UC-IMPORT-001,TST-WEB-096,Tests service/API/CLI/frontend/OpenAPI de la progression des imports massifs reprenables.
 REQ-00796,N1,EXPORT/API/WEB,UC-IMPORT-001,TST-WEB-097,Tests service/API/CLI/frontend/OpenAPI du streaming par chunks des artefacts exportés signés.
+REQ-00799,,,,TST-WEB-100,
+REQ-00800,N1,INTEGRATIONS-ITSM,UC-INTEGRATIONS-ITSM-001,TST-WEB-101,Tests domaine/service/API/CLI/frontend/OpenAPI des connecteurs externes GLPI Inventory et Freshservice Assets sans ticketing natif.

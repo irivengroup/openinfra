@@ -1,3 +1,11 @@
+## v0.29.61 — discovery locale Lite/Pro sans agent
+
+Le portail web expose l’opération **Plan discovery locale Lite/Pro** dans le composant **Discovery**. Cette opération appelle `POST /api/v1/discovery/local-plan` et présente un plan dry-run sans agent, sans scan réseau exécuté et sans écriture RSOT automatique.
+
+Le panneau latéral regroupe aussi toutes les opérations par contexte fonctionnel sous chaque composant. Cette structuration améliore la lisibilité sans retirer d’action existante ni changer les routes API. Les groupes couvrent notamment RSOT, IPAM, DCIM, ITAM, Discovery, Imports/Exports, Intégrations externes et Sécurité.
+
+Pour **Intégrations externes**, les groupes sont : Gouvernance ITSM, ServiceNow, Jira Assets, GLPI Inventory et Freshservice Assets. OpenService n’est pas exposé dans `openinfra-web`, conformément à la décision de conserver son interface dans le futur produit OpenService.
+
 ## v0.29.60 — guide migration données
 
 Le composant **Imports / Exports** expose l’opération **Guide migration données**. Le formulaire demande uniquement la source de migration (`device42`, `netbox`, `nautobot`, `glpi` ou `csv`) et appelle `GET /api/v1/imports/migration-guide` via le proxy same-origin. L’opération est informative et ne mute pas RSOT.

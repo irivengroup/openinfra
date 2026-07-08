@@ -171,6 +171,7 @@ class TestHttpApi:
                 },
                 "discovery": {
                     "collectors": "/api/v1/discovery/collectors",
+                    "local_plan": "/api/v1/discovery/local-plan",
                     "proxy_enrollments": "/api/v1/discovery/proxy-enrollments",
                     "heartbeat": "/api/v1/discovery/collectors/heartbeat",
                     "authorize_job": "/api/v1/discovery/jobs/authorize",
@@ -202,6 +203,7 @@ class TestHttpApi:
             assert "/api/v1/itam/support-coverage" in openapi
             assert "/api/v1/itam/software-license" in openapi
             assert "/api/v1/itam/software-license/compliance" in openapi
+            assert "/api/v1/discovery/local-plan" in openapi
             assert "/api/v1/discovery/proxy-enrollments" in openapi
             assert "/api/v1/dcim/power-devices" in openapi
             assert "/api/v1/dcim/energy-cooling-capacity" in openapi
@@ -1058,6 +1060,46 @@ class TestHttpApi:
         )
         with urllib.request.urlopen(request, timeout=5) as response:
             return json.loads(response.read().decode("utf-8"))
+
+    def test_local_discovery_plan_api_is_plan_only_for_lite(self, tmp_path: Path) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json", edition="lite")
+        token = "l" * 40
+        app.security_service.bootstrap_token(
+            BootstrapTokenCommand(
+                tenant_id="default",
+                actor="pytest",
+                subject="discovery-admin",
+                roles=("security:admin",),
+                token=token,
+            )
+        )
+        server = OpenInfraThreadingServer(("127.0.0.1", 0), app)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base_url = f"http://127.0.0.1:{server.server_port}"
+            plan = self._post_json(
+                base_url + "/api/v1/discovery/local-plan",
+                {
+                    "tenant_id": "default",
+                    "name": "Discovery PAR1",
+                    "scope": "site/par1",
+                    "protocol": "ssh",
+                    "targets": ["srv-app-01"],
+                    "credential_secret_ref": "vault://openinfra/discovery/local/par1",
+                },
+                token=token,
+            )
+
+            assert plan["edition"] == "lite"
+            assert plan["dry_run"] is True
+            assert plan["agent_required"] is False
+            assert plan["network_scan_executed"] is False
+            assert plan["rsot_write_enabled"] is False
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
 
     def test_api_entrypoint_application_factory_backend_selection(self, tmp_path: Path) -> None:
         from argparse import Namespace

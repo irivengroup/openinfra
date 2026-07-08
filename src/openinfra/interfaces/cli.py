@@ -43,6 +43,7 @@ from openinfra.application.dcim_services import (
 )
 from openinfra.application.discovery_services import (
     AuthorizeDiscoveryJobCommand,
+    BuildLocalDiscoveryPlanCommand,
     DisableCollectorCommand,
     EnrollDiscoveryProxyCommand,
     HeartbeatCollectorCommand,
@@ -1092,6 +1093,23 @@ class OpenInfraCLI:
         list_collectors.add_argument("--cursor")
         list_collectors.add_argument("--include-inactive", action="store_true")
         list_collectors.set_defaults(handler=self._handle_discovery_collector_list)
+
+        local_plan = discovery_subparsers.add_parser(
+            "local-plan",
+            help="build a Lite/Pro local discovery plan without agent or RSOT mutation",
+        )
+        self._add_backend_arguments(local_plan)
+        local_plan.add_argument("--tenant", required=True)
+        local_plan.add_argument("--actor", default="cli")
+        local_plan.add_argument("--admin-token", required=True)
+        local_plan.add_argument("--name", required=True)
+        local_plan.add_argument("--scope", required=True)
+        local_plan.add_argument("--protocol", choices=("snmp", "ssh", "winrm"), required=True)
+        local_plan.add_argument("--target", action="append", required=True)
+        local_plan.add_argument("--credential-secret-ref", required=True)
+        local_plan.add_argument("--max-concurrency", type=int, default=4)
+        local_plan.add_argument("--rate-limit-per-minute", type=int, default=120)
+        local_plan.set_defaults(handler=self._handle_discovery_local_plan)
 
     def _add_export_commands(self, subparsers: Any) -> None:
         exports = subparsers.add_parser("export", help="asynchronous signed export operations")
@@ -2889,6 +2907,25 @@ class OpenInfraCLI:
             )
         )
         print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_discovery_local_plan(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        plan = app.discovery_service.build_local_discovery_plan(
+            BuildLocalDiscoveryPlanCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                name=args.name,
+                scope=args.scope,
+                protocol=args.protocol,
+                targets=tuple(args.target),
+                credential_secret_ref=args.credential_secret_ref,
+                max_concurrency=args.max_concurrency,
+                rate_limit_per_minute=args.rate_limit_per_minute,
+            )
+        )
+        print(json.dumps(plan.as_dict(), indent=2, sort_keys=True))
         return 0
 
     def _handle_discovery_collector_heartbeat(self, args: argparse.Namespace) -> int:

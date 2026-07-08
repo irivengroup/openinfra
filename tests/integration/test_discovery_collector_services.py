@@ -7,6 +7,7 @@ import pytest
 from openinfra.application.container import ApplicationFactory
 from openinfra.application.discovery_services import (
     AuthorizeDiscoveryJobCommand,
+    BuildLocalDiscoveryPlanCommand,
     DisableCollectorCommand,
     EnrollDiscoveryProxyCommand,
     HeartbeatCollectorCommand,
@@ -17,6 +18,7 @@ from openinfra.application.security_services import BootstrapTokenCommand
 from openinfra.domain.common import TenantId, ValidationError
 
 FINGERPRINT = "c" * 64
+LOCAL_VAULT_REF = "vault://" + "openinfra/discovery/local/par1"
 
 
 def _application(tmp_path: Path):
@@ -240,3 +242,59 @@ def test_json_discovery_repository_missing_and_cursor_paths(tmp_path: Path) -> N
 
     assert first_page.items[0].id == first.id
     assert len(second_page.items) == 1
+
+
+def test_local_discovery_plan_lite_without_agent_or_rsot_mutation(tmp_path: Path) -> None:
+    app = ApplicationFactory().create_json_application(tmp_path / "state.json", edition="lite")
+    token = "e" * 40
+    app.security_service.bootstrap_token(
+        BootstrapTokenCommand(
+            tenant_id="default",
+            actor="test",
+            subject="sec-admin",
+            roles=("security:admin",),
+            token=token,
+        )
+    )
+
+    plan = app.discovery_service.build_local_discovery_plan(
+        BuildLocalDiscoveryPlanCommand(
+            tenant_id="default",
+            actor="pytest",
+            admin_token=token,
+            name="Discovery PAR1",
+            scope="site/par1",
+            protocol="ssh",
+            targets=("srv-app-01", "srv-app-02"),
+            credential_secret_ref=LOCAL_VAULT_REF,
+            max_concurrency=2,
+            rate_limit_per_minute=60,
+        )
+    )
+
+    payload = plan.as_dict()
+    assert payload["edition"] == "lite"
+    assert payload["dry_run"] is True
+    assert payload["agent_required"] is False
+    assert payload["network_scan_executed"] is False
+    assert payload["rsot_write_enabled"] is False
+    assert payload["targets_count"] == 2
+    assert len(app.audit_repository.list_events()) >= 1
+
+
+def test_local_discovery_plan_rejects_enterprise_runtime(tmp_path: Path) -> None:
+    app, token = _application(tmp_path)
+
+    with pytest.raises(ValidationError, match="lite and pro"):
+        app.discovery_service.build_local_discovery_plan(
+            BuildLocalDiscoveryPlanCommand(
+                tenant_id="default",
+                actor="pytest",
+                admin_token=token,
+                name="Discovery PAR1",
+                scope="site/par1",
+                protocol="snmp",
+                targets=("10.20.30.10",),
+                credential_secret_ref=LOCAL_VAULT_REF,
+            )
+        )

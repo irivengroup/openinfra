@@ -17,6 +17,7 @@ from openinfra.domain.discovery import (
     DiscoveryCollector,
     DiscoveryJobAuthorization,
     DiscoveryScope,
+    LocalDiscoveryPlan,
 )
 from openinfra.domain.editions import FeatureCapability, QuotaResource
 from openinfra.domain.security import Permission
@@ -87,6 +88,20 @@ class ListCollectorsCommand:
     include_inactive: bool = False
 
 
+@dataclass(frozen=True, slots=True)
+class BuildLocalDiscoveryPlanCommand:
+    tenant_id: str
+    actor: str
+    admin_token: str
+    name: str
+    scope: str
+    protocol: str
+    targets: tuple[str, ...]
+    credential_secret_ref: str
+    max_concurrency: int = 4
+    rate_limit_per_minute: int = 120
+
+
 class DiscoveryCollectorService:
     def __init__(
         self,
@@ -101,6 +116,54 @@ class DiscoveryCollectorService:
         self._transaction_manager = transaction_manager
         self._security_service = security_service
         self._edition_guard = edition_guard
+
+    def build_local_discovery_plan(
+        self, command: BuildLocalDiscoveryPlanCommand
+    ) -> LocalDiscoveryPlan:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        principal = self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                tenant_id.value, command.admin_token, Permission.SECURITY_ADMIN
+            )
+        )
+        edition = "enterprise"
+        if self._edition_guard is not None:
+            edition = self._edition_guard.edition.value
+        plan = LocalDiscoveryPlan.create(
+            tenant_id=tenant_id,
+            edition=edition,
+            name=command.name,
+            scope=command.scope,
+            protocol=command.protocol,
+            targets=command.targets,
+            credential_secret_ref=command.credential_secret_ref,
+            max_concurrency=command.max_concurrency,
+            rate_limit_per_minute=command.rate_limit_per_minute,
+            created_by=principal.subject,
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=principal.subject,
+                    action="discovery.local.plan_built",
+                    target_type="local_discovery_plan",
+                    target_id=plan.id.value,
+                    metadata={
+                        "declared_actor": command.actor,
+                        "edition": plan.edition,
+                        "scope": plan.scope.value,
+                        "protocol": plan.protocol.value,
+                        "targets_count": len(plan.jobs),
+                        "dry_run": plan.dry_run,
+                        "agent_required": plan.agent_required,
+                        "network_scan_executed": plan.network_scan_executed,
+                        "rsot_write_enabled": plan.rsot_write_enabled,
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return plan
 
     def register_collector(self, command: RegisterCollectorCommand) -> DiscoveryCollector:
         tenant_id = TenantId.from_value(command.tenant_id)

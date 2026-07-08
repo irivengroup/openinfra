@@ -425,3 +425,188 @@ class ReconciliationDecision:
         if not normalized_reason:
             raise ValidationError("reconciliation reason is mandatory")
         return cls(evidence_id=evidence_id, accepted=accepted, reason=normalized_reason)
+
+
+class LocalDiscoveryProtocol(StrEnum):
+    SNMP = "snmp"
+    SSH = "ssh"
+    WINRM = "winrm"
+
+    @classmethod
+    def from_value(cls, value: str) -> Self:
+        normalized = value.strip().lower().replace("_", "-")
+        try:
+            return cls(normalized)
+        except ValueError as exc:
+            raise ValidationError("local discovery protocol must be snmp, ssh or winrm") from exc
+
+
+@dataclass(frozen=True, slots=True)
+class LocalDiscoveryTarget:
+    value: str
+
+    @classmethod
+    def from_value(cls, value: str) -> Self:
+        normalized = value.strip().lower()
+        if "://" in normalized or "@" in normalized:
+            raise ValidationError(
+                "local discovery target must not contain URL credentials or scheme"
+            )
+        if not re.fullmatch(r"[a-z0-9][a-z0-9_.:/-]{1,127}", normalized):
+            raise ValidationError("local discovery target must use 2 to 128 safe characters")
+        return cls(normalized)
+
+
+@dataclass(frozen=True, slots=True)
+class LocalDiscoveryJobPlan:
+    target: LocalDiscoveryTarget
+    protocol: LocalDiscoveryProtocol
+    scope: DiscoveryScope
+    credential_secret_ref: str
+    operation: str
+    planned_status: str
+
+    @classmethod
+    def create(
+        cls,
+        target: LocalDiscoveryTarget,
+        protocol: LocalDiscoveryProtocol,
+        scope: DiscoveryScope,
+        credential_secret_ref: str,
+    ) -> Self:
+        secret_ref = CollectorIdentity._normalize_secret_ref(credential_secret_ref)
+        if secret_ref is None:
+            raise ValidationError("local discovery credential_secret_ref is mandatory")
+        return cls(
+            target=target,
+            protocol=protocol,
+            scope=scope,
+            credential_secret_ref=secret_ref,
+            operation=f"{protocol.value}-inventory-plan",
+            planned_status="planned",
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "target": self.target.value,
+            "protocol": self.protocol.value,
+            "scope": self.scope.value,
+            "credential_secret_ref": self.credential_secret_ref,
+            "operation": self.operation,
+            "planned_status": self.planned_status,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class LocalDiscoveryPlan:
+    id: EntityId
+    tenant_id: TenantId
+    edition: str
+    name: str
+    scope: DiscoveryScope
+    protocol: LocalDiscoveryProtocol
+    jobs: tuple[LocalDiscoveryJobPlan, ...]
+    max_concurrency: int
+    rate_limit_per_minute: int
+    created_by: str
+    created_at: datetime
+    dry_run: bool
+    agent_required: bool
+    network_scan_executed: bool
+    rsot_write_enabled: bool
+    safeguards: tuple[str, ...]
+
+    @classmethod
+    def create(
+        cls,
+        tenant_id: TenantId,
+        edition: str,
+        name: str,
+        scope: str,
+        protocol: str,
+        targets: tuple[str, ...],
+        credential_secret_ref: str,
+        max_concurrency: int,
+        rate_limit_per_minute: int,
+        created_by: str,
+    ) -> Self:
+        normalized_edition = edition.strip().lower()
+        if normalized_edition not in {"lite", "pro"}:
+            raise ValidationError(
+                "local discovery without agent is available only for lite and pro"
+            )
+        normalized_name = " ".join(name.strip().split())
+        if not 2 <= len(normalized_name) <= 128:
+            raise ValidationError("local discovery plan name must contain 2 to 128 characters")
+        if not targets:
+            raise ValidationError("local discovery plan requires at least one target")
+        if not 1 <= max_concurrency <= 32:
+            raise ValidationError("local discovery max_concurrency must be between 1 and 32")
+        if not 1 <= rate_limit_per_minute <= 10_000:
+            raise ValidationError(
+                "local discovery rate_limit_per_minute must be between 1 and 10000"
+            )
+        actor = " ".join(created_by.strip().split())
+        if not actor:
+            raise ValidationError("local discovery created_by is mandatory")
+        discovery_scope = DiscoveryScope.from_value(scope)
+        discovery_protocol = LocalDiscoveryProtocol.from_value(protocol)
+        normalized_targets = tuple(
+            dict.fromkeys(LocalDiscoveryTarget.from_value(item) for item in targets)
+        )
+        jobs = tuple(
+            LocalDiscoveryJobPlan.create(
+                target=target,
+                protocol=discovery_protocol,
+                scope=discovery_scope,
+                credential_secret_ref=credential_secret_ref,
+            )
+            for target in normalized_targets
+        )
+        return cls(
+            id=EntityId.new(),
+            tenant_id=tenant_id,
+            edition=normalized_edition,
+            name=normalized_name,
+            scope=discovery_scope,
+            protocol=discovery_protocol,
+            jobs=jobs,
+            max_concurrency=max_concurrency,
+            rate_limit_per_minute=rate_limit_per_minute,
+            created_by=actor,
+            created_at=datetime.now(UTC),
+            dry_run=True,
+            agent_required=False,
+            network_scan_executed=False,
+            rsot_write_enabled=False,
+            safeguards=(
+                "plan_only",
+                "dry_run",
+                "no_agent_required",
+                "no_network_scan_executed",
+                "no_rsot_write",
+                "vault_secret_reference_only",
+                "operator_review_required",
+            ),
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "id": self.id.value,
+            "tenant_id": self.tenant_id.value,
+            "edition": self.edition,
+            "name": self.name,
+            "scope": self.scope.value,
+            "protocol": self.protocol.value,
+            "targets_count": len(self.jobs),
+            "max_concurrency": self.max_concurrency,
+            "rate_limit_per_minute": self.rate_limit_per_minute,
+            "created_by": self.created_by,
+            "created_at": self.created_at.isoformat(),
+            "dry_run": self.dry_run,
+            "agent_required": self.agent_required,
+            "network_scan_executed": self.network_scan_executed,
+            "rsot_write_enabled": self.rsot_write_enabled,
+            "safeguards": list(self.safeguards),
+            "jobs": [job.as_dict() for job in self.jobs],
+        }

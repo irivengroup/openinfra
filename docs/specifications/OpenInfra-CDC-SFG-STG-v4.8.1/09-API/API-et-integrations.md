@@ -72,3 +72,7 @@ OpenInfra ajoute `REQ-00802` pour couvrir le rollback opérable des imports mass
 ## v0.29.60 — guides migration données
 
 `GET /api/v1/imports/migration-guide` retourne un guide structuré par source avec template, étapes, contrôles requis, rollback et critères de succès. L’endpoint ne modifie pas RSOT.
+
+## v0.29.61 — discovery locale Lite/Pro
+
+Ajout `POST /api/v1/discovery/local-plan` pour générer un plan dry-run de discovery locale Lite/Pro sans agent, sans scan réseau exécuté et sans mutation RSOT.

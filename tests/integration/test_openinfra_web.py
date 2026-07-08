@@ -242,6 +242,9 @@ class TestOpenInfraWeb:
         assert "FIELD_SETS.exportJobId" in static_js
         assert "FIELD_SETS.chunkOffset" in static_js
         assert "FIELD_SETS.chunkSize" in static_js
+        assert "Plan discovery locale Lite/Pro" in static_js + main_js
+        assert "/v1/discovery/local-plan" in static_js + main_js
+        assert "no_rsot_write" not in static_js
         assert "distributed_discovery_agents" in static_js
         assert "discovery_collector" in static_js
         assert "requested_increment" in static_js
@@ -294,6 +297,47 @@ class TestOpenInfraWeb:
         assert success_condition in static_js
         assert "submissionCompleted && activeModuleId !== 'overview' &&" in main_js
         assert "Soumission exécutée avec succès" in static_js
+        assert "OPENINFRA_SIDEBAR_CONTEXTS" in static_js
+        assert "SIDEBAR_CONTEXTS" in main_js
+        assert "sidebarOperationGroups" in static_js + main_js
+        assert "renderSidebarOperationGroup" in static_js
+        assert "openinfra-sidebar-context" in static_js + static_css + main_js
+        assert "openinfra-sidebar-context-title" in static_js + static_css + main_js
+        for context_label in (
+            "Référentiel",
+            "Relations & historique",
+            "Qualité & gouvernance",
+            "Vue & recherche",
+            "Adressage IP",
+            "Réseau L2/L3",
+            "Observations & DDI",
+            "Localisation & capacité",
+            "Connectivité",
+            "Énergie & refroidissement",
+            "Jumeau numérique",
+            "Support matériel",
+            "Licences logicielles",
+            "Locale Lite/Pro",
+            "Agents Enterprise",
+            "Imports",
+            "Migration",
+            "Exports",
+            "Gouvernance ITSM",
+            "ServiceNow",
+            "Jira Assets",
+            "GLPI Inventory",
+            "Freshservice Assets",
+            "Éditions & quotas",
+            "Identité & accès",
+            "Audit",
+        ):
+            assert context_label in static_js + main_js
+        assert (
+            '{ label: "ServiceNow", operationIds: ["servicenow-validate", "servicenow-ci-sync-plan"] }'
+            in static_js
+        )
+        assert "group.operationIds.map((id) => byId.get(id)).filter(Boolean)" in static_js
+        assert 'groups.push({ label: "Autres", operations: remaining })' in static_js
         assert "openinfra-accordion" in static_js + static_css
         assert ".openinfra-accordion-panel.show" in static_css
         assert "max-height: none" in static_css

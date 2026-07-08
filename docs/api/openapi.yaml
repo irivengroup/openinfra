@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.60
+  version: 0.29.61
 components:
   securitySchemes:
     bearerToken:
@@ -2429,6 +2429,32 @@ paths:
         '201': {description: Collector registered}
         '401': {description: Security administrator token required}
         '400': {description: Validation error}
+  /api/v1/discovery/local-plan:
+    post:
+      summary: Build a Lite/Pro local discovery plan without agent execution
+      description: Generates a safe plan-only local discovery dry-run; it does not execute a network scan, does not require an agent proxy and does not mutate RSOT.
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, name, scope, protocol, targets, credential_secret_ref]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                name: {type: string}
+                scope: {type: string}
+                protocol: {type: string, enum: [snmp, ssh, winrm]}
+                targets: {type: array, minItems: 1, items: {type: string}}
+                credential_secret_ref: {type: string, pattern: '^vault://'}
+                max_concurrency: {type: integer, minimum: 1, maximum: 32, default: 4}
+                rate_limit_per_minute: {type: integer, minimum: 1, maximum: 10000, default: 120}
+      responses:
+        '200': {description: Plan-only dry-run discovery jobs with safety guardrails}
+        '400': {description: Validation error or unsupported edition}
+        '401': {description: Security administrator token required}
   /api/v1/discovery/proxy-enrollments:
     post:
       summary: Enroll an Enterprise discovery proxy directly against a backend

@@ -1,3 +1,9 @@
+## Validation discovery locale Lite/Pro — v0.29.61
+
+Valider `openinfra discovery local-plan`, `POST /api/v1/discovery/local-plan`, OpenAPI, discovery document, portail web et garde-fous `dry_run`, `agent_required`, `network_scan_executed`, `rsot_write_enabled`.
+
+Valider également que `openinfra-web` publie les groupes contextuels du panneau latéral (`OPENINFRA_SIDEBAR_CONTEXTS`, `sidebarOperationGroups`, `openinfra-sidebar-context`) pour tous les composants, avec les connecteurs Intégrations regroupés par fournisseur et sans opération OpenService côté web.
+
 ## Validation guides migration données — v0.29.60
 
 ```bash

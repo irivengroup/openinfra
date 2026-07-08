@@ -162,3 +162,11 @@ OpenInfra ajoute `REQ-00802` pour couvrir le rollback opérable des imports mass
 ## v0.29.60 — guides migration données
 
 OpenInfra ajoute `REQ-00803` pour couvrir les guides opérables de migration depuis Device42, NetBox, Nautobot, GLPI et CSV : template, étapes, contrôles, rollback, critères de succès et publication CLI/API/OpenAPI/discovery/portail web sans mutation RSOT.
+
+## v0.29.61 — discovery locale Lite/Pro sans agent
+
+OpenInfra ajoute `REQ-00804` pour produire des plans discovery locale Lite/Pro avec cibles explicites, protocoles SNMP/SSH/WinRM, secrets `vault://`, dry-run obligatoire, aucune exécution de scan réseau et aucune mutation RSOT automatique.
+
+## v0.29.61 — panneau latéral groupé par contexte
+
+OpenInfra ajoute `REQ-00805` pour structurer le panneau latéral `openinfra-web` par contextes fonctionnels sous chaque composant. Les groupes couvrent RSOT, IPAM, DCIM, ITAM, Discovery, Imports/Exports, Intégrations externes et Sécurité. Les connecteurs Intégrations sont groupés par fournisseur ServiceNow, Jira Assets, GLPI Inventory et Freshservice Assets ; OpenService reste absent du portail web OpenInfra.

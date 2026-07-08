@@ -1631,3 +1631,11 @@ Critères : discovery/OpenAPI à jour, routes protégées par `security:admin` l
 ### Validation v0.29.60 — guides opérables de migration données
 
 La livraison v0.29.60 réalise P13 / EPIC-1306 avec des guides structurés Device42, NetBox, Nautobot, GLPI et CSV, publiés CLI/API/OpenAPI/discovery/portail web, sans mutation RSOT.
+
+### Validation v0.29.61 — discovery locale Lite/Pro sans agent
+
+La livraison v0.29.61 réalise le premier incrément P14 / EPIC-1401 avec un plan discovery locale Lite/Pro exposé CLI/API/OpenAPI/discovery/portail web. La génération reste plan-only/dry-run, sans agent proxy, sans scan réseau exécuté, sans mutation RSOT et avec secrets référencés `vault://`.
+
+### Validation v0.29.61 — panneau latéral groupé par contexte
+
+La roadmap v2 ajoute `TST-P08-WEB-SIDEBAR-CONTEXT-GROUPS` pour verrouiller la navigation web contextuelle : tous les composants regroupent leurs opérations par contexte métier, les intégrations ITSM sont groupées par fournisseur, aucune opération existante n’est supprimée et OpenService reste absent du portail web OpenInfra.

@@ -1,4 +1,17 @@
-### v0.29.60 — guides opérables de migration données
+### v0.29.61 — discovery locale Lite/Pro sans agent
+
+- Ajout du domaine de planification discovery locale : `LocalDiscoveryPlan`, `LocalDiscoveryJobPlan`, `LocalDiscoveryProtocol`, `LocalDiscoveryTarget`.
+- Ajout du service `DiscoveryCollectorService.build_local_discovery_plan` avec authentification `security:admin`, édition `lite/pro` uniquement et audit dédié.
+- Ajout CLI `openinfra discovery local-plan`.
+- Ajout API `POST /api/v1/discovery/local-plan`.
+- Publication discovery document, OpenAPI et portail web Discovery.
+- Garde-fous : plan-only, dry-run, aucun agent, aucun scan réseau réel, aucune écriture RSOT automatique, secrets uniquement `vault://`, limites de concurrence et rate limiting.
+- Alignement CDC `REQ-00804` et roadmap `TST-P14-LOCAL-DISCOVERY-PLAN`.
+- Regroupement du panneau latéral `openinfra-web` par contextes fonctionnels sous chaque composant.
+- Intégrations externes groupées par fournisseur : ServiceNow, Jira Assets, GLPI Inventory et Freshservice Assets ; OpenService reste absent du portail web OpenInfra.
+- Alignement CDC `REQ-00805` et roadmap `TST-P08-WEB-SIDEBAR-CONTEXT-GROUPS`.
+
+### v0.29.61 — guides opérables de migration données
 
 - Ajout du domaine `MigrationGuide` et `MigrationGuideStep`.
 - Ajout service `GenericImportService.get_migration_guide`.

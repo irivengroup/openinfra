@@ -729,6 +729,52 @@ const MODULES = [
   ] },
 ];
 
+const SIDEBAR_CONTEXTS = {
+  rsot: [
+    { label: 'Référentiel', operationIds: ['rsot-taxonomy', 'rsot-list', 'rsot-upsert'] },
+    { label: 'Relations & historique', operationIds: ['rsot-relations', 'rsot-as-of', 'rsot-object-audit'] },
+    { label: 'Qualité & gouvernance', operationIds: ['rsot-quality-object', 'rsot-quality-summary', 'rsot-governance', 'rsot-reconcile'] },
+  ],
+  ipam: [
+    { label: 'Vue & recherche', operationIds: ['ipam-dashboard', 'ipam-search'] },
+    { label: 'Adressage IP', operationIds: ['ipam-define-vrf', 'ipam-define-aggregate', 'ipam-define-prefix', 'ipam-list-prefixes', 'ipam-define-range', 'ipam-register-address', 'ipam-allocate', 'ipam-reservation-wizard', 'ipam-capacity'] },
+    { label: 'Réseau L2/L3', operationIds: ['ipam-network-bindings', 'ipam-topology', 'ipam-define-vlan-group', 'ipam-define-vxlan-vni', 'ipam-define-vlan', 'ipam-define-asn', 'ipam-define-bgp-peer'] },
+    { label: 'Observations & DDI', operationIds: ['ipam-observe-dns', 'ipam-observe-dhcp', 'ipam-conflicts', 'ipam-ddi-preview'] },
+  ],
+  dcim: [
+    { label: 'Localisation & capacité', operationIds: ['dcim-locate-equipment', 'dcim-rack-capacity', 'dcim-room-plan', 'dcim-rack-elevation'] },
+    { label: 'Connectivité', operationIds: ['dcim-patch-panel', 'dcim-port', 'dcim-cable', 'dcim-cable-trace'] },
+    { label: 'Énergie & refroidissement', operationIds: ['dcim-power-device', 'dcim-power-circuit', 'dcim-cooling-zone', 'dcim-power-reservation', 'dcim-energy-cooling-capacity'] },
+    { label: 'Jumeau numérique', operationIds: ['dcim-digital-twin'] },
+  ],
+  itam: [
+    { label: 'Support matériel', operationIds: ['itam-support-profile', 'itam-support-coverage', 'itam-register-manufacturer', 'itam-add-third-party'] },
+    { label: 'Licences logicielles', operationIds: ['itam-software-license', 'itam-software-compliance', 'itam-register-software', 'itam-update-license-assignment'] },
+  ],
+  discovery: [
+    { label: 'Locale Lite/Pro', operationIds: ['local-discovery-plan'] },
+    { label: 'Agents Enterprise', operationIds: ['collectors-list', 'collectors-register', 'job-authorize'] },
+  ],
+  data: [
+    { label: 'Imports', operationIds: ['import-bulk-progress', 'import-bulk-rollback'] },
+    { label: 'Migration', operationIds: ['import-migration-guide'] },
+    { label: 'Exports', operationIds: ['export-artifact-chunk'] },
+  ],
+  integrations: [
+    { label: 'Gouvernance ITSM', operationIds: ['itsm-providers'] },
+    { label: 'ServiceNow', operationIds: ['servicenow-validate', 'servicenow-ci-sync-plan'] },
+    { label: 'Jira Assets', operationIds: ['jira-validate', 'jira-asset-sync-plan'] },
+    { label: 'GLPI Inventory', operationIds: ['glpi-validate', 'glpi-asset-sync-plan'] },
+    { label: 'Freshservice Assets', operationIds: ['freshservice-validate', 'freshservice-asset-sync-plan'] },
+  ],
+  security: [
+    { label: 'Éditions & quotas', operationIds: ['edition-policies', 'edition-feature-check', 'edition-quota-check'] },
+    { label: 'Identité & accès', operationIds: ['tokens-list', 'effective-identity', 'access-rules'] },
+    { label: 'Audit', operationIds: ['audit-events', 'audit-integrity'] },
+  ],
+};
+
+
 function Icon({ name, className = 'bi' }) {
   return <svg className={className} width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d={ICONS[name] || ICONS.grid} /></svg>;
 }
@@ -797,6 +843,23 @@ function globalSearchGroups(query) {
     return { module, operations: matches.slice(0, 8), total: matches.length };
   }).filter((group) => group.total > 0);
 }
+
+function sidebarOperationGroups(module) {
+  const configuredGroups = SIDEBAR_CONTEXTS[module.id] || [];
+  const byId = new Map(module.operations.map((operation) => [operation.id, operation]));
+  const groupedIds = new Set();
+  const groups = configuredGroups.map((group) => {
+    const operations = group.operationIds.map((id) => byId.get(id)).filter(Boolean);
+    operations.forEach((operation) => groupedIds.add(operation.id));
+    return { label: group.label, operations };
+  }).filter((group) => group.operations.length > 0);
+  const remaining = module.operations.filter((operation) => !groupedIds.has(operation.id));
+  if (remaining.length > 0) {
+    groups.push({ label: 'Autres', operations: remaining });
+  }
+  return groups;
+}
+
 
 function Dashboard() {
   const [config, setConfig] = useState({ apiBaseUrl: '/api', apiDocumentation: { swaggerUrl: '/docs', redocUrl: '/redoc', openapiUrl: '/openapi.yaml' }, version: 'indisponible', webBackendTrust: 'server-side' });
@@ -946,7 +1009,7 @@ function Dashboard() {
       <div className="px-3 py-2 bg-dark text-white openinfra-top-header"><div className="container-fluid"><div className="d-flex flex-wrap align-items-center justify-content-center justify-content-lg-start"><a href="/" className="d-flex align-items-center my-2 my-lg-0 me-lg-auto text-white text-decoration-none" aria-label="OpenInfra accueil"><span className="openinfra-brand-mark me-2">OI</span><span className="fs-5 fw-semibold">OpenInfra</span><span className="badge openinfra-edition-badge ms-3">{config.edition || 'runtime'}</span></a><ul className="nav col-12 col-lg-auto my-2 justify-content-center my-md-0 text-small">{MODULES.map((module) => <li key={module.id}><button type="button" className={`nav-link border-0 bg-transparent ${activeModuleId === module.id ? 'text-secondary' : 'text-white'}`} aria-current={activeModuleId === module.id ? 'page' : undefined} onClick={() => chooseOperation(module, module.operations[0])}><Icon name={module.icon} className="bi d-block mx-auto mb-1 openinfra-top-icon" />{module.shortLabel || module.label}</button></li>)}</ul></div></div></div>
       <div className="px-3 py-2 border-bottom openinfra-global-toolbar"><div className="container-fluid openinfra-global-toolbar-inner"><div className="openinfra-global-toolbar-spacer" aria-hidden="true" /><form className="openinfra-global-search-form" role="search" aria-label="Recherche globale OpenInfra" autoComplete="off"><label className="visually-hidden" htmlFor="openinfra-global-search">Recherche globale OpenInfra</label><div className="openinfra-global-search-control"><Icon name="search" className="openinfra-global-search-icon" /><input type="search" id="openinfra-global-search" className="form-control" placeholder="Recherche globale..." aria-label="Recherche globale OpenInfra" role="combobox" aria-autocomplete="list" aria-haspopup="listbox" aria-controls="openinfra-global-search-results" aria-expanded={globalSearchQuery.trim() !== ''} value={globalSearchQuery} onChange={(event) => setGlobalSearchQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') setGlobalSearchQuery(''); }} /></div>{globalSearchQuery.trim() !== '' && <div id="openinfra-global-search-results" className="openinfra-global-search-results" role="listbox" aria-label="Résultats de recherche globale" aria-live="polite"><GlobalSearchResults query={globalSearchQuery} groups={searchGroups} backend={globalSearchBackend} loading={globalSearchLoading} error={globalSearchError} onSelect={selectSearchOperation} onBackendSelect={selectBackendSearchItem} /></div>}</form><div className="text-end openinfra-api-doc-actions"><a className="btn btn-light text-dark me-2" href={apiDocs.swaggerUrl} target="_blank" rel="noopener noreferrer" aria-label="Ouvrir Swagger UI backend API">Swagger</a><a className="btn btn-primary" href={apiDocs.redocUrl} target="_blank" rel="noopener noreferrer" aria-label="Ouvrir ReDoc backend API">ReDoc</a></div></div></div>
     </header>
-    <div className="container-fluid"><div className="row"><nav className="col-lg-3 col-xl-2 openinfra-sidebar" aria-label="Sidebar navigation"><div className="openinfra-sidebar-heading">Pilotage</div>{filteredModules.map((module) => module.id === 'overview' ? <button key={module.id} type="button" className={`nav-link openinfra-sidebar-dashboard w-100 text-start ${activeModuleId === module.id ? 'active' : ''}`} aria-current={activeModuleId === module.id ? 'page' : undefined} onClick={() => chooseOperation(module, module.operations[0])}><Icon name={module.icon} />Dashboard</button> : <section className={`openinfra-accordion ${opened.has(module.id) ? 'open' : ''}`} key={module.id}><button type="button" id={`openinfra-accordion-${module.id}`} className={`openinfra-accordion-toggle ${activeModuleId === module.id ? 'active' : ''}`} aria-expanded={opened.has(module.id)} aria-controls={`openinfra-panel-${module.id}`} aria-current={activeModuleId === module.id ? 'page' : undefined} onClick={() => toggleAccordion(module.id)}><span><Icon name={module.icon} />{module.shortLabel || module.label}</span><span className="openinfra-chevron">›</span></button><div id={`openinfra-panel-${module.id}`} className={`openinfra-accordion-panel fade ${opened.has(module.id) ? 'show' : ''}`} role="region" aria-labelledby={`openinfra-accordion-${module.id}`}>{module.operations.map((operation) => <button key={operation.id} type="button" className={`openinfra-sidebar-operation ${selected.id === operation.id ? 'active' : ''}`} aria-current={selected.id === operation.id ? 'page' : undefined} onClick={() => chooseOperation(module, operation)}>{operation.label}</button>)}</div></section>)}</nav><main id="openinfra-main-content" ref={mainContentRef} tabIndex={-1} className="col-lg-9 col-xl-10 ms-sm-auto openinfra-main"><div className="pb-2 mb-3 openinfra-titlebar"><h1 className="h2">{pageTitle}</h1><p className="text-muted mb-0">{pageSubtitle}</p></div>{submissionCompleted && activeModuleId !== 'overview' && <div className="alert alert-success" role="status">Soumission exécutée avec succès.</div>}{activeModuleId === 'overview' && <div className="row g-3 mb-4 openinfra-dashboard-metrics" aria-label="Métriques du dashboard"><Metric title="Version" value={displayedVersion} /><Metric title="API" value={config.apiBaseUrl || '/api'} /><Metric title="Trust" value={config.webBackendTrust || 'server-side'} /><Metric title="Formulaires" value={protectedForms} /><Metric title="Modules" value={`${operationsCount} opérations`} /></div>}{activeModuleId === 'overview' ? <OverviewStats modules={businessModules} fieldsCount={businessFieldsCount} /> : <section className="card openinfra-operation-card"><div className="card-body"><h2 className="h4">{selected.label}</h2><div className="row g-3 mb-3"><label className="col-md-4 form-label">Tenant<input className="form-control" value={tenant} onChange={(event) => setTenant(event.target.value)} /></label></div><div className="row g-3">{selected.fields.map((field) => <label className="col-md-6 col-xl-4 form-label" key={field}>{field}<input className="form-control" /></label>)}</div><button type="button" className="btn btn-primary mt-3" onClick={execute}>Exécuter</button><pre className="openinfra-result mt-3" aria-live="polite" aria-label="Résultat de l’opération">{result}</pre></div></section>}</main></div></div>
+    <div className="container-fluid"><div className="row"><nav className="col-lg-3 col-xl-2 openinfra-sidebar" aria-label="Sidebar navigation"><div className="openinfra-sidebar-heading">Pilotage</div>{filteredModules.map((module) => module.id === 'overview' ? <button key={module.id} type="button" className={`nav-link openinfra-sidebar-dashboard w-100 text-start ${activeModuleId === module.id ? 'active' : ''}`} aria-current={activeModuleId === module.id ? 'page' : undefined} onClick={() => chooseOperation(module, module.operations[0])}><Icon name={module.icon} />Dashboard</button> : <section className={`openinfra-accordion ${opened.has(module.id) ? 'open' : ''}`} key={module.id}><button type="button" id={`openinfra-accordion-${module.id}`} className={`openinfra-accordion-toggle ${activeModuleId === module.id ? 'active' : ''}`} aria-expanded={opened.has(module.id)} aria-controls={`openinfra-panel-${module.id}`} aria-current={activeModuleId === module.id ? 'page' : undefined} onClick={() => toggleAccordion(module.id)}><span><Icon name={module.icon} />{module.shortLabel || module.label}</span><span className="openinfra-chevron">›</span></button><div id={`openinfra-panel-${module.id}`} className={`openinfra-accordion-panel fade ${opened.has(module.id) ? 'show' : ''}`} role="region" aria-labelledby={`openinfra-accordion-${module.id}`}>{sidebarOperationGroups(module).map((group) => <div key={`${module.id}-${group.label}`} className="openinfra-sidebar-context" role="group" aria-label={group.label}><div className="openinfra-sidebar-context-title">{group.label}</div>{group.operations.map((operation) => <button key={operation.id} type="button" className={`openinfra-sidebar-operation ${selected.id === operation.id ? 'active' : ''}`} aria-current={selected.id === operation.id ? 'page' : undefined} onClick={() => chooseOperation(module, operation)}>{operation.label}</button>)}</div>)}</div></section>)}</nav><main id="openinfra-main-content" ref={mainContentRef} tabIndex={-1} className="col-lg-9 col-xl-10 ms-sm-auto openinfra-main"><div className="pb-2 mb-3 openinfra-titlebar"><h1 className="h2">{pageTitle}</h1><p className="text-muted mb-0">{pageSubtitle}</p></div>{submissionCompleted && activeModuleId !== 'overview' && <div className="alert alert-success" role="status">Soumission exécutée avec succès.</div>}{activeModuleId === 'overview' && <div className="row g-3 mb-4 openinfra-dashboard-metrics" aria-label="Métriques du dashboard"><Metric title="Version" value={displayedVersion} /><Metric title="API" value={config.apiBaseUrl || '/api'} /><Metric title="Trust" value={config.webBackendTrust || 'server-side'} /><Metric title="Formulaires" value={protectedForms} /><Metric title="Modules" value={`${operationsCount} opérations`} /></div>}{activeModuleId === 'overview' ? <OverviewStats modules={businessModules} fieldsCount={businessFieldsCount} /> : <section className="card openinfra-operation-card"><div className="card-body"><h2 className="h4">{selected.label}</h2><div className="row g-3 mb-3"><label className="col-md-4 form-label">Tenant<input className="form-control" value={tenant} onChange={(event) => setTenant(event.target.value)} /></label></div><div className="row g-3">{selected.fields.map((field) => <label className="col-md-6 col-xl-4 form-label" key={field}>{field}<input className="form-control" /></label>)}</div><button type="button" className="btn btn-primary mt-3" onClick={execute}>Exécuter</button><pre className="openinfra-result mt-3" aria-live="polite" aria-label="Résultat de l’opération">{result}</pre></div></section>}</main></div></div>
   </div>;
 }
 

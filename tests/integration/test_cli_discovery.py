@@ -403,3 +403,74 @@ def test_cli_discovery_job_authorize_outputs_single_json_document(
 
     assert output.count('"authorized"') == 1
     assert json.loads(output)["authorized"] is True
+
+
+def test_cli_discovery_local_plan_lite_outputs_plan_only_json(
+    tmp_path: Path, capsys: object
+) -> None:
+    data = tmp_path / "state.json"
+    token = "l" * 40
+    cli = OpenInfraCLI()
+    assert (
+        cli.run(
+            [
+                "security",
+                "bootstrap-token",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--subject",
+                "discovery-admin",
+                "--role",
+                "security:admin",
+                "--token",
+                token,
+            ]
+        )
+        == 0
+    )
+    capsys.readouterr()
+
+    assert (
+        cli.run(
+            [
+                "discovery",
+                "local-plan",
+                "--data",
+                str(data),
+                "--edition",
+                "lite",
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--name",
+                "Discovery PAR1",
+                "--scope",
+                "site/par1",
+                "--protocol",
+                "snmp",
+                "--target",
+                "10.20.30.10",
+                "--target",
+                "srv-app-01",
+                "--credential-secret-ref",
+                "vault://openinfra/discovery/local/par1",
+                "--max-concurrency",
+                "2",
+                "--rate-limit-per-minute",
+                "60",
+            ]
+        )
+        == 0
+    )
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["edition"] == "lite"
+    assert payload["targets_count"] == 2
+    assert payload["dry_run"] is True
+    assert payload["agent_required"] is False
+    assert payload["network_scan_executed"] is False
+    assert payload["rsot_write_enabled"] is False
+    assert payload["jobs"][0]["operation"] == "snmp-inventory-plan"

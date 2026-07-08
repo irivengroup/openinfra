@@ -1,8 +1,34 @@
-# OpenInfra v0.29.60
+# OpenInfra v0.29.61
 
-## v0.29.60 — guides opérables de migration données
+## v0.29.61 — discovery locale Lite/Pro sans agent
 
-OpenInfra v0.29.60 finalise P13 / EPIC-1306 avec des guides de migration structurés pour Device42, NetBox, Nautobot, GLPI et CSV générique. Ces guides exposent template, étapes, contrôles requis, rollback et critères de succès via CLI, API, OpenAPI, discovery et portail web, sans mutation RSOT.
+OpenInfra v0.29.61 ouvre P14 / EPIC-1401 avec une brique de discovery locale pour les éditions Lite et Pro. Cette livraison génère un plan opérable, sécurisé et revu par l’opérateur, sans scan réseau réel, sans agent proxy, sans écriture RSOT automatique et sans secret en clair.
+
+### Surfaces exposées
+
+- Domaine : `LocalDiscoveryPlan`, `LocalDiscoveryJobPlan`, `LocalDiscoveryProtocol`, `LocalDiscoveryTarget`.
+- Service applicatif : `DiscoveryCollectorService.build_local_discovery_plan`.
+- CLI : `openinfra discovery local-plan`.
+- API : `POST /api/v1/discovery/local-plan`.
+- Discovery/OpenAPI : contrat publié sous `discovery.local_plan`.
+- Web : opération **Plan discovery locale Lite/Pro** dans le composant **Discovery**.
+- Web UX : panneau latéral groupé par contextes fonctionnels sous chaque composant, sans suppression d’opération existante.
+
+### Navigation web par contexte
+
+Le panneau latéral regroupe désormais les opérations de tous les composants par contexte métier : référentiel, adressage IP, réseau L2/L3, connectivité, énergie/refroidissement, support matériel, licences logicielles, discovery locale/agents Enterprise, imports/migration/exports, connecteurs ITSM et sécurité.
+
+Pour **Intégrations externes**, les actions sont regroupées par fournisseur : ServiceNow, Jira Assets, GLPI Inventory et Freshservice Assets. OpenService reste volontairement absent du portail `openinfra-web`, car sa future interface sera portée par OpenService.
+
+### Garde-fous
+
+- Disponible uniquement pour les runtimes `lite` et `pro`.
+- Mode plan-only/dry-run systématique.
+- Aucun agent proxy requis.
+- Aucun scan réseau exécuté pendant la génération du plan.
+- Aucune écriture RSOT automatique.
+- Secrets uniquement sous forme de référence `vault://...`.
+- Concurrence et rate limit explicitement bornés.
 
 # OpenInfra v0.29.59
 

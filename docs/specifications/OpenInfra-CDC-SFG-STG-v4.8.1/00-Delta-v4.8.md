@@ -179,3 +179,9 @@ Le panneau latéral openinfra-web doit ouvrir les accordéons de composants dans
 - Les règles métier restent centralisées dans `EditionQueryService` ; le navigateur ne duplique aucune règle de licence, quota ou feature gate.
 
 - Ajout de `REQ-00803` et `TST-WEB-104` pour couvrir P13 / EPIC-1306 : guides opérables de migration données Device42, NetBox, Nautobot, GLPI et CSV, publiés CLI/API/OpenAPI/discovery/portail web sans mutation RSOT.
+
+- Ajout de `REQ-00804` et `TST-WEB-105` pour couvrir P14 / EPIC-1401 : plan discovery locale Lite/Pro sans agent, sans scan réseau exécuté, sans mutation RSOT et avec secrets vault:// uniquement.
+
+## v0.29.61 — panneau latéral web groupé par contexte
+
+OpenInfra ajoute `REQ-00805` et `TST-WEB-106` pour regrouper les opérations du panneau latéral par contexte fonctionnel sous chaque composant. Le composant Intégrations est structuré par fournisseur ServiceNow, Jira Assets, GLPI Inventory et Freshservice Assets, sans publier OpenService dans `openinfra-web`.

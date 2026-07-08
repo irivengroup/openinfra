@@ -108,3 +108,11 @@ La roadmap v2 intègre `TST-P13-BULK-IMPORT-ROLLBACK-CONFLICT-AWARE` pour verrou
 ## Validation v0.29.60 — guides opérables de migration données
 
 La roadmap v2 intègre `TST-P13-DATA-MIGRATION-GUIDES` pour verrouiller les guides structurés Device42, NetBox, Nautobot, GLPI et CSV. L’alignement CDC ajoute `REQ-00803` sur P13 / EPIC-1306 / release 0.29.60, avec validation domaine, service, CLI, API, OpenAPI, discovery, portail web et absence de mutation RSOT.
+
+## Validation v0.29.61 — discovery locale Lite/Pro sans agent
+
+La roadmap v2 intègre `TST-P14-LOCAL-DISCOVERY-PLAN` pour verrouiller le plan discovery locale Lite/Pro. L’alignement CDC ajoute `REQ-00804` sur P14 / EPIC-1401 / release 0.29.61, avec validation domaine, service, CLI, API, OpenAPI, discovery, portail web, dry-run, absence de scan réseau exécuté et absence de mutation RSOT.
+
+### Validation v0.29.61 — panneau latéral groupé par contexte
+
+La roadmap v2 ajoute `TST-P08-WEB-SIDEBAR-CONTEXT-GROUPS` pour verrouiller la navigation web contextuelle : tous les composants regroupent leurs opérations par contexte métier, les intégrations ITSM sont groupées par fournisseur, aucune opération existante n’est supprimée et OpenService reste absent du portail web OpenInfra.

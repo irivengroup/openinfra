@@ -1,3 +1,7 @@
+## v0.29.61 — discovery locale Lite/Pro sans agent
+
+`REQ-00804` est couvert par les tests domaine, service, CLI, API HTTP, OpenAPI, discovery document, validation frontend et portail web. Le contrat vérifie `dry_run=true`, `agent_required=false`, `network_scan_executed=false`, `rsot_write_enabled=false` et le refus Enterprise.
+
 ## v0.29.60 — guides opérables de migration données
 
 | Élément | Couverture |

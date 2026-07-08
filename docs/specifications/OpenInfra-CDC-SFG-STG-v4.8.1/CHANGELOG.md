@@ -332,3 +332,12 @@ Cette version conserve le périmètre v2 : RSOT (Ressource Source of Truth), DCI
 - Backend seul autorisé à appliquer les migrations.
 - v0.29.33 : ajout de la charte graphique premium openinfra-web, appliquée par CSS Bootstrap 5 compatible sans modification de structure ni import d’asset tiers.
 - Ajout REQ-00775 pour l’allègement des ombres de contenu openinfra-web sans modification du header ni du menu latéral.
+
+## 0.29.61 — discovery locale Lite/Pro sans agent
+
+- Ajout `REQ-00804` pour le plan discovery locale Lite/Pro sans agent.
+- Ajout `TST-WEB-105` couvrant domaine, service, CLI, API, discovery, OpenAPI et portail web.
+
+## v0.29.61 — panneau latéral web groupé par contexte
+
+OpenInfra ajoute `REQ-00805` et `TST-WEB-106` pour regrouper les opérations du panneau latéral par contexte fonctionnel sous chaque composant. Le composant Intégrations est structuré par fournisseur ServiceNow, Jira Assets, GLPI Inventory et Freshservice Assets, sans publier OpenService dans `openinfra-web`.

@@ -230,3 +230,12 @@ L’incrément v0.29.51 réalise `EPIC-1205` pour les licences logicielles : ent
 
 - Ajout du test roadmap `TST-P12-ITAM-ASSET-SUPPORT-PROFILE`.
 - Alignement de `REQ-00784` sur P12 / EPIC-1201 pour le profil support ITAM constructeur et tiers.
+
+## 0.29.61 — discovery locale Lite/Pro sans agent
+
+- Ajout `TST-P14-LOCAL-DISCOVERY-PLAN`.
+- Alignement `REQ-00804` sur P14 / EPIC-1401 pour plan discovery locale Lite/Pro sans agent, dry-run, sans scan réseau exécuté et sans mutation RSOT.
+
+### Validation v0.29.61 — panneau latéral groupé par contexte
+
+La roadmap v2 ajoute `TST-P08-WEB-SIDEBAR-CONTEXT-GROUPS` pour verrouiller la navigation web contextuelle : tous les composants regroupent leurs opérations par contexte métier, les intégrations ITSM sont groupées par fournisseur, aucune opération existante n’est supprimée et OpenService reste absent du portail web OpenInfra.

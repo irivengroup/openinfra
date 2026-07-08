@@ -228,3 +228,11 @@ OpenInfra ajoute `REQ-00802` pour couvrir le rollback opérable des imports mass
 ## v0.29.60 — guides opérables de migration données
 
 OpenInfra ajoute `REQ-00803` pour exposer des guides structurés de migration Device42, NetBox, Nautobot, GLPI et CSV via CLI/API/OpenAPI/discovery/portail web, sans mutation RSOT.
+
+## v0.29.61 — discovery locale Lite/Pro sans agent
+
+OpenInfra ajoute `REQ-00804` pour exposer un plan de discovery locale Lite/Pro via CLI/API/OpenAPI/discovery/portail web, en mode dry-run, sans agent proxy, sans scan réseau exécuté, sans mutation RSOT et avec secrets `vault://` uniquement.
+
+## v0.29.61 — panneau latéral web groupé par contexte
+
+OpenInfra ajoute `REQ-00805` et `TST-WEB-106` pour regrouper les opérations du panneau latéral par contexte fonctionnel sous chaque composant. Le composant Intégrations est structuré par fournisseur ServiceNow, Jira Assets, GLPI Inventory et Freshservice Assets, sans publier OpenService dans `openinfra-web`.

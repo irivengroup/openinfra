@@ -912,6 +912,7 @@ const OPENINFRA_MODULES = [
     { id: "itam-update-license-assignment", label: "Mettre à jour affectation licence", method: "POST", path: "/v1/itam/software-license/assignment", body: [FIELD_SETS.actor, { name: "license_reference", label: "Référence licence", required: true, placeholder: "LIC-OPENINFRA-001" }, { name: "assigned_quantity", label: "Quantité assignée", required: true, placeholder: "75" }, { name: "notes", label: "Notes", placeholder: "Ajustement inventaire" }] }
   ] },
   { id: "discovery", label: "Discovery", icon: "activity", description: "Collecte backend locale en Lite/Pro ; agents proxy collectors Enterprise uniquement en topologie étoile.", operations: [
+    { id: "local-discovery-plan", label: "Plan discovery locale Lite/Pro", method: "POST", path: "/v1/discovery/local-plan", body: [FIELD_SETS.actor, { name: "name", label: "Nom plan", required: true, placeholder: "Discovery locale PAR1" }, { name: "scope", label: "Scope", required: true, placeholder: "site/par1" }, { name: "protocol", label: "Protocole", required: true, type: "select", options: ["snmp", "ssh", "winrm"] }, { name: "targets", label: "Cibles", type: "csv", required: true, placeholder: "10.20.30.10,srv-app-01" }, { name: "credential_secret_ref", label: "Référence secret", required: true, placeholder: "vault://openinfra/discovery/local/par1" }, { name: "max_concurrency", label: "Concurrence max", type: "number", defaultValue: "4" }, { name: "rate_limit_per_minute", label: "Rate limit/min", type: "number", defaultValue: "120" }] },
     { id: "collectors-list", label: "Lister les agents proxy Enterprise", method: "GET", path: "/v1/discovery/collectors", query: [{ name: "scope", label: "Scope autorisé" }, FIELD_SETS.limit] },
     { id: "collectors-register", label: "Enregistrer un agent proxy Enterprise", method: "POST", path: "/v1/discovery/collectors", body: [FIELD_SETS.actor, { name: "name", label: "Nom agent proxy", required: true }, { name: "kind", label: "Type", required: true, type: "select", options: ["site-proxy", "network-proxy", "datacenter-proxy"] }, { name: "certificate_fingerprint", label: "Empreinte certificat", required: true }, { name: "scopes", label: "Scopes autorisés", type: "csv", required: true, placeholder: "site/paris,network/core" }, { name: "version", label: "Version agent", required: true, defaultValue: "1.0.0" }, { name: "endpoint_url", label: "Endpoint mTLS", required: true, placeholder: "https://collector-paris.openinfra.local" }] },
     { id: "job-authorize", label: "Autoriser un job collector", method: "POST", path: "/v1/discovery/jobs/authorize", body: [{ name: "collector_id", label: "ID agent proxy", required: true }, { name: "certificate_fingerprint", label: "Empreinte certificat", required: true }, { name: "requested_scope", label: "Scope demandé", required: true }, { name: "job_type", label: "Type de job", required: true, type: "select", options: ["snmp", "ssh", "winrm", "vmware", "kubernetes"] }, { name: "target", label: "Cible", required: true, placeholder: "10.20.30.10" }] }
@@ -944,6 +945,52 @@ const OPENINFRA_MODULES = [
     { id: "audit-integrity", label: "Intégrité audit", method: "GET", path: "/v1/audit/integrity", query: [FIELD_SETS.limit] }
   ] }
 ];
+
+const OPENINFRA_SIDEBAR_CONTEXTS = {
+  rsot: [
+    { label: "Référentiel", operationIds: ["rsot-taxonomy", "rsot-list", "rsot-upsert"] },
+    { label: "Relations & historique", operationIds: ["rsot-relations", "rsot-as-of", "rsot-object-audit"] },
+    { label: "Qualité & gouvernance", operationIds: ["rsot-quality-object", "rsot-quality-summary", "rsot-governance", "rsot-reconcile"] }
+  ],
+  ipam: [
+    { label: "Vue & recherche", operationIds: ["ipam-dashboard", "ipam-search"] },
+    { label: "Adressage IP", operationIds: ["ipam-define-vrf", "ipam-define-aggregate", "ipam-define-prefix", "ipam-list-prefixes", "ipam-define-range", "ipam-register-address", "ipam-allocate", "ipam-reservation-wizard", "ipam-capacity"] },
+    { label: "Réseau L2/L3", operationIds: ["ipam-network-bindings", "ipam-topology", "ipam-define-vlan-group", "ipam-define-vxlan-vni", "ipam-define-vlan", "ipam-define-asn", "ipam-define-bgp-peer"] },
+    { label: "Observations & DDI", operationIds: ["ipam-observe-dns", "ipam-observe-dhcp", "ipam-conflicts", "ipam-ddi-preview"] }
+  ],
+  dcim: [
+    { label: "Localisation & capacité", operationIds: ["dcim-locate-equipment", "dcim-rack-capacity", "dcim-room-plan", "dcim-rack-elevation"] },
+    { label: "Connectivité", operationIds: ["dcim-patch-panel", "dcim-port", "dcim-cable", "dcim-cable-trace"] },
+    { label: "Énergie & refroidissement", operationIds: ["dcim-power-device", "dcim-power-circuit", "dcim-cooling-zone", "dcim-power-reservation", "dcim-energy-cooling-capacity"] },
+    { label: "Jumeau numérique", operationIds: ["dcim-digital-twin"] }
+  ],
+  itam: [
+    { label: "Support matériel", operationIds: ["itam-support-profile", "itam-support-coverage", "itam-register-manufacturer", "itam-add-third-party"] },
+    { label: "Licences logicielles", operationIds: ["itam-software-license", "itam-software-compliance", "itam-register-software", "itam-update-license-assignment"] }
+  ],
+  discovery: [
+    { label: "Locale Lite/Pro", operationIds: ["local-discovery-plan"] },
+    { label: "Agents Enterprise", operationIds: ["collectors-list", "collectors-register", "job-authorize"] }
+  ],
+  data: [
+    { label: "Imports", operationIds: ["import-bulk-progress", "import-bulk-rollback"] },
+    { label: "Migration", operationIds: ["import-migration-guide"] },
+    { label: "Exports", operationIds: ["export-artifact-chunk"] }
+  ],
+  integrations: [
+    { label: "Gouvernance ITSM", operationIds: ["itsm-providers"] },
+    { label: "ServiceNow", operationIds: ["servicenow-validate", "servicenow-ci-sync-plan"] },
+    { label: "Jira Assets", operationIds: ["jira-validate", "jira-asset-sync-plan"] },
+    { label: "GLPI Inventory", operationIds: ["glpi-validate", "glpi-asset-sync-plan"] },
+    { label: "Freshservice Assets", operationIds: ["freshservice-validate", "freshservice-asset-sync-plan"] }
+  ],
+  security: [
+    { label: "Éditions & quotas", operationIds: ["edition-policies", "edition-feature-check", "edition-quota-check"] },
+    { label: "Identité & accès", operationIds: ["tokens-list", "effective-identity", "access-rules"] },
+    { label: "Audit", operationIds: ["audit-events", "audit-integrity"] }
+  ]
+};
+
 
 class OpenInfraDashboard {
   constructor(root) {
@@ -1038,6 +1085,31 @@ class OpenInfraDashboard {
 
   visibleOperations(module) {
     return module.operations;
+  }
+
+  sidebarOperationGroups(module, operations) {
+    const configuredGroups = OPENINFRA_SIDEBAR_CONTEXTS[module.id] || [];
+    const byId = new Map(operations.map((operation) => [operation.id, operation]));
+    const groupedIds = new Set();
+    const groups = configuredGroups.map((group) => {
+      const groupOperations = group.operationIds.map((id) => byId.get(id)).filter(Boolean);
+      for (const operation of groupOperations) {
+        groupedIds.add(operation.id);
+      }
+      return { label: group.label, operations: groupOperations };
+    }).filter((group) => group.operations.length > 0);
+    const remaining = operations.filter((operation) => !groupedIds.has(operation.id));
+    if (remaining.length > 0) {
+      groups.push({ label: "Autres", operations: remaining });
+    }
+    return groups;
+  }
+
+  renderSidebarOperationGroup(group) {
+    return `<div class="openinfra-sidebar-context" role="group" aria-label="${this.escape(group.label)}">
+      <div class="openinfra-sidebar-context-title">${this.escape(group.label)}</div>
+      ${group.operations.map((operation) => `<button type="button" class="openinfra-sidebar-operation ${this.state.selected.id === operation.id ? "active" : ""}" data-operation-id="${this.escape(operation.id)}" aria-current="${this.state.selected.id === operation.id ? "page" : "false"}">${this.escape(operation.label)}</button>`).join("")}
+    </div>`;
   }
 
   componentModules() {
@@ -1336,7 +1408,7 @@ class OpenInfraDashboard {
           <span>${this.icon(module.icon)}${this.escape(module.shortLabel || module.label)}</span><span class="openinfra-chevron">›</span>
         </button>
         <div id="openinfra-panel-${this.escape(module.id)}" class="openinfra-accordion-panel fade ${opened ? "show" : ""}" role="region" aria-labelledby="openinfra-accordion-${this.escape(module.id)}">
-          ${visibleOperations.map((operation) => `<button type="button" class="openinfra-sidebar-operation ${this.state.selected.id === operation.id ? "active" : ""}" data-operation-id="${this.escape(operation.id)}" aria-current="${this.state.selected.id === operation.id ? "page" : "false"}">${this.escape(operation.label)}</button>`).join("")}
+          ${this.sidebarOperationGroups(module, visibleOperations).map((group) => this.renderSidebarOperationGroup(group)).join("")}
         </div>
       </section>`;
     }).join("");

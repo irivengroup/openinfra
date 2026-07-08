@@ -9,10 +9,14 @@ from openinfra.domain.discovery import (
     DiscoveryCollector,
     DiscoveryJobAuthorization,
     DiscoveryScope,
+    LocalDiscoveryPlan,
+    LocalDiscoveryProtocol,
+    LocalDiscoveryTarget,
 )
 
 FINGERPRINT = "a" * 64
 OTHER_FINGERPRINT = "b" * 64
+LOCAL_VAULT_REF = "vault://" + "openinfra/discovery/local/par1"
 
 
 def test_collector_identity_requires_sha256_fingerprint() -> None:
@@ -180,3 +184,66 @@ def test_collector_kind_accepts_enterprise_proxy_aliases() -> None:
     assert CollectorKind.from_value("network_proxy").value == "network-proxy"
     assert CollectorKind.from_value("dc-proxy") is CollectorKind.DATACENTER_PROXY
     assert CollectorKind.from_value("snmp").is_proxy is False
+
+
+def test_local_discovery_plan_is_plan_only_and_masks_execution_side_effects() -> None:
+    plan = LocalDiscoveryPlan.create(
+        tenant_id=TenantId.from_value("default"),
+        edition="lite",
+        name="  Discovery PAR1  ",
+        scope="site/PAR1",
+        protocol="snmp",
+        targets=("10.20.30.10", "10.20.30.10", "srv-app-01"),
+        credential_secret_ref=LOCAL_VAULT_REF,
+        max_concurrency=4,
+        rate_limit_per_minute=120,
+        created_by="admin",
+    )
+
+    payload = plan.as_dict()
+
+    assert plan.name == "Discovery PAR1"
+    assert payload["edition"] == "lite"
+    assert payload["targets_count"] == 2
+    assert payload["dry_run"] is True
+    assert payload["agent_required"] is False
+    assert payload["network_scan_executed"] is False
+    assert payload["rsot_write_enabled"] is False
+    assert payload["jobs"][0]["credential_secret_ref"].startswith("vault://")
+    assert "no_rsot_write" in payload["safeguards"]
+
+
+def test_local_discovery_plan_validation_edges() -> None:
+    assert LocalDiscoveryProtocol.from_value("ssh").value == "ssh"
+    assert LocalDiscoveryTarget.from_value("SRV-APP-01").value == "srv-app-01"
+
+    with pytest.raises(ValidationError, match="lite and pro"):
+        LocalDiscoveryPlan.create(
+            TenantId.from_value("default"),
+            "enterprise",
+            "Discovery",
+            "site/par1",
+            "snmp",
+            ("10.0.0.1",),
+            LOCAL_VAULT_REF,
+            4,
+            120,
+            "admin",
+        )
+    with pytest.raises(ValidationError, match="credential_secret_ref"):
+        LocalDiscoveryPlan.create(
+            TenantId.from_value("default"),
+            "pro",
+            "Discovery",
+            "site/par1",
+            "snmp",
+            ("10.0.0.1",),
+            "",
+            4,
+            120,
+            "admin",
+        )
+    with pytest.raises(ValidationError, match="URL credentials"):
+        LocalDiscoveryTarget.from_value("https://admin:secret@example.test")
+    with pytest.raises(ValidationError, match="protocol"):
+        LocalDiscoveryProtocol.from_value("telnet")

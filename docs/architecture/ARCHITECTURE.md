@@ -1,3 +1,9 @@
+## v0.29.61 — discovery locale Lite/Pro sans agent
+
+La couche domaine `discovery` introduit `LocalDiscoveryPlan` comme plan non persistant de jobs locaux. Le service applicatif authentifie l’opérateur, borne l’édition à Lite/Pro, audite la génération du plan et garantit l’absence de scan réseau exécuté et de mutation RSOT.
+
+Côté interface, `openinfra-web` ajoute une couche de présentation `OPENINFRA_SIDEBAR_CONTEXTS` sans impact domaine/API : les opérations du panneau latéral sont groupées par contexte métier sous chaque composant. Cette couche reste purement UX, conserve toutes les opérations existantes et ne crée aucune route backend supplémentaire.
+
 ## v0.29.60 — guides opérables de migration données
 
 L’application expose désormais des guides structurés pour migrations Device42, NetBox, Nautobot, GLPI et CSV. Le domaine `MigrationGuide` reste pur et sérialisable ; l’application construit les guides à partir des templates existants ; les interfaces CLI/API/web publient une lecture sans mutation. RSOT reste canonique et les opérations de chargement/rollback restent explicitement séparées.

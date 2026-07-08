@@ -476,6 +476,23 @@ body {
   overflow: visible;
 }
 
+
+.openinfra-sidebar-context {
+  border-left: 1px solid rgba(var(--openinfra-action-rgb), .14);
+  margin: .45rem 0 .6rem .15rem;
+  padding-left: .55rem;
+}
+
+.openinfra-sidebar-context-title {
+  color: rgba(var(--openinfra-ink-rgb), .58);
+  font-size: .68rem;
+  font-weight: 900;
+  letter-spacing: .075em;
+  margin: .45rem 0 .18rem;
+  padding-left: .15rem;
+  text-transform: uppercase;
+}
+
 .openinfra-sidebar-operation {
   border-left: .18rem solid transparent;
   border-radius: .65rem;

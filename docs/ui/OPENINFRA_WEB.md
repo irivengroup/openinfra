@@ -1,3 +1,7 @@
+## v0.29.69 — Sidebar accordéon fluide et contextes différenciés
+
+La sidebar démarre désormais avec tous les composants métier fermés et le Dashboard actif. Le clic sur un composant active visuellement ce composant et affiche uniquement ses contextes. Le clic sur un contexte active le composant, ouvre seulement ce contexte et conserve les autres contextes fermés. Les contextes disposent d’une couleur dédiée, distincte des actions, tout en respectant la charte OpenInfra.
+
 ## v0.29.68 — Accordéon sidebar hiérarchique animé
 
 Le portail web conserve le rendu visuel existant de la sidebar, mais son comportement d’accordéon est désormais hiérarchique.

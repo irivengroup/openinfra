@@ -1,3 +1,7 @@
+## v0.29.69 — Architecture UI sidebar contextuelle
+
+L’état de navigation visuelle (`activeNavigationModuleId`) est séparé de l’état fonctionnel de page (`activeModuleId`). Cette séparation évite qu’un simple clic sur un composant ou un contexte charge une action métier implicite, tout en permettant de désigner correctement le composant actif.
+
 ## v0.29.68 — Architecture UI accordéon hiérarchique
 
 La sidebar web expose désormais une machine d’état distincte pour les composants ouverts (`openedModules`) et les contextes ouverts (`openedContexts`). Cette séparation évite le dépliage complet d’un composant et garantit qu’un seul contexte par composant est visible à la fois.

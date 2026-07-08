@@ -363,6 +363,12 @@ class TestOpenInfraWeb:
         assert "toggleSidebarContext" in static_js + main_js
         assert "openedContexts" in static_js + main_js
         assert "prefers-reduced-motion" in static_css
+        assert "--openinfra-sidebar-ease: cubic-bezier(.16, 1, .3, 1)" in static_css
+        assert "--openinfra-sidebar-context-bg-active" in static_css
+        assert ".openinfra-sidebar-context-title.active" in static_css
+        assert "box-shadow: inset .18rem 0 0 var(--openinfra-cyan)" in static_css
+        assert "transition: grid-template-rows .58s var(--openinfra-sidebar-ease)" in static_css
+        assert "transition: grid-template-rows .54s var(--openinfra-sidebar-ease)" in static_css
         assert "scrollbar-gutter: stable" in static_css
         assert "overscroll-behavior: contain" in static_css
         assert "max-height: 34rem" not in static_css
@@ -388,6 +394,11 @@ class TestOpenInfraWeb:
         assert 'matchMedia("(max-width: 575.98px)")' in static_js
         assert "mobile-open" in static_js + static_css + main_js
         assert "M2 4h12v1.4H2V4zm0 3.3h12v1.4H2V7.3zm0 3.3h12V12H2v-1.4z" in static_js + main_js
+        assert "activeNavigationModuleId" in static_js + main_js
+        assert "openedModules: new Set()," in static_js
+        assert 'new Set(["rsot"])' not in static_js
+        assert "useState(new Set())" in main_js
+        assert "useState(new Set(['rsot']))" not in main_js
         assert not re.search(r"\.openinfra-sidebar\s*\{[^}]*width:\s*100%", static_css)
         assert "@media (max-width: 991.98px)" in static_css
         assert "@media (max-width: 767.98px)" in static_css
@@ -555,8 +566,14 @@ class TestOpenInfraWeb:
         assert "DCIM topology catalog returned" in static_js
         assert 'this.state.selected.id.startsWith("dcim-")' in static_js
         toggle_body = static_js.split("toggleAccordion(moduleId)", 1)[1].split("toggleSidebarContext", 1)[0]
+        assert "activeNavigationModuleId: module.id" in toggle_body
+        assert "openedModules: wasOpen ? new Set() : new Set([moduleId])" in toggle_body
         assert "activeModuleId: module.id" not in toggle_body
         assert "selected: module.operations[0]" not in toggle_body
+        context_body = static_js.split("toggleSidebarContext(moduleId, contextLabel)", 1)[1].split("selectModule", 1)[0]
+        assert "activeNavigationModuleId: module.id" in context_body
+        assert "openedModules: new Set([moduleId])" in context_body
+        assert "openedContexts.add(contextKey)" in context_body
         assert "dcimCatalog" in static_js
         assert "data-field" in static_js
         assert (

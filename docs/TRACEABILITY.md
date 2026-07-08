@@ -1,3 +1,11 @@
+## v0.29.69 — Traçabilité UX sidebar contextuelle
+
+- Exigence : chargement initial avec Dashboard actif et composants fermés.
+- Exigence : clic composant ou contexte désigne le composant actif.
+- Exigence : couleur dédiée aux contextes, incluant hover/focus/active.
+- Exigence : animation de dépilement plus douce, sans transition `max-height`.
+- Vérification : tests web d’intégration renforcés sur l’état initial, l’activation visuelle et les transitions.
+
 ## v0.29.68 — Traçabilité accordéon sidebar hiérarchique
 
 | Élément | Couverture |

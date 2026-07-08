@@ -35,6 +35,10 @@
   --openinfra-content-shadow-hover: 0 .28rem .8rem rgba(0, 27, 65, .07);
   --openinfra-header-shadow: 0 .95rem 2.25rem rgba(0, 27, 65, .18), 0 .16rem .55rem rgba(0, 61, 143, .16);
   --openinfra-focus-ring: 0 0 0 .25rem rgba(var(--openinfra-action-rgb), .2);
+  --openinfra-sidebar-ease: cubic-bezier(.16, 1, .3, 1);
+  --openinfra-sidebar-context-bg: rgba(var(--openinfra-cyan-rgb), .075);
+  --openinfra-sidebar-context-bg-hover: rgba(var(--openinfra-cyan-rgb), .12);
+  --openinfra-sidebar-context-bg-active: rgba(var(--openinfra-cyan-rgb), .16);
   --bs-primary: var(--openinfra-action);
   --bs-primary-rgb: var(--openinfra-action-rgb);
   --bs-link-color: var(--openinfra-blue);
@@ -455,7 +459,7 @@ body {
   font-size: 1.25rem;
   line-height: 1;
   transform: rotate(0deg);
-  transition: transform .2s ease-in-out;
+  transition: transform .42s var(--openinfra-sidebar-ease);
 }
 
 .openinfra-accordion.open .openinfra-chevron {
@@ -469,7 +473,8 @@ body {
   overflow: hidden;
   padding-left: .85rem;
   transform: translateY(-.18rem);
-  transition: grid-template-rows .36s cubic-bezier(.25, .1, .25, 1), opacity .22s ease-in-out, transform .36s cubic-bezier(.25, .1, .25, 1);
+  transition: grid-template-rows .58s var(--openinfra-sidebar-ease), opacity .34s ease-in-out, transform .58s var(--openinfra-sidebar-ease);
+  will-change: grid-template-rows, opacity, transform;
 }
 
 .openinfra-accordion-panel.show {
@@ -485,7 +490,7 @@ body {
 }
 
 .openinfra-sidebar-context {
-  border-left: 1px solid rgba(var(--openinfra-action-rgb), .14);
+  border-left: 1px solid rgba(var(--openinfra-cyan-rgb), .24);
   margin: .45rem 0 .6rem .15rem;
   padding-left: .55rem;
 }
@@ -493,16 +498,33 @@ body {
 .openinfra-sidebar-context-title {
   background: transparent;
   border: 0;
-  color: rgba(var(--openinfra-ink-rgb), .58);
+  border-radius: .58rem;
+  color: var(--openinfra-navy-2);
   display: block;
   font-size: .68rem;
   font-weight: 900;
   letter-spacing: .075em;
   margin: .45rem 0 .18rem;
-  padding: 0 0 0 .15rem;
+  padding: .26rem .44rem .26rem .42rem;
   text-align: left;
   text-transform: uppercase;
+  transition: background-color .28s var(--openinfra-sidebar-ease), color .28s var(--openinfra-sidebar-ease), transform .34s var(--openinfra-sidebar-ease), box-shadow .34s var(--openinfra-sidebar-ease);
   width: 100%;
+}
+
+.openinfra-sidebar-context-title:hover,
+.openinfra-sidebar-context-title:focus {
+  background-color: var(--openinfra-sidebar-context-bg-hover);
+  box-shadow: inset .18rem 0 0 rgba(var(--openinfra-cyan-rgb), .38);
+  color: var(--openinfra-blue);
+  transform: translateX(1px);
+}
+
+.openinfra-sidebar-context-title.active,
+.openinfra-sidebar-context.open > .openinfra-sidebar-context-title {
+  background-color: var(--openinfra-sidebar-context-bg-active);
+  box-shadow: inset .18rem 0 0 var(--openinfra-cyan);
+  color: var(--openinfra-blue);
 }
 
 .openinfra-sidebar-context-panel {
@@ -511,7 +533,8 @@ body {
   opacity: 0;
   overflow: hidden;
   transform: translateY(-.16rem);
-  transition: grid-template-rows .34s cubic-bezier(.25, .1, .25, 1), opacity .2s ease-in-out, transform .34s cubic-bezier(.25, .1, .25, 1);
+  transition: grid-template-rows .54s var(--openinfra-sidebar-ease), opacity .32s ease-in-out, transform .54s var(--openinfra-sidebar-ease);
+  will-change: grid-template-rows, opacity, transform;
 }
 
 .openinfra-sidebar-context-panel.show {
@@ -527,7 +550,7 @@ body {
   font-size: .82rem;
   margin: .2rem 0;
   padding: .45rem .5rem .45rem .7rem;
-  transition: background-color .18s ease-in-out, border-color .18s ease-in-out, color .18s ease-in-out, transform .18s ease-in-out;
+  transition: background-color .26s var(--openinfra-sidebar-ease), border-color .26s var(--openinfra-sidebar-ease), color .26s var(--openinfra-sidebar-ease), transform .32s var(--openinfra-sidebar-ease);
 }
 
 .openinfra-sidebar-operation:hover,
@@ -1093,12 +1116,13 @@ body {
 /* v0.29.68: sidebar navigation hotfix keeps accordion selection and DCIM catalog rendering non-blocking. */
 
 
-/* v0.29.68: hierarchical accordion animation, Prismium-inspired easing without visual theme changes. */
+/* v0.29.69: sidebar starts closed on Dashboard, context-level active state and smoother accordion motion. */
 @media (prefers-reduced-motion: reduce) {
   .openinfra-accordion-panel,
   .openinfra-sidebar-context-panel,
   .openinfra-chevron,
   .openinfra-accordion-toggle,
+  .openinfra-sidebar-context-title,
   .openinfra-sidebar-operation {
     transition: none;
     transform: none;

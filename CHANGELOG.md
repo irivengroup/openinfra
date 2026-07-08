@@ -1,3 +1,11 @@
+## v0.29.69 — Sidebar fermée par défaut et contextes actifs fluides
+
+- Démarrage de la sidebar avec tous les composants fermés et Dashboard actif.
+- Activation visuelle du composant au clic sur le composant ou sur un contexte, sans sélectionner d’action implicite.
+- Accordéon exclusif au niveau composant et contexte : seul le panneau utile reste ouvert.
+- Couleur dédiée aux contextes, différente des actions, basée sur le cyan/bleu de la charte OpenInfra.
+- Animation encore plus douce via easing partagé `--openinfra-sidebar-ease`, durées progressives et respect de `prefers-reduced-motion`.
+
 ## v0.29.68 — Accordéon sidebar hiérarchique animé
 
 - Remplacement du dépliage brutal de la sidebar par un accordéon hiérarchique à deux niveaux : composant puis contexte.

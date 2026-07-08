@@ -1014,8 +1014,9 @@ class OpenInfraDashboard {
     this.root = root;
     this.state = {
       activeModuleId: "overview",
+      activeNavigationModuleId: "overview",
       selected: OPENINFRA_MODULES[0].operations[0],
-      openedModules: new Set(["rsot"]),
+      openedModules: new Set(),
       openedContexts: new Set(),
       tenant: "default",
       tenantCatalog: null,
@@ -1213,7 +1214,7 @@ class OpenInfraDashboard {
     const contextId = `openinfra-context-${module.id}-${this.slugify(group.label)}`;
     const opened = this.state.openedContexts.has(contextKey);
     return `<section class="openinfra-sidebar-context ${opened ? "open" : ""}" role="group" aria-label="${this.escape(group.label)}">
-      <button type="button" class="openinfra-sidebar-context-title" data-context-module-id="${this.escape(module.id)}" data-context-label="${this.escape(group.label)}" aria-expanded="${opened ? "true" : "false"}" aria-controls="${this.escape(contextId)}">${this.escape(group.label)}</button>
+      <button type="button" class="openinfra-sidebar-context-title ${opened && this.state.activeNavigationModuleId === module.id ? "active" : ""}" data-context-module-id="${this.escape(module.id)}" data-context-label="${this.escape(group.label)}" aria-expanded="${opened ? "true" : "false"}" aria-controls="${this.escape(contextId)}">${this.escape(group.label)}</button>
       <div id="${this.escape(contextId)}" class="openinfra-sidebar-context-panel ${opened ? "show" : ""}" role="region" aria-label="${this.escape(group.label)}">
         <div class="openinfra-sidebar-context-panel-inner">
           ${group.operations.map((operation) => `<button type="button" class="openinfra-sidebar-operation ${this.state.selected.id === operation.id ? "active" : ""}" data-operation-id="${this.escape(operation.id)}" aria-current="${this.state.selected.id === operation.id ? "page" : "false"}">${this.escape(operation.label)}</button>`).join("")}
@@ -1353,7 +1354,7 @@ class OpenInfraDashboard {
   }
 
   render() {
-    const { activeModuleId, selected, config, ready, status, version, error, result } = this.state;
+    const { activeModuleId, activeNavigationModuleId, selected, config, ready, status, version, error, result } = this.state;
     const displayedVersion = version?.version || config?.version || "indisponible";
     const protectedForms = status?.protectedForms === "enabled" ? "actifs" : "à configurer";
     const activeModule = OPENINFRA_MODULES.find((module) => module.id === activeModuleId) || OPENINFRA_MODULES[0];
@@ -1372,7 +1373,7 @@ class OpenInfraDashboard {
               </a>
               <ul class="nav col-12 col-lg-auto my-2 justify-content-center my-md-0 text-small">
                 ${OPENINFRA_MODULES.map((module) => `
-                  <li><button type="button" class="nav-link border-0 bg-transparent ${activeModuleId === module.id ? "text-secondary" : "text-white"}" data-module-id="${this.escape(module.id)}" aria-current="${activeModuleId === module.id ? "page" : "false"}">
+                  <li><button type="button" class="nav-link border-0 bg-transparent ${activeNavigationModuleId === module.id ? "text-secondary" : "text-white"}" data-module-id="${this.escape(module.id)}" aria-current="${activeNavigationModuleId === module.id ? "page" : "false"}">
                     ${this.icon(module.icon, "bi d-block mx-auto mb-1 openinfra-top-icon", 24, 24)}${this.escape(module.shortLabel || module.label)}
                   </button></li>
                 `).join("")}
@@ -1512,7 +1513,7 @@ class OpenInfraDashboard {
   renderSidebar() {
     return OPENINFRA_MODULES.map((module) => {
       if (module.id === "overview") {
-        return `<button type="button" class="nav-link openinfra-sidebar-dashboard w-100 text-start ${this.state.activeModuleId === module.id ? "active" : ""}" data-operation-id="${this.escape(module.operations[0].id)}" aria-current="${this.state.activeModuleId === module.id ? "page" : "false"}">${this.icon(module.icon)}Dashboard</button>`;
+        return `<button type="button" class="nav-link openinfra-sidebar-dashboard w-100 text-start ${this.state.activeNavigationModuleId === module.id ? "active" : ""}" data-operation-id="${this.escape(module.operations[0].id)}" aria-current="${this.state.activeNavigationModuleId === module.id ? "page" : "false"}">${this.icon(module.icon)}Dashboard</button>`;
       }
       const opened = this.state.openedModules.has(module.id);
       const visibleOperations = this.visibleOperations(module);
@@ -1520,7 +1521,7 @@ class OpenInfraDashboard {
         return "";
       }
       return `<section class="openinfra-accordion ${opened ? "open" : ""}">
-        <button type="button" id="openinfra-accordion-${this.escape(module.id)}" class="openinfra-accordion-toggle ${this.state.activeModuleId === module.id ? "active" : ""}" data-accordion-id="${this.escape(module.id)}" aria-expanded="${opened ? "true" : "false"}" aria-controls="openinfra-panel-${this.escape(module.id)}" aria-current="${this.state.activeModuleId === module.id ? "page" : "false"}">
+        <button type="button" id="openinfra-accordion-${this.escape(module.id)}" class="openinfra-accordion-toggle ${this.state.activeNavigationModuleId === module.id ? "active" : ""}" data-accordion-id="${this.escape(module.id)}" aria-expanded="${opened ? "true" : "false"}" aria-controls="openinfra-panel-${this.escape(module.id)}" aria-current="${this.state.activeNavigationModuleId === module.id ? "page" : "false"}">
           <span>${this.icon(module.icon)}${this.escape(module.shortLabel || module.label)}</span><span class="openinfra-chevron">›</span>
         </button>
         <div id="openinfra-panel-${this.escape(module.id)}" class="openinfra-accordion-panel fade ${opened ? "show" : ""}" role="region" aria-labelledby="openinfra-accordion-${this.escape(module.id)}">
@@ -1835,19 +1836,12 @@ class OpenInfraDashboard {
     if (!module) {
       return;
     }
-    const openedModules = new Set(this.state.openedModules);
-    const openedContexts = new Set(this.state.openedContexts);
-    if (openedModules.has(moduleId)) {
-      openedModules.delete(moduleId);
-      this.removeModuleContexts(openedContexts, moduleId);
-    } else {
-      openedModules.add(moduleId);
-      this.removeModuleContexts(openedContexts, moduleId);
-    }
+    const wasOpen = this.state.openedModules.has(moduleId);
     this.state = {
       ...this.state,
-      openedModules,
-      openedContexts
+      activeNavigationModuleId: module.id,
+      openedModules: wasOpen ? new Set() : new Set([moduleId]),
+      openedContexts: new Set()
     };
     this.render();
   }
@@ -1857,18 +1851,16 @@ class OpenInfraDashboard {
     if (!module || !contextLabel) {
       return;
     }
-    const openedModules = new Set(this.state.openedModules);
-    const openedContexts = new Set(this.state.openedContexts);
     const contextKey = this.sidebarContextKey(moduleId, contextLabel);
-    const wasOpen = openedContexts.has(contextKey);
-    openedModules.add(moduleId);
-    this.removeModuleContexts(openedContexts, moduleId);
+    const wasOpen = this.state.openedContexts.has(contextKey);
+    const openedContexts = new Set();
     if (!wasOpen) {
       openedContexts.add(contextKey);
     }
     this.state = {
       ...this.state,
-      openedModules,
+      activeNavigationModuleId: module.id,
+      openedModules: new Set([moduleId]),
       openedContexts
     };
     this.render();
@@ -1881,7 +1873,10 @@ class OpenInfraDashboard {
     }
     const openedModules = new Set(this.state.openedModules);
     const openedContexts = new Set(this.state.openedContexts);
-    if (module.id !== "overview") {
+    if (module.id === "overview") {
+      openedModules.clear();
+      openedContexts.clear();
+    } else {
       openedModules.add(module.id);
       this.removeModuleContexts(openedContexts, module.id);
       const defaultContext = this.contextForOperation(module, module.operations[0].id);
@@ -1889,7 +1884,7 @@ class OpenInfraDashboard {
         openedContexts.add(this.sidebarContextKey(module.id, defaultContext.label));
       }
     }
-    this.state = { ...this.state, activeModuleId: module.id, selected: module.operations[0], openedModules, openedContexts, result: null, error: null, mobileSidebarOpen: this.shouldCloseMobileSidebar() ? false : this.state.mobileSidebarOpen };
+    this.state = { ...this.state, activeModuleId: module.id, activeNavigationModuleId: module.id, selected: module.operations[0], openedModules, openedContexts, result: null, error: null, mobileSidebarOpen: this.shouldCloseMobileSidebar() ? false : this.state.mobileSidebarOpen };
     this.render();
   }
 
@@ -1916,7 +1911,10 @@ class OpenInfraDashboard {
       if (operation) {
         const openedModules = new Set(this.state.openedModules);
         const openedContexts = new Set(this.state.openedContexts);
-        if (module.id !== "overview") {
+        if (module.id === "overview") {
+          openedModules.clear();
+          openedContexts.clear();
+        } else {
           openedModules.add(module.id);
           this.removeModuleContexts(openedContexts, module.id);
           const context = this.contextForOperation(module, operation.id);
@@ -1927,6 +1925,7 @@ class OpenInfraDashboard {
         this.state = {
           ...this.state,
           activeModuleId: module.id,
+          activeNavigationModuleId: module.id,
           selected: operation,
           openedModules,
           openedContexts,
@@ -1948,7 +1947,10 @@ class OpenInfraDashboard {
       if (operation) {
         const openedModules = new Set(this.state.openedModules);
         const openedContexts = new Set(this.state.openedContexts);
-        if (module.id !== "overview") {
+        if (module.id === "overview") {
+          openedModules.clear();
+          openedContexts.clear();
+        } else {
           openedModules.add(module.id);
           this.removeModuleContexts(openedContexts, module.id);
           const context = this.contextForOperation(module, operation.id);
@@ -1956,7 +1958,7 @@ class OpenInfraDashboard {
             openedContexts.add(this.sidebarContextKey(module.id, context.label));
           }
         }
-        this.state = { ...this.state, activeModuleId: module.id, selected: operation, openedModules, openedContexts, result: null, error: null, mobileSidebarOpen: this.shouldCloseMobileSidebar() ? false : this.state.mobileSidebarOpen };
+        this.state = { ...this.state, activeModuleId: module.id, activeNavigationModuleId: module.id, selected: operation, openedModules, openedContexts, result: null, error: null, mobileSidebarOpen: this.shouldCloseMobileSidebar() ? false : this.state.mobileSidebarOpen };
         this.render();
         return;
       }

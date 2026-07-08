@@ -283,6 +283,17 @@ class TestPostgreSQLMigration:
 
         assert "PRIMARY KEY (tenant_id, started_at, id)" in migration.sql
 
+    def test_itam_tenant_migration_seeds_default_tenant_display_name(self) -> None:
+        migration = PostgreSQLMigrationCatalog.from_project_root().load(
+            "0029_itam_tenant_lifecycle"
+        )
+
+        normalized_sql = " ".join(migration.sql.split())
+
+        assert "INSERT INTO tenants (id, display_name)" in normalized_sql
+        assert "VALUES ('default', 'Default')" in normalized_sql
+        assert "INSERT INTO tenants (id) VALUES ('default')" not in normalized_sql
+
     def test_migration_validator_rejects_partitioned_unique_constraints_missing_partition_key(
         self,
     ) -> None:

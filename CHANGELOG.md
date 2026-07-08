@@ -1,5 +1,11 @@
 ### v0.29.62 — référentiel tenants ITAM
 
+### v0.29.62-postgresql-hotfix
+
+- Correctif migration PostgreSQL `0029_itam_tenant_lifecycle.sql` : le tenant global `default` est maintenant seedé avec `display_name='Default'` dans la table `tenants`, conformément à la contrainte `NOT NULL`.
+- Ajout d'un test de régression PostgreSQL empêchant le retour d'un seed `INSERT INTO tenants (id)` incomplet.
+- Aucun changement fonctionnel CLI/API/UI/CDC/roadmap.
+
 - Ajout du domaine `ItamTenant`, `ItamTenantStatus` et `ItamTenantCatalog` pour gérer le cycle de vie des tenants ITAM.
 - Ajout CLI/API pour créer, lire, lister, modifier et retirer logiquement les tenants ITAM.
 - Ajout de la persistance JSON/PostgreSQL et de la migration `0029_itam_tenant_lifecycle.sql`.

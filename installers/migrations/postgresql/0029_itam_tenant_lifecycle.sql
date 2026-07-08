@@ -41,7 +41,10 @@ CREATE INDEX IF NOT EXISTS idx_audit_events_itam_tenant
     ON audit_events (tenant_id, created_at DESC)
     WHERE target_type = 'itam_tenant';
 
-INSERT INTO tenants (id) VALUES ('default') ON CONFLICT (id) DO NOTHING;
+INSERT INTO tenants (id, display_name)
+VALUES ('default', 'Default')
+ON CONFLICT (id) DO UPDATE SET
+    display_name = COALESCE(NULLIF(btrim(tenants.display_name), ''), EXCLUDED.display_name);
 INSERT INTO itam_tenants (
     tenant_id, name, status, is_default, description,
     created_by, created_at, updated_by, updated_at

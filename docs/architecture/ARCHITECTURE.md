@@ -1,3 +1,9 @@
+## v0.29.66 — Correctif architecture UI responsive
+
+Le correctif reste confiné à la couche interface web : aucun contrat domaine, application, API, CLI, migration ou persistance n’est modifié. La responsabilité du layout est clarifiée : Bootstrap conserve la grille desktop/tablette, tandis qu’une couche CSS/JS dédiée active le panneau mobile uniquement sur les écrans extra-small.
+
+Le runtime statique servi par le backend et la source React restent synchronisés : même icône SVG, même état `mobileSidebarOpen`, mêmes classes CSS et mêmes comportements de fermeture après sélection.
+
 ## v0.29.61 — discovery locale Lite/Pro sans agent
 
 La couche domaine `discovery` introduit `LocalDiscoveryPlan` comme plan non persistant de jobs locaux. Le service applicatif authentifie l’opérateur, borne l’édition à Lite/Pro, audite la génération du plan et garantit l’absence de scan réseau exécuté et de mutation RSOT.

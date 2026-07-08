@@ -119,6 +119,7 @@ class OpenInfraApiClient {
 const OPENINFRA_ICONS = {
   home: "M8 3.293l6 6V15a1 1 0 0 1-1 1h-3v-4H6v4H3a1 1 0 0 1-1-1V9.293l6-6zm5-.793V6l-2-2V2.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5z",
   search: "M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.099zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z",
+  menu: "M2 4h12v1.4H2V4zm0 3.3h12v1.4H2V7.3zm0 3.3h12V12H2v-1.4z",
   speedometer2: "M8 4a.5.5 0 0 1 .5.5V6a.5.5 0 0 1-1 0V4.5A.5.5 0 0 1 8 4zM3.732 5.732a.5.5 0 0 1 .707 0l.915.914a.5.5 0 1 1-.708.708l-.914-.915a.5.5 0 0 1 0-.707zM2 10a.5.5 0 0 1 .5-.5h1.586a.5.5 0 0 1 0 1H2.5A.5.5 0 0 1 2 10zm9.5 0a.5.5 0 0 1 .5-.5h1.5a.5.5 0 0 1 0 1H12a.5.5 0 0 1-.5-.5zm.754-4.246a.5.5 0 0 1 0 .707l-.94.94a.5.5 0 1 1-.707-.708l.94-.94a.5.5 0 0 1 .707 0zM9.67 11.71a2 2 0 1 1-3.34-2.19l3.95-3.95a.5.5 0 0 1 .8.6l-1.41 5.54zM8 1a7 7 0 0 0-7 7c0 1.71.61 3.28 1.63 4.5a.5.5 0 0 0 .38.17h9.98a.5.5 0 0 0 .38-.17A6.97 6.97 0 0 0 15 8a7 7 0 0 0-7-7z",
   table: "M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2zm15 2h-4v3h4V4zm0 4h-4v3h4V8zm0 4h-4v3h3a1 1 0 0 0 1-1v-2zm-5 3v-3H6v3h4zm-5 0v-3H1v2a1 1 0 0 0 1 1h3zm-4-4h4V8H1v3zm0-4h4V4H1v3zm5-3v3h4V4H6zm4 4H6v3h4V8z",
   reference: "M1 2a2 2 0 0 1 2-2h1.6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V2zm6.7 0a2 2 0 0 1 2-2h1.6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9.7a2 2 0 0 1-2-2V2zm6.25.55A1.8 1.8 0 0 1 15 4.18v7.64a1.8 1.8 0 0 1-1.05 1.63V2.55z",
@@ -926,7 +927,7 @@ const OPENINFRA_MODULES = [
   ] },
   { id: "discovery", label: "Discovery", icon: "activity", description: "Collecte backend locale en Lite/Pro ; agents proxy collectors Enterprise uniquement en topologie étoile.", operations: [
     { id: "local-discovery-plan", label: "Plan discovery locale Lite/Pro", method: "POST", path: "/v1/discovery/local-plan", body: [FIELD_SETS.actor, { name: "name", label: "Nom plan", required: true, placeholder: "Discovery locale PAR1" }, { name: "scope", label: "Scope", required: true, placeholder: "site/par1" }, { name: "protocol", label: "Protocole", required: true, type: "select", options: ["snmp", "ssh", "winrm"] }, { name: "targets", label: "Cibles", type: "csv", required: true, placeholder: "10.20.30.10,srv-app-01" }, { name: "credential_secret_ref", label: "Référence secret", required: true, placeholder: "vault://openinfra/discovery/local/par1" }, { name: "max_concurrency", label: "Concurrence max", type: "number", defaultValue: "4" }, { name: "rate_limit_per_minute", label: "Rate limit/min", type: "number", defaultValue: "120" }] },
-    { id: "agent-bootstrap-plan", label: "Plan bootstrap agent Enterprise", method: "POST", path: "/v1/discovery/agent-bootstrap-plan", body: [FIELD_SETS.actor, { name: "name", label: "Nom agent", required: true, placeholder: "Agent Enterprise PAR1" }, { name: "role", label: "Rôle agent", required: true, type: "select", options: ["site", "regional", "datacenter"], defaultValue: "site" }, { name: "scopes", label: "Scopes autorisés", type: "csv", required: true, placeholder: "site/paris,network/core" }, { name: "backend_url", label: "URL backend HTTPS", required: true, placeholder: "https://openinfra-api.example.com" }, { name: "certificate_fingerprint", label: "Empreinte certificat", required: true }, { name: "enrollment_secret_ref", label: "Référence secret enrollment", required: true, placeholder: "vault://openinfra/discovery/agent/par1" }, { name: "agent_version", label: "Version agent", required: true, defaultValue: "0.29.65" }, { name: "service_user", label: "Compte service", defaultValue: "openinfra-agent" }, { name: "config_path", label: "Chemin configuration", defaultValue: "/etc/openinfra/agent.yaml" }, { name: "state_directory", label: "Répertoire état", defaultValue: "/var/lib/openinfra-agent" }, { name: "log_directory", label: "Répertoire logs", defaultValue: "/var/log/openinfra-agent" }] },
+    { id: "agent-bootstrap-plan", label: "Plan bootstrap agent Enterprise", method: "POST", path: "/v1/discovery/agent-bootstrap-plan", body: [FIELD_SETS.actor, { name: "name", label: "Nom agent", required: true, placeholder: "Agent Enterprise PAR1" }, { name: "role", label: "Rôle agent", required: true, type: "select", options: ["site", "regional", "datacenter"], defaultValue: "site" }, { name: "scopes", label: "Scopes autorisés", type: "csv", required: true, placeholder: "site/paris,network/core" }, { name: "backend_url", label: "URL backend HTTPS", required: true, placeholder: "https://openinfra-api.example.com" }, { name: "certificate_fingerprint", label: "Empreinte certificat", required: true }, { name: "enrollment_secret_ref", label: "Référence secret enrollment", required: true, placeholder: "vault://openinfra/discovery/agent/par1" }, { name: "agent_version", label: "Version agent", required: true, defaultValue: "0.29.66" }, { name: "service_user", label: "Compte service", defaultValue: "openinfra-agent" }, { name: "config_path", label: "Chemin configuration", defaultValue: "/etc/openinfra/agent.yaml" }, { name: "state_directory", label: "Répertoire état", defaultValue: "/var/lib/openinfra-agent" }, { name: "log_directory", label: "Répertoire logs", defaultValue: "/var/log/openinfra-agent" }] },
     { id: "collectors-list", label: "Lister les agents proxy Enterprise", method: "GET", path: "/v1/discovery/collectors", query: [{ name: "scope", label: "Scope autorisé" }, FIELD_SETS.limit] },
     { id: "collectors-register", label: "Enregistrer un agent proxy Enterprise", method: "POST", path: "/v1/discovery/collectors", body: [FIELD_SETS.actor, { name: "name", label: "Nom agent proxy", required: true }, { name: "kind", label: "Type", required: true, type: "select", options: ["site-proxy", "network-proxy", "datacenter-proxy"] }, { name: "certificate_fingerprint", label: "Empreinte certificat", required: true }, { name: "scopes", label: "Scopes autorisés", type: "csv", required: true, placeholder: "site/paris,network/core" }, { name: "version", label: "Version agent", required: true, defaultValue: "1.0.0" }, { name: "endpoint_url", label: "Endpoint mTLS", required: true, placeholder: "https://collector-paris.openinfra.local" }] },
     { id: "job-authorize", label: "Autoriser un job collector", method: "POST", path: "/v1/discovery/jobs/authorize", body: [{ name: "collector_id", label: "ID agent proxy", required: true }, { name: "certificate_fingerprint", label: "Empreinte certificat", required: true }, { name: "requested_scope", label: "Scope demandé", required: true }, { name: "job_type", label: "Type de job", required: true, type: "select", options: ["snmp", "ssh", "winrm", "vmware", "kubernetes"] }, { name: "target", label: "Cible", required: true, placeholder: "10.20.30.10" }] }
@@ -1029,7 +1030,8 @@ class OpenInfraDashboard {
       globalSearchQuery: "",
       globalSearchBackend: null,
       globalSearchLoading: false,
-      globalSearchError: null
+      globalSearchError: null,
+      mobileSidebarOpen: false
     };
     this.handleResize = () => this.syncFixedHeaderOffset();
   }
@@ -1337,8 +1339,14 @@ class OpenInfraDashboard {
         ${this.renderGlobalSearchToolbar()}
       </header>
       <div class="container-fluid">
+        <div class="openinfra-mobile-menu-bar">
+          <button type="button" id="openinfra-mobile-menu-button" class="btn btn-primary openinfra-mobile-menu-button" aria-label="${this.state.mobileSidebarOpen ? "Fermer le menu de navigation" : "Ouvrir le menu de navigation"}" aria-expanded="${this.state.mobileSidebarOpen ? "true" : "false"}" aria-controls="openinfra-sidebar">
+            ${this.icon("menu", "openinfra-mobile-menu-icon", 20, 20)}<span class="visually-hidden">Menu</span>
+          </button>
+        </div>
+        ${this.state.mobileSidebarOpen ? `<button type="button" class="openinfra-mobile-sidebar-backdrop" id="openinfra-mobile-sidebar-backdrop" aria-label="Fermer le menu de navigation"></button>` : ""}
         <div class="row">
-          <nav class="col-lg-3 col-xl-2 openinfra-sidebar" aria-label="Sidebar navigation">
+          <nav id="openinfra-sidebar" class="col-lg-3 col-xl-2 openinfra-sidebar ${this.state.mobileSidebarOpen ? "mobile-open" : ""}" aria-label="Sidebar navigation">
             <div class="openinfra-sidebar-heading">Pilotage</div>
             ${this.renderSidebar()}
             <div class="openinfra-sidebar-heading">État runtime</div>
@@ -1598,6 +1606,14 @@ class OpenInfraDashboard {
     });
     this.bindSearchResultButtons();
     this.bindDependentSelects();
+    document.getElementById("openinfra-mobile-menu-button")?.addEventListener("click", () => {
+      this.state = { ...this.state, mobileSidebarOpen: !this.state.mobileSidebarOpen };
+      this.render();
+    });
+    document.getElementById("openinfra-mobile-sidebar-backdrop")?.addEventListener("click", () => {
+      this.state = { ...this.state, mobileSidebarOpen: false };
+      this.render();
+    });
     for (const button of document.querySelectorAll("[data-module-id]")) {
       button.addEventListener("click", () => this.selectModule(button.dataset.moduleId));
     }
@@ -1670,6 +1686,10 @@ class OpenInfraDashboard {
     }
   }
 
+  shouldCloseMobileSidebar() {
+    return typeof window !== "undefined" && window.matchMedia("(max-width: 575.98px)").matches;
+  }
+
   toggleAccordion(moduleId) {
     const opened = new Set(this.state.openedModules);
     if (opened.has(moduleId)) {
@@ -1690,7 +1710,7 @@ class OpenInfraDashboard {
     if (module.id !== "overview") {
       opened.add(module.id);
     }
-    this.state = { ...this.state, activeModuleId: module.id, selected: module.operations[0], openedModules: opened, result: null, error: null };
+    this.state = { ...this.state, activeModuleId: module.id, selected: module.operations[0], openedModules: opened, result: null, error: null, mobileSidebarOpen: this.shouldCloseMobileSidebar() ? false : this.state.mobileSidebarOpen };
     this.render();
   }
 
@@ -1726,7 +1746,8 @@ class OpenInfraDashboard {
           openedModules: opened,
           result: null,
           error: null,
-          globalSearchQuery: ""
+          globalSearchQuery: "",
+          mobileSidebarOpen: this.shouldCloseMobileSidebar() ? false : this.state.mobileSidebarOpen
         };
         this.pendingMainFocus = true;
         this.render();
@@ -1743,7 +1764,7 @@ class OpenInfraDashboard {
         if (module.id !== "overview") {
           opened.add(module.id);
         }
-        this.state = { ...this.state, activeModuleId: module.id, selected: operation, openedModules: opened, result: null, error: null };
+        this.state = { ...this.state, activeModuleId: module.id, selected: operation, openedModules: opened, result: null, error: null, mobileSidebarOpen: this.shouldCloseMobileSidebar() ? false : this.state.mobileSidebarOpen };
         this.render();
         return;
       }

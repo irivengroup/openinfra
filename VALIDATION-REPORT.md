@@ -1,62 +1,79 @@
-# OpenInfra v0.29.65 — Validation Report
+# OpenInfra v0.29.66 — Validation Report
 
 ## Scope
 
-Release: `0.29.65`
+Release: `0.29.66`
 
 Implemented scope:
 
-- DCIM site lifecycle CRUD.
-- DCIM topology catalog for site/building/floor/room/zone/rack selectors.
-- Non-destructive retirement cascade for site dependencies.
-- Web forms: no free-text fields for DCIM references (`site`, `site_code`, `building`, `building_code`, `floor`, `floor_code`, `room`, `room_code`, `zone`, `zone_code`, `rack`, `row`, `column`).
-- Responsive sidebar and mobile/tablet display optimization.
+- Hotfix for the v0.29.65 responsive sidebar regression.
+- Removal of the global `.openinfra-sidebar { width: 100%; }` override that made the sidebar consume the whole desktop viewport width.
+- Extra-small mobile navigation with an SVG menu icon button.
+- Mobile menu panel hidden by default, opened by the menu button, closable through backdrop, and closed automatically after a sidebar entry is selected.
+- Runtime static assets and React source kept synchronized.
+- Frontend validation and web integration tests extended to prevent regression.
 
 ## Validation results
 
 | Validation | Result |
 |---|---:|
-| Ruff format check on `src tests scripts docker` | PASS |
-| Ruff check on `src tests scripts docker` | PASS |
-| `compileall` on `src tests scripts` | PASS |
-| `node --check openinfra-web.js` | PASS |
-| Frontend validator | PASS |
-| CLI version | PASS — `0.29.65` |
-| OpenAPI YAML parse | PASS |
-| Security gate | PASS |
-| Enterprise alignment | PASS |
-| Autonomous installer validation | PASS — 6 profiles |
-| Native runtime smoke | PASS |
-| CDC validation | PASS — 811 requirements, 610 tests |
-| Roadmap validation | PASS — 19 phases, 114 epics, 8 gates, 80 tests |
-| `pytest --collect-only` | PASS — 515 tests collected |
-| Unit + architecture tests | PASS — 203 tests |
-| Integration tests by deterministic lots | PASS — 312 tests |
-| Coverage gate | PASS — 98% |
-| Quality gate | PASS |
+| `python -m compileall -q src tests scripts` | PASS |
+| `node --check src/openinfra/interfaces/rendering/static/assets/openinfra-web.js` | PASS |
+| `python scripts/validate_frontend.py --project-root .` | PASS |
+| `python scripts/security_gate.py --project-root .` | PASS |
+| `python scripts/validate_autonomous_installer.py --root installers` | PASS — 6 profils |
+| `python scripts/validate_enterprise_alignment.py --project-root .` | PASS |
+| `python scripts/native_runtime_smoke.py` | PASS |
+| OpenAPI YAML parse | PASS — `0.29.66` |
+| CLI version | PASS — `0.29.66` |
+| `pytest tests/integration/test_openinfra_web.py -q --no-cov` | PASS — 13 tests |
+| Impact regression set: runtime Docker, discovery CLI, HTTP API, discovery domain, web | PASS — 66 tests |
+| `pytest tests/unit tests/architecture -q --no-cov` | PASS — 203 tests |
+| Integration tests by chunks | PASS — 312 tests |
+| `pytest --collect-only -q --no-cov` | PASS — 515 tests collected |
+| `python scripts/quality_gate.py` | NOT PASS locally — coverage report used incomplete `.coverage` data after the full coverage run timed out |
+| Full `python -m pytest` with project coverage gate | NOT COMPLETED locally — timed out in this sandbox before completion |
+| Ruff format/check | NOT EXECUTED locally — `ruff` not installed |
+| mypy | NOT EXECUTED locally — `mypy` not installed |
+| bandit | NOT EXECUTED locally — `bandit` not installed |
+| pip-audit | NOT EXECUTED locally — `pip-audit` not installed |
+| `python -m build` | NOT EXECUTED locally — `build` module not installed |
+| Vite production build | NOT EXECUTED locally — frontend dependencies are not installed in this sandbox |
+| Docker Compose live smoke | NOT EXECUTED locally — Docker runtime unavailable in this sandbox |
 
-## Integration test lots
+## Commands executed
 
-| Lot | Result |
-|---|---:|
-| CLI / access / audit / autonomous installers / import-export / discovery CLI | PASS — 50 tests |
-| DCIM / discovery | PASS — 48 tests |
-| editions / export / external auth / ITSM / search / HTTP / identity / import | PASS — 86 tests |
-| installer / IPAM | PASS — 32 tests |
-| ITAM / ITRM | PASS — 19 tests |
-| JSON store / web / PostgreSQL / runtime / security / services / source governance / source of truth | PASS — 85 tests |
+```bash
+python -m compileall -q src tests scripts
+node --check src/openinfra/interfaces/rendering/static/assets/openinfra-web.js
+python scripts/validate_frontend.py --project-root .
+python scripts/security_gate.py --project-root .
+python scripts/validate_autonomous_installer.py --root installers
+python scripts/validate_enterprise_alignment.py --project-root .
+python scripts/native_runtime_smoke.py
+python - <<'PY'
+from pathlib import Path
+import yaml
+for path in ['docs/api/openapi.yaml', 'docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1/09-API/OpenAPI/openapi.yaml']:
+    data = yaml.safe_load(Path(path).read_text())
+    print(path, data['info']['version'])
+PY
+PYTHONPATH=src python -m openinfra version
+PYTHONPATH=src python -m pytest tests/integration/test_openinfra_web.py -q --no-cov
+PYTHONPATH=src python -m pytest --no-cov -q \
+  tests/integration/test_runtime_docker_environment.py \
+  tests/integration/test_cli_discovery.py \
+  tests/integration/test_http_api.py \
+  tests/unit/test_discovery_domain.py \
+  tests/integration/test_openinfra_web.py
+PYTHONPATH=src python -m pytest --no-cov -q tests/unit tests/architecture
+PYTHONPATH=src python -m pytest --collect-only -q --no-cov
+```
 
-## Non executed locally
+Integration tests were executed by chunks to avoid sandbox command timeouts.
 
-The following validations were not executed in the current runtime because the tools or live environment were unavailable:
+## Residual risks
 
-- `mypy`
-- `bandit`
-- `pip-audit`
-- `python -m build`
-- full Vite production build
-- Docker Compose live runtime
-
-## Packaging
-
-Archives were cleaned before packaging. Runtime caches and temporary validation artifacts are excluded from the release package.
+- Browser-level visual validation was not executed because no browser automation stack is available in this sandbox.
+- Full coverage gate remains to be rerun in CI or a local development environment with enough runtime budget and the project QA tools installed.
+- The change is intentionally limited to UI layout/runtime assets; no backend API, CLI, database or domain behavior was modified.

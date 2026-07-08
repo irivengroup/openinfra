@@ -54,6 +54,9 @@ class FrontendContractValidator:
             or "activeModuleId === 'overview' &&" not in main_source
             or "Dashboard de pilotage OpenInfra" in main_source
             or "openinfra-accordion" not in main_source
+            or "openinfra-mobile-menu-button" not in main_source
+            or "openinfra-mobile-menu-icon" not in main_source
+            or "mobileSidebarOpen" not in main_source
             or "Statistiques des composants OpenInfra" not in main_source
             or "openinfra-pie-chart" not in main_source
             or "fetch('/status'" not in main_source
@@ -163,6 +166,10 @@ class FrontendContractValidator:
             "bg-dark text-white",
             "text-small",
             "openinfra-global-toolbar",
+            "openinfra-mobile-menu-button",
+            "openinfra-mobile-menu-icon",
+            "openinfra-mobile-sidebar-backdrop",
+            "mobile-open",
             "openinfra-header-stack",
             "syncHeaderOffset",
             "--openinfra-fixed-header-height",
@@ -319,6 +326,10 @@ class FrontendContractValidator:
             "max-height: none",
             "overflow: visible",
             "openinfra-global-toolbar",
+            "openinfra-mobile-menu-button",
+            "openinfra-mobile-menu-icon",
+            "openinfra-mobile-sidebar-backdrop",
+            "mobile-open",
             "openinfra-header-stack",
             "--openinfra-fixed-header-height",
             "openinfra-global-toolbar-inner",
@@ -493,6 +504,11 @@ class FrontendContractValidator:
                 raise FrontendValidationError(
                     "runtime web assets do not expose the Bootstrap dashboard contract"
                 )
+        css_payload = assets_by_name["assets/openinfra-web.css"]
+        if ".openinfra-sidebar {\n  width: 100%;" in css_payload:
+            raise FrontendValidationError(
+                "runtime web CSS must not force the desktop sidebar to full width"
+            )
         forbidden = ("OPENINFRA_DATABASE_DSN", "postgresql://", "bind_password", "client_key")
         leaked = [fragment for fragment in forbidden if fragment in payload]
         if leaked:

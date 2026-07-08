@@ -1,3 +1,11 @@
+## v0.29.66 — Hotfix sidebar responsive mobile
+
+- Correction de la régression v0.29.65 qui forçait `.openinfra-sidebar` à `width: 100%` hors media-query, masquant le contenu principal sur desktop.
+- Ajout d’un bouton mobile extra-small piloté par une icône SVG de menu, avec panneau latéral masqué par défaut.
+- Fermeture automatique du menu mobile après sélection d’une entrée de navigation.
+- Ajout d’un backdrop de fermeture et d’attributs ARIA (`aria-controls`, `aria-expanded`, libellés accessibles).
+- Ajout de tests et d’un garde-fou frontend empêchant le retour d’une sidebar desktop pleine largeur.
+
 ## v0.29.65 — DCIM sites, dépendances et responsive mobile
 
 - Ajout du cycle de vie CRUD des sites DCIM avec retrait logique.

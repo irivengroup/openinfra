@@ -1,3 +1,11 @@
+## v0.29.66 — Sidebar desktop restaurée et menu SVG mobile
+
+Le portail web corrige la sidebar responsive introduite en v0.29.65 : la règle globale `width: 100%` est supprimée afin de laisser Bootstrap gérer les colonnes desktop (`col-lg-3`, `col-xl-2`) et de préserver la visibilité du contenu principal.
+
+Sur écran extra-small, la sidebar est masquée par défaut et remplacée par un bouton `Menu` iconographique SVG. Le clic ouvre le panneau de navigation, le backdrop permet de le fermer, et la sélection d’un élément de menu referme automatiquement le panneau pour rendre immédiatement le contenu visible.
+
+Les attributs `aria-controls`, `aria-expanded`, `aria-label` et le libellé visuellement masqué garantissent une navigation opérable au clavier et compatible lecteur d’écran.
+
 ## v0.29.61 — discovery locale Lite/Pro sans agent
 
 Le portail web expose l’opération **Plan discovery locale Lite/Pro** dans le composant **Discovery**. Cette opération appelle `POST /api/v1/discovery/local-plan` et présente un plan dry-run sans agent, sans scan réseau exécuté et sans écriture RSOT automatique.

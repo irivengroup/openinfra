@@ -371,6 +371,17 @@ class TestOpenInfraWeb:
         assert 'fetch("/status"' in static_js
         assert "@media (max-width: 575.98px)" in static_css
         assert "v0.29.65: responsive sidebar" in static_css
+        assert "v0.29.66: extra-small mobile sidebar" in static_css
+        assert "openinfra-mobile-menu-button" in static_js + static_css + main_js
+        assert "openinfra-mobile-menu-icon" in static_js + static_css + main_js
+        assert "openinfra-mobile-sidebar-backdrop" in static_js + static_css + main_js
+        assert 'aria-controls="openinfra-sidebar"' in static_js + main_js
+        assert "mobileSidebarOpen" in static_js + main_js
+        assert "shouldCloseMobileSidebar" in static_js
+        assert 'matchMedia("(max-width: 575.98px)")' in static_js
+        assert "mobile-open" in static_js + static_css + main_js
+        assert "M2 4h12v1.4H2V4zm0 3.3h12v1.4H2V7.3zm0 3.3h12V12H2v-1.4z" in static_js + main_js
+        assert not re.search(r"\.openinfra-sidebar\s*\{[^}]*width:\s*100%", static_css)
         assert "@media (max-width: 991.98px)" in static_css
         assert "@media (max-width: 767.98px)" in static_css
         assert "max-height: min(42vh, 26rem)" in static_css

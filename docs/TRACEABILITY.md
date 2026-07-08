@@ -1,3 +1,14 @@
+## v0.29.66 — Traçabilité hotfix sidebar responsive
+
+| Élément | Couverture |
+| --- | --- |
+| Demande | Régression sidebar pleine largeur + menu mobile par bouton SVG |
+| Interface source | `web/src/main.jsx`, `web/src/openinfra-theme.css` |
+| Runtime statique | `src/openinfra/interfaces/rendering/static/assets/openinfra-web.js`, `openinfra-web.css` |
+| Test de non-régression | `tests/integration/test_openinfra_web.py` |
+| Garde-fou CI | `scripts/validate_frontend.py` refuse le retour de `.openinfra-sidebar { width: 100%; }` |
+| Compatibilité | Aucun changement API/CLI/domaine/persistance |
+
 ## v0.29.61 — discovery locale Lite/Pro sans agent
 
 `REQ-00804` est couvert par les tests domaine, service, CLI, API HTTP, OpenAPI, discovery document, validation frontend et portail web. Le contrat vérifie `dry_run=true`, `agent_required=false`, `network_scan_executed=false`, `rsot_write_enabled=false` et le refus Enterprise.

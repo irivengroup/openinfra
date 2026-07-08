@@ -1,3 +1,11 @@
+## v0.29.67 — Hotfix navigation sidebar et catalogue DCIM runtime
+
+- Correction du warning navigateur `this.refreshDcimCatalog is not a function` au refresh du portail.
+- Ajout des méthodes runtime manquantes `refreshDcimCatalog`, `dcimReferenceLevel`, `isDcimReferenceField` et `dcimOptions`.
+- Restauration de la sélection des modules depuis les en-têtes d’accordéon de la sidebar : un clic charge désormais l’opération par défaut du composant en plus de gérer l’expansion.
+- Le catalogue DCIM devient non bloquant : une indisponibilité backend n’empêche plus le rendu et les formulaires conservent un fallback déterministe.
+- Rafraîchissement du catalogue DCIM après mutation DCIM pour que les sélecteurs restent cohérents.
+
 ## v0.29.66 — Hotfix sidebar responsive mobile
 
 - Correction de la régression v0.29.65 qui forçait `.openinfra-sidebar` à `width: 100%` hors media-query, masquant le contenu principal sur desktop.

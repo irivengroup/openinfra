@@ -927,7 +927,7 @@ const OPENINFRA_MODULES = [
   ] },
   { id: "discovery", label: "Discovery", icon: "activity", description: "Collecte backend locale en Lite/Pro ; agents proxy collectors Enterprise uniquement en topologie étoile.", operations: [
     { id: "local-discovery-plan", label: "Plan discovery locale Lite/Pro", method: "POST", path: "/v1/discovery/local-plan", body: [FIELD_SETS.actor, { name: "name", label: "Nom plan", required: true, placeholder: "Discovery locale PAR1" }, { name: "scope", label: "Scope", required: true, placeholder: "site/par1" }, { name: "protocol", label: "Protocole", required: true, type: "select", options: ["snmp", "ssh", "winrm"] }, { name: "targets", label: "Cibles", type: "csv", required: true, placeholder: "10.20.30.10,srv-app-01" }, { name: "credential_secret_ref", label: "Référence secret", required: true, placeholder: "vault://openinfra/discovery/local/par1" }, { name: "max_concurrency", label: "Concurrence max", type: "number", defaultValue: "4" }, { name: "rate_limit_per_minute", label: "Rate limit/min", type: "number", defaultValue: "120" }] },
-    { id: "agent-bootstrap-plan", label: "Plan bootstrap agent Enterprise", method: "POST", path: "/v1/discovery/agent-bootstrap-plan", body: [FIELD_SETS.actor, { name: "name", label: "Nom agent", required: true, placeholder: "Agent Enterprise PAR1" }, { name: "role", label: "Rôle agent", required: true, type: "select", options: ["site", "regional", "datacenter"], defaultValue: "site" }, { name: "scopes", label: "Scopes autorisés", type: "csv", required: true, placeholder: "site/paris,network/core" }, { name: "backend_url", label: "URL backend HTTPS", required: true, placeholder: "https://openinfra-api.example.com" }, { name: "certificate_fingerprint", label: "Empreinte certificat", required: true }, { name: "enrollment_secret_ref", label: "Référence secret enrollment", required: true, placeholder: "vault://openinfra/discovery/agent/par1" }, { name: "agent_version", label: "Version agent", required: true, defaultValue: "0.29.66" }, { name: "service_user", label: "Compte service", defaultValue: "openinfra-agent" }, { name: "config_path", label: "Chemin configuration", defaultValue: "/etc/openinfra/agent.yaml" }, { name: "state_directory", label: "Répertoire état", defaultValue: "/var/lib/openinfra-agent" }, { name: "log_directory", label: "Répertoire logs", defaultValue: "/var/log/openinfra-agent" }] },
+    { id: "agent-bootstrap-plan", label: "Plan bootstrap agent Enterprise", method: "POST", path: "/v1/discovery/agent-bootstrap-plan", body: [FIELD_SETS.actor, { name: "name", label: "Nom agent", required: true, placeholder: "Agent Enterprise PAR1" }, { name: "role", label: "Rôle agent", required: true, type: "select", options: ["site", "regional", "datacenter"], defaultValue: "site" }, { name: "scopes", label: "Scopes autorisés", type: "csv", required: true, placeholder: "site/paris,network/core" }, { name: "backend_url", label: "URL backend HTTPS", required: true, placeholder: "https://openinfra-api.example.com" }, { name: "certificate_fingerprint", label: "Empreinte certificat", required: true }, { name: "enrollment_secret_ref", label: "Référence secret enrollment", required: true, placeholder: "vault://openinfra/discovery/agent/par1" }, { name: "agent_version", label: "Version agent", required: true, defaultValue: "0.29.67" }, { name: "service_user", label: "Compte service", defaultValue: "openinfra-agent" }, { name: "config_path", label: "Chemin configuration", defaultValue: "/etc/openinfra/agent.yaml" }, { name: "state_directory", label: "Répertoire état", defaultValue: "/var/lib/openinfra-agent" }, { name: "log_directory", label: "Répertoire logs", defaultValue: "/var/log/openinfra-agent" }] },
     { id: "collectors-list", label: "Lister les agents proxy Enterprise", method: "GET", path: "/v1/discovery/collectors", query: [{ name: "scope", label: "Scope autorisé" }, FIELD_SETS.limit] },
     { id: "collectors-register", label: "Enregistrer un agent proxy Enterprise", method: "POST", path: "/v1/discovery/collectors", body: [FIELD_SETS.actor, { name: "name", label: "Nom agent proxy", required: true }, { name: "kind", label: "Type", required: true, type: "select", options: ["site-proxy", "network-proxy", "datacenter-proxy"] }, { name: "certificate_fingerprint", label: "Empreinte certificat", required: true }, { name: "scopes", label: "Scopes autorisés", type: "csv", required: true, placeholder: "site/paris,network/core" }, { name: "version", label: "Version agent", required: true, defaultValue: "1.0.0" }, { name: "endpoint_url", label: "Endpoint mTLS", required: true, placeholder: "https://collector-paris.openinfra.local" }] },
     { id: "job-authorize", label: "Autoriser un job collector", method: "POST", path: "/v1/discovery/jobs/authorize", body: [{ name: "collector_id", label: "ID agent proxy", required: true }, { name: "certificate_fingerprint", label: "Empreinte certificat", required: true }, { name: "requested_scope", label: "Scope demandé", required: true }, { name: "job_type", label: "Type de job", required: true, type: "select", options: ["snmp", "ssh", "winrm", "vmware", "kubernetes"] }, { name: "target", label: "Cible", required: true, placeholder: "10.20.30.10" }] }
@@ -1083,6 +1083,24 @@ class OpenInfraDashboard {
       };
     } catch (error) {
       this.state = { ...this.state, tenantCatalog: null, tenantCatalogError: error };
+    }
+  }
+
+  async refreshDcimCatalog() {
+    try {
+      const base = String(this.state.config?.apiBaseUrl || "/api").replace(/\/$/, "");
+      const params = new URLSearchParams({ tenant_id: this.state.tenant || "default" });
+      const response = await fetch(`${base}/v1/dcim/topology-catalog?${params.toString()}`, {
+        credentials: "same-origin",
+        headers: { Accept: "application/json" }
+      });
+      if (!response.ok) {
+        throw new Error(`DCIM topology catalog returned ${response.status}`);
+      }
+      const catalog = await response.json();
+      this.state = { ...this.state, dcimCatalog: catalog, dcimCatalogError: null };
+    } catch (error) {
+      this.state = { ...this.state, dcimCatalog: null, dcimCatalogError: error };
     }
   }
 
@@ -1534,6 +1552,97 @@ class OpenInfraDashboard {
     return `<label class="col-md-6 col-xl-4 form-label">${this.escape(field.label || field.name)}${requiredText}<input class="form-control" type="${inputType}" data-field="${this.escape(field.name)}" value="${this.escape(value)}" placeholder="${this.escape(field.placeholder || "")}"${required}></label>`;
   }
 
+  dcimReferenceLevel(field) {
+    const name = String(field.name || "").toLowerCase();
+    const normalized = name.replace(/_code$/, "");
+    if (["site"].includes(normalized)) return "site";
+    if (["building"].includes(normalized)) return "building";
+    if (["floor"].includes(normalized)) return "floor";
+    if (["room"].includes(normalized)) return "room";
+    if (["zone"].includes(normalized)) return "zone";
+    if (["rack"].includes(normalized)) return "rack";
+    if (["row", "line"].includes(normalized)) return "row";
+    if (["column"].includes(normalized)) return "column";
+    return normalized;
+  }
+
+  isDcimReferenceField(field) {
+    return DCIM_REFERENCE_FIELDS.has(String(field.name || "").toLowerCase());
+  }
+
+  dcimOptions(field) {
+    const level = this.dcimReferenceLevel(field);
+    const sites = Array.isArray(this.state.dcimCatalog?.sites) ? this.state.dcimCatalog.sites : [];
+    const options = [];
+    const seen = new Set();
+    const selectable = (item) => item && item.selectable !== false && item.status !== "retired";
+    const push = (value, label) => {
+      const normalized = String(value || "").trim();
+      if (!normalized || seen.has(`${level}:${normalized}`)) {
+        return;
+      }
+      seen.add(`${level}:${normalized}`);
+      options.push({ value: normalized, label: label || normalized });
+    };
+    for (const site of sites) {
+      if (!selectable(site)) {
+        continue;
+      }
+      const siteCode = site.code;
+      if (level === "site") {
+        push(siteCode, `${site.code}${site.name ? ` — ${site.name}` : ""}`);
+      }
+      for (const building of Array.isArray(site.buildings) ? site.buildings : []) {
+        if (!selectable(building)) {
+          continue;
+        }
+        const buildingCode = building.code;
+        if (level === "building") {
+          push(buildingCode, `${building.code}${building.name ? ` — ${building.name}` : ""} (${siteCode})`);
+        }
+        for (const floor of Array.isArray(building.floors) ? building.floors : []) {
+          if (!selectable(floor)) {
+            continue;
+          }
+          if (level === "floor") {
+            push(floor.code, `${floor.code}${floor.name ? ` — ${floor.name}` : ""} (${siteCode}/${buildingCode})`);
+          }
+        }
+        for (const room of Array.isArray(building.rooms) ? building.rooms : []) {
+          if (!selectable(room)) {
+            continue;
+          }
+          const roomCode = room.code;
+          if (level === "room") {
+            push(roomCode, `${room.code}${room.name ? ` — ${room.name}` : ""} (${siteCode}/${buildingCode})`);
+          }
+          for (const zone of Array.isArray(room.zones) ? room.zones : []) {
+            if (selectable(zone) && level === "zone") {
+              push(zone.code, `${zone.code}${zone.name ? ` — ${zone.name}` : ""} (${siteCode}/${buildingCode}/${roomCode})`);
+            }
+          }
+          for (const rack of Array.isArray(room.racks) ? room.racks : []) {
+            const rackCode = rack.code || rack.rack || rack.name;
+            if (selectable(rack) && level === "rack") {
+              push(rackCode, `${rackCode}${rack.label ? ` — ${rack.label}` : ""} (${siteCode}/${buildingCode}/${roomCode})`);
+            }
+          }
+          for (const row of Array.isArray(room.rows) ? room.rows : []) {
+            if (level === "row") {
+              push(row, `${row} (${siteCode}/${buildingCode}/${roomCode})`);
+            }
+          }
+          for (const column of Array.isArray(room.columns) ? room.columns : []) {
+            if (level === "column") {
+              push(column, `${column} (${siteCode}/${buildingCode}/${roomCode})`);
+            }
+          }
+        }
+      }
+    }
+    return options;
+  }
+
   selectOptionsForField(field) {
     if (!field.optionsByField || !field.optionsMap) {
       return field.options || [];
@@ -1691,13 +1800,26 @@ class OpenInfraDashboard {
   }
 
   toggleAccordion(moduleId) {
+    const module = OPENINFRA_MODULES.find((item) => item.id === moduleId);
+    if (!module) {
+      return;
+    }
     const opened = new Set(this.state.openedModules);
-    if (opened.has(moduleId)) {
+    const wasOpen = opened.has(moduleId);
+    if (wasOpen && this.state.activeModuleId === moduleId) {
       opened.delete(moduleId);
     } else {
       opened.add(moduleId);
     }
-    this.state = { ...this.state, openedModules: opened };
+    this.state = {
+      ...this.state,
+      activeModuleId: module.id,
+      selected: module.operations[0],
+      openedModules: opened,
+      result: null,
+      error: null,
+      mobileSidebarOpen: this.shouldCloseMobileSidebar() ? false : this.state.mobileSidebarOpen
+    };
     this.render();
   }
 
@@ -1780,7 +1902,9 @@ class OpenInfraDashboard {
       const data = await this.client().request(this.state.selected, payload);
       if (this.state.selected.id.startsWith("itam-tenant")) {
         await this.refreshTenantCatalog();
-      await this.refreshDcimCatalog();
+      }
+      if (this.state.selected.id.startsWith("dcim-")) {
+        await this.refreshDcimCatalog();
       }
       this.state = { ...this.state, result: data, error: null };
     } catch (error) {

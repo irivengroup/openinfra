@@ -1061,3 +1061,5 @@ body {
     z-index: 1040;
   }
 }
+
+/* v0.29.67: sidebar navigation hotfix keeps accordion selection and DCIM catalog rendering non-blocking. */

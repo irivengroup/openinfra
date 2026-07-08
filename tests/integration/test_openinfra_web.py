@@ -541,7 +541,14 @@ class TestOpenInfraWeb:
         assert "Catalogue dépendances DCIM" in static_js + main_js
         assert "DCIM_REFERENCE_FIELDS" in static_js
         assert "isDcimReferenceField(field)" in static_js
-        assert "refreshDcimCatalog" in static_js
+        assert "async refreshDcimCatalog()" in static_js
+        assert "dcimReferenceLevel(field)" in static_js
+        assert "dcimOptions(field)" in static_js
+        assert "isDcimReferenceField(field)" in static_js
+        assert "DCIM topology catalog returned" in static_js
+        assert 'this.state.selected.id.startsWith("dcim-")' in static_js
+        assert "activeModuleId: module.id" in static_js.split("toggleAccordion(moduleId)", 1)[1]
+        assert "selected: module.operations[0]" in static_js.split("toggleAccordion(moduleId)", 1)[1]
         assert "dcimCatalog" in static_js
         assert "data-field" in static_js
         assert (

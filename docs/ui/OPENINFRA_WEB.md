@@ -1,3 +1,11 @@
+## v0.29.67 — Navigation sidebar restaurée et catalogue DCIM non bloquant
+
+Le portail corrige deux régressions introduites pendant le durcissement responsive : les en-têtes d’accordéon de la sidebar sélectionnent de nouveau l’opération par défaut du composant, et le runtime statique expose désormais les méthodes DCIM réellement appelées par le rendu.
+
+Sur très petit écran, le bouton menu SVG reste conservé : le menu s’ouvre à la demande et se referme après sélection d’une entrée. Sur desktop/tablette, la sidebar reste dans la grille Bootstrap et ne masque pas le contenu principal.
+
+Le catalogue `/api/v1/dcim/topology-catalog` alimente les sélecteurs de localisation. En cas d’indisponibilité temporaire, l’erreur est stockée dans l’état UI sans casser le rendu de la page.
+
 ## v0.29.66 — Sidebar desktop restaurée et menu SVG mobile
 
 Le portail web corrige la sidebar responsive introduite en v0.29.65 : la règle globale `width: 100%` est supprimée afin de laisser Bootstrap gérer les colonnes desktop (`col-lg-3`, `col-xl-2`) et de préserver la visibilité du contenu principal.

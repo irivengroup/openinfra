@@ -1003,9 +1003,21 @@ function Dashboard() {
   }
 
   function toggleAccordion(moduleId) {
+    const module = MODULES.find((item) => item.id === moduleId);
+    if (!module) {
+      return;
+    }
     const next = new Set(opened);
-    if (next.has(moduleId)) next.delete(moduleId); else next.add(moduleId);
+    if (next.has(moduleId) && activeModuleId === moduleId) {
+      next.delete(moduleId);
+    } else {
+      next.add(moduleId);
+    }
     setOpened(next);
+    setSelected(module.operations[0]);
+    setActiveModuleId(module.id);
+    setResult('Résultat en attente.');
+    setMobileSidebarOpen(false);
   }
 
   function execute() {

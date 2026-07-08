@@ -1,3 +1,9 @@
+## v0.29.67 — Correctif architecture runtime UI
+
+Le runtime web server-side conserve une séparation explicite entre navigation, rendu de formulaire et chargement des catalogues métier. Les méthodes DCIM utilisées par le renderer sont intégrées dans la classe `OpenInfraDashboard`, ce qui supprime la dépendance implicite à une fonction absente et empêche une erreur JavaScript bloquante au refresh.
+
+La navigation sidebar est redevenue déterministe : le clic sur un composant charge l’opération par défaut, met à jour l’état actif, conserve l’accordéon cohérent et ferme le panneau uniquement sur les très petits écrans.
+
 ## v0.29.66 — Correctif architecture UI responsive
 
 Le correctif reste confiné à la couche interface web : aucun contrat domaine, application, API, CLI, migration ou persistance n’est modifié. La responsabilité du layout est clarifiée : Bootstrap conserve la grille desktop/tablette, tandis qu’une couche CSS/JS dédiée active le panneau mobile uniquement sur les écrans extra-small.

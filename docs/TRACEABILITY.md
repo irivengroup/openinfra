@@ -1,3 +1,9 @@
+## v0.29.67 — Traçabilité hotfix navigation web
+
+- Demande : restaurer le chargement des pages depuis la sidebar et supprimer le warning `this.refreshDcimCatalog is not a function`.
+- Impact : runtime statique web, source React, tests d’intégration web, documentation UI/architecture, version package.
+- Validation attendue : syntaxe JS, validation frontend, test de non-régression web ciblé, tests unitaires/architecture et lots d’intégration disponibles.
+
 ## v0.29.66 — Traçabilité hotfix sidebar responsive
 
 | Élément | Couverture |

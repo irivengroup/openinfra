@@ -691,3 +691,125 @@ def test_cli_discovery_protocol_profile_lifecycle(tmp_path: Path, capsys: object
     assert plan["rate_limit_per_minute"] == 180
     assert len(page["items"]) == 1
     assert disabled["status"] == "disabled"
+
+
+def test_cli_discovery_integration_profile_lifecycle(tmp_path: Path, capsys: object) -> None:
+    data = tmp_path / "state.json"
+    token = "u" * 40
+    cli = OpenInfraCLI()
+    assert (
+        cli.run(
+            [
+                "security",
+                "bootstrap-token",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--subject",
+                "discovery-admin",
+                "--role",
+                "security:admin",
+                "--token",
+                token,
+            ]
+        )
+        == 0
+    )
+    capsys.readouterr()
+
+    assert (
+        cli.run(
+            [
+                "discovery",
+                "integration-profile-create",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--name",
+                "vCenter PAR1",
+                "--kind",
+                "vmware",
+                "--scope",
+                "site/par1",
+                "--endpoint-url",
+                "https://vcenter.par1.example.local/sdk",
+                "--credential-secret-ref",
+                "vault://openinfra/discovery/vcenter/par1",
+                "--max-concurrency",
+                "8",
+                "--rate-limit-per-minute",
+                "240",
+            ]
+        )
+        == 0
+    )
+    created = json.loads(capsys.readouterr().out)
+
+    assert (
+        cli.run(
+            [
+                "discovery",
+                "integration-profile-update",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--profile-id",
+                str(created["id"]),
+                "--rate-limit-per-minute",
+                "180",
+            ]
+        )
+        == 0
+    )
+    updated = json.loads(capsys.readouterr().out)
+
+    assert (
+        cli.run(
+            [
+                "discovery",
+                "integration-profile-list",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+            ]
+        )
+        == 0
+    )
+    page = json.loads(capsys.readouterr().out)
+
+    assert (
+        cli.run(
+            [
+                "discovery",
+                "integration-profile-delete",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--profile-id",
+                str(created["id"]),
+                "--reason",
+                "secret rotated",
+            ]
+        )
+        == 0
+    )
+    disabled = json.loads(capsys.readouterr().out)
+
+    assert created["credential_secret_ref"] == "vault://***"
+    assert created["connector_family"] == "virtualization"
+    assert updated["rate_limit_per_minute"] == 180
+    assert len(page["items"]) == 1
+    assert disabled["status"] == "disabled"

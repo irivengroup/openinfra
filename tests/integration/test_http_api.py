@@ -211,10 +211,15 @@ class TestHttpApi:
                     "collectors": "/api/v1/discovery/collectors",
                     "local_plan": "/api/v1/discovery/local-plan",
                     "protocol_profiles": "/api/v1/discovery/protocol-profiles",
+                    "integration_profiles": "/api/v1/discovery/integration-profiles",
                     "protocol_profile": "/api/v1/discovery/protocol-profile",
                     "protocol_profile_create": "/api/v1/discovery/protocol-profile/create",
                     "protocol_profile_update": "/api/v1/discovery/protocol-profile/update",
                     "protocol_profile_delete": "/api/v1/discovery/protocol-profile/delete",
+                    "integration_profile": "/api/v1/discovery/integration-profile",
+                    "integration_profile_create": "/api/v1/discovery/integration-profile/create",
+                    "integration_profile_update": "/api/v1/discovery/integration-profile/update",
+                    "integration_profile_delete": "/api/v1/discovery/integration-profile/delete",
                     "agent_bootstrap_plan": "/api/v1/discovery/agent-bootstrap-plan",
                     "proxy_enrollments": "/api/v1/discovery/proxy-enrollments",
                     "heartbeat": "/api/v1/discovery/collectors/heartbeat",
@@ -1195,6 +1200,8 @@ class TestHttpApi:
                 "/api/v1/integrations/itsm/providers?tenant_id=default",
                 "/api/v1/discovery/protocol-profiles?tenant_id=default",
                 "/api/v1/discovery/protocol-profile?tenant_id=default&profile_id=missing",
+                "/api/v1/discovery/integration-profiles?tenant_id=default",
+                "/api/v1/discovery/integration-profile?tenant_id=default&profile_id=missing",
             ):
                 self._expect_http_status(base_url + route, 401)
         finally:
@@ -1218,14 +1225,31 @@ class TestHttpApi:
                 "scope": "site/par1",
                 "credential_secret_ref": "vault://openinfra/discovery/ssh/par1",
             }
+            valid_integration_profile = {
+                "tenant_id": "default",
+                "name": "vCenter PAR1",
+                "kind": "vmware",
+                "scope": "site/par1",
+                "endpoint_url": "https://vcenter.example.local/sdk",
+                "credential_secret_ref": "vault://openinfra/discovery/vcenter/par1",
+            }
             for route, payload in (
                 ("/api/v1/discovery/protocol-profile/create", valid_profile),
+                ("/api/v1/discovery/integration-profile/create", valid_integration_profile),
                 (
                     "/api/v1/discovery/protocol-profile/update",
                     {"tenant_id": "default", "profile_id": "missing", "name": "SSH PAR2"},
                 ),
                 (
                     "/api/v1/discovery/protocol-profile/delete",
+                    {"tenant_id": "default", "profile_id": "missing", "reason": "security test"},
+                ),
+                (
+                    "/api/v1/discovery/integration-profile/update",
+                    {"tenant_id": "default", "profile_id": "missing", "name": "vCenter PAR2"},
+                ),
+                (
+                    "/api/v1/discovery/integration-profile/delete",
                     {"tenant_id": "default", "profile_id": "missing", "reason": "security test"},
                 ),
                 (
@@ -2417,6 +2441,76 @@ def test_discovery_protocol_profile_http_api_and_local_plan_binding(tmp_path: Pa
         assert plan["protocol_profile_id"] == profile["id"]
         assert plan["max_concurrency"] == 8
         assert plan["rate_limit_per_minute"] == 180
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+
+def test_discovery_integration_profile_http_api_lifecycle(tmp_path: Path) -> None:
+    app = ApplicationFactory().create_json_application(tmp_path / "state.json", edition="pro")
+    token = "v" * 40
+    app.security_service.bootstrap_token(
+        BootstrapTokenCommand(
+            tenant_id="default",
+            actor="pytest",
+            subject="discovery-admin",
+            roles=("security:admin",),
+            token=token,
+        )
+    )
+    server = OpenInfraThreadingServer(("127.0.0.1", 0), app)
+    helper = TestHttpApi()
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        base_url = f"http://127.0.0.1:{server.server_port}"
+        profile = helper._post_json(
+            base_url + "/api/v1/discovery/integration-profile/create",
+            {
+                "tenant_id": "default",
+                "name": "vCenter PAR1",
+                "kind": "vmware",
+                "scope": "site/par1",
+                "endpoint_url": "https://vcenter.par1.example.local/sdk",
+                "credential_secret_ref": "vault://openinfra/discovery/vcenter/par1",
+                "max_concurrency": 8,
+                "rate_limit_per_minute": 240,
+            },
+            token=token,
+        )
+        updated = helper._post_json(
+            base_url + "/api/v1/discovery/integration-profile/update",
+            {
+                "tenant_id": "default",
+                "profile_id": profile["id"],
+                "rate_limit_per_minute": 180,
+            },
+            token=token,
+        )
+        fetched = helper._get_json(
+            base_url
+            + "/api/v1/discovery/integration-profile?tenant_id=default&profile_id="
+            + urllib.parse.quote(str(profile["id"])),
+            token=token,
+        )
+        page = helper._get_json(
+            base_url + "/api/v1/discovery/integration-profiles?tenant_id=default",
+            token=token,
+        )
+        disabled = helper._post_json(
+            base_url + "/api/v1/discovery/integration-profile/delete",
+            {"tenant_id": "default", "profile_id": profile["id"], "reason": "secret rotated"},
+            token=token,
+        )
+
+        assert profile["credential_secret_ref"] == "vault://***"
+        assert profile["connector_family"] == "virtualization"
+        assert profile["discovery_execution"] == "plan_only_no_scan"
+        assert updated["rate_limit_per_minute"] == 180
+        assert fetched["id"] == profile["id"]
+        assert len(page["items"]) == 1
+        assert disabled["status"] == "disabled"
     finally:
         server.shutdown()
         server.server_close()

@@ -19,6 +19,9 @@ FINGERPRINT = "a" * 64
 OTHER_FINGERPRINT = "b" * 64
 LOCAL_VAULT_REF = "vault://" + "openinfra/discovery/local/par1"
 AGENT_VAULT_REF = "vault://" + "openinfra/discovery/agent/par1"
+VCENTER_VAULT_REF = "vault://" + "openinfra/discovery/vcenter/par1"
+AWS_VAULT_REF = "vault://" + "openinfra/discovery/aws/prod"
+K8S_VAULT_REF = "vault://" + "openinfra/discovery/k8s/prod"
 
 
 def test_collector_identity_requires_sha256_fingerprint() -> None:
@@ -481,3 +484,94 @@ def test_local_discovery_plan_validation_edges_are_enforced() -> None:
     for changes, message in invalid_cases:
         with pytest.raises(ValidationError, match=message):
             LocalDiscoveryPlan.create(**{**kwargs, **changes})
+
+
+def test_discovery_integration_profile_masks_secret_and_classifies_connector_family() -> None:
+    from openinfra.domain.discovery import DiscoveryIntegrationProfile
+
+    profile = DiscoveryIntegrationProfile.create(
+        tenant_id=TenantId.from_value("default"),
+        name="  vCenter PAR1  ",
+        kind="vmware",
+        scope="site/PAR1",
+        endpoint_url="https://vcenter.par1.example.local/sdk/",
+        credential_secret_ref=VCENTER_VAULT_REF,
+        verify_tls=True,
+        inventory_enabled=True,
+        max_concurrency=8,
+        rate_limit_per_minute=240,
+        created_by="admin",
+    )
+
+    public = profile.as_public_dict()
+
+    assert profile.name == "vCenter PAR1"
+    assert profile.endpoint_url == "https://vcenter.par1.example.local/sdk"
+    assert public["credential_secret_ref"] == "vault://***"
+    assert public["secret_materialized"] is False
+    assert public["connector_family"] == "virtualization"
+    assert public["discovery_execution"] == "plan_only_no_scan"
+
+
+def test_discovery_integration_profile_validates_endpoint_secret_and_cloud_defaults() -> None:
+    from openinfra.domain.discovery import DiscoveryIntegrationKind, DiscoveryIntegrationProfile
+
+    assert DiscoveryIntegrationKind.from_value("hyper-v").value == "hyperv"
+    cloud = DiscoveryIntegrationProfile.create(
+        tenant_id=TenantId.from_value("default"),
+        name="AWS PROD",
+        kind="aws",
+        scope="cloud/aws/prod",
+        endpoint_url=None,
+        credential_secret_ref=AWS_VAULT_REF,
+        verify_tls=True,
+        inventory_enabled=True,
+        max_concurrency=4,
+        rate_limit_per_minute=120,
+        created_by="admin",
+    )
+    assert cloud.endpoint_url is None
+    assert cloud.connector_family == "cloud"
+
+    with pytest.raises(ValidationError, match="endpoint_url"):
+        DiscoveryIntegrationProfile.create(
+            TenantId.from_value("default"),
+            "vCenter",
+            "vmware",
+            "site/par1",
+            None,
+            VCENTER_VAULT_REF,
+            True,
+            True,
+            4,
+            120,
+            "admin",
+        )
+    with pytest.raises(ValidationError, match="https"):
+        DiscoveryIntegrationProfile.create(
+            TenantId.from_value("default"),
+            "vCenter",
+            "vmware",
+            "site/par1",
+            "http://vcenter.par1.example.local",
+            VCENTER_VAULT_REF,
+            True,
+            True,
+            4,
+            120,
+            "admin",
+        )
+    with pytest.raises(ValidationError, match="vault://"):
+        DiscoveryIntegrationProfile.create(
+            TenantId.from_value("default"),
+            "Kubernetes",
+            "kubernetes",
+            "cluster/k8s-prod",
+            "https://k8s.example.local",
+            "file://secret",
+            True,
+            True,
+            4,
+            120,
+            "admin",
+        )

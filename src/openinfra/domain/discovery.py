@@ -960,6 +960,271 @@ class DiscoveryProtocolCredentialProfile:
         return self.from_dict(payload)
 
 
+class DiscoveryIntegrationKind(StrEnum):
+    VMWARE = "vmware"
+    PROXMOX = "proxmox"
+    HYPERV = "hyperv"
+    KUBERNETES = "kubernetes"
+    AWS = "aws"
+    AZURE = "azure"
+    GCP = "gcp"
+    OPENSTACK = "openstack"
+
+    @classmethod
+    def from_value(cls, value: str) -> Self:
+        normalized = value.strip().lower().replace("_", "-")
+        aliases = {
+            "hyper-v": "hyperv",
+            "k8s": "kubernetes",
+            "amazon-web-services": "aws",
+            "google-cloud": "gcp",
+            "google-cloud-platform": "gcp",
+        }
+        normalized = aliases.get(normalized, normalized)
+        try:
+            return cls(normalized)
+        except ValueError as exc:
+            raise ValidationError(
+                "discovery integration kind must be vmware, proxmox, hyperv, "
+                "kubernetes, aws, azure, gcp or openstack"
+            ) from exc
+
+
+class DiscoveryIntegrationProfileStatus(StrEnum):
+    ACTIVE = "active"
+    DISABLED = "disabled"
+
+    @classmethod
+    def from_value(cls, value: str | None) -> Self:
+        normalized = (value or "active").strip().lower()
+        try:
+            return cls(normalized)
+        except ValueError as exc:
+            raise ValidationError(
+                "discovery integration profile status must be active or disabled"
+            ) from exc
+
+
+@dataclass(frozen=True, slots=True)
+class DiscoveryIntegrationProfile:
+    id: EntityId
+    tenant_id: TenantId
+    name: str
+    kind: DiscoveryIntegrationKind
+    scope: DiscoveryScope
+    endpoint_url: str | None
+    credential_secret_ref: str
+    verify_tls: bool
+    inventory_enabled: bool
+    max_concurrency: int
+    rate_limit_per_minute: int
+    status: DiscoveryIntegrationProfileStatus
+    created_by: str
+    created_at: datetime
+    disabled_reason: str | None = None
+
+    @classmethod
+    def create(
+        cls,
+        tenant_id: TenantId,
+        name: str,
+        kind: str,
+        scope: str,
+        endpoint_url: str | None,
+        credential_secret_ref: str,
+        verify_tls: bool,
+        inventory_enabled: bool,
+        max_concurrency: int,
+        rate_limit_per_minute: int,
+        created_by: str,
+        profile_id: EntityId | None = None,
+        created_at: datetime | None = None,
+    ) -> Self:
+        integration_kind = DiscoveryIntegrationKind.from_value(kind)
+        endpoint = cls._normalize_endpoint(integration_kind, endpoint_url)
+        secret_ref = CollectorIdentity._normalize_secret_ref(credential_secret_ref)
+        if secret_ref is None:
+            raise ValidationError("discovery integration credential_secret_ref is mandatory")
+        actor = DiscoveryProtocolCredentialProfile._normalize_actor(created_by)
+        created = created_at or datetime.now(UTC)
+        if created.tzinfo is None:
+            raise ValidationError("discovery integration profile created_at must be timezone-aware")
+        return cls(
+            id=profile_id or EntityId.new(),
+            tenant_id=tenant_id,
+            name=DiscoveryProtocolCredentialProfile._normalize_name(name),
+            kind=integration_kind,
+            scope=DiscoveryScope.from_value(scope),
+            endpoint_url=endpoint,
+            credential_secret_ref=secret_ref,
+            verify_tls=bool(verify_tls),
+            inventory_enabled=bool(inventory_enabled),
+            max_concurrency=DiscoveryProtocolCredentialProfile._normalize_max_concurrency(
+                max_concurrency
+            ),
+            rate_limit_per_minute=DiscoveryProtocolCredentialProfile._normalize_rate_limit(
+                rate_limit_per_minute
+            ),
+            status=DiscoveryIntegrationProfileStatus.ACTIVE,
+            created_by=actor,
+            created_at=created.astimezone(UTC),
+        )
+
+    @classmethod
+    def from_dict(cls, value: dict[str, object]) -> Self:
+        created_value = value.get("created_at")
+        kind = DiscoveryIntegrationKind.from_value(str(value["kind"]))
+        return cls(
+            id=EntityId.from_value(str(value["id"])),
+            tenant_id=TenantId.from_value(str(value["tenant_id"])),
+            name=DiscoveryProtocolCredentialProfile._normalize_name(str(value["name"])),
+            kind=kind,
+            scope=DiscoveryScope.from_value(str(value["scope"])),
+            endpoint_url=cls._normalize_endpoint(
+                kind,
+                None if value.get("endpoint_url") is None else str(value["endpoint_url"]),
+            ),
+            credential_secret_ref=DiscoveryProtocolCredentialProfile._required_secret_ref(
+                value.get("credential_secret_ref")
+            ),
+            verify_tls=bool(value.get("verify_tls", True)),
+            inventory_enabled=bool(value.get("inventory_enabled", True)),
+            max_concurrency=DiscoveryProtocolCredentialProfile._normalize_max_concurrency(
+                int(value["max_concurrency"])
+            ),
+            rate_limit_per_minute=DiscoveryProtocolCredentialProfile._normalize_rate_limit(
+                int(value["rate_limit_per_minute"])
+            ),
+            status=DiscoveryIntegrationProfileStatus.from_value(str(value.get("status", "active"))),
+            created_by=DiscoveryProtocolCredentialProfile._normalize_actor(
+                str(value["created_by"])
+            ),
+            created_at=(
+                datetime.now(UTC)
+                if created_value is None
+                else datetime.fromisoformat(str(created_value)).astimezone(UTC)
+            ),
+            disabled_reason=None
+            if value.get("disabled_reason") is None
+            else str(value["disabled_reason"]),
+        )
+
+    def update_settings(
+        self,
+        *,
+        name: str | None = None,
+        scope: str | None = None,
+        endpoint_url: str | None = None,
+        credential_secret_ref: str | None = None,
+        verify_tls: bool | None = None,
+        inventory_enabled: bool | None = None,
+        max_concurrency: int | None = None,
+        rate_limit_per_minute: int | None = None,
+    ) -> Self:
+        if self.status is not DiscoveryIntegrationProfileStatus.ACTIVE:
+            raise ValidationError("disabled discovery integration profile cannot be updated")
+        return self._copy(
+            name=self.name
+            if name is None
+            else DiscoveryProtocolCredentialProfile._normalize_name(name),
+            scope=self.scope.value if scope is None else DiscoveryScope.from_value(scope).value,
+            endpoint_url=self.endpoint_url
+            if endpoint_url is None
+            else self._normalize_endpoint(self.kind, endpoint_url),
+            credential_secret_ref=self.credential_secret_ref
+            if credential_secret_ref is None
+            else DiscoveryProtocolCredentialProfile._required_secret_ref(credential_secret_ref),
+            verify_tls=self.verify_tls if verify_tls is None else bool(verify_tls),
+            inventory_enabled=self.inventory_enabled
+            if inventory_enabled is None
+            else bool(inventory_enabled),
+            max_concurrency=self.max_concurrency
+            if max_concurrency is None
+            else DiscoveryProtocolCredentialProfile._normalize_max_concurrency(max_concurrency),
+            rate_limit_per_minute=self.rate_limit_per_minute
+            if rate_limit_per_minute is None
+            else DiscoveryProtocolCredentialProfile._normalize_rate_limit(rate_limit_per_minute),
+        )
+
+    def disable(self, reason: str) -> Self:
+        normalized_reason = " ".join(reason.strip().split())
+        if not normalized_reason:
+            raise ValidationError("discovery integration profile disable reason is mandatory")
+        return self._copy(
+            status=DiscoveryIntegrationProfileStatus.DISABLED.value,
+            disabled_reason=normalized_reason[:512],
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "id": self.id.value,
+            "tenant_id": self.tenant_id.value,
+            "name": self.name,
+            "kind": self.kind.value,
+            "scope": self.scope.value,
+            "endpoint_url": self.endpoint_url,
+            "credential_secret_ref": self.credential_secret_ref,
+            "verify_tls": self.verify_tls,
+            "inventory_enabled": self.inventory_enabled,
+            "max_concurrency": self.max_concurrency,
+            "rate_limit_per_minute": self.rate_limit_per_minute,
+            "status": self.status.value,
+            "created_by": self.created_by,
+            "created_at": self.created_at.isoformat(),
+            "disabled_reason": self.disabled_reason,
+        }
+
+    def as_public_dict(self) -> dict[str, object]:
+        payload = self.as_dict()
+        payload["credential_secret_ref"] = "vault://" + "***"
+        payload["secret_materialized"] = False
+        payload["rate_limit_active"] = True
+        payload["connector_family"] = self.connector_family
+        payload["discovery_execution"] = "plan_only_no_scan"
+        payload["safeguards"] = [
+            "vault_reference_only",
+            "secret_material_never_returned",
+            "connector_allowlist",
+            "rate_limit_active",
+            "bounded_concurrency",
+            "inventory_plan_only",
+        ]
+        return payload
+
+    @property
+    def connector_family(self) -> str:
+        if self.kind in {
+            DiscoveryIntegrationKind.VMWARE,
+            DiscoveryIntegrationKind.PROXMOX,
+            DiscoveryIntegrationKind.HYPERV,
+        }:
+            return "virtualization"
+        if self.kind is DiscoveryIntegrationKind.KUBERNETES:
+            return "kubernetes"
+        return "cloud"
+
+    @classmethod
+    def _normalize_endpoint(cls, kind: DiscoveryIntegrationKind, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            if kind in {
+                DiscoveryIntegrationKind.AWS,
+                DiscoveryIntegrationKind.AZURE,
+                DiscoveryIntegrationKind.GCP,
+            }:
+                return None
+            raise ValidationError("discovery integration endpoint_url is mandatory")
+        normalized = value.strip()
+        parsed = urlparse(normalized)
+        if parsed.scheme != "https" or not parsed.netloc:
+            raise ValidationError("discovery integration endpoint_url must be an https URL")
+        return normalized.rstrip("/")
+
+    def _copy(self, **changes: object) -> Self:
+        payload = self.as_dict()
+        payload.update(changes)
+        return type(self).from_dict(payload)
+
+
 @dataclass(frozen=True, slots=True)
 class LocalDiscoveryTarget:
     value: str

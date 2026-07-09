@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.80
+  version: 0.29.81
 components:
   securitySchemes:
     bearerToken:
@@ -3220,6 +3220,105 @@ paths:
                 reason: {type: string}
       responses:
         '200': {description: Disabled protocol profile}
+        '401': {description: Security administrator token required}
+        '400': {description: Validation error}
+  /api/v1/discovery/integration-profiles:
+    get:
+      summary: List virtualization Kubernetes and cloud discovery integration profiles
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, required: false, schema: {type: string}}
+        - {name: include_inactive, in: query, required: false, schema: {type: boolean, default: false}}
+      responses:
+        '200': {description: Integration profile page with masked vault references}
+        '401': {description: Security administrator token required}
+        '400': {description: Validation error}
+  /api/v1/discovery/integration-profile:
+    get:
+      summary: Read a virtualization Kubernetes or cloud discovery integration profile
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: profile_id, in: query, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Integration profile with masked vault reference}
+        '401': {description: Security administrator token required}
+        '400': {description: Validation error}
+  /api/v1/discovery/integration-profile/create:
+    post:
+      summary: Create a virtualization Kubernetes or cloud discovery integration profile
+      description: Stores only vault:// credential references and connector metadata. The profile is plan-only and never executes scans directly.
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, name, kind, scope, credential_secret_ref]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                name: {type: string}
+                kind: {type: string, enum: [vmware, proxmox, hyperv, kubernetes, aws, azure, gcp, openstack]}
+                scope: {type: string}
+                endpoint_url: {type: string, nullable: true}
+                credential_secret_ref: {type: string, pattern: '^vault://'}
+                verify_tls: {type: boolean, default: true}
+                inventory_enabled: {type: boolean, default: true}
+                max_concurrency: {type: integer, minimum: 1, maximum: 64, default: 4}
+                rate_limit_per_minute: {type: integer, minimum: 1, maximum: 10000, default: 120}
+      responses:
+        '201': {description: Created integration profile with masked vault reference}
+        '401': {description: Security administrator token required}
+        '400': {description: Validation error}
+  /api/v1/discovery/integration-profile/update:
+    post:
+      summary: Update a discovery integration profile
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, profile_id]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                profile_id: {type: string}
+                name: {type: string}
+                scope: {type: string}
+                endpoint_url: {type: string, nullable: true}
+                credential_secret_ref: {type: string, pattern: '^vault://'}
+                verify_tls: {type: boolean}
+                inventory_enabled: {type: boolean}
+                max_concurrency: {type: integer, minimum: 1, maximum: 64}
+                rate_limit_per_minute: {type: integer, minimum: 1, maximum: 10000}
+      responses:
+        '200': {description: Updated integration profile with masked vault reference}
+        '401': {description: Security administrator token required}
+        '400': {description: Validation error}
+  /api/v1/discovery/integration-profile/delete:
+    post:
+      summary: Disable a discovery integration profile
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, profile_id, reason]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                profile_id: {type: string}
+                reason: {type: string}
+      responses:
+        '200': {description: Disabled integration profile}
         '401': {description: Security administrator token required}
         '400': {description: Validation error}
   /api/v1/discovery/local-plan:

@@ -32,7 +32,11 @@ from openinfra.domain.dcim import (
     RoomZone,
     Site,
 )
-from openinfra.domain.discovery import DiscoveryCollector, DiscoveryProtocolCredentialProfile
+from openinfra.domain.discovery import (
+    DiscoveryCollector,
+    DiscoveryIntegrationProfile,
+    DiscoveryProtocolCredentialProfile,
+)
 from openinfra.domain.editions import QuotaResource
 from openinfra.domain.identity import (
     EffectiveIdentity,
@@ -109,6 +113,18 @@ class DiscoveryCollectorPage:
     def as_dict(self) -> dict[str, object]:
         return {
             "items": [item.as_dict() for item in self.items],
+            "next_cursor": self.next_cursor,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class DiscoveryIntegrationProfilePage:
+    items: tuple[DiscoveryIntegrationProfile, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "items": [item.as_public_dict() for item in self.items],
             "next_cursor": self.next_cursor,
         }
 
@@ -774,6 +790,25 @@ class ImportRepository(ABC):
 
 
 class DiscoveryRepository(ABC):
+    @abstractmethod
+    def save_integration_profile(self, profile: DiscoveryIntegrationProfile) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_integration_profile(
+        self, tenant_id: TenantId, profile_id: str
+    ) -> DiscoveryIntegrationProfile | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_integration_profiles(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        include_inactive: bool,
+    ) -> DiscoveryIntegrationProfilePage:
+        raise TypeError("adapter contract invoked directly")
+
     @abstractmethod
     def save_protocol_profile(self, profile: DiscoveryProtocolCredentialProfile) -> None:
         raise TypeError("adapter contract invoked directly")

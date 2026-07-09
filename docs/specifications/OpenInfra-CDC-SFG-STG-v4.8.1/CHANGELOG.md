@@ -9,3 +9,6 @@
 - Ajout `REQ-00812` pour rendre homogènes les options backend des commandes CLI d'administration des éditions.
 - Ajout `TST-CLI-111` afin de verrouiller `openinfra edition feature-check --data ...` dans les smoke tests CI.
 - Mise à jour de la roadmap avec `TST-P08-CLI-EDITION-DATA-COMPAT`.
+### Validation v0.29.81 — Profils Discovery virtualisation, Kubernetes et cloud
+
+Ajout de `REQ-00822` et `TST-WEB-121` : OpenInfra référence les profils de découverte VMware, Proxmox, Hyper-V, Kubernetes, AWS, Azure, GCP et OpenStack avec secrets `vault://` masqués, endpoint HTTPS lorsque nécessaire, limites de débit/concurrence et migration `0037_discovery_integration_profiles.sql`.

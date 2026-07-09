@@ -19,6 +19,7 @@ from openinfra.application.ports import (
     AuditRepository,
     DcimRepository,
     DiscoveryCollectorPage,
+    DiscoveryIntegrationProfilePage,
     DiscoveryProtocolProfilePage,
     DiscoveryRepository,
     ExportRepository,
@@ -103,7 +104,11 @@ from openinfra.domain.dcim import (
     RoomZone,
     Site,
 )
-from openinfra.domain.discovery import DiscoveryCollector, DiscoveryProtocolCredentialProfile
+from openinfra.domain.discovery import (
+    DiscoveryCollector,
+    DiscoveryIntegrationProfile,
+    DiscoveryProtocolCredentialProfile,
+)
 from openinfra.domain.editions import QuotaResource
 from openinfra.domain.identity import (
     EffectiveIdentity,
@@ -3549,6 +3554,150 @@ class PostgreSQLIpamRepository(PostgreSQLRepositoryBase, IpamRepository):
 
 
 class PostgreSQLDiscoveryRepository(PostgreSQLRepositoryBase, DiscoveryRepository):
+    def save_integration_profile(self, profile: DiscoveryIntegrationProfile) -> None:
+        self._ensure_tenant(profile.tenant_id)
+        payload = profile.as_dict()
+        self._execute_without_result(
+            """
+            INSERT INTO discovery_integration_profiles (
+                id, tenant_id, name, kind, scope, endpoint_url, credential_secret_ref,
+                verify_tls, inventory_enabled, max_concurrency, rate_limit_per_minute,
+                status, created_by, created_at, disabled_reason, updated_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(name)s, %(kind)s, %(scope)s, %(endpoint_url)s,
+                %(credential_secret_ref)s, %(verify_tls)s, %(inventory_enabled)s,
+                %(max_concurrency)s, %(rate_limit_per_minute)s, %(status)s,
+                %(created_by)s, %(created_at)s, %(disabled_reason)s, now()
+            )
+            ON CONFLICT (tenant_id, id) DO UPDATE SET
+                name = EXCLUDED.name,
+                kind = EXCLUDED.kind,
+                scope = EXCLUDED.scope,
+                endpoint_url = EXCLUDED.endpoint_url,
+                credential_secret_ref = EXCLUDED.credential_secret_ref,
+                verify_tls = EXCLUDED.verify_tls,
+                inventory_enabled = EXCLUDED.inventory_enabled,
+                max_concurrency = EXCLUDED.max_concurrency,
+                rate_limit_per_minute = EXCLUDED.rate_limit_per_minute,
+                status = EXCLUDED.status,
+                disabled_reason = EXCLUDED.disabled_reason,
+                updated_at = now()
+            """,
+            {
+                "id": payload["id"],
+                "tenant_id": payload["tenant_id"],
+                "name": payload["name"],
+                "kind": payload["kind"],
+                "scope": payload["scope"],
+                "endpoint_url": payload["endpoint_url"],
+                "credential_secret_ref": payload["credential_secret_ref"],
+                "verify_tls": payload["verify_tls"],
+                "inventory_enabled": payload["inventory_enabled"],
+                "max_concurrency": payload["max_concurrency"],
+                "rate_limit_per_minute": payload["rate_limit_per_minute"],
+                "status": payload["status"],
+                "created_by": payload["created_by"],
+                "created_at": profile.created_at,
+                "disabled_reason": payload["disabled_reason"],
+            },
+        )
+
+    def get_integration_profile(
+        self, tenant_id: TenantId, profile_id: str
+    ) -> DiscoveryIntegrationProfile | None:
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, name, kind, scope, endpoint_url, credential_secret_ref,
+                   verify_tls, inventory_enabled, max_concurrency, rate_limit_per_minute,
+                   status, created_by, created_at, disabled_reason
+            FROM discovery_integration_profiles
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s
+            """,
+            {"tenant_id": tenant_id.value, "id": profile_id.strip()},
+        )
+        return self._integration_profile_from_row(row) if row else None
+
+    def list_integration_profiles(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        include_inactive: bool,
+    ) -> DiscoveryIntegrationProfilePage:
+        params: dict[str, object] = {"tenant_id": tenant_id.value, "limit": pagination.limit}
+        if pagination.cursor:
+            params["cursor"] = pagination.cursor
+        rows = self._fetch_all(
+            self._integration_profile_list_query(include_inactive, pagination.cursor is not None),
+            params,
+        )
+        profiles = tuple(self._integration_profile_from_row(row) for row in rows)
+        next_cursor = profiles[-1].id.value if len(profiles) == pagination.limit else None
+        return DiscoveryIntegrationProfilePage(items=profiles, next_cursor=next_cursor)
+
+    def _integration_profile_list_query(self, include_inactive: bool, has_cursor: bool) -> str:
+        if include_inactive and has_cursor:
+            return """
+            SELECT id, tenant_id, name, kind, scope, endpoint_url, credential_secret_ref,
+                   verify_tls, inventory_enabled, max_concurrency, rate_limit_per_minute,
+                   status, created_by, created_at, disabled_reason
+            FROM discovery_integration_profiles
+            WHERE tenant_id = %(tenant_id)s AND id > %(cursor)s
+            ORDER BY id ASC
+            LIMIT %(limit)s
+            """
+        if include_inactive:
+            return """
+            SELECT id, tenant_id, name, kind, scope, endpoint_url, credential_secret_ref,
+                   verify_tls, inventory_enabled, max_concurrency, rate_limit_per_minute,
+                   status, created_by, created_at, disabled_reason
+            FROM discovery_integration_profiles
+            WHERE tenant_id = %(tenant_id)s
+            ORDER BY id ASC
+            LIMIT %(limit)s
+            """
+        if has_cursor:
+            return """
+            SELECT id, tenant_id, name, kind, scope, endpoint_url, credential_secret_ref,
+                   verify_tls, inventory_enabled, max_concurrency, rate_limit_per_minute,
+                   status, created_by, created_at, disabled_reason
+            FROM discovery_integration_profiles
+            WHERE tenant_id = %(tenant_id)s AND status <> 'disabled' AND id > %(cursor)s
+            ORDER BY id ASC
+            LIMIT %(limit)s
+            """
+        return """
+            SELECT id, tenant_id, name, kind, scope, endpoint_url, credential_secret_ref,
+                   verify_tls, inventory_enabled, max_concurrency, rate_limit_per_minute,
+                   status, created_by, created_at, disabled_reason
+            FROM discovery_integration_profiles
+            WHERE tenant_id = %(tenant_id)s AND status <> 'disabled'
+            ORDER BY id ASC
+            LIMIT %(limit)s
+            """
+
+    def _integration_profile_from_row(
+        self, row: Mapping[str, object]
+    ) -> DiscoveryIntegrationProfile:
+        return DiscoveryIntegrationProfile.from_dict(
+            {
+                "id": row["id"],
+                "tenant_id": row["tenant_id"],
+                "name": row["name"],
+                "kind": row["kind"],
+                "scope": row["scope"],
+                "endpoint_url": row.get("endpoint_url"),
+                "credential_secret_ref": row["credential_secret_ref"],
+                "verify_tls": row["verify_tls"],
+                "inventory_enabled": row["inventory_enabled"],
+                "max_concurrency": row["max_concurrency"],
+                "rate_limit_per_minute": row["rate_limit_per_minute"],
+                "status": row["status"],
+                "created_by": row["created_by"],
+                "created_at": row["created_at"],
+                "disabled_reason": row.get("disabled_reason"),
+            }
+        )
+
     def save_protocol_profile(self, profile: DiscoveryProtocolCredentialProfile) -> None:
         self._ensure_tenant(profile.tenant_id)
         payload = profile.as_dict()

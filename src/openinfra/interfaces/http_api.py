@@ -77,15 +77,20 @@ from openinfra.application.discovery_services import (
     AuthorizeDiscoveryJobCommand,
     BuildEnterpriseAgentBootstrapPlanCommand,
     BuildLocalDiscoveryPlanCommand,
+    CreateDiscoveryIntegrationProfileCommand,
     CreateDiscoveryProtocolProfileCommand,
     DisableCollectorCommand,
+    DisableDiscoveryIntegrationProfileCommand,
     DisableDiscoveryProtocolProfileCommand,
     EnrollDiscoveryProxyCommand,
+    GetDiscoveryIntegrationProfileCommand,
     GetDiscoveryProtocolProfileCommand,
     HeartbeatCollectorCommand,
     ListCollectorsCommand,
+    ListDiscoveryIntegrationProfilesCommand,
     ListDiscoveryProtocolProfilesCommand,
     RegisterCollectorCommand,
+    UpdateDiscoveryIntegrationProfileCommand,
     UpdateDiscoveryProtocolProfileCommand,
 )
 from openinfra.application.edition_services import (
@@ -775,6 +780,82 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 query = parse_qs(parsed.query)
                 profile = self.server.application.discovery_service.get_protocol_profile(
                     GetDiscoveryProtocolProfileCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        profile_id=self._first_query_value(query, "profile_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, profile.as_public_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/discovery/integration-profiles":
+            try:
+                query = parse_qs(parsed.query)
+                page = self.server.application.discovery_service.list_integration_profiles(
+                    ListDiscoveryIntegrationProfilesCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        include_inactive=(
+                            self._first_query_value(query, "include_inactive", "false") == "true"
+                        ),
+                    )
+                )
+                responder.send(HTTPStatus.OK, page.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/discovery/integration-profile":
+            try:
+                query = parse_qs(parsed.query)
+                profile = self.server.application.discovery_service.get_integration_profile(
+                    GetDiscoveryIntegrationProfileCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        profile_id=self._first_query_value(query, "profile_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, profile.as_public_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/discovery/integration-profiles":
+            try:
+                query = parse_qs(parsed.query)
+                page = self.server.application.discovery_service.list_integration_profiles(
+                    ListDiscoveryIntegrationProfilesCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        include_inactive=(
+                            self._first_query_value(query, "include_inactive", "false") == "true"
+                        ),
+                    )
+                )
+                responder.send(HTTPStatus.OK, page.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/discovery/integration-profile":
+            try:
+                query = parse_qs(parsed.query)
+                profile = self.server.application.discovery_service.get_integration_profile(
+                    GetDiscoveryIntegrationProfileCommand(
                         tenant_id=self._first_query_value(query, "tenant_id"),
                         admin_token=self._bearer_token(),
                         profile_id=self._first_query_value(query, "profile_id"),
@@ -3914,6 +3995,91 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
+        if route == "/api/v1/discovery/integration-profile/create":
+            try:
+                payload = self._read_json_body()
+                profile = self.server.application.discovery_service.create_integration_profile(
+                    CreateDiscoveryIntegrationProfileCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        name=str(payload["name"]),
+                        kind=str(payload["kind"]),
+                        scope=str(payload["scope"]),
+                        endpoint_url=None
+                        if payload.get("endpoint_url") is None
+                        else str(payload["endpoint_url"]),
+                        credential_secret_ref=str(payload["credential_secret_ref"]),
+                        verify_tls=bool(payload.get("verify_tls", True)),
+                        inventory_enabled=bool(payload.get("inventory_enabled", True)),
+                        max_concurrency=int(payload.get("max_concurrency", 4)),
+                        rate_limit_per_minute=int(payload.get("rate_limit_per_minute", 120)),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, profile.as_public_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError, TypeError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/discovery/integration-profile/update":
+            try:
+                payload = self._read_json_body()
+                profile = self.server.application.discovery_service.update_integration_profile(
+                    UpdateDiscoveryIntegrationProfileCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        profile_id=str(payload["profile_id"]),
+                        name=None if payload.get("name") is None else str(payload["name"]),
+                        scope=None if payload.get("scope") is None else str(payload["scope"]),
+                        endpoint_url=None
+                        if payload.get("endpoint_url") is None
+                        else str(payload["endpoint_url"]),
+                        credential_secret_ref=None
+                        if payload.get("credential_secret_ref") is None
+                        else str(payload["credential_secret_ref"]),
+                        verify_tls=None
+                        if payload.get("verify_tls") is None
+                        else bool(payload["verify_tls"]),
+                        inventory_enabled=None
+                        if payload.get("inventory_enabled") is None
+                        else bool(payload["inventory_enabled"]),
+                        max_concurrency=None
+                        if payload.get("max_concurrency") is None
+                        else int(payload["max_concurrency"]),
+                        rate_limit_per_minute=None
+                        if payload.get("rate_limit_per_minute") is None
+                        else int(payload["rate_limit_per_minute"]),
+                    )
+                )
+                responder.send(HTTPStatus.OK, profile.as_public_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError, TypeError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/discovery/integration-profile/delete":
+            try:
+                payload = self._read_json_body()
+                profile = self.server.application.discovery_service.disable_integration_profile(
+                    DisableDiscoveryIntegrationProfileCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        profile_id=str(payload["profile_id"]),
+                        reason=str(payload["reason"]),
+                    )
+                )
+                responder.send(HTTPStatus.OK, profile.as_public_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
         if route == "/api/v1/discovery/local-plan":
             try:
                 payload = self._read_json_body()
@@ -4768,10 +4934,15 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "collectors": "/api/v1/discovery/collectors",
                     "local_plan": "/api/v1/discovery/local-plan",
                     "protocol_profiles": "/api/v1/discovery/protocol-profiles",
+                    "integration_profiles": "/api/v1/discovery/integration-profiles",
                     "protocol_profile": "/api/v1/discovery/protocol-profile",
                     "protocol_profile_create": "/api/v1/discovery/protocol-profile/create",
                     "protocol_profile_update": "/api/v1/discovery/protocol-profile/update",
                     "protocol_profile_delete": "/api/v1/discovery/protocol-profile/delete",
+                    "integration_profile": "/api/v1/discovery/integration-profile",
+                    "integration_profile_create": "/api/v1/discovery/integration-profile/create",
+                    "integration_profile_update": "/api/v1/discovery/integration-profile/update",
+                    "integration_profile_delete": "/api/v1/discovery/integration-profile/delete",
                     "agent_bootstrap_plan": "/api/v1/discovery/agent-bootstrap-plan",
                     "proxy_enrollments": "/api/v1/discovery/proxy-enrollments",
                     "heartbeat": "/api/v1/discovery/collectors/heartbeat",

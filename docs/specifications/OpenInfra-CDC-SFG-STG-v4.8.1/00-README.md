@@ -274,3 +274,6 @@ Ajout de `REQ-00814` et `TST-WEB-113` : OpenInfra gère un référentiel Organis
 
 
 Ajout de `REQ-00816` et `TST-WEB-115` : ITAM dispose désormais d’un référentiel partenaires accrédités par organisation pour les constructeurs, éditeurs logiciels et supports tiers. Les garanties, licences et contrats de support consomment ces partenaires actifs filtrés au lieu de champs fournisseurs libres.
+### Validation v0.29.81 — Profils Discovery virtualisation, Kubernetes et cloud
+
+Ajout de `REQ-00822` et `TST-WEB-121` : OpenInfra référence les profils de découverte VMware, Proxmox, Hyper-V, Kubernetes, AWS, Azure, GCP et OpenStack avec secrets `vault://` masqués, endpoint HTTPS lorsque nécessaire, limites de débit/concurrence et migration `0037_discovery_integration_profiles.sql`.

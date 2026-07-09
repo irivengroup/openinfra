@@ -1696,3 +1696,8 @@ La roadmap intègre `TST-P14-DISCOVERY-PROTOCOL-PROFILES` pour couvrir EPIC-1403
 - Partenaires ITAM : code postal ajouté au modèle et aux interfaces.
 - Pays : affichage nom seul, valeur alpha2.
 - Migration : `0036_site_organization_addresses.sql`.
+
+
+### Validation v0.29.81 — Profils Discovery virtualisation, Kubernetes et cloud
+
+La roadmap intègre `TST-P14-DISCOVERY-INTEGRATION-PROFILES` pour couvrir EPIC-1404 : profils VMware, Proxmox, Hyper-V, Kubernetes, AWS, Azure, GCP et OpenStack sécurisés, secrets `vault://` masqués, endpoints HTTPS contrôlés, limites de débit/concurrence actives, CRUD service/CLI/API/web et migration PostgreSQL `0037_discovery_integration_profiles.sql` sans scan réseau ni mutation RSOT.

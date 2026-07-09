@@ -6,6 +6,7 @@ from openinfra.application.edition_services import EditionRuntimeGuard
 from openinfra.application.ports import (
     AuditRepository,
     DiscoveryCollectorPage,
+    DiscoveryIntegrationProfilePage,
     DiscoveryProtocolProfilePage,
     DiscoveryRepository,
     TransactionManager,
@@ -16,6 +17,7 @@ from openinfra.domain.discovery import (
     CollectorIdentity,
     CollectorKind,
     DiscoveryCollector,
+    DiscoveryIntegrationProfile,
     DiscoveryJobAuthorization,
     DiscoveryProtocolCredentialProfile,
     DiscoveryScope,
@@ -76,6 +78,63 @@ class DisableDiscoveryProtocolProfileCommand:
 
 @dataclass(frozen=True, slots=True)
 class ListDiscoveryProtocolProfilesCommand:
+    tenant_id: str
+    admin_token: str
+    limit: int = 100
+    cursor: str | None = None
+    include_inactive: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class CreateDiscoveryIntegrationProfileCommand:
+    tenant_id: str
+    actor: str
+    admin_token: str
+    name: str
+    kind: str
+    scope: str
+    endpoint_url: str | None
+    credential_secret_ref: str
+    verify_tls: bool = True
+    inventory_enabled: bool = True
+    max_concurrency: int = 4
+    rate_limit_per_minute: int = 120
+
+
+@dataclass(frozen=True, slots=True)
+class UpdateDiscoveryIntegrationProfileCommand:
+    tenant_id: str
+    actor: str
+    admin_token: str
+    profile_id: str
+    name: str | None = None
+    scope: str | None = None
+    endpoint_url: str | None = None
+    credential_secret_ref: str | None = None
+    verify_tls: bool | None = None
+    inventory_enabled: bool | None = None
+    max_concurrency: int | None = None
+    rate_limit_per_minute: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class GetDiscoveryIntegrationProfileCommand:
+    tenant_id: str
+    admin_token: str
+    profile_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class DisableDiscoveryIntegrationProfileCommand:
+    tenant_id: str
+    actor: str
+    admin_token: str
+    profile_id: str
+    reason: str
+
+
+@dataclass(frozen=True, slots=True)
+class ListDiscoveryIntegrationProfilesCommand:
     tenant_id: str
     admin_token: str
     limit: int = 100
@@ -341,6 +400,154 @@ class DiscoveryCollectorService:
         )
         pagination = Pagination.from_values(command.limit, command.cursor)
         return self._discovery_repository.list_protocol_profiles(
+            tenant_id,
+            pagination,
+            command.include_inactive,
+        )
+
+    def create_integration_profile(
+        self, command: CreateDiscoveryIntegrationProfileCommand
+    ) -> DiscoveryIntegrationProfile:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        principal = self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                tenant_id.value, command.admin_token, Permission.SECURITY_ADMIN
+            )
+        )
+        profile = DiscoveryIntegrationProfile.create(
+            tenant_id=tenant_id,
+            name=command.name,
+            kind=command.kind,
+            scope=command.scope,
+            endpoint_url=command.endpoint_url,
+            credential_secret_ref=command.credential_secret_ref,
+            verify_tls=command.verify_tls,
+            inventory_enabled=command.inventory_enabled,
+            max_concurrency=command.max_concurrency,
+            rate_limit_per_minute=command.rate_limit_per_minute,
+            created_by=principal.subject,
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            self._discovery_repository.save_integration_profile(profile)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=principal.subject,
+                    action="discovery.integration_profile.created",
+                    target_type="discovery_integration_profile",
+                    target_id=profile.id.value,
+                    metadata={
+                        "declared_actor": command.actor,
+                        "kind": profile.kind.value,
+                        "scope": profile.scope.value,
+                        "connector_family": profile.connector_family,
+                        "secret_materialized": False,
+                        "inventory_plan_only": True,
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return profile
+
+    def update_integration_profile(
+        self, command: UpdateDiscoveryIntegrationProfileCommand
+    ) -> DiscoveryIntegrationProfile:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        principal = self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                tenant_id.value, command.admin_token, Permission.SECURITY_ADMIN
+            )
+        )
+        profile = self._discovery_repository.get_integration_profile(tenant_id, command.profile_id)
+        if profile is None:
+            raise ValidationError("discovery integration profile is not registered")
+        updated = profile.update_settings(
+            name=command.name,
+            scope=command.scope,
+            endpoint_url=command.endpoint_url,
+            credential_secret_ref=command.credential_secret_ref,
+            verify_tls=command.verify_tls,
+            inventory_enabled=command.inventory_enabled,
+            max_concurrency=command.max_concurrency,
+            rate_limit_per_minute=command.rate_limit_per_minute,
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            self._discovery_repository.save_integration_profile(updated)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=principal.subject,
+                    action="discovery.integration_profile.updated",
+                    target_type="discovery_integration_profile",
+                    target_id=updated.id.value,
+                    metadata={
+                        "declared_actor": command.actor,
+                        "kind": updated.kind.value,
+                        "scope": updated.scope.value,
+                        "secret_materialized": False,
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return updated
+
+    def get_integration_profile(
+        self, command: GetDiscoveryIntegrationProfileCommand
+    ) -> DiscoveryIntegrationProfile:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                tenant_id.value, command.admin_token, Permission.SECURITY_ADMIN
+            )
+        )
+        profile = self._discovery_repository.get_integration_profile(tenant_id, command.profile_id)
+        if profile is None:
+            raise ValidationError("discovery integration profile is not registered")
+        return profile
+
+    def disable_integration_profile(
+        self, command: DisableDiscoveryIntegrationProfileCommand
+    ) -> DiscoveryIntegrationProfile:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        principal = self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                tenant_id.value, command.admin_token, Permission.SECURITY_ADMIN
+            )
+        )
+        profile = self._discovery_repository.get_integration_profile(tenant_id, command.profile_id)
+        if profile is None:
+            raise ValidationError("discovery integration profile is not registered")
+        disabled = profile.disable(command.reason)
+        with self._transaction_manager.begin() as unit_of_work:
+            self._discovery_repository.save_integration_profile(disabled)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=principal.subject,
+                    action="discovery.integration_profile.disabled",
+                    target_type="discovery_integration_profile",
+                    target_id=disabled.id.value,
+                    metadata={
+                        "declared_actor": command.actor,
+                        "reason": disabled.disabled_reason,
+                        "secret_materialized": False,
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return disabled
+
+    def list_integration_profiles(
+        self, command: ListDiscoveryIntegrationProfilesCommand
+    ) -> DiscoveryIntegrationProfilePage:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                tenant_id.value, command.admin_token, Permission.SECURITY_ADMIN
+            )
+        )
+        pagination = Pagination.from_values(command.limit, command.cursor)
+        return self._discovery_repository.list_integration_profiles(
             tenant_id,
             pagination,
             command.include_inactive,

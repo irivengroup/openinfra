@@ -75,15 +75,20 @@ from openinfra.application.discovery_services import (
     AuthorizeDiscoveryJobCommand,
     BuildEnterpriseAgentBootstrapPlanCommand,
     BuildLocalDiscoveryPlanCommand,
+    CreateDiscoveryIntegrationProfileCommand,
     CreateDiscoveryProtocolProfileCommand,
     DisableCollectorCommand,
+    DisableDiscoveryIntegrationProfileCommand,
     DisableDiscoveryProtocolProfileCommand,
     EnrollDiscoveryProxyCommand,
+    GetDiscoveryIntegrationProfileCommand,
     GetDiscoveryProtocolProfileCommand,
     HeartbeatCollectorCommand,
     ListCollectorsCommand,
+    ListDiscoveryIntegrationProfilesCommand,
     ListDiscoveryProtocolProfilesCommand,
     RegisterCollectorCommand,
+    UpdateDiscoveryIntegrationProfileCommand,
     UpdateDiscoveryProtocolProfileCommand,
 )
 from openinfra.application.edition_services import (
@@ -1317,6 +1322,89 @@ class OpenInfraCLI:
         profile_delete.add_argument("--profile-id", required=True)
         profile_delete.add_argument("--reason", required=True)
         profile_delete.set_defaults(handler=self._handle_discovery_protocol_profile_delete)
+
+        integration_create = discovery_subparsers.add_parser(
+            "integration-profile-create",
+            help="create a secured virtualization, Kubernetes or cloud discovery profile",
+        )
+        self._add_backend_arguments(integration_create)
+        integration_create.add_argument("--tenant", required=True)
+        integration_create.add_argument("--actor", default="cli")
+        integration_create.add_argument("--admin-token", required=True)
+        integration_create.add_argument("--name", required=True)
+        integration_create.add_argument(
+            "--kind",
+            choices=(
+                "vmware",
+                "proxmox",
+                "hyperv",
+                "kubernetes",
+                "aws",
+                "azure",
+                "gcp",
+                "openstack",
+            ),
+            required=True,
+        )
+        integration_create.add_argument("--scope", required=True)
+        integration_create.add_argument("--endpoint-url")
+        integration_create.add_argument("--credential-secret-ref", required=True)
+        integration_create.add_argument("--no-verify-tls", action="store_true")
+        integration_create.add_argument("--disable-inventory", action="store_true")
+        integration_create.add_argument("--max-concurrency", type=int, default=4)
+        integration_create.add_argument("--rate-limit-per-minute", type=int, default=120)
+        integration_create.set_defaults(handler=self._handle_discovery_integration_profile_create)
+
+        integration_update = discovery_subparsers.add_parser(
+            "integration-profile-update",
+            help="update a secured discovery integration profile without materializing secrets",
+        )
+        self._add_backend_arguments(integration_update)
+        integration_update.add_argument("--tenant", required=True)
+        integration_update.add_argument("--actor", default="cli")
+        integration_update.add_argument("--admin-token", required=True)
+        integration_update.add_argument("--profile-id", required=True)
+        integration_update.add_argument("--name")
+        integration_update.add_argument("--scope")
+        integration_update.add_argument("--endpoint-url")
+        integration_update.add_argument("--credential-secret-ref")
+        integration_update.add_argument("--verify-tls", choices=("true", "false"))
+        integration_update.add_argument("--inventory-enabled", choices=("true", "false"))
+        integration_update.add_argument("--max-concurrency", type=int)
+        integration_update.add_argument("--rate-limit-per-minute", type=int)
+        integration_update.set_defaults(handler=self._handle_discovery_integration_profile_update)
+
+        integration_get = discovery_subparsers.add_parser(
+            "integration-profile",
+            help="get a discovery integration profile with masked secret reference",
+        )
+        self._add_backend_arguments(integration_get)
+        integration_get.add_argument("--tenant", required=True)
+        integration_get.add_argument("--admin-token", required=True)
+        integration_get.add_argument("--profile-id", required=True)
+        integration_get.set_defaults(handler=self._handle_discovery_integration_profile_get)
+
+        integration_list = discovery_subparsers.add_parser(
+            "integration-profile-list", help="list discovery integration profiles"
+        )
+        self._add_backend_arguments(integration_list)
+        integration_list.add_argument("--tenant", required=True)
+        integration_list.add_argument("--admin-token", required=True)
+        integration_list.add_argument("--limit", type=int, default=100)
+        integration_list.add_argument("--cursor")
+        integration_list.add_argument("--include-inactive", action="store_true")
+        integration_list.set_defaults(handler=self._handle_discovery_integration_profile_list)
+
+        integration_delete = discovery_subparsers.add_parser(
+            "integration-profile-delete", help="disable a discovery integration profile"
+        )
+        self._add_backend_arguments(integration_delete)
+        integration_delete.add_argument("--tenant", required=True)
+        integration_delete.add_argument("--actor", default="cli")
+        integration_delete.add_argument("--admin-token", required=True)
+        integration_delete.add_argument("--profile-id", required=True)
+        integration_delete.add_argument("--reason", required=True)
+        integration_delete.set_defaults(handler=self._handle_discovery_integration_profile_delete)
 
         register = discovery_subparsers.add_parser(
             "collector-register", help="register an authorized discovery collector"
@@ -3942,6 +4030,94 @@ class OpenInfraCLI:
         app = self._create_application(args)
         profile = app.discovery_service.disable_protocol_profile(
             DisableDiscoveryProtocolProfileCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                profile_id=args.profile_id,
+                reason=args.reason,
+            )
+        )
+        print(json.dumps(profile.as_public_dict(), indent=2, sort_keys=True))
+        return 0
+
+    @staticmethod
+    def _optional_bool(value: str | None) -> bool | None:
+        if value is None:
+            return None
+        return value.lower() == "true"
+
+    def _handle_discovery_integration_profile_create(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        profile = app.discovery_service.create_integration_profile(
+            CreateDiscoveryIntegrationProfileCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                name=args.name,
+                kind=args.kind,
+                scope=args.scope,
+                endpoint_url=args.endpoint_url,
+                credential_secret_ref=args.credential_secret_ref,
+                verify_tls=not args.no_verify_tls,
+                inventory_enabled=not args.disable_inventory,
+                max_concurrency=args.max_concurrency,
+                rate_limit_per_minute=args.rate_limit_per_minute,
+            )
+        )
+        print(json.dumps(profile.as_public_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_discovery_integration_profile_update(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        profile = app.discovery_service.update_integration_profile(
+            UpdateDiscoveryIntegrationProfileCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                profile_id=args.profile_id,
+                name=args.name,
+                scope=args.scope,
+                endpoint_url=args.endpoint_url,
+                credential_secret_ref=args.credential_secret_ref,
+                verify_tls=self._optional_bool(args.verify_tls),
+                inventory_enabled=self._optional_bool(args.inventory_enabled),
+                max_concurrency=args.max_concurrency,
+                rate_limit_per_minute=args.rate_limit_per_minute,
+            )
+        )
+        print(json.dumps(profile.as_public_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_discovery_integration_profile_get(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        profile = app.discovery_service.get_integration_profile(
+            GetDiscoveryIntegrationProfileCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                profile_id=args.profile_id,
+            )
+        )
+        print(json.dumps(profile.as_public_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_discovery_integration_profile_list(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        page = app.discovery_service.list_integration_profiles(
+            ListDiscoveryIntegrationProfilesCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                limit=args.limit,
+                cursor=args.cursor,
+                include_inactive=args.include_inactive,
+            )
+        )
+        print(json.dumps(page.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_discovery_integration_profile_delete(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        profile = app.discovery_service.disable_integration_profile(
+            DisableDiscoveryIntegrationProfileCommand(
                 tenant_id=args.tenant,
                 actor=args.actor,
                 admin_token=args.admin_token,

@@ -140,3 +140,8 @@ La roadmap intègre `TST-P14-DISCOVERY-PROTOCOL-PROFILES` pour couvrir EPIC-1403
 ### Validation v0.29.80 — Adresse complète sites, organisations et partenaires
 
 PASS — Les coordonnées site/organisation/partenaire, le code postal obligatoire et le comportement pays sont validés par tests ciblés et migration 0036.
+
+
+### Validation v0.29.81 — Profils Discovery virtualisation, Kubernetes et cloud
+
+La roadmap intègre `TST-P14-DISCOVERY-INTEGRATION-PROFILES` pour couvrir EPIC-1404 : profils VMware, Proxmox, Hyper-V, Kubernetes, AWS, Azure, GCP et OpenStack sécurisés, secrets `vault://` masqués, endpoints HTTPS contrôlés, limites de débit/concurrence actives, CRUD service/CLI/API/web et migration PostgreSQL `0037_discovery_integration_profiles.sql` sans scan réseau ni mutation RSOT.

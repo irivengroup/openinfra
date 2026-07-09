@@ -306,7 +306,7 @@ class CountryCatalog:
         return tuple(
             {
                 "value": str(country["code"]),
-                "label": f"{country['code']} — {country['name']}",
+                "label": str(country["name"]),
                 "group": str(group["continent"]),
             }
             for group in COUNTRY_GROUPS

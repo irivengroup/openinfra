@@ -72,6 +72,34 @@ class DcimLifecycleStatus(StrEnum):
         return self == DcimLifecycleStatus.ACTIVE
 
 
+class BuildingType(StrEnum):
+    SIMPLE = "simple"
+    FLOORS = "floors"
+
+    @classmethod
+    def from_value(cls, value: str | None, label: str = "building type") -> BuildingType:
+        normalized = (value or cls.SIMPLE.value).strip().lower().replace("é", "e")
+        aliases = {
+            "simple": cls.SIMPLE,
+            "etages": cls.FLOORS,
+            "etage": cls.FLOORS,
+            "floors": cls.FLOORS,
+            "floor": cls.FLOORS,
+            "multi_floor": cls.FLOORS,
+            "multi-floor": cls.FLOORS,
+        }
+        try:
+            return aliases[normalized]
+        except KeyError as exc:
+            raise ValidationError(f"{label} must be Simple or Etages") from exc
+
+    def requires_floor(self) -> bool:
+        return self == BuildingType.FLOORS
+
+    def label(self) -> str:
+        return "Etages" if self == BuildingType.FLOORS else "Simple"
+
+
 class RackFace(StrEnum):
     FRONT = "front"
     REAR = "rear"
@@ -185,16 +213,55 @@ class Building:
     site_code: Code
     code: Code
     name: Name
+    building_type: BuildingType = BuildingType.SIMPLE
+    initial_level: int | None = None
+    final_level: int | None = None
     status: DcimLifecycleStatus = DcimLifecycleStatus.ACTIVE
 
+    @staticmethod
+    def _normalize_levels(
+        building_type: BuildingType,
+        initial_level: int | None,
+        final_level: int | None,
+    ) -> tuple[int | None, int | None]:
+        if building_type == BuildingType.SIMPLE:
+            return None, None
+        if initial_level is None or final_level is None:
+            raise ValidationError("initial and final levels are mandatory for Etages buildings")
+        normalized_initial = int(initial_level)
+        normalized_final = int(final_level)
+        if not -20 <= normalized_initial <= 0:
+            raise ValidationError("initial level must be between -20 and 0")
+        if not 1 <= normalized_final <= 150:
+            raise ValidationError("final level must be between 1 and 150")
+        if normalized_initial >= normalized_final:
+            raise ValidationError("initial level must be lower than final level")
+        return normalized_initial, normalized_final
+
     @classmethod
-    def create(cls, tenant_id: TenantId, site_code: str, code: str, name: str) -> Self:
+    def create(
+        cls,
+        tenant_id: TenantId,
+        site_code: str,
+        code: str,
+        name: str,
+        building_type: str | None = None,
+        initial_level: int | None = None,
+        final_level: int | None = None,
+    ) -> Self:
+        normalized_type = BuildingType.from_value(building_type, "building type")
+        normalized_initial, normalized_final = cls._normalize_levels(
+            normalized_type, initial_level, final_level
+        )
         return cls(
             id=EntityId.new(),
             tenant_id=tenant_id,
             site_code=Code.from_value(site_code, "site code"),
             code=Code.from_value(code, "building code"),
             name=Name.from_value(name, "building name"),
+            building_type=normalized_type,
+            initial_level=normalized_initial,
+            final_level=normalized_final,
         )
 
     def update(self, *, name: str | None = None, status: str | None = None) -> Building:
@@ -204,6 +271,9 @@ class Building:
             site_code=self.site_code,
             code=self.code,
             name=self.name if name is None else Name.from_value(name, "building name"),
+            building_type=self.building_type,
+            initial_level=self.initial_level,
+            final_level=self.final_level,
             status=DcimLifecycleStatus.from_value(status, "building status")
             if status
             else self.status,
@@ -215,6 +285,24 @@ class Building:
     def selectable(self) -> bool:
         return self.status.selectable()
 
+    def requires_floor(self) -> bool:
+        return self.building_type.requires_floor()
+
+    def generated_floors(self) -> tuple[Floor, ...]:
+        if not self.requires_floor():
+            return ()
+        if self.initial_level is None or self.final_level is None:
+            raise ValidationError("building floor levels are mandatory for Etages buildings")
+        return tuple(
+            Floor.generated(
+                self.tenant_id,
+                self.site_code.value,
+                self.code.value,
+                level_index,
+            )
+            for level_index in range(self.initial_level, self.final_level + 1)
+        )
+
     def as_dict(self) -> dict[str, object]:
         return {
             "id": self.id.value,
@@ -222,6 +310,11 @@ class Building:
             "site": self.site_code.value,
             "code": self.code.value,
             "name": self.name.value,
+            "building_type": self.building_type.value,
+            "type_batiment": self.building_type.label(),
+            "initial_level": self.initial_level,
+            "final_level": self.final_level,
+            "floor_codes": [floor.code.value for floor in self.generated_floors()],
             "status": self.status.value,
             "selectable": self.selectable(),
         }
@@ -249,8 +342,8 @@ class Floor:
         level_index: int,
     ) -> Self:
         normalized_level = int(level_index)
-        if not -20 <= normalized_level <= 300:
-            raise ValidationError("floor level index must be between -20 and 300")
+        if not -20 <= normalized_level <= 150:
+            raise ValidationError("floor level index must be between -20 and 150")
         return cls(
             id=EntityId.new(),
             tenant_id=tenant_id,
@@ -261,12 +354,28 @@ class Floor:
             level_index=normalized_level,
         )
 
+    @classmethod
+    def generated(
+        cls, tenant_id: TenantId, site_code: str, building_code: str, level_index: int
+    ) -> Self:
+        normalized_site = Code.from_value(site_code, "site code").value
+        normalized_building = Code.from_value(building_code, "building code").value
+        floor_suffix = f"ETG{level_index}"
+        return cls.create(
+            tenant_id=tenant_id,
+            site_code=normalized_site,
+            building_code=normalized_building,
+            code=f"{normalized_site}_{normalized_building}_{floor_suffix}",
+            name=f"{normalized_site}/{normalized_building}/{floor_suffix}",
+            level_index=level_index,
+        )
+
     def update(
         self, *, name: str | None = None, level_index: int | None = None, status: str | None = None
     ) -> Floor:
         normalized_level = self.level_index if level_index is None else int(level_index)
-        if not -20 <= normalized_level <= 300:
-            raise ValidationError("floor level index must be between -20 and 300")
+        if not -20 <= normalized_level <= 150:
+            raise ValidationError("floor level index must be between -20 and 150")
         return Floor(
             id=self.id,
             tenant_id=self.tenant_id,

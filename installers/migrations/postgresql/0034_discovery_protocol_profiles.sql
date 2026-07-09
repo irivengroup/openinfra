@@ -1,4 +1,4 @@
--- OpenInfra v0.29.78 - P14 / EPIC-1403 secured SNMP/SSH/WinRM protocol profiles
+-- OpenInfra v0.29.79 - P14 / EPIC-1403 secured SNMP/SSH/WinRM protocol profiles
 
 BEGIN;
 

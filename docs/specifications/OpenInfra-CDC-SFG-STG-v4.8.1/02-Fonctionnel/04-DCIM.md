@@ -166,3 +166,12 @@ Toute création doit refuser un parent absent, suspendu ou retiré. Toute suppre
 - retrait zone → zone uniquement.
 
 L'opération composite `define-room` reste compatible pour les scénarios d'initialisation rapide, mais le CRUD dédié des dépendances est le contrat d'administration courant.
+
+
+## v0.29.79 — Bâtiments typés et étages générés
+
+Les étages ne sont plus administrés comme un CRUD métier manuel dans les parcours opérateur. Ils restent des éléments internes d'un bâtiment et sont générés par OpenInfra à la création du bâtiment lorsque le type `Etages` est sélectionné.
+
+Lors de la création d'un bâtiment, le champ `Type Batiment` accepte `Simple` ou `Etages`. Si `Etages` est choisi, `Niveau Initial` est obligatoire et borné de -20 à 0, `Niveau Final` est obligatoire et borné de 1 à 150. Les formulaires consomment ensuite l'expansion déterministe de cette plage.
+
+Le code d'étage est généré selon `<code-site>_<code-bat>_ETG<num-etage>` et le nom selon `<code-site>/<code-bat>/ETG<num-etage>`. Aucun opérateur ne saisit manuellement le code ou le nom de l'étage dans les formulaires d'administration.

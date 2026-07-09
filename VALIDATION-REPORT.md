@@ -1,12 +1,12 @@
-# OpenInfra v0.29.78 — Validation Report
+# OpenInfra v0.29.79 — Validation Report
 
-Release: `0.29.78`
+Release: `0.29.79`
 
-La version v0.29.78 ajoute les profils protocoles Discovery SNMP/SSH/WinRM sécurisés, sans matérialisation de secret, avec limites de débit/concurrence actives et intégration plan discovery local.
+La version v0.29.79 ajoute les profils protocoles Discovery SNMP/SSH/WinRM sécurisés, sans matérialisation de secret, avec limites de débit/concurrence actives et intégration plan discovery local.
 
 ## Résultats exécutés localement
 
-- Version CLI : `0.29.78`
+- Version CLI : `0.29.79`
 - CDC : PASS — 819 exigences, 618 tests
 - Roadmap : PASS — 19 phases, 114 epics, 8 gates, 87 tests
 - Tests collectés : 544

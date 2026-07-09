@@ -1,4 +1,4 @@
-## v0.29.78 — Traçabilité profils Discovery
+## v0.29.79 — Traçabilité profils Discovery
 
 - CDC : `REQ-00819`, `TST-WEB-118`.
 - Roadmap : `TST-P14-DISCOVERY-PROTOCOL-PROFILES`.

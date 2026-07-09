@@ -2631,6 +2631,15 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         site=str(payload["site"]),
                         code=str(payload["code"]),
                         name=str(payload["name"]),
+                        building_type=str(
+                            payload.get("building_type") or payload.get("type_batiment") or "simple"
+                        ),
+                        initial_level=int(payload["initial_level"])
+                        if payload.get("initial_level") is not None
+                        else None,
+                        final_level=int(payload["final_level"])
+                        if payload.get("final_level") is not None
+                        else None,
                     )
                 )
                 responder.send(HTTPStatus.CREATED, result)
@@ -4694,9 +4703,6 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "building_delete": "/api/v1/dcim/building/delete",
                     "floors": "/api/v1/dcim/floors",
                     "floor": "/api/v1/dcim/floor",
-                    "floor_create": "/api/v1/dcim/floor/create",
-                    "floor_update": "/api/v1/dcim/floor/update",
-                    "floor_delete": "/api/v1/dcim/floor/delete",
                     "rooms_list": "/api/v1/dcim/rooms",
                     "room": "/api/v1/dcim/room",
                     "room_create": "/api/v1/dcim/room/create",

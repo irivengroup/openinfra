@@ -76,6 +76,7 @@ from openinfra.domain.data_import import (
 )
 from openinfra.domain.dcim import (
     Building,
+    BuildingType,
     CoolingRole,
     CoolingZone,
     DcimCable,
@@ -1062,8 +1063,14 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
         self._ensure_tenant(building.tenant_id)
         self._execute_without_result(
             """
-            INSERT INTO buildings (id, tenant_id, site_code, code, name, status)
-            VALUES (%(id)s, %(tenant_id)s, %(site_code)s, %(code)s, %(name)s, %(status)s)
+            INSERT INTO buildings (
+                id, tenant_id, site_code, code, name, building_type,
+                initial_level, final_level, status
+            )
+            VALUES (
+                %(id)s, %(tenant_id)s, %(site_code)s, %(code)s, %(name)s,
+                %(building_type)s, %(initial_level)s, %(final_level)s, %(status)s
+            )
             ON CONFLICT (tenant_id, site_code, code) DO NOTHING
             """,
             {
@@ -1072,6 +1079,9 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
                 "site_code": building.site_code.value,
                 "code": building.code.value,
                 "name": building.name.value,
+                "building_type": building.building_type.value,
+                "initial_level": building.initial_level,
+                "final_level": building.final_level,
                 "status": building.status.value,
             },
         )
@@ -1080,7 +1090,11 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
         self._execute_without_result(
             """
             UPDATE buildings
-            SET name = %(name)s, status = %(status)s
+            SET name = %(name)s,
+                building_type = %(building_type)s,
+                initial_level = %(initial_level)s,
+                final_level = %(final_level)s,
+                status = %(status)s
             WHERE tenant_id = %(tenant_id)s AND site_code = %(site_code)s AND code = %(code)s
             """,
             {
@@ -1088,6 +1102,9 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
                 "site_code": building.site_code.value,
                 "code": building.code.value,
                 "name": building.name.value,
+                "building_type": building.building_type.value,
+                "initial_level": building.initial_level,
+                "final_level": building.final_level,
                 "status": building.status.value,
             },
         )
@@ -1740,7 +1757,8 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
     def find_building(self, tenant_id: TenantId, site: str, building: str) -> Building | None:
         row = self._fetch_one(
             """
-            SELECT id, tenant_id, site_code, code, name, status
+            SELECT id, tenant_id, site_code, code, name, building_type,
+                   initial_level, final_level, status
             FROM buildings
             WHERE tenant_id = %(tenant_id)s AND site_code = %(site_code)s
               AND code = %(code)s
@@ -2316,12 +2334,20 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
         )
 
     def _building_from_row(self, row: Mapping[str, object]) -> Building:
+        building_type = BuildingType.from_value(str(row.get("building_type") or "simple"))
         return Building(
             id=EntityId.from_value(str(row["id"])),
             tenant_id=TenantId.from_value(str(row["tenant_id"])),
             site_code=Code.from_value(str(row["site_code"]), "site code"),
             code=Code.from_value(str(row["code"]), "building code"),
             name=Name.from_value(str(row["name"]), "building name"),
+            building_type=building_type,
+            initial_level=int(str(row["initial_level"]))
+            if building_type.requires_floor() and row.get("initial_level") is not None
+            else None,
+            final_level=int(str(row["final_level"]))
+            if building_type.requires_floor() and row.get("final_level") is not None
+            else None,
             status=DcimLifecycleStatus.from_value(
                 str(row.get("status") or "active"), "building status"
             ),

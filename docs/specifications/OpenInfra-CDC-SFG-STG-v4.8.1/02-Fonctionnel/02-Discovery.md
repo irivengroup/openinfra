@@ -142,7 +142,7 @@ La capacité est acceptée si les scénarios nominaux, erreurs, droits insuffisa
 OpenInfra expose `openinfra discovery agent-bootstrap-plan` et `POST /api/v1/discovery/agent-bootstrap-plan` pour produire un plan opérable `openinfra-agent.service` Enterprise. Le plan exige HTTPS, mTLS, secret `vault://`, compte de service non-root, publication de résultats par API et ne réalise ni installation ni matérialisation de secret.
 
 
-## v0.29.78 — profils protocoles SNMP/SSH/WinRM sécurisés
+## v0.29.79 — profils protocoles SNMP/SSH/WinRM sécurisés
 
 ### REQ-00819 — Profils discovery SNMP/SSH/WinRM sécurisés
 

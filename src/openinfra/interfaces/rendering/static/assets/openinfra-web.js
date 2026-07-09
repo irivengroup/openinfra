@@ -879,22 +879,19 @@ const OPENINFRA_MODULES = [
   { id: "dcim", label: "DCIM", icon: "home", description: "Sites, salles, zones, racks, ports, câbles, énergie et localisation terrain.", operations: [
     { id: "dcim-sites", label: "Lister les sites DCIM", method: "GET", path: "/v1/dcim/sites", query: [{ name: "include_retired", label: "Inclure retirés", type: "boolean" }] },
     { id: "dcim-site", label: "Consulter un site DCIM", method: "GET", path: "/v1/dcim/site", query: [{ name: "code", label: "Site", required: true, defaultValue: "PAR1" }] },
-    { id: "dcim-site-create", label: "Créer un site DCIM", method: "POST", path: "/v1/dcim/site/create", body: [FIELD_SETS.actor, { name: "code", label: "Code site", required: true, placeholder: "PAR1" }, { name: "name", label: "Nom site", required: true, placeholder: "Paris 1" }, { name: "country", label: "Pays ISO-3166", required: true, placeholder: "FR" }, { name: "region", label: "Région", placeholder: "Île-de-France" }, { name: "city", label: "Ville", required: true, placeholder: "Paris" }] },
-    { id: "dcim-site-update", label: "Modifier un site DCIM", method: "POST", path: "/v1/dcim/site/update", body: [FIELD_SETS.actor, { name: "code", label: "Site", required: true, defaultValue: "PAR1" }, { name: "name", label: "Nom site", placeholder: "Paris 1" }, { name: "country", label: "Pays ISO-3166", placeholder: "FR" }, { name: "region", label: "Région", placeholder: "Île-de-France" }, { name: "city", label: "Ville", placeholder: "Paris" }, { name: "status", label: "Statut", type: "select", options: ["", "active", "suspended", "retired"] }] },
+    { id: "dcim-site-create", label: "Créer un site DCIM", method: "POST", path: "/v1/dcim/site/create", body: [FIELD_SETS.actor, { name: "code", label: "Code site", required: true, placeholder: "PAR1" }, { name: "name", label: "Nom site", required: true, placeholder: "Paris 1" }, { name: "country", label: "Pays", required: true, placeholder: "FR" }, { name: "region", label: "Région", placeholder: "Île-de-France" }, { name: "city", label: "Ville", required: true, placeholder: "Paris" }] },
+    { id: "dcim-site-update", label: "Modifier un site DCIM", method: "POST", path: "/v1/dcim/site/update", body: [FIELD_SETS.actor, { name: "code", label: "Site", required: true, defaultValue: "PAR1" }, { name: "name", label: "Nom site", placeholder: "Paris 1" }, { name: "country", label: "Pays", placeholder: "FR" }, { name: "region", label: "Région", placeholder: "Île-de-France" }, { name: "city", label: "Ville", placeholder: "Paris" }, { name: "status", label: "Statut", type: "select", options: ["", "active", "suspended", "retired"] }] },
     { id: "dcim-site-delete", label: "Retirer un site DCIM", method: "POST", path: "/v1/dcim/site/delete", body: [FIELD_SETS.actor, { name: "code", label: "Site", required: true, defaultValue: "PAR1" }] },
     { id: "dcim-buildings", label: "Lister les bâtiments", method: "GET", path: "/v1/dcim/buildings", query: [{ name: "site", label: "Site", required: true }, { name: "include_retired", label: "Inclure retirés", type: "boolean" }] },
     { id: "dcim-building", label: "Consulter un bâtiment", method: "GET", path: "/v1/dcim/building", query: [{ name: "site", label: "Site", required: true }, { name: "code", label: "Code bâtiment", required: true, placeholder: "BAT-A" }] },
-    { id: "dcim-building-create", label: "Créer un bâtiment", method: "POST", path: "/v1/dcim/building/create", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true }, { name: "code", label: "Code bâtiment", required: true, placeholder: "BAT-A" }, { name: "name", label: "Nom bâtiment", required: true, placeholder: "Bâtiment A" }] },
+    { id: "dcim-building-create", label: "Créer un bâtiment", method: "POST", path: "/v1/dcim/building/create", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true }, { name: "code", label: "Code bâtiment", required: true, placeholder: "BAT-A" }, { name: "name", label: "Nom bâtiment", required: true, placeholder: "Bâtiment A" }, { name: "building_type", label: "Type Batiment", type: "select", required: true, options: [{ value: "floors", label: "Etages" }, { value: "simple", label: "Simple" }], defaultValue: "simple" }, { name: "initial_level", label: "Niveau Initial", type: "number", required: true, defaultValue: "0", min: "-20", max: "0", step: "1", visibleWhen: { field: "building_type", value: "floors" } }, { name: "final_level", label: "Niveau Final", type: "number", required: true, defaultValue: "1", min: "1", max: "150", step: "1", visibleWhen: { field: "building_type", value: "floors" } }] },
     { id: "dcim-building-update", label: "Modifier un bâtiment", method: "POST", path: "/v1/dcim/building/update", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true }, { name: "code", label: "Code bâtiment", required: true, placeholder: "BAT-A" }, { name: "name", label: "Nom bâtiment", placeholder: "Bâtiment A" }, { name: "status", label: "Statut", type: "select", options: ["", "active", "suspended", "retired"] }] },
     { id: "dcim-building-delete", label: "Retirer un bâtiment", method: "POST", path: "/v1/dcim/building/delete", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true }, { name: "code", label: "Code bâtiment", required: true, placeholder: "BAT-A" }] },
     { id: "dcim-floors", label: "Lister les étages", method: "GET", path: "/v1/dcim/floors", query: [{ name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "include_retired", label: "Inclure retirés", type: "boolean" }] },
     { id: "dcim-floor", label: "Consulter un étage", method: "GET", path: "/v1/dcim/floor", query: [{ name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "code", label: "Code étage", required: true, placeholder: "F01" }] },
-    { id: "dcim-floor-create", label: "Créer un étage", method: "POST", path: "/v1/dcim/floor/create", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "code", label: "Code étage", required: true, placeholder: "F01" }, { name: "name", label: "Nom étage", required: true, placeholder: "Étage 1" }, { name: "level_index", label: "Niveau", type: "number", required: true, placeholder: "1" }] },
-    { id: "dcim-floor-update", label: "Modifier un étage", method: "POST", path: "/v1/dcim/floor/update", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "code", label: "Code étage", required: true, placeholder: "F01" }, { name: "name", label: "Nom étage", placeholder: "Étage 1" }, { name: "level_index", label: "Niveau", type: "number", placeholder: "1" }, { name: "status", label: "Statut", type: "select", options: ["", "active", "suspended", "retired"] }] },
-    { id: "dcim-floor-delete", label: "Retirer un étage", method: "POST", path: "/v1/dcim/floor/delete", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "code", label: "Code étage", required: true, placeholder: "F01" }] },
     { id: "dcim-rooms-list", label: "Lister les salles", method: "GET", path: "/v1/dcim/rooms", query: [{ name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "include_retired", label: "Inclure retirés", type: "boolean" }] },
     { id: "dcim-room", label: "Consulter une salle", method: "GET", path: "/v1/dcim/room", query: [{ name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "code", label: "Code salle", required: true, placeholder: "MMR1" }] },
-    { id: "dcim-room-create", label: "Créer une salle", method: "POST", path: "/v1/dcim/room/create", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "floor", label: "Étage", placeholder: "Obligatoire si le bâtiment possède des étages" }, { name: "code", label: "Code salle", required: true, placeholder: "MMR1" }, { name: "name", label: "Nom salle", required: true, placeholder: "Meet-Me Room" }, { name: "rows", label: "Plage lignes salle", type: "csv", required: true, placeholder: "0-12" }, { name: "columns", label: "Plage colonnes salle", type: "csv", required: true, placeholder: "A-F" }] },
+    { id: "dcim-room-create", label: "Créer une salle", method: "POST", path: "/v1/dcim/room/create", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "floor", label: "Étage", placeholder: "Obligatoire si Type Batiment = Etages" }, { name: "code", label: "Code salle", required: true, placeholder: "MMR1" }, { name: "name", label: "Nom salle", required: true, placeholder: "Meet-Me Room" }, { name: "rows", label: "Plage lignes salle", type: "csv", required: true, placeholder: "0-12" }, { name: "columns", label: "Plage colonnes salle", type: "csv", required: true, placeholder: "A-F" }] },
     { id: "dcim-room-update", label: "Modifier une salle", method: "POST", path: "/v1/dcim/room/update", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "code", label: "Code salle", required: true, placeholder: "MMR1" }, { name: "name", label: "Nom salle", placeholder: "Meet-Me Room" }, { name: "rows", label: "Plage lignes salle", type: "csv", placeholder: "0-12" }, { name: "columns", label: "Plage colonnes salle", type: "csv", placeholder: "A-F" }, { name: "status", label: "Statut", type: "select", options: ["", "active", "suspended", "retired"] }] },
     { id: "dcim-room-delete", label: "Retirer une salle", method: "POST", path: "/v1/dcim/room/delete", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "code", label: "Code salle", required: true, placeholder: "MMR1" }] },
     { id: "dcim-racks", label: "Lister les chassis/racks", method: "GET", path: "/v1/dcim/racks", query: [{ name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "room", label: "Salle", required: true }, { name: "include_retired", label: "Inclure retirés", type: "boolean" }] },
@@ -1019,7 +1016,7 @@ const OPENINFRA_SIDEBAR_CONTEXTS = {
     { label: "Observations & DDI", operationIds: ["ipam-observe-dns", "ipam-observe-dhcp", "ipam-conflicts", "ipam-ddi-preview"] }
   ],
   dcim: [
-    { label: "Sites & dépendances", operationIds: ["dcim-sites", "dcim-site", "dcim-site-create", "dcim-site-update", "dcim-site-delete", "dcim-buildings", "dcim-building", "dcim-building-create", "dcim-building-update", "dcim-building-delete", "dcim-floors", "dcim-floor", "dcim-floor-create", "dcim-floor-update", "dcim-floor-delete", "dcim-rooms-list", "dcim-room", "dcim-room-create", "dcim-room-update", "dcim-room-delete", "dcim-racks", "dcim-rack", "dcim-rack-create", "dcim-rack-update", "dcim-rack-delete", "dcim-zones", "dcim-zone", "dcim-zone-create", "dcim-zone-update", "dcim-zone-delete", "dcim-topology-catalog", "dcim-define-room"] },
+    { label: "Sites & dépendances", operationIds: ["dcim-sites", "dcim-site", "dcim-site-create", "dcim-site-update", "dcim-site-delete", "dcim-buildings", "dcim-building", "dcim-building-create", "dcim-building-update", "dcim-building-delete", "dcim-floors", "dcim-floor", "dcim-rooms-list", "dcim-room", "dcim-room-create", "dcim-room-update", "dcim-room-delete", "dcim-racks", "dcim-rack", "dcim-rack-create", "dcim-rack-update", "dcim-rack-delete", "dcim-zones", "dcim-zone", "dcim-zone-create", "dcim-zone-update", "dcim-zone-delete", "dcim-topology-catalog", "dcim-define-room"] },
     { label: "Localisation & capacité", operationIds: ["dcim-locate-equipment", "dcim-rack-capacity", "dcim-room-plan", "dcim-rack-elevation"] },
     { label: "Connectivité", operationIds: ["dcim-patch-panel", "dcim-port", "dcim-cable", "dcim-cable-trace"] },
     { label: "Énergie & refroidissement", operationIds: ["dcim-power-device", "dcim-power-circuit", "dcim-cooling-zone", "dcim-power-reservation", "dcim-energy-cooling-capacity"] },
@@ -1731,22 +1728,23 @@ class OpenInfraDashboard {
     const required = field.required ? " required" : "";
     const requiredText = field.required ? " *" : "";
     const value = field.defaultValue || "";
+    const visibility = this.fieldVisibilityAttributes(field);
     if (this.isCountryField(field)) {
       const selected = field.defaultValue || "";
-      return `<label class="col-md-6 col-xl-4 form-label">${this.escape(field.label || "Pays")}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${required}><option value=""></option>${this.renderCountryOptionGroups(selected)}</select></label>`;
+      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(field.label || "Pays")}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${required}><option value=""></option>${this.renderCountryOptionGroups(selected)}</select></label>`;
     }
     if (field.type === "organization-select") {
       const options = this.organizationOptions();
       const fallback = field.defaultValue || this.state.organization || "default";
       const renderedOptions = options.length > 0 ? options : [{ value: fallback, label: fallback }];
-      return `<label class="col-md-6 col-xl-4 form-label">${this.escape(field.label || "Organisation")}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${required}>${this.renderOptions(renderedOptions, fallback)}</select></label>`;
+      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(field.label || "Organisation")}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${required}>${this.renderOptions(renderedOptions, fallback)}</select></label>`;
     }
     if (field.type === "partner-select") {
       const options = this.partnerOptions(field.partnerKind || null);
       const fallback = field.defaultValue || "";
       const renderedOptions = options.length > 0 ? options : (fallback ? [{ value: fallback, label: fallback }] : []);
       const selectedValue = renderedOptions.length === 1 ? this.optionValue(renderedOptions[0]) : fallback;
-      return `<label class="col-md-6 col-xl-4 form-label">${this.escape(field.label || "Partenaire")}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${required}><option value=""></option>${this.renderOptions(renderedOptions, selectedValue)}</select></label>`;
+      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(field.label || "Partenaire")}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${required}><option value=""></option>${this.renderOptions(renderedOptions, selectedValue)}</select></label>`;
     }
     if (field.type === "hidden") {
       return `<input type="hidden" data-field="${this.escape(field.name)}" value="${this.escape(value)}">`;
@@ -1755,26 +1753,34 @@ class OpenInfraDashboard {
       const options = this.tenantOptions();
       const fallback = field.defaultValue || this.state.tenant || this.state.organization || "default";
       const renderedOptions = options.length > 0 ? options : [{ value: fallback, label: fallback }];
-      return `<label class="col-md-6 col-xl-4 form-label">${this.escape(field.label || "Filiale/Subdivision")}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${required}>${this.renderOptions(renderedOptions, field.defaultValue || this.state.tenant || fallback)}</select></label>`;
+      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(field.label || "Filiale/Subdivision")}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${required}>${this.renderOptions(renderedOptions, field.defaultValue || this.state.tenant || fallback)}</select></label>`;
     }
     if (this.isDcimReferenceField(field)) {
       const options = this.dcimOptions(field);
       const fallback = field.defaultValue || "";
       const renderedOptions = options.length > 0 ? options : (fallback ? [{ value: fallback, label: fallback }] : []);
       const selectedValue = renderedOptions.length === 1 ? this.optionValue(renderedOptions[0]) : fallback;
-      return `<label class="col-md-6 col-xl-4 form-label">${this.escape(field.label || DCIM_REFERENCE_LABELS[this.dcimReferenceLevel(field)] || field.name)}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${required}><option value=""></option>${this.renderOptions(renderedOptions, selectedValue)}</select></label>`;
+      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(field.label || DCIM_REFERENCE_LABELS[this.dcimReferenceLevel(field)] || field.name)}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${required}><option value=""></option>${this.renderOptions(renderedOptions, selectedValue)}</select></label>`;
     }
     if (field.type === "select") {
       const options = this.selectOptionsForField(field);
       const source = field.optionsByField ? ` data-options-by-field="${this.escape(field.optionsByField)}"` : "";
       const map = field.optionsMap ? ` data-options-map="${this.escape(JSON.stringify(field.optionsMap))}"` : "";
-      return `<label class="col-md-6 col-xl-4 form-label">${this.escape(field.label || field.name)}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${source}${map}${required}><option value=""></option>${this.renderOptions(options, value)}</select></label>`;
+      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(field.label || field.name)}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${source}${map}${required}><option value=""></option>${this.renderOptions(options, value)}</select></label>`;
     }
     if (field.type === "boolean") {
-      return `<label class="col-md-6 col-xl-4 form-label">${this.escape(field.label || field.name)}<select class="form-select" data-field="${this.escape(field.name)}"><option value="false">Non</option><option value="true">Oui</option></select></label>`;
+      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(field.label || field.name)}<select class="form-select" data-field="${this.escape(field.name)}"><option value="false">Non</option><option value="true">Oui</option></select></label>`;
     }
     const inputType = field.type === "number" ? "number" : "text";
-    return `<label class="col-md-6 col-xl-4 form-label">${this.escape(field.label || field.name)}${requiredText}<input class="form-control" type="${inputType}" data-field="${this.escape(field.name)}" value="${this.escape(value)}" placeholder="${this.escape(field.placeholder || "")}"${required}></label>`;
+    const numericAttrs = field.type === "number" ? `${field.step ? ` step="${this.escape(field.step)}"` : ""}${field.min ? ` min="${this.escape(field.min)}"` : ""}${field.max ? ` max="${this.escape(field.max)}"` : ""}` : "";
+    return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(field.label || field.name)}${requiredText}<input class="form-control" type="${inputType}" data-field="${this.escape(field.name)}" value="${this.escape(value)}" placeholder="${this.escape(field.placeholder || "")}"${numericAttrs}${required}></label>`;
+  }
+
+  fieldVisibilityAttributes(field) {
+    if (!field.visibleWhen) {
+      return "";
+    }
+    return ` data-visible-when-field="${this.escape(field.visibleWhen.field)}" data-visible-when-value="${this.escape(field.visibleWhen.value)}"`;
   }
 
   isCountryField(field) {
@@ -1786,9 +1792,9 @@ class OpenInfraDashboard {
     const groups = Array.isArray(this.state.countryCatalog?.items) ? this.state.countryCatalog.items : [];
     if (groups.length === 0) {
       return this.renderOptions([
-        { value: "FR", label: "FR — France" },
-        { value: "GB", label: "GB — United Kingdom" },
-        { value: "US", label: "US — United States" }
+        { value: "FR", label: "France" },
+        { value: "GB", label: "United Kingdom" },
+        { value: "US", label: "United States" }
       ], selectedValue);
     }
     return groups.map((group) => {
@@ -1796,7 +1802,7 @@ class OpenInfraDashboard {
       const countries = Array.isArray(group.countries) ? group.countries : [];
       const options = countries.map((country) => {
         const code = String(country.code || "");
-        const label = `${code} — ${country.name || code}`;
+        const label = `${country.name || code}`;
         return `<option value="${this.escape(code)}" ${selectedValue === code ? "selected" : ""}>${this.escape(label)}</option>`;
       }).join("");
       return `<optgroup label="${continent}">${options}</optgroup>`;
@@ -1946,7 +1952,26 @@ class OpenInfraDashboard {
     }
   }
 
+  bindConditionalFields() {
+    for (const target of document.querySelectorAll("[data-visible-when-field]")) {
+      const source = document.querySelector(`[data-field="${target.dataset.visibleWhenField}"]`);
+      if (!source) {
+        continue;
+      }
+      const refresh = () => {
+        const visible = source.value === target.dataset.visibleWhenValue;
+        target.hidden = !visible;
+        for (const input of target.querySelectorAll("[data-field]")) {
+          input.disabled = !visible;
+        }
+      };
+      source.addEventListener("change", refresh);
+      refresh();
+    }
+  }
+
   bindEvents() {
+    this.bindConditionalFields();
     document.getElementById("openinfra-execute")?.addEventListener("click", () => this.executeSelected());
     document.getElementById("openinfra-organization")?.addEventListener("change", async (event) => {
       const organization = event.target.value;
@@ -2216,6 +2241,9 @@ class OpenInfraDashboard {
     try {
       const payload = {};
       for (const input of document.querySelectorAll("[data-field]")) {
+        if (input.disabled) {
+          continue;
+        }
         payload[input.dataset.field] = input.value;
       }
       const data = await this.client().request(this.state.selected, payload);

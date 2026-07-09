@@ -772,7 +772,7 @@ class TestOpenInfraAccessPolicyCli:
                 "--building",
                 "BAT-M",
                 "--floor",
-                "F01",
+                "MAR1_BAT-M_ETG1",
                 "--room",
                 "MDF1",
                 "--zone",
@@ -793,8 +793,8 @@ class TestOpenInfraAccessPolicyCli:
 
         assert define_code == 0
         assert locate_code == 0
-        assert defined["path"] == "site=MAR1 | building=BAT-M | floor=F01 | room=MDF1"
-        assert "floor=F01" in located
+        assert defined["path"] == "site=MAR1 | building=BAT-M | floor=MAR1_BAT-M_ETG1 | room=MDF1"
+        assert "floor=MAR1_BAT-M_ETG1" in located
         assert "zone=Z1" in located
         assert "xyz=1.00/2.00/0.50" in located
 
@@ -864,7 +864,7 @@ class TestOpenInfraAccessPolicyCli:
                 "--building",
                 "BAT-N",
                 "--floor",
-                "F01",
+                "NIC1_BAT-N_ETG1",
                 "--room",
                 "MDF1",
                 "--zone",
@@ -903,7 +903,7 @@ class TestOpenInfraAccessPolicyCli:
                 "--building",
                 "BAT-N",
                 "--floor",
-                "F01",
+                "NIC1_BAT-N_ETG1",
                 "--room",
                 "MDF1",
                 "--zone",
@@ -1011,7 +1011,7 @@ class TestOpenInfraAccessPolicyCli:
                     "--building",
                     "BAT-Q",
                     "--floor",
-                    "F01",
+                    "QR1_BAT-Q_ETG1",
                     "--room",
                     "ROOM-Q",
                     "--row",

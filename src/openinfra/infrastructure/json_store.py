@@ -73,6 +73,7 @@ from openinfra.domain.data_import import (
 )
 from openinfra.domain.dcim import (
     Building,
+    BuildingType,
     CoolingRole,
     CoolingZone,
     DcimCable,
@@ -1567,16 +1568,23 @@ class JsonDcimRepository(DcimRepository):
             "site_code": building.site_code.value,
             "code": building.code.value,
             "name": building.name.value,
+            "building_type": building.building_type.value,
+            "initial_level": building.initial_level,
+            "final_level": building.final_level,
             "status": building.status.value,
         }
 
     def _building_from_dict(self, value: dict[str, Any]) -> Building:
+        building_type = BuildingType.from_value(value.get("building_type"), "building type")
         return Building(
             id=EntityId.from_value(value["id"]),
             tenant_id=TenantId.from_value(value["tenant_id"]),
             site_code=Code.from_value(value["site_code"]),
             code=Code.from_value(value["code"]),
             name=Name.from_value(value["name"]),
+            building_type=building_type,
+            initial_level=value.get("initial_level") if building_type.requires_floor() else None,
+            final_level=value.get("final_level") if building_type.requires_floor() else None,
             status=DcimLifecycleStatus.from_value(value.get("status"), "building status"),
         )
 

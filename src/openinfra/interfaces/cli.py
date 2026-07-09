@@ -2139,6 +2139,14 @@ class OpenInfraCLI:
         create_building.add_argument("--site", required=True)
         create_building.add_argument("--code", required=True)
         create_building.add_argument("--name", required=True)
+        create_building.add_argument(
+            "--building-type",
+            choices=("simple", "floors", "Simple", "Etages", "etages"),
+            default="simple",
+            help="building type: Simple or Etages",
+        )
+        create_building.add_argument("--initial-level", type=int)
+        create_building.add_argument("--final-level", type=int)
         create_building.set_defaults(handler=self._handle_dcim_building_create)
 
         update_building = dcim_subparsers.add_parser(
@@ -2179,7 +2187,7 @@ class OpenInfraCLI:
         floor.add_argument("--code", required=True)
         floor.set_defaults(handler=self._handle_dcim_floor)
 
-        create_floor = dcim_subparsers.add_parser("floor-create", help="create a DCIM floor")
+        create_floor = dcim_subparsers.add_parser("floor-create", help=argparse.SUPPRESS)
         self._add_backend_arguments(create_floor)
         create_floor.add_argument("--tenant", default="default")
         create_floor.add_argument("--actor", default="cli")
@@ -2190,7 +2198,7 @@ class OpenInfraCLI:
         create_floor.add_argument("--level-index", type=int, required=True)
         create_floor.set_defaults(handler=self._handle_dcim_floor_create)
 
-        update_floor = dcim_subparsers.add_parser("floor-update", help="update a DCIM floor")
+        update_floor = dcim_subparsers.add_parser("floor-update", help=argparse.SUPPRESS)
         self._add_backend_arguments(update_floor)
         update_floor.add_argument("--tenant", default="default")
         update_floor.add_argument("--actor", default="cli")
@@ -2202,7 +2210,7 @@ class OpenInfraCLI:
         update_floor.add_argument("--status", choices=("active", "suspended", "retired"))
         update_floor.set_defaults(handler=self._handle_dcim_floor_update)
 
-        delete_floor = dcim_subparsers.add_parser("floor-delete", help="retire a DCIM floor")
+        delete_floor = dcim_subparsers.add_parser("floor-delete", help=argparse.SUPPRESS)
         self._add_backend_arguments(delete_floor)
         delete_floor.add_argument("--tenant", default="default")
         delete_floor.add_argument("--actor", default="cli")
@@ -4734,7 +4742,16 @@ class OpenInfraCLI:
     def _handle_dcim_building_create(self, args: argparse.Namespace) -> int:
         application = self._create_application(args)
         result = application.dcim_topology_service.create_building(
-            CreateDcimBuildingCommand(args.tenant, args.actor, args.site, args.code, args.name)
+            CreateDcimBuildingCommand(
+                args.tenant,
+                args.actor,
+                args.site,
+                args.code,
+                args.name,
+                args.building_type,
+                args.initial_level,
+                args.final_level,
+            )
         )
         print(json.dumps(result, sort_keys=True))
         return 0

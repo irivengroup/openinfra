@@ -1,4 +1,4 @@
-## v0.29.78 — Profils protocoles Discovery SNMP/SSH/WinRM sécurisés
+## v0.29.79 — Profils protocoles Discovery SNMP/SSH/WinRM sécurisés
 
 - Ajout du domaine `DiscoveryProtocolCredentialProfile`.
 - Ajout CRUD service, CLI et API pour profils SNMP/SSH/WinRM.

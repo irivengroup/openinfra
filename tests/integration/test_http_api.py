@@ -174,9 +174,6 @@ class TestHttpApi:
                     "building_delete": "/api/v1/dcim/building/delete",
                     "floors": "/api/v1/dcim/floors",
                     "floor": "/api/v1/dcim/floor",
-                    "floor_create": "/api/v1/dcim/floor/create",
-                    "floor_update": "/api/v1/dcim/floor/update",
-                    "floor_delete": "/api/v1/dcim/floor/delete",
                     "rooms_list": "/api/v1/dcim/rooms",
                     "room": "/api/v1/dcim/room",
                     "room_create": "/api/v1/dcim/room/create",
@@ -1252,7 +1249,7 @@ class TestHttpApi:
                         "backend_url": "https://openinfra-api.example.test",
                         "certificate_fingerprint": "6" * 64,
                         "enrollment_secret_ref": "vault://openinfra/discovery/agent/par1",
-                        "agent_version": "0.29.78",
+                        "agent_version": "0.29.79",
                     },
                 ),
                 (
@@ -1263,7 +1260,7 @@ class TestHttpApi:
                         "kind": "site-proxy",
                         "certificate_fingerprint": "7" * 64,
                         "scopes": ["site/par1"],
-                        "version": "0.29.78",
+                        "version": "0.29.79",
                     },
                 ),
                 (
@@ -1274,7 +1271,7 @@ class TestHttpApi:
                         "kind": "ssh",
                         "certificate_fingerprint": "8" * 64,
                         "scopes": ["site/par1"],
-                        "version": "0.29.78",
+                        "version": "0.29.79",
                     },
                 ),
                 (
@@ -1359,7 +1356,7 @@ class TestHttpApi:
                     "backend_url": "https://openinfra-api.example.test",
                     "certificate_fingerprint": "6" * 64,
                     "enrollment_secret_ref": "vault://openinfra/discovery/agent/par1",
-                    "agent_version": "0.29.78",
+                    "agent_version": "0.29.79",
                 },
                 token=token,
             )
@@ -2081,7 +2078,7 @@ class TestSourceGovernanceHttpApi:
             )
 
             assert created["site"] == "TLS1"
-            assert created["floor"] == "F01"
+            assert created["floor"] == "TLS1_BAT-T_ETG1"
             assert created["zone"] == "Z1"
             assert created["created"]["room"] is True
         finally:
@@ -2168,7 +2165,7 @@ class TestSourceGovernanceHttpApi:
             assert created["asset_tag"] == "LIL-SRV-001"
             assert created["name"] == "Lille Server 001"
             assert created["location"]["site"] == "LIL1"
-            assert created["location"]["floor"] == "F01"
+            assert created["location"]["floor"] == "LIL1_BAT-L_ETG1"
             assert created["location"]["coordinates"] is None
             assert created["location"]["human_readable"].startswith("site=LIL1")
         finally:
@@ -2214,7 +2211,7 @@ class TestSourceGovernanceHttpApi:
                     "tenant_id": "default",
                     "site": "BOR1",
                     "building": "BAT-B",
-                    "floor": "F01",
+                    "floor": "BOR1_BAT-B_ETG1",
                     "room": "MDF1",
                     "zone": "Z1",
                     "rack": "R01",
@@ -2235,7 +2232,7 @@ class TestSourceGovernanceHttpApi:
                     "equipment_name": "Bordeaux Server 001",
                     "site": "BOR1",
                     "building": "BAT-B",
-                    "floor": "F01",
+                    "floor": "BOR1_BAT-B_ETG1",
                     "room": "MDF1",
                     "zone": "Z1",
                     "row": "A",

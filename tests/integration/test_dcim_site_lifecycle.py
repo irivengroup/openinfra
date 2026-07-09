@@ -10,7 +10,6 @@ import pytest
 from openinfra.application.container import ApplicationFactory
 from openinfra.application.dcim_services import (
     CreateDcimBuildingCommand,
-    CreateDcimFloorCommand,
     CreateDcimRoomCommand,
     CreateDcimSiteCommand,
     CreateDcimZoneCommand,
@@ -132,14 +131,24 @@ class TestDcimSiteLifecycle:
             )
         )
         building = service.create_building(
-            CreateDcimBuildingCommand("default", "pytest", "TLS2", "BAT-A", "Building A")
+            CreateDcimBuildingCommand(
+                "default", "pytest", "TLS2", "BAT-A", "Building A", "floors", 0, 1
+            )
         )
-        floor = service.create_floor(
-            CreateDcimFloorCommand("default", "pytest", "TLS2", "BAT-A", "F01", "Floor 1", 1)
+        floor = service.get_floor(
+            GetDcimFloorCommand("default", "TLS2", "BAT-A", "TLS2_BAT-A_ETG1")
         )
         room = service.create_room(
             CreateDcimRoomCommand(
-                "default", "pytest", "TLS2", "BAT-A", "F01", "MMR1", "Main Room", ("A",), ("01",)
+                "default",
+                "pytest",
+                "TLS2",
+                "BAT-A",
+                "TLS2_BAT-A_ETG1",
+                "MMR1",
+                "Main Room",
+                ("A",),
+                ("01",),
             )
         )
         zone = service.create_zone(
@@ -151,10 +160,16 @@ class TestDcimSiteLifecycle:
         updated_building = service.update_building(
             UpdateDcimBuildingCommand("default", "pytest", "TLS2", "BAT-A", name="Building A Prime")
         )
-        fetched_floor = service.get_floor(GetDcimFloorCommand("default", "TLS2", "BAT-A", "F01"))
-        updated_floor = service.update_floor(
-            UpdateDcimFloorCommand("default", "pytest", "TLS2", "BAT-A", "F01", level_index=2)
+        fetched_floor = service.get_floor(
+            GetDcimFloorCommand("default", "TLS2", "BAT-A", "TLS2_BAT-A_ETG1")
         )
+        with pytest.raises(ValidationError, match="generated from building type"):
+            service.update_floor(
+                UpdateDcimFloorCommand(
+                    "default", "pytest", "TLS2", "BAT-A", "TLS2_BAT-A_ETG1", level_index=2
+                )
+            )
+        updated_floor = floor
         fetched_room = service.get_room(GetDcimRoomCommand("default", "TLS2", "BAT-A", "MMR1"))
         updated_room = service.update_room(
             UpdateDcimRoomCommand(
@@ -180,9 +195,11 @@ class TestDcimSiteLifecycle:
         retired_room = service.delete_room(
             DeleteDcimRoomCommand("default", "pytest", "TLS2", "BAT-A", "MMR1")
         )
-        retired_floor = service.delete_floor(
-            DeleteDcimFloorCommand("default", "pytest", "TLS2", "BAT-A", "F01")
-        )
+        with pytest.raises(ValidationError, match="generated from building type"):
+            service.delete_floor(
+                DeleteDcimFloorCommand("default", "pytest", "TLS2", "BAT-A", "TLS2_BAT-A_ETG1")
+            )
+        retired_floor = floor
         retired = service.delete_building(
             DeleteDcimBuildingCommand("default", "pytest", "TLS2", "BAT-A")
         )
@@ -196,20 +213,20 @@ class TestDcimSiteLifecycle:
         assert zone["columns"] == ["01"]
         assert fetched_building["code"] == "BAT-A"
         assert updated_building["name"] == "Building A Prime"
-        assert fetched_floor["code"] == "F01"
-        assert updated_floor["level_index"] == 2
+        assert fetched_floor["code"] == "TLS2_BAT-A_ETG1"
+        assert updated_floor["level_index"] == 1
         assert fetched_room["code"] == "MMR1"
         assert updated_room["name"] == "Main Meet-Me Room"
         assert fetched_zone["code"] == "Z1"
         assert updated_zone["name"] == "Zone One"
         assert listed_buildings["count"] == 1
-        assert listed_floors["count"] == 1
+        assert listed_floors["count"] == 2
         assert listed_rooms["count"] == 1
         assert listed_zones["count"] == 1
         assert active_catalog["sites"][0]["buildings"][0]["rooms"][0]["zones"][0]["code"] == "Z1"
         assert retired_zone["status"] == "retired"
         assert retired_room["status"] == "retired"
-        assert retired_floor["status"] == "retired"
+        assert retired_floor["status"] == "active"
         assert retired["status"] == "retired"
         retired_building = after_retire["sites"][0]["buildings"][0]
         assert retired_building["status"] == "retired"
@@ -326,23 +343,11 @@ class TestDcimSiteLifecycle:
                 "BAT-C",
                 "--name",
                 "Building C",
-            ],
-            [
-                "dcim",
-                "floor-create",
-                "--data",
-                str(data),
-                "--tenant",
-                "default",
-                "--site",
-                "CLI1",
-                "--building",
-                "BAT-C",
-                "--code",
-                "F01",
-                "--name",
-                "Floor 1",
-                "--level-index",
+                "--building-type",
+                "floors",
+                "--initial-level",
+                "0",
+                "--final-level",
                 "1",
             ],
             [
@@ -357,7 +362,7 @@ class TestDcimSiteLifecycle:
                 "--building",
                 "BAT-C",
                 "--floor",
-                "F01",
+                "CLI1_BAT-C_ETG1",
                 "--code",
                 "RM1",
                 "--name",
@@ -422,11 +427,11 @@ class TestDcimSiteLifecycle:
             outputs.append(json.loads(capsys.readouterr().out))
 
         assert outputs[1]["code"] == "BAT-C"
-        assert outputs[2]["code"] == "F01"
-        assert outputs[3]["code"] == "RM1"
-        assert outputs[4]["code"] == "Z1"
-        assert outputs[5]["count"] == 1
-        assert outputs[6]["status"] == "retired"
+        assert outputs[1]["floor_codes"] == ["CLI1_BAT-C_ETG0", "CLI1_BAT-C_ETG1"]
+        assert outputs[2]["code"] == "RM1"
+        assert outputs[3]["code"] == "Z1"
+        assert outputs[4]["count"] == 1
+        assert outputs[5]["status"] == "retired"
 
     def test_dcim_site_http_contract(self, tmp_path: Path) -> None:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json", seed=False)
@@ -502,19 +507,14 @@ class TestDcimSiteLifecycle:
                     "site": "HTTP1",
                     "code": "BAT-H",
                     "name": "Building H",
+                    "building_type": "floors",
+                    "initial_level": 0,
+                    "final_level": 1,
                 },
             )
-            floor = self._post_json(
-                base_url + "/api/v1/dcim/floor/create",
-                {
-                    "tenant_id": "default",
-                    "actor": "pytest",
-                    "site": "HTTP1",
-                    "building": "BAT-H",
-                    "code": "F01",
-                    "name": "Floor 1",
-                    "level_index": 1,
-                },
+            floor = self._get_json(
+                base_url
+                + "/api/v1/dcim/floor?tenant_id=default&site=HTTP1&building=BAT-H&code=HTTP1_BAT-H_ETG1"
             )
             room = self._post_json(
                 base_url + "/api/v1/dcim/room/create",
@@ -523,7 +523,7 @@ class TestDcimSiteLifecycle:
                     "actor": "pytest",
                     "site": "HTTP1",
                     "building": "BAT-H",
-                    "floor": "F01",
+                    "floor": "HTTP1_BAT-H_ETG1",
                     "code": "RM1",
                     "name": "Room 1",
                     "rows": ["A"],
@@ -566,7 +566,7 @@ class TestDcimSiteLifecycle:
             thread.join(timeout=5)
 
         assert building["code"] == "BAT-H"
-        assert floor["code"] == "F01"
+        assert floor["code"] == "HTTP1_BAT-H_ETG1"
         assert room["code"] == "RM1"
         assert zone["code"] == "Z1"
         assert rooms["count"] == 1
@@ -602,20 +602,11 @@ class TestDcimSiteLifecycle:
                 "BAT-D",
                 "--name",
                 "Building D",
-            ],
-            [
-                "dcim",
-                "floor-create",
-                *common,
-                "--site",
-                "CLI2",
-                "--building",
-                "BAT-D",
-                "--code",
-                "F01",
-                "--name",
-                "Floor 1",
-                "--level-index",
+                "--building-type",
+                "floors",
+                "--initial-level",
+                "0",
+                "--final-level",
                 "1",
             ],
             [
@@ -627,7 +618,7 @@ class TestDcimSiteLifecycle:
                 "--building",
                 "BAT-D",
                 "--floor",
-                "F01",
+                "CLI2_BAT-D_ETG1",
                 "--code",
                 "RM1",
                 "--name",
@@ -670,21 +661,16 @@ class TestDcimSiteLifecycle:
                 "Building Delta",
             ],
             ["dcim", "floors", *common, "--site", "CLI2", "--building", "BAT-D"],
-            ["dcim", "floor", *common, "--site", "CLI2", "--building", "BAT-D", "--code", "F01"],
             [
                 "dcim",
-                "floor-update",
+                "floor",
                 *common,
                 "--site",
                 "CLI2",
                 "--building",
                 "BAT-D",
                 "--code",
-                "F01",
-                "--name",
-                "Floor One",
-                "--level-index",
-                "2",
+                "CLI2_BAT-D_ETG1",
             ],
             ["dcim", "rooms", *common, "--site", "CLI2", "--building", "BAT-D"],
             ["dcim", "room", *common, "--site", "CLI2", "--building", "BAT-D", "--code", "RM1"],
@@ -762,17 +748,6 @@ class TestDcimSiteLifecycle:
                 "--code",
                 "RM1",
             ],
-            [
-                "dcim",
-                "floor-delete",
-                *common,
-                "--site",
-                "CLI2",
-                "--building",
-                "BAT-D",
-                "--code",
-                "F01",
-            ],
             ["dcim", "building-delete", *common, "--site", "CLI2", "--code", "BAT-D"],
         ]
         outputs: list[dict[str, object]] = []
@@ -780,18 +755,17 @@ class TestDcimSiteLifecycle:
             assert OpenInfraCLI().run(command) == 0
             outputs.append(json.loads(capsys.readouterr().out))
 
-        assert outputs[5]["count"] == 1
-        assert outputs[7]["name"] == "Building Delta"
-        assert outputs[8]["count"] == 1
-        assert outputs[10]["level_index"] == 2
-        assert outputs[11]["count"] == 1
-        assert outputs[13]["name"] == "Room One"
-        assert outputs[14]["count"] == 1
-        assert outputs[16]["name"] == "Zone One"
+        assert outputs[4]["count"] == 1
+        assert outputs[6]["name"] == "Building Delta"
+        assert outputs[7]["count"] == 2
+        assert outputs[8]["code"] == "CLI2_BAT-D_ETG1"
+        assert outputs[9]["count"] == 1
+        assert outputs[11]["name"] == "Room One"
+        assert outputs[12]["count"] == 1
+        assert outputs[14]["name"] == "Zone One"
+        assert outputs[15]["status"] == "retired"
+        assert outputs[16]["status"] == "retired"
         assert outputs[17]["status"] == "retired"
-        assert outputs[18]["status"] == "retired"
-        assert outputs[19]["status"] == "retired"
-        assert outputs[20]["status"] == "retired"
 
     def test_dcim_dependency_http_full_lifecycle_contract(self, tmp_path: Path) -> None:
         app = ApplicationFactory().create_json_application(
@@ -821,18 +795,9 @@ class TestDcimSiteLifecycle:
                     "site": "HTTP2",
                     "code": "BAT-H2",
                     "name": "Building H2",
-                },
-            )
-            self._post_json(
-                base_url + "/api/v1/dcim/floor/create",
-                {
-                    "tenant_id": "default",
-                    "actor": "pytest",
-                    "site": "HTTP2",
-                    "building": "BAT-H2",
-                    "code": "F01",
-                    "name": "Floor 1",
-                    "level_index": 1,
+                    "building_type": "floors",
+                    "initial_level": 0,
+                    "final_level": 1,
                 },
             )
             self._post_json(
@@ -842,7 +807,7 @@ class TestDcimSiteLifecycle:
                     "actor": "pytest",
                     "site": "HTTP2",
                     "building": "BAT-H2",
-                    "floor": "F01",
+                    "floor": "HTTP2_BAT-H2_ETG1",
                     "code": "RM1",
                     "name": "Room 1",
                     "rows": ["A"],
@@ -884,20 +849,9 @@ class TestDcimSiteLifecycle:
             )
             floor = self._get_json(
                 base_url
-                + "/api/v1/dcim/floor?tenant_id=default&site=HTTP2&building=BAT-H2&code=F01"
+                + "/api/v1/dcim/floor?tenant_id=default&site=HTTP2&building=BAT-H2&code=HTTP2_BAT-H2_ETG1"
             )
-            floor_update = self._post_json(
-                base_url + "/api/v1/dcim/floor/update",
-                {
-                    "tenant_id": "default",
-                    "actor": "pytest",
-                    "site": "HTTP2",
-                    "building": "BAT-H2",
-                    "code": "F01",
-                    "name": "Floor One",
-                    "level_index": 2,
-                },
-            )
+            floor_update = floor
             rooms = self._get_json(
                 base_url + "/api/v1/dcim/rooms?tenant_id=default&site=HTTP2&building=BAT-H2"
             )
@@ -960,16 +914,7 @@ class TestDcimSiteLifecycle:
                     "code": "RM1",
                 },
             )
-            floor_delete = self._post_json(
-                base_url + "/api/v1/dcim/floor/delete",
-                {
-                    "tenant_id": "default",
-                    "actor": "pytest",
-                    "site": "HTTP2",
-                    "building": "BAT-H2",
-                    "code": "F01",
-                },
-            )
+            floor_delete = floor
             building_delete = self._post_json(
                 base_url + "/api/v1/dcim/building/delete",
                 {"tenant_id": "default", "actor": "pytest", "site": "HTTP2", "code": "BAT-H2"},
@@ -982,9 +927,9 @@ class TestDcimSiteLifecycle:
         assert buildings["count"] == 1
         assert building["code"] == "BAT-H2"
         assert building_update["name"] == "Building HTTP 2"
-        assert floors["count"] == 1
-        assert floor["code"] == "F01"
-        assert floor_update["level_index"] == 2
+        assert floors["count"] == 2
+        assert floor["code"] == "HTTP2_BAT-H2_ETG1"
+        assert floor_update["level_index"] == 1
         assert rooms["count"] == 1
         assert room["code"] == "RM1"
         assert room_update["name"] == "Room One"
@@ -993,7 +938,7 @@ class TestDcimSiteLifecycle:
         assert zone_update["name"] == "Zone One"
         assert zone_delete["status"] == "retired"
         assert room_delete["status"] == "retired"
-        assert floor_delete["status"] == "retired"
+        assert floor_delete["status"] == "active"
         assert building_delete["status"] == "retired"
 
     def test_dcim_dependency_http_auth_and_error_branches(self, tmp_path: Path) -> None:
@@ -1022,18 +967,14 @@ class TestDcimSiteLifecycle:
             )
             self._post_json(
                 base_url + "/api/v1/dcim/building/create",
-                {"tenant_id": "default", "site": "AUTH1", "code": "BAT-A", "name": "Auth Building"},
-                token=token,
-            )
-            self._post_json(
-                base_url + "/api/v1/dcim/floor/create",
                 {
                     "tenant_id": "default",
                     "site": "AUTH1",
-                    "building": "BAT-A",
-                    "code": "F01",
-                    "name": "Auth Floor",
-                    "level_index": 1,
+                    "code": "BAT-A",
+                    "name": "Auth Building",
+                    "building_type": "floors",
+                    "initial_level": 0,
+                    "final_level": 1,
                 },
                 token=token,
             )
@@ -1043,7 +984,7 @@ class TestDcimSiteLifecycle:
                     "tenant_id": "default",
                     "site": "AUTH1",
                     "building": "BAT-A",
-                    "floor": "F01",
+                    "floor": "AUTH1_BAT-A_ETG1",
                     "code": "RM1",
                     "name": "Auth Room",
                     "rows": ["A"],
@@ -1072,7 +1013,7 @@ class TestDcimSiteLifecycle:
                 "/api/v1/dcim/buildings?tenant_id=default&site=AUTH1",
                 "/api/v1/dcim/building?tenant_id=default&site=AUTH1&code=BAT-A",
                 "/api/v1/dcim/floors?tenant_id=default&site=AUTH1&building=BAT-A",
-                "/api/v1/dcim/floor?tenant_id=default&site=AUTH1&building=BAT-A&code=F01",
+                "/api/v1/dcim/floor?tenant_id=default&site=AUTH1&building=BAT-A&code=AUTH1_BAT-A_ETG1",
                 "/api/v1/dcim/rooms?tenant_id=default&site=AUTH1&building=BAT-A",
                 "/api/v1/dcim/room?tenant_id=default&site=AUTH1&building=BAT-A&code=RM1",
                 "/api/v1/dcim/zones?tenant_id=default&site=AUTH1&building=BAT-A&room=RM1",
@@ -1090,8 +1031,6 @@ class TestDcimSiteLifecycle:
             for route in (
                 "/api/v1/dcim/building/update",
                 "/api/v1/dcim/building/delete",
-                "/api/v1/dcim/floor/update",
-                "/api/v1/dcim/floor/delete",
                 "/api/v1/dcim/room/update",
                 "/api/v1/dcim/room/delete",
                 "/api/v1/dcim/zone/update",
@@ -1120,14 +1059,6 @@ class TestDcimSiteLifecycle:
                 self._post_json(
                     base_url + "/api/v1/dcim/room/delete",
                     {"tenant_id": "default", "site": "AUTH1", "building": "BAT-A", "code": "RM1"},
-                    token=token,
-                )["status"]
-                == "retired"
-            )
-            assert (
-                self._post_json(
-                    base_url + "/api/v1/dcim/floor/delete",
-                    {"tenant_id": "default", "site": "AUTH1", "building": "BAT-A", "code": "F01"},
                     token=token,
                 )["status"]
                 == "retired"
@@ -1170,12 +1101,10 @@ class TestDcimSiteLifecycle:
             )
         )
         service.create_building(
-            CreateDcimBuildingCommand("default", "pytest", "NTE1", "BAT-TOWER", "Tower")
+            CreateDcimBuildingCommand(
+                "default", "pytest", "NTE1", "BAT-TOWER", "Tower", "floors", 0, 1
+            )
         )
-        service.create_floor(
-            CreateDcimFloorCommand("default", "pytest", "NTE1", "BAT-TOWER", "F01", "Floor 1", 1)
-        )
-
         with pytest.raises(ValidationError, match="room floor is mandatory"):
             service.create_room(
                 CreateDcimRoomCommand(
@@ -1196,7 +1125,7 @@ class TestDcimSiteLifecycle:
                 "pytest",
                 "NTE1",
                 "BAT-TOWER",
-                "F01",
+                "NTE1_BAT-TOWER_ETG1",
                 "ROOM1",
                 "Tower room",
                 ("0-2",),
@@ -1207,7 +1136,7 @@ class TestDcimSiteLifecycle:
         assert no_floor_room["floor"] is None
         assert no_floor_room["rows"] == ["0", "1", "2"]
         assert no_floor_room["columns"] == ["A", "B", "C"]
-        assert with_floor_room["floor"] == "F01"
+        assert with_floor_room["floor"] == "NTE1_BAT-TOWER_ETG1"
 
     def test_rack_crud_lifecycle_and_cascade(self, tmp_path: Path) -> None:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json", seed=False)

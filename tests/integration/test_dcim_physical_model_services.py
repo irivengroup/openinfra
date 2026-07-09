@@ -70,12 +70,12 @@ class TestDcimPhysicalModelServices:
             "zone": False,
         }
         assert first["path"] == (
-            "site=PAR2 | building=BAT-B | floor=F02 | room=MDF1 | xyz=10.00/5.50/2.00"
+            "site=PAR2 | building=BAT-B | floor=PAR2_BAT-B_ETG2 | room=MDF1 | xyz=10.00/5.50/2.00"
         )
         assert first["rows"] == ["A", "B"]
         assert room is not None
         assert room.floor_code is not None
-        assert room.floor_code.value == "F02"
+        assert room.floor_code.value == "PAR2_BAT-B_ETG2"
         assert zone is not None
         assert zone.rows == ("A",)
 
@@ -151,13 +151,13 @@ class TestDcimPhysicalModelServices:
                 x=1.0,
                 y=2.0,
                 z=3.0,
-                floor="F03",
+                floor="LYO1_BAT-L_ETG3",
                 zone="Z1",
             )
         )
 
         assert equipment.location.human_readable() == (
-            "site=LYO1 | building=BAT-L | floor=F03 | room=MMR2 | row=B | "
+            "site=LYO1 | building=BAT-L | floor=LYO1_BAT-L_ETG3 | room=MMR2 | row=B | "
             "column=02 | zone=Z1 | xyz=1.00/2.00/3.00"
         )
 

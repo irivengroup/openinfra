@@ -15,6 +15,14 @@ La roadmap intègre `TST-P14-ITAM-FORM-HIERARCHY-MIGRATION-MINIMAL` : les formul
 La roadmap intègre `TST-P14-ITAM-PARTNER-REGISTRY` : ITAM gère les fournisseurs, éditeurs logiciels et supports tiers comme partenaires accrédités par organisation, avec carte d’identité entreprise complète, téléphone obligatoire, cycle de vie CRUD et usage obligatoire dans les formulaires garanties, licences et supports.
 
 
-### Validation v0.29.78 — Profils protocoles Discovery SNMP/SSH/WinRM
+### Validation v0.29.79 — Profils protocoles Discovery SNMP/SSH/WinRM
 
 La roadmap intègre `TST-P14-DISCOVERY-PROTOCOL-PROFILES` pour couvrir EPIC-1403 : profils SNMP/SSH/WinRM sécurisés, secrets `vault://` masqués, WinRM non chiffré refusé, limites de débit/concurrence actives, CRUD service/CLI/API/web et liaison des plans discovery locaux à un profil sans scan réseau ni mutation RSOT.
+
+
+### Validation v0.29.79 — DCIM bâtiments typés et étages générés
+
+- Ajout du type bâtiment Simple/Etages avec niveaux bornés.
+- Génération interne des codes et noms d'étages.
+- Retrait des opérations d'administration manuelle des étages dans l'UI.
+- Correction des selects Pays : valeur alpha2, libellé nom seul.

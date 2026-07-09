@@ -91,6 +91,9 @@ class CreateDcimBuildingCommand:
     site: str
     code: str
     name: str
+    building_type: str = "simple"
+    initial_level: int | None = None
+    final_level: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -697,7 +700,16 @@ class DcimTopologyService:
     def create_building(self, command: CreateDcimBuildingCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
         site = self._require_selectable_site(tenant_id, command.site)
-        building = Building.create(tenant_id, site.code.value, command.code, command.name)
+        building = Building.create(
+            tenant_id,
+            site.code.value,
+            command.code,
+            command.name,
+            command.building_type,
+            command.initial_level,
+            command.final_level,
+        )
+        generated_floors = building.generated_floors()
         with self._transaction_manager.begin() as unit_of_work:
             if (
                 self._dcim_repository.find_building(tenant_id, site.code.value, building.code.value)
@@ -705,6 +717,17 @@ class DcimTopologyService:
             ):
                 raise ConflictError("DCIM building already exists")
             self._dcim_repository.add_building(building)
+            for floor in generated_floors:
+                if (
+                    self._dcim_repository.find_floor(
+                        tenant_id,
+                        building.site_code.value,
+                        building.code.value,
+                        floor.code.value,
+                    )
+                    is None
+                ):
+                    self._dcim_repository.add_floor(floor)
             self._audit_topology(command.actor, tenant_id, "dcim.building.created", building)
             unit_of_work.commit()
         return building.as_dict()
@@ -764,69 +787,22 @@ class DcimTopologyService:
         }
 
     def create_floor(self, command: CreateDcimFloorCommand) -> dict[str, object]:
-        tenant_id = TenantId.from_value(command.tenant_id)
-        building = self._require_selectable_building(tenant_id, command.site, command.building)
-        floor = Floor.create(
-            tenant_id,
-            building.site_code.value,
-            building.code.value,
-            command.code,
-            command.name,
-            command.level_index,
+        _ = command
+        raise ValidationError(
+            "DCIM floors are generated from building type and levels; update the building instead"
         )
-        with self._transaction_manager.begin() as unit_of_work:
-            if (
-                self._dcim_repository.find_floor(
-                    tenant_id,
-                    building.site_code.value,
-                    building.code.value,
-                    floor.code.value,
-                )
-                is not None
-            ):
-                raise ConflictError("DCIM floor already exists")
-            self._dcim_repository.add_floor(floor)
-            self._audit_topology(command.actor, tenant_id, "dcim.floor.created", floor)
-            unit_of_work.commit()
-        return floor.as_dict()
 
     def update_floor(self, command: UpdateDcimFloorCommand) -> dict[str, object]:
-        tenant_id = TenantId.from_value(command.tenant_id)
-        building = self._require_building(tenant_id, command.site, command.building)
-        floor = self._dcim_repository.find_floor(
-            tenant_id, building.site_code.value, building.code.value, command.code
+        _ = command
+        raise ValidationError(
+            "DCIM floors are generated from building type and levels; update the building instead"
         )
-        if floor is None:
-            raise NotFoundError("DCIM floor does not exist")
-        if command.status == "active" and not building.selectable():
-            raise ValidationError("cannot activate floor under a non-active building")
-        updated = floor.update(
-            name=command.name, level_index=command.level_index, status=command.status
-        )
-        with self._transaction_manager.begin() as unit_of_work:
-            self._dcim_repository.save_floor(updated)
-            self._audit_topology(command.actor, tenant_id, "dcim.floor.updated", updated)
-            unit_of_work.commit()
-        return updated.as_dict()
 
     def delete_floor(self, command: DeleteDcimFloorCommand) -> dict[str, object]:
-        tenant_id = TenantId.from_value(command.tenant_id)
-        floor = self._require_floor(tenant_id, command.site, command.building, command.code)
-        retired = floor.retire()
-        with self._transaction_manager.begin() as unit_of_work:
-            self._retire_floor_tree(tenant_id, retired)
-            self._audit_repository.append(
-                AuditEvent.record(
-                    tenant_id=tenant_id,
-                    actor=command.actor,
-                    action="dcim.floor.retired",
-                    target_type="floor",
-                    target_id=retired.code.value,
-                    metadata={"floor": retired.as_dict(), "cascade": ["rooms", "zones", "racks"]},
-                )
-            )
-            unit_of_work.commit()
-        return retired.as_dict()
+        _ = command
+        raise ValidationError(
+            "DCIM floors are generated from building type and levels; retire the building instead"
+        )
 
     def get_floor(self, command: GetDcimFloorCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
@@ -890,8 +866,8 @@ class DcimTopologyService:
                 )
                 if not floor.selectable():
                     raise ValidationError("cannot activate room under a non-active floor")
-            elif self._building_has_active_floors(tenant_id, building):
-                raise ValidationError("room floor is mandatory when building has active floors")
+            elif building.requires_floor():
+                raise ValidationError("room floor is mandatory when building type is Etages")
         updated = room.update(
             name=command.name,
             rows=command.rows,
@@ -1074,22 +1050,19 @@ class DcimTopologyService:
             raise ValidationError("DCIM building is not active")
         return building
 
-    def _building_has_active_floors(self, tenant_id: TenantId, building: Building) -> bool:
-        return bool(
-            self._dcim_repository.list_floors(
-                tenant_id, building.site_code.value, building.code.value, include_retired=False
-            )
-        )
+    def _building_has_active_floors(self, _tenant_id: TenantId, building: Building) -> bool:
+        return building.requires_floor()
 
     def _resolve_room_floor_for_creation(
         self, tenant_id: TenantId, building: Building, floor_code: str | None
     ) -> Floor | None:
         normalized_floor = (floor_code or "").strip()
-        has_active_floors = self._building_has_active_floors(tenant_id, building)
-        if not normalized_floor:
-            if has_active_floors:
-                raise ValidationError("room floor is mandatory when building has active floors")
+        if not building.requires_floor():
+            if normalized_floor:
+                raise ValidationError("room floor is only allowed when building type is Etages")
             return None
+        if not normalized_floor:
+            raise ValidationError("room floor is mandatory when building type is Etages")
         floor = self._require_selectable_floor(
             tenant_id, building.site_code.value, building.code.value, normalized_floor
         )
@@ -1257,18 +1230,21 @@ class DcimTopologyService:
             command.city,
             command.region,
         )
+        initial_level = min(0, command.floor_index)
+        final_level = max(1, command.floor_index)
         building = Building.create(
             tenant_id,
             command.site_code,
             command.building_code,
             command.building_name,
+            "floors",
+            initial_level,
+            final_level,
         )
-        floor = Floor.create(
+        floor = Floor.generated(
             tenant_id,
             command.site_code,
             command.building_code,
-            command.floor_code,
-            command.floor_name,
             command.floor_index,
         )
         zone_codes = (command.zone_code,) if command.zone_code else ()
@@ -1280,7 +1256,7 @@ class DcimTopologyService:
             command.room_name,
             command.rows,
             command.columns,
-            floor_code=command.floor_code,
+            floor_code=floor.code.value,
             zone_codes=zone_codes,
             coordinates=coordinates,
         )
@@ -1338,7 +1314,7 @@ class DcimTopologyService:
             tenant_id,
             command.site_code,
             command.building_code,
-            command.floor_code,
+            room.floor_code.value if room.floor_code else command.floor_code,
             command.room_code,
             command.zone_code,
             command.zone_name,

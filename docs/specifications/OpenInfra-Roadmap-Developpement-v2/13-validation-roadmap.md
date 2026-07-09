@@ -116,3 +116,8 @@ La roadmap v2 intègre `TST-P14-LOCAL-DISCOVERY-PLAN` pour verrouiller le plan d
 ### Validation v0.29.61 — panneau latéral groupé par contexte
 
 La roadmap v2 ajoute `TST-P08-WEB-SIDEBAR-CONTEXT-GROUPS` pour verrouiller la navigation web contextuelle : tous les composants regroupent leurs opérations par contexte métier, les intégrations ITSM sont groupées par fournisseur, aucune opération existante n’est supprimée et OpenService reste absent du portail web OpenInfra.
+
+
+### Validation v0.29.74 — Formulaires ITAM racine et migrations minimales
+
+La roadmap intègre `TST-P14-ITAM-FORM-HIERARCHY-MIGRATION-MINIMAL` : les formulaires Organisation sont racine, les formulaires Tenant n'ont pas de tenant parent, les ressources restent rattachées au couple Organisation → Tenant filtré et aucune migration PostgreSQL supplémentaire n'est créée pour un correctif UI.

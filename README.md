@@ -1,4 +1,12 @@
-# OpenInfra v0.29.73
+# OpenInfra v0.29.74
+
+## v0.29.74 — Formulaires ITAM racine et migrations minimales
+
+OpenInfra v0.29.74 corrige l'UX ITAM autour des organisations et tenants : **Organisation** est une entité racine, sans parent organisation ni tenant parent. Ses formulaires de création, modification et suppression n'affichent donc plus de sélecteurs globaux Organisation/Tenant. Les formulaires Tenant sélectionnent uniquement l'organisation parente et, lorsque nécessaire, le tenant cible à consulter, modifier ou retirer.
+
+Les formulaires de ressources, supports et licences gardent le couple **Organisation → Tenant** filtré. Si une organisation active n'a encore aucun tenant actif, le tenant implicite reste proposé selon le comportement v0.29.73.
+
+Aucune migration PostgreSQL n'est ajoutée pour ce correctif purement UI : `0031_itam_organization_identity.sql` reste la dernière migration, afin de ne pas casser les installations qui l'ont déjà appliquée.
 
 ## v0.29.73 — Organisations ITAM parent des tenants
 

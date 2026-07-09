@@ -66,3 +66,10 @@ Chaque programme d'installation sous `installers/setup/**/install.py` doit être
 L'installation effective doit vérifier les prérequis OS, créer le virtualenv `/opt/openinfra/venv`, installer les dépendances de production du scope et installer le package OpenInfra local dans ce virtualenv. Les unités systemd doivent être activées et redémarrées uniquement après validation du payload et, pour les backends, après disponibilité PostgreSQL et application des migrations.
 
 Toute écriture doit être transactionnelle : un échec doit restaurer les fichiers et dossiers remplacés ou supprimer les chemins nouvellement créés par la tentative courante. Les sauvegardes résiduelles `.openinfra-rollback` doivent pouvoir être restaurées par le mode `--rollback`.
+
+
+### Politique de minimisation des migrations — v0.29.74
+
+Les migrations PostgreSQL doivent être créées uniquement lorsqu'un changement de schéma, de contrainte, d'index, de partitionnement ou de données de compatibilité l'exige. Une correction UI, documentaire, CLI sans changement de persistance ou de validation frontend ne doit pas créer de migration. Les migrations déjà publiées ne sont pas fusionnées rétroactivement afin de préserver la table d'historique des environnements ayant déjà appliqué les versions précédentes.
+
+Pour v0.29.74, aucun script `0032_*` n'est ajouté : la dernière migration reste `0031_itam_organization_identity.sql`.

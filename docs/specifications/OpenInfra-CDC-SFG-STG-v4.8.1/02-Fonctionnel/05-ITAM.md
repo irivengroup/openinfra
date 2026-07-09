@@ -124,3 +124,12 @@ Le domaine ITAM doit gérer les organisations comme référentiel parent des ten
 **Règles métier :** aucun tenant, support ou enregistrement de licence ne doit être créé sans tenant actif rattaché à une organisation active. Les formulaires de ressources sélectionnent l’organisation, filtrent les tenants associés et proposent l’organisation comme tenant implicite si aucun tenant actif n’existe encore. Le retrait d’une organisation est logique et retire ses tenants sans supprimer l’historique.
 
 **Acceptation :** services, CLI, API HTTP, OpenAPI, migration PostgreSQL, portail web et tests de non-régression valident le modèle Organisation → Tenant et l’absence de libellé ambigu `Entité propriétaire` dans les formulaires actifs.
+
+
+### REQ-00815 — Formulaires ITAM racine et hiérarchie pertinente
+
+Les formulaires ITAM doivent exposer uniquement les rattachements métier pertinents au niveau de l'objet manipulé. Une organisation est une entité racine : ses formulaires de création, modification et retrait ne doivent pas présenter de sélecteur Organisation parent, Tenant parent ou tenant de sécurité. Un tenant est une subdivision d'une organisation : ses formulaires doivent sélectionner l'organisation parente, puis le tenant cible uniquement pour les opérations de consultation, modification ou retrait. Les ressources, supports et licences restent rattachés au couple Organisation → Tenant filtré.
+
+**Migrations :** cette correction est purement UI/contrat de formulaire ; elle ne doit pas créer de nouvelle migration PostgreSQL. Les migrations déjà publiées restent immuables et `0031_itam_organization_identity.sql` demeure conservée pour compatibilité des environnements existants.
+
+**Acceptation :** les tests frontend et web statiques valident l'absence de `Tenant de sécurité` et `scope_tenant_id` dans les formulaires web, l'absence de sélecteurs globaux sur les opérations Organisation/Tenant, la présence de sélecteurs tenant cible filtrés pour modification/retrait tenant et l'absence de migration `0032_*`.

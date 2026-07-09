@@ -1,3 +1,10 @@
+## v0.29.74 — Formulaires ITAM racine et politique migrations minimale
+
+- Correction UX : une organisation ITAM est une entité racine ; ses formulaires de création, modification et suppression n'affichent plus de sélecteur global Organisation/Tenant ni de tenant de sécurité.
+- Réalignement des formulaires tenant : un tenant sélectionne uniquement son organisation parente puis le tenant cible lorsque l'opération modifie, consulte ou retire un tenant existant ; aucun tenant parent n'est proposé.
+- Les opérations ITAM support/licences et les autres ressources conservent le couple Organisation → Tenant filtré, afin d'éviter toute ressource orpheline.
+- Optimisation des migrations : aucune migration PostgreSQL supplémentaire n'est créée pour cette correction UI ; la migration `0031_itam_organization_identity.sql` reste conservée pour compatibilité ascendante.
+
 ## v0.29.73 — Organisations ITAM parent des tenants
 
 - Ajout du référentiel Organisations ITAM avec carte d’identité entreprise complète.

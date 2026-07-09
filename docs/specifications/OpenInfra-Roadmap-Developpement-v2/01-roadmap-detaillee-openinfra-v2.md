@@ -1668,3 +1668,8 @@ La livraison v0.29.72 ajoute `TST-P10-DCIM-DEPENDENCY-CRUD` pour verrouiller la 
 ### Validation v0.29.73 — Organisations ITAM parent des tenants
 
 La roadmap v2 ajoute `TST-P14-ITAM-ORGANIZATION-IDENTITY` pour couvrir le référentiel organisations, la carte d’identité entreprise, le rattachement obligatoire tenant/support/licence, le filtrage UI Organisation → Tenant, le tenant implicite et la cascade de retrait logique.
+
+
+### Validation v0.29.74 — Formulaires ITAM racine et migrations minimales
+
+La roadmap intègre `TST-P14-ITAM-FORM-HIERARCHY-MIGRATION-MINIMAL` : les formulaires Organisation sont racine, les formulaires Tenant n'ont pas de tenant parent, les ressources restent rattachées au couple Organisation → Tenant filtré et aucune migration PostgreSQL supplémentaire n'est créée pour un correctif UI.

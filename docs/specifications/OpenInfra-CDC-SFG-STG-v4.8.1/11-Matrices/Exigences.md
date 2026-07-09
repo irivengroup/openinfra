@@ -191,6 +191,10 @@ OpenInfra expose `openinfra discovery agent-bootstrap-plan` et `POST /api/v1/dis
 
 
 
+## v0.29.74 — Formulaires ITAM racine et migrations minimales
+
+Ajout de `REQ-00815` et `TST-WEB-114` : les formulaires Organisation sont traités comme des formulaires racine, sans sélecteur Organisation parent, Tenant parent ou tenant de sécurité. Les formulaires Tenant sélectionnent l'organisation parente et le tenant cible uniquement lorsque l'opération concerne un tenant existant. Aucune migration SQL supplémentaire n'est créée pour ce correctif UI ; `0031_itam_organization_identity.sql` reste conservée pour compatibilité ascendante.
+
 ## v0.29.73 — Organisations ITAM parent des tenants
 
 Ajout de `REQ-00814` et `TST-WEB-113` : OpenInfra gère un référentiel Organisations ITAM avec carte d’identité entreprise complète. Les tenants, supports et licences doivent être rattachés à une organisation active. Le portail sélectionne d’abord l’organisation, filtre les tenants associés et propose un tenant implicite lorsque l’organisation n’a pas encore de tenant matérialisé.

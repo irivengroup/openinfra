@@ -131,6 +131,7 @@ class FrontendContractValidator:
             or "IT Asset Management" not in main_source
             or "ITAM" not in main_source
             or "icon: 'asset'" not in main_source
+            or "Tenant de sécurité" in main_source
             or "/v1/itam/support-profile" not in main_source
             or "/v1/itam/support-coverage" not in main_source
             or "Déclarer garantie constructeur" not in main_source
@@ -207,6 +208,7 @@ class FrontendContractValidator:
             "Backend prêt",
             "Login</button>",
             "Sign-up",
+            "Tenant de sécurité",
         )
         leaked_main = [fragment for fragment in forbidden_main_source if fragment in main_source]
         if leaked_main:

@@ -73,3 +73,6 @@ Toute écriture doit être transactionnelle : un échec doit restaurer les fichi
 Les migrations PostgreSQL doivent être créées uniquement lorsqu'un changement de schéma, de contrainte, d'index, de partitionnement ou de données de compatibilité l'exige. Une correction UI, documentaire, CLI sans changement de persistance ou de validation frontend ne doit pas créer de migration. Les migrations déjà publiées ne sont pas fusionnées rétroactivement afin de préserver la table d'historique des environnements ayant déjà appliqué les versions précédentes.
 
 Pour v0.29.74, aucun script `0032_*` n'est ajouté : la dernière migration reste `0031_itam_organization_identity.sql`.
+
+
+Pour v0.29.75, une seule migration structurante `0032_itam_partner_registry.sql` est ajoutée pour le référentiel ITAM des partenaires accrédités. Cette migration n’annule pas la règle v0.29.74 : aucune migration ne doit être créée pour un simple correctif UI ; seules les évolutions de schéma métier justifient une nouvelle migration versionnée.

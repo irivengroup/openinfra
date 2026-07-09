@@ -17,6 +17,10 @@ from openinfra.domain.itam import (
     ItamOrganization,
     ItamOrganizationCatalog,
     ItamOrganizationStatus,
+    ItamPartner,
+    ItamPartnerCatalog,
+    ItamPartnerKind,
+    ItamPartnerStatus,
     ItamTenant,
     ItamTenantCatalog,
     ItamTenantStatus,
@@ -91,6 +95,78 @@ class ListItamOrganizationsCommand:
 
 
 @dataclass(frozen=True, slots=True)
+class CreateItamPartnerCommand:
+    organization_id: str
+    partner_id: str
+    kind: str
+    actor: str
+    admin_token: str
+    legal_name: str
+    scope_tenant_id: str = "default"
+    display_name: str | None = None
+    status: str = "active"
+    registration_number: str = "N/A"
+    tax_identifier: str = "N/A"
+    country_code: str = "FR"
+    city: str = "Non renseigné"
+    address: str = "Non renseigné"
+    contact_email: str = "contact@example.invalid"
+    phone: str = "+33000000000"
+    support_contact: str = "support@example.invalid"
+    website: str | None = None
+    description: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class UpdateItamPartnerCommand:
+    organization_id: str
+    partner_id: str
+    actor: str
+    admin_token: str
+    scope_tenant_id: str = "default"
+    kind: str | None = None
+    legal_name: str | None = None
+    display_name: str | None = None
+    status: str | None = None
+    registration_number: str | None = None
+    tax_identifier: str | None = None
+    country_code: str | None = None
+    city: str | None = None
+    address: str | None = None
+    contact_email: str | None = None
+    phone: str | None = None
+    support_contact: str | None = None
+    website: str | None = None
+    description: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class DeleteItamPartnerCommand:
+    organization_id: str
+    partner_id: str
+    actor: str
+    admin_token: str
+    scope_tenant_id: str = "default"
+
+
+@dataclass(frozen=True, slots=True)
+class GetItamPartnerCommand:
+    organization_id: str
+    partner_id: str
+    admin_token: str
+    scope_tenant_id: str = "default"
+
+
+@dataclass(frozen=True, slots=True)
+class ListItamPartnersCommand:
+    tenant_id: str
+    admin_token: str
+    organization_id: str | None = None
+    kind: str | None = None
+    include_retired: bool = False
+
+
+@dataclass(frozen=True, slots=True)
 class CreateItamTenantCommand:
     tenant_id: str
     actor: str
@@ -144,6 +220,7 @@ class RegisterManufacturerSupportCommand:
     admin_token: str
     asset_tag: str
     manufacturer: str
+    manufacturer_partner_id: str
     warranty_reference: str
     warranty_level: str
     warranty_start: str
@@ -160,6 +237,7 @@ class AddThirdPartySupportCommand:
     admin_token: str
     asset_tag: str
     provider: str
+    provider_partner_id: str
     contract_reference: str
     support_level: str
     support_start: str
@@ -191,6 +269,7 @@ class RegisterSoftwareLicenseCommand:
     admin_token: str
     product_name: str
     vendor: str
+    vendor_partner_id: str
     license_reference: str
     metric: str
     purchased_quantity: int
@@ -385,6 +464,172 @@ class ItamSupportService:
         )
         organizations = self._repository.list_organizations(command.include_retired)
         return ItamOrganizationCatalog.from_items(organizations)
+
+    def create_partner(self, command: CreateItamPartnerCommand) -> ItamPartner:
+        scope_tenant_id = TenantId.from_value(command.scope_tenant_id)
+        principal = self._security_service.authenticate_token(
+            AuthenticateTokenCommand(scope_tenant_id.value, command.admin_token, Permission.ITAM_WRITE)
+        )
+        organization = self._require_active_organization(command.organization_id)
+        partner = ItamPartner.create(
+            partner_id=command.partner_id,
+            organization_id=organization.id,
+            kind=command.kind,
+            legal_name=command.legal_name,
+            actor=command.actor,
+            display_name=command.display_name,
+            status=command.status,
+            registration_number=command.registration_number,
+            tax_identifier=command.tax_identifier,
+            country_code=command.country_code,
+            city=command.city,
+            address=command.address,
+            contact_email=command.contact_email,
+            phone=command.phone,
+            support_contact=command.support_contact,
+            website=command.website,
+            description=command.description,
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            existing = self._repository.find_partner(organization.id.value, partner.id.value)
+            if existing is not None and existing.status != ItamPartnerStatus.RETIRED:
+                raise ConflictError("ITAM partner already exists for this organization")
+            self._repository.save_partner(partner)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=scope_tenant_id,
+                    actor=principal.subject,
+                    action="itam.partner.create",
+                    target_type="itam_partner",
+                    target_id=f"{partner.organization_id.value}:{partner.id.value}",
+                    metadata={
+                        "organization_id": partner.organization_id.value,
+                        "partner_id": partner.id.value,
+                        "kind": partner.kind.value,
+                        "status": partner.status.value,
+                        "declared_actor": command.actor,
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return partner
+
+    def update_partner(self, command: UpdateItamPartnerCommand) -> ItamPartner:
+        scope_tenant_id = TenantId.from_value(command.scope_tenant_id)
+        principal = self._security_service.authenticate_token(
+            AuthenticateTokenCommand(scope_tenant_id.value, command.admin_token, Permission.ITAM_WRITE)
+        )
+        organization = self._require_active_organization(command.organization_id)
+        with self._transaction_manager.begin() as unit_of_work:
+            existing = self._repository.find_partner(organization.id.value, command.partner_id)
+            if existing is None:
+                raise NotFoundError("ITAM partner not found")
+            updated = existing.update(
+                actor=command.actor,
+                kind=command.kind,
+                legal_name=command.legal_name,
+                display_name=command.display_name,
+                status=command.status,
+                registration_number=command.registration_number,
+                tax_identifier=command.tax_identifier,
+                country_code=command.country_code,
+                city=command.city,
+                address=command.address,
+                contact_email=command.contact_email,
+                phone=command.phone,
+                support_contact=command.support_contact,
+                website=command.website,
+                description=command.description,
+            )
+            self._repository.save_partner(updated)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=scope_tenant_id,
+                    actor=principal.subject,
+                    action="itam.partner.update",
+                    target_type="itam_partner",
+                    target_id=f"{updated.organization_id.value}:{updated.id.value}",
+                    metadata={
+                        "organization_id": updated.organization_id.value,
+                        "partner_id": updated.id.value,
+                        "kind": updated.kind.value,
+                        "status": updated.status.value,
+                        "declared_actor": command.actor,
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return updated
+
+    def delete_partner(self, command: DeleteItamPartnerCommand) -> ItamPartner:
+        scope_tenant_id = TenantId.from_value(command.scope_tenant_id)
+        principal = self._security_service.authenticate_token(
+            AuthenticateTokenCommand(scope_tenant_id.value, command.admin_token, Permission.ITAM_WRITE)
+        )
+        organization = self._require_active_organization(command.organization_id)
+        with self._transaction_manager.begin() as unit_of_work:
+            existing = self._repository.find_partner(organization.id.value, command.partner_id)
+            if existing is None:
+                raise NotFoundError("ITAM partner not found")
+            retired = existing.retire(command.actor)
+            self._repository.save_partner(retired)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=scope_tenant_id,
+                    actor=principal.subject,
+                    action="itam.partner.retire",
+                    target_type="itam_partner",
+                    target_id=f"{retired.organization_id.value}:{retired.id.value}",
+                    metadata={
+                        "organization_id": retired.organization_id.value,
+                        "partner_id": retired.id.value,
+                        "declared_actor": command.actor,
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return retired
+
+    def get_partner(self, command: GetItamPartnerCommand) -> ItamPartner:
+        scope_tenant_id = TenantId.from_value(command.scope_tenant_id)
+        self._security_service.authenticate_token(
+            AuthenticateTokenCommand(scope_tenant_id.value, command.admin_token, Permission.ITAM_READ)
+        )
+        partner = self._repository.find_partner(command.organization_id, command.partner_id)
+        if partner is None:
+            raise NotFoundError("ITAM partner not found")
+        return partner
+
+    def list_partners(self, command: ListItamPartnersCommand) -> ItamPartnerCatalog:
+        scope_tenant_id = TenantId.from_value(command.tenant_id)
+        self._security_service.authenticate_token(
+            AuthenticateTokenCommand(scope_tenant_id.value, command.admin_token, Permission.ITAM_READ)
+        )
+        if command.organization_id is not None:
+            self._require_active_organization(command.organization_id)
+        partners = self._repository.list_partners(command.organization_id, command.include_retired)
+        if command.kind is not None:
+            try:
+                kind = ItamPartnerKind(command.kind.strip().lower())
+            except ValueError as exc:
+                raise ValidationError("unsupported ITAM partner kind") from exc
+            partners = tuple(item for item in partners if item.kind == kind)
+        return ItamPartnerCatalog.from_items(partners)
+
+    def _require_active_partner(
+        self, organization_id: str, partner_id: str, expected_kind: ItamPartnerKind
+    ) -> ItamPartner:
+        organization = self._require_active_organization(organization_id)
+        partner = self._repository.find_partner(organization.id.value, partner_id)
+        if partner is None or not partner.supports_kind(expected_kind):
+            raise ValidationError(
+                f"an active accredited ITAM partner of kind {expected_kind.value} is required"
+            )
+        return partner
+
+    def _organization_for_tenant(self, tenant_id: TenantId) -> ItamOrganization:
+        tenant = self._require_active_tenant(tenant_id)
+        return self._require_active_organization(tenant.organization_id.value)
 
     def _ensure_default_organization(self) -> ItamOrganization:
         existing = self._repository.find_organization("default")
@@ -616,9 +861,13 @@ class ItamSupportService:
         principal = self._security_service.authenticate_token(
             AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITAM_WRITE)
         )
-        self._require_active_tenant(tenant_id)
+        organization = self._organization_for_tenant(tenant_id)
+        manufacturer_partner = self._require_active_partner(
+            organization.id.value, command.manufacturer_partner_id, ItamPartnerKind.MANUFACTURER
+        )
         warranty = ManufacturerWarranty.create(
-            manufacturer=command.manufacturer,
+            manufacturer=manufacturer_partner.display_name.value,
+            manufacturer_partner_id=manufacturer_partner.id.value,
             warranty_reference=command.warranty_reference,
             warranty_level=command.warranty_level,
             warranty_start=ItamDateParser.parse_date(
@@ -676,9 +925,13 @@ class ItamSupportService:
         principal = self._security_service.authenticate_token(
             AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITAM_WRITE)
         )
-        self._require_active_tenant(tenant_id)
+        organization = self._organization_for_tenant(tenant_id)
+        provider_partner = self._require_active_partner(
+            organization.id.value, command.provider_partner_id, ItamPartnerKind.THIRD_PARTY_SUPPORT
+        )
         contract = ThirdPartySupportContract.create(
-            provider=command.provider,
+            provider=provider_partner.display_name.value,
+            provider_partner_id=provider_partner.id.value,
             contract_reference=command.contract_reference,
             support_level=command.support_level,
             support_start=ItamDateParser.parse_date(
@@ -758,11 +1011,15 @@ class ItamSupportService:
         principal = self._security_service.authenticate_token(
             AuthenticateTokenCommand(tenant_id.value, command.admin_token, Permission.ITAM_WRITE)
         )
-        self._require_active_tenant(tenant_id)
+        organization = self._organization_for_tenant(tenant_id)
+        vendor_partner = self._require_active_partner(
+            organization.id.value, command.vendor_partner_id, ItamPartnerKind.SOFTWARE_PUBLISHER
+        )
         license_ = SoftwareLicenseEntitlement.create(
             tenant_id=tenant_id,
             product_name=command.product_name,
-            vendor=command.vendor,
+            vendor=vendor_partner.display_name.value,
+            vendor_partner_id=vendor_partner.id.value,
             license_reference=command.license_reference,
             metric=command.metric,
             purchased_quantity=int(command.purchased_quantity),
@@ -795,6 +1052,7 @@ class ItamSupportService:
                     tenant_id=license_.tenant_id,
                     product_name=license_.product_name.value,
                     vendor=license_.vendor,
+                    vendor_partner_id=license_.vendor_partner_id,
                     license_reference=license_.license_reference.value,
                     contract_reference=license_.contract_reference,
                     metric=license_.metric.value,

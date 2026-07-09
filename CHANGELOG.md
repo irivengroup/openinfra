@@ -1,3 +1,15 @@
+## v0.29.75 — Référentiel ITAM partenaires, fournisseurs et supports tiers
+
+- Ajout du référentiel ITAM des partenaires rattachés à une organisation : constructeurs, éditeurs logiciels et supports tiers.
+- Chaque partenaire exige une carte d’identité entreprise complète et au moins un contact téléphonique exploitable.
+- Ajout du cycle de vie CRUD complet via domaine, services, JSON store, PostgreSQL, CLI, API, OpenAPI et portail web.
+- Les garanties constructeur utilisent désormais un partenaire accrédité de type `manufacturer`.
+- Les licences logicielles utilisent désormais un partenaire accrédité de type `software_publisher`.
+- Les contrats de support tiers utilisent désormais un partenaire accrédité de type `third_party_support`.
+- Les formulaires ITAM sont réalignés : les supports, garanties et licences sélectionnent l’organisation puis un partenaire compatible, sans fournisseur texte libre comme autorité métier.
+- Ajout de la migration PostgreSQL unique `0032_itam_partner_registry.sql`, consolidant la table des partenaires et le rattachement licence fournisseur.
+- CDC et roadmap mis à jour avec `REQ-00816`, `TST-WEB-115` et `TST-P14-ITAM-PARTNER-REGISTRY`.
+
 ## v0.29.74 — Formulaires ITAM racine et politique migrations minimale
 
 - Correction UX : une organisation ITAM est une entité racine ; ses formulaires de création, modification et suppression n'affichent plus de sélecteur global Organisation/Tenant ni de tenant de sécurité.

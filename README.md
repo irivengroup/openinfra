@@ -1,4 +1,29 @@
-# OpenInfra v0.29.74
+# OpenInfra v0.29.75
+
+## v0.29.75 — Référentiel ITAM partenaires, fournisseurs et supports tiers
+
+OpenInfra v0.29.75 ajoute un référentiel ITAM professionnel pour les **partenaires d’organisation** : constructeurs, éditeurs logiciels et supports tiers. Ce référentiel évite les champs fournisseur en texte libre dans les processus sensibles et impose une carte d’identité entreprise complète avant qu’un partenaire puisse être utilisé dans les garanties, licences ou contrats de support.
+
+Chaque partenaire est rattaché à une organisation active et possède un cycle de vie non destructif : `active`, `suspended`, `retired`. Les garanties constructeur ne peuvent référencer qu’un partenaire actif de type `manufacturer`, les licences logicielles qu’un partenaire actif de type `software_publisher`, et les supports tiers qu’un partenaire actif de type `third_party_support`.
+
+### Surfaces exposées
+
+- Domaine : `ItamPartner`, `ItamPartnerKind`, `ItamPartnerStatus`, `ItamPartnerCatalog`.
+- Service applicatif : CRUD partenaires, validation d’organisation active et validation d’accréditation par type de partenaire.
+- Persistance : JSON store et PostgreSQL avec migration `0032_itam_partner_registry.sql`.
+- CLI : `openinfra itam partners`, `partner`, `partner-create`, `partner-update`, `partner-delete`.
+- API : `/api/v1/itam/partners`, `/api/v1/itam/partner`, `/partner/create`, `/partner/update`, `/partner/delete`.
+- Web : nouveau contexte ITAM **Fournisseurs et Supports** avec opérations **Constructeurs et Éditeurs** et **Supports Tiers**.
+- Formulaires : garanties, licences et supports tiers consomment des partenaires accrédités au niveau organisation.
+
+### Garde-fous
+
+- Aucun partenaire sans organisation active.
+- Aucun partenaire sans téléphone de contact.
+- Aucun constructeur/éditeur/support tiers en texte libre comme source de vérité métier.
+- Retrait logique non destructif des partenaires.
+- Les partenaires suspendus ou retirés ne sont pas utilisables pour créer de nouvelles garanties, licences ou supports.
+- Une seule migration SQL est ajoutée pour ce périmètre afin de limiter la dette de migration sans casser les installations existantes.
 
 ## v0.29.74 — Formulaires ITAM racine et migrations minimales
 

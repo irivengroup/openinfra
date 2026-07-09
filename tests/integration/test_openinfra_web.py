@@ -239,7 +239,7 @@ class TestOpenInfraWeb:
         assert "Lister les tenants" in static_js + main_js
         assert "Créer un tenant" in static_js + main_js
         assert "operationNeedsGlobalScopeSelectors(operation)" in static_js
-        assert 'id.startsWith("itam-organization") || id.startsWith("itam-tenant")' in static_js
+        assert 'id.startsWith("itam-organization") || id.startsWith("itam-partner") || id.startsWith("itam-tenant")' in static_js
         assert "renderOperationScopeSelectors(operation)" in static_js
         organization_create = static_js.split('{ id: "itam-organization-create"', 1)[1].split('{ id: "itam-organization-update"', 1)[0]
         organization_update = static_js.split('{ id: "itam-organization-update"', 1)[1].split('{ id: "itam-organization-delete"', 1)[0]

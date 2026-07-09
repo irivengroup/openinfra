@@ -59,6 +59,7 @@ from openinfra.domain.ipam import (
 )
 from openinfra.domain.itam import (
     ItamOrganization,
+    ItamPartner,
     ItamTenant,
     PhysicalAssetSupportProfile,
     SoftwareLicenseEntitlement,
@@ -137,6 +138,20 @@ class ItamSupportRepository(ABC):
 
     @abstractmethod
     def list_organizations(self, include_retired: bool = False) -> tuple[ItamOrganization, ...]:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_partner(self, partner: ItamPartner) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_partner(self, organization_id: str, partner_id: str) -> ItamPartner | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_partners(
+        self, organization_id: str | None = None, include_retired: bool = False
+    ) -> tuple[ItamPartner, ...]:
         raise TypeError("adapter contract invoked directly")
 
     @abstractmethod

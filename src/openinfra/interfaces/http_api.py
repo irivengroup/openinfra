@@ -159,20 +159,25 @@ from openinfra.application.it_resources_management_services import (
 from openinfra.application.itam_services import (
     AddThirdPartySupportCommand,
     CreateItamOrganizationCommand,
+    CreateItamPartnerCommand,
     CreateItamTenantCommand,
     DeleteItamOrganizationCommand,
+    DeleteItamPartnerCommand,
     DeleteItamTenantCommand,
     GetAssetSupportCoverageReportCommand,
     GetAssetSupportProfileCommand,
     GetItamOrganizationCommand,
+    GetItamPartnerCommand,
     GetItamTenantCommand,
     GetSoftwareLicenseCommand,
     GetSoftwareLicenseComplianceCommand,
     ListItamOrganizationsCommand,
+    ListItamPartnersCommand,
     ListItamTenantsCommand,
     RegisterManufacturerSupportCommand,
     RegisterSoftwareLicenseCommand,
     UpdateItamOrganizationCommand,
+    UpdateItamPartnerCommand,
     UpdateItamTenantCommand,
     UpdateSoftwareLicenseAssignmentCommand,
 )
@@ -484,6 +489,49 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     )
                 )
                 responder.send(HTTPStatus.OK, organization.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/itam/partners":
+            try:
+                query = parse_qs(parsed.query)
+                tenant_id = self._first_query_value(query, "tenant_id", "default")
+                if self.server.auth_required:
+                    self._authenticate(tenant_id, Permission.ITAM_READ)
+                partner_catalog = self.server.application.itam_support_service.list_partners(
+                    ListItamPartnersCommand(
+                        tenant_id=tenant_id,
+                        admin_token=self._bearer_token(),
+                        organization_id=self._optional_query_value(query, "organization_id"),
+                        kind=self._optional_query_value(query, "kind"),
+                        include_retired=(
+                            self._first_query_value(query, "include_retired", "false") == "true"
+                        ),
+                    )
+                )
+                responder.send(HTTPStatus.OK, partner_catalog.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/itam/partner":
+            try:
+                query = parse_qs(parsed.query)
+                scope_tenant_id = self._first_query_value(query, "tenant_id", "default")
+                if self.server.auth_required:
+                    self._authenticate(scope_tenant_id, Permission.ITAM_READ)
+                partner = self.server.application.itam_support_service.get_partner(
+                    GetItamPartnerCommand(
+                        organization_id=self._first_query_value(query, "organization_id"),
+                        partner_id=self._first_query_value(query, "partner_id"),
+                        scope_tenant_id=scope_tenant_id,
+                        admin_token=self._bearer_token(),
+                    )
+                )
+                responder.send(HTTPStatus.OK, partner.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (ValueError, OpenInfraError) as exc:
@@ -2002,6 +2050,106 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
+        if route == "/api/v1/itam/partner/create":
+            try:
+                payload = self._read_json_body()
+                actor = str(payload.get("actor", "api"))
+                scope_tenant_id = str(payload.get("scope_tenant_id", "default"))
+                if self.server.auth_required:
+                    principal = self._authenticate(scope_tenant_id, Permission.ITAM_WRITE)
+                    actor = principal.subject
+                partner = self.server.application.itam_support_service.create_partner(
+                    CreateItamPartnerCommand(
+                        organization_id=str(payload["organization_id"]),
+                        partner_id=str(payload["partner_id"]),
+                        kind=str(payload["kind"]),
+                        actor=actor,
+                        admin_token=self._bearer_token(),
+                        scope_tenant_id=scope_tenant_id,
+                        legal_name=str(payload["legal_name"]),
+                        display_name=(None if payload.get("display_name") is None else str(payload.get("display_name"))),
+                        status=str(payload.get("status", "active")),
+                        registration_number=str(payload["registration_number"]),
+                        tax_identifier=str(payload["tax_identifier"]),
+                        country_code=str(payload["country_code"]),
+                        city=str(payload["city"]),
+                        address=str(payload["address"]),
+                        contact_email=str(payload["contact_email"]),
+                        phone=str(payload["phone"]),
+                        support_contact=str(payload["support_contact"]),
+                        website=(None if payload.get("website") is None else str(payload.get("website"))),
+                        description=(None if payload.get("description") is None else str(payload.get("description"))),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, partner.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/itam/partner/update":
+            try:
+                payload = self._read_json_body()
+                actor = str(payload.get("actor", "api"))
+                scope_tenant_id = str(payload.get("scope_tenant_id", "default"))
+                if self.server.auth_required:
+                    principal = self._authenticate(scope_tenant_id, Permission.ITAM_WRITE)
+                    actor = principal.subject
+                partner = self.server.application.itam_support_service.update_partner(
+                    UpdateItamPartnerCommand(
+                        organization_id=str(payload["organization_id"]),
+                        partner_id=str(payload["partner_id"]),
+                        actor=actor,
+                        admin_token=self._bearer_token(),
+                        scope_tenant_id=scope_tenant_id,
+                        kind=(None if payload.get("kind") is None else str(payload.get("kind"))),
+                        legal_name=(None if payload.get("legal_name") is None else str(payload.get("legal_name"))),
+                        display_name=(None if payload.get("display_name") is None else str(payload.get("display_name"))),
+                        status=(None if payload.get("status") is None else str(payload.get("status"))),
+                        registration_number=(None if payload.get("registration_number") is None else str(payload.get("registration_number"))),
+                        tax_identifier=(None if payload.get("tax_identifier") is None else str(payload.get("tax_identifier"))),
+                        country_code=(None if payload.get("country_code") is None else str(payload.get("country_code"))),
+                        city=(None if payload.get("city") is None else str(payload.get("city"))),
+                        address=(None if payload.get("address") is None else str(payload.get("address"))),
+                        contact_email=(None if payload.get("contact_email") is None else str(payload.get("contact_email"))),
+                        phone=(None if payload.get("phone") is None else str(payload.get("phone"))),
+                        support_contact=(None if payload.get("support_contact") is None else str(payload.get("support_contact"))),
+                        website=(None if payload.get("website") is None else str(payload.get("website"))),
+                        description=(None if payload.get("description") is None else str(payload.get("description"))),
+                    )
+                )
+                responder.send(HTTPStatus.OK, partner.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/itam/partner/delete":
+            try:
+                payload = self._read_json_body()
+                actor = str(payload.get("actor", "api"))
+                scope_tenant_id = str(payload.get("scope_tenant_id", "default"))
+                if self.server.auth_required:
+                    principal = self._authenticate(scope_tenant_id, Permission.ITAM_WRITE)
+                    actor = principal.subject
+                partner = self.server.application.itam_support_service.delete_partner(
+                    DeleteItamPartnerCommand(
+                        organization_id=str(payload["organization_id"]),
+                        partner_id=str(payload["partner_id"]),
+                        actor=actor,
+                        admin_token=self._bearer_token(),
+                        scope_tenant_id=scope_tenant_id,
+                    )
+                )
+                responder.send(HTTPStatus.OK, partner.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
         if route == "/api/v1/itam/tenant/create":
             try:
                 payload = self._read_json_body()
@@ -2117,7 +2265,8 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                             actor=actor,
                             admin_token=self._bearer_token(),
                             asset_tag=str(payload["asset_tag"]),
-                            manufacturer=str(payload["manufacturer"]),
+                            manufacturer=str(payload.get("manufacturer", payload["manufacturer_partner_id"])),
+                            manufacturer_partner_id=str(payload["manufacturer_partner_id"]),
                             warranty_reference=str(payload["warranty_reference"]),
                             warranty_level=str(payload["warranty_level"]),
                             warranty_start=str(payload["warranty_start"]),
@@ -2150,7 +2299,8 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                             actor=actor,
                             admin_token=self._bearer_token(),
                             asset_tag=str(payload["asset_tag"]),
-                            provider=str(payload["provider"]),
+                            provider=str(payload.get("provider", payload["provider_partner_id"])),
+                            provider_partner_id=str(payload["provider_partner_id"]),
                             contract_reference=str(payload["contract_reference"]),
                             support_level=str(payload["support_level"]),
                             support_start=str(payload["support_start"]),
@@ -2184,7 +2334,8 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         actor=actor,
                         admin_token=self._bearer_token(),
                         product_name=str(payload["product_name"]),
-                        vendor=str(payload["vendor"]),
+                        vendor=str(payload.get("vendor", payload["vendor_partner_id"])),
+                        vendor_partner_id=str(payload["vendor_partner_id"]),
                         license_reference=str(payload["license_reference"]),
                         metric=str(payload["metric"]),
                         purchased_quantity=int(payload["purchased_quantity"]),

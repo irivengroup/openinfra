@@ -133,3 +133,14 @@ Les formulaires ITAM doivent exposer uniquement les rattachements métier pertin
 **Migrations :** cette correction est purement UI/contrat de formulaire ; elle ne doit pas créer de nouvelle migration PostgreSQL. Les migrations déjà publiées restent immuables et `0031_itam_organization_identity.sql` demeure conservée pour compatibilité des environnements existants.
 
 **Acceptation :** les tests frontend et web statiques valident l'absence de `Tenant de sécurité` et `scope_tenant_id` dans les formulaires web, l'absence de sélecteurs globaux sur les opérations Organisation/Tenant, la présence de sélecteurs tenant cible filtrés pour modification/retrait tenant et l'absence de migration `0032_*`.
+
+
+### REQ-00816 — Fournisseurs, éditeurs et supports tiers ITAM accrédités
+
+Le domaine ITAM doit gérer un référentiel de partenaires rattachés à une organisation active. Un partenaire représente un constructeur matériel, un éditeur logiciel ou un support tiers. Chaque partenaire doit porter une carte d’identité entreprise complète : identifiant partenaire, organisation de rattachement, catégorie, raison sociale, nom d’usage, numéro d’immatriculation, identifiant fiscal, pays ISO 3166-1 alpha-2, ville, adresse, email de contact, au moins un contact téléphonique, contact support, site web optionnel, statut et description.
+
+**Règles métier :** un constructeur ou éditeur ne peut fournir du matériel, un logiciel, une garantie ou une licence que s’il est actif et accrédité pour l’organisation concernée. Un support tiers ne peut être utilisé dans un contrat de support que s’il est actif, rattaché à la même organisation et de catégorie support tiers. Les formulaires garanties, licences et supports ne doivent plus s’appuyer sur un fournisseur libre mais sur le référentiel des partenaires filtré par organisation et catégorie.
+
+**Migrations :** le référentiel est livré dans une seule migration PostgreSQL structurante `0032_itam_partner_registry.sql`, afin de limiter le nombre de migrations tout en conservant l’immutabilité des migrations déjà publiées.
+
+**Acceptation :** services, CLI, API HTTP, migration PostgreSQL, portail web, OpenAPI et tests de non-régression valident le CRUD des partenaires, le filtrage par organisation/catégorie et le blocage des garanties, licences ou supports sans partenaire actif accrédité.

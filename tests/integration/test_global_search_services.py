@@ -11,7 +11,7 @@ from openinfra.application.ipam_services import (
     DefineIpPrefixCommand,
     DefineVrfCommand,
 )
-from openinfra.application.itam_services import RegisterManufacturerSupportCommand
+from openinfra.application.itam_services import CreateItamPartnerCommand, RegisterManufacturerSupportCommand
 from openinfra.application.search_services import GlobalSearchCommand
 from openinfra.application.security_services import BootstrapTokenCommand
 from openinfra.application.source_of_truth_services import UpsertSourceObjectCommand
@@ -70,6 +70,27 @@ def test_global_search_groups_backend_results_by_component(tmp_path) -> None:
         )
     )
 
+    app.itam_support_service.create_partner(
+        CreateItamPartnerCommand(
+            organization_id="default",
+            partner_id="dell",
+            kind="manufacturer",
+            actor="pytest",
+            admin_token=token,
+            scope_tenant_id="default",
+            legal_name="Dell Technologies France SAS",
+            display_name="Dell",
+            registration_number="REG-DELL",
+            tax_identifier="TAX-DELL",
+            country_code="FR",
+            city="Paris",
+            address="1 rue Constructeur",
+            contact_email="contact-dell@example.invalid",
+            phone="+33123456789",
+            support_contact="support-dell@example.invalid",
+        )
+    )
+
     app.itam_support_service.register_manufacturer_support(
         RegisterManufacturerSupportCommand(
             tenant_id="default",
@@ -77,6 +98,7 @@ def test_global_search_groups_backend_results_by_component(tmp_path) -> None:
             admin_token=token,
             asset_tag="PARIS-ITAM-001",
             manufacturer="Dell",
+            manufacturer_partner_id="dell",
             warranty_reference="WR-PARIS-001",
             warranty_level="ProSupport",
             warranty_start="2026-01-01",

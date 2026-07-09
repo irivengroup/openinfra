@@ -131,6 +131,7 @@ from openinfra.domain.ipam import (
 from openinfra.domain.itam import (
     ItamDateParser,
     ItamOrganization,
+    ItamPartner,
     ItamTenant,
     ManufacturerWarranty,
     PhysicalAssetSupportProfile,
@@ -5227,6 +5228,163 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
             updated_at=self._row_datetime(row["updated_at"]),
         )
 
+    def save_partner(self, partner: ItamPartner) -> None:
+        self._execute_without_result(
+            """
+            INSERT INTO itam_partners (
+                organization_id, partner_id, kind, legal_name, display_name, status,
+                registration_number, tax_identifier, country_code, city, address,
+                contact_email, phone, support_contact, website, description,
+                created_by, created_at, updated_by, updated_at
+            ) VALUES (
+                %(organization_id)s, %(partner_id)s, %(kind)s, %(legal_name)s,
+                %(display_name)s, %(status)s, %(registration_number)s, %(tax_identifier)s,
+                %(country_code)s, %(city)s, %(address)s, %(contact_email)s, %(phone)s,
+                %(support_contact)s, %(website)s, %(description)s, %(created_by)s,
+                %(created_at)s, %(updated_by)s, %(updated_at)s
+            )
+            ON CONFLICT (organization_id, partner_id) DO UPDATE SET
+                kind = EXCLUDED.kind,
+                legal_name = EXCLUDED.legal_name,
+                display_name = EXCLUDED.display_name,
+                status = EXCLUDED.status,
+                registration_number = EXCLUDED.registration_number,
+                tax_identifier = EXCLUDED.tax_identifier,
+                country_code = EXCLUDED.country_code,
+                city = EXCLUDED.city,
+                address = EXCLUDED.address,
+                contact_email = EXCLUDED.contact_email,
+                phone = EXCLUDED.phone,
+                support_contact = EXCLUDED.support_contact,
+                website = EXCLUDED.website,
+                description = EXCLUDED.description,
+                updated_by = EXCLUDED.updated_by,
+                updated_at = EXCLUDED.updated_at
+            """,
+            self._partner_params(partner),
+        )
+
+    def find_partner(self, organization_id: str, partner_id: str) -> ItamPartner | None:
+        row = self._fetch_one(
+            """
+            SELECT organization_id, partner_id, kind, legal_name, display_name, status,
+                   registration_number, tax_identifier, country_code, city, address,
+                   contact_email, phone, support_contact, website, description,
+                   created_by, created_at, updated_by, updated_at
+            FROM itam_partners
+            WHERE organization_id = %(organization_id)s AND partner_id = %(partner_id)s
+            """,
+            {
+                "organization_id": TenantId.from_value(organization_id).value,
+                "partner_id": TenantId.from_value(partner_id).value,
+            },
+        )
+        return self._partner_from_row(row) if row else None
+
+    def list_partners(
+        self, organization_id: str | None = None, include_retired: bool = False
+    ) -> tuple[ItamPartner, ...]:
+        if organization_id is None and include_retired:
+            rows = self._fetch_all(
+                """
+                SELECT organization_id, partner_id, kind, legal_name, display_name, status,
+                       registration_number, tax_identifier, country_code, city, address,
+                       contact_email, phone, support_contact, website, description,
+                       created_by, created_at, updated_by, updated_at
+                FROM itam_partners
+                ORDER BY organization_id ASC, kind ASC, display_name ASC, partner_id ASC
+                """,
+                {},
+            )
+        elif organization_id is None:
+            rows = self._fetch_all(
+                """
+                SELECT organization_id, partner_id, kind, legal_name, display_name, status,
+                       registration_number, tax_identifier, country_code, city, address,
+                       contact_email, phone, support_contact, website, description,
+                       created_by, created_at, updated_by, updated_at
+                FROM itam_partners
+                WHERE status <> 'retired'
+                ORDER BY organization_id ASC, kind ASC, display_name ASC, partner_id ASC
+                """,
+                {},
+            )
+        elif include_retired:
+            rows = self._fetch_all(
+                """
+                SELECT organization_id, partner_id, kind, legal_name, display_name, status,
+                       registration_number, tax_identifier, country_code, city, address,
+                       contact_email, phone, support_contact, website, description,
+                       created_by, created_at, updated_by, updated_at
+                FROM itam_partners
+                WHERE organization_id = %(organization_id)s
+                ORDER BY kind ASC, display_name ASC, partner_id ASC
+                """,
+                {"organization_id": TenantId.from_value(organization_id).value},
+            )
+        else:
+            rows = self._fetch_all(
+                """
+                SELECT organization_id, partner_id, kind, legal_name, display_name, status,
+                       registration_number, tax_identifier, country_code, city, address,
+                       contact_email, phone, support_contact, website, description,
+                       created_by, created_at, updated_by, updated_at
+                FROM itam_partners
+                WHERE organization_id = %(organization_id)s AND status <> 'retired'
+                ORDER BY kind ASC, display_name ASC, partner_id ASC
+                """,
+                {"organization_id": TenantId.from_value(organization_id).value},
+            )
+        return tuple(self._partner_from_row(row) for row in rows)
+
+    def _partner_params(self, partner: ItamPartner) -> dict[str, object]:
+        return {
+            "organization_id": partner.organization_id.value,
+            "partner_id": partner.id.value,
+            "kind": partner.kind.value,
+            "legal_name": partner.legal_name.value,
+            "display_name": partner.display_name.value,
+            "status": partner.status.value,
+            "registration_number": partner.registration_number,
+            "tax_identifier": partner.tax_identifier,
+            "country_code": partner.country_code,
+            "city": partner.city,
+            "address": partner.address,
+            "contact_email": partner.contact_email,
+            "phone": partner.phone,
+            "support_contact": partner.support_contact,
+            "website": partner.website,
+            "description": partner.description,
+            "created_by": partner.created_by,
+            "created_at": partner.created_at,
+            "updated_by": partner.updated_by,
+            "updated_at": partner.updated_at,
+        }
+
+    def _partner_from_row(self, row: Mapping[str, object]) -> ItamPartner:
+        return ItamPartner.restore(
+            partner_id=str(row["partner_id"]),
+            organization_id=str(row["organization_id"]),
+            kind=str(row["kind"]),
+            legal_name=str(row["legal_name"]),
+            display_name=str(row["display_name"]),
+            status=str(row["status"]),
+            registration_number=str(row["registration_number"]),
+            tax_identifier=str(row["tax_identifier"]),
+            country_code=str(row["country_code"]),
+            city=str(row["city"]),
+            address=str(row["address"]),
+            contact_email=str(row["contact_email"]),
+            phone=str(row["phone"]),
+            support_contact=str(row["support_contact"]),
+            website=(None if row.get("website") is None else str(row.get("website"))),
+            description=(None if row.get("description") is None else str(row.get("description"))),
+            created_by=str(row["created_by"]),
+            created_at=self._row_datetime(row["created_at"]),
+            updated_by=str(row["updated_by"]),
+            updated_at=self._row_datetime(row["updated_at"]),
+        )
+
     def save_tenant(self, tenant: ItamTenant) -> None:
         if self.find_organization(tenant.organization_id.value) is None:
             self.save_organization(
@@ -5408,6 +5566,11 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
         warranty_payload = self._json_mapping(row["manufacturer_warranty"])
         warranty = ManufacturerWarranty.restore(
             manufacturer=str(warranty_payload["manufacturer"]),
+            manufacturer_partner_id=(
+                None
+                if not warranty_payload.get("manufacturer_partner_id")
+                else str(warranty_payload.get("manufacturer_partner_id"))
+            ),
             warranty_reference=str(warranty_payload["warranty_reference"]),
             warranty_level=str(warranty_payload["warranty_level"]),
             warranty_start=ItamDateParser.parse_date(
@@ -5441,6 +5604,9 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
         return ThirdPartySupportContract.restore(
             id=EntityId.from_value(str(value["id"])),
             provider=str(value["provider"]),
+            provider_partner_id=(
+                None if not value.get("provider_partner_id") else str(value.get("provider_partner_id"))
+            ),
             contract_reference=str(value["contract_reference"]),
             support_level=str(value["support_level"]),
             support_start=ItamDateParser.parse_date(
@@ -5460,12 +5626,12 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
         self._execute_without_result(
             """
             INSERT INTO software_license_entitlements (
-                id, tenant_id, product_name, vendor, version, license_reference,
+                id, tenant_id, product_name, vendor, vendor_partner_id, version, license_reference,
                 contract_reference, metric, purchased_quantity, assigned_quantity,
                 entitlement_start, entitlement_end, status, owner, notes,
                 created_by, created_at, updated_by, updated_at
             ) VALUES (
-                %(id)s, %(tenant_id)s, %(product_name)s, %(vendor)s, %(version)s,
+                %(id)s, %(tenant_id)s, %(product_name)s, %(vendor)s, %(vendor_partner_id)s, %(version)s,
                 %(license_reference)s, %(contract_reference)s, %(metric)s,
                 %(purchased_quantity)s, %(assigned_quantity)s, %(entitlement_start)s,
                 %(entitlement_end)s, %(status)s, %(owner)s, %(notes)s,
@@ -5474,6 +5640,7 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
             ON CONFLICT (tenant_id, license_reference) DO UPDATE SET
                 product_name = EXCLUDED.product_name,
                 vendor = EXCLUDED.vendor,
+                vendor_partner_id = EXCLUDED.vendor_partner_id,
                 version = EXCLUDED.version,
                 contract_reference = EXCLUDED.contract_reference,
                 metric = EXCLUDED.metric,
@@ -5492,6 +5659,7 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
                 "tenant_id": license_.tenant_id.value,
                 "product_name": license_.product_name.value,
                 "vendor": license_.vendor,
+                "vendor_partner_id": license_.vendor_partner_id,
                 "version": license_.version,
                 "license_reference": license_.license_reference.value,
                 "contract_reference": license_.contract_reference,
@@ -5515,7 +5683,7 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
     ) -> SoftwareLicenseEntitlement | None:
         row = self._fetch_one(
             """
-            SELECT id, tenant_id, product_name, vendor, version, license_reference,
+            SELECT id, tenant_id, product_name, vendor, vendor_partner_id, version, license_reference,
                    contract_reference, metric, purchased_quantity, assigned_quantity,
                    entitlement_start, entitlement_end, status, owner, notes,
                    created_by, created_at, updated_by, updated_at
@@ -5537,6 +5705,9 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
             tenant_id=TenantId.from_value(str(row["tenant_id"])),
             product_name=str(row["product_name"]),
             vendor=str(row["vendor"]),
+            vendor_partner_id=(
+                None if not row.get("vendor_partner_id") else str(row.get("vendor_partner_id"))
+            ),
             version=(None if row.get("version") is None else str(row.get("version"))),
             license_reference=str(row["license_reference"]),
             contract_reference=(

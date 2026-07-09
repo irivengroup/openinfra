@@ -1180,6 +1180,86 @@ def test_itam_support_profile_cli_commands(tmp_path: Path, capsys: object) -> No
         OpenInfraCLI().run(
             [
                 "itam",
+                "partner-create",
+                "--data",
+                str(data),
+                "--organization",
+                "default",
+                "--partner",
+                "dell",
+                "--kind",
+                "manufacturer",
+                "--admin-token",
+                token,
+                "--legal-name",
+                "Dell Technologies France SAS",
+                "--display-name",
+                "Dell",
+                "--registration-number",
+                "REG-DELL",
+                "--tax-identifier",
+                "TAX-DELL",
+                "--country-code",
+                "FR",
+                "--city",
+                "Paris",
+                "--address",
+                "1 rue Constructeur",
+                "--contact-email",
+                "contact-dell@example.invalid",
+                "--phone",
+                "+33123456789",
+                "--support-contact",
+                "support-dell@example.invalid",
+            ]
+        )
+        == 0
+    )
+    capsys.readouterr()
+    assert (
+        OpenInfraCLI().run(
+            [
+                "itam",
+                "partner-create",
+                "--data",
+                str(data),
+                "--organization",
+                "default",
+                "--partner",
+                "thirdsupport",
+                "--kind",
+                "third_party_support",
+                "--admin-token",
+                token,
+                "--legal-name",
+                "ThirdSupport SAS",
+                "--display-name",
+                "ThirdSupport",
+                "--registration-number",
+                "REG-THIRDSUPPORT",
+                "--tax-identifier",
+                "TAX-THIRDSUPPORT",
+                "--country-code",
+                "FR",
+                "--city",
+                "Paris",
+                "--address",
+                "2 rue Support",
+                "--contact-email",
+                "contact-thirdsupport@example.invalid",
+                "--phone",
+                "+33123456780",
+                "--support-contact",
+                "support-thirdsupport@example.invalid",
+            ]
+        )
+        == 0
+    )
+    capsys.readouterr()
+    assert (
+        OpenInfraCLI().run(
+            [
+                "itam",
                 "register-manufacturer-support",
                 "--data",
                 str(data),
@@ -1191,6 +1271,8 @@ def test_itam_support_profile_cli_commands(tmp_path: Path, capsys: object) -> No
                 "srv-cli-001",
                 "--manufacturer",
                 "Dell",
+                "--manufacturer-partner",
+                "dell",
                 "--warranty-reference",
                 "war-cli-001",
                 "--warranty-level",
@@ -1225,6 +1307,8 @@ def test_itam_support_profile_cli_commands(tmp_path: Path, capsys: object) -> No
                 "srv-cli-001",
                 "--provider",
                 "ThirdSupport",
+                "--provider-partner",
+                "thirdsupport",
                 "--contract-reference",
                 "tp-cli-001",
                 "--support-level",

@@ -1,3 +1,17 @@
+## v0.29.75 — Traçabilité ITAM partenaires fournisseurs/supports
+
+| Élément | Traçabilité |
+| --- | --- |
+| Exigence | `REQ-00816` |
+| Test CDC | `TST-WEB-115` |
+| Test roadmap | `TST-P14-ITAM-PARTNER-REGISTRY` |
+| Domaine | `openinfra.domain.itam.ItamPartner` |
+| Application | `openinfra.application.itam_services.ItamSupportService` |
+| CLI | `openinfra itam partner-*` |
+| API | `/api/v1/itam/partner*` |
+| UI | contexte ITAM `Fournisseurs et Supports` |
+| Migration | `0032_itam_partner_registry.sql` |
+
 ## v0.29.73 — Traçabilité DCIM dépendances CRUD
 
 | Élément | Traçabilité |

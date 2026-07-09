@@ -158,20 +158,25 @@ from openinfra.application.it_resources_management_services import (
 from openinfra.application.itam_services import (
     AddThirdPartySupportCommand,
     CreateItamOrganizationCommand,
+    CreateItamPartnerCommand,
     CreateItamTenantCommand,
     DeleteItamOrganizationCommand,
+    DeleteItamPartnerCommand,
     DeleteItamTenantCommand,
     GetAssetSupportCoverageReportCommand,
     GetAssetSupportProfileCommand,
     GetItamOrganizationCommand,
+    GetItamPartnerCommand,
     GetItamTenantCommand,
     GetSoftwareLicenseCommand,
     GetSoftwareLicenseComplianceCommand,
     ListItamOrganizationsCommand,
+    ListItamPartnersCommand,
     ListItamTenantsCommand,
     RegisterManufacturerSupportCommand,
     RegisterSoftwareLicenseCommand,
     UpdateItamOrganizationCommand,
+    UpdateItamPartnerCommand,
     UpdateItamTenantCommand,
     UpdateSoftwareLicenseAssignmentCommand,
 )
@@ -646,6 +651,80 @@ class OpenInfraCLI:
         organization_delete.add_argument("--scope-tenant", default="default")
         organization_delete.set_defaults(handler=self._handle_itam_organization_delete)
 
+        partner_list = itam_subparsers.add_parser("partners", help="list ITAM accredited partners")
+        self._add_backend_arguments(partner_list)
+        partner_list.add_argument("--tenant", default="default", help="security tenant scope")
+        partner_list.add_argument("--admin-token", required=True)
+        partner_list.add_argument("--organization")
+        partner_list.add_argument(
+            "--kind", choices=("manufacturer", "software_publisher", "third_party_support")
+        )
+        partner_list.add_argument("--include-retired", action="store_true")
+        partner_list.set_defaults(handler=self._handle_itam_partners)
+
+        partner_create = itam_subparsers.add_parser("partner-create", help="create ITAM accredited partner")
+        self._add_backend_arguments(partner_create)
+        partner_create.add_argument("--organization", required=True)
+        partner_create.add_argument("--partner", required=True)
+        partner_create.add_argument("--kind", required=True, choices=("manufacturer", "software_publisher", "third_party_support"))
+        partner_create.add_argument("--actor", default="cli")
+        partner_create.add_argument("--admin-token", required=True)
+        partner_create.add_argument("--scope-tenant", default="default")
+        partner_create.add_argument("--legal-name", required=True)
+        partner_create.add_argument("--display-name")
+        partner_create.add_argument("--status", default="active", choices=("active", "suspended", "retired"))
+        partner_create.add_argument("--registration-number", required=True)
+        partner_create.add_argument("--tax-identifier", required=True)
+        partner_create.add_argument("--country-code", required=True)
+        partner_create.add_argument("--city", required=True)
+        partner_create.add_argument("--address", required=True)
+        partner_create.add_argument("--contact-email", required=True)
+        partner_create.add_argument("--phone", required=True)
+        partner_create.add_argument("--support-contact", required=True)
+        partner_create.add_argument("--website")
+        partner_create.add_argument("--description")
+        partner_create.set_defaults(handler=self._handle_itam_partner_create)
+
+        partner_show = itam_subparsers.add_parser("partner", help="show ITAM accredited partner")
+        self._add_backend_arguments(partner_show)
+        partner_show.add_argument("--organization", required=True)
+        partner_show.add_argument("--partner", required=True)
+        partner_show.add_argument("--tenant", default="default", help="security tenant scope")
+        partner_show.add_argument("--admin-token", required=True)
+        partner_show.set_defaults(handler=self._handle_itam_partner)
+
+        partner_update = itam_subparsers.add_parser("partner-update", help="update ITAM accredited partner")
+        self._add_backend_arguments(partner_update)
+        partner_update.add_argument("--organization", required=True)
+        partner_update.add_argument("--partner", required=True)
+        partner_update.add_argument("--actor", default="cli")
+        partner_update.add_argument("--admin-token", required=True)
+        partner_update.add_argument("--scope-tenant", default="default")
+        partner_update.add_argument("--kind", choices=("manufacturer", "software_publisher", "third_party_support"))
+        partner_update.add_argument("--legal-name")
+        partner_update.add_argument("--display-name")
+        partner_update.add_argument("--status", choices=("active", "suspended", "retired"))
+        partner_update.add_argument("--registration-number")
+        partner_update.add_argument("--tax-identifier")
+        partner_update.add_argument("--country-code")
+        partner_update.add_argument("--city")
+        partner_update.add_argument("--address")
+        partner_update.add_argument("--contact-email")
+        partner_update.add_argument("--phone")
+        partner_update.add_argument("--support-contact")
+        partner_update.add_argument("--website")
+        partner_update.add_argument("--description")
+        partner_update.set_defaults(handler=self._handle_itam_partner_update)
+
+        partner_delete = itam_subparsers.add_parser("partner-delete", help="retire ITAM accredited partner")
+        self._add_backend_arguments(partner_delete)
+        partner_delete.add_argument("--organization", required=True)
+        partner_delete.add_argument("--partner", required=True)
+        partner_delete.add_argument("--actor", default="cli")
+        partner_delete.add_argument("--admin-token", required=True)
+        partner_delete.add_argument("--scope-tenant", default="default")
+        partner_delete.set_defaults(handler=self._handle_itam_partner_delete)
+
         tenant_list = itam_subparsers.add_parser("tenants", help="list ITAM tenants")
         self._add_backend_arguments(tenant_list)
         tenant_list.add_argument("--tenant", default="default", help="security tenant scope")
@@ -709,7 +788,8 @@ class OpenInfraCLI:
         register_manufacturer.add_argument("--actor", default="cli")
         register_manufacturer.add_argument("--admin-token", required=True)
         register_manufacturer.add_argument("--asset-tag", required=True)
-        register_manufacturer.add_argument("--manufacturer", required=True)
+        register_manufacturer.add_argument("--manufacturer", required=True, help="display label retained for compatibility")
+        register_manufacturer.add_argument("--manufacturer-partner", required=True, dest="manufacturer_partner_id")
         register_manufacturer.add_argument("--warranty-reference", required=True)
         register_manufacturer.add_argument("--warranty-level", required=True)
         register_manufacturer.add_argument("--warranty-start", required=True)
@@ -728,7 +808,8 @@ class OpenInfraCLI:
         add_third_party.add_argument("--actor", default="cli")
         add_third_party.add_argument("--admin-token", required=True)
         add_third_party.add_argument("--asset-tag", required=True)
-        add_third_party.add_argument("--provider", required=True)
+        add_third_party.add_argument("--provider", required=True, help="display label retained for compatibility")
+        add_third_party.add_argument("--provider-partner", required=True, dest="provider_partner_id")
         add_third_party.add_argument("--contract-reference", required=True)
         add_third_party.add_argument("--support-level", required=True)
         add_third_party.add_argument("--support-start", required=True)
@@ -765,7 +846,8 @@ class OpenInfraCLI:
         software_license.add_argument("--actor", default="cli")
         software_license.add_argument("--admin-token", required=True)
         software_license.add_argument("--product-name", required=True)
-        software_license.add_argument("--vendor", required=True)
+        software_license.add_argument("--vendor", required=True, help="display label retained for compatibility")
+        software_license.add_argument("--vendor-partner", required=True, dest="vendor_partner_id")
         software_license.add_argument("--license-reference", required=True)
         software_license.add_argument("--metric", required=True)
         software_license.add_argument("--purchased-quantity", required=True, type=int)
@@ -3302,6 +3384,103 @@ class OpenInfraCLI:
         print(json.dumps(organization.as_dict(), indent=2, sort_keys=True))
         return 0
 
+    def _handle_itam_partners(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        catalog = app.itam_support_service.list_partners(
+            ListItamPartnersCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                organization_id=args.organization,
+                kind=args.kind,
+                include_retired=args.include_retired,
+            )
+        )
+        print(json.dumps(catalog.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_itam_partner_create(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        partner = app.itam_support_service.create_partner(
+            CreateItamPartnerCommand(
+                organization_id=args.organization,
+                partner_id=args.partner,
+                kind=args.kind,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                scope_tenant_id=args.scope_tenant,
+                legal_name=args.legal_name,
+                display_name=args.display_name,
+                status=args.status,
+                registration_number=args.registration_number,
+                tax_identifier=args.tax_identifier,
+                country_code=args.country_code,
+                city=args.city,
+                address=args.address,
+                contact_email=args.contact_email,
+                phone=args.phone,
+                support_contact=args.support_contact,
+                website=args.website,
+                description=args.description,
+            )
+        )
+        print(json.dumps(partner.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_itam_partner(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        partner = app.itam_support_service.get_partner(
+            GetItamPartnerCommand(
+                organization_id=args.organization,
+                partner_id=args.partner,
+                scope_tenant_id=args.tenant,
+                admin_token=args.admin_token,
+            )
+        )
+        print(json.dumps(partner.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_itam_partner_update(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        partner = app.itam_support_service.update_partner(
+            UpdateItamPartnerCommand(
+                organization_id=args.organization,
+                partner_id=args.partner,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                scope_tenant_id=args.scope_tenant,
+                kind=args.kind,
+                legal_name=args.legal_name,
+                display_name=args.display_name,
+                status=args.status,
+                registration_number=args.registration_number,
+                tax_identifier=args.tax_identifier,
+                country_code=args.country_code,
+                city=args.city,
+                address=args.address,
+                contact_email=args.contact_email,
+                phone=args.phone,
+                support_contact=args.support_contact,
+                website=args.website,
+                description=args.description,
+            )
+        )
+        print(json.dumps(partner.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_itam_partner_delete(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        partner = app.itam_support_service.delete_partner(
+            DeleteItamPartnerCommand(
+                organization_id=args.organization,
+                partner_id=args.partner,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                scope_tenant_id=args.scope_tenant,
+            )
+        )
+        print(json.dumps(partner.as_dict(), indent=2, sort_keys=True))
+        return 0
+
     def _handle_itam_tenants(self, args: argparse.Namespace) -> int:
         app = self._create_application(args)
         catalog = app.itam_support_service.list_tenants(
@@ -3385,6 +3564,7 @@ class OpenInfraCLI:
                 admin_token=args.admin_token,
                 asset_tag=args.asset_tag,
                 manufacturer=args.manufacturer,
+                manufacturer_partner_id=args.manufacturer_partner_id,
                 warranty_reference=args.warranty_reference,
                 warranty_level=args.warranty_level,
                 warranty_start=args.warranty_start,
@@ -3406,6 +3586,7 @@ class OpenInfraCLI:
                 admin_token=args.admin_token,
                 asset_tag=args.asset_tag,
                 provider=args.provider,
+                provider_partner_id=args.provider_partner_id,
                 contract_reference=args.contract_reference,
                 support_level=args.support_level,
                 support_start=args.support_start,
@@ -3452,6 +3633,7 @@ class OpenInfraCLI:
                 admin_token=args.admin_token,
                 product_name=args.product_name,
                 vendor=args.vendor,
+                vendor_partner_id=args.vendor_partner_id,
                 license_reference=args.license_reference,
                 metric=args.metric,
                 purchased_quantity=args.purchased_quantity,

@@ -3276,6 +3276,120 @@ paths:
         '401': {description: ITAM write token required}
         '400': {description: Validation error or unknown ITAM organization}
 
+  /api/v1/itam/partners:
+    get:
+      summary: List ITAM accredited partners filtered by organization and category
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: false, schema: {type: string, default: default}}
+        - {name: organization_id, in: query, required: false, schema: {type: string}}
+        - {name: kind, in: query, required: false, schema: {type: string, enum: [manufacturer, software_publisher, third_party_support]}}
+        - {name: include_retired, in: query, required: false, schema: {type: boolean, default: false}}
+      responses:
+        '200': {description: ITAM partner catalog}
+        '401': {description: ITAM read token required}
+        '400': {description: Validation error}
+  /api/v1/itam/partner:
+    get:
+      summary: Read one ITAM accredited partner
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: false, schema: {type: string, default: default}}
+        - {name: organization_id, in: query, required: true, schema: {type: string}}
+        - {name: partner_id, in: query, required: true, schema: {type: string}}
+      responses:
+        '200': {description: ITAM partner company identity record}
+        '401': {description: ITAM read token required}
+        '400': {description: Validation error or unknown ITAM partner}
+  /api/v1/itam/partner/create:
+    post:
+      summary: Create an ITAM accredited partner with company identity card
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [organization_id, partner_id, kind, legal_name, registration_number, tax_identifier, country_code, city, address, contact_email, phone, support_contact]
+              properties:
+                organization_id: {type: string}
+                partner_id: {type: string}
+                kind: {type: string, enum: [manufacturer, software_publisher, third_party_support]}
+                scope_tenant_id: {type: string, default: default}
+                actor: {type: string, default: api}
+                legal_name: {type: string}
+                display_name: {type: string}
+                registration_number: {type: string}
+                tax_identifier: {type: string}
+                country_code: {type: string, minLength: 2, maxLength: 2}
+                city: {type: string}
+                address: {type: string}
+                contact_email: {type: string, format: email}
+                phone: {type: string}
+                support_contact: {type: string}
+                website: {type: string, format: uri}
+                status: {type: string, enum: [active, suspended, retired], default: active}
+                description: {type: string}
+      responses:
+        '201': {description: ITAM partner created}
+        '401': {description: ITAM write token required}
+        '400': {description: Validation error or partner conflict}
+  /api/v1/itam/partner/update:
+    post:
+      summary: Update ITAM accredited partner identity or lifecycle metadata
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [organization_id, partner_id]
+              properties:
+                organization_id: {type: string}
+                partner_id: {type: string}
+                scope_tenant_id: {type: string, default: default}
+                actor: {type: string, default: api}
+                kind: {type: string, enum: [manufacturer, software_publisher, third_party_support]}
+                legal_name: {type: string}
+                display_name: {type: string}
+                registration_number: {type: string}
+                tax_identifier: {type: string}
+                country_code: {type: string, minLength: 2, maxLength: 2}
+                city: {type: string}
+                address: {type: string}
+                contact_email: {type: string, format: email}
+                phone: {type: string}
+                support_contact: {type: string}
+                website: {type: string, format: uri}
+                status: {type: string, enum: [active, suspended, retired]}
+                description: {type: string}
+      responses:
+        '200': {description: ITAM partner updated}
+        '401': {description: ITAM write token required}
+        '400': {description: Validation error or unknown ITAM partner}
+  /api/v1/itam/partner/delete:
+    post:
+      summary: Retire an ITAM accredited partner without destructive deletion
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [organization_id, partner_id]
+              properties:
+                organization_id: {type: string}
+                partner_id: {type: string}
+                scope_tenant_id: {type: string, default: default}
+                actor: {type: string, default: api}
+      responses:
+        '200': {description: ITAM partner retired}
+        '401': {description: ITAM write token required}
+        '400': {description: Validation error or unknown ITAM partner}
+
   /api/v1/itam/tenants:
     get:
       summary: List ITAM tenants filtered by organization metadata

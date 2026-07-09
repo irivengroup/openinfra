@@ -7,11 +7,16 @@ import pytest
 from openinfra.application.container import ApplicationFactory
 from openinfra.application.itam_services import (
     CreateItamOrganizationCommand,
+    CreateItamPartnerCommand,
     CreateItamTenantCommand,
     DeleteItamOrganizationCommand,
+    DeleteItamPartnerCommand,
     DeleteItamTenantCommand,
+    GetItamPartnerCommand,
     ListItamOrganizationsCommand,
+    ListItamPartnersCommand,
     ListItamTenantsCommand,
+    UpdateItamPartnerCommand,
     UpdateItamTenantCommand,
 )
 from openinfra.application.security_services import BootstrapTokenCommand
@@ -406,6 +411,200 @@ def test_itam_organization_cli_crud(tmp_path, capsys) -> None:
                 "orange",
                 "--scope-tenant",
                 "default",
+                "--admin-token",
+                token,
+            ]
+        )
+        == 0
+    )
+    retired = json.loads(capsys.readouterr().out)
+    assert retired["status"] == "retired"
+
+
+def test_itam_partner_registry_crud_and_accreditation_scope(tmp_path) -> None:
+    app = ApplicationFactory().create_json_application(tmp_path / "store.json", seed=True)
+    token = _admin_token(app)
+    app.itam_support_service.create_organization(
+        CreateItamOrganizationCommand(
+            organization_id="orange",
+            scope_tenant_id="default",
+            actor="pytest",
+            admin_token=token,
+            legal_name="Orange SA",
+            display_name="Orange",
+            registration_number="RCS PARIS 380 129 866",
+            tax_identifier="FR89380129866",
+            country_code="FR",
+            city="Paris",
+            address="111 Quai du Président Roosevelt",
+            contact_email="contact@orange.example",
+            support_contact="support@orange.example",
+        )
+    )
+
+    partner = app.itam_support_service.create_partner(
+        CreateItamPartnerCommand(
+            organization_id="orange",
+            partner_id="dell",
+            kind="manufacturer",
+            scope_tenant_id="default",
+            actor="pytest",
+            admin_token=token,
+            legal_name="Dell Technologies France SAS",
+            display_name="Dell Technologies",
+            registration_number="REG-DELL-FR",
+            tax_identifier="TAX-DELL-FR",
+            country_code="FR",
+            city="Paris",
+            address="2 rue du Fournisseur",
+            contact_email="account@dell.example",
+            phone="+33123456789",
+            support_contact="support@dell.example",
+            website="https://www.dell.example",
+        )
+    )
+    assert partner.as_dict()["organization_id"] == "orange"
+    assert partner.as_dict()["kind"] == "manufacturer"
+    assert partner.as_dict()["selectable"] is True
+
+    catalog = app.itam_support_service.list_partners(
+        ListItamPartnersCommand("default", token, organization_id="orange", kind="manufacturer")
+    ).as_dict()
+    assert [item["partner_id"] for item in catalog["items"]] == ["dell"]
+
+    updated = app.itam_support_service.update_partner(
+        UpdateItamPartnerCommand(
+            organization_id="orange",
+            partner_id="dell",
+            scope_tenant_id="default",
+            actor="pytest",
+            admin_token=token,
+            status="suspended",
+            phone="+33987654321",
+        )
+    ).as_dict()
+    assert updated["status"] == "suspended"
+    assert updated["selectable"] is False
+
+    loaded = app.itam_support_service.get_partner(
+        GetItamPartnerCommand(
+            organization_id="orange",
+            partner_id="dell",
+            admin_token=token,
+            scope_tenant_id="default",
+        )
+    ).as_dict()
+    assert loaded["phone"] == "+33987654321"
+
+    retired = app.itam_support_service.delete_partner(
+        DeleteItamPartnerCommand(
+            organization_id="orange",
+            partner_id="dell",
+            actor="pytest",
+            admin_token=token,
+            scope_tenant_id="default",
+        )
+    ).as_dict()
+    assert retired["status"] == "retired"
+
+
+def test_itam_partner_cli_crud(tmp_path, capsys) -> None:
+    data = tmp_path / "cli-partners.json"
+    token = "p" * 40
+    assert (
+        OpenInfraCLI().run(
+            [
+                "security",
+                "bootstrap-token",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--subject",
+                "itam-cli-admin",
+                "--role",
+                "admin",
+                "--token",
+                token,
+            ]
+        )
+        == 0
+    )
+    capsys.readouterr()
+
+    assert (
+        OpenInfraCLI().run(
+            [
+                "itam",
+                "partner-create",
+                "--data",
+                str(data),
+                "--organization",
+                "default",
+                "--partner",
+                "publisher",
+                "--kind",
+                "software_publisher",
+                "--admin-token",
+                token,
+                "--legal-name",
+                "Publisher SAS",
+                "--registration-number",
+                "REG-PUBLISHER",
+                "--tax-identifier",
+                "TAX-PUBLISHER",
+                "--country-code",
+                "FR",
+                "--city",
+                "Paris",
+                "--address",
+                "3 rue Logiciel",
+                "--contact-email",
+                "contact@publisher.example",
+                "--phone",
+                "+33111111111",
+                "--support-contact",
+                "support@publisher.example",
+            ]
+        )
+        == 0
+    )
+    created = json.loads(capsys.readouterr().out)
+    assert created["partner_id"] == "publisher"
+
+    assert (
+        OpenInfraCLI().run(
+            [
+                "itam",
+                "partners",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--organization",
+                "default",
+                "--kind",
+                "software_publisher",
+            ]
+        )
+        == 0
+    )
+    catalog = json.loads(capsys.readouterr().out)
+    assert [item["partner_id"] for item in catalog["items"]] == ["publisher"]
+
+    assert (
+        OpenInfraCLI().run(
+            [
+                "itam",
+                "partner-delete",
+                "--data",
+                str(data),
+                "--organization",
+                "default",
+                "--partner",
+                "publisher",
                 "--admin-token",
                 token,
             ]

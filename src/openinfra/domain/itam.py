@@ -65,6 +65,18 @@ class ItamOrganizationStatus(StrEnum):
     RETIRED = "retired"
 
 
+class ItamPartnerStatus(StrEnum):
+    ACTIVE = "active"
+    SUSPENDED = "suspended"
+    RETIRED = "retired"
+
+
+class ItamPartnerKind(StrEnum):
+    MANUFACTURER = "manufacturer"
+    SOFTWARE_PUBLISHER = "software_publisher"
+    THIRD_PARTY_SUPPORT = "third_party_support"
+
+
 @dataclass(frozen=True, slots=True)
 class ItamOrganization:
     id: TenantId
@@ -287,6 +299,244 @@ class ItamOrganizationCatalog:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class ItamPartner:
+    id: TenantId
+    organization_id: TenantId
+    kind: ItamPartnerKind
+    legal_name: Name
+    display_name: Name
+    status: ItamPartnerStatus
+    registration_number: str
+    tax_identifier: str
+    country_code: str
+    city: str
+    address: str
+    contact_email: str
+    phone: str
+    support_contact: str
+    website: str | None
+    description: str | None
+    created_by: str
+    created_at: datetime
+    updated_by: str
+    updated_at: datetime
+
+    @classmethod
+    def create(
+        cls,
+        partner_id: str | TenantId,
+        organization_id: str | TenantId,
+        kind: str,
+        legal_name: str,
+        actor: str,
+        display_name: str | None = None,
+        status: str = "active",
+        registration_number: str = "N/A",
+        tax_identifier: str = "N/A",
+        country_code: str = "FR",
+        city: str = "Non renseigné",
+        address: str = "Non renseigné",
+        contact_email: str = "contact@example.invalid",
+        phone: str = "+33000000000",
+        support_contact: str = "support@example.invalid",
+        website: str | None = None,
+        description: str | None = None,
+    ) -> Self:
+        now = datetime.now(UTC)
+        return cls.restore(
+            partner_id=partner_id,
+            organization_id=organization_id,
+            kind=kind,
+            legal_name=legal_name,
+            display_name=display_name or legal_name,
+            status=status,
+            registration_number=registration_number,
+            tax_identifier=tax_identifier,
+            country_code=country_code,
+            city=city,
+            address=address,
+            contact_email=contact_email,
+            phone=phone,
+            support_contact=support_contact,
+            website=website,
+            description=description,
+            created_by=actor,
+            created_at=now,
+            updated_by=actor,
+            updated_at=now,
+        )
+
+    @classmethod
+    def restore(
+        cls,
+        partner_id: str | TenantId,
+        organization_id: str | TenantId,
+        kind: str,
+        legal_name: str,
+        display_name: str,
+        status: str,
+        registration_number: str,
+        tax_identifier: str,
+        country_code: str,
+        city: str,
+        address: str,
+        contact_email: str,
+        phone: str,
+        support_contact: str,
+        website: str | None,
+        description: str | None,
+        created_by: str,
+        created_at: datetime,
+        updated_by: str,
+        updated_at: datetime,
+    ) -> Self:
+        identifier = partner_id if isinstance(partner_id, TenantId) else TenantId.from_value(partner_id)
+        organization_identifier = (
+            organization_id if isinstance(organization_id, TenantId) else TenantId.from_value(organization_id)
+        )
+        try:
+            kind_value = ItamPartnerKind(kind.strip().lower())
+        except ValueError as exc:
+            raise ValidationError(
+                "ITAM partner kind must be manufacturer, software_publisher or third_party_support"
+            ) from exc
+        try:
+            status_value = ItamPartnerStatus(status.strip().lower())
+        except ValueError as exc:
+            raise ValidationError("ITAM partner status must be active, suspended or retired") from exc
+        normalized_country = country_code.strip().upper()
+        if not re.fullmatch(r"[A-Z]{2}", normalized_country):
+            raise ValidationError("ITAM partner country code must use ISO 3166-1 alpha-2 format")
+        normalized_phone = " ".join(phone.strip().split())
+        if not re.fullmatch(r"\+?[0-9][0-9 .()/-]{5,31}", normalized_phone):
+            raise ValidationError("ITAM partner phone must be a valid business phone number")
+        normalized_website = ItamValidation.normalized_optional_text(website, "ITAM partner website", 255)
+        if normalized_website is not None and not re.fullmatch(r"https?://[^\s]+", normalized_website):
+            raise ValidationError("ITAM partner website must start with http:// or https://")
+        return cls(
+            id=identifier,
+            organization_id=organization_identifier,
+            kind=kind_value,
+            legal_name=Name.from_value(legal_name, "ITAM partner legal name"),
+            display_name=Name.from_value(display_name, "ITAM partner display name"),
+            status=status_value,
+            registration_number=ItamValidation.normalized_required_text(
+                registration_number, "ITAM partner registration number", 128
+            ),
+            tax_identifier=ItamValidation.normalized_required_text(
+                tax_identifier, "ITAM partner tax identifier", 128
+            ),
+            country_code=normalized_country,
+            city=ItamValidation.normalized_required_text(city, "ITAM partner city", 128),
+            address=ItamValidation.normalized_required_text(address, "ITAM partner address", 512),
+            contact_email=ItamValidation.normalized_email(contact_email, "ITAM partner contact email"),
+            phone=normalized_phone,
+            support_contact=ItamValidation.normalized_required_text(
+                support_contact, "ITAM partner support contact", 255
+            ),
+            website=normalized_website,
+            description=ItamValidation.normalized_optional_text(
+                description, "ITAM partner description", 1024
+            ),
+            created_by=ItamValidation.normalized_actor(created_by),
+            created_at=ItamValidation.normalized_datetime(created_at, "ITAM partner creation date"),
+            updated_by=ItamValidation.normalized_actor(updated_by),
+            updated_at=ItamValidation.normalized_datetime(updated_at, "ITAM partner update date"),
+        )
+
+    def update(
+        self,
+        *,
+        actor: str,
+        kind: str | None = None,
+        legal_name: str | None = None,
+        display_name: str | None = None,
+        status: str | None = None,
+        registration_number: str | None = None,
+        tax_identifier: str | None = None,
+        country_code: str | None = None,
+        city: str | None = None,
+        address: str | None = None,
+        contact_email: str | None = None,
+        phone: str | None = None,
+        support_contact: str | None = None,
+        website: str | None = None,
+        description: str | None = None,
+    ) -> Self:
+        return self.restore(
+            partner_id=self.id,
+            organization_id=self.organization_id,
+            kind=self.kind.value if kind is None else kind,
+            legal_name=self.legal_name.value if legal_name is None else legal_name,
+            display_name=self.display_name.value if display_name is None else display_name,
+            status=self.status.value if status is None else status,
+            registration_number=self.registration_number if registration_number is None else registration_number,
+            tax_identifier=self.tax_identifier if tax_identifier is None else tax_identifier,
+            country_code=self.country_code if country_code is None else country_code,
+            city=self.city if city is None else city,
+            address=self.address if address is None else address,
+            contact_email=self.contact_email if contact_email is None else contact_email,
+            phone=self.phone if phone is None else phone,
+            support_contact=self.support_contact if support_contact is None else support_contact,
+            website=self.website if website is None else website,
+            description=self.description if description is None else description,
+            created_by=self.created_by,
+            created_at=self.created_at,
+            updated_by=actor,
+            updated_at=datetime.now(UTC),
+        )
+
+    def retire(self, actor: str) -> Self:
+        return self.update(actor=actor, status=ItamPartnerStatus.RETIRED.value)
+
+    def selectable(self) -> bool:
+        return self.status == ItamPartnerStatus.ACTIVE
+
+    def supports_kind(self, expected: ItamPartnerKind) -> bool:
+        return self.selectable() and self.kind == expected
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "partner_id": self.id.value,
+            "organization_id": self.organization_id.value,
+            "kind": self.kind.value,
+            "legal_name": self.legal_name.value,
+            "display_name": self.display_name.value,
+            "status": self.status.value,
+            "registration_number": self.registration_number,
+            "tax_identifier": self.tax_identifier,
+            "country_code": self.country_code,
+            "city": self.city,
+            "address": self.address,
+            "contact_email": self.contact_email,
+            "phone": self.phone,
+            "support_contact": self.support_contact,
+            "website": self.website,
+            "description": self.description,
+            "selectable": self.selectable(),
+            "created_by": self.created_by,
+            "created_at": self.created_at.isoformat(),
+            "updated_by": self.updated_by,
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ItamPartnerCatalog:
+    items: tuple[ItamPartner, ...]
+
+    @classmethod
+    def from_items(cls, items: tuple[ItamPartner, ...]) -> Self:
+        return cls(items=items)
+
+    def by_kind(self, kind: ItamPartnerKind) -> tuple[ItamPartner, ...]:
+        return tuple(item for item in self.items if item.supports_kind(kind))
+
+    def as_dict(self) -> dict[str, object]:
+        return {"items": [item.as_dict() for item in self.items]}
+
+
 class ItamTenantStatus(StrEnum):
     ACTIVE = "active"
     SUSPENDED = "suspended"
@@ -483,6 +733,7 @@ class Asset:
 @dataclass(frozen=True, slots=True)
 class ManufacturerWarranty:
     manufacturer: str
+    manufacturer_partner_id: str
     warranty_reference: str
     warranty_level: str
     warranty_start: date
@@ -502,12 +753,18 @@ class ManufacturerWarranty:
         support_reference: str,
         support_level: str,
         support_contact: str,
+        manufacturer_partner_id: str | None = None,
     ) -> Self:
         if warranty_end < warranty_start:
             raise ValidationError("manufacturer warranty end date cannot be before start date")
         return cls(
             manufacturer=ItamValidation.normalized_text(
                 manufacturer, "manufacturer", max_length=128
+            ),
+            manufacturer_partner_id=(
+                TenantId.from_value(manufacturer_partner_id).value
+                if manufacturer_partner_id is not None
+                else ""
             ),
             warranty_reference=ItamValidation.normalized_code_text(
                 warranty_reference, "manufacturer warranty reference"
@@ -539,9 +796,11 @@ class ManufacturerWarranty:
         support_reference: str,
         support_level: str,
         support_contact: str,
+        manufacturer_partner_id: str | None = None,
     ) -> Self:
         return cls.create(
             manufacturer=manufacturer,
+            manufacturer_partner_id=manufacturer_partner_id,
             warranty_reference=warranty_reference,
             warranty_level=warranty_level,
             warranty_start=warranty_start,
@@ -554,6 +813,7 @@ class ManufacturerWarranty:
     def as_dict(self) -> dict[str, object]:
         return {
             "manufacturer": self.manufacturer,
+            "manufacturer_partner_id": self.manufacturer_partner_id,
             "warranty_reference": self.warranty_reference,
             "warranty_level": self.warranty_level,
             "warranty_start": self.warranty_start.isoformat(),
@@ -568,6 +828,7 @@ class ManufacturerWarranty:
 class ThirdPartySupportContract:
     id: EntityId
     provider: str
+    provider_partner_id: str
     contract_reference: str
     support_level: str
     support_start: date
@@ -588,10 +849,12 @@ class ThirdPartySupportContract:
         support_contact: str,
         status: str = "active",
         notes: str | None = None,
+        provider_partner_id: str | None = None,
     ) -> Self:
         return cls.restore(
             id=EntityId.new(),
             provider=provider,
+            provider_partner_id=provider_partner_id,
             contract_reference=contract_reference,
             support_level=support_level,
             support_start=support_start,
@@ -615,6 +878,7 @@ class ThirdPartySupportContract:
         status: str,
         notes: str | None,
         created_at: datetime,
+        provider_partner_id: str | None = None,
     ) -> Self:
         if support_end < support_start:
             raise ValidationError("third-party support end date cannot be before start date")
@@ -625,6 +889,11 @@ class ThirdPartySupportContract:
             id=id,
             provider=ItamValidation.normalized_text(
                 provider, "third-party support provider", max_length=128
+            ),
+            provider_partner_id=(
+                TenantId.from_value(provider_partner_id).value
+                if provider_partner_id is not None
+                else ""
             ),
             contract_reference=ItamValidation.normalized_code_text(
                 contract_reference, "third-party support contract reference"
@@ -645,7 +914,7 @@ class ThirdPartySupportContract:
         )
 
     def same_business_key(self, other: ThirdPartySupportContract) -> bool:
-        return self.provider.lower() == other.provider.lower() and (
+        return self.provider_partner_id == other.provider_partner_id and (
             self.contract_reference.upper() == other.contract_reference.upper()
         )
 
@@ -653,6 +922,7 @@ class ThirdPartySupportContract:
         return {
             "id": self.id.value,
             "provider": self.provider,
+            "provider_partner_id": self.provider_partner_id,
             "contract_reference": self.contract_reference,
             "support_level": self.support_level,
             "support_start": self.support_start.isoformat(),
@@ -860,6 +1130,7 @@ class SoftwareLicenseEntitlement:
     tenant_id: TenantId
     product_name: Name
     vendor: str
+    vendor_partner_id: str
     version: str | None
     license_reference: Code
     contract_reference: str | None
@@ -894,12 +1165,14 @@ class SoftwareLicenseEntitlement:
         status: str = "active",
         owner: str | None = None,
         notes: str | None = None,
+        vendor_partner_id: str | None = None,
     ) -> Self:
         return cls.restore(
             id=EntityId.new(),
             tenant_id=tenant_id,
             product_name=product_name,
             vendor=vendor,
+            vendor_partner_id=vendor_partner_id,
             license_reference=license_reference,
             contract_reference=contract_reference,
             metric=metric,
@@ -939,6 +1212,7 @@ class SoftwareLicenseEntitlement:
         created_at: datetime,
         updated_by: str,
         updated_at: datetime,
+        vendor_partner_id: str | None = None,
     ) -> Self:
         if entitlement_end < entitlement_start:
             raise ValidationError(
@@ -962,6 +1236,11 @@ class SoftwareLicenseEntitlement:
             product_name=Name.from_value(product_name, "software product name"),
             vendor=ItamValidation.normalized_text(
                 vendor, "software license vendor", max_length=128
+            ),
+            vendor_partner_id=(
+                TenantId.from_value(vendor_partner_id).value
+                if vendor_partner_id is not None
+                else ""
             ),
             version=ItamValidation.normalized_optional_text(version, "software version", 64),
             license_reference=Code.from_value(license_reference, "software license reference"),
@@ -997,6 +1276,7 @@ class SoftwareLicenseEntitlement:
             tenant_id=self.tenant_id,
             product_name=self.product_name.value,
             vendor=self.vendor,
+            vendor_partner_id=self.vendor_partner_id,
             license_reference=self.license_reference.value,
             contract_reference=self.contract_reference,
             metric=self.metric.value,
@@ -1020,6 +1300,7 @@ class SoftwareLicenseEntitlement:
             "tenant_id": self.tenant_id.value,
             "product_name": self.product_name.value,
             "vendor": self.vendor,
+            "vendor_partner_id": self.vendor_partner_id,
             "version": self.version,
             "license_reference": self.license_reference.value,
             "contract_reference": self.contract_reference,

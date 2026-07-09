@@ -47,12 +47,51 @@ def test_itam_support_profile_http_contract(tmp_path: Path) -> None:
     thread.start()
     try:
         base = f"http://127.0.0.1:{server.server_port}"
+        _post_json(
+            base + "/api/v1/itam/partner/create",
+            {
+                "organization_id": "default",
+                "partner_id": "dell",
+                "kind": "manufacturer",
+                "legal_name": "Dell Technologies France SAS",
+                "display_name": "Dell",
+                "registration_number": "REG-DELL",
+                "tax_identifier": "TAX-DELL",
+                "country_code": "FR",
+                "city": "Paris",
+                "address": "1 rue Constructeur",
+                "contact_email": "contact-dell@example.invalid",
+                "phone": "+33123456789",
+                "support_contact": "support-dell@example.invalid",
+            },
+            token,
+        )
+        _post_json(
+            base + "/api/v1/itam/partner/create",
+            {
+                "organization_id": "default",
+                "partner_id": "thirdsupport",
+                "kind": "third_party_support",
+                "legal_name": "ThirdSupport SAS",
+                "display_name": "ThirdSupport",
+                "registration_number": "REG-THIRDSUPPORT",
+                "tax_identifier": "TAX-THIRDSUPPORT",
+                "country_code": "FR",
+                "city": "Paris",
+                "address": "2 rue Support",
+                "contact_email": "contact-thirdsupport@example.invalid",
+                "phone": "+33123456780",
+                "support_contact": "support-thirdsupport@example.invalid",
+            },
+            token,
+        )
         created = _post_json(
             base + "/api/v1/itam/support-profile/manufacturer",
             {
                 "tenant_id": "default",
                 "asset_tag": "srv-http-001",
                 "manufacturer": "Dell",
+                "manufacturer_partner_id": "dell",
                 "warranty_reference": "war-http-001",
                 "warranty_level": "ProSupport",
                 "warranty_start": "2026-01-01",
@@ -69,6 +108,7 @@ def test_itam_support_profile_http_contract(tmp_path: Path) -> None:
                 "tenant_id": "default",
                 "asset_tag": "srv-http-001",
                 "provider": "ThirdSupport",
+                "provider_partner_id": "thirdsupport",
                 "contract_reference": "tp-http-001",
                 "support_level": "4h onsite",
                 "support_start": "2026-02-01",
@@ -202,6 +242,81 @@ def test_itam_tenant_http_contract(tmp_path: Path) -> None:
             token,
         )
         assert retired_organization["status"] == "retired"
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+
+def test_itam_partner_http_contract(tmp_path: Path) -> None:
+    app = ApplicationFactory().create_json_application(tmp_path / "state-partners.json")
+    token = "p" * 40
+    app.security_service.bootstrap_token(
+        BootstrapTokenCommand(
+            tenant_id="default",
+            actor="pytest",
+            subject="itam-partner-http",
+            roles=("admin",),
+            token=token,
+        )
+    )
+    server = OpenInfraThreadingServer(("127.0.0.1", 0), app, auth_required=True)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        base = f"http://127.0.0.1:{server.server_port}"
+        created = _post_json(
+            base + "/api/v1/itam/partner/create",
+            {
+                "organization_id": "default",
+                "partner_id": "publisher-http",
+                "kind": "software_publisher",
+                "legal_name": "Publisher HTTP SAS",
+                "display_name": "Publisher HTTP",
+                "registration_number": "REG-PUBLISHER-HTTP",
+                "tax_identifier": "TAX-PUBLISHER-HTTP",
+                "country_code": "FR",
+                "city": "Paris",
+                "address": "4 rue API",
+                "contact_email": "contact-publisher-http@example.invalid",
+                "phone": "+33122222222",
+                "support_contact": "support-publisher-http@example.invalid",
+                "website": "https://publisher-http.example.invalid",
+            },
+            token,
+        )
+        listed = _get_json(
+            base
+            + "/api/v1/itam/partners?tenant_id=default&organization_id=default&kind=software_publisher",
+            token,
+        )
+        loaded = _get_json(
+            base
+            + "/api/v1/itam/partner?tenant_id=default&organization_id=default&partner_id=publisher-http",
+            token,
+        )
+        updated = _post_json(
+            base + "/api/v1/itam/partner/update",
+            {
+                "organization_id": "default",
+                "partner_id": "publisher-http",
+                "phone": "+33133333333",
+                "status": "suspended",
+            },
+            token,
+        )
+        retired = _post_json(
+            base + "/api/v1/itam/partner/delete",
+            {"organization_id": "default", "partner_id": "publisher-http"},
+            token,
+        )
+
+        assert created["partner_id"] == "publisher-http"
+        assert listed["items"][0]["partner_id"] == "publisher-http"
+        assert loaded["website"] == "https://publisher-http.example.invalid"
+        assert updated["phone"] == "+33133333333"
+        assert updated["selectable"] is False
+        assert retired["status"] == "retired"
     finally:
         server.shutdown()
         server.server_close()

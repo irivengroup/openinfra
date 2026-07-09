@@ -128,6 +128,7 @@ from openinfra.domain.ipam import (
 from openinfra.domain.itam import (
     ItamDateParser,
     ItamOrganization,
+    ItamPartner,
     ItamTenant,
     ManufacturerWarranty,
     PhysicalAssetSupportProfile,
@@ -256,6 +257,7 @@ class JsonDocumentStore:
             "export_artifacts": {},
             "discovery_collectors": {},
             "itam_organizations": {},
+            "itam_partners": {},
             "itam_tenants": {},
             "asset_support_profiles": {},
             "software_license_entitlements": {},
@@ -3426,6 +3428,69 @@ class JsonItamSupportRepository(ItamSupportRepository):
             updated_at=datetime.fromisoformat(str(value.get("updated_at"))),
         )
 
+    def save_partner(self, partner: ItamPartner) -> None:
+        key = self._partner_key(partner.organization_id.value, partner.id.value)
+        self._store.data.setdefault("itam_partners", {})[key] = partner.as_dict()
+        self._store.mark_dirty()
+
+    def find_partner(self, organization_id: str, partner_id: str) -> ItamPartner | None:
+        key = self._partner_key(organization_id, partner_id)
+        value = self._store.data.setdefault("itam_partners", {}).get(key)
+        if value is None:
+            return None
+        return self._partner_from_dict(value)
+
+    def list_partners(
+        self, organization_id: str | None = None, include_retired: bool = False
+    ) -> tuple[ItamPartner, ...]:
+        normalized_organization = (
+            None if organization_id is None else TenantId.from_value(organization_id).value
+        )
+        partners = tuple(
+            sorted(
+                (
+                    self._partner_from_dict(value)
+                    for value in self._store.data.setdefault("itam_partners", {}).values()
+                    if isinstance(value, dict)
+                ),
+                key=lambda item: (item.organization_id.value, item.kind.value, item.display_name.value.lower(), item.id.value),
+            )
+        )
+        if normalized_organization is not None:
+            partners = tuple(
+                item for item in partners if item.organization_id.value == normalized_organization
+            )
+        if not include_retired:
+            partners = tuple(item for item in partners if item.status.value != "retired")
+        return partners
+
+    def _partner_key(self, organization_id: str, partner_id: str) -> str:
+        return f"{TenantId.from_value(organization_id).value}:{TenantId.from_value(partner_id).value}"
+
+    def _partner_from_dict(self, value: dict[str, Any]) -> ItamPartner:
+        return ItamPartner.restore(
+            partner_id=str(value["partner_id"]),
+            organization_id=str(value["organization_id"]),
+            kind=str(value["kind"]),
+            legal_name=str(value["legal_name"]),
+            display_name=str(value.get("display_name", value["legal_name"])),
+            status=str(value.get("status", "active")),
+            registration_number=str(value.get("registration_number", "N/A")),
+            tax_identifier=str(value.get("tax_identifier", "N/A")),
+            country_code=str(value.get("country_code", "FR")),
+            city=str(value.get("city", "Non renseigné")),
+            address=str(value.get("address", "Non renseigné")),
+            contact_email=str(value.get("contact_email", "contact@example.invalid")),
+            phone=str(value.get("phone", "+33000000000")),
+            support_contact=str(value.get("support_contact", "support@example.invalid")),
+            website=(None if value.get("website") is None else str(value.get("website"))),
+            description=(None if value.get("description") is None else str(value.get("description"))),
+            created_by=str(value.get("created_by", "system")),
+            created_at=datetime.fromisoformat(str(value.get("created_at"))),
+            updated_by=str(value.get("updated_by", "system")),
+            updated_at=datetime.fromisoformat(str(value.get("updated_at"))),
+        )
+
     def save_tenant(self, tenant: ItamTenant) -> None:
         if self.find_organization(tenant.organization_id.value) is None:
             self.save_organization(
@@ -3530,6 +3595,11 @@ class JsonItamSupportRepository(ItamSupportRepository):
         warranty_payload = value["manufacturer_warranty"]
         warranty = ManufacturerWarranty.restore(
             manufacturer=str(warranty_payload["manufacturer"]),
+            manufacturer_partner_id=(
+                None
+                if not warranty_payload.get("manufacturer_partner_id")
+                else str(warranty_payload.get("manufacturer_partner_id"))
+            ),
             warranty_reference=str(warranty_payload["warranty_reference"]),
             warranty_level=str(warranty_payload["warranty_level"]),
             warranty_start=ItamDateParser.parse_date(
@@ -3563,6 +3633,9 @@ class JsonItamSupportRepository(ItamSupportRepository):
         return ThirdPartySupportContract.restore(
             id=EntityId.from_value(str(value["id"])),
             provider=str(value["provider"]),
+            provider_partner_id=(
+                None if not value.get("provider_partner_id") else str(value.get("provider_partner_id"))
+            ),
             contract_reference=str(value["contract_reference"]),
             support_level=str(value["support_level"]),
             support_start=ItamDateParser.parse_date(
@@ -3602,6 +3675,9 @@ class JsonItamSupportRepository(ItamSupportRepository):
             tenant_id=TenantId.from_value(str(value["tenant_id"])),
             product_name=str(value["product_name"]),
             vendor=str(value["vendor"]),
+            vendor_partner_id=(
+                None if not value.get("vendor_partner_id") else str(value.get("vendor_partner_id"))
+            ),
             version=(None if value.get("version") is None else str(value.get("version"))),
             license_reference=str(value["license_reference"]),
             contract_reference=(

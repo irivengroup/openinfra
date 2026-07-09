@@ -1,22 +1,24 @@
-# OpenInfra v0.29.74 — Validation Report
+# OpenInfra v0.29.75 — Validation Report
 
-Release: `0.29.74`
+Release: `0.29.75`
 
 ## Objet
 
-La version v0.29.74 corrige l'incohérence UX introduite autour des organisations ITAM : une organisation est une entité racine et ne doit donc pas afficher de sélecteur Organisation parent, Tenant parent ou tenant de sécurité dans ses formulaires de création, modification ou retrait. Les formulaires Tenant sélectionnent l'organisation parente et, pour les opérations sur un tenant existant, le tenant cible filtré par organisation.
+La version v0.29.75 ajoute le référentiel ITAM des partenaires d’organisation : constructeurs, éditeurs logiciels et supports tiers. L’objectif est de supprimer l’ambiguïté métier des fournisseurs en texte libre dans les garanties, licences et supports, puis de ne permettre que des partenaires accrédités et actifs au niveau de l’organisation.
 
-La livraison applique aussi la politique de minimisation des migrations : aucun script PostgreSQL nouveau n'est créé pour ce correctif purement UI. La dernière migration reste `0031_itam_organization_identity.sql`, conservée pour compatibilité ascendante.
+La livraison ajoute une migration PostgreSQL unique `0032_itam_partner_registry.sql` pour couvrir le référentiel partenaires et le rattachement des licences logicielles à un éditeur accrédité. Les migrations antérieures restent conservées pour compatibilité ascendante.
 
 ## Changements validés
 
-- Suppression des champs web `scope_tenant_id` et du libellé `Tenant de sécurité` dans les formulaires Organisation/Tenant.
-- Suppression des sélecteurs globaux Organisation/Tenant pour les opérations Organisation et Tenant.
-- Ajout d'un rendu de scope conditionnel : Organisation/Tenant global uniquement pour les opérations qui représentent réellement une ressource, un support, une licence ou un contexte tenant-scoped.
-- Ajout des sélecteurs explicites Organisation et Tenant cible sur `itam-tenant`, `itam-tenant-update` et `itam-tenant-delete`.
-- Conservation du couple Organisation → Tenant filtré pour les ressources/supports/licences.
-- Ajout du test `tests/integration/test_postgresql_migration_policy.py` pour verrouiller l'absence de migration `0032_*`.
-- CDC et roadmap mis à jour avec `REQ-00815`, `TST-WEB-114` et `TST-P14-ITAM-FORM-HIERARCHY-MIGRATION-MINIMAL`.
+- Ajout domaine `ItamPartner`, `ItamPartnerKind`, `ItamPartnerStatus` et `ItamPartnerCatalog`.
+- Ajout CRUD partenaires dans les services ITAM.
+- Ajout persistance JSON store et PostgreSQL.
+- Ajout migration `0032_itam_partner_registry.sql` avec partitionnement, contraintes, index métier et index d’audit.
+- Ajout CLI `openinfra itam partner-*` et API `/api/v1/itam/partner*`.
+- Ajout contexte web ITAM `Fournisseurs et Supports`.
+- Réalignement des formulaires garanties/licences/supports tiers sur des partenaires actifs et compatibles.
+- Validation stricte : organisation active obligatoire, téléphone obligatoire, type partenaire compatible obligatoire.
+- CDC et roadmap mis à jour avec `REQ-00816`, `TST-WEB-115` et `TST-P14-ITAM-PARTNER-REGISTRY`.
 
 ## Validations exécutées
 
@@ -29,13 +31,12 @@ La livraison applique aussi la politique de minimisation des migrations : aucun 
 | `python scripts/validate_autonomous_installer.py --root installers` | PASS — 6 profils |
 | `python scripts/validate_enterprise_alignment.py --project-root .` | PASS |
 | `python scripts/native_runtime_smoke.py` | PASS |
-| `PYTHONPATH=src python -m openinfra version` | PASS — 0.29.74 |
-| `PYTHONPATH=src python -m openinfra spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1` | PASS — 815 exigences, 614 tests |
-| `python docs/specifications/OpenInfra-Roadmap-Developpement-v2/scripts/validate_roadmap.py` | PASS — 19 phases, 114 epics, 8 gates, 84 tests |
-| `PYTHONPATH=src python -m pytest tests/integration/test_openinfra_web.py tests/integration/test_postgresql_migration_policy.py -q --no-cov` | PASS — 14 tests |
+| `PYTHONPATH=src python -m openinfra version` | PASS — 0.29.75 |
+| `PYTHONPATH=src python -m openinfra spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1` | PASS — 816 exigences, 615 tests |
+| `python docs/specifications/OpenInfra-Roadmap-Developpement-v2/scripts/validate_roadmap.py` | PASS — 19 phases, 114 epics, 8 gates, 85 tests |
+| `PYTHONPATH=src python -m pytest --collect-only --no-cov` | PASS — 527 tests collectés |
 | `PYTHONPATH=src python -m pytest --no-cov -q tests/unit tests/architecture` | PASS — 203 tests |
-| `PYTHONPATH=src python -m pytest --no-cov -q tests/integration` | Interrompu par timeout runtime, remplacé par exécution en lots |
-| `PYTHONPATH=src python -m pytest --no-cov -q <lots integration>` | PASS — 321 tests |
+| `PYTHONPATH=src python -m pytest --no-cov -q <lots integration>` | PASS — 324 tests |
 | `PYTHONPATH=src python -m pytest --cov=openinfra --cov-append <lots unit/architecture/integration>` | PASS |
 | `python scripts/quality_gate.py` | PASS — couverture globale 98 % |
 
@@ -52,6 +53,6 @@ La livraison applique aussi la politique de minimisation des migrations : aucun 
 
 ## Artefacts attendus
 
-- Archive source : `openinfra-python-0.29.74.zip`
-- CDC mis à jour : `openinfra-cdc-sfg-stg-v4.8.1-updated-0.29.74.zip`
-- Roadmap mise à jour : `openinfra-roadmap-developpement-v2-updated-0.29.74.zip`
+- Archive source : `openinfra-python-0.29.75.zip`
+- CDC mis à jour : `openinfra-cdc-sfg-stg-v4.8.1-updated-0.29.75.zip`
+- Roadmap mise à jour : `openinfra-roadmap-developpement-v2-updated-0.29.75.zip`

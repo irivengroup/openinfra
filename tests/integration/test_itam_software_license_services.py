@@ -10,6 +10,7 @@ import pytest
 
 from openinfra.application.container import ApplicationFactory
 from openinfra.application.itam_services import (
+    CreateItamPartnerCommand,
     GetSoftwareLicenseCommand,
     GetSoftwareLicenseComplianceCommand,
     RegisterSoftwareLicenseCommand,
@@ -72,9 +73,33 @@ def _request_json_allow_error(
         return exc.code, json.loads(exc.read().decode("utf-8"))
 
 
+def _create_software_publisher(app: object, token: str, partner_id: str = "iriven-labs") -> None:
+    app.itam_support_service.create_partner(  # type: ignore[attr-defined]
+        CreateItamPartnerCommand(
+            organization_id="default",
+            partner_id=partner_id,
+            kind="software_publisher",
+            actor="pytest",
+            admin_token=token,
+            scope_tenant_id="default",
+            legal_name="Iriven Labs SAS",
+            display_name="Iriven Labs",
+            registration_number=f"REG-{partner_id.upper()}",
+            tax_identifier=f"TAX-{partner_id.upper()}",
+            country_code="FR",
+            city="Paris",
+            address="1 rue du Test",
+            contact_email=f"contact-{partner_id}@example.invalid",
+            phone="+33123456789",
+            support_contact=f"support-{partner_id}@example.invalid",
+        )
+    )
+
+
 def test_software_license_entitlement_and_compliance_report(tmp_path: Path) -> None:
     app = ApplicationFactory().create_json_application(tmp_path / "store.json", seed=True)
     token = _admin_token(app)
+    _create_software_publisher(app, token)
 
     license_ = app.itam_support_service.register_software_license(
         RegisterSoftwareLicenseCommand(
@@ -83,6 +108,7 @@ def test_software_license_entitlement_and_compliance_report(tmp_path: Path) -> N
             admin_token=token,
             product_name="OpenInfra Enterprise Connector",
             vendor="Iriven Labs",
+            vendor_partner_id="iriven-labs",
             license_reference="lic-001",
             contract_reference="ctr-sw-001",
             metric="device",
@@ -127,6 +153,7 @@ def test_software_license_entitlement_and_compliance_report(tmp_path: Path) -> N
 def test_software_license_validates_dates_quantities_and_unknown_assignment(tmp_path: Path) -> None:
     app = ApplicationFactory().create_json_application(tmp_path / "store.json", seed=True)
     token = _admin_token(app)
+    _create_software_publisher(app, token)
 
     with pytest.raises(NotFoundError, match="software license entitlement not found"):
         app.itam_support_service.update_software_license_assignment(
@@ -141,6 +168,7 @@ def test_software_license_validates_dates_quantities_and_unknown_assignment(tmp_
                 admin_token=token,
                 product_name="Invalid",
                 vendor="Vendor",
+                vendor_partner_id="iriven-labs",
                 license_reference="lic-invalid",
                 metric="device",
                 purchased_quantity=0,
@@ -158,6 +186,7 @@ def test_software_license_validates_dates_quantities_and_unknown_assignment(tmp_
                 admin_token=token,
                 product_name="Invalid",
                 vendor="Vendor",
+                vendor_partner_id="iriven-labs",
                 license_reference="lic-invalid-2",
                 metric="device",
                 purchased_quantity=10,
@@ -171,6 +200,7 @@ def test_software_license_validates_dates_quantities_and_unknown_assignment(tmp_
 def test_software_license_http_contract(tmp_path: Path) -> None:
     app = ApplicationFactory().create_json_application(tmp_path / "state.json")
     token = _admin_token(app, "c" * 40)
+    _create_software_publisher(app, token)
     server = OpenInfraThreadingServer(("127.0.0.1", 0), app, auth_required=True)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -182,6 +212,7 @@ def test_software_license_http_contract(tmp_path: Path) -> None:
                 "tenant_id": "default",
                 "product_name": "OpenInfra Enterprise Connector",
                 "vendor": "Iriven Labs",
+                "vendor_partner_id": "iriven-labs",
                 "license_reference": "lic-http-001",
                 "contract_reference": "ctr-http-001",
                 "metric": "device",
@@ -251,6 +282,47 @@ def test_software_license_cli_commands(tmp_path: Path, capsys: object) -> None:
         OpenInfraCLI().run(
             [
                 "itam",
+                "partner-create",
+                "--data",
+                str(state),
+                "--organization",
+                "default",
+                "--partner",
+                "iriven-labs",
+                "--kind",
+                "software_publisher",
+                "--admin-token",
+                token,
+                "--legal-name",
+                "Iriven Labs SAS",
+                "--display-name",
+                "Iriven Labs",
+                "--registration-number",
+                "REG-IRIVEN",
+                "--tax-identifier",
+                "TAX-IRIVEN",
+                "--country-code",
+                "FR",
+                "--city",
+                "Paris",
+                "--address",
+                "1 rue du Test",
+                "--contact-email",
+                "contact-iriven@example.invalid",
+                "--phone",
+                "+33123456789",
+                "--support-contact",
+                "support-iriven@example.invalid",
+            ]
+        )
+        == 0
+    )
+    capsys.readouterr()
+
+    assert (
+        OpenInfraCLI().run(
+            [
+                "itam",
                 "register-software-license",
                 "--data",
                 str(state),
@@ -262,6 +334,8 @@ def test_software_license_cli_commands(tmp_path: Path, capsys: object) -> None:
                 "OpenInfra CLI Connector",
                 "--vendor",
                 "Iriven Labs",
+                "--vendor-partner",
+                "iriven-labs",
                 "--license-reference",
                 "lic-cli-001",
                 "--metric",
@@ -328,6 +402,7 @@ def test_software_license_cli_commands(tmp_path: Path, capsys: object) -> None:
 def test_software_license_update_keeps_identity_and_reports_all_states(tmp_path: Path) -> None:
     app = ApplicationFactory().create_json_application(tmp_path / "store.json", seed=True)
     token = _admin_token(app, "state" + "e" * 40)
+    _create_software_publisher(app, token)
 
     first = app.itam_support_service.register_software_license(
         RegisterSoftwareLicenseCommand(
@@ -336,6 +411,7 @@ def test_software_license_update_keeps_identity_and_reports_all_states(tmp_path:
             admin_token=token,
             product_name="OpenInfra Workstation Agent",
             vendor="Iriven Labs",
+            vendor_partner_id="iriven-labs",
             license_reference="lic-state-001",
             metric="user",
             purchased_quantity=10,
@@ -353,6 +429,7 @@ def test_software_license_update_keeps_identity_and_reports_all_states(tmp_path:
             admin_token=token,
             product_name="OpenInfra Workstation Agent",
             vendor="Iriven Labs",
+            vendor_partner_id="iriven-labs",
             license_reference="lic-state-001",
             metric="user",
             purchased_quantity=20,
@@ -385,6 +462,7 @@ def test_software_license_update_keeps_identity_and_reports_all_states(tmp_path:
             admin_token=token,
             product_name="OpenInfra Future Module",
             vendor="Iriven Labs",
+            vendor_partner_id="iriven-labs",
             license_reference="lic-planned-001",
             metric="instance",
             purchased_quantity=3,
@@ -408,6 +486,7 @@ def test_software_license_update_keeps_identity_and_reports_all_states(tmp_path:
             admin_token=token,
             product_name="Legacy Connector",
             vendor="Iriven Labs",
+            vendor_partner_id="iriven-labs",
             license_reference="lic-expired-001",
             metric="socket",
             purchased_quantity=2,
@@ -428,6 +507,7 @@ def test_software_license_update_keeps_identity_and_reports_all_states(tmp_path:
 def test_software_license_rejects_invalid_fields_and_missing_read(tmp_path: Path) -> None:
     app = ApplicationFactory().create_json_application(tmp_path / "store.json", seed=True)
     token = _admin_token(app, "invalid" + "f" * 40)
+    _create_software_publisher(app, token)
 
     with pytest.raises(NotFoundError, match="software license entitlement not found"):
         app.itam_support_service.get_software_license(
@@ -447,6 +527,7 @@ def test_software_license_rejects_invalid_fields_and_missing_read(tmp_path: Path
                 admin_token=token,
                 product_name="Invalid",
                 vendor="Vendor",
+                vendor_partner_id="iriven-labs",
                 license_reference="lic-negative",
                 metric="device",
                 purchased_quantity=10,
@@ -464,6 +545,7 @@ def test_software_license_rejects_invalid_fields_and_missing_read(tmp_path: Path
                 admin_token=token,
                 product_name="Invalid",
                 vendor="Vendor",
+                vendor_partner_id="iriven-labs",
                 license_reference="lic-metric",
                 metric="invalid metric",
                 purchased_quantity=10,
@@ -481,6 +563,7 @@ def test_software_license_rejects_invalid_fields_and_missing_read(tmp_path: Path
                 admin_token=token,
                 product_name="Invalid",
                 vendor="Vendor",
+                vendor_partner_id="iriven-labs",
                 license_reference="lic-status",
                 metric="device",
                 purchased_quantity=10,
@@ -499,6 +582,7 @@ def test_software_license_rejects_invalid_fields_and_missing_read(tmp_path: Path
                 admin_token=token,
                 product_name="Invalid",
                 vendor="Vendor",
+                vendor_partner_id="iriven-labs",
                 license_reference="lic-contract",
                 contract_reference="bad reference with spaces",
                 metric="device",
@@ -516,6 +600,7 @@ def test_software_license_rejects_invalid_fields_and_missing_read(tmp_path: Path
             admin_token=token,
             product_name="Valid",
             vendor="Vendor",
+            vendor_partner_id="iriven-labs",
             license_reference="lic-valid",
             metric="core",
             purchased_quantity=10,
@@ -531,6 +616,7 @@ def test_software_license_rejects_invalid_fields_and_missing_read(tmp_path: Path
 def test_software_license_http_errors_are_structured(tmp_path: Path) -> None:
     app = ApplicationFactory().create_json_application(tmp_path / "state.json")
     token = _admin_token(app, "errors" + "a" * 40)
+    _create_software_publisher(app, token)
     server = OpenInfraThreadingServer(("127.0.0.1", 0), app, auth_required=True)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -564,6 +650,7 @@ def test_software_license_http_errors_are_structured(tmp_path: Path) -> None:
             "tenant_id": "default",
             "product_name": "HTTP Error Coverage",
             "vendor": "Iriven Labs",
+            "vendor_partner_id": "iriven-labs",
             "license_reference": "lic-http-errors",
             "metric": "device",
             "purchased_quantity": 4,

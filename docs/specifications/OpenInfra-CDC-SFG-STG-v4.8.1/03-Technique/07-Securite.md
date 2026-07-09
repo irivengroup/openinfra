@@ -140,3 +140,8 @@ Le domaine EVPN/VXLAN doit supporter l’import/export asynchrone lorsque le vol
 - Toute opération batch doit être découpée et relançable.
 - Les métriques de saturation doivent être exposées.
 - Les dashboards doivent couvrir API, base, workers, files, discovery, imports, IPAM et sécurité.
+
+
+### REQ-00818 — Requêtes SQL statiques paramétrées DCIM
+
+Les repositories PostgreSQL DCIM doivent construire les filtres métier par variantes de requêtes statiques et paramètres nommés, jamais par interpolation de fragments SQL dynamiques. La liste des racks filtre le statut actif par `%(status)s` lorsque les éléments retirés ne sont pas demandés, afin de satisfaire Bandit B608 et de préserver un contrat SQL auditables.

@@ -1,12 +1,10 @@
-# OpenInfra v0.29.76
+# OpenInfra v0.29.77
 
-## v0.29.76 — DCIM sites & dépendances, partenaires ITAM et pays ISO groupés
+## v0.29.77 — Correctifs CI Ruff/Bandit PostgreSQL DCIM
 
-OpenInfra v0.29.76 complète le référentiel physique DCIM autour du cycle de vie des **sites et dépendances** : sites, bâtiments, étages rattachés aux bâtiments, salles et chassis/racks. Les salles peuvent désormais déclarer des plages bornées de lignes et de colonnes, par exemple `0-12` et `A-F`; ces plages sont normalisées en listes incrémentales utilisables par les formulaires de localisation.
+OpenInfra v0.29.77 est une livraison corrective de qualité et sécurité sur la base fonctionnelle v0.29.76. Elle conserve intégralement le périmètre DCIM sites & dépendances, ITAM partenaires et pays ISO groupés, tout en corrigeant les deux échecs CI remontés : `bandit -q -r src/openinfra` et `ruff format --check src tests scripts docker`.
 
-La règle métier d’étage est conditionnelle : si un bâtiment ne possède aucun étage actif, une salle peut être créée sans étage ; si le bâtiment possède au moins un étage actif, l’étage devient obligatoire et doit exister. Les chassis/racks disposent d’un CRUD complet avec retrait logique non destructif, statut de cycle de vie et cascade lors du retrait d’une salle, d’un bâtiment ou d’un site.
-
-Côté ITAM, l’interface remplace le libellé **Fournisseurs et Supports** par **Partenaires** et présente les anciens tenants sous le libellé métier **Filiale/Subdivision**, regroupés dans le sous-menu **Organisations**. Les champs pays nécessaires sont rendus en listes déroulantes ISO-3166 alpha-2 groupées par continent.
+La requête PostgreSQL de liste des racks n’utilise plus d’interpolation de fragment SQL pour le filtre de statut. Le comportement métier reste identique : par défaut seuls les racks actifs sont retournés ; lorsque `include_retired=True`, les racks retirés sont également listés. Le contrôle est maintenant exprimé par deux requêtes statiques paramétrées, ce qui supprime le signalement Bandit B608 sans désactiver la règle.
 
 ### Surfaces exposées
 

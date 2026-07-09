@@ -1,3 +1,11 @@
+## v0.29.77 — Correctifs CI Ruff/Bandit PostgreSQL DCIM
+
+- Suppression du faux positif bloquant Bandit B608 sur `PostgreSQLDcimRepository.list_racks_in_room` : le filtre de statut n’est plus injecté par fragment SQL interpolé, mais porté par une variante de requête statique et le paramètre nommé `%(status)s`.
+- Application du formatage Ruff sur `src`, `tests`, `scripts` et `docker` pour stabiliser le contrôle `ruff format --check`.
+- Correction des derniers écarts `ruff check` détectés localement : import ordering, ligne SQL trop longue, apostrophe Unicode ambiguë et exemptions N802 documentées pour les méthodes HTTP `do_*` imposées par `BaseHTTPRequestHandler`.
+- Ajout d’un test de régression empêchant la réintroduction d’un filtre SQL interpolé dans `list_racks_in_room`.
+- CDC et roadmap mis à jour avec `REQ-00818`, `TST-WEB-117` et `TST-P14-QUALITY-RUFF-BANDIT-POSTGRESQL`.
+
 ## v0.29.76 — DCIM sites/dépendances, racks CRUD, pays ISO et libellés ITAM
 
 - Extension du DCIM sites & dépendances avec cycle de vie complet des chassis/racks rattachés à site, bâtiment et salle.

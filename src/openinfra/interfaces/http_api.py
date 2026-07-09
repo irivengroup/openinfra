@@ -39,11 +39,11 @@ from openinfra.application.dcim_services import (
     DefinePowerDeviceCommand,
     DefineRackCommand,
     DeleteDcimBuildingCommand,
-    DeleteRackCommand,
     DeleteDcimFloorCommand,
     DeleteDcimRoomCommand,
     DeleteDcimSiteCommand,
     DeleteDcimZoneCommand,
+    DeleteRackCommand,
     GenerateEquipmentLocatorCommand,
     GetDcimBuildingCommand,
     GetDcimFloorCommand,
@@ -2122,7 +2122,11 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         admin_token=self._bearer_token(),
                         scope_tenant_id=scope_tenant_id,
                         legal_name=str(payload["legal_name"]),
-                        display_name=(None if payload.get("display_name") is None else str(payload.get("display_name"))),
+                        display_name=(
+                            None
+                            if payload.get("display_name") is None
+                            else str(payload.get("display_name"))
+                        ),
                         status=str(payload.get("status", "active")),
                         registration_number=str(payload["registration_number"]),
                         tax_identifier=str(payload["tax_identifier"]),
@@ -2132,8 +2136,14 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         contact_email=str(payload["contact_email"]),
                         phone=str(payload["phone"]),
                         support_contact=str(payload["support_contact"]),
-                        website=(None if payload.get("website") is None else str(payload.get("website"))),
-                        description=(None if payload.get("description") is None else str(payload.get("description"))),
+                        website=(
+                            None if payload.get("website") is None else str(payload.get("website"))
+                        ),
+                        description=(
+                            None
+                            if payload.get("description") is None
+                            else str(payload.get("description"))
+                        ),
                     )
                 )
                 responder.send(HTTPStatus.CREATED, partner.as_dict())
@@ -2159,19 +2169,57 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         admin_token=self._bearer_token(),
                         scope_tenant_id=scope_tenant_id,
                         kind=(None if payload.get("kind") is None else str(payload.get("kind"))),
-                        legal_name=(None if payload.get("legal_name") is None else str(payload.get("legal_name"))),
-                        display_name=(None if payload.get("display_name") is None else str(payload.get("display_name"))),
-                        status=(None if payload.get("status") is None else str(payload.get("status"))),
-                        registration_number=(None if payload.get("registration_number") is None else str(payload.get("registration_number"))),
-                        tax_identifier=(None if payload.get("tax_identifier") is None else str(payload.get("tax_identifier"))),
-                        country_code=(None if payload.get("country_code") is None else str(payload.get("country_code"))),
+                        legal_name=(
+                            None
+                            if payload.get("legal_name") is None
+                            else str(payload.get("legal_name"))
+                        ),
+                        display_name=(
+                            None
+                            if payload.get("display_name") is None
+                            else str(payload.get("display_name"))
+                        ),
+                        status=(
+                            None if payload.get("status") is None else str(payload.get("status"))
+                        ),
+                        registration_number=(
+                            None
+                            if payload.get("registration_number") is None
+                            else str(payload.get("registration_number"))
+                        ),
+                        tax_identifier=(
+                            None
+                            if payload.get("tax_identifier") is None
+                            else str(payload.get("tax_identifier"))
+                        ),
+                        country_code=(
+                            None
+                            if payload.get("country_code") is None
+                            else str(payload.get("country_code"))
+                        ),
                         city=(None if payload.get("city") is None else str(payload.get("city"))),
-                        address=(None if payload.get("address") is None else str(payload.get("address"))),
-                        contact_email=(None if payload.get("contact_email") is None else str(payload.get("contact_email"))),
+                        address=(
+                            None if payload.get("address") is None else str(payload.get("address"))
+                        ),
+                        contact_email=(
+                            None
+                            if payload.get("contact_email") is None
+                            else str(payload.get("contact_email"))
+                        ),
                         phone=(None if payload.get("phone") is None else str(payload.get("phone"))),
-                        support_contact=(None if payload.get("support_contact") is None else str(payload.get("support_contact"))),
-                        website=(None if payload.get("website") is None else str(payload.get("website"))),
-                        description=(None if payload.get("description") is None else str(payload.get("description"))),
+                        support_contact=(
+                            None
+                            if payload.get("support_contact") is None
+                            else str(payload.get("support_contact"))
+                        ),
+                        website=(
+                            None if payload.get("website") is None else str(payload.get("website"))
+                        ),
+                        description=(
+                            None
+                            if payload.get("description") is None
+                            else str(payload.get("description"))
+                        ),
                     )
                 )
                 responder.send(HTTPStatus.OK, partner.as_dict())
@@ -2320,7 +2368,9 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                             actor=actor,
                             admin_token=self._bearer_token(),
                             asset_tag=str(payload["asset_tag"]),
-                            manufacturer=str(payload.get("manufacturer", payload["manufacturer_partner_id"])),
+                            manufacturer=str(
+                                payload.get("manufacturer", payload["manufacturer_partner_id"])
+                            ),
                             manufacturer_partner_id=str(payload["manufacturer_partner_id"]),
                             warranty_reference=str(payload["warranty_reference"]),
                             warranty_level=str(payload["warranty_level"]),
@@ -2939,7 +2989,6 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
-
 
         if route == "/api/v1/dcim/rack/update":
             try:

@@ -1427,7 +1427,9 @@ class DcimRackService:
 
     def define_rack(self, command: DefineRackCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        room = self._require_selectable_room(tenant_id, command.site, command.building, command.room)
+        room = self._require_selectable_room(
+            tenant_id, command.site, command.building, command.room
+        )
         self._validate_rack_context(command, room)
         zone = self._resolve_zone(command, tenant_id, room)
         coordinates = Coordinates3D.from_values(command.x, command.y, command.z)
@@ -1475,7 +1477,9 @@ class DcimRackService:
 
     def update_rack(self, command: UpdateRackCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        rack = self._require_rack(tenant_id, command.site, command.building, command.room, command.rack)
+        rack = self._require_rack(
+            tenant_id, command.site, command.building, command.room, command.rack
+        )
         room = self._dcim_repository.find_room(
             tenant_id, rack.site_code.value, rack.building_code.value, rack.room_code.value
         )
@@ -1511,7 +1515,9 @@ class DcimRackService:
 
     def delete_rack(self, command: DeleteRackCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        rack = self._require_rack(tenant_id, command.site, command.building, command.room, command.rack)
+        rack = self._require_rack(
+            tenant_id, command.site, command.building, command.room, command.rack
+        )
         retired = rack.retire()
         with self._transaction_manager.begin() as unit_of_work:
             self._dcim_repository.save_rack(retired)
@@ -1592,7 +1598,12 @@ class DcimRackService:
         return room
 
     def _require_rack(
-        self, tenant_id: TenantId, site_code: str, building_code: str, room_code: str, rack_code: str
+        self,
+        tenant_id: TenantId,
+        site_code: str,
+        building_code: str,
+        room_code: str,
+        rack_code: str,
     ) -> Rack:
         rack = self._dcim_repository.find_rack(
             tenant_id, site_code, building_code, room_code, rack_code

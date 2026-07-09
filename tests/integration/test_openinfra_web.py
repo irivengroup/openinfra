@@ -226,8 +226,8 @@ class TestOpenInfraWeb:
         assert "scope_tenant_id" not in static_js
         assert 'label: "Filiale/Subdivision"' in static_js
         assert 'label: "Tenant"' not in static_js
-        assert 'renderCountryOptionGroups' in static_js
-        assert '/v1/reference/countries' in static_js
+        assert "renderCountryOptionGroups" in static_js
+        assert "/v1/reference/countries" in static_js
         assert 'type: "organization-select"' in static_js
         assert 'type: "tenant-select"' in static_js
         assert 'id="openinfra-organization"' in static_js
@@ -242,20 +242,49 @@ class TestOpenInfraWeb:
         assert "Lister les filiales/subdivisions" in static_js + main_js
         assert "Créer une filiale/subdivision" in static_js + main_js
         assert "operationNeedsGlobalScopeSelectors(operation)" in static_js
-        assert 'id.startsWith("itam-organization") || id.startsWith("itam-partner") || id.startsWith("itam-tenant")' in static_js
+        assert (
+            'id.startsWith("itam-organization") || id.startsWith("itam-partner") || id.startsWith("itam-tenant")'
+            in static_js
+        )
         assert "renderOperationScopeSelectors(operation)" in static_js
-        organization_create = static_js.split('{ id: "itam-organization-create"', 1)[1].split('{ id: "itam-organization-update"', 1)[0]
-        organization_update = static_js.split('{ id: "itam-organization-update"', 1)[1].split('{ id: "itam-organization-delete"', 1)[0]
-        organization_delete = static_js.split('{ id: "itam-organization-delete"', 1)[1].split('{ id: "itam-tenants"', 1)[0]
-        tenant_create = static_js.split('{ id: "itam-tenant-create"', 1)[1].split('{ id: "itam-tenant-update"', 1)[0]
-        tenant_update = static_js.split('{ id: "itam-tenant-update"', 1)[1].split('{ id: "itam-tenant-delete"', 1)[0]
-        tenant_delete = static_js.split('{ id: "itam-tenant-delete"', 1)[1].split('{ id: "itam-support-profile"', 1)[0]
-        assert 'type: "tenant-select"' not in organization_create + organization_update + organization_delete
-        assert 'scope_tenant_id' not in organization_create + organization_update + organization_delete
-        assert 'scope_tenant_id' not in tenant_create + tenant_update + tenant_delete
-        assert '{ name: "organization_id", label: "Organisation", type: "organization-select", required: true }' in tenant_create
-        assert '{ name: "tenant_id", label: "Filiale/Subdivision à modifier", type: "tenant-select", required: true }' in tenant_update
-        assert '{ name: "tenant_id", label: "Filiale/Subdivision à retirer", type: "tenant-select", required: true }' in tenant_delete
+        organization_create = static_js.split('{ id: "itam-organization-create"', 1)[1].split(
+            '{ id: "itam-organization-update"', 1
+        )[0]
+        organization_update = static_js.split('{ id: "itam-organization-update"', 1)[1].split(
+            '{ id: "itam-organization-delete"', 1
+        )[0]
+        organization_delete = static_js.split('{ id: "itam-organization-delete"', 1)[1].split(
+            '{ id: "itam-tenants"', 1
+        )[0]
+        tenant_create = static_js.split('{ id: "itam-tenant-create"', 1)[1].split(
+            '{ id: "itam-tenant-update"', 1
+        )[0]
+        tenant_update = static_js.split('{ id: "itam-tenant-update"', 1)[1].split(
+            '{ id: "itam-tenant-delete"', 1
+        )[0]
+        tenant_delete = static_js.split('{ id: "itam-tenant-delete"', 1)[1].split(
+            '{ id: "itam-support-profile"', 1
+        )[0]
+        assert (
+            'type: "tenant-select"'
+            not in organization_create + organization_update + organization_delete
+        )
+        assert (
+            "scope_tenant_id" not in organization_create + organization_update + organization_delete
+        )
+        assert "scope_tenant_id" not in tenant_create + tenant_update + tenant_delete
+        assert (
+            '{ name: "organization_id", label: "Organisation", type: "organization-select", required: true }'
+            in tenant_create
+        )
+        assert (
+            '{ name: "tenant_id", label: "Filiale/Subdivision à modifier", type: "tenant-select", required: true }'
+            in tenant_update
+        )
+        assert (
+            '{ name: "tenant_id", label: "Filiale/Subdivision à retirer", type: "tenant-select", required: true }'
+            in tenant_delete
+        )
         assert "/v1/itam/support-profile" in static_js + main_js
         assert "/v1/itam/support-coverage" in static_js + main_js
         assert "Déclarer garantie constructeur" in static_js + main_js

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "openinfra"
-version = "0.29.76"
+version = "0.29.77"
 description = "OpenInfra Python POO IT ressources management, DCIM and IPAM foundation"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -67,7 +67,8 @@ ignore = ["A002", "PLR0911", "PLR0912", "PLR0913", "PLR0915", "PLR2004"]
 "src/openinfra/interfaces/cli.py" = ["ARG002", "T201"]
 "src/openinfra/infrastructure/postgresql.py" = ["ARG002", "S608"]
 "src/openinfra/interfaces/http_api.py" = ["ARG002", "N802"]
-"tests/**/*.py" = ["ARG005", "B017", "E501", "F841", "PLC0415", "PLR0912", "PLR0915", "RUF012", "S101", "S105", "S310", "S603"]
+"src/openinfra/interfaces/web.py" = ["N802"]
+"tests/**/*.py" = ["ARG005", "B017", "E501", "F841", "N802", "PLC0415", "PLR0912", "PLR0915", "RUF012", "S101", "S105", "S310", "S603"]
 "scripts/**/*.py" = ["PTH", "S310", "S404", "S603", "S607", "T201"]
 "docker/**/*.py" = ["S310", "S404", "S603", "S607", "T201"]
 "installers/**/*.py" = ["PTH", "S103", "S404", "S603", "S607", "T201"]

@@ -3469,7 +3469,12 @@ class JsonItamSupportRepository(ItamSupportRepository):
                     for value in self._store.data.setdefault("itam_partners", {}).values()
                     if isinstance(value, dict)
                 ),
-                key=lambda item: (item.organization_id.value, item.kind.value, item.display_name.value.lower(), item.id.value),
+                key=lambda item: (
+                    item.organization_id.value,
+                    item.kind.value,
+                    item.display_name.value.lower(),
+                    item.id.value,
+                ),
             )
         )
         if normalized_organization is not None:
@@ -3481,7 +3486,9 @@ class JsonItamSupportRepository(ItamSupportRepository):
         return partners
 
     def _partner_key(self, organization_id: str, partner_id: str) -> str:
-        return f"{TenantId.from_value(organization_id).value}:{TenantId.from_value(partner_id).value}"
+        return (
+            f"{TenantId.from_value(organization_id).value}:{TenantId.from_value(partner_id).value}"
+        )
 
     def _partner_from_dict(self, value: dict[str, Any]) -> ItamPartner:
         return ItamPartner.restore(
@@ -3500,7 +3507,9 @@ class JsonItamSupportRepository(ItamSupportRepository):
             phone=str(value.get("phone", "+33000000000")),
             support_contact=str(value.get("support_contact", "support@example.invalid")),
             website=(None if value.get("website") is None else str(value.get("website"))),
-            description=(None if value.get("description") is None else str(value.get("description"))),
+            description=(
+                None if value.get("description") is None else str(value.get("description"))
+            ),
             created_by=str(value.get("created_by", "system")),
             created_at=datetime.fromisoformat(str(value.get("created_at"))),
             updated_by=str(value.get("updated_by", "system")),
@@ -3650,7 +3659,9 @@ class JsonItamSupportRepository(ItamSupportRepository):
             id=EntityId.from_value(str(value["id"])),
             provider=str(value["provider"]),
             provider_partner_id=(
-                None if not value.get("provider_partner_id") else str(value.get("provider_partner_id"))
+                None
+                if not value.get("provider_partner_id")
+                else str(value.get("provider_partner_id"))
             ),
             contract_reference=str(value["contract_reference"]),
             support_level=str(value["support_level"]),

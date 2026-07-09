@@ -391,9 +391,13 @@ class ItamPartner:
         updated_by: str,
         updated_at: datetime,
     ) -> Self:
-        identifier = partner_id if isinstance(partner_id, TenantId) else TenantId.from_value(partner_id)
+        identifier = (
+            partner_id if isinstance(partner_id, TenantId) else TenantId.from_value(partner_id)
+        )
         organization_identifier = (
-            organization_id if isinstance(organization_id, TenantId) else TenantId.from_value(organization_id)
+            organization_id
+            if isinstance(organization_id, TenantId)
+            else TenantId.from_value(organization_id)
         )
         try:
             kind_value = ItamPartnerKind(kind.strip().lower())
@@ -404,15 +408,21 @@ class ItamPartner:
         try:
             status_value = ItamPartnerStatus(status.strip().lower())
         except ValueError as exc:
-            raise ValidationError("ITAM partner status must be active, suspended or retired") from exc
+            raise ValidationError(
+                "ITAM partner status must be active, suspended or retired"
+            ) from exc
         normalized_country = country_code.strip().upper()
         if not re.fullmatch(r"[A-Z]{2}", normalized_country):
             raise ValidationError("ITAM partner country code must use ISO 3166-1 alpha-2 format")
         normalized_phone = " ".join(phone.strip().split())
         if not re.fullmatch(r"\+?[0-9][0-9 .()/-]{5,31}", normalized_phone):
             raise ValidationError("ITAM partner phone must be a valid business phone number")
-        normalized_website = ItamValidation.normalized_optional_text(website, "ITAM partner website", 255)
-        if normalized_website is not None and not re.fullmatch(r"https?://[^\s]+", normalized_website):
+        normalized_website = ItamValidation.normalized_optional_text(
+            website, "ITAM partner website", 255
+        )
+        if normalized_website is not None and not re.fullmatch(
+            r"https?://[^\s]+", normalized_website
+        ):
             raise ValidationError("ITAM partner website must start with http:// or https://")
         return cls(
             id=identifier,
@@ -430,7 +440,9 @@ class ItamPartner:
             country_code=normalized_country,
             city=ItamValidation.normalized_required_text(city, "ITAM partner city", 128),
             address=ItamValidation.normalized_required_text(address, "ITAM partner address", 512),
-            contact_email=ItamValidation.normalized_email(contact_email, "ITAM partner contact email"),
+            contact_email=ItamValidation.normalized_email(
+                contact_email, "ITAM partner contact email"
+            ),
             phone=normalized_phone,
             support_contact=ItamValidation.normalized_required_text(
                 support_contact, "ITAM partner support contact", 255
@@ -471,7 +483,9 @@ class ItamPartner:
             legal_name=self.legal_name.value if legal_name is None else legal_name,
             display_name=self.display_name.value if display_name is None else display_name,
             status=self.status.value if status is None else status,
-            registration_number=self.registration_number if registration_number is None else registration_number,
+            registration_number=self.registration_number
+            if registration_number is None
+            else registration_number,
             tax_identifier=self.tax_identifier if tax_identifier is None else tax_identifier,
             country_code=self.country_code if country_code is None else country_code,
             city=self.city if city is None else city,

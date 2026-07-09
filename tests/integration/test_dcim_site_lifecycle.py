@@ -18,11 +18,11 @@ from openinfra.application.dcim_services import (
     DefinePhysicalRoomCommand,
     DefineRackCommand,
     DeleteDcimBuildingCommand,
-    DeleteRackCommand,
     DeleteDcimFloorCommand,
     DeleteDcimRoomCommand,
     DeleteDcimSiteCommand,
     DeleteDcimZoneCommand,
+    DeleteRackCommand,
     GetDcimBuildingCommand,
     GetDcimFloorCommand,
     GetDcimRoomCommand,
@@ -1267,7 +1267,9 @@ class TestDcimSiteLifecycle:
                 status="active",
             )
         )
-        retired = racks.delete_rack(DeleteRackCommand("default", "pytest", "LIL1", "BAT-A", "RM1", "RK1"))
+        retired = racks.delete_rack(
+            DeleteRackCommand("default", "pytest", "LIL1", "BAT-A", "RM1", "RK1")
+        )
 
         assert created["code"] == "RK1"
         assert fetched["rack"] == "RK1"
@@ -1282,14 +1284,146 @@ class TestDcimSiteLifecycle:
     def test_dcim_rack_cli_contract_with_grid_ranges(self, tmp_path: Path, capsys: object) -> None:
         data = tmp_path / "state.json"
         commands = [
-            ["dcim", "site-create", "--data", str(data), "--tenant", "default", "--code", "CLI-R", "--name", "CLI Rack", "--country", "FR", "--city", "Paris"],
-            ["dcim", "building-create", "--data", str(data), "--tenant", "default", "--site", "CLI-R", "--code", "BAT-R", "--name", "Rack building"],
-            ["dcim", "room-create", "--data", str(data), "--tenant", "default", "--site", "CLI-R", "--building", "BAT-R", "--code", "RM1", "--name", "Room 1", "--row-range", "0-2", "--column-range", "A-C"],
-            ["dcim", "define-rack", "--data", str(data), "--tenant", "default", "--site", "CLI-R", "--building", "BAT-R", "--room", "RM1", "--rack", "RK1", "--row", "1", "--column", "B", "--units", "42", "--face", "front", "--face", "rear"],
-            ["dcim", "rack", "--data", str(data), "--tenant", "default", "--site", "CLI-R", "--building", "BAT-R", "--room", "RM1", "--rack", "RK1"],
-            ["dcim", "racks", "--data", str(data), "--tenant", "default", "--site", "CLI-R", "--building", "BAT-R", "--room", "RM1"],
-            ["dcim", "rack-update", "--data", str(data), "--tenant", "default", "--site", "CLI-R", "--building", "BAT-R", "--room", "RM1", "--rack", "RK1", "--units", "48"],
-            ["dcim", "rack-delete", "--data", str(data), "--tenant", "default", "--site", "CLI-R", "--building", "BAT-R", "--room", "RM1", "--rack", "RK1"],
+            [
+                "dcim",
+                "site-create",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--code",
+                "CLI-R",
+                "--name",
+                "CLI Rack",
+                "--country",
+                "FR",
+                "--city",
+                "Paris",
+            ],
+            [
+                "dcim",
+                "building-create",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--site",
+                "CLI-R",
+                "--code",
+                "BAT-R",
+                "--name",
+                "Rack building",
+            ],
+            [
+                "dcim",
+                "room-create",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--site",
+                "CLI-R",
+                "--building",
+                "BAT-R",
+                "--code",
+                "RM1",
+                "--name",
+                "Room 1",
+                "--row-range",
+                "0-2",
+                "--column-range",
+                "A-C",
+            ],
+            [
+                "dcim",
+                "define-rack",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--site",
+                "CLI-R",
+                "--building",
+                "BAT-R",
+                "--room",
+                "RM1",
+                "--rack",
+                "RK1",
+                "--row",
+                "1",
+                "--column",
+                "B",
+                "--units",
+                "42",
+                "--face",
+                "front",
+                "--face",
+                "rear",
+            ],
+            [
+                "dcim",
+                "rack",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--site",
+                "CLI-R",
+                "--building",
+                "BAT-R",
+                "--room",
+                "RM1",
+                "--rack",
+                "RK1",
+            ],
+            [
+                "dcim",
+                "racks",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--site",
+                "CLI-R",
+                "--building",
+                "BAT-R",
+                "--room",
+                "RM1",
+            ],
+            [
+                "dcim",
+                "rack-update",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--site",
+                "CLI-R",
+                "--building",
+                "BAT-R",
+                "--room",
+                "RM1",
+                "--rack",
+                "RK1",
+                "--units",
+                "48",
+            ],
+            [
+                "dcim",
+                "rack-delete",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--site",
+                "CLI-R",
+                "--building",
+                "BAT-R",
+                "--room",
+                "RM1",
+                "--rack",
+                "RK1",
+            ],
         ]
 
         outputs = []
@@ -1312,14 +1446,85 @@ class TestDcimSiteLifecycle:
         thread.start()
         base_url = f"http://127.0.0.1:{server.server_port}"
         try:
-            self._post_json(base_url + "/api/v1/dcim/site/create", {"tenant_id": "default", "actor": "pytest", "code": "HTTPR", "name": "HTTP Rack", "country": "FR", "city": "Paris"})
-            self._post_json(base_url + "/api/v1/dcim/building/create", {"tenant_id": "default", "actor": "pytest", "site": "HTTPR", "code": "BAT-R", "name": "Rack building"})
-            room = self._post_json(base_url + "/api/v1/dcim/room/create", {"tenant_id": "default", "actor": "pytest", "site": "HTTPR", "building": "BAT-R", "code": "RM1", "name": "Room 1", "rows": ["0-2"], "columns": ["A-C"]})
-            created = self._post_json(base_url + "/api/v1/dcim/racks", {"tenant_id": "default", "actor": "pytest", "site": "HTTPR", "building": "BAT-R", "room": "RM1", "rack": "RK1", "row": "1", "column": "B", "units": 42, "faces": ["front", "rear"]})
-            listed = self._get_json(base_url + "/api/v1/dcim/racks?tenant_id=default&site=HTTPR&building=BAT-R&room=RM1")
-            fetched = self._get_json(base_url + "/api/v1/dcim/rack?tenant_id=default&site=HTTPR&building=BAT-R&room=RM1&rack=RK1")
-            updated = self._post_json(base_url + "/api/v1/dcim/rack/update", {"tenant_id": "default", "actor": "pytest", "site": "HTTPR", "building": "BAT-R", "room": "RM1", "rack": "RK1", "units": 48})
-            deleted = self._post_json(base_url + "/api/v1/dcim/rack/delete", {"tenant_id": "default", "actor": "pytest", "site": "HTTPR", "building": "BAT-R", "room": "RM1", "rack": "RK1"})
+            self._post_json(
+                base_url + "/api/v1/dcim/site/create",
+                {
+                    "tenant_id": "default",
+                    "actor": "pytest",
+                    "code": "HTTPR",
+                    "name": "HTTP Rack",
+                    "country": "FR",
+                    "city": "Paris",
+                },
+            )
+            self._post_json(
+                base_url + "/api/v1/dcim/building/create",
+                {
+                    "tenant_id": "default",
+                    "actor": "pytest",
+                    "site": "HTTPR",
+                    "code": "BAT-R",
+                    "name": "Rack building",
+                },
+            )
+            room = self._post_json(
+                base_url + "/api/v1/dcim/room/create",
+                {
+                    "tenant_id": "default",
+                    "actor": "pytest",
+                    "site": "HTTPR",
+                    "building": "BAT-R",
+                    "code": "RM1",
+                    "name": "Room 1",
+                    "rows": ["0-2"],
+                    "columns": ["A-C"],
+                },
+            )
+            created = self._post_json(
+                base_url + "/api/v1/dcim/racks",
+                {
+                    "tenant_id": "default",
+                    "actor": "pytest",
+                    "site": "HTTPR",
+                    "building": "BAT-R",
+                    "room": "RM1",
+                    "rack": "RK1",
+                    "row": "1",
+                    "column": "B",
+                    "units": 42,
+                    "faces": ["front", "rear"],
+                },
+            )
+            listed = self._get_json(
+                base_url + "/api/v1/dcim/racks?tenant_id=default&site=HTTPR&building=BAT-R&room=RM1"
+            )
+            fetched = self._get_json(
+                base_url
+                + "/api/v1/dcim/rack?tenant_id=default&site=HTTPR&building=BAT-R&room=RM1&rack=RK1"
+            )
+            updated = self._post_json(
+                base_url + "/api/v1/dcim/rack/update",
+                {
+                    "tenant_id": "default",
+                    "actor": "pytest",
+                    "site": "HTTPR",
+                    "building": "BAT-R",
+                    "room": "RM1",
+                    "rack": "RK1",
+                    "units": 48,
+                },
+            )
+            deleted = self._post_json(
+                base_url + "/api/v1/dcim/rack/delete",
+                {
+                    "tenant_id": "default",
+                    "actor": "pytest",
+                    "site": "HTTPR",
+                    "building": "BAT-R",
+                    "room": "RM1",
+                    "rack": "RK1",
+                },
+            )
         finally:
             server.shutdown()
             server.server_close()

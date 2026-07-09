@@ -37,11 +37,11 @@ from openinfra.application.dcim_services import (
     DefinePowerDeviceCommand,
     DefineRackCommand,
     DeleteDcimBuildingCommand,
-    DeleteRackCommand,
     DeleteDcimFloorCommand,
     DeleteDcimRoomCommand,
     DeleteDcimSiteCommand,
     DeleteDcimZoneCommand,
+    DeleteRackCommand,
     GenerateEquipmentLocatorCommand,
     GetDcimBuildingCommand,
     GetDcimFloorCommand,
@@ -666,17 +666,25 @@ class OpenInfraCLI:
         partner_list.add_argument("--include-retired", action="store_true")
         partner_list.set_defaults(handler=self._handle_itam_partners)
 
-        partner_create = itam_subparsers.add_parser("partner-create", help="create ITAM accredited partner")
+        partner_create = itam_subparsers.add_parser(
+            "partner-create", help="create ITAM accredited partner"
+        )
         self._add_backend_arguments(partner_create)
         partner_create.add_argument("--organization", required=True)
         partner_create.add_argument("--partner", required=True)
-        partner_create.add_argument("--kind", required=True, choices=("manufacturer", "software_publisher", "third_party_support"))
+        partner_create.add_argument(
+            "--kind",
+            required=True,
+            choices=("manufacturer", "software_publisher", "third_party_support"),
+        )
         partner_create.add_argument("--actor", default="cli")
         partner_create.add_argument("--admin-token", required=True)
         partner_create.add_argument("--scope-tenant", default="default")
         partner_create.add_argument("--legal-name", required=True)
         partner_create.add_argument("--display-name")
-        partner_create.add_argument("--status", default="active", choices=("active", "suspended", "retired"))
+        partner_create.add_argument(
+            "--status", default="active", choices=("active", "suspended", "retired")
+        )
         partner_create.add_argument("--registration-number", required=True)
         partner_create.add_argument("--tax-identifier", required=True)
         partner_create.add_argument("--country-code", required=True)
@@ -697,14 +705,18 @@ class OpenInfraCLI:
         partner_show.add_argument("--admin-token", required=True)
         partner_show.set_defaults(handler=self._handle_itam_partner)
 
-        partner_update = itam_subparsers.add_parser("partner-update", help="update ITAM accredited partner")
+        partner_update = itam_subparsers.add_parser(
+            "partner-update", help="update ITAM accredited partner"
+        )
         self._add_backend_arguments(partner_update)
         partner_update.add_argument("--organization", required=True)
         partner_update.add_argument("--partner", required=True)
         partner_update.add_argument("--actor", default="cli")
         partner_update.add_argument("--admin-token", required=True)
         partner_update.add_argument("--scope-tenant", default="default")
-        partner_update.add_argument("--kind", choices=("manufacturer", "software_publisher", "third_party_support"))
+        partner_update.add_argument(
+            "--kind", choices=("manufacturer", "software_publisher", "third_party_support")
+        )
         partner_update.add_argument("--legal-name")
         partner_update.add_argument("--display-name")
         partner_update.add_argument("--status", choices=("active", "suspended", "retired"))
@@ -720,7 +732,9 @@ class OpenInfraCLI:
         partner_update.add_argument("--description")
         partner_update.set_defaults(handler=self._handle_itam_partner_update)
 
-        partner_delete = itam_subparsers.add_parser("partner-delete", help="retire ITAM accredited partner")
+        partner_delete = itam_subparsers.add_parser(
+            "partner-delete", help="retire ITAM accredited partner"
+        )
         self._add_backend_arguments(partner_delete)
         partner_delete.add_argument("--organization", required=True)
         partner_delete.add_argument("--partner", required=True)
@@ -792,8 +806,12 @@ class OpenInfraCLI:
         register_manufacturer.add_argument("--actor", default="cli")
         register_manufacturer.add_argument("--admin-token", required=True)
         register_manufacturer.add_argument("--asset-tag", required=True)
-        register_manufacturer.add_argument("--manufacturer", required=True, help="display label retained for compatibility")
-        register_manufacturer.add_argument("--manufacturer-partner", required=True, dest="manufacturer_partner_id")
+        register_manufacturer.add_argument(
+            "--manufacturer", required=True, help="display label retained for compatibility"
+        )
+        register_manufacturer.add_argument(
+            "--manufacturer-partner", required=True, dest="manufacturer_partner_id"
+        )
         register_manufacturer.add_argument("--warranty-reference", required=True)
         register_manufacturer.add_argument("--warranty-level", required=True)
         register_manufacturer.add_argument("--warranty-start", required=True)
@@ -812,8 +830,12 @@ class OpenInfraCLI:
         add_third_party.add_argument("--actor", default="cli")
         add_third_party.add_argument("--admin-token", required=True)
         add_third_party.add_argument("--asset-tag", required=True)
-        add_third_party.add_argument("--provider", required=True, help="display label retained for compatibility")
-        add_third_party.add_argument("--provider-partner", required=True, dest="provider_partner_id")
+        add_third_party.add_argument(
+            "--provider", required=True, help="display label retained for compatibility"
+        )
+        add_third_party.add_argument(
+            "--provider-partner", required=True, dest="provider_partner_id"
+        )
         add_third_party.add_argument("--contract-reference", required=True)
         add_third_party.add_argument("--support-level", required=True)
         add_third_party.add_argument("--support-start", required=True)
@@ -850,7 +872,9 @@ class OpenInfraCLI:
         software_license.add_argument("--actor", default="cli")
         software_license.add_argument("--admin-token", required=True)
         software_license.add_argument("--product-name", required=True)
-        software_license.add_argument("--vendor", required=True, help="display label retained for compatibility")
+        software_license.add_argument(
+            "--vendor", required=True, help="display label retained for compatibility"
+        )
         software_license.add_argument("--vendor-partner", required=True, dest="vendor_partner_id")
         software_license.add_argument("--license-reference", required=True)
         software_license.add_argument("--metric", required=True)
@@ -4857,7 +4881,9 @@ class OpenInfraCLI:
     def _handle_dcim_rack_delete(self, args: argparse.Namespace) -> int:
         application = self._create_application(args)
         result = application.dcim_rack_service.delete_rack(
-            DeleteRackCommand(args.tenant, args.actor, args.site, args.building, args.room, args.rack)
+            DeleteRackCommand(
+                args.tenant, args.actor, args.site, args.building, args.room, args.rack
+            )
         )
         print(json.dumps(result, sort_keys=True))
         return 0

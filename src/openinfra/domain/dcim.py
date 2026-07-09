@@ -42,8 +42,7 @@ class DcimGridValidator:
                 raise ValidationError(f"{label} numeric range start must be <= end")
             width = max(len(start), len(end)) if start.startswith("0") or end.startswith("0") else 0
             return tuple(
-                str(item).zfill(width) if width else str(item)
-                for item in range(first, last + 1)
+                str(item).zfill(width) if width else str(item) for item in range(first, last + 1)
             )
         if len(start) == 1 and len(end) == 1 and start.isalpha() and end.isalpha():
             first = ord(start)

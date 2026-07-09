@@ -2059,9 +2059,7 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
         room: str,
         include_retired: bool = False,
     ) -> tuple[Rack, ...]:
-        status_filter = "" if include_retired else " AND status = 'active'"
-        rows = self._fetch_all(
-            f"""
+        query = """
             SELECT id, tenant_id, site_code, building_code, floor_code, room_code, code,
                    row_code, column_code, zone_code, units,
                    coordinate_x, coordinate_y, coordinate_z, usable_faces,
@@ -2071,16 +2069,30 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
               AND site_code = %(site_code)s
               AND building_code = %(building_code)s
               AND room_code = %(room_code)s
-              {status_filter}
             ORDER BY row_code, column_code, code
-            """,
-            {
-                "tenant_id": tenant_id.value,
-                "site_code": Code.from_value(site, "site code").value,
-                "building_code": Code.from_value(building, "building code").value,
-                "room_code": Code.from_value(room, "room code").value,
-            },
-        )
+            """
+        params = {
+            "tenant_id": tenant_id.value,
+            "site_code": Code.from_value(site, "site code").value,
+            "building_code": Code.from_value(building, "building code").value,
+            "room_code": Code.from_value(room, "room code").value,
+        }
+        if not include_retired:
+            query = """
+            SELECT id, tenant_id, site_code, building_code, floor_code, room_code, code,
+                   row_code, column_code, zone_code, units,
+                   coordinate_x, coordinate_y, coordinate_z, usable_faces,
+                   max_weight_kg, power_capacity_watts, status
+            FROM racks
+            WHERE tenant_id = %(tenant_id)s
+              AND site_code = %(site_code)s
+              AND building_code = %(building_code)s
+              AND room_code = %(room_code)s
+              AND status = %(status)s
+            ORDER BY row_code, column_code, code
+            """
+            params["status"] = "active"
+        rows = self._fetch_all(query, params)
         return tuple(self._rack_from_row(row) for row in rows)
 
     def list_patch_panels_in_rack(
@@ -2414,7 +2426,9 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
                 if row.get("power_capacity_watts") is not None
                 else None
             ),
-            status=DcimLifecycleStatus.from_value(str(row.get("status") or "active"), "rack status"),
+            status=DcimLifecycleStatus.from_value(
+                str(row.get("status") or "active"), "rack status"
+            ),
         )
 
     def _equipment_from_row(self, row: Mapping[str, object]) -> Equipment:
@@ -5645,7 +5659,9 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
             id=EntityId.from_value(str(value["id"])),
             provider=str(value["provider"]),
             provider_partner_id=(
-                None if not value.get("provider_partner_id") else str(value.get("provider_partner_id"))
+                None
+                if not value.get("provider_partner_id")
+                else str(value.get("provider_partner_id"))
             ),
             contract_reference=str(value["contract_reference"]),
             support_level=str(value["support_level"]),
@@ -5666,13 +5682,13 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
         self._execute_without_result(
             """
             INSERT INTO software_license_entitlements (
-                id, tenant_id, product_name, vendor, vendor_partner_id, version, license_reference,
-                contract_reference, metric, purchased_quantity, assigned_quantity,
-                entitlement_start, entitlement_end, status, owner, notes,
+                id, tenant_id, product_name, vendor, vendor_partner_id, version,
+                license_reference, contract_reference, metric, purchased_quantity,
+                assigned_quantity, entitlement_start, entitlement_end, status, owner, notes,
                 created_by, created_at, updated_by, updated_at
             ) VALUES (
-                %(id)s, %(tenant_id)s, %(product_name)s, %(vendor)s, %(vendor_partner_id)s, %(version)s,
-                %(license_reference)s, %(contract_reference)s, %(metric)s,
+                %(id)s, %(tenant_id)s, %(product_name)s, %(vendor)s, %(vendor_partner_id)s,
+                %(version)s, %(license_reference)s, %(contract_reference)s, %(metric)s,
                 %(purchased_quantity)s, %(assigned_quantity)s, %(entitlement_start)s,
                 %(entitlement_end)s, %(status)s, %(owner)s, %(notes)s,
                 %(created_by)s, %(created_at)s, %(updated_by)s, %(updated_at)s
@@ -5723,9 +5739,9 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
     ) -> SoftwareLicenseEntitlement | None:
         row = self._fetch_one(
             """
-            SELECT id, tenant_id, product_name, vendor, vendor_partner_id, version, license_reference,
-                   contract_reference, metric, purchased_quantity, assigned_quantity,
-                   entitlement_start, entitlement_end, status, owner, notes,
+            SELECT id, tenant_id, product_name, vendor, vendor_partner_id, version,
+                   license_reference, contract_reference, metric, purchased_quantity,
+                   assigned_quantity, entitlement_start, entitlement_end, status, owner, notes,
                    created_by, created_at, updated_by, updated_at
             FROM software_license_entitlements
             WHERE tenant_id = %(tenant_id)s AND license_reference = %(license_reference)s

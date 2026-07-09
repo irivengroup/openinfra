@@ -1,11 +1,5 @@
-## v0.29.76 — Traçabilité DCIM sites/dépendances et réalignement ITAM
+## v0.29.77 — Traçabilité correctifs CI Ruff/Bandit
 
-| Surface | Élément livré |
-|---|---|
-| Domaine | Plages DCIM bornées, étage conditionnel salle, cycle de vie rack |
-| Application | CRUD chassis/racks, cascade non destructive site/bâtiment/salle vers racks |
-| Persistance | Migration PostgreSQL `0033_dcim_site_dependencies_rack_lifecycle.sql` |
-| API | `/api/v1/dcim/rack*`, `/api/v1/reference/countries` |
-| CLI | `openinfra dcim racks`, `rack`, `rack-update`, `rack-delete` |
-| Web | `Partenaires`, `Filiale/Subdivision` sous `Organisations`, pays ISO groupés |
-| Tests | `TST-WEB-116`, `TST-P14-DCIM-SITE-DEPENDENCIES-RACKS-COUNTRIES` |
+- `REQ-00818` couvre la suppression du risque signalé Bandit B608 sur la requête PostgreSQL DCIM de liste des racks.
+- `TST-WEB-117` couvre Ruff format, Ruff check, Bandit et le test de régression source sur `PostgreSQLDcimRepository.list_racks_in_room`.
+- La livraison conserve les exigences v0.29.76 : `REQ-00817`, `TST-WEB-116` et `TST-P14-DCIM-SITE-DEPENDENCIES-RACKS-COUNTRIES`.

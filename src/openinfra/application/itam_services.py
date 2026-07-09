@@ -468,7 +468,9 @@ class ItamSupportService:
     def create_partner(self, command: CreateItamPartnerCommand) -> ItamPartner:
         scope_tenant_id = TenantId.from_value(command.scope_tenant_id)
         principal = self._security_service.authenticate_token(
-            AuthenticateTokenCommand(scope_tenant_id.value, command.admin_token, Permission.ITAM_WRITE)
+            AuthenticateTokenCommand(
+                scope_tenant_id.value, command.admin_token, Permission.ITAM_WRITE
+            )
         )
         organization = self._require_active_organization(command.organization_id)
         partner = ItamPartner.create(
@@ -517,7 +519,9 @@ class ItamSupportService:
     def update_partner(self, command: UpdateItamPartnerCommand) -> ItamPartner:
         scope_tenant_id = TenantId.from_value(command.scope_tenant_id)
         principal = self._security_service.authenticate_token(
-            AuthenticateTokenCommand(scope_tenant_id.value, command.admin_token, Permission.ITAM_WRITE)
+            AuthenticateTokenCommand(
+                scope_tenant_id.value, command.admin_token, Permission.ITAM_WRITE
+            )
         )
         organization = self._require_active_organization(command.organization_id)
         with self._transaction_manager.begin() as unit_of_work:
@@ -564,7 +568,9 @@ class ItamSupportService:
     def delete_partner(self, command: DeleteItamPartnerCommand) -> ItamPartner:
         scope_tenant_id = TenantId.from_value(command.scope_tenant_id)
         principal = self._security_service.authenticate_token(
-            AuthenticateTokenCommand(scope_tenant_id.value, command.admin_token, Permission.ITAM_WRITE)
+            AuthenticateTokenCommand(
+                scope_tenant_id.value, command.admin_token, Permission.ITAM_WRITE
+            )
         )
         organization = self._require_active_organization(command.organization_id)
         with self._transaction_manager.begin() as unit_of_work:
@@ -593,7 +599,9 @@ class ItamSupportService:
     def get_partner(self, command: GetItamPartnerCommand) -> ItamPartner:
         scope_tenant_id = TenantId.from_value(command.scope_tenant_id)
         self._security_service.authenticate_token(
-            AuthenticateTokenCommand(scope_tenant_id.value, command.admin_token, Permission.ITAM_READ)
+            AuthenticateTokenCommand(
+                scope_tenant_id.value, command.admin_token, Permission.ITAM_READ
+            )
         )
         partner = self._repository.find_partner(command.organization_id, command.partner_id)
         if partner is None:
@@ -603,7 +611,9 @@ class ItamSupportService:
     def list_partners(self, command: ListItamPartnersCommand) -> ItamPartnerCatalog:
         scope_tenant_id = TenantId.from_value(command.tenant_id)
         self._security_service.authenticate_token(
-            AuthenticateTokenCommand(scope_tenant_id.value, command.admin_token, Permission.ITAM_READ)
+            AuthenticateTokenCommand(
+                scope_tenant_id.value, command.admin_token, Permission.ITAM_READ
+            )
         )
         if command.organization_id is not None:
             self._require_active_organization(command.organization_id)

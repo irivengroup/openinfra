@@ -11,7 +11,10 @@ from openinfra.application.ipam_services import (
     DefineIpPrefixCommand,
     DefineVrfCommand,
 )
-from openinfra.application.itam_services import CreateItamPartnerCommand, RegisterManufacturerSupportCommand
+from openinfra.application.itam_services import (
+    CreateItamPartnerCommand,
+    RegisterManufacturerSupportCommand,
+)
 from openinfra.application.search_services import GlobalSearchCommand
 from openinfra.application.security_services import BootstrapTokenCommand
 from openinfra.application.source_of_truth_services import UpsertSourceObjectCommand

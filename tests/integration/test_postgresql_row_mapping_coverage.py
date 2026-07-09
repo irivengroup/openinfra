@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -208,6 +209,14 @@ def test_postgresql_dcim_row_mappers_cover_optional_fields() -> None:
     assert repo._float_or_none(None) is None
     assert repo._float_or_none("5.5") == 5.5
     assert now.tzinfo is not None
+
+
+def test_postgresql_list_racks_in_room_uses_static_parameterized_sql() -> None:
+    source = inspect.getsource(PostgreSQLDcimRepository.list_racks_in_room)
+
+    assert "status_filter" not in source
+    assert "{status_filter}" not in source
+    assert "AND status = %(status)s" in source
 
 
 def test_postgresql_security_access_identity_and_ipam_row_mappers() -> None:

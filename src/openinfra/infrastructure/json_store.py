@@ -17,6 +17,7 @@ from openinfra.application.ports import (
     AuditRepository,
     DcimRepository,
     DiscoveryCollectorPage,
+    DiscoveryProtocolProfilePage,
     DiscoveryRepository,
     ExportRepository,
     IdentityRepository,
@@ -98,7 +99,12 @@ from openinfra.domain.dcim import (
     RoomZone,
     Site,
 )
-from openinfra.domain.discovery import CollectorStatus, DiscoveryCollector
+from openinfra.domain.discovery import (
+    CollectorStatus,
+    DiscoveryCollector,
+    DiscoveryProtocolCredentialProfile,
+    DiscoveryProtocolProfileStatus,
+)
 from openinfra.domain.editions import QuotaResource
 from openinfra.domain.identity import (
     EffectiveIdentity,
@@ -256,6 +262,7 @@ class JsonDocumentStore:
             "export_jobs": {},
             "export_artifacts": {},
             "discovery_collectors": {},
+            "discovery_protocol_profiles": {},
             "itam_organizations": {},
             "itam_partners": {},
             "itam_tenants": {},
@@ -298,6 +305,51 @@ class JsonRuntimeUsageRepository(RuntimeUsageRepository):
 class JsonDiscoveryRepository(DiscoveryRepository):
     def __init__(self, store: JsonDocumentStore) -> None:
         self._store = store
+
+    def save_protocol_profile(self, profile: DiscoveryProtocolCredentialProfile) -> None:
+        with self._store.lock:
+            self._store.data["discovery_protocol_profiles"][
+                self._key(profile.tenant_id, profile.id.value)
+            ] = profile.as_dict()
+            self._store.mark_dirty()
+
+    def get_protocol_profile(
+        self, tenant_id: TenantId, profile_id: str
+    ) -> DiscoveryProtocolCredentialProfile | None:
+        with self._store.lock:
+            payload = self._store.data["discovery_protocol_profiles"].get(
+                self._key(tenant_id, profile_id)
+            )
+            if payload is None:
+                return None
+            return DiscoveryProtocolCredentialProfile.from_dict(cast(dict[str, object], payload))
+
+    def list_protocol_profiles(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        include_inactive: bool,
+    ) -> DiscoveryProtocolProfilePage:
+        with self._store.lock:
+            prefix = tenant_id.value + ":"
+            profiles = [
+                DiscoveryProtocolCredentialProfile.from_dict(cast(dict[str, object], payload))
+                for key, payload in self._store.data["discovery_protocol_profiles"].items()
+                if key.startswith(prefix)
+            ]
+        filtered = tuple(
+            profile
+            for profile in sorted(profiles, key=lambda item: (item.created_at, item.id.value))
+            if include_inactive or profile.status is not DiscoveryProtocolProfileStatus.DISABLED
+        )
+        start = 0
+        if pagination.cursor:
+            ids = [profile.id.value for profile in filtered]
+            if pagination.cursor in ids:
+                start = ids.index(pagination.cursor) + 1
+        page = filtered[start : start + pagination.limit]
+        next_cursor = page[-1].id.value if len(page) == pagination.limit else None
+        return DiscoveryProtocolProfilePage(items=page, next_cursor=next_cursor)
 
     def save_collector(self, collector: DiscoveryCollector) -> None:
         with self._store.lock:

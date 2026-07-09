@@ -261,7 +261,7 @@ def test_enterprise_agent_bootstrap_plan_is_secure_and_operator_reviewed() -> No
         backend_url="https://openinfra-api.example.test/",
         certificate_fingerprint=FINGERPRINT,
         enrollment_secret_ref=AGENT_VAULT_REF,
-        agent_version="0.29.77",
+        agent_version="0.29.78",
         service_user="openinfra-agent",
         config_path="/etc/openinfra/agent.yaml",
         state_directory="/var/lib/openinfra-agent",
@@ -299,7 +299,7 @@ def test_enterprise_agent_bootstrap_plan_rejects_unsafe_inputs() -> None:
         "backend_url": "https://openinfra-api.example.test",
         "certificate_fingerprint": FINGERPRINT,
         "enrollment_secret_ref": AGENT_VAULT_REF,
-        "agent_version": "0.29.77",
+        "agent_version": "0.29.78",
         "service_user": "openinfra-agent",
         "config_path": "/etc/openinfra/agent.yaml",
         "state_directory": "/var/lib/openinfra-agent",
@@ -318,3 +318,166 @@ def test_enterprise_agent_bootstrap_plan_rejects_unsafe_inputs() -> None:
         EnterpriseAgentBootstrapPlan.create(**{**kwargs, "enrollment_secret_ref": "env:secret"})
     with pytest.raises(ValidationError, match="non-root"):
         EnterpriseAgentBootstrapPlan.create(**{**kwargs, "service_user": "root"})
+
+
+def test_discovery_protocol_profile_masks_secret_and_enforces_rate_limits() -> None:
+    from openinfra.domain.discovery import DiscoveryProtocolCredentialProfile
+
+    profile = DiscoveryProtocolCredentialProfile.create(
+        tenant_id=TenantId.from_value("default"),
+        name="  SNMPv3 PAR1  ",
+        protocol="snmp",
+        scope="site/PAR1",
+        credential_secret_ref="vault://" + "openinfra/discovery/snmp/par1",
+        port=None,
+        timeout_seconds=30,
+        max_concurrency=8,
+        rate_limit_per_minute=240,
+        retry_count=2,
+        created_by="admin",
+    )
+
+    public_payload = profile.as_public_dict()
+    assert profile.name == "SNMPv3 PAR1"
+    assert profile.port == 161
+    assert profile.scope.value == "site/par1"
+    assert public_payload["credential_secret_ref"] == "vault://***"
+    assert public_payload["secret_materialized"] is False
+    assert public_payload["rate_limit_active"] is True
+    assert "bounded_concurrency" in public_payload["safeguards"]
+
+
+def test_discovery_protocol_profile_rejects_insecure_winrm_and_disabled_update() -> None:
+    from openinfra.domain.discovery import DiscoveryProtocolCredentialProfile
+
+    with pytest.raises(ValidationError, match="encrypted HTTPS"):
+        DiscoveryProtocolCredentialProfile.create(
+            tenant_id=TenantId.from_value("default"),
+            name="WinRM plaintext",
+            protocol="winrm",
+            scope="site/par1",
+            credential_secret_ref="vault://" + "openinfra/discovery/winrm/par1",
+            port=5985,
+            timeout_seconds=30,
+            max_concurrency=4,
+            rate_limit_per_minute=120,
+            retry_count=1,
+            created_by="admin",
+        )
+
+    profile = DiscoveryProtocolCredentialProfile.create(
+        tenant_id=TenantId.from_value("default"),
+        name="SSH PAR1",
+        protocol="ssh",
+        scope="site/par1",
+        credential_secret_ref="vault://" + "openinfra/discovery/ssh/par1",
+        port=None,
+        timeout_seconds=30,
+        max_concurrency=4,
+        rate_limit_per_minute=120,
+        retry_count=1,
+        created_by="admin",
+    ).disable("secret rotated")
+
+    with pytest.raises(ValidationError, match="cannot be updated"):
+        profile.update_settings(rate_limit_per_minute=60)
+
+
+def test_discovery_protocol_profile_validation_and_restore_edges() -> None:
+    from datetime import datetime
+
+    from openinfra.domain.discovery import DiscoveryProtocolCredentialProfile
+
+    kwargs = {
+        "tenant_id": TenantId.from_value("default"),
+        "name": "SSH PAR1",
+        "protocol": "ssh",
+        "scope": "site/par1",
+        "credential_secret_ref": "vault://" + "openinfra/discovery/ssh/par1",
+        "port": None,
+        "timeout_seconds": 30,
+        "max_concurrency": 4,
+        "rate_limit_per_minute": 120,
+        "retry_count": 1,
+        "created_by": "admin",
+    }
+    profile = DiscoveryProtocolCredentialProfile.create(**kwargs)
+    winrm = DiscoveryProtocolCredentialProfile.create(
+        **{
+            **kwargs,
+            "name": "WinRM PAR1",
+            "protocol": "winrm",
+            "credential_secret_ref": "vault://" + "openinfra/discovery/winrm/par1",
+        }
+    )
+    restored = DiscoveryProtocolCredentialProfile.from_dict(
+        {**profile.as_dict(), "created_at": None, "status": "active"}
+    )
+    updated = profile.update_settings(
+        name="SSH PAR2",
+        scope="site/par2",
+        credential_secret_ref="vault://" + "openinfra/discovery/ssh/par2",
+        port=2222,
+        timeout_seconds=60,
+        max_concurrency=6,
+        rate_limit_per_minute=300,
+        retry_count=0,
+    )
+
+    assert profile.port == 22
+    assert winrm.port == 5986
+    assert winrm.transport_label == "winrm-https-credentials-from-vault"
+    assert restored.created_at.tzinfo is not None
+    assert updated.name == "SSH PAR2"
+    assert updated.scope.value == "site/par2"
+    assert updated.port == 2222
+    assert updated.retry_count == 0
+
+    invalid_cases = (
+        ({"credential_secret_ref": ""}, "credential_secret_ref"),
+        ({"created_at": datetime(2026, 1, 1)}, "timezone-aware"),
+        ({"name": "x"}, "name"),
+        ({"created_by": " "}, "created_by"),
+        ({"port": 0}, "port"),
+        ({"timeout_seconds": 0}, "timeout_seconds"),
+        ({"max_concurrency": 0}, "max_concurrency"),
+        ({"rate_limit_per_minute": 0}, "rate_limit_per_minute"),
+        ({"retry_count": 6}, "retry_count"),
+    )
+    for changes, message in invalid_cases:
+        with pytest.raises(ValidationError, match=message):
+            DiscoveryProtocolCredentialProfile.create(**{**kwargs, **changes})
+
+    with pytest.raises(ValidationError, match="mandatory"):
+        DiscoveryProtocolCredentialProfile.from_dict(
+            {**profile.as_dict(), "credential_secret_ref": None}
+        )
+    with pytest.raises(ValidationError, match="disable reason"):
+        profile.disable(" ")
+
+
+def test_local_discovery_plan_validation_edges_are_enforced() -> None:
+    kwargs = {
+        "tenant_id": TenantId.from_value("default"),
+        "edition": "pro",
+        "name": "Discovery PAR1",
+        "scope": "site/par1",
+        "protocol": "ssh",
+        "targets": ("srv-app-01",),
+        "credential_secret_ref": "vault://" + "openinfra/discovery/local/par1",
+        "max_concurrency": 4,
+        "rate_limit_per_minute": 120,
+        "created_by": "admin",
+    }
+    invalid_cases = (
+        ({"name": "x"}, "name"),
+        ({"targets": ()}, "at least one target"),
+        ({"max_concurrency": 0}, "max_concurrency"),
+        ({"rate_limit_per_minute": 0}, "rate_limit_per_minute"),
+        ({"created_by": " "}, "created_by"),
+        ({"targets": ("https://srv-app-01",)}, "URL credentials"),
+        ({"targets": ("!",)}, "safe characters"),
+    )
+    for changes, message in invalid_cases:
+        with pytest.raises(ValidationError, match=message):
+            LocalDiscoveryPlan.create(**{**kwargs, **changes})

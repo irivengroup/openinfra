@@ -77,11 +77,16 @@ from openinfra.application.discovery_services import (
     AuthorizeDiscoveryJobCommand,
     BuildEnterpriseAgentBootstrapPlanCommand,
     BuildLocalDiscoveryPlanCommand,
+    CreateDiscoveryProtocolProfileCommand,
     DisableCollectorCommand,
+    DisableDiscoveryProtocolProfileCommand,
     EnrollDiscoveryProxyCommand,
+    GetDiscoveryProtocolProfileCommand,
     HeartbeatCollectorCommand,
     ListCollectorsCommand,
+    ListDiscoveryProtocolProfilesCommand,
     RegisterCollectorCommand,
+    UpdateDiscoveryProtocolProfileCommand,
 )
 from openinfra.application.edition_services import (
     CheckFeatureCommand,
@@ -738,6 +743,44 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     )
                 )
                 responder.send(HTTPStatus.OK, report.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/discovery/protocol-profiles":
+            try:
+                query = parse_qs(parsed.query)
+                page = self.server.application.discovery_service.list_protocol_profiles(
+                    ListDiscoveryProtocolProfilesCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        include_inactive=(
+                            self._first_query_value(query, "include_inactive", "false") == "true"
+                        ),
+                    )
+                )
+                responder.send(HTTPStatus.OK, page.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/discovery/protocol-profile":
+            try:
+                query = parse_qs(parsed.query)
+                profile = self.server.application.discovery_service.get_protocol_profile(
+                    GetDiscoveryProtocolProfileCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        profile_id=self._first_query_value(query, "profile_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, profile.as_public_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (ValueError, OpenInfraError) as exc:
@@ -3753,6 +3796,87 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
+        if route == "/api/v1/discovery/protocol-profile/create":
+            try:
+                payload = self._read_json_body()
+                profile = self.server.application.discovery_service.create_protocol_profile(
+                    CreateDiscoveryProtocolProfileCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        name=str(payload["name"]),
+                        protocol=str(payload["protocol"]),
+                        scope=str(payload["scope"]),
+                        credential_secret_ref=str(payload["credential_secret_ref"]),
+                        port=None if payload.get("port") is None else int(payload["port"]),
+                        timeout_seconds=int(payload.get("timeout_seconds", 30)),
+                        max_concurrency=int(payload.get("max_concurrency", 4)),
+                        rate_limit_per_minute=int(payload.get("rate_limit_per_minute", 120)),
+                        retry_count=int(payload.get("retry_count", 1)),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, profile.as_public_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError, TypeError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/discovery/protocol-profile/update":
+            try:
+                payload = self._read_json_body()
+                profile = self.server.application.discovery_service.update_protocol_profile(
+                    UpdateDiscoveryProtocolProfileCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        profile_id=str(payload["profile_id"]),
+                        name=None if payload.get("name") is None else str(payload["name"]),
+                        scope=None if payload.get("scope") is None else str(payload["scope"]),
+                        credential_secret_ref=None
+                        if payload.get("credential_secret_ref") is None
+                        else str(payload["credential_secret_ref"]),
+                        port=None if payload.get("port") is None else int(payload["port"]),
+                        timeout_seconds=None
+                        if payload.get("timeout_seconds") is None
+                        else int(payload["timeout_seconds"]),
+                        max_concurrency=None
+                        if payload.get("max_concurrency") is None
+                        else int(payload["max_concurrency"]),
+                        rate_limit_per_minute=None
+                        if payload.get("rate_limit_per_minute") is None
+                        else int(payload["rate_limit_per_minute"]),
+                        retry_count=None
+                        if payload.get("retry_count") is None
+                        else int(payload["retry_count"]),
+                    )
+                )
+                responder.send(HTTPStatus.OK, profile.as_public_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError, TypeError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/discovery/protocol-profile/delete":
+            try:
+                payload = self._read_json_body()
+                profile = self.server.application.discovery_service.disable_protocol_profile(
+                    DisableDiscoveryProtocolProfileCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        profile_id=str(payload["profile_id"]),
+                        reason=str(payload["reason"]),
+                    )
+                )
+                responder.send(HTTPStatus.OK, profile.as_public_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
         if route == "/api/v1/discovery/local-plan":
             try:
                 payload = self._read_json_body()
@@ -3769,6 +3893,9 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                             credential_secret_ref=str(payload["credential_secret_ref"]),
                             max_concurrency=int(payload.get("max_concurrency", 4)),
                             rate_limit_per_minute=int(payload.get("rate_limit_per_minute", 120)),
+                            protocol_profile_id=None
+                            if payload.get("protocol_profile_id") is None
+                            else str(payload["protocol_profile_id"]),
                         )
                     )
                 )
@@ -4606,6 +4733,11 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                 "discovery": {
                     "collectors": "/api/v1/discovery/collectors",
                     "local_plan": "/api/v1/discovery/local-plan",
+                    "protocol_profiles": "/api/v1/discovery/protocol-profiles",
+                    "protocol_profile": "/api/v1/discovery/protocol-profile",
+                    "protocol_profile_create": "/api/v1/discovery/protocol-profile/create",
+                    "protocol_profile_update": "/api/v1/discovery/protocol-profile/update",
+                    "protocol_profile_delete": "/api/v1/discovery/protocol-profile/delete",
                     "agent_bootstrap_plan": "/api/v1/discovery/agent-bootstrap-plan",
                     "proxy_enrollments": "/api/v1/discovery/proxy-enrollments",
                     "heartbeat": "/api/v1/discovery/collectors/heartbeat",

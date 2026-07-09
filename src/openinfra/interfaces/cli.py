@@ -75,11 +75,16 @@ from openinfra.application.discovery_services import (
     AuthorizeDiscoveryJobCommand,
     BuildEnterpriseAgentBootstrapPlanCommand,
     BuildLocalDiscoveryPlanCommand,
+    CreateDiscoveryProtocolProfileCommand,
     DisableCollectorCommand,
+    DisableDiscoveryProtocolProfileCommand,
     EnrollDiscoveryProxyCommand,
+    GetDiscoveryProtocolProfileCommand,
     HeartbeatCollectorCommand,
     ListCollectorsCommand,
+    ListDiscoveryProtocolProfilesCommand,
     RegisterCollectorCommand,
+    UpdateDiscoveryProtocolProfileCommand,
 )
 from openinfra.application.edition_services import (
     CheckFeatureCommand,
@@ -1238,6 +1243,75 @@ class OpenInfraCLI:
         )
         discovery_subparsers = discovery.add_subparsers(dest="discovery_command", required=True)
 
+        profile_create = discovery_subparsers.add_parser(
+            "protocol-profile-create",
+            help="create a secured SNMP/SSH/WinRM discovery protocol profile",
+        )
+        self._add_backend_arguments(profile_create)
+        profile_create.add_argument("--tenant", required=True)
+        profile_create.add_argument("--actor", default="cli")
+        profile_create.add_argument("--admin-token", required=True)
+        profile_create.add_argument("--name", required=True)
+        profile_create.add_argument("--protocol", choices=("snmp", "ssh", "winrm"), required=True)
+        profile_create.add_argument("--scope", required=True)
+        profile_create.add_argument("--credential-secret-ref", required=True)
+        profile_create.add_argument("--port", type=int)
+        profile_create.add_argument("--timeout-seconds", type=int, default=30)
+        profile_create.add_argument("--max-concurrency", type=int, default=4)
+        profile_create.add_argument("--rate-limit-per-minute", type=int, default=120)
+        profile_create.add_argument("--retry-count", type=int, default=1)
+        profile_create.set_defaults(handler=self._handle_discovery_protocol_profile_create)
+
+        profile_update = discovery_subparsers.add_parser(
+            "protocol-profile-update",
+            help="update a secured discovery protocol profile without materializing secrets",
+        )
+        self._add_backend_arguments(profile_update)
+        profile_update.add_argument("--tenant", required=True)
+        profile_update.add_argument("--actor", default="cli")
+        profile_update.add_argument("--admin-token", required=True)
+        profile_update.add_argument("--profile-id", required=True)
+        profile_update.add_argument("--name")
+        profile_update.add_argument("--scope")
+        profile_update.add_argument("--credential-secret-ref")
+        profile_update.add_argument("--port", type=int)
+        profile_update.add_argument("--timeout-seconds", type=int)
+        profile_update.add_argument("--max-concurrency", type=int)
+        profile_update.add_argument("--rate-limit-per-minute", type=int)
+        profile_update.add_argument("--retry-count", type=int)
+        profile_update.set_defaults(handler=self._handle_discovery_protocol_profile_update)
+
+        profile_get = discovery_subparsers.add_parser(
+            "protocol-profile", help="get a discovery protocol profile with masked secret reference"
+        )
+        self._add_backend_arguments(profile_get)
+        profile_get.add_argument("--tenant", required=True)
+        profile_get.add_argument("--admin-token", required=True)
+        profile_get.add_argument("--profile-id", required=True)
+        profile_get.set_defaults(handler=self._handle_discovery_protocol_profile_get)
+
+        profile_list = discovery_subparsers.add_parser(
+            "protocol-profile-list", help="list discovery protocol profiles"
+        )
+        self._add_backend_arguments(profile_list)
+        profile_list.add_argument("--tenant", required=True)
+        profile_list.add_argument("--admin-token", required=True)
+        profile_list.add_argument("--limit", type=int, default=100)
+        profile_list.add_argument("--cursor")
+        profile_list.add_argument("--include-inactive", action="store_true")
+        profile_list.set_defaults(handler=self._handle_discovery_protocol_profile_list)
+
+        profile_delete = discovery_subparsers.add_parser(
+            "protocol-profile-delete", help="disable a discovery protocol profile"
+        )
+        self._add_backend_arguments(profile_delete)
+        profile_delete.add_argument("--tenant", required=True)
+        profile_delete.add_argument("--actor", default="cli")
+        profile_delete.add_argument("--admin-token", required=True)
+        profile_delete.add_argument("--profile-id", required=True)
+        profile_delete.add_argument("--reason", required=True)
+        profile_delete.set_defaults(handler=self._handle_discovery_protocol_profile_delete)
+
         register = discovery_subparsers.add_parser(
             "collector-register", help="register an authorized discovery collector"
         )
@@ -1406,6 +1480,7 @@ class OpenInfraCLI:
         local_plan.add_argument("--protocol", choices=("snmp", "ssh", "winrm"), required=True)
         local_plan.add_argument("--target", action="append", required=True)
         local_plan.add_argument("--credential-secret-ref", required=True)
+        local_plan.add_argument("--protocol-profile-id")
         local_plan.add_argument("--max-concurrency", type=int, default=4)
         local_plan.add_argument("--rate-limit-per-minute", type=int, default=120)
         local_plan.set_defaults(handler=self._handle_discovery_local_plan)
@@ -3767,6 +3842,88 @@ class OpenInfraCLI:
         print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
         return 0
 
+    def _handle_discovery_protocol_profile_create(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        profile = app.discovery_service.create_protocol_profile(
+            CreateDiscoveryProtocolProfileCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                name=args.name,
+                protocol=args.protocol,
+                scope=args.scope,
+                credential_secret_ref=args.credential_secret_ref,
+                port=args.port,
+                timeout_seconds=args.timeout_seconds,
+                max_concurrency=args.max_concurrency,
+                rate_limit_per_minute=args.rate_limit_per_minute,
+                retry_count=args.retry_count,
+            )
+        )
+        print(json.dumps(profile.as_public_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_discovery_protocol_profile_update(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        profile = app.discovery_service.update_protocol_profile(
+            UpdateDiscoveryProtocolProfileCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                profile_id=args.profile_id,
+                name=args.name,
+                scope=args.scope,
+                credential_secret_ref=args.credential_secret_ref,
+                port=args.port,
+                timeout_seconds=args.timeout_seconds,
+                max_concurrency=args.max_concurrency,
+                rate_limit_per_minute=args.rate_limit_per_minute,
+                retry_count=args.retry_count,
+            )
+        )
+        print(json.dumps(profile.as_public_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_discovery_protocol_profile_get(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        profile = app.discovery_service.get_protocol_profile(
+            GetDiscoveryProtocolProfileCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                profile_id=args.profile_id,
+            )
+        )
+        print(json.dumps(profile.as_public_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_discovery_protocol_profile_list(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        page = app.discovery_service.list_protocol_profiles(
+            ListDiscoveryProtocolProfilesCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                limit=args.limit,
+                cursor=args.cursor,
+                include_inactive=args.include_inactive,
+            )
+        )
+        print(json.dumps(page.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_discovery_protocol_profile_delete(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        profile = app.discovery_service.disable_protocol_profile(
+            DisableDiscoveryProtocolProfileCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                profile_id=args.profile_id,
+                reason=args.reason,
+            )
+        )
+        print(json.dumps(profile.as_public_dict(), indent=2, sort_keys=True))
+        return 0
+
     def _handle_discovery_local_plan(self, args: argparse.Namespace) -> int:
         app = self._create_application(args)
         plan = app.discovery_service.build_local_discovery_plan(
@@ -3781,6 +3938,7 @@ class OpenInfraCLI:
                 credential_secret_ref=args.credential_secret_ref,
                 max_concurrency=args.max_concurrency,
                 rate_limit_per_minute=args.rate_limit_per_minute,
+                protocol_profile_id=args.protocol_profile_id,
             )
         )
         print(json.dumps(plan.as_dict(), indent=2, sort_keys=True))

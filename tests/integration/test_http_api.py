@@ -213,6 +213,11 @@ class TestHttpApi:
                 "discovery": {
                     "collectors": "/api/v1/discovery/collectors",
                     "local_plan": "/api/v1/discovery/local-plan",
+                    "protocol_profiles": "/api/v1/discovery/protocol-profiles",
+                    "protocol_profile": "/api/v1/discovery/protocol-profile",
+                    "protocol_profile_create": "/api/v1/discovery/protocol-profile/create",
+                    "protocol_profile_update": "/api/v1/discovery/protocol-profile/update",
+                    "protocol_profile_delete": "/api/v1/discovery/protocol-profile/delete",
                     "agent_bootstrap_plan": "/api/v1/discovery/agent-bootstrap-plan",
                     "proxy_enrollments": "/api/v1/discovery/proxy-enrollments",
                     "heartbeat": "/api/v1/discovery/collectors/heartbeat",
@@ -1155,6 +1160,134 @@ class TestHttpApi:
         with urllib.request.urlopen(request, timeout=5) as response:
             return json.loads(response.read().decode("utf-8"))
 
+    def _expect_http_status(
+        self,
+        url: str,
+        status: int,
+        payload: dict[str, object] | None = None,
+        method: str = "GET",
+    ) -> None:
+        headers = {}
+        data = None
+        if payload is not None:
+            headers["Content-Type"] = "application/json"
+            data = json.dumps(payload).encode("utf-8")
+        request = urllib.request.Request(url, data=data, headers=headers, method=method)
+        try:
+            with urllib.request.urlopen(request, timeout=5) as response:
+                actual_status = response.status
+        except urllib.error.HTTPError as exc:
+            actual_status = exc.code
+        assert actual_status == status
+
+    def test_auth_required_rejects_sensitive_get_routes_without_bearer_token(
+        self, tmp_path: Path
+    ) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+        server = OpenInfraThreadingServer(("127.0.0.1", 0), app, auth_required=True)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base_url = f"http://127.0.0.1:{server.server_port}"
+            for route in (
+                "/api/v1/dcim/racks?tenant_id=default&site=par1&building=dc1&room=a101",
+                "/api/v1/dcim/rack?tenant_id=default&site=par1&building=dc1&room=a101&rack=r01",
+                "/api/v1/dcim/topology-catalog?tenant_id=default",
+                "/api/v1/dcim/room-plan?tenant_id=default&site=par1&building=dc1&room=a101&format=html",
+                "/api/v1/dcim/rack-elevation?tenant_id=default&site=par1&building=dc1&room=a101&rack=r01",
+                "/api/v1/integrations/itsm/providers?tenant_id=default",
+                "/api/v1/discovery/protocol-profiles?tenant_id=default",
+                "/api/v1/discovery/protocol-profile?tenant_id=default&profile_id=missing",
+            ):
+                self._expect_http_status(base_url + route, 401)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def test_auth_required_rejects_sensitive_post_routes_without_bearer_token(
+        self, tmp_path: Path
+    ) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+        server = OpenInfraThreadingServer(("127.0.0.1", 0), app, auth_required=True)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base_url = f"http://127.0.0.1:{server.server_port}"
+            valid_profile = {
+                "tenant_id": "default",
+                "name": "SSH PAR1",
+                "protocol": "ssh",
+                "scope": "site/par1",
+                "credential_secret_ref": "vault://openinfra/discovery/ssh/par1",
+            }
+            for route, payload in (
+                ("/api/v1/discovery/protocol-profile/create", valid_profile),
+                (
+                    "/api/v1/discovery/protocol-profile/update",
+                    {"tenant_id": "default", "profile_id": "missing", "name": "SSH PAR2"},
+                ),
+                (
+                    "/api/v1/discovery/protocol-profile/delete",
+                    {"tenant_id": "default", "profile_id": "missing", "reason": "security test"},
+                ),
+                (
+                    "/api/v1/discovery/local-plan",
+                    {
+                        "tenant_id": "default",
+                        "name": "Discovery PAR1",
+                        "scope": "site/par1",
+                        "protocol": "ssh",
+                        "targets": ["srv-app-01"],
+                        "credential_secret_ref": "vault://openinfra/discovery/local/par1",
+                    },
+                ),
+                (
+                    "/api/v1/discovery/agent-bootstrap-plan",
+                    {
+                        "tenant_id": "default",
+                        "name": "Agent PAR1",
+                        "role": "site",
+                        "scopes": ["site/par1"],
+                        "backend_url": "https://openinfra-api.example.test",
+                        "certificate_fingerprint": "6" * 64,
+                        "enrollment_secret_ref": "vault://openinfra/discovery/agent/par1",
+                        "agent_version": "0.29.78",
+                    },
+                ),
+                (
+                    "/api/v1/discovery/proxy-enrollments",
+                    {
+                        "tenant_id": "default",
+                        "name": "Proxy PAR1",
+                        "kind": "site-proxy",
+                        "certificate_fingerprint": "7" * 64,
+                        "scopes": ["site/par1"],
+                        "version": "0.29.78",
+                    },
+                ),
+                (
+                    "/api/v1/discovery/collectors",
+                    {
+                        "tenant_id": "default",
+                        "name": "Collector PAR1",
+                        "kind": "ssh",
+                        "certificate_fingerprint": "8" * 64,
+                        "scopes": ["site/par1"],
+                        "version": "0.29.78",
+                    },
+                ),
+                (
+                    "/api/v1/discovery/collectors/disable",
+                    {"tenant_id": "default", "collector_id": "missing", "reason": "security test"},
+                ),
+            ):
+                self._expect_http_status(base_url + route, 401, payload, method="POST")
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
     def test_local_discovery_plan_api_is_plan_only_for_lite(self, tmp_path: Path) -> None:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json", edition="lite")
         token = "l" * 40
@@ -1226,7 +1359,7 @@ class TestHttpApi:
                     "backend_url": "https://openinfra-api.example.test",
                     "certificate_fingerprint": "6" * 64,
                     "enrollment_secret_ref": "vault://openinfra/discovery/agent/par1",
-                    "agent_version": "0.29.77",
+                    "agent_version": "0.29.78",
                 },
                 token=token,
             )
@@ -2209,6 +2342,84 @@ def test_dcim_locator_sheet_and_scan_api_endpoint(tmp_path: Path) -> None:
         assert str(sheet["qr_svg"]).startswith("<svg")
         assert proof["verified"] is True
         assert "OpenInfra fiche localisation" in str(html["html"])
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+
+def test_discovery_protocol_profile_http_api_and_local_plan_binding(tmp_path: Path) -> None:
+    app = ApplicationFactory().create_json_application(tmp_path / "state.json", edition="pro")
+    token = "s" * 40
+    app.security_service.bootstrap_token(
+        BootstrapTokenCommand(
+            tenant_id="default",
+            actor="pytest",
+            subject="discovery-admin",
+            roles=("security:admin",),
+            token=token,
+        )
+    )
+    server = OpenInfraThreadingServer(("127.0.0.1", 0), app)
+    helper = TestHttpApi()
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        base_url = f"http://127.0.0.1:{server.server_port}"
+        profile = helper._post_json(
+            base_url + "/api/v1/discovery/protocol-profile/create",
+            {
+                "tenant_id": "default",
+                "name": "SNMPv3 PAR1",
+                "protocol": "snmp",
+                "scope": "site/par1",
+                "credential_secret_ref": "vault://openinfra/discovery/snmp/par1",
+                "max_concurrency": 8,
+                "rate_limit_per_minute": 240,
+            },
+            token=token,
+        )
+        updated = helper._post_json(
+            base_url + "/api/v1/discovery/protocol-profile/update",
+            {
+                "tenant_id": "default",
+                "profile_id": profile["id"],
+                "rate_limit_per_minute": 180,
+            },
+            token=token,
+        )
+        fetched = helper._get_json(
+            base_url
+            + "/api/v1/discovery/protocol-profile?tenant_id=default&profile_id="
+            + urllib.parse.quote(str(profile["id"])),
+            token=token,
+        )
+        page = helper._get_json(
+            base_url + "/api/v1/discovery/protocol-profiles?tenant_id=default",
+            token=token,
+        )
+        plan = helper._post_json(
+            base_url + "/api/v1/discovery/local-plan",
+            {
+                "tenant_id": "default",
+                "name": "Discovery PAR1 SNMP",
+                "scope": "site/par1",
+                "protocol": "snmp",
+                "targets": ["10.20.30.10"],
+                "credential_secret_ref": "vault://openinfra/discovery/unused",
+                "protocol_profile_id": profile["id"],
+            },
+            token=token,
+        )
+
+        assert profile["credential_secret_ref"] == "vault://***"
+        assert profile["secret_materialized"] is False
+        assert updated["rate_limit_per_minute"] == 180
+        assert fetched["id"] == profile["id"]
+        assert len(page["items"]) == 1
+        assert plan["protocol_profile_id"] == profile["id"]
+        assert plan["max_concurrency"] == 8
+        assert plan["rate_limit_per_minute"] == 180
     finally:
         server.shutdown()
         server.server_close()

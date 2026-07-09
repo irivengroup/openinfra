@@ -79,3 +79,6 @@ Pour v0.29.75, une seule migration structurante `0032_itam_partner_registry.sql`
 
 
 Pour v0.29.77, la migration structurante `0033_dcim_site_dependencies_rack_lifecycle.sql` ajoute le statut de cycle de vie des chassis/racks DCIM et les index nécessaires au catalogue actif par site, bâtiment, salle, ligne et colonne. Cette migration est justifiée par une évolution de schéma métier et reste additive.
+
+
+Pour v0.29.78, la migration additive `0034_discovery_protocol_profiles.sql` crée le référentiel partitionné des profils protocoles Discovery SNMP/SSH/WinRM, avec contraintes de sécurité sur `vault://`, WinRM HTTPS, bornes de concurrence/rate-limit et index actifs par tenant/protocole/scope.

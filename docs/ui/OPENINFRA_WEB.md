@@ -1,3 +1,3 @@
-## v0.29.77 — Portail web inchangé, pipeline qualité stabilisé
+## v0.29.78 — Discovery : profils protocoles sécurisés
 
-La livraison v0.29.77 ne change pas les contrats du portail web introduits en v0.29.76 : DCIM `Sites & dépendances`, ITAM `Partenaires`, `Filiale/Subdivision` sous `Organisations` et champs pays ISO groupés. Elle stabilise le formatage Ruff des fichiers web/tests concernés par l’évolution précédente.
+Le portail web ajoute les opérations de gestion des profils SNMP/SSH/WinRM : liste, création, modification et désactivation. Le formulaire de plan discovery local accepte désormais un `protocol_profile_id` afin d'appliquer les limites de débit et de concurrence centralisées.

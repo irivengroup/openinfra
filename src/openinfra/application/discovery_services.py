@@ -6,6 +6,7 @@ from openinfra.application.edition_services import EditionRuntimeGuard
 from openinfra.application.ports import (
     AuditRepository,
     DiscoveryCollectorPage,
+    DiscoveryProtocolProfilePage,
     DiscoveryRepository,
     TransactionManager,
 )
@@ -16,12 +17,70 @@ from openinfra.domain.discovery import (
     CollectorKind,
     DiscoveryCollector,
     DiscoveryJobAuthorization,
+    DiscoveryProtocolCredentialProfile,
     DiscoveryScope,
     EnterpriseAgentBootstrapPlan,
     LocalDiscoveryPlan,
 )
 from openinfra.domain.editions import FeatureCapability, QuotaResource
 from openinfra.domain.security import Permission
+
+
+@dataclass(frozen=True, slots=True)
+class CreateDiscoveryProtocolProfileCommand:
+    tenant_id: str
+    actor: str
+    admin_token: str
+    name: str
+    protocol: str
+    scope: str
+    credential_secret_ref: str
+    port: int | None = None
+    timeout_seconds: int = 30
+    max_concurrency: int = 4
+    rate_limit_per_minute: int = 120
+    retry_count: int = 1
+
+
+@dataclass(frozen=True, slots=True)
+class UpdateDiscoveryProtocolProfileCommand:
+    tenant_id: str
+    actor: str
+    admin_token: str
+    profile_id: str
+    name: str | None = None
+    scope: str | None = None
+    credential_secret_ref: str | None = None
+    port: int | None = None
+    timeout_seconds: int | None = None
+    max_concurrency: int | None = None
+    rate_limit_per_minute: int | None = None
+    retry_count: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class GetDiscoveryProtocolProfileCommand:
+    tenant_id: str
+    admin_token: str
+    profile_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class DisableDiscoveryProtocolProfileCommand:
+    tenant_id: str
+    actor: str
+    admin_token: str
+    profile_id: str
+    reason: str
+
+
+@dataclass(frozen=True, slots=True)
+class ListDiscoveryProtocolProfilesCommand:
+    tenant_id: str
+    admin_token: str
+    limit: int = 100
+    cursor: str | None = None
+    include_inactive: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,6 +178,7 @@ class BuildLocalDiscoveryPlanCommand:
     credential_secret_ref: str
     max_concurrency: int = 4
     rate_limit_per_minute: int = 120
+    protocol_profile_id: str | None = None
 
 
 class DiscoveryCollectorService:
@@ -135,6 +195,156 @@ class DiscoveryCollectorService:
         self._transaction_manager = transaction_manager
         self._security_service = security_service
         self._edition_guard = edition_guard
+
+    def create_protocol_profile(
+        self, command: CreateDiscoveryProtocolProfileCommand
+    ) -> DiscoveryProtocolCredentialProfile:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        principal = self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                tenant_id.value, command.admin_token, Permission.SECURITY_ADMIN
+            )
+        )
+        profile = DiscoveryProtocolCredentialProfile.create(
+            tenant_id=tenant_id,
+            name=command.name,
+            protocol=command.protocol,
+            scope=command.scope,
+            credential_secret_ref=command.credential_secret_ref,
+            port=command.port,
+            timeout_seconds=command.timeout_seconds,
+            max_concurrency=command.max_concurrency,
+            rate_limit_per_minute=command.rate_limit_per_minute,
+            retry_count=command.retry_count,
+            created_by=principal.subject,
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            self._discovery_repository.save_protocol_profile(profile)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=principal.subject,
+                    action="discovery.protocol_profile.created",
+                    target_type="discovery_protocol_profile",
+                    target_id=profile.id.value,
+                    metadata={
+                        "declared_actor": command.actor,
+                        "protocol": profile.protocol.value,
+                        "scope": profile.scope.value,
+                        "rate_limit_per_minute": profile.rate_limit_per_minute,
+                        "max_concurrency": profile.max_concurrency,
+                        "secret_materialized": False,
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return profile
+
+    def update_protocol_profile(
+        self, command: UpdateDiscoveryProtocolProfileCommand
+    ) -> DiscoveryProtocolCredentialProfile:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        principal = self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                tenant_id.value, command.admin_token, Permission.SECURITY_ADMIN
+            )
+        )
+        profile = self._discovery_repository.get_protocol_profile(tenant_id, command.profile_id)
+        if profile is None:
+            raise ValidationError("discovery protocol profile is not registered")
+        updated = profile.update_settings(
+            name=command.name,
+            scope=command.scope,
+            credential_secret_ref=command.credential_secret_ref,
+            port=command.port,
+            timeout_seconds=command.timeout_seconds,
+            max_concurrency=command.max_concurrency,
+            rate_limit_per_minute=command.rate_limit_per_minute,
+            retry_count=command.retry_count,
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            self._discovery_repository.save_protocol_profile(updated)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=principal.subject,
+                    action="discovery.protocol_profile.updated",
+                    target_type="discovery_protocol_profile",
+                    target_id=updated.id.value,
+                    metadata={
+                        "declared_actor": command.actor,
+                        "protocol": updated.protocol.value,
+                        "scope": updated.scope.value,
+                        "rate_limit_per_minute": updated.rate_limit_per_minute,
+                        "max_concurrency": updated.max_concurrency,
+                        "secret_materialized": False,
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return updated
+
+    def get_protocol_profile(
+        self, command: GetDiscoveryProtocolProfileCommand
+    ) -> DiscoveryProtocolCredentialProfile:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                tenant_id.value, command.admin_token, Permission.SECURITY_ADMIN
+            )
+        )
+        profile = self._discovery_repository.get_protocol_profile(tenant_id, command.profile_id)
+        if profile is None:
+            raise ValidationError("discovery protocol profile is not registered")
+        return profile
+
+    def disable_protocol_profile(
+        self, command: DisableDiscoveryProtocolProfileCommand
+    ) -> DiscoveryProtocolCredentialProfile:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        principal = self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                tenant_id.value, command.admin_token, Permission.SECURITY_ADMIN
+            )
+        )
+        profile = self._discovery_repository.get_protocol_profile(tenant_id, command.profile_id)
+        if profile is None:
+            raise ValidationError("discovery protocol profile is not registered")
+        disabled = profile.disable(command.reason)
+        with self._transaction_manager.begin() as unit_of_work:
+            self._discovery_repository.save_protocol_profile(disabled)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=principal.subject,
+                    action="discovery.protocol_profile.disabled",
+                    target_type="discovery_protocol_profile",
+                    target_id=disabled.id.value,
+                    metadata={
+                        "declared_actor": command.actor,
+                        "reason": disabled.disabled_reason,
+                        "secret_materialized": False,
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return disabled
+
+    def list_protocol_profiles(
+        self, command: ListDiscoveryProtocolProfilesCommand
+    ) -> DiscoveryProtocolProfilePage:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                tenant_id.value, command.admin_token, Permission.SECURITY_ADMIN
+            )
+        )
+        pagination = Pagination.from_values(command.limit, command.cursor)
+        return self._discovery_repository.list_protocol_profiles(
+            tenant_id,
+            pagination,
+            command.include_inactive,
+        )
 
     def build_enterprise_agent_bootstrap_plan(
         self, command: BuildEnterpriseAgentBootstrapPlanCommand
@@ -215,17 +425,47 @@ class DiscoveryCollectorService:
         edition = "enterprise"
         if self._edition_guard is not None:
             edition = self._edition_guard.edition.value
+        protocol_profile_id = None
+        scope = command.scope
+        protocol = command.protocol
+        credential_secret_ref = command.credential_secret_ref
+        max_concurrency = command.max_concurrency
+        rate_limit_per_minute = command.rate_limit_per_minute
+        if command.protocol_profile_id:
+            protocol_profile = self._discovery_repository.get_protocol_profile(
+                tenant_id,
+                command.protocol_profile_id,
+            )
+            if protocol_profile is None:
+                raise ValidationError("discovery protocol profile is not registered")
+            if protocol_profile.status.value != "active":
+                raise ValidationError("discovery protocol profile must be active")
+            expected_scope = DiscoveryScope.from_value(command.scope)
+            expected_protocol = type(protocol_profile.protocol).from_value(command.protocol)
+            if expected_scope != protocol_profile.scope:
+                raise ValidationError("local discovery scope must match selected protocol profile")
+            if expected_protocol != protocol_profile.protocol:
+                raise ValidationError(
+                    "local discovery protocol must match selected protocol profile"
+                )
+            protocol_profile_id = protocol_profile.id.value
+            scope = protocol_profile.scope.value
+            protocol = protocol_profile.protocol.value
+            credential_secret_ref = protocol_profile.credential_secret_ref
+            max_concurrency = protocol_profile.max_concurrency
+            rate_limit_per_minute = protocol_profile.rate_limit_per_minute
         plan = LocalDiscoveryPlan.create(
             tenant_id=tenant_id,
             edition=edition,
             name=command.name,
-            scope=command.scope,
-            protocol=command.protocol,
+            scope=scope,
+            protocol=protocol,
             targets=command.targets,
-            credential_secret_ref=command.credential_secret_ref,
-            max_concurrency=command.max_concurrency,
-            rate_limit_per_minute=command.rate_limit_per_minute,
+            credential_secret_ref=credential_secret_ref,
+            max_concurrency=max_concurrency,
+            rate_limit_per_minute=rate_limit_per_minute,
             created_by=principal.subject,
+            protocol_profile_id=protocol_profile_id,
         )
         with self._transaction_manager.begin() as unit_of_work:
             self._audit_repository.append(

@@ -1,5 +1,6 @@
-## v0.29.77 — Traçabilité correctifs CI Ruff/Bandit
+## v0.29.78 — Traçabilité profils Discovery
 
-- `REQ-00818` couvre la suppression du risque signalé Bandit B608 sur la requête PostgreSQL DCIM de liste des racks.
-- `TST-WEB-117` couvre Ruff format, Ruff check, Bandit et le test de régression source sur `PostgreSQLDcimRepository.list_racks_in_room`.
-- La livraison conserve les exigences v0.29.76 : `REQ-00817`, `TST-WEB-116` et `TST-P14-DCIM-SITE-DEPENDENCIES-RACKS-COUNTRIES`.
+- CDC : `REQ-00819`, `TST-WEB-118`.
+- Roadmap : `TST-P14-DISCOVERY-PROTOCOL-PROFILES`.
+- Migration : `0034_discovery_protocol_profiles.sql`.
+- Tests : domaine Discovery, service, CLI, API HTTP, politiques migrations, Ruff et Bandit.

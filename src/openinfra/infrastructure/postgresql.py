@@ -19,6 +19,7 @@ from openinfra.application.ports import (
     AuditRepository,
     DcimRepository,
     DiscoveryCollectorPage,
+    DiscoveryProtocolProfilePage,
     DiscoveryRepository,
     ExportRepository,
     IdentityRepository,
@@ -101,7 +102,7 @@ from openinfra.domain.dcim import (
     RoomZone,
     Site,
 )
-from openinfra.domain.discovery import DiscoveryCollector
+from openinfra.domain.discovery import DiscoveryCollector, DiscoveryProtocolCredentialProfile
 from openinfra.domain.editions import QuotaResource
 from openinfra.domain.identity import (
     EffectiveIdentity,
@@ -3501,6 +3502,150 @@ class PostgreSQLIpamRepository(PostgreSQLRepositoryBase, IpamRepository):
 
 
 class PostgreSQLDiscoveryRepository(PostgreSQLRepositoryBase, DiscoveryRepository):
+    def save_protocol_profile(self, profile: DiscoveryProtocolCredentialProfile) -> None:
+        self._ensure_tenant(profile.tenant_id)
+        payload = profile.as_dict()
+        self._execute_without_result(
+            """
+            INSERT INTO discovery_protocol_profiles (
+                id, tenant_id, name, protocol, scope, credential_secret_ref, port,
+                timeout_seconds, max_concurrency, rate_limit_per_minute, retry_count,
+                status, created_by, created_at, disabled_reason, updated_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(name)s, %(protocol)s, %(scope)s,
+                %(credential_secret_ref)s, %(port)s, %(timeout_seconds)s,
+                %(max_concurrency)s, %(rate_limit_per_minute)s, %(retry_count)s,
+                %(status)s, %(created_by)s, %(created_at)s, %(disabled_reason)s, now()
+            )
+            ON CONFLICT (tenant_id, id) DO UPDATE SET
+                name = EXCLUDED.name,
+                protocol = EXCLUDED.protocol,
+                scope = EXCLUDED.scope,
+                credential_secret_ref = EXCLUDED.credential_secret_ref,
+                port = EXCLUDED.port,
+                timeout_seconds = EXCLUDED.timeout_seconds,
+                max_concurrency = EXCLUDED.max_concurrency,
+                rate_limit_per_minute = EXCLUDED.rate_limit_per_minute,
+                retry_count = EXCLUDED.retry_count,
+                status = EXCLUDED.status,
+                disabled_reason = EXCLUDED.disabled_reason,
+                updated_at = now()
+            """,
+            {
+                "id": payload["id"],
+                "tenant_id": payload["tenant_id"],
+                "name": payload["name"],
+                "protocol": payload["protocol"],
+                "scope": payload["scope"],
+                "credential_secret_ref": payload["credential_secret_ref"],
+                "port": payload["port"],
+                "timeout_seconds": payload["timeout_seconds"],
+                "max_concurrency": payload["max_concurrency"],
+                "rate_limit_per_minute": payload["rate_limit_per_minute"],
+                "retry_count": payload["retry_count"],
+                "status": payload["status"],
+                "created_by": payload["created_by"],
+                "created_at": profile.created_at,
+                "disabled_reason": payload["disabled_reason"],
+            },
+        )
+
+    def get_protocol_profile(
+        self, tenant_id: TenantId, profile_id: str
+    ) -> DiscoveryProtocolCredentialProfile | None:
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, name, protocol, scope, credential_secret_ref, port,
+                   timeout_seconds, max_concurrency, rate_limit_per_minute, retry_count,
+                   status, created_by, created_at, disabled_reason
+            FROM discovery_protocol_profiles
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s
+            """,
+            {"tenant_id": tenant_id.value, "id": profile_id.strip()},
+        )
+        return self._protocol_profile_from_row(row) if row else None
+
+    def list_protocol_profiles(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        include_inactive: bool,
+    ) -> DiscoveryProtocolProfilePage:
+        params: dict[str, object] = {"tenant_id": tenant_id.value, "limit": pagination.limit}
+        if pagination.cursor:
+            params["cursor"] = pagination.cursor
+        rows = self._fetch_all(
+            self._protocol_profile_list_query(include_inactive, pagination.cursor is not None),
+            params,
+        )
+        profiles = tuple(self._protocol_profile_from_row(row) for row in rows)
+        next_cursor = profiles[-1].id.value if len(profiles) == pagination.limit else None
+        return DiscoveryProtocolProfilePage(items=profiles, next_cursor=next_cursor)
+
+    def _protocol_profile_list_query(self, include_inactive: bool, has_cursor: bool) -> str:
+        if include_inactive and has_cursor:
+            return """
+            SELECT id, tenant_id, name, protocol, scope, credential_secret_ref, port,
+                   timeout_seconds, max_concurrency, rate_limit_per_minute, retry_count,
+                   status, created_by, created_at, disabled_reason
+            FROM discovery_protocol_profiles
+            WHERE tenant_id = %(tenant_id)s AND id > %(cursor)s
+            ORDER BY id ASC
+            LIMIT %(limit)s
+            """
+        if include_inactive:
+            return """
+            SELECT id, tenant_id, name, protocol, scope, credential_secret_ref, port,
+                   timeout_seconds, max_concurrency, rate_limit_per_minute, retry_count,
+                   status, created_by, created_at, disabled_reason
+            FROM discovery_protocol_profiles
+            WHERE tenant_id = %(tenant_id)s
+            ORDER BY id ASC
+            LIMIT %(limit)s
+            """
+        if has_cursor:
+            return """
+            SELECT id, tenant_id, name, protocol, scope, credential_secret_ref, port,
+                   timeout_seconds, max_concurrency, rate_limit_per_minute, retry_count,
+                   status, created_by, created_at, disabled_reason
+            FROM discovery_protocol_profiles
+            WHERE tenant_id = %(tenant_id)s AND status <> 'disabled' AND id > %(cursor)s
+            ORDER BY id ASC
+            LIMIT %(limit)s
+            """
+        return """
+            SELECT id, tenant_id, name, protocol, scope, credential_secret_ref, port,
+                   timeout_seconds, max_concurrency, rate_limit_per_minute, retry_count,
+                   status, created_by, created_at, disabled_reason
+            FROM discovery_protocol_profiles
+            WHERE tenant_id = %(tenant_id)s AND status <> 'disabled'
+            ORDER BY id ASC
+            LIMIT %(limit)s
+            """
+
+    def _protocol_profile_from_row(
+        self, row: Mapping[str, object]
+    ) -> DiscoveryProtocolCredentialProfile:
+        return DiscoveryProtocolCredentialProfile.from_dict(
+            {
+                "id": row["id"],
+                "tenant_id": row["tenant_id"],
+                "name": row["name"],
+                "protocol": row["protocol"],
+                "scope": row["scope"],
+                "credential_secret_ref": row["credential_secret_ref"],
+                "port": row["port"],
+                "timeout_seconds": row["timeout_seconds"],
+                "max_concurrency": row["max_concurrency"],
+                "rate_limit_per_minute": row["rate_limit_per_minute"],
+                "retry_count": row["retry_count"],
+                "status": row["status"],
+                "created_by": row["created_by"],
+                "created_at": row["created_at"],
+                "disabled_reason": row.get("disabled_reason"),
+            }
+        )
+
     def save_collector(self, collector: DiscoveryCollector) -> None:
         self._ensure_tenant(collector.tenant_id)
         payload = collector.as_dict()

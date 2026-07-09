@@ -1,5 +1,5 @@
-## v0.29.77 — Correctif qualité et sécurité PostgreSQL DCIM
+## v0.29.78 — Profils protocoles Discovery sécurisés
 
-L’incrément v0.29.77 ne modifie pas l’architecture fonctionnelle v0.29.76. Il durcit l’implémentation infrastructure PostgreSQL DCIM en supprimant la construction de requête par fragment SQL interpolé dans la liste des racks. Le repository utilise désormais des requêtes statiques paramétrées, ce qui conserve la séparation hexagonale domaine/application/infrastructure et rend le contrat SQL plus facilement auditable par Bandit.
+L'incrément v0.29.78 étend P14 / EPIC-1403 sans modifier la séparation Clean Architecture existante. Le domaine porte les règles SNMP/SSH/WinRM, l'application orchestre l'authentification RBAC et l'audit, les repositories JSON/PostgreSQL persistent les profils, et les interfaces CLI/API/Web exposent uniquement des représentations publiques masquant les références sensibles.
 
-Le pipeline qualité est réaligné sur Ruff format, Ruff lint et Bandit sans exemption `nosec` supplémentaire. Les exceptions N802 nécessaires aux handlers HTTP `do_GET`, `do_POST`, etc. sont portées par la configuration Ruff, car ces noms sont imposés par `BaseHTTPRequestHandler`.
+La persistance PostgreSQL est additive via `0034_discovery_protocol_profiles.sql`, avec partitionnement par tenant, contraintes de sécurité et index actifs adaptés aux recherches par protocole et scope.

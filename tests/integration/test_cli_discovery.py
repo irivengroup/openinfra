@@ -526,7 +526,7 @@ def test_cli_discovery_agent_bootstrap_plan_outputs_enterprise_systemd_unit(
             "--enrollment-secret-ref",
             "vault://openinfra/discovery/agent/par1",
             "--agent-version",
-            "0.29.77",
+            "0.29.78",
         ]
     )
     plan = json.loads(capsys.readouterr().out)
@@ -539,3 +539,155 @@ def test_cli_discovery_agent_bootstrap_plan_outputs_enterprise_systemd_unit(
     assert (
         plan["config_document"]["backend"]["result_publish_endpoint"] == "/api/v1/discovery/results"
     )
+
+
+def test_cli_discovery_protocol_profile_lifecycle(tmp_path: Path, capsys: object) -> None:
+    data = tmp_path / "state.json"
+    token = "r" * 40
+    cli = OpenInfraCLI()
+    assert (
+        cli.run(
+            [
+                "security",
+                "bootstrap-token",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--subject",
+                "discovery-admin",
+                "--role",
+                "security:admin",
+                "--token",
+                token,
+            ]
+        )
+        == 0
+    )
+    capsys.readouterr()
+
+    assert (
+        cli.run(
+            [
+                "discovery",
+                "protocol-profile-create",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--name",
+                "SNMPv3 PAR1",
+                "--protocol",
+                "snmp",
+                "--scope",
+                "site/par1",
+                "--credential-secret-ref",
+                "vault://openinfra/discovery/snmp/par1",
+                "--max-concurrency",
+                "8",
+                "--rate-limit-per-minute",
+                "240",
+            ]
+        )
+        == 0
+    )
+    created = json.loads(capsys.readouterr().out)
+
+    assert (
+        cli.run(
+            [
+                "discovery",
+                "protocol-profile-update",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--profile-id",
+                str(created["id"]),
+                "--rate-limit-per-minute",
+                "180",
+            ]
+        )
+        == 0
+    )
+    updated = json.loads(capsys.readouterr().out)
+
+    assert (
+        cli.run(
+            [
+                "discovery",
+                "local-plan",
+                "--data",
+                str(data),
+                "--edition",
+                "pro",
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--name",
+                "Discovery PAR1 SNMP",
+                "--scope",
+                "site/par1",
+                "--protocol",
+                "snmp",
+                "--target",
+                "10.20.30.10",
+                "--credential-secret-ref",
+                "vault://openinfra/discovery/unused",
+                "--protocol-profile-id",
+                str(created["id"]),
+            ]
+        )
+        == 0
+    )
+    plan = json.loads(capsys.readouterr().out)
+
+    assert (
+        cli.run(
+            [
+                "discovery",
+                "protocol-profile-list",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+            ]
+        )
+        == 0
+    )
+    page = json.loads(capsys.readouterr().out)
+
+    assert (
+        cli.run(
+            [
+                "discovery",
+                "protocol-profile-delete",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--profile-id",
+                str(created["id"]),
+                "--reason",
+                "rotated",
+            ]
+        )
+        == 0
+    )
+    disabled = json.loads(capsys.readouterr().out)
+
+    assert created["credential_secret_ref"] == "vault://***"
+    assert updated["rate_limit_per_minute"] == 180
+    assert plan["protocol_profile_id"] == created["id"]
+    assert plan["rate_limit_per_minute"] == 180
+    assert len(page["items"]) == 1
+    assert disabled["status"] == "disabled"

@@ -682,6 +682,284 @@ class LocalDiscoveryProtocol(StrEnum):
             raise ValidationError("local discovery protocol must be snmp, ssh or winrm") from exc
 
 
+class DiscoveryProtocolProfileStatus(StrEnum):
+    ACTIVE = "active"
+    DISABLED = "disabled"
+
+    @classmethod
+    def from_value(cls, value: str | None) -> Self:
+        normalized = (value or "active").strip().lower()
+        try:
+            return cls(normalized)
+        except ValueError as exc:
+            raise ValidationError(
+                "discovery protocol profile status must be active or disabled"
+            ) from exc
+
+
+@dataclass(frozen=True, slots=True)
+class DiscoveryProtocolCredentialProfile:
+    id: EntityId
+    tenant_id: TenantId
+    name: str
+    protocol: LocalDiscoveryProtocol
+    scope: DiscoveryScope
+    credential_secret_ref: str
+    port: int
+    timeout_seconds: int
+    max_concurrency: int
+    rate_limit_per_minute: int
+    retry_count: int
+    status: DiscoveryProtocolProfileStatus
+    created_by: str
+    created_at: datetime
+    disabled_reason: str | None = None
+
+    @classmethod
+    def create(
+        cls,
+        tenant_id: TenantId,
+        name: str,
+        protocol: str,
+        scope: str,
+        credential_secret_ref: str,
+        port: int | None,
+        timeout_seconds: int,
+        max_concurrency: int,
+        rate_limit_per_minute: int,
+        retry_count: int,
+        created_by: str,
+        profile_id: EntityId | None = None,
+        created_at: datetime | None = None,
+    ) -> Self:
+        normalized_name = cls._normalize_name(name)
+        discovery_protocol = LocalDiscoveryProtocol.from_value(protocol)
+        discovery_scope = DiscoveryScope.from_value(scope)
+        secret_ref = CollectorIdentity._normalize_secret_ref(credential_secret_ref)
+        if secret_ref is None:
+            raise ValidationError("discovery protocol credential_secret_ref is mandatory")
+        normalized_port = cls._normalize_port(discovery_protocol, port)
+        normalized_timeout = cls._normalize_timeout(timeout_seconds)
+        normalized_max_concurrency = cls._normalize_max_concurrency(max_concurrency)
+        normalized_rate_limit = cls._normalize_rate_limit(rate_limit_per_minute)
+        normalized_retry_count = cls._normalize_retry_count(retry_count)
+        actor = cls._normalize_actor(created_by)
+        created = created_at or datetime.now(UTC)
+        if created.tzinfo is None:
+            raise ValidationError("discovery protocol profile created_at must be timezone-aware")
+        return cls(
+            id=profile_id or EntityId.new(),
+            tenant_id=tenant_id,
+            name=normalized_name,
+            protocol=discovery_protocol,
+            scope=discovery_scope,
+            credential_secret_ref=secret_ref,
+            port=normalized_port,
+            timeout_seconds=normalized_timeout,
+            max_concurrency=normalized_max_concurrency,
+            rate_limit_per_minute=normalized_rate_limit,
+            retry_count=normalized_retry_count,
+            status=DiscoveryProtocolProfileStatus.ACTIVE,
+            created_by=actor,
+            created_at=created.astimezone(UTC),
+        )
+
+    @classmethod
+    def from_dict(cls, value: dict[str, object]) -> Self:
+        created_value = value.get("created_at")
+        return cls(
+            id=EntityId.from_value(str(value["id"])),
+            tenant_id=TenantId.from_value(str(value["tenant_id"])),
+            name=cls._normalize_name(str(value["name"])),
+            protocol=LocalDiscoveryProtocol.from_value(str(value["protocol"])),
+            scope=DiscoveryScope.from_value(str(value["scope"])),
+            credential_secret_ref=cls._required_secret_ref(value.get("credential_secret_ref")),
+            port=cls._normalize_port(
+                LocalDiscoveryProtocol.from_value(str(value["protocol"])),
+                int(value["port"]),
+            ),
+            timeout_seconds=cls._normalize_timeout(int(value["timeout_seconds"])),
+            max_concurrency=cls._normalize_max_concurrency(int(value["max_concurrency"])),
+            rate_limit_per_minute=cls._normalize_rate_limit(int(value["rate_limit_per_minute"])),
+            retry_count=cls._normalize_retry_count(int(value["retry_count"])),
+            status=DiscoveryProtocolProfileStatus.from_value(str(value.get("status", "active"))),
+            created_by=cls._normalize_actor(str(value["created_by"])),
+            created_at=(
+                datetime.now(UTC)
+                if created_value is None
+                else datetime.fromisoformat(str(created_value)).astimezone(UTC)
+            ),
+            disabled_reason=None
+            if value.get("disabled_reason") is None
+            else str(value["disabled_reason"]),
+        )
+
+    def update_settings(
+        self,
+        *,
+        name: str | None = None,
+        scope: str | None = None,
+        credential_secret_ref: str | None = None,
+        port: int | None = None,
+        timeout_seconds: int | None = None,
+        max_concurrency: int | None = None,
+        rate_limit_per_minute: int | None = None,
+        retry_count: int | None = None,
+    ) -> Self:
+        if self.status is not DiscoveryProtocolProfileStatus.ACTIVE:
+            raise ValidationError("disabled discovery protocol profile cannot be updated")
+        return self._copy(
+            name=self.name if name is None else self._normalize_name(name),
+            scope=self.scope.value if scope is None else DiscoveryScope.from_value(scope).value,
+            credential_secret_ref=self.credential_secret_ref
+            if credential_secret_ref is None
+            else self._required_secret_ref(credential_secret_ref),
+            port=self.port if port is None else self._normalize_port(self.protocol, port),
+            timeout_seconds=self.timeout_seconds
+            if timeout_seconds is None
+            else self._normalize_timeout(timeout_seconds),
+            max_concurrency=self.max_concurrency
+            if max_concurrency is None
+            else self._normalize_max_concurrency(max_concurrency),
+            rate_limit_per_minute=self.rate_limit_per_minute
+            if rate_limit_per_minute is None
+            else self._normalize_rate_limit(rate_limit_per_minute),
+            retry_count=self.retry_count
+            if retry_count is None
+            else self._normalize_retry_count(retry_count),
+        )
+
+    def disable(self, reason: str) -> Self:
+        normalized_reason = " ".join(reason.strip().split())
+        if not normalized_reason:
+            raise ValidationError("discovery protocol profile disable reason is mandatory")
+        return self._copy(
+            status=DiscoveryProtocolProfileStatus.DISABLED.value,
+            disabled_reason=normalized_reason[:512],
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "id": self.id.value,
+            "tenant_id": self.tenant_id.value,
+            "name": self.name,
+            "protocol": self.protocol.value,
+            "scope": self.scope.value,
+            "credential_secret_ref": self.credential_secret_ref,
+            "port": self.port,
+            "timeout_seconds": self.timeout_seconds,
+            "max_concurrency": self.max_concurrency,
+            "rate_limit_per_minute": self.rate_limit_per_minute,
+            "retry_count": self.retry_count,
+            "status": self.status.value,
+            "created_by": self.created_by,
+            "created_at": self.created_at.isoformat(),
+            "disabled_reason": self.disabled_reason,
+        }
+
+    def as_public_dict(self) -> dict[str, object]:
+        payload = self.as_dict()
+        payload["credential_secret_ref"] = self.masked_credential_secret_ref
+        payload["secret_materialized"] = False
+        payload["rate_limit_active"] = True
+        payload["transport"] = self.transport_label
+        payload["safeguards"] = [
+            "vault_reference_only",
+            "secret_material_never_returned",
+            "protocol_allowlist",
+            "rate_limit_active",
+            "bounded_concurrency",
+        ]
+        return payload
+
+    @property
+    def masked_credential_secret_ref(self) -> str:
+        return "vault://***"
+
+    @property
+    def transport_label(self) -> str:
+        if self.protocol is LocalDiscoveryProtocol.SNMP:
+            return "snmp-v3-credentials-from-vault"
+        if self.protocol is LocalDiscoveryProtocol.SSH:
+            return "ssh-key-or-password-from-vault"
+        return "winrm-https-credentials-from-vault"
+
+    @staticmethod
+    def _normalize_name(value: str) -> str:
+        normalized = " ".join(value.strip().split())
+        if not 2 <= len(normalized) <= 128:
+            raise ValidationError(
+                "discovery protocol profile name must contain 2 to 128 characters"
+            )
+        return normalized
+
+    @staticmethod
+    def _normalize_actor(value: str) -> str:
+        actor = " ".join(value.strip().split())
+        if not actor:
+            raise ValidationError("discovery protocol profile created_by is mandatory")
+        return actor
+
+    @staticmethod
+    def _required_secret_ref(value: object) -> str:
+        secret_ref = CollectorIdentity._normalize_secret_ref(None if value is None else str(value))
+        if secret_ref is None:
+            raise ValidationError("discovery protocol credential_secret_ref is mandatory")
+        return secret_ref
+
+    @staticmethod
+    def _default_port(protocol: LocalDiscoveryProtocol) -> int:
+        if protocol is LocalDiscoveryProtocol.SNMP:
+            return 161
+        if protocol is LocalDiscoveryProtocol.SSH:
+            return 22
+        return 5986
+
+    @classmethod
+    def _normalize_port(cls, protocol: LocalDiscoveryProtocol, value: int | None) -> int:
+        port = cls._default_port(protocol) if value is None else int(value)
+        if not 1 <= port <= 65535:
+            raise ValidationError("discovery protocol profile port must be between 1 and 65535")
+        if protocol is LocalDiscoveryProtocol.WINRM and port == 5985:
+            raise ValidationError("winrm discovery profile must use encrypted HTTPS transport")
+        return port
+
+    @staticmethod
+    def _normalize_timeout(value: int) -> int:
+        timeout = int(value)
+        if not 1 <= timeout <= 300:
+            raise ValidationError("discovery protocol timeout_seconds must be between 1 and 300")
+        return timeout
+
+    @staticmethod
+    def _normalize_max_concurrency(value: int) -> int:
+        concurrency = int(value)
+        if not 1 <= concurrency <= 64:
+            raise ValidationError("discovery protocol max_concurrency must be between 1 and 64")
+        return concurrency
+
+    @staticmethod
+    def _normalize_rate_limit(value: int) -> int:
+        rate_limit = int(value)
+        if not 1 <= rate_limit <= 10_000:
+            raise ValidationError(
+                "discovery protocol rate_limit_per_minute must be between 1 and 10000"
+            )
+        return rate_limit
+
+    @staticmethod
+    def _normalize_retry_count(value: int) -> int:
+        retry_count = int(value)
+        if not 0 <= retry_count <= 5:
+            raise ValidationError("discovery protocol retry_count must be between 0 and 5")
+        return retry_count
+
+    def _copy(self, **changes: object) -> Self:
+        payload = self.as_dict()
+        payload.update(changes)
+        return self.from_dict(payload)
+
+
 @dataclass(frozen=True, slots=True)
 class LocalDiscoveryTarget:
     value: str
@@ -706,6 +984,7 @@ class LocalDiscoveryJobPlan:
     credential_secret_ref: str
     operation: str
     planned_status: str
+    protocol_profile_id: str | None = None
 
     @classmethod
     def create(
@@ -714,6 +993,7 @@ class LocalDiscoveryJobPlan:
         protocol: LocalDiscoveryProtocol,
         scope: DiscoveryScope,
         credential_secret_ref: str,
+        protocol_profile_id: str | None = None,
     ) -> Self:
         secret_ref = CollectorIdentity._normalize_secret_ref(credential_secret_ref)
         if secret_ref is None:
@@ -725,6 +1005,7 @@ class LocalDiscoveryJobPlan:
             credential_secret_ref=secret_ref,
             operation=f"{protocol.value}-inventory-plan",
             planned_status="planned",
+            protocol_profile_id=protocol_profile_id,
         )
 
     def as_dict(self) -> dict[str, object]:
@@ -735,6 +1016,7 @@ class LocalDiscoveryJobPlan:
             "credential_secret_ref": self.credential_secret_ref,
             "operation": self.operation,
             "planned_status": self.planned_status,
+            "protocol_profile_id": self.protocol_profile_id,
         }
 
 
@@ -756,6 +1038,7 @@ class LocalDiscoveryPlan:
     network_scan_executed: bool
     rsot_write_enabled: bool
     safeguards: tuple[str, ...]
+    protocol_profile_id: str | None = None
 
     @classmethod
     def create(
@@ -770,6 +1053,7 @@ class LocalDiscoveryPlan:
         max_concurrency: int,
         rate_limit_per_minute: int,
         created_by: str,
+        protocol_profile_id: str | None = None,
     ) -> Self:
         normalized_edition = edition.strip().lower()
         if normalized_edition not in {"lite", "pro"}:
@@ -801,6 +1085,7 @@ class LocalDiscoveryPlan:
                 protocol=discovery_protocol,
                 scope=discovery_scope,
                 credential_secret_ref=credential_secret_ref,
+                protocol_profile_id=protocol_profile_id,
             )
             for target in normalized_targets
         )
@@ -827,8 +1112,12 @@ class LocalDiscoveryPlan:
                 "no_network_scan_executed",
                 "no_rsot_write",
                 "vault_secret_reference_only",
+                "secret_material_never_returned",
+                "rate_limit_active",
+                "bounded_concurrency",
                 "operator_review_required",
             ),
+            protocol_profile_id=protocol_profile_id,
         )
 
     def as_dict(self) -> dict[str, object]:
@@ -849,5 +1138,6 @@ class LocalDiscoveryPlan:
             "network_scan_executed": self.network_scan_executed,
             "rsot_write_enabled": self.rsot_write_enabled,
             "safeguards": list(self.safeguards),
+            "protocol_profile_id": self.protocol_profile_id,
             "jobs": [job.as_dict() for job in self.jobs],
         }

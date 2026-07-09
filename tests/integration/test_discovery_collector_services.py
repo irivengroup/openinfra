@@ -298,3 +298,273 @@ def test_local_discovery_plan_rejects_enterprise_runtime(tmp_path: Path) -> None
                 credential_secret_ref=LOCAL_VAULT_REF,
             )
         )
+
+
+def test_discovery_protocol_profile_lifecycle_and_local_plan_binding(tmp_path: Path) -> None:
+    from openinfra.application.discovery_services import (
+        CreateDiscoveryProtocolProfileCommand,
+        DisableDiscoveryProtocolProfileCommand,
+        GetDiscoveryProtocolProfileCommand,
+        ListDiscoveryProtocolProfilesCommand,
+        UpdateDiscoveryProtocolProfileCommand,
+    )
+
+    app = ApplicationFactory().create_json_application(tmp_path / "state.json", edition="pro")
+    token = "p" * 40
+    app.security_service.bootstrap_token(
+        BootstrapTokenCommand(
+            tenant_id="default",
+            actor="test",
+            subject="sec-admin",
+            roles=("security:admin",),
+            token=token,
+        )
+    )
+
+    profile = app.discovery_service.create_protocol_profile(
+        CreateDiscoveryProtocolProfileCommand(
+            tenant_id="default",
+            actor="pytest",
+            admin_token=token,
+            name="SNMPv3 PAR1",
+            protocol="snmp",
+            scope="site/par1",
+            credential_secret_ref="vault://" + "openinfra/discovery/snmp/par1",
+            max_concurrency=8,
+            rate_limit_per_minute=240,
+        )
+    )
+    updated = app.discovery_service.update_protocol_profile(
+        UpdateDiscoveryProtocolProfileCommand(
+            tenant_id="default",
+            actor="pytest",
+            admin_token=token,
+            profile_id=profile.id.value,
+            rate_limit_per_minute=180,
+        )
+    )
+    loaded = app.discovery_service.get_protocol_profile(
+        GetDiscoveryProtocolProfileCommand("default", token, profile.id.value)
+    )
+    page = app.discovery_service.list_protocol_profiles(
+        ListDiscoveryProtocolProfilesCommand("default", token)
+    )
+    plan = app.discovery_service.build_local_discovery_plan(
+        BuildLocalDiscoveryPlanCommand(
+            tenant_id="default",
+            actor="pytest",
+            admin_token=token,
+            name="Discovery PAR1 SNMP",
+            scope="site/par1",
+            protocol="snmp",
+            targets=("10.20.30.10",),
+            credential_secret_ref="vault://" + "openinfra/discovery/unused",
+            max_concurrency=1,
+            rate_limit_per_minute=1,
+            protocol_profile_id=profile.id.value,
+        )
+    )
+    disabled = app.discovery_service.disable_protocol_profile(
+        DisableDiscoveryProtocolProfileCommand(
+            tenant_id="default",
+            actor="pytest",
+            admin_token=token,
+            profile_id=profile.id.value,
+            reason="secret rotation",
+        )
+    )
+    active_page = app.discovery_service.list_protocol_profiles(
+        ListDiscoveryProtocolProfilesCommand("default", token)
+    )
+    all_page = app.discovery_service.list_protocol_profiles(
+        ListDiscoveryProtocolProfilesCommand("default", token, include_inactive=True)
+    )
+
+    assert updated.rate_limit_per_minute == 180
+    assert loaded.as_public_dict()["credential_secret_ref"] == "vault://***"
+    assert page.items[0].id == profile.id
+    assert plan.protocol_profile_id == profile.id.value
+    assert plan.max_concurrency == 8
+    assert plan.rate_limit_per_minute == 180
+    assert plan.jobs[0].protocol_profile_id == profile.id.value
+    assert disabled.status.value == "disabled"
+    assert active_page.items == ()
+    assert len(all_page.items) == 1
+
+
+def test_local_discovery_rejects_mismatched_protocol_profile(tmp_path: Path) -> None:
+    from openinfra.application.discovery_services import CreateDiscoveryProtocolProfileCommand
+
+    app = ApplicationFactory().create_json_application(tmp_path / "state.json", edition="lite")
+    token = "q" * 40
+    app.security_service.bootstrap_token(
+        BootstrapTokenCommand(
+            tenant_id="default",
+            actor="test",
+            subject="sec-admin",
+            roles=("security:admin",),
+            token=token,
+        )
+    )
+    profile = app.discovery_service.create_protocol_profile(
+        CreateDiscoveryProtocolProfileCommand(
+            tenant_id="default",
+            actor="pytest",
+            admin_token=token,
+            name="SSH PAR1",
+            protocol="ssh",
+            scope="site/par1",
+            credential_secret_ref="vault://" + "openinfra/discovery/ssh/par1",
+        )
+    )
+
+    with pytest.raises(ValidationError, match="protocol must match"):
+        app.discovery_service.build_local_discovery_plan(
+            BuildLocalDiscoveryPlanCommand(
+                tenant_id="default",
+                actor="pytest",
+                admin_token=token,
+                name="Discovery mismatch",
+                scope="site/par1",
+                protocol="snmp",
+                targets=("srv-app-01",),
+                credential_secret_ref="vault://" + "openinfra/discovery/local/par1",
+                protocol_profile_id=profile.id.value,
+            )
+        )
+
+
+def test_protocol_profile_rejection_and_pagination_paths(tmp_path: Path) -> None:
+    from openinfra.application.discovery_services import (
+        CreateDiscoveryProtocolProfileCommand,
+        DisableDiscoveryProtocolProfileCommand,
+        GetDiscoveryProtocolProfileCommand,
+        ListDiscoveryProtocolProfilesCommand,
+        UpdateDiscoveryProtocolProfileCommand,
+    )
+
+    app = ApplicationFactory().create_json_application(tmp_path / "state.json", edition="pro")
+    token = "r" * 40
+    app.security_service.bootstrap_token(
+        BootstrapTokenCommand(
+            tenant_id="default",
+            actor="test",
+            subject="sec-admin",
+            roles=("security:admin",),
+            token=token,
+        )
+    )
+
+    with pytest.raises(ValidationError, match="not registered"):
+        app.discovery_service.get_protocol_profile(
+            GetDiscoveryProtocolProfileCommand("default", token, "missing")
+        )
+    with pytest.raises(ValidationError, match="not registered"):
+        app.discovery_service.update_protocol_profile(
+            UpdateDiscoveryProtocolProfileCommand(
+                tenant_id="default",
+                actor="pytest",
+                admin_token=token,
+                profile_id="missing",
+                name="SSH missing",
+            )
+        )
+    with pytest.raises(ValidationError, match="not registered"):
+        app.discovery_service.disable_protocol_profile(
+            DisableDiscoveryProtocolProfileCommand(
+                tenant_id="default",
+                actor="pytest",
+                admin_token=token,
+                profile_id="missing",
+                reason="missing profile",
+            )
+        )
+    with pytest.raises(ValidationError, match="not registered"):
+        app.discovery_service.build_local_discovery_plan(
+            BuildLocalDiscoveryPlanCommand(
+                tenant_id="default",
+                actor="pytest",
+                admin_token=token,
+                name="Discovery missing profile",
+                scope="site/par1",
+                protocol="ssh",
+                targets=("srv-app-01",),
+                credential_secret_ref="vault://" + "openinfra/discovery/local/par1",
+                protocol_profile_id="missing",
+            )
+        )
+
+    first = app.discovery_service.create_protocol_profile(
+        CreateDiscoveryProtocolProfileCommand(
+            tenant_id="default",
+            actor="pytest",
+            admin_token=token,
+            name="SSH PAR1",
+            protocol="ssh",
+            scope="site/par1",
+            credential_secret_ref="vault://" + "openinfra/discovery/ssh/par1",
+        )
+    )
+    second = app.discovery_service.create_protocol_profile(
+        CreateDiscoveryProtocolProfileCommand(
+            tenant_id="default",
+            actor="pytest",
+            admin_token=token,
+            name="WinRM PAR2",
+            protocol="winrm",
+            scope="site/par2",
+            credential_secret_ref="vault://" + "openinfra/discovery/winrm/par2",
+        )
+    )
+
+    first_page = app.discovery_service.list_protocol_profiles(
+        ListDiscoveryProtocolProfilesCommand("default", token, limit=1, include_inactive=True)
+    )
+    second_page = app.discovery_service.list_protocol_profiles(
+        ListDiscoveryProtocolProfilesCommand(
+            "default", token, limit=1, cursor=first_page.next_cursor, include_inactive=True
+        )
+    )
+
+    assert first_page.items == (first,)
+    assert second_page.items == (second,)
+
+    disabled = app.discovery_service.disable_protocol_profile(
+        DisableDiscoveryProtocolProfileCommand(
+            tenant_id="default",
+            actor="pytest",
+            admin_token=token,
+            profile_id=first.id.value,
+            reason="security rotation",
+        )
+    )
+    assert disabled.disabled_reason == "security rotation"
+
+    with pytest.raises(ValidationError, match="must be active"):
+        app.discovery_service.build_local_discovery_plan(
+            BuildLocalDiscoveryPlanCommand(
+                tenant_id="default",
+                actor="pytest",
+                admin_token=token,
+                name="Discovery disabled profile",
+                scope="site/par1",
+                protocol="ssh",
+                targets=("srv-app-01",),
+                credential_secret_ref="vault://" + "openinfra/discovery/local/par1",
+                protocol_profile_id=first.id.value,
+            )
+        )
+    with pytest.raises(ValidationError, match="scope must match"):
+        app.discovery_service.build_local_discovery_plan(
+            BuildLocalDiscoveryPlanCommand(
+                tenant_id="default",
+                actor="pytest",
+                admin_token=token,
+                name="Discovery scope mismatch",
+                scope="site/par1",
+                protocol="winrm",
+                targets=("srv-app-02",),
+                credential_secret_ref="vault://" + "openinfra/discovery/local/par2",
+                protocol_profile_id=second.id.value,
+            )
+        )

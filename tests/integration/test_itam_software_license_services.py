@@ -305,6 +305,8 @@ def test_software_license_cli_commands(tmp_path: Path, capsys: object) -> None:
                 "FR",
                 "--city",
                 "Paris",
+                "--postal-code",
+                "75000",
                 "--address",
                 "1 rue du Test",
                 "--contact-email",

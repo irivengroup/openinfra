@@ -59,6 +59,10 @@ class TestDcimSiteLifecycle:
                 country="fr",
                 city="Paris",
                 region="IDF",
+                street_address="111 Quai du Président Roosevelt",
+                postal_code="92130",
+                contact_email="par1@example.invalid",
+                phone="+33123456789",
             )
         )
         updated = app.dcim_topology_service.update_site(
@@ -128,6 +132,11 @@ class TestDcimSiteLifecycle:
                 name="Toulouse 2",
                 country="FR",
                 city="Toulouse",
+                region="",
+                street_address="1 Rue de Toulouse",
+                postal_code="31000",
+                contact_email="tls2@example.invalid",
+                phone="+33500000002",
             )
         )
         building = service.create_building(
@@ -252,6 +261,14 @@ class TestDcimSiteLifecycle:
                 "FR",
                 "--city",
                 "Lyon",
+                "--street-address",
+                "1 Rue Lyon",
+                "--postal-code",
+                "75000",
+                "--contact-email",
+                "site-lyon@example.invalid",
+                "--phone",
+                "+33123456789",
             ]
         )
         created = json.loads(capsys.readouterr().out)
@@ -329,6 +346,14 @@ class TestDcimSiteLifecycle:
                 "FR",
                 "--city",
                 "Paris",
+                "--street-address",
+                "1 Rue Paris",
+                "--postal-code",
+                "75000",
+                "--contact-email",
+                "site-paris@example.invalid",
+                "--phone",
+                "+33123456789",
             ],
             [
                 "dcim",
@@ -449,6 +474,10 @@ class TestDcimSiteLifecycle:
                     "name": "Toulouse 1",
                     "country": "FR",
                     "city": "Toulouse",
+                    "street_address": "1 Rue Toulouse",
+                    "postal_code": "31000",
+                    "contact_email": "site-toulouse@example.invalid",
+                    "phone": "+33512345678",
                 },
             )
             fetched = self._get_json(base_url + "/api/v1/dcim/site?tenant_id=default&code=TLS1")
@@ -497,6 +526,10 @@ class TestDcimSiteLifecycle:
                     "name": "HTTP Site",
                     "country": "FR",
                     "city": "Paris",
+                    "street_address": "1 Rue Paris",
+                    "postal_code": "75000",
+                    "contact_email": "site-paris@example.invalid",
+                    "phone": "+33123456789",
                 },
             )
             building = self._post_json(
@@ -591,6 +624,14 @@ class TestDcimSiteLifecycle:
                 "FR",
                 "--city",
                 "Paris",
+                "--street-address",
+                "1 Rue Paris",
+                "--postal-code",
+                "75000",
+                "--contact-email",
+                "site-paris@example.invalid",
+                "--phone",
+                "+33123456789",
             ],
             [
                 "dcim",
@@ -785,6 +826,10 @@ class TestDcimSiteLifecycle:
                     "name": "HTTP Site 2",
                     "country": "FR",
                     "city": "Paris",
+                    "street_address": "1 Rue Paris",
+                    "postal_code": "75000",
+                    "contact_email": "site-paris@example.invalid",
+                    "phone": "+33123456789",
                 },
             )
             self._post_json(
@@ -962,6 +1007,10 @@ class TestDcimSiteLifecycle:
                     "name": "Auth Site",
                     "country": "FR",
                     "city": "Paris",
+                    "street_address": "1 Rue Paris",
+                    "postal_code": "75000",
+                    "contact_email": "site-paris@example.invalid",
+                    "phone": "+33123456789",
                 },
                 token=token,
             )
@@ -1082,7 +1131,19 @@ class TestDcimSiteLifecycle:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json", seed=False)
         service = app.dcim_topology_service
         service.create_site(
-            CreateDcimSiteCommand("default", "pytest", "NTE1", "Nantes 1", "FR", "Nantes")
+            CreateDcimSiteCommand(
+                "default",
+                "pytest",
+                "NTE1",
+                "Nantes 1",
+                "FR",
+                "Nantes",
+                "",
+                "1 Rue de Nantes",
+                "44000",
+                "nte1@example.invalid",
+                "+33200000001",
+            )
         )
         service.create_building(
             CreateDcimBuildingCommand("default", "pytest", "NTE1", "BAT-PLAIN", "Plain")
@@ -1143,7 +1204,19 @@ class TestDcimSiteLifecycle:
         topology = app.dcim_topology_service
         racks = app.dcim_rack_service
         topology.create_site(
-            CreateDcimSiteCommand("default", "pytest", "LIL1", "Lille 1", "FR", "Lille")
+            CreateDcimSiteCommand(
+                "default",
+                "pytest",
+                "LIL1",
+                "Lille 1",
+                "FR",
+                "Lille",
+                "",
+                "1 Rue de Lille",
+                "59000",
+                "lil1@example.invalid",
+                "+33300000001",
+            )
         )
         topology.create_building(
             CreateDcimBuildingCommand("default", "pytest", "LIL1", "BAT-A", "Building A")
@@ -1228,6 +1301,14 @@ class TestDcimSiteLifecycle:
                 "FR",
                 "--city",
                 "Paris",
+                "--street-address",
+                "1 Rue Paris",
+                "--postal-code",
+                "75000",
+                "--contact-email",
+                "site-paris@example.invalid",
+                "--phone",
+                "+33123456789",
             ],
             [
                 "dcim",
@@ -1384,6 +1465,10 @@ class TestDcimSiteLifecycle:
                     "name": "HTTP Rack",
                     "country": "FR",
                     "city": "Paris",
+                    "street_address": "1 Rue Paris",
+                    "postal_code": "75000",
+                    "contact_email": "site-paris@example.invalid",
+                    "phone": "+33123456789",
                 },
             )
             self._post_json(

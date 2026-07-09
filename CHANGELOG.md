@@ -1,9 +1,9 @@
-## v0.29.79 — Profils protocoles Discovery SNMP/SSH/WinRM sécurisés
+## v0.29.80 — Adresse complète sites DCIM, organisations et partenaires ITAM
 
-- Ajout du domaine `DiscoveryProtocolCredentialProfile`.
-- Ajout CRUD service, CLI et API pour profils SNMP/SSH/WinRM.
-- Masquage public des références sensibles en `vault://***` et conservation de `secret_materialized=false`.
-- Refus de WinRM non chiffré sur le port 5985.
-- Liaison des plans discovery locaux à un profil actif avec héritage des limites de débit et de concurrence.
-- Ajout de la migration PostgreSQL additive `0034_discovery_protocol_profiles.sql`.
-- Ajout des tests domaine, service, CLI, API, migration et web.
+- Correction effective de l’exposition DCIM site : les formulaires, CLI et API exigent rue, code postal, email et téléphone à la création.
+- Conservation du pays comme valeur ISO alpha-2 avec affichage du nom seul dans les sélecteurs web et libellé `Pays`.
+- Complément de l’adresse des organisations ITAM avec code postal et téléphone obligatoires.
+- Clarification : les codes/noms d’étage générés sont calculés par OpenInfra à partir des attributs réels du modèle, sans imposer de noms de variables internes.
+- Complément de l’adresse des partenaires ITAM avec code postal obligatoire.
+- Ajout de la migration PostgreSQL additive `0036_site_organization_addresses.sql`.
+- Ajout des tests service, CLI/API/Web, migration et documentation.

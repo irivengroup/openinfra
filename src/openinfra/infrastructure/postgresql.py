@@ -1011,10 +1011,14 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
         self._ensure_tenant(site.tenant_id)
         self._execute_without_result(
             """
-            INSERT INTO sites (id, tenant_id, code, name, country, city, region, status)
+            INSERT INTO sites (
+                id, tenant_id, code, name, country, city, region,
+                street_address, postal_code, contact_email, phone, status
+            )
             VALUES (
                 %(id)s, %(tenant_id)s, %(code)s, %(name)s, %(country)s,
-                %(city)s, %(region)s, %(status)s
+                %(city)s, %(region)s, %(street_address)s, %(postal_code)s,
+                %(contact_email)s, %(phone)s, %(status)s
             )
             ON CONFLICT (tenant_id, code) DO NOTHING
             """,
@@ -1026,6 +1030,10 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
                 "country": site.country,
                 "city": site.city,
                 "region": site.region,
+                "street_address": site.street_address,
+                "postal_code": site.postal_code,
+                "contact_email": site.contact_email,
+                "phone": site.phone,
                 "status": site.status.value,
             },
         )
@@ -1034,10 +1042,14 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
         self._ensure_tenant(site.tenant_id)
         self._execute_without_result(
             """
-            INSERT INTO sites (id, tenant_id, code, name, country, city, region, status)
+            INSERT INTO sites (
+                id, tenant_id, code, name, country, city, region,
+                street_address, postal_code, contact_email, phone, status
+            )
             VALUES (
                 %(id)s, %(tenant_id)s, %(code)s, %(name)s, %(country)s,
-                %(city)s, %(region)s, %(status)s
+                %(city)s, %(region)s, %(street_address)s, %(postal_code)s,
+                %(contact_email)s, %(phone)s, %(status)s
             )
             ON CONFLICT (tenant_id, code) DO UPDATE SET
                 organization_id = EXCLUDED.organization_id,
@@ -1045,6 +1057,10 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
                 country = EXCLUDED.country,
                 city = EXCLUDED.city,
                 region = EXCLUDED.region,
+                street_address = EXCLUDED.street_address,
+                postal_code = EXCLUDED.postal_code,
+                contact_email = EXCLUDED.contact_email,
+                phone = EXCLUDED.phone,
                 status = EXCLUDED.status
             """,
             {
@@ -1055,6 +1071,10 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
                 "country": site.country,
                 "city": site.city,
                 "region": site.region,
+                "street_address": site.street_address,
+                "postal_code": site.postal_code,
+                "contact_email": site.contact_email,
+                "phone": site.phone,
                 "status": site.status.value,
             },
         )
@@ -1743,7 +1763,8 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
     def find_site(self, tenant_id: TenantId, site: str) -> Site | None:
         row = self._fetch_one(
             """
-            SELECT id, tenant_id, code, name, country, city, region, status
+            SELECT id, tenant_id, code, name, country, city, region,
+                   street_address, postal_code, contact_email, phone, status
             FROM sites
             WHERE tenant_id = %(tenant_id)s AND code = %(code)s
             """,
@@ -5330,13 +5351,14 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
             """
             INSERT INTO itam_organizations (
                 organization_id, legal_name, display_name, status,
-                registration_number, tax_identifier, country_code, city, address,
-                contact_email, support_contact, description,
+                registration_number, tax_identifier, country_code, city, postal_code, address,
+                contact_email, phone, support_contact, description,
                 created_by, created_at, updated_by, updated_at
             ) VALUES (
                 %(organization_id)s, %(legal_name)s, %(display_name)s, %(status)s,
                 %(registration_number)s, %(tax_identifier)s, %(country_code)s, %(city)s,
-                %(address)s, %(contact_email)s, %(support_contact)s, %(description)s,
+                %(postal_code)s, %(address)s, %(contact_email)s, %(phone)s,
+                %(support_contact)s, %(description)s,
                 %(created_by)s, %(created_at)s, %(updated_by)s, %(updated_at)s
             )
             ON CONFLICT (organization_id) DO UPDATE SET
@@ -5347,8 +5369,10 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
                 tax_identifier = EXCLUDED.tax_identifier,
                 country_code = EXCLUDED.country_code,
                 city = EXCLUDED.city,
+                postal_code = EXCLUDED.postal_code,
                 address = EXCLUDED.address,
                 contact_email = EXCLUDED.contact_email,
+                phone = EXCLUDED.phone,
                 support_contact = EXCLUDED.support_contact,
                 description = EXCLUDED.description,
                 updated_by = EXCLUDED.updated_by,
@@ -5363,8 +5387,10 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
                 "tax_identifier": organization.tax_identifier,
                 "country_code": organization.country_code,
                 "city": organization.city,
+                "postal_code": organization.postal_code,
                 "address": organization.address,
                 "contact_email": organization.contact_email,
+                "phone": organization.phone,
                 "support_contact": organization.support_contact,
                 "description": organization.description,
                 "created_by": organization.created_by,
@@ -5378,8 +5404,8 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
         row = self._fetch_one(
             """
             SELECT organization_id, legal_name, display_name, status,
-                   registration_number, tax_identifier, country_code, city, address,
-                   contact_email, support_contact, description,
+                   registration_number, tax_identifier, country_code, city,
+                   postal_code, address, contact_email, phone, support_contact, description,
                    created_by, created_at, updated_by, updated_at
             FROM itam_organizations
             WHERE organization_id = %(organization_id)s
@@ -5393,8 +5419,8 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
             rows = self._fetch_all(
                 """
                 SELECT organization_id, legal_name, display_name, status,
-                       registration_number, tax_identifier, country_code, city, address,
-                       contact_email, support_contact, description,
+                       registration_number, tax_identifier, country_code, city,
+                       postal_code, address, contact_email, phone, support_contact, description,
                        created_by, created_at, updated_by, updated_at
                 FROM itam_organizations
                 ORDER BY display_name ASC, organization_id ASC
@@ -5405,8 +5431,8 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
             rows = self._fetch_all(
                 """
                 SELECT organization_id, legal_name, display_name, status,
-                       registration_number, tax_identifier, country_code, city, address,
-                       contact_email, support_contact, description,
+                       registration_number, tax_identifier, country_code, city,
+                       postal_code, address, contact_email, phone, support_contact, description,
                        created_by, created_at, updated_by, updated_at
                 FROM itam_organizations
                 WHERE status <> 'retired'
@@ -5425,8 +5451,10 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
             tax_identifier="N/A",
             country_code="FR",
             city="Non renseigné",
+            postal_code="00000",
             address="Non renseigné",
             contact_email="contact@example.invalid",
+            phone="+33000000000",
             support_contact="support@example.invalid",
             description="Compatibility organization for single-tenant installations.",
         )
@@ -5443,8 +5471,10 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
             tax_identifier=str(row["tax_identifier"]),
             country_code=str(row["country_code"]),
             city=str(row["city"]),
+            postal_code=str(row.get("postal_code") or "00000"),
             address=str(row["address"]),
             contact_email=str(row["contact_email"]),
+            phone=str(row.get("phone") or "+33000000000"),
             support_contact=str(row["support_contact"]),
             description=(None if row.get("description") is None else str(row.get("description"))),
             created_by=str(row["created_by"]),
@@ -5458,14 +5488,14 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
             """
             INSERT INTO itam_partners (
                 organization_id, partner_id, kind, legal_name, display_name, status,
-                registration_number, tax_identifier, country_code, city, address,
+                registration_number, tax_identifier, country_code, city, postal_code, address,
                 contact_email, phone, support_contact, website, description,
                 created_by, created_at, updated_by, updated_at
             ) VALUES (
                 %(organization_id)s, %(partner_id)s, %(kind)s, %(legal_name)s,
                 %(display_name)s, %(status)s, %(registration_number)s, %(tax_identifier)s,
-                %(country_code)s, %(city)s, %(address)s, %(contact_email)s, %(phone)s,
-                %(support_contact)s, %(website)s, %(description)s, %(created_by)s,
+                %(country_code)s, %(city)s, %(postal_code)s, %(address)s, %(contact_email)s,
+                %(phone)s, %(support_contact)s, %(website)s, %(description)s, %(created_by)s,
                 %(created_at)s, %(updated_by)s, %(updated_at)s
             )
             ON CONFLICT (organization_id, partner_id) DO UPDATE SET
@@ -5477,6 +5507,7 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
                 tax_identifier = EXCLUDED.tax_identifier,
                 country_code = EXCLUDED.country_code,
                 city = EXCLUDED.city,
+                postal_code = EXCLUDED.postal_code,
                 address = EXCLUDED.address,
                 contact_email = EXCLUDED.contact_email,
                 phone = EXCLUDED.phone,
@@ -5493,8 +5524,9 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
         row = self._fetch_one(
             """
             SELECT organization_id, partner_id, kind, legal_name, display_name, status,
-                   registration_number, tax_identifier, country_code, city, address,
-                   contact_email, phone, support_contact, website, description,
+                   registration_number, tax_identifier, country_code, city,
+                   postal_code, address, contact_email, phone, support_contact,
+                   website, description,
                    created_by, created_at, updated_by, updated_at
             FROM itam_partners
             WHERE organization_id = %(organization_id)s AND partner_id = %(partner_id)s
@@ -5513,8 +5545,9 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
             rows = self._fetch_all(
                 """
                 SELECT organization_id, partner_id, kind, legal_name, display_name, status,
-                       registration_number, tax_identifier, country_code, city, address,
-                       contact_email, phone, support_contact, website, description,
+                       registration_number, tax_identifier, country_code, city,
+                       postal_code, address, contact_email, phone, support_contact,
+                   website, description,
                        created_by, created_at, updated_by, updated_at
                 FROM itam_partners
                 ORDER BY organization_id ASC, kind ASC, display_name ASC, partner_id ASC
@@ -5525,8 +5558,9 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
             rows = self._fetch_all(
                 """
                 SELECT organization_id, partner_id, kind, legal_name, display_name, status,
-                       registration_number, tax_identifier, country_code, city, address,
-                       contact_email, phone, support_contact, website, description,
+                       registration_number, tax_identifier, country_code, city,
+                       postal_code, address, contact_email, phone, support_contact,
+                   website, description,
                        created_by, created_at, updated_by, updated_at
                 FROM itam_partners
                 WHERE status <> 'retired'
@@ -5538,8 +5572,9 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
             rows = self._fetch_all(
                 """
                 SELECT organization_id, partner_id, kind, legal_name, display_name, status,
-                       registration_number, tax_identifier, country_code, city, address,
-                       contact_email, phone, support_contact, website, description,
+                       registration_number, tax_identifier, country_code, city,
+                       postal_code, address, contact_email, phone, support_contact,
+                   website, description,
                        created_by, created_at, updated_by, updated_at
                 FROM itam_partners
                 WHERE organization_id = %(organization_id)s
@@ -5551,8 +5586,9 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
             rows = self._fetch_all(
                 """
                 SELECT organization_id, partner_id, kind, legal_name, display_name, status,
-                       registration_number, tax_identifier, country_code, city, address,
-                       contact_email, phone, support_contact, website, description,
+                       registration_number, tax_identifier, country_code, city,
+                       postal_code, address, contact_email, phone, support_contact,
+                   website, description,
                        created_by, created_at, updated_by, updated_at
                 FROM itam_partners
                 WHERE organization_id = %(organization_id)s AND status <> 'retired'
@@ -5574,6 +5610,7 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
             "tax_identifier": partner.tax_identifier,
             "country_code": partner.country_code,
             "city": partner.city,
+            "postal_code": partner.postal_code,
             "address": partner.address,
             "contact_email": partner.contact_email,
             "phone": partner.phone,
@@ -5598,6 +5635,7 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
             tax_identifier=str(row["tax_identifier"]),
             country_code=str(row["country_code"]),
             city=str(row["city"]),
+            postal_code=str(row.get("postal_code") or "00000"),
             address=str(row["address"]),
             contact_email=str(row["contact_email"]),
             phone=str(row["phone"]),

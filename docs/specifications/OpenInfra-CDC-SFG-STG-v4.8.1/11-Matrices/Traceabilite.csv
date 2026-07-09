@@ -801,3 +801,4 @@ REQ-00817,N1,DCIM/ITAM/WEB/API/CLI/POSTGRESQL,UC-0001,TST-WEB-116,"Tests service
 REQ-00818,N1,QUALITE/SECURITE/POSTGRESQL,UC-0001,TST-WEB-117,Tests Ruff/Bandit et régression source pour empêcher la réintroduction de fragments SQL interpolés dans les requêtes racks.
 REQ-00819,N1,DISCOVERY/PROTOCOLES,UC-0001,TST-WEB-118,"Tests unitaires domaine, intégration service, CLI, API, migration PostgreSQL, Ruff et Bandit pour profils protocoles discovery sécurisés."
 REQ-00820,N1,DCIM/WEB/API/CLI/POSTGRESQL,UC-0001,TST-WEB-119,"Tests DCIM site lifecycle, CLI, API, web statique, migration PostgreSQL, Ruff et Bandit pour bâtiments typés et étages générés."
+REQ-00821,N1,DCIM/ITAM/WEB/API/CLI/POSTGRESQL,UC-0001,TST-WEB-120,"Tests DCIM/ITAM service, CLI, API, web, migration PostgreSQL, Ruff et Bandit pour adresse complète sites, organisations et partenaires, incluant code postal obligatoire."

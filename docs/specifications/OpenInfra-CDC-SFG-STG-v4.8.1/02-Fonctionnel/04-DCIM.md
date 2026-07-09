@@ -174,4 +174,12 @@ Les étages ne sont plus administrés comme un CRUD métier manuel dans les parc
 
 Lors de la création d'un bâtiment, le champ `Type Batiment` accepte `Simple` ou `Etages`. Si `Etages` est choisi, `Niveau Initial` est obligatoire et borné de -20 à 0, `Niveau Final` est obligatoire et borné de 1 à 150. Les formulaires consomment ensuite l'expansion déterministe de cette plage.
 
-Le code d'étage est généré selon `<code-site>_<code-bat>_ETG<num-etage>` et le nom selon `<code-site>/<code-bat>/ETG<num-etage>`. Aucun opérateur ne saisit manuellement le code ou le nom de l'étage dans les formulaires d'administration.
+Le code et le nom d'étage sont générés automatiquement par OpenInfra à partir des attributs réels du site, du bâtiment et du niveau. Le format fonctionnel attendu est équivalent à `<code-site>_<code-bat>_ETG<num-etage>` pour le code et `<code-site>/<code-bat>/ETG<num-etage>` pour le nom, sans imposer de noms de variables internes. Aucun opérateur ne saisit manuellement le code ou le nom de l'étage dans les formulaires d'administration.
+
+## v0.29.80 — Adresse complète des sites DCIM
+
+Un site DCIM porte une identité géographique et de contact complète, au même titre qu'une organisation ITAM ou qu'un partenaire ITAM. Les formulaires de création et de modification exposent donc `Pays`, `Région`, `Ville`, `Rue`, `Code postal`, `Email` et `Téléphone`, avec validation métier des champs obligatoires à la création.
+
+Le champ `Pays` est un sélecteur groupé par continent : la valeur soumise reste le code ISO alpha-2, mais seul le nom du pays est affiché à l'opérateur.
+
+Les étages restent générés par le bâtiment. Les formats de code et de nom sont des conventions fonctionnelles calculées à partir des champs réellement présents dans le modèle DCIM, sans imposer un nom de variable interne particulier.

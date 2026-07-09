@@ -646,7 +646,20 @@ class TestPostgreSQLRuntime:
         }
 
         with transaction_manager.begin() as unit_of_work:
-            dcim_repository.add_site(Site.create(tenant, "PAR1", "Paris", "FR", "Paris"))
+            dcim_repository.add_site(
+                Site.create(
+                    tenant,
+                    "PAR1",
+                    "Paris",
+                    "FR",
+                    "Paris",
+                    "",
+                    "1 Rue de Paris",
+                    "75000",
+                    "par1@example.invalid",
+                    "+33100000003",
+                )
+            )
             dcim_repository.add_building(Building.create(tenant, "PAR1", "BAT-A", "Building A"))
             dcim_repository.add_room(
                 Room.create(tenant, "PAR1", "BAT-A", "MMR2", "Room 2", ("A",), ("01",))

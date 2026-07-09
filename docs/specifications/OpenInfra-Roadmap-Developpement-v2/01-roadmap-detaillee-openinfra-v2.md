@@ -1688,3 +1688,11 @@ La roadmap intègre `TST-P14-DISCOVERY-PROTOCOL-PROFILES` pour couvrir EPIC-1403
 - Génération interne des codes et noms d'étages.
 - Retrait des opérations d'administration manuelle des étages dans l'UI.
 - Correction des selects Pays : valeur alpha2, libellé nom seul.
+
+### Validation v0.29.80 — Adresse complète sites, organisations et partenaires
+
+- Sites DCIM : rue, code postal, email et téléphone exposés en UI/CLI/API.
+- Organisations ITAM : code postal et téléphone ajoutés au modèle et aux interfaces.
+- Partenaires ITAM : code postal ajouté au modèle et aux interfaces.
+- Pays : affichage nom seul, valeur alpha2.
+- Migration : `0036_site_organization_addresses.sql`.

@@ -87,8 +87,10 @@ class ItamOrganization:
     tax_identifier: str
     country_code: str
     city: str
+    postal_code: str
     address: str
     contact_email: str
+    phone: str
     support_contact: str
     description: str | None
     created_by: str
@@ -108,8 +110,10 @@ class ItamOrganization:
         tax_identifier: str = "N/A",
         country_code: str = "FR",
         city: str = "Non renseigné",
+        postal_code: str = "00000",
         address: str = "Non renseigné",
         contact_email: str = "contact@example.invalid",
+        phone: str = "+33000000000",
         support_contact: str = "support@example.invalid",
         description: str | None = None,
     ) -> Self:
@@ -128,8 +132,10 @@ class ItamOrganization:
             tax_identifier=tax_identifier,
             country_code=country_code,
             city=city,
+            postal_code=postal_code,
             address=address,
             contact_email=contact_email,
+            phone=phone,
             support_contact=support_contact,
             description=description,
             created_by=actor,
@@ -149,8 +155,10 @@ class ItamOrganization:
         tax_identifier: str,
         country_code: str,
         city: str,
+        postal_code: str,
         address: str,
         contact_email: str,
+        phone: str,
         support_contact: str,
         description: str | None,
         created_by: str,
@@ -187,12 +195,16 @@ class ItamOrganization:
             ),
             country_code=normalized_country,
             city=ItamValidation.normalized_required_text(city, "ITAM organization city", 128),
+            postal_code=ItamValidation.normalized_required_text(
+                postal_code, "ITAM organization postal code", 32
+            ),
             address=ItamValidation.normalized_required_text(
                 address, "ITAM organization address", 512
             ),
             contact_email=ItamValidation.normalized_email(
                 contact_email, "ITAM organization contact email"
             ),
+            phone=ItamValidation.normalized_required_text(phone, "ITAM organization phone", 64),
             support_contact=ItamValidation.normalized_required_text(
                 support_contact, "ITAM organization support contact", 255
             ),
@@ -220,8 +232,10 @@ class ItamOrganization:
         tax_identifier: str | None = None,
         country_code: str | None = None,
         city: str | None = None,
+        postal_code: str | None = None,
         address: str | None = None,
         contact_email: str | None = None,
+        phone: str | None = None,
         support_contact: str | None = None,
         description: str | None = None,
     ) -> Self:
@@ -236,8 +250,10 @@ class ItamOrganization:
             tax_identifier=self.tax_identifier if tax_identifier is None else tax_identifier,
             country_code=self.country_code if country_code is None else country_code,
             city=self.city if city is None else city,
+            postal_code=self.postal_code if postal_code is None else postal_code,
             address=self.address if address is None else address,
             contact_email=self.contact_email if contact_email is None else contact_email,
+            phone=self.phone if phone is None else phone,
             support_contact=self.support_contact if support_contact is None else support_contact,
             description=self.description if description is None else description,
             created_by=self.created_by,
@@ -262,8 +278,10 @@ class ItamOrganization:
             "tax_identifier": self.tax_identifier,
             "country_code": self.country_code,
             "city": self.city,
+            "postal_code": self.postal_code,
             "address": self.address,
             "contact_email": self.contact_email,
+            "phone": self.phone,
             "support_contact": self.support_contact,
             "description": self.description,
             "selectable": self.selectable(),
@@ -311,6 +329,7 @@ class ItamPartner:
     tax_identifier: str
     country_code: str
     city: str
+    postal_code: str
     address: str
     contact_email: str
     phone: str
@@ -336,6 +355,7 @@ class ItamPartner:
         tax_identifier: str = "N/A",
         country_code: str = "FR",
         city: str = "Non renseigné",
+        postal_code: str = "00000",
         address: str = "Non renseigné",
         contact_email: str = "contact@example.invalid",
         phone: str = "+33000000000",
@@ -355,6 +375,7 @@ class ItamPartner:
             tax_identifier=tax_identifier,
             country_code=country_code,
             city=city,
+            postal_code=postal_code,
             address=address,
             contact_email=contact_email,
             phone=phone,
@@ -380,6 +401,7 @@ class ItamPartner:
         tax_identifier: str,
         country_code: str,
         city: str,
+        postal_code: str,
         address: str,
         contact_email: str,
         phone: str,
@@ -439,6 +461,9 @@ class ItamPartner:
             ),
             country_code=normalized_country,
             city=ItamValidation.normalized_required_text(city, "ITAM partner city", 128),
+            postal_code=ItamValidation.normalized_required_text(
+                postal_code, "ITAM partner postal code", 32
+            ),
             address=ItamValidation.normalized_required_text(address, "ITAM partner address", 512),
             contact_email=ItamValidation.normalized_email(
                 contact_email, "ITAM partner contact email"
@@ -469,6 +494,7 @@ class ItamPartner:
         tax_identifier: str | None = None,
         country_code: str | None = None,
         city: str | None = None,
+        postal_code: str | None = None,
         address: str | None = None,
         contact_email: str | None = None,
         phone: str | None = None,
@@ -489,6 +515,7 @@ class ItamPartner:
             tax_identifier=self.tax_identifier if tax_identifier is None else tax_identifier,
             country_code=self.country_code if country_code is None else country_code,
             city=self.city if city is None else city,
+            postal_code=self.postal_code if postal_code is None else postal_code,
             address=self.address if address is None else address,
             contact_email=self.contact_email if contact_email is None else contact_email,
             phone=self.phone if phone is None else phone,
@@ -522,6 +549,7 @@ class ItamPartner:
             "tax_identifier": self.tax_identifier,
             "country_code": self.country_code,
             "city": self.city,
+            "postal_code": self.postal_code,
             "address": self.address,
             "contact_email": self.contact_email,
             "phone": self.phone,

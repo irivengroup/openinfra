@@ -124,6 +124,10 @@ class Site:
     country: str
     city: str
     region: str = ""
+    street_address: str = ""
+    postal_code: str = ""
+    contact_email: str = ""
+    phone: str = ""
     status: DcimLifecycleStatus = DcimLifecycleStatus.ACTIVE
 
     @classmethod
@@ -134,11 +138,19 @@ class Site:
         name: str,
         country: str,
         city: str,
-        region: str = "",
+        region: str,
+        street_address: str,
+        postal_code: str,
+        contact_email: str,
+        phone: str,
     ) -> Self:
         normalized_country = country.strip().upper()
         normalized_city = " ".join(city.strip().split())
         normalized_region = " ".join(region.strip().split())
+        normalized_street_address = " ".join(street_address.strip().split())
+        normalized_postal_code = " ".join(postal_code.strip().split()).upper()
+        normalized_contact_email = contact_email.strip().lower()
+        normalized_phone = " ".join(phone.strip().split())
         lifecycle_status = DcimLifecycleStatus.from_value(None, "site status")
         if len(normalized_country) != 2 or not normalized_country.isalpha():
             raise ValidationError("country must be an ISO-3166 alpha-2 code")
@@ -146,6 +158,18 @@ class Site:
             raise ValidationError("site city is mandatory")
         if len(normalized_region) > 128:
             raise ValidationError("site region cannot exceed 128 characters")
+        if not normalized_street_address:
+            raise ValidationError("site street address is mandatory")
+        if len(normalized_street_address) > 512:
+            raise ValidationError("site street address cannot exceed 512 characters")
+        if not normalized_postal_code:
+            raise ValidationError("site postal code is mandatory")
+        if len(normalized_postal_code) > 32:
+            raise ValidationError("site postal code cannot exceed 32 characters")
+        if "@" not in normalized_contact_email or len(normalized_contact_email) > 255:
+            raise ValidationError("site contact email must be a valid email address")
+        if not normalized_phone or len(normalized_phone) > 64:
+            raise ValidationError("site phone is mandatory and cannot exceed 64 characters")
         return cls(
             id=EntityId.new(),
             tenant_id=tenant_id,
@@ -154,6 +178,10 @@ class Site:
             country=normalized_country,
             city=normalized_city,
             region=normalized_region,
+            street_address=normalized_street_address,
+            postal_code=normalized_postal_code,
+            contact_email=normalized_contact_email,
+            phone=normalized_phone,
             status=lifecycle_status,
         )
 
@@ -164,17 +192,47 @@ class Site:
         country: str | None = None,
         city: str | None = None,
         region: str | None = None,
+        street_address: str | None = None,
+        postal_code: str | None = None,
+        contact_email: str | None = None,
+        phone: str | None = None,
         status: str | None = None,
     ) -> Site:
         normalized_country = self.country if country is None else country.strip().upper()
         normalized_city = self.city if city is None else " ".join(city.strip().split())
         normalized_region = self.region if region is None else " ".join(region.strip().split())
+        normalized_street_address = (
+            self.street_address
+            if street_address is None
+            else " ".join(street_address.strip().split())
+        )
+        normalized_postal_code = (
+            self.postal_code
+            if postal_code is None
+            else " ".join(postal_code.strip().split()).upper()
+        )
+        normalized_contact_email = (
+            self.contact_email if contact_email is None else contact_email.strip().lower()
+        )
+        normalized_phone = self.phone if phone is None else " ".join(phone.strip().split())
         if len(normalized_country) != 2 or not normalized_country.isalpha():
             raise ValidationError("country must be an ISO-3166 alpha-2 code")
         if not normalized_city:
             raise ValidationError("site city is mandatory")
         if len(normalized_region) > 128:
             raise ValidationError("site region cannot exceed 128 characters")
+        if not normalized_street_address:
+            raise ValidationError("site street address is mandatory")
+        if len(normalized_street_address) > 512:
+            raise ValidationError("site street address cannot exceed 512 characters")
+        if not normalized_postal_code:
+            raise ValidationError("site postal code is mandatory")
+        if len(normalized_postal_code) > 32:
+            raise ValidationError("site postal code cannot exceed 32 characters")
+        if "@" not in normalized_contact_email or len(normalized_contact_email) > 255:
+            raise ValidationError("site contact email must be a valid email address")
+        if not normalized_phone or len(normalized_phone) > 64:
+            raise ValidationError("site phone is mandatory and cannot exceed 64 characters")
         return Site(
             id=self.id,
             tenant_id=self.tenant_id,
@@ -183,6 +241,10 @@ class Site:
             country=normalized_country,
             city=normalized_city,
             region=normalized_region,
+            street_address=normalized_street_address,
+            postal_code=normalized_postal_code,
+            contact_email=normalized_contact_email,
+            phone=normalized_phone,
             status=DcimLifecycleStatus.from_value(status, "site status") if status else self.status,
         )
 
@@ -201,6 +263,10 @@ class Site:
             "country": self.country,
             "city": self.city,
             "region": self.region,
+            "street_address": self.street_address,
+            "postal_code": self.postal_code,
+            "contact_email": self.contact_email,
+            "phone": self.phone,
             "status": self.status.value,
             "selectable": self.selectable(),
         }

@@ -614,8 +614,10 @@ class OpenInfraCLI:
         organization_create.add_argument("--tax-identifier", required=True)
         organization_create.add_argument("--country-code", required=True)
         organization_create.add_argument("--city", required=True)
+        organization_create.add_argument("--postal-code", required=True)
         organization_create.add_argument("--address", required=True)
         organization_create.add_argument("--contact-email", required=True)
+        organization_create.add_argument("--phone", default="+33000000000")
         organization_create.add_argument("--support-contact", required=True)
         organization_create.add_argument("--description")
         organization_create.set_defaults(handler=self._handle_itam_organization_create)
@@ -644,8 +646,10 @@ class OpenInfraCLI:
         organization_update.add_argument("--tax-identifier")
         organization_update.add_argument("--country-code")
         organization_update.add_argument("--city")
+        organization_update.add_argument("--postal-code")
         organization_update.add_argument("--address")
         organization_update.add_argument("--contact-email")
+        organization_update.add_argument("--phone")
         organization_update.add_argument("--support-contact")
         organization_update.add_argument("--description")
         organization_update.set_defaults(handler=self._handle_itam_organization_update)
@@ -694,6 +698,7 @@ class OpenInfraCLI:
         partner_create.add_argument("--tax-identifier", required=True)
         partner_create.add_argument("--country-code", required=True)
         partner_create.add_argument("--city", required=True)
+        partner_create.add_argument("--postal-code", required=True)
         partner_create.add_argument("--address", required=True)
         partner_create.add_argument("--contact-email", required=True)
         partner_create.add_argument("--phone", required=True)
@@ -729,6 +734,7 @@ class OpenInfraCLI:
         partner_update.add_argument("--tax-identifier")
         partner_update.add_argument("--country-code")
         partner_update.add_argument("--city")
+        partner_update.add_argument("--postal-code")
         partner_update.add_argument("--address")
         partner_update.add_argument("--contact-email")
         partner_update.add_argument("--phone")
@@ -2087,6 +2093,10 @@ class OpenInfraCLI:
         create_site.add_argument("--country", required=True)
         create_site.add_argument("--city", required=True)
         create_site.add_argument("--region", default="")
+        create_site.add_argument("--street-address", required=True)
+        create_site.add_argument("--postal-code", required=True)
+        create_site.add_argument("--contact-email", required=True)
+        create_site.add_argument("--phone", required=True)
         create_site.set_defaults(handler=self._handle_dcim_site_create)
 
         update_site = dcim_subparsers.add_parser("site-update", help="update a DCIM site")
@@ -2098,6 +2108,10 @@ class OpenInfraCLI:
         update_site.add_argument("--country")
         update_site.add_argument("--city")
         update_site.add_argument("--region")
+        update_site.add_argument("--street-address")
+        update_site.add_argument("--postal-code")
+        update_site.add_argument("--contact-email")
+        update_site.add_argument("--phone")
         update_site.add_argument("--status", choices=("active", "suspended", "retired"))
         update_site.set_defaults(handler=self._handle_dcim_site_update)
 
@@ -3486,8 +3500,10 @@ class OpenInfraCLI:
                 tax_identifier=args.tax_identifier,
                 country_code=args.country_code,
                 city=args.city,
+                postal_code=args.postal_code,
                 address=args.address,
                 contact_email=args.contact_email,
+                phone=args.phone,
                 support_contact=args.support_contact,
                 description=args.description,
             )
@@ -3522,8 +3538,10 @@ class OpenInfraCLI:
                 tax_identifier=args.tax_identifier,
                 country_code=args.country_code,
                 city=args.city,
+                postal_code=args.postal_code,
                 address=args.address,
                 contact_email=args.contact_email,
+                phone=args.phone,
                 support_contact=args.support_contact,
                 description=args.description,
             )
@@ -3575,6 +3593,7 @@ class OpenInfraCLI:
                 tax_identifier=args.tax_identifier,
                 country_code=args.country_code,
                 city=args.city,
+                postal_code=args.postal_code,
                 address=args.address,
                 contact_email=args.contact_email,
                 phone=args.phone,
@@ -3616,6 +3635,7 @@ class OpenInfraCLI:
                 tax_identifier=args.tax_identifier,
                 country_code=args.country_code,
                 city=args.city,
+                postal_code=args.postal_code,
                 address=args.address,
                 contact_email=args.contact_email,
                 phone=args.phone,
@@ -4685,6 +4705,10 @@ class OpenInfraCLI:
                 country=args.country,
                 city=args.city,
                 region=args.region,
+                street_address=args.street_address,
+                postal_code=args.postal_code,
+                contact_email=args.contact_email,
+                phone=args.phone,
             )
         )
         print(json.dumps(result, sort_keys=True))
@@ -4701,6 +4725,10 @@ class OpenInfraCLI:
                 country=args.country,
                 city=args.city,
                 region=args.region,
+                street_address=args.street_address,
+                postal_code=args.postal_code,
+                contact_email=args.contact_email,
+                phone=args.phone,
                 status=args.status,
             )
         )

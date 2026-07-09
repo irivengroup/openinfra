@@ -1546,6 +1546,10 @@ class JsonDcimRepository(DcimRepository):
             "country": site.country,
             "city": site.city,
             "region": site.region,
+            "street_address": site.street_address,
+            "postal_code": site.postal_code,
+            "contact_email": site.contact_email,
+            "phone": site.phone,
             "status": site.status.value,
         }
 
@@ -1558,6 +1562,10 @@ class JsonDcimRepository(DcimRepository):
             country=value["country"],
             city=value["city"],
             region=value.get("region", ""),
+            street_address=value.get("street_address", "Adresse non renseignée"),
+            postal_code=value.get("postal_code", "00000"),
+            contact_email=value.get("contact_email", "site@example.invalid"),
+            phone=value.get("phone", "+33000000000"),
             status=DcimLifecycleStatus.from_value(value.get("status"), "site status"),
         )
 
@@ -3392,7 +3400,20 @@ class SeedDataFactory:
         room = self._dcim_repository.find_room(tenant_id, "PAR1", "BAT-A", "MMR1")
         if room is not None:
             return
-        self._dcim_repository.add_site(Site.create(tenant_id, "PAR1", "Paris 1", "FR", "Paris"))
+        self._dcim_repository.add_site(
+            Site.create(
+                tenant_id,
+                "PAR1",
+                "Paris 1",
+                "FR",
+                "Paris",
+                "",
+                "111 Quai du President Roosevelt",
+                "92130",
+                "site-par1@example.invalid",
+                "+33123456789",
+            )
+        )
         self._dcim_repository.add_building(
             Building.create(tenant_id, "PAR1", "BAT-A", "Building A")
         )
@@ -3474,8 +3495,10 @@ class JsonItamSupportRepository(ItamSupportRepository):
             tax_identifier="N/A",
             country_code="FR",
             city="Non renseigné",
+            postal_code="00000",
             address="Non renseigné",
             contact_email="contact@example.invalid",
+            phone="+33000000000",
             support_contact="support@example.invalid",
             description="Compatibility organization for single-tenant installations.",
         )
@@ -3492,8 +3515,10 @@ class JsonItamSupportRepository(ItamSupportRepository):
             tax_identifier=str(value.get("tax_identifier", "N/A")),
             country_code=str(value.get("country_code", "FR")),
             city=str(value.get("city", "Non renseigné")),
+            postal_code=str(value.get("postal_code", "00000")),
             address=str(value.get("address", "Non renseigné")),
             contact_email=str(value.get("contact_email", "contact@example.invalid")),
+            phone=str(value.get("phone", "+33000000000")),
             support_contact=str(value.get("support_contact", "support@example.invalid")),
             description=(
                 None if value.get("description") is None else str(value.get("description"))
@@ -3562,6 +3587,7 @@ class JsonItamSupportRepository(ItamSupportRepository):
             tax_identifier=str(value.get("tax_identifier", "N/A")),
             country_code=str(value.get("country_code", "FR")),
             city=str(value.get("city", "Non renseigné")),
+            postal_code=str(value.get("postal_code", "00000")),
             address=str(value.get("address", "Non renseigné")),
             contact_email=str(value.get("contact_email", "contact@example.invalid")),
             phone=str(value.get("phone", "+33000000000")),
@@ -3588,6 +3614,7 @@ class JsonItamSupportRepository(ItamSupportRepository):
                     tax_identifier="N/A",
                     country_code="FR",
                     city="Non renseigné",
+                    postal_code="00000",
                     address="Non renseigné",
                     contact_email="contact@example.invalid",
                     support_contact="support@example.invalid",

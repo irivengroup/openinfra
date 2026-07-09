@@ -18,7 +18,18 @@ from openinfra.domain.dcim import (
 class TestDcimDomain:
     def test_site_lifecycle_status_is_normalized_and_selectable(self) -> None:
         tenant = TenantId.from_value("default")
-        site = Site.create(tenant, "par1", "Paris 1", "fr", "Paris")
+        site = Site.create(
+            tenant,
+            "par1",
+            "Paris 1",
+            "fr",
+            "Paris",
+            "",
+            "1 Rue de Paris",
+            "75000",
+            "par1@example.invalid",
+            "+33100000004",
+        )
 
         assert site.code.value == "PAR1"
         assert site.status.value == "active"
@@ -80,7 +91,18 @@ class TestDcimDomain:
         from openinfra.domain.dcim import Floor, RoomZone, Site
 
         tenant = TenantId.from_value("default")
-        site = Site.create(tenant, "lon1", "London 1", "gb", "London", "England")
+        site = Site.create(
+            tenant,
+            "lon1",
+            "London 1",
+            "gb",
+            "London",
+            "England",
+            "1 King Street",
+            "SW1A",
+            "lon1@example.invalid",
+            "+442000000001",
+        )
         floor = Floor.create(tenant, "LON1", "BAT-A", "F10", "Tenth floor", 10)
         room = Room.create(
             tenant,
@@ -335,9 +357,42 @@ def test_dcim_domain_validation_edges_for_release_gate() -> None:
     tenant = TenantId.from_value("default")
     for callable_ in (
         lambda: DcimGridValidator.normalized_unique_codes((), "room row"),
-        lambda: Site.create(tenant, "PAR1", "Paris", "FRA", "Paris"),
-        lambda: Site.create(tenant, "PAR1", "Paris", "FR", ""),
-        lambda: Site.create(tenant, "PAR1", "Paris", "FR", "Paris", "x" * 129),
+        lambda: Site.create(
+            tenant,
+            "PAR1",
+            "Paris",
+            "FRA",
+            "Paris",
+            "",
+            "1 Rue de Paris",
+            "75000",
+            "par1@example.invalid",
+            "+33100000005",
+        ),
+        lambda: Site.create(
+            tenant,
+            "PAR1",
+            "Paris",
+            "FR",
+            "",
+            "",
+            "1 Rue de Paris",
+            "75000",
+            "par1@example.invalid",
+            "+33100000006",
+        ),
+        lambda: Site.create(
+            tenant,
+            "PAR1",
+            "Paris",
+            "FR",
+            "Paris",
+            "x" * 129,
+            "1 Rue de Paris",
+            "75000",
+            "par1@example.invalid",
+            "+33100000007",
+        ),
         lambda: Floor.create(tenant, "PAR1", "BAT-A", "F999", "Too High", 301),
         lambda: RackFace.from_value("side"),
         lambda: Rack.create(tenant, "PAR1", "BAT-A", "MMR1", "R01", "A", "01", 0, None),

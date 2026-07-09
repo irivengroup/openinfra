@@ -29,6 +29,11 @@ class EnvFileManager:
     def __init__(self, config: RuntimeEnvironmentConfig) -> None:
         self._config = config
 
+    @staticmethod
+    def _runtime_image_tag() -> str:
+        version_file = Path(__file__).resolve().parents[1] / "VERSION"
+        return version_file.read_text(encoding="utf-8").strip()
+
     def ensure(self) -> Path:
         if self._config.env_file.exists():
             self._assert_private_permissions()
@@ -43,7 +48,7 @@ class EnvFileManager:
                 f"OPENINFRA_POSTGRES_PASSWORD={password}",
                 "OPENINFRA_API_BIND=127.0.0.1",
                 "OPENINFRA_API_PORT=8080",
-                "OPENINFRA_IMAGE_TAG=0.29.79",
+                f"OPENINFRA_IMAGE_TAG={self._runtime_image_tag()}",
                 f"OPENINFRA_BOOTSTRAP_TOKEN={bootstrap_token}",
                 "OPENINFRA_PGADMIN_EMAIL=admin@openinfra.tld",
                 f"OPENINFRA_PGADMIN_PASSWORD={pgadmin_password}",

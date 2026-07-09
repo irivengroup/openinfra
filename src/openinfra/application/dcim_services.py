@@ -50,7 +50,11 @@ class CreateDcimSiteCommand:
     name: str
     country: str
     city: str
-    region: str = ""
+    region: str
+    street_address: str
+    postal_code: str
+    contact_email: str
+    phone: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,6 +66,10 @@ class UpdateDcimSiteCommand:
     country: str | None = None
     city: str | None = None
     region: str | None = None
+    street_address: str | None = None
+    postal_code: str | None = None
+    contact_email: str | None = None
+    phone: str | None = None
     status: str | None = None
 
 
@@ -608,6 +616,10 @@ class DcimTopologyService:
             country=command.country,
             city=command.city,
             region=command.region,
+            street_address=command.street_address,
+            postal_code=command.postal_code,
+            contact_email=command.contact_email,
+            phone=command.phone,
         )
         with self._transaction_manager.begin() as unit_of_work:
             if self._dcim_repository.find_site(tenant_id, site.code.value) is not None:
@@ -636,6 +648,10 @@ class DcimTopologyService:
             country=command.country,
             city=command.city,
             region=command.region,
+            street_address=command.street_address,
+            postal_code=command.postal_code,
+            contact_email=command.contact_email,
+            phone=command.phone,
             status=command.status,
         )
         with self._transaction_manager.begin() as unit_of_work:
@@ -1229,6 +1245,10 @@ class DcimTopologyService:
             command.country,
             command.city,
             command.region,
+            "Adresse technique générée",
+            "00000",
+            "site-generated@example.invalid",
+            "+33000000000",
         )
         initial_level = min(0, command.floor_index)
         final_level = max(1, command.floor_index)

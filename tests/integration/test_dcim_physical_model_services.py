@@ -249,7 +249,20 @@ class TestDcimPhysicalModelServices:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json", seed=False)
         tenant = TenantId.from_value("default")
         with app.transaction_manager.begin() as unit_of_work:
-            app.dcim_repository.add_site(Site.create(tenant, "REN1", "Rennes 1", "FR", "Rennes"))
+            app.dcim_repository.add_site(
+                Site.create(
+                    tenant,
+                    "REN1",
+                    "Rennes 1",
+                    "FR",
+                    "Rennes",
+                    "",
+                    "1 Rue de Rennes",
+                    "35000",
+                    "ren1@example.invalid",
+                    "+33200000002",
+                )
+            )
             app.dcim_repository.add_building(Building.create(tenant, "REN1", "BAT-R", "Building R"))
             app.dcim_repository.add_floor(Floor.create(tenant, "REN1", "BAT-R", "F01", "First", 1))
             app.dcim_repository.add_room(
@@ -320,7 +333,18 @@ class TestDcimPhysicalModelServices:
         tenant = TenantId.from_value("default")
         with app.transaction_manager.begin() as unit_of_work:
             app.dcim_repository.add_site(
-                Site.create(tenant, "BOR1", "Bordeaux 1", "FR", "Bordeaux")
+                Site.create(
+                    tenant,
+                    "BOR1",
+                    "Bordeaux 1",
+                    "FR",
+                    "Bordeaux",
+                    "",
+                    "1 Rue de Bordeaux",
+                    "33000",
+                    "bor1@example.invalid",
+                    "+33500000001",
+                )
             )
             app.dcim_repository.add_building(Building.create(tenant, "BOR1", "BAT-B", "Building B"))
             app.dcim_repository.add_floor(Floor.create(tenant, "BOR1", "BAT-B", "F01", "First", 1))

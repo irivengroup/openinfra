@@ -136,3 +136,7 @@ La roadmap intègre `TST-P14-DISCOVERY-PROTOCOL-PROFILES` pour couvrir EPIC-1403
 - Génération interne des codes et noms d'étages.
 - Retrait des opérations d'administration manuelle des étages dans l'UI.
 - Correction des selects Pays : valeur alpha2, libellé nom seul.
+
+### Validation v0.29.80 — Adresse complète sites, organisations et partenaires
+
+PASS — Les coordonnées site/organisation/partenaire, le code postal obligatoire et le comportement pays sont validés par tests ciblés et migration 0036.

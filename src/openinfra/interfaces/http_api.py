@@ -2038,8 +2038,10 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         tax_identifier=str(payload["tax_identifier"]),
                         country_code=str(payload["country_code"]),
                         city=str(payload["city"]),
+                        postal_code=str(payload["postal_code"]),
                         address=str(payload["address"]),
                         contact_email=str(payload["contact_email"]),
+                        phone=str(payload.get("phone", "+33000000000")),
                         support_contact=str(payload["support_contact"]),
                         description=(
                             None
@@ -2098,6 +2100,11 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                             else str(payload.get("country_code"))
                         ),
                         city=(None if payload.get("city") is None else str(payload.get("city"))),
+                        postal_code=(
+                            None
+                            if payload.get("postal_code") is None
+                            else str(payload.get("postal_code"))
+                        ),
                         address=(
                             None if payload.get("address") is None else str(payload.get("address"))
                         ),
@@ -2106,6 +2113,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                             if payload.get("contact_email") is None
                             else str(payload.get("contact_email"))
                         ),
+                        phone=(None if payload.get("phone") is None else str(payload.get("phone"))),
                         support_contact=(
                             None
                             if payload.get("support_contact") is None
@@ -2175,6 +2183,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         tax_identifier=str(payload["tax_identifier"]),
                         country_code=str(payload["country_code"]),
                         city=str(payload["city"]),
+                        postal_code=str(payload["postal_code"]),
                         address=str(payload["address"]),
                         contact_email=str(payload["contact_email"]),
                         phone=str(payload["phone"]),
@@ -2241,6 +2250,11 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                             else str(payload.get("country_code"))
                         ),
                         city=(None if payload.get("city") is None else str(payload.get("city"))),
+                        postal_code=(
+                            None
+                            if payload.get("postal_code") is None
+                            else str(payload.get("postal_code"))
+                        ),
                         address=(
                             None if payload.get("address") is None else str(payload.get("address"))
                         ),
@@ -2556,6 +2570,10 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         country=str(payload["country"]),
                         city=str(payload["city"]),
                         region=str(payload.get("region", "")),
+                        street_address=str(payload["street_address"]),
+                        postal_code=str(payload["postal_code"]),
+                        contact_email=str(payload["contact_email"]),
+                        phone=str(payload["phone"]),
                     )
                 )
                 responder.send(HTTPStatus.CREATED, result)
@@ -2584,6 +2602,16 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         region=str(payload["region"])
                         if payload.get("region") is not None
                         else None,
+                        street_address=str(payload["street_address"])
+                        if payload.get("street_address") is not None
+                        else None,
+                        postal_code=str(payload["postal_code"])
+                        if payload.get("postal_code") is not None
+                        else None,
+                        contact_email=str(payload["contact_email"])
+                        if payload.get("contact_email") is not None
+                        else None,
+                        phone=str(payload["phone"]) if payload.get("phone") is not None else None,
                         status=str(payload["status"]) if payload.get("status") else None,
                     )
                 )

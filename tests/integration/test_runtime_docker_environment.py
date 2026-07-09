@@ -52,6 +52,7 @@ class TestRuntimeEnvironment:
         env_example = Path(".env.example").read_text(encoding="utf-8")
         smoke = Path("docker/openinfra-runtime-smoke.py").read_text(encoding="utf-8")
         runbook = Path("docs/runbooks/RUNTIME_DOCKER.md").read_text(encoding="utf-8")
+        current_version = Path("VERSION").read_text(encoding="utf-8").strip()
 
         assert "postgres:" in compose
         assert "migrate:" in compose
@@ -65,14 +66,14 @@ class TestRuntimeEnvironment:
         assert "USER openinfra" in dockerfile
         assert "HEALTHCHECK" not in dockerfile
         assert "OPENINFRA_POSTGRES_PASSWORD=" in env_example
-        assert "OPENINFRA_IMAGE_TAG=0.29.79" in env_example
+        assert f"OPENINFRA_IMAGE_TAG={current_version}" in env_example
         assert "OPENINFRA_PGADMIN_EMAIL=" in env_example
         assert "OPENINFRA_PGADMIN_PASSWORD=" in env_example
         assert "OPENINFRA_PGADMIN_PORT=5050" in env_example
         assert "OPENINFRA_WEB_PORT=2006" in env_example
         assert "OPENINFRA_WEB_BACKEND_URL=http://api:8080" in env_example
         assert "OPENINFRA_WEB_BACKEND_BEARER_TOKEN:-${OPENINFRA_BOOTSTRAP_TOKEN" in compose
-        assert "openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.29.79}" in compose
+        assert f"openinfra/runtime:${{OPENINFRA_IMAGE_TAG:-{current_version}}}" in compose
         assert "${OPENINFRA_PGADMIN_IMAGE:-dpage/pgadmin4:latest}" in compose
         assert "openinfra-pgadmin-data:/var/lib/pgadmin" in compose
         assert "${OPENINFRA_WEB_BIND:-127.0.0.1}:${OPENINFRA_WEB_PORT:-2006}:2006" in compose
@@ -110,10 +111,11 @@ class TestRuntimeEnvironment:
         env_path = module.EnvFileManager(config).ensure()
         mode = stat.S_IMODE(env_path.stat().st_mode)
         payload = env_path.read_text(encoding="utf-8")
+        current_version = Path("VERSION").read_text(encoding="utf-8").strip()
 
         assert mode == 0o600
         assert "OPENINFRA_POSTGRES_PASSWORD=" in payload
-        assert "OPENINFRA_IMAGE_TAG=0.29.79" in payload
+        assert f"OPENINFRA_IMAGE_TAG={current_version}" in payload
         assert "OPENINFRA_PGADMIN_EMAIL=admin@openinfra.tld" in payload
         assert "admin@openinfra.local" not in payload
         assert "OPENINFRA_PGADMIN_PASSWORD=" in payload

@@ -31,7 +31,19 @@ class TestDcimGeneratedBuildingFloors:
     ) -> None:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json", seed=False)
         app.dcim_topology_service.create_site(
-            CreateDcimSiteCommand("default", "pytest", "GEN1", "Generated Site", "FR", "Paris")
+            CreateDcimSiteCommand(
+                "default",
+                "pytest",
+                "GEN1",
+                "Generated Site",
+                "FR",
+                "Paris",
+                "",
+                "1 Rue Generated",
+                "75000",
+                "gen1@example.invalid",
+                "+33100000001",
+            )
         )
         building = app.dcim_topology_service.create_building(
             CreateDcimBuildingCommand(
@@ -80,7 +92,19 @@ class TestDcimGeneratedBuildingFloors:
     def test_simple_building_rejects_floor_and_manual_floor_crud(self, tmp_path: Path) -> None:
         app = ApplicationFactory().create_json_application(tmp_path / "state.json", seed=False)
         app.dcim_topology_service.create_site(
-            CreateDcimSiteCommand("default", "pytest", "GEN2", "Simple Site", "FR", "Paris")
+            CreateDcimSiteCommand(
+                "default",
+                "pytest",
+                "GEN2",
+                "Simple Site",
+                "FR",
+                "Paris",
+                "",
+                "2 Rue Generated",
+                "75000",
+                "gen2@example.invalid",
+                "+33100000002",
+            )
         )
         app.dcim_topology_service.create_building(
             CreateDcimBuildingCommand(

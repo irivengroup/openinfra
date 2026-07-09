@@ -73,10 +73,32 @@ class TestCommonDomainEdges:
 
     def test_site_and_coordinates_validation(self) -> None:
         tenant = TenantId.from_value("default")
-        site = Site.create(tenant, "PAR1", "Paris", "FR", "Paris")
+        site = Site.create(
+            tenant,
+            "PAR1",
+            "Paris",
+            "FR",
+            "Paris",
+            "",
+            "1 Rue de Paris",
+            "75000",
+            "par1@example.invalid",
+            "+33100000003",
+        )
         assert site.country == "FR"
         with pytest.raises(ValidationError):
-            Site.create(tenant, "PAR1", "Paris", "FRA", "Paris")
+            Site.create(
+                tenant,
+                "PAR1",
+                "Paris",
+                "FRA",
+                "Paris",
+                "",
+                "1 Rue de Paris",
+                "75000",
+                "par1@example.invalid",
+                "+33100000005",
+            )
         with pytest.raises(ValidationError):
             Coordinates3D.from_values(-1.0, 0.0, 0.0)
 

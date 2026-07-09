@@ -10,7 +10,7 @@ def test_dcim_site_dependencies_and_discovery_profiles_create_distinct_postgresq
     migrations = sorted(Path("installers/migrations/postgresql").glob("*.sql"))
 
     assert migrations
-    assert migrations[-1].name == "0035_dcim_generated_building_floors.sql"
+    assert migrations[-1].name == "0036_site_organization_addresses.sql"
     assert len([path for path in migrations if path.name.startswith("0032_")]) == 1
     assert len([path for path in migrations if path.name.startswith("0033_")]) == 1
     assert len([path for path in migrations if path.name.startswith("0034_")]) == 1

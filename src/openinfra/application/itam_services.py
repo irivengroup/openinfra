@@ -47,8 +47,10 @@ class CreateItamOrganizationCommand:
     tax_identifier: str = "N/A"
     country_code: str = "FR"
     city: str = "Non renseigné"
+    postal_code: str = "00000"
     address: str = "Non renseigné"
     contact_email: str = "contact@example.invalid"
+    phone: str = "+33000000000"
     support_contact: str = "support@example.invalid"
     description: str | None = None
 
@@ -66,8 +68,10 @@ class UpdateItamOrganizationCommand:
     tax_identifier: str | None = None
     country_code: str | None = None
     city: str | None = None
+    postal_code: str | None = None
     address: str | None = None
     contact_email: str | None = None
+    phone: str | None = None
     support_contact: str | None = None
     description: str | None = None
 
@@ -109,6 +113,7 @@ class CreateItamPartnerCommand:
     tax_identifier: str = "N/A"
     country_code: str = "FR"
     city: str = "Non renseigné"
+    postal_code: str = "00000"
     address: str = "Non renseigné"
     contact_email: str = "contact@example.invalid"
     phone: str = "+33000000000"
@@ -132,6 +137,7 @@ class UpdateItamPartnerCommand:
     tax_identifier: str | None = None
     country_code: str | None = None
     city: str | None = None
+    postal_code: str | None = None
     address: str | None = None
     contact_email: str | None = None
     phone: str | None = None
@@ -338,8 +344,10 @@ class ItamSupportService:
             tax_identifier=command.tax_identifier,
             country_code=command.country_code,
             city=command.city,
+            postal_code=command.postal_code,
             address=command.address,
             contact_email=command.contact_email,
+            phone=command.phone,
             support_contact=command.support_contact,
             description=command.description,
         )
@@ -386,8 +394,10 @@ class ItamSupportService:
                 tax_identifier=command.tax_identifier,
                 country_code=command.country_code,
                 city=command.city,
+                postal_code=command.postal_code,
                 address=command.address,
                 contact_email=command.contact_email,
+                phone=command.phone,
                 support_contact=command.support_contact,
                 description=command.description,
             )
@@ -485,6 +495,7 @@ class ItamSupportService:
             tax_identifier=command.tax_identifier,
             country_code=command.country_code,
             city=command.city,
+            postal_code=command.postal_code,
             address=command.address,
             contact_email=command.contact_email,
             phone=command.phone,
@@ -538,6 +549,7 @@ class ItamSupportService:
                 tax_identifier=command.tax_identifier,
                 country_code=command.country_code,
                 city=command.city,
+                postal_code=command.postal_code,
                 address=command.address,
                 contact_email=command.contact_email,
                 phone=command.phone,
@@ -654,6 +666,7 @@ class ItamSupportService:
             tax_identifier="N/A",
             country_code="FR",
             city="Non renseigné",
+            postal_code="00000",
             address="Non renseigné",
             contact_email="contact@example.invalid",
             support_contact="support@example.invalid",

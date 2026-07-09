@@ -85,3 +85,5 @@ Pour v0.29.79, la migration additive `0034_discovery_protocol_profiles.sql` cré
 
 
 Pour v0.29.79, la migration additive `0035_dcim_generated_building_floors.sql` ajoute le typage des bâtiments DCIM, les bornes de niveaux générateurs d'étages et les index actifs/audit associés.
+
+Pour v0.29.80, la migration additive `0036_site_organization_addresses.sql` complète les sites DCIM avec rue, code postal, email et téléphone, complète les organisations ITAM avec code postal et téléphone, complète les partenaires ITAM avec code postal, et ajoute les contraintes de qualité et index de consultation associés.

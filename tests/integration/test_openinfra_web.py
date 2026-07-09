@@ -1170,3 +1170,16 @@ class TestOpenInfraWebEdges:
             max_request_body_bytes=max_request_body_bytes,
             database_dsn_ref=database_dsn_ref,
         )
+
+
+def test_openinfra_web_site_and_organization_address_fields_are_exposed() -> None:
+    static_js = (OpenInfraWebStaticLocator().resolve() / "assets" / "openinfra-web.js").read_text()
+
+    assert '{ name: "street_address", label: "Rue", required: true' in static_js
+    assert '{ name: "postal_code", label: "Code postal", required: true' in static_js
+    assert '{ name: "contact_email", label: "Email", required: true' in static_js
+    assert '{ name: "phone", label: "Téléphone", required: true' in static_js
+    assert 'label: "Pays", type: "country-select"' in static_js
+    assert "const label = `${country.name || code}`;" in static_js
+    assert "FR — France" not in static_js
+    assert "Pays ISO-3166" not in static_js

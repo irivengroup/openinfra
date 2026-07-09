@@ -1,23 +1,9 @@
-## v0.29.75 — ITAM Fournisseurs et Supports
+## v0.29.76 — DCIM sites & dépendances, partenaires et pays ISO
 
-Le portail OpenInfra ajoute le contexte ITAM `Fournisseurs et Supports` pour administrer les partenaires rattachés à une organisation : constructeurs, éditeurs logiciels et supports tiers. Les formulaires de garanties, licences logicielles et supports tiers utilisent désormais des sélecteurs partenaires filtrés par organisation et type de partenaire compatible.
+Le portail OpenInfra expose désormais le contexte DCIM **Sites & dépendances** avec le CRUD des sites, bâtiments, étages, salles et chassis/racks. Les formulaires de salles acceptent des plages bornées de lignes et colonnes (`0-12`, `A-F`) qui sont normalisées par le backend et réutilisées par les sélecteurs de localisation.
 
-Règles UX :
+La sélection d’un étage est conditionnelle : elle est obligatoire uniquement lorsque le bâtiment possède au moins un étage actif. Les bâtiments sans étage peuvent contenir des salles sans champ étage, ce qui couvre les locaux plain-pied ou les sites techniques simples.
 
-- Organisation sélectionnée avant partenaire.
-- Aucun partenaire en saisie libre comme autorité métier.
-- Les partenaires actifs uniquement sont proposés.
-- Les formulaires de création partenaire exigent la carte d’identité entreprise et au moins un téléphone.
+Côté ITAM, le libellé **Fournisseurs et Supports** est remplacé par **Partenaires**. Les anciens tenants sont présentés à l’opérateur comme **Filiale/Subdivision** et regroupés sous le sous-menu **Organisations**, sans modifier les contrats techniques `tenant_id` existants.
 
-## v0.29.73 — DCIM dépendances administrables depuis le portail
-
-Le portail OpenInfra expose les opérations DCIM de gestion topologique suivantes dans le contexte `Sites & dépendances` :
-
-- sites ;
-- bâtiments ;
-- étages ;
-- salles ;
-- zones ;
-- catalogue des dépendances.
-
-Les champs de référence DCIM restent des sélecteurs alimentés par `/api/v1/dcim/topology-catalog`. Les champs servant à définir une nouvelle grille de salle ou de zone restent des valeurs métier explicites (`rows`, `columns`) car ils créent le référentiel de lignes/colonnes lui-même.
+Les champs pays nécessaires dans les formulaires web sont rendus en listes déroulantes ISO-3166 alpha-2 groupées par continent via `/api/v1/reference/countries`.

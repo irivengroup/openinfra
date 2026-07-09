@@ -835,6 +835,17 @@ class JsonDcimRepository(DcimRepository):
         self._store.data["room_zones"][key] = self._zone_to_dict(zone)
         self._store.mark_dirty()
 
+    def save_rack(self, rack: Rack) -> None:
+        key = self._key(
+            rack.tenant_id,
+            rack.site_code.value,
+            rack.building_code.value,
+            rack.room_code.value,
+            rack.code.value,
+        )
+        self._store.data["racks"][key] = self._rack_to_dict(rack)
+        self._store.mark_dirty()
+
     def add_rack(self, rack: Rack) -> None:
         key = self._key(
             rack.tenant_id,
@@ -1161,6 +1172,7 @@ class JsonDcimRepository(DcimRepository):
         site: str,
         building: str,
         room: str,
+        include_retired: bool = False,
     ) -> tuple[Rack, ...]:
         normalized_site = Code.from_value(site, "site code").value
         normalized_building = Code.from_value(building, "building code").value
@@ -1174,6 +1186,8 @@ class JsonDcimRepository(DcimRepository):
                 and value.get("room_code") == normalized_room
             ):
                 matching.append(self._rack_from_dict(value))
+        if not include_retired:
+            matching = [item for item in matching if item.selectable()]
         return tuple(sorted(matching, key=lambda item: (item.row, item.column, item.code.value)))
 
     def list_patch_panels_in_rack(
@@ -1618,6 +1632,7 @@ class JsonDcimRepository(DcimRepository):
             "usable_faces": [face.value for face in rack.usable_faces],
             "max_weight_kg": rack.max_weight_kg,
             "power_capacity_watts": rack.power_capacity_watts,
+            "status": rack.status.value,
         }
 
     def _rack_from_dict(self, value: dict[str, Any]) -> Rack:
@@ -1647,6 +1662,7 @@ class JsonDcimRepository(DcimRepository):
                 if value.get("power_capacity_watts") is not None
                 else None
             ),
+            status=DcimLifecycleStatus.from_value(value.get("status"), "rack status"),
         )
 
     def _equipment_to_dict(self, equipment: Equipment) -> dict[str, Any]:

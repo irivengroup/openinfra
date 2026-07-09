@@ -37,6 +37,7 @@ from openinfra.application.dcim_services import (
     DefinePowerDeviceCommand,
     DefineRackCommand,
     DeleteDcimBuildingCommand,
+    DeleteRackCommand,
     DeleteDcimFloorCommand,
     DeleteDcimRoomCommand,
     DeleteDcimSiteCommand,
@@ -47,11 +48,13 @@ from openinfra.application.dcim_services import (
     GetDcimRoomCommand,
     GetDcimSiteCommand,
     GetDcimZoneCommand,
+    GetRackCommand,
     ListDcimBuildingsCommand,
     ListDcimFloorsCommand,
     ListDcimRoomsCommand,
     ListDcimSitesCommand,
     ListDcimZonesCommand,
+    ListRacksCommand,
     LocateEquipmentCommand,
     RackCapacityCommand,
     RackEnergyCoolingCapacityCommand,
@@ -65,6 +68,7 @@ from openinfra.application.dcim_services import (
     UpdateDcimRoomCommand,
     UpdateDcimSiteCommand,
     UpdateDcimZoneCommand,
+    UpdateRackCommand,
     VerifyEquipmentScanCommand,
 )
 from openinfra.application.discovery_services import (
@@ -2130,11 +2134,13 @@ class OpenInfraCLI:
         create_room.add_argument("--actor", default="cli")
         create_room.add_argument("--site", required=True)
         create_room.add_argument("--building", required=True)
-        create_room.add_argument("--floor", required=True)
+        create_room.add_argument("--floor")
         create_room.add_argument("--code", required=True)
         create_room.add_argument("--name", required=True)
-        create_room.add_argument("--row", action="append", required=True)
-        create_room.add_argument("--column", action="append", required=True)
+        create_room.add_argument("--row", action="append", default=[])
+        create_room.add_argument("--row-range", dest="row", action="append")
+        create_room.add_argument("--column", action="append", default=[])
+        create_room.add_argument("--column-range", dest="column", action="append")
         create_room.set_defaults(handler=self._handle_dcim_room_create)
 
         update_room = dcim_subparsers.add_parser("room-update", help="update a DCIM room")
@@ -2235,8 +2241,10 @@ class OpenInfraCLI:
         define_room.add_argument("--floor-index", type=int, required=True)
         define_room.add_argument("--room-code", required=True)
         define_room.add_argument("--room-name", required=True)
-        define_room.add_argument("--row", action="append", required=True)
-        define_room.add_argument("--column", action="append", required=True)
+        define_room.add_argument("--row", action="append", default=[])
+        define_room.add_argument("--row-range", dest="row", action="append")
+        define_room.add_argument("--column", action="append", default=[])
+        define_room.add_argument("--column-range", dest="column", action="append")
         define_room.add_argument("--zone-code")
         define_room.add_argument("--zone-name")
         define_room.add_argument("--zone-row", action="append", default=[])
@@ -2271,6 +2279,51 @@ class OpenInfraCLI:
         define_rack.add_argument("--y", type=float)
         define_rack.add_argument("--z", type=float)
         define_rack.set_defaults(handler=self._handle_dcim_define_rack)
+
+        racks = dcim_subparsers.add_parser("racks", help="list DCIM racks for a room")
+        self._add_backend_arguments(racks)
+        racks.add_argument("--tenant", default="default")
+        racks.add_argument("--site", required=True)
+        racks.add_argument("--building", required=True)
+        racks.add_argument("--room", required=True)
+        racks.add_argument("--include-retired", action="store_true")
+        racks.set_defaults(handler=self._handle_dcim_racks)
+
+        rack = dcim_subparsers.add_parser("rack", help="show one DCIM rack")
+        self._add_backend_arguments(rack)
+        rack.add_argument("--tenant", default="default")
+        rack.add_argument("--site", required=True)
+        rack.add_argument("--building", required=True)
+        rack.add_argument("--room", required=True)
+        rack.add_argument("--rack", required=True)
+        rack.set_defaults(handler=self._handle_dcim_rack)
+
+        update_rack = dcim_subparsers.add_parser("rack-update", help="update a DCIM rack")
+        self._add_backend_arguments(update_rack)
+        update_rack.add_argument("--tenant", default="default")
+        update_rack.add_argument("--actor", default="cli")
+        update_rack.add_argument("--site", required=True)
+        update_rack.add_argument("--building", required=True)
+        update_rack.add_argument("--room", required=True)
+        update_rack.add_argument("--rack", required=True)
+        update_rack.add_argument("--row")
+        update_rack.add_argument("--column")
+        update_rack.add_argument("--units", type=int)
+        update_rack.add_argument("--face", action="append")
+        update_rack.add_argument("--max-weight-kg", type=float)
+        update_rack.add_argument("--power-capacity-watts", type=int)
+        update_rack.add_argument("--status", choices=("active", "suspended", "retired"))
+        update_rack.set_defaults(handler=self._handle_dcim_rack_update)
+
+        delete_rack = dcim_subparsers.add_parser("rack-delete", help="retire a DCIM rack")
+        self._add_backend_arguments(delete_rack)
+        delete_rack.add_argument("--tenant", default="default")
+        delete_rack.add_argument("--actor", default="cli")
+        delete_rack.add_argument("--site", required=True)
+        delete_rack.add_argument("--building", required=True)
+        delete_rack.add_argument("--room", required=True)
+        delete_rack.add_argument("--rack", required=True)
+        delete_rack.set_defaults(handler=self._handle_dcim_rack_delete)
 
         rack_capacity = dcim_subparsers.add_parser(
             "rack-capacity",
@@ -4759,6 +4812,52 @@ class OpenInfraCLI:
                 y=args.y,
                 z=args.z,
             )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_racks(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_rack_service.list_racks(
+            ListRacksCommand(args.tenant, args.site, args.building, args.room, args.include_retired)
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_rack(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_rack_service.get_rack(
+            GetRackCommand(args.tenant, args.site, args.building, args.room, args.rack)
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_rack_update(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_rack_service.update_rack(
+            UpdateRackCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                site=args.site,
+                building=args.building,
+                room=args.room,
+                rack=args.rack,
+                row=args.row,
+                column=args.column,
+                units=args.units,
+                usable_faces=tuple(args.face) if args.face else None,
+                max_weight_kg=args.max_weight_kg,
+                power_capacity_watts=args.power_capacity_watts,
+                status=args.status,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_dcim_rack_delete(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dcim_rack_service.delete_rack(
+            DeleteRackCommand(args.tenant, args.actor, args.site, args.building, args.room, args.rack)
         )
         print(json.dumps(result, sort_keys=True))
         return 0

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.75
+  version: 0.29.76
 components:
   securitySchemes:
     bearerToken:
@@ -75,6 +75,13 @@ paths:
       responses:
         '200':
           description: Version payload
+  /api/v1/reference/countries:
+    get:
+      summary: ISO country reference grouped by continent
+      description: Returns ISO-3166 alpha-2 country options grouped by continent for web select fields.
+      responses:
+        '200':
+          description: Grouped ISO country catalog
   /api/v1/database/schema:
     get:
       summary: PostgreSQL schema migration status
@@ -1347,6 +1354,20 @@ paths:
         '400': {description: Validation error}
         '401': {description: Missing or invalid DCIM operator token}
   /api/v1/dcim/racks:
+    get:
+      summary: List racks in a DCIM room
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: site, in: query, required: true, schema: {type: string}}
+        - {name: building, in: query, required: true, schema: {type: string}}
+        - {name: room, in: query, required: true, schema: {type: string}}
+        - {name: include_retired, in: query, required: false, schema: {type: boolean, default: false}}
+      responses:
+        '200': {description: Rack catalog scoped to a room}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM locate token}
     post:
       summary: Define a rack with U capacity, usable faces and physical placement
       security:
@@ -1385,6 +1406,76 @@ paths:
                 z: {type: number}
       responses:
         '201': {description: Rack capacity definition persisted}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM operator token}
+  /api/v1/dcim/rack:
+    get:
+      summary: Return one DCIM rack
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: site, in: query, required: true, schema: {type: string}}
+        - {name: building, in: query, required: true, schema: {type: string}}
+        - {name: room, in: query, required: true, schema: {type: string}}
+        - {name: rack, in: query, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Rack payload}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM locate token}
+  /api/v1/dcim/rack/update:
+    post:
+      summary: Update a DCIM rack lifecycle or capacity attributes
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, site, building, room, rack]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                site: {type: string}
+                building: {type: string}
+                room: {type: string}
+                rack: {type: string}
+                row: {type: string}
+                column: {type: string}
+                units: {type: integer, minimum: 1, maximum: 60}
+                faces:
+                  type: array
+                  items: {type: string, enum: [front, rear]}
+                max_weight_kg: {type: number}
+                power_capacity_watts: {type: integer}
+                status: {type: string, enum: [active, suspended, retired]}
+      responses:
+        '200': {description: Rack updated}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid DCIM operator token}
+  /api/v1/dcim/rack/delete:
+    post:
+      summary: Retire a DCIM rack without destructive deletion
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, site, building, room, rack]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string}
+                site: {type: string}
+                building: {type: string}
+                room: {type: string}
+                rack: {type: string}
+      responses:
+        '200': {description: Rack retired}
         '400': {description: Validation error}
         '401': {description: Missing or invalid DCIM operator token}
   /api/v1/dcim/locations:

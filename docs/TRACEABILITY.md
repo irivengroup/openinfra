@@ -1,26 +1,11 @@
-## v0.29.75 — Traçabilité ITAM partenaires fournisseurs/supports
+## v0.29.76 — Traçabilité DCIM sites/dépendances et réalignement ITAM
 
-| Élément | Traçabilité |
-| --- | --- |
-| Exigence | `REQ-00816` |
-| Test CDC | `TST-WEB-115` |
-| Test roadmap | `TST-P14-ITAM-PARTNER-REGISTRY` |
-| Domaine | `openinfra.domain.itam.ItamPartner` |
-| Application | `openinfra.application.itam_services.ItamSupportService` |
-| CLI | `openinfra itam partner-*` |
-| API | `/api/v1/itam/partner*` |
-| UI | contexte ITAM `Fournisseurs et Supports` |
-| Migration | `0032_itam_partner_registry.sql` |
-
-## v0.29.73 — Traçabilité DCIM dépendances CRUD
-
-| Élément | Traçabilité |
-| --- | --- |
-| Exigence | `REQ-00813` |
-| Test CDC | `TST-WEB-112` |
-| Test roadmap | `TST-P10-DCIM-DEPENDENCY-CRUD` |
-| Domaine | `openinfra.domain.dcim` |
-| Application | `openinfra.application.dcim_services.DcimTopologyService` |
-| CLI | `openinfra dcim building-*`, `floor-*`, `room-*`, `zone-*` |
-| API | `/api/v1/dcim/building/*`, `/floor/*`, `/room/*`, `/zone/*` |
-| UI | contexte DCIM `Sites & dépendances` |
+| Surface | Élément livré |
+|---|---|
+| Domaine | Plages DCIM bornées, étage conditionnel salle, cycle de vie rack |
+| Application | CRUD chassis/racks, cascade non destructive site/bâtiment/salle vers racks |
+| Persistance | Migration PostgreSQL `0033_dcim_site_dependencies_rack_lifecycle.sql` |
+| API | `/api/v1/dcim/rack*`, `/api/v1/reference/countries` |
+| CLI | `openinfra dcim racks`, `rack`, `rack-update`, `rack-delete` |
+| Web | `Partenaires`, `Filiale/Subdivision` sous `Organisations`, pays ISO groupés |
+| Tests | `TST-WEB-116`, `TST-P14-DCIM-SITE-DEPENDENCIES-RACKS-COUNTRIES` |

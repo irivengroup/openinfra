@@ -305,6 +305,10 @@ class DcimRepository(ABC):
         raise TypeError("adapter contract invoked directly")
 
     @abstractmethod
+    def save_rack(self, rack: Rack) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
     def list_sites(self, tenant_id: TenantId, include_retired: bool = False) -> tuple[Site, ...]:
         raise TypeError("adapter contract invoked directly")
 
@@ -454,6 +458,7 @@ class DcimRepository(ABC):
         site: str,
         building: str,
         room: str,
+        include_retired: bool = False,
     ) -> tuple[Rack, ...]:
         raise TypeError("adapter contract invoked directly")
 

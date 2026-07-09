@@ -1,24 +1,24 @@
-# OpenInfra v0.29.75 — Validation Report
+# OpenInfra v0.29.76 — Validation Report
 
-Release: `0.29.75`
+Release: `0.29.76`
 
 ## Objet
 
-La version v0.29.75 ajoute le référentiel ITAM des partenaires d’organisation : constructeurs, éditeurs logiciels et supports tiers. L’objectif est de supprimer l’ambiguïté métier des fournisseurs en texte libre dans les garanties, licences et supports, puis de ne permettre que des partenaires accrédités et actifs au niveau de l’organisation.
+La version v0.29.76 réaligne le DCIM sur la gestion complète des sites et dépendances : sites, bâtiments, étages conditionnels, salles avec plages bornées de lignes/colonnes et racks/châssis avec cycle de vie CRUD non destructif. Elle applique aussi les ajustements ITAM demandés : libellé web `Partenaires`, présentation `Filiale/Subdivision` sous `Organisations`, et champs pays rendus en select ISO groupé par continent.
 
-La livraison ajoute une migration PostgreSQL unique `0032_itam_partner_registry.sql` pour couvrir le référentiel partenaires et le rattachement des licences logicielles à un éditeur accrédité. Les migrations antérieures restent conservées pour compatibilité ascendante.
+La livraison ajoute une migration PostgreSQL additive `0033_dcim_site_dependencies_rack_lifecycle.sql`. Les migrations antérieures, dont `0032_itam_partner_registry.sql`, restent conservées pour compatibilité ascendante.
 
 ## Changements validés
 
-- Ajout domaine `ItamPartner`, `ItamPartnerKind`, `ItamPartnerStatus` et `ItamPartnerCatalog`.
-- Ajout CRUD partenaires dans les services ITAM.
-- Ajout persistance JSON store et PostgreSQL.
-- Ajout migration `0032_itam_partner_registry.sql` avec partitionnement, contraintes, index métier et index d’audit.
-- Ajout CLI `openinfra itam partner-*` et API `/api/v1/itam/partner*`.
-- Ajout contexte web ITAM `Fournisseurs et Supports`.
-- Réalignement des formulaires garanties/licences/supports tiers sur des partenaires actifs et compatibles.
-- Validation stricte : organisation active obligatoire, téléphone obligatoire, type partenaire compatible obligatoire.
-- CDC et roadmap mis à jour avec `REQ-00816`, `TST-WEB-115` et `TST-P14-ITAM-PARTNER-REGISTRY`.
+- Règle métier d’étage conditionnel : une salle peut être créée sans étage uniquement si le bâtiment ne possède aucun étage actif ; si le bâtiment possède au moins un étage actif, l’étage devient obligatoire et doit appartenir au bâtiment.
+- Extension des salles DCIM avec expansion déterministe des plages de lignes/colonnes (`0-12`, `A-F`) en listes incrémentales bornées et uniques.
+- Ajout du cycle de vie rack/châssis : création, consultation, liste, mise à jour et retrait logique.
+- Validation stricte du rattachement rack : site, bâtiment, salle et, lorsque applicable, étage cohérents.
+- Cascade non destructive des retraits : site → bâtiment → salle → rack.
+- Ajout endpoints API DCIM racks et endpoint de référence pays `/api/v1/reference/countries`.
+- Ajout commandes CLI `openinfra dcim racks`, `rack`, `rack-update`, `rack-delete` et enrichissement `room-create`/`define-room` avec plages.
+- UI web : menu DCIM `Sites & dépendances` enrichi, menu ITAM `Partenaires`, `Filiale/Subdivision` déplacé sous `Organisations`, select pays ISO groupé par continent.
+- CDC et roadmap mis à jour avec `REQ-00817`, `TST-WEB-116` et `TST-P14-DCIM-SITE-DEPENDENCIES-RACKS-COUNTRIES`.
 
 ## Validations exécutées
 
@@ -31,13 +31,12 @@ La livraison ajoute une migration PostgreSQL unique `0032_itam_partner_registry.
 | `python scripts/validate_autonomous_installer.py --root installers` | PASS — 6 profils |
 | `python scripts/validate_enterprise_alignment.py --project-root .` | PASS |
 | `python scripts/native_runtime_smoke.py` | PASS |
-| `PYTHONPATH=src python -m openinfra version` | PASS — 0.29.75 |
-| `PYTHONPATH=src python -m openinfra spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1` | PASS — 816 exigences, 615 tests |
+| `PYTHONPATH=src python -m openinfra version` | PASS — 0.29.76 |
+| `PYTHONPATH=src python -m openinfra spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1` | PASS — 817 exigences, 616 tests |
 | `python docs/specifications/OpenInfra-Roadmap-Developpement-v2/scripts/validate_roadmap.py` | PASS — 19 phases, 114 epics, 8 gates, 85 tests |
-| `PYTHONPATH=src python -m pytest --collect-only --no-cov` | PASS — 527 tests collectés |
-| `PYTHONPATH=src python -m pytest --no-cov -q tests/unit tests/architecture` | PASS — 203 tests |
-| `PYTHONPATH=src python -m pytest --no-cov -q <lots integration>` | PASS — 324 tests |
-| `PYTHONPATH=src python -m pytest --cov=openinfra --cov-append <lots unit/architecture/integration>` | PASS |
+| `PYTHONPATH=src python -m pytest --collect-only -q --no-cov` | PASS — 532 tests collectés |
+| `PYTHONPATH=src python -m pytest -q -o addopts='' --cov=src/openinfra --cov-report= --cov-fail-under=0 tests/unit tests/architecture` | PASS — 203 tests |
+| `PYTHONPATH=src python -m pytest -q -o addopts='' --cov=src/openinfra --cov-append --cov-report= --cov-fail-under=0 <lots integration>` | PASS — 329 tests |
 | `python scripts/quality_gate.py` | PASS — couverture globale 98 % |
 
 ## Non exécuté localement
@@ -47,12 +46,12 @@ La livraison ajoute une migration PostgreSQL unique `0032_itam_partner_registry.
 - `bandit -q -r src/openinfra` : exécutable `bandit` absent du runtime.
 - `mypy src/openinfra` : exécutable `mypy` absent du runtime.
 - `python -m build` : module `build` absent du runtime.
-- `pip-audit -r requirements/security-audit.txt` : non exécuté dans ce runtime.
+- `pip-audit -r requirements/security-audit.txt` : exécutable/module `pip-audit` absent du runtime.
 - Build Vite complet : dépendances frontend non installées localement.
 - Docker Compose live : non exécuté dans ce runtime.
 
 ## Artefacts attendus
 
-- Archive source : `openinfra-python-0.29.75.zip`
-- CDC mis à jour : `openinfra-cdc-sfg-stg-v4.8.1-updated-0.29.75.zip`
-- Roadmap mise à jour : `openinfra-roadmap-developpement-v2-updated-0.29.75.zip`
+- Archive source : `openinfra-python-0.29.76.zip`
+- CDC mis à jour : `openinfra-cdc-sfg-stg-v4.8.1-updated-0.29.76.zip`
+- Roadmap mise à jour : `openinfra-roadmap-developpement-v2-updated-0.29.76.zip`

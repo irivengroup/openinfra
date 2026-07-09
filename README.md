@@ -1,29 +1,29 @@
-# OpenInfra v0.29.75
+# OpenInfra v0.29.76
 
-## v0.29.75 — Référentiel ITAM partenaires, fournisseurs et supports tiers
+## v0.29.76 — DCIM sites & dépendances, partenaires ITAM et pays ISO groupés
 
-OpenInfra v0.29.75 ajoute un référentiel ITAM professionnel pour les **partenaires d’organisation** : constructeurs, éditeurs logiciels et supports tiers. Ce référentiel évite les champs fournisseur en texte libre dans les processus sensibles et impose une carte d’identité entreprise complète avant qu’un partenaire puisse être utilisé dans les garanties, licences ou contrats de support.
+OpenInfra v0.29.76 complète le référentiel physique DCIM autour du cycle de vie des **sites et dépendances** : sites, bâtiments, étages rattachés aux bâtiments, salles et chassis/racks. Les salles peuvent désormais déclarer des plages bornées de lignes et de colonnes, par exemple `0-12` et `A-F`; ces plages sont normalisées en listes incrémentales utilisables par les formulaires de localisation.
 
-Chaque partenaire est rattaché à une organisation active et possède un cycle de vie non destructif : `active`, `suspended`, `retired`. Les garanties constructeur ne peuvent référencer qu’un partenaire actif de type `manufacturer`, les licences logicielles qu’un partenaire actif de type `software_publisher`, et les supports tiers qu’un partenaire actif de type `third_party_support`.
+La règle métier d’étage est conditionnelle : si un bâtiment ne possède aucun étage actif, une salle peut être créée sans étage ; si le bâtiment possède au moins un étage actif, l’étage devient obligatoire et doit exister. Les chassis/racks disposent d’un CRUD complet avec retrait logique non destructif, statut de cycle de vie et cascade lors du retrait d’une salle, d’un bâtiment ou d’un site.
+
+Côté ITAM, l’interface remplace le libellé **Fournisseurs et Supports** par **Partenaires** et présente les anciens tenants sous le libellé métier **Filiale/Subdivision**, regroupés dans le sous-menu **Organisations**. Les champs pays nécessaires sont rendus en listes déroulantes ISO-3166 alpha-2 groupées par continent.
 
 ### Surfaces exposées
 
-- Domaine : `ItamPartner`, `ItamPartnerKind`, `ItamPartnerStatus`, `ItamPartnerCatalog`.
-- Service applicatif : CRUD partenaires, validation d’organisation active et validation d’accréditation par type de partenaire.
-- Persistance : JSON store et PostgreSQL avec migration `0032_itam_partner_registry.sql`.
-- CLI : `openinfra itam partners`, `partner`, `partner-create`, `partner-update`, `partner-delete`.
-- API : `/api/v1/itam/partners`, `/api/v1/itam/partner`, `/partner/create`, `/partner/update`, `/partner/delete`.
-- Web : nouveau contexte ITAM **Fournisseurs et Supports** avec opérations **Constructeurs et Éditeurs** et **Supports Tiers**.
-- Formulaires : garanties, licences et supports tiers consomment des partenaires accrédités au niveau organisation.
+- Domaine : expansion contrôlée des plages DCIM, statut de cycle de vie `Rack`, catalogue pays ISO groupé par continent.
+- Service applicatif : création de salle avec étage conditionnel, CRUD chassis/racks, cascade non destructive incluant les racks.
+- Persistance : JSON store et PostgreSQL avec migration `0033_dcim_site_dependencies_rack_lifecycle.sql`.
+- CLI : `openinfra dcim racks`, `rack`, `rack-update`, `rack-delete` en complément de `define-rack`.
+- API : `GET /api/v1/dcim/racks`, `GET /api/v1/dcim/rack`, `POST /api/v1/dcim/rack/update`, `POST /api/v1/dcim/rack/delete`, `GET /api/v1/reference/countries`.
+- Web : groupe **Sites & dépendances** enrichi avec chassis/racks, menu ITAM **Partenaires**, **Filiale/Subdivision** sous **Organisations**, champs pays en select ISO groupé.
 
 ### Garde-fous
 
-- Aucun partenaire sans organisation active.
-- Aucun partenaire sans téléphone de contact.
-- Aucun constructeur/éditeur/support tiers en texte libre comme source de vérité métier.
-- Retrait logique non destructif des partenaires.
-- Les partenaires suspendus ou retirés ne sont pas utilisables pour créer de nouvelles garanties, licences ou supports.
-- Une seule migration SQL est ajoutée pour ce périmètre afin de limiter la dette de migration sans casser les installations existantes.
+- Aucun rack ne peut être créé sous une salle inactive ou sur une cellule inexistante.
+- Une salle sans étage est acceptée uniquement si son bâtiment ne possède aucun étage actif.
+- Les plages de lignes/colonnes sont bornées et limitées à 512 valeurs générées.
+- Les retraits restent logiques, compatibles ascendantes et cascades vers les dépendances inférieures.
+- Les anciens contrats techniques `tenant_id` restent compatibles ; seul le libellé UI devient **Filiale/Subdivision**.
 
 ## v0.29.74 — Formulaires ITAM racine et migrations minimales
 

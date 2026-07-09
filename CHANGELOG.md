@@ -1,3 +1,14 @@
+## v0.29.76 — DCIM sites/dépendances, racks CRUD, pays ISO et libellés ITAM
+
+- Extension du DCIM sites & dépendances avec cycle de vie complet des chassis/racks rattachés à site, bâtiment et salle.
+- Ajout de la règle d’étage conditionnelle : étage obligatoire pour créer une salle uniquement si le bâtiment possède au moins un étage actif.
+- Ajout de l’expansion contrôlée des plages de lignes et colonnes de salle, par exemple `0-12` et `A-F`, avec limite de 512 valeurs générées.
+- Ajout des commandes CLI `dcim racks`, `dcim rack`, `dcim rack-update`, `dcim rack-delete` et des endpoints API correspondants.
+- Ajout de la migration PostgreSQL `0033_dcim_site_dependencies_rack_lifecycle.sql` pour le statut de cycle de vie des racks et les index de consultation.
+- Ajout du référentiel pays ISO-3166 alpha-2 groupé par continent via `GET /api/v1/reference/countries` et rendu web en `select` groupé.
+- Réalignement UI ITAM : `Fournisseurs et Supports` devient `Partenaires`; `Tenant` devient `Filiale/Subdivision` sous le sous-menu `Organisations`, tout en conservant la compatibilité technique `tenant_id`.
+- CDC et roadmap mis à jour avec `REQ-00817`, `TST-WEB-116` et `TST-P14-DCIM-SITE-DEPENDENCIES-RACKS-COUNTRIES`.
+
 ## v0.29.75 — Référentiel ITAM partenaires, fournisseurs et supports tiers
 
 - Ajout du référentiel ITAM des partenaires rattachés à une organisation : constructeurs, éditeurs logiciels et supports tiers.

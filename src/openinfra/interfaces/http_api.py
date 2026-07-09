@@ -39,6 +39,7 @@ from openinfra.application.dcim_services import (
     DefinePowerDeviceCommand,
     DefineRackCommand,
     DeleteDcimBuildingCommand,
+    DeleteRackCommand,
     DeleteDcimFloorCommand,
     DeleteDcimRoomCommand,
     DeleteDcimSiteCommand,
@@ -49,11 +50,13 @@ from openinfra.application.dcim_services import (
     GetDcimRoomCommand,
     GetDcimSiteCommand,
     GetDcimZoneCommand,
+    GetRackCommand,
     ListDcimBuildingsCommand,
     ListDcimFloorsCommand,
     ListDcimRoomsCommand,
     ListDcimSitesCommand,
     ListDcimZonesCommand,
+    ListRacksCommand,
     LocateEquipmentCommand,
     RackCapacityCommand,
     RackEnergyCoolingCapacityCommand,
@@ -67,6 +70,7 @@ from openinfra.application.dcim_services import (
     UpdateDcimRoomCommand,
     UpdateDcimSiteCommand,
     UpdateDcimZoneCommand,
+    UpdateRackCommand,
     VerifyEquipmentScanCommand,
 )
 from openinfra.application.discovery_services import (
@@ -196,6 +200,7 @@ from openinfra.application.source_governance_services import (
 )
 from openinfra.domain.access_policy import AccessRequestContext
 from openinfra.domain.common import AccessDeniedError, OpenInfraError
+from openinfra.domain.countries import CountryCatalog
 from openinfra.domain.security import AuthenticatedPrincipal, Permission
 from openinfra.infrastructure.runtime_config import RuntimeDatabaseDsnResolver
 
@@ -363,6 +368,9 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             return
         if route == "/api/v1/version":
             responder.send(HTTPStatus.OK, {"version": __version__})
+            return
+        if route == "/api/v1/reference/countries":
+            responder.send(HTTPStatus.OK, CountryCatalog.groups_as_dict())
             return
         if route == "/api/v1/database/schema":
             status = self.server.application.schema_status_provider.status_as_dict()
@@ -1284,6 +1292,53 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         building=self._first_query_value(query, "building"),
                         room=self._first_query_value(query, "room"),
                         code=self._first_query_value(query, "code"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/dcim/racks":
+            try:
+                query = parse_qs(parsed.query)
+                tenant_id = self._first_query_value(query, "tenant_id")
+                if self.server.auth_required:
+                    self._authenticate(tenant_id, Permission.DCIM_LOCATE)
+                result = self.server.application.dcim_rack_service.list_racks(
+                    ListRacksCommand(
+                        tenant_id=tenant_id,
+                        site=self._first_query_value(query, "site"),
+                        building=self._first_query_value(query, "building"),
+                        room=self._first_query_value(query, "room"),
+                        include_retired=self._first_query_value(
+                            query, "include_retired", "false"
+                        ).lower()
+                        == "true",
+                    )
+                )
+                responder.send(HTTPStatus.OK, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/dcim/rack":
+            try:
+                query = parse_qs(parsed.query)
+                tenant_id = self._first_query_value(query, "tenant_id")
+                if self.server.auth_required:
+                    self._authenticate(tenant_id, Permission.DCIM_LOCATE)
+                result = self.server.application.dcim_rack_service.get_rack(
+                    GetRackCommand(
+                        tenant_id=tenant_id,
+                        site=self._first_query_value(query, "site"),
+                        building=self._first_query_value(query, "building"),
+                        room=self._first_query_value(query, "room"),
+                        rack=self._first_query_value(query, "rack"),
                     )
                 )
                 responder.send(HTTPStatus.OK, result)
@@ -2635,7 +2690,7 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         actor=actor,
                         site=str(payload["site"]),
                         building=str(payload["building"]),
-                        floor=str(payload["floor"]),
+                        floor=(str(payload["floor"]) if payload.get("floor") else None),
                         code=str(payload["code"]),
                         name=str(payload["name"]),
                         rows=self._tuple_payload(payload, "rows", ()),
@@ -2879,6 +2934,76 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     )
                 )
                 responder.send(HTTPStatus.CREATED, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+
+        if route == "/api/v1/dcim/rack/update":
+            try:
+                payload = self._read_json_body()
+                tenant_id = str(payload["tenant_id"])
+                actor = str(payload.get("actor", "api"))
+                if self.server.auth_required:
+                    principal = self._authenticate(tenant_id, Permission.DCIM_WRITE)
+                    actor = principal.subject
+                result = self.server.application.dcim_rack_service.update_rack(
+                    UpdateRackCommand(
+                        tenant_id=tenant_id,
+                        actor=actor,
+                        site=str(payload["site"]),
+                        building=str(payload["building"]),
+                        room=str(payload["room"]),
+                        rack=str(payload["rack"]),
+                        row=str(payload["row"]) if payload.get("row") else None,
+                        column=str(payload["column"]) if payload.get("column") else None,
+                        units=int(payload["units"]) if payload.get("units") is not None else None,
+                        usable_faces=(
+                            self._tuple_payload(payload, "faces", ())
+                            if payload.get("faces") is not None
+                            else None
+                        ),
+                        max_weight_kg=(
+                            float(payload["max_weight_kg"])
+                            if payload.get("max_weight_kg") is not None
+                            else None
+                        ),
+                        power_capacity_watts=(
+                            int(payload["power_capacity_watts"])
+                            if payload.get("power_capacity_watts") is not None
+                            else None
+                        ),
+                        status=str(payload["status"]) if payload.get("status") else None,
+                    )
+                )
+                responder.send(HTTPStatus.OK, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/dcim/rack/delete":
+            try:
+                payload = self._read_json_body()
+                tenant_id = str(payload["tenant_id"])
+                actor = str(payload.get("actor", "api"))
+                if self.server.auth_required:
+                    principal = self._authenticate(tenant_id, Permission.DCIM_WRITE)
+                    actor = principal.subject
+                result = self.server.application.dcim_rack_service.delete_rack(
+                    DeleteRackCommand(
+                        tenant_id=tenant_id,
+                        actor=actor,
+                        site=str(payload["site"]),
+                        building=str(payload["building"]),
+                        room=str(payload["room"]),
+                        rack=str(payload["rack"]),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result)
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
@@ -4305,6 +4430,7 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "feature_check": "/api/v1/editions/feature-check",
                     "quota_check": "/api/v1/editions/quota-check",
                 },
+                "reference": {"countries": "/api/v1/reference/countries"},
                 "integrations": {
                     "itsm_providers": "/api/v1/integrations/itsm/providers",
                     "servicenow_validate": "/api/v1/integrations/itsm/servicenow/validate",
@@ -4408,6 +4534,9 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "topology_catalog": "/api/v1/dcim/topology-catalog",
                     "rooms": "/api/v1/dcim/rooms",
                     "racks": "/api/v1/dcim/racks",
+                    "rack": "/api/v1/dcim/rack",
+                    "rack_update": "/api/v1/dcim/rack/update",
+                    "rack_delete": "/api/v1/dcim/rack/delete",
                     "locations": "/api/v1/dcim/locations",
                     "rack_capacity": "/api/v1/dcim/rack-capacity",
                     "room_plan": "/api/v1/dcim/room-plan",

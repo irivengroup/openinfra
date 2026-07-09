@@ -76,3 +76,6 @@ Pour v0.29.74, aucun script `0032_*` n'est ajouté : la dernière migration rest
 
 
 Pour v0.29.75, une seule migration structurante `0032_itam_partner_registry.sql` est ajoutée pour le référentiel ITAM des partenaires accrédités. Cette migration n’annule pas la règle v0.29.74 : aucune migration ne doit être créée pour un simple correctif UI ; seules les évolutions de schéma métier justifient une nouvelle migration versionnée.
+
+
+Pour v0.29.76, la migration structurante `0033_dcim_site_dependencies_rack_lifecycle.sql` ajoute le statut de cycle de vie des chassis/racks DCIM et les index nécessaires au catalogue actif par site, bâtiment, salle, ligne et colonne. Cette migration est justifiée par une évolution de schéma métier et reste additive.

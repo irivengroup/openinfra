@@ -34,6 +34,7 @@ class TestHttpApi:
             health = self._get_json(base_url + "/health")
             ready = self._get_json(base_url + "/ready")
             version = self._get_json(base_url + "/api/v1/version")
+            countries = self._get_json(base_url + "/api/v1/reference/countries")
             self._get_json(base_url + "/api/v1/database/schema")
             allocation = self._post_json(
                 base_url + "/api/v1/ipam/allocate",
@@ -89,6 +90,7 @@ class TestHttpApi:
                     "feature_check": "/api/v1/editions/feature-check",
                     "quota_check": "/api/v1/editions/quota-check",
                 },
+                "reference": {"countries": "/api/v1/reference/countries"},
                 "integrations": {
                     "itsm_providers": "/api/v1/integrations/itsm/providers",
                     "servicenow_validate": "/api/v1/integrations/itsm/servicenow/validate",
@@ -188,6 +190,9 @@ class TestHttpApi:
                     "topology_catalog": "/api/v1/dcim/topology-catalog",
                     "rooms": "/api/v1/dcim/rooms",
                     "racks": "/api/v1/dcim/racks",
+                    "rack": "/api/v1/dcim/rack",
+                    "rack_update": "/api/v1/dcim/rack/update",
+                    "rack_delete": "/api/v1/dcim/rack/delete",
                     "locations": "/api/v1/dcim/locations",
                     "rack_capacity": "/api/v1/dcim/rack-capacity",
                     "room_plan": "/api/v1/dcim/room-plan",
@@ -251,6 +256,12 @@ class TestHttpApi:
             assert ready["ready"] is True
             assert ready["component"] == "json"
             assert version["version"] == __version__
+            assert countries["items"]
+            assert any(
+                country["code"] == "FR"
+                for group in countries["items"]
+                for country in group["countries"]
+            )
             assert allocation["address"] == "10.6.0.1"
         finally:
             server.shutdown()
@@ -1215,7 +1226,7 @@ class TestHttpApi:
                     "backend_url": "https://openinfra-api.example.test",
                     "certificate_fingerprint": "6" * 64,
                     "enrollment_secret_ref": "vault://openinfra/discovery/agent/par1",
-                    "agent_version": "0.29.75",
+                    "agent_version": "0.29.76",
                 },
                 token=token,
             )

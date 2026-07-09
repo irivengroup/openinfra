@@ -5,6 +5,8 @@ import threading
 import urllib.request
 from pathlib import Path
 
+import pytest
+
 from openinfra.application.container import ApplicationFactory
 from openinfra.application.dcim_services import (
     CreateDcimBuildingCommand,
@@ -14,7 +16,9 @@ from openinfra.application.dcim_services import (
     CreateDcimZoneCommand,
     DcimTopologyCatalogCommand,
     DefinePhysicalRoomCommand,
+    DefineRackCommand,
     DeleteDcimBuildingCommand,
+    DeleteRackCommand,
     DeleteDcimFloorCommand,
     DeleteDcimRoomCommand,
     DeleteDcimSiteCommand,
@@ -23,18 +27,22 @@ from openinfra.application.dcim_services import (
     GetDcimFloorCommand,
     GetDcimRoomCommand,
     GetDcimZoneCommand,
+    GetRackCommand,
     ListDcimBuildingsCommand,
     ListDcimFloorsCommand,
     ListDcimRoomsCommand,
     ListDcimSitesCommand,
     ListDcimZonesCommand,
+    ListRacksCommand,
     UpdateDcimBuildingCommand,
     UpdateDcimFloorCommand,
     UpdateDcimRoomCommand,
     UpdateDcimSiteCommand,
     UpdateDcimZoneCommand,
+    UpdateRackCommand,
 )
 from openinfra.application.security_services import BootstrapTokenCommand
+from openinfra.domain.common import ValidationError
 from openinfra.interfaces.cli import OpenInfraCLI
 from openinfra.interfaces.http_api import OpenInfraThreadingServer
 
@@ -1136,6 +1144,193 @@ class TestDcimSiteLifecycle:
             server.shutdown()
             server.server_close()
             thread.join(timeout=5)
+
+    def test_room_floor_is_required_only_when_building_has_active_floors(
+        self, tmp_path: Path
+    ) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json", seed=False)
+        service = app.dcim_topology_service
+        service.create_site(
+            CreateDcimSiteCommand("default", "pytest", "NTE1", "Nantes 1", "FR", "Nantes")
+        )
+        service.create_building(
+            CreateDcimBuildingCommand("default", "pytest", "NTE1", "BAT-PLAIN", "Plain")
+        )
+        no_floor_room = service.create_room(
+            CreateDcimRoomCommand(
+                "default",
+                "pytest",
+                "NTE1",
+                "BAT-PLAIN",
+                None,
+                "RDC1",
+                "Plain room",
+                ("0-2",),
+                ("A-C",),
+            )
+        )
+        service.create_building(
+            CreateDcimBuildingCommand("default", "pytest", "NTE1", "BAT-TOWER", "Tower")
+        )
+        service.create_floor(
+            CreateDcimFloorCommand("default", "pytest", "NTE1", "BAT-TOWER", "F01", "Floor 1", 1)
+        )
+
+        with pytest.raises(ValidationError, match="room floor is mandatory"):
+            service.create_room(
+                CreateDcimRoomCommand(
+                    "default",
+                    "pytest",
+                    "NTE1",
+                    "BAT-TOWER",
+                    None,
+                    "ROOM1",
+                    "Tower room",
+                    ("0-2",),
+                    ("A-C",),
+                )
+            )
+        with_floor_room = service.create_room(
+            CreateDcimRoomCommand(
+                "default",
+                "pytest",
+                "NTE1",
+                "BAT-TOWER",
+                "F01",
+                "ROOM1",
+                "Tower room",
+                ("0-2",),
+                ("A-C",),
+            )
+        )
+
+        assert no_floor_room["floor"] is None
+        assert no_floor_room["rows"] == ["0", "1", "2"]
+        assert no_floor_room["columns"] == ["A", "B", "C"]
+        assert with_floor_room["floor"] == "F01"
+
+    def test_rack_crud_lifecycle_and_cascade(self, tmp_path: Path) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json", seed=False)
+        topology = app.dcim_topology_service
+        racks = app.dcim_rack_service
+        topology.create_site(
+            CreateDcimSiteCommand("default", "pytest", "LIL1", "Lille 1", "FR", "Lille")
+        )
+        topology.create_building(
+            CreateDcimBuildingCommand("default", "pytest", "LIL1", "BAT-A", "Building A")
+        )
+        topology.create_room(
+            CreateDcimRoomCommand(
+                "default", "pytest", "LIL1", "BAT-A", None, "RM1", "Room 1", ("0-2",), ("A-C",)
+            )
+        )
+        created = racks.define_rack(
+            DefineRackCommand(
+                tenant_id="default",
+                actor="pytest",
+                site="LIL1",
+                building="BAT-A",
+                room="RM1",
+                rack="RK1",
+                row="1",
+                column="B",
+                units=42,
+                usable_faces=("front", "rear"),
+            )
+        )
+        fetched = racks.get_rack(GetRackCommand("default", "LIL1", "BAT-A", "RM1", "RK1"))
+        listed = racks.list_racks(ListRacksCommand("default", "LIL1", "BAT-A", "RM1"))
+        updated = racks.update_rack(
+            UpdateRackCommand(
+                tenant_id="default",
+                actor="pytest",
+                site="LIL1",
+                building="BAT-A",
+                room="RM1",
+                rack="RK1",
+                units=48,
+                status="suspended",
+            )
+        )
+        active_after_suspend = racks.list_racks(ListRacksCommand("default", "LIL1", "BAT-A", "RM1"))
+        all_after_suspend = racks.list_racks(
+            ListRacksCommand("default", "LIL1", "BAT-A", "RM1", include_retired=True)
+        )
+        reactivated = racks.update_rack(
+            UpdateRackCommand(
+                tenant_id="default",
+                actor="pytest",
+                site="LIL1",
+                building="BAT-A",
+                room="RM1",
+                rack="RK1",
+                status="active",
+            )
+        )
+        retired = racks.delete_rack(DeleteRackCommand("default", "pytest", "LIL1", "BAT-A", "RM1", "RK1"))
+
+        assert created["code"] == "RK1"
+        assert fetched["rack"] == "RK1"
+        assert listed["count"] == 1
+        assert updated["units"] == 48
+        assert updated["status"] == "suspended"
+        assert active_after_suspend["count"] == 0
+        assert all_after_suspend["count"] == 1
+        assert reactivated["status"] == "active"
+        assert retired["status"] == "retired"
+
+    def test_dcim_rack_cli_contract_with_grid_ranges(self, tmp_path: Path, capsys: object) -> None:
+        data = tmp_path / "state.json"
+        commands = [
+            ["dcim", "site-create", "--data", str(data), "--tenant", "default", "--code", "CLI-R", "--name", "CLI Rack", "--country", "FR", "--city", "Paris"],
+            ["dcim", "building-create", "--data", str(data), "--tenant", "default", "--site", "CLI-R", "--code", "BAT-R", "--name", "Rack building"],
+            ["dcim", "room-create", "--data", str(data), "--tenant", "default", "--site", "CLI-R", "--building", "BAT-R", "--code", "RM1", "--name", "Room 1", "--row-range", "0-2", "--column-range", "A-C"],
+            ["dcim", "define-rack", "--data", str(data), "--tenant", "default", "--site", "CLI-R", "--building", "BAT-R", "--room", "RM1", "--rack", "RK1", "--row", "1", "--column", "B", "--units", "42", "--face", "front", "--face", "rear"],
+            ["dcim", "rack", "--data", str(data), "--tenant", "default", "--site", "CLI-R", "--building", "BAT-R", "--room", "RM1", "--rack", "RK1"],
+            ["dcim", "racks", "--data", str(data), "--tenant", "default", "--site", "CLI-R", "--building", "BAT-R", "--room", "RM1"],
+            ["dcim", "rack-update", "--data", str(data), "--tenant", "default", "--site", "CLI-R", "--building", "BAT-R", "--room", "RM1", "--rack", "RK1", "--units", "48"],
+            ["dcim", "rack-delete", "--data", str(data), "--tenant", "default", "--site", "CLI-R", "--building", "BAT-R", "--room", "RM1", "--rack", "RK1"],
+        ]
+
+        outputs = []
+        for command in commands:
+            assert OpenInfraCLI().run(command) == 0
+            outputs.append(json.loads(capsys.readouterr().out))
+
+        assert outputs[2]["rows"] == ["0", "1", "2"]
+        assert outputs[2]["floor"] is None
+        assert outputs[3]["rack"] == "RK1"
+        assert outputs[4]["code"] == "RK1"
+        assert outputs[5]["count"] == 1
+        assert outputs[6]["units"] == 48
+        assert outputs[7]["status"] == "retired"
+
+    def test_dcim_rack_http_contract(self, tmp_path: Path) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json", seed=False)
+        server = OpenInfraThreadingServer(("127.0.0.1", 0), app, auth_required=False)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        base_url = f"http://127.0.0.1:{server.server_port}"
+        try:
+            self._post_json(base_url + "/api/v1/dcim/site/create", {"tenant_id": "default", "actor": "pytest", "code": "HTTPR", "name": "HTTP Rack", "country": "FR", "city": "Paris"})
+            self._post_json(base_url + "/api/v1/dcim/building/create", {"tenant_id": "default", "actor": "pytest", "site": "HTTPR", "code": "BAT-R", "name": "Rack building"})
+            room = self._post_json(base_url + "/api/v1/dcim/room/create", {"tenant_id": "default", "actor": "pytest", "site": "HTTPR", "building": "BAT-R", "code": "RM1", "name": "Room 1", "rows": ["0-2"], "columns": ["A-C"]})
+            created = self._post_json(base_url + "/api/v1/dcim/racks", {"tenant_id": "default", "actor": "pytest", "site": "HTTPR", "building": "BAT-R", "room": "RM1", "rack": "RK1", "row": "1", "column": "B", "units": 42, "faces": ["front", "rear"]})
+            listed = self._get_json(base_url + "/api/v1/dcim/racks?tenant_id=default&site=HTTPR&building=BAT-R&room=RM1")
+            fetched = self._get_json(base_url + "/api/v1/dcim/rack?tenant_id=default&site=HTTPR&building=BAT-R&room=RM1&rack=RK1")
+            updated = self._post_json(base_url + "/api/v1/dcim/rack/update", {"tenant_id": "default", "actor": "pytest", "site": "HTTPR", "building": "BAT-R", "room": "RM1", "rack": "RK1", "units": 48})
+            deleted = self._post_json(base_url + "/api/v1/dcim/rack/delete", {"tenant_id": "default", "actor": "pytest", "site": "HTTPR", "building": "BAT-R", "room": "RM1", "rack": "RK1"})
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+        assert room["floor"] is None
+        assert created["rack"] == "RK1"
+        assert listed["count"] == 1
+        assert fetched["code"] == "RK1"
+        assert updated["units"] == 48
+        assert deleted["status"] == "retired"
 
     def _post_json(
         self, url: str, payload: dict[str, object], token: str | None = None

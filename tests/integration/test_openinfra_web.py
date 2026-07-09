@@ -224,7 +224,10 @@ class TestOpenInfraWeb:
         assert "Entité propriétaire" not in static_js + main_js
         assert "Tenant de sécurité" not in static_js + main_js
         assert "scope_tenant_id" not in static_js
-        assert 'label: "Tenant"' in static_js
+        assert 'label: "Filiale/Subdivision"' in static_js
+        assert 'label: "Tenant"' not in static_js
+        assert 'renderCountryOptionGroups' in static_js
+        assert '/v1/reference/countries' in static_js
         assert 'type: "organization-select"' in static_js
         assert 'type: "tenant-select"' in static_js
         assert 'id="openinfra-organization"' in static_js
@@ -236,8 +239,8 @@ class TestOpenInfraWeb:
         assert "Créer une organisation" in static_js + main_js
         assert "Modifier une organisation" in static_js + main_js
         assert "Retirer une organisation" in static_js + main_js
-        assert "Lister les tenants" in static_js + main_js
-        assert "Créer un tenant" in static_js + main_js
+        assert "Lister les filiales/subdivisions" in static_js + main_js
+        assert "Créer une filiale/subdivision" in static_js + main_js
         assert "operationNeedsGlobalScopeSelectors(operation)" in static_js
         assert 'id.startsWith("itam-organization") || id.startsWith("itam-partner") || id.startsWith("itam-tenant")' in static_js
         assert "renderOperationScopeSelectors(operation)" in static_js
@@ -251,8 +254,8 @@ class TestOpenInfraWeb:
         assert 'scope_tenant_id' not in organization_create + organization_update + organization_delete
         assert 'scope_tenant_id' not in tenant_create + tenant_update + tenant_delete
         assert '{ name: "organization_id", label: "Organisation", type: "organization-select", required: true }' in tenant_create
-        assert '{ name: "tenant_id", label: "Tenant à modifier", type: "tenant-select", required: true }' in tenant_update
-        assert '{ name: "tenant_id", label: "Tenant à retirer", type: "tenant-select", required: true }' in tenant_delete
+        assert '{ name: "tenant_id", label: "Filiale/Subdivision à modifier", type: "tenant-select", required: true }' in tenant_update
+        assert '{ name: "tenant_id", label: "Filiale/Subdivision à retirer", type: "tenant-select", required: true }' in tenant_delete
         assert "/v1/itam/support-profile" in static_js + main_js
         assert "/v1/itam/support-coverage" in static_js + main_js
         assert "Déclarer garantie constructeur" in static_js + main_js
@@ -544,6 +547,10 @@ class TestOpenInfraWeb:
         assert "Fournisseurs DDI" in static_js
         assert 'path: "/v1/dcim/locations"' in static_js
         assert "Localiser un équipement" in static_js
+        assert 'path: "/v1/dcim/racks"' in static_js
+        assert 'path: "/v1/dcim/rack/update"' in static_js
+        assert 'path: "/v1/dcim/rack/delete"' in static_js
+        assert "Créer un chassis/rack" in static_js
         assert 'path: "/v1/dcim/rack-elevation"' in static_js
         assert "Élévation rack" in static_js
         assert "Format rendu" in static_js

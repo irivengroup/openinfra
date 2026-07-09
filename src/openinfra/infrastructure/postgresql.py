@@ -1260,12 +1260,12 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             INSERT INTO racks (
                 id, tenant_id, site_code, building_code, floor_code, room_code, code,
                 row_code, column_code, zone_code, units, coordinate_x, coordinate_y, coordinate_z,
-                usable_faces, max_weight_kg, power_capacity_watts
+                usable_faces, max_weight_kg, power_capacity_watts, status
             ) VALUES (
                 %(id)s, %(tenant_id)s, %(site_code)s, %(building_code)s, %(floor_code)s,
                 %(room_code)s, %(code)s, %(row_code)s, %(column_code)s, %(zone_code)s,
                 %(units)s, %(coordinate_x)s, %(coordinate_y)s, %(coordinate_z)s,
-                %(usable_faces)s, %(max_weight_kg)s, %(power_capacity_watts)s
+                %(usable_faces)s, %(max_weight_kg)s, %(power_capacity_watts)s, %(status)s
             )
             """,
             {
@@ -1286,6 +1286,42 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
                 "usable_faces": [face.value for face in rack.usable_faces],
                 "max_weight_kg": rack.max_weight_kg,
                 "power_capacity_watts": rack.power_capacity_watts,
+                "status": rack.status.value,
+            },
+        )
+
+    def save_rack(self, rack: Rack) -> None:
+        coordinates = rack.coordinates
+        self._execute_without_result(
+            """
+            UPDATE racks
+            SET row_code = %(row_code)s, column_code = %(column_code)s, units = %(units)s,
+                coordinate_x = %(coordinate_x)s, coordinate_y = %(coordinate_y)s,
+                coordinate_z = %(coordinate_z)s, usable_faces = %(usable_faces)s,
+                max_weight_kg = %(max_weight_kg)s,
+                power_capacity_watts = %(power_capacity_watts)s, status = %(status)s
+            WHERE tenant_id = %(tenant_id)s
+              AND site_code = %(site_code)s
+              AND building_code = %(building_code)s
+              AND room_code = %(room_code)s
+              AND code = %(code)s
+            """,
+            {
+                "tenant_id": rack.tenant_id.value,
+                "site_code": rack.site_code.value,
+                "building_code": rack.building_code.value,
+                "room_code": rack.room_code.value,
+                "code": rack.code.value,
+                "row_code": rack.row,
+                "column_code": rack.column,
+                "units": rack.units,
+                "coordinate_x": coordinates.x if coordinates else None,
+                "coordinate_y": coordinates.y if coordinates else None,
+                "coordinate_z": coordinates.z if coordinates else None,
+                "usable_faces": [face.value for face in rack.usable_faces],
+                "max_weight_kg": rack.max_weight_kg,
+                "power_capacity_watts": rack.power_capacity_watts,
+                "status": rack.status.value,
             },
         )
 
@@ -1798,7 +1834,7 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             SELECT id, tenant_id, site_code, building_code, floor_code, room_code, code,
                    row_code, column_code, zone_code, units,
                    coordinate_x, coordinate_y, coordinate_z, usable_faces,
-                   max_weight_kg, power_capacity_watts
+                   max_weight_kg, power_capacity_watts, status
             FROM racks
             WHERE tenant_id = %(tenant_id)s AND site_code = %(site_code)s
               AND building_code = %(building_code)s
@@ -2021,18 +2057,21 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
         site: str,
         building: str,
         room: str,
+        include_retired: bool = False,
     ) -> tuple[Rack, ...]:
+        status_filter = "" if include_retired else " AND status = 'active'"
         rows = self._fetch_all(
-            """
+            f"""
             SELECT id, tenant_id, site_code, building_code, floor_code, room_code, code,
                    row_code, column_code, zone_code, units,
                    coordinate_x, coordinate_y, coordinate_z, usable_faces,
-                   max_weight_kg, power_capacity_watts
+                   max_weight_kg, power_capacity_watts, status
             FROM racks
             WHERE tenant_id = %(tenant_id)s
               AND site_code = %(site_code)s
               AND building_code = %(building_code)s
               AND room_code = %(room_code)s
+              {status_filter}
             ORDER BY row_code, column_code, code
             """,
             {
@@ -2375,6 +2414,7 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
                 if row.get("power_capacity_watts") is not None
                 else None
             ),
+            status=DcimLifecycleStatus.from_value(str(row.get("status") or "active"), "rack status"),
         )
 
     def _equipment_from_row(self, row: Mapping[str, object]) -> Equipment:

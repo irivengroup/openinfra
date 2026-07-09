@@ -12,10 +12,46 @@ from openinfra.domain.common import Code, Coordinates3D, EntityId, Name, TenantI
 class DcimGridValidator:
     @staticmethod
     def normalized_unique_codes(values: tuple[str, ...], label: str) -> tuple[str, ...]:
-        normalized = tuple(dict.fromkeys(Code.from_value(value, label).value for value in values))
+        normalized = tuple(
+            dict.fromkeys(
+                Code.from_value(expanded_value, label).value
+                for value in values
+                for expanded_value in DcimGridValidator._expand_code_or_range(value, label)
+            )
+        )
         if not normalized:
             raise ValidationError(f"{label} must contain at least one value")
+        if len(normalized) > 512:
+            raise ValidationError(f"{label} range cannot exceed 512 generated values")
         return normalized
+
+    @staticmethod
+    def _expand_code_or_range(value: str, label: str) -> tuple[str, ...]:
+        candidate = value.strip().upper()
+        if not candidate:
+            return ()
+        if "-" not in candidate:
+            return (candidate,)
+        start, separator, end = candidate.partition("-")
+        if not separator or not start or not end or "-" in end:
+            return (candidate,)
+        if start.isdigit() and end.isdigit():
+            first = int(start)
+            last = int(end)
+            if first > last:
+                raise ValidationError(f"{label} numeric range start must be <= end")
+            width = max(len(start), len(end)) if start.startswith("0") or end.startswith("0") else 0
+            return tuple(
+                str(item).zfill(width) if width else str(item)
+                for item in range(first, last + 1)
+            )
+        if len(start) == 1 and len(end) == 1 and start.isalpha() and end.isalpha():
+            first = ord(start)
+            last = ord(end)
+            if first > last:
+                raise ValidationError(f"{label} alpha range start must be <= end")
+            return tuple(chr(item) for item in range(first, last + 1))
+        return (candidate,)
 
 
 class DcimLifecycleStatus(StrEnum):
@@ -514,6 +550,7 @@ class Rack:
     usable_faces: tuple[RackFace, ...] = (RackFace.FRONT,)
     max_weight_kg: float | None = None
     power_capacity_watts: int | None = None
+    status: DcimLifecycleStatus = DcimLifecycleStatus.ACTIVE
 
     @classmethod
     def create(
@@ -557,6 +594,51 @@ class Rack:
             max_weight_kg=normalized_weight,
             power_capacity_watts=normalized_power,
         )
+
+    def update(
+        self,
+        *,
+        row: str | None = None,
+        column: str | None = None,
+        units: int | None = None,
+        usable_faces: tuple[str, ...] | None = None,
+        max_weight_kg: float | None = None,
+        power_capacity_watts: int | None = None,
+        status: str | None = None,
+    ) -> Rack:
+        normalized_units = self.units if units is None else int(units)
+        if not 1 <= normalized_units <= 60:
+            raise ValidationError("rack units must be between 1 and 60")
+        return Rack(
+            id=self.id,
+            tenant_id=self.tenant_id,
+            site_code=self.site_code,
+            building_code=self.building_code,
+            room_code=self.room_code,
+            code=self.code,
+            row=self.row if row is None else Code.from_value(row, "rack row").value,
+            column=self.column if column is None else Code.from_value(column, "rack column").value,
+            units=normalized_units,
+            coordinates=self.coordinates,
+            floor_code=self.floor_code,
+            zone_code=self.zone_code,
+            usable_faces=self.usable_faces
+            if usable_faces is None
+            else self._normalize_faces(usable_faces),
+            max_weight_kg=self.max_weight_kg
+            if max_weight_kg is None
+            else self._normalize_weight(max_weight_kg),
+            power_capacity_watts=self.power_capacity_watts
+            if power_capacity_watts is None
+            else self._normalize_power(power_capacity_watts),
+            status=DcimLifecycleStatus.from_value(status, "rack status") if status else self.status,
+        )
+
+    def retire(self) -> Rack:
+        return self.update(status=DcimLifecycleStatus.RETIRED.value)
+
+    def selectable(self) -> bool:
+        return self.status.selectable()
 
     @classmethod
     def _normalize_faces(cls, values: tuple[str, ...]) -> tuple[RackFace, ...]:
@@ -603,13 +685,37 @@ class Rack:
         if start_u + height_u - 1 > self.units:
             raise ValidationError("rack unit interval exceeds rack capacity")
 
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "id": self.id.value,
+            "tenant_id": self.tenant_id.value,
+            "site": self.site_code.value,
+            "building": self.building_code.value,
+            "floor": self.floor_code.value if self.floor_code else None,
+            "room": self.room_code.value,
+            "zone": self.zone_code.value if self.zone_code else None,
+            "code": self.code.value,
+            "rack": self.code.value,
+            "row": self.row,
+            "column": self.column,
+            "units": self.units,
+            "faces": [face.value for face in self.usable_faces],
+            "max_weight_kg": self.max_weight_kg,
+            "power_capacity_watts": self.power_capacity_watts,
+            "status": self.status.value,
+            "selectable": self.selectable(),
+        }
+
     def as_capacity_seed(self) -> dict[str, object]:
         return {
+            "code": self.code.value,
             "rack": self.code.value,
             "units": self.units,
             "faces": [face.value for face in self.usable_faces],
             "max_weight_kg": self.max_weight_kg,
             "power_capacity_watts": self.power_capacity_watts,
+            "status": self.status.value,
+            "selectable": self.selectable(),
         }
 
 

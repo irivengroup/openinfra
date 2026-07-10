@@ -114,7 +114,7 @@ def _args(tmp_path: Path) -> SimpleNamespace:
         backend="json",
         building="BAT-A",
         clear_default=False,
-        code="PAR1_BAT-A_ETG1",
+        code="L01",
         cursor=None,
         collector_id="collector-1",
         data=tmp_path / "state.json",

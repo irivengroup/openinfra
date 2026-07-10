@@ -1,3 +1,10 @@
+## OpenInfra 0.29.85 — Réalignement UX/DCIM
+
+- Ajout d’EPIC-0807 pour l’internationalisation complète du portail FR/EN.
+- Ajout du gate TST-P08-WEB-I18N-FR-EN.
+- Réalignement du test DCIM des étages sur la nomenclature locale `L-01`, `L00`, `L01` et la migration 0040.
+- Ajout de l’alignement REQ-00824 vers EPIC-0807.
+
 ### Validation v0.29.82 — Réconciliation Discovery multisource gouvernée
 
 La roadmap réalise `EPIC-1405` via `TST-P14-DISCOVERY-MULTISOURCE-RECONCILIATION` : preuves immuables, scores reproductibles, conflits explicites par attribut, résolution complète et justifiée, audit, pagination, persistance JSON/PostgreSQL partitionnée et interdiction de toute mutation RSOT silencieuse.

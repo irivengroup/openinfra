@@ -1,3 +1,17 @@
+## v0.29.85 — Nomenclature DCIM des étages et portail FR/EN
+
+- Abandon de la concaténation site/bâtiment dans les codes et noms d’étage.
+- Nouvelle nomenclature locale au bâtiment : `L-01`, `L00`, `L01`, `L02`…
+- Migration JSON automatique et migration PostgreSQL `0040_dcim_floor_nomenclature.sql` couvrant étages, salles, zones, racks et équipements.
+- Compatibilité de lecture avec les alias historiques `<site>_<bâtiment>_ETG<n>`, `F<n>` et `ETG<n>`.
+- Préservation des noms d’étage personnalisés et refus des collisions de niveaux.
+- Internationalisation complète de l’interface web en français et anglais.
+- Détection via `navigator.languages`, puis `navigator.language`, avec fallback anglais.
+- Sélecteur EN/FR persistant et moteur i18n identique pour React et le portail packagé.
+- Localisation des composants, opérations, formulaires, états, pays, continents, taxonomie et étages sans modification des valeurs API.
+- Priorité garantie au runtime web packagé afin qu’un `web/dist` React incomplet ne masque jamais les assets contractuels Python.
+- Mise à jour du CDC et de la roadmap, cette recommandation modifiant l’existant.
+
 ## v0.29.84 — Correctif CI DCIM et runtime GitHub Actions Node.js 24
 
 - Correction du smoke `DCIM physical model` : réutilisation du code d’étage canonique produit par `define-room`.

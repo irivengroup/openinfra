@@ -204,9 +204,9 @@ class OpenInfraWebStaticLocator:
             candidates.append(Path(explicit_root))
         candidates.extend(
             (
-                Path.cwd() / "web/dist",
                 Path.cwd() / "src/openinfra/interfaces/rendering/static",
                 Path(__file__).resolve().parent / "rendering/static",
+                Path.cwd() / "web/dist",
                 Path(__file__).resolve().parents[3] / "web/dist",
             )
         )

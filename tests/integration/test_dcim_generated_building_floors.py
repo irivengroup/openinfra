@@ -16,16 +16,45 @@ from openinfra.application.dcim_services import (
     CreateDcimSiteCommand,
     DeleteDcimFloorCommand,
     GetDcimBuildingCommand,
+    GetDcimFloorCommand,
     ListDcimFloorsCommand,
     UpdateDcimFloorCommand,
 )
 from openinfra.domain.common import ConflictError, TenantId, ValidationError
 from openinfra.domain.countries import CountryCatalog
-from openinfra.domain.dcim import Building, BuildingType, DcimGridValidator
+from openinfra.domain.dcim import Building, BuildingType, DcimGridValidator, FloorNomenclature
 from openinfra.interfaces.http_api import OpenInfraThreadingServer
 
 
 class TestDcimGeneratedBuildingFloors:
+    def test_floor_nomenclature_is_building_local_sortable_and_backward_readable(self) -> None:
+        assert FloorNomenclature.code(-2) == "L-02"
+        assert FloorNomenclature.code(-1) == "L-01"
+        assert FloorNomenclature.code(0) == "L00"
+        assert FloorNomenclature.code(1) == "L01"
+        assert FloorNomenclature.code(100) == "L100"
+        assert FloorNomenclature.name(-1) == "Basement 1"
+        assert FloorNomenclature.name(0) == "Ground floor"
+        assert FloorNomenclature.name(2) == "Level 2"
+        for alias in ("L01", "F01", "ETG1", "S1_B1_ETG1"):
+            assert FloorNomenclature.level_from_code(alias) == 1
+            assert FloorNomenclature.references_same_level(alias, "L01")
+        assert FloorNomenclature.references_same_level("L01", "L01")
+        assert FloorNomenclature.legacy_code("S1", "B1", -1) == "S1_B1_ETG-1"
+        assert FloorNomenclature.is_generated_name("S1/B1/ETG-1", "S1", "B1", -1)
+        assert FloorNomenclature.is_generated_name("Sous-sol 1", "S1", "B1", -1)
+        assert FloorNomenclature.is_generated_name("Rez-de-chaussée", "S1", "B1", 0)
+        assert FloorNomenclature.is_generated_name("Étage 1", "S1", "B1", 1)
+        assert not FloorNomenclature.is_generated_name("Executive", "S1", "B1", 1)
+        assert FloorNomenclature.level_from_code("UNKNOWN") is None
+        assert FloorNomenclature.level_from_code("L-00") is None
+        assert FloorNomenclature.level_from_code("L999") is None
+        assert FloorNomenclature.level_from_code("ETG999") is None
+        with pytest.raises(ValidationError):
+            FloorNomenclature.code(-21)
+        with pytest.raises(ValidationError):
+            FloorNomenclature.code(151)
+
     def test_building_type_generates_bounded_floors_and_country_options(
         self, tmp_path: Path
     ) -> None:
@@ -52,10 +81,10 @@ class TestDcimGeneratedBuildingFloors:
         )
         assert building["type_batiment"] == "Etages"
         assert building["floor_codes"] == [
-            "GEN1_BAT-G_ETG-1",
-            "GEN1_BAT-G_ETG0",
-            "GEN1_BAT-G_ETG1",
-            "GEN1_BAT-G_ETG2",
+            "L-01",
+            "L00",
+            "L01",
+            "L02",
         ]
         assert (
             app.dcim_topology_service.get_building(
@@ -83,6 +112,14 @@ class TestDcimGeneratedBuildingFloors:
             BuildingType.from_value("tower")
         with pytest.raises(ValidationError):
             DcimGridValidator.normalized_unique_codes(("B-A",), "rows")
+        with pytest.raises(ValidationError):
+            DcimGridValidator.normalized_unique_codes(("2-1",), "rows")
+        with pytest.raises(ValidationError):
+            DcimGridValidator.normalized_unique_codes(("",), "rows")
+        with pytest.raises(ValidationError):
+            DcimGridValidator.normalized_unique_codes(("0-512",), "rows")
+        assert DcimGridValidator.normalized_unique_codes(("A-B-C",), "rows") == ("A-B-C",)
+        assert DcimGridValidator.normalized_unique_codes(("A-2",), "rows") == ("A-2",)
         options = CountryCatalog.options()
         assert any(
             option == {"value": "FR", "label": "France", "group": "Europe"} for option in options
@@ -189,3 +226,69 @@ class TestDcimGeneratedBuildingFloors:
         finally:
             server.shutdown()
             thread.join(timeout=5)
+
+    def test_json_state_migrates_legacy_floor_codes_and_preserves_custom_names(
+        self, tmp_path: Path
+    ) -> None:
+        state_path = tmp_path / "state.json"
+        factory = ApplicationFactory()
+        app = factory.create_json_application(state_path, seed=False)
+        app.dcim_topology_service.create_site(
+            CreateDcimSiteCommand(
+                "default",
+                "pytest",
+                "MIG1",
+                "Migration Site",
+                "FR",
+                "Paris",
+                "",
+                "3 Rue Generated",
+                "75000",
+                "mig1@example.invalid",
+                "+33100000003",
+            )
+        )
+        app.dcim_topology_service.create_building(
+            CreateDcimBuildingCommand(
+                "default", "pytest", "MIG1", "BAT-M", "Migration Building", "floors", 0, 1
+            )
+        )
+        app.dcim_topology_service.create_room(
+            CreateDcimRoomCommand(
+                "default", "pytest", "MIG1", "BAT-M", "L01", "ROOM-M", "Room", ("0",), ("A",)
+            )
+        )
+
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        ground = state["floors"].pop("default:MIG1:BAT-M:L00")
+        ground["code"] = "MIG1_BAT-M_ETG0"
+        ground["name"] = "MIG1/BAT-M/ETG0"
+        state["floors"]["default:MIG1:BAT-M:MIG1_BAT-M_ETG0"] = ground
+        first = state["floors"].pop("default:MIG1:BAT-M:L01")
+        first["code"] = "F01"
+        first["name"] = "Executive"
+        state["floors"]["default:MIG1:BAT-M:F01"] = first
+        state["rooms"]["default:MIG1:BAT-M:ROOM-M"]["floor_code"] = "F01"
+        state_path.write_text(json.dumps(state), encoding="utf-8")
+
+        migrated = factory.create_json_application(state_path, seed=False)
+        stored = json.loads(state_path.read_text(encoding="utf-8"))
+        assert set(stored["floors"]) >= {
+            "default:MIG1:BAT-M:L00",
+            "default:MIG1:BAT-M:L01",
+        }
+        assert stored["floors"]["default:MIG1:BAT-M:L00"]["name"] == "Ground floor"
+        assert stored["floors"]["default:MIG1:BAT-M:L01"]["name"] == "Executive"
+        assert stored["rooms"]["default:MIG1:BAT-M:ROOM-M"]["floor_code"] == "L01"
+        assert (
+            migrated.dcim_topology_service.get_floor(
+                GetDcimFloorCommand("default", "MIG1", "BAT-M", "F01")
+            )["code"]
+            == "L01"
+        )
+        assert (
+            migrated.dcim_topology_service.get_floor(
+                GetDcimFloorCommand("default", "MIG1", "BAT-M", "MIG1_BAT-M_ETG0")
+            )["code"]
+            == "L00"
+        )

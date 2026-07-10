@@ -1128,3 +1128,20 @@ body {
     transform: none;
   }
 }
+
+.openinfra-language-control {
+  width: 4.75rem;
+  justify-self: end;
+}
+
+.openinfra-language-control .form-select {
+  min-height: 2rem;
+  padding-block: .2rem;
+  font-weight: 700;
+}
+
+@media (max-width: 991.98px) {
+  .openinfra-language-control {
+    width: 4.5rem;
+  }
+}

@@ -1705,3 +1705,14 @@ La roadmap intègre `TST-P14-DISCOVERY-PROTOCOL-PROFILES` pour couvrir EPIC-1403
 ### Validation v0.29.81 — Profils Discovery virtualisation, Kubernetes et cloud
 
 La roadmap intègre `TST-P14-DISCOVERY-INTEGRATION-PROFILES` pour couvrir EPIC-1404 : profils VMware, Proxmox, Hyper-V, Kubernetes, AWS, Azure, GCP et OpenStack sécurisés, secrets `vault://` masqués, endpoints HTTPS contrôlés, limites de débit/concurrence actives, CRUD service/CLI/API/web et migration PostgreSQL `0037_discovery_integration_profiles.sql` sans scan réseau ni mutation RSOT.
+
+
+## Réalignement v0.29.85
+
+### EPIC-0807 — Internationalisation web FR/EN
+
+Le portail React et le portail packagé partagent un moteur i18n unique couvrant tous les composants. La langue initiale est résolue depuis le choix persistant, `navigator.languages`, puis `navigator.language`; l’anglais est le fallback obligatoire. Les identifiants métier et valeurs API restent invariants.
+
+### Nomenclature DCIM des étages
+
+EPIC-1401 est réaligné sur une nomenclature locale au bâtiment : `L-01`, `L00`, `L01`… La migration 0040 met à niveau les dépendances sans perte, maintient les alias historiques en lecture et conserve les libellés personnalisés.

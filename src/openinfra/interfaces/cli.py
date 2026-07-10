@@ -2662,8 +2662,14 @@ class OpenInfraCLI:
         define_room.add_argument("--city", required=True)
         define_room.add_argument("--building-code", required=True)
         define_room.add_argument("--building-name", required=True)
-        define_room.add_argument("--floor-code", required=True)
-        define_room.add_argument("--floor-name", required=True)
+        define_room.add_argument(
+            "--floor-code",
+            help="deprecated compatibility hint; the code is generated from --floor-index",
+        )
+        define_room.add_argument(
+            "--floor-name",
+            help="deprecated compatibility hint; the name is generated from --floor-index",
+        )
         define_room.add_argument("--floor-index", type=int, required=True)
         define_room.add_argument("--room-code", required=True)
         define_room.add_argument("--room-name", required=True)

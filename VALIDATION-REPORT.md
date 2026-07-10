@@ -1,116 +1,157 @@
-# OpenInfra v0.29.84 — Rapport de validation
+# OpenInfra v0.29.85 — Rapport de validation
 
 Date de validation : `2026-07-10`  
-Release : `0.29.84`  
-Périmètre : `Correctif CI DCIM et compatibilité GitHub Actions Node.js 24`
+Release : `0.29.85`  
+Périmètre : `Nomenclature locale des étages DCIM et internationalisation web FR/EN`
 
 ## Résultat global
 
-La livraison corrige le chaînage des smoke tests DCIM après normalisation du code d’étage et supprime les actions GitHub reposant encore sur le runtime Node.js 20. Aucun contrat métier, schéma PostgreSQL, CDC ou jalon de roadmap n’est modifié.
+La livraison abandonne la concaténation des codes site/bâtiment dans les étages, introduit une nomenclature locale stable et ajoute un moteur d’internationalisation commun aux deux portails web. Les identifiants métier et valeurs API restent indépendants de la langue.
 
-- Tests Python collectés : **611** dans **83 fichiers**.
+- Tests Python collectés : **615** dans **83 fichiers**.
 - Suite complète : **PASS** par lots, sans échec.
-- Régression ciblée CLI/workflows/gate sécurité : **15 tests PASS**.
-- Smoke extrait du workflow `DCIM physical model` : **PASS**.
-- Smoke extrait du workflow `DCIM cabling and energy foundation` : **PASS**.
-- Couverture globale exacte : **98,0041 %** — `20 525 / 20 943` instructions couvertes.
+- Tests unitaires : **227 PASS**.
+- Tests d’intégration : **385 PASS**.
+- Tests d’architecture : **3 PASS**.
+- Couverture globale exacte : **98,013559 %** — `20 674 / 21 093` instructions couvertes.
 - Seuil bloquant : **98 % PASS**.
-- Tests frontend Node.js : **2 PASS**.
+- Tests frontend Node.js : **8 PASS**.
+- Lint frontend : **PASS**.
 - Build frontend Vite : **PASS**.
 
-La suite instrumentée a été exécutée par lots avec accumulation dans un fichier de couverture unique. Un lot de quatorze fichiers a dépassé le timeout du runner ; il a été rejoué en deux sous-lots de sept fichiers, tous validés.
+La suite instrumentée a été exécutée par lots avec accumulation dans un fichier de couverture unique. Certains groupes CLI/DCIM dépassaient le timeout lorsqu’ils contenaient trop de fichiers ; ils ont été subdivisés, sans modifier les tests ni la mesure consolidée.
 
-## Correction fonctionnelle CI
+## Nomenclature DCIM des étages
 
-- `openinfra dcim define-room` retourne un code d’étage canonique de la forme `<site>_<bâtiment>_ETG<n>` : **contrat confirmé**.
-- Le smoke modèle physique extrait désormais le champ JSON `floor` et le réutilise pour `dcim locate` : **PASS**.
-- Le smoke câblage/énergie applique la même règle à `dcim define-rack` et `dcim locate` : **PASS**.
-- Les anciens usages locaux de `F01` sont conservés uniquement dans les scénarios fondés sur les données de démonstration préchargées où ce code existe réellement.
-- Test de non-régression du chaînage `define-room` → `locate` : **PASS**.
-- Tests structurels des deux blocs de workflow : **PASS**.
+- Code local au bâtiment, triable et indépendant des codes parents :
+  - sous-sol 1 : `L-01` ;
+  - rez-de-chaussée : `L00` ;
+  - étage 1 : `L01` ;
+  - étage 2 : `L02` ;
+  - niveaux supérieurs à 99 : largeur adaptée, par exemple `L100`.
+- Le site et le bâtiment restent portés par la hiérarchie du modèle et ne sont pas répétés dans le code d’étage.
+- Les noms générés stockés restent neutres et déterministes : `Basement n`, `Ground floor`, `Level n`.
+- Leur affichage est localisé dans l’interface web : `Sous-sol n`, `Rez-de-chaussée`, `Étage n` en français.
+- Les alias historiques `<site>_<bâtiment>_ETG<n>`, `F<n>` et `ETG<n>` restent acceptés en lecture pour préserver la compatibilité.
+- Les nouveaux enregistrements utilisent exclusivement la nomenclature canonique `L…`.
+- Les noms personnalisés existants sont préservés.
+- Les collisions de niveau et codes hors bornes sont refusés.
+- `define-room` repose sur l’indice de niveau ; les anciens hints de code/nom restent tolérés comme entrées dépréciées.
 
-## GitHub Actions
+## Migration des données
 
-- `actions/checkout@v6` : configuré dans tous les workflows.
-- `actions/setup-python@v6` : configuré dans les jobs Python.
-- `actions/setup-node@v6` : configuré dans le job frontend.
-- `actions/dependency-review-action@v5` : conservé.
-- `github/codeql-action@v4` : conservé.
-- Le gate de sécurité refuse explicitement `actions/checkout@v4`, `actions/setup-python@v5` et `actions/setup-node@v4` : **PASS**.
-- Parsing YAML de tous les workflows : **PASS**.
+- Migration JSON automatique : **PASS**.
+- Migration PostgreSQL : `0040_dcim_floor_nomenclature.sql`.
+- Mise à jour transactionnelle des références dans : étages, salles, zones de salle, racks et équipements.
+- Garde contre les collisions avant renommage : **PASS**.
+- Contrainte canonique sur les nouveaux codes : **PASS**.
+- Nombre total de migrations PostgreSQL ordonnées : **40**.
+- Dernière migration packagée et chargeable : `0040_dcim_floor_nomenclature.sql`.
+
+## Internationalisation web FR/EN
+
+- Langues supportées : **anglais** et **français** uniquement.
+- Détection initiale : `navigator.languages`, puis `navigator.language`.
+- Réduction des locales régionales : `fr-FR` → `fr`, `en-GB` → `en`.
+- Toute langue non supportée utilise l’anglais comme fallback strict.
+- Sélecteur `EN/FR` disponible dans le header.
+- Choix utilisateur persisté dans `localStorage` sous `openinfra.language`.
+- Moteur i18n partagé et byte-identique entre le frontend React et le portail packagé Python.
+- Couverture des composants, menus, opérations, formulaires, validations, états, pays, continents, taxonomie des ressources et étages.
+- Les clés, codes, identifiants et valeurs API ne sont jamais traduits.
+- `Intl.DisplayNames` est utilisé pour les noms de pays lorsque disponible.
+- La commutation à chaud ne laisse pas de fragments mixtes français/anglais dans les rendus dynamiques couverts.
+
+## Résolution des assets web
+
+Le build Vite génère `web/dist`, mais ce répertoire ne contient pas les assets contractuels du runtime packagé Python. La résolution statique applique désormais l’ordre suivant :
+
+1. racine explicitement fournie par l’opérateur ;
+2. runtime statique packagé dans les sources ;
+3. runtime statique installé dans le wheel ;
+4. bundle React `web/dist`.
+
+Un build React incomplet ne peut donc plus masquer le portail packagé. Le comportement est couvert par un test de non-régression exécuté avec `web/dist` présent.
 
 ## Qualité, sécurité et typage
 
-- `ruff format --check src tests scripts docker installers` : **PASS**.
-- `ruff check src tests scripts docker installers` : **PASS**.
+- `ruff format --check src tests scripts docker` : **PASS**, **148 fichiers**.
+- `ruff check src tests scripts docker` : **PASS**.
 - `mypy src/openinfra` : **PASS**, aucune erreur sur **56 fichiers source**.
 - `bandit -q -r src/openinfra` : **PASS**.
 - `python scripts/security_gate.py --project-root .` : **PASS**.
 - `python scripts/quality_gate.py` : **PASS**.
 - `python -m compileall -q src/openinfra scripts tests` : **PASS**.
-- Scan des secrets et séparation dépendances runtime/dev : **PASS**.
+- Séparation des dépendances runtime et développement : **PASS**.
+- Aucun secret en clair ajouté : **PASS**.
 
 ## CDC, roadmap, installateurs et runtime
 
-- CDC v4.8.1 : **PASS** — **823 exigences**, **622 tests contractuels**.
-- Roadmap v2 : **PASS** — **19 phases**, **114 epics**, **8 gates**, **91 tests**.
-- Aucun fichier CDC ou roadmap modifié ou réémis.
+Cette évolution modifie des décisions existantes ; le CDC et la roadmap ont donc été réalignés.
+
+- CDC v4.8.1 : **PASS** — **824 exigences**, **529 entités**, **623 tests contractuels**.
+- Roadmap v2 : **PASS** — **19 phases**, **115 epics**, **8 gates**, **92 tests**.
+- Exigence nomenclature : `REQ-00820`.
+- Exigence i18n web : `REQ-00824`.
+- Epic i18n : `EPIC-0807`.
 - Six installateurs autonomes Lite/Pro/Enterprise : **PASS**.
 - Alignement Enterprise : **PASS**.
 - Validation frontend statique : **PASS**.
-- Smoke runtime natif et unités systemd : **PASS**.
-- Migration PostgreSQL la plus récente : `0039_discovery_job_resilience.sql`.
-- Nombre total de migrations PostgreSQL ordonnées : **39**.
-- Aucune nouvelle migration pour cette release.
+- Smoke runtime natif et rendu de trois unités systemd : **PASS**.
 
 ## Frontend
 
-- Installation npm : **PASS**.
+- Installation contrôlée des dépendances npm : **PASS**.
+- `npm --prefix web test` : **8 tests PASS**.
 - `npm --prefix web run lint` : **PASS**.
-- `npm --prefix web test` : **2 tests PASS**.
-- `npm --prefix web run build` : **PASS**, Vite a produit les assets de production.
-- `web/node_modules`, `web/dist` et le lockfile généré par le miroir local ne sont pas inclus dans l’archive.
+- `npm --prefix web run build` : **PASS** avec Vite `5.4.21`.
+- Validation de l’identité du moteur i18n React/runtime packagé : **PASS**.
+- `web/node_modules`, `web/dist` et le lockfile généré temporairement sont exclus de l’archive source.
 
 ## Packaging
 
-- `uv build` : **PASS**.
-- Wheel : `openinfra-0.29.84-py3-none-any.whl`.
-- Source distribution : `openinfra-0.29.84.tar.gz`.
-- `python scripts/verify_artifact.py dist/openinfra-0.29.84-py3-none-any.whl` : **PASS**.
-- Présence des **39 migrations** dans le wheel : **PASS**.
-- Présence et rendu de `0039_discovery_job_resilience.sql` depuis le wheel installé : **PASS**.
-- Installation isolée du wheel avec la dépendance runtime locale `defusedxml` : **PASS**.
-- `openinfra version` depuis le wheel : **PASS**, retourne `0.29.84`.
+- `python -m build` : **PASS**.
+- Wheel : `openinfra-0.29.85-py3-none-any.whl`.
+- Source distribution : `openinfra-0.29.85.tar.gz`.
+- `python scripts/verify_artifact.py dist/openinfra-0.29.85-py3-none-any.whl` : **PASS**.
+- Présence des **40 migrations** dans le wheel : **PASS**.
+- Présence du moteur i18n packagé : **PASS**.
+- Installation normale du wheel dans un environnement isolé : **PASS**.
+- `openinfra version` depuis le wheel : `0.29.85`.
 - `openinfra --help` depuis le wheel : **PASS**.
+- Résolution et chargement des 40 migrations depuis le wheel : **PASS**.
+- Inspection du sdist : **494 entrées**, **0 entrée interdite**.
+- Absence de `node_modules`, `web/dist`, caches Python et artefacts temporaires dans le sdist : **PASS**.
 
-## Contrôles non exécutables localement
+## Contrôles limités par l’environnement
 
-- `pip-audit` a été lancé sur `requirements/security-audit.txt`, mais le runner n’a pas pu résoudre `pypi.org` (`Temporary failure in name resolution`). Le gate reste bloquant dans GitHub Actions.
-- Aucun serveur PostgreSQL live n’est disponible dans le runner ; les migrations sont validées par tests structurels et par chargement depuis le wheel.
-- La commande Docker n’est pas installée dans le runner ; le smoke Docker Compose live n’est pas exécutable localement.
+- `pip-audit` a été lancé en mode strict, mais n’a pas pu interroger `pypi.org` en raison de l’absence de résolution DNS sortante. Ce contrôle est **non concluant**, et non déclaré comme réussi.
+- Aucun exécutable Docker, Podman ou PostgreSQL (`psql`) n’est disponible dans le runner. Les smoke tests nécessitant un daemon de conteneurs ou une instance PostgreSQL réelle n’ont donc pas été exécutés localement.
+- Les migrations PostgreSQL ont néanmoins été validées structurellement, packagées, ordonnées et chargées depuis le wheel.
 
 ## Commandes de reproduction
 
 ```bash
-export PYTHONPATH=src:.
-ruff format --check src tests scripts docker installers
-ruff check src tests scripts docker installers
+ruff format --check src tests scripts docker
+ruff check src tests scripts docker
 mypy src/openinfra
 bandit -q -r src/openinfra
-python -m pytest
-coverage report --fail-under=98
 python scripts/security_gate.py --project-root .
 python scripts/quality_gate.py
-python -m openinfra spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1
-python docs/specifications/OpenInfra-Roadmap-Developpement-v2/scripts/validate_roadmap.py
-python scripts/validate_autonomous_installer.py --root installers
-python scripts/validate_enterprise_alignment.py --project-root .
-python scripts/validate_frontend.py --project-root .
-python scripts/native_runtime_smoke.py --project-root .
-npm install --prefix web --ignore-scripts --no-audit --no-fund
-npm --prefix web run lint
+python -m compileall -q src/openinfra scripts tests
+
+pytest tests/unit -o addopts=""
+pytest tests/integration -o addopts=""
+pytest tests/architecture -o addopts=""
+coverage report --fail-under=98
+
 npm --prefix web test
+npm --prefix web run lint
 npm --prefix web run build
-uv build
-python scripts/verify_artifact.py dist/openinfra-0.29.84-py3-none-any.whl
+python scripts/validate_frontend.py --project-root .
+
+python -m build
+python scripts/verify_artifact.py dist/openinfra-0.29.85-py3-none-any.whl
 ```
+
+Dans le runner utilisé pour cette livraison, les tests d’intégration et la couverture ont été répartis en lots plus petits pour respecter la durée maximale d’une commande tout en conservant une couverture cumulée unique.

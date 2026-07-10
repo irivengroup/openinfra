@@ -96,6 +96,7 @@ from openinfra.domain.dcim import (
     Equipment,
     EquipmentLocation,
     Floor,
+    FloorNomenclature,
     PatchPanel,
     PowerCircuit,
     PowerDevice,
@@ -1812,6 +1813,12 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
         building: str,
         floor: str,
     ) -> Floor | None:
+        parameters: dict[str, object] = {
+            "tenant_id": tenant_id.value,
+            "site_code": Code.from_value(site, "site code").value,
+            "building_code": Code.from_value(building, "building code").value,
+            "code": Code.from_value(floor, "floor code").value,
+        }
         row = self._fetch_one(
             """
             SELECT id, tenant_id, site_code, building_code, code, name, level_index, status
@@ -1819,12 +1826,22 @@ class PostgreSQLDcimRepository(PostgreSQLRepositoryBase, DcimRepository):
             WHERE tenant_id = %(tenant_id)s AND site_code = %(site_code)s
               AND building_code = %(building_code)s AND code = %(code)s
             """,
-            {
-                "tenant_id": tenant_id.value,
-                "site_code": Code.from_value(site, "site code").value,
-                "building_code": Code.from_value(building, "building code").value,
-                "code": Code.from_value(floor, "floor code").value,
-            },
+            parameters,
+        )
+        if row is not None:
+            return self._floor_from_row(row)
+        requested_level = FloorNomenclature.level_from_code(floor)
+        if requested_level is None:
+            return None
+        parameters["level_index"] = requested_level
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, site_code, building_code, code, name, level_index, status
+            FROM floors
+            WHERE tenant_id = %(tenant_id)s AND site_code = %(site_code)s
+              AND building_code = %(building_code)s AND level_index = %(level_index)s
+            """,
+            parameters,
         )
         return self._floor_from_row(row) if row else None
 

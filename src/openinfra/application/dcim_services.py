@@ -26,6 +26,7 @@ from openinfra.domain.dcim import (
     EquipmentLocatorSheet,
     EquipmentScanProof,
     Floor,
+    FloorNomenclature,
     PatchPanel,
     PowerCircuit,
     PowerDevice,
@@ -307,8 +308,8 @@ class DefinePhysicalRoomCommand:
     city: str
     building_code: str
     building_name: str
-    floor_code: str
-    floor_name: str
+    floor_code: str | None
+    floor_name: str | None
     floor_index: int
     room_code: str
     room_name: str
@@ -1238,6 +1239,7 @@ class DcimTopologyService:
     def define_room(self, command: DefinePhysicalRoomCommand) -> dict[str, Any]:
         tenant_id = TenantId.from_value(command.tenant_id)
         coordinates = Coordinates3D.from_values(command.x, command.y, command.z)
+        self._validate_deprecated_floor_hints(command)
         site = Site.create(
             tenant_id,
             command.site_code,
@@ -1308,6 +1310,8 @@ class DcimTopologyService:
             "site": site.code.value,
             "building": building.code.value,
             "floor": floor.code.value,
+            "floor_name": floor.name.value,
+            "floor_index": floor.level_index,
             "room": room.code.value,
             "zone": zone.code.value if zone else None,
             "path": room.physical_path(),
@@ -1315,6 +1319,13 @@ class DcimTopologyService:
             "columns": list(room.columns),
             "created": created,
         }
+
+    def _validate_deprecated_floor_hints(self, command: DefinePhysicalRoomCommand) -> None:
+        if command.floor_code is None:
+            return
+        hinted_level = FloorNomenclature.level_from_code(command.floor_code)
+        if hinted_level is not None and hinted_level != command.floor_index:
+            raise ValidationError("deprecated floor code does not match floor index")
 
     def _create_optional_zone(
         self,
@@ -1334,7 +1345,11 @@ class DcimTopologyService:
             tenant_id,
             command.site_code,
             command.building_code,
-            room.floor_code.value if room.floor_code else command.floor_code,
+            (
+                room.floor_code.value
+                if room.floor_code
+                else FloorNomenclature.code(command.floor_index)
+            ),
             command.room_code,
             command.zone_code,
             command.zone_name,
@@ -1612,7 +1627,7 @@ class DcimRackService:
         if (
             command.floor is not None
             and room.floor_code is not None
-            and command.floor.strip().upper() != room.floor_code.value
+            and not FloorNomenclature.references_same_level(command.floor, room.floor_code.value)
         ):
             raise ValidationError("rack floor does not match room floor")
         if command.floor is not None and room.floor_code is None:
@@ -2677,10 +2692,12 @@ class DcimLocationService:
         return equipment
 
     def _validate_room_context(self, command: LocateEquipmentCommand, room: Room) -> None:
-        if command.floor is not None and room.floor_code is not None:
-            requested_floor = command.floor.strip().upper()
-            if requested_floor != room.floor_code.value:
-                raise ValidationError("requested floor does not match room floor")
+        if (
+            command.floor is not None
+            and room.floor_code is not None
+            and not FloorNomenclature.references_same_level(command.floor, room.floor_code.value)
+        ):
+            raise ValidationError("requested floor does not match room floor")
         room.assert_cell_exists(command.row, command.column)
 
     def _resolve_zone(
@@ -2721,7 +2738,7 @@ class DcimLocationService:
         if (
             command.floor is not None
             and rack.floor_code is not None
-            and command.floor.strip().upper() != rack.floor_code.value
+            and not FloorNomenclature.references_same_level(command.floor, rack.floor_code.value)
         ):
             raise ValidationError("rack floor does not match equipment location")
         if (

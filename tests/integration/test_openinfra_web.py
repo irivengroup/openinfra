@@ -132,6 +132,13 @@ class RunningServer:
 
 
 class TestOpenInfraWeb:
+    def test_static_locator_keeps_packaged_runtime_authoritative_after_react_build(self) -> None:
+        static_root = OpenInfraWebStaticLocator().resolve()
+
+        assert (static_root / "assets" / "openinfra-web.js").is_file()
+        assert (static_root / "assets" / "openinfra-i18n.js").is_file()
+        assert static_root != (Path.cwd() / "web/dist").resolve()
+
     def test_web_serves_assets_config_readiness_and_api_proxy(self) -> None:
         with RunningServer(ThreadingHTTPServer(("127.0.0.1", 0), BackendFakeHandler)) as backend:
             config = self._config(backend.base_url, backend_bearer_token=_test_server_side_bearer())
@@ -139,6 +146,7 @@ class TestOpenInfraWeb:
                 index = self._get_text(web.base_url + "/")
                 bootstrap_css = self._get_text(web.base_url + "/assets/bootstrap.min.css")
                 static_css = self._get_text(web.base_url + "/assets/openinfra-web.css")
+                static_i18n = self._get_text(web.base_url + "/assets/openinfra-i18n.js")
                 static_js = self._get_text(web.base_url + "/assets/openinfra-web.js")
                 main_js = Path("web/src/main.jsx").read_text(encoding="utf-8")
                 package_metadata = json.loads(Path("web/package.json").read_text(encoding="utf-8"))
@@ -173,7 +181,7 @@ class TestOpenInfraWeb:
         assert "Login" not in static_js and "Sign-up" not in static_js
         assert "openinfra-global-toolbar" in static_js + static_css
         assert "openinfra-global-search" in static_js + static_css
-        assert "Recherche globale OpenInfra" in static_js
+        assert "Recherche globale OpenInfra" in static_i18n
         assert "openinfra-global-search-icon" in static_js + static_css
         assert "openinfra-global-search-results" in static_js + static_css
         assert "renderGlobalSearchToolbar" in static_js
@@ -181,16 +189,16 @@ class TestOpenInfraWeb:
         assert "globalSearchGroups" in static_js + main_js
         assert "buildGlobalSearchUrl" in main_js
         assert "globalSearchUrl" in static_js
-        assert "Recherche backend temporairement indisponible" in static_js + main_js
-        assert "Recherche backend indisponible" not in static_js + main_js
-        assert "Résultats locaux ci-dessous" in static_js + main_js
+        assert "Recherche backend temporairement indisponible" in static_i18n
+        assert "Recherche backend indisponible" not in static_js + main_js + static_i18n
+        assert "Résultats locaux ci-dessous" in static_i18n
         assert "data-search-operation-id" in static_js
         assert "Swagger" in static_js and "ReDoc" in static_js
         assert "apiDocumentation" in static_js + main_js
         assert "apiDocumentationLinks" in static_js + main_js
         assert "buildApiDocumentationUrl" in static_js + main_js
-        assert "Ouvrir Swagger UI backend API" in static_js + main_js
-        assert "Ouvrir ReDoc backend API" in static_js + main_js
+        assert "Ouvrir Swagger UI backend API" in static_i18n
+        assert "Ouvrir ReDoc backend API" in static_i18n
         assert "openinfra-api-doc-actions" in static_js + static_css
         assert "openinfra-edition-badge" in static_js + static_css + main_js
         edition_badge_rule = static_css.split(".badge.openinfra-edition-badge", 1)[1].split("}", 1)[
@@ -208,7 +216,7 @@ class TestOpenInfraWeb:
         assert 'config?.authMode || "standard")}</span>' not in static_js
         assert "config.authMode || 'standard'" not in main_js
         assert "openinfra-skip-link" in static_js + static_css + main_js
-        assert "Aller au contenu principal" in static_js + main_js
+        assert "Aller au contenu principal" in static_i18n
         assert "openinfra-main-content" in static_js + main_js
         assert "aria-current" in static_js + main_js
         assert 'role="listbox"' in static_js + main_js
@@ -236,7 +244,11 @@ class TestOpenInfraWeb:
         assert 'id="openinfra-tenant"' in static_js
         assert "refreshOrganizationCatalog" in static_js
         assert "tenantOptions(organizationId" in static_js
-        assert "tenant implicite" in static_js
+        assert "filiale/subdivision implicite" in static_i18n
+        assert 'id="openinfra-language"' in static_js + main_js
+        assert "SUPPORTED_LANGUAGES = Object.freeze(['en', 'fr'])" in static_i18n
+        assert "DEFAULT_LANGUAGE = 'en'" in static_i18n
+        assert '<html lang="en">' in index
         assert "Lister les organisations" in static_js + main_js
         assert "Créer une organisation" in static_js + main_js
         assert "Modifier une organisation" in static_js + main_js
@@ -374,7 +386,7 @@ class TestOpenInfraWeb:
         )
         assert success_condition in static_js
         assert "submissionCompleted && activeModuleId !== 'overview' &&" in main_js
-        assert "Soumission exécutée avec succès" in static_js
+        assert "Soumission exécutée avec succès" in static_i18n
         assert "OPENINFRA_SIDEBAR_CONTEXTS" in static_js
         assert "SIDEBAR_CONTEXTS" in main_js
         assert "sidebarOperationGroups" in static_js + main_js
@@ -438,14 +450,14 @@ class TestOpenInfraWeb:
         assert "overscroll-behavior: contain" in static_css
         assert "max-height: 34rem" not in static_css
         assert "transition: max-height" not in static_css
-        assert "Statistiques des composants OpenInfra" in static_js
-        assert "Accueil — statistiques des composants" in static_js
+        assert "Statistiques des composants OpenInfra" in static_i18n
+        assert "Accueil — statistiques des composants" in static_i18n
         assert "openinfra-component-card" in static_js + static_css
         assert "openinfra-pie-chart" in static_js + static_css
         assert "padding-block: clamp(1rem, 2vw, 1.75rem)" in static_css
         assert "openinfra-titlebar h1" in static_css
         assert "--openinfra-pie-size: clamp(8rem, 14vw, 10.5rem)" in static_css
-        assert "Formulaires protégés" in static_js
+        assert "Formulaires protégés" in static_i18n
         assert 'fetch("/status"' in static_js
         assert "@media (max-width: 575.98px)" in static_css
         assert "v0.29.65: responsive sidebar" in static_css
@@ -513,7 +525,8 @@ class TestOpenInfraWeb:
         assert "border: 1px solid rgba(0, 174, 239, .18)" not in static_css
         assert ".form-control:focus" in static_css
         assert "#0d6efd" not in static_css
-        assert "Camembert" in static_js
+        assert 'this.i18n.t("distributionChart"' in static_js
+        assert "distributionChart" in static_i18n
         assert 'path: "/v1/integrations/itsm/providers"' in static_js
         assert 'path: "/v1/integrations/itsm/servicenow/validate"' in static_js
         assert 'path: "/v1/integrations/itsm/servicenow/ci-sync-plan"' in static_js
@@ -1193,7 +1206,7 @@ def test_openinfra_web_site_and_organization_address_fields_are_exposed() -> Non
     assert '{ name: "contact_email", label: "Email", required: true' in static_js
     assert '{ name: "phone", label: "Téléphone", required: true' in static_js
     assert 'label: "Pays", type: "country-select"' in static_js
-    assert "const label = `${country.name || code}`;" in static_js
+    assert "this.i18n.countryName(code, country.name || code)" in static_js
     assert "FR — France" not in static_js
     assert "Pays ISO-3166" not in static_js
 

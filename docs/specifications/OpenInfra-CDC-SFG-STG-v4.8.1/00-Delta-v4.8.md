@@ -185,3 +185,11 @@ Le panneau latéral openinfra-web doit ouvrir les accordéons de composants dans
 ## v0.29.61 — panneau latéral web groupé par contexte
 
 OpenInfra ajoute `REQ-00805` et `TST-WEB-106` pour regrouper les opérations du panneau latéral par contexte fonctionnel sous chaque composant. Le composant Intégrations est structuré par fournisseur ServiceNow, Jira Assets, GLPI Inventory et Freshservice Assets, sans publier OpenService dans `openinfra-web`.
+
+## Delta v0.29.85 — nomenclature DCIM des étages et interface web FR/EN
+
+- Mise à jour de `REQ-00820` : les étages générés utilisent une nomenclature locale au bâtiment (`L-01`, `L00`, `L01`…), sans répétition du code site ou bâtiment.
+- Les anciennes nomenclatures restent acceptées comme alias de lecture ; les données JSON et PostgreSQL sont migrées sans perte et les noms personnalisés sont conservés.
+- Ajout de `REQ-00824` et `TST-WEB-123` : tous les composants web supportent le français et l'anglais, avec détection automatique via `navigator.languages` puis `navigator.language`, et fallback obligatoire sur l'anglais.
+- Le sélecteur de langue persiste le choix opérateur ; les identifiants métier et valeurs API restent invariants.
+- Le frontend React et le portail packagé utilisent un moteur i18n strictement identique et livré hors ligne.

@@ -29,6 +29,8 @@ _SQL_IGNORED_IDENTIFIERS = frozenset(
         "check",
         "created_at",
         "default",
+        "else",
+        "end",
         "false",
         "in",
         "is",
@@ -38,7 +40,9 @@ _SQL_IGNORED_IDENTIFIERS = frozenset(
         "or",
         "pg_catalog",
         "text",
+        "then",
         "true",
+        "when",
     }
 )
 
@@ -340,6 +344,22 @@ class TestPostgreSQLMigration:
         assert "idx_discovery_jobs_dead_letter" in normalized_sql
         assert "idx_audit_events_discovery_jobs" in normalized_sql
         assert "WHERE target_type = 'discovery_job'" in normalized_sql
+
+    def test_dcim_floor_nomenclature_migration_is_transactional_and_reference_safe(self) -> None:
+        migration = PostgreSQLMigrationCatalog.from_project_root().load(
+            "0040_dcim_floor_nomenclature"
+        )
+        normalized_sql = " ".join(migration.sql.split())
+
+        assert "CREATE TEMP TABLE openinfra_floor_nomenclature_map" in normalized_sql
+        assert "cannot migrate DCIM floor nomenclature" in normalized_sql
+        for table in ("rooms", "room_zones", "racks", "equipment", "floors"):
+            assert f"UPDATE {table} AS target" in normalized_sql
+        assert "uq_floors_building_level" in normalized_sql
+        assert "ck_floors_canonical_code" in normalized_sql
+        assert "Rez-de-chaussée" in normalized_sql
+        assert "Sous-sol" in normalized_sql
+        assert "Étage" in normalized_sql
 
     def test_migration_validator_rejects_partitioned_unique_constraints_missing_partition_key(
         self,

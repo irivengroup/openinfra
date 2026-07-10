@@ -3171,8 +3171,12 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         city=str(payload["city"]),
                         building_code=str(payload["building_code"]),
                         building_name=str(payload["building_name"]),
-                        floor_code=str(payload["floor_code"]),
-                        floor_name=str(payload["floor_name"]),
+                        floor_code=(
+                            str(payload["floor_code"]) if payload.get("floor_code") else None
+                        ),
+                        floor_name=(
+                            str(payload["floor_name"]) if payload.get("floor_name") else None
+                        ),
                         floor_index=int(payload["floor_index"]),
                         room_code=str(payload["room_code"]),
                         room_name=str(payload["room_name"]),

@@ -525,8 +525,6 @@ jobs:
             --city Paris \
             --building-code BAT-CI \
             --building-name "CI Building" \
-            --floor-code F01 \
-            --floor-name "First Floor" \
             --floor-index 1 \
             --room-code MMR-CI \
             --room-name "CI Room" \
@@ -661,8 +659,6 @@ jobs:
             --city Paris \
             --building-code BAT-CBL \
             --building-name "CI Cabling Building" \
-            --floor-code F01 \
-            --floor-name "First Floor" \
             --floor-index 1 \
             --room-code MMR-CBL \
             --room-name "CI Cabling Room" \

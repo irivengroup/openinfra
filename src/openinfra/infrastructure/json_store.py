@@ -93,6 +93,7 @@ from openinfra.domain.dcim import (
     Equipment,
     EquipmentLocation,
     Floor,
+    FloorNomenclature,
     PatchPanel,
     PowerCircuit,
     PowerDevice,
@@ -219,7 +220,11 @@ class JsonDocumentStore:
             self.flush()
             return
         loaded = json.loads(self._path.read_text(encoding="utf-8"))
-        self._state = _JsonState(data=self._merge_with_empty(loaded), dirty=False)
+        merged = self._merge_with_empty(loaded)
+        migrated = self._migrate_dcim_floor_nomenclature(merged)
+        self._state = _JsonState(data=merged, dirty=migrated)
+        if migrated:
+            self.flush()
 
     def _merge_with_empty(self, loaded: dict[str, Any]) -> dict[str, Any]:
         merged = self._empty_state()
@@ -227,6 +232,91 @@ class JsonDocumentStore:
             if key in merged or key == _EXPORT_SIGNING_STORAGE_KEY:
                 merged[key] = value
         return merged
+
+    def _migrate_dcim_floor_nomenclature(self, data: dict[str, Any]) -> bool:
+        floors = data.get("floors")
+        if not isinstance(floors, dict) or not floors:
+            return False
+
+        changed = False
+        references: dict[tuple[str, str, str, str], str] = {}
+        normalized_floors: dict[str, Any] = {}
+        for value in floors.values():
+            if not isinstance(value, dict):
+                raise ValidationError("invalid JSON floor record")
+            tenant_id = str(value["tenant_id"])
+            site_code = Code.from_value(str(value["site_code"]), "site code").value
+            building_code = Code.from_value(str(value["building_code"]), "building code").value
+            old_code = Code.from_value(str(value["code"]), "floor code").value
+            level_index = FloorNomenclature.normalize_level(int(value["level_index"]))
+            new_code = FloorNomenclature.code(level_index)
+            existing_name = str(value["name"])
+            new_name = (
+                FloorNomenclature.name(level_index)
+                if FloorNomenclature.is_generated_name(
+                    existing_name, site_code, building_code, level_index
+                )
+                else existing_name
+            )
+            references[(tenant_id, site_code, building_code, old_code)] = new_code
+
+            normalized = dict(value)
+            normalized["site_code"] = site_code
+            normalized["building_code"] = building_code
+            normalized["code"] = new_code
+            normalized["name"] = new_name
+            new_key = ":".join((tenant_id, site_code, building_code, new_code))
+            existing = normalized_floors.get(new_key)
+            if existing is not None and existing.get("id") != normalized.get("id"):
+                raise ValidationError(
+                    "cannot migrate duplicate DCIM floors sharing the same building level"
+                )
+            normalized_floors[new_key] = normalized
+            changed = changed or old_code != new_code or value.get("name") != new_name
+
+        if changed:
+            data["floors"] = normalized_floors
+
+        for collection in ("rooms", "room_zones", "racks"):
+            values = data.get(collection, {})
+            if not isinstance(values, dict):
+                continue
+            for value in values.values():
+                if not isinstance(value, dict) or not value.get("floor_code"):
+                    continue
+                changed = self._rewrite_floor_reference(value, references) or changed
+
+        equipment = data.get("equipment", {})
+        if isinstance(equipment, dict):
+            for value in equipment.values():
+                if not isinstance(value, dict):
+                    continue
+                location = value.get("location")
+                if not isinstance(location, dict) or not location.get("floor_code"):
+                    continue
+                changed = (
+                    self._rewrite_floor_reference(
+                        location, references, tenant_id=str(value["tenant_id"])
+                    )
+                    or changed
+                )
+        return changed
+
+    @staticmethod
+    def _rewrite_floor_reference(
+        value: dict[str, Any],
+        references: dict[tuple[str, str, str, str], str],
+        tenant_id: str | None = None,
+    ) -> bool:
+        normalized_tenant = tenant_id or str(value["tenant_id"])
+        site_code = Code.from_value(str(value["site_code"]), "site code").value
+        building_code = Code.from_value(str(value["building_code"]), "building code").value
+        old_code = Code.from_value(str(value["floor_code"]), "floor code").value
+        new_code = references.get((normalized_tenant, site_code, building_code, old_code))
+        if new_code is None or new_code == old_code:
+            return False
+        value["floor_code"] = new_code
+        return True
 
     def _empty_state(self) -> dict[str, Any]:
         return {
@@ -1301,7 +1391,7 @@ class JsonDcimRepository(DcimRepository):
         ]
         if not include_retired:
             items = [item for item in items if item.selectable()]
-        return tuple(sorted(items, key=lambda item: item.code.value))
+        return tuple(sorted(items, key=lambda item: (item.level_index, item.code.value)))
 
     def list_rooms(
         self, tenant_id: TenantId, site: str, building: str, include_retired: bool = False
@@ -1370,7 +1460,22 @@ class JsonDcimRepository(DcimRepository):
             Code.from_value(floor, "floor code").value,
         )
         item = self._store.data["floors"].get(key)
-        return self._floor_from_dict(item) if item else None
+        if item is not None:
+            return self._floor_from_dict(item)
+        requested_level = FloorNomenclature.level_from_code(floor)
+        if requested_level is None:
+            return None
+        normalized_site = Code.from_value(site, "site code").value
+        normalized_building = Code.from_value(building, "building code").value
+        for value in self._store.data["floors"].values():
+            if (
+                value.get("tenant_id") == tenant_id.value
+                and value.get("site_code") == normalized_site
+                and value.get("building_code") == normalized_building
+                and int(value.get("level_index")) == requested_level
+            ):
+                return self._floor_from_dict(value)
+        return None
 
     def find_room(self, tenant_id: TenantId, site: str, building: str, room: str) -> Room | None:
         key = self._key(

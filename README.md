@@ -1,12 +1,12 @@
-# OpenInfra v0.29.84
+# OpenInfra v0.29.85
 
-## Correctif CI DCIM et compatibilité GitHub Actions Node.js 24
+## Nomenclature DCIM des étages et portail multilingue
 
-OpenInfra v0.29.84 corrige deux défauts de la chaîne d’intégration continue sans modifier les contrats métier ni les schémas de données. Les smoke tests DCIM consomment désormais le code d’étage canonique réellement retourné par `openinfra dcim define-room`, au lieu de réutiliser le code libre `F01` devenu invalide après normalisation. Les deux scénarios concernés — modèle physique et fondation câblage/énergie — sont couverts.
+OpenInfra v0.29.85 remplace la nomenclature d’étage concaténant site et bâtiment par un code local, stable et lisible : `L-01` pour le premier sous-sol, `L00` pour le rez-de-chaussée et `L01` pour le premier étage. Les étages restent générés automatiquement depuis le type et les bornes du bâtiment ; aucune saisie libre de code ou de nom n’est demandée dans les nouveaux parcours.
 
-Les actions GitHub sont également migrées vers des versions reposant sur Node.js 24 : `actions/checkout@v6`, `actions/setup-python@v6` et `actions/setup-node@v6`. Le gate de sécurité refuse explicitement les anciennes versions Node.js 20 afin d’éviter toute régression.
+La migration `0040_dcim_floor_nomenclature.sql` et la migration JSON intégrée réécrivent toutes les références DCIM dépendantes, préservent les noms personnalisés et conservent les anciens codes comme alias de lecture.
 
-Aucune modification du CDC ni de la roadmap n’est nécessaire : il s’agit d’un correctif d’industrialisation conforme aux exigences existantes.
+Le portail web supporte désormais intégralement le français et l’anglais. La langue est détectée depuis le navigateur ; toute langue non supportée utilise l’anglais. Un sélecteur EN/FR mémorise le choix opérateur. Le même moteur i18n est utilisé par le frontend React et par le portail statique livré dans le package Python.
 
 
 ## Résilience des workers et agents Discovery

@@ -1,0 +1,593 @@
+export const SUPPORTED_LANGUAGES = Object.freeze(['en', 'fr']);
+export const DEFAULT_LANGUAGE = 'en';
+export const LANGUAGE_STORAGE_KEY = 'openinfra.language';
+
+const UI_MESSAGES = Object.freeze({
+  en: Object.freeze({
+    language: 'Language',
+    english: 'English',
+    french: 'French',
+    skipToContent: 'Skip to main content',
+    home: 'OpenInfra home',
+    globalSearch: 'OpenInfra global search',
+    globalSearchPlaceholder: 'Global search...',
+    globalSearchResults: 'Global search results',
+    openSwagger: 'Open backend API Swagger UI',
+    openRedoc: 'Open backend API ReDoc',
+    openNavigation: 'Open navigation menu',
+    closeNavigation: 'Close navigation menu',
+    navigation: 'Navigation',
+    control: 'Control',
+    runtimeStatus: 'Runtime status',
+    backendReady: 'Backend ready',
+    backendCheck: 'Backend requires attention',
+    version: 'Version',
+    trust: 'Trust',
+    protectedForms: 'Protected forms',
+    forms: 'Forms',
+    modules: 'Modules',
+    operations: 'operations',
+    operation: 'operation',
+    fields: 'Business fields',
+    requiredFields: 'Required fields',
+    required: 'Required',
+    reads: 'Reads',
+    mutations: 'Mutations',
+    navigationMode: 'Navigation',
+    accordions: 'Accordions',
+    browserSecrets: 'Browser secrets',
+    noneExposed: '0 exposed',
+    uiParity: 'UI parity',
+    execute: 'Execute',
+    noParameters: 'No parameters required.',
+    pendingResult: 'Waiting for a result.',
+    operationResult: 'Operation result',
+    resultTitle: 'Result',
+    success: 'Operation completed successfully.',
+    organization: 'Organization',
+    tenant: 'Subsidiary/Division',
+    defaultTenant: 'Default',
+    active: 'active',
+    configure: 'configure',
+    dashboardSubtitle: 'OpenInfra summary, backend readiness and server-side portal status.',
+    operationSubtitle: '{operation} — typed business form with no generic fields or browser-side secrets.',
+    overviewTitle: 'Home — component statistics',
+    overviewDescription: 'Summary by component: functional metrics, exposed business fields and read/write distribution charts.',
+    componentStatistics: 'OpenInfra component statistics',
+    operationsExposed: '{count} exposed business operations',
+    distributionChart: '{module}: {reads} reads and {mutations} mutations',
+    loadingSearch: 'Searching the backend for {query}…',
+    backendSearchUnavailable: 'Backend search is temporarily unavailable. Local results are shown below.',
+    noGlobalResult: 'No global result for {query}.',
+    skippedComponents: 'Components skipped according to permissions: {components}.',
+    additionalResults: '{count} additional result',
+    additionalResultsPlural: '{count} additional results',
+    result: 'result',
+    results: 'results',
+    businessResult: 'business result',
+    businessResults: 'business results',
+    other: 'Other',
+    components: 'components',
+    yes: 'Yes',
+    no: 'No',
+    implicitTenant: 'implicit subsidiary/division',
+    defaultMarker: 'default',
+    requiredField: 'Missing required field: {field}',
+    invalidNumber: 'Invalid numeric value: {field}',
+    unavailable: 'unavailable',
+    ready: 'ready',
+    check: 'check',
+    basement: 'Basement {level}',
+    groundFloor: 'Ground floor',
+    levelName: 'Level {level}',
+    moduleDescriptionFallback: 'OpenInfra business capabilities and operations.',
+  }),
+  fr: Object.freeze({
+    language: 'Langue',
+    english: 'Anglais',
+    french: 'Français',
+    skipToContent: 'Aller au contenu principal',
+    home: 'Accueil OpenInfra',
+    globalSearch: 'Recherche globale OpenInfra',
+    globalSearchPlaceholder: 'Recherche globale...',
+    globalSearchResults: 'Résultats de recherche globale',
+    openSwagger: 'Ouvrir Swagger UI backend API',
+    openRedoc: 'Ouvrir ReDoc backend API',
+    openNavigation: 'Ouvrir le menu de navigation',
+    closeNavigation: 'Fermer le menu de navigation',
+    navigation: 'Navigation',
+    control: 'Pilotage',
+    runtimeStatus: 'État runtime',
+    backendReady: 'Backend prêt',
+    backendCheck: 'Backend à vérifier',
+    version: 'Version',
+    trust: 'Trust',
+    protectedForms: 'Formulaires protégés',
+    forms: 'Formulaires',
+    modules: 'Modules',
+    operations: 'opérations',
+    operation: 'opération',
+    fields: 'Champs métier',
+    requiredFields: 'Champs obligatoires',
+    required: 'Obligatoires',
+    reads: 'Lectures',
+    mutations: 'Mutations',
+    navigationMode: 'Navigation',
+    accordions: 'Accordéons',
+    browserSecrets: 'Secrets navigateur',
+    noneExposed: '0 exposé',
+    uiParity: 'Parité UI',
+    execute: 'Exécuter',
+    noParameters: 'Aucun paramètre requis.',
+    pendingResult: 'Résultat en attente.',
+    operationResult: 'Résultat de l’opération',
+    resultTitle: 'Résultat',
+    success: 'Soumission exécutée avec succès.',
+    organization: 'Organisation',
+    tenant: 'Filiale/Subdivision',
+    defaultTenant: 'Par défaut',
+    active: 'actifs',
+    configure: 'à configurer',
+    dashboardSubtitle: 'Vue de synthèse OpenInfra, readiness backend et état du portail server-side.',
+    operationSubtitle: '{operation} — formulaire métier typé, sans champs génériques ni secrets côté navigateur.',
+    overviewTitle: 'Accueil — statistiques des composants',
+    overviewDescription: 'Vue de synthèse par composant : métriques fonctionnelles, champs métier exposés et camemberts de répartition lecture/mutation.',
+    componentStatistics: 'Statistiques des composants OpenInfra',
+    operationsExposed: '{count} opérations métier exposées',
+    distributionChart: '{module} : {reads} lectures et {mutations} mutations',
+    loadingSearch: 'Recherche backend en cours pour {query}…',
+    backendSearchUnavailable: 'Recherche backend temporairement indisponible. Résultats locaux ci-dessous.',
+    noGlobalResult: 'Aucun résultat global pour {query}.',
+    skippedComponents: 'Composants ignorés selon les droits : {components}.',
+    additionalResults: '{count} résultat supplémentaire',
+    additionalResultsPlural: '{count} résultats supplémentaires',
+    result: 'résultat',
+    results: 'résultats',
+    businessResult: 'résultat métier',
+    businessResults: 'résultats métier',
+    other: 'Autres',
+    components: 'composants',
+    yes: 'Oui',
+    no: 'Non',
+    implicitTenant: 'filiale/subdivision implicite',
+    defaultMarker: 'défaut',
+    requiredField: 'Champ obligatoire manquant : {field}',
+    invalidNumber: 'Valeur numérique invalide : {field}',
+    unavailable: 'indisponible',
+    ready: 'prêt',
+    check: 'à vérifier',
+    basement: 'Sous-sol {level}',
+    groundFloor: 'Rez-de-chaussée',
+    levelName: 'Étage {level}',
+    moduleDescriptionFallback: 'Capacités et opérations métier OpenInfra.',
+  }),
+});
+
+const MODULE_EN = Object.freeze({
+  overview: ['Dashboard', 'Dashboard'],
+  rsot: ['RSOT (Resource Source of Truth)', 'RSOT'],
+  ipam: ['IPAM', 'IPAM'],
+  dcim: ['DCIM', 'DCIM'],
+  itam: ['IT Asset Management', 'ITAM'],
+  discovery: ['Discovery', 'Discovery'],
+  data: ['Imports / Exports', 'Data'],
+  integrations: ['ITSM integrations', 'Integrations'],
+  security: ['Security / RBAC / Audit', 'Security'],
+  graph: ['Dependency graph', 'Graph'],
+});
+
+const MODULE_DESCRIPTION_EN = Object.freeze({
+  overview: 'Summary, backend readiness, package version, web/backend trust and quick operations.',
+  rsot: 'Canonical inventory, relationships, versions, governance and certification.',
+  ipam: 'IPv4/IPv6, VRF, prefixes, ranges, VLAN/VXLAN, ASN/BGP, DNS/DHCP, DDI, conflicts, capacity and allocations.',
+  dcim: 'Sites, buildings, levels, rooms, zones, racks, ports, cables, power, cooling and physical locations.',
+  itam: 'Organizations, subsidiaries/divisions, partners, hardware support and software licences.',
+  discovery: 'Local and distributed discovery, immutable evidence, reconciliation and resilient workers.',
+  data: 'Bulk imports, migration guides, signed exports and rollback.',
+  integrations: 'Governed integrations with ServiceNow, Jira Assets, GLPI and Freshservice.',
+  security: 'Identity, RBAC, tokens, access policies, audit, editions and runtime quotas.',
+  graph: 'Tenant-aware RSOT dependency traversal and impact analysis.',
+});
+
+const FIELD_EN = Object.freeze({
+  tenant_id: 'Subsidiary/Division', organization_id: 'Organization', partner_id: 'Partner',
+  actor: 'Operator', limit: 'Limit', code: 'Code', name: 'Name', status: 'Status',
+  description: 'Description', country: 'Country', country_code: 'Country', region: 'Region', city: 'City',
+  postal_code: 'Postal code', street_address: 'Street', address: 'Head office address',
+  contact_email: 'Email', phone: 'Phone', support_contact: 'Support contact', website: 'Website',
+  site: 'Site', site_code: 'Site code', site_name: 'Site name', building: 'Building',
+  building_code: 'Building code', building_name: 'Building name', building_type: 'Building type',
+  initial_level: 'Initial level', final_level: 'Final level', floor: 'Level', floor_code: 'Level code',
+  floor_name: 'Level name', floor_index: 'Level index', room: 'Room', room_code: 'Room code',
+  room_name: 'Room name', zone: 'Zone', zone_code: 'Zone code', zone_name: 'Zone name',
+  rack: 'Rack', rack_code: 'Rack code', row: 'Room row', column: 'Room column', rows: 'Room row range',
+  columns: 'Room column range', zone_rows: 'Zone rows', zone_columns: 'Zone columns',
+  resource_category: 'Category', resource_type: 'Resource type', tag: 'Tag', key: 'RSOT key',
+  display_name: 'Display name', source: 'Authoritative source', serial: 'Serial number', vendor: 'Manufacturer',
+  model: 'Model', management_ip: 'Management IP', lifecycle_state: 'Lifecycle state', tags: 'Tags',
+  as_of: 'ISO-8601 date', edition: 'Edition', capability: 'Capability', resource: 'Quota resource',
+  requested_increment: 'Requested increment', query: 'Search', vrf: 'VRF', prefix: 'Prefix',
+  address_family: 'Address family', address: 'IP address', hostname: 'DNS / equipment name',
+  idempotency_key: 'Idempotency key', apply: 'Apply', include_retired: 'Include retired',
+  include_inactive: 'Include inactive', legal_name: 'Legal name', registration_number: 'Registration number',
+  tax_identifier: 'Tax / VAT identifier', display_name: 'Display name', kind: 'Type', notes: 'Notes',
+  enabled: 'Enabled', auth_secret_ref: 'Secret reference', instance_url: 'HTTPS instance URL',
+  object_key: 'Object key', object_type: 'Object type', evidence_id: 'Evidence ID',
+  reconciliation_id: 'Reconciliation ID', justification: 'Justification', observed_at: 'Observed at',
+  confidence: 'Confidence', max_age_seconds: 'Maximum age', requested_scope: 'Requested scope',
+  endpoint_url: 'Endpoint URL', certificate_fingerprint: 'Certificate fingerprint',
+  job_id: 'Job ID', offset: 'Byte offset', size: 'Chunk size', format: 'Format',
+  source_key: 'Source resource', target_key: 'Target resource', relation_type: 'Relationship type',
+  level_index: 'Level index', x: 'X coordinate', y: 'Y coordinate', z: 'Z coordinate',
+});
+
+const TOKEN_EN = Object.freeze({
+  rsot: 'RSOT', ipam: 'IPAM', dcim: 'DCIM', itam: 'ITAM', api: 'API', db: 'database',
+  ddi: 'DDI', dns: 'DNS', dhcp: 'DHCP', bgp: 'BGP', asn: 'ASN', vrf: 'VRF', vlan: 'VLAN',
+  vxlan: 'VXLAN', vni: 'VNI', ci: 'CI', itsm: 'ITSM', glpi: 'GLPI', jira: 'Jira',
+  freshservice: 'Freshservice', servicenow: 'ServiceNow', rack: 'rack', room: 'room', floor: 'level',
+  floors: 'levels', site: 'site', sites: 'sites', building: 'building', buildings: 'buildings',
+  zone: 'zone', zones: 'zones', evidence: 'evidence', reconciliation: 'reconciliation',
+  collector: 'collector', collectors: 'collectors', job: 'job', jobs: 'jobs', bulk: 'bulk',
+  progress: 'progress', rollback: 'rollback', artifact: 'artifact', chunk: 'chunk', policies: 'policies',
+  feature: 'feature', quota: 'quota', identity: 'identity', access: 'access', rules: 'rules',
+  audit: 'audit', integrity: 'integrity', taxonomy: 'taxonomy', objects: 'objects', object: 'object',
+  quality: 'quality', summary: 'summary', governance: 'governance', topology: 'topology',
+  capacity: 'capacity', reservation: 'reservation', wizard: 'wizard', network: 'network',
+  bindings: 'bindings', aggregate: 'aggregate', prefix: 'prefix', prefixes: 'prefixes', range: 'range',
+  address: 'address', addresses: 'addresses', conflicts: 'conflicts', panel: 'panel', port: 'port',
+  cable: 'cable', trace: 'trace', power: 'power', cooling: 'cooling', digital: 'digital', twin: 'twin',
+  organizations: 'organizations', organization: 'organization', partners: 'partners', partner: 'partner',
+  tenants: 'subsidiaries/divisions', tenant: 'subsidiary/division', support: 'support', profile: 'profile',
+  coverage: 'coverage', manufacturer: 'manufacturer', software: 'software', license: 'licence',
+  assignment: 'assignment', local: 'local', agent: 'agent', bootstrap: 'bootstrap', plan: 'plan',
+  import: 'import', imports: 'imports', export: 'export', exports: 'exports', migration: 'migration',
+  guide: 'guide', edition: 'edition', tokens: 'tokens', effective: 'effective', global: 'global',
+  search: 'search', schema: 'schema', runtime: 'runtime', physical: 'physical', model: 'model',
+});
+
+const ACTION_EN = Object.freeze({
+  list: 'List', create: 'Create', update: 'Update', delete: 'Retire', define: 'Define',
+  register: 'Register', allocate: 'Allocate', observe: 'Observe', detect: 'Detect', preview: 'Preview',
+  validate: 'Validate', reconcile: 'Reconcile', resolve: 'Resolve', submit: 'Submit', authorize: 'Authorize',
+  claim: 'Claim', renew: 'Renew', complete: 'Complete', fail: 'Fail', replay: 'Replay', check: 'Check',
+  search: 'Search', calculate: 'Calculate', add: 'Add', locate: 'Locate', connect: 'Connect',
+  reserve: 'Reserve', get: 'View', show: 'View', evaluate: 'Evaluate', sync: 'Synchronize',
+});
+
+const LABEL_EN = Object.freeze({"ASN":"ASN","ASN distant":"Remote ASN","ASN local":"Local ASN","Action":"Action","Adresse IP":"IP address","Adresse MAC":"MAC address","Adresse peer":"Peer address","Adresse siège":"IP address","Appliquer la prévisualisation":"Apply preview","Appliquer la réservation":"Apply","Appliquer le plan":"Apply","Appliquer le rollback":"Apply","Bail actif":"Active","Bâtiment":"Building","CIDR agrégat":"Cidr","CIDR préfixe":"Cidr","Calibre disjoncteur A":"Breaker rating amps","Capacité":"Capability","Capacité U":"Units","Capacité froid watts":"Cooling capacity watts","Capacité watts":"Capacity watts","Catégorie":"Category","Catégorie d’objet":"Object kind","Chassis/Rack":"Rack","Chaîne électrique":"Side","Chemin configuration":"Config path","Chemin câble":"Path segments","Cible":"Target","Cibles":"Targets","Clé RSOT":"RSOT key","Clé d’idempotence":"Idempotency key","Clé objet":"Object key","Clé ressource RSOT":"Resource key","Code bâtiment":"Building code","Code chassis/rack":"Rack","Code organisation":"Organization","Code partenaire":"Partner","Code postal":"Postal code","Code propriétaire":"Owner code","Code propriétaire A":"A owner code","Code propriétaire B":"B owner code","Code salle":"Room code","Code site":"Site code","Code zone":"Zone code","Code équipement électrique":"Code","Colonne salle":"Room column","Colonnes zone":"Room column range","Compte service":"Service user","Concurrence max":"Max concurrency","Confiance (0 à 1)":"Confidence","Connecteur":"Connector","Connecteur actif":"Enabled","Constructeur":"Manufacturer","Constructeur accrédité":"Manufacturer partner ID","Contact support":"Support contact","Coordonnée X":"X coordinate","Coordonnée Y":"Y coordinate","Coordonnée Z":"Z coordinate","Curseur":"Cursor","Date ISO-8601":"ISO-8601 date","Date de référence":"ISO-8601 date","Derating %":"Derating percent","Description":"Description","Direction":"Direction","Durée du bail (secondes)":"Lease seconds","Début droit":"Entitlement start","Début garantie":"Warranty start","Début plage":"Start","Début support":"Support start","Délai avant reprise (secondes)":"Retry delay seconds","Email":"Email","Email contact":"Email","Empreinte SHA-256 du résultat":"Result hash","Empreinte certificat":"Certificate fingerprint","Endpoint HTTPS":"Endpoint URL","Endpoint mTLS":"Endpoint URL","Erreur":"Error","Face rack":"Rack face","Faces utilisables":"Usable faces","Famille d’adresses":"Address family","Fichier source relu":"File path","Filiale/Subdivision":"Subsidiary/Division","Filiale/Subdivision par défaut":"Is default","Filiale/Subdivision à modifier":"Subsidiary/Division","Filiale/Subdivision à retirer":"Subsidiary/Division","Fin droit":"Entitlement end","Fin garantie":"Warranty end","Fin plage":"End","Fin support":"Support end","Format":"Format","Format rendu":"Format","Fournisseurs DDI":"Providers","Groupe VLAN":"Group","Groupe redondance":"Redundancy group","Hauteur U":"U height","ID agent proxy":"Collector ID","ID externe":"External ID","ID job":"Job ID","ID preuve":"Evidence ID","ID preuve imposé":"Evidence ID","ID rapprochement":"Case ID","ID worker":"Worker ID","IDs preuves":"Evidence ids","IP de management":"Management IP","Identifiant circuit":"Circuit ID","Identifiant câble":"Cable ID","Identifiant fiscal / TVA":"Tax / VAT identifier","Inclure inactifs":"Include inactive","Inclure inactives":"Include inactive","Inclure retirées":"Include retired","Inclure retirés":"Include retired","Incrément demandé":"Requested increment","Interface":"Interface name","Inventaire activé":"Inventory enabled","Jeton de fencing":"Lease token","Job ID":"Job ID","Job export":"Job ID","Justification":"Justification","Libellé":"Label","Ligne salle":"Room row","Lignes zone":"Room row range","Limite":"Limit","Longueur m":"Length m","Mapping JSON":"Mapping","Modèle":"Model","Motif":"Reason","Média câble":"Medium","Métrique":"Metric","Niveau":"Level index","Niveau Final":"Final level","Niveau Initial":"Initial level","Niveau garantie":"Warranty level","Niveau support":"Support level","Nom AS":"Name","Nom DHCP":"DNS / equipment name","Nom DNS":"DNS / equipment name","Nom DNS / équipement":"DNS / equipment name","Nom PTR":"Ptr hostname","Nom VLAN":"Name","Nom VNI":"Name","Nom VRF":"Name","Nom affiché":"Display name","Nom affiché cible":"Display name","Nom agent":"Name","Nom agent proxy":"Name","Nom bâtiment":"Building name","Nom d’usage":"Display name","Nom filiale/subdivision":"Name","Nom plan":"Name","Nom port":"Port name","Nom profil":"Name","Nom salle":"Room name","Nom site":"Site name","Nom zone":"Zone name","Nom équipement":"Equipment name","Nombre de ports":"Port count","Notes":"Notes","Numéro de série":"Serial number","Numéro d’actif":"Asset number","N° immatriculation":"Registration number","Observé le (ISO-8601)":"Observed at","Offset octets":"Byte offset","Opérateur":"Operator","Organisation":"Organization","Panneau de brassage":"Patch panel","Partenaire":"Partner","Pays":"Country","Plage colonnes salle":"Room column range","Plage lignes salle":"Room row range","Poids max kg":"Max weight kg","Politique conflit":"Conflict policy","Port":"Port","Port A":"A port name","Port B":"B port name","Port actif":"Enabled","Position U":"U position","Prestataire":"Provider","Preuve JSON sans secret":"Payload","Produit":"Product name","Profil":"Profile ID","Profil protocole":"Protocol profile ID","Propriétaire":"Owner","Protocole":"Protocol","Préfixe":"Prefix","Préfixe ports":"Port prefix","Puissance attendue watts":"Expected watts","Puissance max watts":"Power capacity watts","Quantité achetée":"Purchased quantity","Quantité assignée":"Assigned quantity","RT export":"Route targets export","RT import":"Route targets import","Rack":"Rack","Raison sociale":"Legal name","Rate limit/min":"Rate limit per minute","Recherche":"Search","Ressource cible":"Target resource","Ressource quota":"Quota resource","Ressource source":"Source resource","Route distinguisher":"Route distinguisher","Rue":"Street","Référence contrat":"Contract reference","Référence garantie":"Warranty reference","Référence licence":"Licence reference","Référence secret":"Secret reference","Référence secret enrollment":"Enrollment secret ref","Référence secret vault":"Credential secret ref","Référence source":"Source ref","Référence support":"Support reference","Région":"Region","Répertoire logs":"Log directory","Répertoire état":"State directory","Rôle agent":"Role","Rôle refroidissement":"Role","Salle":"Room","Scope":"Scope","Scope VLAN":"Scope","Scope autorisé":"Scope","Scope demandé":"Requested scope","Scopes autorisés":"Scopes","Serial entrant":"Incoming serial","Serial existant":"Existing serial","Site":"Site","Site entrant":"Incoming site","Site existant":"Existing site","Site web":"Website","Source":"Authoritative source","Source amont":"Input source","Source autoritative":"Authoritative source","Source entrante":"Incoming source","Source migration":"Authoritative source","Source observation":"Authoritative source","Source électrique":"Source device","Statut":"Status","Statut adresse":"Status","Statut câble":"Status","Sujet":"Subject","Support tiers accrédité":"Provider partner ID","Sélections par chemin JSON":"Selected evidence by path","TTL":"TTL","Table CI":"Table name","Table cible":"Target table","Tag":"Tag","Tags":"Tags","Taille chunk":"Chunk size","Température retour °C":"Return temperature c","Température soufflage °C":"Supply temperature c","Tension sortie V":"Output voltage","Tentatives":"Retry count","Tentatives maximales":"Max attempts","Timeout secondes":"Timeout seconds","Type":"Kind","Type Batiment":"Building type","Type asset Freshservice":"Asset type","Type cible":"Target type","Type de job":"Job type","Type de relation":"Relationship type","Type de ressource":"Resource type","Type objet":"Object kind","Type objet Assets":"Object type","Type partenaire":"Kind","Type plateforme":"Kind","Type propriétaire":"Owner type","Type propriétaire A":"A owner type","Type propriétaire B":"B owner type","Type élément GLPI":"Item type","Type équipement électrique":"Kind","Téléphone":"Phone","URL Freshservice HTTPS":"HTTPS instance URL","URL GLPI HTTPS":"HTTPS instance URL","URL Jira HTTPS":"HTTPS instance URL","URL backend HTTPS":"Backend URL","URL instance HTTPS":"HTTPS instance URL","Usage plage":"Purpose","VLAN ID":"VLAN ID","VNI":"VNI","VRF":"VRF","Version":"Version","Version agent":"Agent version","Ville":"City","Vérifier TLS":"Verify tls","Zone":"Zone","Zone DNS":"DNS zone","Zone froid/chaud":"Zone","Âge maximal (secondes)":"Maximum age","Éditeur":"Manufacturer","Éditeur accrédité":"Vendor partner ID","Édition":"Edition","Étage":"Level","État":"Status","État cycle de vie":"Lifecycle state"});
+
+const PHRASE_EN = Object.freeze({
+  'Référentiel': 'Repository', 'Relations & historique': 'Relationships & history',
+  'Qualité & gouvernance': 'Quality & governance', 'Vue & recherche': 'Overview & search',
+  'Adressage IP': 'IP addressing', 'Réseau L2/L3': 'L2/L3 network', 'Observations & DDI': 'Observations & DDI',
+  'Sites & dépendances': 'Sites & dependencies', 'Localisation & capacité': 'Location & capacity',
+  'Connectivité': 'Connectivity', 'Énergie & refroidissement': 'Power & cooling',
+  'Jumeau numérique': 'Digital twin', 'Organisations': 'Organizations', 'Tenants': 'Subsidiaries/Divisions',
+  'Partenaires': 'Partners', 'Fournisseurs et Supports': 'Partners',
+  'Support matériel': 'Hardware support', 'Licences logicielles': 'Software licences',
+  'Locale Lite/Pro': 'Local Lite/Pro', 'Agents Enterprise': 'Enterprise agents', 'Imports': 'Imports',
+  'Migration': 'Migration', 'Exports': 'Exports', 'Gouvernance ITSM': 'ITSM governance',
+  'Éditions & quotas': 'Editions & quotas', 'Identité & accès': 'Identity & access', 'Audit': 'Audit',
+  'Autres': 'Other', 'Etages': 'Multi-level', 'Étages': 'Multi-level', 'Simple': 'Single-level',
+  'Niveau Initial': 'Initial level', 'Niveau Final': 'Final level', 'Type Batiment': 'Building type',
+});
+
+const RESOURCE_CATEGORY_FR = Object.freeze({
+  server: 'Serveurs', 'personal-computer': 'Postes de travail', 'monitor-peripheral': 'Écrans et périphériques',
+  'network-device': 'Équipements réseau', storage: 'Stockage', 'power-supply': 'Alimentation électrique',
+  'rack-facility': 'Racks et infrastructure', cooling: 'Refroidissement',
+  'security-safety': 'Sécurité et sûreté', telecom: 'Télécommunications',
+  'cloud-virtualization': 'Cloud et virtualisation', 'software-service': 'Logiciels et services',
+  'cable-connectivity': 'Câblage et connectivité', 'mobile-iot': 'Mobilité et IoT', other: 'Autres',
+});
+
+const OPTION_FR = Object.freeze({
+  active: 'Actif', suspended: 'Suspendu', retired: 'Retiré', planned: 'Planifié',
+  maintenance: 'Maintenance', available: 'Disponible', allocated: 'Alloué', reserved: 'Réservé',
+  deprecated: 'Déprécié', enabled: 'Activé', disabled: 'Désactivé', pending: 'En attente',
+  completed: 'Terminé', failed: 'Échec', queued: 'En file', leased: 'Réservé par un worker',
+  'retry-wait': 'En attente de nouvelle tentative', 'dead-letter': 'File de quarantaine',
+  manufacturer: 'Constructeur', software_publisher: 'Éditeur logiciel', third_party_support: 'Support tiers',
+  front: 'Avant', rear: 'Arrière', left: 'Gauche', right: 'Droite', top: 'Haut', bottom: 'Bas',
+  inbound: 'Entrant', outbound: 'Sortant', bidirectional: 'Bidirectionnel',
+  physical: 'Physique', virtual: 'Virtuel', logical: 'Logique', automatic: 'Automatique', manual: 'Manuel',
+  simple: 'Simple', floors: 'Étages', lite: 'Lite', pro: 'Pro', enterprise: 'Entreprise',
+});
+
+const OPTION_EN = Object.freeze({
+  'retry-wait': 'Waiting for retry', 'dead-letter': 'Dead-letter queue',
+  software_publisher: 'Software publisher', third_party_support: 'Third-party support',
+});
+
+const CONTINENT_FR = Object.freeze({
+  Africa: 'Afrique', Antarctica: 'Antarctique', Asia: 'Asie', Europe: 'Europe',
+  'North America': 'Amérique du Nord', Oceania: 'Océanie', 'South America': 'Amérique du Sud',
+});
+
+function humanizeOption(value) {
+  const normalized = String(value ?? '').trim();
+  if (!normalized) return '';
+  const words = normalized.replaceAll('_', ' ').replaceAll('-', ' ').replace(/\s+/g, ' ').trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+const RESOURCE_FR = Object.freeze({
+  'rack-server':'Serveur rack','blade-server':'Serveur lame','tower-server':'Serveur tour','hypervisor-host':'Hôte hyperviseur','virtual-machine':'Machine virtuelle','container-host':'Hôte de conteneurs','compute-appliance':'Appliance de calcul',
+  laptop:'Ordinateur portable',desktop:'Ordinateur de bureau',workstation:'Station de travail','thin-client':'Client léger','all-in-one':'Tout-en-un',tablet:'Tablette',kiosk:'Borne',
+  monitor:'Écran',keyboard:'Clavier',mouse:'Souris','docking-station':'Station d’accueil',webcam:'Webcam',headset:'Casque',printer:'Imprimante',scanner:'Scanner','barcode-scanner':'Lecteur de codes-barres','kvm-console':'Console KVM',
+  switch:'Commutateur','core-switch':'Commutateur cœur','distribution-switch':'Commutateur de distribution','access-switch':'Commutateur d’accès',router:'Routeur',firewall:'Pare-feu','load-balancer':'Répartiteur de charge','vpn-gateway':'Passerelle VPN','sdwan-edge':'Équipement SD-WAN','wireless-controller':'Contrôleur Wi-Fi','wireless-access-point':'Point d’accès Wi-Fi','proxy-appliance':'Appliance proxy','wan-accelerator':'Accélérateur WAN','network-tap':'TAP réseau','packet-broker':'Courtier de paquets','network-interface':'Interface réseau',
+  'storage-array':'Baie de stockage','nas-appliance':'Appliance NAS','san-switch':'Commutateur SAN','storage-controller':'Contrôleur de stockage','storage-shelf':'Tiroir de stockage',hdd:'Disque HDD',ssd:'Disque SSD','nvme-drive':'Disque NVMe','tape-library':'Librairie de bandes','backup-appliance':'Appliance de sauvegarde','object-storage-node':'Nœud de stockage objet',
+  ups:'Onduleur',pdu:'PDU',ats:'Commutateur de transfert automatique',sts:'Commutateur de transfert statique',rectifier:'Redresseur',inverter:'Convertisseur','battery-pack':'Bloc de batteries','power-shelf':'Châssis d’alimentation',generator:'Groupe électrogène',busway:'Canalisation électrique','power-meter':'Compteur électrique',
+  rack:'Rack',cabinet:'Armoire','patch-panel':'Panneau de brassage','fiber-panel':'Panneau fibre','cable-management':'Gestionnaire de câbles',containment:'Confinement','raised-floor-tile':'Dalle de faux plancher','sensor-probe':'Sonde','rack-accessory':'Accessoire de rack',
+  crac:'CRAC',crah:'CRAH','in-row-cooler':'Refroidisseur en rangée','rear-door-heat-exchanger':'Échangeur thermique de porte arrière',chiller:'Groupe froid','cooling-tower':'Tour de refroidissement','heat-exchanger':'Échangeur thermique',humidifier:'Humidificateur','environmental-sensor':'Capteur environnemental',
+  'cctv-camera':'Caméra CCTV','access-control-reader':'Lecteur de contrôle d’accès','door-controller':'Contrôleur de porte','biometric-reader':'Lecteur biométrique','fire-panel':'Centrale incendie','smoke-detector':'Détecteur de fumée','leak-detector':'Détecteur de fuite','alarm-siren':'Sirène d’alarme',
+  pbx:'PBX','voip-gateway':'Passerelle VoIP','ip-phone':'Téléphone IP','conference-phone':'Téléphone de conférence',modem:'Modem','optical-transponder':'Transpondeur optique',mux:'Multiplexeur','radio-link':'Liaison radio',
+  'cloud-account':'Compte cloud','cloud-region':'Région cloud',vpc:'VPC','cloud-subnet':'Sous-réseau cloud','security-group':'Groupe de sécurité','cloud-load-balancer':'Répartiteur cloud','cloud-instance':'Instance cloud','cloud-volume':'Volume cloud','kubernetes-cluster':'Cluster Kubernetes','kubernetes-node':'Nœud Kubernetes',container:'Conteneur',namespace:'Espace de noms',
+  application:'Application',service:'Service','api-service':'Service API','web-service':'Service web','database-instance':'Instance de base de données',middleware:'Middleware','message-broker':'Courtier de messages',license:'Licence',certificate:'Certificat','dns-zone':'Zone DNS',
+  'copper-cable':'Câble cuivre','fiber-cable':'Câble fibre','patch-cord':'Cordon de brassage','trunk-cable':'Câble trunk',transceiver:'Transceiver','sfp-module':'Module SFP','qsfp-module':'Module QSFP','patch-cassette':'Cassette de brassage',
+  smartphone:'Smartphone','rugged-handheld':'Terminal durci','iot-gateway':'Passerelle IoT','industrial-controller':'Contrôleur industriel',plc:'Automate programmable',sensor:'Capteur',actuator:'Actionneur',
+  'generic-asset':'Actif générique','unknown-device':'Équipement inconnu','external-resource':'Ressource externe',
+});
+
+function normalizeLanguage(value) {
+  const normalized = String(value || '').trim().toLowerCase().replace('_', '-');
+  const primary = normalized.split('-')[0];
+  return SUPPORTED_LANGUAGES.includes(primary) ? primary : DEFAULT_LANGUAGE;
+}
+
+export function detectBrowserLanguage(navigatorObject = globalThis.navigator) {
+  const candidates = [];
+  if (Array.isArray(navigatorObject?.languages)) candidates.push(...navigatorObject.languages);
+  if (navigatorObject?.language) candidates.push(navigatorObject.language);
+  for (const candidate of candidates) {
+    const primary = String(candidate || '').trim().toLowerCase().replace('_', '-').split('-')[0];
+    if (SUPPORTED_LANGUAGES.includes(primary)) return primary;
+  }
+  return DEFAULT_LANGUAGE;
+}
+
+function interpolate(template, parameters = {}) {
+  return String(template).replace(/\{([^}]+)\}/g, (_, key) => String(parameters[key] ?? ''));
+}
+
+function titleCase(value) {
+  if (!value) return '';
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function humanizeTokens(tokens) {
+  return tokens.map((token) => TOKEN_EN[token] || token.replaceAll('_', ' ')).join(' ');
+}
+
+function operationLabelEn(operationId) {
+  const overrides = {
+    version: 'Runtime version', schema: 'Database schema status',
+    'rsot-taxonomy': 'Resource category / type catalogue',
+    'rsot-as-of': 'Restore a resource at a point in time',
+    'rsot-object-audit': 'Audit a resource',
+    'ipam-dashboard': 'IPAM dashboard', 'dcim-digital-twin': 'Room digital twin',
+    'effective-identity': 'Effective identity', 'audit-integrity': 'Audit integrity',
+  };
+  if (overrides[operationId]) return overrides[operationId];
+  const domainTokens = new Set(['rsot', 'ipam', 'dcim', 'itam', 'discovery']);
+  const tokens = String(operationId || '').split('-').filter(Boolean);
+  if (domainTokens.has(tokens[0])) tokens.shift();
+  let actionIndex = tokens.findIndex((token) => ACTION_EN[token]);
+  if (actionIndex < 0) return titleCase(humanizeTokens(tokens));
+  const action = ACTION_EN[tokens[actionIndex]];
+  const nouns = tokens.filter((_, index) => index !== actionIndex);
+  return `${action} ${humanizeTokens(nouns)}`.trim();
+}
+
+function fieldLabelEn(field) {
+  if (!field) return '';
+  if (FIELD_EN[field.name]) return FIELD_EN[field.name];
+  return titleCase(String(field.name || field.label || '').replaceAll('_', ' '));
+}
+
+function captureOriginal(target, property) {
+  const marker = `__openinfra_${property}`;
+  if (!Object.prototype.hasOwnProperty.call(target, marker)) {
+    Object.defineProperty(target, marker, { value: target[property], enumerable: false, writable: false });
+  }
+  return target[marker];
+}
+
+function localizeOptions(options, language) {
+  if (!Array.isArray(options)) return;
+  for (const option of options) {
+    if (!option || typeof option !== 'object') continue;
+    const original = captureOriginal(option, 'label');
+    if (language === 'fr') option.label = RESOURCE_FR[option.value] || RESOURCE_CATEGORY_FR[option.value] || original;
+    else option.label = original;
+  }
+}
+
+function localizeField(field, language) {
+  if (!field || typeof field !== 'object') return;
+  const original = captureOriginal(field, 'label');
+  field.label = language === 'fr' ? original : fieldLabelEn(field);
+  localizeOptions(field.options, language);
+  if (field.optionsMap && typeof field.optionsMap === 'object') {
+    for (const options of Object.values(field.optionsMap)) localizeOptions(options, language);
+  }
+}
+
+export function localizeOpenInfraCatalog({ modules = [], contexts = {}, resourceTaxonomy = {}, resourceCategories = [], dcimReferenceLabels = {} }, language) {
+  const normalized = normalizeLanguage(language);
+  localizeOptions(resourceCategories, normalized);
+  for (const options of Object.values(resourceTaxonomy || {})) localizeOptions(options, normalized);
+  for (const module of modules) {
+    const originalLabel = captureOriginal(module, 'label');
+    const originalShort = module.shortLabel === undefined ? undefined : captureOriginal(module, 'shortLabel');
+    const originalDescription = module.description === undefined ? undefined : captureOriginal(module, 'description');
+    if (normalized === 'en') {
+      module.label = MODULE_EN[module.id]?.[0] || originalLabel;
+      if (originalShort !== undefined) module.shortLabel = MODULE_EN[module.id]?.[1] || originalShort;
+      if (originalDescription !== undefined) module.description = MODULE_DESCRIPTION_EN[module.id] || UI_MESSAGES.en.moduleDescriptionFallback;
+    } else {
+      module.label = originalLabel;
+      if (originalShort !== undefined) module.shortLabel = originalShort;
+      if (originalDescription !== undefined) module.description = originalDescription;
+    }
+    for (const operation of module.operations || []) {
+      const originalOperation = captureOriginal(operation, 'label');
+      operation.label = normalized === 'en' ? operationLabelEn(operation.id) : originalOperation;
+      for (const field of [...(operation.query || []), ...(operation.body || []), ...(operation.fields || [])]) {
+        if (typeof field === 'object') localizeField(field, normalized);
+      }
+    }
+  }
+  for (const groups of Object.values(contexts || {})) {
+    for (const group of groups || []) {
+      const original = captureOriginal(group, 'label');
+      group.label = normalized === 'en' ? (PHRASE_EN[original] || original) : original;
+    }
+  }
+  for (const [key, value] of Object.entries(dcimReferenceLabels || {})) {
+    const marker = `__openinfra_${key}`;
+    if (!Object.prototype.hasOwnProperty.call(dcimReferenceLabels, marker)) {
+      Object.defineProperty(dcimReferenceLabels, marker, { value, enumerable: false });
+    }
+    dcimReferenceLabels[key] = normalized === 'en' ? fieldLabelEn({ name: key }) : dcimReferenceLabels[marker];
+  }
+  return normalized;
+}
+
+const EXACT_TEXT_EN = Object.freeze({
+  'Aller au contenu principal':'Skip to main content','OpenInfra accueil':'OpenInfra home',
+  'Recherche globale OpenInfra':'OpenInfra global search','Recherche globale...':'Global search...',
+  'Résultats de recherche globale':'Global search results','Ouvrir Swagger UI backend API':'Open backend API Swagger UI',
+  'Ouvrir ReDoc backend API':'Open backend API ReDoc','Fermer le menu de navigation':'Close navigation menu',
+  'Ouvrir le menu de navigation':'Open navigation menu','Pilotage':'Control','État runtime':'Runtime status',
+  'Soumission exécutée avec succès.':'Operation completed successfully.','Métriques du dashboard':'Dashboard metrics',
+  'Statistiques des composants OpenInfra':'OpenInfra component statistics','Accueil — statistiques des composants':'Home — component statistics',
+  'Vue de synthèse par composant : métriques fonctionnelles, champs métier exposés et camemberts de répartition lecture/mutation.':'Summary by component: functional metrics, exposed business fields and read/write distribution charts.',
+  'Champs métier':'Business fields','Champs obligatoires':'Required fields','Accordéons':'Accordions',
+  'Secrets navigateur':'Browser secrets','0 exposé':'0 exposed','Parité UI':'UI parity','Opérations':'Operations',
+  'Lectures':'Reads','Mutations':'Mutations','Obligatoires':'Required','Organisation':'Organization',
+  'Filiale/Subdivision':'Subsidiary/Division','Exécuter':'Execute','Résultat en attente.':'Waiting for a result.',
+  'Résultat de l’opération':'Operation result','Formulaires':'Forms','Formulaires protégés':'Protected forms',
+  'Backend prêt':'Backend ready','Backend à vérifier':'Backend requires attention','Version :':'Version:',
+  'Trust web/backend :':'Web/backend trust:','Formulaires protégés :':'Protected forms:',
+  'Recherche backend temporairement indisponible. Résultats locaux ci-dessous.':'Backend search is temporarily unavailable. Local results are shown below.',
+  'Autres':'Other','Langue':'Language','Anglais':'English','Français':'French','Menu':'Menu',
+});
+
+export function localizedLabel(value, language) {
+  const text = String(value ?? '');
+  return normalizeLanguage(language) === 'en' ? (LABEL_EN[text] || PHRASE_EN[text] || text) : text;
+}
+
+export class OpenInfraI18n {
+  constructor({ navigatorObject = globalThis.navigator, storage = globalThis.localStorage } = {}) {
+    this.storage = storage;
+    let stored = null;
+    try { stored = storage?.getItem?.(LANGUAGE_STORAGE_KEY); } catch { stored = null; }
+    this.language = stored && SUPPORTED_LANGUAGES.includes(stored) ? stored : detectBrowserLanguage(navigatorObject);
+    this._displayNames = null;
+  }
+
+  setLanguage(language, { persist = true } = {}) {
+    this.language = normalizeLanguage(language);
+    this._displayNames = null;
+    if (persist) {
+      try { this.storage?.setItem?.(LANGUAGE_STORAGE_KEY, this.language); } catch { /* storage can be disabled */ }
+    }
+    return this.language;
+  }
+
+  t(key, parameters = {}) {
+    const catalog = UI_MESSAGES[this.language] || UI_MESSAGES.en;
+    return interpolate(catalog[key] ?? UI_MESSAGES.en[key] ?? key, parameters);
+  }
+
+  label(value) {
+    return localizedLabel(value, this.language);
+  }
+
+  optionLabel(value) {
+    const normalized = String(value ?? '').trim();
+    if (!normalized) return '';
+    if (this.language === 'fr') return OPTION_FR[normalized] || humanizeOption(normalized);
+    return OPTION_EN[normalized] || humanizeOption(normalized);
+  }
+
+  continentName(value) {
+    const normalized = String(value ?? '').trim();
+    if (!normalized) return this.t('other');
+    return this.language === 'fr' ? (CONTINENT_FR[normalized] || normalized) : normalized;
+  }
+
+  count(count, singularKey, pluralKey = `${singularKey}s`) {
+    const numeric = Number(count);
+    return `${numeric} ${this.t(numeric === 1 ? singularKey : pluralKey)}`;
+  }
+
+  floorName(levelIndex, existingName = '') {
+    const level = Number(levelIndex);
+    if (!Number.isInteger(level)) return existingName || '';
+    const canonical = level < 0
+      ? this.t('basement', { level: Math.abs(level) })
+      : (level === 0 ? this.t('groundFloor') : this.t('levelName', { level }));
+    const existing = String(existingName || '').trim();
+    if (!existing) return canonical;
+    const generated = /^(?:Basement\s+\d+|Ground floor|Level\s+\d+|Sous-sol\s+\d+|Rez-de-chaussée|Étage\s+\d+|[^/]+\/[^/]+\/ETG-?\d+)$/i.test(existing);
+    return generated ? canonical : `${canonical} — ${existing}`;
+  }
+
+  countryName(alpha2, fallback = '') {
+    const code = String(alpha2 || '').trim().toUpperCase();
+    if (!/^[A-Z]{2}$/.test(code)) return fallback || code;
+    try {
+      this._displayNames ||= new Intl.DisplayNames([this.language], { type: 'region' });
+      return this._displayNames.of(code) || fallback || code;
+    } catch {
+      return fallback || code;
+    }
+  }
+
+  translateText(value) {
+    const original = String(value ?? '');
+    if (this.language === 'fr') return original;
+    const leading = original.match(/^\s*/)?.[0] || '';
+    const trailing = original.match(/\s*$/)?.[0] || '';
+    const core = original.trim();
+    if (!core) return original;
+    if (EXACT_TEXT_EN[core]) return `${leading}${EXACT_TEXT_EN[core]}${trailing}`;
+    let match = core.match(/^(\d+)\s+composants?$/i);
+    if (match) return `${leading}${match[1]} components${trailing}`;
+    match = core.match(/^(\d+)\s+opérations?$/i);
+    if (match) return `${leading}${match[1]} ${Number(match[1]) === 1 ? 'operation' : 'operations'}${trailing}`;
+    match = core.match(/^(\d+)\s+résultats?$/i);
+    if (match) return `${leading}${match[1]} ${Number(match[1]) === 1 ? 'result' : 'results'}${trailing}`;
+    match = core.match(/^(\d+)\s+résultats?\s+supplémentaires?$/i);
+    if (match) return `${leading}${match[1]} additional ${Number(match[1]) === 1 ? 'result' : 'results'}${trailing}`;
+    match = core.match(/^Recherche backend en cours pour\s+(.+)…$/i);
+    if (match) return `${leading}Searching the backend for ${match[1]}…${trailing}`;
+    match = core.match(/^Aucun résultat global pour\s+(.+)\.$/i);
+    if (match) return `${leading}No global result for ${match[1]}.${trailing}`;
+    match = core.match(/^Composants ignorés selon les droits\s*:\s*(.+)\.$/i);
+    if (match) return `${leading}Components skipped according to permissions: ${match[1]}.${trailing}`;
+    return original;
+  }
+
+  translateDom(root) {
+    if (!root || typeof document === 'undefined') return;
+    document.documentElement.lang = this.language;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    for (const node of nodes) {
+      const parent = node.parentElement;
+      if (!parent || parent.closest('pre, code, script, style')) continue;
+      node.nodeValue = this.translateText(node.nodeValue);
+    }
+    for (const element of root.querySelectorAll('[aria-label], [placeholder], [title]')) {
+      for (const attribute of ['aria-label', 'placeholder', 'title']) {
+        if (element.hasAttribute(attribute)) element.setAttribute(attribute, this.translateText(element.getAttribute(attribute)));
+      }
+    }
+  }
+}

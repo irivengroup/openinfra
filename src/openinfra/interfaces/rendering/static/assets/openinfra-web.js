@@ -1,5 +1,8 @@
+import { OpenInfraI18n, localizeOpenInfraCatalog } from "./openinfra-i18n.js";
+
 class OpenInfraApiClient {
-  constructor(apiBaseUrl, tenantProvider) {
+  constructor(apiBaseUrl, tenantProvider, i18n = null) {
+    this.i18n = i18n;
     this.apiBaseUrl = apiBaseUrl.replace(/\/$/, "");
     this.tenantProvider = tenantProvider;
   }
@@ -64,7 +67,7 @@ class OpenInfraApiClient {
       const value = this.normalizedFieldValue(field, raw);
       if (value === undefined || value === null || String(value).trim?.() === "") {
         if (field.required) {
-          throw new Error(`Champ obligatoire manquant: ${field.label || field.name}`);
+          throw new Error(this.i18n?.t("requiredField", { field: field.label || field.name }) || `Missing required field: ${field.label || field.name}`);
         }
         continue;
       }
@@ -93,7 +96,7 @@ class OpenInfraApiClient {
     if (field.type === "number") {
       const parsed = Number(value);
       if (Number.isNaN(parsed)) {
-        throw new Error(`Valeur numérique invalide: ${field.label || field.name}`);
+        throw new Error(this.i18n?.t("invalidNumber", { field: field.label || field.name }) || `Invalid numeric value: ${field.label || field.name}`);
       }
       return parsed;
     }
@@ -888,10 +891,11 @@ const OPENINFRA_MODULES = [
     { id: "dcim-building-update", label: "Modifier un bâtiment", method: "POST", path: "/v1/dcim/building/update", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true }, { name: "code", label: "Code bâtiment", required: true, placeholder: "BAT-A" }, { name: "name", label: "Nom bâtiment", placeholder: "Bâtiment A" }, { name: "status", label: "Statut", type: "select", options: ["", "active", "suspended", "retired"] }] },
     { id: "dcim-building-delete", label: "Retirer un bâtiment", method: "POST", path: "/v1/dcim/building/delete", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true }, { name: "code", label: "Code bâtiment", required: true, placeholder: "BAT-A" }] },
     { id: "dcim-floors", label: "Lister les étages", method: "GET", path: "/v1/dcim/floors", query: [{ name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "include_retired", label: "Inclure retirés", type: "boolean" }] },
-    { id: "dcim-floor", label: "Consulter un étage", method: "GET", path: "/v1/dcim/floor", query: [{ name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "code", label: "Code étage", required: true, placeholder: "F01" }] },
+    { id: "dcim-floor", label: "Consulter un étage", method: "GET", path: "/v1/dcim/floor", query: [{ name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "code", label: "Étage", required: true, placeholder: "L01" }] },
     { id: "dcim-rooms-list", label: "Lister les salles", method: "GET", path: "/v1/dcim/rooms", query: [{ name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "include_retired", label: "Inclure retirés", type: "boolean" }] },
     { id: "dcim-room", label: "Consulter une salle", method: "GET", path: "/v1/dcim/room", query: [{ name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "code", label: "Code salle", required: true, placeholder: "MMR1" }] },
     { id: "dcim-room-create", label: "Créer une salle", method: "POST", path: "/v1/dcim/room/create", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "floor", label: "Étage", placeholder: "Obligatoire si Type Batiment = Etages" }, { name: "code", label: "Code salle", required: true, placeholder: "MMR1" }, { name: "name", label: "Nom salle", required: true, placeholder: "Meet-Me Room" }, { name: "rows", label: "Plage lignes salle", type: "csv", required: true, placeholder: "0-12" }, { name: "columns", label: "Plage colonnes salle", type: "csv", required: true, placeholder: "A-F" }] },
+    { id: "dcim-define-room", label: "Créer une hiérarchie physique", method: "POST", path: "/v1/dcim/rooms", body: [FIELD_SETS.actor, { name: "site_code", label: "Code site", required: true, placeholder: "PAR1" }, { name: "site_name", label: "Nom site", required: true, placeholder: "Paris 1" }, { name: "country", label: "Pays", type: "country-select", required: true }, { name: "region", label: "Région", placeholder: "Île-de-France" }, { name: "city", label: "Ville", required: true, placeholder: "Paris" }, { name: "building_code", label: "Code bâtiment", required: true, placeholder: "BAT-A" }, { name: "building_name", label: "Nom bâtiment", required: true, placeholder: "Bâtiment A" }, { name: "floor_index", label: "Niveau", type: "number", required: true, defaultValue: "1", min: "-20", max: "150", step: "1" }, { name: "room_code", label: "Code salle", required: true, placeholder: "MMR1" }, { name: "room_name", label: "Nom salle", required: true, placeholder: "Meet-Me Room" }, { name: "rows", label: "Plage lignes salle", type: "csv", required: true, placeholder: "0-12" }, { name: "columns", label: "Plage colonnes salle", type: "csv", required: true, placeholder: "A-F" }, { name: "zone_code", label: "Code zone", placeholder: "Z1" }, { name: "zone_name", label: "Nom zone", placeholder: "Zone froide 1" }, { name: "zone_rows", label: "Lignes zone", type: "csv", placeholder: "A" }, { name: "zone_columns", label: "Colonnes zone", type: "csv", placeholder: "01" }] },
     { id: "dcim-room-update", label: "Modifier une salle", method: "POST", path: "/v1/dcim/room/update", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "code", label: "Code salle", required: true, placeholder: "MMR1" }, { name: "name", label: "Nom salle", placeholder: "Meet-Me Room" }, { name: "rows", label: "Plage lignes salle", type: "csv", placeholder: "0-12" }, { name: "columns", label: "Plage colonnes salle", type: "csv", placeholder: "A-F" }, { name: "status", label: "Statut", type: "select", options: ["", "active", "suspended", "retired"] }] },
     { id: "dcim-room-delete", label: "Retirer une salle", method: "POST", path: "/v1/dcim/room/delete", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "code", label: "Code salle", required: true, placeholder: "MMR1" }] },
     { id: "dcim-racks", label: "Lister les chassis/racks", method: "GET", path: "/v1/dcim/racks", query: [{ name: "site", label: "Site", required: true }, { name: "building", label: "Bâtiment", required: true }, { name: "room", label: "Salle", required: true }, { name: "include_retired", label: "Inclure retirés", type: "boolean" }] },
@@ -911,7 +915,7 @@ const OPENINFRA_MODULES = [
       { name: "equipment_name", label: "Nom équipement", required: true, placeholder: "srv-app-01" },
       { name: "site", label: "Site", required: true, placeholder: "PAR1" },
       { name: "building", label: "Bâtiment", required: true, placeholder: "BAT-A" },
-      { name: "floor", label: "Étage", placeholder: "F01" },
+      { name: "floor", label: "Étage", placeholder: "L01" },
       { name: "room", label: "Salle", required: true, placeholder: "MMR1" },
       { name: "zone", label: "Zone", placeholder: "Z1" },
       { name: "row", label: "Ligne salle", required: true, placeholder: "A" },
@@ -1075,6 +1079,8 @@ const OPENINFRA_SIDEBAR_CONTEXTS = {
 class OpenInfraDashboard {
   constructor(root) {
     this.root = root;
+    this.i18n = new OpenInfraI18n();
+    this.applyLanguage();
     this.state = {
       activeModuleId: "overview",
       activeNavigationModuleId: "overview",
@@ -1106,6 +1112,23 @@ class OpenInfraDashboard {
       mobileSidebarOpen: false
     };
     this.handleResize = () => this.syncFixedHeaderOffset();
+  }
+
+
+  applyLanguage() {
+    localizeOpenInfraCatalog({
+      modules: OPENINFRA_MODULES,
+      contexts: OPENINFRA_SIDEBAR_CONTEXTS,
+      resourceTaxonomy: RESOURCE_TAXONOMY,
+      resourceCategories: RESOURCE_CATEGORY_OPTIONS,
+      dcimReferenceLabels: DCIM_REFERENCE_LABELS
+    }, this.i18n.language);
+  }
+
+  setLanguage(language) {
+    this.i18n.setLanguage(language);
+    this.applyLanguage();
+    this.render();
   }
 
   async start() {
@@ -1263,13 +1286,13 @@ class OpenInfraDashboard {
       .filter((tenant) => tenant.selectable !== false && tenant.status === "active" && tenant.organization_id === organizationId)
       .map((tenant) => ({
         value: tenant.tenant_id,
-        label: `${tenant.name || tenant.tenant_id}${tenant.is_default ? " — défaut" : ""}`
+        label: `${tenant.name || tenant.tenant_id}${tenant.is_default ? ` — ${this.i18n.t("defaultMarker")}` : ""}`
       }));
     if (tenants.length > 0) {
       return tenants;
     }
     if (organizationId) {
-      return [{ value: organizationId, label: `${this.organizationLabel(organizationId)} — tenant implicite` }];
+      return [{ value: organizationId, label: `${this.organizationLabel(organizationId)} — ${this.i18n.t("implicitTenant")}` }];
     }
     return [];
   }
@@ -1292,18 +1315,18 @@ class OpenInfraDashboard {
     const options = this.organizationOptions();
     const fallback = this.state.organization || "default";
     const renderedOptions = options.length > 0 ? options : [{ value: fallback, label: fallback }];
-    return `<label class="col-md-4 form-label">Organisation<select id="openinfra-organization" class="form-select">${this.renderOptions(renderedOptions, fallback)}</select></label>`;
+    return `<label class="col-md-4 form-label">${this.escape(this.i18n.t("organization"))}<select id="openinfra-organization" class="form-select">${this.renderOptions(renderedOptions, fallback)}</select></label>`;
   }
 
   renderTenantSelector() {
     const options = this.tenantOptions(this.state.organization);
     const fallback = this.state.tenant || this.state.organization || "default";
     const renderedOptions = options.length > 0 ? options : [{ value: fallback, label: fallback }];
-    return `<label class="col-md-4 form-label">Filiale/Subdivision<select id="openinfra-tenant" class="form-select">${this.renderOptions(renderedOptions, fallback)}</select></label>`;
+    return `<label class="col-md-4 form-label">${this.escape(this.i18n.t("tenant"))}<select id="openinfra-tenant" class="form-select">${this.renderOptions(renderedOptions, fallback)}</select></label>`;
   }
 
   client() {
-    return new OpenInfraApiClient(this.state.config?.apiBaseUrl || "/api", () => this.state.tenant);
+    return new OpenInfraApiClient(this.state.config?.apiBaseUrl || "/api", () => this.state.tenant, this.i18n);
   }
 
   globalSearchUrl(query, limit = 6) {
@@ -1463,17 +1486,24 @@ class OpenInfraDashboard {
     return `<div class="px-3 py-2 border-bottom openinfra-global-toolbar">
       <div class="container-fluid openinfra-global-toolbar-inner">
         <div class="openinfra-global-toolbar-spacer" aria-hidden="true"></div>
-        <form class="openinfra-global-search-form" role="search" aria-label="Recherche globale OpenInfra" autocomplete="off">
-          <label class="visually-hidden" for="openinfra-global-search">Recherche globale OpenInfra</label>
+        <form class="openinfra-global-search-form" role="search" aria-label="${this.escape(this.i18n.t("globalSearch"))}" autocomplete="off">
+          <label class="visually-hidden" for="openinfra-global-search">${this.escape(this.i18n.t("globalSearch"))}</label>
           <div class="openinfra-global-search-control">
             ${this.icon("search", "openinfra-global-search-icon", 18, 18)}
-            <input type="search" id="openinfra-global-search" class="form-control" placeholder="Recherche globale..." aria-label="Recherche globale OpenInfra" role="combobox" aria-autocomplete="list" aria-haspopup="listbox" aria-controls="openinfra-global-search-results" aria-expanded="${hasQuery ? "true" : "false"}" value="${this.escape(query)}">
+            <input type="search" id="openinfra-global-search" class="form-control" placeholder="${this.escape(this.i18n.t("globalSearchPlaceholder"))}" aria-label="${this.escape(this.i18n.t("globalSearch"))}" role="combobox" aria-autocomplete="list" aria-haspopup="listbox" aria-controls="openinfra-global-search-results" aria-expanded="${hasQuery ? "true" : "false"}" value="${this.escape(query)}">
           </div>
-          <div id="openinfra-global-search-results" class="openinfra-global-search-results" role="listbox" aria-label="Résultats de recherche globale" aria-live="polite" ${hasQuery ? "" : "hidden"}>${this.renderGlobalSearchResults()}</div>
+          <div id="openinfra-global-search-results" class="openinfra-global-search-results" role="listbox" aria-label="${this.escape(this.i18n.t("globalSearchResults"))}" aria-live="polite" ${hasQuery ? "" : "hidden"}>${this.renderGlobalSearchResults()}</div>
         </form>
+        <div class="openinfra-language-control">
+          <label for="openinfra-language" class="visually-hidden">${this.i18n.t("language")}</label>
+          <select id="openinfra-language" class="form-select form-select-sm" aria-label="${this.escape(this.i18n.t("language"))}">
+            <option value="en" ${this.i18n.language === "en" ? "selected" : ""}>EN</option>
+            <option value="fr" ${this.i18n.language === "fr" ? "selected" : ""}>FR</option>
+          </select>
+        </div>
         <div class="text-end openinfra-api-doc-actions">
-          <a class="btn btn-light text-dark me-2" href="${this.escape(docs.swaggerUrl)}" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir Swagger UI backend API">Swagger</a>
-          <a class="btn btn-primary" href="${this.escape(docs.redocUrl)}" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir ReDoc backend API">ReDoc</a>
+          <a class="btn btn-light text-dark me-2" href="${this.escape(docs.swaggerUrl)}" target="_blank" rel="noopener noreferrer" aria-label="${this.escape(this.i18n.t("openSwagger"))}">Swagger</a>
+          <a class="btn btn-primary" href="${this.escape(docs.redocUrl)}" target="_blank" rel="noopener noreferrer" aria-label="${this.escape(this.i18n.t("openRedoc"))}">ReDoc</a>
         </div>
       </div>
     </div>`;
@@ -1487,13 +1517,13 @@ class OpenInfraDashboard {
     const groups = this.globalSearchGroups();
     const backend = this.state.globalSearchBackend;
     if (this.state.globalSearchLoading) {
-      return `<div class="openinfra-global-search-empty">Recherche backend en cours pour <strong>${this.escape(query)}</strong>…</div>`;
+      return `<div class="openinfra-global-search-empty">${this.escape(this.i18n.t("loadingSearch", { query }))}</div>`;
     }
     if (backend && backend.query === query) {
       return this.renderBackendGlobalSearchResults(backend, query, groups);
     }
     if (this.state.globalSearchError) {
-      return `<div class="openinfra-global-search-empty">Recherche backend temporairement indisponible. Résultats locaux ci-dessous.</div>${this.renderOperationSearchResults(groups, query)}`;
+      return `<div class="openinfra-global-search-empty">${this.escape(this.i18n.t("backendSearchUnavailable"))}</div>${this.renderOperationSearchResults(groups, query)}`;
     }
     return this.renderOperationSearchResults(groups, query);
   }
@@ -1502,51 +1532,51 @@ class OpenInfraDashboard {
     const groups = Array.isArray(backend.groups) ? backend.groups : [];
     const visibleGroups = groups.filter((group) => group.status === "ok" && Array.isArray(group.items) && group.items.length > 0);
     const skipped = groups.filter((group) => group.status === "skipped");
-    const sections = visibleGroups.map((group) => `<section class="openinfra-global-search-group" role="group" aria-label="Résultats ${this.escape(group.label || group.component)}">
-      <div class="openinfra-global-search-group-title"><span>${this.escape(group.label || group.component)}</span><span>${group.total} résultat${group.total > 1 ? "s" : ""}</span></div>
+    const sections = visibleGroups.map((group) => `<section class="openinfra-global-search-group" role="group" aria-label="${this.escape(this.i18n.t("globalSearchResults"))} ${this.escape(group.label || group.component)}">
+      <div class="openinfra-global-search-group-title"><span>${this.escape(group.label || group.component)}</span><span>${this.escape(this.i18n.count(group.total, "result", "results"))}</span></div>
       ${group.items.map((item) => `<button type="button" class="openinfra-global-search-item" role="option" data-search-route="${this.escape(item.route || "")}">
-        <span>${this.escape(item.label || item.kind || "résultat")}</span><small>${this.escape(item.kind || group.component)} · ${this.escape(item.description || "")}</small>
+        <span>${this.escape(item.label || item.kind || this.i18n.t("result"))}</span><small>${this.escape(item.kind || group.component)} · ${this.escape(item.description || "")}</small>
       </button>`).join("")}
-      ${group.total > group.items.length ? `<div class="openinfra-global-search-more">${group.total - group.items.length} résultat${group.total - group.items.length > 1 ? "s" : ""} supplémentaire${group.total - group.items.length > 1 ? "s" : ""}</div>` : ""}
+      ${group.total > group.items.length ? `<div class="openinfra-global-search-more">${this.escape(this.i18n.t(group.total - group.items.length === 1 ? "additionalResults" : "additionalResultsPlural", { count: group.total - group.items.length }))}</div>` : ""}
     </section>`);
     const skippedNotice = skipped.length > 0
-      ? `<div class="openinfra-global-search-empty">Composants ignorés selon les droits : ${this.escape(skipped.map((group) => group.label || group.component).join(", "))}.</div>`
+      ? `<div class="openinfra-global-search-empty">${this.escape(this.i18n.t("skippedComponents", { components: skipped.map((group) => group.label || group.component).join(", ") }))}</div>`
       : "";
     if (sections.length === 0) {
-      return `<div class="openinfra-global-search-empty">Aucun résultat métier pour <strong>${this.escape(query)}</strong>.</div>${skippedNotice}${this.renderOperationSearchResults(operationGroups, query)}`;
+      return `<div class="openinfra-global-search-empty">${this.escape(this.i18n.t("noGlobalResult", { query }))}</div>${skippedNotice}${this.renderOperationSearchResults(operationGroups, query)}`;
     }
     return sections.join("") + skippedNotice;
   }
 
   renderOperationSearchResults(groups, query) {
     if (groups.length === 0) {
-      return `<div class="openinfra-global-search-empty">Aucun résultat global pour <strong>${this.escape(query)}</strong>.</div>`;
+      return `<div class="openinfra-global-search-empty">${this.escape(this.i18n.t("noGlobalResult", { query }))}</div>`;
     }
-    return groups.map(({ module, operations, total }) => `<section class="openinfra-global-search-group" role="group" aria-label="Résultats ${this.escape(module.shortLabel || module.label)}">
-      <div class="openinfra-global-search-group-title"><span>${this.escape(module.shortLabel || module.label)}</span><span>${total} résultat${total > 1 ? "s" : ""}</span></div>
+    return groups.map(({ module, operations, total }) => `<section class="openinfra-global-search-group" role="group" aria-label="${this.escape(this.i18n.t("globalSearchResults"))} ${this.escape(module.shortLabel || module.label)}">
+      <div class="openinfra-global-search-group-title"><span>${this.escape(module.shortLabel || module.label)}</span><span>${this.escape(this.i18n.count(total, "result", "results"))}</span></div>
       ${operations.map((operation) => `<button type="button" class="openinfra-global-search-item" role="option" data-search-operation-id="${this.escape(operation.id)}">
         <span>${this.escape(operation.label)}</span><small>${this.escape(operation.method)} ${this.escape(operation.path)}</small>
       </button>`).join("")}
-      ${total > operations.length ? `<div class="openinfra-global-search-more">${total - operations.length} résultat${total - operations.length > 1 ? "s" : ""} supplémentaire${total - operations.length > 1 ? "s" : ""}</div>` : ""}
+      ${total > operations.length ? `<div class="openinfra-global-search-more">${this.escape(this.i18n.t(total - operations.length === 1 ? "additionalResults" : "additionalResultsPlural", { count: total - operations.length }))}</div>` : ""}
     </section>`).join("");
   }
 
   render() {
     const { activeModuleId, activeNavigationModuleId, selected, config, ready, status, version, error, result } = this.state;
-    const displayedVersion = version?.version || config?.version || "indisponible";
-    const protectedForms = status?.protectedForms === "enabled" ? "actifs" : "à configurer";
+    const displayedVersion = version?.version || config?.version || this.i18n.t("unavailable");
+    const protectedForms = status?.protectedForms === "enabled" ? this.i18n.t("active") : this.i18n.t("configure");
     const activeModule = OPENINFRA_MODULES.find((module) => module.id === activeModuleId) || OPENINFRA_MODULES[0];
     const pageTitle = activeModuleId === "overview" ? "Dashboard" : activeModule.shortLabel || activeModule.label;
     const pageSubtitle = activeModuleId === "overview"
-      ? "Vue de synthèse OpenInfra, readiness backend et état du portail server-side."
-      : `${selected.label} — formulaire métier typé, sans champs génériques ni secrets côté navigateur.`;
+      ? this.i18n.t("dashboardSubtitle")
+      : this.i18n.t("operationSubtitle", { operation: selected.label });
     this.root.innerHTML = `
-      <a class="openinfra-skip-link" href="#openinfra-main-content">Aller au contenu principal</a>
+      <a class="openinfra-skip-link" href="#openinfra-main-content">${this.escape(this.i18n.t("skipToContent"))}</a>
       <header class="openinfra-header-stack">
         <div class="px-3 py-2 bg-dark text-white openinfra-top-header">
           <div class="container-fluid">
             <div class="d-flex flex-wrap align-items-center justify-content-center justify-content-lg-start">
-              <a href="/" class="d-flex align-items-center my-2 my-lg-0 me-lg-auto text-white text-decoration-none" aria-label="OpenInfra accueil">
+              <a href="/" class="d-flex align-items-center my-2 my-lg-0 me-lg-auto text-white text-decoration-none" aria-label="${this.escape(this.i18n.t("home"))}">
                 <span class="openinfra-brand-mark me-2">OI</span><span class="fs-5 fw-semibold">OpenInfra</span><span class="badge openinfra-edition-badge ms-3">${this.escape(config?.edition || "runtime")}</span>
               </a>
               <ul class="nav col-12 col-lg-auto my-2 justify-content-center my-md-0 text-small">
@@ -1563,21 +1593,21 @@ class OpenInfraDashboard {
       </header>
       <div class="container-fluid">
         <div class="openinfra-mobile-menu-bar">
-          <button type="button" id="openinfra-mobile-menu-button" class="btn btn-primary openinfra-mobile-menu-button" aria-label="${this.state.mobileSidebarOpen ? "Fermer le menu de navigation" : "Ouvrir le menu de navigation"}" aria-expanded="${this.state.mobileSidebarOpen ? "true" : "false"}" aria-controls="openinfra-sidebar">
+          <button type="button" id="openinfra-mobile-menu-button" class="btn btn-primary openinfra-mobile-menu-button" aria-label="${this.escape(this.i18n.t(this.state.mobileSidebarOpen ? "closeNavigation" : "openNavigation"))}" aria-expanded="${this.state.mobileSidebarOpen ? "true" : "false"}" aria-controls="openinfra-sidebar">
             ${this.icon("menu", "openinfra-mobile-menu-icon", 20, 20)}<span class="visually-hidden">Menu</span>
           </button>
         </div>
-        ${this.state.mobileSidebarOpen ? `<button type="button" class="openinfra-mobile-sidebar-backdrop" id="openinfra-mobile-sidebar-backdrop" aria-label="Fermer le menu de navigation"></button>` : ""}
+        ${this.state.mobileSidebarOpen ? `<button type="button" class="openinfra-mobile-sidebar-backdrop" id="openinfra-mobile-sidebar-backdrop" aria-label="${this.escape(this.i18n.t("closeNavigation"))}"></button>` : ""}
         <div class="row">
-          <nav id="openinfra-sidebar" class="col-lg-3 col-xl-2 openinfra-sidebar ${this.state.mobileSidebarOpen ? "mobile-open" : ""}" aria-label="Sidebar navigation">
-            <div class="openinfra-sidebar-heading">Pilotage</div>
+          <nav id="openinfra-sidebar" class="col-lg-3 col-xl-2 openinfra-sidebar ${this.state.mobileSidebarOpen ? "mobile-open" : ""}" aria-label="${this.escape(this.i18n.t("navigation"))}">
+            <div class="openinfra-sidebar-heading">${this.escape(this.i18n.t("control"))}</div>
             ${this.renderSidebar()}
-            <div class="openinfra-sidebar-heading">État runtime</div>
+            <div class="openinfra-sidebar-heading">${this.escape(this.i18n.t("runtimeStatus"))}</div>
             <div class="px-2 small text-muted openinfra-runtime-status">
-              <p><span class="openinfra-status-dot ${ready?.ready === true ? "ready" : "warning"}"></span>Backend ${ready?.ready === true ? "prêt" : "à vérifier"}</p>
-              <p>Version : <strong>${this.escape(displayedVersion)}</strong></p>
+              <p><span class="openinfra-status-dot ${ready?.ready === true ? "ready" : "warning"}"></span>${this.escape(ready?.ready === true ? this.i18n.t("backendReady") : this.i18n.t("backendCheck"))}</p>
+              <p>${this.escape(this.i18n.t("version"))} : <strong>${this.escape(displayedVersion)}</strong></p>
               <p>Trust web/backend : <strong>${this.escape(config?.webBackendTrust || "server-side")}</strong></p>
-              <p>Formulaires protégés : <strong>${this.escape(protectedForms)}</strong></p>
+              <p>${this.escape(this.i18n.t("protectedForms"))} : <strong>${this.escape(protectedForms)}</strong></p>
             </div>
           </nav>
           <main id="openinfra-main-content" class="col-lg-9 col-xl-10 ms-sm-auto openinfra-main" tabindex="-1">
@@ -1585,12 +1615,13 @@ class OpenInfraDashboard {
               <h1 class="h2">${this.escape(pageTitle)}</h1><p class="text-muted mb-0">${this.escape(pageSubtitle)}</p>
             </div>
             ${error ? `<div class="alert alert-warning" role="alert">${this.escape(error.message)}</div>` : ""}
-            ${result && activeModuleId !== "overview" ? `<div class="alert alert-success" role="status">Soumission exécutée avec succès.</div>` : ""}
+            ${result && activeModuleId !== "overview" ? `<div class="alert alert-success" role="status">${this.escape(this.i18n.t("success"))}</div>` : ""}
             ${this.renderWorkspace(selected, result, displayedVersion, config, protectedForms)}
           </main>
         </div>
       </div>
     `;
+    this.i18n.translateDom(this.root);
     this.syncFixedHeaderOffset();
     this.bindEvents();
     this.focusMainContentIfRequested();
@@ -1613,12 +1644,12 @@ class OpenInfraDashboard {
 
   renderOverviewRuntimeMetrics(displayedVersion, config, protectedForms) {
     const operationsCount = OPENINFRA_MODULES.reduce((total, module) => total + module.operations.length, 0);
-    return `<div class="row g-3 mb-4 openinfra-dashboard-metrics" aria-label="Métriques du dashboard">
-      ${this.metric("Version", this.escape(displayedVersion))}
+    return `<div class="row g-3 mb-4 openinfra-dashboard-metrics" aria-label="${this.escape(this.i18n.t("componentStatistics"))}">
+      ${this.metric(this.i18n.t("version"), this.escape(displayedVersion))}
       ${this.metric("API", this.escape(config?.apiBaseUrl || "/api"))}
-      ${this.metric("Trust", this.escape(config?.webBackendTrust || "server-side"))}
-      ${this.metric("Formulaires", this.escape(protectedForms))}
-      ${this.metric("Modules", `${operationsCount} opérations`)}
+      ${this.metric(this.i18n.t("trust"), this.escape(config?.webBackendTrust || "server-side"))}
+      ${this.metric(this.i18n.t("forms"), this.escape(protectedForms))}
+      ${this.metric(this.i18n.t("modules"), `${operationsCount} ${this.i18n.t("operations")}`)}
     </div>`;
   }
 
@@ -1627,24 +1658,24 @@ class OpenInfraDashboard {
     const totalOperations = components.reduce((total, module) => total + module.operations.length, 0);
     const totalFields = components.reduce((total, module) => total + this.moduleStatistics(module).fields, 0);
     const totalRequiredFields = components.reduce((total, module) => total + this.moduleStatistics(module).requiredFields, 0);
-    return `<section class="openinfra-overview" aria-label="Statistiques des composants OpenInfra">
+    return `<section class="openinfra-overview" aria-label="${this.escape(this.i18n.t("componentStatistics"))}">
       <div class="card openinfra-overview-summary mb-4">
         <div class="card-body">
           <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
             <div>
-              <h2 class="h4 mb-1">Accueil — statistiques des composants</h2>
-              <p class="text-muted mb-0">Vue de synthèse par composant : métriques fonctionnelles, champs métier exposés et camemberts de répartition lecture/mutation.</p>
+              <h2 class="h4 mb-1">${this.escape(this.i18n.t("overviewTitle"))}</h2>
+              <p class="text-muted mb-0">${this.escape(this.i18n.t("overviewDescription"))}</p>
             </div>
             <div class="text-end">
-              <span class="badge text-bg-primary">${components.length} composants</span>
-              <span class="badge text-bg-secondary ms-2">${totalOperations} opérations</span>
+              <span class="badge text-bg-primary">${components.length} ${this.escape(this.i18n.t("components"))}</span>
+              <span class="badge text-bg-secondary ms-2">${totalOperations} ${this.escape(this.i18n.t("operations"))}</span>
             </div>
           </div>
           <div class="row g-3 mt-3">
-            ${this.metric("Champs métier", String(totalFields))}
-            ${this.metric("Champs obligatoires", String(totalRequiredFields))}
-            ${this.metric("Navigation", "Accordéons") }
-            ${this.metric("Secrets navigateur", "0 exposé")}
+            ${this.metric(this.i18n.t("fields"), String(totalFields))}
+            ${this.metric(this.i18n.t("requiredFields"), String(totalRequiredFields))}
+            ${this.metric(this.i18n.t("navigationMode"), this.i18n.t("accordions")) }
+            ${this.metric(this.i18n.t("browserSecrets"), this.i18n.t("noneExposed"))}
           </div>
         </div>
       </div>
@@ -1669,19 +1700,19 @@ class OpenInfraDashboard {
             ${this.icon(module.icon, "openinfra-component-icon", 28, 28)}
           </div>
           <div class="openinfra-component-visual mt-3">
-            <div class="openinfra-pie-chart" role="img" aria-label="Camembert ${this.escape(module.label)} : ${stats.readOperations} lectures et ${stats.writeOperations} mutations" style="--oi-read-end: ${readEnd}; --oi-write-end: ${writeEnd};">
+            <div class="openinfra-pie-chart" role="img" aria-label="${this.escape(this.i18n.t("distributionChart", { module: module.label, reads: stats.readOperations, mutations: stats.writeOperations }))}" style="--oi-read-end: ${readEnd}; --oi-write-end: ${writeEnd};">
               <span>${stats.operations}</span>
             </div>
             <div class="openinfra-pie-legend small">
-              <span><i class="openinfra-legend-read"></i>${stats.readOperations} lectures</span>
-              <span><i class="openinfra-legend-write"></i>${stats.writeOperations} mutations</span>
+              <span><i class="openinfra-legend-read"></i>${stats.readOperations} ${this.escape(this.i18n.t("reads").toLowerCase())}</span>
+              <span><i class="openinfra-legend-write"></i>${stats.writeOperations} ${this.escape(this.i18n.t("mutations").toLowerCase())}</span>
             </div>
           </div>
           <div class="row g-2 mt-3 openinfra-component-metrics">
-            <div class="col-6"><strong>${stats.operations}</strong><span>Opérations</span></div>
-            <div class="col-6"><strong>${stats.fields}</strong><span>Champs métier</span></div>
-            <div class="col-6"><strong>${stats.requiredFields}</strong><span>Obligatoires</span></div>
-            <div class="col-6"><strong>${stats.writeOperations}</strong><span>Mutations</span></div>
+            <div class="col-6"><strong>${stats.operations}</strong><span>${this.escape(this.i18n.t("operations"))}</span></div>
+            <div class="col-6"><strong>${stats.fields}</strong><span>${this.escape(this.i18n.t("fields"))}</span></div>
+            <div class="col-6"><strong>${stats.requiredFields}</strong><span>${this.escape(this.i18n.t("required"))}</span></div>
+            <div class="col-6"><strong>${stats.writeOperations}</strong><span>${this.escape(this.i18n.t("mutations"))}</span></div>
           </div>
         </div>
       </div>
@@ -1734,12 +1765,12 @@ class OpenInfraDashboard {
         <h2 class="h4">${this.escape(operation.label)}</h2>
         <p class="text-muted">${this.escape(module.description)}</p>
         ${this.renderOperationScopeSelectors(operation)}
-        <div class="row g-3">${fields.map((field) => this.renderField(field)).join("") || "<p>Aucun paramètre requis.</p>"}</div>
-        <button class="btn btn-primary mt-3" type="button" id="openinfra-execute">Exécuter</button>
+        <div class="row g-3">${fields.map((field) => this.renderField(field)).join("") || `<p>${this.escape(this.i18n.t("noParameters"))}</p>`}</div>
+        <button class="btn btn-primary mt-3" type="button" id="openinfra-execute">${this.escape(this.i18n.t("execute"))}</button>
       </section>
       <aside class="col-12 col-xxl-4">
-        <h3 class="h6 text-uppercase text-muted">Résultat</h3>
-        <pre class="openinfra-result" aria-live="polite" aria-label="Résultat de l’opération">${this.escape(result ? JSON.stringify(result, null, 2) : "Résultat en attente.")}</pre>
+        <h3 class="h6 text-uppercase text-muted">${this.escape(this.i18n.t("resultTitle"))}</h3>
+        <pre class="openinfra-result" aria-live="polite" aria-label="${this.escape(this.i18n.t("operationResult"))}">${this.escape(result ? JSON.stringify(result, null, 2) : this.i18n.t("pendingResult"))}</pre>
       </aside>
     </div>`;
   }
@@ -1751,7 +1782,7 @@ class OpenInfraDashboard {
     const visibility = this.fieldVisibilityAttributes(field);
     if (this.isCountryField(field)) {
       const selected = field.defaultValue || "";
-      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(field.label || "Pays")}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${required}><option value=""></option>${this.renderCountryOptionGroups(selected)}</select></label>`;
+      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(this.i18n.label(field.label || "Pays"))}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${required}><option value=""></option>${this.renderCountryOptionGroups(selected)}</select></label>`;
     }
     if (field.type === "organization-select") {
       const options = this.organizationOptions();
@@ -1773,27 +1804,27 @@ class OpenInfraDashboard {
       const options = this.tenantOptions();
       const fallback = field.defaultValue || this.state.tenant || this.state.organization || "default";
       const renderedOptions = options.length > 0 ? options : [{ value: fallback, label: fallback }];
-      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(field.label || "Filiale/Subdivision")}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${required}>${this.renderOptions(renderedOptions, field.defaultValue || this.state.tenant || fallback)}</select></label>`;
+      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(this.i18n.label(field.label || "Filiale/Subdivision"))}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${required}>${this.renderOptions(renderedOptions, field.defaultValue || this.state.tenant || fallback)}</select></label>`;
     }
     if (this.isDcimReferenceField(field)) {
       const options = this.dcimOptions(field);
       const fallback = field.defaultValue || "";
       const renderedOptions = options.length > 0 ? options : (fallback ? [{ value: fallback, label: fallback }] : []);
       const selectedValue = renderedOptions.length === 1 ? this.optionValue(renderedOptions[0]) : fallback;
-      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(field.label || DCIM_REFERENCE_LABELS[this.dcimReferenceLevel(field)] || field.name)}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${required}><option value=""></option>${this.renderOptions(renderedOptions, selectedValue)}</select></label>`;
+      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(this.i18n.label(field.label || DCIM_REFERENCE_LABELS[this.dcimReferenceLevel(field)] || field.name))}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${required}><option value=""></option>${this.renderOptions(renderedOptions, selectedValue)}</select></label>`;
     }
     if (field.type === "select") {
       const options = this.selectOptionsForField(field);
       const source = field.optionsByField ? ` data-options-by-field="${this.escape(field.optionsByField)}"` : "";
       const map = field.optionsMap ? ` data-options-map="${this.escape(JSON.stringify(field.optionsMap))}"` : "";
-      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(field.label || field.name)}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${source}${map}${required}><option value=""></option>${this.renderOptions(options, value)}</select></label>`;
+      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(this.i18n.label(field.label || field.name))}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${source}${map}${required}><option value=""></option>${this.renderOptions(options, value)}</select></label>`;
     }
     if (field.type === "boolean") {
-      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(field.label || field.name)}<select class="form-select" data-field="${this.escape(field.name)}"><option value="false">Non</option><option value="true">Oui</option></select></label>`;
+      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(this.i18n.label(field.label || field.name))}<select class="form-select" data-field="${this.escape(field.name)}"><option value="false">${this.escape(this.i18n.t("no"))}</option><option value="true">${this.escape(this.i18n.t("yes"))}</option></select></label>`;
     }
     const inputType = field.type === "number" ? "number" : "text";
     const numericAttrs = field.type === "number" ? `${field.step ? ` step="${this.escape(field.step)}"` : ""}${field.min ? ` min="${this.escape(field.min)}"` : ""}${field.max ? ` max="${this.escape(field.max)}"` : ""}` : "";
-    return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(field.label || field.name)}${requiredText}<input class="form-control" type="${inputType}" data-field="${this.escape(field.name)}" value="${this.escape(value)}" placeholder="${this.escape(field.placeholder || "")}"${numericAttrs}${required}></label>`;
+    return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(this.i18n.label(field.label || field.name))}${requiredText}<input class="form-control" type="${inputType}" data-field="${this.escape(field.name)}" value="${this.escape(value)}" placeholder="${this.escape(this.i18n.label(field.placeholder || ""))}"${numericAttrs}${required}></label>`;
   }
 
   fieldVisibilityAttributes(field) {
@@ -1812,17 +1843,17 @@ class OpenInfraDashboard {
     const groups = Array.isArray(this.state.countryCatalog?.items) ? this.state.countryCatalog.items : [];
     if (groups.length === 0) {
       return this.renderOptions([
-        { value: "FR", label: "France" },
-        { value: "GB", label: "United Kingdom" },
-        { value: "US", label: "United States" }
+        { value: "FR", label: this.i18n.countryName("FR", "France") },
+        { value: "GB", label: this.i18n.countryName("GB", "United Kingdom") },
+        { value: "US", label: this.i18n.countryName("US", "United States") }
       ], selectedValue);
     }
     return groups.map((group) => {
-      const continent = this.escape(group.continent || "Autres");
+      const continent = this.escape(this.i18n.continentName(group.continent));
       const countries = Array.isArray(group.countries) ? group.countries : [];
       const options = countries.map((country) => {
         const code = String(country.code || "");
-        const label = `${country.name || code}`;
+        const label = this.i18n.countryName(code, country.name || code);
         return `<option value="${this.escape(code)}" ${selectedValue === code ? "selected" : ""}>${this.escape(label)}</option>`;
       }).join("");
       return `<optgroup label="${continent}">${options}</optgroup>`;
@@ -1882,7 +1913,7 @@ class OpenInfraDashboard {
             continue;
           }
           if (level === "floor") {
-            push(floor.code, `${floor.code}${floor.name ? ` — ${floor.name}` : ""} (${siteCode}/${buildingCode})`);
+            push(floor.code, `${floor.code} — ${this.i18n.floorName(floor.level_index, floor.name)} (${siteCode}/${buildingCode})`);
           }
         }
         for (const room of Array.isArray(building.rooms) ? building.rooms : []) {
@@ -1945,9 +1976,9 @@ class OpenInfraDashboard {
 
   optionLabel(option) {
     if (option && typeof option === "object" && Object.hasOwn(option, "label")) {
-      return String(option.label);
+      return this.i18n.label(String(option.label));
     }
-    return String(option || "");
+    return this.i18n.optionLabel(String(option || ""));
   }
 
   bindDependentSelects() {
@@ -1992,6 +2023,9 @@ class OpenInfraDashboard {
 
   bindEvents() {
     this.bindConditionalFields();
+    document.getElementById("openinfra-language")?.addEventListener("change", (event) => {
+      this.setLanguage(event.target.value);
+    });
     document.getElementById("openinfra-execute")?.addEventListener("click", () => this.executeSelected());
     document.getElementById("openinfra-organization")?.addEventListener("change", async (event) => {
       const organization = event.target.value;

@@ -1,3 +1,9 @@
+## v4.8.1 / OpenInfra 0.29.85 — Nomenclature étages et i18n web
+
+- REQ-00820 réalignée sur les codes d’étage locaux `L-01`, `L00`, `L01` avec migration et alias historiques.
+- Ajout de REQ-00824 pour l’internationalisation complète FR/EN du portail, la détection navigateur et le fallback anglais.
+- Ajout de TST-WEB-123 et mise à jour de la traçabilité.
+
 ### Validation v0.29.82 — Réconciliation Discovery multisource gouvernée
 
 Ajout de `REQ-00823` et `TST-WEB-122` : preuves immuables et hashées, scoring confiance/fraîcheur/complétude déterministe, conflits par chemin d’attribut, résolution complète justifiée, audit sans payload, pagination et migration PostgreSQL `0038_discovery_multisource_reconciliation.sql`, sans écriture RSOT directe.

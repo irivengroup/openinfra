@@ -174,7 +174,7 @@ Les étages ne sont plus administrés comme un CRUD métier manuel dans les parc
 
 Lors de la création d'un bâtiment, le champ `Type Batiment` accepte `Simple` ou `Etages`. Si `Etages` est choisi, `Niveau Initial` est obligatoire et borné de -20 à 0, `Niveau Final` est obligatoire et borné de 1 à 150. Les formulaires consomment ensuite l'expansion déterministe de cette plage.
 
-Le code et le nom d'étage sont générés automatiquement par OpenInfra à partir des attributs réels du site, du bâtiment et du niveau. Le format fonctionnel attendu est équivalent à `<code-site>_<code-bat>_ETG<num-etage>` pour le code et `<code-site>/<code-bat>/ETG<num-etage>` pour le nom, sans imposer de noms de variables internes. Aucun opérateur ne saisit manuellement le code ou le nom de l'étage dans les formulaires d'administration.
+Le code technique de l'étage est généré automatiquement par OpenInfra à partir du niveau et reste local au bâtiment. La nomenclature canonique est `L-01`, `L00`, `L01`, `L02`… ; le site et le bâtiment sont portés par la hiérarchie DCIM et ne sont donc pas répétés dans le code. Le libellé humain est indépendant du code et localisé par l'interface. Aucun opérateur ne saisit manuellement le code ou le libellé généré dans les formulaires d'administration.
 
 ## v0.29.80 — Adresse complète des sites DCIM
 
@@ -182,4 +182,10 @@ Un site DCIM porte une identité géographique et de contact complète, au même
 
 Le champ `Pays` est un sélecteur groupé par continent : la valeur soumise reste le code ISO alpha-2, mais seul le nom du pays est affiché à l'opérateur.
 
-Les étages restent générés par le bâtiment. Les formats de code et de nom sont des conventions fonctionnelles calculées à partir des champs réellement présents dans le modèle DCIM, sans imposer un nom de variable interne particulier.
+Les étages restent générés par le bâtiment. Leur code local est dérivé uniquement du niveau (`L-01`, `L00`, `L01`…), tandis que le libellé d'affichage est localisé et indépendant de l'identifiant technique.
+
+## Nomenclature canonique des étages — v0.29.85
+
+Les étages sont générés depuis le bâtiment et utilisent des codes locaux, stables et naturellement triables : `L-01`, `L00`, `L01`, `L02`, jusqu'à `L150`. Les codes du site et du bâtiment ne sont pas répétés dans le code d'étage, car ils sont déjà portés par la hiérarchie DCIM.
+
+Les anciennes formes `<site>_<bâtiment>_ETG<n>`, `F<n>` et `ETG<n>` sont des alias de lecture uniquement. La migration `0040_dcim_floor_nomenclature.sql` réécrit toutes les références dépendantes sans supprimer l'historique et conserve les noms personnalisés. L'interface présente le libellé généré dans la langue active : `Basement/Ground floor/Level` en anglais et `Sous-sol/Rez-de-chaussée/Étage` en français.

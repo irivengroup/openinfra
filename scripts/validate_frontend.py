@@ -46,6 +46,7 @@ class FrontendContractValidator:
         if not bootstrap_declared:
             raise FrontendValidationError("web/package.json must declare Bootstrap 5")
         main_source = (self._project_root / "web/src/main.jsx").read_text(encoding="utf-8")
+        i18n_source = (self._project_root / "web/src/i18n.js").read_text(encoding="utf-8")
         if (
             "from 'react'" not in main_source
             or "bootstrap/dist/css/bootstrap.min.css" not in main_source
@@ -57,10 +58,10 @@ class FrontendContractValidator:
             or "openinfra-mobile-menu-button" not in main_source
             or "openinfra-mobile-menu-icon" not in main_source
             or "mobileSidebarOpen" not in main_source
-            or "Statistiques des composants OpenInfra" not in main_source
+            or "i18n.t('componentStatistics')" not in main_source
             or "openinfra-pie-chart" not in main_source
             or "fetch('/status'" not in main_source
-            or "Formulaires" not in main_source
+            or "i18n.t('forms')" not in main_source
             or "Numéro de série" not in main_source
             or "Catalogue catégories / types" not in main_source
             or "RESOURCE_TAXONOMY" not in main_source
@@ -140,7 +141,7 @@ class FrontendContractValidator:
             or "MODULES.slice(0, 6)" in main_source
             or "Token API" in main_source
             or "openinfra-skip-link" not in main_source
-            or "Aller au contenu principal" not in main_source
+            or "i18n.t('skipToContent')" not in main_source
             or "openinfra-main-content" not in main_source
             or "aria-current" not in main_source
             or 'role="listbox"' not in main_source
@@ -163,6 +164,7 @@ class FrontendContractValidator:
             raise FrontendValidationError(
                 "web/src/main.jsx must implement the OpenInfra React + Bootstrap dashboard UI"
             )
+        self._validate_i18n_contract(main_source, i18n_source)
         for required_header_fragment in (
             "bg-dark text-white",
             "text-small",
@@ -175,19 +177,19 @@ class FrontendContractValidator:
             "syncHeaderOffset",
             "--openinfra-fixed-header-height",
             "openinfra-global-search",
-            "Recherche globale OpenInfra",
+            "i18n.t('globalSearch')",
             "globalSearchGroups",
             "buildGlobalSearchUrl",
             "/v1/search/global",
             "globalSearchBackend",
-            "Recherche backend temporairement indisponible",
+            "i18n.t('backendSearchUnavailable')",
             "Swagger",
             "ReDoc",
             "apiDocumentation",
             "apiDocumentationLinks",
             "buildApiDocumentationUrl",
-            "Ouvrir Swagger UI backend API",
-            "Ouvrir ReDoc backend API",
+            "i18n.t('openSwagger')",
+            "i18n.t('openRedoc')",
             "openinfra-api-doc-actions",
             "openinfra-edition-badge",
             "openinfra-skip-link",
@@ -205,7 +207,6 @@ class FrontendContractValidator:
         forbidden_main_source = (
             "Search OpenInfra operations",
             "openinfra-search",
-            "Backend prêt",
             "Login</button>",
             "Sign-up",
             "Tenant de sécurité",
@@ -272,11 +273,41 @@ class FrontendContractValidator:
             raise FrontendValidationError("invalid JSON object: " + str(path))
         return data
 
+    def _validate_i18n_contract(self, main_source: str, i18n_source: str) -> None:
+        required_main = (
+            "OpenInfraI18n",
+            "localizeOpenInfraCatalog",
+            'id="openinfra-language"',
+            'value="en"',
+            'value="fr"',
+            "i18n.setLanguage",
+            "i18n.translateDom",
+        )
+        required_i18n = (
+            "SUPPORTED_LANGUAGES = Object.freeze(['en', 'fr'])",
+            "DEFAULT_LANGUAGE = 'en'",
+            "navigatorObject.languages",
+            "navigatorObject.language",
+            "LANGUAGE_STORAGE_KEY = 'openinfra.language'",
+            "Intl.DisplayNames",
+            "localizeOpenInfraCatalog",
+            "floorName(levelIndex",
+            "countryName(alpha2",
+        )
+        missing = [fragment for fragment in required_main if fragment not in main_source] + [
+            fragment for fragment in required_i18n if fragment not in i18n_source
+        ]
+        if missing:
+            raise FrontendValidationError(
+                "web interface FR/EN contract is incomplete: " + ", ".join(missing)
+            )
+
     def _validate_static_assets(self) -> tuple[str, ...]:
         root = self._project_root / "src/openinfra/interfaces/rendering/static"
         required = (
             "index.html",
             "assets/bootstrap.min.css",
+            "assets/openinfra-i18n.js",
             "assets/openinfra-web.js",
             "assets/openinfra-web.css",
         )
@@ -286,6 +317,13 @@ class FrontendContractValidator:
         assets_by_name = {name: (root / name).read_text(encoding="utf-8") for name in required}
         payload = "\n".join(assets_by_name.values())
         runtime_js = assets_by_name["assets/openinfra-web.js"]
+        runtime_i18n = assets_by_name["assets/openinfra-i18n.js"]
+        source_i18n = (self._project_root / "web/src/i18n.js").read_text(encoding="utf-8")
+        if runtime_i18n != source_i18n:
+            raise FrontendValidationError(
+                "React and packaged runtime must share the exact same i18n implementation"
+            )
+        self._validate_i18n_contract(runtime_js, runtime_i18n)
         if "Dashboard de pilotage OpenInfra" in payload:
             raise FrontendValidationError("runtime dashboard title must be shortened to Dashboard")
         if "renderOverviewRuntimeMetrics(displayedVersion, config, protectedForms)" not in payload:
@@ -546,7 +584,6 @@ class FrontendContractValidator:
             "var(--openinfra-fuchsia) 0%, #ff2bd6 52%, #c000a8 100%",
             "#ff2bd6 52%, #c000a8",
             "#a52a2a",
-            "Backend prêt",
             "Sign-up",
             "background: linear-gradient(135deg, rgba(0, 174, 239, .08)",
             "border: 1px solid rgba(0, 174, 239, .18)",

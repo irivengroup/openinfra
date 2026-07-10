@@ -12,3 +12,5 @@ dist/
 .openinfra.json
 
 .env
+web/node_modules/
+web/dist/

@@ -728,10 +728,6 @@ class TestOpenInfraAccessPolicyCli:
                 "BAT-M",
                 "--building-name",
                 "Building M",
-                "--floor-code",
-                "F01",
-                "--floor-name",
-                "First floor",
                 "--floor-index",
                 "1",
                 "--room-code",
@@ -793,8 +789,8 @@ class TestOpenInfraAccessPolicyCli:
 
         assert define_code == 0
         assert locate_code == 0
-        assert defined["path"] == "site=MAR1 | building=BAT-M | floor=MAR1_BAT-M_ETG1 | room=MDF1"
-        assert "floor=MAR1_BAT-M_ETG1" in located
+        assert defined["path"] == "site=MAR1 | building=BAT-M | floor=L01 | room=MDF1"
+        assert "floor=L01" in located
         assert "zone=Z1" in located
         assert "xyz=1.00/2.00/0.50" in located
 
@@ -826,10 +822,6 @@ class TestOpenInfraAccessPolicyCli:
                 "BAT-N",
                 "--building-name",
                 "Building N",
-                "--floor-code",
-                "F01",
-                "--floor-name",
-                "First floor",
                 "--floor-index",
                 "1",
                 "--room-code",
@@ -864,7 +856,7 @@ class TestOpenInfraAccessPolicyCli:
                 "--building",
                 "BAT-N",
                 "--floor",
-                "NIC1_BAT-N_ETG1",
+                "L01",
                 "--room",
                 "MDF1",
                 "--zone",
@@ -903,7 +895,7 @@ class TestOpenInfraAccessPolicyCli:
                 "--building",
                 "BAT-N",
                 "--floor",
-                "NIC1_BAT-N_ETG1",
+                "L01",
                 "--room",
                 "MDF1",
                 "--zone",
@@ -976,10 +968,6 @@ class TestOpenInfraAccessPolicyCli:
                     "BAT-Q",
                     "--building-name",
                     "Building QR",
-                    "--floor-code",
-                    "F01",
-                    "--floor-name",
-                    "First floor",
                     "--floor-index",
                     "1",
                     "--room-code",
@@ -1011,7 +999,7 @@ class TestOpenInfraAccessPolicyCli:
                     "--building",
                     "BAT-Q",
                     "--floor",
-                    "QR1_BAT-Q_ETG1",
+                    "L01",
                     "--room",
                     "ROOM-Q",
                     "--row",

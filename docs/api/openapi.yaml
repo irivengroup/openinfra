@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.84
+  version: 0.29.85
 components:
   securitySchemes:
     bearerToken:
@@ -1307,7 +1307,7 @@ paths:
 
   /api/v1/dcim/rooms:
     post:
-      summary: Define a physical DCIM room hierarchy with floor, grid, optional zone and coordinates
+      summary: Define a physical DCIM room hierarchy with a generated floor, grid, optional zone and coordinates
       security:
         - bearerToken: []
       requestBody:
@@ -1316,7 +1316,7 @@ paths:
           application/json:
             schema:
               type: object
-              required: [tenant_id, site_code, site_name, country, city, building_code, building_name, floor_code, floor_name, floor_index, room_code, room_name, rows, columns]
+              required: [tenant_id, site_code, site_name, country, city, building_code, building_name, floor_index, room_code, room_name, rows, columns]
               properties:
                 tenant_id: {type: string}
                 actor: {type: string}
@@ -1327,9 +1327,19 @@ paths:
                 city: {type: string}
                 building_code: {type: string}
                 building_name: {type: string}
-                floor_code: {type: string}
-                floor_name: {type: string}
-                floor_index: {type: integer}
+                floor_code:
+                  type: string
+                  deprecated: true
+                  description: Legacy compatibility hint; OpenInfra generates the canonical floor code from floor_index.
+                floor_name:
+                  type: string
+                  deprecated: true
+                  description: Legacy compatibility hint; OpenInfra generates the floor label from floor_index.
+                floor_index:
+                  type: integer
+                  minimum: -20
+                  maximum: 150
+                  description: Physical level used to generate L-01, L00, L01 and subsequent canonical floor codes.
                 room_code: {type: string}
                 room_name: {type: string}
                 rows:

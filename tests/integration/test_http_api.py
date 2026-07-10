@@ -2331,8 +2331,6 @@ class TestSourceGovernanceHttpApi:
                 "city": "Toulouse",
                 "building_code": "BAT-T",
                 "building_name": "Building T",
-                "floor_code": "F01",
-                "floor_name": "First floor",
                 "floor_index": 1,
                 "room_code": "MDF1",
                 "room_name": "MDF Toulouse",
@@ -2355,7 +2353,7 @@ class TestSourceGovernanceHttpApi:
             )
 
             assert created["site"] == "TLS1"
-            assert created["floor"] == "TLS1_BAT-T_ETG1"
+            assert created["floor"] == "L01"
             assert created["zone"] == "Z1"
             assert created["created"]["room"] is True
         finally:
@@ -2401,8 +2399,6 @@ class TestSourceGovernanceHttpApi:
                 "city": "Lille",
                 "building_code": "BAT-L",
                 "building_name": "Building L",
-                "floor_code": "F01",
-                "floor_name": "First floor",
                 "floor_index": 1,
                 "room_code": "MDF1",
                 "room_name": "MDF Lille",
@@ -2442,7 +2438,7 @@ class TestSourceGovernanceHttpApi:
             assert created["asset_tag"] == "LIL-SRV-001"
             assert created["name"] == "Lille Server 001"
             assert created["location"]["site"] == "LIL1"
-            assert created["location"]["floor"] == "LIL1_BAT-L_ETG1"
+            assert created["location"]["floor"] == "L01"
             assert created["location"]["coordinates"] is None
             assert created["location"]["human_readable"].startswith("site=LIL1")
         finally:
@@ -2488,7 +2484,7 @@ class TestSourceGovernanceHttpApi:
                     "tenant_id": "default",
                     "site": "BOR1",
                     "building": "BAT-B",
-                    "floor": "BOR1_BAT-B_ETG1",
+                    "floor": "L01",
                     "room": "MDF1",
                     "zone": "Z1",
                     "rack": "R01",
@@ -2509,7 +2505,7 @@ class TestSourceGovernanceHttpApi:
                     "equipment_name": "Bordeaux Server 001",
                     "site": "BOR1",
                     "building": "BAT-B",
-                    "floor": "BOR1_BAT-B_ETG1",
+                    "floor": "L01",
                     "room": "MDF1",
                     "zone": "Z1",
                     "row": "A",

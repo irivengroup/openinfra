@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.90
+  version: 0.29.91
 components:
   securitySchemes:
     bearerToken:
@@ -4850,3 +4850,123 @@ paths:
         '200': {description: Certificate inventory assessment and health totals}
         '400': {description: Validation error}
         '401': {description: Missing or invalid certificate reader token}
+  /api/v1/network-config/baselines:
+    get:
+      summary: List governed network golden configuration baselines
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+        - {name: include_retired, in: query, schema: {type: boolean, default: false}}
+      responses:
+        '200': {description: Paginated network configuration baselines}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid network configuration reader token}
+  /api/v1/network-config/baselines/upsert:
+    post:
+      summary: Create or revise a governed network golden configuration baseline
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, code, device_object_key, platform, expected_config, owner, justification]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                code: {type: string, pattern: '^[A-Z0-9][A-Z0-9_.:-]{0,63}$'}
+                device_object_key: {type: string}
+                platform: {type: string}
+                expected_config: {type: object}
+                ignored_paths: {type: array, items: {type: string}}
+                critical_paths: {type: array, items: {type: string}}
+                owner: {type: string, minLength: 2, maxLength: 255}
+                justification: {type: string, minLength: 8, maxLength: 1000}
+      responses:
+        '200': {description: Created or revised baseline}
+        '400': {description: Validation or conflict error}
+        '401': {description: Missing or invalid network configuration operator token}
+  /api/v1/network-config/baselines/retire:
+    post:
+      summary: Retire a network golden configuration baseline
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, baseline_id]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                baseline_id: {type: string, format: uuid}
+      responses:
+        '200': {description: Retired baseline}
+        '400': {description: Validation error or baseline not found}
+        '401': {description: Missing or invalid network configuration operator token}
+  /api/v1/network-config/observations:
+    get:
+      summary: List immutable discovered network configurations
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: device_object_key, in: query, schema: {type: string}}
+        - {name: platform, in: query, schema: {type: string}}
+        - {name: observed_before, in: query, schema: {type: string, format: date-time}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated discovered network configurations}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid network configuration reader token}
+  /api/v1/network-config/observations/submit:
+    post:
+      summary: Ingest one immutable and idempotent discovered network configuration
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, idempotency_key, source, collector, device_object_key, platform, observed_config, observed_at]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                idempotency_key: {type: string, minLength: 8, maxLength: 128}
+                source: {type: string, enum: [ssh, api, netconf, restconf, gnmi, discovery, import, manual]}
+                collector: {type: string, minLength: 2, maxLength: 255}
+                device_object_key: {type: string}
+                platform: {type: string}
+                observed_config: {type: object}
+                observed_at: {type: string, format: date-time}
+      responses:
+        '201': {description: Persisted discovered configuration}
+        '400': {description: Validation or idempotency conflict}
+        '401': {description: Missing or invalid network configuration operator token}
+  /api/v1/network-config/assessment:
+    get:
+      summary: Compare golden and discovered network configurations and report drift
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: actor, in: query, schema: {type: string, default: api}}
+        - {name: baseline_code, in: query, schema: {type: string}}
+        - {name: as_of, in: query, schema: {type: string, format: date-time}}
+        - {name: status, in: query, schema: {type: string, enum: [compliant, drift, missing-observation]}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Network configuration compliance reports and totals}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid network configuration reader token}

@@ -35,6 +35,9 @@ from openinfra.application.ports import (
     ImportRepository,
     IpamRepository,
     ItamSupportRepository,
+    NetworkConfigBaselinePage,
+    NetworkConfigComplianceRepository,
+    NetworkConfigObservationPage,
     ReadinessProbe,
     ReadinessStatus,
     RuntimeUsageRepository,
@@ -169,9 +172,14 @@ from openinfra.domain.itam import (
     SoftwareLicenseEntitlement,
     ThirdPartySupportContract,
 )
+from openinfra.domain.network_config_compliance import (
+    NetworkConfigBaseline,
+    NetworkConfigObservation,
+)
 from openinfra.domain.security import ApiTokenCredential, Permission
 from openinfra.domain.source_governance import SourceGovernanceRule, SourceGovernanceRulePage
 from openinfra.domain.source_of_truth import (
+    SourceObjectKey,
     SourceObjectPage,
     SourceObjectSnapshot,
     SourceOfTruthObject,
@@ -382,6 +390,8 @@ class JsonDocumentStore:
             "flow_observations": {},
             "certificates": {},
             "certificate_endpoint_observations": {},
+            "network_config_baselines": {},
+            "network_config_observations": {},
             "discovery_collectors": {},
             "discovery_jobs": {},
             "discovery_protocol_profiles": {},
@@ -4147,6 +4157,146 @@ class JsonFlowMatrixRepository(FlowMatrixRepository):
             bytes_count=int(value["bytes"]),
             first_seen=datetime.fromisoformat(str(value["first_seen"])),
             last_seen=datetime.fromisoformat(str(value["last_seen"])),
+            received_at=datetime.fromisoformat(str(value["received_at"])),
+            fingerprint=str(value["fingerprint"]),
+        )
+
+
+class JsonNetworkConfigComplianceRepository(NetworkConfigComplianceRepository):
+    def __init__(self, store: JsonDocumentStore) -> None:
+        self._store = store
+
+    def save_baseline(self, baseline: NetworkConfigBaseline) -> None:
+        self._store.data["network_config_baselines"][
+            self._key(baseline.tenant_id, baseline.id.value)
+        ] = baseline.as_dict()
+        self._store.mark_dirty()
+
+    def find_baseline_by_code(self, tenant_id: TenantId, code: str) -> NetworkConfigBaseline | None:
+        normalized = code.strip().upper()
+        for value in self._store.data["network_config_baselines"].values():
+            if value.get("tenant_id") == tenant_id.value and value.get("code") == normalized:
+                return self._baseline_from_dict(value)
+        return None
+
+    def get_baseline(self, tenant_id: TenantId, baseline_id: str) -> NetworkConfigBaseline | None:
+        key = self._key(tenant_id, EntityId.from_value(baseline_id).value)
+        value = self._store.data["network_config_baselines"].get(key)
+        return self._baseline_from_dict(value) if value else None
+
+    def list_baselines(
+        self, tenant_id: TenantId, pagination: Pagination, include_retired: bool = False
+    ) -> NetworkConfigBaselinePage:
+        start = self._offset(pagination.cursor)
+        items = [
+            self._baseline_from_dict(value)
+            for value in self._store.data["network_config_baselines"].values()
+            if value.get("tenant_id") == tenant_id.value
+            and (include_retired or value.get("status") != "retired")
+        ]
+        items.sort(key=lambda item: (item.code, item.id.value))
+        selected = tuple(items[start : start + pagination.limit])
+        next_index = start + len(selected)
+        return NetworkConfigBaselinePage(
+            selected, str(next_index) if next_index < len(items) else None
+        )
+
+    def save_observation(self, observation: NetworkConfigObservation) -> None:
+        self._store.data["network_config_observations"][
+            self._key(observation.tenant_id, observation.id.value)
+        ] = observation.as_dict()
+        self._store.mark_dirty()
+
+    def find_observation_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> NetworkConfigObservation | None:
+        normalized = idempotency_key.strip()
+        for value in self._store.data["network_config_observations"].values():
+            if (
+                value.get("tenant_id") == tenant_id.value
+                and value.get("idempotency_key") == normalized
+            ):
+                return self._observation_from_dict(value)
+        return None
+
+    def list_observations(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        device_object_key: str | None = None,
+        platform: str | None = None,
+        observed_before: datetime | None = None,
+    ) -> NetworkConfigObservationPage:
+        start = self._offset(pagination.cursor)
+        items = [
+            self._observation_from_dict(value)
+            for value in self._store.data["network_config_observations"].values()
+            if value.get("tenant_id") == tenant_id.value
+        ]
+        if device_object_key is not None:
+            normalized_key = SourceObjectKey.from_value(device_object_key).value
+            items = [item for item in items if item.device_object_key == normalized_key]
+        if platform is not None:
+            normalized_platform = platform.strip().lower()
+            items = [item for item in items if item.platform == normalized_platform]
+        if observed_before is not None:
+            items = [item for item in items if item.observed_at <= observed_before]
+        items.sort(
+            key=lambda item: (item.observed_at, item.received_at, item.id.value), reverse=True
+        )
+        selected = tuple(items[start : start + pagination.limit])
+        next_index = start + len(selected)
+        return NetworkConfigObservationPage(
+            selected, str(next_index) if next_index < len(items) else None
+        )
+
+    @staticmethod
+    def _key(tenant_id: TenantId, identifier: str) -> str:
+        return f"{tenant_id.value}:{identifier}"
+
+    @staticmethod
+    def _offset(cursor: str | None) -> int:
+        try:
+            value = int(cursor or "0")
+        except ValueError as exc:
+            raise ValidationError("pagination cursor must be a numeric offset") from exc
+        if value < 0:
+            raise ValidationError("pagination cursor must be positive")
+        return value
+
+    @staticmethod
+    def _baseline_from_dict(value: dict[str, Any]) -> NetworkConfigBaseline:
+        return NetworkConfigBaseline.restore(
+            id=EntityId.from_value(str(value["id"])),
+            tenant_id=TenantId.from_value(str(value["tenant_id"])),
+            code=str(value["code"]),
+            device_object_key=str(value["device_object_key"]),
+            platform=str(value["platform"]),
+            expected_config=value["expected_config"],
+            ignored_paths=tuple(str(item) for item in value.get("ignored_paths", [])),
+            critical_paths=tuple(str(item) for item in value.get("critical_paths", [])),
+            owner=str(value["owner"]),
+            justification=str(value["justification"]),
+            status=str(value["status"]),
+            version=int(value["version"]),
+            created_by=str(value["created_by"]),
+            created_at=datetime.fromisoformat(str(value["created_at"])),
+            updated_by=str(value["updated_by"]),
+            updated_at=datetime.fromisoformat(str(value["updated_at"])),
+        )
+
+    @staticmethod
+    def _observation_from_dict(value: dict[str, Any]) -> NetworkConfigObservation:
+        return NetworkConfigObservation.restore(
+            id=EntityId.from_value(str(value["id"])),
+            tenant_id=TenantId.from_value(str(value["tenant_id"])),
+            idempotency_key=str(value["idempotency_key"]),
+            source=str(value["source"]),
+            collector=str(value["collector"]),
+            device_object_key=str(value["device_object_key"]),
+            platform=str(value["platform"]),
+            observed_config=value["observed_config"],
+            observed_at=datetime.fromisoformat(str(value["observed_at"])),
             received_at=datetime.fromisoformat(str(value["received_at"])),
             fingerprint=str(value["fingerprint"]),
         )

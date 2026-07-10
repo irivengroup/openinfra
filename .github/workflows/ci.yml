@@ -130,6 +130,16 @@ jobs:
             tests/integration/test_postgresql_migration_policy.py \
             tests/integration/test_postgresql_row_mapping_coverage.py
 
+      - name: Network golden configuration compliance regression
+        run: |
+          python -m pytest -q --no-cov \
+            tests/unit/test_network_config_compliance_domain.py \
+            tests/integration/test_network_config_compliance_services.py \
+            tests/integration/test_network_config_compliance_interfaces.py \
+            tests/integration/test_postgresql_migration.py \
+            tests/integration/test_postgresql_migration_policy.py \
+            tests/integration/test_installer_alignment.py
+
       - name: Responsive navigation and accessibility regression
         run: |
           python -m pytest -q --no-cov \

@@ -77,6 +77,10 @@ from openinfra.domain.itam import (
     PhysicalAssetSupportProfile,
     SoftwareLicenseEntitlement,
 )
+from openinfra.domain.network_config_compliance import (
+    NetworkConfigBaseline,
+    NetworkConfigObservation,
+)
 from openinfra.domain.security import ApiTokenCredential, Permission
 from openinfra.domain.source_governance import SourceGovernanceRule, SourceGovernanceRulePage
 from openinfra.domain.source_of_truth import (
@@ -129,6 +133,30 @@ class FlowDeclarationPage:
 @dataclass(frozen=True, slots=True)
 class FlowObservationPage:
     items: tuple[FlowObservation, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "items": [item.as_dict() for item in self.items],
+            "next_cursor": self.next_cursor,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class NetworkConfigBaselinePage:
+    items: tuple[NetworkConfigBaseline, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "items": [item.as_dict() for item in self.items],
+            "next_cursor": self.next_cursor,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class NetworkConfigObservationPage:
+    items: tuple[NetworkConfigObservation, ...]
     next_cursor: str | None
 
     def as_dict(self) -> dict[str, object]:
@@ -1068,6 +1096,47 @@ class CertificateInventoryRepository(ABC):
         pagination: Pagination,
         certificate_fingerprint: str | None = None,
     ) -> CertificateEndpointPage:
+        raise TypeError("adapter contract invoked directly")
+
+
+class NetworkConfigComplianceRepository(ABC):
+    @abstractmethod
+    def save_baseline(self, baseline: NetworkConfigBaseline) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_baseline_by_code(self, tenant_id: TenantId, code: str) -> NetworkConfigBaseline | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_baseline(self, tenant_id: TenantId, baseline_id: str) -> NetworkConfigBaseline | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_baselines(
+        self, tenant_id: TenantId, pagination: Pagination, include_retired: bool = False
+    ) -> NetworkConfigBaselinePage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_observation(self, observation: NetworkConfigObservation) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_observation_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> NetworkConfigObservation | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_observations(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        device_object_key: str | None = None,
+        platform: str | None = None,
+        observed_before: datetime | None = None,
+    ) -> NetworkConfigObservationPage:
         raise TypeError("adapter contract invoked directly")
 
 

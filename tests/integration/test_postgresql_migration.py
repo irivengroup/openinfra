@@ -405,6 +405,24 @@ class TestPostgreSQLMigration:
             in normalized_sql
         )
 
+    def test_network_config_compliance_migration_is_partitioned_indexed_and_audited(self) -> None:
+        migration = PostgreSQLMigrationCatalog.from_project_root().load(
+            "0043_network_config_compliance"
+        )
+        normalized_sql = " ".join(migration.sql.split())
+
+        assert "CREATE TABLE IF NOT EXISTS network_config_baselines" in normalized_sql
+        assert "CREATE TABLE IF NOT EXISTS network_config_observations" in normalized_sql
+        assert normalized_sql.count("PARTITION BY HASH (tenant_id)") == 2
+        assert normalized_sql.count("PARTITION OF network_config_baselines") == 16
+        assert normalized_sql.count("PARTITION OF network_config_observations") == 16
+        assert "UNIQUE (tenant_id, code)" in normalized_sql
+        assert "UNIQUE (tenant_id, idempotency_key)" in normalized_sql
+        assert "idx_network_config_baselines_device" in normalized_sql
+        assert "idx_network_config_observations_device" in normalized_sql
+        assert "idx_network_config_observations_observed_brin" in normalized_sql
+        assert "idx_audit_events_network_config" in normalized_sql
+
     def test_migration_validator_rejects_partitioned_unique_constraints_missing_partition_key(
         self,
     ) -> None:

@@ -12,7 +12,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.29.90"
+    EXPECTED_VERSION = "0.29.91"
     EXPECTED_GRAPH_ROUTES = (
         "/api/v1/graph/traverse",
         "/api/v1/graph/impact",
@@ -35,8 +35,16 @@ class InstalledWheelSmoke:
         "/api/v1/certificates/endpoints/observe",
         "/api/v1/certificates/assessment",
     )
-    EXPECTED_LAST_MIGRATION = "0042_certificate_pki_inventory.sql"
-    EXPECTED_MIGRATION_COUNT = 42
+    EXPECTED_NETWORK_CONFIG_ROUTES = (
+        "/api/v1/network-config/baselines",
+        "/api/v1/network-config/baselines/upsert",
+        "/api/v1/network-config/baselines/retire",
+        "/api/v1/network-config/observations",
+        "/api/v1/network-config/observations/submit",
+        "/api/v1/network-config/assessment",
+    )
+    EXPECTED_LAST_MIGRATION = "0043_network_config_compliance.sql"
+    EXPECTED_MIGRATION_COUNT = 43
     EXPECTED_ASSETS = (
         "openinfra-web.js",
         "openinfra-web.css",
@@ -50,6 +58,7 @@ class InstalledWheelSmoke:
         self._assert_graph_routes(openapi)
         self._assert_flow_routes(openapi)
         self._assert_certificate_routes(openapi)
+        self._assert_network_config_routes(openapi)
         migrations = self._assert_migrations(package_root)
         self._assert_assets(package_root)
         self._assert_console_scripts()
@@ -58,6 +67,7 @@ class InstalledWheelSmoke:
             "graph_routes": len(self.EXPECTED_GRAPH_ROUTES),
             "flow_routes": len(self.EXPECTED_FLOW_ROUTES),
             "certificate_routes": len(self.EXPECTED_CERTIFICATE_ROUTES),
+            "network_config_routes": len(self.EXPECTED_NETWORK_CONFIG_ROUTES),
             "migrations": len(migrations),
             "last_migration": migrations[-1].name,
             "runtime_assets": len(self.EXPECTED_ASSETS),
@@ -93,6 +103,14 @@ class InstalledWheelSmoke:
         if missing:
             raise InstalledWheelSmokeError(
                 "installed OpenAPI document is missing certificate routes: " + ", ".join(missing)
+            )
+
+    def _assert_network_config_routes(self, openapi: str) -> None:
+        missing = [route for route in self.EXPECTED_NETWORK_CONFIG_ROUTES if route not in openapi]
+        if missing:
+            raise InstalledWheelSmokeError(
+                "installed OpenAPI document is missing network configuration routes: "
+                + ", ".join(missing)
             )
 
     def _assert_migrations(self, package_root: Path) -> tuple[Path, ...]:

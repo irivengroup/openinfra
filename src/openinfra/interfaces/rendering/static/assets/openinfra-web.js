@@ -135,6 +135,7 @@ const OPENINFRA_ICONS = {
   asset: "M2 1a2 2 0 0 1 2-2h5.6a2 2 0 0 1 1.414.586l2.4 2.4A2 2 0 0 1 14 3.4V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V1zm2 .8a.8.8 0 0 0-.8.8v10.8a.8.8 0 0 0 .8.8h8a.8.8 0 0 0 .8-.8V4.4h-2.2a1.8 1.8 0 0 1-1.8-1.8V.8H4zm1.25 5.05a.85.85 0 1 0 0-1.7.85.85 0 0 0 0 1.7zm2.05-.6a.6.6 0 0 0 0 1.2h3.9a.6.6 0 1 0 0-1.2H7.3zm-2.05 4.6a.85.85 0 1 0 0-1.7.85.85 0 0 0 0 1.7zm2.05-.6a.6.6 0 1 0 0 1.2h3.9a.6.6 0 1 0 0-1.2H7.3z",
   grid: "M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zm8 0A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm-8 8A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm8 0A1.5 1.5 0 0 1 10.5 9h3a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 13.5v-3z",
   people: "M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0zm-1.559 4.27A4.985 4.985 0 0 0 8 10c-2.67 0-4.9 2.1-4.99 4.71A1 1 0 0 0 4 15h8a1 1 0 0 0 .99-1.29 5.002 5.002 0 0 0-3.549-3.44zM13.5 7a2.5 2.5 0 0 1-1.18 2.12 6.01 6.01 0 0 1 2.2 2.56A1 1 0 0 0 15.5 10.5 3.5 3.5 0 0 0 12 7h1.5z",
+  sliders: "M3 4h10v1H3V4zm2 3h6v1H5V7zm-2 3h10v1H3v-1z",
   shield: "M5.338 1.59a61.44 61.44 0 0 0-2.837.856.48.48 0 0 0-.328.39c-.554 4.157.726 7.19 2.253 9.188A10.7 10.7 0 0 0 8 15a10.7 10.7 0 0 0 3.574-2.976c1.527-1.998 2.807-5.031 2.253-9.188a.48.48 0 0 0-.328-.39 61.44 61.44 0 0 0-2.837-.856C9.552 1.29 8.531 1.067 8 1.067c-.531 0-1.552.223-2.662.523z",
   activity: "M6.5 12a.5.5 0 0 1-.447-.276L3.382 6.382 1.894 9.36A.5.5 0 0 1 1.447 9.636H.5a.5.5 0 0 1 0-1h.638l1.915-3.83a.5.5 0 0 1 .894 0L6.5 9.91l2.553-5.105a.5.5 0 0 1 .894 0l1.915 3.83h3.638a.5.5 0 0 1 0 1h-3.947a.5.5 0 0 1-.447-.276L9.5 6.382l-2.553 5.342A.5.5 0 0 1 6.5 12z"
 };
@@ -939,6 +940,14 @@ const OPENINFRA_MODULES = [
       { name: "cursor", label: "Curseur" }
     ] }
   ] },
+  { id: "network-config", label: "Conformité réseau", shortLabel: "Config", icon: "sliders", description: "Comparaison gouvernée des golden configurations et des configurations réseau découvertes, sans remédiation automatique.", operations: [
+    { id: "network-config-baseline-upsert", label: "Créer ou réviser une golden configuration", method: "POST", path: "/v1/network-config/baselines/upsert", body: [FIELD_SETS.actor, { name: "code", label: "Code", required: true }, { name: "device_object_key", label: "Objet équipement RSOT", required: true }, { name: "platform", label: "Plateforme réseau", required: true }, { name: "expected_config", label: "Configuration attendue JSON", type: "textarea", required: true }, { name: "ignored_paths", label: "Chemins ignorés", type: "csv" }, { name: "critical_paths", label: "Chemins critiques", type: "csv" }, { name: "owner", label: "Propriétaire", required: true }, { name: "justification", label: "Justification", required: true }] },
+    { id: "network-config-baseline-list", label: "Lister les golden configurations", method: "GET", path: "/v1/network-config/baselines", query: [{ name: "limit", label: "Limite", type: "number", defaultValue: "100" }, { name: "cursor", label: "Curseur" }, { name: "include_retired", label: "Inclure retirés", type: "boolean" }] },
+    { id: "network-config-baseline-retire", label: "Retirer une golden configuration", method: "POST", path: "/v1/network-config/baselines/retire", body: [FIELD_SETS.actor, { name: "baseline_id", label: "ID baseline", required: true }] },
+    { id: "network-config-observation-submit", label: "Ingérer une configuration découverte", method: "POST", path: "/v1/network-config/observations/submit", body: [FIELD_SETS.actor, { name: "idempotency_key", label: "Clé d’idempotence", required: true }, { name: "source", label: "Source observation", type: "select", options: ["ssh", "api", "netconf", "restconf", "gnmi", "discovery", "import", "manual"], required: true }, { name: "collector", label: "Collecteur", required: true }, { name: "device_object_key", label: "Objet équipement RSOT", required: true }, { name: "platform", label: "Plateforme réseau", required: true }, { name: "observed_config", label: "Configuration observée JSON", type: "textarea", required: true }, { name: "observed_at", label: "Observé le (ISO-8601)", required: true }] },
+    { id: "network-config-observation-list", label: "Lister les configurations découvertes", method: "GET", path: "/v1/network-config/observations", query: [{ name: "device_object_key", label: "Objet équipement RSOT" }, { name: "platform", label: "Plateforme réseau" }, { name: "observed_before", label: "Observé avant" }, { name: "limit", label: "Limite", type: "number", defaultValue: "100" }, { name: "cursor", label: "Curseur" }] },
+    { id: "network-config-assessment", label: "Évaluer la dérive réseau", method: "GET", path: "/v1/network-config/assessment", query: [{ name: "actor", label: "Opérateur", defaultValue: "web" }, { name: "baseline_code", label: "Code baseline" }, { name: "as_of", label: "Date de référence" }, { name: "status", label: "Statut conformité", type: "select", options: ["compliant", "drift", "missing-observation"] }, { name: "limit", label: "Limite", type: "number", defaultValue: "100" }, { name: "cursor", label: "Curseur" }] },
+  ] },
   { id: "certificates", label: "Certificats et PKI", shortLabel: "Certificats", icon: "shield", description: "Inventaire gouverné des certificats, validation des chaînes, endpoints TLS, SAN et échéances.", operations: [
     { id: "certificate-import", label: "Importer une chaîne PEM", method: "POST", path: "/v1/certificates/import", body: [
       FIELD_SETS.actor,
@@ -1175,6 +1184,11 @@ const OPENINFRA_SIDEBAR_CONTEXTS = {
     { label: "Flux déclarés", operationIds: ["flow-declaration-upsert", "flow-declaration-list", "flow-declaration-retire"] },
     { label: "Flux observés", operationIds: ["flow-observation-submit", "flow-observation-list"] },
     { label: "Conformité des flux", operationIds: ["flow-matrix"] }
+  ],
+  "network-config": [
+    { label: "Golden configurations", operationIds: ["network-config-baseline-upsert", "network-config-baseline-list", "network-config-baseline-retire"] },
+    { label: "Configurations découvertes", operationIds: ["network-config-observation-submit", "network-config-observation-list"] },
+    { label: "Conformité et drift", operationIds: ["network-config-assessment"] }
   ],
   certificates: [
     { label: "Inventaire PKI", operationIds: ["certificate-import", "certificate-get", "certificate-list", "certificate-retire"] },

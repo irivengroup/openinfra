@@ -37,6 +37,9 @@ from openinfra.application.ports import (
     ImportRepository,
     IpamRepository,
     ItamSupportRepository,
+    NetworkConfigBaselinePage,
+    NetworkConfigComplianceRepository,
+    NetworkConfigObservationPage,
     ReadinessProbe,
     ReadinessStatus,
     RuntimeUsageRepository,
@@ -168,6 +171,10 @@ from openinfra.domain.itam import (
     PhysicalAssetSupportProfile,
     SoftwareLicenseEntitlement,
     ThirdPartySupportContract,
+)
+from openinfra.domain.network_config_compliance import (
+    NetworkConfigBaseline,
+    NetworkConfigObservation,
 )
 from openinfra.domain.security import ApiTokenCredential, Permission
 from openinfra.domain.source_governance import SourceGovernanceRule, SourceGovernanceRulePage
@@ -7317,6 +7324,261 @@ class PostgreSQLFlowMatrixRepository(PostgreSQLRepositoryBase, FlowMatrixReposit
         if offset < 0:
             raise ValidationError("pagination cursor must be positive")
         return offset
+
+    @staticmethod
+    def _row_datetime(value: object) -> datetime:
+        if isinstance(value, datetime):
+            return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
+        parsed = datetime.fromisoformat(str(value))
+        return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
+
+
+class PostgreSQLNetworkConfigComplianceRepository(
+    PostgreSQLRepositoryBase, NetworkConfigComplianceRepository
+):
+    _BASELINE_COLUMNS = """
+        id, tenant_id, code, device_object_key, platform, expected_config,
+        ignored_paths, critical_paths, owner, justification, status, version,
+        created_by, created_at, updated_by, updated_at, fingerprint
+    """
+    _OBSERVATION_COLUMNS = """
+        id, tenant_id, idempotency_key, source, collector, device_object_key,
+        platform, observed_config, observed_at, received_at, fingerprint
+    """
+
+    def save_baseline(self, baseline: NetworkConfigBaseline) -> None:
+        self._ensure_tenant(baseline.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO network_config_baselines (
+                id, tenant_id, code, device_object_key, platform, expected_config,
+                ignored_paths, critical_paths, owner, justification, status, version,
+                created_by, created_at, updated_by, updated_at, fingerprint
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(code)s, %(device_object_key)s, %(platform)s,
+                %(expected_config)s, %(ignored_paths)s, %(critical_paths)s, %(owner)s,
+                %(justification)s, %(status)s, %(version)s, %(created_by)s, %(created_at)s,
+                %(updated_by)s, %(updated_at)s, %(fingerprint)s
+            )
+            ON CONFLICT (tenant_id, id) DO UPDATE SET
+                platform = EXCLUDED.platform,
+                expected_config = EXCLUDED.expected_config,
+                ignored_paths = EXCLUDED.ignored_paths,
+                critical_paths = EXCLUDED.critical_paths,
+                owner = EXCLUDED.owner,
+                justification = EXCLUDED.justification,
+                status = EXCLUDED.status,
+                version = EXCLUDED.version,
+                updated_by = EXCLUDED.updated_by,
+                updated_at = EXCLUDED.updated_at,
+                fingerprint = EXCLUDED.fingerprint
+            """,
+            self._baseline_params(baseline),
+        )
+
+    def find_baseline_by_code(self, tenant_id: TenantId, code: str) -> NetworkConfigBaseline | None:
+        row = self._fetch_one(
+            f"""
+            SELECT {self._BASELINE_COLUMNS}
+            FROM network_config_baselines
+            WHERE tenant_id = %(tenant_id)s AND code = %(code)s
+            """,  # nosec B608 -- selected columns are fixed
+            {"tenant_id": tenant_id.value, "code": code.strip().upper()},
+        )
+        return self._baseline_from_row(row) if row else None
+
+    def get_baseline(self, tenant_id: TenantId, baseline_id: str) -> NetworkConfigBaseline | None:
+        row = self._fetch_one(
+            f"""
+            SELECT {self._BASELINE_COLUMNS}
+            FROM network_config_baselines
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s
+            """,  # nosec B608 -- selected columns are fixed
+            {"tenant_id": tenant_id.value, "id": EntityId.from_value(baseline_id).value},
+        )
+        return self._baseline_from_row(row) if row else None
+
+    def list_baselines(
+        self, tenant_id: TenantId, pagination: Pagination, include_retired: bool = False
+    ) -> NetworkConfigBaselinePage:
+        offset = self._offset(pagination.cursor)
+        status_filter = "" if include_retired else "AND status <> 'retired'"
+        rows = self._fetch_all(
+            f"""
+            SELECT {self._BASELINE_COLUMNS}
+            FROM network_config_baselines
+            WHERE tenant_id = %(tenant_id)s {status_filter}
+            ORDER BY code ASC, id ASC
+            LIMIT %(fetch_limit)s OFFSET %(offset)s
+            """,  # nosec B608 -- selected columns and status predicate are fixed
+            {"tenant_id": tenant_id.value, "fetch_limit": pagination.limit + 1, "offset": offset},
+        )
+        has_more = len(rows) > pagination.limit
+        return NetworkConfigBaselinePage(
+            tuple(self._baseline_from_row(row) for row in rows[: pagination.limit]),
+            str(offset + pagination.limit) if has_more else None,
+        )
+
+    def save_observation(self, observation: NetworkConfigObservation) -> None:
+        self._ensure_tenant(observation.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO network_config_observations (
+                id, tenant_id, idempotency_key, source, collector, device_object_key,
+                platform, observed_config, observed_at, received_at, fingerprint
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(idempotency_key)s, %(source)s, %(collector)s,
+                %(device_object_key)s, %(platform)s, %(observed_config)s, %(observed_at)s,
+                %(received_at)s, %(fingerprint)s
+            )
+            ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
+            """,
+            self._observation_params(observation),
+        )
+
+    def find_observation_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> NetworkConfigObservation | None:
+        row = self._fetch_one(
+            f"""
+            SELECT {self._OBSERVATION_COLUMNS}
+            FROM network_config_observations
+            WHERE tenant_id = %(tenant_id)s AND idempotency_key = %(idempotency_key)s
+            """,  # nosec B608 -- selected columns are fixed
+            {"tenant_id": tenant_id.value, "idempotency_key": idempotency_key.strip()},
+        )
+        return self._observation_from_row(row) if row else None
+
+    def list_observations(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        device_object_key: str | None = None,
+        platform: str | None = None,
+        observed_before: datetime | None = None,
+    ) -> NetworkConfigObservationPage:
+        offset = self._offset(pagination.cursor)
+        filters = []
+        params: dict[str, object] = {
+            "tenant_id": tenant_id.value,
+            "fetch_limit": pagination.limit + 1,
+            "offset": offset,
+        }
+        if device_object_key is not None:
+            filters.append("AND device_object_key = %(device_object_key)s")
+            params["device_object_key"] = device_object_key.strip()
+        if platform is not None:
+            filters.append("AND platform = %(platform)s")
+            params["platform"] = platform.strip().lower()
+        if observed_before is not None:
+            filters.append("AND observed_at <= %(observed_before)s")
+            params["observed_before"] = observed_before
+        rows = self._fetch_all(
+            f"""
+            SELECT {self._OBSERVATION_COLUMNS}
+            FROM network_config_observations
+            WHERE tenant_id = %(tenant_id)s {" ".join(filters)}
+            ORDER BY observed_at DESC, received_at DESC, id DESC
+            LIMIT %(fetch_limit)s OFFSET %(offset)s
+            """,  # nosec B608 -- filters are fixed internal constants
+            params,
+        )
+        has_more = len(rows) > pagination.limit
+        return NetworkConfigObservationPage(
+            tuple(self._observation_from_row(row) for row in rows[: pagination.limit]),
+            str(offset + pagination.limit) if has_more else None,
+        )
+
+    @staticmethod
+    def _baseline_params(baseline: NetworkConfigBaseline) -> dict[str, object]:
+        return {
+            "id": baseline.id.value,
+            "tenant_id": baseline.tenant_id.value,
+            "code": baseline.code,
+            "device_object_key": baseline.device_object_key,
+            "platform": baseline.platform,
+            "expected_config": json.dumps(baseline.expected_config, sort_keys=True),
+            "ignored_paths": json.dumps(baseline.ignored_paths),
+            "critical_paths": json.dumps(baseline.critical_paths),
+            "owner": baseline.owner,
+            "justification": baseline.justification,
+            "status": baseline.status.value,
+            "version": baseline.version,
+            "created_by": baseline.created_by,
+            "created_at": baseline.created_at,
+            "updated_by": baseline.updated_by,
+            "updated_at": baseline.updated_at,
+            "fingerprint": baseline.fingerprint,
+        }
+
+    @staticmethod
+    def _observation_params(observation: NetworkConfigObservation) -> dict[str, object]:
+        return {
+            "id": observation.id.value,
+            "tenant_id": observation.tenant_id.value,
+            "idempotency_key": observation.idempotency_key,
+            "source": observation.source.value,
+            "collector": observation.collector,
+            "device_object_key": observation.device_object_key,
+            "platform": observation.platform,
+            "observed_config": json.dumps(observation.observed_config, sort_keys=True),
+            "observed_at": observation.observed_at,
+            "received_at": observation.received_at,
+            "fingerprint": observation.fingerprint,
+        }
+
+    def _baseline_from_row(self, row: Mapping[str, object]) -> NetworkConfigBaseline:
+        return NetworkConfigBaseline.restore(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            code=str(row["code"]),
+            device_object_key=str(row["device_object_key"]),
+            platform=str(row["platform"]),
+            expected_config=self._json_mapping(row["expected_config"]),
+            ignored_paths=tuple(str(item) for item in self._json_sequence(row["ignored_paths"])),
+            critical_paths=tuple(str(item) for item in self._json_sequence(row["critical_paths"])),
+            owner=str(row["owner"]),
+            justification=str(row["justification"]),
+            status=str(row["status"]),
+            version=int(str(row["version"])),
+            created_by=str(row["created_by"]),
+            created_at=self._row_datetime(row["created_at"]),
+            updated_by=str(row["updated_by"]),
+            updated_at=self._row_datetime(row["updated_at"]),
+        )
+
+    def _observation_from_row(self, row: Mapping[str, object]) -> NetworkConfigObservation:
+        return NetworkConfigObservation.restore(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            idempotency_key=str(row["idempotency_key"]),
+            source=str(row["source"]),
+            collector=str(row["collector"]),
+            device_object_key=str(row["device_object_key"]),
+            platform=str(row["platform"]),
+            observed_config=self._json_mapping(row["observed_config"]),
+            observed_at=self._row_datetime(row["observed_at"]),
+            received_at=self._row_datetime(row["received_at"]),
+            fingerprint=str(row["fingerprint"]),
+        )
+
+    @staticmethod
+    def _offset(cursor: str | None) -> int:
+        try:
+            value = int(cursor or "0")
+        except ValueError as exc:
+            raise ValidationError("pagination cursor must be a numeric offset") from exc
+        if value < 0:
+            raise ValidationError("pagination cursor must be positive")
+        return value
+
+    @staticmethod
+    def _json_mapping(value: object) -> Mapping[str, object]:
+        return cast(Mapping[str, object], json.loads(value) if isinstance(value, str) else value)
+
+    @staticmethod
+    def _json_sequence(value: object) -> Sequence[object]:
+        return cast(Sequence[object], json.loads(value) if isinstance(value, str) else value)
 
     @staticmethod
     def _row_datetime(value: object) -> datetime:

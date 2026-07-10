@@ -231,6 +231,14 @@ from openinfra.application.itam_services import (
     UpdateItamTenantCommand,
     UpdateSoftwareLicenseAssignmentCommand,
 )
+from openinfra.application.network_config_compliance_services import (
+    AssessNetworkConfigComplianceCommand,
+    ListNetworkConfigBaselinesCommand,
+    ListNetworkConfigObservationsCommand,
+    RetireNetworkConfigBaselineCommand,
+    SubmitNetworkConfigObservationCommand,
+    UpsertNetworkConfigBaselineCommand,
+)
 from openinfra.application.search_services import GlobalSearchCommand
 from openinfra.application.security_services import (
     AuthenticateTokenCommand,
@@ -303,6 +311,7 @@ class OpenInfraCLI:
         self._add_graph_commands(subparsers)
         self._add_flow_commands(subparsers)
         self._add_certificate_commands(subparsers)
+        self._add_network_config_commands(subparsers)
         self._add_rsot_commands(subparsers)
         self._add_itrm_commands(subparsers)
         self._add_ri_commands(subparsers)
@@ -1928,6 +1937,97 @@ class OpenInfraCLI:
         parser.add_argument("--max-nodes", type=int, default=1000)
         parser.add_argument("--relation-type", action="append", default=[])
         parser.add_argument("--as-of")
+
+    def _add_network_config_commands(self, subparsers: Any) -> None:
+        network_config = subparsers.add_parser(
+            "network-config", help="network golden configuration compliance operations"
+        )
+        commands = network_config.add_subparsers(dest="network_config_command", required=True)
+
+        baseline = commands.add_parser(
+            "baseline-upsert", help="create or revise a golden configuration baseline"
+        )
+        self._add_backend_arguments(baseline)
+        baseline.add_argument("--tenant", required=True)
+        baseline.add_argument("--actor", default="cli")
+        baseline.add_argument("--admin-token", required=True)
+        baseline.add_argument("--code", required=True)
+        baseline.add_argument("--device-object-key", required=True)
+        baseline.add_argument("--platform", required=True)
+        baseline.add_argument("--expected-config-file", type=Path, required=True)
+        baseline.add_argument("--ignored-path", action="append", default=[])
+        baseline.add_argument("--critical-path", action="append", default=[])
+        baseline.add_argument("--owner", required=True)
+        baseline.add_argument("--justification", required=True)
+        baseline.set_defaults(handler=self._handle_network_config_baseline_upsert)
+
+        baseline_list = commands.add_parser(
+            "baseline-list", help="list golden configuration baselines"
+        )
+        self._add_backend_arguments(baseline_list)
+        baseline_list.add_argument("--tenant", required=True)
+        baseline_list.add_argument("--admin-token", required=True)
+        baseline_list.add_argument("--limit", type=int, default=100)
+        baseline_list.add_argument("--cursor")
+        baseline_list.add_argument("--include-retired", action="store_true")
+        baseline_list.set_defaults(handler=self._handle_network_config_baseline_list)
+
+        retire = commands.add_parser(
+            "baseline-retire", help="retire a golden configuration baseline"
+        )
+        self._add_backend_arguments(retire)
+        retire.add_argument("--tenant", required=True)
+        retire.add_argument("--actor", default="cli")
+        retire.add_argument("--admin-token", required=True)
+        retire.add_argument("--baseline-id", required=True)
+        retire.set_defaults(handler=self._handle_network_config_baseline_retire)
+
+        observation = commands.add_parser(
+            "observation-submit", help="ingest one immutable discovered network configuration"
+        )
+        self._add_backend_arguments(observation)
+        observation.add_argument("--tenant", required=True)
+        observation.add_argument("--actor", default="cli")
+        observation.add_argument("--admin-token", required=True)
+        observation.add_argument("--idempotency-key", required=True)
+        observation.add_argument(
+            "--source",
+            choices=("ssh", "api", "netconf", "restconf", "gnmi", "discovery", "import", "manual"),
+            required=True,
+        )
+        observation.add_argument("--collector", required=True)
+        observation.add_argument("--device-object-key", required=True)
+        observation.add_argument("--platform", required=True)
+        observation.add_argument("--observed-config-file", type=Path, required=True)
+        observation.add_argument("--observed-at", required=True)
+        observation.set_defaults(handler=self._handle_network_config_observation_submit)
+
+        observation_list = commands.add_parser(
+            "observation-list", help="list discovered network configurations"
+        )
+        self._add_backend_arguments(observation_list)
+        observation_list.add_argument("--tenant", required=True)
+        observation_list.add_argument("--admin-token", required=True)
+        observation_list.add_argument("--limit", type=int, default=100)
+        observation_list.add_argument("--cursor")
+        observation_list.add_argument("--device-object-key")
+        observation_list.add_argument("--platform")
+        observation_list.add_argument("--observed-before")
+        observation_list.set_defaults(handler=self._handle_network_config_observation_list)
+
+        assess = commands.add_parser(
+            "assess", help="compare golden and discovered network configurations"
+        )
+        self._add_backend_arguments(assess)
+        assess.add_argument("--tenant", required=True)
+        assess.add_argument("--actor", default="cli")
+        assess.add_argument("--admin-token", required=True)
+        assess.add_argument("--baseline-code")
+        assess.add_argument("--as-of")
+        assess.add_argument("--status", choices=("compliant", "drift", "missing-observation"))
+        assess.add_argument("--limit", type=int, default=100)
+        assess.add_argument("--cursor")
+        assess.set_defaults(handler=self._handle_network_config_assess)
 
     def _add_certificate_commands(self, subparsers: Any) -> None:
         certificate = subparsers.add_parser(
@@ -5046,6 +5146,98 @@ class OpenInfraCLI:
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_bytes(download.content)
         print(json.dumps(download.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_network_config_baseline_upsert(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.network_config_compliance_service.upsert_baseline(
+            UpsertNetworkConfigBaselineCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                code=args.code,
+                device_object_key=args.device_object_key,
+                platform=args.platform,
+                expected_config=args.expected_config_file.read_text(encoding="utf-8"),
+                ignored_paths=tuple(args.ignored_path),
+                critical_paths=tuple(args.critical_path),
+                owner=args.owner,
+                justification=args.justification,
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_network_config_baseline_list(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.network_config_compliance_service.list_baselines(
+            ListNetworkConfigBaselinesCommand(
+                args.tenant, args.admin_token, args.limit, args.cursor, args.include_retired
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_network_config_baseline_retire(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.network_config_compliance_service.retire_baseline(
+            RetireNetworkConfigBaselineCommand(
+                args.tenant, args.actor, args.admin_token, args.baseline_id
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_network_config_observation_submit(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.network_config_compliance_service.submit_observation(
+            SubmitNetworkConfigObservationCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                idempotency_key=args.idempotency_key,
+                source=args.source,
+                collector=args.collector,
+                device_object_key=args.device_object_key,
+                platform=args.platform,
+                observed_config=args.observed_config_file.read_text(encoding="utf-8"),
+                observed_at=args.observed_at,
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_network_config_observation_list(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.network_config_compliance_service.list_observations(
+            ListNetworkConfigObservationsCommand(
+                args.tenant,
+                args.admin_token,
+                args.limit,
+                args.cursor,
+                args.device_object_key,
+                args.platform,
+                args.observed_before,
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_network_config_assess(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.network_config_compliance_service.assess(
+            AssessNetworkConfigComplianceCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                actor=args.actor,
+                baseline_code=args.baseline_code,
+                as_of=args.as_of,
+                status=args.status,
+                limit=args.limit,
+                cursor=args.cursor,
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
         return 0
 
     def _handle_certificate_import(self, args: argparse.Namespace) -> int:

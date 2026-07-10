@@ -232,6 +232,14 @@ from openinfra.application.itam_services import (
     UpdateItamTenantCommand,
     UpdateSoftwareLicenseAssignmentCommand,
 )
+from openinfra.application.network_config_compliance_services import (
+    AssessNetworkConfigComplianceCommand,
+    ListNetworkConfigBaselinesCommand,
+    ListNetworkConfigObservationsCommand,
+    RetireNetworkConfigBaselineCommand,
+    SubmitNetworkConfigObservationCommand,
+    UpsertNetworkConfigBaselineCommand,
+)
 from openinfra.application.search_services import GlobalSearchCommand
 from openinfra.application.security_services import (
     AuthenticateTokenCommand,
@@ -1136,6 +1144,73 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     )
                 )
                 responder.send(HTTPStatus.OK, chunk_download.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/network-config/baselines":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.network_config_compliance_service.list_baselines(
+                    ListNetworkConfigBaselinesCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        include_retired=self._first_query_value(
+                            query, "include_retired", "false"
+                        ).lower()
+                        == "true",
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/network-config/observations":
+            try:
+                query = parse_qs(parsed.query)
+                result = (
+                    self.server.application.network_config_compliance_service.list_observations(
+                        ListNetworkConfigObservationsCommand(
+                            tenant_id=self._first_query_value(query, "tenant_id"),
+                            admin_token=self._bearer_token(),
+                            limit=int(self._first_query_value(query, "limit", "100")),
+                            cursor=query.get("cursor", [None])[0],
+                            device_object_key=query.get("device_object_key", [None])[0],
+                            platform=query.get("platform", [None])[0],
+                            observed_before=query.get("observed_before", [None])[0],
+                        )
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/network-config/assessment":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.network_config_compliance_service.assess(
+                    AssessNetworkConfigComplianceCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        actor=self._first_query_value(query, "actor", "api"),
+                        baseline_code=query.get("baseline_code", [None])[0],
+                        as_of=query.get("as_of", [None])[0],
+                        status=query.get("status", [None])[0],
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (ValueError, OpenInfraError) as exc:
@@ -2141,6 +2216,83 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         route = self._canonical_route(urlparse(self.path).path)
         result: Any
         rule: Any
+
+        if route == "/api/v1/network-config/baselines/upsert":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.network_config_compliance_service.upsert_baseline(
+                    UpsertNetworkConfigBaselineCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        code=self._required_payload_value(payload, "code"),
+                        device_object_key=self._required_payload_value(
+                            payload, "device_object_key"
+                        ),
+                        platform=self._required_payload_value(payload, "platform"),
+                        expected_config=payload["expected_config"],
+                        ignored_paths=tuple(str(item) for item in payload.get("ignored_paths", [])),
+                        critical_paths=tuple(
+                            str(item) for item in payload.get("critical_paths", [])
+                        ),
+                        owner=self._required_payload_value(payload, "owner"),
+                        justification=self._required_payload_value(payload, "justification"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/network-config/baselines/retire":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.network_config_compliance_service.retire_baseline(
+                    RetireNetworkConfigBaselineCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        baseline_id=self._required_payload_value(payload, "baseline_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/network-config/observations/submit":
+            try:
+                payload = self._read_json_body()
+                result = (
+                    self.server.application.network_config_compliance_service.submit_observation(
+                        SubmitNetworkConfigObservationCommand(
+                            tenant_id=self._required_payload_value(payload, "tenant_id"),
+                            actor=str(payload.get("actor", "api")),
+                            admin_token=self._bearer_token(),
+                            idempotency_key=self._required_payload_value(
+                                payload, "idempotency_key"
+                            ),
+                            source=self._required_payload_value(payload, "source"),
+                            collector=self._required_payload_value(payload, "collector"),
+                            device_object_key=self._required_payload_value(
+                                payload, "device_object_key"
+                            ),
+                            platform=self._required_payload_value(payload, "platform"),
+                            observed_config=payload["observed_config"],
+                            observed_at=self._required_payload_value(payload, "observed_at"),
+                        )
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
 
         if route == "/api/v1/certificates/import":
             try:
@@ -5585,6 +5737,14 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "traverse": "/api/v1/graph/traverse",
                     "impact": "/api/v1/graph/impact",
                     "path": "/api/v1/graph/path",
+                },
+                "network_config": {
+                    "baselines": "/api/v1/network-config/baselines",
+                    "baseline_upsert": "/api/v1/network-config/baselines/upsert",
+                    "baseline_retire": "/api/v1/network-config/baselines/retire",
+                    "observations": "/api/v1/network-config/observations",
+                    "observation_submit": "/api/v1/network-config/observations/submit",
+                    "assessment": "/api/v1/network-config/assessment",
                 },
                 "certificates": {
                     "list": "/api/v1/certificates",

@@ -1,4 +1,12 @@
-# OpenInfra v0.29.90
+# OpenInfra v0.29.91
+
+OpenInfra v0.29.91 réalise **P15 / EPIC-1504** avec une conformité réseau fondée sur des golden configurations versionnées et des configurations découvertes immuables. Le moteur produit des écarts structurés et auditables sans appliquer automatiquement de changement sur les équipements.
+
+## Conformité réseau par golden configuration
+
+Les baselines sont versionnées par équipement RSOT et plateforme. Les observations sont immuables, idempotentes et peuvent provenir de SSH, API, NETCONF, RESTCONF, gNMI, Discovery ou import. La comparaison JSON produit des dérives typées, respecte les chemins ignorés et critiques, rejette les secrets et reste strictement en lecture sur les équipements.
+
+Les opérations sont disponibles en CLI, API HTTP, OpenAPI et portail web FR/EN. Voir `docs/operations/network-config-compliance.md` pour les contrats d’exploitation, les permissions, les limites documentaires et la procédure d’évaluation.
 
 ## Certificats et PKI
 

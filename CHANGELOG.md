@@ -1,3 +1,13 @@
+## v0.29.91 — Conformité réseau golden configuration
+
+- Baselines versionnées par équipement RSOT et plateforme réseau.
+- Observations immuables et idempotentes depuis SSH, API, NETCONF, RESTCONF, gNMI, Discovery ou import.
+- Comparaison JSON structurée avec chemins ignorés/critiques, dérives typées et audit.
+- Rejet des secrets et des clés privées dans les documents de configuration.
+- CLI, API/OpenAPI et portail web FR/EN.
+- Persistance JSON/PostgreSQL et migration `0043_network_config_compliance.sql`.
+- Aucune remédiation automatique des équipements.
+
 ## v0.29.90 — Inventaire des certificats et PKI
 
 - Implémentation de P15 / EPIC-1503 avec inventaire X.509 tenant-aware et gouverné.

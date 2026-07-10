@@ -130,6 +130,7 @@ class BuiltinRolePolicy:
                 Permission.ITAM_READ,
                 Permission.FLOW_READ,
                 Permission.CERTIFICATE_READ,
+                Permission.NETWORK_CONFIG_READ,
             )
         ),
         "rsot:reader": frozenset(
@@ -214,6 +215,16 @@ class BuiltinRolePolicy:
             (
                 Permission.CERTIFICATE_READ,
                 Permission.CERTIFICATE_WRITE,
+                Permission.SCHEMA_READ,
+            )
+        ),
+        "network-config:reader": frozenset(
+            (Permission.NETWORK_CONFIG_READ, Permission.SCHEMA_READ)
+        ),
+        "network-config:operator": frozenset(
+            (
+                Permission.NETWORK_CONFIG_READ,
+                Permission.NETWORK_CONFIG_WRITE,
                 Permission.SCHEMA_READ,
             )
         ),

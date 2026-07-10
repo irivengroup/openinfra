@@ -145,6 +145,14 @@ class TestHttpApi:
                     "endpoint_observe": "/api/v1/certificates/endpoints/observe",
                     "assessment": "/api/v1/certificates/assessment",
                 },
+                "network_config": {
+                    "baselines": "/api/v1/network-config/baselines",
+                    "baseline_upsert": "/api/v1/network-config/baselines/upsert",
+                    "baseline_retire": "/api/v1/network-config/baselines/retire",
+                    "observations": "/api/v1/network-config/observations",
+                    "observation_submit": "/api/v1/network-config/observations/submit",
+                    "assessment": "/api/v1/network-config/assessment",
+                },
                 "rsot": {
                     "objects": "/api/v1/rsot/objects",
                     "resource_taxonomy": "/api/v1/rsot/resource-taxonomy",

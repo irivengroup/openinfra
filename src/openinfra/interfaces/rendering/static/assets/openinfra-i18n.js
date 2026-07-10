@@ -196,6 +196,7 @@ const MODULE_EN = Object.freeze({
   graph: ['Dependency graph', 'Graph'],
   flows: ['Flow matrix', 'Flows'],
   certificates: ['Certificates and PKI', 'Certificates'],
+  'network-config': ['Network configuration compliance', 'Config compliance'],
 });
 
 const MODULE_DESCRIPTION_EN = Object.freeze({
@@ -211,6 +212,7 @@ const MODULE_DESCRIPTION_EN = Object.freeze({
   graph: 'Tenant-aware RSOT dependency traversal and impact analysis.',
   flows: 'Governed comparison of declared and observed network flows, violations and traceability.',
   certificates: 'Governed certificate inventory, cryptographic chain validation, TLS endpoints and expiration alerts.',
+  'network-config': 'Governed comparison of golden and discovered network configurations without automatic remediation.',
 });
 
 const FIELD_EN = Object.freeze({
@@ -252,6 +254,9 @@ const FIELD_EN = Object.freeze({
   destination_object_key: 'Destination object', packets: 'Packets', bytes: 'Bytes',
   first_seen: 'First seen', last_seen: 'Last seen', window_start: 'Window start', window_end: 'Window end',
   pem_bundle: 'PEM certificate chain', owner: 'Owner', environment: 'Environment',
+  device_object_key: 'RSOT device object', platform: 'Network platform', expected_config: 'Expected JSON configuration',
+  observed_config: 'Observed JSON configuration', ignored_paths: 'Ignored paths', critical_paths: 'Critical paths',
+  baseline_id: 'Baseline ID', baseline_code: 'Baseline code', observed_before: 'Observed before',
   object_key: 'Associated RSOT object', fingerprint: 'SHA-256 fingerprint',
   certificate_fingerprint: 'Certificate fingerprint', protocol: 'Protocol', host: 'Endpoint host',
   port: 'Port', service: 'Service', observed_at: 'Observed at', collector: 'Collector',
@@ -442,11 +447,17 @@ function operationLabelEn(operationId) {
     'certificate-endpoint-observe': 'Observe TLS endpoint',
     'certificate-endpoint-list': 'List TLS endpoints',
     'certificate-assessment': 'Assess PKI health',
+    'network-config-baseline-upsert': 'Create or revise golden configuration',
+    'network-config-baseline-list': 'List golden configurations',
+    'network-config-baseline-retire': 'Retire golden configuration',
+    'network-config-observation-submit': 'Ingest discovered configuration',
+    'network-config-observation-list': 'List discovered configurations',
+    'network-config-assessment': 'Assess network configuration drift',
     'ipam-dashboard': 'IPAM dashboard', 'dcim-digital-twin': 'Room digital twin',
     'effective-identity': 'Effective identity', 'audit-integrity': 'Audit integrity',
   };
   if (overrides[operationId]) return overrides[operationId];
-  const domainTokens = new Set(['rsot', 'ipam', 'dcim', 'itam', 'discovery', 'graph', 'flow', 'flows', 'certificate', 'certificates', 'pki']);
+  const domainTokens = new Set(['rsot', 'ipam', 'dcim', 'itam', 'discovery', 'graph', 'flow', 'flows', 'certificate', 'certificates', 'pki', 'network', 'config', 'configuration']);
   const tokens = String(operationId || '').split('-').filter(Boolean);
   if (domainTokens.has(tokens[0])) tokens.shift();
   let actionIndex = tokens.findIndex((token) => ACTION_EN[token]);

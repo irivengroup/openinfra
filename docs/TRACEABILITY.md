@@ -1,3 +1,11 @@
+## v0.29.91 — Traçabilité conformité réseau
+
+- Domaine : `network_config_compliance.py`.
+- Application : `network_config_compliance_services.py`.
+- Infrastructure : adaptateurs JSON/PostgreSQL et migration `0043_network_config_compliance.sql`.
+- Interfaces : commandes `network-config`, six routes HTTP/OpenAPI et portail FR/EN.
+- Roadmap : P15 / EPIC-1504 déjà planifié ; CDC et roadmap inchangés.
+
 ## v0.29.90 — Traçabilité certificats et PKI
 
 - Roadmap existante : P15 / `EPIC-1503` — inventaire, chaînes, SAN, propriétaires, endpoints et alertes d'expiration.

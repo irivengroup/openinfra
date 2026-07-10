@@ -39,6 +39,7 @@ from openinfra.application.it_resources_management_quality_services import (
     ITResourcesManagementQualityService,
 )
 from openinfra.application.itam_services import ItamSupportService
+from openinfra.application.network_config_compliance_services import NetworkConfigComplianceService
 from openinfra.application.ports import (
     AccessPolicyRepository,
     AuditRepository,
@@ -51,6 +52,7 @@ from openinfra.application.ports import (
     ImportRepository,
     IpamRepository,
     ItamSupportRepository,
+    NetworkConfigComplianceRepository,
     ReadinessProbe,
     RuntimeUsageRepository,
     SchemaStatusProvider,
@@ -80,6 +82,7 @@ from openinfra.infrastructure.json_store import (
     JsonImportRepository,
     JsonIpamRepository,
     JsonItamSupportRepository,
+    JsonNetworkConfigComplianceRepository,
     JsonReadinessProbe,
     JsonRuntimeUsageRepository,
     JsonSchemaStatusProvider,
@@ -105,6 +108,7 @@ from openinfra.infrastructure.postgresql import (
     PostgreSQLItamSupportRepository,
     PostgreSQLMigrationCatalog,
     PostgreSQLMigrationExecutor,
+    PostgreSQLNetworkConfigComplianceRepository,
     PostgreSQLReadinessProbe,
     PostgreSQLRuntimeUsageRepository,
     PostgreSQLSecurityRepository,
@@ -136,6 +140,7 @@ class OpenInfraApplication:
     dependency_graph_service: DependencyGraphService
     flow_matrix_service: FlowMatrixService
     certificate_pki_service: CertificatePkiService
+    network_config_compliance_service: NetworkConfigComplianceService
     dcim_repository: DcimRepository
     ipam_repository: IpamRepository
     itam_support_repository: ItamSupportRepository
@@ -144,6 +149,7 @@ class OpenInfraApplication:
     discovery_repository: DiscoveryRepository
     flow_matrix_repository: FlowMatrixRepository
     certificate_inventory_repository: CertificateInventoryRepository
+    network_config_compliance_repository: NetworkConfigComplianceRepository
     security_service: SecurityService
     identity_service: IdentityService
     external_authentication_service: ExternalAuthenticationService
@@ -199,6 +205,7 @@ class ApplicationFactory:
         export_repository = JsonExportRepository(store)
         flow_matrix_repository = JsonFlowMatrixRepository(store)
         certificate_inventory_repository = JsonCertificateInventoryRepository(store)
+        network_config_compliance_repository = JsonNetworkConfigComplianceRepository(store)
         discovery_repository = JsonDiscoveryRepository(store)
         itam_support_repository = JsonItamSupportRepository(store)
         readiness_probe = JsonReadinessProbe(store)
@@ -225,6 +232,7 @@ class ApplicationFactory:
             discovery_repository=discovery_repository,
             flow_matrix_repository=flow_matrix_repository,
             certificate_inventory_repository=certificate_inventory_repository,
+            network_config_compliance_repository=network_config_compliance_repository,
             transaction_manager=transaction_manager,
             readiness_probe=readiness_probe,
             schema_status_provider=schema_status_provider,
@@ -254,6 +262,7 @@ class ApplicationFactory:
         export_repository = PostgreSQLExportRepository(registry)
         flow_matrix_repository = PostgreSQLFlowMatrixRepository(registry)
         certificate_inventory_repository = PostgreSQLCertificateInventoryRepository(registry)
+        network_config_compliance_repository = PostgreSQLNetworkConfigComplianceRepository(registry)
         discovery_repository = PostgreSQLDiscoveryRepository(registry)
         itam_support_repository = PostgreSQLItamSupportRepository(registry)
         migration_catalog = PostgreSQLMigrationCatalog.from_project_root()
@@ -280,6 +289,7 @@ class ApplicationFactory:
             discovery_repository=discovery_repository,
             flow_matrix_repository=flow_matrix_repository,
             certificate_inventory_repository=certificate_inventory_repository,
+            network_config_compliance_repository=network_config_compliance_repository,
             itam_support_repository=itam_support_repository,
             transaction_manager=transaction_manager,
             readiness_probe=readiness_probe,
@@ -309,6 +319,7 @@ class ApplicationFactory:
         discovery_repository: DiscoveryRepository | None = None,
         flow_matrix_repository: FlowMatrixRepository | None = None,
         certificate_inventory_repository: CertificateInventoryRepository | None = None,
+        network_config_compliance_repository: NetworkConfigComplianceRepository | None = None,
         itam_support_repository: ItamSupportRepository | None = None,
     ) -> OpenInfraApplication:
         if source_of_truth_repository is None:
@@ -346,6 +357,13 @@ class ApplicationFactory:
                 certificate_inventory_repository = JsonCertificateInventoryRepository(store)
             else:
                 certificate_inventory_repository = PostgreSQLCertificateInventoryRepository(store)
+        if network_config_compliance_repository is None:
+            if hasattr(store, "data"):
+                network_config_compliance_repository = JsonNetworkConfigComplianceRepository(store)
+            else:
+                network_config_compliance_repository = PostgreSQLNetworkConfigComplianceRepository(
+                    store
+                )
         if itam_support_repository is None:
             if hasattr(store, "data"):
                 itam_support_repository = JsonItamSupportRepository(store)
@@ -435,6 +453,12 @@ class ApplicationFactory:
             transaction_manager,
             security_service,
         )
+        network_config_compliance_service = NetworkConfigComplianceService(
+            network_config_compliance_repository,
+            audit_repository,
+            transaction_manager,
+            security_service,
+        )
         ipam_ui_service = IpamUiService(
             ipam_repository,
             audit_repository,
@@ -516,6 +540,7 @@ class ApplicationFactory:
             dependency_graph_service=dependency_graph_service,
             flow_matrix_service=flow_matrix_service,
             certificate_pki_service=certificate_pki_service,
+            network_config_compliance_service=network_config_compliance_service,
             ipam_ui_service=ipam_ui_service,
             security_service=security_service,
             identity_service=identity_service,
@@ -565,6 +590,7 @@ class ApplicationFactory:
             discovery_repository=discovery_repository,
             flow_matrix_repository=flow_matrix_repository,
             certificate_inventory_repository=certificate_inventory_repository,
+            network_config_compliance_repository=network_config_compliance_repository,
             security_repository=security_repository,
             access_policy_repository=access_policy_repository,
             source_of_truth_repository=source_of_truth_repository,

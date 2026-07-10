@@ -1,6 +1,6 @@
 {
   "name": "openinfra-web",
-  "version": "0.29.90",
+  "version": "0.29.91",
   "private": true,
   "type": "module",
   "scripts": {

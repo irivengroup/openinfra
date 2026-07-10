@@ -14,6 +14,7 @@ const ICONS = {
   search: 'M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.099zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z',
   menu: 'M2 4h12v1.4H2V4zm0 3.3h12v1.4H2V7.3zm0 3.3h12V12H2v-1.4z',
   activity: 'M6.5 12a.5.5 0 0 1-.447-.276L3.382 6.382 1.894 9.36A.5.5 0 0 1 1.447 9.636H.5a.5.5 0 0 1 0-1h.638l1.915-3.83a.5.5 0 0 1 .894 0L6.5 9.91l2.553-5.105a.5.5 0 0 1 .894 0l1.915 3.83h3.638a.5.5 0 0 1 0 1h-3.947a.5.5 0 0 1-.447-.276L9.5 6.382l-2.553 5.342A.5.5 0 0 1 6.5 12z',
+  sliders: 'M3 4h10v1H3V4zm2 3h6v1H5V7zm-2 3h10v1H3v-1z',
   shield: 'M5.338 1.59a61.44 61.44 0 0 0-2.837.856.48.48 0 0 0-.328.39c-.554 4.157.726 7.19 2.253 9.188A10.7 10.7 0 0 0 8 15a10.7 10.7 0 0 0 3.574-2.976c1.527-1.998 2.807-5.031 2.253-9.188a.48.48 0 0 0-.328-.39 61.44 61.44 0 0 0-2.837-.856C9.552 1.29 8.531 1.067 8 1.067c-.531 0-1.552.223-2.662.523z',
 };
 
@@ -680,6 +681,14 @@ const MODULES = [
     { id: 'flow-observation-list', label: 'Lister les flux observés', path: '/v1/flows/observations', method: 'GET', fields: ['Début fenêtre', 'Fin fenêtre', 'Source observation', 'Limite', 'Curseur'] },
     { id: 'flow-matrix', label: 'Comparer flux déclarés et observés', path: '/v1/flows/matrix', method: 'GET', fields: ['Début fenêtre', 'Fin fenêtre', 'Statut conformité', 'Source observation', 'Limite', 'Curseur'] },
   ] },
+  { id: 'network-config', label: 'Conformité réseau', shortLabel: 'Config', icon: 'sliders', operations: [
+    { id: 'network-config-baseline-upsert', label: 'Créer ou réviser une golden configuration', path: '/v1/network-config/baselines/upsert', method: 'POST', fields: ['Opérateur', 'Code', 'Objet équipement RSOT', 'Plateforme réseau', 'Configuration attendue JSON', 'Chemins ignorés', 'Chemins critiques', 'Propriétaire', 'Justification'] },
+    { id: 'network-config-baseline-list', label: 'Lister les golden configurations', path: '/v1/network-config/baselines', method: 'GET', fields: ['Limite', 'Curseur', 'Inclure retirés'] },
+    { id: 'network-config-baseline-retire', label: 'Retirer une golden configuration', path: '/v1/network-config/baselines/retire', method: 'POST', fields: ['Opérateur', 'ID baseline'] },
+    { id: 'network-config-observation-submit', label: 'Ingérer une configuration découverte', path: '/v1/network-config/observations/submit', method: 'POST', fields: ['Opérateur', 'Clé d’idempotence', 'Source observation', 'Collecteur', 'Objet équipement RSOT', 'Plateforme réseau', 'Configuration observée JSON', 'Observé le (ISO-8601)'] },
+    { id: 'network-config-observation-list', label: 'Lister les configurations découvertes', path: '/v1/network-config/observations', method: 'GET', fields: ['Objet équipement RSOT', 'Plateforme réseau', 'Observé avant', 'Limite', 'Curseur'] },
+    { id: 'network-config-assessment', label: 'Évaluer la dérive réseau', path: '/v1/network-config/assessment', method: 'GET', fields: ['Opérateur', 'Code baseline', 'Date de référence', 'Statut conformité', 'Limite', 'Curseur'] },
+  ] },
   { id: 'certificates', label: 'Certificats et PKI', shortLabel: 'Certificats', icon: 'shield', operations: [
     { id: 'certificate-import', label: 'Importer une chaîne PEM', path: '/v1/certificates/import', method: 'POST', fields: ['Opérateur', 'Chaîne de certificats PEM', 'Propriétaire', 'Environnement', 'Source certificat', 'Objet RSOT associé'] },
     { id: 'certificate-get', label: 'Consulter un certificat', path: '/v1/certificates/get', method: 'GET', fields: ['Empreinte SHA-256'] },
@@ -815,6 +824,11 @@ const SIDEBAR_CONTEXTS = {
     { label: 'Flux déclarés', operationIds: ['flow-declaration-upsert', 'flow-declaration-list', 'flow-declaration-retire'] },
     { label: 'Flux observés', operationIds: ['flow-observation-submit', 'flow-observation-list'] },
     { label: 'Conformité des flux', operationIds: ['flow-matrix'] },
+  ],
+  'network-config': [
+    { label: 'Golden configurations', operationIds: ['network-config-baseline-upsert', 'network-config-baseline-list', 'network-config-baseline-retire'] },
+    { label: 'Configurations découvertes', operationIds: ['network-config-observation-submit', 'network-config-observation-list'] },
+    { label: 'Conformité et drift', operationIds: ['network-config-assessment'] },
   ],
   certificates: [
     { label: 'Inventaire PKI', operationIds: ['certificate-import', 'certificate-get', 'certificate-list', 'certificate-retire'] },

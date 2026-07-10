@@ -1,3 +1,9 @@
+## v4.8.1 / OpenInfra 0.29.86 — Navigation responsive adaptative et header compact
+
+- Réalignement de `REQ-00811` sur trois surfaces de navigation sans perte fonctionnelle : sidebar desktop, mégamenu contextuel intermédiaire et menu compact mobile.
+- Ajout de `REQ-00825` pour la réduction de 25 % de la seconde barre du header, l'alignement FR/EN-Swagger-ReDoc et la hiérarchie d'ombres.
+- Ajout de `TST-WEB-124` et `TST-WEB-125`, avec traçabilité React/runtime, clavier, tactile et build frontend.
+
 ## v4.8.1 / OpenInfra 0.29.85 — Nomenclature étages et i18n web
 
 - REQ-00820 réalignée sur les codes d’étage locaux `L-01`, `L00`, `L01` avec migration et alias historiques.

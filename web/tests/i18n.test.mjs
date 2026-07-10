@@ -122,3 +122,27 @@ test('React and packaged runtime use the same internationalization implementatio
   assert.match(sourceHtml, /<html lang="en">/);
   assert.match(runtimeHtml, /<html lang="en">/);
 });
+
+test('dependency graph catalog is localized in English and preserves API values', () => {
+  const modules = [{
+    id: 'graph',
+    label: 'Graphe de dépendances',
+    operations: [{
+      id: 'graph-traverse',
+      label: 'Explorer le graphe de dépendances',
+      query: [
+        { name: 'root_key', label: 'Clé racine' },
+        { name: 'direction', label: 'Direction', options: ['outgoing', 'incoming', 'both'] },
+      ],
+    }],
+  }];
+  const contexts = { graph: [{ label: 'Analyse d’impact', operationIds: ['graph-traverse'] }] };
+
+  localizeOpenInfraCatalog({ modules, contexts }, 'en');
+
+  assert.equal(modules[0].label, 'Dependency graph');
+  assert.equal(modules[0].operations[0].label, 'Explore dependency graph');
+  assert.equal(modules[0].operations[0].query[0].label, 'Root resource');
+  assert.deepEqual(modules[0].operations[0].query[1].options, ['outgoing', 'incoming', 'both']);
+  assert.equal(contexts.graph[0].label, 'Impact analysis');
+});

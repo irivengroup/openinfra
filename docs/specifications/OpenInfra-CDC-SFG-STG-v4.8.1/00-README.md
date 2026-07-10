@@ -281,3 +281,10 @@ Ajout de `REQ-00816` et `TST-WEB-115` : ITAM dispose désormais d’un référen
 ### Validation v0.29.81 — Profils Discovery virtualisation, Kubernetes et cloud
 
 Ajout de `REQ-00822` et `TST-WEB-121` : OpenInfra référence les profils de découverte VMware, Proxmox, Hyper-V, Kubernetes, AWS, Azure, GCP et OpenStack avec secrets `vault://` masqués, endpoint HTTPS lorsque nécessaire, limites de débit/concurrence et migration `0037_discovery_integration_profiles.sql`.
+
+## v0.29.86 — Navigation responsive adaptative et header compact
+
+- `REQ-00811` est réalignée sur trois modes sans perte d'opération : sidebar persistante à partir de 1200 px, mégamenu contextuel multicolonne entre 768 px et 1199,98 px, puis menu compact unique sous 768 px.
+- `REQ-00825` compacte de 25 % la seconde barre du header, aligne recherche, FR/EN, Swagger et ReDoc sur un gabarit commun, conserve des cibles tactiles de 44 px et une ombre de header supérieure à celle des blocs.
+- `TST-WEB-124` et `TST-WEB-125` valident la parité React/runtime, le clavier, le tactile, les breakpoints et le build frontend.
+

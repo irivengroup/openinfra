@@ -1,3 +1,21 @@
+## v0.29.86 — Traçabilité navigation responsive web
+
+- CDC : `REQ-00811` réalignée sur les trois modes de navigation et `REQ-00825` pour le header compact, les contrôles alignés et la hiérarchie des ombres.
+- Roadmap : renforcement de `EPIC-0805` et ajout des validations `TST-P08-WEB-RESPONSIVE-NAVIGATION` et `TST-P08-WEB-COMPACT-HEADER`.
+- Code : portail packagé `openinfra-web.js`, frontend React `main.jsx` et feuille de thème byte-identique.
+- Garanties : sidebar uniquement sur écran large, mégamenu multicolonne intermédiaire, menu unique mobile, navigation complète, fermeture par `Échap`, backdrop et boutons, cibles tactiles de 44 px.
+- Tests : Node.js, contrat Python, validation statique frontend et build Vite.
+
+## v0.29.86 — Traçabilité graphe de dépendances RSOT
+
+- Roadmap existante : P15 / `EPIC-1501` — graphe applications, services, réseau, stockage, DCIM et alimentation.
+- Code : `domain/dependency.py`, `application/dependency_graph_services.py`, conteneur applicatif, CLI et API HTTP.
+- Interfaces : commandes `graph traverse`, `graph impact`, `graph path`, routes `/api/v1/graph/*`, OpenAPI runtime et portail FR/EN.
+- Garanties : lecture seule RSOT, isolation tenant, authentification `rsot.read`, parcours borné, cycles maîtrisés, historique `as_of`, résultats déterministes et audit.
+- Tests : domaine, service, CLI, HTTP, portail, sécurité, OpenAPI et non-régression.
+- Base de données : aucune migration ; réutilisation des objets et relations RSOT historisés.
+- CDC/roadmap : EPIC-1501 était déjà planifié ; les documents sont néanmoins réémis en v0.29.86 pour la recommandation responsive distincte portée par `REQ-00811`, `REQ-00825` et `EPIC-0805`.
+
 ## v0.29.85 — Traçabilité nomenclature DCIM et i18n web
 
 - `REQ-00820` → `TST-WEB-119` → `TST-P14-DCIM-GENERATED-BUILDING-FLOORS` → migration `0040_dcim_floor_nomenclature.sql`.
@@ -8,7 +26,7 @@
 
 ## v0.29.84 — Traçabilité correctif CI DCIM et GitHub Actions
 
-- Incident CI historique : le smoke modèle physique utilisait `F01` après une ancienne normalisation concaténée, remplacée en v0.29.85 par les codes locaux `L-01`, `L00`, `L01`.
+- Incident CI historique : le smoke modèle physique utilisait `F01` après une ancienne normalisation concaténée, remplacée en v0.29.86 par les codes locaux `L-01`, `L00`, `L01`.
 - Correction : extraction du champ `floor` dans la sortie JSON de `define-room`, puis réutilisation dans les commandes DCIM suivantes.
 - Correction similaire : smoke câblage/énergie aligné sur le même contrat canonique.
 - CI : `actions/checkout@v6`, `actions/setup-python@v6`, `actions/setup-node@v6`, dependency review et CodeQL déjà compatibles Node.js 24.

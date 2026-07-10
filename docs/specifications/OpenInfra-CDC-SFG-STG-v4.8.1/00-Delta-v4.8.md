@@ -193,3 +193,10 @@ OpenInfra ajoute `REQ-00805` et `TST-WEB-106` pour regrouper les opérations du 
 - Ajout de `REQ-00824` et `TST-WEB-123` : tous les composants web supportent le français et l'anglais, avec détection automatique via `navigator.languages` puis `navigator.language`, et fallback obligatoire sur l'anglais.
 - Le sélecteur de langue persiste le choix opérateur ; les identifiants métier et valeurs API restent invariants.
 - Le frontend React et le portail packagé utilisent un moteur i18n strictement identique et livré hors ligne.
+
+## v0.29.86 — Navigation responsive adaptative et header compact
+
+- `REQ-00811` est réalignée sur trois modes sans perte d'opération : sidebar persistante à partir de 1200 px, mégamenu contextuel multicolonne entre 768 px et 1199,98 px, puis menu compact unique sous 768 px.
+- `REQ-00825` compacte de 25 % la seconde barre du header, aligne recherche, FR/EN, Swagger et ReDoc sur un gabarit commun, conserve des cibles tactiles de 44 px et une ombre de header supérieure à celle des blocs.
+- `TST-WEB-124` et `TST-WEB-125` valident la parité React/runtime, le clavier, le tactile, les breakpoints et le build frontend.
+

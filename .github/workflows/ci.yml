@@ -96,6 +96,21 @@ jobs:
             tests/integration/test_postgresql_migration_policy.py \
             tests/integration/test_installer_alignment.py
 
+      - name: Dependency graph and impact regression
+        run: |
+          python -m pytest -q --no-cov \
+            tests/unit/test_dependency_domain.py \
+            tests/integration/test_dependency_graph_services.py \
+            tests/integration/test_dependency_graph_interfaces.py \
+            tests/integration/test_http_api.py \
+            tests/integration/test_openinfra_web.py
+
+      - name: Responsive navigation and compact header regression
+        run: |
+          python -m pytest -q --no-cov \
+            tests/integration/test_responsive_navigation_contract.py \
+            tests/integration/test_openinfra_web.py
+
       - name: Unit and integration tests with coverage
         run: python -m pytest
 
@@ -113,6 +128,13 @@ jobs:
 
       - name: Verify artifact
         run: python scripts/verify_artifact.py dist/*.whl
+
+      - name: Smoke installed wheel layout
+        run: |
+          set -euo pipefail
+          target="$(mktemp -d)/site-packages"
+          python -m pip install --no-deps --target "$target" dist/*.whl
+          PYTHONPATH="$target" python scripts/smoke_installed_wheel.py
 
       - name: Smoke CLI version
         run: openinfra version

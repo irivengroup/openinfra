@@ -19,8 +19,12 @@ class WheelVerifier:
             "openinfra/__init__.py",
             "openinfra/domain/dcim.py",
             "openinfra/domain/ipam.py",
+            "openinfra/application/dependency_graph_services.py",
             "openinfra/interfaces/cli.py",
             "openinfra/interfaces/rendering/static/assets/openinfra-i18n.js",
+            "openinfra/interfaces/rendering/static/assets/openinfra-web.js",
+            "openinfra/interfaces/rendering/static/assets/openinfra-web.css",
+            "openinfra/api/openapi.yaml",
             "openinfra/migrations/postgresql/0040_dcim_floor_nomenclature.sql",
         )
         missing = [

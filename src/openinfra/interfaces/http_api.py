@@ -73,6 +73,11 @@ from openinfra.application.dcim_services import (
     UpdateRackCommand,
     VerifyEquipmentScanCommand,
 )
+from openinfra.application.dependency_graph_services import (
+    AnalyzeDependencyImpactCommand,
+    FindDependencyPathCommand,
+    TraverseDependencyGraphCommand,
+)
 from openinfra.application.discovery_services import (
     AuthorizeDiscoveryJobCommand,
     BuildEnterpriseAgentBootstrapPlanCommand,
@@ -293,6 +298,7 @@ class OpenApiDocumentProvider:
         candidates.extend(
             (
                 Path.cwd() / "docs/api/openapi.yaml",
+                Path(__file__).resolve().parents[1] / "api/openapi.yaml",
                 Path(__file__).resolve().parents[3] / "docs/api/openapi.yaml",
             )
         )
@@ -1113,6 +1119,71 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     )
                 )
                 responder.send(HTTPStatus.OK, chunk_download.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/graph/traverse":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.dependency_graph_service.traverse(
+                    TraverseDependencyGraphCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        root_key=self._first_query_value(query, "root_key"),
+                        direction=self._first_query_value(query, "direction", "both"),
+                        max_depth=int(self._first_query_value(query, "max_depth", "3")),
+                        max_nodes=int(self._first_query_value(query, "max_nodes", "500")),
+                        relation_types=tuple(query.get("relation_type", [])),
+                        as_of=query.get("as_of", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/graph/impact":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.dependency_graph_service.impact(
+                    AnalyzeDependencyImpactCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        root_key=self._first_query_value(query, "root_key"),
+                        direction=self._first_query_value(query, "direction", "incoming"),
+                        max_depth=int(self._first_query_value(query, "max_depth", "6")),
+                        max_nodes=int(self._first_query_value(query, "max_nodes", "1000")),
+                        relation_types=tuple(query.get("relation_type", [])),
+                        as_of=query.get("as_of", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/graph/path":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.dependency_graph_service.find_path(
+                    FindDependencyPathCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        source_key=self._first_query_value(query, "source_key"),
+                        target_key=self._first_query_value(query, "target_key"),
+                        direction=self._first_query_value(query, "direction", "outgoing"),
+                        max_depth=int(self._first_query_value(query, "max_depth", "8")),
+                        max_nodes=int(self._first_query_value(query, "max_nodes", "1000")),
+                        relation_types=tuple(query.get("relation_type", [])),
+                        as_of=query.get("as_of", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (ValueError, OpenInfraError) as exc:
@@ -5161,6 +5232,11 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "software_license": "/api/v1/itam/software-license",
                     "software_license_assignment": "/api/v1/itam/software-license/assignment",
                     "software_license_compliance": "/api/v1/itam/software-license/compliance",
+                },
+                "graph": {
+                    "traverse": "/api/v1/graph/traverse",
+                    "impact": "/api/v1/graph/impact",
+                    "path": "/api/v1/graph/path",
                 },
                 "rsot": {
                     "objects": "/api/v1/rsot/objects",

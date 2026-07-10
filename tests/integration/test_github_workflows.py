@@ -37,3 +37,20 @@ class TestGitHubWorkflows:
             assert 'floor_code="$(python -c' in section
             assert '--floor "$floor_code"' in section
             assert "--floor F01" not in section
+
+    def test_built_wheel_is_installed_and_smoked_from_target_directory(self) -> None:
+        workflow = (PROJECT_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+
+        assert "- name: Smoke installed wheel layout" in workflow
+        assert "python -m pip install --no-deps --target" in workflow
+        assert 'PYTHONPATH="$target" python scripts/smoke_installed_wheel.py' in workflow
+        smoke = (PROJECT_ROOT / "scripts/smoke_installed_wheel.py").read_text(encoding="utf-8")
+        assert "OpenApiDocumentProvider().read_yaml()" in smoke
+        assert "EXPECTED_MIGRATION_COUNT = 40" in smoke
+        assert 'EXPECTED_LAST_MIGRATION = "0040_dcim_floor_nomenclature.sql"' in smoke
+        for route in (
+            "/api/v1/graph/traverse",
+            "/api/v1/graph/impact",
+            "/api/v1/graph/path",
+        ):
+            assert route in smoke

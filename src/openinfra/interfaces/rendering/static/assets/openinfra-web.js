@@ -855,6 +855,33 @@ const OPENINFRA_MODULES = [
       { name: "apply", label: "Appliquer le plan", type: "boolean" }
     ] }
   ] },
+  { id: "graph", label: "Graphe de dépendances", shortLabel: "Graphe", icon: "activity", description: "Parcours tenant-aware des relations RSOT, recherche de chemins et analyse d’impact bornée.", operations: [
+    { id: "graph-traverse", label: "Explorer le graphe de dépendances", method: "GET", path: "/v1/graph/traverse", query: [
+      { name: "root_key", label: "Clé racine", required: true, placeholder: "application/portail" },
+      { name: "direction", label: "Direction", type: "select", options: ["outgoing", "incoming", "both"], defaultValue: "both" },
+      { name: "max_depth", label: "Profondeur maximale", type: "number", defaultValue: "3", placeholder: "3" },
+      { name: "max_nodes", label: "Nombre maximal de nœuds", type: "number", defaultValue: "500", placeholder: "500" },
+      { name: "relation_type", label: "Type de relation", placeholder: "depends_on" },
+      { ...FIELD_SETS.asOf, required: false }
+    ] },
+    { id: "graph-impact", label: "Analyser les impacts", method: "GET", path: "/v1/graph/impact", query: [
+      { name: "root_key", label: "Clé racine", required: true, placeholder: "server/db-01" },
+      { name: "direction", label: "Direction", type: "select", options: ["incoming", "outgoing", "both"], defaultValue: "incoming" },
+      { name: "max_depth", label: "Profondeur maximale", type: "number", defaultValue: "6", placeholder: "6" },
+      { name: "max_nodes", label: "Nombre maximal de nœuds", type: "number", defaultValue: "1000", placeholder: "1000" },
+      { name: "relation_type", label: "Type de relation", placeholder: "depends_on" },
+      { ...FIELD_SETS.asOf, required: false }
+    ] },
+    { id: "graph-path", label: "Trouver le chemin le plus court", method: "GET", path: "/v1/graph/path", query: [
+      { name: "source_key", label: "Ressource source", required: true, placeholder: "application/portail" },
+      { name: "target_key", label: "Ressource cible", required: true, placeholder: "server/db-01" },
+      { name: "direction", label: "Direction", type: "select", options: ["outgoing", "incoming", "both"], defaultValue: "outgoing" },
+      { name: "max_depth", label: "Profondeur maximale", type: "number", defaultValue: "8", placeholder: "8" },
+      { name: "max_nodes", label: "Nombre maximal de nœuds", type: "number", defaultValue: "1000", placeholder: "1000" },
+      { name: "relation_type", label: "Type de relation", placeholder: "depends_on" },
+      { ...FIELD_SETS.asOf, required: false }
+    ] }
+  ] },
   { id: "ipam", label: "IPAM", icon: "grid", description: "IPv4/IPv6, VRF, préfixes, plages, VLAN/VXLAN, ASN/BGP, DNS/DHCP, DDI, conflits, capacité et allocations.", operations: [
     { id: "ipam-dashboard", label: "Dashboard IPAM", method: "GET", path: "/v1/ipam/ui-dashboard", query: [{ name: "vrf", label: "VRF", placeholder: "global" }] },
     { id: "ipam-search", label: "Rechercher dans l’IPAM", method: "GET", path: "/v1/ipam/ui-search", query: [{ name: "query", label: "Recherche", required: true, placeholder: "10.20.0.0/24 ou srv-db" }, { name: "vrf", label: "VRF", placeholder: "global" }] },
@@ -1033,6 +1060,10 @@ const OPENINFRA_SIDEBAR_CONTEXTS = {
     { label: "Relations & historique", operationIds: ["rsot-relations", "rsot-as-of", "rsot-object-audit"] },
     { label: "Qualité & gouvernance", operationIds: ["rsot-quality-object", "rsot-quality-summary", "rsot-governance", "rsot-reconcile"] }
   ],
+  graph: [
+    { label: "Exploration", operationIds: ["graph-traverse", "graph-path"] },
+    { label: "Analyse d’impact", operationIds: ["graph-impact"] }
+  ],
   ipam: [
     { label: "Vue & recherche", operationIds: ["ipam-dashboard", "ipam-search"] },
     { label: "Adressage IP", operationIds: ["ipam-define-vrf", "ipam-define-aggregate", "ipam-define-prefix", "ipam-list-prefixes", "ipam-define-range", "ipam-register-address", "ipam-allocate", "ipam-reservation-wizard", "ipam-capacity"] },
@@ -1109,9 +1140,26 @@ class OpenInfraDashboard {
       globalSearchBackend: null,
       globalSearchLoading: false,
       globalSearchError: null,
-      mobileSidebarOpen: false
+      mobileSidebarOpen: false,
+      megaMenuModuleId: null
     };
-    this.handleResize = () => this.syncFixedHeaderOffset();
+    this.handleResize = () => {
+      this.syncFixedHeaderOffset();
+      if (!this.isMegamenuViewport() && this.state.megaMenuModuleId !== null) {
+        this.state = { ...this.state, megaMenuModuleId: null };
+        this.render();
+      }
+      if (!this.isCompactViewport() && this.state.mobileSidebarOpen) {
+        this.state = { ...this.state, mobileSidebarOpen: false };
+        this.render();
+      }
+    };
+    this.handleDocumentKeydown = (event) => {
+      if (event.key === "Escape" && (this.state.mobileSidebarOpen || this.state.megaMenuModuleId)) {
+        event.preventDefault();
+        this.closeResponsiveNavigation();
+      }
+    };
   }
 
 
@@ -1133,6 +1181,7 @@ class OpenInfraDashboard {
 
   async start() {
     window.addEventListener("resize", this.handleResize);
+    document.addEventListener("keydown", this.handleDocumentKeydown);
     await this.refreshRuntime();
     this.render();
   }
@@ -1370,6 +1419,40 @@ class OpenInfraDashboard {
     }
   }
 
+  isMegamenuViewport() {
+    return typeof window !== "undefined"
+      && window.matchMedia("(min-width: 768px) and (max-width: 1199.98px)").matches;
+  }
+
+  isCompactViewport() {
+    return typeof window !== "undefined"
+      && window.matchMedia("(max-width: 767.98px)").matches;
+  }
+
+  closeResponsiveNavigation() {
+    this.state = { ...this.state, mobileSidebarOpen: false, megaMenuModuleId: null };
+    this.render();
+  }
+
+  handleModuleNavigation(moduleId) {
+    const module = OPENINFRA_MODULES.find((item) => item.id === moduleId);
+    if (!module) {
+      return;
+    }
+    if (module.id === "overview" || !this.isMegamenuViewport()) {
+      this.selectModule(moduleId);
+      return;
+    }
+    const nextModuleId = this.state.megaMenuModuleId === module.id ? null : module.id;
+    this.state = {
+      ...this.state,
+      activeNavigationModuleId: module.id,
+      megaMenuModuleId: nextModuleId,
+      mobileSidebarOpen: false
+    };
+    this.render();
+  }
+
   visibleOperations(module) {
     return module.operations;
   }
@@ -1410,9 +1493,9 @@ class OpenInfraDashboard {
     }
   }
 
-  renderSidebarOperationGroup(module, group) {
+  renderSidebarOperationGroup(module, group, surface = "sidebar") {
     const contextKey = this.sidebarContextKey(module.id, group.label);
-    const contextId = `openinfra-context-${module.id}-${this.slugify(group.label)}`;
+    const contextId = `openinfra-${surface}-context-${module.id}-${this.slugify(group.label)}`;
     const opened = this.state.openedContexts.has(contextKey);
     return `<section class="openinfra-sidebar-context ${opened ? "open" : ""}" role="group" aria-label="${this.escape(group.label)}">
       <button type="button" class="openinfra-sidebar-context-title ${opened && this.state.activeNavigationModuleId === module.id ? "active" : ""}" data-context-module-id="${this.escape(module.id)}" data-context-label="${this.escape(group.label)}" aria-expanded="${opened ? "true" : "false"}" aria-controls="${this.escape(contextId)}">${this.escape(group.label)}</button>
@@ -1422,6 +1505,55 @@ class OpenInfraDashboard {
         </div>
       </div>
     </section>`;
+  }
+
+  renderMegaMenu() {
+    const module = OPENINFRA_MODULES.find((item) => item.id === this.state.megaMenuModuleId);
+    if (!module || module.id === "overview") {
+      return "";
+    }
+    const groups = this.sidebarOperationGroups(module, this.visibleOperations(module));
+    return `<section id="openinfra-mega-menu" class="openinfra-mega-menu" aria-label="${this.escape(module.shortLabel || module.label)}">
+      <div class="openinfra-mega-menu-header">
+        <div>${this.icon(module.icon, "openinfra-mega-menu-icon", 22, 22)}<strong>${this.escape(module.label)}</strong></div>
+        <button type="button" id="openinfra-mega-menu-close" class="openinfra-navigation-close" aria-label="${this.escape(this.i18n.t("closeNavigation"))}">×</button>
+      </div>
+      <div class="openinfra-mega-menu-grid">
+        ${groups.map((group) => `<section class="openinfra-mega-menu-group" role="group" aria-label="${this.escape(group.label)}">
+          <h2>${this.escape(group.label)}</h2>
+          <div>${group.operations.map((operation) => `<button type="button" class="openinfra-sidebar-operation ${this.state.selected.id === operation.id ? "active" : ""}" data-operation-id="${this.escape(operation.id)}" aria-current="${this.state.selected.id === operation.id ? "page" : "false"}">${this.escape(operation.label)}</button>`).join("")}</div>
+        </section>`).join("")}
+      </div>
+    </section>`;
+  }
+
+  renderCompactNavigation() {
+    if (!this.state.mobileSidebarOpen) {
+      return "";
+    }
+    return `<nav id="openinfra-compact-navigation" class="openinfra-compact-navigation" aria-label="${this.escape(this.i18n.t("navigation"))}">
+      <div class="openinfra-compact-navigation-header">
+        <strong>${this.escape(this.i18n.t("navigation"))}</strong>
+        <button type="button" id="openinfra-compact-navigation-close" class="openinfra-navigation-close" aria-label="${this.escape(this.i18n.t("closeNavigation"))}">×</button>
+      </div>
+      <div class="openinfra-compact-navigation-body">
+        <div class="openinfra-sidebar-heading">${this.escape(this.i18n.t("control"))}</div>
+        ${this.renderSidebar("compact")}
+        <div class="openinfra-sidebar-heading">${this.escape(this.i18n.t("runtimeStatus"))}</div>
+        ${this.renderRuntimeStatus()}
+      </div>
+    </nav>`;
+  }
+
+  renderRuntimeStatus() {
+    const displayedVersion = this.state.version?.version || this.state.config?.version || this.i18n.t("unavailable");
+    const protectedForms = this.state.status?.protectedForms === "enabled" ? this.i18n.t("active") : this.i18n.t("configure");
+    return `<div class="px-2 small text-muted openinfra-runtime-status">
+      <p><span class="openinfra-status-dot ${this.state.ready?.ready === true ? "ready" : "warning"}"></span>${this.escape(this.state.ready?.ready === true ? this.i18n.t("backendReady") : this.i18n.t("backendCheck"))}</p>
+      <p>${this.escape(this.i18n.t("version"))} : <strong>${this.escape(displayedVersion)}</strong></p>
+      <p>Trust web/backend : <strong>${this.escape(this.state.config?.webBackendTrust || "server-side")}</strong></p>
+      <p>${this.escape(this.i18n.t("protectedForms"))} : <strong>${this.escape(protectedForms)}</strong></p>
+    </div>`;
   }
 
   componentModules() {
@@ -1494,16 +1626,18 @@ class OpenInfraDashboard {
           </div>
           <div id="openinfra-global-search-results" class="openinfra-global-search-results" role="listbox" aria-label="${this.escape(this.i18n.t("globalSearchResults"))}" aria-live="polite" ${hasQuery ? "" : "hidden"}>${this.renderGlobalSearchResults()}</div>
         </form>
-        <div class="openinfra-language-control">
-          <label for="openinfra-language" class="visually-hidden">${this.i18n.t("language")}</label>
-          <select id="openinfra-language" class="form-select form-select-sm" aria-label="${this.escape(this.i18n.t("language"))}">
-            <option value="en" ${this.i18n.language === "en" ? "selected" : ""}>EN</option>
-            <option value="fr" ${this.i18n.language === "fr" ? "selected" : ""}>FR</option>
-          </select>
-        </div>
-        <div class="text-end openinfra-api-doc-actions">
-          <a class="btn btn-light text-dark me-2" href="${this.escape(docs.swaggerUrl)}" target="_blank" rel="noopener noreferrer" aria-label="${this.escape(this.i18n.t("openSwagger"))}">Swagger</a>
-          <a class="btn btn-primary" href="${this.escape(docs.redocUrl)}" target="_blank" rel="noopener noreferrer" aria-label="${this.escape(this.i18n.t("openRedoc"))}">ReDoc</a>
+        <div class="openinfra-toolbar-actions">
+          <div class="openinfra-language-control">
+            <label for="openinfra-language" class="visually-hidden">${this.i18n.t("language")}</label>
+            <select id="openinfra-language" class="form-select form-select-sm" aria-label="${this.escape(this.i18n.t("language"))}">
+              <option value="en" ${this.i18n.language === "en" ? "selected" : ""}>EN</option>
+              <option value="fr" ${this.i18n.language === "fr" ? "selected" : ""}>FR</option>
+            </select>
+          </div>
+          <div class="text-end openinfra-api-doc-actions">
+            <a class="btn btn-light text-dark" href="${this.escape(docs.swaggerUrl)}" target="_blank" rel="noopener noreferrer" aria-label="${this.escape(this.i18n.t("openSwagger"))}">Swagger</a>
+            <a class="btn btn-primary" href="${this.escape(docs.redocUrl)}" target="_blank" rel="noopener noreferrer" aria-label="${this.escape(this.i18n.t("openRedoc"))}">ReDoc</a>
+          </div>
         </div>
       </div>
     </div>`;
@@ -1575,42 +1709,37 @@ class OpenInfraDashboard {
       <header class="openinfra-header-stack">
         <div class="px-3 py-2 bg-dark text-white openinfra-top-header">
           <div class="container-fluid">
-            <div class="d-flex flex-wrap align-items-center justify-content-center justify-content-lg-start">
-              <a href="/" class="d-flex align-items-center my-2 my-lg-0 me-lg-auto text-white text-decoration-none" aria-label="${this.escape(this.i18n.t("home"))}">
-                <span class="openinfra-brand-mark me-2">OI</span><span class="fs-5 fw-semibold">OpenInfra</span><span class="badge openinfra-edition-badge ms-3">${this.escape(config?.edition || "runtime")}</span>
+            <div class="d-flex align-items-center openinfra-top-header-inner">
+              <a href="/" class="d-flex align-items-center openinfra-brand-link text-white text-decoration-none" aria-label="${this.escape(this.i18n.t("home"))}">
+                <span class="openinfra-brand-mark me-2">OI</span><span class="fs-5 fw-semibold openinfra-brand-name">OpenInfra</span><span class="badge openinfra-edition-badge ms-3">${this.escape(config?.edition || "runtime")}</span>
               </a>
-              <ul class="nav col-12 col-lg-auto my-2 justify-content-center my-md-0 text-small">
+              <ul class="nav justify-content-center text-small openinfra-component-nav" aria-label="${this.escape(this.i18n.t("navigation"))}">
                 ${OPENINFRA_MODULES.map((module) => `
-                  <li><button type="button" class="nav-link border-0 bg-transparent ${activeNavigationModuleId === module.id ? "text-secondary" : "text-white"}" data-module-id="${this.escape(module.id)}" aria-current="${activeNavigationModuleId === module.id ? "page" : "false"}">
-                    ${this.icon(module.icon, "bi d-block mx-auto mb-1 openinfra-top-icon", 24, 24)}${this.escape(module.shortLabel || module.label)}
+                  <li><button type="button" class="nav-link border-0 bg-transparent ${activeNavigationModuleId === module.id ? "text-secondary" : "text-white"}" data-module-id="${this.escape(module.id)}" aria-current="${activeNavigationModuleId === module.id ? "page" : "false"}" ${module.id === "overview" ? "" : `aria-haspopup="true" aria-expanded="${this.state.megaMenuModuleId === module.id ? "true" : "false"}" aria-controls="openinfra-mega-menu"`}>
+                    ${this.icon(module.icon, "bi d-block mx-auto mb-1 openinfra-top-icon", 24, 24)}<span>${this.escape(module.shortLabel || module.label)}</span>
                   </button></li>
                 `).join("")}
               </ul>
+              <button type="button" id="openinfra-compact-menu-button" class="btn btn-primary openinfra-compact-menu-button" aria-label="${this.escape(this.i18n.t(this.state.mobileSidebarOpen ? "closeNavigation" : "openNavigation"))}" aria-expanded="${this.state.mobileSidebarOpen ? "true" : "false"}" aria-controls="openinfra-compact-navigation">
+                ${this.icon("menu", "openinfra-mobile-menu-icon", 20, 20)}<span class="visually-hidden">Menu</span>
+              </button>
             </div>
           </div>
         </div>
         ${this.renderGlobalSearchToolbar()}
+        ${this.renderMegaMenu()}
+        ${this.renderCompactNavigation()}
       </header>
+      ${this.state.mobileSidebarOpen || this.state.megaMenuModuleId ? `<button type="button" class="openinfra-navigation-backdrop" id="openinfra-navigation-backdrop" aria-label="${this.escape(this.i18n.t("closeNavigation"))}"></button>` : ""}
       <div class="container-fluid">
-        <div class="openinfra-mobile-menu-bar">
-          <button type="button" id="openinfra-mobile-menu-button" class="btn btn-primary openinfra-mobile-menu-button" aria-label="${this.escape(this.i18n.t(this.state.mobileSidebarOpen ? "closeNavigation" : "openNavigation"))}" aria-expanded="${this.state.mobileSidebarOpen ? "true" : "false"}" aria-controls="openinfra-sidebar">
-            ${this.icon("menu", "openinfra-mobile-menu-icon", 20, 20)}<span class="visually-hidden">Menu</span>
-          </button>
-        </div>
-        ${this.state.mobileSidebarOpen ? `<button type="button" class="openinfra-mobile-sidebar-backdrop" id="openinfra-mobile-sidebar-backdrop" aria-label="${this.escape(this.i18n.t("closeNavigation"))}"></button>` : ""}
         <div class="row">
-          <nav id="openinfra-sidebar" class="col-lg-3 col-xl-2 openinfra-sidebar ${this.state.mobileSidebarOpen ? "mobile-open" : ""}" aria-label="${this.escape(this.i18n.t("navigation"))}">
+          <nav id="openinfra-sidebar" class="col-xl-2 openinfra-sidebar" aria-label="${this.escape(this.i18n.t("navigation"))}">
             <div class="openinfra-sidebar-heading">${this.escape(this.i18n.t("control"))}</div>
             ${this.renderSidebar()}
             <div class="openinfra-sidebar-heading">${this.escape(this.i18n.t("runtimeStatus"))}</div>
-            <div class="px-2 small text-muted openinfra-runtime-status">
-              <p><span class="openinfra-status-dot ${ready?.ready === true ? "ready" : "warning"}"></span>${this.escape(ready?.ready === true ? this.i18n.t("backendReady") : this.i18n.t("backendCheck"))}</p>
-              <p>${this.escape(this.i18n.t("version"))} : <strong>${this.escape(displayedVersion)}</strong></p>
-              <p>Trust web/backend : <strong>${this.escape(config?.webBackendTrust || "server-side")}</strong></p>
-              <p>${this.escape(this.i18n.t("protectedForms"))} : <strong>${this.escape(protectedForms)}</strong></p>
-            </div>
+            ${this.renderRuntimeStatus()}
           </nav>
-          <main id="openinfra-main-content" class="col-lg-9 col-xl-10 ms-sm-auto openinfra-main" tabindex="-1">
+          <main id="openinfra-main-content" class="col-xl-10 ms-sm-auto openinfra-main" tabindex="-1">
             <div class="pb-2 mb-3 openinfra-titlebar">
               <h1 class="h2">${this.escape(pageTitle)}</h1><p class="text-muted mb-0">${this.escape(pageSubtitle)}</p>
             </div>
@@ -1719,7 +1848,7 @@ class OpenInfraDashboard {
     </article>`;
   }
 
-  renderSidebar() {
+  renderSidebar(surface = "sidebar") {
     return OPENINFRA_MODULES.map((module) => {
       if (module.id === "overview") {
         return `<button type="button" class="nav-link openinfra-sidebar-dashboard w-100 text-start ${this.state.activeNavigationModuleId === module.id ? "active" : ""}" data-operation-id="${this.escape(module.operations[0].id)}" aria-current="${this.state.activeNavigationModuleId === module.id ? "page" : "false"}">${this.icon(module.icon)}Dashboard</button>`;
@@ -1730,12 +1859,12 @@ class OpenInfraDashboard {
         return "";
       }
       return `<section class="openinfra-accordion ${opened ? "open" : ""}">
-        <button type="button" id="openinfra-accordion-${this.escape(module.id)}" class="openinfra-accordion-toggle ${this.state.activeNavigationModuleId === module.id ? "active" : ""}" data-accordion-id="${this.escape(module.id)}" aria-expanded="${opened ? "true" : "false"}" aria-controls="openinfra-panel-${this.escape(module.id)}" aria-current="${this.state.activeNavigationModuleId === module.id ? "page" : "false"}">
+        <button type="button" id="openinfra-${surface}-accordion-${this.escape(module.id)}" class="openinfra-accordion-toggle ${this.state.activeNavigationModuleId === module.id ? "active" : ""}" data-accordion-id="${this.escape(module.id)}" aria-expanded="${opened ? "true" : "false"}" aria-controls="openinfra-${surface}-panel-${this.escape(module.id)}" aria-current="${this.state.activeNavigationModuleId === module.id ? "page" : "false"}">
           <span>${this.icon(module.icon)}${this.escape(module.shortLabel || module.label)}</span><span class="openinfra-chevron">›</span>
         </button>
-        <div id="openinfra-panel-${this.escape(module.id)}" class="openinfra-accordion-panel fade ${opened ? "show" : ""}" role="region" aria-labelledby="openinfra-accordion-${this.escape(module.id)}">
+        <div id="openinfra-${surface}-panel-${this.escape(module.id)}" class="openinfra-accordion-panel fade ${opened ? "show" : ""}" role="region" aria-labelledby="openinfra-${surface}-accordion-${this.escape(module.id)}">
           <div class="openinfra-accordion-panel-inner">
-            ${this.sidebarOperationGroups(module, visibleOperations).map((group) => this.renderSidebarOperationGroup(module, group)).join("")}
+            ${this.sidebarOperationGroups(module, visibleOperations).map((group) => this.renderSidebarOperationGroup(module, group, surface)).join("")}
           </div>
         </div>
       </section>`;
@@ -2070,16 +2199,15 @@ class OpenInfraDashboard {
     });
     this.bindSearchResultButtons();
     this.bindDependentSelects();
-    document.getElementById("openinfra-mobile-menu-button")?.addEventListener("click", () => {
-      this.state = { ...this.state, mobileSidebarOpen: !this.state.mobileSidebarOpen };
+    document.getElementById("openinfra-compact-menu-button")?.addEventListener("click", () => {
+      this.state = { ...this.state, mobileSidebarOpen: !this.state.mobileSidebarOpen, megaMenuModuleId: null };
       this.render();
     });
-    document.getElementById("openinfra-mobile-sidebar-backdrop")?.addEventListener("click", () => {
-      this.state = { ...this.state, mobileSidebarOpen: false };
-      this.render();
-    });
+    document.getElementById("openinfra-navigation-backdrop")?.addEventListener("click", () => this.closeResponsiveNavigation());
+    document.getElementById("openinfra-mega-menu-close")?.addEventListener("click", () => this.closeResponsiveNavigation());
+    document.getElementById("openinfra-compact-navigation-close")?.addEventListener("click", () => this.closeResponsiveNavigation());
     for (const button of document.querySelectorAll("[data-module-id]")) {
-      button.addEventListener("click", () => this.selectModule(button.dataset.moduleId));
+      button.addEventListener("click", () => this.handleModuleNavigation(button.dataset.moduleId));
     }
     for (const button of document.querySelectorAll("[data-accordion-id]")) {
       button.addEventListener("click", () => this.toggleAccordion(button.dataset.accordionId));
@@ -2153,10 +2281,6 @@ class OpenInfraDashboard {
     }
   }
 
-  shouldCloseMobileSidebar() {
-    return typeof window !== "undefined" && window.matchMedia("(max-width: 575.98px)").matches;
-  }
-
   toggleAccordion(moduleId) {
     const module = OPENINFRA_MODULES.find((item) => item.id === moduleId);
     if (!module) {
@@ -2210,7 +2334,7 @@ class OpenInfraDashboard {
         openedContexts.add(this.sidebarContextKey(module.id, defaultContext.label));
       }
     }
-    this.state = { ...this.state, activeModuleId: module.id, activeNavigationModuleId: module.id, selected: module.operations[0], openedModules, openedContexts, result: null, error: null, mobileSidebarOpen: this.shouldCloseMobileSidebar() ? false : this.state.mobileSidebarOpen };
+    this.state = { ...this.state, activeModuleId: module.id, activeNavigationModuleId: module.id, selected: module.operations[0], openedModules, openedContexts, result: null, error: null, mobileSidebarOpen: false, megaMenuModuleId: null };
     this.render();
   }
 
@@ -2258,7 +2382,7 @@ class OpenInfraDashboard {
           result: null,
           error: null,
           globalSearchQuery: "",
-          mobileSidebarOpen: this.shouldCloseMobileSidebar() ? false : this.state.mobileSidebarOpen
+          mobileSidebarOpen: false, megaMenuModuleId: null
         };
         this.pendingMainFocus = true;
         this.render();
@@ -2284,7 +2408,7 @@ class OpenInfraDashboard {
             openedContexts.add(this.sidebarContextKey(module.id, context.label));
           }
         }
-        this.state = { ...this.state, activeModuleId: module.id, activeNavigationModuleId: module.id, selected: operation, openedModules, openedContexts, result: null, error: null, mobileSidebarOpen: this.shouldCloseMobileSidebar() ? false : this.state.mobileSidebarOpen };
+        this.state = { ...this.state, activeModuleId: module.id, activeNavigationModuleId: module.id, selected: operation, openedModules, openedContexts, result: null, error: null, mobileSidebarOpen: false, megaMenuModuleId: null };
         this.render();
         return;
       }

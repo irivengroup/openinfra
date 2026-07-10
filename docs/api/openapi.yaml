@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.85
+  version: 0.29.86
 components:
   securitySchemes:
     bearerToken:
@@ -1989,6 +1989,65 @@ paths:
           description: Validation error
         '401':
           description: Missing or invalid Bearer token when authentication is enabled
+
+  /api/v1/graph/traverse:
+    get:
+      operationId: traverseDependencyGraph
+      summary: Traverse the tenant RSOT dependency graph
+      description: Performs a breadth-first, cycle-safe and bounded traversal over time-aware RSOT relations without duplicating the source of truth.
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: root_key, in: query, required: true, schema: {type: string}}
+        - {name: direction, in: query, required: false, schema: {type: string, enum: [outgoing, incoming, both], default: both}}
+        - {name: max_depth, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 12, default: 3}}
+        - {name: max_nodes, in: query, required: false, schema: {type: integer, minimum: 2, maximum: 5000, default: 500}}
+        - {name: relation_type, in: query, required: false, schema: {type: array, items: {type: string}}, style: form, explode: true}
+        - {name: as_of, in: query, required: false, schema: {type: string, format: date-time}}
+      responses:
+        '200': {description: Bounded dependency graph projection}
+        '400': {description: Invalid graph constraints or query}
+        '401': {description: Missing or invalid Bearer token}
+  /api/v1/graph/impact:
+    get:
+      operationId: analyzeDependencyImpact
+      summary: Analyze direct and indirect dependency impact
+      description: Summarizes impacted RSOT objects by distance, kind and resource category. Incoming traversal is the default for dependent-object impact analysis.
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: root_key, in: query, required: true, schema: {type: string}}
+        - {name: direction, in: query, required: false, schema: {type: string, enum: [outgoing, incoming, both], default: incoming}}
+        - {name: max_depth, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 12, default: 6}}
+        - {name: max_nodes, in: query, required: false, schema: {type: integer, minimum: 2, maximum: 5000, default: 1000}}
+        - {name: relation_type, in: query, required: false, schema: {type: array, items: {type: string}}, style: form, explode: true}
+        - {name: as_of, in: query, required: false, schema: {type: string, format: date-time}}
+      responses:
+        '200': {description: Impact summary and impacted graph projection}
+        '400': {description: Invalid graph constraints or query}
+        '401': {description: Missing or invalid Bearer token}
+  /api/v1/graph/path:
+    get:
+      operationId: findDependencyPath
+      summary: Find the shortest dependency path
+      description: Uses bounded breadth-first search to return the shortest path between two RSOT objects according to direction, relation filters and reference time.
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: source_key, in: query, required: true, schema: {type: string}}
+        - {name: target_key, in: query, required: true, schema: {type: string}}
+        - {name: direction, in: query, required: false, schema: {type: string, enum: [outgoing, incoming, both], default: outgoing}}
+        - {name: max_depth, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 12, default: 8}}
+        - {name: max_nodes, in: query, required: false, schema: {type: integer, minimum: 2, maximum: 5000, default: 1000}}
+        - {name: relation_type, in: query, required: false, schema: {type: array, items: {type: string}}, style: form, explode: true}
+        - {name: as_of, in: query, required: false, schema: {type: string, format: date-time}}
+      responses:
+        '200': {description: Shortest path result, including found=false when no path exists}
+        '400': {description: Invalid graph constraints or query}
+        '401': {description: Missing or invalid Bearer token}
 
   /api/v1/rsot/resource-taxonomy:
     get:

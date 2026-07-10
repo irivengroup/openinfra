@@ -1,133 +1,127 @@
-# OpenInfra v0.29.85 — Rapport de validation
+# OpenInfra v0.29.86 — Rapport de validation
 
 Date de validation : `2026-07-10`  
-Release : `0.29.85`  
-Périmètre : `Nomenclature locale des étages DCIM et internationalisation web FR/EN`
+Release : `0.29.86`  
+Périmètre : `P15 / EPIC-1501 — Graphe de dépendances RSOT` et `P08 / EPIC-0805 — Navigation responsive adaptative et header compact`
 
 ## Résultat global
 
-La livraison abandonne la concaténation des codes site/bâtiment dans les étages, introduit une nomenclature locale stable et ajoute un moteur d’internationalisation commun aux deux portails web. Les identifiants métier et valeurs API restent indépendants de la langue.
+La livraison ajoute une projection de graphe en lecture du RSOT et refond la navigation web en trois modes exclusifs, sans supprimer ni dupliquer les opérations existantes.
 
-- Tests Python collectés : **615** dans **83 fichiers**.
-- Suite complète : **PASS** par lots, sans échec.
-- Tests unitaires : **227 PASS**.
-- Tests d’intégration : **385 PASS**.
+- Tests Python collectés : **634** dans **87 fichiers**.
+- Tests unitaires : **234 PASS**.
+- Tests d’intégration : **397 PASS**.
 - Tests d’architecture : **3 PASS**.
-- Couverture globale exacte : **98,013559 %** — `20 674 / 21 093` instructions couvertes.
+- Couverture globale exacte : **98,0338384308 %** — `21 091 / 21 514` lignes couvertes.
 - Seuil bloquant : **98 % PASS**.
-- Tests frontend Node.js : **8 PASS**.
+- Tests frontend Node.js : **12 PASS**.
 - Lint frontend : **PASS**.
 - Build frontend Vite : **PASS**.
 
-La suite instrumentée a été exécutée par lots avec accumulation dans un fichier de couverture unique. Certains groupes CLI/DCIM dépassaient le timeout lorsqu’ils contenaient trop de fichiers ; ils ont été subdivisés, sans modifier les tests ni la mesure consolidée.
+La suite Python a été exécutée par lots avec accumulation dans un fichier de couverture unique. Les fichiers CLI et certains groupes DCIM dépassaient le timeout lorsqu’ils étaient instrumentés ensemble ; ils ont été isolés sans exclusion de test ni altération du calcul final.
 
-## Nomenclature DCIM des étages
+## Graphe de dépendances RSOT
 
-- Code local au bâtiment, triable et indépendant des codes parents :
-  - sous-sol 1 : `L-01` ;
-  - rez-de-chaussée : `L00` ;
-  - étage 1 : `L01` ;
-  - étage 2 : `L02` ;
-  - niveaux supérieurs à 99 : largeur adaptée, par exemple `L100`.
-- Le site et le bâtiment restent portés par la hiérarchie du modèle et ne sont pas répétés dans le code d’étage.
-- Les noms générés stockés restent neutres et déterministes : `Basement n`, `Ground floor`, `Level n`.
-- Leur affichage est localisé dans l’interface web : `Sous-sol n`, `Rez-de-chaussée`, `Étage n` en français.
-- Les alias historiques `<site>_<bâtiment>_ETG<n>`, `F<n>` et `ETG<n>` restent acceptés en lecture pour préserver la compatibilité.
-- Les nouveaux enregistrements utilisent exclusivement la nomenclature canonique `L…`.
-- Les noms personnalisés existants sont préservés.
-- Les collisions de niveau et codes hors bornes sont refusés.
-- `define-room` repose sur l’indice de niveau ; les anciens hints de code/nom restent tolérés comme entrées dépréciées.
+- Projection en lecture des objets et relations RSOT historisés, sans seconde source de vérité.
+- Isolation stricte par tenant et permission `rsot.read`.
+- Parcours entrant, sortant ou bidirectionnel.
+- Parcours en largeur déterministe, borné en profondeur et nombre de nœuds.
+- Tolérance des cycles sans boucle infinie.
+- Filtres par type de relation et date de référence `as_of`.
+- Recherche du chemin le plus court.
+- Analyse d’impact direct et indirect avec agrégats par distance, type d’objet et catégorie de ressource.
+- Résultats tronqués explicitement lorsque les limites sont atteintes.
+- Audit des consultations.
+- Exposition alignée par service applicatif, CLI, API HTTP, OpenAPI et portail FR/EN.
+- Aucune migration PostgreSQL : réutilisation des tables RSOT et relations existantes.
 
-## Migration des données
+## Navigation web responsive
 
-- Migration JSON automatique : **PASS**.
-- Migration PostgreSQL : `0040_dcim_floor_nomenclature.sql`.
-- Mise à jour transactionnelle des références dans : étages, salles, zones de salle, racks et équipements.
-- Garde contre les collisions avant renommage : **PASS**.
-- Contrainte canonique sur les nouveaux codes : **PASS**.
-- Nombre total de migrations PostgreSQL ordonnées : **40**.
-- Dernière migration packagée et chargeable : `0040_dcim_floor_nomenclature.sql`.
+Trois modes non superposés sont appliqués selon la largeur utile :
 
-## Internationalisation web FR/EN
+1. **Écran large — `>= 1200 px`** : sidebar persistante et scrollable sous le header fixe.
+2. **Tablette et portable compact — `768 px` à `1199,98 px`** : sidebar masquée ; les dix icônes de composants restent alignées et ouvrent un mégamenu contextuel multicolonne reprenant tous les contextes et opérations.
+3. **Mobile — `< 768 px`** : barre de composants remplacée par un bouton de menu unique ouvrant la navigation complète.
 
-- Langues supportées : **anglais** et **français** uniquement.
-- Détection initiale : `navigator.languages`, puis `navigator.language`.
-- Réduction des locales régionales : `fr-FR` → `fr`, `en-GB` → `en`.
-- Toute langue non supportée utilise l’anglais comme fallback strict.
-- Sélecteur `EN/FR` disponible dans le header.
-- Choix utilisateur persisté dans `localStorage` sous `openinfra.language`.
-- Moteur i18n partagé et byte-identique entre le frontend React et le portail packagé Python.
-- Couverture des composants, menus, opérations, formulaires, validations, états, pays, continents, taxonomie des ressources et étages.
-- Les clés, codes, identifiants et valeurs API ne sont jamais traduits.
-- `Intl.DisplayNames` est utilisé pour les noms de pays lorsque disponible.
-- La commutation à chaud ne laisse pas de fragments mixtes français/anglais dans les rendus dynamiques couverts.
+Garanties validées :
 
-## Résolution des assets web
+- aucune opération de la sidebar n’est perdue dans le mégamenu ou le menu compact ;
+- Dashboard reste une navigation directe ;
+- fermeture par bouton, backdrop et touche `Échap` ;
+- identifiants DOM distincts entre surfaces ;
+- panneaux scrollables avec `overscroll-behavior` ;
+- support de `prefers-reduced-motion` ;
+- cibles interactives d’au moins **44 px** sur périphériques à pointeur grossier ;
+- parité exacte des styles React/runtime packagé ;
+- suppression de l’ancien mécanisme mobile `mobile-open` devenu redondant.
 
-Le build Vite génère `web/dist`, mais ce répertoire ne contient pas les assets contractuels du runtime packagé Python. La résolution statique applique désormais l’ordre suivant :
+## Header compact
 
-1. racine explicitement fournie par l’opérateur ;
-2. runtime statique packagé dans les sources ;
-3. runtime statique installé dans le wheel ;
-4. bundle React `web/dist`.
-
-Un build React incomplet ne peut donc plus masquer le portail packagé. Le comportement est couvert par un test de non-régression exécuté avec `web/dist` présent.
+- Padding vertical de la seconde barre réduit de `0,5 rem` à `0,375 rem`, soit **25 %**.
+- Recherche globale adaptée à une hauteur commune de `2 rem`.
+- Sélecteur FR/EN, Swagger et ReDoc alignés et centrés verticalement sur le même gabarit.
+- Hauteur automatiquement portée à `2,75 rem` sur périphérique tactile.
+- Ombre du header réduite à `0 .5rem 1.25rem ...`, tout en restant supérieure à l’ombre des blocs de contenu.
+- Header fixe et offset dynamique du contenu préservés.
 
 ## Qualité, sécurité et typage
 
-- `ruff format --check src tests scripts docker` : **PASS**, **148 fichiers**.
+- `ruff format --check src tests scripts docker` : **PASS**, **153 fichiers**.
 - `ruff check src tests scripts docker` : **PASS**.
-- `mypy src/openinfra` : **PASS**, aucune erreur sur **56 fichiers source**.
+- `mypy src/openinfra` : **PASS**, aucune erreur sur **57 modules source**.
 - `bandit -q -r src/openinfra` : **PASS**.
 - `python scripts/security_gate.py --project-root .` : **PASS**.
 - `python scripts/quality_gate.py` : **PASS**.
-- `python -m compileall -q src/openinfra scripts tests` : **PASS**.
-- Séparation des dépendances runtime et développement : **PASS**.
-- Aucun secret en clair ajouté : **PASS**.
-
-## CDC, roadmap, installateurs et runtime
-
-Cette évolution modifie des décisions existantes ; le CDC et la roadmap ont donc été réalignés.
-
-- CDC v4.8.1 : **PASS** — **824 exigences**, **529 entités**, **623 tests contractuels**.
-- Roadmap v2 : **PASS** — **19 phases**, **115 epics**, **8 gates**, **92 tests**.
-- Exigence nomenclature : `REQ-00820`.
-- Exigence i18n web : `REQ-00824`.
-- Epic i18n : `EPIC-0807`.
-- Six installateurs autonomes Lite/Pro/Enterprise : **PASS**.
-- Alignement Enterprise : **PASS**.
-- Validation frontend statique : **PASS**.
-- Smoke runtime natif et rendu de trois unités systemd : **PASS**.
+- `python -m compileall -q src tests scripts docker` : **PASS**.
+- Validation syntaxique et contractuelle des workflows GitHub Actions : **PASS**.
+- Gate CI ciblé Graphe : **PASS**.
+- Gate CI ciblé navigation responsive/header : **PASS**.
 
 ## Frontend
 
-- Installation contrôlée des dépendances npm : **PASS**.
-- `npm --prefix web test` : **8 tests PASS**.
+- `npm --prefix web test` : **12 PASS**.
 - `npm --prefix web run lint` : **PASS**.
 - `npm --prefix web run build` : **PASS** avec Vite `5.4.21`.
-- Validation de l’identité du moteur i18n React/runtime packagé : **PASS**.
-- `web/node_modules`, `web/dist` et le lockfile généré temporairement sont exclus de l’archive source.
+- Validation statique React/runtime packagé : **PASS**.
+- Parité byte-identique des feuilles de style React/runtime : **PASS**.
+- Validation du moteur i18n FR/EN partagé : **PASS**.
+- Nettoyage des anciens styles et méthodes mobiles non utilisés : **PASS**.
 
-## Packaging
+## CDC, roadmap et installateurs
 
-- `python -m build` : **PASS**.
-- Wheel : `openinfra-0.29.85-py3-none-any.whl`.
-- Source distribution : `openinfra-0.29.85.tar.gz`.
-- `python scripts/verify_artifact.py dist/openinfra-0.29.85-py3-none-any.whl` : **PASS**.
-- Présence des **40 migrations** dans le wheel : **PASS**.
-- Présence du moteur i18n packagé : **PASS**.
-- Installation normale du wheel dans un environnement isolé : **PASS**.
-- `openinfra version` depuis le wheel : `0.29.85`.
-- `openinfra --help` depuis le wheel : **PASS**.
-- Résolution et chargement des 40 migrations depuis le wheel : **PASS**.
-- Inspection du sdist : **494 entrées**, **0 entrée interdite**.
-- Absence de `node_modules`, `web/dist`, caches Python et artefacts temporaires dans le sdist : **PASS**.
+Cette livraison réémet le CDC et la roadmap parce que la recommandation responsive modifie une décision UX existante.
+
+- CDC v4.8.1 : **PASS** — **825 exigences**, **529 entités**, **625 tests contractuels**.
+- Roadmap v2 : **PASS** — **19 phases**, **115 epics**, **8 gates**, **94 tests**.
+- `REQ-00811` : navigation responsive adaptative à trois modes.
+- `REQ-00825` : header compact, contrôles alignés, cibles tactiles et hiérarchie d’ombres.
+- `TST-WEB-124` et `TST-WEB-125` : régressions responsive et header.
+- `EPIC-0805` : accessibilité et navigation responsive adaptative.
+- `TST-P08-WEB-RESPONSIVE-NAVIGATION` et `TST-P08-WEB-COMPACT-HEADER` : gates roadmap.
+- Six installateurs autonomes Lite/Pro/Entreprise : **PASS**.
+- Alignement Enterprise : **PASS**.
+- Les six guides de scopes manquants exigés par le validateur CDC ont été ajoutés.
+- La variante de nom `Matrice-alignement-enterprise-v4.3.csv` attendue par le validateur est fournie sans supprimer la matrice historique en français.
+
+## Packaging attendu
+
+Le build doit produire :
+
+- `openinfra-0.29.86-py3-none-any.whl` ;
+- `openinfra-0.29.86.tar.gz`.
+
+Le vérificateur d’artefact exige notamment :
+
+- le service de graphe ;
+- les assets i18n, JavaScript et CSS du portail ;
+- le document OpenAPI packagé ;
+- les **40 migrations PostgreSQL**, dernière migration `0040_dcim_floor_nomenclature.sql`.
 
 ## Contrôles limités par l’environnement
 
-- `pip-audit` a été lancé en mode strict, mais n’a pas pu interroger `pypi.org` en raison de l’absence de résolution DNS sortante. Ce contrôle est **non concluant**, et non déclaré comme réussi.
-- Aucun exécutable Docker, Podman ou PostgreSQL (`psql`) n’est disponible dans le runner. Les smoke tests nécessitant un daemon de conteneurs ou une instance PostgreSQL réelle n’ont donc pas été exécutés localement.
-- Les migrations PostgreSQL ont néanmoins été validées structurellement, packagées, ordonnées et chargées depuis le wheel.
+- `pip-audit --strict` a été lancé mais n’a pas pu résoudre `pypi.org`. Le contrôle est **non concluant**, et non déclaré comme réussi.
+- Docker, Podman et `psql` ne sont pas disponibles ; les smoke tests nécessitant un daemon de conteneurs ou une instance PostgreSQL réelle ne sont donc pas exécutables localement.
+- La capture visuelle automatisée par navigateur Chromium est indisponible dans ce conteneur. Le contrat UX a été validé par tests DOM/CSS, tests Node.js, tests Python et build Vite, mais pas par comparaison de captures d’écran.
 
 ## Commandes de reproduction
 
@@ -138,20 +132,18 @@ mypy src/openinfra
 bandit -q -r src/openinfra
 python scripts/security_gate.py --project-root .
 python scripts/quality_gate.py
-python -m compileall -q src/openinfra scripts tests
+python scripts/validate_frontend.py --project-root .
+python scripts/validate_autonomous_installer.py --root installers
+python scripts/validate_enterprise_alignment.py --project-root .
+python -m compileall -q src tests scripts docker
 
-pytest tests/unit -o addopts=""
-pytest tests/integration -o addopts=""
-pytest tests/architecture -o addopts=""
+python -m pytest
 coverage report --fail-under=98
 
 npm --prefix web test
 npm --prefix web run lint
 npm --prefix web run build
-python scripts/validate_frontend.py --project-root .
 
 python -m build
-python scripts/verify_artifact.py dist/openinfra-0.29.85-py3-none-any.whl
+python scripts/verify_artifact.py dist/openinfra-0.29.86-py3-none-any.whl
 ```
-
-Dans le runner utilisé pour cette livraison, les tests d’intégration et la couverture ont été répartis en lots plus petits pour respecter la durée maximale d’une commande tout en conservant une couverture cumulée unique.

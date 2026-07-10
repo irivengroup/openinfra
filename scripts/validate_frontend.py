@@ -55,7 +55,7 @@ class FrontendContractValidator:
             or "activeModuleId === 'overview' &&" not in main_source
             or "Dashboard de pilotage OpenInfra" in main_source
             or "openinfra-accordion" not in main_source
-            or "openinfra-mobile-menu-button" not in main_source
+            or "openinfra-compact-menu-button" not in main_source
             or "openinfra-mobile-menu-icon" not in main_source
             or "mobileSidebarOpen" not in main_source
             or "i18n.t('componentStatistics')" not in main_source
@@ -169,10 +169,15 @@ class FrontendContractValidator:
             "bg-dark text-white",
             "text-small",
             "openinfra-global-toolbar",
-            "openinfra-mobile-menu-button",
+            "openinfra-component-nav",
+            "openinfra-mega-menu",
+            "openinfra-compact-menu-button",
             "openinfra-mobile-menu-icon",
-            "openinfra-mobile-sidebar-backdrop",
-            "mobile-open",
+            "openinfra-compact-navigation",
+            "openinfra-navigation-backdrop",
+            "openinfra-toolbar-actions",
+            "isMegamenuViewport",
+            "closeResponsiveNavigation",
             "openinfra-header-stack",
             "syncHeaderOffset",
             "--openinfra-fixed-header-height",
@@ -348,8 +353,8 @@ class FrontendContractValidator:
             "--openinfra-content-shadow: 0 .16rem .55rem rgba(0, 27, 65, .055)",
             "--openinfra-content-shadow-hover: 0 .28rem .8rem rgba(0, 27, 65, .07)",
             (
-                "--openinfra-header-shadow: 0 .95rem 2.25rem rgba(0, 27, 65, .18), "
-                "0 .16rem .55rem rgba(0, 61, 143, .16)"
+                "--openinfra-header-shadow: 0 .5rem 1.25rem rgba(0, 27, 65, .11), "
+                "0 .1rem .35rem rgba(0, 61, 143, .08)"
             ),
             ".openinfra-top-header.bg-dark",
             ".openinfra-header-stack",
@@ -373,10 +378,15 @@ class FrontendContractValidator:
             "openedContexts",
             "prefers-reduced-motion",
             "openinfra-global-toolbar",
-            "openinfra-mobile-menu-button",
+            "openinfra-component-nav",
+            "openinfra-mega-menu",
+            "openinfra-compact-menu-button",
             "openinfra-mobile-menu-icon",
-            "openinfra-mobile-sidebar-backdrop",
-            "mobile-open",
+            "openinfra-compact-navigation",
+            "openinfra-navigation-backdrop",
+            "openinfra-toolbar-actions",
+            "isMegamenuViewport",
+            "closeResponsiveNavigation",
             "openinfra-header-stack",
             "--openinfra-fixed-header-height",
             "openinfra-global-toolbar-inner",
@@ -428,7 +438,14 @@ class FrontendContractValidator:
             "aria-live",
             "aria-autocomplete",
             "focusMainContentIfRequested",
-            "grid-template-columns: minmax(0, 1fr) minmax(18rem, 50%) minmax(0, 1fr)",
+            "grid-template-columns: minmax(0, 1fr) minmax(18rem, 48rem) auto",
+            "grid-template-columns: repeat(10, minmax(3.1rem, 1fr))",
+            "@media (min-width: 768px) and (max-width: 1199.98px)",
+            "@media (max-width: 767.98px)",
+            "@media (pointer: coarse)",
+            "--openinfra-toolbar-control-height: 2rem",
+            "--openinfra-toolbar-control-height: 2.75rem",
+            "padding-block: .375rem !important",
             ".btn-primary",
             ".form-control:focus",
             'fetch("/status"',

@@ -19,6 +19,7 @@ from openinfra.application.dcim_services import (
     DcimTopologyService,
     DcimVisualizationService,
 )
+from openinfra.application.dependency_graph_services import DependencyGraphService
 from openinfra.application.discovery_services import DiscoveryCollectorService
 from openinfra.application.edition_services import EditionQueryService, EditionRuntimeGuard
 from openinfra.application.export_services import ExportService
@@ -123,6 +124,7 @@ class OpenInfraApplication:
     import_service: GenericImportService
     export_service: ExportService
     discovery_service: DiscoveryCollectorService
+    dependency_graph_service: DependencyGraphService
     dcim_repository: DcimRepository
     ipam_repository: IpamRepository
     itam_support_repository: ItamSupportRepository
@@ -381,6 +383,12 @@ class ApplicationFactory:
             security_service,
             source_governance_repository,
         )
+        dependency_graph_service = DependencyGraphService(
+            source_of_truth_repository,
+            audit_repository,
+            transaction_manager,
+            security_service,
+        )
         ipam_ui_service = IpamUiService(
             ipam_repository,
             audit_repository,
@@ -459,6 +467,7 @@ class ApplicationFactory:
             import_service=import_service,
             export_service=export_service,
             discovery_service=discovery_service,
+            dependency_graph_service=dependency_graph_service,
             ipam_ui_service=ipam_ui_service,
             security_service=security_service,
             identity_service=identity_service,

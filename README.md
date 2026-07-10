@@ -1,8 +1,28 @@
-# OpenInfra v0.29.85
+# OpenInfra v0.29.86
+
+## Graphe de dépendances RSOT
+
+OpenInfra v0.29.86 livre **P15 / EPIC-1501** sous la forme d'une projection de lecture du RSOT (Reference Source of Truth). Le moteur parcourt les relations historisées sans dupliquer les objets, supporte les directions entrante, sortante et bidirectionnelle, tolère les cycles et borne systématiquement la profondeur et le nombre de nœuds.
+
+Les opérateurs disposent de trois fonctions complémentaires : exploration du voisinage d'un objet, recherche du chemin le plus court et analyse d'impact direct/indirect. Les filtres par type de relation et le paramètre historique `as_of` sont disponibles en CLI, API HTTP, OpenAPI et portail web FR/EN. Toutes les consultations nécessitent la permission `rsot.read` et produisent un événement d'audit.
+
+Voir `docs/operations/dependency-graph.md` pour les contrats d'exploitation et les commandes.
+
+## Navigation web responsive
+
+Le portail applique une navigation progressive fondée sur la largeur utile et la capacité réelle de la barre des dix composants :
+
+- **écran large (`>= 1200 px`)** : sidebar persistante et scrollable sous le header fixe ;
+- **tablette et portable compact (`768–1199,98 px`)** : sidebar masquée, icônes de composants alignées dans le header et ouverture d’un mégamenu multicolonne reprenant les mêmes contextes et opérations ;
+- **mobile (`< 768 px`)** : remplacement de la barre de composants par une icône de menu unique ouvrant une navigation complète, scrollable et accessible au clavier.
+
+La seconde barre du header est réduite de 25 % sur les périphériques à pointeur précis. La recherche globale, le sélecteur EN/FR, Swagger et ReDoc partagent une hauteur commune. Sur écran tactile, les cibles interactives passent automatiquement à 44 px afin de préserver l’accessibilité. Les menus se ferment par bouton, clic sur le backdrop ou touche `Échap`.
+
+Voir `docs/operations/responsive-navigation.md` pour le contrat détaillé.
 
 ## Nomenclature DCIM des étages et portail multilingue
 
-OpenInfra v0.29.85 remplace la nomenclature d’étage concaténant site et bâtiment par un code local, stable et lisible : `L-01` pour le premier sous-sol, `L00` pour le rez-de-chaussée et `L01` pour le premier étage. Les étages restent générés automatiquement depuis le type et les bornes du bâtiment ; aucune saisie libre de code ou de nom n’est demandée dans les nouveaux parcours.
+OpenInfra v0.29.86 remplace la nomenclature d’étage concaténant site et bâtiment par un code local, stable et lisible : `L-01` pour le premier sous-sol, `L00` pour le rez-de-chaussée et `L01` pour le premier étage. Les étages restent générés automatiquement depuis le type et les bornes du bâtiment ; aucune saisie libre de code ou de nom n’est demandée dans les nouveaux parcours.
 
 La migration `0040_dcim_floor_nomenclature.sql` et la migration JSON intégrée réécrivent toutes les références DCIM dépendantes, préservent les noms personnalisés et conservent les anciens codes comme alias de lecture.
 

@@ -667,6 +667,11 @@ const MODULES = [
     { id: 'rsot-object-audit', label: 'Audit d’une ressource', path: '/v1/rsot/object-audit', method: 'GET', fields: ['Clé RSOT', 'Limite'] },
     { id: 'rsot-reconcile', label: 'Réconcilier une ressource', path: '/v1/rsot/reconcile-object', method: 'POST', fields: ['Opérateur', 'Clé RSOT', 'Source entrante', 'Catégorie', 'Type de ressource', 'Nom affiché cible', 'Numéro de série', 'Constructeur accrédité', 'Modèle', 'Site', 'Rack', 'Tags', 'Appliquer le plan'] },
   ] },
+  { id: 'graph', label: 'Graphe de dépendances', shortLabel: 'Graphe', icon: 'activity', operations: [
+    { id: 'graph-traverse', label: 'Explorer le graphe de dépendances', path: '/v1/graph/traverse', method: 'GET', fields: ['Clé racine', 'Direction', 'Profondeur maximale', 'Nombre maximal de nœuds', 'Type de relation', 'Date ISO-8601'] },
+    { id: 'graph-impact', label: 'Analyser les impacts', path: '/v1/graph/impact', method: 'GET', fields: ['Clé racine', 'Direction', 'Profondeur maximale', 'Nombre maximal de nœuds', 'Type de relation', 'Date ISO-8601'] },
+    { id: 'graph-path', label: 'Trouver le chemin le plus court', path: '/v1/graph/path', method: 'GET', fields: ['Ressource source', 'Ressource cible', 'Direction', 'Profondeur maximale', 'Nombre maximal de nœuds', 'Type de relation', 'Date ISO-8601'] },
+  ] },
   { id: 'ipam', label: 'IPAM', icon: 'grid', operations: [
     { id: 'ipam-dashboard', label: 'Dashboard IPAM', path: '/v1/ipam/ui-dashboard', method: 'GET', fields: ['VRF'] },
     { id: 'ipam-search', label: 'Rechercher dans l’IPAM', path: '/v1/ipam/ui-search', method: 'GET', fields: ['Recherche', 'VRF'] },
@@ -784,6 +789,10 @@ const SIDEBAR_CONTEXTS = {
     { label: 'Référentiel', operationIds: ['rsot-taxonomy', 'rsot-list', 'rsot-upsert'] },
     { label: 'Relations & historique', operationIds: ['rsot-relations', 'rsot-as-of', 'rsot-object-audit'] },
     { label: 'Qualité & gouvernance', operationIds: ['rsot-quality-object', 'rsot-quality-summary', 'rsot-governance', 'rsot-reconcile'] },
+  ],
+  graph: [
+    { label: 'Exploration', operationIds: ['graph-traverse', 'graph-path'] },
+    { label: 'Analyse d’impact', operationIds: ['graph-impact'] },
   ],
   ipam: [
     { label: 'Vue & recherche', operationIds: ['ipam-dashboard', 'ipam-search'] },
@@ -941,6 +950,63 @@ function slugifyContextLabel(value) {
     .replace(/^-+|-+$/g, '') || 'context';
 }
 
+function isMegamenuViewport() {
+  return typeof window !== 'undefined'
+    && window.matchMedia('(min-width: 768px) and (max-width: 1199.98px)').matches;
+}
+
+function NavigationTree({
+  modules,
+  activeNavigationModuleId,
+  selectedOperationId,
+  opened,
+  openedContexts,
+  chooseOperation,
+  toggleAccordion,
+  toggleSidebarContext,
+  surface = 'sidebar',
+}) {
+  return modules.map((module) => {
+    if (module.id === 'overview') {
+      return <button key={module.id} type="button" className={`nav-link openinfra-sidebar-dashboard w-100 text-start ${activeNavigationModuleId === module.id ? 'active' : ''}`} aria-current={activeNavigationModuleId === module.id ? 'page' : undefined} onClick={() => chooseOperation(module, module.operations[0])}><Icon name={module.icon} />Dashboard</button>;
+    }
+    const moduleOpened = opened.has(module.id);
+    const accordionId = `openinfra-${surface}-accordion-${module.id}`;
+    const panelId = `openinfra-${surface}-panel-${module.id}`;
+    return <section className={`openinfra-accordion ${moduleOpened ? 'open' : ''}`} key={module.id}>
+      <button type="button" id={accordionId} className={`openinfra-accordion-toggle ${activeNavigationModuleId === module.id ? 'active' : ''}`} aria-expanded={moduleOpened} aria-controls={panelId} aria-current={activeNavigationModuleId === module.id ? 'page' : undefined} onClick={() => toggleAccordion(module.id)}><span><Icon name={module.icon} />{module.shortLabel || module.label}</span><span className="openinfra-chevron">›</span></button>
+      <div id={panelId} className={`openinfra-accordion-panel fade ${moduleOpened ? 'show' : ''}`} role="region" aria-labelledby={accordionId}>
+        <div className="openinfra-accordion-panel-inner">
+          {sidebarOperationGroups(module).map((group) => {
+            const contextKey = sidebarContextKey(module.id, group.label);
+            const contextOpened = openedContexts.has(contextKey);
+            const contextId = `openinfra-${surface}-context-${module.id}-${slugifyContextLabel(group.label)}`;
+            return <section key={`${module.id}-${group.label}`} className={`openinfra-sidebar-context ${contextOpened ? 'open' : ''}`} role="group" aria-label={group.label}>
+              <button type="button" className={`openinfra-sidebar-context-title ${contextOpened && activeNavigationModuleId === module.id ? 'active' : ''}`} aria-expanded={contextOpened} aria-controls={contextId} onClick={() => toggleSidebarContext(module.id, group.label)}>{group.label}</button>
+              <div id={contextId} className={`openinfra-sidebar-context-panel ${contextOpened ? 'show' : ''}`} role="region" aria-label={group.label}>
+                <div className="openinfra-sidebar-context-panel-inner">
+                  {group.operations.map((operation) => <button key={operation.id} type="button" className={`openinfra-sidebar-operation ${selectedOperationId === operation.id ? 'active' : ''}`} aria-current={selectedOperationId === operation.id ? 'page' : undefined} onClick={() => chooseOperation(module, operation)}>{operation.label}</button>)}
+                </div>
+              </div>
+            </section>;
+          })}
+        </div>
+      </div>
+    </section>;
+  });
+}
+
+function MegaMenu({ module, selectedOperationId, chooseOperation, close, i18n }) {
+  if (!module || module.id === 'overview') {
+    return null;
+  }
+  return <section id="openinfra-mega-menu" className="openinfra-mega-menu" aria-label={module.shortLabel || module.label}>
+    <div className="openinfra-mega-menu-header"><div><Icon name={module.icon} className="openinfra-mega-menu-icon" /><strong>{module.label}</strong></div><button type="button" className="openinfra-navigation-close" aria-label={i18n.t('closeNavigation')} onClick={close}>×</button></div>
+    <div className="openinfra-mega-menu-grid">
+      {sidebarOperationGroups(module).map((group) => <section className="openinfra-mega-menu-group" role="group" aria-label={group.label} key={`${module.id}-${group.label}`}><h2>{group.label}</h2><div>{group.operations.map((operation) => <button key={operation.id} type="button" className={`openinfra-sidebar-operation ${selectedOperationId === operation.id ? 'active' : ''}`} aria-current={selectedOperationId === operation.id ? 'page' : undefined} onClick={() => chooseOperation(module, operation, true)}>{operation.label}</button>)}</div></section>)}
+    </div>
+  </section>;
+}
 
 function Dashboard() {
   const [i18n] = useState(() => new OpenInfraI18n());
@@ -968,6 +1034,7 @@ function Dashboard() {
   const [globalSearchError, setGlobalSearchError] = useState(null);
   const [shouldFocusMain, setShouldFocusMain] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [megaMenuModuleId, setMegaMenuModuleId] = useState(null);
   const mainContentRef = useRef(null);
   const businessModules = useMemo(() => componentModules(), []);
   const operationsCount = useMemo(() => MODULES.reduce((total, module) => total + module.operations.length, 0), []);
@@ -1036,6 +1103,30 @@ function Dashboard() {
   }, [activeModuleId, selected.id, shouldFocusMain]);
 
   useEffect(() => {
+    const closeResponsiveNavigation = (event) => {
+      if (event?.type === 'keydown' && event.key !== 'Escape') {
+        return;
+      }
+      setMobileSidebarOpen(false);
+      setMegaMenuModuleId(null);
+    };
+    const handleResize = () => {
+      if (!isMegamenuViewport()) {
+        setMegaMenuModuleId(null);
+      }
+      if (!window.matchMedia('(max-width: 767.98px)').matches) {
+        setMobileSidebarOpen(false);
+      }
+    };
+    document.addEventListener('keydown', closeResponsiveNavigation);
+    window.addEventListener('resize', handleResize);
+    return () => {
+      document.removeEventListener('keydown', closeResponsiveNavigation);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  useEffect(() => {
     Promise.all([
       fetch('/config.json', { credentials: 'same-origin' }).then((response) => response.json()),
       fetch('/ready', { credentials: 'same-origin' }).then((response) => response.ok ? response.json() : { ready: false }),
@@ -1067,6 +1158,7 @@ function Dashboard() {
     });
     setResult(null);
     setMobileSidebarOpen(false);
+    setMegaMenuModuleId(null);
     if (focusMain) {
       setShouldFocusMain(true);
     }
@@ -1125,6 +1217,21 @@ function Dashboard() {
     setLanguage(normalized);
   }
 
+  function handleModuleNavigation(module) {
+    if (module.id === 'overview' || !isMegamenuViewport()) {
+      chooseOperation(module, module.operations[0]);
+      return;
+    }
+    setActiveNavigationModuleId(module.id);
+    setMobileSidebarOpen(false);
+    setMegaMenuModuleId((current) => current === module.id ? null : module.id);
+  }
+
+  function closeResponsiveNavigation() {
+    setMobileSidebarOpen(false);
+    setMegaMenuModuleId(null);
+  }
+
   function execute() {
     setResult(JSON.stringify({ tenant_id: tenant, action: selected.id, via: config.apiBaseUrl, trust: config.webBackendTrust }, null, 2));
   }
@@ -1139,38 +1246,69 @@ function Dashboard() {
     ? i18n.t('dashboardSubtitle')
     : i18n.t('operationSubtitle', { operation: selected.label });
 
+  const megaMenuModule = MODULES.find((module) => module.id === megaMenuModuleId) || null;
+  const runtimeStatus = <div className="px-2 small text-muted openinfra-runtime-status">
+    <p><span className={`openinfra-status-dot ${ready?.ready === true ? 'ready' : 'warning'}`} />{ready?.ready === true ? i18n.t('backendReady') : i18n.t('backendCheck')}</p>
+    <p>{i18n.t('version')} : <strong>{displayedVersion}</strong></p>
+    <p>Trust web/backend : <strong>{config.webBackendTrust || 'server-side'}</strong></p>
+    <p>{i18n.t('protectedForms')} : <strong>{protectedForms}</strong></p>
+  </div>;
+
   return <div className="openinfra-shell">
     <a className="openinfra-skip-link" href="#openinfra-main-content">{i18n.t('skipToContent')}</a>
     <header className="openinfra-header-stack">
-      <div className="px-3 py-2 bg-dark text-white openinfra-top-header"><div className="container-fluid"><div className="d-flex flex-wrap align-items-center justify-content-center justify-content-lg-start"><a href="/" className="d-flex align-items-center my-2 my-lg-0 me-lg-auto text-white text-decoration-none" aria-label={i18n.t('home')}><span className="openinfra-brand-mark me-2">OI</span><span className="fs-5 fw-semibold">OpenInfra</span><span className="badge openinfra-edition-badge ms-3">{config.edition || 'runtime'}</span></a><ul className="nav col-12 col-lg-auto my-2 justify-content-center my-md-0 text-small">{MODULES.map((module) => <li key={module.id}><button type="button" className={`nav-link border-0 bg-transparent ${activeNavigationModuleId === module.id ? 'text-secondary' : 'text-white'}`} aria-current={activeNavigationModuleId === module.id ? 'page' : undefined} onClick={() => chooseOperation(module, module.operations[0])}><Icon name={module.icon} className="bi d-block mx-auto mb-1 openinfra-top-icon" />{module.shortLabel || module.label}</button></li>)}</ul></div></div></div>
-      <div className="px-3 py-2 border-bottom openinfra-global-toolbar"><div className="container-fluid openinfra-global-toolbar-inner"><div className="openinfra-global-toolbar-spacer" aria-hidden="true" /><form className="openinfra-global-search-form" role="search" aria-label={i18n.t('globalSearch')} autoComplete="off"><label className="visually-hidden" htmlFor="openinfra-global-search">{i18n.t('globalSearch')}</label><div className="openinfra-global-search-control"><Icon name="search" className="openinfra-global-search-icon" /><input type="search" id="openinfra-global-search" className="form-control" placeholder={i18n.t('globalSearchPlaceholder')} aria-label={i18n.t('globalSearch')} role="combobox" aria-autocomplete="list" aria-haspopup="listbox" aria-controls="openinfra-global-search-results" aria-expanded={globalSearchQuery.trim() !== ''} value={globalSearchQuery} onChange={(event) => setGlobalSearchQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') setGlobalSearchQuery(''); }} /></div>{globalSearchQuery.trim() !== '' && <div id="openinfra-global-search-results" className="openinfra-global-search-results" role="listbox" aria-label={i18n.t('globalSearchResults')} aria-live="polite"><GlobalSearchResults i18n={i18n} query={globalSearchQuery} groups={searchGroups} backend={globalSearchBackend} loading={globalSearchLoading} error={globalSearchError} onSelect={selectSearchOperation} onBackendSelect={selectBackendSearchItem} /></div>}</form><div className="openinfra-language-control"><label className="visually-hidden" htmlFor="openinfra-language">{i18n.t('language')}</label><select id="openinfra-language" className="form-select form-select-sm" aria-label={i18n.t('language')} value={language} onChange={(event) => changeLanguage(event.target.value)}><option value="en">EN</option><option value="fr">FR</option></select></div><div className="text-end openinfra-api-doc-actions"><a className="btn btn-light text-dark me-2" href={apiDocs.swaggerUrl} target="_blank" rel="noopener noreferrer" aria-label={i18n.t('openSwagger')}>Swagger</a><a className="btn btn-primary" href={apiDocs.redocUrl} target="_blank" rel="noopener noreferrer" aria-label={i18n.t('openRedoc')}>ReDoc</a></div></div></div>
+      <div className="px-3 py-2 bg-dark text-white openinfra-top-header">
+        <div className="container-fluid">
+          <div className="d-flex align-items-center openinfra-top-header-inner">
+            <a href="/" className="d-flex align-items-center openinfra-brand-link text-white text-decoration-none" aria-label={i18n.t('home')}>
+              <span className="openinfra-brand-mark me-2">OI</span>
+              <span className="fs-5 fw-semibold openinfra-brand-name">OpenInfra</span>
+              <span className="badge openinfra-edition-badge ms-3">{config.edition || 'runtime'}</span>
+            </a>
+            <ul className="nav justify-content-center text-small openinfra-component-nav" aria-label={i18n.t('navigation')}>
+              {MODULES.map((module) => <li key={module.id}><button type="button" className={`nav-link border-0 bg-transparent ${activeNavigationModuleId === module.id ? 'text-secondary' : 'text-white'}`} aria-current={activeNavigationModuleId === module.id ? 'page' : undefined} aria-haspopup={module.id === 'overview' ? undefined : 'true'} aria-expanded={module.id === 'overview' ? undefined : megaMenuModuleId === module.id} aria-controls={module.id === 'overview' ? undefined : 'openinfra-mega-menu'} onClick={() => handleModuleNavigation(module)}><Icon name={module.icon} className="bi d-block mx-auto mb-1 openinfra-top-icon" /><span>{module.shortLabel || module.label}</span></button></li>)}
+            </ul>
+            <button type="button" id="openinfra-compact-menu-button" className="btn btn-primary openinfra-compact-menu-button" aria-label={i18n.t(mobileSidebarOpen ? 'closeNavigation' : 'openNavigation')} aria-expanded={mobileSidebarOpen} aria-controls="openinfra-compact-navigation" onClick={() => { setMegaMenuModuleId(null); setMobileSidebarOpen((open) => !open); }}><Icon name="menu" className="openinfra-mobile-menu-icon" /><span className="visually-hidden">Menu</span></button>
+          </div>
+        </div>
+      </div>
+      <div className="px-3 py-2 border-bottom openinfra-global-toolbar">
+        <div className="container-fluid openinfra-global-toolbar-inner">
+          <div className="openinfra-global-toolbar-spacer" aria-hidden="true" />
+          <form className="openinfra-global-search-form" role="search" aria-label={i18n.t('globalSearch')} autoComplete="off">
+            <label className="visually-hidden" htmlFor="openinfra-global-search">{i18n.t('globalSearch')}</label>
+            <div className="openinfra-global-search-control"><Icon name="search" className="openinfra-global-search-icon" /><input type="search" id="openinfra-global-search" className="form-control" placeholder={i18n.t('globalSearchPlaceholder')} aria-label={i18n.t('globalSearch')} role="combobox" aria-autocomplete="list" aria-haspopup="listbox" aria-controls="openinfra-global-search-results" aria-expanded={globalSearchQuery.trim() !== ''} value={globalSearchQuery} onChange={(event) => setGlobalSearchQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') setGlobalSearchQuery(''); }} /></div>
+            {globalSearchQuery.trim() !== '' && <div id="openinfra-global-search-results" className="openinfra-global-search-results" role="listbox" aria-label={i18n.t('globalSearchResults')} aria-live="polite"><GlobalSearchResults i18n={i18n} query={globalSearchQuery} groups={searchGroups} backend={globalSearchBackend} loading={globalSearchLoading} error={globalSearchError} onSelect={selectSearchOperation} onBackendSelect={selectBackendSearchItem} /></div>}
+          </form>
+          <div className="openinfra-toolbar-actions">
+            <div className="openinfra-language-control"><label className="visually-hidden" htmlFor="openinfra-language">{i18n.t('language')}</label><select id="openinfra-language" className="form-select form-select-sm" aria-label={i18n.t('language')} value={language} onChange={(event) => changeLanguage(event.target.value)}><option value="en">EN</option><option value="fr">FR</option></select></div>
+            <div className="text-end openinfra-api-doc-actions"><a className="btn btn-light text-dark" href={apiDocs.swaggerUrl} target="_blank" rel="noopener noreferrer" aria-label={i18n.t('openSwagger')}>Swagger</a><a className="btn btn-primary" href={apiDocs.redocUrl} target="_blank" rel="noopener noreferrer" aria-label={i18n.t('openRedoc')}>ReDoc</a></div>
+          </div>
+        </div>
+      </div>
+      <MegaMenu module={megaMenuModule} selectedOperationId={selected.id} chooseOperation={chooseOperation} close={closeResponsiveNavigation} i18n={i18n} />
+      {mobileSidebarOpen && <nav id="openinfra-compact-navigation" className="openinfra-compact-navigation" aria-label={i18n.t('navigation')}>
+        <div className="openinfra-compact-navigation-header"><strong>{i18n.t('navigation')}</strong><button type="button" className="openinfra-navigation-close" aria-label={i18n.t('closeNavigation')} onClick={closeResponsiveNavigation}>×</button></div>
+        <div className="openinfra-compact-navigation-body"><div className="openinfra-sidebar-heading">{i18n.t('control')}</div><NavigationTree modules={filteredModules} activeNavigationModuleId={activeNavigationModuleId} selectedOperationId={selected.id} opened={opened} openedContexts={openedContexts} chooseOperation={chooseOperation} toggleAccordion={toggleAccordion} toggleSidebarContext={toggleSidebarContext} surface="compact" /><div className="openinfra-sidebar-heading">{i18n.t('runtimeStatus')}</div>{runtimeStatus}</div>
+      </nav>}
     </header>
-    <div className="container-fluid"><div className="openinfra-mobile-menu-bar"><button type="button" id="openinfra-mobile-menu-button" className="btn btn-primary openinfra-mobile-menu-button" aria-label={i18n.t(mobileSidebarOpen ? 'closeNavigation' : 'openNavigation')} aria-expanded={mobileSidebarOpen} aria-controls="openinfra-sidebar" onClick={() => setMobileSidebarOpen((open) => !open)}><Icon name="menu" className="openinfra-mobile-menu-icon" /><span className="visually-hidden">Menu</span></button></div>{mobileSidebarOpen && <button type="button" className="openinfra-mobile-sidebar-backdrop" aria-label={i18n.t('closeNavigation')} onClick={() => setMobileSidebarOpen(false)} />}<div className="row"><nav id="openinfra-sidebar" className={`col-lg-3 col-xl-2 openinfra-sidebar ${mobileSidebarOpen ? 'mobile-open' : ''}`} aria-label={i18n.t('navigation')}><div className="openinfra-sidebar-heading">{i18n.t('control')}</div>{filteredModules.map((module) => {
-  if (module.id === 'overview') {
-    return <button key={module.id} type="button" className={`nav-link openinfra-sidebar-dashboard w-100 text-start ${activeNavigationModuleId === module.id ? 'active' : ''}`} aria-current={activeNavigationModuleId === module.id ? 'page' : undefined} onClick={() => chooseOperation(module, module.operations[0])}><Icon name={module.icon} />Dashboard</button>;
-  }
-  const moduleOpened = opened.has(module.id);
-  return <section className={`openinfra-accordion ${moduleOpened ? 'open' : ''}`} key={module.id}>
-    <button type="button" id={`openinfra-accordion-${module.id}`} className={`openinfra-accordion-toggle ${activeNavigationModuleId === module.id ? 'active' : ''}`} aria-expanded={moduleOpened} aria-controls={`openinfra-panel-${module.id}`} aria-current={activeNavigationModuleId === module.id ? 'page' : undefined} onClick={() => toggleAccordion(module.id)}><span><Icon name={module.icon} />{module.shortLabel || module.label}</span><span className="openinfra-chevron">›</span></button>
-    <div id={`openinfra-panel-${module.id}`} className={`openinfra-accordion-panel fade ${moduleOpened ? 'show' : ''}`} role="region" aria-labelledby={`openinfra-accordion-${module.id}`}>
-      <div className="openinfra-accordion-panel-inner">
-        {sidebarOperationGroups(module).map((group) => {
-          const contextKey = sidebarContextKey(module.id, group.label);
-          const contextOpened = openedContexts.has(contextKey);
-          const contextId = `openinfra-context-${module.id}-${slugifyContextLabel(group.label)}`;
-          return <section key={`${module.id}-${group.label}`} className={`openinfra-sidebar-context ${contextOpened ? 'open' : ''}`} role="group" aria-label={group.label}>
-            <button type="button" className={`openinfra-sidebar-context-title ${contextOpened && activeNavigationModuleId === module.id ? 'active' : ''}`} aria-expanded={contextOpened} aria-controls={contextId} onClick={() => toggleSidebarContext(module.id, group.label)}>{group.label}</button>
-            <div id={contextId} className={`openinfra-sidebar-context-panel ${contextOpened ? 'show' : ''}`} role="region" aria-label={group.label}>
-              <div className="openinfra-sidebar-context-panel-inner">
-                {group.operations.map((operation) => <button key={operation.id} type="button" className={`openinfra-sidebar-operation ${selected.id === operation.id ? 'active' : ''}`} aria-current={selected.id === operation.id ? 'page' : undefined} onClick={() => chooseOperation(module, operation)}>{operation.label}</button>)}
-              </div>
-            </div>
-          </section>;
-        })}
+    {(mobileSidebarOpen || megaMenuModuleId) && <button type="button" className="openinfra-navigation-backdrop" aria-label={i18n.t('closeNavigation')} onClick={closeResponsiveNavigation} />}
+    <div className="container-fluid">
+      <div className="row">
+        <nav id="openinfra-sidebar" className="col-xl-2 openinfra-sidebar" aria-label={i18n.t('navigation')}>
+          <div className="openinfra-sidebar-heading">{i18n.t('control')}</div>
+          <NavigationTree modules={filteredModules} activeNavigationModuleId={activeNavigationModuleId} selectedOperationId={selected.id} opened={opened} openedContexts={openedContexts} chooseOperation={chooseOperation} toggleAccordion={toggleAccordion} toggleSidebarContext={toggleSidebarContext} />
+          <div className="openinfra-sidebar-heading">{i18n.t('runtimeStatus')}</div>
+          {runtimeStatus}
+        </nav>
+        <main id="openinfra-main-content" ref={mainContentRef} tabIndex={-1} className="col-xl-10 ms-sm-auto openinfra-main">
+          <div className="pb-2 mb-3 openinfra-titlebar"><h1 className="h2">{pageTitle}</h1><p className="text-muted mb-0">{pageSubtitle}</p></div>
+          {submissionCompleted && activeModuleId !== 'overview' && <div className="alert alert-success" role="status">{i18n.t('success')}</div>}
+          {activeModuleId === 'overview' && <div className="row g-3 mb-4 openinfra-dashboard-metrics" aria-label={i18n.t('componentStatistics')}><Metric title={i18n.t('version')} value={displayedVersion} /><Metric title="API" value={config.apiBaseUrl || '/api'} /><Metric title={i18n.t('trust')} value={config.webBackendTrust || 'server-side'} /><Metric title={i18n.t('forms')} value={protectedForms} /><Metric title={i18n.t('modules')} value={`${operationsCount} ${i18n.t('operations')}`} /></div>}
+          {activeModuleId === 'overview' ? <OverviewStats i18n={i18n} modules={businessModules} fieldsCount={businessFieldsCount} /> : <section className="card openinfra-operation-card"><div className="card-body"><h2 className="h4">{selected.label}</h2><div className="row g-3 mb-3"><label className="col-md-4 form-label">{i18n.t('organization')}<select className="form-select" value={tenant} onChange={(event) => setTenant(event.target.value)}><option value="default">{i18n.t('defaultTenant')}</option></select></label></div><div className="row g-3">{selected.fields.map((field) => <label className="col-md-6 col-xl-4 form-label" key={field}>{i18n.label(field)}<input className="form-control" /></label>)}</div><button type="button" className="btn btn-primary mt-3" onClick={execute}>{i18n.t('execute')}</button><pre className="openinfra-result mt-3" aria-live="polite" aria-label={i18n.t('operationResult')}>{result ?? i18n.t('pendingResult')}</pre></div></section>}
+        </main>
       </div>
     </div>
-  </section>;
-})}</nav><main id="openinfra-main-content" ref={mainContentRef} tabIndex={-1} className="col-lg-9 col-xl-10 ms-sm-auto openinfra-main"><div className="pb-2 mb-3 openinfra-titlebar"><h1 className="h2">{pageTitle}</h1><p className="text-muted mb-0">{pageSubtitle}</p></div>{submissionCompleted && activeModuleId !== 'overview' && <div className="alert alert-success" role="status">{i18n.t('success')}</div>}{activeModuleId === 'overview' && <div className="row g-3 mb-4 openinfra-dashboard-metrics" aria-label={i18n.t('componentStatistics')}><Metric title={i18n.t('version')} value={displayedVersion} /><Metric title="API" value={config.apiBaseUrl || '/api'} /><Metric title={i18n.t('trust')} value={config.webBackendTrust || 'server-side'} /><Metric title={i18n.t('forms')} value={protectedForms} /><Metric title={i18n.t('modules')} value={`${operationsCount} ${i18n.t('operations')}`} /></div>}{activeModuleId === 'overview' ? <OverviewStats i18n={i18n} modules={businessModules} fieldsCount={businessFieldsCount} /> : <section className="card openinfra-operation-card"><div className="card-body"><h2 className="h4">{selected.label}</h2><div className="row g-3 mb-3"><label className="col-md-4 form-label">{i18n.t('organization')}<select className="form-select" value={tenant} onChange={(event) => setTenant(event.target.value)}><option value="default">{i18n.t('defaultTenant')}</option></select></label></div><div className="row g-3">{selected.fields.map((field) => <label className="col-md-6 col-xl-4 form-label" key={field}>{i18n.label(field)}<input className="form-control" /></label>)}</div><button type="button" className="btn btn-primary mt-3" onClick={execute}>{i18n.t('execute')}</button><pre className="openinfra-result mt-3" aria-live="polite" aria-label={i18n.t('operationResult')}>{result ?? i18n.t('pendingResult')}</pre></div></section>}</main></div></div>
   </div>;
 }
 

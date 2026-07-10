@@ -346,9 +346,7 @@ class TestOpenInfraWeb:
         assert "--bs-btn-padding-x: .5rem" in static_css
         assert "font-size: .72rem" in static_css
         assert "min-width: 2.875rem" in static_css
-        assert (
-            "grid-template-columns: minmax(0, 1fr) minmax(18rem, 50%) minmax(0, 1fr)" in static_css
-        )
+        assert "grid-template-columns: minmax(0, 1fr) minmax(18rem, 48rem) auto" in static_css
         assert "RSOT (Ressource Source of Truth)" in static_js
         assert 'icon: "reference"' in static_js
         assert "icon: 'reference'" in main_js
@@ -461,15 +459,19 @@ class TestOpenInfraWeb:
         assert 'fetch("/status"' in static_js
         assert "@media (max-width: 575.98px)" in static_css
         assert "v0.29.65: responsive sidebar" in static_css
-        assert "v0.29.66: extra-small mobile sidebar" in static_css
-        assert "openinfra-mobile-menu-button" in static_js + static_css + main_js
+        assert "v0.29.86: content-aware responsive navigation" in static_css
+        assert "openinfra-component-nav" in static_js + static_css + main_js
+        assert "openinfra-mega-menu" in static_js + static_css + main_js
+        assert "openinfra-compact-menu-button" in static_js + static_css + main_js
         assert "openinfra-mobile-menu-icon" in static_js + static_css + main_js
-        assert "openinfra-mobile-sidebar-backdrop" in static_js + static_css + main_js
-        assert 'aria-controls="openinfra-sidebar"' in static_js + main_js
+        assert "openinfra-compact-navigation" in static_js + static_css + main_js
+        assert "openinfra-navigation-backdrop" in static_js + static_css + main_js
+        assert 'aria-controls="openinfra-compact-navigation"' in static_js + main_js
         assert "mobileSidebarOpen" in static_js + main_js
-        assert "shouldCloseMobileSidebar" in static_js
-        assert 'matchMedia("(max-width: 575.98px)")' in static_js
-        assert "mobile-open" in static_js + static_css + main_js
+        assert "isMegamenuViewport" in static_js + main_js
+        assert "closeResponsiveNavigation" in static_js + main_js
+        assert "shouldCloseMobileSidebar" not in static_js
+        assert "mobile-open" not in static_js + static_css + main_js
         assert "M2 4h12v1.4H2V4zm0 3.3h12v1.4H2V7.3zm0 3.3h12V12H2v-1.4z" in static_js + main_js
         assert "activeNavigationModuleId" in static_js + main_js
         assert "openedModules: new Set()," in static_js
@@ -477,9 +479,10 @@ class TestOpenInfraWeb:
         assert "useState(new Set())" in main_js
         assert "useState(new Set(['rsot']))" not in main_js
         assert not re.search(r"\.openinfra-sidebar\s*\{[^}]*width:\s*100%", static_css)
-        assert "@media (max-width: 991.98px)" in static_css
+        assert "@media (max-width: 1199.98px)" in static_css
+        assert "@media (min-width: 768px) and (max-width: 1199.98px)" in static_css
         assert "@media (max-width: 767.98px)" in static_css
-        assert "max-height: min(42vh, 26rem)" in static_css
+        assert "grid-template-columns: repeat(10, minmax(3.1rem, 1fr))" in static_css
         assert "--openinfra-navy: #001b41" in static_css
         assert "--openinfra-action: #0066ff" in static_css
         assert "--openinfra-green: #15a362" in static_css
@@ -499,7 +502,7 @@ class TestOpenInfraWeb:
         assert "--openinfra-content-shadow: 0 .16rem .55rem rgba(0, 27, 65, .055)" in static_css
         assert "--openinfra-content-shadow-hover: 0 .28rem .8rem rgba(0, 27, 65, .07)" in static_css
         assert (
-            "--openinfra-header-shadow: 0 .95rem 2.25rem rgba(0, 27, 65, .18), 0 .16rem .55rem rgba(0, 61, 143, .16)"
+            "--openinfra-header-shadow: 0 .5rem 1.25rem rgba(0, 27, 65, .11), 0 .1rem .35rem rgba(0, 61, 143, .08)"
             in static_css
         )
         assert "box-shadow: var(--openinfra-content-shadow);" in static_css
@@ -1228,3 +1231,18 @@ def test_openinfra_web_exposes_resilient_discovery_job_operations() -> None:
         assert f'path: "{path}"' in static_js
     assert 'label: "Jeton de fencing"' in static_js
     assert '"dead-letter"' in static_js
+
+
+def test_dependency_graph_catalog_is_available_in_both_web_runtimes() -> None:
+    static_root = OpenInfraWebStaticLocator().resolve()
+    runtime_js = (static_root / "assets" / "openinfra-web.js").read_text(encoding="utf-8")
+    react_js = Path("web/src/main.jsx").read_text(encoding="utf-8")
+    i18n_js = (static_root / "assets" / "openinfra-i18n.js").read_text(encoding="utf-8")
+
+    for operation_id in ("graph-traverse", "graph-impact", "graph-path"):
+        assert operation_id in runtime_js
+        assert operation_id in react_js
+        assert operation_id in i18n_js
+    assert 'path: "/v1/graph/traverse"' in runtime_js
+    assert "Explore dependency graph" in i18n_js
+    assert "Analyse d\u2019impact" in runtime_js + react_js

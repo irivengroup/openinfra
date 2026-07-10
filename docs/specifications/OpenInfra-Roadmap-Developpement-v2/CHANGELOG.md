@@ -1,3 +1,9 @@
+## OpenInfra 0.29.86 — Navigation responsive adaptative et header compact
+
+- EPIC-0805 est renforcé par trois modes de navigation sans perte fonctionnelle : sidebar desktop, mégamenu contextuel intermédiaire et menu compact mobile.
+- Ajout de `TST-P08-WEB-RESPONSIVE-NAVIGATION` et `TST-P08-WEB-COMPACT-HEADER`.
+- Alignement de `REQ-00811` et ajout de `REQ-00825` sur P08 / EPIC-0805.
+
 ## OpenInfra 0.29.85 — Réalignement UX/DCIM
 
 - Ajout d’EPIC-0807 pour l’internationalisation complète du portail FR/EN.

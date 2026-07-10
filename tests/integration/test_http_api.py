@@ -123,6 +123,11 @@ class TestHttpApi:
                     "software_license_assignment": "/api/v1/itam/software-license/assignment",
                     "software_license_compliance": "/api/v1/itam/software-license/compliance",
                 },
+                "graph": {
+                    "traverse": "/api/v1/graph/traverse",
+                    "impact": "/api/v1/graph/impact",
+                    "path": "/api/v1/graph/path",
+                },
                 "rsot": {
                     "objects": "/api/v1/rsot/objects",
                     "resource_taxonomy": "/api/v1/rsot/resource-taxonomy",

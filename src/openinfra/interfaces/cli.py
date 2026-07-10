@@ -71,6 +71,11 @@ from openinfra.application.dcim_services import (
     UpdateRackCommand,
     VerifyEquipmentScanCommand,
 )
+from openinfra.application.dependency_graph_services import (
+    AnalyzeDependencyImpactCommand,
+    FindDependencyPathCommand,
+    TraverseDependencyGraphCommand,
+)
 from openinfra.application.discovery_services import (
     AuthorizeDiscoveryJobCommand,
     BuildEnterpriseAgentBootstrapPlanCommand,
@@ -278,6 +283,7 @@ class OpenInfraCLI:
         self._add_export_commands(subparsers)
         self._add_integrations_commands(subparsers)
         self._add_discovery_commands(subparsers)
+        self._add_graph_commands(subparsers)
         self._add_rsot_commands(subparsers)
         self._add_itrm_commands(subparsers)
         self._add_ri_commands(subparsers)
@@ -1853,6 +1859,56 @@ class OpenInfraCLI:
         artifact_chunk.add_argument("--size", type=int, default=65_536)
         artifact_chunk.add_argument("--output", type=Path)
         artifact_chunk.set_defaults(handler=self._handle_export_artifact_chunk)
+
+    def _add_graph_commands(self, subparsers: Any) -> None:
+        graph = subparsers.add_parser(
+            "graph", help="tenant-aware RSOT dependency graph and impact analysis"
+        )
+        graph_subparsers = graph.add_subparsers(dest="graph_command", required=True)
+
+        traverse = graph_subparsers.add_parser(
+            "traverse", help="traverse dependencies from a root RSOT object"
+        )
+        self._add_backend_arguments(traverse)
+        self._add_graph_common_arguments(traverse, default_direction="both", default_depth=3)
+        traverse.add_argument("--root-key", required=True)
+        traverse.set_defaults(handler=self._handle_graph_traverse)
+
+        impact = graph_subparsers.add_parser(
+            "impact", help="analyze direct and indirect impact around an RSOT object"
+        )
+        self._add_backend_arguments(impact)
+        self._add_graph_common_arguments(impact, default_direction="incoming", default_depth=6)
+        impact.add_argument("--root-key", required=True)
+        impact.set_defaults(handler=self._handle_graph_impact)
+
+        path = graph_subparsers.add_parser(
+            "path", help="find the shortest dependency path between two RSOT objects"
+        )
+        self._add_backend_arguments(path)
+        self._add_graph_common_arguments(path, default_direction="outgoing", default_depth=8)
+        path.add_argument("--source-key", required=True)
+        path.add_argument("--target-key", required=True)
+        path.set_defaults(handler=self._handle_graph_path)
+
+    def _add_graph_common_arguments(
+        self,
+        parser: argparse.ArgumentParser,
+        *,
+        default_direction: str,
+        default_depth: int,
+    ) -> None:
+        parser.add_argument("--tenant", required=True)
+        parser.add_argument("--admin-token", required=True)
+        parser.add_argument(
+            "--direction",
+            choices=("outgoing", "incoming", "both"),
+            default=default_direction,
+        )
+        parser.add_argument("--max-depth", type=int, default=default_depth)
+        parser.add_argument("--max-nodes", type=int, default=1000)
+        parser.add_argument("--relation-type", action="append", default=[])
+        parser.add_argument("--as-of")
 
     def _add_rsot_commands(self, subparsers: Any) -> None:
         self._add_inventory_commands(
@@ -4745,6 +4801,58 @@ class OpenInfraCLI:
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_bytes(download.content)
         print(json.dumps(download.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_graph_traverse(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dependency_graph_service.traverse(
+            TraverseDependencyGraphCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                root_key=args.root_key,
+                direction=args.direction,
+                max_depth=args.max_depth,
+                max_nodes=args.max_nodes,
+                relation_types=tuple(args.relation_type),
+                as_of=args.as_of,
+            )
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_graph_impact(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dependency_graph_service.impact(
+            AnalyzeDependencyImpactCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                root_key=args.root_key,
+                direction=args.direction,
+                max_depth=args.max_depth,
+                max_nodes=args.max_nodes,
+                relation_types=tuple(args.relation_type),
+                as_of=args.as_of,
+            )
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_graph_path(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dependency_graph_service.find_path(
+            FindDependencyPathCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                source_key=args.source_key,
+                target_key=args.target_key,
+                direction=args.direction,
+                max_depth=args.max_depth,
+                max_nodes=args.max_nodes,
+                relation_types=tuple(args.relation_type),
+                as_of=args.as_of,
+            )
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
         return 0
 
     def _warn_legacy_inventory_alias(self, args: argparse.Namespace) -> None:

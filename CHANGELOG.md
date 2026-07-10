@@ -1,3 +1,24 @@
+## v0.29.86 — Graphe de dépendances RSOT, navigation responsive et analyse d’impact
+
+- Refonte responsive de la navigation web en trois modes : sidebar desktop, mégamenu multicolonne tablette/portable compact et menu unique mobile.
+- Breakpoints fonctionnels : sidebar à partir de 1200 px, mégamenu de 768 à 1199,98 px, navigation compacte sous 768 px.
+- Les icônes de composants ouvrent le mégamenu sans sélectionner silencieusement une opération ; le Dashboard reste une navigation directe.
+- Le menu compact reprend tous les composants, contextes et opérations de la sidebar, avec fermeture par backdrop, bouton dédié et touche Échap.
+- Réduction de 25 % de la hauteur visuelle de la seconde barre du header et adaptation proportionnelle de la recherche globale.
+- Alignement strict du sélecteur EN/FR avec Swagger et ReDoc ; agrandissement automatique des cibles sur écrans tactiles.
+- Réduction de l’ombre du header tout en conservant une hiérarchie supérieure aux cartes et blocs de contenu.
+- Parité React/runtime packagé et tests de régression responsive, accessibilité clavier et build frontend.
+
+- Implémentation de EPIC-1501 comme projection tenant-aware du RSOT, sans duplication de la source de vérité.
+- Parcours en largeur borné, déterministe et résistant aux cycles, avec directions entrante, sortante ou bidirectionnelle.
+- Filtres de types de relation, restitution historique `as_of`, limites de profondeur et de volume, et indicateur de troncature.
+- Recherche du chemin de dépendance le plus court entre deux objets RSOT.
+- Analyse d’impact direct/indirect avec agrégats par type d’objet et catégorie de ressource.
+- Exposition complète par service, CLI, API HTTP, OpenAPI et portail web FR/EN.
+- Audit des consultations de graphe et tests de non-régression métier, CLI, HTTP, UI et sécurité.
+- Aucune migration PostgreSQL : le moteur exploite les tables RSOT et relations historisées existantes.
+- EPIC-1501 reste aligné sur la roadmap existante ; le CDC et la roadmap sont toutefois mis à jour pour formaliser la nouvelle navigation responsive et le header compact (`REQ-00811`, `REQ-00825`, `EPIC-0805`).
+
 ## v0.29.85 — Nomenclature DCIM des étages et portail FR/EN
 
 - Abandon de la concaténation site/bâtiment dans les codes et noms d’étage.

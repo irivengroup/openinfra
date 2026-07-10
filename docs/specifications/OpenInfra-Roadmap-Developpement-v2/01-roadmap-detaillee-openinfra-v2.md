@@ -691,14 +691,14 @@ Cette roadmap met à jour la trajectoire de développement OpenInfra pour l’al
 - **Dépendances :** P02
 - **Acceptation :** Quota visible avant refus opérationnel.
 
-#### EPIC-0805 — Accessibilité et responsive
+#### EPIC-0805 — Accessibilité et navigation responsive adaptative
 
 - **Stream :** STR-FE
 - **Priorité :** P1
-- **Résumé :** Appliquer standards accessibilité et responsive pour exploitation.
-- **Livrables :** A11y tests; UI docs.
+- **Résumé :** Fournir une navigation accessible sans perte fonctionnelle sur desktop, portable, tablette et mobile.
+- **Livrables :** Sidebar desktop, mégamenu contextuel multicolonne, menu compact mobile, header compact, tests a11y/responsive et documentation UX.
 - **Dépendances :** P08
-- **Acceptation :** Tests a11y critiques passants.
+- **Acceptation :** Sidebar persistante à partir de 1200 px ; mégamenu complet entre 768 px et 1199,98 px ; menu unique sous 768 px ; mêmes opérations sur toutes les surfaces ; clavier, backdrop, Échap, cibles tactiles 44 px, absence d'overflow et parité React/runtime validés.
 
 #### EPIC-0806 — Tests E2E UI
 
@@ -1716,3 +1716,10 @@ Le portail React et le portail packagé partagent un moteur i18n unique couvrant
 ### Nomenclature DCIM des étages
 
 EPIC-1401 est réaligné sur une nomenclature locale au bâtiment : `L-01`, `L00`, `L01`… La migration 0040 met à niveau les dépendances sans perte, maintient les alias historiques en lecture et conserve les libellés personnalisés.
+
+## Réalignement v0.29.86 — Navigation responsive adaptative
+
+EPIC-0805 adopte trois surfaces exclusives fondées sur la largeur utile : sidebar persistante à partir de 1200 px, mégamenu contextuel multicolonne de 768 px à 1199,98 px, puis menu compact unique sous 768 px. Chaque surface reprend les mêmes composants, contextes et opérations. Le header secondaire est compacté de 25 %, la recherche et les contrôles FR/EN, Swagger et ReDoc partagent un gabarit aligné, et les périphériques tactiles conservent des cibles d'au moins 44 px.
+
+Les gates `TST-P08-WEB-RESPONSIVE-NAVIGATION` et `TST-P08-WEB-COMPACT-HEADER` vérifient la parité React/runtime, le clavier, le backdrop, la touche Échap, les identifiants DOM uniques, l'absence de débordement horizontal, les breakpoints et la hiérarchie visuelle du header.
+

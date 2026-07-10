@@ -126,3 +126,8 @@ Ajout de l'adresse complète des sites DCIM, du code postal des organisations IT
 ### Validation v0.29.81 — Profils Discovery virtualisation, Kubernetes et cloud
 
 La roadmap intègre `TST-P14-DISCOVERY-INTEGRATION-PROFILES` pour couvrir EPIC-1404 : profils VMware, Proxmox, Hyper-V, Kubernetes, AWS, Azure, GCP et OpenStack sécurisés, secrets `vault://` masqués, endpoints HTTPS contrôlés, limites de débit/concurrence actives, CRUD service/CLI/API/web et migration PostgreSQL `0037_discovery_integration_profiles.sql` sans scan réseau ni mutation RSOT.
+
+## Validation v0.29.86 — Navigation responsive adaptative
+
+La roadmap renforce `EPIC-0805` avec `TST-P08-WEB-RESPONSIVE-NAVIGATION` et `TST-P08-WEB-COMPACT-HEADER`. La validation couvre sidebar desktop, mégamenu contextuel intermédiaire, menu compact mobile, parité complète des opérations, clavier et tactile, header secondaire réduit de 25 %, contrôles alignés et ombre du header supérieure aux blocs de contenu. L'alignement CDC référence `REQ-00811` et `REQ-00825`.
+

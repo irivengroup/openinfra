@@ -7,7 +7,7 @@ from typing import Generic, TypeVar
 
 from openinfra.domain.access_policy import AccessPolicyRule
 from openinfra.domain.audit import AuditEventFilter, AuditEventPage, AuditIntegrityReport
-from openinfra.domain.common import AuditEvent, Pagination, TenantId
+from openinfra.domain.common import AuditEvent, EntityId, Pagination, TenantId
 from openinfra.domain.data_export import ExportJob
 from openinfra.domain.data_import import (
     BulkImportCheckpoint,
@@ -39,6 +39,7 @@ from openinfra.domain.discovery import (
     DiscoveryProtocolCredentialProfile,
     DiscoveryReconciliationCase,
 )
+from openinfra.domain.discovery_jobs import DiscoveryJob
 from openinfra.domain.editions import QuotaResource
 from openinfra.domain.identity import (
     EffectiveIdentity,
@@ -110,6 +111,24 @@ class SecurityTokenPage:
 @dataclass(frozen=True, slots=True)
 class DiscoveryCollectorPage:
     items: tuple[DiscoveryCollector, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "items": [item.as_dict() for item in self.items],
+            "next_cursor": self.next_cursor,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class DiscoveryJobClaimResult:
+    job: DiscoveryJob | None
+    dead_lettered_jobs: tuple[DiscoveryJob, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class DiscoveryJobPage:
+    items: tuple[DiscoveryJob, ...]
     next_cursor: str | None
 
     def as_dict(self) -> dict[str, object]:
@@ -816,6 +835,40 @@ class ImportRepository(ABC):
 
 
 class DiscoveryRepository(ABC):
+    @abstractmethod
+    def save_job(self, job: DiscoveryJob) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_job(self, tenant_id: TenantId, job_id: str) -> DiscoveryJob | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_job_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> DiscoveryJob | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def claim_next_job(
+        self,
+        tenant_id: TenantId,
+        collector_id: EntityId,
+        worker_id: str,
+        lease_seconds: int,
+        now: datetime,
+    ) -> DiscoveryJobClaimResult:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_jobs(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        status: str | None = None,
+    ) -> DiscoveryJobPage:
+        raise TypeError("adapter contract invoked directly")
+
     @abstractmethod
     def save_evidence(self, evidence: DiscoveryEvidence) -> None:
         raise TypeError("adapter contract invoked directly")

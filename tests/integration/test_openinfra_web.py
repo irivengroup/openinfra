@@ -1196,3 +1196,22 @@ def test_openinfra_web_site_and_organization_address_fields_are_exposed() -> Non
     assert "const label = `${country.name || code}`;" in static_js
     assert "FR — France" not in static_js
     assert "Pays ISO-3166" not in static_js
+
+
+def test_openinfra_web_exposes_resilient_discovery_job_operations() -> None:
+    static_js = (OpenInfraWebStaticLocator().resolve() / "assets" / "openinfra-web.js").read_text()
+
+    for operation_id, path in (
+        ("discovery-job-list", "/v1/discovery/jobs"),
+        ("discovery-job", "/v1/discovery/job"),
+        ("discovery-job-submit", "/v1/discovery/jobs"),
+        ("discovery-job-claim", "/v1/discovery/jobs/claim"),
+        ("discovery-job-renew", "/v1/discovery/jobs/renew"),
+        ("discovery-job-complete", "/v1/discovery/jobs/complete"),
+        ("discovery-job-fail", "/v1/discovery/jobs/fail"),
+        ("discovery-job-replay", "/v1/discovery/jobs/replay"),
+    ):
+        assert f'id: "{operation_id}"' in static_js
+        assert f'path: "{path}"' in static_js
+    assert 'label: "Jeton de fencing"' in static_js
+    assert '"dead-letter"' in static_js

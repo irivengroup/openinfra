@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from openinfra.application.edition_services import EditionRuntimeGuard
@@ -10,13 +10,22 @@ from openinfra.application.ports import (
     DiscoveryCollectorPage,
     DiscoveryEvidencePage,
     DiscoveryIntegrationProfilePage,
+    DiscoveryJobPage,
     DiscoveryProtocolProfilePage,
     DiscoveryReconciliationCasePage,
     DiscoveryRepository,
     TransactionManager,
 )
 from openinfra.application.security_services import AuthenticateTokenCommand, SecurityService
-from openinfra.domain.common import AuditEvent, EntityId, Pagination, TenantId, ValidationError
+from openinfra.domain.common import (
+    AccessDeniedError,
+    AuditEvent,
+    ConflictError,
+    EntityId,
+    Pagination,
+    TenantId,
+    ValidationError,
+)
 from openinfra.domain.discovery import (
     CollectorIdentity,
     CollectorKind,
@@ -32,6 +41,7 @@ from openinfra.domain.discovery import (
     EnterpriseAgentBootstrapPlan,
     LocalDiscoveryPlan,
 )
+from openinfra.domain.discovery_jobs import DiscoveryJob, DiscoveryJobStatus
 from openinfra.domain.editions import FeatureCapability, QuotaResource
 from openinfra.domain.security import Permission
 
@@ -249,6 +259,86 @@ class BuildLocalDiscoveryPlanCommand:
 
 
 @dataclass(frozen=True, slots=True)
+class SubmitDiscoveryJobCommand:
+    tenant_id: str
+    actor: str
+    admin_token: str
+    collector_id: str
+    requested_scope: str
+    job_type: str
+    target: str
+    idempotency_key: str
+    max_attempts: int = 3
+
+
+@dataclass(frozen=True, slots=True)
+class ClaimDiscoveryJobCommand:
+    tenant_id: str
+    collector_id: str
+    certificate_fingerprint: str
+    worker_id: str
+    lease_seconds: int = 60
+
+
+@dataclass(frozen=True, slots=True)
+class RenewDiscoveryJobLeaseCommand:
+    tenant_id: str
+    collector_id: str
+    certificate_fingerprint: str
+    job_id: str
+    worker_id: str
+    lease_token: int
+    lease_seconds: int = 60
+
+
+@dataclass(frozen=True, slots=True)
+class CompleteDiscoveryJobCommand:
+    tenant_id: str
+    collector_id: str
+    certificate_fingerprint: str
+    job_id: str
+    worker_id: str
+    lease_token: int
+    result_hash: str
+
+
+@dataclass(frozen=True, slots=True)
+class FailDiscoveryJobCommand:
+    tenant_id: str
+    collector_id: str
+    certificate_fingerprint: str
+    job_id: str
+    worker_id: str
+    lease_token: int
+    error: str
+    retry_delay_seconds: int = 30
+
+
+@dataclass(frozen=True, slots=True)
+class GetDiscoveryJobCommand:
+    tenant_id: str
+    admin_token: str
+    job_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class ListDiscoveryJobsCommand:
+    tenant_id: str
+    admin_token: str
+    limit: int = 100
+    cursor: str | None = None
+    status: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ReplayDiscoveryDeadLetterJobCommand:
+    tenant_id: str
+    actor: str
+    admin_token: str
+    job_id: str
+
+
+@dataclass(frozen=True, slots=True)
 class SubmitDiscoveryEvidenceCommand:
     tenant_id: str
     actor: str
@@ -331,6 +421,369 @@ class DiscoveryCollectorService:
         self._transaction_manager = transaction_manager
         self._security_service = security_service
         self._edition_guard = edition_guard
+
+    def submit_job(self, command: SubmitDiscoveryJobCommand) -> DiscoveryJob:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        principal = self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                tenant_id.value, command.admin_token, Permission.SECURITY_ADMIN
+            )
+        )
+        self._require_distributed_discovery(tenant_id, principal.subject, command.collector_id)
+        candidate: DiscoveryJob | None = None
+        try:
+            with self._transaction_manager.begin() as unit_of_work:
+                collector = self._discovery_repository.get_collector(
+                    tenant_id, command.collector_id
+                )
+                decision = DiscoveryJobAuthorization.decide(
+                    tenant_id=tenant_id,
+                    collector=collector,
+                    collector_id=command.collector_id,
+                    certificate_fingerprint=(
+                        "0" * 64
+                        if collector is None
+                        else collector.identity.certificate_fingerprint
+                    ),
+                    requested_scope=command.requested_scope,
+                    job_type=command.job_type,
+                    target=command.target,
+                )
+                if not decision.authorized:
+                    raise ValidationError(
+                        "discovery job submission rejected: " + ",".join(decision.reasons)
+                    )
+                candidate = DiscoveryJob.create(
+                    tenant_id=tenant_id,
+                    collector_id=decision.collector_id,
+                    requested_scope=decision.requested_scope,
+                    job_type=decision.job_type,
+                    target=decision.target,
+                    idempotency_key=command.idempotency_key,
+                    max_attempts=command.max_attempts,
+                    requested_by=principal.subject,
+                )
+                existing = self._discovery_repository.find_job_by_idempotency_key(
+                    tenant_id, candidate.idempotency_key
+                )
+                if existing is not None:
+                    if self._same_job_request(existing, candidate):
+                        unit_of_work.commit()
+                        return existing
+                    raise ValidationError(
+                        "discovery job idempotency key conflicts with another request"
+                    )
+                self._discovery_repository.save_job(candidate)
+                self._audit_repository.append(
+                    AuditEvent.record(
+                        tenant_id=tenant_id,
+                        actor=principal.subject,
+                        action="discovery.job.submitted",
+                        target_type="discovery_job",
+                        target_id=candidate.id.value,
+                        metadata={
+                            "declared_actor": command.actor,
+                            "collector_id": candidate.collector_id.value,
+                            "requested_scope": candidate.requested_scope.value,
+                            "job_type": candidate.job_type,
+                            "target": candidate.target,
+                            "idempotency_key": candidate.idempotency_key,
+                            "max_attempts": candidate.max_attempts,
+                        },
+                    )
+                )
+                unit_of_work.commit()
+            return candidate
+        except ConflictError:
+            if candidate is None:
+                raise
+            existing = self._find_job_by_idempotency_key(tenant_id, candidate.idempotency_key)
+            if existing is not None and self._same_job_request(existing, candidate):
+                return existing
+            if existing is not None:
+                raise ValidationError(
+                    "discovery job idempotency key conflicts with another request"
+                ) from None
+            raise
+
+    def claim_job(self, command: ClaimDiscoveryJobCommand) -> DiscoveryJob | None:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        collector = self._authenticate_collector(
+            tenant_id, command.collector_id, command.certificate_fingerprint
+        )
+        self._require_distributed_discovery(
+            tenant_id, "collector:" + collector.id.value, collector.id.value
+        )
+        now = datetime.now(UTC)
+        with self._transaction_manager.begin() as unit_of_work:
+            claim_result = self._discovery_repository.claim_next_job(
+                tenant_id=tenant_id,
+                collector_id=collector.id,
+                worker_id=command.worker_id,
+                lease_seconds=command.lease_seconds,
+                now=now,
+            )
+            for exhausted_job in claim_result.dead_lettered_jobs:
+                self._audit_repository.append(
+                    AuditEvent.record(
+                        tenant_id=tenant_id,
+                        actor="collector:" + collector.id.value,
+                        action="discovery.job.dead-lettered",
+                        target_type="discovery_job",
+                        target_id=exhausted_job.id.value,
+                        metadata={
+                            "reason": "lease_expired_after_final_attempt",
+                            "attempt_count": exhausted_job.attempt_count,
+                            "lease_token": exhausted_job.lease_token,
+                            "error": exhausted_job.last_error,
+                        },
+                    )
+                )
+            job = claim_result.job
+            if job is not None:
+                self._audit_repository.append(
+                    AuditEvent.record(
+                        tenant_id=tenant_id,
+                        actor="collector:" + collector.id.value,
+                        action="discovery.job.claimed",
+                        target_type="discovery_job",
+                        target_id=job.id.value,
+                        metadata={
+                            "worker_id": job.lease_owner,
+                            "lease_token": job.lease_token,
+                            "leased_until": (
+                                None if job.leased_until is None else job.leased_until.isoformat()
+                            ),
+                            "attempt_count": job.attempt_count,
+                            "reclaimed_after_crash": job.lease_token > 1,
+                        },
+                    )
+                )
+            unit_of_work.commit()
+        return job
+
+    def renew_job_lease(self, command: RenewDiscoveryJobLeaseCommand) -> DiscoveryJob:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        job = self._get_worker_job(
+            tenant_id, command.collector_id, command.certificate_fingerprint, command.job_id
+        )
+        renewed = job.renew_lease(
+            worker_id=command.worker_id,
+            lease_token=command.lease_token,
+            lease_seconds=command.lease_seconds,
+        )
+        return self._save_worker_job(renewed, "discovery.job.lease-renewed")
+
+    def complete_job(self, command: CompleteDiscoveryJobCommand) -> DiscoveryJob:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        job = self._get_worker_job(
+            tenant_id, command.collector_id, command.certificate_fingerprint, command.job_id
+        )
+        completed = job.complete(
+            worker_id=command.worker_id,
+            lease_token=command.lease_token,
+            result_hash=command.result_hash,
+        )
+        if completed is job and job.status is DiscoveryJobStatus.COMPLETED:
+            return job
+        return self._save_worker_job(completed, "discovery.job.completed")
+
+    def fail_job(self, command: FailDiscoveryJobCommand) -> DiscoveryJob:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        job = self._get_worker_job(
+            tenant_id, command.collector_id, command.certificate_fingerprint, command.job_id
+        )
+        failed = job.fail(
+            worker_id=command.worker_id,
+            lease_token=command.lease_token,
+            error=command.error,
+            retry_delay_seconds=command.retry_delay_seconds,
+        )
+        action = (
+            "discovery.job.dead-lettered"
+            if failed.status is DiscoveryJobStatus.DEAD_LETTER
+            else "discovery.job.retry-scheduled"
+        )
+        return self._save_worker_job(failed, action)
+
+    def get_job(self, command: GetDiscoveryJobCommand) -> DiscoveryJob:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                tenant_id.value, command.admin_token, Permission.SECURITY_ADMIN
+            )
+        )
+        return self._load_job(tenant_id, command.job_id)
+
+    def list_jobs(self, command: ListDiscoveryJobsCommand) -> DiscoveryJobPage:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                tenant_id.value, command.admin_token, Permission.SECURITY_ADMIN
+            )
+        )
+        pagination = Pagination.from_values(command.limit, command.cursor)
+        with self._transaction_manager.begin() as unit_of_work:
+            page = self._discovery_repository.list_jobs(tenant_id, pagination, command.status)
+            unit_of_work.commit()
+        return page
+
+    def replay_dead_letter_job(self, command: ReplayDiscoveryDeadLetterJobCommand) -> DiscoveryJob:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        principal = self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                tenant_id.value, command.admin_token, Permission.SECURITY_ADMIN
+            )
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            job = self._discovery_repository.get_job(tenant_id, command.job_id)
+            if job is None:
+                raise ValidationError("discovery job is not registered")
+            replayed = job.replay()
+            self._discovery_repository.save_job(replayed)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=principal.subject,
+                    action="discovery.job.replayed",
+                    target_type="discovery_job",
+                    target_id=replayed.id.value,
+                    metadata={
+                        "declared_actor": command.actor,
+                        "previous_attempt_count": job.attempt_count,
+                        "lease_token": replayed.lease_token,
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return replayed
+
+    def _get_worker_job(
+        self,
+        tenant_id: TenantId,
+        collector_id: str,
+        certificate_fingerprint: str,
+        job_id: str,
+    ) -> DiscoveryJob:
+        collector = self._authenticate_collector(tenant_id, collector_id, certificate_fingerprint)
+        job = self._load_job(tenant_id, job_id)
+        if job.collector_id != collector.id:
+            raise ValidationError("discovery job is assigned to another collector")
+        decision = DiscoveryJobAuthorization.decide(
+            tenant_id=tenant_id,
+            collector=collector,
+            collector_id=collector.id.value,
+            certificate_fingerprint=certificate_fingerprint,
+            requested_scope=job.requested_scope.value,
+            job_type=job.job_type,
+            target=job.target,
+        )
+        if not decision.authorized:
+            raise ValidationError(
+                "discovery worker operation rejected: " + ",".join(decision.reasons)
+            )
+        return job
+
+    def _authenticate_collector(
+        self, tenant_id: TenantId, collector_id: str, certificate_fingerprint: str
+    ) -> DiscoveryCollector:
+        with self._transaction_manager.begin() as unit_of_work:
+            collector = self._discovery_repository.get_collector(tenant_id, collector_id)
+            unit_of_work.commit()
+        decision = DiscoveryJobAuthorization.decide(
+            tenant_id=tenant_id,
+            collector=collector,
+            collector_id=collector_id,
+            certificate_fingerprint=certificate_fingerprint,
+            requested_scope=(
+                "system/identity"
+                if collector is None or not collector.scopes
+                else collector.scopes[0].value
+            ),
+            job_type="worker-authentication",
+            target="collector",
+        )
+        identity_reasons = tuple(
+            reason
+            for reason in decision.reasons
+            if reason
+            in {
+                "collector_not_registered",
+                "collector_not_active",
+                "fingerprint_mismatch",
+                "fingerprint_invalid",
+            }
+        )
+        if collector is None or identity_reasons:
+            raise AccessDeniedError(
+                "discovery collector authentication rejected: " + ",".join(identity_reasons)
+            )
+        return collector
+
+    def _load_job(self, tenant_id: TenantId, job_id: str) -> DiscoveryJob:
+        with self._transaction_manager.begin() as unit_of_work:
+            job = self._discovery_repository.get_job(tenant_id, job_id)
+            unit_of_work.commit()
+        if job is None:
+            raise ValidationError("discovery job is not registered")
+        return job
+
+    def _find_job_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> DiscoveryJob | None:
+        with self._transaction_manager.begin() as unit_of_work:
+            job = self._discovery_repository.find_job_by_idempotency_key(tenant_id, idempotency_key)
+            unit_of_work.commit()
+        return job
+
+    @staticmethod
+    def _same_job_request(existing: DiscoveryJob, candidate: DiscoveryJob) -> bool:
+        return (
+            existing.collector_id == candidate.collector_id
+            and existing.requested_scope == candidate.requested_scope
+            and existing.job_type == candidate.job_type
+            and existing.target == candidate.target
+            and existing.idempotency_key == candidate.idempotency_key
+            and existing.max_attempts == candidate.max_attempts
+        )
+
+    def _save_worker_job(self, job: DiscoveryJob, action: str) -> DiscoveryJob:
+        with self._transaction_manager.begin() as unit_of_work:
+            self._discovery_repository.save_job(job)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=job.tenant_id,
+                    actor="collector:" + job.collector_id.value,
+                    action=action,
+                    target_type="discovery_job",
+                    target_id=job.id.value,
+                    metadata={
+                        "status": job.status.value,
+                        "attempt_count": job.attempt_count,
+                        "lease_token": job.lease_token,
+                        "worker_id": job.lease_owner,
+                        "next_attempt_at": (
+                            None if job.next_attempt_at is None else job.next_attempt_at.isoformat()
+                        ),
+                        "result_hash": job.result_hash,
+                        "error": job.last_error,
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return job
+
+    def _require_distributed_discovery(
+        self, tenant_id: TenantId, actor: str, target_id: str
+    ) -> None:
+        if self._edition_guard is not None and self._edition_guard.limited_runtime:
+            self._edition_guard.require_feature(
+                tenant_id,
+                FeatureCapability.DISTRIBUTED_DISCOVERY_AGENTS,
+                actor,
+                "discovery_job",
+                target_id,
+            )
 
     def submit_evidence(self, command: SubmitDiscoveryEvidenceCommand) -> DiscoveryEvidence:
         tenant_id = TenantId.from_value(command.tenant_id)

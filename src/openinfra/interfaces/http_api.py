@@ -77,26 +77,34 @@ from openinfra.application.discovery_services import (
     AuthorizeDiscoveryJobCommand,
     BuildEnterpriseAgentBootstrapPlanCommand,
     BuildLocalDiscoveryPlanCommand,
+    ClaimDiscoveryJobCommand,
+    CompleteDiscoveryJobCommand,
     CreateDiscoveryIntegrationProfileCommand,
     CreateDiscoveryProtocolProfileCommand,
     DisableCollectorCommand,
     DisableDiscoveryIntegrationProfileCommand,
     DisableDiscoveryProtocolProfileCommand,
     EnrollDiscoveryProxyCommand,
+    FailDiscoveryJobCommand,
     GetDiscoveryEvidenceCommand,
     GetDiscoveryIntegrationProfileCommand,
+    GetDiscoveryJobCommand,
     GetDiscoveryProtocolProfileCommand,
     GetDiscoveryReconciliationCommand,
     HeartbeatCollectorCommand,
     ListCollectorsCommand,
     ListDiscoveryEvidenceCommand,
     ListDiscoveryIntegrationProfilesCommand,
+    ListDiscoveryJobsCommand,
     ListDiscoveryProtocolProfilesCommand,
     ListDiscoveryReconciliationsCommand,
     ReconcileDiscoveryEvidenceCommand,
     RegisterCollectorCommand,
+    RenewDiscoveryJobLeaseCommand,
+    ReplayDiscoveryDeadLetterJobCommand,
     ResolveDiscoveryReconciliationCommand,
     SubmitDiscoveryEvidenceCommand,
+    SubmitDiscoveryJobCommand,
     UpdateDiscoveryIntegrationProfileCommand,
     UpdateDiscoveryProtocolProfileCommand,
 )
@@ -755,6 +763,42 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     )
                 )
                 responder.send(HTTPStatus.OK, report.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/discovery/job":
+            try:
+                query = parse_qs(parsed.query)
+                discovery_job = self.server.application.discovery_service.get_job(
+                    GetDiscoveryJobCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        job_id=self._first_query_value(query, "job_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, discovery_job.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/discovery/jobs":
+            try:
+                query = parse_qs(parsed.query)
+                page = self.server.application.discovery_service.list_jobs(
+                    ListDiscoveryJobsCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        status=query.get("status", [None])[0],
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, page.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (ValueError, OpenInfraError) as exc:
@@ -4365,6 +4409,133 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
+        if route == "/api/v1/discovery/jobs":
+            try:
+                payload = self._read_json_body()
+                discovery_job = self.server.application.discovery_service.submit_job(
+                    SubmitDiscoveryJobCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        collector_id=str(payload["collector_id"]),
+                        requested_scope=str(payload["requested_scope"]),
+                        job_type=str(payload["job_type"]),
+                        target=str(payload["target"]),
+                        idempotency_key=str(payload["idempotency_key"]),
+                        max_attempts=int(payload.get("max_attempts", 3)),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, discovery_job.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError, TypeError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/discovery/jobs/claim":
+            try:
+                payload = self._read_json_body()
+                claimed_job = self.server.application.discovery_service.claim_job(
+                    ClaimDiscoveryJobCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        collector_id=str(payload["collector_id"]),
+                        certificate_fingerprint=str(payload["certificate_fingerprint"]),
+                        worker_id=str(payload["worker_id"]),
+                        lease_seconds=int(payload.get("lease_seconds", 60)),
+                    )
+                )
+                responder.send(
+                    HTTPStatus.OK,
+                    {"job": None if claimed_job is None else claimed_job.as_dict()},
+                )
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError, TypeError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/discovery/jobs/renew":
+            try:
+                payload = self._read_json_body()
+                discovery_job = self.server.application.discovery_service.renew_job_lease(
+                    RenewDiscoveryJobLeaseCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        collector_id=str(payload["collector_id"]),
+                        certificate_fingerprint=str(payload["certificate_fingerprint"]),
+                        job_id=str(payload["job_id"]),
+                        worker_id=str(payload["worker_id"]),
+                        lease_token=int(payload["lease_token"]),
+                        lease_seconds=int(payload.get("lease_seconds", 60)),
+                    )
+                )
+                responder.send(HTTPStatus.OK, discovery_job.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError, TypeError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/discovery/jobs/complete":
+            try:
+                payload = self._read_json_body()
+                discovery_job = self.server.application.discovery_service.complete_job(
+                    CompleteDiscoveryJobCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        collector_id=str(payload["collector_id"]),
+                        certificate_fingerprint=str(payload["certificate_fingerprint"]),
+                        job_id=str(payload["job_id"]),
+                        worker_id=str(payload["worker_id"]),
+                        lease_token=int(payload["lease_token"]),
+                        result_hash=str(payload["result_hash"]),
+                    )
+                )
+                responder.send(HTTPStatus.OK, discovery_job.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError, TypeError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/discovery/jobs/fail":
+            try:
+                payload = self._read_json_body()
+                discovery_job = self.server.application.discovery_service.fail_job(
+                    FailDiscoveryJobCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        collector_id=str(payload["collector_id"]),
+                        certificate_fingerprint=str(payload["certificate_fingerprint"]),
+                        job_id=str(payload["job_id"]),
+                        worker_id=str(payload["worker_id"]),
+                        lease_token=int(payload["lease_token"]),
+                        error=str(payload["error"]),
+                        retry_delay_seconds=int(payload.get("retry_delay_seconds", 30)),
+                    )
+                )
+                responder.send(HTTPStatus.OK, discovery_job.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError, TypeError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/discovery/jobs/replay":
+            try:
+                payload = self._read_json_body()
+                discovery_job = self.server.application.discovery_service.replay_dead_letter_job(
+                    ReplayDiscoveryDeadLetterJobCommand(
+                        tenant_id=str(payload["tenant_id"]),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        job_id=str(payload["job_id"]),
+                    )
+                )
+                responder.send(HTTPStatus.OK, discovery_job.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError, TypeError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
         if route == "/api/v1/discovery/jobs/authorize":
             try:
                 payload = self._read_json_body()
@@ -5092,6 +5263,13 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "agent_bootstrap_plan": "/api/v1/discovery/agent-bootstrap-plan",
                     "proxy_enrollments": "/api/v1/discovery/proxy-enrollments",
                     "heartbeat": "/api/v1/discovery/collectors/heartbeat",
+                    "job": "/api/v1/discovery/job",
+                    "jobs": "/api/v1/discovery/jobs",
+                    "job_claim": "/api/v1/discovery/jobs/claim",
+                    "job_renew": "/api/v1/discovery/jobs/renew",
+                    "job_complete": "/api/v1/discovery/jobs/complete",
+                    "job_fail": "/api/v1/discovery/jobs/fail",
+                    "job_replay": "/api/v1/discovery/jobs/replay",
                     "authorize_job": "/api/v1/discovery/jobs/authorize",
                 },
             },

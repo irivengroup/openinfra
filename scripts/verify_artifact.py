@@ -20,6 +20,7 @@ class WheelVerifier:
             "openinfra/domain/dcim.py",
             "openinfra/domain/ipam.py",
             "openinfra/interfaces/cli.py",
+            "openinfra/migrations/postgresql/0039_discovery_job_resilience.sql",
         )
         missing = [
             suffix

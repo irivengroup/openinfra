@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
@@ -51,6 +52,7 @@ from openinfra.infrastructure.postgresql import (
     PostgreSQLClusterProfile,
     PostgreSQLConnectionFactory,
     PostgreSQLDcimRepository,
+    PostgreSQLDiscoveryRepository,
     PostgreSQLDriver,
     PostgreSQLIdentityRepository,
     PostgreSQLIpamRepository,
@@ -1258,3 +1260,20 @@ class TestPostgreSQLSourceOfTruth:
             "INSERT INTO source_governance_rules" in statement[0]
             for statement in connector.connection.statements
         )
+
+
+def test_postgresql_discovery_jobs_use_atomic_claim_and_optimistic_fencing() -> None:
+    claim_source = inspect.getsource(PostgreSQLDiscoveryRepository.claim_next_job)
+    save_source = inspect.getsource(PostgreSQLDiscoveryRepository.save_job)
+
+    assert "FOR UPDATE SKIP LOCKED" in claim_source
+    assert "lease expired after final attempt" in claim_source
+    assert "attempt_count >= max_attempts" in claim_source
+    assert "attempt_count < max_attempts" in claim_source
+    assert "ON CONFLICT DO NOTHING" in save_source
+    assert "expected_status" in save_source
+    assert "expected_attempt_count" in save_source
+    assert "expected_lease_token" in save_source
+    assert "expected_lease_owner" in save_source
+    assert "expected_updated_at" in save_source
+    assert "optimistic fencing policy" in save_source

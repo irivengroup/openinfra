@@ -1,20 +1,23 @@
-# OpenInfra v0.29.82
+# OpenInfra v0.29.83
 
-## Réconciliation Discovery multisource gouvernée
+## Résilience des workers et agents Discovery
 
-OpenInfra v0.29.82 réalise P14 / EPIC-1405. Les résultats issus de SNMP, SSH, WinRM, VMware, Proxmox, Hyper-V, Kubernetes, AWS, Azure, GCP, OpenStack, imports et saisies manuelles peuvent être enregistrés comme preuves immuables, puis rapprochés sans écriture automatique dans le RSOT (Ressource Source of Truth).
+OpenInfra v0.29.83 réalise **P14 / EPIC-1406** avec une file de jobs Discovery persistante, idempotente et récupérable après interruption d’un worker ou d’un agent. Un job validé est enregistré avant sa remise à un collector ; il ne peut donc plus être perdu à la suite d’un arrêt brutal entre l’autorisation et l’exécution.
 
-Le moteur calcule de façon déterministe les scores de confiance, fraîcheur, complétude et qualité globale. Les divergences sont exposées par chemin d’attribut avec toutes les variantes et leur preuve source. Une résolution exige une sélection explicite pour chaque conflit ainsi qu’une justification auditée. Les preuves et cas de rapprochement sont isolés par tenant, paginés et partitionnés sous PostgreSQL.
+Chaque réservation repose sur un bail expirant et un **jeton de fencing monotone**. Lorsqu’un worker disparaît, un autre peut reprendre le job après expiration du bail ; l’ancien worker ne peut plus terminer ou altérer le traitement avec son jeton périmé. Les échecs suivent une politique de tentatives bornées, puis basculent dans une **DLQ** (Dead-Letter Queue, file de quarantaine) administrable et auditée.
 
 ## Capacités livrées
 
-- domaine POO typé pour preuves, scores, conflits, décisions et résolutions ;
-- idempotence par signature canonique des preuves rapprochées ;
-- persistance JSON et PostgreSQL avec migration additive `0038_discovery_multisource_reconciliation.sql` ;
-- services applicatifs protégés par permissions RSOT de lecture/gouvernance ;
-- commandes CLI, API HTTP, OpenAPI et formulaires web complets ;
-- audit sans copie du payload de preuve ni matérialisation de secret ;
-- tests unitaires, intégration, CLI, API, web, migration, sécurité et non-régression RSOT ;
-- runbook `docs/runbooks/DISCOVERY_RECONCILIATION.md`.
+- états persistants `queued`, `leased`, `retry-wait`, `completed` et `dead-letter` ;
+- soumission idempotente par tenant et clé métier ;
+- réservation atomique concurrente et reprise des baux expirés ;
+- jetons de fencing empêchant le double traitement par un worker obsolète ;
+- renouvellement de bail, terminaison idempotente et empreinte SHA-256 du résultat ;
+- retries bornés, DLQ et rejeu explicite par un administrateur ;
+- persistance JSON et PostgreSQL, partitionnée par tenant via la migration `0039_discovery_job_resilience.sql` ;
+- CLI, API HTTP, OpenAPI et portail web alignés ;
+- audit des soumissions, réservations, reprises, erreurs, mises en DLQ, rejeux et terminaisons ;
+- tests domaine, services, concurrence, CLI, HTTP, portail, migration, sécurité et non-perte ;
+- runbook `docs/runbooks/DISCOVERY_JOB_RESILIENCE.md`.
 
-Les corrections DCIM/ITAM et les profils Discovery livrés jusqu’en v0.29.81 restent compatibles.
+La réconciliation multisource v0.29.82 et les corrections DCIM/ITAM antérieures restent compatibles. Le CDC et la roadmap ne sont pas modifiés : EPIC-1406 était déjà défini et aucune nouvelle recommandation n’impacte l’existant.

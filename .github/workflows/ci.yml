@@ -83,6 +83,19 @@ jobs:
             tests/integration/test_postgresql_migration.py \
             tests/integration/test_postgresql_migration_policy.py
 
+      - name: Discovery resilient worker and DLQ regression
+        run: |
+          python -m pytest -q --no-cov \
+            tests/unit/test_discovery_jobs_domain.py \
+            tests/integration/test_discovery_job_resilience.py \
+            tests/integration/test_discovery_job_interfaces.py \
+            tests/integration/test_cli_discovery.py \
+            tests/integration/test_http_api.py \
+            tests/integration/test_openinfra_web.py \
+            tests/integration/test_postgresql_migration.py \
+            tests/integration/test_postgresql_migration_policy.py \
+            tests/integration/test_installer_alignment.py
+
       - name: Unit and integration tests with coverage
         run: python -m pytest
 

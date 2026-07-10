@@ -21,6 +21,8 @@ from openinfra.application.ports import (
     DiscoveryCollectorPage,
     DiscoveryEvidencePage,
     DiscoveryIntegrationProfilePage,
+    DiscoveryJobClaimResult,
+    DiscoveryJobPage,
     DiscoveryProtocolProfilePage,
     DiscoveryReconciliationCasePage,
     DiscoveryRepository,
@@ -114,6 +116,7 @@ from openinfra.domain.discovery import (
     DiscoveryReconciliationCase,
     DiscoveryReconciliationStatus,
 )
+from openinfra.domain.discovery_jobs import DiscoveryJob, DiscoveryJobStatus
 from openinfra.domain.editions import QuotaResource
 from openinfra.domain.identity import (
     EffectiveIdentity,
@@ -3559,6 +3562,234 @@ class PostgreSQLIpamRepository(PostgreSQLRepositoryBase, IpamRepository):
 
 
 class PostgreSQLDiscoveryRepository(PostgreSQLRepositoryBase, DiscoveryRepository):
+    def save_job(self, job: DiscoveryJob) -> None:
+        self._ensure_tenant(job.tenant_id)
+        current = self.get_job(job.tenant_id, job.id.value)
+        parameters = {
+            "id": job.id.value,
+            "tenant_id": job.tenant_id.value,
+            "collector_id": job.collector_id.value,
+            "requested_scope": job.requested_scope.value,
+            "job_type": job.job_type,
+            "target": job.target,
+            "idempotency_key": job.idempotency_key,
+            "max_attempts": job.max_attempts,
+            "attempt_count": job.attempt_count,
+            "status": job.status.value,
+            "lease_owner": job.lease_owner,
+            "lease_token": job.lease_token,
+            "leased_until": job.leased_until,
+            "next_attempt_at": job.next_attempt_at,
+            "last_error": job.last_error,
+            "result_hash": job.result_hash,
+            "requested_by": job.requested_by,
+            "created_at": job.created_at,
+            "updated_at": job.updated_at,
+            "completed_at": job.completed_at,
+        }
+        if current is None:
+            row = self._fetch_one(
+                """
+                INSERT INTO discovery_jobs (
+                    id, tenant_id, collector_id, requested_scope, job_type, target,
+                    idempotency_key, max_attempts, attempt_count, status, lease_owner,
+                    lease_token, leased_until, next_attempt_at, last_error, result_hash,
+                    requested_by, created_at, updated_at, completed_at
+                ) VALUES (
+                    %(id)s, %(tenant_id)s, %(collector_id)s, %(requested_scope)s,
+                    %(job_type)s, %(target)s, %(idempotency_key)s, %(max_attempts)s,
+                    %(attempt_count)s, %(status)s, %(lease_owner)s, %(lease_token)s,
+                    %(leased_until)s, %(next_attempt_at)s, %(last_error)s, %(result_hash)s,
+                    %(requested_by)s, %(created_at)s, %(updated_at)s, %(completed_at)s
+                )
+                ON CONFLICT DO NOTHING
+                RETURNING id
+                """,
+                parameters,
+            )
+            if row is None:
+                raise ConflictError("discovery job insert conflicts with persisted idempotency")
+            return
+        job.assert_persistence_transition_from(current)
+        if job == current:
+            return
+        parameters.update(
+            {
+                "expected_status": current.status.value,
+                "expected_attempt_count": current.attempt_count,
+                "expected_lease_token": current.lease_token,
+                "expected_lease_owner": current.lease_owner,
+                "expected_updated_at": current.updated_at,
+            }
+        )
+        row = self._fetch_one(
+            """
+            UPDATE discovery_jobs
+            SET status = %(status)s,
+                attempt_count = %(attempt_count)s,
+                lease_owner = %(lease_owner)s,
+                lease_token = %(lease_token)s,
+                leased_until = %(leased_until)s,
+                next_attempt_at = %(next_attempt_at)s,
+                last_error = %(last_error)s,
+                result_hash = %(result_hash)s,
+                updated_at = %(updated_at)s,
+                completed_at = %(completed_at)s
+            WHERE tenant_id = %(tenant_id)s
+              AND id = %(id)s
+              AND status = %(expected_status)s
+              AND attempt_count = %(expected_attempt_count)s
+              AND lease_token = %(expected_lease_token)s
+              AND lease_owner IS NOT DISTINCT FROM %(expected_lease_owner)s
+              AND updated_at = %(expected_updated_at)s
+            RETURNING id
+            """,
+            parameters,
+        )
+        if row is None:
+            raise ConflictError("discovery job update rejected by optimistic fencing policy")
+
+    def get_job(self, tenant_id: TenantId, job_id: str) -> DiscoveryJob | None:
+        row = self._fetch_one(
+            self._job_select() + " WHERE tenant_id = %(tenant_id)s AND id = %(id)s",
+            {"tenant_id": tenant_id.value, "id": job_id.strip()},
+        )
+        return self._job_from_row(row) if row else None
+
+    def find_job_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> DiscoveryJob | None:
+        row = self._fetch_one(
+            self._job_select() + " WHERE tenant_id = %(tenant_id)s AND idempotency_key = %(key)s",
+            {"tenant_id": tenant_id.value, "key": idempotency_key.strip()},
+        )
+        return self._job_from_row(row) if row else None
+
+    def claim_next_job(
+        self,
+        tenant_id: TenantId,
+        collector_id: EntityId,
+        worker_id: str,
+        lease_seconds: int,
+        now: datetime,
+    ) -> DiscoveryJobClaimResult:
+        exhausted_rows = self._fetch_all(
+            """
+            UPDATE discovery_jobs
+            SET status = 'dead-letter',
+                lease_owner = NULL,
+                leased_until = NULL,
+                next_attempt_at = NULL,
+                last_error = 'lease expired after final attempt',
+                result_hash = NULL,
+                completed_at = NULL,
+                updated_at = %(now)s
+            WHERE tenant_id = %(tenant_id)s
+              AND collector_id = %(collector_id)s
+              AND status = 'leased'
+              AND leased_until <= %(now)s
+              AND attempt_count >= max_attempts
+            RETURNING id, tenant_id, collector_id, requested_scope, job_type, target,
+                      idempotency_key, max_attempts, attempt_count, status, lease_owner,
+                      lease_token, leased_until, next_attempt_at, last_error, result_hash,
+                      requested_by, created_at, updated_at, completed_at
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "collector_id": collector_id.value,
+                "now": now,
+            },
+        )
+        dead_lettered_jobs = tuple(self._job_from_row(row) for row in exhausted_rows)
+        row = self._fetch_one(
+            """
+            WITH candidate AS (
+                SELECT id
+                FROM discovery_jobs
+                WHERE tenant_id = %(tenant_id)s
+                  AND collector_id = %(collector_id)s
+                  AND attempt_count < max_attempts
+                  AND (
+                      status = 'queued'
+                      OR (status = 'retry-wait' AND next_attempt_at <= %(now)s)
+                      OR (status = 'leased' AND leased_until <= %(now)s)
+                  )
+                ORDER BY COALESCE(next_attempt_at, leased_until, created_at), created_at, id
+                FOR UPDATE SKIP LOCKED
+                LIMIT 1
+            )
+            UPDATE discovery_jobs AS job
+            SET status = 'leased',
+                attempt_count = job.attempt_count + 1,
+                lease_owner = %(worker_id)s,
+                lease_token = job.lease_token + 1,
+                leased_until = %(now)s + make_interval(secs => %(lease_seconds)s),
+                next_attempt_at = NULL,
+                result_hash = NULL,
+                completed_at = NULL,
+                updated_at = %(now)s
+            FROM candidate
+            WHERE job.tenant_id = %(tenant_id)s AND job.id = candidate.id
+            RETURNING job.id, job.tenant_id, job.collector_id, job.requested_scope,
+                      job.job_type, job.target, job.idempotency_key, job.max_attempts,
+                      job.attempt_count, job.status, job.lease_owner, job.lease_token,
+                      job.leased_until, job.next_attempt_at, job.last_error, job.result_hash,
+                      job.requested_by, job.created_at, job.updated_at, job.completed_at
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "collector_id": collector_id.value,
+                "worker_id": worker_id,
+                "lease_seconds": lease_seconds,
+                "now": now,
+            },
+        )
+        claimed = self._job_from_row(row) if row else None
+        return DiscoveryJobClaimResult(
+            job=claimed,
+            dead_lettered_jobs=dead_lettered_jobs,
+        )
+
+    def list_jobs(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        status: str | None = None,
+    ) -> DiscoveryJobPage:
+        normalized_status = None if status is None else DiscoveryJobStatus.from_value(status).value
+        clauses = ["tenant_id = %(tenant_id)s"]
+        params: dict[str, object] = {"tenant_id": tenant_id.value, "limit": pagination.limit}
+        if normalized_status is not None:
+            clauses.append("status = %(status)s")
+            params["status"] = normalized_status
+        if pagination.cursor is not None:
+            clauses.append("id > %(cursor)s")
+            params["cursor"] = pagination.cursor
+        rows = self._fetch_all(
+            self._job_select()
+            + " WHERE "
+            + " AND ".join(clauses)
+            + " ORDER BY id ASC LIMIT %(limit)s",
+            params,
+        )
+        jobs = tuple(self._job_from_row(row) for row in rows)
+        next_cursor = jobs[-1].id.value if len(jobs) == pagination.limit else None
+        return DiscoveryJobPage(items=jobs, next_cursor=next_cursor)
+
+    @staticmethod
+    def _job_select() -> str:
+        return """
+            SELECT id, tenant_id, collector_id, requested_scope, job_type, target,
+                   idempotency_key, max_attempts, attempt_count, status, lease_owner,
+                   lease_token, leased_until, next_attempt_at, last_error, result_hash,
+                   requested_by, created_at, updated_at, completed_at
+            FROM discovery_jobs
+        """
+
+    @staticmethod
+    def _job_from_row(row: Mapping[str, object]) -> DiscoveryJob:
+        return DiscoveryJob.from_dict(dict(row))
+
     def save_evidence(self, evidence: DiscoveryEvidence) -> None:
         self._ensure_tenant(evidence.tenant_id)
         payload = evidence.as_dict()

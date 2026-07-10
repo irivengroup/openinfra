@@ -1,3 +1,17 @@
+## v0.29.83 — Résilience des workers et agents Discovery
+
+- Ajout d’une file de jobs Discovery persistante avec états explicites et isolation tenant.
+- Soumission idempotente, réservation atomique et récupération des baux expirés après crash worker.
+- Ajout d’un jeton de fencing monotone empêchant les écritures d’un ancien propriétaire de bail.
+- Renouvellement de bail, terminaison idempotente et contrôle de l’empreinte SHA-256 du résultat.
+- Retries bornés, mise en DLQ et rejeu administré avec journal d’audit.
+- Persistance JSON et PostgreSQL ; `FOR UPDATE SKIP LOCKED` pour les workers concurrents.
+- Ajout de la migration additive `0039_discovery_job_resilience.sql`, partitionnée et indexée.
+- Exposition complète par service, CLI, API HTTP, OpenAPI et portail web.
+- Ajout des tests de crash/reprise, concurrence, non-perte, DLQ, CLI/API, migration et sécurité.
+- Ajout d’un gate GitHub Actions dédié à EPIC-1406.
+- CDC et roadmap inchangés, l’incrément étant déjà prévu sans nouvelle recommandation impactante.
+
 ## v0.29.82 — Réconciliation Discovery multisource gouvernée
 
 - Ajout des preuves Discovery immuables, identifiées par UUID et empreinte SHA-256 canonique.

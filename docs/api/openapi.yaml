@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.82
+  version: 0.29.83
 components:
   securitySchemes:
     bearerToken:
@@ -3550,6 +3550,161 @@ paths:
       responses:
         '200': {description: Collector heartbeat stored}
         '400': {description: Validation error or unregistered collector}
+  /api/v1/discovery/job:
+    get:
+      summary: Get a persisted discovery job
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: job_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Discovery job with lease, retry and completion state}
+        '400': {description: Validation error or unknown job}
+        '401': {description: Security administrator token required}
+  /api/v1/discovery/jobs:
+    get:
+      summary: List persisted discovery jobs
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: status, in: query, required: false, schema: {type: string, enum: [queued, leased, retry-wait, completed, dead-letter]}}
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 1000, default: 100}}
+        - {name: cursor, in: query, required: false, schema: {type: string, nullable: true}}
+      responses:
+        '200': {description: Paginated discovery jobs}
+        '400': {description: Validation error}
+        '401': {description: Security administrator token required}
+    post:
+      summary: Submit an idempotent discovery job
+      description: Persists an authorized job before delivery so an agent crash cannot lose validated work. Duplicate requests with the same idempotency key return the original job.
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, collector_id, requested_scope, job_type, target, idempotency_key]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                collector_id: {type: string, format: uuid}
+                requested_scope: {type: string}
+                job_type: {type: string}
+                target: {type: string}
+                idempotency_key: {type: string, minLength: 8, maxLength: 128}
+                max_attempts: {type: integer, minimum: 1, maximum: 20, default: 3}
+      responses:
+        '201': {description: Persisted queued discovery job}
+        '400': {description: Validation, authorization or idempotency conflict}
+        '401': {description: Security administrator token required}
+  /api/v1/discovery/jobs/claim:
+    post:
+      summary: Atomically claim or reclaim the next discovery job
+      description: Uses collector certificate identity, an expiring lease and a monotonic fencing token. PostgreSQL uses FOR UPDATE SKIP LOCKED to support concurrent workers without duplicate claims.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, collector_id, certificate_fingerprint, worker_id]
+              properties:
+                tenant_id: {type: string}
+                collector_id: {type: string, format: uuid}
+                certificate_fingerprint: {type: string}
+                worker_id: {type: string}
+                lease_seconds: {type: integer, minimum: 5, maximum: 3600, default: 60}
+      responses:
+        '200': {description: Claimed job or a null job when the queue is empty}
+        '400': {description: Validation or edition gate error}
+        '401': {description: Collector certificate identity rejected}
+  /api/v1/discovery/jobs/renew:
+    post:
+      summary: Renew a discovery job lease
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, collector_id, certificate_fingerprint, job_id, worker_id, lease_token]
+              properties:
+                tenant_id: {type: string}
+                collector_id: {type: string, format: uuid}
+                certificate_fingerprint: {type: string}
+                job_id: {type: string, format: uuid}
+                worker_id: {type: string}
+                lease_token: {type: integer, minimum: 1}
+                lease_seconds: {type: integer, minimum: 5, maximum: 3600, default: 60}
+      responses:
+        '200': {description: Renewed lease}
+        '400': {description: Expired or stale fencing token or validation error}
+        '401': {description: Collector certificate identity rejected}
+  /api/v1/discovery/jobs/complete:
+    post:
+      summary: Complete a discovery job idempotently
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, collector_id, certificate_fingerprint, job_id, worker_id, lease_token, result_hash]
+              properties:
+                tenant_id: {type: string}
+                collector_id: {type: string, format: uuid}
+                certificate_fingerprint: {type: string}
+                job_id: {type: string, format: uuid}
+                worker_id: {type: string}
+                lease_token: {type: integer, minimum: 1}
+                result_hash: {type: string, pattern: '^[a-f0-9]{64}$'}
+      responses:
+        '200': {description: Completed job; identical repeated completion is accepted}
+        '400': {description: Stale token, conflicting result hash or validation error}
+        '401': {description: Collector certificate identity rejected}
+  /api/v1/discovery/jobs/fail:
+    post:
+      summary: Schedule a bounded retry or move a job to the dead-letter queue
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, collector_id, certificate_fingerprint, job_id, worker_id, lease_token, error]
+              properties:
+                tenant_id: {type: string}
+                collector_id: {type: string, format: uuid}
+                certificate_fingerprint: {type: string}
+                job_id: {type: string, format: uuid}
+                worker_id: {type: string}
+                lease_token: {type: integer, minimum: 1}
+                error: {type: string, minLength: 1, maxLength: 1024}
+                retry_delay_seconds: {type: integer, minimum: 0, maximum: 86400, default: 30}
+      responses:
+        '200': {description: Job in retry-wait or dead-letter state}
+        '400': {description: Stale token or validation error}
+        '401': {description: Collector certificate identity rejected}
+  /api/v1/discovery/jobs/replay:
+    post:
+      summary: Requeue a dead-letter discovery job
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, job_id]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                job_id: {type: string, format: uuid}
+      responses:
+        '200': {description: Audited job replayed in queued state}
+        '400': {description: Job is not in dead-letter state or validation error}
+        '401': {description: Security administrator token required}
   /api/v1/discovery/jobs/authorize:
     post:
       summary: Authorize or reject a discovery job for a collector

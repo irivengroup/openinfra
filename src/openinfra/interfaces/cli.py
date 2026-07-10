@@ -75,26 +75,34 @@ from openinfra.application.discovery_services import (
     AuthorizeDiscoveryJobCommand,
     BuildEnterpriseAgentBootstrapPlanCommand,
     BuildLocalDiscoveryPlanCommand,
+    ClaimDiscoveryJobCommand,
+    CompleteDiscoveryJobCommand,
     CreateDiscoveryIntegrationProfileCommand,
     CreateDiscoveryProtocolProfileCommand,
     DisableCollectorCommand,
     DisableDiscoveryIntegrationProfileCommand,
     DisableDiscoveryProtocolProfileCommand,
     EnrollDiscoveryProxyCommand,
+    FailDiscoveryJobCommand,
     GetDiscoveryEvidenceCommand,
     GetDiscoveryIntegrationProfileCommand,
+    GetDiscoveryJobCommand,
     GetDiscoveryProtocolProfileCommand,
     GetDiscoveryReconciliationCommand,
     HeartbeatCollectorCommand,
     ListCollectorsCommand,
     ListDiscoveryEvidenceCommand,
     ListDiscoveryIntegrationProfilesCommand,
+    ListDiscoveryJobsCommand,
     ListDiscoveryProtocolProfilesCommand,
     ListDiscoveryReconciliationsCommand,
     ReconcileDiscoveryEvidenceCommand,
     RegisterCollectorCommand,
+    RenewDiscoveryJobLeaseCommand,
+    ReplayDiscoveryDeadLetterJobCommand,
     ResolveDiscoveryReconciliationCommand,
     SubmitDiscoveryEvidenceCommand,
+    SubmitDiscoveryJobCommand,
     UpdateDiscoveryIntegrationProfileCommand,
     UpdateDiscoveryProtocolProfileCommand,
 )
@@ -1650,6 +1658,103 @@ class OpenInfraCLI:
         authorize.add_argument("--job-type", required=True)
         authorize.add_argument("--target", required=True)
         authorize.set_defaults(handler=self._handle_discovery_job_authorize)
+
+        job_submit = discovery_subparsers.add_parser(
+            "job-submit", help="submit an idempotent discovery job to a collector queue"
+        )
+        self._add_backend_arguments(job_submit)
+        job_submit.add_argument("--tenant", required=True)
+        job_submit.add_argument("--actor", default="cli")
+        job_submit.add_argument("--admin-token", required=True)
+        job_submit.add_argument("--collector-id", required=True)
+        job_submit.add_argument("--requested-scope", required=True)
+        job_submit.add_argument("--job-type", required=True)
+        job_submit.add_argument("--target", required=True)
+        job_submit.add_argument("--idempotency-key", required=True)
+        job_submit.add_argument("--max-attempts", type=int, default=3)
+        job_submit.set_defaults(handler=self._handle_discovery_job_submit)
+
+        job_claim = discovery_subparsers.add_parser(
+            "job-claim", help="atomically claim or reclaim the next discovery job"
+        )
+        self._add_backend_arguments(job_claim)
+        job_claim.add_argument("--tenant", required=True)
+        job_claim.add_argument("--collector-id", required=True)
+        job_claim.add_argument("--certificate-fingerprint", required=True)
+        job_claim.add_argument("--worker-id", required=True)
+        job_claim.add_argument("--lease-seconds", type=int, default=60)
+        job_claim.set_defaults(handler=self._handle_discovery_job_claim)
+
+        job_renew = discovery_subparsers.add_parser(
+            "job-renew", help="renew a discovery job lease using its fencing token"
+        )
+        self._add_backend_arguments(job_renew)
+        job_renew.add_argument("--tenant", required=True)
+        job_renew.add_argument("--collector-id", required=True)
+        job_renew.add_argument("--certificate-fingerprint", required=True)
+        job_renew.add_argument("--job-id", required=True)
+        job_renew.add_argument("--worker-id", required=True)
+        job_renew.add_argument("--lease-token", type=int, required=True)
+        job_renew.add_argument("--lease-seconds", type=int, default=60)
+        job_renew.set_defaults(handler=self._handle_discovery_job_renew)
+
+        job_complete = discovery_subparsers.add_parser(
+            "job-complete", help="complete a discovery job idempotently"
+        )
+        self._add_backend_arguments(job_complete)
+        job_complete.add_argument("--tenant", required=True)
+        job_complete.add_argument("--collector-id", required=True)
+        job_complete.add_argument("--certificate-fingerprint", required=True)
+        job_complete.add_argument("--job-id", required=True)
+        job_complete.add_argument("--worker-id", required=True)
+        job_complete.add_argument("--lease-token", type=int, required=True)
+        job_complete.add_argument("--result-hash", required=True)
+        job_complete.set_defaults(handler=self._handle_discovery_job_complete)
+
+        job_fail = discovery_subparsers.add_parser(
+            "job-fail", help="schedule retry or dead-letter an exhausted discovery job"
+        )
+        self._add_backend_arguments(job_fail)
+        job_fail.add_argument("--tenant", required=True)
+        job_fail.add_argument("--collector-id", required=True)
+        job_fail.add_argument("--certificate-fingerprint", required=True)
+        job_fail.add_argument("--job-id", required=True)
+        job_fail.add_argument("--worker-id", required=True)
+        job_fail.add_argument("--lease-token", type=int, required=True)
+        job_fail.add_argument("--error", required=True)
+        job_fail.add_argument("--retry-delay-seconds", type=int, default=30)
+        job_fail.set_defaults(handler=self._handle_discovery_job_fail)
+
+        job_get = discovery_subparsers.add_parser("job", help="get a persisted discovery job")
+        self._add_backend_arguments(job_get)
+        job_get.add_argument("--tenant", required=True)
+        job_get.add_argument("--admin-token", required=True)
+        job_get.add_argument("--job-id", required=True)
+        job_get.set_defaults(handler=self._handle_discovery_job_get)
+
+        job_list = discovery_subparsers.add_parser(
+            "job-list", help="list discovery jobs, including retry and DLQ states"
+        )
+        self._add_backend_arguments(job_list)
+        job_list.add_argument("--tenant", required=True)
+        job_list.add_argument("--admin-token", required=True)
+        job_list.add_argument(
+            "--status",
+            choices=("queued", "leased", "retry-wait", "completed", "dead-letter"),
+        )
+        job_list.add_argument("--limit", type=int, default=100)
+        job_list.add_argument("--cursor")
+        job_list.set_defaults(handler=self._handle_discovery_job_list)
+
+        job_replay = discovery_subparsers.add_parser(
+            "job-replay", help="requeue a dead-letter discovery job with audit trace"
+        )
+        self._add_backend_arguments(job_replay)
+        job_replay.add_argument("--tenant", required=True)
+        job_replay.add_argument("--actor", default="cli")
+        job_replay.add_argument("--admin-token", required=True)
+        job_replay.add_argument("--job-id", required=True)
+        job_replay.set_defaults(handler=self._handle_discovery_job_replay)
 
         disable = discovery_subparsers.add_parser(
             "collector-disable", help="disable a discovery collector"
@@ -4421,6 +4526,119 @@ class OpenInfraCLI:
         print(json.dumps(decision.as_dict(), indent=2, sort_keys=True))
         return 0
 
+    def _handle_discovery_job_submit(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        job = app.discovery_service.submit_job(
+            SubmitDiscoveryJobCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                collector_id=args.collector_id,
+                requested_scope=args.requested_scope,
+                job_type=args.job_type,
+                target=args.target,
+                idempotency_key=args.idempotency_key,
+                max_attempts=args.max_attempts,
+            )
+        )
+        print(json.dumps(job.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_discovery_job_claim(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        job = app.discovery_service.claim_job(
+            ClaimDiscoveryJobCommand(
+                tenant_id=args.tenant,
+                collector_id=args.collector_id,
+                certificate_fingerprint=args.certificate_fingerprint,
+                worker_id=args.worker_id,
+                lease_seconds=args.lease_seconds,
+            )
+        )
+        print(json.dumps(None if job is None else job.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_discovery_job_renew(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        job = app.discovery_service.renew_job_lease(
+            RenewDiscoveryJobLeaseCommand(
+                tenant_id=args.tenant,
+                collector_id=args.collector_id,
+                certificate_fingerprint=args.certificate_fingerprint,
+                job_id=args.job_id,
+                worker_id=args.worker_id,
+                lease_token=args.lease_token,
+                lease_seconds=args.lease_seconds,
+            )
+        )
+        print(json.dumps(job.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_discovery_job_complete(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        job = app.discovery_service.complete_job(
+            CompleteDiscoveryJobCommand(
+                tenant_id=args.tenant,
+                collector_id=args.collector_id,
+                certificate_fingerprint=args.certificate_fingerprint,
+                job_id=args.job_id,
+                worker_id=args.worker_id,
+                lease_token=args.lease_token,
+                result_hash=args.result_hash,
+            )
+        )
+        print(json.dumps(job.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_discovery_job_fail(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        job = app.discovery_service.fail_job(
+            FailDiscoveryJobCommand(
+                tenant_id=args.tenant,
+                collector_id=args.collector_id,
+                certificate_fingerprint=args.certificate_fingerprint,
+                job_id=args.job_id,
+                worker_id=args.worker_id,
+                lease_token=args.lease_token,
+                error=args.error,
+                retry_delay_seconds=args.retry_delay_seconds,
+            )
+        )
+        print(json.dumps(job.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_discovery_job_get(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        job = app.discovery_service.get_job(
+            GetDiscoveryJobCommand(args.tenant, args.admin_token, args.job_id)
+        )
+        print(json.dumps(job.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_discovery_job_list(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        page = app.discovery_service.list_jobs(
+            ListDiscoveryJobsCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                limit=args.limit,
+                cursor=args.cursor,
+                status=args.status,
+            )
+        )
+        print(json.dumps(page.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_discovery_job_replay(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        job = app.discovery_service.replay_dead_letter_job(
+            ReplayDiscoveryDeadLetterJobCommand(
+                args.tenant, args.actor, args.admin_token, args.job_id
+            )
+        )
+        print(json.dumps(job.as_dict(), indent=2, sort_keys=True))
+        return 0
+
     def _handle_discovery_collector_disable(self, args: argparse.Namespace) -> int:
         app = self._create_application(args)
         collector = app.discovery_service.disable_collector(
@@ -5806,7 +6024,16 @@ class OpenInfraCLI:
         if explicit_root is not None:
             return Path(explicit_root)
         runtime_root = RuntimeConfigLoader().load().get("OPENINFRA_MIGRATIONS_ROOT")
-        return Path(runtime_root) if runtime_root else Path("installers/migrations/postgresql")
+        if runtime_root:
+            return Path(runtime_root)
+        source_root = Path("installers/migrations/postgresql")
+        if source_root.is_dir():
+            return source_root
+        packaged_root = self._packaged_migration_root()
+        return packaged_root if packaged_root.is_dir() else source_root
+
+    def _packaged_migration_root(self) -> Path:
+        return Path(__file__).resolve().parents[1] / "migrations" / "postgresql"
 
     def _create_application(self, args: argparse.Namespace) -> OpenInfraApplication:
         backend = str(args.backend)

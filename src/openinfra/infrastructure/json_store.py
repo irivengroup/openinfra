@@ -19,6 +19,8 @@ from openinfra.application.ports import (
     DiscoveryCollectorPage,
     DiscoveryEvidencePage,
     DiscoveryIntegrationProfilePage,
+    DiscoveryJobClaimResult,
+    DiscoveryJobPage,
     DiscoveryProtocolProfilePage,
     DiscoveryReconciliationCasePage,
     DiscoveryRepository,
@@ -114,6 +116,7 @@ from openinfra.domain.discovery import (
     DiscoveryReconciliationCase,
     DiscoveryReconciliationStatus,
 )
+from openinfra.domain.discovery_jobs import DiscoveryJob, DiscoveryJobStatus
 from openinfra.domain.editions import QuotaResource
 from openinfra.domain.identity import (
     EffectiveIdentity,
@@ -271,6 +274,7 @@ class JsonDocumentStore:
             "export_jobs": {},
             "export_artifacts": {},
             "discovery_collectors": {},
+            "discovery_jobs": {},
             "discovery_protocol_profiles": {},
             "discovery_integration_profiles": {},
             "discovery_evidence": {},
@@ -317,6 +321,132 @@ class JsonRuntimeUsageRepository(RuntimeUsageRepository):
 class JsonDiscoveryRepository(DiscoveryRepository):
     def __init__(self, store: JsonDocumentStore) -> None:
         self._store = store
+
+    def save_job(self, job: DiscoveryJob) -> None:
+        key = self._key(job.tenant_id, job.id.value)
+        payload = job.as_dict()
+        with self._store.lock:
+            prefix = job.tenant_id.value + ":"
+            for existing_key, existing_payload in self._store.data["discovery_jobs"].items():
+                if existing_key == key or not existing_key.startswith(prefix):
+                    continue
+                if str(existing_payload.get("idempotency_key", "")) == job.idempotency_key:
+                    raise ConflictError("discovery job idempotency key already exists")
+            current_payload = self._store.data["discovery_jobs"].get(key)
+            if current_payload is not None:
+                current = DiscoveryJob.from_dict(cast(dict[str, object], current_payload))
+                job.assert_persistence_transition_from(current)
+                if job == current:
+                    return
+            self._store.data["discovery_jobs"][key] = payload
+            self._store.mark_dirty()
+
+    def get_job(self, tenant_id: TenantId, job_id: str) -> DiscoveryJob | None:
+        with self._store.lock:
+            payload = self._store.data["discovery_jobs"].get(self._key(tenant_id, job_id))
+            if payload is None:
+                return None
+            return DiscoveryJob.from_dict(cast(dict[str, object], payload))
+
+    def find_job_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> DiscoveryJob | None:
+        normalized_key = idempotency_key.strip()
+        with self._store.lock:
+            prefix = tenant_id.value + ":"
+            for key, payload in self._store.data["discovery_jobs"].items():
+                if not key.startswith(prefix) or not isinstance(payload, dict):
+                    continue
+                if str(payload.get("idempotency_key", "")) == normalized_key:
+                    return DiscoveryJob.from_dict(cast(dict[str, object], payload))
+        return None
+
+    def claim_next_job(
+        self,
+        tenant_id: TenantId,
+        collector_id: EntityId,
+        worker_id: str,
+        lease_seconds: int,
+        now: datetime,
+    ) -> DiscoveryJobClaimResult:
+        with self._store.lock:
+            prefix = tenant_id.value + ":"
+            jobs = [
+                DiscoveryJob.from_dict(cast(dict[str, object], payload))
+                for key, payload in self._store.data["discovery_jobs"].items()
+                if key.startswith(prefix)
+            ]
+            exhausted = tuple(
+                job.dead_letter_expired_final_lease(now=now)
+                for job in jobs
+                if job.collector_id == collector_id
+                and job.status is DiscoveryJobStatus.LEASED
+                and job.leased_until is not None
+                and job.leased_until <= now
+                and job.attempt_count >= job.max_attempts
+            )
+            for dead_lettered in exhausted:
+                self._store.data["discovery_jobs"][self._key(tenant_id, dead_lettered.id.value)] = (
+                    dead_lettered.as_dict()
+                )
+            exhausted_ids = {job.id for job in exhausted}
+            claimable = sorted(
+                (
+                    job
+                    for job in jobs
+                    if job.id not in exhausted_ids
+                    and job.attempt_count < job.max_attempts
+                    and job.is_claimable(collector_id, now)
+                ),
+                key=lambda item: (
+                    item.next_attempt_at or item.leased_until or item.created_at,
+                    item.created_at,
+                    item.id.value,
+                ),
+            )
+            claimed = None
+            if claimable:
+                claimed = claimable[0].claim(
+                    worker_id=worker_id,
+                    lease_seconds=lease_seconds,
+                    now=now,
+                )
+                self._store.data["discovery_jobs"][self._key(tenant_id, claimed.id.value)] = (
+                    claimed.as_dict()
+                )
+            if exhausted or claimed is not None:
+                self._store.mark_dirty()
+            return DiscoveryJobClaimResult(job=claimed, dead_lettered_jobs=exhausted)
+
+    def list_jobs(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        status: str | None = None,
+    ) -> DiscoveryJobPage:
+        normalized_status = None
+        if status is not None:
+            normalized_status = DiscoveryJobStatus.from_value(status)
+        with self._store.lock:
+            prefix = tenant_id.value + ":"
+            jobs = [
+                DiscoveryJob.from_dict(cast(dict[str, object], payload))
+                for key, payload in self._store.data["discovery_jobs"].items()
+                if key.startswith(prefix)
+            ]
+        filtered = tuple(
+            job
+            for job in sorted(jobs, key=lambda item: (item.created_at, item.id.value))
+            if normalized_status is None or job.status is normalized_status
+        )
+        start = 0
+        if pagination.cursor:
+            ids = [job.id.value for job in filtered]
+            if pagination.cursor in ids:
+                start = ids.index(pagination.cursor) + 1
+        page = filtered[start : start + pagination.limit]
+        next_cursor = page[-1].id.value if len(page) == pagination.limit else None
+        return DiscoveryJobPage(items=page, next_cursor=next_cursor)
 
     def save_evidence(self, evidence: DiscoveryEvidence) -> None:
         key = self._key(evidence.tenant_id, evidence.id.value)

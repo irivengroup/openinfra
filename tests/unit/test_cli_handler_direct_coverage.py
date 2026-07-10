@@ -217,3 +217,15 @@ def test_cli_runtime_resolution_edges(tmp_path: Path, monkeypatch: object) -> No
     )
     monkeypatch.setenv("OPENINFRA_RUNTIME_CONFIG", str(runtime_config))
     assert cli._resolve_migration_root(runtime_args) == tmp_path / "runtime-migrations"
+
+    monkeypatch.delenv("OPENINFRA_RUNTIME_CONFIG")
+    assert cli._resolve_migration_root(runtime_args) == Path("installers/migrations/postgresql")
+    assert cli._packaged_migration_root().as_posix().endswith("openinfra/migrations/postgresql")
+
+    monkeypatch.chdir(tmp_path)
+    packaged_root = tmp_path / "installed-openinfra" / "migrations" / "postgresql"
+    packaged_root.mkdir(parents=True)
+    monkeypatch.setattr(cli, "_packaged_migration_root", lambda: packaged_root)
+    assert cli._resolve_migration_root(runtime_args) == packaged_root
+    packaged_root.rmdir()
+    assert cli._resolve_migration_root(runtime_args) == Path("installers/migrations/postgresql")

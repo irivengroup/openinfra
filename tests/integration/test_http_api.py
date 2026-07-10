@@ -228,6 +228,13 @@ class TestHttpApi:
                     "agent_bootstrap_plan": "/api/v1/discovery/agent-bootstrap-plan",
                     "proxy_enrollments": "/api/v1/discovery/proxy-enrollments",
                     "heartbeat": "/api/v1/discovery/collectors/heartbeat",
+                    "job": "/api/v1/discovery/job",
+                    "jobs": "/api/v1/discovery/jobs",
+                    "job_claim": "/api/v1/discovery/jobs/claim",
+                    "job_renew": "/api/v1/discovery/jobs/renew",
+                    "job_complete": "/api/v1/discovery/jobs/complete",
+                    "job_fail": "/api/v1/discovery/jobs/fail",
+                    "job_replay": "/api/v1/discovery/jobs/replay",
                     "authorize_job": "/api/v1/discovery/jobs/authorize",
                 },
             }
@@ -263,6 +270,13 @@ class TestHttpApi:
             assert "/api/v1/discovery/reconciliation" in openapi
             assert "/api/v1/discovery/reconciliation-list" in openapi
             assert "/api/v1/discovery/reconciliation/resolve" in openapi
+            assert "/api/v1/discovery/job" in openapi
+            assert "/api/v1/discovery/jobs" in openapi
+            assert "/api/v1/discovery/jobs/claim" in openapi
+            assert "/api/v1/discovery/jobs/renew" in openapi
+            assert "/api/v1/discovery/jobs/complete" in openapi
+            assert "/api/v1/discovery/jobs/fail" in openapi
+            assert "/api/v1/discovery/jobs/replay" in openapi
             assert "Store immutable discovery evidence without mutating RSOT" in openapi
             assert "Resolve every discovery conflict with explicit evidence selections" in openapi
             assert "/api/v1/discovery/agent-bootstrap-plan" in openapi

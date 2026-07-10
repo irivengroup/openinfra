@@ -321,6 +321,26 @@ class TestPostgreSQLMigration:
         assert "idx_discovery_reconciliation_status" in normalized_sql
         assert "idx_audit_events_discovery_reconciliation" in normalized_sql
 
+    def test_discovery_job_resilience_migration_is_partitioned_fenced_and_claimable(self) -> None:
+        migration = PostgreSQLMigrationCatalog.from_project_root().load(
+            "0039_discovery_job_resilience"
+        )
+        normalized_sql = " ".join(migration.sql.split())
+
+        assert "CREATE TABLE IF NOT EXISTS discovery_jobs" in normalized_sql
+        assert "PARTITION BY HASH (tenant_id)" in normalized_sql
+        assert normalized_sql.count("PARTITION OF discovery_jobs") == 16
+        assert "UNIQUE (tenant_id, idempotency_key)" in normalized_sql
+        assert "lease_token bigint NOT NULL DEFAULT 0" in normalized_sql
+        assert "attempt_count integer NOT NULL DEFAULT 0" in normalized_sql
+        assert "max_attempts integer NOT NULL DEFAULT 3" in normalized_sql
+        assert "retry-wait" in normalized_sql
+        assert "dead-letter" in normalized_sql
+        assert "idx_discovery_jobs_claim" in normalized_sql
+        assert "idx_discovery_jobs_dead_letter" in normalized_sql
+        assert "idx_audit_events_discovery_jobs" in normalized_sql
+        assert "WHERE target_type = 'discovery_job'" in normalized_sql
+
     def test_migration_validator_rejects_partitioned_unique_constraints_missing_partition_key(
         self,
     ) -> None:

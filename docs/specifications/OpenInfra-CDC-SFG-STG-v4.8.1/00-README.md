@@ -1,3 +1,7 @@
+## v0.29.88 — Accessibilité transversale et raffinement du header
+
+`REQ-00789` est élargie à toutes les pages et formalise une baseline WCAG 2.2 AA : clavier, lecteurs d’écran, annonces dynamiques, formulaires, contraste, couleurs forcées, réduction des mouvements et alternatives textuelles. `REQ-00825` adoucit les états actif/hover du header, réduit les rayons et les contrôles FR/EN-Swagger-ReDoc, tout en conservant les cibles tactiles et le focus visible. Les exigences existantes sont mises à jour sans duplication.
+
 ## v0.29.87 — Ajustements du header et mégamenu au survol
 
 - `REQ-00811` impose l’ouverture du mégamenu au survol ou au focus dans le mode intermédiaire, avec clic de secours accessible.

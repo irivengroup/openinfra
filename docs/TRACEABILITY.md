@@ -1,3 +1,11 @@
+## v0.29.88 — Traçabilité accessibilité transversale
+
+- CDC : `REQ-00789`, `REQ-00825`, `TST-WEB-090`, `TST-WEB-125`.
+- Roadmap : P08 / `EPIC-0805`, `TST-P08-WEB-ACCESSIBLE-NAVIGATION`, `TST-P08-WEB-COMPACT-HEADER`.
+- Code : portail React, runtime web packagé, moteur i18n partagé, feuille de style commune et workflow CI.
+- Tests : lint JSX accessible, contrat DOM/CSS/ARIA Node.js, tests Python de parité, build Vite et validation frontend.
+- Documentation : `docs/ui/WEB_ACCESSIBILITY.md`.
+
 ## v0.29.87 — Traçabilité ajustements header et mégamenu
 
 - Exigences mises à jour : `REQ-00811` (mégamenu au survol/focus, clic de secours) et `REQ-00825` (hauteur initiale restaurée, recherche 50 % centrée, navigation compacte et états contrastés).

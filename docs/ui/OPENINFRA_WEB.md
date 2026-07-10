@@ -52,3 +52,7 @@ Les gates bloquent la livraison si :
 - les moteurs React et runtime diffèrent ;
 - l'asset i18n manque dans le wheel ;
 - les tests de localisation, le lint ou le build frontend échouent.
+
+## Accessibilité transversale
+
+Toutes les pages et tous les composants appliquent la baseline WCAG 2.2 AA décrite dans `docs/ui/WEB_ACCESSIBILITY.md`. Le contrat couvre la navigation clavier, les lecteurs d’écran, les annonces dynamiques, les formulaires, le focus, le contraste, les couleurs forcées, la réduction des mouvements et les alternatives textuelles. Aucun état métier n’est communiqué uniquement par une couleur ou par un son.

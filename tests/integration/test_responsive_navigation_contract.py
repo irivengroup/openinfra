@@ -77,7 +77,7 @@ def test_both_portals_expose_accessible_megamenu_and_compact_navigation() -> Non
         assert "openMegaMenu" in source
 
     assert 'document.addEventListener("keydown", this.handleDocumentKeydown)' in static_js
-    assert "document.addEventListener('keydown', closeResponsiveNavigation)" in react_js
+    assert "document.addEventListener('keydown', closeResponsiveNavigationFromDocument)" in react_js
     assert 'renderSidebar("compact")' in static_js
     assert 'surface="compact"' in react_js
 
@@ -88,7 +88,7 @@ def test_megamenu_supports_hover_focus_and_click_fallback() -> None:
 
     assert 'addEventListener("mouseenter", () => this.openMegaMenu' in static_js
     assert 'addEventListener("focus", () => this.openMegaMenu' in static_js
-    assert "onMouseEnter={() => openMegaMenu(module)}" in react_js
-    assert "onFocus={() => openMegaMenu(module)}" in react_js
+    assert "onMouseEnter={(event) => openMegaMenu(module, event.currentTarget)}" in react_js
+    assert "onFocus={(event) => openMegaMenu(module, event.currentTarget)}" in react_js
     assert "openinfra-component-link" in static_js
     assert "openinfra-component-link" in react_js

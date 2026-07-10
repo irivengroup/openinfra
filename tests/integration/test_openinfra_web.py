@@ -340,7 +340,7 @@ class TestOpenInfraWeb:
         assert "requested_increment" in static_js
         assert "OPENINFRA_MODULES.map((module)" in static_js
         assert "OPENINFRA_MODULES.slice(0, 6)" not in static_js
-        assert "MODULES.map((module)" in main_js
+        assert "MODULES.map((module, index)" in main_js
         assert "MODULES.slice(0, 6)" not in main_js
         assert "--bs-btn-padding-y: .22rem" in static_css
         assert "--bs-btn-padding-x: .5rem" in static_css

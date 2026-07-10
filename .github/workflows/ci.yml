@@ -34,6 +34,11 @@ jobs:
       - name: Frontend contract lint
         run: npm --prefix web run lint
 
+      - name: Frontend accessibility contract
+        run: |
+          npm --prefix web run a11y
+          npm --prefix web run a11y:jsx
+
       - name: Frontend tests
         run: npm --prefix web test
 
@@ -105,10 +110,11 @@ jobs:
             tests/integration/test_http_api.py \
             tests/integration/test_openinfra_web.py
 
-      - name: Responsive navigation and compact header regression
+      - name: Responsive navigation and accessibility regression
         run: |
           python -m pytest -q --no-cov \
             tests/integration/test_responsive_navigation_contract.py \
+            tests/integration/test_web_accessibility_contract.py \
             tests/integration/test_openinfra_web.py
 
       - name: Unit and integration tests with coverage

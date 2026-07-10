@@ -1,8 +1,8 @@
-# OpenInfra v0.29.87
+# OpenInfra v0.29.88
 
 ## Graphe de dépendances RSOT
 
-OpenInfra v0.29.87 affine **P08 / EPIC-0805** : la seconde barre du header retrouve sa hauteur initiale tout en conservant une recherche compacte, centrée et dimensionnée à 50 % de la largeur disponible. Les composants du header restent compacts et alignés à droite sur écran large, disposent d'états actif/survol fortement contrastés et ouvrent leur mégamenu au survol ou au focus en mode intermédiaire. Le moteur de graphe **P15 / EPIC-1501** livré en v0.29.86 reste intégralement préservé.
+OpenInfra v0.29.88 renforce **P08 / EPIC-0805** avec une baseline d’accessibilité WCAG 2.2 AA appliquée à toutes les pages et aux deux runtimes web. La navigation clavier, les lecteurs d’écran, les annonces dynamiques, les formulaires, le contraste, les couleurs forcées et la réduction des mouvements sont intégrés au contrat de livraison. Les états actif/survol du header sont désormais plus discrets, les angles moins perceptibles et les transitions bounce/fade respectent `prefers-reduced-motion`. Le moteur de graphe **P15 / EPIC-1501** reste intégralement préservé.
 
 Les opérateurs disposent de trois fonctions complémentaires : exploration du voisinage d'un objet, recherche du chemin le plus court et analyse d'impact direct/indirect. Les filtres par type de relation et le paramètre historique `as_of` sont disponibles en CLI, API HTTP, OpenAPI et portail web FR/EN. Toutes les consultations nécessitent la permission `rsot.read` et produisent un événement d'audit.
 
@@ -16,9 +16,9 @@ Le portail applique une navigation progressive fondée sur la largeur utile et l
 - **tablette et portable compact (`768–1199,98 px`)** : sidebar masquée, icônes de composants alignées dans le header et ouverture d’un mégamenu multicolonne reprenant les mêmes contextes et opérations ;
 - **mobile (`< 768 px`)** : remplacement de la barre de composants par une icône de menu unique ouvrant une navigation complète, scrollable et accessible au clavier.
 
-La seconde barre du header est réduite de 25 % sur les périphériques à pointeur précis. La recherche globale, le sélecteur EN/FR, Swagger et ReDoc partagent une hauteur commune. Sur écran tactile, les cibles interactives passent automatiquement à 44 px afin de préserver l’accessibilité. Les menus se ferment par bouton, clic sur le backdrop ou touche `Échap`.
+La seconde barre conserve sa hauteur initiale tandis que la recherche reste compacte. Le sélecteur EN/FR, Swagger et ReDoc utilisent un gabarit légèrement réduit et restent alignés. Sur écran tactile, les cibles interactives passent automatiquement à 44 px afin de préserver l’accessibilité. Les menus se ferment par bouton, clic sur le backdrop ou touche `Échap`.
 
-Voir `docs/operations/responsive-navigation.md` pour le contrat détaillé.
+Voir `docs/operations/responsive-navigation.md` pour le contrat détaillé et `docs/ui/WEB_ACCESSIBILITY.md` pour la baseline d’accessibilité.
 
 ## Nomenclature DCIM des étages et portail multilingue
 

@@ -1,3 +1,7 @@
+## OpenInfra 0.29.88 — Accessibilité transversale et header raffiné
+
+`EPIC-0805` applique désormais une baseline WCAG 2.2 AA à toutes les pages : liens d’évitement, landmarks, navigation clavier, lecteurs d’écran, annonces dynamiques, formulaires accessibles, contraste, couleurs forcées, réduction des mouvements et alternatives textuelles. Le header conserve sa densité mais adopte des états actif/hover translucides, des angles discrets, des transitions bounce/fade respectueuses des préférences utilisateur et des contrôles FR/EN-Swagger-ReDoc légèrement réduits.
+
 ## OpenInfra 0.29.87 — Ajustements header et mégamenu
 
 `EPIC-0805` conserve les trois modes responsive mais précise que le mégamenu intermédiaire s’ouvre au survol ou au focus, avec clic de secours. La seconde barre retrouve son padding initial de `0,5 rem`; la recherche reste haute de `2 rem`, centrée et large de 50 %. Sur écran large, les composants restent compacts et alignés à droite avec des états actif, hover et focus contrastés.
@@ -156,5 +160,5 @@ La roadmap intègre `TST-P14-DISCOVERY-INTEGRATION-PROFILES` pour couvrir EPIC-1
 
 ## Validation v0.29.86 — Navigation responsive adaptative
 
-La roadmap renforce `EPIC-0805` avec `TST-P08-WEB-RESPONSIVE-NAVIGATION` et `TST-P08-WEB-COMPACT-HEADER`. La validation couvre sidebar desktop, mégamenu contextuel intermédiaire, menu compact mobile, parité complète des opérations, clavier et tactile, header secondaire réduit de 25 %, contrôles alignés et ombre du header supérieure aux blocs de contenu. L'alignement CDC référence `REQ-00811` et `REQ-00825`.
+La roadmap renforce `EPIC-0805` avec `TST-P08-WEB-RESPONSIVE-NAVIGATION` et `TST-P08-WEB-COMPACT-HEADER`. La validation couvre sidebar desktop, mégamenu contextuel intermédiaire, menu compact mobile, parité complète des opérations, clavier et tactile, header à hauteur initiale, recherche compacte, contrôles alignés et ombre du header supérieure aux blocs de contenu. L'alignement CDC référence `REQ-00811` et `REQ-00825`.
 

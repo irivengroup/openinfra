@@ -1,135 +1,94 @@
-# OpenInfra v0.29.87 — Rapport de validation
+# OpenInfra v0.29.88 — Rapport de validation
 
 Date de validation : `2026-07-10`  
-Release : `0.29.87`  
-Périmètre : `P08 / EPIC-0805 — Ajustements du header, recherche globale centrée et mégamenu au survol` ; conservation intégrale de `P15 / EPIC-1501`
+Release : `0.29.88`  
+Périmètre : `P08 / EPIC-0805 — accessibilité transversale WCAG 2.2 AA et raffinement visuel du header`
 
 ## Résultat global
 
-La livraison affine le contrat responsive existant sans retirer de fonctionnalité : hauteur initiale de la seconde barre restaurée, recherche globale compacte centrée à 50 %, composants rapprochés à droite, états visuels contrastés et mégamenu déclenché au survol/focus avec clic de secours. Le graphe RSOT livré en v0.29.86 reste inchangé.
+La livraison applique une baseline contractuelle WCAG 2.2 niveau AA à toutes les pages du portail React et du runtime web packagé. Elle ne constitue pas une certification externe : les gates automatisés sont complétés par une checklist de recette manuelle avec technologies d’assistance.
 
-- Tests Python collectés : **635** dans **87 fichiers**.
-- Tests unitaires : **234 PASS**.
-- Tests d’intégration : **398 PASS**.
-- Tests d’architecture : **3 PASS**.
+- Tests Python collectés : **639** dans **88 fichiers**.
+- Tests unitaires et architecture : **PASS**.
+- Tests d’intégration : **PASS**, dont les 57 fichiers exécutés séparément ou en petits groupes.
 - Couverture globale exacte : **98,0338384308 %** — `21 091 / 21 514` lignes couvertes.
 - Seuil bloquant : **98 % PASS**.
-- Tests frontend Node.js : **13 PASS**.
-- Lint frontend : **PASS**.
-- Build frontend Vite : **PASS**.
-- Vite **8.1.4** et plugin React actualisés ; `npm audit --audit-level=high` : **0 vulnérabilité**.
+- Tests frontend Node.js : **19 PASS**.
+- Lint frontend statique : **PASS**.
+- Lint JSX accessible `eslint-plugin-jsx-a11y` : **PASS**.
+- Validation du contrat WCAG React/runtime : **PASS**.
+- Build frontend Vite **8.1.4** : **PASS**.
+- `npm audit --audit-level=high` : **0 vulnérabilité**.
 
-La suite Python a été exécutée par lots avec accumulation dans un fichier de couverture unique. Les fichiers CLI et certains groupes DCIM dépassaient le timeout lorsqu’ils étaient instrumentés ensemble ; ils ont été isolés sans exclusion de test ni altération du calcul final.
+La commande Python instrumentée complète a terminé avec un code retour nul. La couverture a été reconstruite depuis zéro sur l’état final de la release.
 
-## Graphe de dépendances RSOT
+## Accessibilité transversale
 
-- Projection en lecture des objets et relations RSOT historisés, sans seconde source de vérité.
-- Isolation stricte par tenant et permission `rsot.read`.
-- Parcours entrant, sortant ou bidirectionnel.
-- Parcours en largeur déterministe, borné en profondeur et nombre de nœuds.
-- Tolérance des cycles sans boucle infinie.
-- Filtres par type de relation et date de référence `as_of`.
-- Recherche du chemin le plus court.
-- Analyse d’impact direct et indirect avec agrégats par distance, type d’objet et catégorie de ressource.
-- Résultats tronqués explicitement lorsque les limites sont atteintes.
-- Audit des consultations.
-- Exposition alignée par service applicatif, CLI, API HTTP, OpenAPI et portail FR/EN.
-- Aucune migration PostgreSQL : réutilisation des tables RSOT et relations existantes.
+Garanties validées sur les deux runtimes web :
 
-## Navigation web responsive
+- liens d’évitement vers le contenu, la navigation des composants et la recherche globale ;
+- landmarks sémantiques `banner`, `navigation`, `main`, `form`, `status` et `alert` ;
+- navigation des composants par `Tab`, `Maj+Tab`, flèches, `Home`, `End`, `Entrée`, `Espace` et `Échap` ;
+- restauration du focus après fermeture des navigations responsive ;
+- régions `aria-live` pour changements de navigation, opérations, résultats et états runtime ;
+- formulaires avec labels explicites, marqueur textuel obligatoire, `required`, `aria-invalid`, validation native et résultats annoncés ;
+- liens externes Swagger/ReDoc annonçant l’ouverture dans un nouvel onglet ;
+- focus visible à double contraste ;
+- prise en charge de `prefers-contrast: more` et des couleurs forcées ;
+- cibles tactiles d’au moins 44 px sur périphériques à pointeur grossier ;
+- compensation du header fixe par `scroll-padding-top` et `scroll-margin-top` ;
+- suppression des animations lorsque `prefers-reduced-motion: reduce` est actif ;
+- absence de média audio/vidéo et d’information communiquée uniquement par le son ;
+- contrat imposant sous-titres, transcription et alternative visuelle pour tout futur média sonore.
 
-Trois modes non superposés sont appliqués selon la largeur utile :
+La procédure de recette manuelle est documentée dans `docs/ui/WEB_ACCESSIBILITY.md` pour NVDA ou JAWS, VoiceOver, TalkBack, navigation clavier seule, zoom 200 % et contraste élevé.
 
-1. **Écran large — `>= 1200 px`** : sidebar persistante et scrollable sous le header fixe.
-2. **Tablette et portable compact — `768 px` à `1199,98 px`** : sidebar masquée ; les dix icônes de composants restent alignées et ouvrent au survol ou au focus un mégamenu contextuel multicolonne reprenant tous les contextes et opérations.
-3. **Mobile — `< 768 px`** : barre de composants remplacée par un bouton de menu unique ouvrant la navigation complète.
+## Header raffiné
 
-Garanties validées :
-
-- aucune opération de la sidebar n’est perdue dans le mégamenu ou le menu compact ;
-- Dashboard reste une navigation directe ;
-- fermeture par bouton, backdrop et touche `Échap` ;
-- identifiants DOM distincts entre surfaces ;
-- panneaux scrollables avec `overscroll-behavior` ;
-- support de `prefers-reduced-motion` ;
-- cibles interactives d’au moins **44 px** sur périphériques à pointeur grossier ;
-- parité exacte des styles React/runtime packagé ;
-- suppression de l’ancien mécanisme mobile `mobile-open` devenu redondant.
-
-## Header et navigation ajustés
-
-- Padding vertical initial de la seconde barre restauré à `0,5 rem`.
-- Recherche globale conservée à `2 rem`, centrée par rapport à la page et dimensionnée à `50 %` de la largeur disponible.
-- Composants compacts, rapprochés et alignés à droite sur écran large.
-- États actif, survol et focus rendus fortement contrastés sur le fond bleu du header.
-- En mode mégamenu, survol et focus ouvrent le panneau ; le clic reste disponible comme fallback tactile et accessible.
-- Sélecteur FR/EN, Swagger et ReDoc restent alignés ; les cibles tactiles atteignent `2,75 rem` sur pointeur grossier.
-- Ombre du header et offset dynamique du contenu préservés.
+- La seconde barre conserve son padding vertical initial de `0,5 rem`.
+- La recherche reste haute de `2 rem`, centrée et dimensionnée à 50 % de la largeur utile.
+- Les composants restent compacts et alignés à droite sur écran large.
+- Les états actif/hover utilisent des fonds translucides et une opacité maîtrisée au lieu d’un contraste suraccentué.
+- Le rayon des boutons composants est réduit à `0,22 rem`.
+- Les transitions bounce/fade durent moins de 400 ms et sont neutralisées par la préférence de réduction de mouvement.
+- Le sélecteur FR/EN et les boutons Swagger/ReDoc utilisent une hauteur de `1,82 rem` sur pointeur précis.
+- Sur pointeur grossier, ces contrôles conservent une hauteur minimale de `2,75 rem`.
 
 ## Qualité, sécurité et typage
 
-- `ruff format --check src tests scripts docker` : **PASS**, **154 fichiers**.
-- `ruff check src tests scripts docker` : **PASS**.
-- `mypy src/openinfra` : **PASS**, aucune erreur sur **57 modules source**.
+- `ruff format --check src tests scripts docker installers` : **PASS**, 162 fichiers.
+- `ruff check src tests scripts docker installers` : **PASS**.
+- `mypy src/openinfra` : **PASS**, 57 modules source.
 - `bandit -q -r src/openinfra` : **PASS**.
 - `python scripts/security_gate.py --project-root .` : **PASS**.
 - `python scripts/quality_gate.py` : **PASS**.
-- `python -m compileall -q src tests scripts docker` : **PASS**.
-- Validation syntaxique et contractuelle des workflows GitHub Actions : **PASS**.
-- Gate CI ciblé Graphe : **PASS**.
-- Gate CI ciblé navigation responsive/header : **PASS**.
-
-## Frontend
-
-- `npm --prefix web test` : **12 PASS**.
-- `npm --prefix web run lint` : **PASS**.
-- `npm --prefix web run build` : **PASS** avec Vite `5.4.21`.
-- Validation statique React/runtime packagé : **PASS**.
-- Parité byte-identique des feuilles de style React/runtime : **PASS**.
-- Validation du moteur i18n FR/EN partagé : **PASS**.
-- Nettoyage des anciens styles et méthodes mobiles non utilisés : **PASS**.
+- `python -m compileall -q src tests scripts docker installers` : **PASS**.
+- Validation frontend React/runtime packagé : **PASS**.
 
 ## CDC, roadmap et installateurs
 
-Cette livraison réémet le CDC et la roadmap parce que la recommandation responsive modifie une décision UX existante.
+La livraison réémet le CDC et la roadmap car l’accessibilité transversale et le comportement visuel du header modifient le contrat UX existant.
 
 - CDC v4.8.1 : **PASS** — **825 exigences**, **529 entités**, **625 tests contractuels**.
-- Roadmap v2 : **PASS** — **19 phases**, **115 epics**, **8 gates**, **94 tests**.
-- `REQ-00811` : navigation responsive adaptative à trois modes.
-- `REQ-00825` : header compact, contrôles alignés, cibles tactiles et hiérarchie d’ombres.
-- `TST-WEB-124` et `TST-WEB-125` : régressions responsive et header.
+- Roadmap v2 : **PASS** — **19 phases**, **115 epics**, **8 gates**, **94 validations**.
+- `REQ-00789` et `TST-WEB-090` : baseline WCAG 2.2 AA sur toutes les pages.
+- `REQ-00825` et `TST-WEB-125` : états translucides, faibles rayons, transitions adaptatives et contrôles réduits.
 - `EPIC-0805` : accessibilité et navigation responsive adaptative.
-- `TST-P08-WEB-RESPONSIVE-NAVIGATION` et `TST-P08-WEB-COMPACT-HEADER` : gates roadmap.
-- Six installateurs autonomes Lite/Pro/Entreprise : **PASS**.
+- Six installateurs autonomes Lite/Pro/Enterprise : **PASS**.
 - Alignement Enterprise : **PASS**.
-- Les six guides de scopes manquants exigés par le validateur CDC ont été ajoutés.
-- La variante de nom `Matrice-alignement-enterprise-v4.3.csv` attendue par le validateur est fournie sans supprimer la matrice historique en français.
-
-## Packaging attendu
-
-Le build doit produire :
-
-- `openinfra-0.29.86-py3-none-any.whl` ;
-- `openinfra-0.29.86.tar.gz`.
-
-Le vérificateur d’artefact exige notamment :
-
-- le service de graphe ;
-- les assets i18n, JavaScript et CSS du portail ;
-- le document OpenAPI packagé ;
-- les **40 migrations PostgreSQL**, dernière migration `0040_dcim_floor_nomenclature.sql`.
 
 ## Contrôles limités par l’environnement
 
-- `pip-audit --strict` a été lancé mais n’a pas pu résoudre `pypi.org`. Le contrôle est **non concluant**, et non déclaré comme réussi.
-- Docker, Podman et `psql` ne sont pas disponibles ; les smoke tests nécessitant un daemon de conteneurs ou une instance PostgreSQL réelle ne sont donc pas exécutables localement.
-- La capture visuelle automatisée par navigateur Chromium est indisponible dans ce conteneur. Le contrat UX a été validé par tests DOM/CSS, tests Node.js, tests Python et build Vite, mais pas par comparaison de captures d’écran.
+- `pip-audit --strict -r requirements/runtime.txt` a été lancé, mais `pypi.org` ne peut pas être résolu. Le contrôle est **non concluant**, et non déclaré comme réussi.
+- Docker, Podman et `psql` ne sont pas disponibles ; les smoke tests nécessitant un daemon de conteneurs ou une instance PostgreSQL réelle ne sont pas exécutables localement.
+- La capture automatisée Chromium n’est pas disponible dans ce conteneur. Le contrat visuel est validé par tests DOM/CSS, lint, tests Node.js/Python et build Vite, mais pas par comparaison de captures.
+- Aucun test automatisé ne remplace une recette humaine complète avec utilisateurs et technologies d’assistance ; la release fournit la checklist correspondante.
 
 ## Commandes de reproduction
 
 ```bash
-ruff format --check src tests scripts docker
-ruff check src tests scripts docker
+ruff format --check src tests scripts docker installers
+ruff check src tests scripts docker installers
 mypy src/openinfra
 bandit -q -r src/openinfra
 python scripts/security_gate.py --project-root .
@@ -137,15 +96,22 @@ python scripts/quality_gate.py
 python scripts/validate_frontend.py --project-root .
 python scripts/validate_autonomous_installer.py --root installers
 python scripts/validate_enterprise_alignment.py --project-root .
-python -m compileall -q src tests scripts docker
+python -m compileall -q src tests scripts docker installers
 
-python -m pytest
+coverage erase
+coverage run -m pytest -q --no-cov tests
 coverage report --fail-under=98
 
-npm --prefix web test
 npm --prefix web run lint
+npm --prefix web run a11y
+npm --prefix web run a11y:jsx
+npm --prefix web test
 npm --prefix web run build
+npm --prefix web audit --audit-level=high
 
 python -m build
-python scripts/verify_artifact.py dist/openinfra-0.29.86-py3-none-any.whl
+python scripts/verify_artifact.py dist/openinfra-0.29.88-py3-none-any.whl
+python -m venv /tmp/openinfra-wheel-smoke
+/tmp/openinfra-wheel-smoke/bin/pip install dist/openinfra-0.29.88-py3-none-any.whl
+(cd /tmp && /tmp/openinfra-wheel-smoke/bin/python "$OLDPWD/scripts/smoke_installed_wheel.py")
 ```

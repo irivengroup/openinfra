@@ -1157,7 +1157,7 @@ class OpenInfraDashboard {
     this.handleDocumentKeydown = (event) => {
       if (event.key === "Escape" && (this.state.mobileSidebarOpen || this.state.megaMenuModuleId)) {
         event.preventDefault();
-        this.closeResponsiveNavigation();
+        this.closeResponsiveNavigation(true);
       }
     };
   }
@@ -1175,11 +1175,13 @@ class OpenInfraDashboard {
 
   setLanguage(language) {
     this.i18n.setLanguage(language);
+    document.documentElement.lang = this.i18n.language;
     this.applyLanguage();
     this.render();
   }
 
   async start() {
+    document.documentElement.lang = this.i18n.language;
     window.addEventListener("resize", this.handleResize);
     document.addEventListener("keydown", this.handleDocumentKeydown);
     await this.refreshRuntime();
@@ -1429,7 +1431,8 @@ class OpenInfraDashboard {
       && window.matchMedia("(max-width: 767.98px)").matches;
   }
 
-  closeResponsiveNavigation() {
+  closeResponsiveNavigation(restoreFocus = false) {
+    const focusId = restoreFocus && this.lastNavigationModuleId ? `openinfra-component-${this.lastNavigationModuleId}` : null;
     this.state = {
       ...this.state,
       activeNavigationModuleId: this.state.activeModuleId,
@@ -1437,12 +1440,19 @@ class OpenInfraDashboard {
       megaMenuModuleId: null
     };
     this.render();
+    this.announce(this.i18n.t("navigationClosed"));
+    if (focusId) {
+      window.requestAnimationFrame(() => document.getElementById(focusId)?.focus());
+    }
   }
 
-  openMegaMenu(moduleId) {
+  openMegaMenu(moduleId, trigger = null) {
     const module = OPENINFRA_MODULES.find((item) => item.id === moduleId);
     if (!module || module.id === "overview" || !this.isMegamenuViewport()) {
       return;
+    }
+    if (trigger instanceof HTMLElement) {
+      this.lastNavigationModuleId = module.id;
     }
     if (this.state.megaMenuModuleId === module.id) {
       return;
@@ -1454,6 +1464,7 @@ class OpenInfraDashboard {
       mobileSidebarOpen: false
     };
     this.render();
+    this.announce(this.i18n.t("navigationOpened", { component: module.shortLabel || module.label }));
   }
 
   handleModuleNavigation(moduleId) {
@@ -1563,7 +1574,7 @@ class OpenInfraDashboard {
   renderRuntimeStatus() {
     const displayedVersion = this.state.version?.version || this.state.config?.version || this.i18n.t("unavailable");
     const protectedForms = this.state.status?.protectedForms === "enabled" ? this.i18n.t("active") : this.i18n.t("configure");
-    return `<div class="px-2 small text-muted openinfra-runtime-status">
+    return `<div class="px-2 small text-muted openinfra-runtime-status" role="status" aria-live="polite" aria-atomic="true">
       <p><span class="openinfra-status-dot ${this.state.ready?.ready === true ? "ready" : "warning"}"></span>${this.escape(this.state.ready?.ready === true ? this.i18n.t("backendReady") : this.i18n.t("backendCheck"))}</p>
       <p>${this.escape(this.i18n.t("version"))} : <strong>${this.escape(displayedVersion)}</strong></p>
       <p>Trust web/backend : <strong>${this.escape(this.state.config?.webBackendTrust || "server-side")}</strong></p>
@@ -1639,7 +1650,7 @@ class OpenInfraDashboard {
             ${this.icon("search", "openinfra-global-search-icon", 18, 18)}
             <input type="search" id="openinfra-global-search" class="form-control" placeholder="${this.escape(this.i18n.t("globalSearchPlaceholder"))}" aria-label="${this.escape(this.i18n.t("globalSearch"))}" role="combobox" aria-autocomplete="list" aria-haspopup="listbox" aria-controls="openinfra-global-search-results" aria-expanded="${hasQuery ? "true" : "false"}" value="${this.escape(query)}">
           </div>
-          <div id="openinfra-global-search-results" class="openinfra-global-search-results" role="listbox" aria-label="${this.escape(this.i18n.t("globalSearchResults"))}" aria-live="polite" ${hasQuery ? "" : "hidden"}>${this.renderGlobalSearchResults()}</div>
+          <div id="openinfra-global-search-results" class="openinfra-global-search-results" role="listbox" aria-label="${this.escape(this.i18n.t("globalSearchResults"))}" aria-live="polite" aria-atomic="false" aria-busy="${this.state.globalSearchLoading ? "true" : "false"}" ${hasQuery ? "" : "hidden"}>${this.renderGlobalSearchResults()}</div>
         </form>
         <div class="openinfra-toolbar-actions">
           <div class="openinfra-language-control">
@@ -1650,8 +1661,8 @@ class OpenInfraDashboard {
             </select>
           </div>
           <div class="text-end openinfra-api-doc-actions">
-            <a class="btn btn-light text-dark" href="${this.escape(docs.swaggerUrl)}" target="_blank" rel="noopener noreferrer" aria-label="${this.escape(this.i18n.t("openSwagger"))}">Swagger</a>
-            <a class="btn btn-primary" href="${this.escape(docs.redocUrl)}" target="_blank" rel="noopener noreferrer" aria-label="${this.escape(this.i18n.t("openRedoc"))}">ReDoc</a>
+            <a class="btn btn-light text-dark" href="${this.escape(docs.swaggerUrl)}" target="_blank" rel="noopener noreferrer" aria-label="${this.escape(`${this.i18n.t("openSwagger")} — ${this.i18n.t("opensNewWindow")}`)}">Swagger</a>
+            <a class="btn btn-primary" href="${this.escape(docs.redocUrl)}" target="_blank" rel="noopener noreferrer" aria-label="${this.escape(`${this.i18n.t("openRedoc")} — ${this.i18n.t("opensNewWindow")}`)}">ReDoc</a>
           </div>
         </div>
       </div>
@@ -1683,7 +1694,7 @@ class OpenInfraDashboard {
     const skipped = groups.filter((group) => group.status === "skipped");
     const sections = visibleGroups.map((group) => `<section class="openinfra-global-search-group" role="group" aria-label="${this.escape(this.i18n.t("globalSearchResults"))} ${this.escape(group.label || group.component)}">
       <div class="openinfra-global-search-group-title"><span>${this.escape(group.label || group.component)}</span><span>${this.escape(this.i18n.count(group.total, "result", "results"))}</span></div>
-      ${group.items.map((item) => `<button type="button" class="openinfra-global-search-item" role="option" data-search-route="${this.escape(item.route || "")}">
+      ${group.items.map((item) => `<button type="button" class="openinfra-global-search-item" role="option" aria-selected="false" data-search-route="${this.escape(item.route || "")}">
         <span>${this.escape(item.label || item.kind || this.i18n.t("result"))}</span><small>${this.escape(item.kind || group.component)} · ${this.escape(item.description || "")}</small>
       </button>`).join("")}
       ${group.total > group.items.length ? `<div class="openinfra-global-search-more">${this.escape(this.i18n.t(group.total - group.items.length === 1 ? "additionalResults" : "additionalResultsPlural", { count: group.total - group.items.length }))}</div>` : ""}
@@ -1703,7 +1714,7 @@ class OpenInfraDashboard {
     }
     return groups.map(({ module, operations, total }) => `<section class="openinfra-global-search-group" role="group" aria-label="${this.escape(this.i18n.t("globalSearchResults"))} ${this.escape(module.shortLabel || module.label)}">
       <div class="openinfra-global-search-group-title"><span>${this.escape(module.shortLabel || module.label)}</span><span>${this.escape(this.i18n.count(total, "result", "results"))}</span></div>
-      ${operations.map((operation) => `<button type="button" class="openinfra-global-search-item" role="option" data-search-operation-id="${this.escape(operation.id)}">
+      ${operations.map((operation) => `<button type="button" class="openinfra-global-search-item" role="option" aria-selected="false" data-search-operation-id="${this.escape(operation.id)}">
         <span>${this.escape(operation.label)}</span><small>${this.escape(operation.method)} ${this.escape(operation.path)}</small>
       </button>`).join("")}
       ${total > operations.length ? `<div class="openinfra-global-search-more">${this.escape(this.i18n.t(total - operations.length === 1 ? "additionalResults" : "additionalResultsPlural", { count: total - operations.length }))}</div>` : ""}
@@ -1720,21 +1731,29 @@ class OpenInfraDashboard {
       ? this.i18n.t("dashboardSubtitle")
       : this.i18n.t("operationSubtitle", { operation: selected.label });
     this.root.innerHTML = `
-      <a class="openinfra-skip-link" href="#openinfra-main-content">${this.escape(this.i18n.t("skipToContent"))}</a>
-      <header class="openinfra-header-stack">
+      <div class="openinfra-skip-links" aria-label="${this.escape(this.i18n.t("accessibilityStatus"))}">
+        <a class="openinfra-skip-link" href="#openinfra-main-content">${this.escape(this.i18n.t("skipToContent"))}</a>
+        <a class="openinfra-skip-link" href="#openinfra-component-navigation">${this.escape(this.i18n.t("skipToNavigation"))}</a>
+        <a class="openinfra-skip-link" href="#openinfra-global-search">${this.escape(this.i18n.t("skipToSearch"))}</a>
+      </div>
+      <div id="openinfra-live-region" class="openinfra-live-region" role="status" aria-live="polite" aria-atomic="true"></div>
+      <header class="openinfra-header-stack" role="banner">
         <div class="px-3 py-2 bg-dark text-white openinfra-top-header">
           <div class="container-fluid">
             <div class="d-flex align-items-center openinfra-top-header-inner">
               <a href="/" class="d-flex align-items-center openinfra-brand-link text-white text-decoration-none" aria-label="${this.escape(this.i18n.t("home"))}">
                 <span class="openinfra-brand-mark me-2">OI</span><span class="fs-5 fw-semibold openinfra-brand-name">OpenInfra</span><span class="badge openinfra-edition-badge ms-3">${this.escape(config?.edition || "runtime")}</span>
               </a>
-              <ul class="nav justify-content-center text-small openinfra-component-nav" aria-label="${this.escape(this.i18n.t("navigation"))}">
-                ${OPENINFRA_MODULES.map((module) => `
-                  <li><button type="button" class="nav-link border-0 bg-transparent openinfra-component-link ${activeNavigationModuleId === module.id ? "active" : ""}" data-module-id="${this.escape(module.id)}" aria-current="${activeNavigationModuleId === module.id ? "page" : "false"}" ${module.id === "overview" ? "" : `aria-haspopup="true" aria-expanded="${this.state.megaMenuModuleId === module.id ? "true" : "false"}" aria-controls="openinfra-mega-menu"`}>
-                    ${this.icon(module.icon, "bi d-block mx-auto mb-1 openinfra-top-icon", 24, 24)}<span>${this.escape(module.shortLabel || module.label)}</span>
-                  </button></li>
-                `).join("")}
-              </ul>
+              <nav id="openinfra-component-navigation" class="openinfra-component-navigation" aria-label="${this.escape(this.i18n.t("navigation"))}" aria-describedby="openinfra-component-navigation-instructions">
+                <p id="openinfra-component-navigation-instructions" class="openinfra-component-navigation-instructions">${this.escape(this.i18n.t("componentNavigationInstructions"))}</p>
+                <ul class="nav justify-content-center text-small openinfra-component-nav">
+                  ${OPENINFRA_MODULES.map((module, index) => `
+                    <li><button id="openinfra-component-${this.escape(module.id)}" data-component-index="${index}" type="button" class="nav-link border-0 bg-transparent openinfra-component-link ${activeNavigationModuleId === module.id ? "active" : ""}" data-module-id="${this.escape(module.id)}" aria-current="${activeNavigationModuleId === module.id ? "page" : "false"}" ${module.id === "overview" ? "" : `aria-haspopup="true" aria-expanded="${this.state.megaMenuModuleId === module.id ? "true" : "false"}" aria-controls="openinfra-mega-menu"`}>
+                      ${this.icon(module.icon, "bi d-block mx-auto mb-1 openinfra-top-icon", 24, 24)}<span>${this.escape(module.shortLabel || module.label)}</span>
+                    </button></li>
+                  `).join("")}
+                </ul>
+              </nav>
               <button type="button" id="openinfra-compact-menu-button" class="btn btn-primary openinfra-compact-menu-button" aria-label="${this.escape(this.i18n.t(this.state.mobileSidebarOpen ? "closeNavigation" : "openNavigation"))}" aria-expanded="${this.state.mobileSidebarOpen ? "true" : "false"}" aria-controls="openinfra-compact-navigation">
                 ${this.icon("menu", "openinfra-mobile-menu-icon", 20, 20)}<span class="visually-hidden">Menu</span>
               </button>
@@ -1758,7 +1777,7 @@ class OpenInfraDashboard {
             <div class="pb-2 mb-3 openinfra-titlebar">
               <h1 class="h2">${this.escape(pageTitle)}</h1><p class="text-muted mb-0">${this.escape(pageSubtitle)}</p>
             </div>
-            ${error ? `<div class="alert alert-warning" role="alert">${this.escape(error.message)}</div>` : ""}
+            ${error ? `<div class="alert alert-warning openinfra-error-summary" role="alert" tabindex="-1">${this.escape(error.message)}</div>` : ""}
             ${result && activeModuleId !== "overview" ? `<div class="alert alert-success" role="status">${this.escape(this.i18n.t("success"))}</div>` : ""}
             ${this.renderWorkspace(selected, result, displayedVersion, config, protectedForms)}
           </main>
@@ -1904,24 +1923,28 @@ class OpenInfraDashboard {
   renderOperationPanel(operation, result) {
     const module = this.moduleForOperation(operation);
     const fields = [...(operation.query || []), ...(operation.body || [])];
+    const hasRequiredFields = fields.some((field) => field.required);
     return `<div class="row g-4">
-      <section class="col-12 col-xxl-8">
-        <h2 class="h4">${this.escape(operation.label)}</h2>
+      <section class="col-12 col-xxl-8" aria-labelledby="openinfra-operation-title">
+        <h2 id="openinfra-operation-title" class="h4">${this.escape(operation.label)}</h2>
         <p class="text-muted">${this.escape(module.description)}</p>
-        ${this.renderOperationScopeSelectors(operation)}
-        <div class="row g-3">${fields.map((field) => this.renderField(field)).join("") || `<p>${this.escape(this.i18n.t("noParameters"))}</p>`}</div>
-        <button class="btn btn-primary mt-3" type="button" id="openinfra-execute">${this.escape(this.i18n.t("execute"))}</button>
+        <form id="openinfra-operation-form" ${hasRequiredFields ? 'aria-describedby="openinfra-required-fields-notice"' : ""}>
+          ${hasRequiredFields ? `<p id="openinfra-required-fields-notice" class="openinfra-required-notice">${this.escape(this.i18n.t("requiredFieldsNotice"))}</p>` : ""}
+          ${this.renderOperationScopeSelectors(operation)}
+          <div class="row g-3">${fields.map((field) => this.renderField(field)).join("") || `<p>${this.escape(this.i18n.t("noParameters"))}</p>`}</div>
+          <button class="btn btn-primary mt-3" type="submit" id="openinfra-execute">${this.escape(this.i18n.t("execute"))}</button>
+        </form>
       </section>
-      <aside class="col-12 col-xxl-4">
-        <h3 class="h6 text-uppercase text-muted">${this.escape(this.i18n.t("resultTitle"))}</h3>
-        <pre class="openinfra-result" aria-live="polite" aria-label="${this.escape(this.i18n.t("operationResult"))}">${this.escape(result ? JSON.stringify(result, null, 2) : this.i18n.t("pendingResult"))}</pre>
+      <aside class="col-12 col-xxl-4" aria-labelledby="openinfra-result-title">
+        <h3 id="openinfra-result-title" class="h6 text-uppercase text-muted">${this.escape(this.i18n.t("resultTitle"))}</h3>
+        <pre class="openinfra-result" role="status" aria-live="polite" aria-atomic="true" aria-label="${this.escape(this.i18n.t("operationResult"))}">${this.escape(result ? JSON.stringify(result, null, 2) : this.i18n.t("pendingResult"))}</pre>
       </aside>
     </div>`;
   }
 
   renderField(field) {
     const required = field.required ? " required" : "";
-    const requiredText = field.required ? " *" : "";
+    const requiredText = field.required ? `<span class="openinfra-required-marker" aria-hidden="true">*</span><span class="visually-hidden"> (${this.escape(this.i18n.t("requiredIndicator"))})</span>` : "";
     const value = field.defaultValue || "";
     const visibility = this.fieldVisibilityAttributes(field);
     if (this.isCountryField(field)) {
@@ -2170,7 +2193,18 @@ class OpenInfraDashboard {
     document.getElementById("openinfra-language")?.addEventListener("change", (event) => {
       this.setLanguage(event.target.value);
     });
-    document.getElementById("openinfra-execute")?.addEventListener("click", () => this.executeSelected());
+    document.getElementById("openinfra-operation-form")?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      for (const control of form.querySelectorAll("input, select, textarea")) {
+        control.setAttribute("aria-invalid", control.checkValidity() ? "false" : "true");
+      }
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+      this.executeSelected();
+    });
     document.getElementById("openinfra-organization")?.addEventListener("change", async (event) => {
       const organization = event.target.value;
       const tenant = this.tenantOptions(organization)[0]?.value || organization;
@@ -2219,13 +2253,37 @@ class OpenInfraDashboard {
       this.render();
     });
     document.getElementById("openinfra-navigation-backdrop")?.addEventListener("click", () => this.closeResponsiveNavigation());
-    document.getElementById("openinfra-mega-menu-close")?.addEventListener("click", () => this.closeResponsiveNavigation());
-    document.getElementById("openinfra-compact-navigation-close")?.addEventListener("click", () => this.closeResponsiveNavigation());
-    for (const button of document.querySelectorAll("[data-module-id]")) {
-      button.addEventListener("mouseenter", () => this.openMegaMenu(button.dataset.moduleId));
-      button.addEventListener("focus", () => this.openMegaMenu(button.dataset.moduleId));
-      button.addEventListener("click", () => this.handleModuleNavigation(button.dataset.moduleId));
-    }
+    document.getElementById("openinfra-mega-menu-close")?.addEventListener("click", () => this.closeResponsiveNavigation(true));
+    document.getElementById("openinfra-compact-navigation-close")?.addEventListener("click", () => this.closeResponsiveNavigation(true));
+    const componentButtons = Array.from(document.querySelectorAll("[data-module-id]"));
+    componentButtons.forEach((button, index) => {
+      button.addEventListener("mouseenter", () => this.openMegaMenu(button.dataset.moduleId, button));
+      button.addEventListener("focus", () => this.openMegaMenu(button.dataset.moduleId, button));
+      button.addEventListener("click", () => {
+        this.lastNavigationModuleId = button.dataset.moduleId;
+        this.handleModuleNavigation(button.dataset.moduleId);
+      });
+      button.addEventListener("keydown", (event) => {
+        const focusAt = (targetIndex) => componentButtons[targetIndex]?.focus();
+        if (event.key === "ArrowRight") {
+          event.preventDefault();
+          focusAt((index + 1) % componentButtons.length);
+        } else if (event.key === "ArrowLeft") {
+          event.preventDefault();
+          focusAt((index - 1 + componentButtons.length) % componentButtons.length);
+        } else if (event.key === "Home") {
+          event.preventDefault();
+          focusAt(0);
+        } else if (event.key === "End") {
+          event.preventDefault();
+          focusAt(componentButtons.length - 1);
+        } else if (event.key === "ArrowDown" && button.dataset.moduleId !== "overview") {
+          event.preventDefault();
+          this.openMegaMenu(button.dataset.moduleId, button);
+          window.requestAnimationFrame(() => document.querySelector(".openinfra-mega-menu .openinfra-sidebar-operation")?.focus());
+        }
+      });
+    });
     for (const button of document.querySelectorAll("[data-accordion-id]")) {
       button.addEventListener("click", () => this.toggleAccordion(button.dataset.accordionId));
     }
@@ -2464,6 +2522,17 @@ class OpenInfraDashboard {
 
   moduleForOperation(operation) {
     return OPENINFRA_MODULES.find((module) => module.operations.some((item) => item.id === operation.id)) || OPENINFRA_MODULES[0];
+  }
+
+  announce(message) {
+    const region = document.getElementById("openinfra-live-region");
+    if (!region) {
+      return;
+    }
+    region.textContent = "";
+    window.requestAnimationFrame(() => {
+      region.textContent = String(message || "");
+    });
   }
 
   metric(title, body) {

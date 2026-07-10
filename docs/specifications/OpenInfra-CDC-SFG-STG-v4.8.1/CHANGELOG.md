@@ -1,3 +1,9 @@
+## v4.8.1 / OpenInfra 0.29.88 — Accessibilité transversale et header raffiné
+
+- Extension de `REQ-00789` et `TST-WEB-090` à l’ensemble du portail selon une baseline WCAG 2.2 AA.
+- Mise à jour de `REQ-00825` et `TST-WEB-125` pour les états translucides, les faibles rayons, les transitions bounce/fade accessibles et les contrôles header réduits.
+- Aucune nouvelle exigence redondante ; traçabilité et critères d’acceptation existants révisés.
+
 ## v4.8.1 / OpenInfra 0.29.87 — Ajustements header et mégamenu
 
 - Réalignement de `REQ-00811` sur l’ouverture au survol/focus avec clic de secours.

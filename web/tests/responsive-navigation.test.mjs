@@ -52,8 +52,8 @@ test('navigation breakpoints preserve sidebar, megamenu and compact modes', asyn
 test('megamenu opens on hover and keyboard focus while preserving click fallback', async () => {
   const { reactSource, runtimeSource } = await sources();
 
-  assert.match(reactSource, /onMouseEnter=\{\(\) => openMegaMenu\(module\)\}/);
-  assert.match(reactSource, /onFocus=\{\(\) => openMegaMenu\(module\)\}/);
+  assert.match(reactSource, /onMouseEnter=\{\(event\) => openMegaMenu\(module, event\.currentTarget\)\}/);
+  assert.match(reactSource, /onFocus=\{\(event\) => openMegaMenu\(module, event\.currentTarget\)\}/);
   assert.match(runtimeSource, /addEventListener\("mouseenter", \(\) => this\.openMegaMenu/);
   assert.match(runtimeSource, /addEventListener\("focus", \(\) => this\.openMegaMenu/);
   assert.match(runtimeSource, /handleModuleNavigation\(moduleId\)[\s\S]*?this\.openMegaMenu\(moduleId\);/);
@@ -68,7 +68,8 @@ test('toolbar controls remain aligned and touch targets expand on coarse pointer
 
   assert.match(runtimeCss, /\.openinfra-global-toolbar-inner\s*\{[\s\S]*?grid-template-columns: minmax\(0, 1fr\) minmax\(0, 50%\) minmax\(0, 1fr\);/);
   assert.match(runtimeCss, /\.openinfra-component-nav\s*\{[\s\S]*?justify-content: flex-end !important;[\s\S]*?margin: 0 0 0 auto !important;/);
-  assert.match(runtimeCss, /\.openinfra-component-nav \.nav-link\.active,[\s\S]*?color: var\(--openinfra-blue\);/);
-  assert.match(runtimeCss, /\.openinfra-language-control \.form-select,[\s\S]*?\.openinfra-api-doc-actions \.btn[\s\S]*?height: var\(--openinfra-toolbar-control-height\);/);
+  assert.match(runtimeCss, /\.openinfra-component-nav \.nav-link\.active,[\s\S]*?color: rgba\(255, 255, 255, \.96\);/);
+  assert.match(runtimeCss, /--openinfra-toolbar-action-height: 1\.82rem;/);
+  assert.match(runtimeCss, /\.openinfra-language-control \.form-select,[\s\S]*?\.openinfra-api-doc-actions \.btn[\s\S]*?height: var\(--openinfra-toolbar-action-height\);/);
   assert.match(runtimeCss, /@media \(pointer: coarse\)[\s\S]*?--openinfra-toolbar-control-height: 2\.75rem;/);
 });

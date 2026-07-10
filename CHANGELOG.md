@@ -1,3 +1,17 @@
+## v0.29.88 — Accessibilité transversale et raffinement visuel du header
+
+- Application d’une baseline WCAG 2.2 AA à toutes les pages React et au runtime web packagé.
+- Ajout de liens d’évitement vers le contenu, la navigation des composants et la recherche globale.
+- Landmarks sémantiques, annonces `aria-live`, navigation clavier par flèches/Home/End/Échap et restauration du focus.
+- Formulaires accessibles : libellés explicites, champs obligatoires annoncés, `aria-invalid`, validation native et résultats annoncés.
+- Prise en charge de `prefers-contrast: more`, couleurs forcées, focus à double contraste et compensation du header fixe.
+- Garantie qu’aucune information n’est portée uniquement par le son ; tout futur média devra fournir sous-titres/transcription et alternative visuelle.
+- États actif/hover du header adoucis par transparence, rayons réduits et transitions bounce/fade courtes.
+- Suppression automatique des animations avec `prefers-reduced-motion`.
+- Réduction légère du sélecteur FR/EN et des boutons Swagger/ReDoc, avec maintien de cibles tactiles de 44 px sur pointeur grossier.
+- Ajout d’un lint JSX `eslint-plugin-jsx-a11y`, de tests Node/Python dédiés et d’un gate CI accessibilité.
+- Réalignement de `REQ-00789`, `REQ-00825`, `TST-WEB-090`, `TST-WEB-125` et `EPIC-0805` sans nouvelle exigence redondante.
+
 ## v0.29.87 — Ajustements UX du header et mégamenu au survol
 
 - Restauration du padding vertical initial de la seconde barre du header (`0,5 rem`) sans modifier la hauteur compacte de la recherche (`2 rem`).

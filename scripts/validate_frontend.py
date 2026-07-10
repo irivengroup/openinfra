@@ -36,6 +36,16 @@ class FrontendContractValidator:
 
     def validate(self) -> FrontendValidationReport:
         package = self._read_json(self._project_root / "web/package.json")
+        scripts = package.get("scripts", {})
+        if not isinstance(scripts, dict):
+            raise FrontendValidationError("web/package.json scripts must be an object")
+        required_accessibility_scripts = {"a11y", "a11y:jsx"}
+        missing_accessibility_scripts = sorted(required_accessibility_scripts - set(scripts))
+        if missing_accessibility_scripts:
+            raise FrontendValidationError(
+                "web/package.json accessibility scripts are incomplete: "
+                + ", ".join(missing_accessibility_scripts)
+            )
         dependencies = package.get("dependencies", {})
         if not isinstance(dependencies, dict):
             raise FrontendValidationError("web/package.json dependencies must be an object")
@@ -137,7 +147,7 @@ class FrontendContractValidator:
             or "/v1/itam/support-coverage" not in main_source
             or "Déclarer garantie constructeur" not in main_source
             or "Ajouter support tiers" not in main_source
-            or "MODULES.map((module)" not in main_source
+            or "MODULES.map((module, index)" not in main_source
             or "MODULES.slice(0, 6)" in main_source
             or "Token API" in main_source
             or "openinfra-skip-link" not in main_source
@@ -207,6 +217,14 @@ class FrontendContractValidator:
             "aria-current",
             "aria-live",
             "aria-autocomplete",
+            "openinfra-live-region",
+            "skipToNavigation",
+            "skipToSearch",
+            "componentNavigationInstructions",
+            "ArrowRight",
+            "ArrowLeft",
+            "ArrowDown",
+            "opensNewWindow",
         ):
             if required_header_fragment not in main_source:
                 raise FrontendValidationError(
@@ -443,6 +461,14 @@ class FrontendContractValidator:
             "aria-current",
             "aria-live",
             "aria-autocomplete",
+            "openinfra-live-region",
+            "skipToNavigation",
+            "skipToSearch",
+            "componentNavigationInstructions",
+            "ArrowRight",
+            "ArrowLeft",
+            "ArrowDown",
+            "opensNewWindow",
             "focusMainContentIfRequested",
             "grid-template-columns: minmax(0, 1fr) minmax(0, 50%) minmax(0, 1fr)",
             "grid-template-columns: repeat(10, minmax(0, 1fr))",

@@ -1,3 +1,10 @@
+## OpenInfra 0.29.88 — Accessibilité transversale et header raffiné
+
+- Renforcement de `EPIC-0805` sans nouvel epic.
+- Réalignement de `REQ-00789` et `REQ-00825` sur la release 0.29.88.
+- Extension de `TST-P08-WEB-ACCESSIBLE-NAVIGATION` à toutes les pages et aux technologies d’assistance.
+- Mise à jour de `TST-P08-WEB-COMPACT-HEADER` pour les états translucides, les faibles rayons, les transitions adaptatives et les contrôles réduits.
+
 ## OpenInfra 0.29.87 — Ajustements header et mégamenu
 
 - Réalignement de `EPIC-0805` sur l’ouverture hover/focus du mégamenu avec clic de secours.

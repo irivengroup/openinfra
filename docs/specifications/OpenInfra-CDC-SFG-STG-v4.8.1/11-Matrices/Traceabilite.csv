@@ -781,7 +781,7 @@ REQ-00785,N1,ITAM,UC-V43-0007,TST-ITAM-002,"Tests domaine, service, API HTTP, CL
 REQ-00786,N2,WEB,UC-WEB-001,TST-WEB-087,Validation frontend et tests intégration openinfra-web du flux accordéon sidebar et du scroll latéral sans masquage.
 REQ-00787,N2,WEB,UC-WEB-001,TST-WEB-088,Validation frontend et tests intégration openinfra-web de la visibilité ITAM Dashboard/header/sidebar/recherche et icône asset pleine.
 REQ-00788,N2,WEB,UC-WEB-001,TST-WEB-089,Validation frontend et tests intégration openinfra-web de la réduction de moitié des boutons Swagger/ReDoc.
-REQ-00789,N2,WEB,UC-WEB-001,TST-WEB-090,"Validation frontend et tests intégration openinfra-web de l’accessibilité navigation, recherche et focus contenu principal."
+REQ-00789,N1,WEB,UC-WEB-001,TST-WEB-090,"Lint JSX accessible, tests React/runtime, Node.js, Python et build Vite pour la baseline WCAG 2.2 AA transversale, la navigation clavier, les lecteurs d’écran, le contraste, la réduction des mouvements et les alternatives textuelles."
 REQ-00790,N2,WEB,UC-WEB-001,TST-WEB-091,Validation frontend et tests intégration openinfra-web du badge édition dans le header principal et du retrait de l’indication visible du mode d’authentification.
 REQ-00791,N2,WEB,UC-WEB-001,TST-WEB-092,Validation frontend et tests intégration openinfra-web du badge édition fuchsia effectif sans classe text-bg-primary ni composante bleue dans le gradient dédié.
 REQ-00792,N2,WEB,UC-WEB-001,TST-WEB-093,Validation frontend et tests intégration openinfra-web du badge édition fuchsia très foncé sans retour au bleu Bootstrap ni rendu marron.
@@ -805,4 +805,4 @@ REQ-00821,N1,DCIM/ITAM/WEB/API/CLI/POSTGRESQL,UC-0001,TST-WEB-120,"Tests DCIM/IT
 REQ-00822,N1,DISCOVERY/API/CLI/WEB/POSTGRESQL,UC-DISC-001,TST-WEB-121,Tests domaine/service/API/CLI/frontend/OpenAPI/migration pour profils Discovery virtualisation Kubernetes et cloud sans secret matérialisé ni scan réseau exécuté.
 REQ-00823,N1,DISCOVERY/API/CLI/WEB/POSTGRESQL,UC-DISC-001,TST-WEB-122,"Tests domaine/service/persistance/CLI/API/OpenAPI/frontend/migration/audit pour preuves immuables, scores reproductibles, conflits explicites, résolution justifiée et rsot_write_executed=false."
 REQ-00824,N1,WEB/UX/I18N,UC-WEB-001,TST-WEB-123,"Tests i18n Node.js/Python, parité moteur React/runtime, détection navigateur, fallback EN, sélecteur persistant et build frontend."
-REQ-00825,N1,WEB/UX/HEADER,UC-WEB-001,TST-WEB-125,"Tests CSS/DOM React/runtime, Node.js, Python et build Vite pour hauteur initiale, recherche 50 % centrée, états visuels, alignement, ombre et cibles tactiles."
+REQ-00825,N1,WEB/UX/HEADER,UC-WEB-001,TST-WEB-125,"Tests CSS/DOM React/runtime, Node.js, Python, lint a11y et build Vite pour hauteur/recherche, états translucides, faibles rayons, transitions adaptées, contrôles réduits, focus et cibles tactiles."

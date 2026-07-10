@@ -5,6 +5,7 @@ from pathlib import Path
 
 import openinfra
 from openinfra.interfaces.http_api import OpenApiDocumentProvider
+from openinfra.quality.dependency_graph_benchmark import DependencyGraphBenchmarkConfig
 
 
 class InstalledWheelSmokeError(RuntimeError):
@@ -12,7 +13,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.29.93"
+    EXPECTED_VERSION = "0.29.94"
     EXPECTED_GRAPH_ROUTES = (
         "/api/v1/graph/traverse",
         "/api/v1/graph/impact",
@@ -64,6 +65,7 @@ class InstalledWheelSmoke:
         self._assert_network_config_routes(openapi)
         migrations = self._assert_migrations(package_root)
         self._assert_assets(package_root)
+        self._assert_benchmark_contract()
         self._assert_console_scripts()
         return {
             "version": openinfra.__version__,
@@ -74,6 +76,7 @@ class InstalledWheelSmoke:
             "migrations": len(migrations),
             "last_migration": migrations[-1].name,
             "runtime_assets": len(self.EXPECTED_ASSETS),
+            "dependency_graph_benchmark": True,
         }
 
     def _assert_version(self) -> None:
@@ -134,6 +137,16 @@ class InstalledWheelSmoke:
             raise InstalledWheelSmokeError(
                 "installed runtime is missing web assets: " + ", ".join(missing)
             )
+
+    def _assert_benchmark_contract(self) -> None:
+        config = DependencyGraphBenchmarkConfig(
+            node_count=100,
+            spof_hub_count=10,
+            samples=1,
+            warmups=0,
+        ).validate()
+        if config.node_count != 100 or config.spof_hub_count != 10:
+            raise InstalledWheelSmokeError("dependency graph benchmark contract is invalid")
 
     def _assert_console_scripts(self) -> None:
         entry_points = {

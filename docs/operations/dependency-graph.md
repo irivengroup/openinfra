@@ -35,6 +35,45 @@ Garanties :
 - curseur de pagination opaque, signé logiquement par l’empreinte des paramètres ;
 - résultat `truncated=true` lorsque la borne de nœuds est atteinte.
 
+## Objectifs de performance et benchmark volumétrique
+
+Le benchmark P15/EPIC-1506 mesure le moteur de graphe avec un adaptateur synthétique indexé. Il isole ainsi le coût du parcours applicatif, des filtres, de l’analyse des dominateurs et de la pagination, sans masquer les régressions derrière les performances variables d’un stockage ou d’un réseau. Les benchmarks PostgreSQL live et les essais de charge distribués restent couverts par P18/EPIC-1801.
+
+Profil CI de référence :
+
+- 5 000 nœuds et 4 999 arêtes pour le parcours à un niveau ;
+- 100 candidats SPOF répartissant les dépendances d’un graphe de 5 000 nœuds ;
+- 1 warm-up puis 3 mesures ;
+- percentile p95 calculé par rang supérieur ;
+- cardinalités vérifiées à chaque échantillon pour empêcher un gain obtenu par résultat incomplet ;
+- exécution dédiée sur Python 3.13 dans GitHub Actions.
+
+Seuils bloquants du profil :
+
+| Scénario | Seuil p95 | Garantie fonctionnelle associée |
+|---|---:|---|
+| Parcours à un niveau | 1 500 ms | 5 000 nœuds, aucune troncature |
+| Parcours filtré | 1 500 ms | filtre `calls`, cardinalité exacte |
+| Analyse SPOF | 5 000 ms | 100 candidats, projection complète |
+| Pagination SPOF complète | 15 000 ms | toutes les pages, aucun doublon ni omission |
+
+Commande reproductible :
+
+```bash
+PYTHONPATH=src python -m openinfra.quality.dependency_graph_benchmark \
+  --nodes 5000 \
+  --spof-hubs 100 \
+  --samples 3 \
+  --warmups 1 \
+  --one-level-threshold-ms 1500 \
+  --filtered-threshold-ms 1500 \
+  --spof-threshold-ms 5000 \
+  --pagination-threshold-ms 15000 \
+  --output build/reports/dependency-graph-benchmark.json
+```
+
+Le processus retourne `0` lorsque tous les seuils sont respectés, `1` pour un dépassement de seuil et `2` pour une configuration ou une invariance fonctionnelle invalide. Le rapport JSON est écrit atomiquement et contient l’environnement, la configuration, chaque échantillon, p50, p95, le seuil, les cardinalités observées et le verdict.
+
 ## CLI
 
 ```bash

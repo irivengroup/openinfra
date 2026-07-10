@@ -1,3 +1,12 @@
+## v0.29.94 — Performance volumétrique du graphe RSOT
+
+- Roadmap existante : réalisation de `EPIC-1506` sans modification de son périmètre ni création d’une exigence CDC.
+- Code : `openinfra.quality.dependency_graph_benchmark` génère deux topologies indexées et mesure parcours, filtre, SPOF et pagination.
+- Tests : `test_dependency_graph_benchmark.py`, `test_dependency_graph_volume.py` et contrat GitHub Actions.
+- CI : gate 5 000 nœuds sur Python 3.13, seuils p95 bloquants et rapport JSON.
+- Documentation : objectifs, méthode, codes de sortie et commande reproductible dans le runbook Graphe.
+- CDC et roadmap non réémis : aucune nouvelle recommandation fonctionnelle, technique, réglementaire ou architecturale.
+
 ## v0.29.93 — Traçabilité OpenAPI et formulaires globaux
 
 - CDC : compléments v0.29.93 dans les exigences API/formulaires et RSOT.

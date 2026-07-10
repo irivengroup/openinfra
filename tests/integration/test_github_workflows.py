@@ -55,3 +55,14 @@ class TestGitHubWorkflows:
             "/api/v1/graph/path",
         ):
             assert route in smoke
+
+    def test_dependency_graph_volumetric_benchmark_is_a_blocking_ci_gate(self) -> None:
+        workflow = (PROJECT_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+
+        assert "- name: Dependency graph volumetric benchmark" in workflow
+        assert "if: matrix.python-version == '3.13'" in workflow
+        assert "python -m openinfra.quality.dependency_graph_benchmark" in workflow
+        assert "--nodes 5000" in workflow
+        assert "--spof-hubs 100" in workflow
+        assert "dependency-graph-benchmark.json" in workflow
+        assert "GITHUB_STEP_SUMMARY" in workflow

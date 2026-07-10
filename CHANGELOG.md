@@ -1,3 +1,14 @@
+## v0.29.94 — Tests volumétriques du graphe RSOT
+
+- Réalisation de P15 / EPIC-1506 avec un banc de performance déterministe sans dépendance externe.
+- Génération de topologies indexées jusqu’à 5 000 nœuds pour isoler les coûts du parcours, des filtres, de l’analyse SPOF et de la pagination.
+- Mesures p50/p95 répétées après warm-up, contrôle de déterminisme des cardinalités et seuils de latence bloquants.
+- Rapport JSON versionné, écrit atomiquement, incluant environnement, configuration, échantillons, seuils, observations et verdict global.
+- Gate GitHub Actions exécuté sur Python 3.13 avec résumé Markdown dans le job CI.
+- Tests unitaires, intégration et performance couvrant configuration invalide, échec de seuil, pagination sans doublon et topologie maximale.
+- Aucun changement d’API, de CLI métier, de schéma PostgreSQL ou d’interface web.
+- CDC et roadmap inchangés : EPIC-1506 était déjà planifié et aucune nouvelle recommandation n’impacte l’existant.
+
 ## v0.29.93 — Fiabilisation OpenAPI et formulaires typés
 
 - Suppression de cinq déclarations de routes DCIM dupliquées qui rendaient `openapi.yaml` illisible par ReDoc et Swagger UI.

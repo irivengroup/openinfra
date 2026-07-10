@@ -588,3 +588,32 @@ PYTHONPATH=src python -m pytest --collect-only -q -o addopts='' --no-cov
 PYTHONPATH=src python -m pytest -q tests/integration/test_import_services.py tests/integration/test_cli_import.py -o addopts=''
 PYTHONPATH=src python -m pytest -q tests/integration/test_http_api.py::TestHttpApi::test_bulk_import_rollback_api_endpoint -o addopts=''
 ```
+
+## Validation volumétrique du graphe RSOT — v0.29.94
+
+Le gate P15/EPIC-1506 doit être exécuté hors mesure de couverture afin de ne pas fausser les latences :
+
+```bash
+mkdir -p build/reports
+PYTHONPATH=src python -m openinfra.quality.dependency_graph_benchmark \
+  --nodes 5000 \
+  --spof-hubs 100 \
+  --samples 3 \
+  --warmups 1 \
+  --one-level-threshold-ms 1500 \
+  --filtered-threshold-ms 1500 \
+  --spof-threshold-ms 5000 \
+  --pagination-threshold-ms 15000 \
+  --output build/reports/dependency-graph-benchmark.json
+```
+
+Contrôles associés :
+
+```bash
+PYTHONPATH=src python -m pytest -q --no-cov \
+  tests/unit/test_dependency_graph_benchmark.py \
+  tests/performance/test_dependency_graph_volume.py \
+  tests/integration/test_github_workflows.py
+```
+
+Un code `1` signale un dépassement de p95. Un code `2` signale une configuration invalide, une pagination non terminante ou une cardinalité incohérente. Le rapport `build/reports/dependency-graph-benchmark.json` doit être conservé avec les preuves de validation de la release.

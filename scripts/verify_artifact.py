@@ -21,6 +21,7 @@ class WheelVerifier:
             "openinfra/domain/dependency.py",
             "openinfra/domain/ipam.py",
             "openinfra/application/dependency_graph_services.py",
+            "openinfra/quality/dependency_graph_benchmark.py",
             "openinfra/application/flow_matrix_services.py",
             "openinfra/domain/flow_matrix.py",
             "openinfra/domain/certificate_pki.py",

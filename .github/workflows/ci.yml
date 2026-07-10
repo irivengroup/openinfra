@@ -120,6 +120,41 @@ jobs:
             tests/integration/test_openinfra_web.py \
             tests/integration/test_web_accessibility_contract.py
 
+      - name: Dependency graph volumetric benchmark
+        if: matrix.python-version == '3.13'
+        run: |
+          mkdir -p build/reports
+          python -m openinfra.quality.dependency_graph_benchmark \
+            --nodes 5000 \
+            --spof-hubs 100 \
+            --samples 3 \
+            --warmups 1 \
+            --one-level-threshold-ms 1500 \
+            --filtered-threshold-ms 1500 \
+            --spof-threshold-ms 5000 \
+            --pagination-threshold-ms 15000 \
+            --output build/reports/dependency-graph-benchmark.json
+          python - <<'PYTHON' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path("build/reports/dependency-graph-benchmark.json").read_text(encoding="utf-8")
+          )
+          print("## Dependency graph volumetric benchmark")
+          print()
+          print(f"Overall: **{'PASS' if payload['passed'] else 'FAIL'}**")
+          print()
+          print("| Scenario | p95 (ms) | Threshold (ms) | Status |")
+          print("|---|---:|---:|---|")
+          for measurement in payload["measurements"]:
+              status = "PASS" if measurement["passed"] else "FAIL"
+              print(
+                  f"| {measurement['name']} | {measurement['p95_ms']} | "
+                  f"{measurement['threshold_ms']} | {status} |"
+              )
+          PYTHON
+
       - name: Flow matrix governance regression
         run: |
           python -m pytest -q --no-cov \

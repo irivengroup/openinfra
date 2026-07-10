@@ -1,6 +1,21 @@
-# OpenInfra v0.29.93
+# OpenInfra v0.29.94
 
-OpenInfra v0.29.93 sécurise le contrat OpenAPI et homogénéise les formulaires opérateur : calendriers natifs pour les dates et horodatages, normalisation ISO-8601, validation anticipée des saisies libres, focus sans épaississement et regroupement du Graphe sous RSOT.
+OpenInfra v0.29.94 industrialise les performances du graphe RSOT avec un benchmark volumétrique reproductible, des mesures p50/p95, des seuils CI bloquants et un rapport JSON exploitable.
+
+## Performance volumétrique du graphe RSOT
+
+Le banc intégré génère des graphes synthétiques indexés jusqu’à 5 000 nœuds et mesure quatre scénarios : parcours à un niveau, filtrage par type de relation, analyse SPOF et pagination complète. Les cardinalités sont contrôlées à chaque exécution afin qu’une optimisation incorrecte ne puisse pas améliorer artificiellement les temps.
+
+```bash
+PYTHONPATH=src python -m openinfra.quality.dependency_graph_benchmark \
+  --nodes 5000 \
+  --spof-hubs 100 \
+  --samples 3 \
+  --warmups 1 \
+  --output build/reports/dependency-graph-benchmark.json
+```
+
+Le processus retourne un code non nul si un p95 dépasse son seuil. Voir `docs/operations/dependency-graph.md` pour les objectifs, la méthodologie et l’interprétation du rapport.
 
 ## Formulaires et documentation API fiabilisés
 

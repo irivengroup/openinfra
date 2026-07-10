@@ -1,3 +1,10 @@
+## OpenInfra 0.29.93 — Validation documentaire
+
+- `TST-P08-WEB-TYPED-VALIDATED-FORMS` verrouille calendriers, normalisation et validation amont dans React et le runtime packagé.
+- `TST-P01-OPENAPI-UNIQUE-YAML-KEYS` refuse les clés YAML dupliquées et les versions OpenAPI invalides.
+- `TST-P15-GRAPH-RSOT-NAVIGATION` vérifie l’absence de composant Graphe autonome et le rangement sous RSOT.
+- Les changements sont mappés à `REQ-00826`, `REQ-00827` et `REQ-00828`.
+
 ## OpenInfra 0.29.88 — Accessibilité transversale et header raffiné
 
 `EPIC-0805` applique désormais une baseline WCAG 2.2 AA à toutes les pages : liens d’évitement, landmarks, navigation clavier, lecteurs d’écran, annonces dynamiques, formulaires accessibles, contraste, couleurs forcées, réduction des mouvements et alternatives textuelles. Le header conserve sa densité mais adopte des états actif/hover translucides, des angles discrets, des transitions bounce/fade respectueuses des préférences utilisateur et des contrôles FR/EN-Swagger-ReDoc légèrement réduits.
@@ -26,11 +33,11 @@ L’incrément v0.29.51 réalise `EPIC-1205` pour les licences logicielles : ent
 - Référence CDC : OpenInfra CDC/SFG/STG v4.8.1 corrigé
 - Phases : 19
 - Releases : 9
-- Epics : 114
+- Epics : 115
 - Gates Go/No-Go : 8
 - Risques : 12
-- Tests roadmap : 21
-- Décisions CDC mappées : 22
+- Tests roadmap : 97
+- Décisions CDC mappées : 97
 
 ## Contrôles attendus
 

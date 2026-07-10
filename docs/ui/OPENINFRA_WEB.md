@@ -56,3 +56,15 @@ Les gates bloquent la livraison si :
 ## Accessibilité transversale
 
 Toutes les pages et tous les composants appliquent la baseline WCAG 2.2 AA décrite dans `docs/ui/WEB_ACCESSIBILITY.md`. Le contrat couvre la navigation clavier, les lecteurs d’écran, les annonces dynamiques, les formulaires, le focus, le contraste, les couleurs forcées, la réduction des mouvements et les alternatives textuelles. Aucun état métier n’est communiqué uniquement par une couleur ou par un son.
+
+## Formulaires typés, validation anticipée et normalisation
+
+Les deux portails utilisent le même moteur de définition et de validation des champs. Les champs de date et de date-heure sont rendus par les contrôles natifs `date` et `datetime-local`, habillés par le thème OpenInfra. La valeur date reste au format `YYYY-MM-DD` ; la date-heure est normalisée par l’application en ISO-8601 UTC avant l’appel API.
+
+Les champs libres sont contrôlés avant soumission selon leur nature : IPv4/IPv6, CIDR, email, téléphone, code postal contextualisé par pays, adresse MAC, hostname/FQDN, URL HTTP(S), nombre, JSON, CSV et texte. Les erreurs sont exposées avec `aria-invalid` et le message de validation localisé. Cette validation ergonomique ne remplace jamais les contraintes et validations métier du backend.
+
+Le focus d’un champ ne modifie ni son épaisseur, ni sa position, ni sa taille : seule la couleur de bordure change. Les erreurs conservent une bordure rouge sans halo supplémentaire.
+
+## Rangement fonctionnel du Graphe
+
+Le Graphe de dépendances est une capacité RSOT et non un composant de premier niveau. Ses opérations sont regroupées sous RSOT dans trois ensembles cohérents : exploration, analyse d’impact et exports. Les routes HTTP et commandes CLI restent inchangées pour préserver la compatibilité ascendante.

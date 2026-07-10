@@ -125,3 +125,13 @@ Le portail openinfra-web doit afficher le titre d’accueil court **Dashboard**.
 Le portail openinfra-web doit réduire la mise en perspective des blocs de contenu afin que la page soit plus fluide visuellement. Les effets de profondeur du header et du menu latéral ne sont pas modifiés ; les blocs métier doivent utiliser des tokens CSS dédiés plus légers.
 
 **Acceptation :** Les variables `--openinfra-content-shadow` et `--openinfra-content-shadow-hover` sont présentes dans les assets runtime ; `.openinfra-titlebar`, `.openinfra-metric`, `.openinfra-operation-card`, `.openinfra-overview-summary`, `.openinfra-component-card` et `.card` utilisent les ombres allégées.
+
+## Complément OpenInfra v0.29.93 — Formulaires typés et contrat OpenAPI valide
+
+Le portail doit utiliser des contrôles de calendrier pour toute date ou date-heure, puis normaliser les valeurs au format attendu par l’API. Toute saisie libre structurée doit être validée avant émission : IP/CIDR, email, téléphone, code postal, MAC, hostname, URL, nombre, JSON et liste. Les mêmes règles doivent être partagées entre le frontend React et le runtime packagé, sans se substituer aux validations backend.
+
+Le focus des champs de formulaire ne doit modifier que la couleur de la bordure, sans épaississement, translation ni halo. Les erreurs doivent être annoncées aux technologies d’assistance.
+
+Les documents OpenAPI servis par OpenInfra doivent être des YAML valides, avec une version OpenAPI supportée et aucune clé de mapping dupliquée. La CI doit bloquer toute régression avant packaging.
+
+**Acceptation :** ReDoc et Swagger UI rendent `openapi.yaml` sans erreur ; les calendriers natifs sont présents ; les valeurs date-heure sont converties en ISO-8601 ; les saisies structurées invalides sont bloquées en amont ; le moteur de validation React/runtime est identique ; le focus ne change pas les dimensions du contrôle.

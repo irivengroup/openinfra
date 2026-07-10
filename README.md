@@ -1,6 +1,10 @@
-# OpenInfra v0.29.92
+# OpenInfra v0.29.93
 
-OpenInfra v0.29.92 réalise **P15 / EPIC-1505** avec une visualisation gouvernée des dépendances et une détection déterministe des **SPOF** (*Single Points of Failure*, points uniques de défaillance) sur la projection RSOT existante.
+OpenInfra v0.29.93 sécurise le contrat OpenAPI et homogénéise les formulaires opérateur : calendriers natifs pour les dates et horodatages, normalisation ISO-8601, validation anticipée des saisies libres, focus sans épaississement et regroupement du Graphe sous RSOT.
+
+## Formulaires et documentation API fiabilisés
+
+Les deux portails partagent désormais exactement le même moteur de typage, de validation et de normalisation. Les adresses IP/CIDR, emails, téléphones, codes postaux, adresses MAC, noms DNS, URL, nombres, JSON et listes sont contrôlés avant émission, sans remplacer les validations métier du backend. Un validateur OpenAPI fondé sur un chargeur YAML à clés uniques bloque les doublons de mappings en CI et avant packaging.
 
 ## Visualisations d’impact et SPOF
 

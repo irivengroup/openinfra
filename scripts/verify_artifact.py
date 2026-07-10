@@ -30,6 +30,7 @@ class WheelVerifier:
             "openinfra/application/network_config_compliance_services.py",
             "openinfra/interfaces/cli.py",
             "openinfra/interfaces/rendering/static/assets/openinfra-i18n.js",
+            "openinfra/interfaces/rendering/static/assets/openinfra-form-fields.js",
             "openinfra/interfaces/rendering/static/assets/openinfra-web.js",
             "openinfra/interfaces/rendering/static/assets/openinfra-web.css",
             "openinfra/api/openapi.yaml",

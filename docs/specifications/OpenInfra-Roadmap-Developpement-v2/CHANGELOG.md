@@ -1,3 +1,10 @@
+## OpenInfra 0.29.93 — Formulaires typés, OpenAPI strict et rangement RSOT
+
+- Renforcement de `EPIC-0805` : calendriers natifs thémés, normalisation ISO 8601, validation amont des saisies libres et focus sans épaississement de contour.
+- Renforcement de `EPIC-0102` et `EPIC-0104` : parseur OpenAPI strict refusant toute clé YAML dupliquée dans la CI et avant packaging.
+- Réalignement de `EPIC-1505` : le Graphe n’est plus présenté comme composant autonome et reste rangé sous RSOT.
+- Ajout de `REQ-00826`, `REQ-00827`, `REQ-00828` et de leurs validations de non-régression.
+
 ## OpenInfra 0.29.88 — Accessibilité transversale et header raffiné
 
 - Renforcement de `EPIC-0805` sans nouvel epic.

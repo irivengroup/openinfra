@@ -1,3 +1,11 @@
+## v4.8.1 / OpenInfra 0.29.93 — OpenAPI, formulaires typés et rangement RSOT
+
+- Ajout de `REQ-00826`, `REQ-00827`, `REQ-00828`, `TST-WEB-126`, `TST-API-127` et `TST-RSOT-128`.
+- Révision des exigences web existantes pour imposer calendriers natifs, normalisation ISO-8601 et validation anticipée des saisies structurées.
+- Le focus des champs conserve une épaisseur constante et ne change que la couleur de bordure.
+- Le Graphe est rangé sous RSOT en exploration, analyse d’impact et exports, sans rupture API/CLI.
+- Le contrat OpenAPI interdit les clés YAML dupliquées et est validé en CI.
+
 ## v4.8.1 / OpenInfra 0.29.88 — Accessibilité transversale et header raffiné
 
 - Extension de `REQ-00789` et `TST-WEB-090` à l’ensemble du portail selon une baseline WCAG 2.2 AA.

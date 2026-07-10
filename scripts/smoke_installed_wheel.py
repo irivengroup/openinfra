@@ -12,7 +12,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.29.92"
+    EXPECTED_VERSION = "0.29.93"
     EXPECTED_GRAPH_ROUTES = (
         "/api/v1/graph/traverse",
         "/api/v1/graph/impact",
@@ -51,6 +51,7 @@ class InstalledWheelSmoke:
         "openinfra-web.js",
         "openinfra-web.css",
         "openinfra-i18n.js",
+        "openinfra-form-fields.js",
     )
 
     def run(self) -> dict[str, object]:

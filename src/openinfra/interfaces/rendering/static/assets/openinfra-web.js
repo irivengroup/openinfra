@@ -1,4 +1,13 @@
 import { OpenInfraI18n, localizeOpenInfraCatalog } from "./openinfra-i18n.js";
+import {
+  fieldValidationMessage,
+  formCountryCode,
+  inputAttributesForField,
+  inputTypeForField,
+  normalizeFieldDefinition,
+  normalizeFieldValue,
+  validateControl
+} from "./openinfra-form-fields.js";
 
 class OpenInfraApiClient {
   constructor(apiBaseUrl, tenantProvider, i18n = null) {
@@ -88,7 +97,7 @@ class OpenInfraApiClient {
   buildQuery(fields, payload) {
     const query = new URLSearchParams();
     for (const field of fields) {
-      const value = this.normalizedFieldValue(field, payload[field.name]);
+      const value = this.normalizedFieldValue(field, payload[field.name], payload);
       if (value !== undefined && value !== null && String(value).trim() !== "") {
         query.set(field.name, String(value));
       }
@@ -104,7 +113,7 @@ class OpenInfraApiClient {
     const body = {};
     for (const field of operation.body || []) {
       const raw = payload[field.name];
-      const value = this.normalizedFieldValue(field, raw);
+      const value = this.normalizedFieldValue(field, raw, payload);
       if (value === undefined || value === null || String(value).trim?.() === "") {
         if (field.required) {
           throw new Error(this.i18n?.t("requiredField", { field: field.label || field.name }) || `Missing required field: ${field.label || field.name}`);
@@ -125,31 +134,24 @@ class OpenInfraApiClient {
     return !id.startsWith("itam-organization");
   }
 
-  normalizedFieldValue(field, raw) {
-    if (raw === undefined || raw === null) {
-      return undefined;
-    }
-    const value = String(raw).trim();
-    if (!value) {
-      return undefined;
-    }
-    if (field.type === "number") {
-      const parsed = Number(value);
-      if (Number.isNaN(parsed)) {
-        throw new Error(this.i18n?.t("invalidNumber", { field: field.label || field.name }) || `Invalid numeric value: ${field.label || field.name}`);
+  normalizedFieldValue(field, raw, payload = {}) {
+    try {
+      const value = normalizeFieldValue(field, raw, {
+        countryCode: payload.country_code || payload.country || ""
+      });
+      if (value === undefined) {
+        return undefined;
       }
-      return parsed;
+      if (field.type === "boolean") {
+        return ["1", "true", "yes", "oui"].includes(String(value).toLowerCase());
+      }
+      return value;
+    } catch (error) {
+      if (error instanceof Error && error.code) {
+        throw new Error(fieldValidationMessage(this.i18n, { code: error.code }, error.field || field));
+      }
+      throw error;
     }
-    if (field.type === "boolean") {
-      return ["1", "true", "yes", "oui"].includes(value.toLowerCase());
-    }
-    if (field.type === "csv") {
-      return value.split(",").map((item) => item.trim()).filter(Boolean);
-    }
-    if (field.type === "json") {
-      return JSON.parse(value);
-    }
-    return value;
   }
 
   assignBodyValue(body, target, value) {
@@ -894,9 +896,7 @@ const OPENINFRA_MODULES = [
       FIELD_SETS.rack,
       FIELD_SETS.tags,
       { name: "apply", label: "Appliquer le plan", type: "boolean" }
-    ] }
-  ] },
-  { id: "graph", label: "Graphe de dépendances", shortLabel: "Graphe", icon: "activity", description: "Parcours tenant-aware des relations RSOT, recherche de chemins et analyse d’impact bornée.", operations: [
+    ] },
     { id: "graph-traverse", label: "Explorer le graphe de dépendances", method: "GET", path: "/v1/graph/traverse", query: [
       { name: "root_key", label: "Clé racine", required: true, placeholder: "application/portail" },
       { name: "direction", label: "Direction", type: "select", options: ["outgoing", "incoming", "both"], defaultValue: "both" },
@@ -1017,7 +1017,7 @@ const OPENINFRA_MODULES = [
     { id: "network-config-baseline-retire", label: "Retirer une golden configuration", method: "POST", path: "/v1/network-config/baselines/retire", body: [FIELD_SETS.actor, { name: "baseline_id", label: "ID baseline", required: true }] },
     { id: "network-config-observation-submit", label: "Ingérer une configuration découverte", method: "POST", path: "/v1/network-config/observations/submit", body: [FIELD_SETS.actor, { name: "idempotency_key", label: "Clé d’idempotence", required: true }, { name: "source", label: "Source observation", type: "select", options: ["ssh", "api", "netconf", "restconf", "gnmi", "discovery", "import", "manual"], required: true }, { name: "collector", label: "Collecteur", required: true }, { name: "device_object_key", label: "Objet équipement RSOT", required: true }, { name: "platform", label: "Plateforme réseau", required: true }, { name: "observed_config", label: "Configuration observée JSON", type: "textarea", required: true }, { name: "observed_at", label: "Observé le (ISO-8601)", required: true }] },
     { id: "network-config-observation-list", label: "Lister les configurations découvertes", method: "GET", path: "/v1/network-config/observations", query: [{ name: "device_object_key", label: "Objet équipement RSOT" }, { name: "platform", label: "Plateforme réseau" }, { name: "observed_before", label: "Observé avant" }, { name: "limit", label: "Limite", type: "number", defaultValue: "100" }, { name: "cursor", label: "Curseur" }] },
-    { id: "network-config-assessment", label: "Évaluer la dérive réseau", method: "GET", path: "/v1/network-config/assessment", query: [{ name: "actor", label: "Opérateur", defaultValue: "web" }, { name: "baseline_code", label: "Code baseline" }, { name: "as_of", label: "Date de référence" }, { name: "status", label: "Statut conformité", type: "select", options: ["compliant", "drift", "missing-observation"] }, { name: "limit", label: "Limite", type: "number", defaultValue: "100" }, { name: "cursor", label: "Curseur" }] },
+    { id: "network-config-assessment", label: "Évaluer la dérive réseau", method: "GET", path: "/v1/network-config/assessment", query: [{ name: "actor", label: "Opérateur", defaultValue: "web" }, { name: "baseline_code", label: "Code baseline" }, { name: "as_of", label: "Date de référence", format: "date-time" }, { name: "status", label: "Statut conformité", type: "select", options: ["compliant", "drift", "missing-observation"] }, { name: "limit", label: "Limite", type: "number", defaultValue: "100" }, { name: "cursor", label: "Curseur" }] },
   ] },
   { id: "certificates", label: "Certificats et PKI", shortLabel: "Certificats", icon: "shield", description: "Inventaire gouverné des certificats, validation des chaînes, endpoints TLS, SAN et échéances.", operations: [
     { id: "certificate-import", label: "Importer une chaîne PEM", method: "POST", path: "/v1/certificates/import", body: [
@@ -1245,9 +1245,7 @@ const OPENINFRA_SIDEBAR_CONTEXTS = {
   rsot: [
     { label: "Référentiel", operationIds: ["rsot-taxonomy", "rsot-list", "rsot-upsert"] },
     { label: "Relations & historique", operationIds: ["rsot-relations", "rsot-as-of", "rsot-object-audit"] },
-    { label: "Qualité & gouvernance", operationIds: ["rsot-quality-object", "rsot-quality-summary", "rsot-governance", "rsot-reconcile"] }
-  ],
-  graph: [
+    { label: "Qualité & gouvernance", operationIds: ["rsot-quality-object", "rsot-quality-summary", "rsot-governance", "rsot-reconcile"] },
     { label: "Exploration", operationIds: ["graph-traverse", "graph-path"] },
     { label: "Analyse d’impact", operationIds: ["graph-impact", "graph-spof"] },
     { label: "Exports", operationIds: ["graph-export"] }
@@ -2131,7 +2129,7 @@ class OpenInfraDashboard {
       <section class="col-12 col-xxl-8" aria-labelledby="openinfra-operation-title">
         <h2 id="openinfra-operation-title" class="h4">${this.escape(operation.label)}</h2>
         <p class="text-muted">${this.escape(module.description)}</p>
-        <form id="openinfra-operation-form" ${hasRequiredFields ? 'aria-describedby="openinfra-required-fields-notice"' : ""}>
+        <form id="openinfra-operation-form" novalidate ${hasRequiredFields ? 'aria-describedby="openinfra-required-fields-notice"' : ""}>
           ${hasRequiredFields ? `<p id="openinfra-required-fields-notice" class="openinfra-required-notice">${this.escape(this.i18n.t("requiredFieldsNotice"))}</p>` : ""}
           ${this.renderOperationScopeSelectors(operation)}
           <div class="row g-3">${fields.map((field) => this.renderField(field)).join("") || `<p>${this.escape(this.i18n.t("noParameters"))}</p>`}</div>
@@ -2223,60 +2221,69 @@ class OpenInfraDashboard {
     return `<section class="openinfra-spof-ranking" aria-labelledby="openinfra-spof-ranking-title"><div class="d-flex flex-wrap justify-content-between gap-2"><h4 id="openinfra-spof-ranking-title" class="h6">${this.escape(this.i18n.t("spofRanking"))}</h4><span class="badge ${complete ? "text-bg-success" : "text-bg-warning"}">${this.escape(complete ? this.i18n.t("completeAnalysis") : this.i18n.t("boundedAnalysis"))}</span></div><p class="small text-muted">${this.escape(`${result.spof_count || 0} SPOF · ${result.node_count || 0} nœuds · ${result.edge_count || 0} relations`)}</p><div class="table-responsive"><table class="table table-sm align-middle"><caption class="visually-hidden">${this.escape(this.i18n.t("spofRanking"))}</caption><thead><tr><th scope="col">#</th><th scope="col">${this.escape(this.i18n.t("candidate"))}</th><th scope="col">${this.escape(this.i18n.t("affectedNodes"))}</th><th scope="col">${this.escape(this.i18n.t("directAffected"))}</th><th scope="col">${this.escape(this.i18n.t("impactRatio"))}</th><th scope="col">${this.escape(this.i18n.t("affectedSample"))}</th></tr></thead><tbody>${rows || `<tr><td colspan="6">${this.escape(this.i18n.t("noSpofDetected"))}</td></tr>`}</tbody></table></div></section>`;
   }
 
-  renderField(field) {
+  renderField(rawField) {
+    const field = normalizeFieldDefinition(rawField);
     const required = field.required ? " required" : "";
     const requiredText = field.required ? `<span class="openinfra-required-marker" aria-hidden="true">*</span><span class="visually-hidden"> (${this.escape(this.i18n.t("requiredIndicator"))})</span>` : "";
-    const value = field.defaultValue || "";
+    const value = field.defaultValue ?? "";
     const visibility = this.fieldVisibilityAttributes(field);
+    const common = ` name="${this.escape(field.name)}" data-field="${this.escape(field.name)}" aria-invalid="false"`;
     if (this.isCountryField(field)) {
       const selected = field.defaultValue || "";
-      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(this.i18n.label(field.label || "Pays"))}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${required}><option value=""></option>${this.renderCountryOptionGroups(selected)}</select></label>`;
+      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(this.i18n.label(field.label || "Pays"))}${requiredText}<select class="form-select"${common}${required}><option value=""></option>${this.renderCountryOptionGroups(selected)}</select></label>`;
     }
     if (field.type === "organization-select") {
       const options = this.organizationOptions();
       const fallback = field.defaultValue || this.state.organization || "default";
       const renderedOptions = options.length > 0 ? options : [{ value: fallback, label: fallback }];
-      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(field.label || "Organisation")}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${required}>${this.renderOptions(renderedOptions, fallback)}</select></label>`;
+      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(field.label || "Organisation")}${requiredText}<select class="form-select"${common}${required}>${this.renderOptions(renderedOptions, fallback)}</select></label>`;
     }
     if (field.type === "partner-select") {
       const options = this.partnerOptions(field.partnerKind || null);
       const fallback = field.defaultValue || "";
       const renderedOptions = options.length > 0 ? options : (fallback ? [{ value: fallback, label: fallback }] : []);
       const selectedValue = renderedOptions.length === 1 ? this.optionValue(renderedOptions[0]) : fallback;
-      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(field.label || "Partenaire")}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${required}><option value=""></option>${this.renderOptions(renderedOptions, selectedValue)}</select></label>`;
+      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(field.label || "Partenaire")}${requiredText}<select class="form-select"${common}${required}><option value=""></option>${this.renderOptions(renderedOptions, selectedValue)}</select></label>`;
     }
     if (field.type === "hidden") {
-      return `<input type="hidden" data-field="${this.escape(field.name)}" value="${this.escape(value)}">`;
+      return `<input type="hidden"${common} value="${this.escape(value)}">`;
     }
     if (field.type === "tenant-select") {
       const options = this.tenantOptions();
       const fallback = field.defaultValue || this.state.tenant || this.state.organization || "default";
       const renderedOptions = options.length > 0 ? options : [{ value: fallback, label: fallback }];
-      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(this.i18n.label(field.label || "Filiale/Subdivision"))}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${required}>${this.renderOptions(renderedOptions, field.defaultValue || this.state.tenant || fallback)}</select></label>`;
+      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(this.i18n.label(field.label || "Filiale/Subdivision"))}${requiredText}<select class="form-select"${common}${required}>${this.renderOptions(renderedOptions, field.defaultValue || this.state.tenant || fallback)}</select></label>`;
     }
     if (this.isDcimReferenceField(field)) {
       const options = this.dcimOptions(field);
       const fallback = field.defaultValue || "";
       const renderedOptions = options.length > 0 ? options : (fallback ? [{ value: fallback, label: fallback }] : []);
       const selectedValue = renderedOptions.length === 1 ? this.optionValue(renderedOptions[0]) : fallback;
-      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(this.i18n.label(field.label || DCIM_REFERENCE_LABELS[this.dcimReferenceLevel(field)] || field.name))}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${required}><option value=""></option>${this.renderOptions(renderedOptions, selectedValue)}</select></label>`;
+      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(this.i18n.label(field.label || DCIM_REFERENCE_LABELS[this.dcimReferenceLevel(field)] || field.name))}${requiredText}<select class="form-select"${common}${required}><option value=""></option>${this.renderOptions(renderedOptions, selectedValue)}</select></label>`;
     }
     if (field.type === "select") {
       const options = this.selectOptionsForField(field);
       const source = field.optionsByField ? ` data-options-by-field="${this.escape(field.optionsByField)}"` : "";
       const map = field.optionsMap ? ` data-options-map="${this.escape(JSON.stringify(field.optionsMap))}"` : "";
-      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(this.i18n.label(field.label || field.name))}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${source}${map}${required}><option value=""></option>${this.renderOptions(options, value)}</select></label>`;
+      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(this.i18n.label(field.label || field.name))}${requiredText}<select class="form-select"${common}${source}${map}${required}><option value=""></option>${this.renderOptions(options, value)}</select></label>`;
     }
     if (field.type === "boolean") {
       const defaultBoolean = field.defaultValue === true || String(field.defaultValue).toLowerCase() === "true";
-      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(this.i18n.label(field.label || field.name))}<select class="form-select" data-field="${this.escape(field.name)}"><option value="false"${defaultBoolean ? "" : " selected"}>${this.escape(this.i18n.t("no"))}</option><option value="true"${defaultBoolean ? " selected" : ""}>${this.escape(this.i18n.t("yes"))}</option></select></label>`;
+      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(this.i18n.label(field.label || field.name))}<select class="form-select"${common}><option value="false"${defaultBoolean ? "" : " selected"}>${this.escape(this.i18n.t("no"))}</option><option value="true"${defaultBoolean ? " selected" : ""}>${this.escape(this.i18n.t("yes"))}</option></select></label>`;
     }
-    if (field.type === "textarea") {
-      return `<label${visibility} class="col-12 form-label">${this.escape(this.i18n.label(field.label || field.name))}${requiredText}<textarea class="form-control font-monospace" rows="10" data-field="${this.escape(field.name)}" placeholder="${this.escape(this.i18n.label(field.placeholder || ""))}"${required}>${this.escape(value)}</textarea></label>`;
+    const attributes = inputAttributesForField(field);
+    const htmlAttributes = Object.entries(attributes).map(([key, attributeValue]) => {
+      if (attributeValue === undefined || attributeValue === null || attributeValue === false) {
+        return "";
+      }
+      const htmlName = { maxLength: "maxlength", inputMode: "inputmode", autoComplete: "autocomplete" }[key] || key;
+      return attributeValue === true ? ` ${htmlName}` : ` ${htmlName}="${this.escape(attributeValue)}"`;
+    }).join("");
+    if (field.type === "textarea" || field.type === "json") {
+      return `<label${visibility} class="col-12 form-label">${this.escape(this.i18n.label(field.label || field.name))}${requiredText}<textarea class="form-control font-monospace" rows="10"${common} placeholder="${this.escape(this.i18n.label(field.placeholder || ""))}"${htmlAttributes}${required}>${this.escape(value)}</textarea></label>`;
     }
-    const inputType = field.type === "number" ? "number" : "text";
-    const numericAttrs = field.type === "number" ? `${field.step ? ` step="${this.escape(field.step)}"` : ""}${field.min ? ` min="${this.escape(field.min)}"` : ""}${field.max ? ` max="${this.escape(field.max)}"` : ""}` : "";
-    return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(this.i18n.label(field.label || field.name))}${requiredText}<input class="form-control" type="${inputType}" data-field="${this.escape(field.name)}" value="${this.escape(value)}" placeholder="${this.escape(this.i18n.label(field.placeholder || ""))}"${numericAttrs}${required}></label>`;
+    const inputType = inputTypeForField(field);
+    return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(this.i18n.label(field.label || field.name))}${requiredText}<input class="form-control" type="${this.escape(inputType)}"${common} value="${this.escape(value)}" placeholder="${this.escape(this.i18n.label(field.placeholder || ""))}"${htmlAttributes}${required}></label>`;
   }
 
   fieldVisibilityAttributes(field) {
@@ -2473,18 +2480,68 @@ class OpenInfraDashboard {
     }
   }
 
+  operationFieldDefinitions() {
+    const operation = this.state.selected || {};
+    return [...(operation.query || []), ...(operation.body || [])].map((field, index) => normalizeFieldDefinition(field, index));
+  }
+
+  validateOperationForm(form) {
+    const fields = this.operationFieldDefinitions();
+    const countryCode = formCountryCode(form);
+    let valid = true;
+    for (const field of fields) {
+      const control = [...form.querySelectorAll("[data-field]")].find((candidate) => candidate.dataset.field === field.name);
+      if (control && !control.disabled && !validateControl(control, field, this.i18n, { countryCode })) {
+        valid = false;
+      }
+    }
+    for (const control of form.querySelectorAll("input, select, textarea")) {
+      const controlValid = control.disabled || control.checkValidity();
+      control.setAttribute("aria-invalid", controlValid ? "false" : "true");
+      valid = valid && controlValid;
+    }
+    return valid;
+  }
+
+  bindOperationFieldValidation() {
+    const form = document.getElementById("openinfra-operation-form");
+    if (!form) {
+      return;
+    }
+    const fieldMap = new Map(this.operationFieldDefinitions().map((field) => [field.name, field]));
+    const validateOne = (control) => {
+      const field = fieldMap.get(control.dataset.field);
+      if (field && !control.disabled) {
+        validateControl(control, field, this.i18n, { countryCode: formCountryCode(form) });
+      }
+    };
+    const validateAll = () => {
+      for (const control of form.querySelectorAll("[data-field]")) {
+        validateOne(control);
+      }
+    };
+    for (const control of form.querySelectorAll("[data-field]")) {
+      control.addEventListener("input", () => validateOne(control));
+      control.addEventListener("change", () => {
+        validateOne(control);
+        if (["country", "country_code"].includes(control.dataset.field)) {
+          validateAll();
+        }
+      });
+      control.addEventListener("blur", () => validateOne(control));
+    }
+  }
+
   bindEvents() {
     this.bindConditionalFields();
+    this.bindOperationFieldValidation();
     document.getElementById("openinfra-language")?.addEventListener("change", (event) => {
       this.setLanguage(event.target.value);
     });
     document.getElementById("openinfra-operation-form")?.addEventListener("submit", (event) => {
       event.preventDefault();
       const form = event.currentTarget;
-      for (const control of form.querySelectorAll("input, select, textarea")) {
-        control.setAttribute("aria-invalid", control.checkValidity() ? "false" : "true");
-      }
-      if (!form.checkValidity()) {
+      if (!this.validateOperationForm(form)) {
         form.reportValidity();
         return;
       }

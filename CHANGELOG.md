@@ -1,3 +1,14 @@
+## v0.29.93 — Fiabilisation OpenAPI et formulaires typés
+
+- Suppression de cinq déclarations de routes DCIM dupliquées qui rendaient `openapi.yaml` illisible par ReDoc et Swagger UI.
+- Ajout d’un validateur YAML/OpenAPI refusant toute clé de mapping dupliquée, exécuté en tests et dans GitHub Actions.
+- Calendriers natifs thémés pour tous les champs date et date-heure, avec normalisation applicative ISO-8601.
+- Validation anticipée partagée des saisies IP/CIDR, email, téléphone, code postal, MAC, hostname, URL, nombres, JSON, CSV et texte.
+- Parité stricte du moteur de formulaire entre React et le runtime statique packagé.
+- Regroupement des opérations Graphe dans les sous-menus RSOT, sans changement des routes API ni de la CLI.
+- Focus des champs de formulaire limité au changement de couleur de bordure, sans grossissement, translation ni halo.
+- Tests frontend, OpenAPI, packaging et contrats d’accessibilité complétés.
+
 ## v0.29.92 — Visualisations d’impact et détection des SPOF
 
 - Implémentation de P15 / EPIC-1505 sur la projection bornée du graphe RSOT existant, sans nouvelle source de vérité ni migration.

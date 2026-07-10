@@ -93,3 +93,6 @@ REQ-00823,Réconciliation Discovery multisource gouvernée,P14,EPIC-1405,0.29.82
 REQ-00824,Internationalisation complète du portail FR/EN avec détection navigateur et fallback EN,P08,EPIC-0807,0.29.85,TST-P08-WEB-I18N-FR-EN
 REQ-00811,Navigation responsive adaptative sidebar mégamenu et menu compact sans perte fonctionnelle,P08,EPIC-0805,0.29.87,TST-P08-WEB-RESPONSIVE-NAVIGATION
 REQ-00825,"Header accessible aux états translucides, transitions adaptées et contrôles réduits",P08,EPIC-0805,0.29.88,TST-P08-WEB-COMPACT-HEADER
+REQ-00826,"Calendriers thémés, normalisation et validation amont des formulaires",P08,EPIC-0805,0.29.93,TST-P08-WEB-TYPED-VALIDATED-FORMS
+REQ-00827,OpenAPI YAML sans clé dupliquée avec gate CI bloquante,P01,EPIC-0102; EPIC-0104,0.29.93,TST-P01-OPENAPI-UNIQUE-YAML-KEYS
+REQ-00828,Graphe présenté exclusivement comme capacité du RSOT,P15,EPIC-1505,0.29.93,TST-P15-GRAPH-RSOT-NAVIGATION

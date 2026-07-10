@@ -1,3 +1,7 @@
+## OpenInfra 0.29.93 — Formulaires typés, OpenAPI strict et graphe sous RSOT
+
+La roadmap renforce les epics existants sans créer de composant supplémentaire. Les champs date/date-heure utilisent des calendriers natifs alignés sur le thème puis sont normalisés par l’application ; les saisies libres structurées sont validées avant soumission ; le focus des contrôles conserve son épaisseur. Les OpenAPI sont parsées avec rejet des clés YAML dupliquées. Les fonctions Graphe restent des capacités RSOT regroupées en Exploration, Analyse d’impact et Exports.
+
 ## OpenInfra 0.29.88 — Accessibilité transversale et header raffiné
 
 `EPIC-0805` applique désormais une baseline WCAG 2.2 AA à toutes les pages : liens d’évitement, landmarks, navigation clavier, lecteurs d’écran, annonces dynamiques, formulaires accessibles, contraste, couleurs forcées, réduction des mouvements et alternatives textuelles. Le header conserve sa densité mais adopte des états actif/hover translucides, des angles discrets, des transitions bounce/fade respectueuses des préférences utilisateur et des contrôles FR/EN-Swagger-ReDoc légèrement réduits.

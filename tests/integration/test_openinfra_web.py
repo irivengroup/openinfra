@@ -137,6 +137,7 @@ class TestOpenInfraWeb:
 
         assert (static_root / "assets" / "openinfra-web.js").is_file()
         assert (static_root / "assets" / "openinfra-i18n.js").is_file()
+        assert (static_root / "assets" / "openinfra-form-fields.js").is_file()
         assert static_root != (Path.cwd() / "web/dist").resolve()
 
     def test_web_serves_assets_config_readiness_and_api_proxy(self) -> None:
@@ -147,6 +148,9 @@ class TestOpenInfraWeb:
                 bootstrap_css = self._get_text(web.base_url + "/assets/bootstrap.min.css")
                 static_css = self._get_text(web.base_url + "/assets/openinfra-web.css")
                 static_i18n = self._get_text(web.base_url + "/assets/openinfra-i18n.js")
+                static_form_fields = self._get_text(
+                    web.base_url + "/assets/openinfra-form-fields.js"
+                )
                 static_js = self._get_text(web.base_url + "/assets/openinfra-web.js")
                 main_js = Path("web/src/main.jsx").read_text(encoding="utf-8")
                 package_metadata = json.loads(Path("web/package.json").read_text(encoding="utf-8"))
@@ -182,6 +186,7 @@ class TestOpenInfraWeb:
         assert "openinfra-global-toolbar" in static_js + static_css
         assert "openinfra-global-search" in static_js + static_css
         assert "Recherche globale OpenInfra" in static_i18n
+        assert "normalizeFieldValue" in static_form_fields
         assert "openinfra-global-search-icon" in static_js + static_css
         assert "openinfra-global-search-results" in static_js + static_css
         assert "renderGlobalSearchToolbar" in static_js

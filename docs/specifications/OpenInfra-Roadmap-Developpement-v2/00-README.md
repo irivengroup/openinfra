@@ -1,3 +1,7 @@
+## OpenInfra 0.29.93 — Formulaires typés, OpenAPI strict et graphe rangé sous RSOT
+
+`EPIC-0805` impose des calendriers natifs thémés pour toutes les dates et dates/heures, une normalisation applicative ISO 8601, une validation anticipée des saisies libres et un focus qui change uniquement la couleur de bordure. `EPIC-0102` et `EPIC-0104` rendent bloquante en CI la détection des clés YAML dupliquées dans toutes les spécifications OpenAPI. `EPIC-1505` conserve le graphe comme capacité RSOT et regroupe ses parcours Exploration, Analyse d’impact et Exports sous le menu RSOT.
+
 ## OpenInfra 0.29.88 — Accessibilité transversale et header raffiné
 
 `EPIC-0805` applique désormais une baseline WCAG 2.2 AA à toutes les pages : liens d’évitement, landmarks, navigation clavier, lecteurs d’écran, annonces dynamiques, formulaires accessibles, contraste, couleurs forcées, réduction des mouvements et alternatives textuelles. Le header conserve sa densité mais adopte des états actif/hover translucides, des angles discrets, des transitions bounce/fade respectueuses des préférences utilisateur et des contrôles FR/EN-Swagger-ReDoc légèrement réduits.
@@ -34,7 +38,7 @@ Roadmap mise à jour pour alignement avec **OpenInfra CDC/SFG/STG v4.8.1 corrig�
 - `01-roadmap-detaillee-openinfra-v2.md` : roadmap narrative complète.
 - `02-roadmap-phases.csv` : 19 phases programme.
 - `03-roadmap-releases.csv` : 9 releases macro.
-- `04-roadmap-epics.csv` : 114 epics détaillés.
+- `04-roadmap-epics.csv` : 115 epics détaillés.
 - `05-roadmap-jalons.csv` : jalons de pilotage.
 - `06-roadmap-dependances.csv` : dépendances inter-phases.
 - `07-roadmap-go-nogo.csv` : gates Go/No-Go.

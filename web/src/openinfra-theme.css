@@ -1886,3 +1886,42 @@ body {
     forced-color-adjust: auto;
   }
 }
+
+/* Form controls retain their layout in focus: only the border color changes. */
+:where(.form-control, .form-select):focus,
+:where(.form-control, .form-select):focus-visible {
+  border-color: var(--openinfra-action);
+  box-shadow: none !important;
+  outline: 0;
+  transform: none;
+}
+
+:where(.form-control, .form-select)[aria-invalid="true"],
+:where(.form-control, .form-select)[aria-invalid="true"]:focus,
+:where(.form-control, .form-select)[aria-invalid="true"]:focus-visible {
+  border-color: #a52222;
+  box-shadow: none !important;
+}
+
+input.form-control[type="date"],
+input.form-control[type="datetime-local"] {
+  color-scheme: light;
+  cursor: text;
+  font-variant-numeric: tabular-nums;
+}
+
+input.form-control[type="date"]::-webkit-calendar-picker-indicator,
+input.form-control[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  background-color: rgba(var(--openinfra-action-rgb), .08);
+  border-radius: .3rem;
+  cursor: pointer;
+  opacity: .78;
+  padding: .3rem;
+  transition: background-color .16s ease-in-out, opacity .16s ease-in-out;
+}
+
+input.form-control[type="date"]::-webkit-calendar-picker-indicator:hover,
+input.form-control[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+  background-color: rgba(var(--openinfra-action-rgb), .16);
+  opacity: 1;
+}

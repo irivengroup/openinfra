@@ -3,6 +3,7 @@ import './openinfra-theme.css';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { OpenInfraI18n, localizeOpenInfraCatalog } from './i18n.js';
+import { formCountryCode, inputAttributesForField, inputTypeForField, normalizeFieldDefinition, normalizeFieldValue, validateControl } from './form-fields.js';
 
 const ICONS = {
   speedometer2: 'M8 4a.5.5 0 0 1 .5.5V6a.5.5 0 0 1-1 0V4.5A.5.5 0 0 1 8 4z',
@@ -667,8 +668,6 @@ const MODULES = [
     { id: 'rsot-as-of', label: 'Restituer une ressource à date', path: '/v1/rsot/object-as-of', method: 'GET', fields: ['Clé RSOT', 'Date ISO-8601'] },
     { id: 'rsot-object-audit', label: 'Audit d’une ressource', path: '/v1/rsot/object-audit', method: 'GET', fields: ['Clé RSOT', 'Limite'] },
     { id: 'rsot-reconcile', label: 'Réconcilier une ressource', path: '/v1/rsot/reconcile-object', method: 'POST', fields: ['Opérateur', 'Clé RSOT', 'Source entrante', 'Catégorie', 'Type de ressource', 'Nom affiché cible', 'Numéro de série', 'Constructeur accrédité', 'Modèle', 'Site', 'Rack', 'Tags', 'Appliquer le plan'] },
-  ] },
-  { id: 'graph', label: 'Graphe de dépendances', shortLabel: 'Graphe', icon: 'activity', operations: [
     { id: 'graph-traverse', label: 'Explorer le graphe de dépendances', path: '/v1/graph/traverse', method: 'GET', fields: [
       { name: 'root_key', label: 'Clé racine', required: true }, { name: 'direction', label: 'Direction', type: 'select', options: ['outgoing', 'incoming', 'both'], defaultValue: 'both' },
       { name: 'max_depth', label: 'Profondeur maximale', type: 'number', defaultValue: '3' }, { name: 'max_nodes', label: 'Nombre maximal de nœuds', type: 'number', defaultValue: '500' },
@@ -847,8 +846,6 @@ const SIDEBAR_CONTEXTS = {
     { label: 'Référentiel', operationIds: ['rsot-taxonomy', 'rsot-list', 'rsot-upsert'] },
     { label: 'Relations & historique', operationIds: ['rsot-relations', 'rsot-as-of', 'rsot-object-audit'] },
     { label: 'Qualité & gouvernance', operationIds: ['rsot-quality-object', 'rsot-quality-summary', 'rsot-governance', 'rsot-reconcile'] },
-  ],
-  graph: [
     { label: 'Exploration', operationIds: ['graph-traverse', 'graph-path'] },
     { label: 'Analyse d’impact', operationIds: ['graph-impact', 'graph-spof'] },
     { label: 'Exports', operationIds: ['graph-export'] },
@@ -1080,6 +1077,51 @@ function MegaMenu({ module, selectedOperationId, chooseOperation, close, i18n })
       {sidebarOperationGroups(module).map((group) => <section className="openinfra-mega-menu-group" role="group" aria-label={group.label} key={`${module.id}-${group.label}`}><h2>{group.label}</h2><div>{group.operations.map((operation) => <button key={operation.id} type="button" className={`openinfra-sidebar-operation ${selectedOperationId === operation.id ? 'active' : ''}`} aria-current={selectedOperationId === operation.id ? 'page' : undefined} onClick={() => chooseOperation(module, operation, true)}>{operation.label}</button>)}</div></section>)}
     </div>
   </section>;
+}
+
+function OperationField({ entry, index, i18n, language }) {
+  const field = normalizeFieldDefinition(entry, index);
+  const fieldId = `openinfra-react-field-${index}`;
+  const requiredText = field.required ? <span aria-hidden="true"> *</span> : null;
+  if (field.type === 'select' || field.type === 'boolean') {
+    const options = field.type === 'boolean' ? ['false', 'true'] : field.options || [];
+    return <div className="col-md-6 col-xl-4"><label className="form-label" htmlFor={fieldId}>{i18n.label(field.label)}{requiredText}</label><select id={fieldId} name={field.name} className="form-select" defaultValue={field.defaultValue ?? ''} required={field.required} onInput={(event) => validateControl(event.currentTarget, field, i18n, { countryCode: formCountryCode(event.currentTarget.form) })}><option value=""></option>{options.map((option) => <option value={option} key={option}>{field.type === 'boolean' ? (option === 'true' ? i18n.t('yes') : i18n.t('no')) : i18n.optionLabel(option)}</option>)}</select></div>;
+  }
+  const attributes = inputAttributesForField(field);
+  const common = {
+    id: fieldId,
+    name: field.name,
+    defaultValue: field.defaultValue ?? '',
+    required: field.required,
+    className: 'form-control',
+    lang: language,
+    placeholder: field.placeholder ? i18n.label(field.placeholder) : undefined,
+    ...attributes,
+    onInput: (event) => validateControl(event.currentTarget, field, i18n, { countryCode: formCountryCode(event.currentTarget.form) }),
+    onBlur: (event) => validateControl(event.currentTarget, field, i18n, { countryCode: formCountryCode(event.currentTarget.form) }),
+  };
+  return <div className={field.type === 'textarea' || field.type === 'json' ? 'col-12' : 'col-md-6 col-xl-4'}><label className="form-label" htmlFor={fieldId}>{i18n.label(field.label)}{requiredText}</label>{field.type === 'textarea' || field.type === 'json' ? <textarea {...common} rows={field.rows || 8} className="form-control font-monospace" /> : <input {...common} type={inputTypeForField(field)} />}</div>;
+}
+
+function validateOperationForm(form, fields, i18n) {
+  const controls = Array.from(form.querySelectorAll('input[name], select[name], textarea[name]'));
+  const countryCode = formCountryCode(form);
+  let valid = true;
+  fields.forEach((entry, index) => {
+    const field = normalizeFieldDefinition(entry, index);
+    const control = controls.find((candidate) => candidate.name === field.name);
+    if (control && !validateControl(control, field, i18n, { countryCode })) valid = false;
+  });
+  if (!valid || !form.checkValidity()) {
+    form.reportValidity();
+    return false;
+  }
+  return true;
+}
+
+function OperationForm({ i18n, language, selected, tenant, setTenant, execute }) {
+  const fields = selected.fields.map((entry, index) => normalizeFieldDefinition(entry, index));
+  return <form aria-describedby="openinfra-required-fields-notice" noValidate onSubmit={(event) => { event.preventDefault(); if (validateOperationForm(event.currentTarget, fields, i18n)) execute(event.currentTarget, fields); }}><p id="openinfra-required-fields-notice" className="openinfra-required-notice">{i18n.t('requiredFieldsNotice')}</p><div className="row g-3 mb-3"><label className="col-md-4 form-label" htmlFor="openinfra-react-tenant">{i18n.t('organization')}</label><select id="openinfra-react-tenant" className="form-select" value={tenant} onChange={(event) => setTenant(event.target.value)}><option value="default">{i18n.t('defaultTenant')}</option></select></div><div className="row g-3">{fields.map((field, index) => <OperationField entry={field} index={index} i18n={i18n} language={language} key={field.name} />)}</div><button type="submit" className="btn btn-primary mt-3">{i18n.t('execute')}</button></form>;
 }
 
 function Dashboard() {
@@ -1360,7 +1402,7 @@ function Dashboard() {
     }
   }
 
-  async function execute(form) {
+  async function execute(form, fields) {
     if (!selected.id.startsWith('graph-')) {
       setResult({ tenant_id: tenant, action: selected.id, via: config.apiBaseUrl, trust: config.webBackendTrust });
       return;
@@ -1369,9 +1411,10 @@ function Dashboard() {
       const formData = new FormData(form);
       const query = new URLSearchParams();
       query.set('tenant_id', tenant);
-      for (const [name, value] of formData.entries()) {
-        const normalized = String(value).trim();
-        if (normalized) query.append(name, normalized);
+      const countryCode = formCountryCode(form);
+      for (const field of fields) {
+        const normalized = normalizeFieldValue(field, formData.get(field.name), { countryCode });
+        if (normalized !== undefined) query.append(field.name, typeof normalized === 'string' ? normalized : JSON.stringify(normalized));
       }
       const response = await fetch(`${String(config.apiBaseUrl || '/api').replace(/\/$/, '')}${selected.path}?${query}`, {
         credentials: 'same-origin',
@@ -1484,7 +1527,7 @@ function Dashboard() {
           <div className="pb-2 mb-3 openinfra-titlebar"><h1 className="h2">{pageTitle}</h1><p className="text-muted mb-0">{pageSubtitle}</p></div>
           {submissionCompleted && activeModuleId !== 'overview' && <div className="alert alert-success" role="status">{i18n.t('success')}</div>}
           {activeModuleId === 'overview' && <div className="row g-3 mb-4 openinfra-dashboard-metrics" aria-label={i18n.t('componentStatistics')}><Metric title={i18n.t('version')} value={displayedVersion} /><Metric title="API" value={config.apiBaseUrl || '/api'} /><Metric title={i18n.t('trust')} value={config.webBackendTrust || 'server-side'} /><Metric title={i18n.t('forms')} value={protectedForms} /><Metric title={i18n.t('modules')} value={`${operationsCount} ${i18n.t('operations')}`} /></div>}
-          {activeModuleId === 'overview' ? <OverviewStats i18n={i18n} modules={businessModules} fieldsCount={businessFieldsCount} /> : <section className="card openinfra-operation-card" aria-labelledby="openinfra-operation-title"><div className="card-body"><h2 id="openinfra-operation-title" className="h4">{selected.label}</h2><form aria-describedby="openinfra-required-fields-notice" onSubmit={(event) => { event.preventDefault(); execute(event.currentTarget); }}><p id="openinfra-required-fields-notice" className="openinfra-required-notice">{i18n.t('requiredFieldsNotice')}</p><div className="row g-3 mb-3"><label className="col-md-4 form-label" htmlFor="openinfra-react-tenant">{i18n.t('organization')}</label><select id="openinfra-react-tenant" className="form-select" value={tenant} onChange={(event) => setTenant(event.target.value)}><option value="default">{i18n.t('defaultTenant')}</option></select></div><div className="row g-3">{selected.fields.map((entry, index) => { const field = typeof entry === 'string' ? { name: `field_${index}`, label: entry } : entry; const fieldId = `openinfra-react-field-${index}`; return <div className="col-md-6 col-xl-4" key={field.name}><label className="form-label" htmlFor={fieldId}>{i18n.label(field.label)}{field.required ? <span aria-hidden="true"> *</span> : null}</label>{field.type === 'select' || field.type === 'boolean' ? <select id={fieldId} name={field.name} className="form-select" defaultValue={field.defaultValue || ''} required={field.required}><option value=""></option>{(field.type === 'boolean' ? ['false', 'true'] : field.options || []).map((option) => <option value={option} key={option}>{field.type === 'boolean' ? (option === 'true' ? i18n.t('yes') : i18n.t('no')) : i18n.optionLabel(option)}</option>)}</select> : <input id={fieldId} name={field.name} type={field.type === 'number' ? 'number' : 'text'} defaultValue={field.defaultValue || ''} required={field.required} className="form-control" />}</div>; })}</div><button type="submit" className="btn btn-primary mt-3">{i18n.t('execute')}</button></form><GraphResultPanel i18n={i18n} operation={selected} result={result} /></div></section>}
+          {activeModuleId === 'overview' ? <OverviewStats i18n={i18n} modules={businessModules} fieldsCount={businessFieldsCount} /> : <section className="card openinfra-operation-card" aria-labelledby="openinfra-operation-title"><div className="card-body"><h2 id="openinfra-operation-title" className="h4">{selected.label}</h2><OperationForm i18n={i18n} language={language} selected={selected} tenant={tenant} setTenant={setTenant} execute={execute} /><GraphResultPanel i18n={i18n} operation={selected} result={result} /></div></section>}
         </main>
       </div>
     </div>

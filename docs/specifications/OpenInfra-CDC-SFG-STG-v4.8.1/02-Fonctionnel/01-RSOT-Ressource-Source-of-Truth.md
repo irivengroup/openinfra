@@ -163,3 +163,7 @@ Règles obligatoires :
 ### Sélecteurs catégorie/type et valeurs internes
 
 Les interfaces opérateur doivent afficher les libellés métier de la taxonomie RSOT dans les listes déroulantes de catégories et de types. Les valeurs techniques normalisées demeurent internes à la solution et sont les seules transmises aux contrats API/CLI. Les types génériques `physical-server` et `disk` sont retirés car les spécialisations `rack-server`, `blade-server`, `tower-server`, `hdd`, `ssd` et `nvme-drive` couvrent explicitement ces cas.
+
+## Complément OpenInfra v0.29.93 — Graphe intégré au périmètre RSOT
+
+Le Graphe de dépendances constitue une vue et une capacité d’analyse du RSOT. Il doit être rangé dans la navigation RSOT, sous des groupes dédiés à l’exploration, à l’analyse d’impact et aux exports, et ne doit pas apparaître comme composant métier autonome. Ce rangement ne modifie ni les contrats API `/api/v1/graph/*`, ni la CLI `openinfra graph`, ni les permissions existantes.

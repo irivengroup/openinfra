@@ -1,3 +1,15 @@
+## v0.29.93 — Traçabilité OpenAPI et formulaires globaux
+
+- CDC : compléments v0.29.93 dans les exigences API/formulaires et RSOT.
+- Roadmap : `REQ-00826` → `TST-P08-WEB-TYPED-VALIDATED-FORMS`, `REQ-00827` → `TST-P01-OPENAPI-UNIQUE-YAML-KEYS`, `REQ-00828` → `TST-P15-GRAPH-RSOT-NAVIGATION`.
+- OpenAPI : suppression des routes DCIM dupliquées dans les deux documents et validation des clés YAML uniques.
+- Interface : moteur commun `form-fields.js` pour inférence de type, validation amont et normalisation des valeurs.
+- Dates : contrôles natifs `date`/`datetime-local`, style OpenInfra et conversion ISO-8601 avant appel API.
+- Saisies libres : email, téléphone, code postal contextualisé par pays, IPv4/IPv6, CIDR, MAC, hostname, URL, JSON, CSV et texte contrôlés.
+- Navigation : Graphe intégré aux groupes RSOT exploration, analyse d’impact et exports.
+- Accessibilité : erreurs exposées par `aria-invalid` et validation native ; focus des formulaires sans modification d’épaisseur.
+- CI : test de non-régression des doublons YAML, parité React/runtime et présence de l’asset partagé dans le wheel.
+
 ## v0.29.92 — Traçabilité visualisations d’impact et SPOF
 
 - Roadmap existante : P15 / `EPIC-1505` — visualisations d’impact et identification des SPOF critiques.

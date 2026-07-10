@@ -1,3 +1,10 @@
+## OpenInfra 0.29.93 — Formulaires typés, OpenAPI strict et Graphe sous RSOT
+
+- `REQ-00826` impose les calendriers thémés, la normalisation ISO 8601, la validation anticipée des saisies libres et un focus sans épaississement.
+- `REQ-00827` impose des OpenAPI YAML sans clé dupliquée et une gate CI bloquante.
+- `REQ-00828` range les fonctions Graphe sous RSOT, dans Exploration, Analyse d’impact et Exports.
+- `TST-WEB-126`, `TST-API-127` et `TST-RSOT-128` assurent la non-régression React/runtime, API/CLI, accessibilité et packaging.
+
 ## v0.29.88 — Accessibilité transversale et raffinement du header
 
 `REQ-00789` est élargie à toutes les pages et formalise une baseline WCAG 2.2 AA : clavier, lecteurs d’écran, annonces dynamiques, formulaires, contraste, couleurs forcées, réduction des mouvements et alternatives textuelles. `REQ-00825` adoucit les états actif/hover du header, réduit les rayons et les contrôles FR/EN-Swagger-ReDoc, tout en conservant les cibles tactiles et le focus visible. Les exigences existantes sont mises à jour sans duplication.

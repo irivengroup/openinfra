@@ -77,6 +77,12 @@ jobs:
       - name: Type check
         run: mypy src/openinfra
 
+      - name: OpenAPI YAML validation
+        run: >-
+          python scripts/validate_openapi.py
+          docs/api/openapi.yaml
+          docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1/09-API/OpenAPI/openapi.yaml
+
       - name: Discovery multisource reconciliation regression
         run: |
           python -m pytest -q --no-cov \

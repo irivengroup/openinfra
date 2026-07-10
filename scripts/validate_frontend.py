@@ -339,6 +339,7 @@ class FrontendContractValidator:
             "index.html",
             "assets/bootstrap.min.css",
             "assets/openinfra-i18n.js",
+            "assets/openinfra-form-fields.js",
             "assets/openinfra-web.js",
             "assets/openinfra-web.css",
         )
@@ -349,10 +350,19 @@ class FrontendContractValidator:
         payload = "\n".join(assets_by_name.values())
         runtime_js = assets_by_name["assets/openinfra-web.js"]
         runtime_i18n = assets_by_name["assets/openinfra-i18n.js"]
+        runtime_form_fields = assets_by_name["assets/openinfra-form-fields.js"]
         source_i18n = (self._project_root / "web/src/i18n.js").read_text(encoding="utf-8")
+        source_form_fields = (self._project_root / "web/src/form-fields.js").read_text(
+            encoding="utf-8"
+        )
         if runtime_i18n != source_i18n:
             raise FrontendValidationError(
                 "React and packaged runtime must share the exact same i18n implementation"
+            )
+        if runtime_form_fields != source_form_fields:
+            raise FrontendValidationError(
+                "React and packaged runtime must share the exact same "
+                "form validation implementation"
             )
         self._validate_i18n_contract(runtime_js, runtime_i18n)
         if "Dashboard de pilotage OpenInfra" in payload:

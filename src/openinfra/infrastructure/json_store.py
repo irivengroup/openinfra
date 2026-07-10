@@ -15,6 +15,9 @@ from openinfra.application.ports import (
     AccessPolicyRepository,
     AccessPolicyRulePage,
     AuditRepository,
+    CertificateAssetPage,
+    CertificateEndpointPage,
+    CertificateInventoryRepository,
     DcimRepository,
     DiscoveryCollectorPage,
     DiscoveryEvidencePage,
@@ -50,6 +53,11 @@ from openinfra.domain.audit import (
     AuditEventRecord,
     AuditIntegrityHasher,
     AuditIntegrityReport,
+)
+from openinfra.domain.certificate_pki import (
+    CertificateAsset,
+    CertificateEndpointObservation,
+    CertificateMaterial,
 )
 from openinfra.domain.common import (
     AuditEvent,
@@ -372,6 +380,8 @@ class JsonDocumentStore:
             "export_artifacts": {},
             "flow_declarations": {},
             "flow_observations": {},
+            "certificates": {},
+            "certificate_endpoint_observations": {},
             "discovery_collectors": {},
             "discovery_jobs": {},
             "discovery_protocol_profiles": {},
@@ -3795,6 +3805,179 @@ class JsonSourceOfTruthRepository(SourceOfTruthRepository):
             valid_to=valid_to,
             active=bool(value["active"]),
             created_at=created_at,
+        )
+
+
+class JsonCertificateInventoryRepository(CertificateInventoryRepository):
+    def __init__(self, store: JsonDocumentStore) -> None:
+        self._store = store
+
+    def save_certificate(self, certificate: CertificateAsset) -> None:
+        key = self._key(certificate.tenant_id, certificate.id.value)
+        self._store.data["certificates"][key] = certificate.as_dict()
+        self._store.mark_dirty()
+
+    def get_certificate_by_fingerprint(
+        self, tenant_id: TenantId, fingerprint: str
+    ) -> CertificateAsset | None:
+        normalized = fingerprint.strip().lower().replace(":", "")
+        for value in self._store.data["certificates"].values():
+            if (
+                value.get("tenant_id") == tenant_id.value
+                and value.get("fingerprint_sha256") == normalized
+            ):
+                return self._certificate_from_dict(value)
+        return None
+
+    def get_certificate(self, tenant_id: TenantId, certificate_id: str) -> CertificateAsset | None:
+        key = self._key(tenant_id, EntityId.from_value(certificate_id).value)
+        value = self._store.data["certificates"].get(key)
+        return self._certificate_from_dict(value) if value else None
+
+    def list_certificates(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        include_retired: bool = False,
+    ) -> CertificateAssetPage:
+        start = self._cursor_offset(pagination.cursor)
+        items = [
+            self._certificate_from_dict(value)
+            for value in self._store.data["certificates"].values()
+            if value.get("tenant_id") == tenant_id.value
+            and (include_retired or value.get("lifecycle") != "retired")
+        ]
+        items.sort(
+            key=lambda item: (
+                item.material.not_after,
+                item.material.subject_dn,
+                item.fingerprint_sha256,
+            )
+        )
+        selected = tuple(items[start : start + pagination.limit])
+        next_index = start + len(selected)
+        return CertificateAssetPage(
+            selected,
+            str(next_index) if next_index < len(items) else None,
+        )
+
+    def save_endpoint_observation(self, observation: CertificateEndpointObservation) -> None:
+        key = self._key(observation.tenant_id, observation.id.value)
+        self._store.data["certificate_endpoint_observations"][key] = observation.as_dict()
+        self._store.mark_dirty()
+
+    def find_endpoint_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> CertificateEndpointObservation | None:
+        normalized = idempotency_key.strip()
+        for value in self._store.data["certificate_endpoint_observations"].values():
+            if (
+                value.get("tenant_id") == tenant_id.value
+                and value.get("idempotency_key") == normalized
+            ):
+                return self._endpoint_from_dict(value)
+        return None
+
+    def list_endpoint_observations(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        certificate_fingerprint: str | None = None,
+    ) -> CertificateEndpointPage:
+        start = self._cursor_offset(pagination.cursor)
+        normalized_fingerprint = (
+            None
+            if certificate_fingerprint is None
+            else certificate_fingerprint.strip().lower().replace(":", "")
+        )
+        items = [
+            self._endpoint_from_dict(value)
+            for value in self._store.data["certificate_endpoint_observations"].values()
+            if value.get("tenant_id") == tenant_id.value
+            and (
+                normalized_fingerprint is None
+                or value.get("certificate_fingerprint") == normalized_fingerprint
+            )
+        ]
+        items.sort(key=lambda item: (item.observed_at, item.id.value), reverse=True)
+        selected = tuple(items[start : start + pagination.limit])
+        next_index = start + len(selected)
+        return CertificateEndpointPage(
+            selected,
+            str(next_index) if next_index < len(items) else None,
+        )
+
+    @staticmethod
+    def _key(tenant_id: TenantId, identifier: str) -> str:
+        return f"{tenant_id.value}:{identifier}"
+
+    @staticmethod
+    def _cursor_offset(cursor: str | None) -> int:
+        try:
+            offset = int(cursor or "0")
+        except ValueError as exc:
+            raise ValidationError("pagination cursor must be a numeric offset") from exc
+        if offset < 0:
+            raise ValidationError("pagination cursor must be positive")
+        return offset
+
+    @staticmethod
+    def _certificate_from_dict(value: dict[str, Any]) -> CertificateAsset:
+        material = CertificateMaterial.create(
+            fingerprint_sha256=str(value["fingerprint_sha256"]),
+            serial_number=str(value["serial_number"]),
+            subject_dn=str(value["subject_dn"]),
+            issuer_dn=str(value["issuer_dn"]),
+            common_name=(None if value.get("common_name") is None else str(value["common_name"])),
+            san_dns=tuple(str(item) for item in value.get("san_dns", [])),
+            san_ip=tuple(str(item) for item in value.get("san_ip", [])),
+            san_email=tuple(str(item) for item in value.get("san_email", [])),
+            san_uri=tuple(str(item) for item in value.get("san_uri", [])),
+            not_before=datetime.fromisoformat(str(value["not_before"])),
+            not_after=datetime.fromisoformat(str(value["not_after"])),
+            public_key_algorithm=str(value["public_key_algorithm"]),
+            public_key_size=(
+                None if value.get("public_key_size") is None else int(value["public_key_size"])
+            ),
+            signature_algorithm=str(value["signature_algorithm"]),
+            is_ca=bool(value["is_ca"]),
+        )
+        return CertificateAsset.restore(
+            id=EntityId.from_value(str(value["id"])),
+            tenant_id=TenantId.from_value(str(value["tenant_id"])),
+            material=material,
+            chain_fingerprints=tuple(str(item) for item in value.get("chain_fingerprints", [])),
+            owner=str(value["owner"]),
+            environment=str(value["environment"]),
+            source=str(value["source"]),
+            object_key=(None if value.get("object_key") is None else str(value["object_key"])),
+            lifecycle=str(value["lifecycle"]),
+            version=int(value["version"]),
+            created_by=str(value["created_by"]),
+            created_at=datetime.fromisoformat(str(value["created_at"])),
+            updated_by=str(value["updated_by"]),
+            updated_at=datetime.fromisoformat(str(value["updated_at"])),
+        )
+
+    @staticmethod
+    def _endpoint_from_dict(value: dict[str, Any]) -> CertificateEndpointObservation:
+        return CertificateEndpointObservation.restore(
+            id=EntityId.from_value(str(value["id"])),
+            tenant_id=TenantId.from_value(str(value["tenant_id"])),
+            idempotency_key=str(value["idempotency_key"]),
+            protocol=str(value["protocol"]),
+            host=str(value["host"]),
+            port=int(value["port"]),
+            service=str(value["service"]),
+            certificate_fingerprint=str(value["certificate_fingerprint"]),
+            observed_at=datetime.fromisoformat(str(value["observed_at"])),
+            source=str(value["source"]),
+            collector=str(value["collector"]),
+            object_key=(None if value.get("object_key") is None else str(value["object_key"])),
+            tls_version=(None if value.get("tls_version") is None else str(value["tls_version"])),
+            cipher=(None if value.get("cipher") is None else str(value["cipher"])),
+            received_at=datetime.fromisoformat(str(value["received_at"])),
+            payload_fingerprint=str(value["payload_fingerprint"]),
         )
 
 

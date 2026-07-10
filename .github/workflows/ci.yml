@@ -120,6 +120,16 @@ jobs:
             tests/integration/test_postgresql_migration_policy.py \
             tests/integration/test_postgresql_row_mapping_coverage.py
 
+      - name: Certificate and PKI inventory regression
+        run: |
+          python -m pytest -q --no-cov \
+            tests/unit/test_certificate_pki_domain.py \
+            tests/integration/test_certificate_pki_services.py \
+            tests/integration/test_certificate_pki_interfaces.py \
+            tests/integration/test_postgresql_migration.py \
+            tests/integration/test_postgresql_migration_policy.py \
+            tests/integration/test_postgresql_row_mapping_coverage.py
+
       - name: Responsive navigation and accessibility regression
         run: |
           python -m pytest -q --no-cov \

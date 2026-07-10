@@ -382,6 +382,29 @@ class TestPostgreSQLMigration:
             in normalized_sql
         )
 
+    def test_certificate_pki_migration_is_partitioned_indexed_and_audited(self) -> None:
+        migration = PostgreSQLMigrationCatalog.from_project_root().load(
+            "0042_certificate_pki_inventory"
+        )
+        normalized_sql = " ".join(migration.sql.split())
+
+        assert "CREATE TABLE IF NOT EXISTS certificate_inventory" in normalized_sql
+        assert "CREATE TABLE IF NOT EXISTS certificate_endpoint_observations" in normalized_sql
+        assert normalized_sql.count("PARTITION BY HASH (tenant_id)") == 2
+        assert normalized_sql.count("PARTITION OF certificate_inventory") == 16
+        assert normalized_sql.count("PARTITION OF certificate_endpoint_observations") == 16
+        assert "UNIQUE (tenant_id, fingerprint_sha256)" in normalized_sql
+        assert "UNIQUE (tenant_id, idempotency_key)" in normalized_sql
+        assert "REFERENCES certificate_inventory(tenant_id, fingerprint_sha256)" in normalized_sql
+        assert "idx_certificate_inventory_expiration" in normalized_sql
+        assert "idx_certificate_inventory_san_dns" in normalized_sql
+        assert "idx_certificate_endpoint_observed_brin" in normalized_sql
+        assert "idx_audit_events_certificate_pki" in normalized_sql
+        assert (
+            "WHERE target_type IN ('certificate', 'certificate_endpoint', 'certificate_inventory')"
+            in normalized_sql
+        )
+
     def test_migration_validator_rejects_partitioned_unique_constraints_missing_partition_key(
         self,
     ) -> None:

@@ -46,7 +46,7 @@ test('navigation breakpoints preserve sidebar, megamenu and compact modes', asyn
   assert.match(runtimeCss, /@media \(min-width: 768px\) and \(max-width: 1199\.98px\)[\s\S]*?\.openinfra-mega-menu\s*\{[\s\S]*?display: block;/);
   assert.match(runtimeCss, /@media \(max-width: 767\.98px\)[\s\S]*?\.openinfra-component-nav\s*\{[\s\S]*?display: none;/);
   assert.match(runtimeCss, /@media \(max-width: 767\.98px\)[\s\S]*?\.openinfra-compact-menu-button\s*\{[\s\S]*?display: inline-flex;/);
-  assert.match(runtimeCss, /@media \(min-width: 768px\) and \(max-width: 1199\.98px\)[\s\S]*?grid-template-columns: repeat\(10, minmax\(0, 1fr\)\);/);
+  assert.match(runtimeCss, /@media \(min-width: 768px\) and \(max-width: 1199\.98px\)[\s\S]*?grid-template-columns: repeat\(11, minmax\(0, 1fr\)\);/);
 });
 
 test('megamenu opens on hover and keyboard focus while preserving click fallback', async () => {

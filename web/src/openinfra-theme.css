@@ -1407,7 +1407,7 @@ body {
     display: grid;
     flex: 1 1 auto;
     gap: .12rem;
-    grid-template-columns: repeat(10, minmax(0, 1fr));
+    grid-template-columns: repeat(11, minmax(0, 1fr));
     margin-left: auto !important;
   }
 

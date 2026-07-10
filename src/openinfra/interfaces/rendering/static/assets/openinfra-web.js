@@ -939,6 +939,56 @@ const OPENINFRA_MODULES = [
       { name: "cursor", label: "Curseur" }
     ] }
   ] },
+  { id: "certificates", label: "Certificats et PKI", shortLabel: "Certificats", icon: "shield", description: "Inventaire gouverné des certificats, validation des chaînes, endpoints TLS, SAN et échéances.", operations: [
+    { id: "certificate-import", label: "Importer une chaîne PEM", method: "POST", path: "/v1/certificates/import", body: [
+      FIELD_SETS.actor,
+      { name: "pem_bundle", label: "Chaîne PEM", type: "textarea", required: true, placeholder: "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----" },
+      { name: "owner", label: "Propriétaire", required: true, placeholder: "Équipe PKI" },
+      { name: "environment", label: "Environnement", required: true, placeholder: "production" },
+      { name: "source", label: "Source", type: "select", options: ["manual", "discovery", "import", "acme", "internal-pki", "external-pki"], defaultValue: "manual" },
+      { name: "object_key", label: "Objet RSOT", placeholder: "application/portail" }
+    ] },
+    { id: "certificate-get", label: "Consulter un certificat", method: "GET", path: "/v1/certificates/get", query: [
+      { name: "fingerprint", label: "Empreinte SHA-256", required: true, placeholder: "64 caractères hexadécimaux" }
+    ] },
+    { id: "certificate-list", label: "Lister les certificats", method: "GET", path: "/v1/certificates", query: [
+      { name: "limit", label: "Limite", type: "number", defaultValue: "100" },
+      { name: "cursor", label: "Curseur" },
+      { name: "include_retired", label: "Inclure retirés", type: "boolean" }
+    ] },
+    { id: "certificate-retire", label: "Retirer un certificat", method: "POST", path: "/v1/certificates/retire", body: [
+      FIELD_SETS.actor,
+      { name: "fingerprint", label: "Empreinte SHA-256", required: true }
+    ] },
+    { id: "certificate-endpoint-observe", label: "Observer un endpoint TLS", method: "POST", path: "/v1/certificates/endpoints/observe", body: [
+      FIELD_SETS.actor,
+      { name: "idempotency_key", label: "Clé d’idempotence", required: true, placeholder: "scanner-01:20260710:443" },
+      { name: "protocol", label: "Protocole", type: "select", options: ["https", "tls", "ldaps", "smtps", "imaps", "pop3s", "mqtts", "custom"], defaultValue: "https" },
+      { name: "host", label: "Hôte", required: true, placeholder: "portal.example.net" },
+      { name: "port", label: "Port", type: "number", required: true, defaultValue: "443" },
+      { name: "service", label: "Service", required: true, placeholder: "Portail OpenInfra" },
+      { name: "certificate_fingerprint", label: "Empreinte du certificat", required: true },
+      { name: "observed_at", label: "Observé le", required: true, placeholder: "2026-07-10T12:00:00Z" },
+      { name: "source", label: "Source observation", required: true, placeholder: "tls-scanner" },
+      { name: "collector", label: "Collecteur", required: true, placeholder: "scanner-par-01" },
+      { name: "object_key", label: "Objet RSOT", placeholder: "application/portail" },
+      { name: "tls_version", label: "Version TLS", placeholder: "TLSv1.3" },
+      { name: "cipher", label: "Suite cryptographique", placeholder: "TLS_AES_256_GCM_SHA384" }
+    ] },
+    { id: "certificate-endpoint-list", label: "Lister les endpoints TLS", method: "GET", path: "/v1/certificates/endpoints", query: [
+      { name: "certificate_fingerprint", label: "Empreinte du certificat" },
+      { name: "limit", label: "Limite", type: "number", defaultValue: "100" },
+      { name: "cursor", label: "Curseur" }
+    ] },
+    { id: "certificate-assessment", label: "Évaluer la conformité PKI", method: "GET", path: "/v1/certificates/assessment", query: [
+      { name: "as_of", label: "Date de référence", placeholder: "2026-07-10T12:00:00Z" },
+      { name: "critical_days", label: "Seuil critique (jours)", type: "number", defaultValue: "14" },
+      { name: "warning_days", label: "Seuil avertissement (jours)", type: "number", defaultValue: "30" },
+      { name: "health", label: "État de santé", type: "select", options: ["", "retired", "not-yet-valid", "expired", "critical", "warning", "healthy"] },
+      { name: "limit", label: "Limite", type: "number", defaultValue: "100" },
+      { name: "cursor", label: "Curseur" }
+    ] }
+  ] },
   { id: "ipam", label: "IPAM", icon: "grid", description: "IPv4/IPv6, VRF, préfixes, plages, VLAN/VXLAN, ASN/BGP, DNS/DHCP, DDI, conflits, capacité et allocations.", operations: [
     { id: "ipam-dashboard", label: "Dashboard IPAM", method: "GET", path: "/v1/ipam/ui-dashboard", query: [{ name: "vrf", label: "VRF", placeholder: "global" }] },
     { id: "ipam-search", label: "Rechercher dans l’IPAM", method: "GET", path: "/v1/ipam/ui-search", query: [{ name: "query", label: "Recherche", required: true, placeholder: "10.20.0.0/24 ou srv-db" }, { name: "vrf", label: "VRF", placeholder: "global" }] },
@@ -1125,6 +1175,11 @@ const OPENINFRA_SIDEBAR_CONTEXTS = {
     { label: "Flux déclarés", operationIds: ["flow-declaration-upsert", "flow-declaration-list", "flow-declaration-retire"] },
     { label: "Flux observés", operationIds: ["flow-observation-submit", "flow-observation-list"] },
     { label: "Conformité des flux", operationIds: ["flow-matrix"] }
+  ],
+  certificates: [
+    { label: "Inventaire PKI", operationIds: ["certificate-import", "certificate-get", "certificate-list", "certificate-retire"] },
+    { label: "Endpoints TLS", operationIds: ["certificate-endpoint-observe", "certificate-endpoint-list"] },
+    { label: "Conformité PKI", operationIds: ["certificate-assessment"] }
   ],
   ipam: [
     { label: "Vue & recherche", operationIds: ["ipam-dashboard", "ipam-search"] },
@@ -2050,6 +2105,9 @@ class OpenInfraDashboard {
     }
     if (field.type === "boolean") {
       return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(this.i18n.label(field.label || field.name))}<select class="form-select" data-field="${this.escape(field.name)}"><option value="false">${this.escape(this.i18n.t("no"))}</option><option value="true">${this.escape(this.i18n.t("yes"))}</option></select></label>`;
+    }
+    if (field.type === "textarea") {
+      return `<label${visibility} class="col-12 form-label">${this.escape(this.i18n.label(field.label || field.name))}${requiredText}<textarea class="form-control font-monospace" rows="10" data-field="${this.escape(field.name)}" placeholder="${this.escape(this.i18n.label(field.placeholder || ""))}"${required}>${this.escape(value)}</textarea></label>`;
     }
     const inputType = field.type === "number" ? "number" : "text";
     const numericAttrs = field.type === "number" ? `${field.step ? ` step="${this.escape(field.step)}"` : ""}${field.min ? ` min="${this.escape(field.min)}"` : ""}${field.max ? ` max="${this.escape(field.max)}"` : ""}` : "";

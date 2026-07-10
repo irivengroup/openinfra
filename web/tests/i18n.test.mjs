@@ -146,3 +146,28 @@ test('dependency graph catalog is localized in English and preserves API values'
   assert.deepEqual(modules[0].operations[0].query[1].options, ['outgoing', 'incoming', 'both']);
   assert.equal(contexts.graph[0].label, 'Impact analysis');
 });
+
+test('certificate and PKI catalog is localized without changing API values', () => {
+  const modules = [{
+    id: 'certificates',
+    label: 'Certificats et PKI',
+    description: 'Inventaire gouverné des certificats.',
+    operations: [{
+      id: 'certificate-endpoint-observe',
+      label: 'Observer un endpoint TLS',
+      body: [
+        { name: 'certificate_fingerprint', label: 'Empreinte certificat' },
+        { name: 'source', label: 'Source certificat', options: ['internal-pki', 'external-pki'] },
+      ],
+    }],
+  }];
+  const contexts = { certificates: [{ label: 'Conformité PKI', operationIds: ['certificate-endpoint-observe'] }] };
+
+  localizeOpenInfraCatalog({ modules, contexts }, 'en');
+
+  assert.equal(modules[0].label, 'Certificates and PKI');
+  assert.equal(modules[0].operations[0].label, 'Observe TLS endpoint');
+  assert.equal(modules[0].operations[0].body[0].label, 'Certificate fingerprint');
+  assert.deepEqual(modules[0].operations[0].body[1].options, ['internal-pki', 'external-pki']);
+  assert.equal(contexts.certificates[0].label, 'PKI compliance');
+});

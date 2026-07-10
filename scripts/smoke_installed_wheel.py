@@ -12,7 +12,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.29.89"
+    EXPECTED_VERSION = "0.29.90"
     EXPECTED_GRAPH_ROUTES = (
         "/api/v1/graph/traverse",
         "/api/v1/graph/impact",
@@ -26,8 +26,17 @@ class InstalledWheelSmoke:
         "/api/v1/flows/observations/submit",
         "/api/v1/flows/matrix",
     )
-    EXPECTED_LAST_MIGRATION = "0041_flow_matrix.sql"
-    EXPECTED_MIGRATION_COUNT = 41
+    EXPECTED_CERTIFICATE_ROUTES = (
+        "/api/v1/certificates",
+        "/api/v1/certificates/get",
+        "/api/v1/certificates/import",
+        "/api/v1/certificates/retire",
+        "/api/v1/certificates/endpoints",
+        "/api/v1/certificates/endpoints/observe",
+        "/api/v1/certificates/assessment",
+    )
+    EXPECTED_LAST_MIGRATION = "0042_certificate_pki_inventory.sql"
+    EXPECTED_MIGRATION_COUNT = 42
     EXPECTED_ASSETS = (
         "openinfra-web.js",
         "openinfra-web.css",
@@ -40,6 +49,7 @@ class InstalledWheelSmoke:
         openapi = OpenApiDocumentProvider().read_yaml()
         self._assert_graph_routes(openapi)
         self._assert_flow_routes(openapi)
+        self._assert_certificate_routes(openapi)
         migrations = self._assert_migrations(package_root)
         self._assert_assets(package_root)
         self._assert_console_scripts()
@@ -47,6 +57,7 @@ class InstalledWheelSmoke:
             "version": openinfra.__version__,
             "graph_routes": len(self.EXPECTED_GRAPH_ROUTES),
             "flow_routes": len(self.EXPECTED_FLOW_ROUTES),
+            "certificate_routes": len(self.EXPECTED_CERTIFICATE_ROUTES),
             "migrations": len(migrations),
             "last_migration": migrations[-1].name,
             "runtime_assets": len(self.EXPECTED_ASSETS),
@@ -75,6 +86,13 @@ class InstalledWheelSmoke:
         if missing:
             raise InstalledWheelSmokeError(
                 "installed OpenAPI document is missing flow routes: " + ", ".join(missing)
+            )
+
+    def _assert_certificate_routes(self, openapi: str) -> None:
+        missing = [route for route in self.EXPECTED_CERTIFICATE_ROUTES if route not in openapi]
+        if missing:
+            raise InstalledWheelSmokeError(
+                "installed OpenAPI document is missing certificate routes: " + ", ".join(missing)
             )
 
     def _assert_migrations(self, package_root: Path) -> tuple[Path, ...]:

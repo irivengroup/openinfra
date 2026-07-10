@@ -10,6 +10,7 @@ from openinfra.application.authentication_services import (
     AuthProviderPolicyService,
     ExternalAuthenticationService,
 )
+from openinfra.application.certificate_pki_services import CertificatePkiService
 from openinfra.application.dcim_services import (
     DcimCablingService,
     DcimEnvironmentService,
@@ -41,6 +42,7 @@ from openinfra.application.itam_services import ItamSupportService
 from openinfra.application.ports import (
     AccessPolicyRepository,
     AuditRepository,
+    CertificateInventoryRepository,
     DcimRepository,
     DiscoveryRepository,
     ExportRepository,
@@ -61,12 +63,14 @@ from openinfra.application.search_services import GlobalSearchService
 from openinfra.application.security_services import SecurityService
 from openinfra.application.source_governance_services import SourceGovernanceService
 from openinfra.application.source_of_truth_services import SourceOfTruthService
+from openinfra.infrastructure.certificate_parser import CryptographyCertificateParser
 from openinfra.infrastructure.ddi_connectors import DdiConnectorFactory
 from openinfra.infrastructure.external_identity import LdapIpaDirectoryAuthenticator
 from openinfra.infrastructure.import_parsers import ImportDatasetParser
 from openinfra.infrastructure.json_store import (
     JsonAccessPolicyRepository,
     JsonAuditRepository,
+    JsonCertificateInventoryRepository,
     JsonDcimRepository,
     JsonDiscoveryRepository,
     JsonDocumentStore,
@@ -88,6 +92,7 @@ from openinfra.infrastructure.json_store import (
 from openinfra.infrastructure.postgresql import (
     PostgreSQLAccessPolicyRepository,
     PostgreSQLAuditRepository,
+    PostgreSQLCertificateInventoryRepository,
     PostgreSQLClusterProfile,
     PostgreSQLConnectionFactory,
     PostgreSQLDcimRepository,
@@ -130,6 +135,7 @@ class OpenInfraApplication:
     discovery_service: DiscoveryCollectorService
     dependency_graph_service: DependencyGraphService
     flow_matrix_service: FlowMatrixService
+    certificate_pki_service: CertificatePkiService
     dcim_repository: DcimRepository
     ipam_repository: IpamRepository
     itam_support_repository: ItamSupportRepository
@@ -137,6 +143,7 @@ class OpenInfraApplication:
     export_repository: ExportRepository
     discovery_repository: DiscoveryRepository
     flow_matrix_repository: FlowMatrixRepository
+    certificate_inventory_repository: CertificateInventoryRepository
     security_service: SecurityService
     identity_service: IdentityService
     external_authentication_service: ExternalAuthenticationService
@@ -191,6 +198,7 @@ class ApplicationFactory:
         import_repository = JsonImportRepository(store)
         export_repository = JsonExportRepository(store)
         flow_matrix_repository = JsonFlowMatrixRepository(store)
+        certificate_inventory_repository = JsonCertificateInventoryRepository(store)
         discovery_repository = JsonDiscoveryRepository(store)
         itam_support_repository = JsonItamSupportRepository(store)
         readiness_probe = JsonReadinessProbe(store)
@@ -216,6 +224,7 @@ class ApplicationFactory:
             export_repository=export_repository,
             discovery_repository=discovery_repository,
             flow_matrix_repository=flow_matrix_repository,
+            certificate_inventory_repository=certificate_inventory_repository,
             transaction_manager=transaction_manager,
             readiness_probe=readiness_probe,
             schema_status_provider=schema_status_provider,
@@ -244,6 +253,7 @@ class ApplicationFactory:
         import_repository = PostgreSQLImportRepository(registry)
         export_repository = PostgreSQLExportRepository(registry)
         flow_matrix_repository = PostgreSQLFlowMatrixRepository(registry)
+        certificate_inventory_repository = PostgreSQLCertificateInventoryRepository(registry)
         discovery_repository = PostgreSQLDiscoveryRepository(registry)
         itam_support_repository = PostgreSQLItamSupportRepository(registry)
         migration_catalog = PostgreSQLMigrationCatalog.from_project_root()
@@ -269,6 +279,7 @@ class ApplicationFactory:
             export_repository=export_repository,
             discovery_repository=discovery_repository,
             flow_matrix_repository=flow_matrix_repository,
+            certificate_inventory_repository=certificate_inventory_repository,
             itam_support_repository=itam_support_repository,
             transaction_manager=transaction_manager,
             readiness_probe=readiness_probe,
@@ -297,6 +308,7 @@ class ApplicationFactory:
         export_repository: ExportRepository | None = None,
         discovery_repository: DiscoveryRepository | None = None,
         flow_matrix_repository: FlowMatrixRepository | None = None,
+        certificate_inventory_repository: CertificateInventoryRepository | None = None,
         itam_support_repository: ItamSupportRepository | None = None,
     ) -> OpenInfraApplication:
         if source_of_truth_repository is None:
@@ -329,6 +341,11 @@ class ApplicationFactory:
                 flow_matrix_repository = JsonFlowMatrixRepository(store)
             else:
                 flow_matrix_repository = PostgreSQLFlowMatrixRepository(store)
+        if certificate_inventory_repository is None:
+            if hasattr(store, "data"):
+                certificate_inventory_repository = JsonCertificateInventoryRepository(store)
+            else:
+                certificate_inventory_repository = PostgreSQLCertificateInventoryRepository(store)
         if itam_support_repository is None:
             if hasattr(store, "data"):
                 itam_support_repository = JsonItamSupportRepository(store)
@@ -407,6 +424,13 @@ class ApplicationFactory:
         )
         flow_matrix_service = FlowMatrixService(
             flow_matrix_repository,
+            audit_repository,
+            transaction_manager,
+            security_service,
+        )
+        certificate_pki_service = CertificatePkiService(
+            certificate_inventory_repository,
+            CryptographyCertificateParser(),
             audit_repository,
             transaction_manager,
             security_service,
@@ -491,6 +515,7 @@ class ApplicationFactory:
             discovery_service=discovery_service,
             dependency_graph_service=dependency_graph_service,
             flow_matrix_service=flow_matrix_service,
+            certificate_pki_service=certificate_pki_service,
             ipam_ui_service=ipam_ui_service,
             security_service=security_service,
             identity_service=identity_service,
@@ -539,6 +564,7 @@ class ApplicationFactory:
             export_repository=export_repository,
             discovery_repository=discovery_repository,
             flow_matrix_repository=flow_matrix_repository,
+            certificate_inventory_repository=certificate_inventory_repository,
             security_repository=security_repository,
             access_policy_repository=access_policy_repository,
             source_of_truth_repository=source_of_truth_repository,

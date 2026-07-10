@@ -27,6 +27,8 @@ class Permission(StrEnum):
     ITAM_WRITE = "itam.write"
     FLOW_READ = "flow.read"
     FLOW_WRITE = "flow.write"
+    CERTIFICATE_READ = "certificate.read"
+    CERTIFICATE_WRITE = "certificate.write"
     ITRM_READ = "rsot.read"
     ITRM_WRITE = "rsot.write"
     ITRM_GOVERNANCE_READ = "rsot.governance.read"

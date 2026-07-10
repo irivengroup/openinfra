@@ -680,6 +680,15 @@ const MODULES = [
     { id: 'flow-observation-list', label: 'Lister les flux observés', path: '/v1/flows/observations', method: 'GET', fields: ['Début fenêtre', 'Fin fenêtre', 'Source observation', 'Limite', 'Curseur'] },
     { id: 'flow-matrix', label: 'Comparer flux déclarés et observés', path: '/v1/flows/matrix', method: 'GET', fields: ['Début fenêtre', 'Fin fenêtre', 'Statut conformité', 'Source observation', 'Limite', 'Curseur'] },
   ] },
+  { id: 'certificates', label: 'Certificats et PKI', shortLabel: 'Certificats', icon: 'shield', operations: [
+    { id: 'certificate-import', label: 'Importer une chaîne PEM', path: '/v1/certificates/import', method: 'POST', fields: ['Opérateur', 'Chaîne de certificats PEM', 'Propriétaire', 'Environnement', 'Source certificat', 'Objet RSOT associé'] },
+    { id: 'certificate-get', label: 'Consulter un certificat', path: '/v1/certificates/get', method: 'GET', fields: ['Empreinte SHA-256'] },
+    { id: 'certificate-list', label: 'Lister les certificats', path: '/v1/certificates', method: 'GET', fields: ['Limite', 'Curseur', 'Inclure retirés'] },
+    { id: 'certificate-retire', label: 'Retirer un certificat', path: '/v1/certificates/retire', method: 'POST', fields: ['Opérateur', 'Empreinte SHA-256'] },
+    { id: 'certificate-endpoint-observe', label: 'Observer un endpoint TLS', path: '/v1/certificates/endpoints/observe', method: 'POST', fields: ['Opérateur', 'Clé d’idempotence', 'Protocole endpoint', 'Hôte endpoint', 'Port', 'Service', 'Empreinte certificat', 'Observé le (ISO-8601)', 'Source observation', 'Collecteur', 'Objet RSOT associé', 'Version TLS', 'Suite cryptographique'] },
+    { id: 'certificate-endpoint-list', label: 'Lister les endpoints TLS', path: '/v1/certificates/endpoints', method: 'GET', fields: ['Empreinte certificat', 'Limite', 'Curseur'] },
+    { id: 'certificate-assessment', label: 'Évaluer l’état PKI', path: '/v1/certificates/assessment', method: 'GET', fields: ['Date de référence', 'Seuil critique (jours)', 'Seuil avertissement (jours)', 'État certificat', 'Limite', 'Curseur'] },
+  ] },
   { id: 'ipam', label: 'IPAM', icon: 'grid', operations: [
     { id: 'ipam-dashboard', label: 'Dashboard IPAM', path: '/v1/ipam/ui-dashboard', method: 'GET', fields: ['VRF'] },
     { id: 'ipam-search', label: 'Rechercher dans l’IPAM', path: '/v1/ipam/ui-search', method: 'GET', fields: ['Recherche', 'VRF'] },
@@ -806,6 +815,11 @@ const SIDEBAR_CONTEXTS = {
     { label: 'Flux déclarés', operationIds: ['flow-declaration-upsert', 'flow-declaration-list', 'flow-declaration-retire'] },
     { label: 'Flux observés', operationIds: ['flow-observation-submit', 'flow-observation-list'] },
     { label: 'Conformité des flux', operationIds: ['flow-matrix'] },
+  ],
+  certificates: [
+    { label: 'Inventaire PKI', operationIds: ['certificate-import', 'certificate-get', 'certificate-list', 'certificate-retire'] },
+    { label: 'Endpoints TLS', operationIds: ['certificate-endpoint-observe', 'certificate-endpoint-list'] },
+    { label: 'Conformité PKI', operationIds: ['certificate-assessment'] },
   ],
   ipam: [
     { label: 'Vue & recherche', operationIds: ['ipam-dashboard', 'ipam-search'] },

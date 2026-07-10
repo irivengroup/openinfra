@@ -22,12 +22,16 @@ class WheelVerifier:
             "openinfra/application/dependency_graph_services.py",
             "openinfra/application/flow_matrix_services.py",
             "openinfra/domain/flow_matrix.py",
+            "openinfra/domain/certificate_pki.py",
+            "openinfra/application/certificate_pki_services.py",
+            "openinfra/infrastructure/certificate_parser.py",
             "openinfra/interfaces/cli.py",
             "openinfra/interfaces/rendering/static/assets/openinfra-i18n.js",
             "openinfra/interfaces/rendering/static/assets/openinfra-web.js",
             "openinfra/interfaces/rendering/static/assets/openinfra-web.css",
             "openinfra/api/openapi.yaml",
             "openinfra/migrations/postgresql/0041_flow_matrix.sql",
+            "openinfra/migrations/postgresql/0042_certificate_pki_inventory.sql",
         )
         missing = [
             suffix

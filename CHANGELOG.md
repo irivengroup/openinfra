@@ -1,3 +1,18 @@
+## v0.29.90 — Inventaire des certificats et PKI
+
+- Implémentation de P15 / EPIC-1503 avec inventaire X.509 tenant-aware et gouverné.
+- Import de chaînes PEM leaf-first, validation cryptographique des signatures et contrôle de la continuité émetteur/sujet.
+- Empreinte SHA-256 comme identité immuable ; refus des collisions présentant un matériau différent.
+- Inventaire des sujets, émetteurs, CN, SAN DNS/IP/email/URI, périodes de validité, algorithmes, tailles de clé et autorités de certification.
+- Gouvernance révisable : propriétaire, environnement, source, rattachement RSOT, cycle de vie et version.
+- Observations d'endpoints TLS immuables et idempotentes avec contrôle hostname/SAN.
+- Évaluation déterministe des états `retired`, `not-yet-valid`, `expired`, `critical`, `warning` et `healthy`.
+- Permissions `certificate.read`/`certificate.write`, rôles dédiés, isolation tenant et audit.
+- Persistance JSON/PostgreSQL, migration `0042_certificate_pki_inventory.sql` partitionnée et indexée.
+- Sept commandes CLI, sept routes HTTP/OpenAPI et sept opérations web FR/EN.
+- Gate GitHub Actions, tests domaine/services/interfaces/PostgreSQL/web et vérification du wheel mis à jour.
+- CDC et roadmap inchangés : EPIC-1503 était déjà planifié et aucune nouvelle recommandation n'impacte l'existant.
+
 ## v0.29.89 — Matrice de flux déclarés et observés
 
 - Implémentation de P15 / EPIC-1502 comme comparaison gouvernée entre flux déclarés et observations réseau immuables.

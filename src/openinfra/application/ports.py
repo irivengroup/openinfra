@@ -7,6 +7,11 @@ from typing import Generic, TypeVar
 
 from openinfra.domain.access_policy import AccessPolicyRule
 from openinfra.domain.audit import AuditEventFilter, AuditEventPage, AuditIntegrityReport
+from openinfra.domain.certificate_pki import (
+    CertificateAsset,
+    CertificateEndpointObservation,
+    CertificateMaterial,
+)
 from openinfra.domain.common import AuditEvent, EntityId, Pagination, TenantId
 from openinfra.domain.data_export import ExportJob
 from openinfra.domain.data_import import (
@@ -124,6 +129,30 @@ class FlowDeclarationPage:
 @dataclass(frozen=True, slots=True)
 class FlowObservationPage:
     items: tuple[FlowObservation, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "items": [item.as_dict() for item in self.items],
+            "next_cursor": self.next_cursor,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class CertificateAssetPage:
+    items: tuple[CertificateAsset, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "items": [item.as_dict() for item in self.items],
+            "next_cursor": self.next_cursor,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class CertificateEndpointPage:
+    items: tuple[CertificateEndpointObservation, ...]
     next_cursor: str | None
 
     def as_dict(self) -> dict[str, object]:
@@ -989,6 +1018,56 @@ class DiscoveryRepository(ABC):
         pagination: Pagination,
         include_inactive: bool,
     ) -> DiscoveryCollectorPage:
+        raise TypeError("adapter contract invoked directly")
+
+
+class CertificateParser(ABC):
+    @abstractmethod
+    def parse_pem_bundle(self, pem_bundle: str) -> tuple[CertificateMaterial, ...]:
+        raise TypeError("adapter contract invoked directly")
+
+
+class CertificateInventoryRepository(ABC):
+    @abstractmethod
+    def save_certificate(self, certificate: CertificateAsset) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_certificate_by_fingerprint(
+        self, tenant_id: TenantId, fingerprint: str
+    ) -> CertificateAsset | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_certificate(self, tenant_id: TenantId, certificate_id: str) -> CertificateAsset | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_certificates(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        include_retired: bool = False,
+    ) -> CertificateAssetPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_endpoint_observation(self, observation: CertificateEndpointObservation) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_endpoint_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> CertificateEndpointObservation | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_endpoint_observations(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        certificate_fingerprint: str | None = None,
+    ) -> CertificateEndpointPage:
         raise TypeError("adapter contract invoked directly")
 
 

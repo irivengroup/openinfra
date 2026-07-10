@@ -1,12 +1,12 @@
-# OpenInfra v0.29.89
+# OpenInfra v0.29.90
 
-## Matrice de flux déclarés et observés
+## Certificats et PKI
 
-OpenInfra v0.29.89 réalise **P15 / EPIC-1502** avec une matrice de flux gouvernée comparant les règles réseau déclarées aux observations immuables NetFlow, sFlow, IPFIX, journaux de pare-feu et journaux applicatifs. La comparaison distingue les flux conformes, interdits mais observés, observés sans déclaration et déclarés sans observation, sans dupliquer le RSOT ni modifier silencieusement les politiques réseau.
+OpenInfra v0.29.90 réalise **P15 / EPIC-1503** avec un inventaire gouverné des certificats X.509 et de leurs endpoints TLS. Les chaînes PEM sont analysées et validées cryptographiquement, les empreintes SHA-256 servent d'identifiants immuables et la gouvernance (propriétaire, environnement, source, objet RSOT) reste révisable et auditée.
 
-Les déclarations utilisent des sélecteurs `any`, `object:<clé RSOT>` ou `cidr:<réseau>`, des protocoles et plages de ports bornés, une décision `allow` ou `deny`, une priorité, un propriétaire, une justification et une période de validité. Les observations sont idempotentes, signées par empreinte SHA-256, tenant-aware et conservées comme preuves d'audit. La fenêtre de comparaison est limitée à 31 jours et les volumes sont bornés pour préserver la disponibilité du service.
+La capacité couvre l'import de chaînes leaf-first, le contrôle des liens émetteur/sujet et des signatures, l'inventaire des SAN DNS/IP/email/URI, la détection des certificats expirés ou proches de l'expiration, le contrôle du hostname présenté par les endpoints et les observations idempotentes. Aucun secret de clé privée n'est accepté ni stocké.
 
-La capacité est exposée par CLI, API HTTP, OpenAPI et portail web FR/EN. Voir `docs/operations/flow-matrix.md` pour le modèle de gouvernance, les statuts, les commandes et le runbook.
+Les opérations sont disponibles en CLI, API HTTP, OpenAPI et portail web FR/EN. Voir `docs/operations/certificate-pki.md` pour les règles d'exploitation, les permissions, les seuils, les commandes et les limites de sécurité.
 
 ## Graphe de dépendances RSOT
 
@@ -18,7 +18,7 @@ Voir `docs/operations/dependency-graph.md` pour les contrats d'exploitation et l
 
 ## Navigation web responsive
 
-Le portail applique une navigation progressive fondée sur la largeur utile et la capacité réelle de la barre des dix composants :
+Le portail applique une navigation progressive fondée sur la largeur utile et la capacité réelle de la barre des onze composants :
 
 - **écran large (`>= 1200 px`)** : sidebar persistante et scrollable sous le header fixe ;
 - **tablette et portable compact (`768–1199,98 px`)** : sidebar masquée, icônes de composants alignées dans le header et ouverture d’un mégamenu multicolonne reprenant les mêmes contextes et opérations ;

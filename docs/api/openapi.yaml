@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.89
+  version: 0.29.90
 components:
   securitySchemes:
     bearerToken:
@@ -4718,3 +4718,135 @@ paths:
         '200': {description: ServiceNow CI synchronization plan}
         '400': {description: Validation error}
         '401': {description: Missing or invalid security administrator token when authentication is enabled}
+  /api/v1/certificates:
+    get:
+      summary: List governed certificate inventory records
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+        - {name: include_retired, in: query, schema: {type: boolean, default: false}}
+      responses:
+        '200': {description: Paginated certificate inventory}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid certificate reader token}
+  /api/v1/certificates/get:
+    get:
+      summary: Get one certificate by SHA-256 fingerprint
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: fingerprint, in: query, required: true, schema: {type: string, pattern: '^[a-fA-F0-9:]{64,95}$'}}
+      responses:
+        '200': {description: Certificate inventory record with chain and SAN metadata}
+        '400': {description: Validation error or certificate not found}
+        '401': {description: Missing or invalid certificate reader token}
+  /api/v1/certificates/import:
+    post:
+      summary: Import and cryptographically validate a PEM certificate chain
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, pem_bundle, owner, environment, source]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                pem_bundle: {type: string, description: Leaf-first PEM certificate bundle, maximum 16 certificates}
+                owner: {type: string, minLength: 2, maxLength: 255}
+                environment: {type: string, maxLength: 64}
+                source: {type: string, enum: [manual, discovery, import, acme, internal-pki, external-pki]}
+                object_key: {type: string, nullable: true}
+      responses:
+        '201': {description: Imported leaf and chain certificates}
+        '400': {description: Invalid PEM, invalid chain, conflict or validation error}
+        '401': {description: Missing or invalid certificate operator token}
+  /api/v1/certificates/retire:
+    post:
+      summary: Retire one certificate inventory record
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, fingerprint]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                fingerprint: {type: string, pattern: '^[a-fA-F0-9:]{64,95}$'}
+      responses:
+        '200': {description: Retired certificate inventory record}
+        '400': {description: Validation error or certificate not found}
+        '401': {description: Missing or invalid certificate operator token}
+  /api/v1/certificates/endpoints:
+    get:
+      summary: List immutable certificate endpoint observations
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: certificate_fingerprint, in: query, schema: {type: string, pattern: '^[a-fA-F0-9:]{64,95}$'}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated certificate endpoint observations}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid certificate reader token}
+  /api/v1/certificates/endpoints/observe:
+    post:
+      summary: Record an immutable and idempotent certificate endpoint observation
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, idempotency_key, protocol, host, port, service, certificate_fingerprint, observed_at, source, collector]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                idempotency_key: {type: string, minLength: 3, maxLength: 128}
+                protocol: {type: string, example: https}
+                host: {type: string, example: api.example.com}
+                port: {type: integer, minimum: 1, maximum: 65535}
+                service: {type: string, maxLength: 128}
+                certificate_fingerprint: {type: string, pattern: '^[a-fA-F0-9:]{64,95}$'}
+                observed_at: {type: string, format: date-time}
+                source: {type: string, enum: [manual, discovery, import, acme, internal-pki, external-pki]}
+                collector: {type: string, maxLength: 128}
+                object_key: {type: string, nullable: true}
+                tls_version: {type: string, nullable: true}
+                cipher: {type: string, nullable: true}
+      responses:
+        '201': {description: Persisted endpoint observation}
+        '400': {description: Unknown certificate, idempotency conflict or validation error}
+        '401': {description: Missing or invalid certificate operator token}
+  /api/v1/certificates/assessment:
+    get:
+      summary: Assess certificate expiration, chain completeness and hostname coverage
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: as_of, in: query, schema: {type: string, format: date-time}}
+        - {name: critical_days, in: query, schema: {type: integer, minimum: 0, maximum: 3650, default: 7}}
+        - {name: warning_days, in: query, schema: {type: integer, minimum: 0, maximum: 3650, default: 30}}
+        - {name: health, in: query, schema: {type: string, enum: [retired, not-yet-valid, expired, critical, warning, healthy]}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Certificate inventory assessment and health totals}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid certificate reader token}

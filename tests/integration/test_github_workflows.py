@@ -46,8 +46,8 @@ class TestGitHubWorkflows:
         assert 'PYTHONPATH="$target" python scripts/smoke_installed_wheel.py' in workflow
         smoke = (PROJECT_ROOT / "scripts/smoke_installed_wheel.py").read_text(encoding="utf-8")
         assert "OpenApiDocumentProvider().read_yaml()" in smoke
-        assert "EXPECTED_MIGRATION_COUNT = 41" in smoke
-        assert 'EXPECTED_LAST_MIGRATION = "0041_flow_matrix.sql"' in smoke
+        assert "EXPECTED_MIGRATION_COUNT = 42" in smoke
+        assert 'EXPECTED_LAST_MIGRATION = "0042_certificate_pki_inventory.sql"' in smoke
         for route in (
             "/api/v1/graph/traverse",
             "/api/v1/graph/impact",

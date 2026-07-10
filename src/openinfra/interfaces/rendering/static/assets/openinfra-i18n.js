@@ -195,6 +195,7 @@ const MODULE_EN = Object.freeze({
   security: ['Security / RBAC / Audit', 'Security'],
   graph: ['Dependency graph', 'Graph'],
   flows: ['Flow matrix', 'Flows'],
+  certificates: ['Certificates and PKI', 'Certificates'],
 });
 
 const MODULE_DESCRIPTION_EN = Object.freeze({
@@ -209,6 +210,7 @@ const MODULE_DESCRIPTION_EN = Object.freeze({
   security: 'Identity, RBAC, tokens, access policies, audit, editions and runtime quotas.',
   graph: 'Tenant-aware RSOT dependency traversal and impact analysis.',
   flows: 'Governed comparison of declared and observed network flows, violations and traceability.',
+  certificates: 'Governed certificate inventory, cryptographic chain validation, TLS endpoints and expiration alerts.',
 });
 
 const FIELD_EN = Object.freeze({
@@ -249,6 +251,12 @@ const FIELD_EN = Object.freeze({
   source_ip: 'Source IP', destination_ip: 'Destination IP', source_object_key: 'Source object',
   destination_object_key: 'Destination object', packets: 'Packets', bytes: 'Bytes',
   first_seen: 'First seen', last_seen: 'Last seen', window_start: 'Window start', window_end: 'Window end',
+  pem_bundle: 'PEM certificate chain', owner: 'Owner', environment: 'Environment',
+  object_key: 'Associated RSOT object', fingerprint: 'SHA-256 fingerprint',
+  certificate_fingerprint: 'Certificate fingerprint', protocol: 'Protocol', host: 'Endpoint host',
+  port: 'Port', service: 'Service', observed_at: 'Observed at', collector: 'Collector',
+  tls_version: 'TLS version', cipher: 'Cipher suite', critical_days: 'Critical threshold (days)',
+  warning_days: 'Warning threshold (days)', health: 'Certificate health',
 });
 
 const TOKEN_EN = Object.freeze({
@@ -276,6 +284,8 @@ const TOKEN_EN = Object.freeze({
   search: 'search', schema: 'schema', runtime: 'runtime', physical: 'physical', model: 'model',
   flow: 'flow', flows: 'flows', declaration: 'declaration', declarations: 'declarations',
   observation: 'observation', observations: 'observations', matrix: 'matrix', retire: 'retire',
+  certificate: 'certificate', certificates: 'certificates', endpoint: 'endpoint', endpoints: 'endpoints',
+  assess: 'assessment', pki: 'PKI', pem: 'PEM',
 });
 
 const ACTION_EN = Object.freeze({
@@ -304,6 +314,13 @@ const PHRASE_EN = Object.freeze({
   'Exploration': 'Exploration', 'Analyse d’impact': 'Impact analysis',
   'Flux déclarés': 'Declared flows', 'Flux observés': 'Observed flows',
   'Conformité des flux': 'Flow compliance',
+  'Inventaire PKI': 'PKI inventory', 'Endpoints TLS': 'TLS endpoints', 'Conformité PKI': 'PKI compliance',
+  'Chaîne de certificats PEM': 'PEM certificate chain', 'Source certificat': 'Certificate source',
+  'Objet RSOT associé': 'Associated RSOT object', 'Empreinte SHA-256': 'SHA-256 fingerprint',
+  'Protocole endpoint': 'Endpoint protocol', 'Hôte endpoint': 'Endpoint host', 'Service': 'Service',
+  'Version TLS': 'TLS version', 'Suite cryptographique': 'Cipher suite',
+  'Seuil critique (jours)': 'Critical threshold (days)', 'Seuil avertissement (jours)': 'Warning threshold (days)',
+  'État certificat': 'Certificate health', 'Collecteur': 'Collector', 'Environnement': 'Environment',
   'Autres': 'Other', 'Etages': 'Multi-level', 'Étages': 'Multi-level', 'Simple': 'Single-level',
   'Niveau Initial': 'Initial level', 'Niveau Final': 'Final level', 'Type Batiment': 'Building type',
 });
@@ -418,11 +435,18 @@ function operationLabelEn(operationId) {
     'flow-observation-submit': 'Ingest observed flow',
     'flow-observation-list': 'List observed flows',
     'flow-matrix': 'Compare declared and observed flows',
+    'certificate-import': 'Import PEM certificate chain',
+    'certificate-get': 'View certificate',
+    'certificate-list': 'List certificates',
+    'certificate-retire': 'Retire certificate',
+    'certificate-endpoint-observe': 'Observe TLS endpoint',
+    'certificate-endpoint-list': 'List TLS endpoints',
+    'certificate-assessment': 'Assess PKI health',
     'ipam-dashboard': 'IPAM dashboard', 'dcim-digital-twin': 'Room digital twin',
     'effective-identity': 'Effective identity', 'audit-integrity': 'Audit integrity',
   };
   if (overrides[operationId]) return overrides[operationId];
-  const domainTokens = new Set(['rsot', 'ipam', 'dcim', 'itam', 'discovery', 'graph', 'flow', 'flows']);
+  const domainTokens = new Set(['rsot', 'ipam', 'dcim', 'itam', 'discovery', 'graph', 'flow', 'flows', 'certificate', 'certificates', 'pki']);
   const tokens = String(operationId || '').split('-').filter(Boolean);
   if (domainTokens.has(tokens[0])) tokens.shift();
   let actionIndex = tokens.findIndex((token) => ACTION_EN[token]);

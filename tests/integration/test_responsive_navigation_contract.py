@@ -52,7 +52,7 @@ def test_navigation_contract_has_three_non_overlapping_layout_modes() -> None:
         css,
         re.DOTALL,
     )
-    assert "grid-template-columns: repeat(10, minmax(0, 1fr))" in css
+    assert "grid-template-columns: repeat(11, minmax(0, 1fr))" in css
     assert "justify-content: flex-end !important" in css
     assert "margin: 0 0 0 auto !important" in css
     assert "minmax(0, 50%)" in css

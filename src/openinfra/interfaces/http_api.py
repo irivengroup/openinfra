@@ -22,6 +22,15 @@ from openinfra.application.audit_services import (
     ListAuditEventsCommand,
     VerifyAuditIntegrityCommand,
 )
+from openinfra.application.certificate_pki_services import (
+    AssessCertificatesCommand,
+    GetCertificateCommand,
+    ImportCertificateBundleCommand,
+    ListCertificateEndpointsCommand,
+    ListCertificatesCommand,
+    ObserveCertificateEndpointCommand,
+    RetireCertificateCommand,
+)
 from openinfra.application.container import ApplicationFactory, OpenInfraApplication
 from openinfra.application.dcim_services import (
     ConnectDcimCableCommand,
@@ -1133,6 +1142,86 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
+        if route == "/api/v1/certificates":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.certificate_pki_service.list_certificates(
+                    ListCertificatesCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        include_retired=self._first_query_value(
+                            query, "include_retired", "false"
+                        ).lower()
+                        in {"1", "true", "yes"},
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/certificates/get":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.certificate_pki_service.get_certificate(
+                    GetCertificateCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        fingerprint=self._first_query_value(query, "fingerprint"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/certificates/endpoints":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.certificate_pki_service.list_endpoints(
+                    ListCertificateEndpointsCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        certificate_fingerprint=query.get("certificate_fingerprint", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/certificates/assessment":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.certificate_pki_service.assess(
+                    AssessCertificatesCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        as_of=query.get("as_of", [None])[0],
+                        critical_days=int(self._first_query_value(query, "critical_days", "7")),
+                        warning_days=int(self._first_query_value(query, "warning_days", "30")),
+                        health=query.get("health", [None])[0],
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
         if route == "/api/v1/flows/declarations":
             try:
                 query = parse_qs(parsed.query)
@@ -2052,6 +2141,89 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         route = self._canonical_route(urlparse(self.path).path)
         result: Any
         rule: Any
+
+        if route == "/api/v1/certificates/import":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.certificate_pki_service.import_bundle(
+                    ImportCertificateBundleCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        pem_bundle=self._required_payload_value(payload, "pem_bundle"),
+                        owner=self._required_payload_value(payload, "owner"),
+                        environment=self._required_payload_value(payload, "environment"),
+                        source=self._required_payload_value(payload, "source"),
+                        object_key=(
+                            None
+                            if payload.get("object_key") is None
+                            else str(payload["object_key"])
+                        ),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/certificates/retire":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.certificate_pki_service.retire_certificate(
+                    RetireCertificateCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        fingerprint=self._required_payload_value(payload, "fingerprint"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/certificates/endpoints/observe":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.certificate_pki_service.observe_endpoint(
+                    ObserveCertificateEndpointCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        idempotency_key=self._required_payload_value(payload, "idempotency_key"),
+                        protocol=self._required_payload_value(payload, "protocol"),
+                        host=self._required_payload_value(payload, "host"),
+                        port=int(payload["port"]),
+                        service=self._required_payload_value(payload, "service"),
+                        certificate_fingerprint=self._required_payload_value(
+                            payload, "certificate_fingerprint"
+                        ),
+                        observed_at=self._required_payload_value(payload, "observed_at"),
+                        source=self._required_payload_value(payload, "source"),
+                        collector=self._required_payload_value(payload, "collector"),
+                        object_key=(
+                            None
+                            if payload.get("object_key") is None
+                            else str(payload["object_key"])
+                        ),
+                        tls_version=(
+                            None
+                            if payload.get("tls_version") is None
+                            else str(payload["tls_version"])
+                        ),
+                        cipher=(None if payload.get("cipher") is None else str(payload["cipher"])),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
 
         if route == "/api/v1/flows/declarations/upsert":
             try:
@@ -5413,6 +5585,15 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "traverse": "/api/v1/graph/traverse",
                     "impact": "/api/v1/graph/impact",
                     "path": "/api/v1/graph/path",
+                },
+                "certificates": {
+                    "list": "/api/v1/certificates",
+                    "get": "/api/v1/certificates/get",
+                    "import": "/api/v1/certificates/import",
+                    "retire": "/api/v1/certificates/retire",
+                    "endpoints": "/api/v1/certificates/endpoints",
+                    "endpoint_observe": "/api/v1/certificates/endpoints/observe",
+                    "assessment": "/api/v1/certificates/assessment",
                 },
                 "flows": {
                     "declarations": "/api/v1/flows/declarations",

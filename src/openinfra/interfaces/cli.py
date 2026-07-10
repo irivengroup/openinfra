@@ -20,6 +20,15 @@ from openinfra.application.audit_services import (
     VerifyAuditIntegrityCommand,
 )
 from openinfra.application.authentication_services import AuthProviderPolicyCommand
+from openinfra.application.certificate_pki_services import (
+    AssessCertificatesCommand,
+    GetCertificateCommand,
+    ImportCertificateBundleCommand,
+    ListCertificateEndpointsCommand,
+    ListCertificatesCommand,
+    ObserveCertificateEndpointCommand,
+    RetireCertificateCommand,
+)
 from openinfra.application.container import ApplicationFactory, OpenInfraApplication
 from openinfra.application.dcim_services import (
     ConnectDcimCableCommand,
@@ -293,6 +302,7 @@ class OpenInfraCLI:
         self._add_discovery_commands(subparsers)
         self._add_graph_commands(subparsers)
         self._add_flow_commands(subparsers)
+        self._add_certificate_commands(subparsers)
         self._add_rsot_commands(subparsers)
         self._add_itrm_commands(subparsers)
         self._add_ri_commands(subparsers)
@@ -1918,6 +1928,107 @@ class OpenInfraCLI:
         parser.add_argument("--max-nodes", type=int, default=1000)
         parser.add_argument("--relation-type", action="append", default=[])
         parser.add_argument("--as-of")
+
+    def _add_certificate_commands(self, subparsers: Any) -> None:
+        certificate = subparsers.add_parser(
+            "certificate", help="certificate and PKI inventory operations"
+        )
+        commands = certificate.add_subparsers(dest="certificate_command", required=True)
+
+        import_bundle = commands.add_parser(
+            "import", help="import and cryptographically validate a PEM certificate chain"
+        )
+        self._add_backend_arguments(import_bundle)
+        import_bundle.add_argument("--tenant", required=True)
+        import_bundle.add_argument("--actor", default="cli")
+        import_bundle.add_argument("--admin-token", required=True)
+        import_bundle.add_argument("--pem-file", type=Path, required=True)
+        import_bundle.add_argument("--owner", required=True)
+        import_bundle.add_argument("--environment", required=True)
+        import_bundle.add_argument(
+            "--source",
+            choices=("manual", "discovery", "import", "acme", "internal-pki", "external-pki"),
+            required=True,
+        )
+        import_bundle.add_argument("--object-key")
+        import_bundle.set_defaults(handler=self._handle_certificate_import)
+
+        get = commands.add_parser("get", help="get one certificate by SHA-256 fingerprint")
+        self._add_backend_arguments(get)
+        get.add_argument("--tenant", required=True)
+        get.add_argument("--admin-token", required=True)
+        get.add_argument("--fingerprint", required=True)
+        get.set_defaults(handler=self._handle_certificate_get)
+
+        list_certificates = commands.add_parser("list", help="list certificate inventory")
+        self._add_backend_arguments(list_certificates)
+        list_certificates.add_argument("--tenant", required=True)
+        list_certificates.add_argument("--admin-token", required=True)
+        list_certificates.add_argument("--limit", type=int, default=100)
+        list_certificates.add_argument("--cursor")
+        list_certificates.add_argument("--include-retired", action="store_true")
+        list_certificates.set_defaults(handler=self._handle_certificate_list)
+
+        retire = commands.add_parser("retire", help="retire a certificate inventory record")
+        self._add_backend_arguments(retire)
+        retire.add_argument("--tenant", required=True)
+        retire.add_argument("--actor", default="cli")
+        retire.add_argument("--admin-token", required=True)
+        retire.add_argument("--fingerprint", required=True)
+        retire.set_defaults(handler=self._handle_certificate_retire)
+
+        observe = commands.add_parser(
+            "endpoint-observe", help="record an immutable certificate endpoint observation"
+        )
+        self._add_backend_arguments(observe)
+        observe.add_argument("--tenant", required=True)
+        observe.add_argument("--actor", default="cli")
+        observe.add_argument("--admin-token", required=True)
+        observe.add_argument("--idempotency-key", required=True)
+        observe.add_argument("--protocol", required=True)
+        observe.add_argument("--host", required=True)
+        observe.add_argument("--port", type=int, required=True)
+        observe.add_argument("--service", required=True)
+        observe.add_argument("--certificate-fingerprint", required=True)
+        observe.add_argument("--observed-at", required=True)
+        observe.add_argument(
+            "--source",
+            choices=("manual", "discovery", "import", "acme", "internal-pki", "external-pki"),
+            required=True,
+        )
+        observe.add_argument("--collector", required=True)
+        observe.add_argument("--object-key")
+        observe.add_argument("--tls-version")
+        observe.add_argument("--cipher")
+        observe.set_defaults(handler=self._handle_certificate_endpoint_observe)
+
+        endpoint_list = commands.add_parser(
+            "endpoint-list", help="list certificate endpoint observations"
+        )
+        self._add_backend_arguments(endpoint_list)
+        endpoint_list.add_argument("--tenant", required=True)
+        endpoint_list.add_argument("--admin-token", required=True)
+        endpoint_list.add_argument("--certificate-fingerprint")
+        endpoint_list.add_argument("--limit", type=int, default=100)
+        endpoint_list.add_argument("--cursor")
+        endpoint_list.set_defaults(handler=self._handle_certificate_endpoint_list)
+
+        assess = commands.add_parser(
+            "assess", help="assess expiration, chain completeness and hostname coverage"
+        )
+        self._add_backend_arguments(assess)
+        assess.add_argument("--tenant", required=True)
+        assess.add_argument("--admin-token", required=True)
+        assess.add_argument("--as-of")
+        assess.add_argument("--critical-days", type=int, default=7)
+        assess.add_argument("--warning-days", type=int, default=30)
+        assess.add_argument(
+            "--health",
+            choices=("retired", "not-yet-valid", "expired", "critical", "warning", "healthy"),
+        )
+        assess.add_argument("--limit", type=int, default=100)
+        assess.add_argument("--cursor")
+        assess.set_defaults(handler=self._handle_certificate_assess)
 
     def _add_flow_commands(self, subparsers: Any) -> None:
         flow = subparsers.add_parser(
@@ -4935,6 +5046,108 @@ class OpenInfraCLI:
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_bytes(download.content)
         print(json.dumps(download.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_certificate_import(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.certificate_pki_service.import_bundle(
+            ImportCertificateBundleCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                pem_bundle=args.pem_file.read_text(encoding="utf-8"),
+                owner=args.owner,
+                environment=args.environment,
+                source=args.source,
+                object_key=args.object_key,
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_certificate_get(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.certificate_pki_service.get_certificate(
+            GetCertificateCommand(args.tenant, args.admin_token, args.fingerprint)
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_certificate_list(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.certificate_pki_service.list_certificates(
+            ListCertificatesCommand(
+                args.tenant,
+                args.admin_token,
+                args.limit,
+                args.cursor,
+                args.include_retired,
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_certificate_retire(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.certificate_pki_service.retire_certificate(
+            RetireCertificateCommand(args.tenant, args.actor, args.admin_token, args.fingerprint)
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_certificate_endpoint_observe(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.certificate_pki_service.observe_endpoint(
+            ObserveCertificateEndpointCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                idempotency_key=args.idempotency_key,
+                protocol=args.protocol,
+                host=args.host,
+                port=args.port,
+                service=args.service,
+                certificate_fingerprint=args.certificate_fingerprint,
+                observed_at=args.observed_at,
+                source=args.source,
+                collector=args.collector,
+                object_key=args.object_key,
+                tls_version=args.tls_version,
+                cipher=args.cipher,
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_certificate_endpoint_list(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.certificate_pki_service.list_endpoints(
+            ListCertificateEndpointsCommand(
+                args.tenant,
+                args.admin_token,
+                args.limit,
+                args.cursor,
+                args.certificate_fingerprint,
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_certificate_assess(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.certificate_pki_service.assess(
+            AssessCertificatesCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                as_of=args.as_of,
+                critical_days=args.critical_days,
+                warning_days=args.warning_days,
+                health=args.health,
+                limit=args.limit,
+                cursor=args.cursor,
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
         return 0
 
     def _handle_flow_declaration_upsert(self, args: argparse.Namespace) -> int:

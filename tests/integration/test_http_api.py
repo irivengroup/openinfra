@@ -136,6 +136,15 @@ class TestHttpApi:
                     "observation_submit": "/api/v1/flows/observations/submit",
                     "matrix": "/api/v1/flows/matrix",
                 },
+                "certificates": {
+                    "list": "/api/v1/certificates",
+                    "get": "/api/v1/certificates/get",
+                    "import": "/api/v1/certificates/import",
+                    "retire": "/api/v1/certificates/retire",
+                    "endpoints": "/api/v1/certificates/endpoints",
+                    "endpoint_observe": "/api/v1/certificates/endpoints/observe",
+                    "assessment": "/api/v1/certificates/assessment",
+                },
                 "rsot": {
                     "objects": "/api/v1/rsot/objects",
                     "resource_taxonomy": "/api/v1/rsot/resource-taxonomy",

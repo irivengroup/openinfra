@@ -489,7 +489,7 @@ class TestOpenInfraWeb:
         assert "@media (max-width: 1199.98px)" in static_css
         assert "@media (min-width: 768px) and (max-width: 1199.98px)" in static_css
         assert "@media (max-width: 767.98px)" in static_css
-        assert "grid-template-columns: repeat(10, minmax(0, 1fr))" in static_css
+        assert "grid-template-columns: repeat(11, minmax(0, 1fr))" in static_css
         assert "--openinfra-navy: #001b41" in static_css
         assert "--openinfra-action: #0066ff" in static_css
         assert "--openinfra-green: #15a362" in static_css

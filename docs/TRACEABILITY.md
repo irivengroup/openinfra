@@ -1,3 +1,14 @@
+## v0.29.90 — Traçabilité certificats et PKI
+
+- Roadmap existante : P15 / `EPIC-1503` — inventaire, chaînes, SAN, propriétaires, endpoints et alertes d'expiration.
+- Domaine : `domain/certificate_pki.py` — matériau X.509, gouvernance, observations d'endpoints, hostname/SAN et états de santé.
+- Application : `application/certificate_pki_services.py` — import, inventaire, retrait, observations idempotentes, évaluation bornée et audit.
+- Infrastructure : `certificate_parser.py`, adaptateurs JSON/PostgreSQL et migration `0042_certificate_pki_inventory.sql`.
+- Interfaces : sept commandes CLI, sept routes HTTP/OpenAPI et sept opérations web FR/EN.
+- Sécurité : validation cryptographique des chaînes, refus des clés privées, permissions dédiées, isolation tenant et empreintes immuables.
+- Tests : domaine, services, CLI, HTTP, portail, migration, row mapping PostgreSQL, CI, OpenAPI et packaging.
+- CDC/roadmap : documents inchangés et non réémis ; l'epic et ses critères étaient déjà présents.
+
 ## v0.29.89 — Traçabilité matrice de flux
 
 - Roadmap existante : P15 / `EPIC-1502` — matrice de flux déclarés et observés.

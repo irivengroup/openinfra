@@ -78,6 +78,11 @@ class FrontendContractValidator:
             or "RESOURCE_CATEGORY_OPTIONS" not in main_source
             or "Rack server" not in main_source
             or "physical-server" in main_source
+            or "Certificats et PKI" not in main_source
+            or "/v1/certificates/import" not in main_source
+            or "/v1/certificates/get" not in main_source
+            or "/v1/certificates/endpoints/observe" not in main_source
+            or "/v1/certificates/assessment" not in main_source
             or "Dashboard IPAM" not in main_source
             or "/v1/ipam/ui-dashboard" not in main_source
             or "Définir une VRF" not in main_source
@@ -471,7 +476,7 @@ class FrontendContractValidator:
             "opensNewWindow",
             "focusMainContentIfRequested",
             "grid-template-columns: minmax(0, 1fr) minmax(0, 50%) minmax(0, 1fr)",
-            "grid-template-columns: repeat(10, minmax(0, 1fr))",
+            "grid-template-columns: repeat(11, minmax(0, 1fr))",
             "@media (min-width: 768px) and (max-width: 1199.98px)",
             "@media (max-width: 767.98px)",
             "@media (pointer: coarse)",
@@ -564,6 +569,12 @@ class FrontendContractValidator:
             "/v1/ipam/ddi-preview",
             "RT import",
             "Fournisseurs DDI",
+            "Certificats et PKI",
+            "/v1/certificates/import",
+            "/v1/certificates/get",
+            "/v1/certificates/endpoints/observe",
+            "/v1/certificates/assessment",
+            "Chaîne PEM",
             "Route distinguisher",
             "Usage plage",
             "Localiser un équipement",

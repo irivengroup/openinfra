@@ -17,6 +17,9 @@ from openinfra.application.ports import (
     AccessPolicyRepository,
     AccessPolicyRulePage,
     AuditRepository,
+    CertificateAssetPage,
+    CertificateEndpointPage,
+    CertificateInventoryRepository,
     DcimRepository,
     DiscoveryCollectorPage,
     DiscoveryEvidencePage,
@@ -52,6 +55,11 @@ from openinfra.domain.audit import (
     AuditEventRecord,
     AuditIntegrityHasher,
     AuditIntegrityReport,
+)
+from openinfra.domain.certificate_pki import (
+    CertificateAsset,
+    CertificateEndpointObservation,
+    CertificateMaterial,
 )
 from openinfra.domain.common import (
     AuditEvent,
@@ -6697,6 +6705,317 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
         return cast(Sequence[object], value)
 
     def _row_datetime(self, value: object) -> datetime:
+        if isinstance(value, datetime):
+            return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
+        parsed = datetime.fromisoformat(str(value))
+        return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
+
+
+class PostgreSQLCertificateInventoryRepository(
+    PostgreSQLRepositoryBase, CertificateInventoryRepository
+):
+    _CERTIFICATE_COLUMNS = """
+        id, tenant_id, fingerprint_sha256, serial_number, subject_dn, issuer_dn,
+        common_name, san_dns, san_ip, san_email, san_uri, not_before, not_after,
+        public_key_algorithm, public_key_size, signature_algorithm, is_ca,
+        chain_fingerprints, owner, environment, source, object_key, lifecycle,
+        version, created_by, created_at, updated_by, updated_at
+    """
+    _ENDPOINT_COLUMNS = """
+        id, tenant_id, idempotency_key, protocol, host, port, service,
+        certificate_fingerprint, observed_at, source, collector, object_key,
+        tls_version, cipher, received_at, payload_fingerprint
+    """
+
+    def save_certificate(self, certificate: CertificateAsset) -> None:
+        self._ensure_tenant(certificate.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO certificate_inventory (
+                id, tenant_id, fingerprint_sha256, serial_number, subject_dn, issuer_dn,
+                common_name, san_dns, san_ip, san_email, san_uri, not_before, not_after,
+                public_key_algorithm, public_key_size, signature_algorithm, is_ca,
+                chain_fingerprints, owner, environment, source, object_key, lifecycle,
+                version, created_by, created_at, updated_by, updated_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(fingerprint_sha256)s, %(serial_number)s,
+                %(subject_dn)s, %(issuer_dn)s, %(common_name)s, %(san_dns)s,
+                %(san_ip)s, %(san_email)s, %(san_uri)s, %(not_before)s, %(not_after)s,
+                %(public_key_algorithm)s, %(public_key_size)s, %(signature_algorithm)s,
+                %(is_ca)s, %(chain_fingerprints)s, %(owner)s, %(environment)s,
+                %(source)s, %(object_key)s, %(lifecycle)s, %(version)s, %(created_by)s,
+                %(created_at)s, %(updated_by)s, %(updated_at)s
+            )
+            ON CONFLICT (tenant_id, id) DO UPDATE SET
+                chain_fingerprints = EXCLUDED.chain_fingerprints,
+                owner = EXCLUDED.owner,
+                environment = EXCLUDED.environment,
+                source = EXCLUDED.source,
+                object_key = EXCLUDED.object_key,
+                lifecycle = EXCLUDED.lifecycle,
+                version = EXCLUDED.version,
+                updated_by = EXCLUDED.updated_by,
+                updated_at = EXCLUDED.updated_at
+            """,
+            self._certificate_params(certificate),
+        )
+
+    def get_certificate_by_fingerprint(
+        self, tenant_id: TenantId, fingerprint: str
+    ) -> CertificateAsset | None:
+        row = self._fetch_one(
+            f"""
+            SELECT {self._CERTIFICATE_COLUMNS}
+            FROM certificate_inventory
+            WHERE tenant_id = %(tenant_id)s AND fingerprint_sha256 = %(fingerprint)s
+            """,  # nosec B608 -- selected columns are a fixed class constant
+            {
+                "tenant_id": tenant_id.value,
+                "fingerprint": fingerprint.strip().lower().replace(":", ""),
+            },
+        )
+        return self._certificate_from_row(row) if row else None
+
+    def get_certificate(self, tenant_id: TenantId, certificate_id: str) -> CertificateAsset | None:
+        row = self._fetch_one(
+            f"""
+            SELECT {self._CERTIFICATE_COLUMNS}
+            FROM certificate_inventory
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s
+            """,  # nosec B608 -- selected columns are a fixed class constant
+            {"tenant_id": tenant_id.value, "id": EntityId.from_value(certificate_id).value},
+        )
+        return self._certificate_from_row(row) if row else None
+
+    def list_certificates(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        include_retired: bool = False,
+    ) -> CertificateAssetPage:
+        offset = self._offset(pagination.cursor)
+        lifecycle_filter = "" if include_retired else "AND lifecycle <> 'retired'"
+        rows = self._fetch_all(
+            f"""
+            SELECT {self._CERTIFICATE_COLUMNS}
+            FROM certificate_inventory
+            WHERE tenant_id = %(tenant_id)s {lifecycle_filter}
+            ORDER BY not_after ASC, subject_dn ASC, fingerprint_sha256 ASC
+            LIMIT %(fetch_limit)s OFFSET %(offset)s
+            """,  # nosec B608 -- selected columns and lifecycle predicate are fixed constants
+            {
+                "tenant_id": tenant_id.value,
+                "fetch_limit": pagination.limit + 1,
+                "offset": offset,
+            },
+        )
+        has_more = len(rows) > pagination.limit
+        selected = rows[: pagination.limit]
+        return CertificateAssetPage(
+            tuple(self._certificate_from_row(row) for row in selected),
+            str(offset + pagination.limit) if has_more else None,
+        )
+
+    def save_endpoint_observation(self, observation: CertificateEndpointObservation) -> None:
+        self._ensure_tenant(observation.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO certificate_endpoint_observations (
+                id, tenant_id, idempotency_key, protocol, host, port, service,
+                certificate_fingerprint, observed_at, source, collector, object_key,
+                tls_version, cipher, received_at, payload_fingerprint
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(idempotency_key)s, %(protocol)s, %(host)s,
+                %(port)s, %(service)s, %(certificate_fingerprint)s, %(observed_at)s,
+                %(source)s, %(collector)s, %(object_key)s, %(tls_version)s, %(cipher)s,
+                %(received_at)s, %(payload_fingerprint)s
+            )
+            ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
+            """,
+            self._endpoint_params(observation),
+        )
+
+    def find_endpoint_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> CertificateEndpointObservation | None:
+        row = self._fetch_one(
+            f"""
+            SELECT {self._ENDPOINT_COLUMNS}
+            FROM certificate_endpoint_observations
+            WHERE tenant_id = %(tenant_id)s AND idempotency_key = %(idempotency_key)s
+            """,  # nosec B608 -- selected columns are a fixed class constant
+            {"tenant_id": tenant_id.value, "idempotency_key": idempotency_key.strip()},
+        )
+        return self._endpoint_from_row(row) if row else None
+
+    def list_endpoint_observations(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        certificate_fingerprint: str | None = None,
+    ) -> CertificateEndpointPage:
+        offset = self._offset(pagination.cursor)
+        fingerprint_filter = (
+            ""
+            if certificate_fingerprint is None
+            else "AND certificate_fingerprint = %(fingerprint)s"
+        )
+        params: dict[str, object] = {
+            "tenant_id": tenant_id.value,
+            "fetch_limit": pagination.limit + 1,
+            "offset": offset,
+        }
+        if certificate_fingerprint is not None:
+            params["fingerprint"] = certificate_fingerprint.strip().lower().replace(":", "")
+        rows = self._fetch_all(
+            f"""
+            SELECT {self._ENDPOINT_COLUMNS}
+            FROM certificate_endpoint_observations
+            WHERE tenant_id = %(tenant_id)s {fingerprint_filter}
+            ORDER BY observed_at DESC, id DESC
+            LIMIT %(fetch_limit)s OFFSET %(offset)s
+            """,  # nosec B608 -- selected columns and fingerprint predicate are fixed constants
+            params,
+        )
+        has_more = len(rows) > pagination.limit
+        selected = rows[: pagination.limit]
+        return CertificateEndpointPage(
+            tuple(self._endpoint_from_row(row) for row in selected),
+            str(offset + pagination.limit) if has_more else None,
+        )
+
+    @staticmethod
+    def _certificate_params(certificate: CertificateAsset) -> dict[str, object]:
+        material = certificate.material
+        return {
+            "id": certificate.id.value,
+            "tenant_id": certificate.tenant_id.value,
+            "fingerprint_sha256": material.fingerprint_sha256,
+            "serial_number": material.serial_number,
+            "subject_dn": material.subject_dn,
+            "issuer_dn": material.issuer_dn,
+            "common_name": material.common_name,
+            "san_dns": json.dumps(material.san_dns),
+            "san_ip": json.dumps(material.san_ip),
+            "san_email": json.dumps(material.san_email),
+            "san_uri": json.dumps(material.san_uri),
+            "not_before": material.not_before,
+            "not_after": material.not_after,
+            "public_key_algorithm": material.public_key_algorithm,
+            "public_key_size": material.public_key_size,
+            "signature_algorithm": material.signature_algorithm,
+            "is_ca": material.is_ca,
+            "chain_fingerprints": json.dumps(certificate.chain_fingerprints),
+            "owner": certificate.owner,
+            "environment": certificate.environment,
+            "source": certificate.source.value,
+            "object_key": None if certificate.object_key is None else certificate.object_key.value,
+            "lifecycle": certificate.lifecycle.value,
+            "version": certificate.version,
+            "created_by": certificate.created_by,
+            "created_at": certificate.created_at,
+            "updated_by": certificate.updated_by,
+            "updated_at": certificate.updated_at,
+        }
+
+    @staticmethod
+    def _endpoint_params(observation: CertificateEndpointObservation) -> dict[str, object]:
+        return {
+            "id": observation.id.value,
+            "tenant_id": observation.tenant_id.value,
+            "idempotency_key": observation.idempotency_key,
+            "protocol": observation.protocol,
+            "host": observation.host,
+            "port": observation.port,
+            "service": observation.service,
+            "certificate_fingerprint": observation.certificate_fingerprint,
+            "observed_at": observation.observed_at,
+            "source": observation.source.value,
+            "collector": observation.collector,
+            "object_key": None if observation.object_key is None else observation.object_key.value,
+            "tls_version": observation.tls_version,
+            "cipher": observation.cipher,
+            "received_at": observation.received_at,
+            "payload_fingerprint": observation.payload_fingerprint,
+        }
+
+    def _certificate_from_row(self, row: Mapping[str, object]) -> CertificateAsset:
+        material = CertificateMaterial.create(
+            fingerprint_sha256=str(row["fingerprint_sha256"]),
+            serial_number=str(row["serial_number"]),
+            subject_dn=str(row["subject_dn"]),
+            issuer_dn=str(row["issuer_dn"]),
+            common_name=(None if row.get("common_name") is None else str(row["common_name"])),
+            san_dns=tuple(str(item) for item in self._json_sequence(row["san_dns"])),
+            san_ip=tuple(str(item) for item in self._json_sequence(row["san_ip"])),
+            san_email=tuple(str(item) for item in self._json_sequence(row["san_email"])),
+            san_uri=tuple(str(item) for item in self._json_sequence(row["san_uri"])),
+            not_before=self._row_datetime(row["not_before"]),
+            not_after=self._row_datetime(row["not_after"]),
+            public_key_algorithm=str(row["public_key_algorithm"]),
+            public_key_size=(
+                None if row.get("public_key_size") is None else int(str(row["public_key_size"]))
+            ),
+            signature_algorithm=str(row["signature_algorithm"]),
+            is_ca=bool(row["is_ca"]),
+        )
+        return CertificateAsset.restore(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            material=material,
+            chain_fingerprints=tuple(
+                str(item) for item in self._json_sequence(row["chain_fingerprints"])
+            ),
+            owner=str(row["owner"]),
+            environment=str(row["environment"]),
+            source=str(row["source"]),
+            object_key=(None if row.get("object_key") is None else str(row["object_key"])),
+            lifecycle=str(row["lifecycle"]),
+            version=int(str(row["version"])),
+            created_by=str(row["created_by"]),
+            created_at=self._row_datetime(row["created_at"]),
+            updated_by=str(row["updated_by"]),
+            updated_at=self._row_datetime(row["updated_at"]),
+        )
+
+    def _endpoint_from_row(self, row: Mapping[str, object]) -> CertificateEndpointObservation:
+        return CertificateEndpointObservation.restore(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            idempotency_key=str(row["idempotency_key"]),
+            protocol=str(row["protocol"]),
+            host=str(row["host"]),
+            port=int(str(row["port"])),
+            service=str(row["service"]),
+            certificate_fingerprint=str(row["certificate_fingerprint"]),
+            observed_at=self._row_datetime(row["observed_at"]),
+            source=str(row["source"]),
+            collector=str(row["collector"]),
+            object_key=(None if row.get("object_key") is None else str(row["object_key"])),
+            tls_version=(None if row.get("tls_version") is None else str(row["tls_version"])),
+            cipher=(None if row.get("cipher") is None else str(row["cipher"])),
+            received_at=self._row_datetime(row["received_at"]),
+            payload_fingerprint=str(row["payload_fingerprint"]),
+        )
+
+    @staticmethod
+    def _offset(cursor: str | None) -> int:
+        try:
+            offset = int(cursor or "0")
+        except ValueError as exc:
+            raise ValidationError("pagination cursor must be a numeric offset") from exc
+        if offset < 0:
+            raise ValidationError("pagination cursor must be positive")
+        return offset
+
+    @staticmethod
+    def _json_sequence(value: object) -> Sequence[object]:
+        if isinstance(value, str):
+            return cast(Sequence[object], json.loads(value))
+        return cast(Sequence[object], value)
+
+    @staticmethod
+    def _row_datetime(value: object) -> datetime:
         if isinstance(value, datetime):
             return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
         parsed = datetime.fromisoformat(str(value))

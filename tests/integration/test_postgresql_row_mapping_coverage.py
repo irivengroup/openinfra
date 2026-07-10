@@ -12,6 +12,7 @@ from openinfra.domain.common import TenantId, ValidationError
 from openinfra.infrastructure.postgresql import (
     PostgreSQLAccessPolicyRepository,
     PostgreSQLAuditRepository,
+    PostgreSQLCertificateInventoryRepository,
     PostgreSQLClusterProfile,
     PostgreSQLConnectionFactory,
     PostgreSQLDcimRepository,
@@ -462,6 +463,92 @@ def test_postgresql_flow_matrix_row_mappers_and_parameters() -> None:
     assert observation.destination_object_key == "server/web-01"
     assert repo._row_datetime(now.replace(tzinfo=None)).tzinfo is not None
     assert repo._row_datetime(now.isoformat()) == now
+    with pytest.raises(ValidationError, match="numeric"):
+        repo._offset("bad")
+    with pytest.raises(ValidationError, match="positive"):
+        repo._offset("-1")
+
+
+def test_postgresql_certificate_inventory_row_mappers_and_parameters() -> None:
+    repo = PostgreSQLCertificateInventoryRepository(_registry())
+    now = datetime.now(UTC)
+    parent_fingerprint = "b" * 64
+    certificate = repo._certificate_from_row(
+        {
+            "id": "00000000-0000-4000-8000-000000000071",
+            "tenant_id": "default",
+            "fingerprint_sha256": "a" * 64,
+            "serial_number": "01AB",
+            "subject_dn": "CN=portal.example.net",
+            "issuer_dn": "CN=OpenInfra Intermediate CA",
+            "common_name": "portal.example.net",
+            "san_dns": '["portal.example.net", "*.apps.example.net"]',
+            "san_ip": '["192.0.2.10"]',
+            "san_email": '["pki@example.net"]',
+            "san_uri": '["spiffe://example.net/portal"]',
+            "not_before": now - timedelta(days=1),
+            "not_after": now + timedelta(days=90),
+            "public_key_algorithm": "rsa",
+            "public_key_size": 2048,
+            "signature_algorithm": "sha256",
+            "is_ca": False,
+            "chain_fingerprints": f'["{parent_fingerprint}"]',
+            "owner": "platform team",
+            "environment": "production",
+            "source": "internal-pki",
+            "object_key": "application/portal",
+            "lifecycle": "active",
+            "version": 1,
+            "created_by": "pytest",
+            "created_at": now - timedelta(hours=1),
+            "updated_by": "pytest",
+            "updated_at": now,
+        }
+    )
+    from openinfra.domain.certificate_pki import CertificateEndpointObservation
+
+    temporary_endpoint = CertificateEndpointObservation.create(
+        tenant_id=TenantId.from_value("default"),
+        idempotency_key="tls:portal.example.net:443:1",
+        protocol="https",
+        host="portal.example.net",
+        port=443,
+        service="OpenInfra portal",
+        certificate_fingerprint="a" * 64,
+        observed_at=now,
+        source="discovery",
+        collector="tls-scanner-par1",
+        object_key="application/portal",
+        tls_version="tlsv1.3",
+        cipher="tls_aes_256_gcm_sha384",
+    )
+    endpoint = repo._endpoint_from_row(
+        {
+            "id": "00000000-0000-4000-8000-000000000072",
+            "tenant_id": "default",
+            "idempotency_key": "tls:portal.example.net:443:1",
+            "protocol": "https",
+            "host": "portal.example.net",
+            "port": 443,
+            "service": "OpenInfra portal",
+            "certificate_fingerprint": "a" * 64,
+            "observed_at": now,
+            "source": "discovery",
+            "collector": "tls-scanner-par1",
+            "object_key": "application/portal",
+            "tls_version": "tlsv1.3",
+            "cipher": "tls_aes_256_gcm_sha384",
+            "received_at": now,
+            "payload_fingerprint": temporary_endpoint.payload_fingerprint,
+        }
+    )
+
+    assert repo._certificate_params(certificate)["fingerprint_sha256"] == "a" * 64
+    assert repo._endpoint_params(endpoint)["certificate_fingerprint"] == "a" * 64
+    assert certificate.chain_fingerprints == (parent_fingerprint,)
+    assert endpoint.host == "portal.example.net"
+    assert repo._row_datetime(now.replace(tzinfo=None)).tzinfo is not None
+    assert repo._json_sequence('["one"]') == ["one"]
     with pytest.raises(ValidationError, match="numeric"):
         repo._offset("bad")
     with pytest.raises(ValidationError, match="positive"):

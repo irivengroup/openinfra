@@ -129,6 +129,7 @@ class BuiltinRolePolicy:
                 Permission.RSOT_QUALITY_READ,
                 Permission.ITAM_READ,
                 Permission.FLOW_READ,
+                Permission.CERTIFICATE_READ,
             )
         ),
         "rsot:reader": frozenset(
@@ -207,6 +208,14 @@ class BuiltinRolePolicy:
         "flow:reader": frozenset((Permission.FLOW_READ, Permission.SCHEMA_READ)),
         "flow:operator": frozenset(
             (Permission.FLOW_READ, Permission.FLOW_WRITE, Permission.SCHEMA_READ)
+        ),
+        "certificate:reader": frozenset((Permission.CERTIFICATE_READ, Permission.SCHEMA_READ)),
+        "certificate:operator": frozenset(
+            (
+                Permission.CERTIFICATE_READ,
+                Permission.CERTIFICATE_WRITE,
+                Permission.SCHEMA_READ,
+            )
         ),
         "itam:reader": frozenset((Permission.ITAM_READ, Permission.SCHEMA_READ)),
         "itam:operator": frozenset(

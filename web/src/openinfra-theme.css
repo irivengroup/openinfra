@@ -1086,7 +1086,7 @@ body {
   }
 }
 
-/* v0.29.86: content-aware responsive navigation and compact aligned header controls. */
+/* v0.29.87: centered global search, compact component navigation and hover megamenu. */
 :root {
   --openinfra-toolbar-control-height: 2rem;
   --openinfra-navigation-wide-breakpoint: 75rem;
@@ -1111,16 +1111,17 @@ body {
 }
 
 .openinfra-component-nav {
-  display: grid;
-  flex: 1 1 auto;
-  gap: .2rem;
-  grid-template-columns: repeat(10, minmax(3.1rem, 1fr));
-  margin: 0 !important;
+  display: flex;
+  flex: 0 1 auto;
+  gap: .1rem;
+  justify-content: flex-end !important;
+  margin: 0 0 0 auto !important;
   min-width: 0;
   width: auto !important;
 }
 
 .openinfra-component-nav > li {
+  flex: 0 0 auto;
   min-width: 0;
 }
 
@@ -1132,18 +1133,43 @@ body {
   justify-content: center;
   line-height: 1.15;
   min-height: 3.4rem;
-  min-width: 0;
+  min-width: 4.15rem;
   overflow: hidden;
-  padding: .3rem .2rem;
+  padding: .3rem .42rem;
   text-overflow: ellipsis;
   white-space: nowrap;
-  width: 100%;
+  width: auto;
 }
 
 .openinfra-component-nav .nav-link span {
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.openinfra-component-nav .nav-link {
+  color: rgba(255, 255, 255, .84);
+}
+
+.openinfra-component-nav .nav-link:hover,
+.openinfra-component-nav .nav-link:focus-visible {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .2), rgba(var(--openinfra-cyan-rgb), .14));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .28), 0 .3rem .8rem rgba(0, 27, 65, .16);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.openinfra-component-nav .nav-link.active,
+.openinfra-component-nav .nav-link[aria-current="page"] {
+  background: linear-gradient(145deg, #fff, #eaf5ff 62%, #dff8ff);
+  box-shadow: 0 .45rem 1rem rgba(0, 27, 65, .2), inset 0 0 0 1px rgba(var(--openinfra-cyan-rgb), .34);
+  color: var(--openinfra-blue);
+}
+
+.openinfra-component-nav .nav-link.active .openinfra-top-icon,
+.openinfra-component-nav .nav-link[aria-current="page"] .openinfra-top-icon {
+  color: var(--openinfra-action);
+  filter: drop-shadow(0 .12rem .22rem rgba(var(--openinfra-action-rgb), .2));
 }
 
 .openinfra-compact-menu-button {
@@ -1158,13 +1184,13 @@ body {
 }
 
 .openinfra-global-toolbar {
-  padding-block: .375rem !important;
+  padding-block: .5rem !important;
 }
 
 .openinfra-global-toolbar-inner {
   align-items: center;
   gap: .65rem;
-  grid-template-columns: minmax(0, 1fr) minmax(18rem, 48rem) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 50%) minmax(0, 1fr);
 }
 
 .openinfra-global-search-control .form-control {
@@ -1354,25 +1380,39 @@ body {
   }
 
   .openinfra-global-toolbar-inner {
-    grid-template-columns: minmax(12rem, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 50%) minmax(0, 1fr);
   }
 
   .openinfra-global-toolbar-spacer {
-    display: none;
+    display: block;
   }
 
   .openinfra-global-search-form {
-    grid-column: 1;
+    grid-column: 2;
+    justify-self: stretch;
+    width: 100%;
   }
 
   .openinfra-toolbar-actions {
-    grid-column: 2;
+    grid-column: 3;
   }
 }
 
 @media (min-width: 768px) and (max-width: 1199.98px) {
   .openinfra-mega-menu {
     display: block;
+  }
+
+  .openinfra-component-nav {
+    display: grid;
+    flex: 1 1 auto;
+    gap: .12rem;
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+    margin-left: auto !important;
+  }
+
+  .openinfra-component-nav > li {
+    min-width: 0;
   }
 
   .openinfra-top-header .openinfra-component-nav .nav-link {
@@ -1417,19 +1457,31 @@ body {
   }
 }
 
-@media (max-width: 575.98px) {
+@media (max-width: 767.98px) {
   .openinfra-global-toolbar-inner {
     grid-template-columns: minmax(0, 1fr);
+    row-gap: .45rem;
   }
 
-  .openinfra-global-search-form,
+  .openinfra-global-toolbar-spacer {
+    display: none;
+  }
+
+  .openinfra-global-search-form {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: center;
+    width: 50%;
+  }
+
   .openinfra-toolbar-actions {
     grid-column: 1;
-  }
-
-  .openinfra-toolbar-actions {
+    grid-row: 2;
     justify-self: center;
   }
+}
+
+@media (max-width: 575.98px) {
 
   .openinfra-brand-name {
     font-size: 1rem !important;

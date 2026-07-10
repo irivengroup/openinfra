@@ -1,3 +1,9 @@
+## v0.29.87 — Ajustements du header et mégamenu au survol
+
+- `REQ-00811` impose l’ouverture du mégamenu au survol ou au focus dans le mode intermédiaire, avec clic de secours accessible.
+- `REQ-00825` restaure le padding vertical initial de la seconde barre (`0,5 rem`), conserve la recherche à `2 rem`, centrée et large de 50 %, rapproche les composants à droite sur grand écran et renforce les états actif/hover/focus.
+- Les autres règles responsive, tactiles, FR/EN, Swagger/ReDoc et hiérarchie d’ombres restent inchangées.
+
 ### Validation v0.29.82 — Réconciliation Discovery multisource gouvernée
 
 Ajout de `REQ-00823` et `TST-WEB-122` : preuves immuables et hashées, scoring confiance/fraîcheur/complétude déterministe, conflits par chemin d’attribut, résolution complète justifiée, audit sans payload, pagination et migration PostgreSQL `0038_discovery_multisource_reconciliation.sql`, sans écriture RSOT directe.

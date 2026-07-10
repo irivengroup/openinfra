@@ -46,15 +46,29 @@ test('navigation breakpoints preserve sidebar, megamenu and compact modes', asyn
   assert.match(runtimeCss, /@media \(min-width: 768px\) and \(max-width: 1199\.98px\)[\s\S]*?\.openinfra-mega-menu\s*\{[\s\S]*?display: block;/);
   assert.match(runtimeCss, /@media \(max-width: 767\.98px\)[\s\S]*?\.openinfra-component-nav\s*\{[\s\S]*?display: none;/);
   assert.match(runtimeCss, /@media \(max-width: 767\.98px\)[\s\S]*?\.openinfra-compact-menu-button\s*\{[\s\S]*?display: inline-flex;/);
-  assert.match(runtimeCss, /grid-template-columns: repeat\(10, minmax\([^)]*\)\);/);
+  assert.match(runtimeCss, /@media \(min-width: 768px\) and \(max-width: 1199\.98px\)[\s\S]*?grid-template-columns: repeat\(10, minmax\(0, 1fr\)\);/);
+});
+
+test('megamenu opens on hover and keyboard focus while preserving click fallback', async () => {
+  const { reactSource, runtimeSource } = await sources();
+
+  assert.match(reactSource, /onMouseEnter=\{\(\) => openMegaMenu\(module\)\}/);
+  assert.match(reactSource, /onFocus=\{\(\) => openMegaMenu\(module\)\}/);
+  assert.match(runtimeSource, /addEventListener\("mouseenter", \(\) => this\.openMegaMenu/);
+  assert.match(runtimeSource, /addEventListener\("focus", \(\) => this\.openMegaMenu/);
+  assert.match(runtimeSource, /handleModuleNavigation\(moduleId\)[\s\S]*?this\.openMegaMenu\(moduleId\);/);
 });
 
 test('toolbar controls remain aligned and touch targets expand on coarse pointers', async () => {
   const { runtimeCss } = await sources();
 
   assert.match(runtimeCss, /--openinfra-toolbar-control-height: 2rem;/);
-  assert.match(runtimeCss, /\.openinfra-global-toolbar\s*\{[\s\S]*?padding-block: \.375rem !important;/);
+  assert.match(runtimeCss, /\.openinfra-global-toolbar\s*\{[\s\S]*?padding-block: \.5rem !important;/);
   assert.match(runtimeCss, /\.openinfra-global-search-control \.form-control\s*\{[\s\S]*?height: var\(--openinfra-toolbar-control-height\);/);
+
+  assert.match(runtimeCss, /\.openinfra-global-toolbar-inner\s*\{[\s\S]*?grid-template-columns: minmax\(0, 1fr\) minmax\(0, 50%\) minmax\(0, 1fr\);/);
+  assert.match(runtimeCss, /\.openinfra-component-nav\s*\{[\s\S]*?justify-content: flex-end !important;[\s\S]*?margin: 0 0 0 auto !important;/);
+  assert.match(runtimeCss, /\.openinfra-component-nav \.nav-link\.active,[\s\S]*?color: var\(--openinfra-blue\);/);
   assert.match(runtimeCss, /\.openinfra-language-control \.form-select,[\s\S]*?\.openinfra-api-doc-actions \.btn[\s\S]*?height: var\(--openinfra-toolbar-control-height\);/);
   assert.match(runtimeCss, /@media \(pointer: coarse\)[\s\S]*?--openinfra-toolbar-control-height: 2\.75rem;/);
 });

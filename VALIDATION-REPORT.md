@@ -1,22 +1,23 @@
-# OpenInfra v0.29.86 — Rapport de validation
+# OpenInfra v0.29.87 — Rapport de validation
 
 Date de validation : `2026-07-10`  
-Release : `0.29.86`  
-Périmètre : `P15 / EPIC-1501 — Graphe de dépendances RSOT` et `P08 / EPIC-0805 — Navigation responsive adaptative et header compact`
+Release : `0.29.87`  
+Périmètre : `P08 / EPIC-0805 — Ajustements du header, recherche globale centrée et mégamenu au survol` ; conservation intégrale de `P15 / EPIC-1501`
 
 ## Résultat global
 
-La livraison ajoute une projection de graphe en lecture du RSOT et refond la navigation web en trois modes exclusifs, sans supprimer ni dupliquer les opérations existantes.
+La livraison affine le contrat responsive existant sans retirer de fonctionnalité : hauteur initiale de la seconde barre restaurée, recherche globale compacte centrée à 50 %, composants rapprochés à droite, états visuels contrastés et mégamenu déclenché au survol/focus avec clic de secours. Le graphe RSOT livré en v0.29.86 reste inchangé.
 
-- Tests Python collectés : **634** dans **87 fichiers**.
+- Tests Python collectés : **635** dans **87 fichiers**.
 - Tests unitaires : **234 PASS**.
-- Tests d’intégration : **397 PASS**.
+- Tests d’intégration : **398 PASS**.
 - Tests d’architecture : **3 PASS**.
 - Couverture globale exacte : **98,0338384308 %** — `21 091 / 21 514` lignes couvertes.
 - Seuil bloquant : **98 % PASS**.
-- Tests frontend Node.js : **12 PASS**.
+- Tests frontend Node.js : **13 PASS**.
 - Lint frontend : **PASS**.
 - Build frontend Vite : **PASS**.
+- Vite **8.1.4** et plugin React actualisés ; `npm audit --audit-level=high` : **0 vulnérabilité**.
 
 La suite Python a été exécutée par lots avec accumulation dans un fichier de couverture unique. Les fichiers CLI et certains groupes DCIM dépassaient le timeout lorsqu’ils étaient instrumentés ensemble ; ils ont été isolés sans exclusion de test ni altération du calcul final.
 
@@ -40,7 +41,7 @@ La suite Python a été exécutée par lots avec accumulation dans un fichier de
 Trois modes non superposés sont appliqués selon la largeur utile :
 
 1. **Écran large — `>= 1200 px`** : sidebar persistante et scrollable sous le header fixe.
-2. **Tablette et portable compact — `768 px` à `1199,98 px`** : sidebar masquée ; les dix icônes de composants restent alignées et ouvrent un mégamenu contextuel multicolonne reprenant tous les contextes et opérations.
+2. **Tablette et portable compact — `768 px` à `1199,98 px`** : sidebar masquée ; les dix icônes de composants restent alignées et ouvrent au survol ou au focus un mégamenu contextuel multicolonne reprenant tous les contextes et opérations.
 3. **Mobile — `< 768 px`** : barre de composants remplacée par un bouton de menu unique ouvrant la navigation complète.
 
 Garanties validées :
@@ -55,18 +56,19 @@ Garanties validées :
 - parité exacte des styles React/runtime packagé ;
 - suppression de l’ancien mécanisme mobile `mobile-open` devenu redondant.
 
-## Header compact
+## Header et navigation ajustés
 
-- Padding vertical de la seconde barre réduit de `0,5 rem` à `0,375 rem`, soit **25 %**.
-- Recherche globale adaptée à une hauteur commune de `2 rem`.
-- Sélecteur FR/EN, Swagger et ReDoc alignés et centrés verticalement sur le même gabarit.
-- Hauteur automatiquement portée à `2,75 rem` sur périphérique tactile.
-- Ombre du header réduite à `0 .5rem 1.25rem ...`, tout en restant supérieure à l’ombre des blocs de contenu.
-- Header fixe et offset dynamique du contenu préservés.
+- Padding vertical initial de la seconde barre restauré à `0,5 rem`.
+- Recherche globale conservée à `2 rem`, centrée par rapport à la page et dimensionnée à `50 %` de la largeur disponible.
+- Composants compacts, rapprochés et alignés à droite sur écran large.
+- États actif, survol et focus rendus fortement contrastés sur le fond bleu du header.
+- En mode mégamenu, survol et focus ouvrent le panneau ; le clic reste disponible comme fallback tactile et accessible.
+- Sélecteur FR/EN, Swagger et ReDoc restent alignés ; les cibles tactiles atteignent `2,75 rem` sur pointeur grossier.
+- Ombre du header et offset dynamique du contenu préservés.
 
 ## Qualité, sécurité et typage
 
-- `ruff format --check src tests scripts docker` : **PASS**, **153 fichiers**.
+- `ruff format --check src tests scripts docker` : **PASS**, **154 fichiers**.
 - `ruff check src tests scripts docker` : **PASS**.
 - `mypy src/openinfra` : **PASS**, aucune erreur sur **57 modules source**.
 - `bandit -q -r src/openinfra` : **PASS**.

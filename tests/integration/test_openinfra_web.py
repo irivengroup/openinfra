@@ -346,7 +346,7 @@ class TestOpenInfraWeb:
         assert "--bs-btn-padding-x: .5rem" in static_css
         assert "font-size: .72rem" in static_css
         assert "min-width: 2.875rem" in static_css
-        assert "grid-template-columns: minmax(0, 1fr) minmax(18rem, 48rem) auto" in static_css
+        assert "grid-template-columns: minmax(0, 1fr) minmax(0, 50%) minmax(0, 1fr)" in static_css
         assert "RSOT (Ressource Source of Truth)" in static_js
         assert 'icon: "reference"' in static_js
         assert "icon: 'reference'" in main_js
@@ -459,7 +459,10 @@ class TestOpenInfraWeb:
         assert 'fetch("/status"' in static_js
         assert "@media (max-width: 575.98px)" in static_css
         assert "v0.29.65: responsive sidebar" in static_css
-        assert "v0.29.86: content-aware responsive navigation" in static_css
+        assert (
+            "v0.29.87: centered global search, compact component navigation and hover megamenu"
+            in static_css
+        )
         assert "openinfra-component-nav" in static_js + static_css + main_js
         assert "openinfra-mega-menu" in static_js + static_css + main_js
         assert "openinfra-compact-menu-button" in static_js + static_css + main_js
@@ -470,6 +473,10 @@ class TestOpenInfraWeb:
         assert "mobileSidebarOpen" in static_js + main_js
         assert "isMegamenuViewport" in static_js + main_js
         assert "closeResponsiveNavigation" in static_js + main_js
+        assert "openMegaMenu" in static_js + main_js
+        assert "mouseenter" in static_js
+        assert "onMouseEnter" in main_js
+        assert "openinfra-component-link" in static_js + main_js
         assert "shouldCloseMobileSidebar" not in static_js
         assert "mobile-open" not in static_js + static_css + main_js
         assert "M2 4h12v1.4H2V4zm0 3.3h12v1.4H2V7.3zm0 3.3h12V12H2v-1.4z" in static_js + main_js
@@ -482,7 +489,7 @@ class TestOpenInfraWeb:
         assert "@media (max-width: 1199.98px)" in static_css
         assert "@media (min-width: 768px) and (max-width: 1199.98px)" in static_css
         assert "@media (max-width: 767.98px)" in static_css
-        assert "grid-template-columns: repeat(10, minmax(3.1rem, 1fr))" in static_css
+        assert "grid-template-columns: repeat(10, minmax(0, 1fr))" in static_css
         assert "--openinfra-navy: #001b41" in static_css
         assert "--openinfra-action: #0066ff" in static_css
         assert "--openinfra-green: #15a362" in static_css

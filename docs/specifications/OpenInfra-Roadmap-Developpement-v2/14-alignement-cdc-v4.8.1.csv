@@ -91,5 +91,5 @@ REQ-00821,Adresse complète sites DCIM organisations ITAM et partenaires,P14,EPI
 REQ-00822,Profils Discovery virtualisation Kubernetes et cloud,P14,EPIC-1404,0.29.81,TST-P14-DISCOVERY-INTEGRATION-PROFILES
 REQ-00823,Réconciliation Discovery multisource gouvernée,P14,EPIC-1405,0.29.82,TST-P14-DISCOVERY-MULTISOURCE-RECONCILIATION
 REQ-00824,Internationalisation complète du portail FR/EN avec détection navigateur et fallback EN,P08,EPIC-0807,0.29.85,TST-P08-WEB-I18N-FR-EN
-REQ-00811,Navigation responsive adaptative sidebar mégamenu et menu compact sans perte fonctionnelle,P08,EPIC-0805,0.29.86,TST-P08-WEB-RESPONSIVE-NAVIGATION
-REQ-00825,Header compact recherche proportionnée contrôles alignés et hiérarchie d’ombres,P08,EPIC-0805,0.29.86,TST-P08-WEB-COMPACT-HEADER
+REQ-00811,Navigation responsive adaptative sidebar mégamenu et menu compact sans perte fonctionnelle,P08,EPIC-0805,0.29.87,TST-P08-WEB-RESPONSIVE-NAVIGATION
+REQ-00825,Header hauteur initiale recherche 50 % centrée composants compacts et états contrastés,P08,EPIC-0805,0.29.87,TST-P08-WEB-COMPACT-HEADER

@@ -1,3 +1,7 @@
+## OpenInfra 0.29.87 — Ajustements header et mégamenu
+
+`EPIC-0805` conserve les trois modes responsive mais précise que le mégamenu intermédiaire s’ouvre au survol ou au focus, avec clic de secours. La seconde barre retrouve son padding initial de `0,5 rem`; la recherche reste haute de `2 rem`, centrée et large de 50 %. Sur écran large, les composants restent compacts et alignés à droite avec des états actif, hover et focus contrastés.
+
 ### Validation v0.29.82 — Réconciliation Discovery multisource gouvernée
 
 La roadmap réalise `EPIC-1405` via `TST-P14-DISCOVERY-MULTISOURCE-RECONCILIATION` : preuves immuables, scores reproductibles, conflits explicites par attribut, résolution complète et justifiée, audit, pagination, persistance JSON/PostgreSQL partitionnée et interdiction de toute mutation RSOT silencieuse.

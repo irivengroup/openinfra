@@ -1,3 +1,10 @@
+## v0.29.87 — Traçabilité ajustements header et mégamenu
+
+- Exigences mises à jour : `REQ-00811` (mégamenu au survol/focus, clic de secours) et `REQ-00825` (hauteur initiale restaurée, recherche 50 % centrée, navigation compacte et états contrastés).
+- Tests contractuels mis à jour : `TST-WEB-124`, `TST-WEB-125`, tests Node.js `responsive-navigation.test.mjs`, tests Python `test_responsive_navigation_contract.py` et `test_openinfra_web.py`.
+- Roadmap réalignée sur `P08 / EPIC-0805` sans nouvel epic ni nouvelle migration.
+- Parité stricte des assets `web/src/openinfra-theme.css` et `src/openinfra/interfaces/rendering/static/assets/openinfra-web.css`.
+
 ## v0.29.86 — Traçabilité navigation responsive web
 
 - CDC : `REQ-00811` réalignée sur les trois modes de navigation et `REQ-00825` pour le header compact, les contrôles alignés et la hiérarchie des ombres.

@@ -1217,19 +1217,27 @@ function Dashboard() {
     setLanguage(normalized);
   }
 
+  function openMegaMenu(module) {
+    if (module.id === 'overview' || !isMegamenuViewport()) {
+      return;
+    }
+    setActiveNavigationModuleId(module.id);
+    setMobileSidebarOpen(false);
+    setMegaMenuModuleId(module.id);
+  }
+
   function handleModuleNavigation(module) {
     if (module.id === 'overview' || !isMegamenuViewport()) {
       chooseOperation(module, module.operations[0]);
       return;
     }
-    setActiveNavigationModuleId(module.id);
-    setMobileSidebarOpen(false);
-    setMegaMenuModuleId((current) => current === module.id ? null : module.id);
+    openMegaMenu(module);
   }
 
   function closeResponsiveNavigation() {
     setMobileSidebarOpen(false);
     setMegaMenuModuleId(null);
+    setActiveNavigationModuleId(activeModuleId);
   }
 
   function execute() {
@@ -1266,7 +1274,7 @@ function Dashboard() {
               <span className="badge openinfra-edition-badge ms-3">{config.edition || 'runtime'}</span>
             </a>
             <ul className="nav justify-content-center text-small openinfra-component-nav" aria-label={i18n.t('navigation')}>
-              {MODULES.map((module) => <li key={module.id}><button type="button" className={`nav-link border-0 bg-transparent ${activeNavigationModuleId === module.id ? 'text-secondary' : 'text-white'}`} aria-current={activeNavigationModuleId === module.id ? 'page' : undefined} aria-haspopup={module.id === 'overview' ? undefined : 'true'} aria-expanded={module.id === 'overview' ? undefined : megaMenuModuleId === module.id} aria-controls={module.id === 'overview' ? undefined : 'openinfra-mega-menu'} onClick={() => handleModuleNavigation(module)}><Icon name={module.icon} className="bi d-block mx-auto mb-1 openinfra-top-icon" /><span>{module.shortLabel || module.label}</span></button></li>)}
+              {MODULES.map((module) => <li key={module.id}><button type="button" className={`nav-link border-0 bg-transparent openinfra-component-link ${activeNavigationModuleId === module.id ? 'active' : ''}`} aria-current={activeNavigationModuleId === module.id ? 'page' : undefined} aria-haspopup={module.id === 'overview' ? undefined : 'true'} aria-expanded={module.id === 'overview' ? undefined : megaMenuModuleId === module.id} aria-controls={module.id === 'overview' ? undefined : 'openinfra-mega-menu'} onMouseEnter={() => openMegaMenu(module)} onFocus={() => openMegaMenu(module)} onClick={() => handleModuleNavigation(module)}><Icon name={module.icon} className="bi d-block mx-auto mb-1 openinfra-top-icon" /><span>{module.shortLabel || module.label}</span></button></li>)}
             </ul>
             <button type="button" id="openinfra-compact-menu-button" className="btn btn-primary openinfra-compact-menu-button" aria-label={i18n.t(mobileSidebarOpen ? 'closeNavigation' : 'openNavigation')} aria-expanded={mobileSidebarOpen} aria-controls="openinfra-compact-navigation" onClick={() => { setMegaMenuModuleId(null); setMobileSidebarOpen((open) => !open); }}><Icon name="menu" className="openinfra-mobile-menu-icon" /><span className="visually-hidden">Menu</span></button>
           </div>

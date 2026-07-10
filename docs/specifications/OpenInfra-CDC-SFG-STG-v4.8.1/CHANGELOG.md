@@ -1,3 +1,9 @@
+## v4.8.1 / OpenInfra 0.29.87 — Ajustements header et mégamenu
+
+- Réalignement de `REQ-00811` sur l’ouverture au survol/focus avec clic de secours.
+- Réalignement de `REQ-00825` sur la hauteur initiale de la seconde barre, la recherche 50 % centrée et les états visuels contrastés.
+- Mise à jour des tests existants sans création d’exigence ou de cas de test redondant.
+
 ## v4.8.1 / OpenInfra 0.29.86 — Navigation responsive adaptative et header compact
 
 - Réalignement de `REQ-00811` sur trois surfaces de navigation sans perte fonctionnelle : sidebar desktop, mégamenu contextuel intermédiaire et menu compact mobile.

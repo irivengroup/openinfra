@@ -1,3 +1,9 @@
+## OpenInfra 0.29.87 — Ajustements header et mégamenu
+
+- Réalignement de `EPIC-0805` sur l’ouverture hover/focus du mégamenu avec clic de secours.
+- Restauration de la hauteur initiale de la seconde barre, recherche 50 % centrée et composants compacts à droite.
+- Mise à jour des validations existantes `TST-P08-WEB-RESPONSIVE-NAVIGATION` et `TST-P08-WEB-COMPACT-HEADER`.
+
 ## OpenInfra 0.29.86 — Navigation responsive adaptative et header compact
 
 - EPIC-0805 est renforcé par trois modes de navigation sans perte fonctionnelle : sidebar desktop, mégamenu contextuel intermédiaire et menu compact mobile.

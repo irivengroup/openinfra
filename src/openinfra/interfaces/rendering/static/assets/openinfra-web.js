@@ -1430,7 +1430,29 @@ class OpenInfraDashboard {
   }
 
   closeResponsiveNavigation() {
-    this.state = { ...this.state, mobileSidebarOpen: false, megaMenuModuleId: null };
+    this.state = {
+      ...this.state,
+      activeNavigationModuleId: this.state.activeModuleId,
+      mobileSidebarOpen: false,
+      megaMenuModuleId: null
+    };
+    this.render();
+  }
+
+  openMegaMenu(moduleId) {
+    const module = OPENINFRA_MODULES.find((item) => item.id === moduleId);
+    if (!module || module.id === "overview" || !this.isMegamenuViewport()) {
+      return;
+    }
+    if (this.state.megaMenuModuleId === module.id) {
+      return;
+    }
+    this.state = {
+      ...this.state,
+      activeNavigationModuleId: module.id,
+      megaMenuModuleId: module.id,
+      mobileSidebarOpen: false
+    };
     this.render();
   }
 
@@ -1443,14 +1465,7 @@ class OpenInfraDashboard {
       this.selectModule(moduleId);
       return;
     }
-    const nextModuleId = this.state.megaMenuModuleId === module.id ? null : module.id;
-    this.state = {
-      ...this.state,
-      activeNavigationModuleId: module.id,
-      megaMenuModuleId: nextModuleId,
-      mobileSidebarOpen: false
-    };
-    this.render();
+    this.openMegaMenu(moduleId);
   }
 
   visibleOperations(module) {
@@ -1715,7 +1730,7 @@ class OpenInfraDashboard {
               </a>
               <ul class="nav justify-content-center text-small openinfra-component-nav" aria-label="${this.escape(this.i18n.t("navigation"))}">
                 ${OPENINFRA_MODULES.map((module) => `
-                  <li><button type="button" class="nav-link border-0 bg-transparent ${activeNavigationModuleId === module.id ? "text-secondary" : "text-white"}" data-module-id="${this.escape(module.id)}" aria-current="${activeNavigationModuleId === module.id ? "page" : "false"}" ${module.id === "overview" ? "" : `aria-haspopup="true" aria-expanded="${this.state.megaMenuModuleId === module.id ? "true" : "false"}" aria-controls="openinfra-mega-menu"`}>
+                  <li><button type="button" class="nav-link border-0 bg-transparent openinfra-component-link ${activeNavigationModuleId === module.id ? "active" : ""}" data-module-id="${this.escape(module.id)}" aria-current="${activeNavigationModuleId === module.id ? "page" : "false"}" ${module.id === "overview" ? "" : `aria-haspopup="true" aria-expanded="${this.state.megaMenuModuleId === module.id ? "true" : "false"}" aria-controls="openinfra-mega-menu"`}>
                     ${this.icon(module.icon, "bi d-block mx-auto mb-1 openinfra-top-icon", 24, 24)}<span>${this.escape(module.shortLabel || module.label)}</span>
                   </button></li>
                 `).join("")}
@@ -2207,6 +2222,8 @@ class OpenInfraDashboard {
     document.getElementById("openinfra-mega-menu-close")?.addEventListener("click", () => this.closeResponsiveNavigation());
     document.getElementById("openinfra-compact-navigation-close")?.addEventListener("click", () => this.closeResponsiveNavigation());
     for (const button of document.querySelectorAll("[data-module-id]")) {
+      button.addEventListener("mouseenter", () => this.openMegaMenu(button.dataset.moduleId));
+      button.addEventListener("focus", () => this.openMegaMenu(button.dataset.moduleId));
       button.addEventListener("click", () => this.handleModuleNavigation(button.dataset.moduleId));
     }
     for (const button of document.querySelectorAll("[data-accordion-id]")) {

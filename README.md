@@ -1,8 +1,8 @@
-# OpenInfra v0.29.86
+# OpenInfra v0.29.87
 
 ## Graphe de dépendances RSOT
 
-OpenInfra v0.29.86 livre **P15 / EPIC-1501** sous la forme d'une projection de lecture du RSOT (Reference Source of Truth). Le moteur parcourt les relations historisées sans dupliquer les objets, supporte les directions entrante, sortante et bidirectionnelle, tolère les cycles et borne systématiquement la profondeur et le nombre de nœuds.
+OpenInfra v0.29.87 affine **P08 / EPIC-0805** : la seconde barre du header retrouve sa hauteur initiale tout en conservant une recherche compacte, centrée et dimensionnée à 50 % de la largeur disponible. Les composants du header restent compacts et alignés à droite sur écran large, disposent d'états actif/survol fortement contrastés et ouvrent leur mégamenu au survol ou au focus en mode intermédiaire. Le moteur de graphe **P15 / EPIC-1501** livré en v0.29.86 reste intégralement préservé.
 
 Les opérateurs disposent de trois fonctions complémentaires : exploration du voisinage d'un objet, recherche du chemin le plus court et analyse d'impact direct/indirect. Les filtres par type de relation et le paramètre historique `as_of` sont disponibles en CLI, API HTTP, OpenAPI et portail web FR/EN. Toutes les consultations nécessitent la permission `rsot.read` et produisent un événement d'audit.
 

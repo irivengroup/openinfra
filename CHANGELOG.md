@@ -1,3 +1,14 @@
+## v0.29.87 — Ajustements UX du header et mégamenu au survol
+
+- Restauration du padding vertical initial de la seconde barre du header (`0,5 rem`) sans modifier la hauteur compacte de la recherche (`2 rem`).
+- Recherche globale centrée par rapport à la page et dimensionnée à 50 % de la largeur disponible sur tous les modes responsive.
+- Retour à une disposition compacte des composants, alignés à droite sur écran large, sans étirement artificiel entre les icônes.
+- Nouveaux états visuels actif, survol et focus à contraste renforcé, cohérents avec le thème bleu/cyan OpenInfra.
+- Ouverture du mégamenu au survol et au focus clavier en mode 768–1199,98 px ; le clic reste un fallback tactile et accessible.
+- Parité React/runtime packagé et mise à jour des gates frontend, Node.js et Python.
+- Mise à niveau de Vite vers 8.1.4 et du plugin React associé ; audit npm ramené à zéro vulnérabilité.
+- Réalignement de `REQ-00811`, `REQ-00825`, `TST-WEB-124`, `TST-WEB-125` et `EPIC-0805` sans création d'une exigence redondante.
+
 ## v0.29.86 — Graphe de dépendances RSOT, navigation responsive et analyse d’impact
 
 - Refonte responsive de la navigation web en trois modes : sidebar desktop, mégamenu multicolonne tablette/portable compact et menu unique mobile.

@@ -1,3 +1,9 @@
+## v0.29.87 — Ajustements du header et mégamenu au survol
+
+- `REQ-00811` impose l’ouverture du mégamenu au survol ou au focus dans le mode intermédiaire, avec clic de secours accessible.
+- `REQ-00825` restaure le padding vertical initial de la seconde barre (`0,5 rem`), conserve la recherche à `2 rem`, centrée et large de 50 %, rapproche les composants à droite sur grand écran et renforce les états actif/hover/focus.
+- Les autres règles responsive, tactiles, FR/EN, Swagger/ReDoc et hiérarchie d’ombres restent inchangées.
+
 - Ajout de `REQ-00796` et `TST-WEB-097` pour couvrir P13 / EPIC-1302 : lecture streaming par chunks des artefacts d’export massifs signés avec offset, SHA-256 chunk et reprise client.
 - Ajout de `REQ-00795` et `TST-WEB-096` pour couvrir P13 / EPIC-1301 : progression opérable des imports massifs reprenables via service, CLI, API, OpenAPI et portail web.
 ## v0.29.51 — ITAM licences logicielles, contrats et conformité

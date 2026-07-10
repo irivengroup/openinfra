@@ -21,7 +21,7 @@ def test_react_and_packaged_runtime_share_responsive_navigation_styles() -> None
     assert static_css == react_css
     assert "--openinfra-header-shadow: 0 .5rem 1.25rem" in static_css
     assert "--openinfra-content-shadow: 0 .16rem .55rem" in static_css
-    assert "padding-block: .375rem !important" in static_css
+    assert "padding-block: .5rem !important" in static_css
     assert "--openinfra-toolbar-control-height: 2rem" in static_css
     assert "@media (pointer: coarse)" in static_css
     assert "--openinfra-toolbar-control-height: 2.75rem" in static_css
@@ -52,7 +52,11 @@ def test_navigation_contract_has_three_non_overlapping_layout_modes() -> None:
         css,
         re.DOTALL,
     )
-    assert "grid-template-columns: repeat(10, minmax(" in css
+    assert "grid-template-columns: repeat(10, minmax(0, 1fr))" in css
+    assert "justify-content: flex-end !important" in css
+    assert "margin: 0 0 0 auto !important" in css
+    assert "minmax(0, 50%)" in css
+    assert ".openinfra-component-nav .nav-link.active" in css
 
 
 def test_both_portals_expose_accessible_megamenu_and_compact_navigation() -> None:
@@ -70,8 +74,21 @@ def test_both_portals_expose_accessible_megamenu_and_compact_navigation() -> Non
         assert "aria-expanded" in source
         assert "closeResponsiveNavigation" in source
         assert "isMegamenuViewport" in source
+        assert "openMegaMenu" in source
 
     assert 'document.addEventListener("keydown", this.handleDocumentKeydown)' in static_js
     assert "document.addEventListener('keydown', closeResponsiveNavigation)" in react_js
     assert 'renderSidebar("compact")' in static_js
     assert 'surface="compact"' in react_js
+
+
+def test_megamenu_supports_hover_focus_and_click_fallback() -> None:
+    static_js = _read(STATIC_JS)
+    react_js = _read(REACT_JS)
+
+    assert 'addEventListener("mouseenter", () => this.openMegaMenu' in static_js
+    assert 'addEventListener("focus", () => this.openMegaMenu' in static_js
+    assert "onMouseEnter={() => openMegaMenu(module)}" in react_js
+    assert "onFocus={() => openMegaMenu(module)}" in react_js
+    assert "openinfra-component-link" in static_js
+    assert "openinfra-component-link" in react_js

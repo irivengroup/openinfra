@@ -1,6 +1,14 @@
-# OpenInfra v0.29.91
+# OpenInfra v0.29.92
 
-OpenInfra v0.29.91 réalise **P15 / EPIC-1504** avec une conformité réseau fondée sur des golden configurations versionnées et des configurations découvertes immuables. Le moteur produit des écarts structurés et auditables sans appliquer automatiquement de changement sur les équipements.
+OpenInfra v0.29.92 réalise **P15 / EPIC-1505** avec une visualisation gouvernée des dépendances et une détection déterministe des **SPOF** (*Single Points of Failure*, points uniques de défaillance) sur la projection RSOT existante.
+
+## Visualisations d’impact et SPOF
+
+L’analyse utilise les dominateurs enracinés : un objet est classé SPOF lorsque sa suppression rend inaccessibles d’autres objets depuis la racine, dans le sens de dépendance demandé. Les résultats sont bornés, filtrables, paginés et signalent explicitement toute projection tronquée afin de ne jamais présenter une analyse partielle comme exhaustive.
+
+Le portail fournit une vue en couches accessible au clavier, un classement tabulaire des SPOF, un résultat JSON de repli et des exports JSON, CSV ou GraphML. Les mêmes capacités sont disponibles en CLI, API HTTP et OpenAPI avec la permission `rsot.read` et un audit systématique.
+
+Voir `docs/operations/dependency-graph.md` pour les contrats, limites, commandes, exemples d’export et règles d’interprétation.
 
 ## Conformité réseau par golden configuration
 
@@ -18,11 +26,11 @@ Les opérations sont disponibles en CLI, API HTTP, OpenAPI et portail web FR/EN.
 
 ## Graphe de dépendances RSOT
 
-OpenInfra v0.29.88 renforce **P08 / EPIC-0805** avec une baseline d’accessibilité WCAG 2.2 AA appliquée à toutes les pages et aux deux runtimes web. La navigation clavier, les lecteurs d’écran, les annonces dynamiques, les formulaires, le contraste, les couleurs forcées et la réduction des mouvements sont intégrés au contrat de livraison. Les états actif/survol du header sont désormais plus discrets, les angles moins perceptibles et les transitions bounce/fade respectent `prefers-reduced-motion`. Le moteur de graphe **P15 / EPIC-1501** reste intégralement préservé.
+Le moteur de graphe **P15 / EPIC-1501** reste une projection en lecture du RSOT. Il couvre l’exploration du voisinage, la recherche du chemin le plus court et l’analyse d’impact direct/indirect. **EPIC-1505** ajoute la détection des SPOF, les visualisations accessibles et les exports gouvernés sans modifier les objets ni les relations sources.
 
-Les opérateurs disposent de trois fonctions complémentaires : exploration du voisinage d'un objet, recherche du chemin le plus court et analyse d'impact direct/indirect. Les filtres par type de relation et le paramètre historique `as_of` sont disponibles en CLI, API HTTP, OpenAPI et portail web FR/EN. Toutes les consultations nécessitent la permission `rsot.read` et produisent un événement d'audit.
+Les filtres par type de relation et le paramètre historique `as_of` sont disponibles en CLI, API HTTP, OpenAPI et portail web FR/EN. Toutes les consultations nécessitent la permission `rsot.read` et produisent un événement d’audit.
 
-Voir `docs/operations/dependency-graph.md` pour les contrats d'exploitation et les commandes.
+Voir `docs/operations/dependency-graph.md` pour les contrats d’exploitation et les commandes.
 
 ## Navigation web responsive
 

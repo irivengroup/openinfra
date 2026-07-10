@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.91
+  version: 0.29.92
 components:
   securitySchemes:
     bearerToken:
@@ -2047,6 +2047,100 @@ paths:
       responses:
         '200': {description: Shortest path result, including found=false when no path exists}
         '400': {description: Invalid graph constraints or query}
+        '401': {description: Missing or invalid Bearer token}
+
+  /api/v1/graph/spof:
+    get:
+      operationId: analyzeDependencySinglePointsOfFailure
+      summary: Identify dependency single points of failure
+      description: Computes rooted dominators over the bounded RSOT dependency projection. A returned candidate is a SPOF because removing it makes at least minimum_affected_nodes other reachable objects unreachable from the selected root. Candidate filters do not alter topology correctness; they only filter the ranked result set.
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: root_key, in: query, required: true, schema: {type: string}}
+        - {name: direction, in: query, required: false, schema: {type: string, enum: [outgoing, incoming, both], default: both}}
+        - {name: max_depth, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 12, default: 8}}
+        - {name: max_nodes, in: query, required: false, schema: {type: integer, minimum: 2, maximum: 5000, default: 2000}}
+        - {name: relation_type, in: query, required: false, schema: {type: array, maxItems: 100, items: {type: string}}, style: form, explode: true}
+        - {name: as_of, in: query, required: false, schema: {type: string, format: date-time}}
+        - {name: candidate_kind, in: query, required: false, schema: {type: array, maxItems: 100, items: {type: string}}, style: form, explode: true}
+        - {name: candidate_resource_category, in: query, required: false, schema: {type: array, maxItems: 100, items: {type: string}}, style: form, explode: true}
+        - {name: candidate_resource_type, in: query, required: false, schema: {type: array, maxItems: 100, items: {type: string}}, style: form, explode: true}
+        - {name: candidate_status, in: query, required: false, schema: {type: array, maxItems: 100, items: {type: string}}, style: form, explode: true}
+        - {name: minimum_affected_nodes, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 4999, default: 1}}
+        - {name: affected_sample_limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 200, default: 25}}
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, required: false, schema: {type: string}}
+      responses:
+        '200':
+          description: Ranked and paginated SPOF report. complete=false means the source graph reached max_nodes and the analysis is limited to that bounded projection.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [root_key, direction, node_count, edge_count, spof_count, returned_count, complete, algorithm, items]
+                properties:
+                  root_key: {type: string}
+                  direction: {type: string, enum: [outgoing, incoming, both]}
+                  node_count: {type: integer}
+                  edge_count: {type: integer}
+                  spof_count: {type: integer}
+                  returned_count: {type: integer}
+                  next_cursor: {type: string, nullable: true}
+                  complete: {type: boolean}
+                  algorithm: {type: string, enum: [rooted-dominators]}
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [rank, node, affected_count, direct_affected_count, affected_ratio]
+                      properties:
+                        rank: {type: integer}
+                        node: {type: object}
+                        affected_count: {type: integer}
+                        direct_affected_count: {type: integer}
+                        affected_ratio: {type: number, format: double}
+                        affected_sample: {type: array, items: {type: string}}
+                        affected_sample_truncated: {type: boolean}
+        '400': {description: Invalid graph constraints, filters or cursor}
+        '401': {description: Missing or invalid Bearer token}
+  /api/v1/graph/export:
+    get:
+      operationId: exportDependencyGraph
+      summary: Export the bounded dependency graph
+      description: Exports the selected dependency projection as JSON, normalized CSV or GraphML. Optional SPOF annotations are computed with the same rooted-dominator semantics and never modify RSOT data.
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: root_key, in: query, required: true, schema: {type: string}}
+        - {name: format, in: query, required: false, schema: {type: string, enum: [json, csv, graphml], default: json}}
+        - {name: direction, in: query, required: false, schema: {type: string, enum: [outgoing, incoming, both], default: both}}
+        - {name: max_depth, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 12, default: 8}}
+        - {name: max_nodes, in: query, required: false, schema: {type: integer, minimum: 2, maximum: 5000, default: 2000}}
+        - {name: relation_type, in: query, required: false, schema: {type: array, maxItems: 100, items: {type: string}}, style: form, explode: true}
+        - {name: as_of, in: query, required: false, schema: {type: string, format: date-time}}
+        - {name: include_spof, in: query, required: false, schema: {type: boolean, default: true}}
+        - {name: candidate_kind, in: query, required: false, schema: {type: array, maxItems: 100, items: {type: string}}, style: form, explode: true}
+        - {name: candidate_resource_category, in: query, required: false, schema: {type: array, maxItems: 100, items: {type: string}}, style: form, explode: true}
+        - {name: candidate_resource_type, in: query, required: false, schema: {type: array, maxItems: 100, items: {type: string}}, style: form, explode: true}
+        - {name: candidate_status, in: query, required: false, schema: {type: array, maxItems: 100, items: {type: string}}, style: form, explode: true}
+        - {name: minimum_affected_nodes, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 4999, default: 1}}
+      responses:
+        '200':
+          description: Downloadable graph export with Content-Disposition attachment header
+          headers:
+            Content-Disposition:
+              schema: {type: string}
+          content:
+            application/json:
+              schema: {type: string, format: binary}
+            text/csv:
+              schema: {type: string, format: binary}
+            application/graphml+xml:
+              schema: {type: string, format: binary}
+        '400': {description: Invalid graph constraints, filters or export format}
         '401': {description: Missing or invalid Bearer token}
 
   /api/v1/rsot/resource-taxonomy:

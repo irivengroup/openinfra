@@ -669,9 +669,41 @@ const MODULES = [
     { id: 'rsot-reconcile', label: 'Réconcilier une ressource', path: '/v1/rsot/reconcile-object', method: 'POST', fields: ['Opérateur', 'Clé RSOT', 'Source entrante', 'Catégorie', 'Type de ressource', 'Nom affiché cible', 'Numéro de série', 'Constructeur accrédité', 'Modèle', 'Site', 'Rack', 'Tags', 'Appliquer le plan'] },
   ] },
   { id: 'graph', label: 'Graphe de dépendances', shortLabel: 'Graphe', icon: 'activity', operations: [
-    { id: 'graph-traverse', label: 'Explorer le graphe de dépendances', path: '/v1/graph/traverse', method: 'GET', fields: ['Clé racine', 'Direction', 'Profondeur maximale', 'Nombre maximal de nœuds', 'Type de relation', 'Date ISO-8601'] },
-    { id: 'graph-impact', label: 'Analyser les impacts', path: '/v1/graph/impact', method: 'GET', fields: ['Clé racine', 'Direction', 'Profondeur maximale', 'Nombre maximal de nœuds', 'Type de relation', 'Date ISO-8601'] },
-    { id: 'graph-path', label: 'Trouver le chemin le plus court', path: '/v1/graph/path', method: 'GET', fields: ['Ressource source', 'Ressource cible', 'Direction', 'Profondeur maximale', 'Nombre maximal de nœuds', 'Type de relation', 'Date ISO-8601'] },
+    { id: 'graph-traverse', label: 'Explorer le graphe de dépendances', path: '/v1/graph/traverse', method: 'GET', fields: [
+      { name: 'root_key', label: 'Clé racine', required: true }, { name: 'direction', label: 'Direction', type: 'select', options: ['outgoing', 'incoming', 'both'], defaultValue: 'both' },
+      { name: 'max_depth', label: 'Profondeur maximale', type: 'number', defaultValue: '3' }, { name: 'max_nodes', label: 'Nombre maximal de nœuds', type: 'number', defaultValue: '500' },
+      { name: 'relation_type', label: 'Type de relation' }, { name: 'as_of', label: 'Date ISO-8601' },
+    ] },
+    { id: 'graph-impact', label: 'Analyser les impacts', path: '/v1/graph/impact', method: 'GET', fields: [
+      { name: 'root_key', label: 'Clé racine', required: true }, { name: 'direction', label: 'Direction', type: 'select', options: ['incoming', 'outgoing', 'both'], defaultValue: 'incoming' },
+      { name: 'max_depth', label: 'Profondeur maximale', type: 'number', defaultValue: '6' }, { name: 'max_nodes', label: 'Nombre maximal de nœuds', type: 'number', defaultValue: '1000' },
+      { name: 'relation_type', label: 'Type de relation' }, { name: 'as_of', label: 'Date ISO-8601' },
+    ] },
+    { id: 'graph-path', label: 'Trouver le chemin le plus court', path: '/v1/graph/path', method: 'GET', fields: [
+      { name: 'source_key', label: 'Ressource source', required: true }, { name: 'target_key', label: 'Ressource cible', required: true },
+      { name: 'direction', label: 'Direction', type: 'select', options: ['outgoing', 'incoming', 'both'], defaultValue: 'outgoing' },
+      { name: 'max_depth', label: 'Profondeur maximale', type: 'number', defaultValue: '8' }, { name: 'max_nodes', label: 'Nombre maximal de nœuds', type: 'number', defaultValue: '1000' },
+      { name: 'relation_type', label: 'Type de relation' }, { name: 'as_of', label: 'Date ISO-8601' },
+    ] },
+    { id: 'graph-spof', label: 'Détecter les points uniques de défaillance', path: '/v1/graph/spof', method: 'GET', fields: [
+      { name: 'root_key', label: 'Clé racine', required: true }, { name: 'direction', label: 'Direction', type: 'select', options: ['outgoing', 'incoming', 'both'], defaultValue: 'both' },
+      { name: 'max_depth', label: 'Profondeur maximale', type: 'number', defaultValue: '8' }, { name: 'max_nodes', label: 'Nombre maximal de nœuds', type: 'number', defaultValue: '2000' },
+      { name: 'relation_type', label: 'Type de relation' }, { name: 'as_of', label: 'Date ISO-8601' },
+      { name: 'candidate_kind', label: 'Type de candidat' }, { name: 'candidate_resource_category', label: 'Catégorie ressource candidate' },
+      { name: 'candidate_resource_type', label: 'Type de ressource candidat' }, { name: 'candidate_status', label: 'Statut candidat' },
+      { name: 'minimum_affected_nodes', label: 'Nombre minimal d’objets affectés', type: 'number', defaultValue: '1' },
+      { name: 'affected_sample_limit', label: 'Limite échantillon affecté', type: 'number', defaultValue: '25' },
+      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
+    ] },
+    { id: 'graph-export', label: 'Exporter le graphe de dépendances', path: '/v1/graph/export', method: 'GET', download: true, fields: [
+      { name: 'root_key', label: 'Clé racine', required: true }, { name: 'format', label: 'Format d’export', type: 'select', options: ['json', 'csv', 'graphml'], defaultValue: 'json' },
+      { name: 'direction', label: 'Direction', type: 'select', options: ['outgoing', 'incoming', 'both'], defaultValue: 'both' },
+      { name: 'max_depth', label: 'Profondeur maximale', type: 'number', defaultValue: '8' }, { name: 'max_nodes', label: 'Nombre maximal de nœuds', type: 'number', defaultValue: '2000' },
+      { name: 'relation_type', label: 'Type de relation' }, { name: 'as_of', label: 'Date ISO-8601' },
+      { name: 'include_spof', label: 'Inclure les SPOF', type: 'boolean', defaultValue: 'true' }, { name: 'candidate_kind', label: 'Type de candidat' },
+      { name: 'candidate_resource_category', label: 'Catégorie ressource candidate' }, { name: 'candidate_resource_type', label: 'Type de ressource candidat' },
+      { name: 'candidate_status', label: 'Statut candidat' }, { name: 'minimum_affected_nodes', label: 'Nombre minimal d’objets affectés', type: 'number', defaultValue: '1' },
+    ] },
   ] },
   { id: 'flows', label: 'Matrice de flux', shortLabel: 'Flux', icon: 'activity', operations: [
     { id: 'flow-declaration-upsert', label: 'Créer ou réviser un flux déclaré', path: '/v1/flows/declarations/upsert', method: 'POST', fields: ['Opérateur', 'Code', 'Sélecteur source', 'Sélecteur destination', 'Protocole', 'Port destination début', 'Port destination fin', 'Décision', 'Priorité', 'Propriétaire', 'Justification', 'Début validité', 'Fin validité'] },
@@ -818,7 +850,8 @@ const SIDEBAR_CONTEXTS = {
   ],
   graph: [
     { label: 'Exploration', operationIds: ['graph-traverse', 'graph-path'] },
-    { label: 'Analyse d’impact', operationIds: ['graph-impact'] },
+    { label: 'Analyse d’impact', operationIds: ['graph-impact', 'graph-spof'] },
+    { label: 'Exports', operationIds: ['graph-export'] },
   ],
   flows: [
     { label: 'Flux déclarés', operationIds: ['flow-declaration-upsert', 'flow-declaration-list', 'flow-declaration-retire'] },
@@ -1327,8 +1360,51 @@ function Dashboard() {
     }
   }
 
-  function execute() {
-    setResult(JSON.stringify({ tenant_id: tenant, action: selected.id, via: config.apiBaseUrl, trust: config.webBackendTrust }, null, 2));
+  async function execute(form) {
+    if (!selected.id.startsWith('graph-')) {
+      setResult({ tenant_id: tenant, action: selected.id, via: config.apiBaseUrl, trust: config.webBackendTrust });
+      return;
+    }
+    try {
+      const formData = new FormData(form);
+      const query = new URLSearchParams();
+      query.set('tenant_id', tenant);
+      for (const [name, value] of formData.entries()) {
+        const normalized = String(value).trim();
+        if (normalized) query.append(name, normalized);
+      }
+      const response = await fetch(`${String(config.apiBaseUrl || '/api').replace(/\/$/, '')}${selected.path}?${query}`, {
+        credentials: 'same-origin',
+        headers: { Accept: selected.download ? '*/*' : 'application/json' },
+      });
+      if (selected.download) {
+        const blob = await response.blob();
+        if (!response.ok) throw new Error(await blob.text() || `HTTP ${response.status}`);
+        const disposition = response.headers.get('content-disposition') || '';
+        const filename = disposition.match(/filename="?([^";]+)"?/i)?.[1] || 'openinfra-graph-export.bin';
+        const objectUrl = URL.createObjectURL(blob);
+        try {
+          const anchor = document.createElement('a');
+          anchor.href = objectUrl;
+          anchor.download = filename;
+          anchor.hidden = true;
+          document.body.append(anchor);
+          anchor.click();
+          anchor.remove();
+        } finally {
+          URL.revokeObjectURL(objectUrl);
+        }
+        setResult({ downloaded: true, filename, content_type: blob.type || response.headers.get('content-type'), size_bytes: blob.size });
+      } else {
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || JSON.stringify(payload));
+        setResult(payload);
+      }
+      setShouldFocusMain(true);
+    } catch (error) {
+      setResult({ error: error.message });
+      setShouldFocusMain(true);
+    }
   }
 
   const displayedVersion = version?.version || config.version || i18n.t('unavailable');
@@ -1408,11 +1484,58 @@ function Dashboard() {
           <div className="pb-2 mb-3 openinfra-titlebar"><h1 className="h2">{pageTitle}</h1><p className="text-muted mb-0">{pageSubtitle}</p></div>
           {submissionCompleted && activeModuleId !== 'overview' && <div className="alert alert-success" role="status">{i18n.t('success')}</div>}
           {activeModuleId === 'overview' && <div className="row g-3 mb-4 openinfra-dashboard-metrics" aria-label={i18n.t('componentStatistics')}><Metric title={i18n.t('version')} value={displayedVersion} /><Metric title="API" value={config.apiBaseUrl || '/api'} /><Metric title={i18n.t('trust')} value={config.webBackendTrust || 'server-side'} /><Metric title={i18n.t('forms')} value={protectedForms} /><Metric title={i18n.t('modules')} value={`${operationsCount} ${i18n.t('operations')}`} /></div>}
-          {activeModuleId === 'overview' ? <OverviewStats i18n={i18n} modules={businessModules} fieldsCount={businessFieldsCount} /> : <section className="card openinfra-operation-card" aria-labelledby="openinfra-operation-title"><div className="card-body"><h2 id="openinfra-operation-title" className="h4">{selected.label}</h2><form aria-describedby="openinfra-required-fields-notice" onSubmit={(event) => { event.preventDefault(); execute(); }}><p id="openinfra-required-fields-notice" className="openinfra-required-notice">{i18n.t('requiredFieldsNotice')}</p><div className="row g-3 mb-3"><label className="col-md-4 form-label" htmlFor="openinfra-react-tenant">{i18n.t('organization')}</label><select id="openinfra-react-tenant" className="form-select" value={tenant} onChange={(event) => setTenant(event.target.value)}><option value="default">{i18n.t('defaultTenant')}</option></select></div><div className="row g-3">{selected.fields.map((field, index) => { const fieldId = `openinfra-react-field-${index}`; return <div className="col-md-6 col-xl-4" key={field}><label className="form-label" htmlFor={fieldId}>{i18n.label(field)}</label><input id={fieldId} className="form-control" /></div>; })}</div><button type="submit" className="btn btn-primary mt-3">{i18n.t('execute')}</button></form><pre className="openinfra-result mt-3" role="status" aria-live="polite" aria-atomic="true" aria-label={i18n.t('operationResult')}>{result ?? i18n.t('pendingResult')}</pre></div></section>}
+          {activeModuleId === 'overview' ? <OverviewStats i18n={i18n} modules={businessModules} fieldsCount={businessFieldsCount} /> : <section className="card openinfra-operation-card" aria-labelledby="openinfra-operation-title"><div className="card-body"><h2 id="openinfra-operation-title" className="h4">{selected.label}</h2><form aria-describedby="openinfra-required-fields-notice" onSubmit={(event) => { event.preventDefault(); execute(event.currentTarget); }}><p id="openinfra-required-fields-notice" className="openinfra-required-notice">{i18n.t('requiredFieldsNotice')}</p><div className="row g-3 mb-3"><label className="col-md-4 form-label" htmlFor="openinfra-react-tenant">{i18n.t('organization')}</label><select id="openinfra-react-tenant" className="form-select" value={tenant} onChange={(event) => setTenant(event.target.value)}><option value="default">{i18n.t('defaultTenant')}</option></select></div><div className="row g-3">{selected.fields.map((entry, index) => { const field = typeof entry === 'string' ? { name: `field_${index}`, label: entry } : entry; const fieldId = `openinfra-react-field-${index}`; return <div className="col-md-6 col-xl-4" key={field.name}><label className="form-label" htmlFor={fieldId}>{i18n.label(field.label)}{field.required ? <span aria-hidden="true"> *</span> : null}</label>{field.type === 'select' || field.type === 'boolean' ? <select id={fieldId} name={field.name} className="form-select" defaultValue={field.defaultValue || ''} required={field.required}><option value=""></option>{(field.type === 'boolean' ? ['false', 'true'] : field.options || []).map((option) => <option value={option} key={option}>{field.type === 'boolean' ? (option === 'true' ? i18n.t('yes') : i18n.t('no')) : i18n.optionLabel(option)}</option>)}</select> : <input id={fieldId} name={field.name} type={field.type === 'number' ? 'number' : 'text'} defaultValue={field.defaultValue || ''} required={field.required} className="form-control" />}</div>; })}</div><button type="submit" className="btn btn-primary mt-3">{i18n.t('execute')}</button></form><GraphResultPanel i18n={i18n} operation={selected} result={result} /></div></section>}
         </main>
       </div>
     </div>
   </div>;
+}
+
+function GraphResultPanel({ i18n, operation, result }) {
+  const serialized = result === null ? i18n.t('pendingResult') : (typeof result === 'string' ? result : JSON.stringify(result, null, 2));
+  if (!operation.id.startsWith('graph-') || result === null || typeof result === 'string' || result.error) {
+    return <pre className="openinfra-result mt-3" role="status" aria-live="polite" aria-atomic="true" aria-label={i18n.t('operationResult')}>{serialized}</pre>;
+  }
+  if (operation.id === 'graph-export') {
+    return <><div className="alert alert-success openinfra-download-result mt-3" role="status"><strong>{i18n.t('downloadReady')}</strong><br />{result.filename} · {result.size_bytes || 0} octets</div><RawGraphResult i18n={i18n} value={serialized} /></>;
+  }
+  return <div className="mt-3">{operation.id === 'graph-spof' ? <SpofRanking i18n={i18n} result={result} /> : <DependencyGraphVisualization i18n={i18n} result={result} />}<RawGraphResult i18n={i18n} value={serialized} /></div>;
+}
+
+function RawGraphResult({ i18n, value }) {
+  return <details className="openinfra-raw-result"><summary>{i18n.t('rawResult')}</summary><pre className="openinfra-result" role="status" aria-live="polite" aria-atomic="true" aria-label={i18n.t('operationResult')}>{value}</pre></details>;
+}
+
+function DependencyGraphVisualization({ i18n, result }) {
+  const nodes = Array.isArray(result.nodes) ? result.nodes.slice(0, 80) : [];
+  const keys = new Set(nodes.map((node) => String(node.key || '')));
+  const edges = (Array.isArray(result.edges) ? result.edges : []).filter((edge) => keys.has(String(edge.source_key || '')) && keys.has(String(edge.target_key || ''))).slice(0, 160);
+  if (nodes.length === 0) return <p className="text-muted">{i18n.t('noGraphData')}</p>;
+  const layers = new Map();
+  for (const node of nodes) {
+    const depth = Number.isFinite(Number(node.depth)) ? Number(node.depth) : 0;
+    if (!layers.has(depth)) layers.set(depth, []);
+    layers.get(depth).push(node);
+  }
+  const depths = [...layers.keys()].sort((left, right) => left - right);
+  const layerGap = Math.max(145, Math.floor(720 / Math.max(depths.length, 1)));
+  const positions = new Map();
+  depths.forEach((depth, layerIndex) => {
+    const layer = layers.get(depth).sort((left, right) => String(left.key).localeCompare(String(right.key)));
+    layer.forEach((node, rowIndex) => positions.set(String(node.key), { x: 70 + layerIndex * layerGap, y: 46 + rowIndex * 76 }));
+  });
+  const maxLayer = Math.max(...[...layers.values()].map((layer) => layer.length), 1);
+  const width = Math.max(720, 120 + (depths.length - 1) * layerGap);
+  const height = Math.max(280, maxLayer * 76 + 56);
+  const omitted = (Array.isArray(result.nodes) ? result.nodes.length : 0) - nodes.length;
+  // A scrollable graph region must be keyboard-focusable; a text-equivalent list follows it.
+  // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+  return <section className="openinfra-graph-visualization" aria-labelledby="openinfra-react-graph-title"><h3 id="openinfra-react-graph-title" className="h6">{i18n.t('graphVisualization')}</h3><p className="small text-muted">{i18n.t('graphVisualizationDescription')}</p><div className="openinfra-graph-canvas" role="region" aria-label={i18n.t('graphVisualization')} tabIndex={0}><svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${nodes.length} nodes, ${edges.length} relationships`}><defs><marker id="openinfra-react-graph-arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" /></marker></defs><g className="openinfra-graph-edges">{edges.map((edge) => { const source = positions.get(String(edge.source_key)); const target = positions.get(String(edge.target_key)); return source && target ? <line key={edge.id || `${edge.source_key}-${edge.target_key}`} x1={source.x} y1={source.y} x2={target.x} y2={target.y} markerEnd="url(#openinfra-react-graph-arrow)"><title>{`${edge.relation_type || 'relation'}: ${edge.source_key} → ${edge.target_key}`}</title></line> : null; })}</g><g className="openinfra-graph-nodes" role="list">{nodes.map((node) => { const position = positions.get(String(node.key)); const label = String(node.display_name || node.key || ''); const shortLabel = label.length > 16 ? `${label.slice(0, 15)}…` : label; const isRoot = String(node.key) === String(result.root_key || result.source_key || ''); return <g key={node.key} className={`openinfra-graph-node${isRoot ? ' is-root' : ''}`} transform={`translate(${position.x},${position.y})`} role="listitem" aria-label={`${label}, ${node.resource_type || node.kind || 'object'}, depth ${node.depth ?? 0}`}><circle r="24" /><text textAnchor="middle" y="4">{shortLabel}</text><title>{`${label} (${node.key})`}</title></g>; })}</g></svg></div><ul className="visually-hidden" aria-label={i18n.t('graphVisualization')}>{nodes.map((node) => <li key={`accessible-${node.key}`}>{`${node.display_name || node.key}, ${node.resource_type || node.kind || 'object'}, depth ${node.depth ?? 0}`}</li>)}</ul>{omitted > 0 ? <p className="small text-muted">{i18n.t('graphNodesOmitted', { count: omitted })}</p> : null}</section>;
+}
+
+function SpofRanking({ i18n, result }) {
+  const items = Array.isArray(result.items) ? result.items : [];
+  return <section className="openinfra-spof-ranking" aria-labelledby="openinfra-react-spof-title"><div className="d-flex flex-wrap justify-content-between gap-2"><h3 id="openinfra-react-spof-title" className="h6">{i18n.t('spofRanking')}</h3><span className={`badge ${result.complete === false ? 'text-bg-warning' : 'text-bg-success'}`}>{i18n.t(result.complete === false ? 'boundedAnalysis' : 'completeAnalysis')}</span></div><p className="small text-muted">{`${result.spof_count || 0} SPOF · ${result.node_count || 0} nodes · ${result.edge_count || 0} relationships`}</p><div className="table-responsive"><table className="table table-sm align-middle"><caption className="visually-hidden">{i18n.t('spofRanking')}</caption><thead><tr><th scope="col">#</th><th scope="col">{i18n.t('candidate')}</th><th scope="col">{i18n.t('affectedNodes')}</th><th scope="col">{i18n.t('directAffected')}</th><th scope="col">{i18n.t('impactRatio')}</th><th scope="col">{i18n.t('affectedSample')}</th></tr></thead><tbody>{items.length === 0 ? <tr><td colSpan="6">{i18n.t('noSpofDetected')}</td></tr> : items.map((item) => { const node = item.node || {}; const ratio = Math.max(0, Math.min(1, Number(item.affected_ratio || 0))); return <tr key={node.key || item.rank}><td>{item.rank}</td><th scope="row">{node.display_name || node.key}<small>{node.key}</small></th><td>{item.affected_count}</td><td>{item.direct_affected_count}</td><td><span className="openinfra-spof-ratio" aria-label={`${Math.round(ratio * 100)} %`}><span style={{ width: `${Math.round(ratio * 100)}%` }} /></span>{Math.round(ratio * 100)} %</td><td>{Array.isArray(item.affected_sample) && item.affected_sample.length > 0 ? item.affected_sample.join(', ') : '—'}</td></tr>; })}</tbody></table></div></section>;
 }
 
 function GlobalSearchResults({ i18n, query, groups, backend, loading, error, onSelect, onBackendSelect }) {

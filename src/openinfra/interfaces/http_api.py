@@ -84,6 +84,8 @@ from openinfra.application.dcim_services import (
 )
 from openinfra.application.dependency_graph_services import (
     AnalyzeDependencyImpactCommand,
+    AnalyzeDependencySpofCommand,
+    ExportDependencyGraphCommand,
     FindDependencyPathCommand,
     TraverseDependencyGraphCommand,
 )
@@ -1419,6 +1421,80 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     )
                 )
                 responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/graph/spof":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.dependency_graph_service.analyze_spof(
+                    AnalyzeDependencySpofCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        root_key=self._first_query_value(query, "root_key"),
+                        direction=self._first_query_value(query, "direction", "both"),
+                        max_depth=int(self._first_query_value(query, "max_depth", "8")),
+                        max_nodes=int(self._first_query_value(query, "max_nodes", "2000")),
+                        relation_types=tuple(query.get("relation_type", [])),
+                        as_of=query.get("as_of", [None])[0],
+                        candidate_kinds=tuple(query.get("candidate_kind", [])),
+                        candidate_resource_categories=tuple(
+                            query.get("candidate_resource_category", [])
+                        ),
+                        candidate_resource_types=tuple(query.get("candidate_resource_type", [])),
+                        candidate_statuses=tuple(query.get("candidate_status", [])),
+                        minimum_affected_nodes=int(
+                            self._first_query_value(query, "minimum_affected_nodes", "1")
+                        ),
+                        affected_sample_limit=int(
+                            self._first_query_value(query, "affected_sample_limit", "25")
+                        ),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/graph/export":
+            try:
+                query = parse_qs(parsed.query)
+                include_spof = self._first_query_value(query, "include_spof", "true").lower() in {
+                    "1",
+                    "true",
+                    "yes",
+                }
+                result = self.server.application.dependency_graph_service.export(
+                    ExportDependencyGraphCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        root_key=self._first_query_value(query, "root_key"),
+                        format=self._first_query_value(query, "format", "json"),
+                        direction=self._first_query_value(query, "direction", "both"),
+                        max_depth=int(self._first_query_value(query, "max_depth", "8")),
+                        max_nodes=int(self._first_query_value(query, "max_nodes", "2000")),
+                        relation_types=tuple(query.get("relation_type", [])),
+                        as_of=query.get("as_of", [None])[0],
+                        include_spof=include_spof,
+                        candidate_kinds=tuple(query.get("candidate_kind", [])),
+                        candidate_resource_categories=tuple(
+                            query.get("candidate_resource_category", [])
+                        ),
+                        candidate_resource_types=tuple(query.get("candidate_resource_type", [])),
+                        candidate_statuses=tuple(query.get("candidate_status", [])),
+                        minimum_affected_nodes=int(
+                            self._first_query_value(query, "minimum_affected_nodes", "1")
+                        ),
+                    )
+                )
+                binary_responder.send(
+                    HTTPStatus.OK, result.content, result.content_type, result.filename
+                )
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (ValueError, OpenInfraError) as exc:
@@ -5737,6 +5813,8 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "traverse": "/api/v1/graph/traverse",
                     "impact": "/api/v1/graph/impact",
                     "path": "/api/v1/graph/path",
+                    "spof": "/api/v1/graph/spof",
+                    "export": "/api/v1/graph/export",
                 },
                 "network_config": {
                     "baselines": "/api/v1/network-config/baselines",

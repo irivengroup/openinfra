@@ -78,6 +78,66 @@ class TestDependencyGraphInterfaces:
         assert path["found"] is True
         assert path["hop_count"] == 2
 
+        assert (
+            OpenInfraCLI().run(
+                [
+                    "graph",
+                    "spof",
+                    *base,
+                    "--root-key",
+                    "application/web",
+                    "--direction",
+                    "outgoing",
+                ]
+            )
+            == 0
+        )
+        spof = json.loads(capsys.readouterr().out)
+        assert spof["spof_count"] == 1
+        assert spof["items"][0]["node"]["key"] == "service/api"
+
+        output = tmp_path / "graph.graphml"
+        assert (
+            OpenInfraCLI().run(
+                [
+                    "graph",
+                    "export",
+                    *base,
+                    "--root-key",
+                    "application/web",
+                    "--direction",
+                    "outgoing",
+                    "--format",
+                    "graphml",
+                    "--output",
+                    str(output),
+                ]
+            )
+            == 0
+        )
+        metadata = json.loads(capsys.readouterr().out)
+        assert metadata["format"] == "graphml"
+        assert output.read_text(encoding="utf-8").startswith("<?xml")
+
+        assert (
+            OpenInfraCLI().run(
+                [
+                    "graph",
+                    "export",
+                    *base,
+                    "--root-key",
+                    "application/web",
+                    "--direction",
+                    "outgoing",
+                    "--format",
+                    "json",
+                ]
+            )
+            == 0
+        )
+        exported_stdout = json.loads(capsys.readouterr().out)
+        assert exported_stdout["root_key"] == "application/web"
+
     def test_http_api_exposes_graph_queries_and_rejects_missing_bearer(
         self, tmp_path: Path
     ) -> None:
@@ -125,27 +185,65 @@ class TestDependencyGraphInterfaces:
                 ),
                 token,
             )
+            spof = self._get_json(
+                base_url
+                + "/api/v1/graph/spof?"
+                + urllib.parse.urlencode(
+                    {
+                        "tenant_id": "default",
+                        "root_key": "application/web",
+                        "direction": "outgoing",
+                    }
+                ),
+                token,
+            )
+            export_body, export_headers = self._get_bytes(
+                base_url
+                + "/api/v1/graph/export?"
+                + urllib.parse.urlencode(
+                    {
+                        "tenant_id": "default",
+                        "root_key": "application/web",
+                        "direction": "outgoing",
+                        "format": "csv",
+                    }
+                ),
+                token,
+            )
             discovery = self._get_json(base_url + "/api/v1", None)
 
             assert graph["node_count"] == 3
             assert impact["direct_count"] == 1
             assert path["found"] is True
+            assert spof["spof_count"] == 1
+            assert export_body.startswith(b"record_type,key,display_name")
+            assert export_headers["content-type"].startswith("text/csv")
+            assert "attachment; filename=" in export_headers["content-disposition"]
             assert discovery["documentation"]["graph"] == {
                 "traverse": "/api/v1/graph/traverse",
                 "impact": "/api/v1/graph/impact",
                 "path": "/api/v1/graph/path",
+                "spof": "/api/v1/graph/spof",
+                "export": "/api/v1/graph/export",
             }
 
-            try:
-                self._get_json(
-                    base_url
-                    + "/api/v1/graph/traverse?tenant_id=default&root_key=application%2Fweb",
-                    None,
-                )
-            except urllib.error.HTTPError as exc:
-                assert exc.code == 401
-            else:
-                raise AssertionError("graph endpoint accepted a missing bearer token")
+            unauthorized_routes = (
+                "/api/v1/graph/traverse?tenant_id=default&root_key=application%2Fweb",
+                "/api/v1/graph/impact?tenant_id=default&root_key=server%2Fapp-01",
+                (
+                    "/api/v1/graph/path?tenant_id=default&source_key=application%2Fweb"
+                    "&target_key=server%2Fapp-01"
+                ),
+                "/api/v1/graph/spof?tenant_id=default&root_key=application%2Fweb",
+                "/api/v1/graph/export?tenant_id=default&root_key=application%2Fweb",
+            )
+            for route in unauthorized_routes:
+                try:
+                    self._get_json(base_url + route, None)
+                except urllib.error.HTTPError as exc:
+                    assert exc.code == 401
+                else:
+                    raise AssertionError(f"graph endpoint accepted a missing bearer token: {route}")
         finally:
             server.shutdown()
             server.server_close()
@@ -205,6 +303,11 @@ class TestDependencyGraphInterfaces:
         assert isinstance(payload, dict)
         return payload
 
+    def _get_bytes(self, url: str, token: str) -> tuple[bytes, dict[str, str]]:
+        request = urllib.request.Request(url, headers={"Authorization": "Bearer " + token})
+        with urllib.request.urlopen(request, timeout=5) as response:
+            return response.read(), {key.lower(): value for key, value in response.headers.items()}
+
 
 def test_runtime_openapi_documents_dependency_graph_contract() -> None:
     openapi = Path("docs/api/openapi.yaml").read_text(encoding="utf-8")
@@ -213,10 +316,15 @@ def test_runtime_openapi_documents_dependency_graph_contract() -> None:
         "/api/v1/graph/traverse:",
         "/api/v1/graph/impact:",
         "/api/v1/graph/path:",
+        "/api/v1/graph/spof:",
+        "/api/v1/graph/export:",
     ):
         assert route in openapi
     assert "operationId: traverseDependencyGraph" in openapi
     assert "operationId: analyzeDependencyImpact" in openapi
     assert "operationId: findDependencyPath" in openapi
+    assert "operationId: analyzeDependencySinglePointsOfFailure" in openapi
+    assert "operationId: exportDependencyGraph" in openapi
+    assert "application/graphml+xml" in openapi
     assert "maximum: 5000" in openapi
     assert "bearerToken" in openapi

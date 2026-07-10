@@ -18,6 +18,7 @@ class WheelVerifier:
         required_suffixes = (
             "openinfra/__init__.py",
             "openinfra/domain/dcim.py",
+            "openinfra/domain/dependency.py",
             "openinfra/domain/ipam.py",
             "openinfra/application/dependency_graph_services.py",
             "openinfra/application/flow_matrix_services.py",

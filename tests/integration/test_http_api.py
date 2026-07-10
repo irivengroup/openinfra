@@ -127,6 +127,8 @@ class TestHttpApi:
                     "traverse": "/api/v1/graph/traverse",
                     "impact": "/api/v1/graph/impact",
                     "path": "/api/v1/graph/path",
+                    "spof": "/api/v1/graph/spof",
+                    "export": "/api/v1/graph/export",
                 },
                 "flows": {
                     "declarations": "/api/v1/flows/declarations",

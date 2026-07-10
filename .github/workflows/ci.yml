@@ -69,10 +69,10 @@ jobs:
           python -m pip install --requirement requirements/dev.txt
 
       - name: Format check
-        run: ruff format --check src tests scripts docker
+        run: ruff format --check src tests scripts docker installers
 
       - name: Lint
-        run: ruff check src tests scripts docker
+        run: ruff check src tests scripts docker installers
 
       - name: Type check
         run: mypy src/openinfra
@@ -101,14 +101,18 @@ jobs:
             tests/integration/test_postgresql_migration_policy.py \
             tests/integration/test_installer_alignment.py
 
-      - name: Dependency graph and impact regression
+      - name: Dependency graph, impact, SPOF and export regression
         run: |
           python -m pytest -q --no-cov \
             tests/unit/test_dependency_domain.py \
+            tests/unit/test_dependency_spof_domain.py \
             tests/integration/test_dependency_graph_services.py \
+            tests/integration/test_dependency_spof_services.py \
             tests/integration/test_dependency_graph_interfaces.py \
+            tests/integration/test_dependency_spof_web_contract.py \
             tests/integration/test_http_api.py \
-            tests/integration/test_openinfra_web.py
+            tests/integration/test_openinfra_web.py \
+            tests/integration/test_web_accessibility_contract.py
 
       - name: Flow matrix governance regression
         run: |
@@ -151,7 +155,7 @@ jobs:
         run: python -m pytest
 
       - name: Compile check
-        run: python -m compileall -q src tests scripts docker
+        run: python -m compileall -q src tests scripts docker installers
 
       - name: Security scan - Bandit SAST
         run: bandit -q -r src/openinfra

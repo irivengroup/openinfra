@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
+from openinfra.domain.common import OpenInfraError
 from openinfra.interfaces.cli import OpenInfraCLI
 
 
@@ -229,3 +233,25 @@ def test_cli_runtime_resolution_edges(tmp_path: Path, monkeypatch: object) -> No
     assert cli._resolve_migration_root(runtime_args) == packaged_root
     packaged_root.rmdir()
     assert cli._resolve_migration_root(runtime_args) == Path("installers/migrations/postgresql")
+
+
+def test_cli_main_fail_fast_and_single_installer_file_validation(
+    monkeypatch: object, capsys: object
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["openinfra", "version"])
+    assert OpenInfraCLI.main() == 0
+    assert capsys.readouterr().out.strip()
+
+    cli = OpenInfraCLI()
+    with pytest.raises(OpenInfraError, match="expected failure"):
+        cli.fail_fast("expected failure")
+
+    args = SimpleNamespace(
+        path=Path("installers/setup/enterprise/server/install.ini"),
+        edition="enterprise",
+        scope="server",
+        root=Path("installers/setup"),
+    )
+    assert cli._handle_installer_validate(args) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["valid"] is True

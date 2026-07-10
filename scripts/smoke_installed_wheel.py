@@ -12,11 +12,13 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.29.91"
+    EXPECTED_VERSION = "0.29.92"
     EXPECTED_GRAPH_ROUTES = (
         "/api/v1/graph/traverse",
         "/api/v1/graph/impact",
         "/api/v1/graph/path",
+        "/api/v1/graph/spof",
+        "/api/v1/graph/export",
     )
     EXPECTED_FLOW_ROUTES = (
         "/api/v1/flows/declarations",

@@ -82,6 +82,8 @@ from openinfra.application.dcim_services import (
 )
 from openinfra.application.dependency_graph_services import (
     AnalyzeDependencyImpactCommand,
+    AnalyzeDependencySpofCommand,
+    ExportDependencyGraphCommand,
     FindDependencyPathCommand,
     TraverseDependencyGraphCommand,
 )
@@ -1918,6 +1920,45 @@ class OpenInfraCLI:
         path.add_argument("--source-key", required=True)
         path.add_argument("--target-key", required=True)
         path.set_defaults(handler=self._handle_graph_path)
+
+        spof = graph_subparsers.add_parser(
+            "spof", help="identify single points of failure with rooted dominator analysis"
+        )
+        self._add_backend_arguments(spof)
+        self._add_graph_common_arguments(spof, default_direction="both", default_depth=8)
+        spof.add_argument("--root-key", required=True)
+        self._add_graph_spof_filter_arguments(spof, include_pagination=True)
+        spof.set_defaults(handler=self._handle_graph_spof)
+
+        export = graph_subparsers.add_parser(
+            "export", help="export a dependency graph as JSON, CSV or GraphML"
+        )
+        self._add_backend_arguments(export)
+        self._add_graph_common_arguments(export, default_direction="both", default_depth=8)
+        export.add_argument("--root-key", required=True)
+        export.add_argument("--format", choices=("json", "csv", "graphml"), default="json")
+        export.add_argument(
+            "--include-spof",
+            action=argparse.BooleanOptionalAction,
+            default=True,
+            help="annotate exported nodes with SPOF impact counts",
+        )
+        export.add_argument("--output", type=Path)
+        self._add_graph_spof_filter_arguments(export, include_pagination=False)
+        export.set_defaults(handler=self._handle_graph_export)
+
+    def _add_graph_spof_filter_arguments(
+        self, parser: argparse.ArgumentParser, *, include_pagination: bool
+    ) -> None:
+        parser.add_argument("--candidate-kind", action="append", default=[])
+        parser.add_argument("--candidate-resource-category", action="append", default=[])
+        parser.add_argument("--candidate-resource-type", action="append", default=[])
+        parser.add_argument("--candidate-status", action="append", default=[])
+        parser.add_argument("--minimum-affected-nodes", type=int, default=1)
+        if include_pagination:
+            parser.add_argument("--affected-sample-limit", type=int, default=25)
+            parser.add_argument("--limit", type=int, default=100)
+            parser.add_argument("--cursor")
 
     def _add_graph_common_arguments(
         self,
@@ -5483,6 +5524,66 @@ class OpenInfraCLI:
             )
         )
         print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_graph_spof(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dependency_graph_service.analyze_spof(
+            AnalyzeDependencySpofCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                root_key=args.root_key,
+                direction=args.direction,
+                max_depth=args.max_depth,
+                max_nodes=args.max_nodes,
+                relation_types=tuple(args.relation_type),
+                as_of=args.as_of,
+                candidate_kinds=tuple(args.candidate_kind),
+                candidate_resource_categories=tuple(args.candidate_resource_category),
+                candidate_resource_types=tuple(args.candidate_resource_type),
+                candidate_statuses=tuple(args.candidate_status),
+                minimum_affected_nodes=args.minimum_affected_nodes,
+                affected_sample_limit=args.affected_sample_limit,
+                limit=args.limit,
+                cursor=args.cursor,
+            )
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_graph_export(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.dependency_graph_service.export(
+            ExportDependencyGraphCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                root_key=args.root_key,
+                format=args.format,
+                direction=args.direction,
+                max_depth=args.max_depth,
+                max_nodes=args.max_nodes,
+                relation_types=tuple(args.relation_type),
+                as_of=args.as_of,
+                include_spof=bool(args.include_spof),
+                candidate_kinds=tuple(args.candidate_kind),
+                candidate_resource_categories=tuple(args.candidate_resource_category),
+                candidate_resource_types=tuple(args.candidate_resource_type),
+                candidate_statuses=tuple(args.candidate_status),
+                minimum_affected_nodes=args.minimum_affected_nodes,
+            )
+        )
+        if args.output is None:
+            sys.stdout.buffer.write(result.content)
+            return 0
+        output = args.output.resolve()
+        output.parent.mkdir(parents=True, exist_ok=True)
+        temporary = output.with_name(f".{output.name}.{os.getpid()}.tmp")
+        try:
+            temporary.write_bytes(result.content)
+            temporary.replace(output)
+        finally:
+            temporary.unlink(missing_ok=True)
+        print(json.dumps({**result.metadata(), "output": str(output)}, sort_keys=True))
         return 0
 
     def _handle_graph_path(self, args: argparse.Namespace) -> int:

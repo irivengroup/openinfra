@@ -247,3 +247,100 @@ class DependencyImpact:
             "nodes": [node.as_dict() for node in self.impacted_nodes],
             "edges": [edge.as_dict() for edge in self.edges],
         }
+
+
+class GraphExportFormat(StrEnum):
+    JSON = "json"
+    CSV = "csv"
+    GRAPHML = "graphml"
+
+    @classmethod
+    def from_value(cls, value: str) -> Self:
+        try:
+            return cls(value.strip().lower())
+        except ValueError as exc:
+            raise ValidationError("graph export format must be json, csv or graphml") from exc
+
+
+@dataclass(frozen=True, slots=True)
+class DependencySpofCandidate:
+    rank: int
+    node: GraphNode
+    affected_count: int
+    direct_affected_count: int
+    affected_ratio: float
+    affected_sample: tuple[str, ...]
+    affected_sample_truncated: bool
+    by_kind: dict[str, int]
+    by_resource_category: dict[str, int]
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "rank": self.rank,
+            "node": self.node.as_dict(),
+            "affected_count": self.affected_count,
+            "direct_affected_count": self.direct_affected_count,
+            "affected_ratio": round(self.affected_ratio, 6),
+            "affected_sample": list(self.affected_sample),
+            "affected_sample_truncated": self.affected_sample_truncated,
+            "by_kind": dict(sorted(self.by_kind.items())),
+            "by_resource_category": dict(sorted(self.by_resource_category.items())),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class DependencySpofReport:
+    root_key: str
+    direction: GraphDirection
+    relation_types: tuple[str, ...]
+    as_of: str | None
+    node_count: int
+    edge_count: int
+    total_spof_count: int
+    candidates: tuple[DependencySpofCandidate, ...]
+    next_cursor: str | None
+    max_depth_reached: int
+    truncated: bool
+    filters: dict[str, object]
+    algorithm: str = "rooted-dominators"
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "root_key": self.root_key,
+            "direction": self.direction.value,
+            "relation_types": list(self.relation_types),
+            "as_of": self.as_of,
+            "node_count": self.node_count,
+            "edge_count": self.edge_count,
+            "spof_count": self.total_spof_count,
+            "returned_count": len(self.candidates),
+            "next_cursor": self.next_cursor,
+            "max_depth_reached": self.max_depth_reached,
+            "truncated": self.truncated,
+            "complete": not self.truncated,
+            "algorithm": self.algorithm,
+            "filters": dict(sorted(self.filters.items())),
+            "items": [candidate.as_dict() for candidate in self.candidates],
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class DependencyGraphExport:
+    filename: str
+    content_type: str
+    content: bytes
+    format: GraphExportFormat
+    node_count: int
+    edge_count: int
+    spof_count: int
+
+    def metadata(self) -> dict[str, object]:
+        return {
+            "filename": self.filename,
+            "content_type": self.content_type,
+            "format": self.format.value,
+            "size_bytes": len(self.content),
+            "node_count": self.node_count,
+            "edge_count": self.edge_count,
+            "spof_count": self.spof_count,
+        }

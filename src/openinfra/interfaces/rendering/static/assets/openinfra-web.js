@@ -23,11 +23,51 @@ class OpenInfraApiClient {
       body
     });
     const contentType = response.headers.get("content-type") || "";
+    if (operation.download) {
+      const blob = await response.blob();
+      if (!response.ok) {
+        const errorText = await blob.text();
+        throw new Error(errorText || `Download failed with status ${response.status}`);
+      }
+      const disposition = response.headers.get("content-disposition") || "";
+      const filename = this.downloadFilename(disposition, operation.downloadFilename || "openinfra-export.bin");
+      const objectUrl = URL.createObjectURL(blob);
+      try {
+        const anchor = document.createElement("a");
+        anchor.href = objectUrl;
+        anchor.download = filename;
+        anchor.hidden = true;
+        document.body.append(anchor);
+        anchor.click();
+        anchor.remove();
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
+      return {
+        downloaded: true,
+        filename,
+        content_type: contentType || blob.type || "application/octet-stream",
+        size_bytes: blob.size
+      };
+    }
     const data = contentType.includes("application/json") ? await response.json() : await response.text();
     if (!response.ok) {
       throw new Error(typeof data === "string" ? data : JSON.stringify(data));
     }
     return data;
+  }
+
+  downloadFilename(disposition, fallback) {
+    const encoded = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+    if (encoded) {
+      try {
+        return decodeURIComponent(encoded[1].trim().replace(/^"|"$/g, ""));
+      } catch (_error) {
+        return fallback;
+      }
+    }
+    const simple = disposition.match(/filename="?([^";]+)"?/i);
+    return simple ? simple[1].trim() : fallback;
   }
 
   async getJson(path) {
@@ -881,6 +921,37 @@ const OPENINFRA_MODULES = [
       { name: "max_nodes", label: "Nombre maximal de nœuds", type: "number", defaultValue: "1000", placeholder: "1000" },
       { name: "relation_type", label: "Type de relation", placeholder: "depends_on" },
       { ...FIELD_SETS.asOf, required: false }
+    ] },
+    { id: "graph-spof", label: "Détecter les points uniques de défaillance", method: "GET", path: "/v1/graph/spof", query: [
+      { name: "root_key", label: "Clé racine", required: true, placeholder: "application/portail" },
+      { name: "direction", label: "Direction", type: "select", options: ["outgoing", "incoming", "both"], defaultValue: "both" },
+      { name: "max_depth", label: "Profondeur maximale", type: "number", min: "1", max: "12", defaultValue: "8" },
+      { name: "max_nodes", label: "Nombre maximal de nœuds", type: "number", min: "2", max: "5000", defaultValue: "2000" },
+      { name: "relation_type", label: "Type de relation", placeholder: "depends_on" },
+      { ...FIELD_SETS.asOf, required: false },
+      { name: "candidate_kind", label: "Type de candidat", placeholder: "server" },
+      { name: "candidate_resource_category", label: "Catégorie ressource candidate", placeholder: "network-device" },
+      { name: "candidate_resource_type", label: "Type de ressource candidat", placeholder: "switch" },
+      { name: "candidate_status", label: "Statut candidat", placeholder: "active" },
+      { name: "minimum_affected_nodes", label: "Nombre minimal d’objets affectés", type: "number", min: "1", max: "4999", defaultValue: "1" },
+      { name: "affected_sample_limit", label: "Limite échantillon affecté", type: "number", min: "1", max: "200", defaultValue: "25" },
+      { name: "limit", label: "Limite", type: "number", min: "1", max: "500", defaultValue: "100" },
+      { name: "cursor", label: "Curseur", placeholder: "Curseur opaque retourné par l’API" }
+    ] },
+    { id: "graph-export", label: "Exporter le graphe de dépendances", method: "GET", path: "/v1/graph/export", download: true, downloadFilename: "openinfra-graph-export.json", query: [
+      { name: "root_key", label: "Clé racine", required: true, placeholder: "application/portail" },
+      { name: "format", label: "Format d’export", type: "select", options: ["json", "csv", "graphml"], defaultValue: "json" },
+      { name: "direction", label: "Direction", type: "select", options: ["outgoing", "incoming", "both"], defaultValue: "both" },
+      { name: "max_depth", label: "Profondeur maximale", type: "number", min: "1", max: "12", defaultValue: "8" },
+      { name: "max_nodes", label: "Nombre maximal de nœuds", type: "number", min: "2", max: "5000", defaultValue: "2000" },
+      { name: "relation_type", label: "Type de relation", placeholder: "depends_on" },
+      { ...FIELD_SETS.asOf, required: false },
+      { name: "include_spof", label: "Inclure les SPOF", type: "boolean", defaultValue: "true" },
+      { name: "candidate_kind", label: "Type de candidat", placeholder: "server" },
+      { name: "candidate_resource_category", label: "Catégorie ressource candidate", placeholder: "network-device" },
+      { name: "candidate_resource_type", label: "Type de ressource candidat", placeholder: "switch" },
+      { name: "candidate_status", label: "Statut candidat", placeholder: "active" },
+      { name: "minimum_affected_nodes", label: "Nombre minimal d’objets affectés", type: "number", min: "1", max: "4999", defaultValue: "1" }
     ] }
   ] },
   { id: "flows", label: "Matrice de flux", shortLabel: "Flux", icon: "activity", description: "Comparaison gouvernée des flux réseau déclarés et observés, détection des écarts et traçabilité.", operations: [
@@ -1178,7 +1249,8 @@ const OPENINFRA_SIDEBAR_CONTEXTS = {
   ],
   graph: [
     { label: "Exploration", operationIds: ["graph-traverse", "graph-path"] },
-    { label: "Analyse d’impact", operationIds: ["graph-impact"] }
+    { label: "Analyse d’impact", operationIds: ["graph-impact", "graph-spof"] },
+    { label: "Exports", operationIds: ["graph-export"] }
   ],
   flows: [
     { label: "Flux déclarés", operationIds: ["flow-declaration-upsert", "flow-declaration-list", "flow-declaration-retire"] },
@@ -2068,9 +2140,87 @@ class OpenInfraDashboard {
       </section>
       <aside class="col-12 col-xxl-4" aria-labelledby="openinfra-result-title">
         <h3 id="openinfra-result-title" class="h6 text-uppercase text-muted">${this.escape(this.i18n.t("resultTitle"))}</h3>
-        <pre class="openinfra-result" role="status" aria-live="polite" aria-atomic="true" aria-label="${this.escape(this.i18n.t("operationResult"))}">${this.escape(result ? JSON.stringify(result, null, 2) : this.i18n.t("pendingResult"))}</pre>
+        ${this.renderGraphResult(operation, result)}
+        <details class="openinfra-raw-result" ${result ? "" : "open"}>
+          <summary>${this.escape(this.i18n.t("rawResult"))}</summary>
+          <pre class="openinfra-result" role="status" aria-live="polite" aria-atomic="true" aria-label="${this.escape(this.i18n.t("operationResult"))}">${this.escape(result ? JSON.stringify(result, null, 2) : this.i18n.t("pendingResult"))}</pre>
+        </details>
       </aside>
     </div>`;
+  }
+
+  renderGraphResult(operation, result) {
+    if (!result || !String(operation?.id || "").startsWith("graph-")) {
+      return "";
+    }
+    if (operation.id === "graph-export") {
+      return `<div class="alert alert-success openinfra-download-result" role="status"><strong>${this.escape(this.i18n.t("downloadReady"))}</strong><br>${this.escape(result.filename || "")} · ${this.escape(String(result.size_bytes || 0))} octets</div>`;
+    }
+    if (operation.id === "graph-spof") {
+      return this.renderSpofRanking(result);
+    }
+    return this.renderDependencyGraph(result);
+  }
+
+  renderDependencyGraph(result) {
+    const nodes = Array.isArray(result.nodes) ? result.nodes : [];
+    const edges = Array.isArray(result.edges) ? result.edges : [];
+    if (nodes.length === 0) {
+      return `<p class="text-muted">${this.escape(this.i18n.t("noGraphData"))}</p>`;
+    }
+    const maxVisible = 80;
+    const visibleNodes = nodes.slice(0, maxVisible);
+    const visibleKeys = new Set(visibleNodes.map((node) => String(node.key || "")));
+    const visibleEdges = edges.filter((edge) => visibleKeys.has(String(edge.source_key || "")) && visibleKeys.has(String(edge.target_key || ""))).slice(0, 160);
+    const depthGroups = new Map();
+    for (const node of visibleNodes) {
+      const depth = Number.isFinite(Number(node.depth)) ? Number(node.depth) : 0;
+      if (!depthGroups.has(depth)) depthGroups.set(depth, []);
+      depthGroups.get(depth).push(node);
+    }
+    const depths = [...depthGroups.keys()].sort((left, right) => left - right);
+    const width = 720;
+    const layerGap = Math.max(145, Math.floor(width / Math.max(depths.length, 1)));
+    const maxLayer = Math.max(...[...depthGroups.values()].map((group) => group.length), 1);
+    const height = Math.max(280, maxLayer * 76 + 56);
+    const coordinates = new Map();
+    depths.forEach((depth, layerIndex) => {
+      const group = depthGroups.get(depth) || [];
+      group.sort((left, right) => String(left.key || "").localeCompare(String(right.key || "")));
+      group.forEach((node, rowIndex) => {
+        coordinates.set(String(node.key || ""), {
+          x: 70 + layerIndex * layerGap,
+          y: 46 + rowIndex * 76
+        });
+      });
+    });
+    const lines = visibleEdges.map((edge) => {
+      const source = coordinates.get(String(edge.source_key || ""));
+      const target = coordinates.get(String(edge.target_key || ""));
+      if (!source || !target) return "";
+      return `<line x1="${source.x}" y1="${source.y}" x2="${target.x}" y2="${target.y}" marker-end="url(#openinfra-graph-arrow)"><title>${this.escape(edge.relation_type || "relation")}: ${this.escape(edge.source_key || "")} → ${this.escape(edge.target_key || "")}</title></line>`;
+    }).join("");
+    const circles = visibleNodes.map((node) => {
+      const position = coordinates.get(String(node.key || ""));
+      const label = String(node.display_name || node.key || "");
+      const short = label.length > 16 ? `${label.slice(0, 15)}…` : label;
+      const root = String(node.key || "") === String(result.root_key || result.source_key || "");
+      return `<g class="openinfra-graph-node${root ? " is-root" : ""}" transform="translate(${position.x},${position.y})" role="listitem" aria-label="${this.escape(`${label}, ${node.resource_type || node.kind || "object"}, profondeur ${node.depth ?? 0}`)}"><circle r="24"></circle><text text-anchor="middle" y="4">${this.escape(short)}</text><title>${this.escape(label)} (${this.escape(node.key || "")})</title></g>`;
+    }).join("");
+    const omitted = nodes.length - visibleNodes.length;
+    return `<section class="openinfra-graph-visualization" aria-labelledby="openinfra-graph-visualization-title"><h4 id="openinfra-graph-visualization-title" class="h6">${this.escape(this.i18n.t("graphVisualization"))}</h4><p class="small text-muted">${this.escape(this.i18n.t("graphVisualizationDescription"))}</p><div class="openinfra-graph-canvas" role="region" aria-label="${this.escape(this.i18n.t("graphVisualization"))}" tabindex="0"><svg viewBox="0 0 ${Math.max(width, 120 + (depths.length - 1) * layerGap)} ${height}" role="img" aria-label="${this.escape(`${nodes.length} nœuds, ${edges.length} relations`)}"><defs><marker id="openinfra-graph-arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z"></path></marker></defs><g class="openinfra-graph-edges">${lines}</g><g class="openinfra-graph-nodes" role="list">${circles}</g></svg></div><ul class="visually-hidden" aria-label="${this.escape(this.i18n.t("graphVisualization"))}">${visibleNodes.map((node) => `<li>${this.escape(`${node.display_name || node.key}, ${node.resource_type || node.kind || "object"}, profondeur ${node.depth ?? 0}`)}</li>`).join("")}</ul>${omitted > 0 ? `<p class="small text-muted">${this.escape(this.i18n.t("graphNodesOmitted", { count: omitted }))}</p>` : ""}</section>`;
+  }
+
+  renderSpofRanking(result) {
+    const items = Array.isArray(result.items) ? result.items : [];
+    const complete = result.complete !== false;
+    const rows = items.map((item) => {
+      const node = item.node || {};
+      const ratio = Math.max(0, Math.min(1, Number(item.affected_ratio || 0)));
+      const sample = Array.isArray(item.affected_sample) ? item.affected_sample.join(", ") : "";
+      return `<tr><td>${this.escape(item.rank)}</td><th scope="row">${this.escape(node.display_name || node.key || "")}<small>${this.escape(node.key || "")}</small></th><td>${this.escape(item.affected_count)}</td><td>${this.escape(item.direct_affected_count)}</td><td><span class="openinfra-spof-ratio" aria-label="${this.escape(`${Math.round(ratio * 100)} %`)}"><span style="width:${Math.round(ratio * 100)}%"></span></span>${Math.round(ratio * 100)} %</td><td>${this.escape(sample || "—")}</td></tr>`;
+    }).join("");
+    return `<section class="openinfra-spof-ranking" aria-labelledby="openinfra-spof-ranking-title"><div class="d-flex flex-wrap justify-content-between gap-2"><h4 id="openinfra-spof-ranking-title" class="h6">${this.escape(this.i18n.t("spofRanking"))}</h4><span class="badge ${complete ? "text-bg-success" : "text-bg-warning"}">${this.escape(complete ? this.i18n.t("completeAnalysis") : this.i18n.t("boundedAnalysis"))}</span></div><p class="small text-muted">${this.escape(`${result.spof_count || 0} SPOF · ${result.node_count || 0} nœuds · ${result.edge_count || 0} relations`)}</p><div class="table-responsive"><table class="table table-sm align-middle"><caption class="visually-hidden">${this.escape(this.i18n.t("spofRanking"))}</caption><thead><tr><th scope="col">#</th><th scope="col">${this.escape(this.i18n.t("candidate"))}</th><th scope="col">${this.escape(this.i18n.t("affectedNodes"))}</th><th scope="col">${this.escape(this.i18n.t("directAffected"))}</th><th scope="col">${this.escape(this.i18n.t("impactRatio"))}</th><th scope="col">${this.escape(this.i18n.t("affectedSample"))}</th></tr></thead><tbody>${rows || `<tr><td colspan="6">${this.escape(this.i18n.t("noSpofDetected"))}</td></tr>`}</tbody></table></div></section>`;
   }
 
   renderField(field) {
@@ -2118,7 +2268,8 @@ class OpenInfraDashboard {
       return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(this.i18n.label(field.label || field.name))}${requiredText}<select class="form-select" data-field="${this.escape(field.name)}"${source}${map}${required}><option value=""></option>${this.renderOptions(options, value)}</select></label>`;
     }
     if (field.type === "boolean") {
-      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(this.i18n.label(field.label || field.name))}<select class="form-select" data-field="${this.escape(field.name)}"><option value="false">${this.escape(this.i18n.t("no"))}</option><option value="true">${this.escape(this.i18n.t("yes"))}</option></select></label>`;
+      const defaultBoolean = field.defaultValue === true || String(field.defaultValue).toLowerCase() === "true";
+      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(this.i18n.label(field.label || field.name))}<select class="form-select" data-field="${this.escape(field.name)}"><option value="false"${defaultBoolean ? "" : " selected"}>${this.escape(this.i18n.t("no"))}</option><option value="true"${defaultBoolean ? " selected" : ""}>${this.escape(this.i18n.t("yes"))}</option></select></label>`;
     }
     if (field.type === "textarea") {
       return `<label${visibility} class="col-12 form-label">${this.escape(this.i18n.label(field.label || field.name))}${requiredText}<textarea class="form-control font-monospace" rows="10" data-field="${this.escape(field.name)}" placeholder="${this.escape(this.i18n.label(field.placeholder || ""))}"${required}>${this.escape(value)}</textarea></label>`;

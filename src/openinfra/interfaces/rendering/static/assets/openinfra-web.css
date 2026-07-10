@@ -1778,3 +1778,111 @@ body {
     display: none;
   }
 }
+
+/* Dependency graph and SPOF visualizations */
+.openinfra-graph-visualization,
+.openinfra-spof-ranking {
+  margin-bottom: 1rem;
+}
+
+.openinfra-graph-canvas {
+  max-width: 100%;
+  overflow: auto;
+  border: 1px solid var(--bs-border-color, #dee2e6);
+  border-radius: .35rem;
+  background: var(--bs-body-bg, #fff);
+}
+
+.openinfra-graph-canvas:focus-visible {
+  outline: 3px solid rgb(var(--openinfra-action-rgb));
+  outline-offset: 2px;
+}
+
+.openinfra-graph-canvas svg {
+  display: block;
+  min-width: 42rem;
+  width: 100%;
+  min-height: 17.5rem;
+}
+
+.openinfra-graph-edges line {
+  stroke: currentColor;
+  stroke-width: 1.5;
+  opacity: .55;
+}
+
+.openinfra-graph-edges marker path {
+  fill: currentColor;
+}
+
+.openinfra-graph-node circle {
+  fill: var(--bs-body-bg, #fff);
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+.openinfra-graph-node.is-root circle {
+  stroke-width: 4;
+  stroke-dasharray: 4 2;
+}
+
+.openinfra-graph-node text {
+  fill: currentColor;
+  font-size: .68rem;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.openinfra-graph-node:focus-visible circle {
+  stroke-width: 5;
+}
+
+.openinfra-spof-ranking th small {
+  display: block;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+
+.openinfra-spof-ratio {
+  display: inline-block;
+  width: 5rem;
+  height: .7rem;
+  margin-right: .35rem;
+  overflow: hidden;
+  vertical-align: middle;
+  border: 1px solid currentColor;
+  border-radius: .2rem;
+}
+
+.openinfra-spof-ratio > span {
+  display: block;
+  height: 100%;
+  background: currentColor;
+}
+
+.openinfra-raw-result summary {
+  cursor: pointer;
+  font-weight: 600;
+  margin-bottom: .5rem;
+}
+
+.openinfra-download-result {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 767.98px) {
+  .openinfra-graph-canvas svg {
+    min-width: 34rem;
+  }
+
+  .openinfra-spof-ranking .table {
+    min-width: 48rem;
+  }
+}
+
+@media (forced-colors: active) {
+  .openinfra-graph-node circle,
+  .openinfra-spof-ratio {
+    forced-color-adjust: auto;
+  }
+}

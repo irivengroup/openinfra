@@ -1,3 +1,15 @@
+## v0.29.92 — Traçabilité visualisations d’impact et SPOF
+
+- Roadmap existante : P15 / `EPIC-1505` — visualisations d’impact et identification des SPOF critiques.
+- Domaine : `DependencySpofCandidate`, `DependencySpofReport`, `DependencyGraphExport` et formats JSON/CSV/GraphML.
+- Application : analyse de dominateurs enracinés, filtres, classement, pagination opaque, signalement de troncature et exports bornés.
+- Interfaces : commandes `graph spof` et `graph export`, routes `/api/v1/graph/spof` et `/api/v1/graph/export`, OpenAPI et portail FR/EN.
+- UI : graphe en couches accessible, classement tabulaire SPOF, résultat brut, téléchargement et parité React/runtime packagé.
+- Garanties : lecture seule RSOT, permission `rsot.read`, isolation tenant, audit, limites de charge, absence de remédiation automatique et écriture atomique des exports CLI.
+- Tests : domaine, service, pagination, chemins alternatifs, formats d’export, CLI, HTTP, OpenAPI, web, accessibilité, sécurité et smoke du wheel.
+- Base de données : aucune migration ; la projection réutilise les objets et relations RSOT existants.
+- CDC/roadmap : inchangés, car EPIC-1505 était déjà planifié et aucune nouvelle recommandation n’impacte l’existant.
+
 ## v0.29.91 — Traçabilité conformité réseau
 
 - Domaine : `network_config_compliance.py`.

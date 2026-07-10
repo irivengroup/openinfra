@@ -1,3 +1,15 @@
+## v0.29.92 — Visualisations d’impact et détection des SPOF
+
+- Implémentation de P15 / EPIC-1505 sur la projection bornée du graphe RSOT existant, sans nouvelle source de vérité ni migration.
+- Détection déterministe des points uniques de défaillance par dominateurs enracinés, avec directions entrante, sortante ou bidirectionnelle.
+- Classement par nombre d’objets rendus inaccessibles, impact direct, ratio d’impact, agrégats et échantillon borné.
+- Filtres de candidats par type, catégorie, type de ressource et statut, pagination par curseur opaque lié à la requête.
+- Signalement explicite des analyses non exhaustives lorsque la projection atteint `max_nodes`.
+- Exports gouvernés JSON, CSV normalisé et GraphML, avec annotations SPOF optionnelles et téléchargement atomique en CLI/web.
+- Visualisation web en couches, navigable au clavier, responsive, compatible lecteurs d’écran, couleurs forcées et réduction des mouvements.
+- CLI, API HTTP, OpenAPI, portail FR/EN, audit, tests de sécurité, tests d’intégration et smoke du wheel alignés.
+- CDC et roadmap inchangés : EPIC-1505 était déjà planifié et aucune nouvelle recommandation n’impacte l’existant.
+
 ## v0.29.91 — Conformité réseau golden configuration
 
 - Baselines versionnées par équipement RSOT et plateforme réseau.

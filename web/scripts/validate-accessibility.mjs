@@ -13,12 +13,14 @@ const files = {
 };
 
 for (const [name, source] of Object.entries({ react: files.react, runtime: files.runtime })) {
-  for (const token of ['openinfra-skip-links', 'openinfra-live-region', 'openinfra-component-navigation', 'aria-live', 'aria-atomic', 'ArrowRight', 'ArrowLeft', 'ArrowDown', 'requiredFieldsNotice', 'opensNewWindow']) {
+  for (const token of ['openinfra-skip-links', 'openinfra-live-region', 'openinfra-component-navigation', 'aria-live', 'aria-atomic', 'ArrowRight', 'ArrowLeft', 'ArrowDown', 'requiredFieldsNotice', 'opensNewWindow', 'openinfra-graph-canvas', 'openinfra-spof-ranking']) {
     assert.match(source, new RegExp(token), `${name} portal misses ${token}`);
   }
+  assert.match(source, name === 'react' ? /tabIndex=\{0\}/ : /tabindex=\"0\"/, `${name} graph must be keyboard reachable`);
+  assert.match(source, /role=\"img\"/, `${name} graph must expose an image role`);
   assert.doesNotMatch(source, /<(audio|video)\b/i, `${name} must not introduce media without an explicit caption/transcript contract`);
 }
-for (const token of ['prefers-reduced-motion', 'prefers-contrast', 'forced-colors', 'focus-visible', 'openinfra-component-bounce-fade']) {
+for (const token of ['prefers-reduced-motion', 'prefers-contrast', 'forced-colors', 'focus-visible', 'openinfra-component-bounce-fade', 'openinfra-graph-node', 'openinfra-spof-ratio']) {
   assert.match(files.css, new RegExp(token), `theme misses ${token}`);
 }
 assert.doesNotMatch(files.index, /<main id="openinfra-root"/);

@@ -575,3 +575,475 @@ def test_discovery_integration_profile_validates_endpoint_secret_and_cloud_defau
             120,
             "admin",
         )
+
+
+def test_discovery_evidence_scores_are_deterministic_and_secret_safe() -> None:
+    from datetime import UTC, datetime, timedelta
+
+    from openinfra.domain.discovery import DiscoveryEvidence, DiscoverySource
+
+    observed_at = datetime(2026, 7, 10, 10, 0, tzinfo=UTC)
+    evidence = DiscoveryEvidence.create(
+        tenant_id=TenantId.from_value("default"),
+        source=DiscoverySource.VMWARE,
+        external_id="vm-4201",
+        confidence=0.9,
+        payload={"name": "srv-app-01", "cpu": {"cores": 8}, "serial": "ABC"},
+        object_key="server/srv-app-01",
+        object_kind="server",
+        scope="site/par1",
+        source_ref="vcenter-par1",
+        observed_at=observed_at,
+        received_at=observed_at,
+    )
+
+    scores = evidence.quality_scores(
+        3_600,
+        now=observed_at + timedelta(seconds=900),
+    )
+
+    assert scores == {
+        "confidence": 0.9,
+        "freshness": 0.75,
+        "completeness": 1.0,
+        "overall": 0.8775,
+    }
+    assert evidence.as_dict()["immutable"] is True
+    assert len(evidence.payload_hash) == 64
+
+    for forbidden_key in ("password", "api_token", "client-secret", "private_key"):
+        with pytest.raises(ValidationError, match="secret material"):
+            DiscoveryEvidence.create(
+                TenantId.from_value("default"),
+                DiscoverySource.SSH,
+                "srv-1",
+                0.8,
+                {forbidden_key: "do-not-store"},
+            )
+
+
+def test_multisource_reconciliation_detects_and_resolves_conflicts_without_rsot_write() -> None:
+    from datetime import UTC, datetime
+
+    from openinfra.domain.discovery import (
+        DiscoveryEvidence,
+        DiscoveryReconciliationCase,
+        DiscoveryReconciliationStatus,
+        DiscoverySource,
+    )
+
+    evaluated_at = datetime(2026, 7, 10, 12, 0, tzinfo=UTC)
+    tenant_id = TenantId.from_value("default")
+    vmware = DiscoveryEvidence.create(
+        tenant_id,
+        DiscoverySource.VMWARE,
+        "vm-4201",
+        0.95,
+        {"name": "srv-app-01", "cpu": {"cores": 8}, "site": "PAR1"},
+        object_key="server/srv-app-01",
+        object_kind="server",
+        scope="site/par1",
+        source_ref="vcenter-par1",
+        observed_at=evaluated_at,
+        received_at=evaluated_at,
+    )
+    aws = DiscoveryEvidence.create(
+        tenant_id,
+        DiscoverySource.AWS,
+        "i-0123456789",
+        0.85,
+        {"name": "srv-app-01", "cpu": {"cores": 16}, "site": "PAR1"},
+        object_key="server/srv-app-01",
+        object_kind="server",
+        scope="cloud/aws/prod",
+        source_ref="aws-prod-eu-west-3",
+        observed_at=evaluated_at,
+        received_at=evaluated_at,
+    )
+
+    case = DiscoveryReconciliationCase.evaluate(
+        tenant_id,
+        "server/srv-app-01",
+        (aws, vmware),
+        86_400,
+        "governance-admin",
+        evaluated_at=evaluated_at,
+    )
+
+    assert case.status is DiscoveryReconciliationStatus.CONFLICT
+    assert case.merged_payload == {"name": "srv-app-01", "site": "PAR1"}
+    assert tuple(item.attribute_path for item in case.conflicts) == ("cpu.cores",)
+    assert case.conflicts[0].variants[0].evidence_id == vmware.id
+    assert case.ready_for_rsot_reconciliation is False
+    assert case.rsot_write_executed is False
+
+    with pytest.raises(ValidationError, match="incomplete"):
+        case.resolve({}, "governance-admin", "Validated by the operator")
+
+    resolved = case.resolve(
+        {"cpu.cores": vmware.id.value},
+        "governance-admin",
+        "VMware is authoritative for on-premise CPU allocation.",
+        resolved_at=evaluated_at,
+    )
+
+    assert resolved.status is DiscoveryReconciliationStatus.RESOLVED
+    assert resolved.merged_payload["cpu"] == {"cores": 8}
+    assert resolved.ready_for_rsot_reconciliation is True
+    assert resolved.rsot_write_executed is False
+    assert DiscoveryReconciliationCase.from_dict(resolved.as_dict()).as_dict() == resolved.as_dict()
+
+
+def test_discovery_evidence_validation_and_serialization_edges() -> None:
+    from datetime import UTC, datetime
+
+    from openinfra.domain.discovery import DiscoveryEvidence, DiscoverySource
+
+    tenant_id = TenantId.from_value("default")
+    timestamp = datetime(2026, 7, 10, 12, 0, tzinfo=UTC)
+
+    with pytest.raises(ValidationError, match="unsupported"):
+        DiscoverySource.from_value("telnet")
+    with pytest.raises(ValidationError, match="stored discovery evidence payload"):
+        DiscoveryEvidence.from_dict({"payload": []})
+    with pytest.raises(ValidationError, match="JSON object"):
+        DiscoveryEvidence._normalize_payload([])  # type: ignore[arg-type]
+    with pytest.raises(ValidationError, match="1 MiB"):
+        DiscoveryEvidence._normalize_payload({"blob": "x" * 1_048_577})
+    with pytest.raises(ValidationError, match="1024 keys"):
+        DiscoveryEvidence._normalize_payload({str(index): index for index in range(1025)})
+    with pytest.raises(ValidationError, match="keys must be strings"):
+        DiscoveryEvidence._normalize_payload({1: "value"})  # type: ignore[dict-item]
+    with pytest.raises(ValidationError, match="safe characters"):
+        DiscoveryEvidence._normalize_payload({"bad key": "value"})
+    with pytest.raises(ValidationError, match="4096 items"):
+        DiscoveryEvidence._normalize_payload({"items": [0] * 4097})
+    with pytest.raises(ValidationError, match="unsupported value"):
+        DiscoveryEvidence._normalize_payload({"items": {"unsupported"}})
+
+    empty = DiscoveryEvidence.create(
+        tenant_id,
+        DiscoverySource.MANUAL,
+        "manual-empty",
+        0.5,
+        {},
+        object_key="resource/manual-empty",
+        observed_at=timestamp,
+        received_at=timestamp,
+    )
+    partially_populated = DiscoveryEvidence.create(
+        tenant_id,
+        DiscoverySource.IMPORT,
+        "import-empty-values",
+        0.5,
+        {"none": None, "blank": " ", "empty": [], "nested": {}, "items": [1, 2]},
+        object_key="resource/import-empty-values",
+        observed_at=timestamp,
+        received_at=timestamp,
+    )
+
+    assert empty.completeness == 0.0
+    assert partially_populated.completeness == 0.4
+
+    with pytest.raises(ValidationError, match="object key"):
+        DiscoveryEvidence.create(
+            tenant_id,
+            DiscoverySource.MANUAL,
+            "manual-1",
+            0.5,
+            {},
+            object_key="x",
+            observed_at=timestamp,
+            received_at=timestamp,
+        )
+    with pytest.raises(ValidationError, match="object kind"):
+        DiscoveryEvidence.create(
+            tenant_id,
+            DiscoverySource.MANUAL,
+            "manual-1",
+            0.5,
+            {},
+            object_key="resource/manual-1",
+            object_kind="1",
+            observed_at=timestamp,
+            received_at=timestamp,
+        )
+    with pytest.raises(ValidationError, match="max age"):
+        empty.quality_scores(59, now=timestamp)
+    with pytest.raises(ValidationError, match="timezone-aware"):
+        empty.quality_scores(60, now=datetime(2026, 7, 10, 12, 0))
+
+
+def test_reconciliation_validation_and_structural_edges() -> None:
+    from datetime import UTC, datetime
+
+    from openinfra.domain.discovery import (
+        DiscoveryEvidence,
+        DiscoveryReconciliationCase,
+        DiscoveryReconciliationConflict,
+        DiscoveryReconciliationResolution,
+        DiscoverySource,
+    )
+
+    timestamp = datetime(2026, 7, 10, 12, 0, tzinfo=UTC)
+    tenant_id = TenantId.from_value("default")
+
+    def evidence(
+        source: DiscoverySource,
+        source_ref: str,
+        *,
+        tenant: TenantId = tenant_id,
+        object_key: str = "server/srv-edge-01",
+        object_kind: str = "server",
+        cores: int = 8,
+    ) -> DiscoveryEvidence:
+        return DiscoveryEvidence.create(
+            tenant,
+            source,
+            source_ref + "-external",
+            0.8,
+            {"name": "srv-edge-01", "cpu": {"cores": cores}},
+            object_key=object_key,
+            object_kind=object_kind,
+            source_ref=source_ref,
+            observed_at=timestamp,
+            received_at=timestamp,
+        )
+
+    vmware = evidence(DiscoverySource.VMWARE, "vcenter-edge", cores=8)
+    aws = evidence(DiscoverySource.AWS, "aws-edge", cores=16)
+    conflicting = DiscoveryReconciliationCase.evaluate(
+        tenant_id,
+        "server/srv-edge-01",
+        (vmware, aws),
+        86_400,
+        "governance-admin",
+        evaluated_at=timestamp,
+    )
+
+    with pytest.raises(ValidationError, match="conflict variants"):
+        DiscoveryReconciliationConflict.from_dict(
+            {"attribute_path": "cpu.cores", "variants": "invalid"}
+        )
+    with pytest.raises(ValidationError, match="actor"):
+        DiscoveryReconciliationResolution.create(" ", "Valid reason", {})
+    with pytest.raises(ValidationError, match="justification"):
+        DiscoveryReconciliationResolution.create("admin", "short", {})
+    with pytest.raises(ValidationError, match="selections"):
+        DiscoveryReconciliationResolution.from_dict(
+            {
+                "actor": "admin",
+                "justification": "Validated reason",
+                "selected_evidence_by_path": [],
+                "resolved_at": timestamp.isoformat(),
+            }
+        )
+
+    with pytest.raises(ValidationError, match="evaluated_by"):
+        DiscoveryReconciliationCase.evaluate(
+            tenant_id,
+            "server/srv-edge-01",
+            (vmware, aws),
+            86_400,
+            " ",
+            evaluated_at=timestamp,
+        )
+    with pytest.raises(ValidationError, match="at least two"):
+        DiscoveryReconciliationCase.evaluate(
+            tenant_id,
+            "server/srv-edge-01",
+            (vmware,),
+            86_400,
+            "admin",
+            evaluated_at=timestamp,
+        )
+    with pytest.raises(ValidationError, match="same tenant"):
+        DiscoveryReconciliationCase.evaluate(
+            tenant_id,
+            "server/srv-edge-01",
+            (
+                vmware,
+                evidence(DiscoverySource.AWS, "aws-other", tenant=TenantId.from_value("other")),
+            ),
+            86_400,
+            "admin",
+            evaluated_at=timestamp,
+        )
+    with pytest.raises(ValidationError, match="same object key"):
+        DiscoveryReconciliationCase.evaluate(
+            tenant_id,
+            "server/srv-edge-01",
+            (vmware, evidence(DiscoverySource.AWS, "aws-other", object_key="server/other")),
+            86_400,
+            "admin",
+            evaluated_at=timestamp,
+        )
+    with pytest.raises(ValidationError, match="same object kind"):
+        DiscoveryReconciliationCase.evaluate(
+            tenant_id,
+            "server/srv-edge-01",
+            (vmware, evidence(DiscoverySource.AWS, "aws-other", object_kind="virtual-machine")),
+            86_400,
+            "admin",
+            evaluated_at=timestamp,
+        )
+    same_source = evidence(DiscoverySource.VMWARE, "vcenter-edge", cores=16)
+    with pytest.raises(ValidationError, match="distinct sources"):
+        DiscoveryReconciliationCase.evaluate(
+            tenant_id,
+            "server/srv-edge-01",
+            (vmware, same_source),
+            86_400,
+            "admin",
+            evaluated_at=timestamp,
+        )
+
+    stored = conflicting.as_dict()
+    for changes, message in (
+        ({"evidence_ids": "invalid"}, "evidence ids"),
+        ({"conflicts": "invalid"}, "conflicts"),
+        ({"merged_payload": []}, "merged payload"),
+    ):
+        with pytest.raises(ValidationError, match=message):
+            DiscoveryReconciliationCase.from_dict({**stored, **changes})
+
+    ready = DiscoveryReconciliationCase.evaluate(
+        tenant_id,
+        "server/srv-edge-01",
+        (vmware, evidence(DiscoverySource.AWS, "aws-ready", cores=8)),
+        86_400,
+        "admin",
+        evaluated_at=timestamp,
+    )
+    with pytest.raises(ValidationError, match="only a conflicting"):
+        ready.resolve({}, "admin", "Validated reason")
+    with pytest.raises(ValidationError, match="does not provide"):
+        conflicting.resolve(
+            {"cpu.cores": EntityId.new().value},
+            "admin",
+            "Validated reason",
+            resolved_at=timestamp,
+        )
+
+    assert DiscoveryReconciliationCase._mean(()) == 0.0
+    assert DiscoveryReconciliationCase._unflatten_payload({"a.b": 1, "a.c": 2}) == {
+        "a": {"b": 1, "c": 2}
+    }
+    with pytest.raises(ValidationError, match="structurally inconsistent"):
+        DiscoveryReconciliationCase._unflatten_payload({"a": 1, "a.b": 2})
+
+
+def test_enterprise_agent_and_discovery_profile_guard_edges() -> None:
+    from datetime import datetime
+
+    from openinfra.domain.discovery import (
+        CollectorIdentity,
+        DiscoveryCollector,
+        DiscoveryIntegrationKind,
+        DiscoveryIntegrationProfile,
+        DiscoveryIntegrationProfileStatus,
+        DiscoveryProtocolCredentialProfile,
+        DiscoveryProtocolProfileStatus,
+        EnterpriseAgentBootstrapPlan,
+        EnterpriseAgentRole,
+    )
+
+    assert CollectorIdentity.create(FINGERPRINT).as_dict()["certificate_fingerprint"] == FINGERPRINT
+
+    with pytest.raises(ValidationError, match="role"):
+        EnterpriseAgentRole.from_value("global")
+    with pytest.raises(ValidationError, match="profile status"):
+        DiscoveryProtocolProfileStatus.from_value("retired")
+    with pytest.raises(ValidationError, match="integration kind"):
+        DiscoveryIntegrationKind.from_value("docker")
+    with pytest.raises(ValidationError, match="profile status"):
+        DiscoveryIntegrationProfileStatus.from_value("retired")
+
+    collector_kwargs = {
+        "tenant_id": TenantId.from_value("default"),
+        "name": "Collector PAR1",
+        "kind": CollectorKind.SSH,
+        "identity": CollectorIdentity.create(FINGERPRINT),
+        "scopes": (DiscoveryScope.from_value("site/par1"),),
+        "version": "0.29.82",
+        "registered_by": "admin",
+    }
+    with pytest.raises(ValidationError, match="timezone-aware"):
+        DiscoveryCollector.register(
+            **collector_kwargs,
+            registered_at=datetime(2026, 7, 10, 12, 0),
+        )
+
+    agent_kwargs = {
+        "tenant_id": TenantId.from_value("default"),
+        "edition": "enterprise",
+        "name": "Agent PAR1",
+        "role": "site",
+        "scopes": ("site/par1",),
+        "backend_url": "https://openinfra-api.example.test",
+        "certificate_fingerprint": FINGERPRINT,
+        "enrollment_secret_ref": AGENT_VAULT_REF,
+        "agent_version": "0.29.82",
+        "service_user": "openinfra-agent",
+        "config_path": "/etc/openinfra/agent.yaml",
+        "state_directory": "/var/lib/openinfra-agent",
+        "log_directory": "/var/log/openinfra-agent",
+        "created_by": "admin",
+    }
+    invalid_agent_cases = (
+        ({"name": "x"}, "name"),
+        ({"created_by": " "}, "created_by"),
+        ({"scopes": ()}, "at least one scope"),
+        ({"enrollment_secret_ref": ""}, "enrollment_secret_ref"),
+        ({"backend_url": "https://api.example.test?debug=1"}, "query or fragment"),
+        ({"backend_url": "https://api.example.test/v1"}, "without path"),
+        ({"service_user": "invalid.user"}, "Unix account"),
+        ({"config_path": "relative/path"}, "safe absolute path"),
+        ({"config_path": "/" + "x" * 256}, "too long"),
+    )
+    for changes, message in invalid_agent_cases:
+        with pytest.raises(ValidationError, match=message):
+            EnterpriseAgentBootstrapPlan.create(**{**agent_kwargs, **changes})
+
+    protocol = DiscoveryProtocolCredentialProfile.create(
+        tenant_id=TenantId.from_value("default"),
+        name="SSH PAR1",
+        protocol="ssh",
+        scope="site/par1",
+        credential_secret_ref=LOCAL_VAULT_REF,
+        port=None,
+        timeout_seconds=30,
+        max_concurrency=4,
+        rate_limit_per_minute=120,
+        retry_count=1,
+        created_by="admin",
+    )
+    assert protocol.transport_label == "ssh-key-or-password-from-vault"
+
+    integration_kwargs = {
+        "tenant_id": TenantId.from_value("default"),
+        "name": "Kubernetes PROD",
+        "kind": "kubernetes",
+        "scope": "cluster/prod",
+        "endpoint_url": "https://k8s.example.test",
+        "credential_secret_ref": K8S_VAULT_REF,
+        "verify_tls": True,
+        "inventory_enabled": True,
+        "max_concurrency": 4,
+        "rate_limit_per_minute": 120,
+        "created_by": "admin",
+    }
+    with pytest.raises(ValidationError, match="credential_secret_ref"):
+        DiscoveryIntegrationProfile.create(**{**integration_kwargs, "credential_secret_ref": ""})
+    with pytest.raises(ValidationError, match="timezone-aware"):
+        DiscoveryIntegrationProfile.create(
+            **integration_kwargs,
+            created_at=datetime(2026, 7, 10, 12, 0),
+        )
+    integration = DiscoveryIntegrationProfile.create(**integration_kwargs)
+    assert integration.connector_family == "kubernetes"
+    disabled = integration.disable("maintenance")
+    with pytest.raises(ValidationError, match="cannot be updated"):
+        disabled.update_settings(name="Kubernetes DR")
+    with pytest.raises(ValidationError, match="disable reason"):
+        integration.disable(" ")

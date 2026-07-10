@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.81
+  version: 0.29.82
 components:
   securitySchemes:
     bearerToken:
@@ -3085,6 +3085,134 @@ paths:
         '200': {description: Bulk import progress state with checkpoint counters}
         '400': {description: Validation error or unknown bulk import job}
 
+
+  /api/v1/discovery/evidence:
+    get:
+      summary: Get immutable discovery evidence
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: evidence_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Immutable discovery evidence}
+        '400': {description: Validation error}
+        '401': {description: RSOT governance read permission required}
+    post:
+      summary: Store immutable discovery evidence without mutating RSOT
+      description: Stores a tenant-isolated evidence document, rejects secret-bearing payload keys, computes payload hash and completeness, and records an audit event without copying the evidence payload into the audit trail.
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, object_key, object_kind, source, source_ref, scope, external_id, confidence, payload]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                evidence_id: {type: string, format: uuid, nullable: true}
+                object_key: {type: string}
+                object_kind: {type: string}
+                source: {type: string, enum: [snmp, ssh, winrm, vmware, proxmox, hyperv, kubernetes, aws, azure, gcp, openstack, cloud, import, manual]}
+                source_ref: {type: string}
+                scope: {type: string}
+                external_id: {type: string}
+                confidence: {type: number, minimum: 0, maximum: 1}
+                observed_at: {type: string, format: date-time, nullable: true}
+                payload: {type: object, additionalProperties: true}
+      responses:
+        '201': {description: Immutable discovery evidence stored}
+        '400': {description: Validation or secret-material rejection}
+        '401': {description: RSOT governance write permission required}
+        '409': {description: Evidence identifier already exists with different content}
+  /api/v1/discovery/evidence-list:
+    get:
+      summary: List immutable discovery evidence with cursor pagination
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: object_key, in: query, required: false, schema: {type: string}}
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 1000, default: 100}}
+        - {name: cursor, in: query, required: false, schema: {type: string, nullable: true}}
+      responses:
+        '200': {description: Paginated immutable evidence}
+        '400': {description: Validation error}
+        '401': {description: RSOT governance read permission required}
+  /api/v1/discovery/reconciliation:
+    get:
+      summary: Get a multisource discovery reconciliation case
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: case_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Reconciliation case including conflicts and scoring}
+        '400': {description: Validation error}
+        '401': {description: RSOT governance read permission required}
+    post:
+      summary: Evaluate multisource discovery evidence
+      description: Computes confidence, freshness and completeness scores, merges non-conflicting attributes, exposes every conflict explicitly and never writes directly to RSOT.
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, object_key, evidence_ids]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                object_key: {type: string}
+                evidence_ids:
+                  type: array
+                  minItems: 2
+                  uniqueItems: true
+                  items: {type: string, format: uuid}
+                max_age_seconds: {type: integer, minimum: 60, maximum: 31622400, default: 86400}
+      responses:
+        '201': {description: Idempotent reconciliation case created or returned by signature}
+        '400': {description: Validation error or insufficient distinct sources}
+        '401': {description: RSOT governance write permission required}
+  /api/v1/discovery/reconciliation-list:
+    get:
+      summary: List discovery reconciliation cases with cursor pagination
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: status, in: query, required: false, schema: {type: string, enum: [ready, conflict, resolved]}}
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 1000, default: 100}}
+        - {name: cursor, in: query, required: false, schema: {type: string, nullable: true}}
+      responses:
+        '200': {description: Paginated reconciliation cases}
+        '400': {description: Validation error}
+        '401': {description: RSOT governance read permission required}
+  /api/v1/discovery/reconciliation/resolve:
+    post:
+      summary: Resolve every discovery conflict with explicit evidence selections
+      description: Requires one evidence selection for every conflict path and an auditable operator justification. The resolved payload remains a governed decision and is not written to RSOT automatically.
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, case_id, selected_evidence_by_path, justification]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                case_id: {type: string, format: uuid}
+                selected_evidence_by_path:
+                  type: object
+                  minProperties: 1
+                  additionalProperties: {type: string, format: uuid}
+                justification: {type: string, minLength: 8, maxLength: 1024}
+      responses:
+        '200': {description: Reconciliation case fully resolved without RSOT mutation}
+        '400': {description: Missing conflict selection or validation error}
+        '401': {description: RSOT governance write permission required}
 
   /api/v1/discovery/collectors:
     get:

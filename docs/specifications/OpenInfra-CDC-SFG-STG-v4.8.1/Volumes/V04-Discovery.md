@@ -595,3 +595,16 @@ Le volume est recevable si :
 8. l’intégration à la RSOT (Ressource Source of Truth) est effective ;
 9. la documentation d’exploitation existe ;
 10. les risques résiduels sont acceptés.
+
+## v0.29.82 — Réconciliation Discovery multisource gouvernée
+
+### REQ-00823 — Preuve, score, conflit et résolution
+
+OpenInfra conserve chaque observation comme une preuve immuable, isolée par tenant et identifiée par une empreinte SHA-256 du payload canonique. Les payloads sont bornés à 1 MiB, strictement validés et refusent les clés susceptibles de transporter un secret.
+
+Le rapprochement exige au moins deux identités de source et calcule des scores déterministes de confiance, fraîcheur, complétude et qualité globale. Les valeurs divergentes sont exposées par chemin d’attribut avec toutes leurs variantes ; aucun score ne provoque un écrasement silencieux.
+
+La résolution exige une sélection valide pour chaque conflit et une justification auditée. Elle produit une décision de gouvernance avec `rsot_write_executed=false` ; l’application éventuelle au RSOT demeure une opération distincte, explicite et soumise à son propre contrôle d’impact.
+
+**Acceptation :** service, CLI, API, OpenAPI et web offrent soumission, consultation, pagination, rapprochement et résolution ; les dépôts JSON/PostgreSQL garantissent immutabilité et idempotence ; PostgreSQL partitionne les preuves et cas par tenant ; les tests démontrent l’absence de mutation RSOT.
+

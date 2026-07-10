@@ -141,6 +141,7 @@ class TestOpenInfraWeb:
                 static_css = self._get_text(web.base_url + "/assets/openinfra-web.css")
                 static_js = self._get_text(web.base_url + "/assets/openinfra-web.js")
                 main_js = Path("web/src/main.jsx").read_text(encoding="utf-8")
+                package_metadata = json.loads(Path("web/package.json").read_text(encoding="utf-8"))
                 public_config = self._get_json(web.base_url + "/config.json")
                 bff_status = self._get_json(web.base_url + "/status")
                 readiness = self._get_json(web.base_url + "/ready")
@@ -157,6 +158,7 @@ class TestOpenInfraWeb:
                     browser_bearer=_test_browser_bearer(),
                 )
 
+        assert package_metadata["version"] == __version__
         assert "openinfra-root" in index
         assert "/assets/bootstrap.min.css" in index
         assert "Bootstrap" in bootstrap_css and "v5." in bootstrap_css
@@ -310,6 +312,16 @@ class TestOpenInfraWeb:
         assert "/v1/discovery/local-plan" in static_js + main_js
         assert "Plan bootstrap agent Enterprise" in static_js + main_js
         assert "/v1/discovery/agent-bootstrap-plan" in static_js + main_js
+        assert "Enregistrer une preuve Discovery" in static_js + main_js
+        assert "Lister les preuves immuables" in static_js + main_js
+        assert "/v1/discovery/evidence" in static_js + main_js
+        assert "/v1/discovery/evidence-list" in static_js + main_js
+        assert "Rapprocher plusieurs preuves" in static_js + main_js
+        assert "Résoudre les conflits" in static_js + main_js
+        assert "/v1/discovery/reconciliation" in static_js + main_js
+        assert "/v1/discovery/reconciliation-list" in static_js + main_js
+        assert "/v1/discovery/reconciliation/resolve" in static_js + main_js
+        assert "Preuve JSON sans secret" in static_js + main_js
         assert "no_rsot_write" not in static_js
         assert "distributed_discovery_agents" in static_js
         assert "discovery_collector" in static_js
@@ -819,6 +831,7 @@ class TestOpenInfraWeb:
             with RunningServer(OpenInfraWebServer(("127.0.0.1", 0), config)) as web:
                 static_js = self._get_text(web.base_url + "/assets/openinfra-web.js")
                 main_js = Path("web/src/main.jsx").read_text(encoding="utf-8")
+                package_metadata = json.loads(Path("web/package.json").read_text(encoding="utf-8"))
                 public_config = self._get_json(web.base_url + "/config.json")
                 echoed = self._post_json(
                     web.base_url + "/api/v1/echo",

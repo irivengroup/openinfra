@@ -81,13 +81,20 @@ from openinfra.application.discovery_services import (
     DisableDiscoveryIntegrationProfileCommand,
     DisableDiscoveryProtocolProfileCommand,
     EnrollDiscoveryProxyCommand,
+    GetDiscoveryEvidenceCommand,
     GetDiscoveryIntegrationProfileCommand,
     GetDiscoveryProtocolProfileCommand,
+    GetDiscoveryReconciliationCommand,
     HeartbeatCollectorCommand,
     ListCollectorsCommand,
+    ListDiscoveryEvidenceCommand,
     ListDiscoveryIntegrationProfilesCommand,
     ListDiscoveryProtocolProfilesCommand,
+    ListDiscoveryReconciliationsCommand,
+    ReconcileDiscoveryEvidenceCommand,
     RegisterCollectorCommand,
+    ResolveDiscoveryReconciliationCommand,
+    SubmitDiscoveryEvidenceCommand,
     UpdateDiscoveryIntegrationProfileCommand,
     UpdateDiscoveryProtocolProfileCommand,
 )
@@ -210,7 +217,7 @@ from openinfra.application.source_governance_services import (
 )
 from openinfra.domain.access_policy import AccessRequestContext
 from openinfra.domain.authentication import ExternalDirectoryConfig
-from openinfra.domain.common import OpenInfraError
+from openinfra.domain.common import OpenInfraError, ValidationError
 from openinfra.domain.resource_taxonomy import ResourceTaxonomy
 from openinfra.domain.security import Permission
 from openinfra.infrastructure.installer_config import InstallerConfigValidator
@@ -1405,6 +1412,111 @@ class OpenInfraCLI:
         integration_delete.add_argument("--profile-id", required=True)
         integration_delete.add_argument("--reason", required=True)
         integration_delete.set_defaults(handler=self._handle_discovery_integration_profile_delete)
+
+        evidence_submit = discovery_subparsers.add_parser(
+            "evidence-submit",
+            help="store immutable discovery evidence without mutating the RSOT",
+        )
+        self._add_backend_arguments(evidence_submit)
+        evidence_submit.add_argument("--tenant", required=True)
+        evidence_submit.add_argument("--actor", default="cli")
+        evidence_submit.add_argument("--admin-token", required=True)
+        evidence_submit.add_argument("--evidence-id")
+        evidence_submit.add_argument("--object-key", required=True)
+        evidence_submit.add_argument("--object-kind", required=True)
+        evidence_submit.add_argument(
+            "--source",
+            choices=(
+                "snmp",
+                "ssh",
+                "winrm",
+                "vmware",
+                "proxmox",
+                "hyperv",
+                "kubernetes",
+                "aws",
+                "azure",
+                "gcp",
+                "openstack",
+                "cloud",
+                "import",
+                "manual",
+            ),
+            required=True,
+        )
+        evidence_submit.add_argument("--source-ref", required=True)
+        evidence_submit.add_argument("--scope", required=True)
+        evidence_submit.add_argument("--external-id", required=True)
+        evidence_submit.add_argument("--confidence", required=True, type=float)
+        evidence_submit.add_argument("--payload-json", required=True)
+        evidence_submit.add_argument("--observed-at")
+        evidence_submit.set_defaults(handler=self._handle_discovery_evidence_submit)
+
+        evidence_get = discovery_subparsers.add_parser(
+            "evidence", help="get immutable discovery evidence"
+        )
+        self._add_backend_arguments(evidence_get)
+        evidence_get.add_argument("--tenant", required=True)
+        evidence_get.add_argument("--admin-token", required=True)
+        evidence_get.add_argument("--evidence-id", required=True)
+        evidence_get.set_defaults(handler=self._handle_discovery_evidence_get)
+
+        evidence_list = discovery_subparsers.add_parser(
+            "evidence-list", help="list immutable discovery evidence"
+        )
+        self._add_backend_arguments(evidence_list)
+        evidence_list.add_argument("--tenant", required=True)
+        evidence_list.add_argument("--admin-token", required=True)
+        evidence_list.add_argument("--object-key")
+        evidence_list.add_argument("--limit", type=int, default=100)
+        evidence_list.add_argument("--cursor")
+        evidence_list.set_defaults(handler=self._handle_discovery_evidence_list)
+
+        reconcile = discovery_subparsers.add_parser(
+            "reconcile",
+            help="evaluate multisource discovery evidence and expose explicit conflicts",
+        )
+        self._add_backend_arguments(reconcile)
+        reconcile.add_argument("--tenant", required=True)
+        reconcile.add_argument("--actor", default="cli")
+        reconcile.add_argument("--admin-token", required=True)
+        reconcile.add_argument("--object-key", required=True)
+        reconcile.add_argument("--evidence-id", action="append", required=True)
+        reconcile.add_argument("--max-age-seconds", type=int, default=86_400)
+        reconcile.set_defaults(handler=self._handle_discovery_reconcile)
+
+        reconciliation_get = discovery_subparsers.add_parser(
+            "reconciliation", help="get a discovery reconciliation case"
+        )
+        self._add_backend_arguments(reconciliation_get)
+        reconciliation_get.add_argument("--tenant", required=True)
+        reconciliation_get.add_argument("--admin-token", required=True)
+        reconciliation_get.add_argument("--case-id", required=True)
+        reconciliation_get.set_defaults(handler=self._handle_discovery_reconciliation_get)
+
+        reconciliation_list = discovery_subparsers.add_parser(
+            "reconciliation-list", help="list discovery reconciliation cases"
+        )
+        self._add_backend_arguments(reconciliation_list)
+        reconciliation_list.add_argument("--tenant", required=True)
+        reconciliation_list.add_argument("--admin-token", required=True)
+        reconciliation_list.add_argument("--status", choices=("ready", "conflict", "resolved"))
+        reconciliation_list.add_argument("--limit", type=int, default=100)
+        reconciliation_list.add_argument("--cursor")
+        reconciliation_list.set_defaults(handler=self._handle_discovery_reconciliation_list)
+
+        reconciliation_resolve = discovery_subparsers.add_parser(
+            "reconciliation-resolve",
+            help="resolve every conflict with explicit evidence selections and justification",
+        )
+        self._add_backend_arguments(reconciliation_resolve)
+        reconciliation_resolve.add_argument("--tenant", required=True)
+        reconciliation_resolve.add_argument("--actor", default="cli")
+        reconciliation_resolve.add_argument("--admin-token", required=True)
+        reconciliation_resolve.add_argument("--case-id", required=True)
+        reconciliation_resolve.add_argument("--selections-json", required=True)
+        reconciliation_resolve.add_argument("--justification", required=True)
+        reconciliation_resolve.set_defaults(handler=self._handle_discovery_reconciliation_resolve)
 
         register = discovery_subparsers.add_parser(
             "collector-register", help="register an authorized discovery collector"
@@ -3957,6 +4069,115 @@ class OpenInfraCLI:
         )
         print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
         return 0
+
+    def _handle_discovery_evidence_submit(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        payload = self._parse_json_object(args.payload_json, "payload-json")
+        evidence = app.discovery_service.submit_evidence(
+            SubmitDiscoveryEvidenceCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                evidence_id=args.evidence_id,
+                object_key=args.object_key,
+                object_kind=args.object_kind,
+                source=args.source,
+                source_ref=args.source_ref,
+                scope=args.scope,
+                external_id=args.external_id,
+                confidence=args.confidence,
+                payload=payload,
+                observed_at=args.observed_at,
+            )
+        )
+        print(json.dumps(evidence.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_discovery_evidence_get(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        evidence = app.discovery_service.get_evidence(
+            GetDiscoveryEvidenceCommand(args.tenant, args.admin_token, args.evidence_id)
+        )
+        print(json.dumps(evidence.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_discovery_evidence_list(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        page = app.discovery_service.list_evidence(
+            ListDiscoveryEvidenceCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                object_key=args.object_key,
+                limit=args.limit,
+                cursor=args.cursor,
+            )
+        )
+        print(json.dumps(page.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_discovery_reconcile(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        case = app.discovery_service.reconcile_evidence(
+            ReconcileDiscoveryEvidenceCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                object_key=args.object_key,
+                evidence_ids=tuple(args.evidence_id),
+                max_age_seconds=args.max_age_seconds,
+            )
+        )
+        print(json.dumps(case.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_discovery_reconciliation_get(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        case = app.discovery_service.get_reconciliation(
+            GetDiscoveryReconciliationCommand(args.tenant, args.admin_token, args.case_id)
+        )
+        print(json.dumps(case.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_discovery_reconciliation_list(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        page = app.discovery_service.list_reconciliations(
+            ListDiscoveryReconciliationsCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                status=args.status,
+                limit=args.limit,
+                cursor=args.cursor,
+            )
+        )
+        print(json.dumps(page.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_discovery_reconciliation_resolve(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        raw = self._parse_json_object(args.selections_json, "selections-json")
+        selections = {str(key): str(value) for key, value in raw.items()}
+        case = app.discovery_service.resolve_reconciliation(
+            ResolveDiscoveryReconciliationCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                case_id=args.case_id,
+                selected_evidence_by_path=selections,
+                justification=args.justification,
+            )
+        )
+        print(json.dumps(case.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    @staticmethod
+    def _parse_json_object(value: str, label: str) -> dict[str, Any]:
+        try:
+            decoded = json.loads(value)
+        except json.JSONDecodeError as exc:
+            raise ValidationError(label + " must contain valid JSON") from exc
+        if not isinstance(decoded, dict):
+            raise ValidationError(label + " must be a JSON object")
+        return {str(key): item for key, item in decoded.items()}
 
     def _handle_discovery_protocol_profile_create(self, args: argparse.Namespace) -> int:
         app = self._create_application(args)

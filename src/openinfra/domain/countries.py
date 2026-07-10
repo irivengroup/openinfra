@@ -1,6 +1,19 @@
 from __future__ import annotations
 
-COUNTRY_GROUPS: tuple[dict[str, object], ...] = (
+from typing import TypedDict
+
+
+class CountryEntry(TypedDict):
+    code: str
+    name: str
+
+
+class CountryGroup(TypedDict):
+    continent: str
+    countries: tuple[CountryEntry, ...]
+
+
+COUNTRY_GROUPS: tuple[CountryGroup, ...] = (
     {
         "continent": "Africa",
         "countries": (

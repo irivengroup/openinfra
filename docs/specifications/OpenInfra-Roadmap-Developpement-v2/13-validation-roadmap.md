@@ -1,3 +1,7 @@
+### Validation v0.29.82 — Réconciliation Discovery multisource gouvernée
+
+La roadmap réalise `EPIC-1405` via `TST-P14-DISCOVERY-MULTISOURCE-RECONCILIATION` : preuves immuables, scores reproductibles, conflits explicites par attribut, résolution complète et justifiée, audit, pagination, persistance JSON/PostgreSQL partitionnée et interdiction de toute mutation RSOT silencieuse.
+
 ## 0.29.52
 
 L’incrément v0.29.52 réalise un jalon P13 / EPIC-1301 : progression opérable des imports massifs reprenables avec checkpoint, compteurs, CLI `openinfra import bulk-progress`, API `/api/v1/imports/bulk-progress`, OpenAPI/discovery et portail web.

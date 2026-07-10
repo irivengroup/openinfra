@@ -17,8 +17,10 @@ from openinfra.application.ports import (
     AuditRepository,
     DcimRepository,
     DiscoveryCollectorPage,
+    DiscoveryEvidencePage,
     DiscoveryIntegrationProfilePage,
     DiscoveryProtocolProfilePage,
+    DiscoveryReconciliationCasePage,
     DiscoveryRepository,
     ExportRepository,
     IdentityRepository,
@@ -104,10 +106,13 @@ from openinfra.domain.dcim import (
 from openinfra.domain.discovery import (
     CollectorStatus,
     DiscoveryCollector,
+    DiscoveryEvidence,
     DiscoveryIntegrationProfile,
     DiscoveryIntegrationProfileStatus,
     DiscoveryProtocolCredentialProfile,
     DiscoveryProtocolProfileStatus,
+    DiscoveryReconciliationCase,
+    DiscoveryReconciliationStatus,
 )
 from openinfra.domain.editions import QuotaResource
 from openinfra.domain.identity import (
@@ -268,6 +273,8 @@ class JsonDocumentStore:
             "discovery_collectors": {},
             "discovery_protocol_profiles": {},
             "discovery_integration_profiles": {},
+            "discovery_evidence": {},
+            "discovery_reconciliation_cases": {},
             "itam_organizations": {},
             "itam_partners": {},
             "itam_tenants": {},
@@ -310,6 +317,123 @@ class JsonRuntimeUsageRepository(RuntimeUsageRepository):
 class JsonDiscoveryRepository(DiscoveryRepository):
     def __init__(self, store: JsonDocumentStore) -> None:
         self._store = store
+
+    def save_evidence(self, evidence: DiscoveryEvidence) -> None:
+        key = self._key(evidence.tenant_id, evidence.id.value)
+        payload = evidence.as_dict()
+        with self._store.lock:
+            existing = self._store.data["discovery_evidence"].get(key)
+            if existing is not None and existing != payload:
+                raise ConflictError("discovery evidence is immutable")
+            self._store.data["discovery_evidence"][key] = payload
+            self._store.mark_dirty()
+
+    def get_evidence(self, tenant_id: TenantId, evidence_id: str) -> DiscoveryEvidence | None:
+        with self._store.lock:
+            payload = self._store.data["discovery_evidence"].get(self._key(tenant_id, evidence_id))
+            if payload is None:
+                return None
+            return DiscoveryEvidence.from_dict(cast(dict[str, object], payload))
+
+    def list_evidence(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        object_key: str | None = None,
+    ) -> DiscoveryEvidencePage:
+        with self._store.lock:
+            prefix = tenant_id.value + ":"
+            evidences = [
+                DiscoveryEvidence.from_dict(cast(dict[str, object], payload))
+                for key, payload in self._store.data["discovery_evidence"].items()
+                if key.startswith(prefix)
+            ]
+        normalized_key = object_key.strip() if object_key else None
+        filtered = tuple(
+            evidence
+            for evidence in sorted(evidences, key=lambda item: (item.received_at, item.id.value))
+            if normalized_key is None or evidence.object_key == normalized_key
+        )
+        start = 0
+        if pagination.cursor:
+            ids = [item.id.value for item in filtered]
+            if pagination.cursor in ids:
+                start = ids.index(pagination.cursor) + 1
+        page = filtered[start : start + pagination.limit]
+        next_cursor = page[-1].id.value if len(page) == pagination.limit else None
+        return DiscoveryEvidencePage(items=page, next_cursor=next_cursor)
+
+    def save_reconciliation_case(self, case: DiscoveryReconciliationCase) -> None:
+        key = self._key(case.tenant_id, case.id.value)
+        payload = case.as_dict()
+        with self._store.lock:
+            existing_payload = self._store.data["discovery_reconciliation_cases"].get(key)
+            if existing_payload is not None:
+                existing = DiscoveryReconciliationCase.from_dict(
+                    cast(dict[str, object], existing_payload)
+                )
+                if existing.signature != case.signature:
+                    raise ConflictError("reconciliation case evidence set is immutable")
+                if (
+                    existing.status is DiscoveryReconciliationStatus.RESOLVED
+                    and case.status is not DiscoveryReconciliationStatus.RESOLVED
+                ):
+                    raise ConflictError("resolved reconciliation case cannot be reopened")
+            self._store.data["discovery_reconciliation_cases"][key] = payload
+            self._store.mark_dirty()
+
+    def get_reconciliation_case(
+        self, tenant_id: TenantId, case_id: str
+    ) -> DiscoveryReconciliationCase | None:
+        with self._store.lock:
+            payload = self._store.data["discovery_reconciliation_cases"].get(
+                self._key(tenant_id, case_id)
+            )
+            if payload is None:
+                return None
+            return DiscoveryReconciliationCase.from_dict(cast(dict[str, object], payload))
+
+    def find_reconciliation_case_by_signature(
+        self, tenant_id: TenantId, signature: str
+    ) -> DiscoveryReconciliationCase | None:
+        with self._store.lock:
+            prefix = tenant_id.value + ":"
+            for key, payload in self._store.data["discovery_reconciliation_cases"].items():
+                if not key.startswith(prefix) or not isinstance(payload, dict):
+                    continue
+                if str(payload.get("signature", "")) == signature:
+                    return DiscoveryReconciliationCase.from_dict(cast(dict[str, object], payload))
+        return None
+
+    def list_reconciliation_cases(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        status: str | None = None,
+    ) -> DiscoveryReconciliationCasePage:
+        normalized_status = status.strip().lower() if status else None
+        if normalized_status is not None:
+            DiscoveryReconciliationStatus(normalized_status)
+        with self._store.lock:
+            prefix = tenant_id.value + ":"
+            cases = [
+                DiscoveryReconciliationCase.from_dict(cast(dict[str, object], payload))
+                for key, payload in self._store.data["discovery_reconciliation_cases"].items()
+                if key.startswith(prefix)
+            ]
+        filtered = tuple(
+            case
+            for case in sorted(cases, key=lambda item: (item.evaluated_at, item.id.value))
+            if normalized_status is None or case.status.value == normalized_status
+        )
+        start = 0
+        if pagination.cursor:
+            ids = [item.id.value for item in filtered]
+            if pagination.cursor in ids:
+                start = ids.index(pagination.cursor) + 1
+        page = filtered[start : start + pagination.limit]
+        next_cursor = page[-1].id.value if len(page) == pagination.limit else None
+        return DiscoveryReconciliationCasePage(items=page, next_cursor=next_cursor)
 
     def save_integration_profile(self, profile: DiscoveryIntegrationProfile) -> None:
         with self._store.lock:

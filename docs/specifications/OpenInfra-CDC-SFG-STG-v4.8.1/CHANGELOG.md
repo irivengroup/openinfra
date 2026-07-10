@@ -1,3 +1,7 @@
+### Validation v0.29.82 — Réconciliation Discovery multisource gouvernée
+
+Ajout de `REQ-00823` et `TST-WEB-122` : preuves immuables et hashées, scoring confiance/fraîcheur/complétude déterministe, conflits par chemin d’attribut, résolution complète justifiée, audit sans payload, pagination et migration PostgreSQL `0038_discovery_multisource_reconciliation.sql`, sans écriture RSOT directe.
+
 ## v0.29.72 — DCIM dépendances CRUD topologiques
 
 - Ajout `REQ-00813` pour couvrir le cycle de vie CRUD des bâtiments, étages, salles et zones DCIM.

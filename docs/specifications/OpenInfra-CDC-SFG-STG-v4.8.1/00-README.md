@@ -1,3 +1,7 @@
+### Validation v0.29.82 — Réconciliation Discovery multisource gouvernée
+
+Ajout de `REQ-00823` et `TST-WEB-122` : preuves immuables et hashées, scoring confiance/fraîcheur/complétude déterministe, conflits par chemin d’attribut, résolution complète justifiée, audit sans payload, pagination et migration PostgreSQL `0038_discovery_multisource_reconciliation.sql`, sans écriture RSOT directe.
+
 - Ajout de `REQ-00800` et `TST-WEB-101` pour couvrir GLPI Inventory et Freshservice Assets comme connecteurs ITSM externes sans ticketing natif.
 - Ajout de `REQ-00796` et `TST-WEB-097` pour couvrir P13 / EPIC-1302 : lecture streaming par chunks des artefacts d’export massifs signés avec offset, SHA-256 chunk et reprise client.
 - Ajout de `REQ-00795` et `TST-WEB-096` pour couvrir P13 / EPIC-1301 : progression opérable des imports massifs reprenables via service, CLI, API, OpenAPI et portail web.

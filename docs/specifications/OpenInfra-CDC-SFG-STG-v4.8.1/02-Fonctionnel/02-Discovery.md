@@ -151,3 +151,16 @@ OpenInfra doit gérer des profils de protocoles Discovery SNMP, SSH et WinRM rat
 Chaque profil doit conserver uniquement une référence de secret `vault://`, jamais de secret matérialisé dans les réponses CLI/API/UI, et imposer des paramètres bornés : protocole autorisé, scope, port, timeout, concurrence maximale, limite de débit par minute et nombre de tentatives.
 
 **Acceptation :** les profils sont créables, lisibles, modifiables, désactivables et listables par service, CLI et API ; les réponses publiques masquent la référence sensible en `vault://***`, conservent `secret_materialized=false`, refusent WinRM non chiffré sur 5985, et les plans locaux liés à un profil héritent des limites de débit/concurrence du profil sans exécuter de scan réseau ni écrire dans le RSOT.
+
+## v0.29.82 — Réconciliation Discovery multisource gouvernée
+
+### REQ-00823 — Preuve, score, conflit et résolution
+
+OpenInfra conserve chaque observation comme une preuve immuable, isolée par tenant et identifiée par une empreinte SHA-256 du payload canonique. Les payloads sont bornés à 1 MiB, strictement validés et refusent les clés susceptibles de transporter un secret.
+
+Le rapprochement exige au moins deux identités de source et calcule des scores déterministes de confiance, fraîcheur, complétude et qualité globale. Les valeurs divergentes sont exposées par chemin d’attribut avec toutes leurs variantes ; aucun score ne provoque un écrasement silencieux.
+
+La résolution exige une sélection valide pour chaque conflit et une justification auditée. Elle produit une décision de gouvernance avec `rsot_write_executed=false` ; l’application éventuelle au RSOT demeure une opération distincte, explicite et soumise à son propre contrôle d’impact.
+
+**Acceptation :** service, CLI, API, OpenAPI et web offrent soumission, consultation, pagination, rapprochement et résolution ; les dépôts JSON/PostgreSQL garantissent immutabilité et idempotence ; PostgreSQL partitionne les preuves et cas par tenant ; les tests démontrent l’absence de mutation RSOT.
+

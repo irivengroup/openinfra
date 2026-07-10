@@ -1,26 +1,34 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Any
 
 from openinfra.application.edition_services import EditionRuntimeGuard
 from openinfra.application.ports import (
     AuditRepository,
     DiscoveryCollectorPage,
+    DiscoveryEvidencePage,
     DiscoveryIntegrationProfilePage,
     DiscoveryProtocolProfilePage,
+    DiscoveryReconciliationCasePage,
     DiscoveryRepository,
     TransactionManager,
 )
 from openinfra.application.security_services import AuthenticateTokenCommand, SecurityService
-from openinfra.domain.common import AuditEvent, Pagination, TenantId, ValidationError
+from openinfra.domain.common import AuditEvent, EntityId, Pagination, TenantId, ValidationError
 from openinfra.domain.discovery import (
     CollectorIdentity,
     CollectorKind,
     DiscoveryCollector,
+    DiscoveryEvidence,
     DiscoveryIntegrationProfile,
     DiscoveryJobAuthorization,
     DiscoveryProtocolCredentialProfile,
+    DiscoveryReconciliationCase,
+    DiscoveryReconciliationStatus,
     DiscoveryScope,
+    DiscoverySource,
     EnterpriseAgentBootstrapPlan,
     LocalDiscoveryPlan,
 )
@@ -240,6 +248,75 @@ class BuildLocalDiscoveryPlanCommand:
     protocol_profile_id: str | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class SubmitDiscoveryEvidenceCommand:
+    tenant_id: str
+    actor: str
+    admin_token: str
+    object_key: str
+    object_kind: str
+    source: str
+    source_ref: str
+    scope: str
+    external_id: str
+    confidence: float
+    payload: dict[str, Any]
+    observed_at: str | None = None
+    evidence_id: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class GetDiscoveryEvidenceCommand:
+    tenant_id: str
+    admin_token: str
+    evidence_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class ListDiscoveryEvidenceCommand:
+    tenant_id: str
+    admin_token: str
+    limit: int = 100
+    cursor: str | None = None
+    object_key: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ReconcileDiscoveryEvidenceCommand:
+    tenant_id: str
+    actor: str
+    admin_token: str
+    object_key: str
+    evidence_ids: tuple[str, ...]
+    max_age_seconds: int = 86_400
+
+
+@dataclass(frozen=True, slots=True)
+class GetDiscoveryReconciliationCommand:
+    tenant_id: str
+    admin_token: str
+    case_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class ListDiscoveryReconciliationsCommand:
+    tenant_id: str
+    admin_token: str
+    limit: int = 100
+    cursor: str | None = None
+    status: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ResolveDiscoveryReconciliationCommand:
+    tenant_id: str
+    actor: str
+    admin_token: str
+    case_id: str
+    selected_evidence_by_path: dict[str, str]
+    justification: str
+
+
 class DiscoveryCollectorService:
     def __init__(
         self,
@@ -254,6 +331,238 @@ class DiscoveryCollectorService:
         self._transaction_manager = transaction_manager
         self._security_service = security_service
         self._edition_guard = edition_guard
+
+    def submit_evidence(self, command: SubmitDiscoveryEvidenceCommand) -> DiscoveryEvidence:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        principal = self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                tenant_id.value,
+                command.admin_token,
+                Permission.RSOT_GOVERNANCE_WRITE,
+            )
+        )
+        observed_at = self._parse_optional_datetime(command.observed_at, "observed_at")
+        evidence_id = None
+        if command.evidence_id is not None:
+            evidence_id = EntityId.from_value(command.evidence_id)
+        evidence = DiscoveryEvidence.create(
+            tenant_id=tenant_id,
+            source=DiscoverySource.from_value(command.source),
+            external_id=command.external_id,
+            confidence=command.confidence,
+            payload=command.payload,
+            object_key=command.object_key,
+            object_kind=command.object_kind,
+            scope=command.scope,
+            source_ref=command.source_ref,
+            observed_at=observed_at,
+            evidence_id=evidence_id,
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            self._discovery_repository.save_evidence(evidence)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=principal.subject,
+                    action="discovery.evidence.submitted",
+                    target_type="discovery_evidence",
+                    target_id=evidence.id.value,
+                    metadata={
+                        "declared_actor": command.actor,
+                        "object_key": evidence.object_key,
+                        "object_kind": evidence.object_kind,
+                        "source": evidence.source.value,
+                        "source_ref": evidence.source_ref,
+                        "scope": evidence.scope.value,
+                        "payload_hash": evidence.payload_hash,
+                        "confidence": evidence.confidence,
+                        "completeness": evidence.completeness,
+                        "immutable": True,
+                        "payload_audited": False,
+                        "rsot_write_executed": False,
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return evidence
+
+    def get_evidence(self, command: GetDiscoveryEvidenceCommand) -> DiscoveryEvidence:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                tenant_id.value,
+                command.admin_token,
+                Permission.RSOT_GOVERNANCE_READ,
+            )
+        )
+        evidence = self._discovery_repository.get_evidence(tenant_id, command.evidence_id)
+        if evidence is None:
+            raise ValidationError("discovery evidence is not registered")
+        return evidence
+
+    def list_evidence(self, command: ListDiscoveryEvidenceCommand) -> DiscoveryEvidencePage:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                tenant_id.value,
+                command.admin_token,
+                Permission.RSOT_GOVERNANCE_READ,
+            )
+        )
+        pagination = Pagination.from_values(command.limit, command.cursor)
+        object_key = None if command.object_key is None else command.object_key.strip()
+        return self._discovery_repository.list_evidence(tenant_id, pagination, object_key)
+
+    def reconcile_evidence(
+        self, command: ReconcileDiscoveryEvidenceCommand
+    ) -> DiscoveryReconciliationCase:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        principal = self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                tenant_id.value,
+                command.admin_token,
+                Permission.RSOT_GOVERNANCE_WRITE,
+            )
+        )
+        normalized_ids = tuple(dict.fromkeys(item.strip() for item in command.evidence_ids))
+        if len(normalized_ids) < 2:
+            raise ValidationError("reconciliation requires at least two distinct evidence ids")
+        evidences: list[DiscoveryEvidence] = []
+        for evidence_id in normalized_ids:
+            evidence = self._discovery_repository.get_evidence(tenant_id, evidence_id)
+            if evidence is None:
+                raise ValidationError("discovery evidence is not registered: " + evidence_id)
+            evidences.append(evidence)
+        candidate = DiscoveryReconciliationCase.evaluate(
+            tenant_id=tenant_id,
+            object_key=command.object_key,
+            evidences=tuple(evidences),
+            max_age_seconds=command.max_age_seconds,
+            evaluated_by=principal.subject,
+        )
+        existing = self._discovery_repository.find_reconciliation_case_by_signature(
+            tenant_id,
+            candidate.signature,
+        )
+        if existing is not None:
+            return existing
+        with self._transaction_manager.begin() as unit_of_work:
+            self._discovery_repository.save_reconciliation_case(candidate)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=principal.subject,
+                    action="discovery.reconciliation.evaluated",
+                    target_type="discovery_reconciliation_case",
+                    target_id=candidate.id.value,
+                    metadata={
+                        "declared_actor": command.actor,
+                        "object_key": candidate.object_key,
+                        "object_kind": candidate.object_kind,
+                        "evidence_count": len(candidate.evidence_ids),
+                        "source_count": candidate.source_count,
+                        "conflict_count": len(candidate.conflicts),
+                        "status": candidate.status.value,
+                        "overall_score": candidate.overall_score,
+                        "signature": candidate.signature,
+                        "rsot_write_executed": False,
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return candidate
+
+    def get_reconciliation(
+        self, command: GetDiscoveryReconciliationCommand
+    ) -> DiscoveryReconciliationCase:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                tenant_id.value,
+                command.admin_token,
+                Permission.RSOT_GOVERNANCE_READ,
+            )
+        )
+        case = self._discovery_repository.get_reconciliation_case(tenant_id, command.case_id)
+        if case is None:
+            raise ValidationError("discovery reconciliation case is not registered")
+        return case
+
+    def list_reconciliations(
+        self, command: ListDiscoveryReconciliationsCommand
+    ) -> DiscoveryReconciliationCasePage:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                tenant_id.value,
+                command.admin_token,
+                Permission.RSOT_GOVERNANCE_READ,
+            )
+        )
+        pagination = Pagination.from_values(command.limit, command.cursor)
+        status = None
+        if command.status is not None:
+            status = DiscoveryReconciliationStatus(command.status.strip().lower()).value
+        return self._discovery_repository.list_reconciliation_cases(
+            tenant_id,
+            pagination,
+            status,
+        )
+
+    def resolve_reconciliation(
+        self, command: ResolveDiscoveryReconciliationCommand
+    ) -> DiscoveryReconciliationCase:
+        tenant_id = TenantId.from_value(command.tenant_id)
+        principal = self._security_service.authenticate_token(
+            AuthenticateTokenCommand(
+                tenant_id.value,
+                command.admin_token,
+                Permission.RSOT_GOVERNANCE_WRITE,
+            )
+        )
+        case = self._discovery_repository.get_reconciliation_case(tenant_id, command.case_id)
+        if case is None:
+            raise ValidationError("discovery reconciliation case is not registered")
+        resolved = case.resolve(
+            selected_evidence_by_path=command.selected_evidence_by_path,
+            actor=principal.subject,
+            justification=command.justification,
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            self._discovery_repository.save_reconciliation_case(resolved)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id=tenant_id,
+                    actor=principal.subject,
+                    action="discovery.reconciliation.resolved",
+                    target_type="discovery_reconciliation_case",
+                    target_id=resolved.id.value,
+                    metadata={
+                        "declared_actor": command.actor,
+                        "justification": resolved.resolution.justification
+                        if resolved.resolution is not None
+                        else "",
+                        "selection_count": len(command.selected_evidence_by_path),
+                        "signature": resolved.signature,
+                        "status": resolved.status.value,
+                        "rsot_write_executed": False,
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return resolved
+
+    @staticmethod
+    def _parse_optional_datetime(value: str | None, label: str) -> datetime | None:
+        if value is None or not value.strip():
+            return None
+        try:
+            parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise ValidationError(label + " must use ISO-8601 syntax") from exc
+        if parsed.tzinfo is None:
+            raise ValidationError(label + " must include a timezone")
+        return parsed
 
     def create_protocol_profile(
         self, command: CreateDiscoveryProtocolProfileCommand
@@ -292,7 +601,7 @@ class DiscoveryCollectorService:
                         "scope": profile.scope.value,
                         "rate_limit_per_minute": profile.rate_limit_per_minute,
                         "max_concurrency": profile.max_concurrency,
-                        "secret_materialized": False,
+                        "credential_reference_only": True,
                     },
                 )
             )
@@ -336,7 +645,7 @@ class DiscoveryCollectorService:
                         "scope": updated.scope.value,
                         "rate_limit_per_minute": updated.rate_limit_per_minute,
                         "max_concurrency": updated.max_concurrency,
-                        "secret_materialized": False,
+                        "credential_reference_only": True,
                     },
                 )
             )
@@ -382,7 +691,7 @@ class DiscoveryCollectorService:
                     metadata={
                         "declared_actor": command.actor,
                         "reason": disabled.disabled_reason,
-                        "secret_materialized": False,
+                        "credential_reference_only": True,
                     },
                 )
             )
@@ -441,7 +750,7 @@ class DiscoveryCollectorService:
                         "kind": profile.kind.value,
                         "scope": profile.scope.value,
                         "connector_family": profile.connector_family,
-                        "secret_materialized": False,
+                        "credential_reference_only": True,
                         "inventory_plan_only": True,
                     },
                 )
@@ -484,7 +793,7 @@ class DiscoveryCollectorService:
                         "declared_actor": command.actor,
                         "kind": updated.kind.value,
                         "scope": updated.scope.value,
-                        "secret_materialized": False,
+                        "credential_reference_only": True,
                     },
                 )
             )
@@ -530,7 +839,7 @@ class DiscoveryCollectorService:
                     metadata={
                         "declared_actor": command.actor,
                         "reason": disabled.disabled_reason,
-                        "secret_materialized": False,
+                        "credential_reference_only": True,
                     },
                 )
             )

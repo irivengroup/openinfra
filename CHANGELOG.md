@@ -1,3 +1,16 @@
+## v0.29.82 — Réconciliation Discovery multisource gouvernée
+
+- Ajout des preuves Discovery immuables, identifiées par UUID et empreinte SHA-256 canonique.
+- Validation stricte des payloads JSON, limite de 1 MiB et refus des clés susceptibles de contenir des secrets.
+- Calcul déterministe des scores confiance/fraîcheur/complétude et du score global pondéré.
+- Détection des conflits par chemin d’attribut, conservation de toutes les variantes et idempotence par signature.
+- Résolution complète et justifiée des conflits sans écriture automatique dans le RSOT.
+- Persistance JSON et PostgreSQL partitionnée par tenant, indexée et paginée.
+- Ajout de la migration PostgreSQL additive `0038_discovery_multisource_reconciliation.sql`.
+- Exposition service, CLI, API HTTP, OpenAPI et portail web.
+- Ajout des tests domaine, service, CLI, API, web, migration, sécurité et non-régression RSOT.
+- Alignement de la version frontend sur 0.29.82 et ajout d’un job CI Node.js dédié au lint, aux tests et au build Vite.
+
 ## v0.29.81 — Profils Discovery virtualisation, Kubernetes et cloud
 
 - Ajout du référentiel Discovery des profils VMware, Proxmox, Hyper-V, Kubernetes, AWS, Azure, GCP et OpenStack.

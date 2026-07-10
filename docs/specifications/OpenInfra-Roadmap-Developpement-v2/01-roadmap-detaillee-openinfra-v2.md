@@ -1,3 +1,7 @@
+### Validation v0.29.82 — Réconciliation Discovery multisource gouvernée
+
+La roadmap réalise `EPIC-1405` via `TST-P14-DISCOVERY-MULTISOURCE-RECONCILIATION` : preuves immuables, scores reproductibles, conflits explicites par attribut, résolution complète et justifiée, audit, pagination, persistance JSON/PostgreSQL partitionnée et interdiction de toute mutation RSOT silencieuse.
+
 - 0.29.58 : ajout `TST-P25-ITSM-OPENSERVICE-FUTURE-CMDB-CONNECTOR` pour préparer OpenService comme ITSM/CMDB externe autonome, sans UI dans openinfra-web et sans ticketing natif.
 - 0.29.57 : ajout `TST-P25-ITSM-GLPI-FRESHSERVICE-EXTERNAL-CONNECTORS` pour couvrir GLPI Inventory et Freshservice Assets comme connecteurs ITSM externes sans ticketing natif.
 - 0.29.56 : ajout `TST-P25-ITSM-JIRA-ASSETS-EXTERNAL-CONNECTOR` pour couvrir Jira Service Management Assets comme connecteur ITSM externe sans ticketing natif.

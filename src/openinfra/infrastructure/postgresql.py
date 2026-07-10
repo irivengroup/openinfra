@@ -19,8 +19,10 @@ from openinfra.application.ports import (
     AuditRepository,
     DcimRepository,
     DiscoveryCollectorPage,
+    DiscoveryEvidencePage,
     DiscoveryIntegrationProfilePage,
     DiscoveryProtocolProfilePage,
+    DiscoveryReconciliationCasePage,
     DiscoveryRepository,
     ExportRepository,
     IdentityRepository,
@@ -106,8 +108,11 @@ from openinfra.domain.dcim import (
 )
 from openinfra.domain.discovery import (
     DiscoveryCollector,
+    DiscoveryEvidence,
     DiscoveryIntegrationProfile,
     DiscoveryProtocolCredentialProfile,
+    DiscoveryReconciliationCase,
+    DiscoveryReconciliationStatus,
 )
 from openinfra.domain.editions import QuotaResource
 from openinfra.domain.identity import (
@@ -3554,6 +3559,285 @@ class PostgreSQLIpamRepository(PostgreSQLRepositoryBase, IpamRepository):
 
 
 class PostgreSQLDiscoveryRepository(PostgreSQLRepositoryBase, DiscoveryRepository):
+    def save_evidence(self, evidence: DiscoveryEvidence) -> None:
+        self._ensure_tenant(evidence.tenant_id)
+        payload = evidence.as_dict()
+        self._execute_without_result(
+            """
+            INSERT INTO discovery_evidence (
+                id, tenant_id, source, source_ref, scope, external_id, object_key,
+                object_kind, confidence, completeness, observed_at, received_at,
+                payload_hash, payload
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(source)s, %(source_ref)s, %(scope)s,
+                %(external_id)s, %(object_key)s, %(object_kind)s, %(confidence)s,
+                %(completeness)s, %(observed_at)s, %(received_at)s, %(payload_hash)s,
+                %(payload)s::jsonb
+            )
+            ON CONFLICT (tenant_id, id) DO NOTHING
+            """,
+            {
+                "id": payload["id"],
+                "tenant_id": payload["tenant_id"],
+                "source": payload["source"],
+                "source_ref": payload["source_ref"],
+                "scope": payload["scope"],
+                "external_id": payload["external_id"],
+                "object_key": payload["object_key"],
+                "object_kind": payload["object_kind"],
+                "confidence": payload["confidence"],
+                "completeness": payload["completeness"],
+                "observed_at": evidence.observed_at,
+                "received_at": evidence.received_at,
+                "payload_hash": payload["payload_hash"],
+                "payload": json.dumps(payload["payload"], sort_keys=True),
+            },
+        )
+        stored = self.get_evidence(evidence.tenant_id, evidence.id.value)
+        if stored is None or stored.as_dict() != evidence.as_dict():
+            raise ConflictError("discovery evidence is immutable")
+
+    def get_evidence(self, tenant_id: TenantId, evidence_id: str) -> DiscoveryEvidence | None:
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, source, source_ref, scope, external_id, object_key,
+                   object_kind, confidence, completeness, observed_at, received_at,
+                   payload_hash, payload
+            FROM discovery_evidence
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s
+            """,
+            {"tenant_id": tenant_id.value, "id": evidence_id.strip()},
+        )
+        return self._evidence_from_row(row) if row else None
+
+    def list_evidence(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        object_key: str | None = None,
+    ) -> DiscoveryEvidencePage:
+        params: dict[str, object] = {"tenant_id": tenant_id.value, "limit": pagination.limit}
+        clauses = ["tenant_id = %(tenant_id)s"]
+        if object_key:
+            params["object_key"] = object_key.strip()
+            clauses.append("object_key = %(object_key)s")
+        if pagination.cursor:
+            params["cursor"] = pagination.cursor
+            clauses.append("id > %(cursor)s")
+        rows = self._fetch_all(
+            f"""
+            SELECT id, tenant_id, source, source_ref, scope, external_id, object_key,
+                   object_kind, confidence, completeness, observed_at, received_at,
+                   payload_hash, payload
+            FROM discovery_evidence
+            WHERE {" AND ".join(clauses)}
+            ORDER BY id ASC
+            LIMIT %(limit)s
+            """,  # nosec B608 -- clauses are fixed SQL fragments
+            params,
+        )
+        evidences = tuple(self._evidence_from_row(row) for row in rows)
+        next_cursor = evidences[-1].id.value if len(evidences) == pagination.limit else None
+        return DiscoveryEvidencePage(items=evidences, next_cursor=next_cursor)
+
+    def save_reconciliation_case(self, case: DiscoveryReconciliationCase) -> None:
+        self._ensure_tenant(case.tenant_id)
+        payload = case.as_dict()
+        self._execute_without_result(
+            """
+            INSERT INTO discovery_reconciliation_cases (
+                id, tenant_id, object_key, object_kind, evidence_ids, source_count,
+                confidence_score, freshness_score, completeness_score, overall_score,
+                status, conflicts, merged_payload, evaluated_at, evaluated_by,
+                signature, resolution, rsot_write_executed, updated_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(object_key)s, %(object_kind)s, %(evidence_ids)s,
+                %(source_count)s, %(confidence_score)s, %(freshness_score)s,
+                %(completeness_score)s, %(overall_score)s, %(status)s,
+                %(conflicts)s::jsonb, %(merged_payload)s::jsonb, %(evaluated_at)s,
+                %(evaluated_by)s, %(signature)s, %(resolution)s::jsonb,
+                %(rsot_write_executed)s, now()
+            )
+            ON CONFLICT (tenant_id, id) DO UPDATE SET
+                status = EXCLUDED.status,
+                merged_payload = EXCLUDED.merged_payload,
+                resolution = EXCLUDED.resolution,
+                updated_at = now()
+            WHERE discovery_reconciliation_cases.signature = EXCLUDED.signature
+              AND discovery_reconciliation_cases.status <> 'resolved'
+            """,
+            {
+                "id": payload["id"],
+                "tenant_id": payload["tenant_id"],
+                "object_key": payload["object_key"],
+                "object_kind": payload["object_kind"],
+                "evidence_ids": payload["evidence_ids"],
+                "source_count": payload["source_count"],
+                "confidence_score": payload["confidence_score"],
+                "freshness_score": payload["freshness_score"],
+                "completeness_score": payload["completeness_score"],
+                "overall_score": payload["overall_score"],
+                "status": payload["status"],
+                "conflicts": json.dumps(payload["conflicts"], sort_keys=True),
+                "merged_payload": json.dumps(payload["merged_payload"], sort_keys=True),
+                "evaluated_at": case.evaluated_at,
+                "evaluated_by": payload["evaluated_by"],
+                "signature": payload["signature"],
+                "resolution": json.dumps(payload["resolution"], sort_keys=True),
+                "rsot_write_executed": payload["rsot_write_executed"],
+            },
+        )
+        stored = self.get_reconciliation_case(case.tenant_id, case.id.value)
+        if stored is None or stored.as_dict() != case.as_dict():
+            raise ConflictError("reconciliation case evidence set is immutable")
+
+    def get_reconciliation_case(
+        self, tenant_id: TenantId, case_id: str
+    ) -> DiscoveryReconciliationCase | None:
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, object_key, object_kind, evidence_ids, source_count,
+                   confidence_score, freshness_score, completeness_score, overall_score,
+                   status, conflicts, merged_payload, evaluated_at, evaluated_by,
+                   signature, resolution, rsot_write_executed
+            FROM discovery_reconciliation_cases
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s
+            """,
+            {"tenant_id": tenant_id.value, "id": case_id.strip()},
+        )
+        return self._reconciliation_case_from_row(row) if row else None
+
+    def find_reconciliation_case_by_signature(
+        self, tenant_id: TenantId, signature: str
+    ) -> DiscoveryReconciliationCase | None:
+        row = self._fetch_one(
+            """
+            SELECT id, tenant_id, object_key, object_kind, evidence_ids, source_count,
+                   confidence_score, freshness_score, completeness_score, overall_score,
+                   status, conflicts, merged_payload, evaluated_at, evaluated_by,
+                   signature, resolution, rsot_write_executed
+            FROM discovery_reconciliation_cases
+            WHERE tenant_id = %(tenant_id)s AND signature = %(signature)s
+            """,
+            {"tenant_id": tenant_id.value, "signature": signature.strip()},
+        )
+        return self._reconciliation_case_from_row(row) if row else None
+
+    def list_reconciliation_cases(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        status: str | None = None,
+    ) -> DiscoveryReconciliationCasePage:
+        params: dict[str, object] = {"tenant_id": tenant_id.value, "limit": pagination.limit}
+        clauses = ["tenant_id = %(tenant_id)s"]
+        if status:
+            normalized_status = DiscoveryReconciliationStatus(status.strip().lower()).value
+            params["status"] = normalized_status
+            clauses.append("status = %(status)s")
+        if pagination.cursor:
+            params["cursor"] = pagination.cursor
+            clauses.append("id > %(cursor)s")
+        rows = self._fetch_all(
+            f"""
+            SELECT id, tenant_id, object_key, object_kind, evidence_ids, source_count,
+                   confidence_score, freshness_score, completeness_score, overall_score,
+                   status, conflicts, merged_payload, evaluated_at, evaluated_by,
+                   signature, resolution, rsot_write_executed
+            FROM discovery_reconciliation_cases
+            WHERE {" AND ".join(clauses)}
+            ORDER BY id ASC
+            LIMIT %(limit)s
+            """,  # nosec B608 -- clauses are fixed SQL fragments
+            params,
+        )
+        cases = tuple(self._reconciliation_case_from_row(row) for row in rows)
+        next_cursor = cases[-1].id.value if len(cases) == pagination.limit else None
+        return DiscoveryReconciliationCasePage(items=cases, next_cursor=next_cursor)
+
+    def _evidence_from_row(self, row: Mapping[str, object]) -> DiscoveryEvidence:
+        return DiscoveryEvidence.from_dict(
+            {
+                "id": row["id"],
+                "tenant_id": row["tenant_id"],
+                "source": row["source"],
+                "source_ref": row["source_ref"],
+                "scope": row["scope"],
+                "external_id": row["external_id"],
+                "object_key": row["object_key"],
+                "object_kind": row["object_kind"],
+                "confidence": row["confidence"],
+                "completeness": row["completeness"],
+                "observed_at": row["observed_at"],
+                "received_at": row["received_at"],
+                "payload_hash": row["payload_hash"],
+                "payload": self._json_object(row["payload"], "discovery evidence payload"),
+            }
+        )
+
+    def _reconciliation_case_from_row(
+        self, row: Mapping[str, object]
+    ) -> DiscoveryReconciliationCase:
+        evidence_ids_value = row["evidence_ids"]
+        if not isinstance(evidence_ids_value, Sequence) or isinstance(evidence_ids_value, str):
+            raise ValidationError("stored reconciliation evidence ids are invalid")
+        return DiscoveryReconciliationCase.from_dict(
+            {
+                "id": row["id"],
+                "tenant_id": row["tenant_id"],
+                "object_key": row["object_key"],
+                "object_kind": row["object_kind"],
+                "evidence_ids": list(evidence_ids_value),
+                "source_count": row["source_count"],
+                "confidence_score": row["confidence_score"],
+                "freshness_score": row["freshness_score"],
+                "completeness_score": row["completeness_score"],
+                "overall_score": row["overall_score"],
+                "status": row["status"],
+                "conflicts": self._json_array(row["conflicts"], "reconciliation conflicts"),
+                "merged_payload": self._json_object(
+                    row["merged_payload"], "reconciliation merged payload"
+                ),
+                "evaluated_at": row["evaluated_at"],
+                "evaluated_by": row["evaluated_by"],
+                "signature": row["signature"],
+                "resolution": self._json_nullable_object(
+                    row.get("resolution"), "reconciliation resolution"
+                ),
+                "rsot_write_executed": row["rsot_write_executed"],
+            }
+        )
+
+    @staticmethod
+    def _json_object(value: object, label: str) -> dict[str, object]:
+        decoded = json.loads(value) if isinstance(value, str) else value
+        if not isinstance(decoded, dict):
+            raise ValidationError(label + " must be a JSON object")
+        return cast(dict[str, object], decoded)
+
+    @staticmethod
+    def _json_array(value: object, label: str) -> list[object]:
+        decoded = json.loads(value) if isinstance(value, str) else value
+        if not isinstance(decoded, list):
+            raise ValidationError(label + " must be a JSON array")
+        return cast(list[object], decoded)
+
+    @classmethod
+    def _json_nullable_object(cls, value: object, label: str) -> dict[str, object] | None:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            try:
+                decoded = json.loads(value)
+            except json.JSONDecodeError as exc:
+                raise ValidationError(label + " must contain valid JSON") from exc
+            if decoded is None:
+                return None
+            if not isinstance(decoded, dict):
+                raise ValidationError(label + " must be a JSON object")
+            return cast(dict[str, object], decoded)
+        return cls._json_object(value, label)
+
     def save_integration_profile(self, profile: DiscoveryIntegrationProfile) -> None:
         self._ensure_tenant(profile.tenant_id)
         payload = profile.as_dict()

@@ -1,3 +1,7 @@
+### Validation v0.29.82 — Réconciliation Discovery multisource gouvernée
+
+La roadmap réalise `EPIC-1405` via `TST-P14-DISCOVERY-MULTISOURCE-RECONCILIATION` : preuves immuables, scores reproductibles, conflits explicites par attribut, résolution complète et justifiée, audit, pagination, persistance JSON/PostgreSQL partitionnée et interdiction de toute mutation RSOT silencieuse.
+
 ## v0.29.72 — DCIM dépendances CRUD topologiques
 
 - Ajout `TST-P10-DCIM-DEPENDENCY-CRUD` pour verrouiller la gestion explicite des bâtiments, étages, salles et zones.

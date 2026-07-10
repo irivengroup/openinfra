@@ -209,6 +209,11 @@ class TestHttpApi:
                 },
                 "discovery": {
                     "collectors": "/api/v1/discovery/collectors",
+                    "evidence": "/api/v1/discovery/evidence",
+                    "evidence_list": "/api/v1/discovery/evidence-list",
+                    "reconciliation": "/api/v1/discovery/reconciliation",
+                    "reconciliation_list": "/api/v1/discovery/reconciliation-list",
+                    "reconciliation_resolve": "/api/v1/discovery/reconciliation/resolve",
                     "local_plan": "/api/v1/discovery/local-plan",
                     "protocol_profiles": "/api/v1/discovery/protocol-profiles",
                     "integration_profiles": "/api/v1/discovery/integration-profiles",
@@ -253,6 +258,13 @@ class TestHttpApi:
             assert "/api/v1/itam/software-license" in openapi
             assert "/api/v1/itam/software-license/compliance" in openapi
             assert "/api/v1/discovery/local-plan" in openapi
+            assert "/api/v1/discovery/evidence" in openapi
+            assert "/api/v1/discovery/evidence-list" in openapi
+            assert "/api/v1/discovery/reconciliation" in openapi
+            assert "/api/v1/discovery/reconciliation-list" in openapi
+            assert "/api/v1/discovery/reconciliation/resolve" in openapi
+            assert "Store immutable discovery evidence without mutating RSOT" in openapi
+            assert "Resolve every discovery conflict with explicit evidence selections" in openapi
             assert "/api/v1/discovery/agent-bootstrap-plan" in openapi
             assert "/api/v1/discovery/proxy-enrollments" in openapi
             assert "/api/v1/dcim/power-devices" in openapi
@@ -1202,6 +1214,14 @@ class TestHttpApi:
                 "/api/v1/discovery/protocol-profile?tenant_id=default&profile_id=missing",
                 "/api/v1/discovery/integration-profiles?tenant_id=default",
                 "/api/v1/discovery/integration-profile?tenant_id=default&profile_id=missing",
+                "/api/v1/discovery/evidence?tenant_id=default&evidence_id=missing",
+                "/api/v1/discovery/evidence-list?tenant_id=default",
+                "/api/v1/discovery/reconciliation?tenant_id=default&case_id=missing",
+                "/api/v1/discovery/reconciliation-list?tenant_id=default",
+                "/api/v1/itam/organization?tenant_id=default&organization_id=missing",
+                "/api/v1/itam/partners?tenant_id=default",
+                "/api/v1/itam/partner?tenant_id=default&organization_id=missing&partner_id=missing",
+                "/api/v1/itam/tenant?tenant_id=default",
             ):
                 self._expect_http_status(base_url + route, 401)
         finally:
@@ -1301,6 +1321,46 @@ class TestHttpApi:
                 (
                     "/api/v1/discovery/collectors/disable",
                     {"tenant_id": "default", "collector_id": "missing", "reason": "security test"},
+                ),
+                (
+                    "/api/v1/discovery/evidence",
+                    {
+                        "tenant_id": "default",
+                        "object_key": "server/auth-test",
+                        "object_kind": "server",
+                        "source": "manual",
+                        "source_ref": "auth-test",
+                        "scope": "site/par1",
+                        "external_id": "auth-test",
+                        "confidence": 0.8,
+                        "payload": {"name": "auth-test"},
+                    },
+                ),
+                (
+                    "/api/v1/discovery/reconciliation",
+                    {
+                        "tenant_id": "default",
+                        "object_key": "server/auth-test",
+                        "evidence_ids": ["first", "second"],
+                    },
+                ),
+                (
+                    "/api/v1/discovery/reconciliation/resolve",
+                    {
+                        "tenant_id": "default",
+                        "case_id": "missing",
+                        "selected_evidence_by_path": {"cpu.cores": "missing"},
+                        "justification": "Security authorization test",
+                    },
+                ),
+                ("/api/v1/itam/organization/create", {"tenant_id": "default"}),
+                ("/api/v1/itam/organization/update", {"tenant_id": "default"}),
+                ("/api/v1/itam/organization/delete", {"tenant_id": "default"}),
+                ("/api/v1/itam/partner/create", {"tenant_id": "default"}),
+                ("/api/v1/itam/partner/update", {"tenant_id": "default"}),
+                (
+                    "/api/v1/integrations/itsm/jira/asset-sync-plan",
+                    {"tenant_id": "default"},
                 ),
             ):
                 self._expect_http_status(base_url + route, 401, payload, method="POST")
@@ -1970,6 +2030,185 @@ class TestSourceOfTruthHttpApi:
                 "resource_category": "other",
                 "resource_type": "unknown-device",
             }
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+
+class TestDiscoveryReconciliationHttpApi:
+    def test_discovery_evidence_and_reconciliation_api(self, tmp_path: Path) -> None:
+        helper = TestHttpApi()
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+        token = "d" * 40
+        app.security_service.bootstrap_token(
+            BootstrapTokenCommand(
+                tenant_id="default",
+                actor="pytest",
+                subject="discovery-governance-admin",
+                roles=("rsot:governance-admin",),
+                token=token,
+            )
+        )
+        server = OpenInfraThreadingServer(("127.0.0.1", 0), app, auth_required=True)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base_url = f"http://127.0.0.1:{server.server_port}"
+            common = {
+                "tenant_id": "default",
+                "object_key": "server/api-01",
+                "object_kind": "server",
+                "scope": "site/par1",
+                "confidence": 0.9,
+                "observed_at": "2026-07-10T12:00:00+00:00",
+            }
+            vmware = helper._post_json(
+                base_url + "/api/v1/discovery/evidence",
+                {
+                    **common,
+                    "source": "vmware",
+                    "source_ref": "vcenter-par1",
+                    "external_id": "vm-101",
+                    "payload": {"name": "api-01", "cpu": {"cores": 8}},
+                },
+                token=token,
+            )
+            aws = helper._post_json(
+                base_url + "/api/v1/discovery/evidence",
+                {
+                    **common,
+                    "source": "aws",
+                    "source_ref": "aws-prod",
+                    "external_id": "i-api-01",
+                    "payload": {"name": "api-01", "cpu": {"cores": 16}},
+                },
+                token=token,
+            )
+            evidence_list = helper._get_json(
+                base_url
+                + "/api/v1/discovery/evidence-list?tenant_id=default"
+                + "&object_key=server%2Fapi-01",
+                token=token,
+            )
+            evidence_fetched = helper._get_json(
+                base_url
+                + "/api/v1/discovery/evidence?tenant_id=default&evidence_id="
+                + str(vmware["id"]),
+                token=token,
+            )
+            case = helper._post_json(
+                base_url + "/api/v1/discovery/reconciliation",
+                {
+                    "tenant_id": "default",
+                    "object_key": "server/api-01",
+                    "evidence_ids": [vmware["id"], aws["id"]],
+                },
+                token=token,
+            )
+            resolved = helper._post_json(
+                base_url + "/api/v1/discovery/reconciliation/resolve",
+                {
+                    "tenant_id": "default",
+                    "case_id": case["id"],
+                    "selected_evidence_by_path": {"cpu.cores": vmware["id"]},
+                    "justification": "VMware is authoritative for on-premise CPU allocation.",
+                },
+                token=token,
+            )
+            fetched = helper._get_json(
+                base_url
+                + "/api/v1/discovery/reconciliation?tenant_id=default&case_id="
+                + str(case["id"]),
+                token=token,
+            )
+            reconciliation_list = helper._get_json(
+                base_url
+                + "/api/v1/discovery/reconciliation-list?tenant_id=default&status=resolved",
+                token=token,
+            )
+
+            assert len(evidence_list["items"]) == 2
+            assert evidence_fetched["payload_hash"] == vmware["payload_hash"]
+            assert case["status"] == "conflict"
+            assert case["rsot_write_executed"] is False
+            assert resolved["status"] == "resolved"
+            assert fetched["merged_payload"] == {"cpu": {"cores": 8}, "name": "api-01"}
+            assert [item["id"] for item in reconciliation_list["items"]] == [case["id"]]
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def test_discovery_api_rejects_malformed_collection_payloads(self, tmp_path: Path) -> None:
+        helper = TestHttpApi()
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json")
+        token = "e" * 40
+        app.security_service.bootstrap_token(
+            BootstrapTokenCommand(
+                tenant_id="default",
+                actor="pytest",
+                subject="discovery-governance-admin",
+                roles=("rsot:governance-admin",),
+                token=token,
+            )
+        )
+        server = OpenInfraThreadingServer(("127.0.0.1", 0), app, auth_required=True)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base_url = f"http://127.0.0.1:{server.server_port}"
+            invalid_requests = (
+                (
+                    "/api/v1/discovery/evidence",
+                    {
+                        "tenant_id": "default",
+                        "object_key": "server/api-invalid",
+                        "object_kind": "server",
+                        "source": "manual",
+                        "source_ref": "operator-console",
+                        "scope": "site/par1",
+                        "external_id": "api-invalid",
+                        "confidence": 0.8,
+                        "payload": [],
+                    },
+                ),
+                (
+                    "/api/v1/discovery/reconciliation",
+                    {
+                        "tenant_id": "default",
+                        "object_key": "server/api-invalid",
+                        "evidence_ids": "invalid",
+                    },
+                ),
+                (
+                    "/api/v1/discovery/reconciliation/resolve",
+                    {
+                        "tenant_id": "default",
+                        "case_id": "missing",
+                        "selected_evidence_by_path": [],
+                        "justification": "Validated operator decision",
+                    },
+                ),
+            )
+            for route, payload in invalid_requests:
+                request = urllib.request.Request(
+                    base_url + route,
+                    data=json.dumps(payload).encode("utf-8"),
+                    headers={
+                        "Authorization": "Bearer " + token,
+                        "Content-Type": "application/json",
+                    },
+                    method="POST",
+                )
+                try:
+                    urllib.request.urlopen(request, timeout=5)
+                except urllib.error.HTTPError as exc:
+                    assert exc.code == 400
+                else:
+                    raise AssertionError("malformed discovery payload must be rejected")
+
+            assert helper._get_json(base_url + "/health")["status"] == "ok"
         finally:
             server.shutdown()
             server.server_close()

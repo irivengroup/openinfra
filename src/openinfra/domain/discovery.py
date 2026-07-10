@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -14,10 +16,27 @@ from openinfra.domain.common import EntityId, TenantId, ValidationError
 class DiscoverySource(StrEnum):
     SNMP = "snmp"
     SSH = "ssh"
+    WINRM = "winrm"
     VMWARE = "vmware"
-    CLOUD = "cloud"
+    PROXMOX = "proxmox"
+    HYPERV = "hyperv"
     KUBERNETES = "kubernetes"
+    AWS = "aws"
+    AZURE = "azure"
+    GCP = "gcp"
+    OPENSTACK = "openstack"
+    CLOUD = "cloud"
     IMPORT = "import"
+    MANUAL = "manual"
+
+    @classmethod
+    def from_value(cls, value: str) -> Self:
+        normalized = value.strip().lower().replace("_", "-")
+        aliases = {"hyper-v": "hyperv", "k8s": "kubernetes"}
+        try:
+            return cls(aliases.get(normalized, normalized))
+        except ValueError as exc:
+            raise ValidationError("discovery source is unsupported") from exc
 
 
 class CollectorKind(StrEnum):
@@ -388,6 +407,32 @@ class DiscoveryEvidence:
     confidence: float
     observed_at: datetime
     payload: dict[str, Any]
+    object_key: str
+    object_kind: str
+    scope: DiscoveryScope
+    source_ref: str
+    received_at: datetime
+    payload_hash: str
+    completeness: float
+
+    _MAX_PAYLOAD_BYTES = 1_048_576
+    _SENSITIVE_KEY_TOKENS = frozenset(
+        {
+            "accesstoken",
+            "apitoken",
+            "clientsecret",
+            "credential",
+            "credentials",
+            "password",
+            "passwd",
+            "privatekey",
+            "refreshtoken",
+            "secret",
+            "secrets",
+            "token",
+            "tokens",
+        }
+    )
 
     @classmethod
     def create(
@@ -397,21 +442,223 @@ class DiscoveryEvidence:
         external_id: str,
         confidence: float,
         payload: dict[str, Any],
+        *,
+        object_key: str | None = None,
+        object_kind: str = "resource",
+        scope: str = "global",
+        source_ref: str | None = None,
+        observed_at: datetime | None = None,
+        evidence_id: EntityId | None = None,
+        received_at: datetime | None = None,
     ) -> Self:
-        normalized_external_id = external_id.strip()
-        if not normalized_external_id:
-            raise ValidationError("discovery external id is mandatory")
-        if not 0.0 <= confidence <= 1.0:
-            raise ValidationError("confidence must be between 0 and 1")
+        normalized_external_id = cls._normalize_identifier(
+            external_id, "discovery external id", 1, 255
+        )
+        normalized_confidence = cls._normalize_score(confidence, "confidence")
+        normalized_payload = cls._normalize_payload(payload)
+        observed = observed_at or datetime.now(UTC)
+        received = received_at or datetime.now(UTC)
+        cls._require_aware(observed, "discovery observed_at")
+        cls._require_aware(received, "discovery received_at")
+        normalized_key = cls._normalize_object_key(object_key or normalized_external_id)
+        normalized_kind = cls._normalize_object_kind(object_kind)
+        normalized_source_ref = cls._normalize_identifier(
+            source_ref or source.value, "discovery source_ref", 2, 255
+        )
+        canonical_payload = json.dumps(
+            normalized_payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        ).encode("utf-8")
         return cls(
-            id=EntityId.new(),
+            id=evidence_id or EntityId.new(),
             tenant_id=tenant_id,
             source=source,
             external_id=normalized_external_id,
-            confidence=confidence,
-            observed_at=datetime.now(UTC),
-            payload=payload,
+            confidence=normalized_confidence,
+            observed_at=observed.astimezone(UTC),
+            payload=normalized_payload,
+            object_key=normalized_key,
+            object_kind=normalized_kind,
+            scope=DiscoveryScope.from_value(scope),
+            source_ref=normalized_source_ref,
+            received_at=received.astimezone(UTC),
+            payload_hash=hashlib.sha256(canonical_payload).hexdigest(),
+            completeness=cls._calculate_completeness(normalized_payload),
         )
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, object]) -> Self:
+        payload_value = value.get("payload", {})
+        if not isinstance(payload_value, dict):
+            raise ValidationError("stored discovery evidence payload must be an object")
+        source = DiscoverySource.from_value(str(value["source"]))
+        return cls.create(
+            tenant_id=TenantId.from_value(str(value["tenant_id"])),
+            source=source,
+            external_id=str(value["external_id"]),
+            confidence=float(str(value["confidence"])),
+            payload=cast(dict[str, Any], payload_value),
+            object_key=str(value.get("object_key", value["external_id"])),
+            object_kind=str(value.get("object_kind", "resource")),
+            scope=str(value.get("scope", "global")),
+            source_ref=str(value.get("source_ref", source.value)),
+            observed_at=datetime.fromisoformat(str(value["observed_at"])),
+            evidence_id=EntityId.from_value(str(value["id"])),
+            received_at=datetime.fromisoformat(str(value.get("received_at", value["observed_at"]))),
+        )
+
+    def quality_scores(self, max_age_seconds: int, now: datetime | None = None) -> dict[str, float]:
+        normalized_max_age = self._normalize_max_age(max_age_seconds)
+        current = now or datetime.now(UTC)
+        self._require_aware(current, "reconciliation evaluation time")
+        age_seconds = max(
+            0.0,
+            (current.astimezone(UTC) - self.observed_at).total_seconds(),
+        )
+        freshness = max(0.0, 1.0 - (age_seconds / normalized_max_age))
+        overall = (0.60 * self.confidence) + (0.25 * freshness) + (0.15 * self.completeness)
+        return {
+            "confidence": round(self.confidence, 6),
+            "freshness": round(freshness, 6),
+            "completeness": round(self.completeness, 6),
+            "overall": round(overall, 6),
+        }
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "id": self.id.value,
+            "tenant_id": self.tenant_id.value,
+            "source": self.source.value,
+            "source_ref": self.source_ref,
+            "scope": self.scope.value,
+            "external_id": self.external_id,
+            "object_key": self.object_key,
+            "object_kind": self.object_kind,
+            "confidence": self.confidence,
+            "completeness": self.completeness,
+            "observed_at": self.observed_at.isoformat(),
+            "received_at": self.received_at.isoformat(),
+            "payload_hash": self.payload_hash,
+            "payload": self.payload,
+            "immutable": True,
+        }
+
+    @classmethod
+    def _normalize_payload(cls, payload: dict[str, Any]) -> dict[str, Any]:
+        if not isinstance(payload, dict):
+            raise ValidationError("discovery evidence payload must be a JSON object")
+        cls._validate_payload_node(payload, "payload")
+        try:
+            serialized = json.dumps(
+                payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+            )
+            restored = json.loads(serialized)
+        except (TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise ValidationError("discovery evidence payload must be JSON serializable") from exc
+        if len(serialized.encode("utf-8")) > cls._MAX_PAYLOAD_BYTES:
+            raise ValidationError("discovery evidence payload exceeds 1 MiB")
+        return cast(dict[str, Any], restored)
+
+    @classmethod
+    def _validate_payload_node(cls, value: object, path: str) -> None:
+        if isinstance(value, dict):
+            if len(value) > 1024:
+                raise ValidationError("discovery evidence object exceeds 1024 keys")
+            for raw_key, child in value.items():
+                if not isinstance(raw_key, str):
+                    raise ValidationError("discovery evidence keys must be strings")
+                key = raw_key.strip()
+                if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_:-]{0,63}", key):
+                    raise ValidationError("discovery evidence keys must use safe characters")
+                compact_key = re.sub(r"[^a-z0-9]", "", key.lower())
+                if compact_key in cls._SENSITIVE_KEY_TOKENS:
+                    raise ValidationError(
+                        "discovery evidence payload must not contain secret material"
+                    )
+                cls._validate_payload_node(child, path + "." + key)
+            return
+        if isinstance(value, list):
+            if len(value) > 4096:
+                raise ValidationError("discovery evidence list exceeds 4096 items")
+            for index, child in enumerate(value):
+                cls._validate_payload_node(child, f"{path}[{index}]")
+            return
+        if value is None or isinstance(value, (str, int, float, bool)):
+            return
+        raise ValidationError("discovery evidence payload contains an unsupported value")
+
+    @classmethod
+    def _calculate_completeness(cls, payload: Mapping[str, Any]) -> float:
+        leaves = cls._flatten_payload(payload)
+        if not leaves:
+            return 0.0
+        populated = sum(1 for value in leaves.values() if cls._is_populated(value))
+        return round(populated / len(leaves), 6)
+
+    @staticmethod
+    def _is_populated(value: object) -> bool:
+        if value is None:
+            return False
+        if isinstance(value, str):
+            return bool(value.strip())
+        if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+            return bool(value)
+        return True
+
+    @classmethod
+    def _flatten_payload(cls, payload: Mapping[str, Any], prefix: str = "") -> dict[str, Any]:
+        flattened: dict[str, Any] = {}
+        for key in sorted(payload):
+            path = f"{prefix}.{key}" if prefix else key
+            value = payload[key]
+            if isinstance(value, dict):
+                nested = cls._flatten_payload(cast(Mapping[str, Any], value), path)
+                if nested:
+                    flattened.update(nested)
+                else:
+                    flattened[path] = {}
+            else:
+                flattened[path] = value
+        return flattened
+
+    @staticmethod
+    def _normalize_identifier(value: str, label: str, minimum: int, maximum: int) -> str:
+        normalized = " ".join(value.strip().split())
+        if not minimum <= len(normalized) <= maximum:
+            raise ValidationError(f"{label} must contain {minimum} to {maximum} characters")
+        return normalized
+
+    @staticmethod
+    def _normalize_object_key(value: str) -> str:
+        normalized = value.strip()
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:/-]{1,255}", normalized):
+            raise ValidationError("discovery object key must use 2 to 256 safe characters")
+        return normalized
+
+    @staticmethod
+    def _normalize_object_kind(value: str) -> str:
+        normalized = value.strip().lower().replace("_", "-")
+        if not re.fullmatch(r"[a-z][a-z0-9.-]{1,63}", normalized):
+            raise ValidationError("discovery object kind must use 2 to 64 safe characters")
+        return normalized
+
+    @staticmethod
+    def _normalize_score(value: float, label: str) -> float:
+        normalized = float(value)
+        if not 0.0 <= normalized <= 1.0:
+            raise ValidationError(f"{label} must be between 0 and 1")
+        return round(normalized, 6)
+
+    @staticmethod
+    def _normalize_max_age(value: int) -> int:
+        normalized = int(value)
+        if normalized < 60 or normalized > 366 * 24 * 60 * 60:
+            raise ValidationError("reconciliation max age must be between 60 seconds and 366 days")
+        return normalized
+
+    @staticmethod
+    def _require_aware(value: datetime, label: str) -> None:
+        if value.tzinfo is None:
+            raise ValidationError(label + " must be timezone-aware")
 
 
 @dataclass(frozen=True, slots=True)
@@ -426,6 +673,447 @@ class ReconciliationDecision:
         if not normalized_reason:
             raise ValidationError("reconciliation reason is mandatory")
         return cls(evidence_id=evidence_id, accepted=accepted, reason=normalized_reason)
+
+
+class DiscoveryReconciliationStatus(StrEnum):
+    READY = "ready"
+    CONFLICT = "conflict"
+    RESOLVED = "resolved"
+
+
+@dataclass(frozen=True, slots=True)
+class DiscoveryConflictVariant:
+    evidence_id: EntityId
+    source: DiscoverySource
+    source_ref: str
+    score: float
+    value: Any
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "evidence_id": self.evidence_id.value,
+            "source": self.source.value,
+            "source_ref": self.source_ref,
+            "score": self.score,
+            "value": self.value,
+        }
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, object]) -> Self:
+        return cls(
+            evidence_id=EntityId.from_value(str(value["evidence_id"])),
+            source=DiscoverySource.from_value(str(value["source"])),
+            source_ref=str(value["source_ref"]),
+            score=float(str(value["score"])),
+            value=value.get("value"),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class DiscoveryReconciliationConflict:
+    attribute_path: str
+    variants: tuple[DiscoveryConflictVariant, ...]
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "attribute_path": self.attribute_path,
+            "variants": [variant.as_dict() for variant in self.variants],
+        }
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, object]) -> Self:
+        raw_variants = value.get("variants", ())
+        if not isinstance(raw_variants, Sequence) or isinstance(
+            raw_variants, (str, bytes, bytearray)
+        ):
+            raise ValidationError("stored reconciliation conflict variants are invalid")
+        return cls(
+            attribute_path=str(value["attribute_path"]),
+            variants=tuple(
+                DiscoveryConflictVariant.from_dict(cast(Mapping[str, object], item))
+                for item in raw_variants
+                if isinstance(item, Mapping)
+            ),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class DiscoveryReconciliationResolution:
+    actor: str
+    justification: str
+    selected_evidence_by_path: dict[str, str]
+    resolved_at: datetime
+
+    @classmethod
+    def create(
+        cls,
+        actor: str,
+        justification: str,
+        selected_evidence_by_path: Mapping[str, str],
+        resolved_at: datetime | None = None,
+    ) -> Self:
+        normalized_actor = " ".join(actor.strip().split())
+        normalized_justification = " ".join(justification.strip().split())
+        if not normalized_actor:
+            raise ValidationError("reconciliation resolution actor is mandatory")
+        if not 8 <= len(normalized_justification) <= 1024:
+            raise ValidationError(
+                "reconciliation resolution justification must contain 8 to 1024 characters"
+            )
+        timestamp = resolved_at or datetime.now(UTC)
+        DiscoveryEvidence._require_aware(timestamp, "reconciliation resolved_at")
+        return cls(
+            actor=normalized_actor,
+            justification=normalized_justification,
+            selected_evidence_by_path=dict(sorted(selected_evidence_by_path.items())),
+            resolved_at=timestamp.astimezone(UTC),
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "actor": self.actor,
+            "justification": self.justification,
+            "selected_evidence_by_path": dict(self.selected_evidence_by_path),
+            "resolved_at": self.resolved_at.isoformat(),
+        }
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, object]) -> Self:
+        raw_selections = value.get("selected_evidence_by_path", {})
+        if not isinstance(raw_selections, Mapping):
+            raise ValidationError("stored reconciliation selections are invalid")
+        return cls.create(
+            actor=str(value["actor"]),
+            justification=str(value["justification"]),
+            selected_evidence_by_path={str(key): str(item) for key, item in raw_selections.items()},
+            resolved_at=datetime.fromisoformat(str(value["resolved_at"])),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class DiscoveryReconciliationCase:
+    id: EntityId
+    tenant_id: TenantId
+    object_key: str
+    object_kind: str
+    evidence_ids: tuple[EntityId, ...]
+    source_count: int
+    confidence_score: float
+    freshness_score: float
+    completeness_score: float
+    overall_score: float
+    status: DiscoveryReconciliationStatus
+    conflicts: tuple[DiscoveryReconciliationConflict, ...]
+    merged_payload: dict[str, Any]
+    evaluated_at: datetime
+    evaluated_by: str
+    signature: str
+    resolution: DiscoveryReconciliationResolution | None
+    rsot_write_executed: bool = False
+
+    @classmethod
+    def evaluate(
+        cls,
+        tenant_id: TenantId,
+        object_key: str,
+        evidences: tuple[DiscoveryEvidence, ...],
+        max_age_seconds: int,
+        evaluated_by: str,
+        *,
+        case_id: EntityId | None = None,
+        evaluated_at: datetime | None = None,
+    ) -> Self:
+        normalized_key = DiscoveryEvidence._normalize_object_key(object_key)
+        normalized_max_age = DiscoveryEvidence._normalize_max_age(max_age_seconds)
+        actor = " ".join(evaluated_by.strip().split())
+        if not actor:
+            raise ValidationError("reconciliation evaluated_by is mandatory")
+        if len(evidences) < 2:
+            raise ValidationError("multisource reconciliation requires at least two evidences")
+        if any(evidence.tenant_id != tenant_id for evidence in evidences):
+            raise ValidationError("reconciliation evidences must belong to the same tenant")
+        if any(evidence.object_key != normalized_key for evidence in evidences):
+            raise ValidationError("reconciliation evidences must target the same object key")
+        kinds = {evidence.object_kind for evidence in evidences}
+        if len(kinds) != 1:
+            raise ValidationError("reconciliation evidences must target the same object kind")
+        source_identities = {(evidence.source.value, evidence.source_ref) for evidence in evidences}
+        if len(source_identities) < 2:
+            raise ValidationError("multisource reconciliation requires two distinct sources")
+        timestamp = evaluated_at or datetime.now(UTC)
+        DiscoveryEvidence._require_aware(timestamp, "reconciliation evaluated_at")
+        ordered_evidences = tuple(
+            sorted(evidences, key=lambda item: (item.source.value, item.source_ref, item.id.value))
+        )
+        scores_by_id = {
+            evidence.id.value: evidence.quality_scores(normalized_max_age, timestamp)
+            for evidence in ordered_evidences
+        }
+        payloads = {
+            evidence.id.value: DiscoveryEvidence._flatten_payload(evidence.payload)
+            for evidence in ordered_evidences
+        }
+        merged_flat: dict[str, Any] = {}
+        conflicts: list[DiscoveryReconciliationConflict] = []
+        all_paths = sorted({path for payload in payloads.values() for path in payload})
+        for path in all_paths:
+            present = [
+                evidence for evidence in ordered_evidences if path in payloads[evidence.id.value]
+            ]
+            canonical_values = {
+                json.dumps(
+                    payloads[evidence.id.value][path],
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    ensure_ascii=False,
+                )
+                for evidence in present
+            }
+            if len(canonical_values) == 1:
+                merged_flat[path] = payloads[present[0].id.value][path]
+                continue
+            variants = tuple(
+                DiscoveryConflictVariant(
+                    evidence_id=evidence.id,
+                    source=evidence.source,
+                    source_ref=evidence.source_ref,
+                    score=scores_by_id[evidence.id.value]["overall"],
+                    value=payloads[evidence.id.value][path],
+                )
+                for evidence in sorted(
+                    present,
+                    key=lambda item: (
+                        -scores_by_id[item.id.value]["overall"],
+                        item.source.value,
+                        item.source_ref,
+                        item.id.value,
+                    ),
+                )
+            )
+            conflicts.append(
+                DiscoveryReconciliationConflict(attribute_path=path, variants=variants)
+            )
+        confidence = cls._mean(
+            tuple(scores_by_id[evidence.id.value]["confidence"] for evidence in ordered_evidences)
+        )
+        freshness = cls._mean(
+            tuple(scores_by_id[evidence.id.value]["freshness"] for evidence in ordered_evidences)
+        )
+        completeness = cls._mean(
+            tuple(scores_by_id[evidence.id.value]["completeness"] for evidence in ordered_evidences)
+        )
+        overall = cls._mean(
+            tuple(scores_by_id[evidence.id.value]["overall"] for evidence in ordered_evidences)
+        )
+        signature_material = {
+            "tenant_id": tenant_id.value,
+            "object_key": normalized_key,
+            "object_kind": next(iter(kinds)),
+            "evidences": [
+                {"id": evidence.id.value, "payload_hash": evidence.payload_hash}
+                for evidence in ordered_evidences
+            ],
+        }
+        signature = hashlib.sha256(
+            json.dumps(signature_material, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        return cls(
+            id=case_id or EntityId.new(),
+            tenant_id=tenant_id,
+            object_key=normalized_key,
+            object_kind=next(iter(kinds)),
+            evidence_ids=tuple(evidence.id for evidence in ordered_evidences),
+            source_count=len(source_identities),
+            confidence_score=confidence,
+            freshness_score=freshness,
+            completeness_score=completeness,
+            overall_score=overall,
+            status=(
+                DiscoveryReconciliationStatus.CONFLICT
+                if conflicts
+                else DiscoveryReconciliationStatus.READY
+            ),
+            conflicts=tuple(conflicts),
+            merged_payload=cls._unflatten_payload(merged_flat),
+            evaluated_at=timestamp.astimezone(UTC),
+            evaluated_by=actor,
+            signature=signature,
+            resolution=None,
+            rsot_write_executed=False,
+        )
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, object]) -> Self:
+        raw_evidence_ids = value.get("evidence_ids", ())
+        raw_conflicts = value.get("conflicts", ())
+        raw_payload = value.get("merged_payload", {})
+        raw_resolution = value.get("resolution")
+        if not isinstance(raw_evidence_ids, Sequence) or isinstance(raw_evidence_ids, str):
+            raise ValidationError("stored reconciliation evidence ids are invalid")
+        if not isinstance(raw_conflicts, Sequence) or isinstance(raw_conflicts, str):
+            raise ValidationError("stored reconciliation conflicts are invalid")
+        if not isinstance(raw_payload, dict):
+            raise ValidationError("stored reconciliation merged payload is invalid")
+        return cls(
+            id=EntityId.from_value(str(value["id"])),
+            tenant_id=TenantId.from_value(str(value["tenant_id"])),
+            object_key=DiscoveryEvidence._normalize_object_key(str(value["object_key"])),
+            object_kind=DiscoveryEvidence._normalize_object_kind(str(value["object_kind"])),
+            evidence_ids=tuple(EntityId.from_value(str(item)) for item in raw_evidence_ids),
+            source_count=int(str(value["source_count"])),
+            confidence_score=DiscoveryEvidence._normalize_score(
+                float(str(value["confidence_score"])), "confidence score"
+            ),
+            freshness_score=DiscoveryEvidence._normalize_score(
+                float(str(value["freshness_score"])), "freshness score"
+            ),
+            completeness_score=DiscoveryEvidence._normalize_score(
+                float(str(value["completeness_score"])), "completeness score"
+            ),
+            overall_score=DiscoveryEvidence._normalize_score(
+                float(str(value["overall_score"])), "overall score"
+            ),
+            status=DiscoveryReconciliationStatus(str(value["status"])),
+            conflicts=tuple(
+                DiscoveryReconciliationConflict.from_dict(cast(Mapping[str, object], item))
+                for item in raw_conflicts
+                if isinstance(item, Mapping)
+            ),
+            merged_payload=DiscoveryEvidence._normalize_payload(cast(dict[str, Any], raw_payload)),
+            evaluated_at=datetime.fromisoformat(str(value["evaluated_at"])).astimezone(UTC),
+            evaluated_by=str(value["evaluated_by"]),
+            signature=str(value["signature"]),
+            resolution=(
+                None
+                if raw_resolution is None
+                else DiscoveryReconciliationResolution.from_dict(
+                    cast(Mapping[str, object], raw_resolution)
+                )
+            ),
+            rsot_write_executed=bool(value.get("rsot_write_executed", False)),
+        )
+
+    def resolve(
+        self,
+        selected_evidence_by_path: Mapping[str, str],
+        actor: str,
+        justification: str,
+        resolved_at: datetime | None = None,
+    ) -> Self:
+        if self.status is not DiscoveryReconciliationStatus.CONFLICT:
+            raise ValidationError("only a conflicting reconciliation case can be resolved")
+        expected_paths = {conflict.attribute_path for conflict in self.conflicts}
+        provided_paths = set(selected_evidence_by_path)
+        if provided_paths != expected_paths:
+            missing = sorted(expected_paths - provided_paths)
+            unexpected = sorted(provided_paths - expected_paths)
+            detail = {"missing": missing, "unexpected": unexpected}
+            raise ValidationError(
+                "reconciliation resolution selections are incomplete: " + str(detail)
+            )
+        merged_flat = DiscoveryEvidence._flatten_payload(self.merged_payload)
+        normalized_selections: dict[str, str] = {}
+        for conflict in self.conflicts:
+            selected_id = str(selected_evidence_by_path[conflict.attribute_path]).strip()
+            selected = next(
+                (
+                    variant
+                    for variant in conflict.variants
+                    if variant.evidence_id.value == selected_id
+                ),
+                None,
+            )
+            if selected is None:
+                raise ValidationError(
+                    "selected evidence does not provide conflict path " + conflict.attribute_path
+                )
+            merged_flat[conflict.attribute_path] = selected.value
+            normalized_selections[conflict.attribute_path] = selected.evidence_id.value
+        resolution = DiscoveryReconciliationResolution.create(
+            actor=actor,
+            justification=justification,
+            selected_evidence_by_path=normalized_selections,
+            resolved_at=resolved_at,
+        )
+        return self.__class__(
+            id=self.id,
+            tenant_id=self.tenant_id,
+            object_key=self.object_key,
+            object_kind=self.object_kind,
+            evidence_ids=self.evidence_ids,
+            source_count=self.source_count,
+            confidence_score=self.confidence_score,
+            freshness_score=self.freshness_score,
+            completeness_score=self.completeness_score,
+            overall_score=self.overall_score,
+            status=DiscoveryReconciliationStatus.RESOLVED,
+            conflicts=self.conflicts,
+            merged_payload=self._unflatten_payload(merged_flat),
+            evaluated_at=self.evaluated_at,
+            evaluated_by=self.evaluated_by,
+            signature=self.signature,
+            resolution=resolution,
+            rsot_write_executed=False,
+        )
+
+    @property
+    def ready_for_rsot_reconciliation(self) -> bool:
+        return self.status in {
+            DiscoveryReconciliationStatus.READY,
+            DiscoveryReconciliationStatus.RESOLVED,
+        }
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "id": self.id.value,
+            "tenant_id": self.tenant_id.value,
+            "object_key": self.object_key,
+            "object_kind": self.object_kind,
+            "evidence_ids": [item.value for item in self.evidence_ids],
+            "evidence_count": len(self.evidence_ids),
+            "source_count": self.source_count,
+            "confidence_score": self.confidence_score,
+            "freshness_score": self.freshness_score,
+            "completeness_score": self.completeness_score,
+            "overall_score": self.overall_score,
+            "status": self.status.value,
+            "conflict_count": len(self.conflicts),
+            "conflicts": [conflict.as_dict() for conflict in self.conflicts],
+            "merged_payload": self.merged_payload,
+            "evaluated_at": self.evaluated_at.isoformat(),
+            "evaluated_by": self.evaluated_by,
+            "signature": self.signature,
+            "resolution": None if self.resolution is None else self.resolution.as_dict(),
+            "ready_for_rsot_reconciliation": self.ready_for_rsot_reconciliation,
+            "rsot_write_executed": self.rsot_write_executed,
+        }
+
+    @staticmethod
+    def _mean(values: tuple[float, ...]) -> float:
+        if not values:
+            return 0.0
+        return round(sum(values) / len(values), 6)
+
+    @classmethod
+    def _unflatten_payload(cls, flattened: Mapping[str, Any]) -> dict[str, Any]:
+        root: dict[str, Any] = {}
+        for path in sorted(flattened):
+            segments = path.split(".")
+            current = root
+            for segment in segments[:-1]:
+                existing = current.get(segment)
+                if existing is None:
+                    nested: dict[str, Any] = {}
+                    current[segment] = nested
+                    current = nested
+                elif isinstance(existing, dict):
+                    current = cast(dict[str, Any], existing)
+                else:
+                    raise ValidationError(
+                        "reconciliation payload paths are structurally inconsistent"
+                    )
+            current[segments[-1]] = flattened[path]
+        return root
 
 
 class EnterpriseAgentRole(StrEnum):
@@ -776,12 +1464,14 @@ class DiscoveryProtocolCredentialProfile:
             credential_secret_ref=cls._required_secret_ref(value.get("credential_secret_ref")),
             port=cls._normalize_port(
                 LocalDiscoveryProtocol.from_value(str(value["protocol"])),
-                int(value["port"]),
+                int(str(value["port"])),
             ),
-            timeout_seconds=cls._normalize_timeout(int(value["timeout_seconds"])),
-            max_concurrency=cls._normalize_max_concurrency(int(value["max_concurrency"])),
-            rate_limit_per_minute=cls._normalize_rate_limit(int(value["rate_limit_per_minute"])),
-            retry_count=cls._normalize_retry_count(int(value["retry_count"])),
+            timeout_seconds=cls._normalize_timeout(int(str(value["timeout_seconds"]))),
+            max_concurrency=cls._normalize_max_concurrency(int(str(value["max_concurrency"]))),
+            rate_limit_per_minute=cls._normalize_rate_limit(
+                int(str(value["rate_limit_per_minute"]))
+            ),
+            retry_count=cls._normalize_retry_count(int(str(value["retry_count"]))),
             status=DiscoveryProtocolProfileStatus.from_value(str(value.get("status", "active"))),
             created_by=cls._normalize_actor(str(value["created_by"])),
             created_at=(
@@ -1090,10 +1780,10 @@ class DiscoveryIntegrationProfile:
             verify_tls=bool(value.get("verify_tls", True)),
             inventory_enabled=bool(value.get("inventory_enabled", True)),
             max_concurrency=DiscoveryProtocolCredentialProfile._normalize_max_concurrency(
-                int(value["max_concurrency"])
+                int(str(value["max_concurrency"]))
             ),
             rate_limit_per_minute=DiscoveryProtocolCredentialProfile._normalize_rate_limit(
-                int(value["rate_limit_per_minute"])
+                int(str(value["rate_limit_per_minute"]))
             ),
             status=DiscoveryIntegrationProfileStatus.from_value(str(value.get("status", "active"))),
             created_by=DiscoveryProtocolCredentialProfile._normalize_actor(

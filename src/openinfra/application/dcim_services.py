@@ -1617,6 +1617,7 @@ class DcimRackService:
             raise ValidationError("rack floor does not match room floor")
         if command.floor is not None and room.floor_code is None:
             raise ValidationError("rack floor cannot be set when room has no floor")
+        command_floor: str | None
         if command.floor is None and room.floor_code is not None:
             command_floor = room.floor_code.value
         else:

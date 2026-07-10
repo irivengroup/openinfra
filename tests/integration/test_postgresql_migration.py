@@ -245,9 +245,9 @@ def _assert_index_columns_exist(statement: str, schema: Mapping[str, set[str]]) 
             r"\s+(ASC|DESC|NULLS\s+(FIRST|LAST))\b", "", expression, flags=re.I
         ).strip()
         if re.fullmatch(_IDENTIFIER, normalized):
-            assert (
-                normalized.lower() in schema[table]
-            ), f"INDEX on {table} references unknown column {normalized}"
+            assert normalized.lower() in schema[table], (
+                f"INDEX on {table} references unknown column {normalized}"
+            )
     where_match = re.search(r"\bWHERE\b(.+);?$", statement, re.I | re.S)
     if where_match is not None:
         missing = _referenced_identifiers(where_match.group(1)) - schema[table]
@@ -302,6 +302,24 @@ class TestPostgreSQLMigration:
             assert f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS status" in normalized_sql
             assert f"ck_{table}_status" in normalized_sql
             assert f"idx_{table}_active" in normalized_sql
+
+    def test_discovery_reconciliation_migration_is_partitioned_indexed_and_rsot_safe(self) -> None:
+        migration = PostgreSQLMigrationCatalog.from_project_root().load(
+            "0038_discovery_multisource_reconciliation"
+        )
+        normalized_sql = " ".join(migration.sql.split())
+
+        assert "CREATE TABLE IF NOT EXISTS discovery_evidence" in normalized_sql
+        assert "CREATE TABLE IF NOT EXISTS discovery_reconciliation_cases" in normalized_sql
+        assert normalized_sql.count("PARTITION BY HASH (tenant_id)") == 2
+        assert normalized_sql.count("PARTITION OF discovery_evidence") == 16
+        assert normalized_sql.count("PARTITION OF discovery_reconciliation_cases") == 16
+        assert "UNIQUE (tenant_id, signature)" in normalized_sql
+        assert "discovery_reconciliation_no_direct_rsot_write" in normalized_sql
+        assert "CHECK (rsot_write_executed = false)" in normalized_sql
+        assert "idx_discovery_evidence_payload_gin" in normalized_sql
+        assert "idx_discovery_reconciliation_status" in normalized_sql
+        assert "idx_audit_events_discovery_reconciliation" in normalized_sql
 
     def test_migration_validator_rejects_partitioned_unique_constraints_missing_partition_key(
         self,

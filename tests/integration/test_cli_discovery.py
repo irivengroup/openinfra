@@ -813,3 +813,120 @@ def test_cli_discovery_integration_profile_lifecycle(tmp_path: Path, capsys: obj
     assert updated["rate_limit_per_minute"] == 180
     assert len(page["items"]) == 1
     assert disabled["status"] == "disabled"
+
+
+def test_cli_discovery_evidence_reconciliation_lifecycle(tmp_path: Path, capsys: object) -> None:
+    data = tmp_path / "state.json"
+    token = "z" * 40
+    cli = OpenInfraCLI()
+    assert (
+        cli.run(
+            [
+                "security",
+                "bootstrap-token",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--actor",
+                "pytest",
+                "--subject",
+                "governance-admin",
+                "--role",
+                "rsot:governance-admin",
+                "--token",
+                token,
+            ]
+        )
+        == 0
+    )
+    capsys.readouterr()
+
+    ids: list[str] = []
+    for source, source_ref, external_id, cores in (
+        ("vmware", "vcenter-par1", "vm-101", 8),
+        ("aws", "aws-prod", "i-101", 16),
+    ):
+        assert (
+            cli.run(
+                [
+                    "discovery",
+                    "evidence-submit",
+                    "--data",
+                    str(data),
+                    "--tenant",
+                    "default",
+                    "--admin-token",
+                    token,
+                    "--object-key",
+                    "server/cli-01",
+                    "--object-kind",
+                    "server",
+                    "--source",
+                    source,
+                    "--source-ref",
+                    source_ref,
+                    "--scope",
+                    "site/par1",
+                    "--external-id",
+                    external_id,
+                    "--confidence",
+                    "0.9",
+                    "--payload-json",
+                    json.dumps({"name": "cli-01", "cpu": {"cores": cores}}),
+                    "--observed-at",
+                    "2026-07-10T12:00:00+00:00",
+                ]
+            )
+            == 0
+        )
+        ids.append(str(json.loads(capsys.readouterr().out)["id"]))
+
+    assert (
+        cli.run(
+            [
+                "discovery",
+                "reconcile",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--object-key",
+                "server/cli-01",
+                "--evidence-id",
+                ids[0],
+                "--evidence-id",
+                ids[1],
+            ]
+        )
+        == 0
+    )
+    case = json.loads(capsys.readouterr().out)
+    assert case["status"] == "conflict"
+
+    assert (
+        cli.run(
+            [
+                "discovery",
+                "reconciliation-resolve",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--admin-token",
+                token,
+                "--case-id",
+                str(case["id"]),
+                "--selections-json",
+                json.dumps({"cpu.cores": ids[0]}),
+                "--justification",
+                "VMware is authoritative for this on-premise server.",
+            ]
+        )
+        == 0
+    )
+    resolved = json.loads(capsys.readouterr().out)
+    assert resolved["status"] == "resolved"
+    assert resolved["rsot_write_executed"] is False

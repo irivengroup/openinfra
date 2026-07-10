@@ -34,8 +34,10 @@ from openinfra.domain.dcim import (
 )
 from openinfra.domain.discovery import (
     DiscoveryCollector,
+    DiscoveryEvidence,
     DiscoveryIntegrationProfile,
     DiscoveryProtocolCredentialProfile,
+    DiscoveryReconciliationCase,
 )
 from openinfra.domain.editions import QuotaResource
 from openinfra.domain.identity import (
@@ -108,6 +110,30 @@ class SecurityTokenPage:
 @dataclass(frozen=True, slots=True)
 class DiscoveryCollectorPage:
     items: tuple[DiscoveryCollector, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "items": [item.as_dict() for item in self.items],
+            "next_cursor": self.next_cursor,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class DiscoveryEvidencePage:
+    items: tuple[DiscoveryEvidence, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "items": [item.as_dict() for item in self.items],
+            "next_cursor": self.next_cursor,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class DiscoveryReconciliationCasePage:
+    items: tuple[DiscoveryReconciliationCase, ...]
     next_cursor: str | None
 
     def as_dict(self) -> dict[str, object]:
@@ -790,6 +816,48 @@ class ImportRepository(ABC):
 
 
 class DiscoveryRepository(ABC):
+    @abstractmethod
+    def save_evidence(self, evidence: DiscoveryEvidence) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_evidence(self, tenant_id: TenantId, evidence_id: str) -> DiscoveryEvidence | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_evidence(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        object_key: str | None = None,
+    ) -> DiscoveryEvidencePage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_reconciliation_case(self, case: DiscoveryReconciliationCase) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_reconciliation_case(
+        self, tenant_id: TenantId, case_id: str
+    ) -> DiscoveryReconciliationCase | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_reconciliation_case_by_signature(
+        self, tenant_id: TenantId, signature: str
+    ) -> DiscoveryReconciliationCase | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_reconciliation_cases(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        status: str | None = None,
+    ) -> DiscoveryReconciliationCasePage:
+        raise TypeError("adapter contract invoked directly")
+
     @abstractmethod
     def save_integration_profile(self, profile: DiscoveryIntegrationProfile) -> None:
         raise TypeError("adapter contract invoked directly")

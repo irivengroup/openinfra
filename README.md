@@ -1,4 +1,12 @@
-# OpenInfra v0.29.88
+# OpenInfra v0.29.89
+
+## Matrice de flux déclarés et observés
+
+OpenInfra v0.29.89 réalise **P15 / EPIC-1502** avec une matrice de flux gouvernée comparant les règles réseau déclarées aux observations immuables NetFlow, sFlow, IPFIX, journaux de pare-feu et journaux applicatifs. La comparaison distingue les flux conformes, interdits mais observés, observés sans déclaration et déclarés sans observation, sans dupliquer le RSOT ni modifier silencieusement les politiques réseau.
+
+Les déclarations utilisent des sélecteurs `any`, `object:<clé RSOT>` ou `cidr:<réseau>`, des protocoles et plages de ports bornés, une décision `allow` ou `deny`, une priorité, un propriétaire, une justification et une période de validité. Les observations sont idempotentes, signées par empreinte SHA-256, tenant-aware et conservées comme preuves d'audit. La fenêtre de comparaison est limitée à 31 jours et les volumes sont bornés pour préserver la disponibilité du service.
+
+La capacité est exposée par CLI, API HTTP, OpenAPI et portail web FR/EN. Voir `docs/operations/flow-matrix.md` pour le modèle de gouvernance, les statuts, les commandes et le runbook.
 
 ## Graphe de dépendances RSOT
 

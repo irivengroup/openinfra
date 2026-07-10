@@ -1,3 +1,14 @@
+## v0.29.89 — Traçabilité matrice de flux
+
+- Roadmap existante : P15 / `EPIC-1502` — matrice de flux déclarés et observés.
+- Domaine : `domain/flow_matrix.py` — sélecteurs, protocoles, décisions, observations immuables et statuts de conformité.
+- Application : `application/flow_matrix_services.py` — gouvernance, idempotence, comparaison bornée, pagination et audit.
+- Persistance : adaptateurs JSON/PostgreSQL et migration `0041_flow_matrix.sql`, partitionnée et indexée par tenant.
+- Interfaces : six commandes CLI, six routes HTTP/OpenAPI et six opérations web FR/EN.
+- Sécurité : permissions `flow.read`/`flow.write`, rôles dédiés, isolation tenant et rejet des conflits d'idempotence.
+- Tests : domaine, services, CLI, HTTP, portail, PostgreSQL, migration, OpenAPI, CI et packaging.
+- CDC/roadmap : documents inchangés et non réémis ; l'epic et ses critères étaient déjà présents.
+
 ## v0.29.88 — Traçabilité accessibilité transversale
 
 - CDC : `REQ-00789`, `REQ-00825`, `TST-WEB-090`, `TST-WEB-125`.

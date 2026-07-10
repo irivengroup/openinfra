@@ -15,6 +15,7 @@ from openinfra.infrastructure.postgresql import (
     PostgreSQLClusterProfile,
     PostgreSQLConnectionFactory,
     PostgreSQLDcimRepository,
+    PostgreSQLFlowMatrixRepository,
     PostgreSQLIpamRepository,
     PostgreSQLMigration,
     PostgreSQLMigrationCatalog,
@@ -385,3 +386,83 @@ def test_postgresql_source_of_truth_and_audit_row_mappers() -> None:
         audit.list_events(tenant, 0)
     with pytest.raises(ValidationError):
         audit.verify_integrity(tenant, 0)
+
+
+def test_postgresql_flow_matrix_row_mappers_and_parameters() -> None:
+    repo = PostgreSQLFlowMatrixRepository(_registry())
+    now = datetime.now(UTC)
+    declaration = repo._declaration_from_row(
+        {
+            "id": "00000000-0000-4000-8000-000000000061",
+            "tenant_id": "default",
+            "code": "APP-HTTPS",
+            "source_selector": "any",
+            "destination_selector": "cidr:10.20.0.0/16",
+            "protocol": "tcp",
+            "destination_port_start": 443,
+            "destination_port_end": 443,
+            "decision": "allow",
+            "priority": 100,
+            "owner": "network team",
+            "justification": "approved application flow",
+            "valid_from": now - timedelta(days=1),
+            "valid_to": None,
+            "status": "active",
+            "version": 1,
+            "created_by": "pytest",
+            "created_at": now - timedelta(days=1),
+            "updated_by": "pytest",
+            "updated_at": now,
+        }
+    )
+    observation_payload = {
+        "id": "00000000-0000-4000-8000-000000000062",
+        "tenant_id": "default",
+        "idempotency_key": "collector-01:000001",
+        "source": "ipfix",
+        "collector": "collector-01",
+        "source_ip": "10.1.1.10",
+        "destination_ip": "10.20.1.20",
+        "source_object_key": None,
+        "destination_object_key": "server/web-01",
+        "protocol": "tcp",
+        "destination_port": 443,
+        "packets": 10,
+        "bytes_count": 2048,
+        "first_seen": now - timedelta(minutes=1),
+        "last_seen": now,
+        "received_at": now,
+    }
+    from openinfra.domain.common import EntityId
+    from openinfra.domain.flow_matrix import FlowObservation
+
+    temporary = FlowObservation.restore(
+        id=EntityId.from_value(str(observation_payload["id"])),
+        tenant_id=TenantId.from_value("default"),
+        idempotency_key=str(observation_payload["idempotency_key"]),
+        source=str(observation_payload["source"]),
+        collector=str(observation_payload["collector"]),
+        source_ip=str(observation_payload["source_ip"]),
+        destination_ip=str(observation_payload["destination_ip"]),
+        source_object_key=None,
+        destination_object_key=str(observation_payload["destination_object_key"]),
+        protocol=str(observation_payload["protocol"]),
+        destination_port=443,
+        packets=10,
+        bytes_count=2048,
+        first_seen=now - timedelta(minutes=1),
+        last_seen=now,
+        received_at=now,
+    )
+    observation_payload["fingerprint"] = temporary.fingerprint
+    observation = repo._observation_from_row(observation_payload)
+
+    assert repo._declaration_params(declaration)["code"] == "APP-HTTPS"
+    assert repo._observation_params(observation)["source"] == "ipfix"
+    assert observation.destination_object_key == "server/web-01"
+    assert repo._row_datetime(now.replace(tzinfo=None)).tzinfo is not None
+    assert repo._row_datetime(now.isoformat()) == now
+    with pytest.raises(ValidationError, match="numeric"):
+        repo._offset("bad")
+    with pytest.raises(ValidationError, match="positive"):
+        repo._offset("-1")

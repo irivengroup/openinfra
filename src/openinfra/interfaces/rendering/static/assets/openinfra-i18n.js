@@ -194,6 +194,7 @@ const MODULE_EN = Object.freeze({
   integrations: ['ITSM integrations', 'Integrations'],
   security: ['Security / RBAC / Audit', 'Security'],
   graph: ['Dependency graph', 'Graph'],
+  flows: ['Flow matrix', 'Flows'],
 });
 
 const MODULE_DESCRIPTION_EN = Object.freeze({
@@ -207,6 +208,7 @@ const MODULE_DESCRIPTION_EN = Object.freeze({
   integrations: 'Governed integrations with ServiceNow, Jira Assets, GLPI and Freshservice.',
   security: 'Identity, RBAC, tokens, access policies, audit, editions and runtime quotas.',
   graph: 'Tenant-aware RSOT dependency traversal and impact analysis.',
+  flows: 'Governed comparison of declared and observed network flows, violations and traceability.',
 });
 
 const FIELD_EN = Object.freeze({
@@ -240,6 +242,13 @@ const FIELD_EN = Object.freeze({
   source_key: 'Source resource', target_key: 'Target resource', relation_type: 'Relationship type',
   root_key: 'Root resource', direction: 'Direction', max_depth: 'Maximum depth', max_nodes: 'Maximum nodes',
   level_index: 'Level index', x: 'X coordinate', y: 'Y coordinate', z: 'Z coordinate',
+  source_selector: 'Source selector', destination_selector: 'Destination selector', protocol: 'Protocol',
+  destination_port_start: 'Destination port start', destination_port_end: 'Destination port end',
+  destination_port: 'Destination port', decision: 'Decision', priority: 'Priority', owner: 'Owner',
+  valid_from: 'Valid from', valid_to: 'Valid to', declaration_id: 'Declaration ID', collector: 'Collector',
+  source_ip: 'Source IP', destination_ip: 'Destination IP', source_object_key: 'Source object',
+  destination_object_key: 'Destination object', packets: 'Packets', bytes: 'Bytes',
+  first_seen: 'First seen', last_seen: 'Last seen', window_start: 'Window start', window_end: 'Window end',
 });
 
 const TOKEN_EN = Object.freeze({
@@ -265,6 +274,8 @@ const TOKEN_EN = Object.freeze({
   import: 'import', imports: 'imports', export: 'export', exports: 'exports', migration: 'migration',
   guide: 'guide', edition: 'edition', tokens: 'tokens', effective: 'effective', global: 'global',
   search: 'search', schema: 'schema', runtime: 'runtime', physical: 'physical', model: 'model',
+  flow: 'flow', flows: 'flows', declaration: 'declaration', declarations: 'declarations',
+  observation: 'observation', observations: 'observations', matrix: 'matrix', retire: 'retire',
 });
 
 const ACTION_EN = Object.freeze({
@@ -291,6 +302,8 @@ const PHRASE_EN = Object.freeze({
   'Migration': 'Migration', 'Exports': 'Exports', 'Gouvernance ITSM': 'ITSM governance',
   'Éditions & quotas': 'Editions & quotas', 'Identité & accès': 'Identity & access', 'Audit': 'Audit',
   'Exploration': 'Exploration', 'Analyse d’impact': 'Impact analysis',
+  'Flux déclarés': 'Declared flows', 'Flux observés': 'Observed flows',
+  'Conformité des flux': 'Flow compliance',
   'Autres': 'Other', 'Etages': 'Multi-level', 'Étages': 'Multi-level', 'Simple': 'Single-level',
   'Niveau Initial': 'Initial level', 'Niveau Final': 'Final level', 'Type Batiment': 'Building type',
 });
@@ -316,12 +329,19 @@ const OPTION_FR = Object.freeze({
   inbound: 'Entrant', outbound: 'Sortant', bidirectional: 'Bidirectionnel',
   physical: 'Physique', virtual: 'Virtuel', logical: 'Logique', automatic: 'Automatique', manual: 'Manuel',
   simple: 'Simple', floors: 'Étages', lite: 'Lite', pro: 'Pro', enterprise: 'Entreprise',
+  allow: 'Autoriser', deny: 'Refuser', compliant: 'Conforme',
+  'denied-observed': 'Flux refusé observé', 'undeclared-observed': 'Flux observé non déclaré',
+  'declared-unobserved': 'Flux déclaré non observé', netflow: 'NetFlow', sflow: 'sFlow', ipfix: 'IPFIX',
+  'firewall-log': 'Journal pare-feu', 'application-log': 'Journal applicatif', import: 'Import',
 });
 
 const OPTION_EN = Object.freeze({
   outgoing: 'Outgoing', incoming: 'Incoming', both: 'Both',
   'retry-wait': 'Waiting for retry', 'dead-letter': 'Dead-letter queue',
   software_publisher: 'Software publisher', third_party_support: 'Third-party support',
+  allow: 'Allow', deny: 'Deny', compliant: 'Compliant',
+  'denied-observed': 'Denied flow observed', 'undeclared-observed': 'Undeclared flow observed',
+  'declared-unobserved': 'Declared flow not observed',
 });
 
 const CONTINENT_FR = Object.freeze({
@@ -392,11 +412,17 @@ function operationLabelEn(operationId) {
     'rsot-object-audit': 'Audit a resource',
     'graph-traverse': 'Explore dependency graph', 'graph-impact': 'Analyze impact',
     'graph-path': 'Find shortest dependency path',
+    'flow-declaration-upsert': 'Create or revise declared flow',
+    'flow-declaration-list': 'List declared flows',
+    'flow-declaration-retire': 'Retire declared flow',
+    'flow-observation-submit': 'Ingest observed flow',
+    'flow-observation-list': 'List observed flows',
+    'flow-matrix': 'Compare declared and observed flows',
     'ipam-dashboard': 'IPAM dashboard', 'dcim-digital-twin': 'Room digital twin',
     'effective-identity': 'Effective identity', 'audit-integrity': 'Audit integrity',
   };
   if (overrides[operationId]) return overrides[operationId];
-  const domainTokens = new Set(['rsot', 'ipam', 'dcim', 'itam', 'discovery', 'graph']);
+  const domainTokens = new Set(['rsot', 'ipam', 'dcim', 'itam', 'discovery', 'graph', 'flow', 'flows']);
   const tokens = String(operationId || '').split('-').filter(Boolean);
   if (domainTokens.has(tokens[0])) tokens.shift();
   let actionIndex = tokens.findIndex((token) => ACTION_EN[token]);

@@ -1,3 +1,16 @@
+## v0.29.89 — Matrice de flux déclarés et observés
+
+- Implémentation de P15 / EPIC-1502 comme comparaison gouvernée entre flux déclarés et observations réseau immuables.
+- Déclarations tenant-aware avec sélecteurs `any`, objet RSOT ou CIDR, protocoles, plages de ports, décision allow/deny, priorité, propriétaire, justification et validité.
+- Ingestion idempotente d'observations NetFlow, sFlow, IPFIX, pare-feu, application, import ou manuel, protégée par empreinte SHA-256.
+- Classification déterministe en `compliant`, `denied-observed`, `undeclared-observed` et `declared-unobserved`.
+- Fenêtre maximale de 31 jours, pagination, limites de charge et détection des curseurs non progressifs.
+- Permissions dédiées `flow.read` et `flow.write`, rôles `flow:reader` et `flow:operator`, isolation tenant et audit.
+- Persistance JSON et PostgreSQL partitionnée par tenant via `0041_flow_matrix.sql`.
+- CLI, API HTTP, OpenAPI et portail web FR/EN alignés.
+- Gate CI dédié et smoke du wheel vérifiant les six routes, les assets web et les 41 migrations.
+- CDC et roadmap inchangés : EPIC-1502 était déjà planifié et aucune nouvelle recommandation ne modifie l'existant.
+
 ## v0.29.88 — Accessibilité transversale et raffinement visuel du header
 
 - Application d’une baseline WCAG 2.2 AA à toutes les pages React et au runtime web packagé.

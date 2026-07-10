@@ -882,6 +882,63 @@ const OPENINFRA_MODULES = [
       { ...FIELD_SETS.asOf, required: false }
     ] }
   ] },
+  { id: "flows", label: "Matrice de flux", shortLabel: "Flux", icon: "activity", description: "Comparaison gouvernée des flux réseau déclarés et observés, détection des écarts et traçabilité.", operations: [
+    { id: "flow-declaration-upsert", label: "Créer ou réviser un flux déclaré", method: "POST", path: "/v1/flows/declarations/upsert", body: [
+      FIELD_SETS.actor,
+      { name: "code", label: "Code", required: true, placeholder: "APP-WEB-HTTPS" },
+      { name: "source_selector", label: "Sélecteur source", required: true, placeholder: "object:application/portail" },
+      { name: "destination_selector", label: "Sélecteur destination", required: true, placeholder: "cidr:10.20.30.0/24" },
+      { name: "protocol", label: "Protocole", type: "select", options: ["any", "tcp", "udp", "sctp", "icmp", "icmpv6", "esp", "ah", "gre"], defaultValue: "tcp" },
+      { name: "destination_port_start", label: "Port destination début", type: "number", placeholder: "443" },
+      { name: "destination_port_end", label: "Port destination fin", type: "number", placeholder: "443" },
+      { name: "decision", label: "Décision", type: "select", options: ["allow", "deny"], defaultValue: "allow" },
+      { name: "priority", label: "Priorité", type: "number", defaultValue: "100" },
+      { name: "owner", label: "Propriétaire", required: true, placeholder: "Équipe réseau" },
+      { name: "justification", label: "Justification", required: true, placeholder: "Flux applicatif approuvé" },
+      { name: "valid_from", label: "Début validité", placeholder: "2026-07-10T00:00:00Z" },
+      { name: "valid_to", label: "Fin validité", placeholder: "2027-07-10T00:00:00Z" }
+    ] },
+    { id: "flow-declaration-list", label: "Lister les flux déclarés", method: "GET", path: "/v1/flows/declarations", query: [
+      { name: "limit", label: "Limite", type: "number", defaultValue: "100" },
+      { name: "cursor", label: "Curseur" },
+      { name: "include_retired", label: "Inclure retirés", type: "boolean" }
+    ] },
+    { id: "flow-declaration-retire", label: "Retirer un flux déclaré", method: "POST", path: "/v1/flows/declarations/retire", body: [
+      FIELD_SETS.actor,
+      { name: "declaration_id", label: "ID déclaration", required: true }
+    ] },
+    { id: "flow-observation-submit", label: "Ingérer un flux observé", method: "POST", path: "/v1/flows/observations/submit", body: [
+      FIELD_SETS.actor,
+      { name: "idempotency_key", label: "Clé d’idempotence", required: true, placeholder: "collector-01:20260710:000001" },
+      { name: "source", label: "Source observation", type: "select", options: ["netflow", "sflow", "ipfix", "firewall-log", "application-log", "import", "manual"], defaultValue: "netflow" },
+      { name: "collector", label: "Collecteur", required: true, placeholder: "netflow-par-01" },
+      { name: "source_ip", label: "IP source", required: true, placeholder: "10.10.1.10" },
+      { name: "destination_ip", label: "IP destination", required: true, placeholder: "10.20.30.40" },
+      { name: "source_object_key", label: "Objet source", placeholder: "application/portail" },
+      { name: "destination_object_key", label: "Objet destination", placeholder: "server/web-01" },
+      { name: "protocol", label: "Protocole", type: "select", options: ["tcp", "udp", "sctp", "icmp", "icmpv6", "esp", "ah", "gre"], defaultValue: "tcp" },
+      { name: "destination_port", label: "Port destination", type: "number", placeholder: "443" },
+      { name: "packets", label: "Paquets", type: "number", required: true, placeholder: "10" },
+      { name: "bytes", label: "Octets", type: "number", required: true, placeholder: "2048" },
+      { name: "first_seen", label: "Premier événement", required: true, placeholder: "2026-07-10T12:00:00Z" },
+      { name: "last_seen", label: "Dernier événement", required: true, placeholder: "2026-07-10T12:05:00Z" }
+    ] },
+    { id: "flow-observation-list", label: "Lister les flux observés", method: "GET", path: "/v1/flows/observations", query: [
+      { name: "window_start", label: "Début fenêtre", required: true, placeholder: "2026-07-10T00:00:00Z" },
+      { name: "window_end", label: "Fin fenêtre", required: true, placeholder: "2026-07-11T00:00:00Z" },
+      { name: "source", label: "Source observation", type: "select", options: ["", "netflow", "sflow", "ipfix", "firewall-log", "application-log", "import", "manual"] },
+      { name: "limit", label: "Limite", type: "number", defaultValue: "100" },
+      { name: "cursor", label: "Curseur" }
+    ] },
+    { id: "flow-matrix", label: "Comparer flux déclarés et observés", method: "GET", path: "/v1/flows/matrix", query: [
+      { name: "window_start", label: "Début fenêtre", placeholder: "2026-07-10T00:00:00Z" },
+      { name: "window_end", label: "Fin fenêtre", placeholder: "2026-07-11T00:00:00Z" },
+      { name: "status", label: "Statut conformité", type: "select", options: ["", "compliant", "denied-observed", "undeclared-observed", "declared-unobserved"] },
+      { name: "source", label: "Source observation", type: "select", options: ["", "netflow", "sflow", "ipfix", "firewall-log", "application-log", "import", "manual"] },
+      { name: "limit", label: "Limite", type: "number", defaultValue: "100" },
+      { name: "cursor", label: "Curseur" }
+    ] }
+  ] },
   { id: "ipam", label: "IPAM", icon: "grid", description: "IPv4/IPv6, VRF, préfixes, plages, VLAN/VXLAN, ASN/BGP, DNS/DHCP, DDI, conflits, capacité et allocations.", operations: [
     { id: "ipam-dashboard", label: "Dashboard IPAM", method: "GET", path: "/v1/ipam/ui-dashboard", query: [{ name: "vrf", label: "VRF", placeholder: "global" }] },
     { id: "ipam-search", label: "Rechercher dans l’IPAM", method: "GET", path: "/v1/ipam/ui-search", query: [{ name: "query", label: "Recherche", required: true, placeholder: "10.20.0.0/24 ou srv-db" }, { name: "vrf", label: "VRF", placeholder: "global" }] },
@@ -1063,6 +1120,11 @@ const OPENINFRA_SIDEBAR_CONTEXTS = {
   graph: [
     { label: "Exploration", operationIds: ["graph-traverse", "graph-path"] },
     { label: "Analyse d’impact", operationIds: ["graph-impact"] }
+  ],
+  flows: [
+    { label: "Flux déclarés", operationIds: ["flow-declaration-upsert", "flow-declaration-list", "flow-declaration-retire"] },
+    { label: "Flux observés", operationIds: ["flow-observation-submit", "flow-observation-list"] },
+    { label: "Conformité des flux", operationIds: ["flow-matrix"] }
   ],
   ipam: [
     { label: "Vue & recherche", operationIds: ["ipam-dashboard", "ipam-search"] },

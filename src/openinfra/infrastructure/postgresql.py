@@ -27,6 +27,9 @@ from openinfra.application.ports import (
     DiscoveryReconciliationCasePage,
     DiscoveryRepository,
     ExportRepository,
+    FlowDeclarationPage,
+    FlowMatrixRepository,
+    FlowObservationPage,
     IdentityRepository,
     ImportRepository,
     IpamRepository,
@@ -119,6 +122,10 @@ from openinfra.domain.discovery import (
 )
 from openinfra.domain.discovery_jobs import DiscoveryJob, DiscoveryJobStatus
 from openinfra.domain.editions import QuotaResource
+from openinfra.domain.flow_matrix import (
+    FlowDeclaration,
+    FlowObservation,
+)
 from openinfra.domain.identity import (
     EffectiveIdentity,
     GroupMembership,
@@ -6690,6 +6697,310 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
         return cast(Sequence[object], value)
 
     def _row_datetime(self, value: object) -> datetime:
+        if isinstance(value, datetime):
+            return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
+        parsed = datetime.fromisoformat(str(value))
+        return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
+
+
+class PostgreSQLFlowMatrixRepository(PostgreSQLRepositoryBase, FlowMatrixRepository):
+    _DECLARATION_COLUMNS = """
+        id, tenant_id, code, source_selector, destination_selector, protocol,
+        destination_port_start, destination_port_end, decision, priority, owner,
+        justification, valid_from, valid_to, status, version, created_by, created_at,
+        updated_by, updated_at
+    """
+    _OBSERVATION_COLUMNS = """
+        id, tenant_id, idempotency_key, source, collector, source_ip, destination_ip,
+        source_object_key, destination_object_key, protocol, destination_port,
+        packets, bytes_count, first_seen, last_seen, received_at, fingerprint
+    """
+
+    def save_declaration(self, declaration: FlowDeclaration) -> None:
+        self._ensure_tenant(declaration.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO flow_declarations (
+                id, tenant_id, code, source_selector, destination_selector, protocol,
+                destination_port_start, destination_port_end, decision, priority, owner,
+                justification, valid_from, valid_to, status, version, created_by, created_at,
+                updated_by, updated_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(code)s, %(source_selector)s,
+                %(destination_selector)s, %(protocol)s, %(destination_port_start)s,
+                %(destination_port_end)s, %(decision)s, %(priority)s, %(owner)s,
+                %(justification)s, %(valid_from)s, %(valid_to)s, %(status)s, %(version)s,
+                %(created_by)s, %(created_at)s, %(updated_by)s, %(updated_at)s
+            )
+            ON CONFLICT (tenant_id, id) DO UPDATE SET
+                source_selector = EXCLUDED.source_selector,
+                destination_selector = EXCLUDED.destination_selector,
+                protocol = EXCLUDED.protocol,
+                destination_port_start = EXCLUDED.destination_port_start,
+                destination_port_end = EXCLUDED.destination_port_end,
+                decision = EXCLUDED.decision,
+                priority = EXCLUDED.priority,
+                owner = EXCLUDED.owner,
+                justification = EXCLUDED.justification,
+                valid_from = EXCLUDED.valid_from,
+                valid_to = EXCLUDED.valid_to,
+                status = EXCLUDED.status,
+                version = EXCLUDED.version,
+                updated_by = EXCLUDED.updated_by,
+                updated_at = EXCLUDED.updated_at
+            """,
+            self._declaration_params(declaration),
+        )
+
+    def find_declaration_by_code(self, tenant_id: TenantId, code: str) -> FlowDeclaration | None:
+        row = self._fetch_one(
+            f"""
+            SELECT {self._DECLARATION_COLUMNS}
+            FROM flow_declarations
+            WHERE tenant_id = %(tenant_id)s AND code = %(code)s
+            """,  # nosec B608 -- selected columns are a fixed class constant
+            {"tenant_id": tenant_id.value, "code": code.strip().upper()},
+        )
+        return self._declaration_from_row(row) if row else None
+
+    def get_declaration(self, tenant_id: TenantId, declaration_id: str) -> FlowDeclaration | None:
+        row = self._fetch_one(
+            f"""
+            SELECT {self._DECLARATION_COLUMNS}
+            FROM flow_declarations
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s
+            """,  # nosec B608 -- selected columns are a fixed class constant
+            {"tenant_id": tenant_id.value, "id": EntityId.from_value(declaration_id).value},
+        )
+        return self._declaration_from_row(row) if row else None
+
+    def list_declarations(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        include_retired: bool = False,
+    ) -> FlowDeclarationPage:
+        offset = self._offset(pagination.cursor)
+        status_filter = "" if include_retired else "AND status <> 'retired'"
+        rows = self._fetch_all(
+            f"""
+            SELECT {self._DECLARATION_COLUMNS}
+            FROM flow_declarations
+            WHERE tenant_id = %(tenant_id)s {status_filter}
+            ORDER BY code ASC, id ASC
+            LIMIT %(fetch_limit)s OFFSET %(offset)s
+            """,  # nosec B608 -- selected columns and status predicate are fixed constants
+            {
+                "tenant_id": tenant_id.value,
+                "fetch_limit": pagination.limit + 1,
+                "offset": offset,
+            },
+        )
+        has_more = len(rows) > pagination.limit
+        selected = rows[: pagination.limit]
+        return FlowDeclarationPage(
+            tuple(self._declaration_from_row(row) for row in selected),
+            str(offset + pagination.limit) if has_more else None,
+        )
+
+    def save_observation(self, observation: FlowObservation) -> None:
+        self._ensure_tenant(observation.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO flow_observations (
+                id, tenant_id, idempotency_key, source, collector, source_ip, destination_ip,
+                source_object_key, destination_object_key, protocol, destination_port,
+                packets, bytes_count, first_seen, last_seen, received_at, fingerprint
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(idempotency_key)s, %(source)s, %(collector)s,
+                %(source_ip)s, %(destination_ip)s, %(source_object_key)s,
+                %(destination_object_key)s, %(protocol)s, %(destination_port)s,
+                %(packets)s, %(bytes_count)s, %(first_seen)s, %(last_seen)s,
+                %(received_at)s, %(fingerprint)s
+            )
+            ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
+            """,
+            self._observation_params(observation),
+        )
+
+    def find_observation_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> FlowObservation | None:
+        row = self._fetch_one(
+            f"""
+            SELECT {self._OBSERVATION_COLUMNS}
+            FROM flow_observations
+            WHERE tenant_id = %(tenant_id)s AND idempotency_key = %(idempotency_key)s
+            """,  # nosec B608 -- selected columns are a fixed class constant
+            {"tenant_id": tenant_id.value, "idempotency_key": idempotency_key.strip()},
+        )
+        return self._observation_from_row(row) if row else None
+
+    def list_observations(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        window_start: datetime,
+        window_end: datetime,
+        source: str | None = None,
+    ) -> FlowObservationPage:
+        offset = self._offset(pagination.cursor)
+        source_filter = "" if source is None else "AND source = %(source)s"
+        params: dict[str, object] = {
+            "tenant_id": tenant_id.value,
+            "window_start": window_start,
+            "window_end": window_end,
+            "fetch_limit": pagination.limit + 1,
+            "offset": offset,
+        }
+        if source is not None:
+            params["source"] = source.strip().lower().replace("_", "-")
+        rows = self._fetch_all(
+            f"""
+            SELECT {self._OBSERVATION_COLUMNS}
+            FROM flow_observations
+            WHERE tenant_id = %(tenant_id)s
+              AND last_seen >= %(window_start)s
+              AND first_seen < %(window_end)s
+              {source_filter}
+            ORDER BY last_seen DESC, id DESC
+            LIMIT %(fetch_limit)s OFFSET %(offset)s
+            """,  # nosec B608 -- selected columns and source predicate are fixed constants
+            params,
+        )
+        has_more = len(rows) > pagination.limit
+        selected = rows[: pagination.limit]
+        return FlowObservationPage(
+            tuple(self._observation_from_row(row) for row in selected),
+            str(offset + pagination.limit) if has_more else None,
+        )
+
+    @staticmethod
+    def _declaration_params(declaration: FlowDeclaration) -> dict[str, object]:
+        return {
+            "id": declaration.id.value,
+            "tenant_id": declaration.tenant_id.value,
+            "code": declaration.code,
+            "source_selector": str(declaration.source_selector),
+            "destination_selector": str(declaration.destination_selector),
+            "protocol": declaration.protocol.value,
+            "destination_port_start": (
+                None
+                if declaration.destination_ports is None
+                else declaration.destination_ports.start
+            ),
+            "destination_port_end": (
+                None if declaration.destination_ports is None else declaration.destination_ports.end
+            ),
+            "decision": declaration.decision.value,
+            "priority": declaration.priority,
+            "owner": declaration.owner,
+            "justification": declaration.justification,
+            "valid_from": declaration.valid_from,
+            "valid_to": declaration.valid_to,
+            "status": declaration.status.value,
+            "version": declaration.version,
+            "created_by": declaration.created_by,
+            "created_at": declaration.created_at,
+            "updated_by": declaration.updated_by,
+            "updated_at": declaration.updated_at,
+        }
+
+    @staticmethod
+    def _observation_params(observation: FlowObservation) -> dict[str, object]:
+        return {
+            "id": observation.id.value,
+            "tenant_id": observation.tenant_id.value,
+            "idempotency_key": observation.idempotency_key,
+            "source": observation.source.value,
+            "collector": observation.collector,
+            "source_ip": observation.source_ip,
+            "destination_ip": observation.destination_ip,
+            "source_object_key": observation.source_object_key,
+            "destination_object_key": observation.destination_object_key,
+            "protocol": observation.protocol.value,
+            "destination_port": observation.destination_port,
+            "packets": observation.packets,
+            "bytes_count": observation.bytes_count,
+            "first_seen": observation.first_seen,
+            "last_seen": observation.last_seen,
+            "received_at": observation.received_at,
+            "fingerprint": observation.fingerprint,
+        }
+
+    def _declaration_from_row(self, row: Mapping[str, object]) -> FlowDeclaration:
+        return FlowDeclaration.restore(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            code=str(row["code"]),
+            source_selector=str(row["source_selector"]),
+            destination_selector=str(row["destination_selector"]),
+            protocol=str(row["protocol"]),
+            destination_port_start=(
+                None
+                if row.get("destination_port_start") is None
+                else int(str(row["destination_port_start"]))
+            ),
+            destination_port_end=(
+                None
+                if row.get("destination_port_end") is None
+                else int(str(row["destination_port_end"]))
+            ),
+            decision=str(row["decision"]),
+            priority=int(str(row["priority"])),
+            owner=str(row["owner"]),
+            justification=str(row["justification"]),
+            valid_from=self._row_datetime(row["valid_from"]),
+            valid_to=(None if row.get("valid_to") is None else self._row_datetime(row["valid_to"])),
+            status=str(row["status"]),
+            version=int(str(row["version"])),
+            created_by=str(row["created_by"]),
+            created_at=self._row_datetime(row["created_at"]),
+            updated_by=str(row["updated_by"]),
+            updated_at=self._row_datetime(row["updated_at"]),
+        )
+
+    def _observation_from_row(self, row: Mapping[str, object]) -> FlowObservation:
+        return FlowObservation.restore(
+            id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            idempotency_key=str(row["idempotency_key"]),
+            source=str(row["source"]),
+            collector=str(row["collector"]),
+            source_ip=str(row["source_ip"]),
+            destination_ip=str(row["destination_ip"]),
+            source_object_key=(
+                None if row.get("source_object_key") is None else str(row["source_object_key"])
+            ),
+            destination_object_key=(
+                None
+                if row.get("destination_object_key") is None
+                else str(row["destination_object_key"])
+            ),
+            protocol=str(row["protocol"]),
+            destination_port=(
+                None if row.get("destination_port") is None else int(str(row["destination_port"]))
+            ),
+            packets=int(str(row["packets"])),
+            bytes_count=int(str(row["bytes_count"])),
+            first_seen=self._row_datetime(row["first_seen"]),
+            last_seen=self._row_datetime(row["last_seen"]),
+            received_at=self._row_datetime(row["received_at"]),
+            fingerprint=str(row["fingerprint"]),
+        )
+
+    @staticmethod
+    def _offset(cursor: str | None) -> int:
+        try:
+            offset = int(cursor or "0")
+        except ValueError as exc:
+            raise ValidationError("pagination cursor must be a numeric offset") from exc
+        if offset < 0:
+            raise ValidationError("pagination cursor must be positive")
+        return offset
+
+    @staticmethod
+    def _row_datetime(value: object) -> datetime:
         if isinstance(value, datetime):
             return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
         parsed = datetime.fromisoformat(str(value))

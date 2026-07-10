@@ -110,6 +110,16 @@ jobs:
             tests/integration/test_http_api.py \
             tests/integration/test_openinfra_web.py
 
+      - name: Flow matrix governance regression
+        run: |
+          python -m pytest -q --no-cov \
+            tests/unit/test_flow_matrix_domain.py \
+            tests/integration/test_flow_matrix_services.py \
+            tests/integration/test_flow_matrix_interfaces.py \
+            tests/integration/test_postgresql_migration.py \
+            tests/integration/test_postgresql_migration_policy.py \
+            tests/integration/test_postgresql_row_mapping_coverage.py
+
       - name: Responsive navigation and accessibility regression
         run: |
           python -m pytest -q --no-cov \

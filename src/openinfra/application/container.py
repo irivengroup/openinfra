@@ -24,6 +24,7 @@ from openinfra.application.discovery_services import DiscoveryCollectorService
 from openinfra.application.edition_services import EditionQueryService, EditionRuntimeGuard
 from openinfra.application.export_services import ExportService
 from openinfra.application.external_itsm_services import ExternalItsmIntegrationService
+from openinfra.application.flow_matrix_services import FlowMatrixService
 from openinfra.application.identity_services import IdentityService
 from openinfra.application.import_services import GenericImportService
 from openinfra.application.ipam_services import (
@@ -43,6 +44,7 @@ from openinfra.application.ports import (
     DcimRepository,
     DiscoveryRepository,
     ExportRepository,
+    FlowMatrixRepository,
     IdentityRepository,
     ImportRepository,
     IpamRepository,
@@ -69,6 +71,7 @@ from openinfra.infrastructure.json_store import (
     JsonDiscoveryRepository,
     JsonDocumentStore,
     JsonExportRepository,
+    JsonFlowMatrixRepository,
     JsonIdentityRepository,
     JsonImportRepository,
     JsonIpamRepository,
@@ -90,6 +93,7 @@ from openinfra.infrastructure.postgresql import (
     PostgreSQLDcimRepository,
     PostgreSQLDiscoveryRepository,
     PostgreSQLExportRepository,
+    PostgreSQLFlowMatrixRepository,
     PostgreSQLIdentityRepository,
     PostgreSQLImportRepository,
     PostgreSQLIpamRepository,
@@ -125,12 +129,14 @@ class OpenInfraApplication:
     export_service: ExportService
     discovery_service: DiscoveryCollectorService
     dependency_graph_service: DependencyGraphService
+    flow_matrix_service: FlowMatrixService
     dcim_repository: DcimRepository
     ipam_repository: IpamRepository
     itam_support_repository: ItamSupportRepository
     import_repository: ImportRepository
     export_repository: ExportRepository
     discovery_repository: DiscoveryRepository
+    flow_matrix_repository: FlowMatrixRepository
     security_service: SecurityService
     identity_service: IdentityService
     external_authentication_service: ExternalAuthenticationService
@@ -184,6 +190,7 @@ class ApplicationFactory:
         source_governance_repository = JsonSourceGovernanceRepository(store)
         import_repository = JsonImportRepository(store)
         export_repository = JsonExportRepository(store)
+        flow_matrix_repository = JsonFlowMatrixRepository(store)
         discovery_repository = JsonDiscoveryRepository(store)
         itam_support_repository = JsonItamSupportRepository(store)
         readiness_probe = JsonReadinessProbe(store)
@@ -208,6 +215,7 @@ class ApplicationFactory:
             import_repository=import_repository,
             export_repository=export_repository,
             discovery_repository=discovery_repository,
+            flow_matrix_repository=flow_matrix_repository,
             transaction_manager=transaction_manager,
             readiness_probe=readiness_probe,
             schema_status_provider=schema_status_provider,
@@ -235,6 +243,7 @@ class ApplicationFactory:
         source_governance_repository = PostgreSQLSourceGovernanceRepository(registry)
         import_repository = PostgreSQLImportRepository(registry)
         export_repository = PostgreSQLExportRepository(registry)
+        flow_matrix_repository = PostgreSQLFlowMatrixRepository(registry)
         discovery_repository = PostgreSQLDiscoveryRepository(registry)
         itam_support_repository = PostgreSQLItamSupportRepository(registry)
         migration_catalog = PostgreSQLMigrationCatalog.from_project_root()
@@ -259,6 +268,7 @@ class ApplicationFactory:
             import_repository=import_repository,
             export_repository=export_repository,
             discovery_repository=discovery_repository,
+            flow_matrix_repository=flow_matrix_repository,
             itam_support_repository=itam_support_repository,
             transaction_manager=transaction_manager,
             readiness_probe=readiness_probe,
@@ -286,6 +296,7 @@ class ApplicationFactory:
         import_repository: ImportRepository | None = None,
         export_repository: ExportRepository | None = None,
         discovery_repository: DiscoveryRepository | None = None,
+        flow_matrix_repository: FlowMatrixRepository | None = None,
         itam_support_repository: ItamSupportRepository | None = None,
     ) -> OpenInfraApplication:
         if source_of_truth_repository is None:
@@ -313,6 +324,11 @@ class ApplicationFactory:
                 discovery_repository = JsonDiscoveryRepository(store)
             else:
                 discovery_repository = PostgreSQLDiscoveryRepository(store)
+        if flow_matrix_repository is None:
+            if hasattr(store, "data"):
+                flow_matrix_repository = JsonFlowMatrixRepository(store)
+            else:
+                flow_matrix_repository = PostgreSQLFlowMatrixRepository(store)
         if itam_support_repository is None:
             if hasattr(store, "data"):
                 itam_support_repository = JsonItamSupportRepository(store)
@@ -385,6 +401,12 @@ class ApplicationFactory:
         )
         dependency_graph_service = DependencyGraphService(
             source_of_truth_repository,
+            audit_repository,
+            transaction_manager,
+            security_service,
+        )
+        flow_matrix_service = FlowMatrixService(
+            flow_matrix_repository,
             audit_repository,
             transaction_manager,
             security_service,
@@ -468,6 +490,7 @@ class ApplicationFactory:
             export_service=export_service,
             discovery_service=discovery_service,
             dependency_graph_service=dependency_graph_service,
+            flow_matrix_service=flow_matrix_service,
             ipam_ui_service=ipam_ui_service,
             security_service=security_service,
             identity_service=identity_service,
@@ -515,6 +538,7 @@ class ApplicationFactory:
             import_repository=import_repository,
             export_repository=export_repository,
             discovery_repository=discovery_repository,
+            flow_matrix_repository=flow_matrix_repository,
             security_repository=security_repository,
             access_policy_repository=access_policy_repository,
             source_of_truth_repository=source_of_truth_repository,

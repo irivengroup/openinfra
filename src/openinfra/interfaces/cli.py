@@ -135,6 +135,14 @@ from openinfra.application.external_itsm_services import (
     ValidateOpenServiceConnectorCommand,
     ValidateServiceNowConnectorCommand,
 )
+from openinfra.application.flow_matrix_services import (
+    CompareFlowMatrixCommand,
+    ListFlowDeclarationsCommand,
+    ListFlowObservationsCommand,
+    RetireFlowDeclarationCommand,
+    SubmitFlowObservationCommand,
+    UpsertFlowDeclarationCommand,
+)
 from openinfra.application.identity_services import (
     AddUserToGroupCommand,
     CreateGroupCommand,
@@ -284,6 +292,7 @@ class OpenInfraCLI:
         self._add_integrations_commands(subparsers)
         self._add_discovery_commands(subparsers)
         self._add_graph_commands(subparsers)
+        self._add_flow_commands(subparsers)
         self._add_rsot_commands(subparsers)
         self._add_itrm_commands(subparsers)
         self._add_ri_commands(subparsers)
@@ -1909,6 +1918,131 @@ class OpenInfraCLI:
         parser.add_argument("--max-nodes", type=int, default=1000)
         parser.add_argument("--relation-type", action="append", default=[])
         parser.add_argument("--as-of")
+
+    def _add_flow_commands(self, subparsers: Any) -> None:
+        flow = subparsers.add_parser(
+            "flow", help="declared and observed network flow matrix operations"
+        )
+        commands = flow.add_subparsers(dest="flow_command", required=True)
+
+        declare = commands.add_parser(
+            "declaration-upsert", help="create or revise a governed flow declaration"
+        )
+        self._add_backend_arguments(declare)
+        declare.add_argument("--tenant", required=True)
+        declare.add_argument("--actor", default="cli")
+        declare.add_argument("--admin-token", required=True)
+        declare.add_argument("--code", required=True)
+        declare.add_argument("--source-selector", required=True)
+        declare.add_argument("--destination-selector", required=True)
+        declare.add_argument(
+            "--protocol",
+            choices=("any", "tcp", "udp", "sctp", "icmp", "icmpv6", "esp", "ah", "gre"),
+            required=True,
+        )
+        declare.add_argument("--destination-port-start", type=int)
+        declare.add_argument("--destination-port-end", type=int)
+        declare.add_argument("--decision", choices=("allow", "deny"), required=True)
+        declare.add_argument("--priority", type=int, default=100)
+        declare.add_argument("--owner", required=True)
+        declare.add_argument("--justification", required=True)
+        declare.add_argument("--valid-from")
+        declare.add_argument("--valid-to")
+        declare.set_defaults(handler=self._handle_flow_declaration_upsert)
+
+        declaration_list = commands.add_parser(
+            "declaration-list", help="list governed flow declarations"
+        )
+        self._add_backend_arguments(declaration_list)
+        declaration_list.add_argument("--tenant", required=True)
+        declaration_list.add_argument("--admin-token", required=True)
+        declaration_list.add_argument("--limit", type=int, default=100)
+        declaration_list.add_argument("--cursor")
+        declaration_list.add_argument("--include-retired", action="store_true")
+        declaration_list.set_defaults(handler=self._handle_flow_declaration_list)
+
+        retire = commands.add_parser(
+            "declaration-retire", help="retire a governed flow declaration"
+        )
+        self._add_backend_arguments(retire)
+        retire.add_argument("--tenant", required=True)
+        retire.add_argument("--actor", default="cli")
+        retire.add_argument("--admin-token", required=True)
+        retire.add_argument("--declaration-id", required=True)
+        retire.set_defaults(handler=self._handle_flow_declaration_retire)
+
+        observe = commands.add_parser(
+            "observation-submit", help="ingest one immutable idempotent observed network flow"
+        )
+        self._add_backend_arguments(observe)
+        observe.add_argument("--tenant", required=True)
+        observe.add_argument("--actor", default="cli")
+        observe.add_argument("--admin-token", required=True)
+        observe.add_argument("--idempotency-key", required=True)
+        observe.add_argument(
+            "--source",
+            choices=(
+                "netflow",
+                "sflow",
+                "ipfix",
+                "firewall-log",
+                "application-log",
+                "import",
+                "manual",
+            ),
+            required=True,
+        )
+        observe.add_argument("--collector", required=True)
+        observe.add_argument("--source-ip", required=True)
+        observe.add_argument("--destination-ip", required=True)
+        observe.add_argument("--source-object-key")
+        observe.add_argument("--destination-object-key")
+        observe.add_argument(
+            "--protocol",
+            choices=("tcp", "udp", "sctp", "icmp", "icmpv6", "esp", "ah", "gre"),
+            required=True,
+        )
+        observe.add_argument("--destination-port", type=int)
+        observe.add_argument("--packets", type=int, required=True)
+        observe.add_argument("--bytes", dest="bytes_count", type=int, required=True)
+        observe.add_argument("--first-seen", required=True)
+        observe.add_argument("--last-seen", required=True)
+        observe.set_defaults(handler=self._handle_flow_observation_submit)
+
+        observation_list = commands.add_parser(
+            "observation-list", help="list observed network flows in a bounded time window"
+        )
+        self._add_backend_arguments(observation_list)
+        observation_list.add_argument("--tenant", required=True)
+        observation_list.add_argument("--admin-token", required=True)
+        observation_list.add_argument("--window-start", required=True)
+        observation_list.add_argument("--window-end", required=True)
+        observation_list.add_argument("--source")
+        observation_list.add_argument("--limit", type=int, default=100)
+        observation_list.add_argument("--cursor")
+        observation_list.set_defaults(handler=self._handle_flow_observation_list)
+
+        matrix = commands.add_parser(
+            "matrix", help="compare declared and observed flows and expose violations"
+        )
+        self._add_backend_arguments(matrix)
+        matrix.add_argument("--tenant", required=True)
+        matrix.add_argument("--admin-token", required=True)
+        matrix.add_argument("--window-start")
+        matrix.add_argument("--window-end")
+        matrix.add_argument(
+            "--status",
+            choices=(
+                "compliant",
+                "denied-observed",
+                "undeclared-observed",
+                "declared-unobserved",
+            ),
+        )
+        matrix.add_argument("--source")
+        matrix.add_argument("--limit", type=int, default=100)
+        matrix.add_argument("--cursor")
+        matrix.set_defaults(handler=self._handle_flow_matrix)
 
     def _add_rsot_commands(self, subparsers: Any) -> None:
         self._add_inventory_commands(
@@ -4801,6 +4935,115 @@ class OpenInfraCLI:
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_bytes(download.content)
         print(json.dumps(download.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_flow_declaration_upsert(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.flow_matrix_service.upsert_declaration(
+            UpsertFlowDeclarationCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                code=args.code,
+                source_selector=args.source_selector,
+                destination_selector=args.destination_selector,
+                protocol=args.protocol,
+                destination_port_start=args.destination_port_start,
+                destination_port_end=args.destination_port_end,
+                decision=args.decision,
+                priority=args.priority,
+                owner=args.owner,
+                justification=args.justification,
+                valid_from=args.valid_from,
+                valid_to=args.valid_to,
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_flow_declaration_list(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.flow_matrix_service.list_declarations(
+            ListFlowDeclarationsCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                limit=args.limit,
+                cursor=args.cursor,
+                include_retired=args.include_retired,
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_flow_declaration_retire(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.flow_matrix_service.retire_declaration(
+            RetireFlowDeclarationCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                declaration_id=args.declaration_id,
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_flow_observation_submit(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.flow_matrix_service.submit_observation(
+            SubmitFlowObservationCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                idempotency_key=args.idempotency_key,
+                source=args.source,
+                collector=args.collector,
+                source_ip=args.source_ip,
+                destination_ip=args.destination_ip,
+                source_object_key=args.source_object_key,
+                destination_object_key=args.destination_object_key,
+                protocol=args.protocol,
+                destination_port=args.destination_port,
+                packets=args.packets,
+                bytes_count=args.bytes_count,
+                first_seen=args.first_seen,
+                last_seen=args.last_seen,
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_flow_observation_list(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.flow_matrix_service.list_observations(
+            ListFlowObservationsCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                window_start=args.window_start,
+                window_end=args.window_end,
+                limit=args.limit,
+                cursor=args.cursor,
+                source=args.source,
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_flow_matrix(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.flow_matrix_service.compare(
+            CompareFlowMatrixCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                window_start=args.window_start,
+                window_end=args.window_end,
+                limit=args.limit,
+                cursor=args.cursor,
+                status=args.status,
+                source=args.source,
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
         return 0
 
     def _handle_graph_traverse(self, args: argparse.Namespace) -> int:

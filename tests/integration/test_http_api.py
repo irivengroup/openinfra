@@ -128,6 +128,14 @@ class TestHttpApi:
                     "impact": "/api/v1/graph/impact",
                     "path": "/api/v1/graph/path",
                 },
+                "flows": {
+                    "declarations": "/api/v1/flows/declarations",
+                    "declaration_upsert": "/api/v1/flows/declarations/upsert",
+                    "declaration_retire": "/api/v1/flows/declarations/retire",
+                    "observations": "/api/v1/flows/observations",
+                    "observation_submit": "/api/v1/flows/observations/submit",
+                    "matrix": "/api/v1/flows/matrix",
+                },
                 "rsot": {
                     "objects": "/api/v1/rsot/objects",
                     "resource_taxonomy": "/api/v1/rsot/resource-taxonomy",

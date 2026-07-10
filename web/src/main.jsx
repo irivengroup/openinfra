@@ -672,6 +672,14 @@ const MODULES = [
     { id: 'graph-impact', label: 'Analyser les impacts', path: '/v1/graph/impact', method: 'GET', fields: ['Clé racine', 'Direction', 'Profondeur maximale', 'Nombre maximal de nœuds', 'Type de relation', 'Date ISO-8601'] },
     { id: 'graph-path', label: 'Trouver le chemin le plus court', path: '/v1/graph/path', method: 'GET', fields: ['Ressource source', 'Ressource cible', 'Direction', 'Profondeur maximale', 'Nombre maximal de nœuds', 'Type de relation', 'Date ISO-8601'] },
   ] },
+  { id: 'flows', label: 'Matrice de flux', shortLabel: 'Flux', icon: 'activity', operations: [
+    { id: 'flow-declaration-upsert', label: 'Créer ou réviser un flux déclaré', path: '/v1/flows/declarations/upsert', method: 'POST', fields: ['Opérateur', 'Code', 'Sélecteur source', 'Sélecteur destination', 'Protocole', 'Port destination début', 'Port destination fin', 'Décision', 'Priorité', 'Propriétaire', 'Justification', 'Début validité', 'Fin validité'] },
+    { id: 'flow-declaration-list', label: 'Lister les flux déclarés', path: '/v1/flows/declarations', method: 'GET', fields: ['Limite', 'Curseur', 'Inclure retirés'] },
+    { id: 'flow-declaration-retire', label: 'Retirer un flux déclaré', path: '/v1/flows/declarations/retire', method: 'POST', fields: ['Opérateur', 'ID déclaration'] },
+    { id: 'flow-observation-submit', label: 'Ingérer un flux observé', path: '/v1/flows/observations/submit', method: 'POST', fields: ['Opérateur', 'Clé d’idempotence', 'Source observation', 'Collecteur', 'IP source', 'IP destination', 'Objet source', 'Objet destination', 'Protocole', 'Port destination', 'Paquets', 'Octets', 'Premier événement', 'Dernier événement'] },
+    { id: 'flow-observation-list', label: 'Lister les flux observés', path: '/v1/flows/observations', method: 'GET', fields: ['Début fenêtre', 'Fin fenêtre', 'Source observation', 'Limite', 'Curseur'] },
+    { id: 'flow-matrix', label: 'Comparer flux déclarés et observés', path: '/v1/flows/matrix', method: 'GET', fields: ['Début fenêtre', 'Fin fenêtre', 'Statut conformité', 'Source observation', 'Limite', 'Curseur'] },
+  ] },
   { id: 'ipam', label: 'IPAM', icon: 'grid', operations: [
     { id: 'ipam-dashboard', label: 'Dashboard IPAM', path: '/v1/ipam/ui-dashboard', method: 'GET', fields: ['VRF'] },
     { id: 'ipam-search', label: 'Rechercher dans l’IPAM', path: '/v1/ipam/ui-search', method: 'GET', fields: ['Recherche', 'VRF'] },
@@ -793,6 +801,11 @@ const SIDEBAR_CONTEXTS = {
   graph: [
     { label: 'Exploration', operationIds: ['graph-traverse', 'graph-path'] },
     { label: 'Analyse d’impact', operationIds: ['graph-impact'] },
+  ],
+  flows: [
+    { label: 'Flux déclarés', operationIds: ['flow-declaration-upsert', 'flow-declaration-list', 'flow-declaration-retire'] },
+    { label: 'Flux observés', operationIds: ['flow-observation-submit', 'flow-observation-list'] },
+    { label: 'Conformité des flux', operationIds: ['flow-matrix'] },
   ],
   ipam: [
     { label: 'Vue & recherche', operationIds: ['ipam-dashboard', 'ipam-search'] },

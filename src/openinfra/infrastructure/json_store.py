@@ -25,6 +25,9 @@ from openinfra.application.ports import (
     DiscoveryReconciliationCasePage,
     DiscoveryRepository,
     ExportRepository,
+    FlowDeclarationPage,
+    FlowMatrixRepository,
+    FlowObservationPage,
     IdentityRepository,
     ImportRepository,
     IpamRepository,
@@ -119,6 +122,10 @@ from openinfra.domain.discovery import (
 )
 from openinfra.domain.discovery_jobs import DiscoveryJob, DiscoveryJobStatus
 from openinfra.domain.editions import QuotaResource
+from openinfra.domain.flow_matrix import (
+    FlowDeclaration,
+    FlowObservation,
+)
 from openinfra.domain.identity import (
     EffectiveIdentity,
     GroupMembership,
@@ -363,6 +370,8 @@ class JsonDocumentStore:
             "migration_plans": {},
             "export_jobs": {},
             "export_artifacts": {},
+            "flow_declarations": {},
+            "flow_observations": {},
             "discovery_collectors": {},
             "discovery_jobs": {},
             "discovery_protocol_profiles": {},
@@ -3786,6 +3795,177 @@ class JsonSourceOfTruthRepository(SourceOfTruthRepository):
             valid_to=valid_to,
             active=bool(value["active"]),
             created_at=created_at,
+        )
+
+
+class JsonFlowMatrixRepository(FlowMatrixRepository):
+    def __init__(self, store: JsonDocumentStore) -> None:
+        self._store = store
+
+    def save_declaration(self, declaration: FlowDeclaration) -> None:
+        key = self._key(declaration.tenant_id, declaration.id.value)
+        self._store.data["flow_declarations"][key] = declaration.as_dict()
+        self._store.mark_dirty()
+
+    def find_declaration_by_code(self, tenant_id: TenantId, code: str) -> FlowDeclaration | None:
+        normalized = code.strip().upper()
+        for value in self._store.data["flow_declarations"].values():
+            if value.get("tenant_id") == tenant_id.value and value.get("code") == normalized:
+                return self._declaration_from_dict(value)
+        return None
+
+    def get_declaration(self, tenant_id: TenantId, declaration_id: str) -> FlowDeclaration | None:
+        key = self._key(tenant_id, EntityId.from_value(declaration_id).value)
+        value = self._store.data["flow_declarations"].get(key)
+        return self._declaration_from_dict(value) if value else None
+
+    def list_declarations(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        include_retired: bool = False,
+    ) -> FlowDeclarationPage:
+        start = self._cursor_offset(pagination.cursor)
+        items = [
+            self._declaration_from_dict(value)
+            for value in self._store.data["flow_declarations"].values()
+            if value.get("tenant_id") == tenant_id.value
+            and (include_retired or value.get("status") != "retired")
+        ]
+        items.sort(key=lambda item: (item.code, item.id.value))
+        selected = tuple(items[start : start + pagination.limit])
+        next_index = start + len(selected)
+        return FlowDeclarationPage(
+            selected,
+            str(next_index) if next_index < len(items) else None,
+        )
+
+    def save_observation(self, observation: FlowObservation) -> None:
+        key = self._key(observation.tenant_id, observation.id.value)
+        self._store.data["flow_observations"][key] = observation.as_dict()
+        self._store.mark_dirty()
+
+    def find_observation_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> FlowObservation | None:
+        normalized = idempotency_key.strip()
+        for value in self._store.data["flow_observations"].values():
+            if (
+                value.get("tenant_id") == tenant_id.value
+                and value.get("idempotency_key") == normalized
+            ):
+                return self._observation_from_dict(value)
+        return None
+
+    def list_observations(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        window_start: datetime,
+        window_end: datetime,
+        source: str | None = None,
+    ) -> FlowObservationPage:
+        start = self._cursor_offset(pagination.cursor)
+        normalized_source = source.strip().lower().replace("_", "-") if source else None
+        items = [
+            self._observation_from_dict(value)
+            for value in self._store.data["flow_observations"].values()
+            if value.get("tenant_id") == tenant_id.value
+        ]
+        items = [
+            item
+            for item in items
+            if item.last_seen >= window_start
+            and item.first_seen < window_end
+            and (normalized_source is None or item.source.value == normalized_source)
+        ]
+        items.sort(key=lambda item: (item.last_seen, item.id.value), reverse=True)
+        selected = tuple(items[start : start + pagination.limit])
+        next_index = start + len(selected)
+        return FlowObservationPage(
+            selected,
+            str(next_index) if next_index < len(items) else None,
+        )
+
+    @staticmethod
+    def _key(tenant_id: TenantId, identifier: str) -> str:
+        return f"{tenant_id.value}:{identifier}"
+
+    @staticmethod
+    def _cursor_offset(cursor: str | None) -> int:
+        try:
+            offset = int(cursor or "0")
+        except ValueError as exc:
+            raise ValidationError("pagination cursor must be a numeric offset") from exc
+        if offset < 0:
+            raise ValidationError("pagination cursor must be positive")
+        return offset
+
+    @staticmethod
+    def _declaration_from_dict(value: dict[str, Any]) -> FlowDeclaration:
+        return FlowDeclaration.restore(
+            id=EntityId.from_value(str(value["id"])),
+            tenant_id=TenantId.from_value(str(value["tenant_id"])),
+            code=str(value["code"]),
+            source_selector=str(value["source_selector"]),
+            destination_selector=str(value["destination_selector"]),
+            protocol=str(value["protocol"]),
+            destination_port_start=(
+                None
+                if value.get("destination_port_start") is None
+                else int(value["destination_port_start"])
+            ),
+            destination_port_end=(
+                None
+                if value.get("destination_port_end") is None
+                else int(value["destination_port_end"])
+            ),
+            decision=str(value["decision"]),
+            priority=int(value["priority"]),
+            owner=str(value["owner"]),
+            justification=str(value["justification"]),
+            valid_from=datetime.fromisoformat(str(value["valid_from"])),
+            valid_to=(
+                None
+                if value.get("valid_to") is None
+                else datetime.fromisoformat(str(value["valid_to"]))
+            ),
+            status=str(value["status"]),
+            version=int(value["version"]),
+            created_by=str(value["created_by"]),
+            created_at=datetime.fromisoformat(str(value["created_at"])),
+            updated_by=str(value["updated_by"]),
+            updated_at=datetime.fromisoformat(str(value["updated_at"])),
+        )
+
+    @staticmethod
+    def _observation_from_dict(value: dict[str, Any]) -> FlowObservation:
+        return FlowObservation.restore(
+            id=EntityId.from_value(str(value["id"])),
+            tenant_id=TenantId.from_value(str(value["tenant_id"])),
+            idempotency_key=str(value["idempotency_key"]),
+            source=str(value["source"]),
+            collector=str(value["collector"]),
+            source_ip=str(value["source_ip"]),
+            destination_ip=str(value["destination_ip"]),
+            source_object_key=(
+                None if value.get("source_object_key") is None else str(value["source_object_key"])
+            ),
+            destination_object_key=(
+                None
+                if value.get("destination_object_key") is None
+                else str(value["destination_object_key"])
+            ),
+            protocol=str(value["protocol"]),
+            destination_port=(
+                None if value.get("destination_port") is None else int(value["destination_port"])
+            ),
+            packets=int(value["packets"]),
+            bytes_count=int(value["bytes"]),
+            first_seen=datetime.fromisoformat(str(value["first_seen"])),
+            last_seen=datetime.fromisoformat(str(value["last_seen"])),
+            received_at=datetime.fromisoformat(str(value["received_at"])),
+            fingerprint=str(value["fingerprint"]),
         )
 
 

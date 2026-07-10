@@ -136,6 +136,14 @@ from openinfra.application.external_itsm_services import (
     ValidateOpenServiceConnectorCommand,
     ValidateServiceNowConnectorCommand,
 )
+from openinfra.application.flow_matrix_services import (
+    CompareFlowMatrixCommand,
+    ListFlowDeclarationsCommand,
+    ListFlowObservationsCommand,
+    RetireFlowDeclarationCommand,
+    SubmitFlowObservationCommand,
+    UpsertFlowDeclarationCommand,
+)
 from openinfra.application.identity_services import (
     AddUserToGroupCommand,
     CreateGroupCommand,
@@ -1125,6 +1133,69 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
+        if route == "/api/v1/flows/declarations":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.flow_matrix_service.list_declarations(
+                    ListFlowDeclarationsCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        include_retired=self._first_query_value(
+                            query, "include_retired", "false"
+                        ).lower()
+                        in {"1", "true", "yes"},
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/flows/observations":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.flow_matrix_service.list_observations(
+                    ListFlowObservationsCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        window_start=self._first_query_value(query, "window_start"),
+                        window_end=self._first_query_value(query, "window_end"),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        source=query.get("source", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/flows/matrix":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.flow_matrix_service.compare(
+                    CompareFlowMatrixCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        window_start=query.get("window_start", [None])[0],
+                        window_end=query.get("window_end", [None])[0],
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        status=query.get("status", [None])[0],
+                        source=query.get("source", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
         if route == "/api/v1/graph/traverse":
             try:
                 query = parse_qs(parsed.query)
@@ -1981,6 +2052,111 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         route = self._canonical_route(urlparse(self.path).path)
         result: Any
         rule: Any
+
+        if route == "/api/v1/flows/declarations/upsert":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.flow_matrix_service.upsert_declaration(
+                    UpsertFlowDeclarationCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        code=self._required_payload_value(payload, "code"),
+                        source_selector=self._required_payload_value(payload, "source_selector"),
+                        destination_selector=self._required_payload_value(
+                            payload, "destination_selector"
+                        ),
+                        protocol=self._required_payload_value(payload, "protocol"),
+                        destination_port_start=(
+                            None
+                            if payload.get("destination_port_start") is None
+                            else int(payload["destination_port_start"])
+                        ),
+                        destination_port_end=(
+                            None
+                            if payload.get("destination_port_end") is None
+                            else int(payload["destination_port_end"])
+                        ),
+                        decision=self._required_payload_value(payload, "decision"),
+                        priority=int(payload.get("priority", 100)),
+                        owner=self._required_payload_value(payload, "owner"),
+                        justification=self._required_payload_value(payload, "justification"),
+                        valid_from=(
+                            None
+                            if payload.get("valid_from") is None
+                            else str(payload["valid_from"])
+                        ),
+                        valid_to=(
+                            None if payload.get("valid_to") is None else str(payload["valid_to"])
+                        ),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/flows/declarations/retire":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.flow_matrix_service.retire_declaration(
+                    RetireFlowDeclarationCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        declaration_id=self._required_payload_value(payload, "declaration_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/flows/observations/submit":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.flow_matrix_service.submit_observation(
+                    SubmitFlowObservationCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        idempotency_key=self._required_payload_value(payload, "idempotency_key"),
+                        source=self._required_payload_value(payload, "source"),
+                        collector=self._required_payload_value(payload, "collector"),
+                        source_ip=self._required_payload_value(payload, "source_ip"),
+                        destination_ip=self._required_payload_value(payload, "destination_ip"),
+                        source_object_key=(
+                            None
+                            if payload.get("source_object_key") is None
+                            else str(payload["source_object_key"])
+                        ),
+                        destination_object_key=(
+                            None
+                            if payload.get("destination_object_key") is None
+                            else str(payload["destination_object_key"])
+                        ),
+                        protocol=self._required_payload_value(payload, "protocol"),
+                        destination_port=(
+                            None
+                            if payload.get("destination_port") is None
+                            else int(payload["destination_port"])
+                        ),
+                        packets=int(payload["packets"]),
+                        bytes_count=int(payload["bytes"]),
+                        first_seen=self._required_payload_value(payload, "first_seen"),
+                        last_seen=self._required_payload_value(payload, "last_seen"),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
 
         if route == "/api/v1/integrations/itsm/servicenow/validate":
             try:
@@ -5237,6 +5413,14 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "traverse": "/api/v1/graph/traverse",
                     "impact": "/api/v1/graph/impact",
                     "path": "/api/v1/graph/path",
+                },
+                "flows": {
+                    "declarations": "/api/v1/flows/declarations",
+                    "declaration_upsert": "/api/v1/flows/declarations/upsert",
+                    "declaration_retire": "/api/v1/flows/declarations/retire",
+                    "observations": "/api/v1/flows/observations",
+                    "observation_submit": "/api/v1/flows/observations/submit",
+                    "matrix": "/api/v1/flows/matrix",
                 },
                 "rsot": {
                     "objects": "/api/v1/rsot/objects",

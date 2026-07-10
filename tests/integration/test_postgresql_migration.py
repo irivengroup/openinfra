@@ -361,6 +361,27 @@ class TestPostgreSQLMigration:
         assert "Sous-sol" in normalized_sql
         assert "Étage" in normalized_sql
 
+    def test_flow_matrix_migration_is_partitioned_indexed_and_audited(self) -> None:
+        migration = PostgreSQLMigrationCatalog.from_project_root().load("0041_flow_matrix")
+        normalized_sql = " ".join(migration.sql.split())
+
+        assert "CREATE TABLE IF NOT EXISTS flow_declarations" in normalized_sql
+        assert "CREATE TABLE IF NOT EXISTS flow_observations" in normalized_sql
+        assert normalized_sql.count("PARTITION BY HASH (tenant_id)") == 2
+        assert normalized_sql.count("PARTITION OF flow_declarations") == 16
+        assert normalized_sql.count("PARTITION OF flow_observations") == 16
+        assert "UNIQUE (tenant_id, code)" in normalized_sql
+        assert "UNIQUE (tenant_id, idempotency_key)" in normalized_sql
+        assert "idx_flow_declarations_effective" in normalized_sql
+        assert "idx_flow_observations_window" in normalized_sql
+        assert "idx_flow_observations_endpoint" in normalized_sql
+        assert "idx_flow_observations_last_seen_brin" in normalized_sql
+        assert "idx_audit_events_flow_matrix" in normalized_sql
+        assert (
+            "WHERE target_type IN ('flow_declaration', 'flow_observation', 'flow_matrix')"
+            in normalized_sql
+        )
+
     def test_migration_validator_rejects_partitioned_unique_constraints_missing_partition_key(
         self,
     ) -> None:

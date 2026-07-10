@@ -20,12 +20,14 @@ class WheelVerifier:
             "openinfra/domain/dcim.py",
             "openinfra/domain/ipam.py",
             "openinfra/application/dependency_graph_services.py",
+            "openinfra/application/flow_matrix_services.py",
+            "openinfra/domain/flow_matrix.py",
             "openinfra/interfaces/cli.py",
             "openinfra/interfaces/rendering/static/assets/openinfra-i18n.js",
             "openinfra/interfaces/rendering/static/assets/openinfra-web.js",
             "openinfra/interfaces/rendering/static/assets/openinfra-web.css",
             "openinfra/api/openapi.yaml",
-            "openinfra/migrations/postgresql/0040_dcim_floor_nomenclature.sql",
+            "openinfra/migrations/postgresql/0041_flow_matrix.sql",
         )
         missing = [
             suffix

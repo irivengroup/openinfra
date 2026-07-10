@@ -25,6 +25,8 @@ class Permission(StrEnum):
     RSOT_QUALITY_READ = "rsot.quality.read"
     ITAM_READ = "itam.read"
     ITAM_WRITE = "itam.write"
+    FLOW_READ = "flow.read"
+    FLOW_WRITE = "flow.write"
     ITRM_READ = "rsot.read"
     ITRM_WRITE = "rsot.write"
     ITRM_GOVERNANCE_READ = "rsot.governance.read"

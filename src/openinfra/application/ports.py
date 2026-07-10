@@ -41,6 +41,7 @@ from openinfra.domain.discovery import (
 )
 from openinfra.domain.discovery_jobs import DiscoveryJob
 from openinfra.domain.editions import QuotaResource
+from openinfra.domain.flow_matrix import FlowDeclaration, FlowObservation
 from openinfra.domain.identity import (
     EffectiveIdentity,
     GroupMembership,
@@ -104,6 +105,30 @@ class SecurityTokenPage:
     def as_dict(self) -> dict[str, object]:
         return {
             "items": [item.as_public_dict() for item in self.items],
+            "next_cursor": self.next_cursor,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class FlowDeclarationPage:
+    items: tuple[FlowDeclaration, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "items": [item.as_dict() for item in self.items],
+            "next_cursor": self.next_cursor,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class FlowObservationPage:
+    items: tuple[FlowObservation, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "items": [item.as_dict() for item in self.items],
             "next_cursor": self.next_cursor,
         }
 
@@ -964,6 +989,50 @@ class DiscoveryRepository(ABC):
         pagination: Pagination,
         include_inactive: bool,
     ) -> DiscoveryCollectorPage:
+        raise TypeError("adapter contract invoked directly")
+
+
+class FlowMatrixRepository(ABC):
+    @abstractmethod
+    def save_declaration(self, declaration: FlowDeclaration) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_declaration_by_code(self, tenant_id: TenantId, code: str) -> FlowDeclaration | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_declaration(self, tenant_id: TenantId, declaration_id: str) -> FlowDeclaration | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_declarations(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        include_retired: bool = False,
+    ) -> FlowDeclarationPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_observation(self, observation: FlowObservation) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_observation_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> FlowObservation | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_observations(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        window_start: datetime,
+        window_end: datetime,
+        source: str | None = None,
+    ) -> FlowObservationPage:
         raise TypeError("adapter contract invoked directly")
 
 

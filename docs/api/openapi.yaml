@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.88
+  version: 0.29.89
 components:
   securitySchemes:
     bearerToken:
@@ -3816,6 +3816,136 @@ paths:
         '401': {description: Security administrator token required}
         '400': {description: Validation error}
 
+  /api/v1/flows/declarations:
+    get:
+      operationId: listFlowDeclarations
+      summary: List governed declared network flows
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, required: false, schema: {type: string}}
+        - {name: include_retired, in: query, required: false, schema: {type: boolean, default: false}}
+      responses:
+        '200': {description: Paginated declared flow rules}
+        '400': {description: Validation error}
+        '401': {description: Flow reader token required}
+  /api/v1/flows/declarations/upsert:
+    post:
+      operationId: upsertFlowDeclaration
+      summary: Create or revise a governed declared network flow
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, code, source_selector, destination_selector, protocol, decision, owner, justification]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                code: {type: string, minLength: 3, maxLength: 64}
+                source_selector: {type: string, description: 'any, object:<RSOT key> or cidr:<network>'}
+                destination_selector: {type: string, description: 'any, object:<RSOT key> or cidr:<network>'}
+                protocol: {type: string, enum: [any, tcp, udp, sctp, icmp, icmpv6, esp, ah, gre]}
+                destination_port_start: {type: integer, minimum: 1, maximum: 65535}
+                destination_port_end: {type: integer, minimum: 1, maximum: 65535}
+                decision: {type: string, enum: [allow, deny]}
+                priority: {type: integer, minimum: 0, maximum: 1000, default: 100}
+                owner: {type: string, minLength: 2, maxLength: 128}
+                justification: {type: string, minLength: 5, maxLength: 1000}
+                valid_from: {type: string, format: date-time}
+                valid_to: {type: string, format: date-time}
+      responses:
+        '200': {description: Declared flow created or revised}
+        '400': {description: Validation error}
+        '401': {description: Flow operator token required}
+  /api/v1/flows/declarations/retire:
+    post:
+      operationId: retireFlowDeclaration
+      summary: Retire a governed declared network flow
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, declaration_id]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                declaration_id: {type: string, format: uuid}
+      responses:
+        '200': {description: Declared flow retired idempotently}
+        '400': {description: Validation error or unknown declaration}
+        '401': {description: Flow operator token required}
+  /api/v1/flows/observations:
+    get:
+      operationId: listFlowObservations
+      summary: List immutable observed network flows within a bounded time window
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: window_start, in: query, required: true, schema: {type: string, format: date-time}}
+        - {name: window_end, in: query, required: true, schema: {type: string, format: date-time}}
+        - {name: source, in: query, required: false, schema: {type: string, enum: [netflow, sflow, ipfix, firewall-log, application-log, import, manual]}}
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, required: false, schema: {type: string}}
+      responses:
+        '200': {description: Paginated observed network flows}
+        '400': {description: Validation error}
+        '401': {description: Flow reader token required}
+  /api/v1/flows/observations/submit:
+    post:
+      operationId: submitFlowObservation
+      summary: Ingest one immutable and idempotent observed network flow
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, idempotency_key, source, collector, source_ip, destination_ip, protocol, packets, bytes, first_seen, last_seen]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                idempotency_key: {type: string, minLength: 8, maxLength: 128}
+                source: {type: string, enum: [netflow, sflow, ipfix, firewall-log, application-log, import, manual]}
+                collector: {type: string}
+                source_ip: {type: string, format: ip}
+                destination_ip: {type: string, format: ip}
+                source_object_key: {type: string}
+                destination_object_key: {type: string}
+                protocol: {type: string, enum: [tcp, udp, sctp, icmp, icmpv6, esp, ah, gre]}
+                destination_port: {type: integer, minimum: 1, maximum: 65535}
+                packets: {type: integer, minimum: 1}
+                bytes: {type: integer, minimum: 0}
+                first_seen: {type: string, format: date-time}
+                last_seen: {type: string, format: date-time}
+      responses:
+        '201': {description: Observation ingested or idempotently returned}
+        '400': {description: Validation or idempotency conflict}
+        '401': {description: Flow operator token required}
+  /api/v1/flows/matrix:
+    get:
+      operationId: compareFlowMatrix
+      summary: Compare declared and observed flows and expose compliance violations
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: window_start, in: query, required: false, schema: {type: string, format: date-time}}
+        - {name: window_end, in: query, required: false, schema: {type: string, format: date-time}}
+        - {name: status, in: query, required: false, schema: {type: string, enum: [compliant, denied-observed, undeclared-observed, declared-unobserved]}}
+        - {name: source, in: query, required: false, schema: {type: string, enum: [netflow, sflow, ipfix, firewall-log, application-log, import, manual]}}
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, required: false, schema: {type: string}}
+      responses:
+        '200': {description: Paginated flow compliance matrix and aggregate counters}
+        '400': {description: Validation error or time window larger than 31 days}
+        '401': {description: Flow reader token required}
   /api/v1/itam/organizations:
     get:
       summary: List ITAM organizations and selection metadata

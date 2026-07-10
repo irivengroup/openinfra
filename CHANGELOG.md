@@ -1,3 +1,12 @@
+## v0.29.84 — Correctif CI DCIM et runtime GitHub Actions Node.js 24
+
+- Correction du smoke `DCIM physical model` : réutilisation du code d’étage canonique produit par `define-room`.
+- Correction préventive du smoke `DCIM cabling and energy foundation`, affecté par le même écart.
+- Ajout de tests de non-régression sur le chaînage `define-room` → `locate`/`define-rack`.
+- Migration de `actions/checkout` vers `v6`, `actions/setup-python` vers `v6` et `actions/setup-node` vers `v6`.
+- Durcissement du gate de sécurité : refus explicite des actions JavaScript encore liées au runtime Node.js 20.
+- Aucune migration PostgreSQL ; aucune modification du CDC ni de la roadmap.
+
 ## v0.29.83 — Résilience des workers et agents Discovery
 
 - Ajout d’une file de jobs Discovery persistante avec états explicites et isolation tenant.

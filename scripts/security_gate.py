@@ -193,6 +193,29 @@ class GitHubWorkflowSecurityGuard:
         if not self._dependency_review_workflow.is_file():
             raise SecurityGateError("missing pull request dependency review workflow")
         dependency_review_content = self._dependency_review_workflow.read_text(encoding="utf-8")
+        deprecated_node_action_fragments = (
+            "actions/checkout@v4",
+            "actions/setup-node@v4",
+            "actions/setup-python@v5",
+        )
+        deprecated_node_actions = [
+            fragment for fragment in deprecated_node_action_fragments if fragment in content
+        ]
+        if deprecated_node_actions:
+            raise SecurityGateError(
+                "CI workflow contains actions using deprecated Node.js 20 runtimes: "
+                + ", ".join(deprecated_node_actions)
+            )
+        deprecated_dependency_review_actions = [
+            fragment
+            for fragment in deprecated_node_action_fragments
+            if fragment in dependency_review_content
+        ]
+        if deprecated_dependency_review_actions:
+            raise SecurityGateError(
+                "dependency review workflow contains actions using deprecated Node.js 20 runtimes: "
+                + ", ".join(deprecated_dependency_review_actions)
+            )
         unsafe_token_generators = ("print(secrets.token_urlsafe(48))",)
         unsafe_token_generator_matches = [
             fragment for fragment in unsafe_token_generators if fragment in content
@@ -208,6 +231,9 @@ class GitHubWorkflowSecurityGuard:
             "security-events: write",
             "blocking-security:",
             "Blocking push vulnerability gate",
+            "actions/checkout@v6",
+            "actions/setup-node@v6",
+            "actions/setup-python@v6",
             "pip_audit",
             "--requirement requirements/security-audit.txt",
             "--requirement requirements/dev.txt",
@@ -227,7 +253,8 @@ class GitHubWorkflowSecurityGuard:
         dependency_review_required = (
             "pull_request:",
             "branches: ['**']",
-            "actions/dependency-review-action",
+            "actions/checkout@v6",
+            "actions/dependency-review-action@v5",
             "fail-on-severity: moderate",
         )
         missing_dependency_review = [

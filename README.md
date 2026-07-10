@@ -1,4 +1,13 @@
-# OpenInfra v0.29.83
+# OpenInfra v0.29.84
+
+## Correctif CI DCIM et compatibilité GitHub Actions Node.js 24
+
+OpenInfra v0.29.84 corrige deux défauts de la chaîne d’intégration continue sans modifier les contrats métier ni les schémas de données. Les smoke tests DCIM consomment désormais le code d’étage canonique réellement retourné par `openinfra dcim define-room`, au lieu de réutiliser le code libre `F01` devenu invalide après normalisation. Les deux scénarios concernés — modèle physique et fondation câblage/énergie — sont couverts.
+
+Les actions GitHub sont également migrées vers des versions reposant sur Node.js 24 : `actions/checkout@v6`, `actions/setup-python@v6` et `actions/setup-node@v6`. Le gate de sécurité refuse explicitement les anciennes versions Node.js 20 afin d’éviter toute régression.
+
+Aucune modification du CDC ni de la roadmap n’est nécessaire : il s’agit d’un correctif d’industrialisation conforme aux exigences existantes.
+
 
 ## Résilience des workers et agents Discovery
 

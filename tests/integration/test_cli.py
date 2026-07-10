@@ -772,7 +772,7 @@ class TestOpenInfraAccessPolicyCli:
                 "--building",
                 "BAT-M",
                 "--floor",
-                "MAR1_BAT-M_ETG1",
+                defined["floor"],
                 "--room",
                 "MDF1",
                 "--zone",

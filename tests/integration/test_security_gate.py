@@ -36,6 +36,7 @@ class TestSecurityGate:
                     "jobs:",
                     "  dependency-review:",
                     "    steps:",
+                    "      - uses: actions/checkout@v6",
                     "      - uses: actions/dependency-review-action@v5",
                     "        with:",
                     "          fail-on-severity: moderate",
@@ -88,6 +89,9 @@ class TestSecurityGate:
                     "jobs:",
                     "  blocking-security:",
                     "    steps:",
+                    "      - uses: actions/checkout@v6",
+                    "      - uses: actions/setup-node@v6",
+                    "      - uses: actions/setup-python@v6",
                     "      - run: python -m pip_audit --strict --requirement requirements/security-audit.txt",
                     "      - run: python -m pip install --requirement requirements/dev.txt",
                     "      - run: bandit -q -r src/openinfra",
@@ -129,6 +133,9 @@ class TestSecurityGate:
                     "security-events: write",
                     "blocking-security:",
                     "Blocking push vulnerability gate",
+                    "actions/checkout@v6",
+                    "actions/setup-node@v6",
+                    "actions/setup-python@v6",
                     "pip_audit",
                     "--requirement requirements/security-audit.txt",
                     "--requirement requirements/dev.txt",
@@ -171,6 +178,9 @@ class TestSecurityGate:
                     "security-events: write",
                     "blocking-security:",
                     "Blocking push vulnerability gate",
+                    "actions/checkout@v6",
+                    "actions/setup-node@v6",
+                    "actions/setup-python@v6",
                     "pip_audit",
                     "--requirement requirements/security-audit.txt",
                     "--requirement requirements/dev.txt",
@@ -211,6 +221,9 @@ class TestSecurityGate:
                     "security-events: write",
                     "blocking-security:",
                     "Blocking push vulnerability gate",
+                    "actions/checkout@v6",
+                    "actions/setup-node@v6",
+                    "actions/setup-python@v6",
                     "pip_audit",
                     "--requirement requirements/security-audit.txt",
                     "--requirement requirements/dev.txt",
@@ -250,6 +263,9 @@ class TestSecurityGate:
                     "security-events: write",
                     "blocking-security:",
                     "Blocking push vulnerability gate",
+                    "actions/checkout@v6",
+                    "actions/setup-node@v6",
+                    "actions/setup-python@v6",
                     "pip_audit",
                     "--requirement requirements/security-audit.txt",
                     "--requirement requirements/dev.txt",
@@ -289,6 +305,9 @@ class TestSecurityGate:
                     "security-events: write",
                     "blocking-security:",
                     "Blocking push vulnerability gate",
+                    "actions/checkout@v6",
+                    "actions/setup-node@v6",
+                    "actions/setup-python@v6",
                     "pip_audit",
                     "--requirement requirements/security-audit.txt",
                     "--requirement requirements/dev.txt",
@@ -324,6 +343,9 @@ class TestSecurityGate:
                     "security-events: write",
                     "blocking-security:",
                     "Blocking push vulnerability gate",
+                    "actions/checkout@v6",
+                    "actions/setup-node@v6",
+                    "actions/setup-python@v6",
                     "pip_audit",
                     "--requirement requirements/security-audit.txt",
                     "--requirement requirements/dev.txt",
@@ -367,6 +389,9 @@ class TestSecurityGate:
                     "security-events: write",
                     "blocking-security:",
                     "Blocking push vulnerability gate",
+                    "actions/checkout@v6",
+                    "actions/setup-node@v6",
+                    "actions/setup-python@v6",
                     "pip_audit",
                     "--requirement requirements/security-audit.txt",
                     "--requirement requirements/dev.txt",
@@ -402,6 +427,9 @@ class TestSecurityGate:
                     "security-events: write",
                     "blocking-security:",
                     "Blocking push vulnerability gate",
+                    "actions/checkout@v6",
+                    "actions/setup-node@v6",
+                    "actions/setup-python@v6",
                     "pip_audit",
                     "--requirement requirements/security-audit.txt",
                     "--requirement requirements/dev.txt",
@@ -430,3 +458,42 @@ class TestSecurityGate:
             encoding="utf-8",
         )
         assert RepositorySecretScanner(tmp_path).scan() == []
+
+    def test_security_gate_rejects_deprecated_node20_action_runtimes(self, tmp_path: Path) -> None:
+        workflow = tmp_path / ".github/workflows/ci.yml"
+        workflow.parent.mkdir(parents=True)
+        self._write_dependabot_policy(tmp_path)
+        self._write_dependency_review_workflow(tmp_path)
+        self._write_audit_requirements(tmp_path)
+        workflow.write_text(
+            "\n".join(
+                (
+                    "branches: ['**']",
+                    "workflow_dispatch:",
+                    "security-events: write",
+                    "blocking-security:",
+                    "Blocking push vulnerability gate",
+                    "actions/checkout@v4",
+                    "actions/setup-node@v6",
+                    "actions/setup-python@v6",
+                    "pip_audit",
+                    "--requirement requirements/security-audit.txt",
+                    "--requirement requirements/dev.txt",
+                    "bandit -q -r src/openinfra",
+                    "scripts/security_gate.py --project-root .",
+                    "github/codeql-action/init",
+                    "github/codeql-action/analyze",
+                    "'3.13'",
+                    "'3.14'",
+                    'print("ci_" + secrets.token_urlsafe(48))',
+                )
+            ),
+            encoding="utf-8",
+        )
+
+        try:
+            SecurityGate(tmp_path).run()
+        except SecurityGateError as exc:
+            assert "actions/checkout@v4" in str(exc)
+        else:
+            raise AssertionError("security gate accepted a deprecated Node.js 20 action")

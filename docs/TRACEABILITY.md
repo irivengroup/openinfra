@@ -1,3 +1,12 @@
+## v0.29.84 — Traçabilité correctif CI DCIM et GitHub Actions
+
+- Incident CI : le smoke modèle physique utilisait `F01` après normalisation de l’étage en `<site>_<bâtiment>_ETG<n>`.
+- Correction : extraction du champ `floor` dans la sortie JSON de `define-room`, puis réutilisation dans les commandes DCIM suivantes.
+- Correction similaire : smoke câblage/énergie aligné sur le même contrat canonique.
+- CI : `actions/checkout@v6`, `actions/setup-python@v6`, `actions/setup-node@v6`, dependency review et CodeQL déjà compatibles Node.js 24.
+- Prévention : tests des workflows et gate de sécurité interdisant les anciens majors Node.js 20.
+- CDC/roadmap : non modifiés ; aucune nouvelle recommandation n’impacte l’existant.
+
 ## v0.29.83 — Traçabilité résilience workers et agents Discovery
 
 - Roadmap existante : P14 / `EPIC-1406` — tests crash worker/agent, reprise jobs, DLQ, idempotence et non-perte.

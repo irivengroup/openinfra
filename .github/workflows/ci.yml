@@ -21,10 +21,10 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
 
@@ -49,10 +49,10 @@ jobs:
         python-version: ['3.11', '3.12', '3.13', '3.14']
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -535,7 +535,9 @@ jobs:
             --zone-code Z1 \
             --zone-name "Critical Zone" \
             --zone-row A \
-            --zone-column 01
+            --zone-column 01 > "$tmpdir/room-definition.json"
+          floor_code="$(python -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["floor"])' "$tmpdir/room-definition.json")"
+          test -n "$floor_code"
           openinfra dcim locate \
             --data "$tmpdir/state.json" \
             --tenant default \
@@ -543,7 +545,7 @@ jobs:
             --equipment-name "CI Server" \
             --site CI1 \
             --building BAT-CI \
-            --floor F01 \
+            --floor "$floor_code" \
             --room MMR-CI \
             --zone Z1 \
             --row A \
@@ -669,13 +671,15 @@ jobs:
             --zone-code Z1 \
             --zone-name "CI Energy Zone" \
             --zone-row A \
-            --zone-column 01
+            --zone-column 01 > "$tmpdir/room-definition.json"
+          floor_code="$(python -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["floor"])' "$tmpdir/room-definition.json")"
+          test -n "$floor_code"
           openinfra dcim define-rack \
             --data "$tmpdir/state.json" \
             --tenant default \
             --site CBL-CI \
             --building BAT-CBL \
-            --floor F01 \
+            --floor "$floor_code" \
             --room MMR-CBL \
             --zone Z1 \
             --rack R01 \
@@ -690,7 +694,7 @@ jobs:
             --equipment-name "CI Cabled Server" \
             --site CBL-CI \
             --building BAT-CBL \
-            --floor F01 \
+            --floor "$floor_code" \
             --room MMR-CBL \
             --zone Z1 \
             --row A \
@@ -818,10 +822,10 @@ jobs:
         python-version: ['3.11', '3.12', '3.13', '3.14']
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -850,7 +854,7 @@ jobs:
       actions: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4

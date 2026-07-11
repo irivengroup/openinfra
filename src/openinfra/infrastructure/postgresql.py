@@ -39,6 +39,7 @@ from openinfra.application.ports import (
     EnergyAnomalyPage,
     EnergyMeasurementPage,
     ExportRepository,
+    ExposureContextPage,
     FieldOperationRepository,
     FieldOperationSheetPage,
     FinancialPeriodPage,
@@ -62,7 +63,11 @@ from openinfra.application.ports import (
     OfflineSyncPackagePage,
     ReadinessProbe,
     ReadinessStatus,
+    RiskFindingPage,
     RuntimeUsageRepository,
+    SbomComparisonPage,
+    SbomDocumentPage,
+    SbomRepository,
     SchemaStatusProvider,
     SecurityRepository,
     SecurityTokenPage,
@@ -75,6 +80,7 @@ from openinfra.application.ports import (
     SustainabilityReportPage,
     TransactionManager,
     UnitOfWork,
+    VulnerabilityRecordPage,
 )
 from openinfra.domain.access_policy import AccessPolicyRule
 from openinfra.domain.audit import (
@@ -229,6 +235,13 @@ from openinfra.domain.network_config_compliance import (
     NetworkConfigBaseline,
     NetworkConfigObservation,
 )
+from openinfra.domain.sbom import (
+    ExposureContext,
+    RiskFinding,
+    SbomComparison,
+    SbomDocument,
+    VulnerabilityRecord,
+)
 from openinfra.domain.security import ApiTokenCredential, Permission
 from openinfra.domain.simulation import (
     SimulationImpactReport,
@@ -246,6 +259,7 @@ from openinfra.domain.source_of_truth import (
 from openinfra.infrastructure.field_operation_mapper import FieldOperationRecordMapper
 from openinfra.infrastructure.finops_mapper import FinOpsRecordMapper
 from openinfra.infrastructure.greenops_mapper import GreenOpsRecordMapper
+from openinfra.infrastructure.sbom_mapper import SbomRecordMapper
 from openinfra.infrastructure.simulation_mapper import SimulationRecordMapper
 
 
@@ -8586,6 +8600,447 @@ class PostgreSQLGreenOpsRepository(PostgreSQLRepositoryBase, GreenOpsRepository)
         loaded = json.loads(value) if isinstance(value, str) else value
         if not isinstance(loaded, Mapping):
             raise ValidationError("GreenOps payload must be a JSON object")
+        return {str(key): item for key, item in loaded.items()}
+
+
+class PostgreSQLSbomRepository(PostgreSQLRepositoryBase, SbomRepository):
+    def save_document(self, document: SbomDocument) -> None:
+        self._ensure_tenant(document.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO sbom_documents (
+                id, tenant_id, application, release, environment, format, source_hash,
+                fingerprint, document_version, component_count, imported_at, payload
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(application)s, %(release)s, %(environment)s,
+                %(format)s, %(source_hash)s, %(fingerprint)s, %(document_version)s,
+                %(component_count)s, %(imported_at)s, %(payload)s
+            ) ON CONFLICT (tenant_id, id) DO UPDATE SET
+                application = EXCLUDED.application, release = EXCLUDED.release,
+                environment = EXCLUDED.environment, format = EXCLUDED.format,
+                source_hash = EXCLUDED.source_hash, fingerprint = EXCLUDED.fingerprint,
+                document_version = EXCLUDED.document_version,
+                component_count = EXCLUDED.component_count,
+                imported_at = EXCLUDED.imported_at, payload = EXCLUDED.payload
+            """,
+            {
+                "id": document.id.value,
+                "tenant_id": document.tenant_id.value,
+                "application": document.application,
+                "release": document.release,
+                "environment": document.environment,
+                "format": document.format.value,
+                "source_hash": document.source_hash,
+                "fingerprint": document.fingerprint,
+                "document_version": document.document_version,
+                "component_count": document.component_count,
+                "imported_at": document.imported_at,
+                "payload": json.dumps(document.as_dict(), sort_keys=True),
+            },
+        )
+
+    def get_document(self, tenant_id: TenantId, document_id: str) -> SbomDocument | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM sbom_documents
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s LIMIT 1
+            """,
+            {"tenant_id": tenant_id.value, "id": EntityId.from_value(document_id).value},
+        )
+        return (
+            None if row is None else SbomRecordMapper.document(self._json_mapping(row["payload"]))
+        )
+
+    def find_document_by_fingerprint(
+        self, tenant_id: TenantId, fingerprint: str
+    ) -> SbomDocument | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM sbom_documents
+            WHERE tenant_id = %(tenant_id)s AND fingerprint = %(fingerprint)s LIMIT 1
+            """,
+            {"tenant_id": tenant_id.value, "fingerprint": fingerprint.strip().lower()},
+        )
+        return (
+            None if row is None else SbomRecordMapper.document(self._json_mapping(row["payload"]))
+        )
+
+    def next_document_version(self, tenant_id: TenantId, application: str, environment: str) -> int:
+        row = self._fetch_one(
+            """
+            SELECT COALESCE(MAX(document_version), 0) AS version
+            FROM sbom_documents
+            WHERE tenant_id = %(tenant_id)s AND application = %(application)s
+              AND environment = %(environment)s
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "application": application.strip().lower().replace("_", "-"),
+                "environment": environment.strip().lower().replace("_", "-"),
+            },
+        )
+        raw_version = 0 if row is None else row.get("version", 0)
+        try:
+            return int(str(raw_version)) + 1
+        except ValueError as exc:
+            raise ValidationError("SBOM document version aggregate is invalid") from exc
+
+    def list_documents(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        application: str | None = None,
+        environment: str | None = None,
+        format: str | None = None,
+    ) -> SbomDocumentPage:
+        predicate, params = self._filters(
+            {
+                "application": application.strip().lower().replace("_", "-")
+                if application
+                else None,
+                "environment": environment.strip().lower().replace("_", "-")
+                if environment
+                else None,
+                "format": format.strip().lower().replace("-", "") if format else None,
+            }
+        )
+        rows, cursor = self._page(
+            "sbom_documents", tenant_id, pagination, predicate, params, "imported_at DESC, id DESC"
+        )
+        return SbomDocumentPage(tuple(SbomRecordMapper.document(row) for row in rows), cursor)
+
+    def save_vulnerability(self, vulnerability: VulnerabilityRecord) -> None:
+        self._ensure_tenant(vulnerability.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO sbom_vulnerabilities (
+                id, tenant_id, cve_id, identity_key, cvss_score, known_exploited,
+                imported_at, payload
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(cve_id)s, %(identity_key)s, %(cvss_score)s,
+                %(known_exploited)s, %(imported_at)s, %(payload)s
+            ) ON CONFLICT (tenant_id, id) DO UPDATE SET
+                cve_id = EXCLUDED.cve_id, identity_key = EXCLUDED.identity_key,
+                cvss_score = EXCLUDED.cvss_score, known_exploited = EXCLUDED.known_exploited,
+                imported_at = EXCLUDED.imported_at, payload = EXCLUDED.payload
+            """,
+            {
+                "id": vulnerability.id.value,
+                "tenant_id": vulnerability.tenant_id.value,
+                "cve_id": vulnerability.cve_id,
+                "identity_key": vulnerability.identity_key,
+                "cvss_score": vulnerability.cvss_score,
+                "known_exploited": vulnerability.known_exploited,
+                "imported_at": vulnerability.imported_at,
+                "payload": json.dumps(vulnerability.as_dict(), sort_keys=True),
+            },
+        )
+
+    def find_vulnerability_by_identity(
+        self, tenant_id: TenantId, identity_key: str
+    ) -> VulnerabilityRecord | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM sbom_vulnerabilities
+            WHERE tenant_id = %(tenant_id)s AND identity_key = %(identity_key)s LIMIT 1
+            """,
+            {"tenant_id": tenant_id.value, "identity_key": identity_key.strip()},
+        )
+        return (
+            None
+            if row is None
+            else SbomRecordMapper.vulnerability(self._json_mapping(row["payload"]))
+        )
+
+    def list_vulnerabilities(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        cve_id: str | None = None,
+        component: str | None = None,
+        known_exploited: bool | None = None,
+    ) -> VulnerabilityRecordPage:
+        clauses: list[str] = []
+        params: dict[str, object] = {}
+        if cve_id:
+            clauses.append("cve_id = %(cve_id)s")
+            params["cve_id"] = cve_id.strip().upper()
+        if known_exploited is not None:
+            clauses.append("known_exploited = %(known_exploited)s")
+            params["known_exploited"] = known_exploited
+        if component:
+            clauses.append(
+                "(payload ->> 'component_name' ILIKE %(component)s "
+                "OR payload ->> 'component_purl' ILIKE %(component)s)"
+            )
+            params["component"] = f"%{component.strip()}%"
+        predicate = "" if not clauses else "AND " + " AND ".join(clauses)
+        rows, cursor = self._page(
+            "sbom_vulnerabilities",
+            tenant_id,
+            pagination,
+            predicate,
+            params,
+            "cvss_score DESC, cve_id, id",
+        )
+        return VulnerabilityRecordPage(
+            tuple(SbomRecordMapper.vulnerability(row) for row in rows), cursor
+        )
+
+    def save_exposure(self, exposure: ExposureContext) -> None:
+        self._ensure_tenant(exposure.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO sbom_exposure_contexts (
+                id, tenant_id, application, environment, internet_exposed, flow_exposed,
+                business_criticality, updated_at, payload
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(application)s, %(environment)s, %(internet_exposed)s,
+                %(flow_exposed)s, %(business_criticality)s, %(updated_at)s, %(payload)s
+            ) ON CONFLICT (tenant_id, application, environment) DO UPDATE SET
+                id = EXCLUDED.id, internet_exposed = EXCLUDED.internet_exposed,
+                flow_exposed = EXCLUDED.flow_exposed,
+                business_criticality = EXCLUDED.business_criticality,
+                updated_at = EXCLUDED.updated_at, payload = EXCLUDED.payload
+            """,
+            {
+                "id": exposure.id.value,
+                "tenant_id": exposure.tenant_id.value,
+                "application": exposure.application,
+                "environment": exposure.environment,
+                "internet_exposed": exposure.internet_exposed,
+                "flow_exposed": exposure.flow_exposed,
+                "business_criticality": exposure.business_criticality,
+                "updated_at": exposure.updated_at,
+                "payload": json.dumps(exposure.as_dict(), sort_keys=True),
+            },
+        )
+
+    def get_exposure(
+        self, tenant_id: TenantId, application: str, environment: str
+    ) -> ExposureContext | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM sbom_exposure_contexts
+            WHERE tenant_id = %(tenant_id)s AND application = %(application)s
+              AND environment = %(environment)s LIMIT 1
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "application": application.strip().lower().replace("_", "-"),
+                "environment": environment.strip().lower().replace("_", "-"),
+            },
+        )
+        return (
+            None if row is None else SbomRecordMapper.exposure(self._json_mapping(row["payload"]))
+        )
+
+    def list_exposures(self, tenant_id: TenantId, pagination: Pagination) -> ExposureContextPage:
+        rows, cursor = self._page(
+            "sbom_exposure_contexts", tenant_id, pagination, "", {}, "application, environment, id"
+        )
+        return ExposureContextPage(tuple(SbomRecordMapper.exposure(row) for row in rows), cursor)
+
+    def replace_findings(
+        self, tenant_id: TenantId, document_id: str, findings: tuple[RiskFinding, ...]
+    ) -> None:
+        normalized_document = EntityId.from_value(document_id).value
+        self._execute_without_result(
+            """
+            DELETE FROM sbom_risk_findings
+            WHERE tenant_id = %(tenant_id)s AND document_id = %(document_id)s
+            """,
+            {"tenant_id": tenant_id.value, "document_id": normalized_document},
+        )
+        for finding in findings:
+            self._execute_without_result(
+                """
+                INSERT INTO sbom_risk_findings (
+                    id, tenant_id, document_id, cve_id, priority, status, contextual_score,
+                    generated_at, payload
+                ) VALUES (
+                    %(id)s, %(tenant_id)s, %(document_id)s, %(cve_id)s, %(priority)s,
+                    %(status)s, %(contextual_score)s, %(generated_at)s, %(payload)s
+                ) ON CONFLICT (tenant_id, id) DO NOTHING
+                """,
+                {
+                    "id": finding.id.value,
+                    "tenant_id": tenant_id.value,
+                    "document_id": normalized_document,
+                    "cve_id": finding.cve_id,
+                    "priority": finding.priority.value,
+                    "status": finding.status.value,
+                    "contextual_score": finding.contextual_score,
+                    "generated_at": finding.generated_at,
+                    "payload": json.dumps(finding.as_dict(), sort_keys=True),
+                },
+            )
+
+    def list_findings(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        document_id: str | None = None,
+        priority: str | None = None,
+        status: str | None = None,
+    ) -> RiskFindingPage:
+        predicate, params = self._filters(
+            {
+                "document_id": EntityId.from_value(document_id).value if document_id else None,
+                "priority": priority.strip().lower() if priority else None,
+                "status": status.strip().lower().replace("_", "-") if status else None,
+            }
+        )
+        rows, cursor = self._page(
+            "sbom_risk_findings",
+            tenant_id,
+            pagination,
+            predicate,
+            params,
+            "contextual_score DESC, generated_at DESC, id DESC",
+        )
+        return RiskFindingPage(tuple(SbomRecordMapper.finding(row) for row in rows), cursor)
+
+    def save_comparison(self, comparison: SbomComparison) -> None:
+        self._ensure_tenant(comparison.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO sbom_comparisons (
+                id, tenant_id, base_document_id, target_document_id, input_digest,
+                generated_at, payload
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(base_document_id)s, %(target_document_id)s,
+                %(input_digest)s, %(generated_at)s, %(payload)s
+            ) ON CONFLICT (tenant_id, id) DO UPDATE SET
+                base_document_id = EXCLUDED.base_document_id,
+                target_document_id = EXCLUDED.target_document_id,
+                input_digest = EXCLUDED.input_digest, generated_at = EXCLUDED.generated_at,
+                payload = EXCLUDED.payload
+            """,
+            {
+                "id": comparison.id.value,
+                "tenant_id": comparison.tenant_id.value,
+                "base_document_id": comparison.base_document_id,
+                "target_document_id": comparison.target_document_id,
+                "input_digest": comparison.input_digest,
+                "generated_at": comparison.generated_at,
+                "payload": json.dumps(comparison.as_dict(), sort_keys=True),
+            },
+        )
+
+    def find_comparison_by_digest(
+        self, tenant_id: TenantId, input_digest: str
+    ) -> SbomComparison | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM sbom_comparisons
+            WHERE tenant_id = %(tenant_id)s AND input_digest = %(input_digest)s LIMIT 1
+            """,
+            {"tenant_id": tenant_id.value, "input_digest": input_digest.strip().lower()},
+        )
+        return (
+            None if row is None else SbomRecordMapper.comparison(self._json_mapping(row["payload"]))
+        )
+
+    def get_comparison(self, tenant_id: TenantId, comparison_id: str) -> SbomComparison | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM sbom_comparisons
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s LIMIT 1
+            """,
+            {"tenant_id": tenant_id.value, "id": EntityId.from_value(comparison_id).value},
+        )
+        return (
+            None if row is None else SbomRecordMapper.comparison(self._json_mapping(row["payload"]))
+        )
+
+    def list_comparisons(self, tenant_id: TenantId, pagination: Pagination) -> SbomComparisonPage:
+        rows, cursor = self._page(
+            "sbom_comparisons", tenant_id, pagination, "", {}, "generated_at DESC, id DESC"
+        )
+        return SbomComparisonPage(tuple(SbomRecordMapper.comparison(row) for row in rows), cursor)
+
+    def append_event(self, event: DomainEvent) -> None:
+        self._ensure_tenant(event.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO sbom_event_outbox (
+                id, tenant_id, aggregate_id, event_name, payload, occurred_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(aggregate_id)s, %(event_name)s,
+                %(payload)s, %(occurred_at)s
+            ) ON CONFLICT (tenant_id, id) DO NOTHING
+            """,
+            {
+                "id": event.id.value,
+                "tenant_id": event.tenant_id.value,
+                "aggregate_id": event.aggregate_id.value,
+                "event_name": event.name,
+                "payload": json.dumps(event.payload, sort_keys=True),
+                "occurred_at": event.occurred_at,
+            },
+        )
+
+    def _page(
+        self,
+        table: str,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        predicate: str,
+        params: dict[str, object],
+        ordering: str,
+    ) -> tuple[list[dict[str, Any]], str | None]:
+        allowed = {
+            ("sbom_documents", "imported_at DESC, id DESC"),
+            ("sbom_vulnerabilities", "cvss_score DESC, cve_id, id"),
+            ("sbom_exposure_contexts", "application, environment, id"),
+            ("sbom_risk_findings", "contextual_score DESC, generated_at DESC, id DESC"),
+            ("sbom_comparisons", "generated_at DESC, id DESC"),
+        }
+        if (table, ordering) not in allowed:
+            raise ValueError("unsupported SBOM pagination query")
+        offset = self._offset(pagination.cursor)
+        query = f"""
+            SELECT payload FROM {table}
+            WHERE tenant_id = %(tenant_id)s {predicate}
+            ORDER BY {ordering}
+            LIMIT %(fetch_limit)s OFFSET %(offset)s
+        """  # nosec B608 -- table and ordering are validated against a closed whitelist
+        rows = self._fetch_all(
+            query,
+            {
+                "tenant_id": tenant_id.value,
+                "fetch_limit": pagination.limit + 1,
+                "offset": offset,
+                **params,
+            },
+        )
+        has_more = len(rows) > pagination.limit
+        selected = rows[: pagination.limit]
+        return [self._json_mapping(row["payload"]) for row in selected], (
+            str(offset + pagination.limit) if has_more else None
+        )
+
+    @staticmethod
+    def _filters(values: dict[str, object | None]) -> tuple[str, dict[str, object]]:
+        params = {key: value for key, value in values.items() if value is not None}
+        return " ".join(f"AND {key} = %({key})s" for key in params), params
+
+    @staticmethod
+    def _offset(cursor: str | None) -> int:
+        try:
+            value = int(cursor or "0")
+        except ValueError as exc:
+            raise ValidationError("pagination cursor must be a numeric offset") from exc
+        if value < 0:
+            raise ValidationError("pagination cursor must be positive")
+        return value
+
+    @staticmethod
+    def _json_mapping(value: object) -> dict[str, Any]:
+        loaded = json.loads(value) if isinstance(value, str) else value
+        if not isinstance(loaded, Mapping):
+            raise ValidationError("SBOM payload must be a JSON object")
         return {str(key): item for key, item in loaded.items()}
 
 

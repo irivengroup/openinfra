@@ -299,6 +299,22 @@ from openinfra.application.network_config_compliance_services import (
     SubmitNetworkConfigObservationCommand,
     UpsertNetworkConfigBaselineCommand,
 )
+from openinfra.application.sbom_services import (
+    AssessSbomRiskCommand,
+    CompareSbomsCommand,
+    ExportSbomRiskCommand,
+    GetExposureCommand,
+    GetSbomCommand,
+    GetSbomComparisonCommand,
+    ImportSbomCommand,
+    ImportVulnerabilityCommand,
+    ListExposuresCommand,
+    ListRiskFindingsCommand,
+    ListSbomComparisonsCommand,
+    ListSbomsCommand,
+    ListVulnerabilitiesCommand,
+    UpsertExposureCommand,
+)
 from openinfra.application.search_services import GlobalSearchCommand
 from openinfra.application.security_services import (
     AuthenticateTokenCommand,
@@ -383,6 +399,7 @@ class OpenInfraCLI:
         self._add_simulation_commands(subparsers)
         self._add_finops_commands(subparsers)
         self._add_greenops_commands(subparsers)
+        self._add_sbom_commands(subparsers)
         self._add_flow_commands(subparsers)
         self._add_certificate_commands(subparsers)
         self._add_network_config_commands(subparsers)
@@ -2195,6 +2212,150 @@ class OpenInfraCLI:
             command.add_argument("--dimension")
             command.add_argument("--target")
             command.set_defaults(handler=handler)
+
+    def _add_sbom_commands(self, subparsers: Any) -> None:
+        sbom = subparsers.add_parser(
+            "sbom", help="Security SBOM, vulnerability and contextual exposure operations"
+        )
+        commands = sbom.add_subparsers(dest="sbom_command", required=True)
+
+        import_sbom = commands.add_parser("import", help="import a CycloneDX or SPDX JSON SBOM")
+        self._add_backend_arguments(import_sbom)
+        for name in (
+            "tenant",
+            "admin-token",
+            "application",
+            "release",
+            "environment",
+            "source-name",
+        ):
+            import_sbom.add_argument(f"--{name}", required=True)
+        import_sbom.add_argument("--file", type=Path, required=True)
+        import_sbom.add_argument("--source-uri")
+        import_sbom.add_argument("--actor", default="cli")
+        import_sbom.set_defaults(handler=self._handle_sbom_import)
+
+        documents = commands.add_parser("documents", help="list imported SBOM documents")
+        self._add_backend_arguments(documents)
+        self._add_sbom_list_arguments(documents)
+        documents.add_argument("--application")
+        documents.add_argument("--environment")
+        documents.add_argument("--format", choices=("cyclonedx", "spdx"))
+        documents.set_defaults(handler=self._handle_sbom_documents)
+
+        document = commands.add_parser("document", help="read one SBOM document")
+        self._add_backend_arguments(document)
+        for name in ("tenant", "admin-token", "document-id"):
+            document.add_argument(f"--{name}", required=True)
+        document.set_defaults(handler=self._handle_sbom_document)
+
+        vulnerability = commands.add_parser(
+            "vulnerability-import", help="import one externally assessed vulnerability"
+        )
+        self._add_backend_arguments(vulnerability)
+        for name in (
+            "tenant",
+            "admin-token",
+            "cve-id",
+            "component-name",
+            "component-version",
+            "cvss-score",
+        ):
+            vulnerability.add_argument(f"--{name}", required=True)
+        vulnerability.add_argument("--component-purl")
+        vulnerability.add_argument("--known-exploited", action="store_true")
+        vulnerability.add_argument("--exploit-maturity", default="unknown")
+        vulnerability.add_argument("--source-name", default="external-scanner")
+        vulnerability.add_argument("--published-at")
+        vulnerability.add_argument("--modified-at")
+        vulnerability.add_argument("--reference", action="append", default=[])
+        vulnerability.add_argument("--metadata-file", type=Path)
+        vulnerability.add_argument("--actor", default="cli")
+        vulnerability.set_defaults(handler=self._handle_sbom_vulnerability_import)
+
+        vulnerabilities = commands.add_parser("vulnerabilities", help="list vulnerabilities")
+        self._add_backend_arguments(vulnerabilities)
+        self._add_sbom_list_arguments(vulnerabilities)
+        vulnerabilities.add_argument("--cve-id")
+        vulnerabilities.add_argument("--component")
+        known_group = vulnerabilities.add_mutually_exclusive_group()
+        known_group.add_argument("--known-exploited", action="store_true")
+        known_group.add_argument("--not-known-exploited", action="store_true")
+        vulnerabilities.set_defaults(handler=self._handle_sbom_vulnerabilities)
+
+        exposure = commands.add_parser("exposure-upsert", help="configure contextual exposure")
+        self._add_backend_arguments(exposure)
+        for name in ("tenant", "admin-token", "application", "environment"):
+            exposure.add_argument(f"--{name}", required=True)
+        exposure.add_argument("--internet-exposed", action="store_true")
+        exposure.add_argument("--flow-exposed", action="store_true")
+        exposure.add_argument("--business-criticality", type=int, default=3)
+        exposure.add_argument("--control", action="append", default=[])
+        exposure.add_argument("--asset-id", action="append", default=[])
+        exposure.add_argument("--service-id", action="append", default=[])
+        exposure.add_argument("--actor", default="cli")
+        exposure.set_defaults(handler=self._handle_sbom_exposure_upsert)
+
+        exposure_get = commands.add_parser("exposure", help="read contextual exposure")
+        self._add_backend_arguments(exposure_get)
+        for name in ("tenant", "admin-token", "application", "environment"):
+            exposure_get.add_argument(f"--{name}", required=True)
+        exposure_get.set_defaults(handler=self._handle_sbom_exposure)
+
+        exposures = commands.add_parser("exposures", help="list contextual exposure records")
+        self._add_backend_arguments(exposures)
+        self._add_sbom_list_arguments(exposures)
+        exposures.set_defaults(handler=self._handle_sbom_exposures)
+
+        assess = commands.add_parser("assess", help="assess contextual vulnerability risk")
+        self._add_backend_arguments(assess)
+        for name in ("tenant", "admin-token", "document-id"):
+            assess.add_argument(f"--{name}", required=True)
+        assess.add_argument("--actor", default="cli")
+        assess.set_defaults(handler=self._handle_sbom_assess)
+
+        findings = commands.add_parser("findings", help="list contextual risk findings")
+        self._add_backend_arguments(findings)
+        self._add_sbom_list_arguments(findings)
+        findings.add_argument("--document-id")
+        findings.add_argument("--priority", choices=("low", "medium", "high", "critical"))
+        findings.add_argument(
+            "--status", choices=("open", "accepted", "mitigated", "false-positive")
+        )
+        findings.set_defaults(handler=self._handle_sbom_findings)
+
+        compare = commands.add_parser("compare", help="compare two SBOM releases")
+        self._add_backend_arguments(compare)
+        for name in ("tenant", "admin-token", "base-document-id", "target-document-id"):
+            compare.add_argument(f"--{name}", required=True)
+        compare.add_argument("--actor", default="cli")
+        compare.set_defaults(handler=self._handle_sbom_compare)
+
+        comparison = commands.add_parser("comparison", help="read one SBOM comparison")
+        self._add_backend_arguments(comparison)
+        for name in ("tenant", "admin-token", "comparison-id"):
+            comparison.add_argument(f"--{name}", required=True)
+        comparison.set_defaults(handler=self._handle_sbom_comparison)
+
+        comparisons = commands.add_parser("comparisons", help="list SBOM comparisons")
+        self._add_backend_arguments(comparisons)
+        self._add_sbom_list_arguments(comparisons)
+        comparisons.set_defaults(handler=self._handle_sbom_comparisons)
+
+        export = commands.add_parser("risk-export", help="export contextual risk as JSON or CSV")
+        self._add_backend_arguments(export)
+        for name in ("tenant", "admin-token", "document-id"):
+            export.add_argument(f"--{name}", required=True)
+        export.add_argument("--format", choices=("json", "csv"), default="json")
+        export.add_argument("--output", type=Path)
+        export.set_defaults(handler=self._handle_sbom_risk_export)
+
+    @staticmethod
+    def _add_sbom_list_arguments(parser: Any) -> None:
+        parser.add_argument("--tenant", required=True)
+        parser.add_argument("--admin-token", required=True)
+        parser.add_argument("--limit", type=int, default=100)
+        parser.add_argument("--cursor")
 
     def _add_greenops_commands(self, subparsers: Any) -> None:
         greenops = subparsers.add_parser(
@@ -6203,6 +6364,196 @@ class OpenInfraCLI:
         if any(not isinstance(item, dict) for item in payload):
             raise ValidationError("each FinOps record must be a JSON object")
         return tuple(dict(item) for item in payload)
+
+    @staticmethod
+    def _read_sbom_json_object(path: Path | None, label: str) -> dict[str, object]:
+        if path is None:
+            return {}
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except OSError as exc:
+            raise ValidationError(f"cannot read {label} file: {exc}") from exc
+        except json.JSONDecodeError as exc:
+            raise ValidationError(f"{label} file is invalid JSON: {exc}") from exc
+        if not isinstance(value, dict):
+            raise ValidationError(f"{label} file must contain one JSON object")
+        return {str(key): item for key, item in value.items()}
+
+    @staticmethod
+    def _sbom_datetime(value: str | None) -> datetime | None:
+        if value is None:
+            return None
+        return datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+
+    def _handle_sbom_import(self, args: argparse.Namespace) -> int:
+        try:
+            payload = args.file.read_bytes()
+        except OSError as exc:
+            raise ValidationError(f"cannot read SBOM file: {exc}") from exc
+        item = self._create_application(args).sbom_service.import_sbom(
+            ImportSbomCommand(
+                args.tenant,
+                args.admin_token,
+                args.application,
+                args.release,
+                args.environment,
+                args.source_name,
+                payload,
+                args.source_uri,
+                args.actor,
+            )
+        )
+        return self._print_sbom(item.as_dict())
+
+    def _handle_sbom_documents(self, args: argparse.Namespace) -> int:
+        page = self._create_application(args).sbom_service.list_sboms(
+            ListSbomsCommand(
+                args.tenant,
+                args.admin_token,
+                args.limit,
+                args.cursor,
+                args.application,
+                args.environment,
+                args.format,
+            )
+        )
+        return self._print_sbom(page.as_dict())
+
+    def _handle_sbom_document(self, args: argparse.Namespace) -> int:
+        item = self._create_application(args).sbom_service.get_sbom(
+            GetSbomCommand(args.tenant, args.admin_token, args.document_id)
+        )
+        return self._print_sbom(item.as_dict())
+
+    def _handle_sbom_vulnerability_import(self, args: argparse.Namespace) -> int:
+        item = self._create_application(args).sbom_service.import_vulnerability(
+            ImportVulnerabilityCommand(
+                args.tenant,
+                args.admin_token,
+                args.cve_id,
+                args.component_name,
+                args.component_version,
+                args.cvss_score,
+                args.component_purl,
+                args.known_exploited,
+                args.exploit_maturity,
+                args.source_name,
+                self._sbom_datetime(args.published_at),
+                self._sbom_datetime(args.modified_at),
+                tuple(args.reference),
+                self._read_sbom_json_object(args.metadata_file, "metadata"),
+                args.actor,
+            )
+        )
+        return self._print_sbom(item.as_dict())
+
+    def _handle_sbom_vulnerabilities(self, args: argparse.Namespace) -> int:
+        known: bool | None = None
+        if args.known_exploited:
+            known = True
+        elif args.not_known_exploited:
+            known = False
+        page = self._create_application(args).sbom_service.list_vulnerabilities(
+            ListVulnerabilitiesCommand(
+                args.tenant,
+                args.admin_token,
+                args.limit,
+                args.cursor,
+                args.cve_id,
+                args.component,
+                known,
+            )
+        )
+        return self._print_sbom(page.as_dict())
+
+    def _handle_sbom_exposure_upsert(self, args: argparse.Namespace) -> int:
+        item = self._create_application(args).sbom_service.upsert_exposure(
+            UpsertExposureCommand(
+                args.tenant,
+                args.admin_token,
+                args.application,
+                args.environment,
+                args.internet_exposed,
+                args.flow_exposed,
+                args.business_criticality,
+                tuple(args.control),
+                tuple(args.asset_id),
+                tuple(args.service_id),
+                args.actor,
+            )
+        )
+        return self._print_sbom(item.as_dict())
+
+    def _handle_sbom_exposure(self, args: argparse.Namespace) -> int:
+        item = self._create_application(args).sbom_service.get_exposure(
+            GetExposureCommand(args.tenant, args.admin_token, args.application, args.environment)
+        )
+        return self._print_sbom(item.as_dict())
+
+    def _handle_sbom_exposures(self, args: argparse.Namespace) -> int:
+        page = self._create_application(args).sbom_service.list_exposures(
+            ListExposuresCommand(args.tenant, args.admin_token, args.limit, args.cursor)
+        )
+        return self._print_sbom(page.as_dict())
+
+    def _handle_sbom_assess(self, args: argparse.Namespace) -> int:
+        page = self._create_application(args).sbom_service.assess_risk(
+            AssessSbomRiskCommand(args.tenant, args.admin_token, args.document_id, args.actor)
+        )
+        return self._print_sbom(page.as_dict())
+
+    def _handle_sbom_findings(self, args: argparse.Namespace) -> int:
+        page = self._create_application(args).sbom_service.list_findings(
+            ListRiskFindingsCommand(
+                args.tenant,
+                args.admin_token,
+                args.limit,
+                args.cursor,
+                args.document_id,
+                args.priority,
+                args.status,
+            )
+        )
+        return self._print_sbom(page.as_dict())
+
+    def _handle_sbom_compare(self, args: argparse.Namespace) -> int:
+        item = self._create_application(args).sbom_service.compare(
+            CompareSbomsCommand(
+                args.tenant,
+                args.admin_token,
+                args.base_document_id,
+                args.target_document_id,
+                args.actor,
+            )
+        )
+        return self._print_sbom(item.as_dict())
+
+    def _handle_sbom_comparison(self, args: argparse.Namespace) -> int:
+        item = self._create_application(args).sbom_service.get_comparison(
+            GetSbomComparisonCommand(args.tenant, args.admin_token, args.comparison_id)
+        )
+        return self._print_sbom(item.as_dict())
+
+    def _handle_sbom_comparisons(self, args: argparse.Namespace) -> int:
+        page = self._create_application(args).sbom_service.list_comparisons(
+            ListSbomComparisonsCommand(args.tenant, args.admin_token, args.limit, args.cursor)
+        )
+        return self._print_sbom(page.as_dict())
+
+    def _handle_sbom_risk_export(self, args: argparse.Namespace) -> int:
+        export = self._create_application(args).sbom_service.export_risk(
+            ExportSbomRiskCommand(args.tenant, args.admin_token, args.document_id, args.format)
+        )
+        if args.output is None:
+            sys.stdout.buffer.write(export.content)
+        else:
+            args.output.write_bytes(export.content)
+        return 0
+
+    @staticmethod
+    def _print_sbom(payload: dict[str, object]) -> int:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+        return 0
 
     @staticmethod
     def _greenops_datetime(value: str | None) -> datetime | None:

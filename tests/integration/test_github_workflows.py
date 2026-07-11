@@ -46,12 +46,13 @@ class TestGitHubWorkflows:
         assert 'PYTHONPATH="$target" python scripts/smoke_installed_wheel.py' in workflow
         smoke = (PROJECT_ROOT / "scripts/smoke_installed_wheel.py").read_text(encoding="utf-8")
         assert "OpenApiDocumentProvider().read_yaml()" in smoke
-        assert "EXPECTED_MIGRATION_COUNT = 47" in smoke
+        assert "EXPECTED_MIGRATION_COUNT = 48" in smoke
         assert "EXPECTED_NETWORK_CONFIG_ROUTES" in smoke
         assert "EXPECTED_FIELD_OPERATION_ROUTES" in smoke
         assert "EXPECTED_SIMULATION_ROUTES" in smoke
         assert "EXPECTED_GREENOPS_ROUTES" in smoke
-        assert 'EXPECTED_LAST_MIGRATION = "0047_greenops_energy_capacity.sql"' in smoke
+        assert "EXPECTED_SBOM_ROUTES" in smoke
+        assert 'EXPECTED_LAST_MIGRATION = "0048_sbom_vulnerabilities_exposure.sql"' in smoke
         for route in (
             "/api/v1/graph/traverse",
             "/api/v1/graph/impact",
@@ -83,5 +84,21 @@ class TestGitHubWorkflows:
             "tests/integration/test_greenops_migration.py",
             "tests/integration/test_greenops_postgresql_repository.py",
             "tests/integration/test_greenops_web_contract.py",
+        ):
+            assert test_path in workflow
+
+    def test_sbom_is_a_blocking_ci_regression_gate(self) -> None:
+        workflow = (PROJECT_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+
+        assert "- name: SBOM vulnerability and contextual exposure regression" in workflow
+        for test_path in (
+            "tests/unit/test_sbom_domain.py",
+            "tests/unit/test_sbom_edge_cases.py",
+            "tests/integration/test_sbom_services.py",
+            "tests/integration/test_sbom_cli.py",
+            "tests/integration/test_sbom_http_api.py",
+            "tests/integration/test_sbom_migration.py",
+            "tests/integration/test_sbom_postgresql_repository.py",
+            "tests/integration/test_sbom_web_contract.py",
         ):
             assert test_path in workflow

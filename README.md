@@ -1,6 +1,20 @@
-# OpenInfra v0.29.98
+# OpenInfra v0.29.99
 
-OpenInfra v0.29.98 réalise **P16 / EPIC-1604 — GreenOps**. Le parcours est regroupé sous **DCIM → GreenOps**, avec des mesures énergétiques observées ou estimées, des facteurs carbone versionnés, des rapports PUE/CO₂e reproductibles, des prévisions de capacité et des recommandations consultatives. Les routes, commandes et permissions historiques restent compatibles.
+OpenInfra v0.29.99 réalise **P16 / EPIC-1605 — SBOM, vulnérabilités et exposition contextualisée**. Le parcours est regroupé sous **Sécurité → SBOM & vulnérabilités** et corrèle les composants CycloneDX/SPDX, les CVE importées, l’exposition réseau et la criticité métier. Le module reste analytique : aucun scan actif ni aucune remédiation automatique n’est exécuté.
+
+## SBOM, vulnérabilités et exposition
+
+Les imports sont versionnés par application, release et environnement, bornés à 10 MiB, normalisés et protégés par empreinte SHA-256. La comparaison des releases reconnaît les mises à niveau d’un même package au lieu de les présenter comme une suppression suivie d’un ajout. Les évaluations de risque expliquent chaque facteur de contexte et peuvent être exportées en JSON ou CSV.
+
+```bash
+openinfra sbom import --help
+openinfra sbom vulnerability-import --help
+openinfra sbom exposure-upsert --help
+openinfra sbom assess --help
+openinfra sbom compare --help
+```
+
+Voir `docs/operations/sbom-vulnerabilities-exposure.md` pour les formats, les règles de confiance, les permissions, la persistance et les procédures d’exploitation.
 
 ## GreenOps, énergie et capacité
 
@@ -159,3 +173,6 @@ openinfra dcim field-sheet-generate --tenant default --admin-token "$OPENINFRA_T
 ```
 
 Les preuves acceptées sont JPEG, PNG, WebP ou PDF, limitées à 2 Mio. Les paquets hors ligne sont limités au tenant et au site autorisés, expirent automatiquement et sont synchronisés uniquement si leur empreinte SHA-256 canonique correspond. Le runbook complet est disponible dans `docs/runbooks/FIELD_OPERATIONS.md`.
+
+
+- [SBOM, vulnérabilités et exposition contextualisée](docs/operations/sbom-vulnerabilities-exposure.md)

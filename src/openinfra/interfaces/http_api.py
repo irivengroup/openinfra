@@ -299,6 +299,22 @@ from openinfra.application.network_config_compliance_services import (
     SubmitNetworkConfigObservationCommand,
     UpsertNetworkConfigBaselineCommand,
 )
+from openinfra.application.sbom_services import (
+    AssessSbomRiskCommand,
+    CompareSbomsCommand,
+    ExportSbomRiskCommand,
+    GetExposureCommand,
+    GetSbomCommand,
+    GetSbomComparisonCommand,
+    ImportSbomCommand,
+    ImportVulnerabilityCommand,
+    ListExposuresCommand,
+    ListRiskFindingsCommand,
+    ListSbomComparisonsCommand,
+    ListSbomsCommand,
+    ListVulnerabilitiesCommand,
+    UpsertExposureCommand,
+)
 from openinfra.application.search_services import GlobalSearchCommand
 from openinfra.application.security_services import (
     AuthenticateTokenCommand,
@@ -1424,6 +1440,173 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     )
                 )
                 responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/sbom/documents":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.sbom_service.list_sboms(
+                    ListSbomsCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        application=query.get("application", [None])[0],
+                        environment=query.get("environment", [None])[0],
+                        format=query.get("format", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/sbom/documents/get":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.sbom_service.get_sbom(
+                    GetSbomCommand(
+                        self._first_query_value(query, "tenant_id"),
+                        self._bearer_token(),
+                        self._first_query_value(query, "document_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/sbom/vulnerabilities":
+            try:
+                query = parse_qs(parsed.query)
+                raw_known = query.get("known_exploited", [None])[0]
+                known_exploited = (
+                    None if raw_known is None else raw_known.strip().lower() in {"1", "true", "yes"}
+                )
+                result = self.server.application.sbom_service.list_vulnerabilities(
+                    ListVulnerabilitiesCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        cve_id=query.get("cve_id", [None])[0],
+                        component=query.get("component", [None])[0],
+                        known_exploited=known_exploited,
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/sbom/exposures":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.sbom_service.list_exposures(
+                    ListExposuresCommand(
+                        self._first_query_value(query, "tenant_id"),
+                        self._bearer_token(),
+                        int(self._first_query_value(query, "limit", "100")),
+                        query.get("cursor", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/sbom/exposures/get":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.sbom_service.get_exposure(
+                    GetExposureCommand(
+                        self._first_query_value(query, "tenant_id"),
+                        self._bearer_token(),
+                        self._first_query_value(query, "application"),
+                        self._first_query_value(query, "environment"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/sbom/findings":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.sbom_service.list_findings(
+                    ListRiskFindingsCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        document_id=query.get("document_id", [None])[0],
+                        priority=query.get("priority", [None])[0],
+                        status=query.get("status", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/sbom/comparisons":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.sbom_service.list_comparisons(
+                    ListSbomComparisonsCommand(
+                        self._first_query_value(query, "tenant_id"),
+                        self._bearer_token(),
+                        int(self._first_query_value(query, "limit", "100")),
+                        query.get("cursor", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/sbom/comparisons/get":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.sbom_service.get_comparison(
+                    GetSbomComparisonCommand(
+                        self._first_query_value(query, "tenant_id"),
+                        self._bearer_token(),
+                        self._first_query_value(query, "comparison_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/sbom/risk/export":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.sbom_service.export_risk(
+                    ExportSbomRiskCommand(
+                        self._first_query_value(query, "tenant_id"),
+                        self._bearer_token(),
+                        self._first_query_value(query, "document_id"),
+                        self._first_query_value(query, "format", "json"),
+                    )
+                )
+                BinaryHttpResponder(self).send(
+                    HTTPStatus.OK, result.content, result.content_type, result.filename
+                )
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (ValueError, OpenInfraError) as exc:
@@ -2994,6 +3177,133 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     )
                 )
                 responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/sbom/documents/import":
+            try:
+                payload = self._read_json_body()
+                sbom_payload = payload.get("sbom")
+                if not isinstance(sbom_payload, dict):
+                    raise ValidationError("sbom must be a JSON object")
+                result = self.server.application.sbom_service.import_sbom(
+                    ImportSbomCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        application=self._required_payload_value(payload, "application"),
+                        release=self._required_payload_value(payload, "release"),
+                        environment=self._required_payload_value(payload, "environment"),
+                        source_name=self._required_payload_value(payload, "source_name"),
+                        payload={str(key): value for key, value in sbom_payload.items()},
+                        source_uri=self._optional_payload_value(payload, "source_uri"),
+                        actor=str(payload.get("actor", "api")),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/sbom/vulnerabilities/import":
+            try:
+                payload = self._read_json_body()
+                raw_references = payload.get("references", [])
+                if not isinstance(raw_references, list):
+                    raise ValidationError("references must be an array")
+                raw_metadata = payload.get("metadata", {})
+                if not isinstance(raw_metadata, dict):
+                    raise ValidationError("metadata must be a JSON object")
+                published = self._optional_payload_value(payload, "published_at")
+                modified = self._optional_payload_value(payload, "modified_at")
+                result = self.server.application.sbom_service.import_vulnerability(
+                    ImportVulnerabilityCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        cve_id=self._required_payload_value(payload, "cve_id"),
+                        component_name=self._required_payload_value(payload, "component_name"),
+                        component_version=self._required_payload_value(
+                            payload, "component_version"
+                        ),
+                        cvss_score=self._required_payload_value(payload, "cvss_score"),
+                        component_purl=self._optional_payload_value(payload, "component_purl"),
+                        known_exploited=self._payload_bool(payload, "known_exploited", False),
+                        exploit_maturity=str(payload.get("exploit_maturity", "unknown")),
+                        source_name=str(payload.get("source_name", "external-scanner")),
+                        published_at=None
+                        if published is None
+                        else datetime.fromisoformat(published),
+                        modified_at=None if modified is None else datetime.fromisoformat(modified),
+                        references=tuple(str(item) for item in raw_references),
+                        metadata={str(key): value for key, value in raw_metadata.items()},
+                        actor=str(payload.get("actor", "api")),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/sbom/exposures/upsert":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.sbom_service.upsert_exposure(
+                    UpsertExposureCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        application=self._required_payload_value(payload, "application"),
+                        environment=self._required_payload_value(payload, "environment"),
+                        internet_exposed=self._payload_bool(payload, "internet_exposed", False),
+                        flow_exposed=self._payload_bool(payload, "flow_exposed", False),
+                        business_criticality=int(payload.get("business_criticality", 3)),
+                        compensating_controls=self._payload_string_tuple(
+                            payload, "compensating_controls"
+                        ),
+                        asset_ids=self._payload_string_tuple(payload, "asset_ids"),
+                        service_ids=self._payload_string_tuple(payload, "service_ids"),
+                        actor=str(payload.get("actor", "api")),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/sbom/risk/assess":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.sbom_service.assess_risk(
+                    AssessSbomRiskCommand(
+                        self._required_payload_value(payload, "tenant_id"),
+                        self._bearer_token(),
+                        self._required_payload_value(payload, "document_id"),
+                        str(payload.get("actor", "api")),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/sbom/comparisons/create":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.sbom_service.compare(
+                    CompareSbomsCommand(
+                        self._required_payload_value(payload, "tenant_id"),
+                        self._bearer_token(),
+                        self._required_payload_value(payload, "base_document_id"),
+                        self._required_payload_value(payload, "target_document_id"),
+                        str(payload.get("actor", "api")),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
@@ -6982,6 +7292,13 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         return tuple(str(item) for item in value)
 
     @staticmethod
+    def _payload_string_tuple(payload: dict[str, Any], name: str) -> tuple[str, ...]:
+        raw = payload.get(name, [])
+        if not isinstance(raw, list):
+            raise ValidationError(f"{name} must be an array")
+        return tuple(str(item) for item in raw)
+
+    @staticmethod
     def _payload_bool(payload: dict[str, Any], name: str, default: bool) -> bool:
         value = payload.get(name, default)
         if isinstance(value, bool):
@@ -7130,6 +7447,22 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "software_license": "/api/v1/itam/software-license",
                     "software_license_assignment": "/api/v1/itam/software-license/assignment",
                     "software_license_compliance": "/api/v1/itam/software-license/compliance",
+                },
+                "sbom": {
+                    "documents": "/api/v1/sbom/documents",
+                    "document_get": "/api/v1/sbom/documents/get",
+                    "document_import": "/api/v1/sbom/documents/import",
+                    "vulnerabilities": "/api/v1/sbom/vulnerabilities",
+                    "vulnerability_import": "/api/v1/sbom/vulnerabilities/import",
+                    "exposures": "/api/v1/sbom/exposures",
+                    "exposure_get": "/api/v1/sbom/exposures/get",
+                    "exposure_upsert": "/api/v1/sbom/exposures/upsert",
+                    "findings": "/api/v1/sbom/findings",
+                    "risk_assess": "/api/v1/sbom/risk/assess",
+                    "risk_export": "/api/v1/sbom/risk/export",
+                    "comparisons": "/api/v1/sbom/comparisons",
+                    "comparison_get": "/api/v1/sbom/comparisons/get",
+                    "comparison_create": "/api/v1/sbom/comparisons/create",
                 },
                 "greenops": {
                     "measurement_sources": "/api/v1/greenops/measurement-sources",

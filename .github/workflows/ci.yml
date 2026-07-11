@@ -95,6 +95,18 @@ jobs:
             tests/integration/test_greenops_postgresql_repository.py \
             tests/integration/test_greenops_web_contract.py
 
+      - name: SBOM vulnerability and contextual exposure regression
+        run: |
+          python -m pytest -q --no-cov \
+            tests/unit/test_sbom_domain.py \
+            tests/unit/test_sbom_edge_cases.py \
+            tests/integration/test_sbom_services.py \
+            tests/integration/test_sbom_cli.py \
+            tests/integration/test_sbom_http_api.py \
+            tests/integration/test_sbom_migration.py \
+            tests/integration/test_sbom_postgresql_repository.py \
+            tests/integration/test_sbom_web_contract.py
+
       - name: Discovery multisource reconciliation regression
         run: |
           python -m pytest -q --no-cov \

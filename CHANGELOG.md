@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.29.99 - 2026-07-11
+
+- Réalisation de P16 / EPIC-1605 avec un module SBOM regroupé sous **Sécurité**, sans nouveau composant de premier niveau.
+- Import strict des formats CycloneDX et SPDX JSON, versionnement par application/release/environnement et idempotence par empreinte SHA-256.
+- Import des vulnérabilités CVE, contextes d’exposition et calcul de risque contextualisé avec raisons explicites et contrôles compensatoires.
+- Comparaison de releases par identité logique PURL : une mise à niveau est classée comme changement de version et non comme suppression/ajout.
+- Ajout de 14 routes HTTP/OpenAPI, des commandes `openinfra sbom`, des exports JSON/CSV et de la parité React/runtime packagé.
+- Ajout de la persistance JSON/PostgreSQL, de l’outbox transactionnel et de la migration `0048_sbom_vulnerabilities_exposure.sql`.
+- Ajout des tests domaine, cas limites, service, CLI, HTTP, PostgreSQL, migration, portail, OpenAPI, packaging et du gate CI SBOM.
+- Garantie explicite : aucun scan actif, aucune exécution distante et aucune remédiation automatique.
+
 ## 0.29.98 - 2026-07-11
 
 - Réalisation de P16 / EPIC-1604 avec un module GreenOps regroupé sous **DCIM**, sans nouveau composant de premier niveau.

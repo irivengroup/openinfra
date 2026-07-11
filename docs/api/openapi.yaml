@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.98
+  version: 0.29.99
 components:
   securitySchemes:
     bearerToken:
@@ -6049,3 +6049,255 @@ paths:
         '200': {description: Paginated explainable GreenOps scores}
         '400': {description: Invalid filter or cursor}
         '401': {description: Missing or invalid GreenOps reader token}
+  /api/v1/sbom/documents:
+    get:
+      operationId: listSbomDocuments
+      summary: List versioned CycloneDX or SPDX documents
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: application, in: query, schema: {type: string}}
+        - {name: environment, in: query, schema: {type: string}}
+        - {name: format, in: query, schema: {type: string, enum: [cyclonedx, spdx]}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated SBOM documents}
+        '400': {description: Invalid filter or cursor}
+        '401': {description: Missing or invalid SBOM reader token}
+  /api/v1/sbom/documents/get:
+    get:
+      operationId: getSbomDocument
+      summary: Get a versioned SBOM and its normalized components
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: document_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: SBOM document}
+        '400': {description: Unknown or invalid document}
+        '401': {description: Missing or invalid SBOM reader token}
+  /api/v1/sbom/documents/import:
+    post:
+      operationId: importSbomDocument
+      summary: Import a CycloneDX or SPDX JSON document without active scanning
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, application, release, environment, source_name, sbom]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                application: {type: string, maxLength: 128}
+                release: {type: string, maxLength: 128}
+                environment: {type: string, maxLength: 64}
+                source_name: {type: string, maxLength: 255}
+                source_uri: {type: string, format: uri, maxLength: 2048}
+                sbom: {type: object, description: CycloneDX or SPDX JSON object}
+      responses:
+        '201': {description: Imported or idempotently resolved SBOM document}
+        '400': {description: Unsupported, malformed or oversized SBOM}
+        '401': {description: Missing or invalid SBOM importer token}
+  /api/v1/sbom/vulnerabilities:
+    get:
+      operationId: listSbomVulnerabilities
+      summary: List externally imported vulnerability records
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: cve_id, in: query, schema: {type: string, pattern: '^CVE-[0-9]{4}-[0-9]{4,19}$'}}
+        - {name: component, in: query, schema: {type: string}}
+        - {name: known_exploited, in: query, schema: {type: boolean}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated vulnerability records}
+        '400': {description: Invalid filter or cursor}
+        '401': {description: Missing or invalid SBOM reader token}
+  /api/v1/sbom/vulnerabilities/import:
+    post:
+      operationId: importSbomVulnerability
+      summary: Import a vulnerability finding from an external scanner or advisory source
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, cve_id, component_name, component_version, cvss_score]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                cve_id: {type: string, pattern: '^CVE-[0-9]{4}-[0-9]{4,19}$'}
+                component_name: {type: string, maxLength: 255}
+                component_version: {type: string, maxLength: 255}
+                component_purl: {type: string, maxLength: 1024}
+                cvss_score: {type: number, minimum: 0, maximum: 10}
+                known_exploited: {type: boolean, default: false}
+                exploit_maturity: {type: string, maxLength: 64, default: unknown}
+                source_name: {type: string, maxLength: 255, default: external-scanner}
+                published_at: {type: string, format: date-time}
+                modified_at: {type: string, format: date-time}
+                references: {type: array, maxItems: 100, items: {type: string, format: uri}}
+                metadata: {type: object}
+      responses:
+        '201': {description: Imported or idempotently resolved vulnerability}
+        '400': {description: Invalid CVE, PURL, score, dates or metadata}
+        '401': {description: Missing or invalid SBOM importer token}
+  /api/v1/sbom/exposures:
+    get:
+      operationId: listSbomExposureContexts
+      summary: List application exposure and business criticality contexts
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated exposure contexts}
+        '400': {description: Invalid cursor}
+        '401': {description: Missing or invalid SBOM reader token}
+  /api/v1/sbom/exposures/get:
+    get:
+      operationId: getSbomExposureContext
+      summary: Get an application exposure context
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: application, in: query, required: true, schema: {type: string}}
+        - {name: environment, in: query, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Exposure context}
+        '400': {description: Unknown or invalid exposure context}
+        '401': {description: Missing or invalid SBOM reader token}
+  /api/v1/sbom/exposures/upsert:
+    post:
+      operationId: upsertSbomExposureContext
+      summary: Record exposure, business criticality and compensating controls
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, application, environment, business_criticality]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                application: {type: string, maxLength: 128}
+                environment: {type: string, maxLength: 64}
+                internet_exposed: {type: boolean, default: false}
+                flow_exposed: {type: boolean, default: false}
+                business_criticality: {type: integer, minimum: 1, maximum: 5}
+                compensating_controls: {type: array, maxItems: 100, items: {type: string}}
+                asset_ids: {type: array, maxItems: 10000, items: {type: string}}
+                service_ids: {type: array, maxItems: 10000, items: {type: string}}
+      responses:
+        '201': {description: Exposure context created or updated}
+        '400': {description: Invalid exposure context}
+        '401': {description: Missing or invalid SBOM writer token}
+  /api/v1/sbom/findings:
+    get:
+      operationId: listSbomRiskFindings
+      summary: List contextualized SBOM vulnerability findings
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: document_id, in: query, schema: {type: string, format: uuid}}
+        - {name: priority, in: query, schema: {type: string, enum: [low, medium, high, critical]}}
+        - {name: status, in: query, schema: {type: string, enum: [open, accepted, mitigated, false-positive]}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated contextualized findings}
+        '400': {description: Invalid filter or cursor}
+        '401': {description: Missing or invalid SBOM reader token}
+  /api/v1/sbom/risk/assess:
+    post:
+      operationId: assessSbomRisk
+      summary: Correlate imported vulnerabilities with an SBOM and exposure context
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, document_id]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                document_id: {type: string, format: uuid}
+      responses:
+        '201': {description: Contextualized risk assessment generated}
+        '400': {description: Unknown SBOM or invalid vulnerability corpus}
+        '401': {description: Missing or invalid SBOM executor token}
+  /api/v1/sbom/risk/export:
+    get:
+      operationId: exportSbomRisk
+      summary: Export contextualized SBOM risk as JSON or CSV
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: document_id, in: query, required: true, schema: {type: string, format: uuid}}
+        - {name: format, in: query, schema: {type: string, enum: [json, csv], default: json}}
+      responses:
+        '200':
+          description: Downloadable risk report
+          content:
+            application/json: {schema: {type: object}}
+            text/csv: {schema: {type: string}}
+        '400': {description: Unknown SBOM or unsupported format}
+        '401': {description: Missing or invalid SBOM export token}
+  /api/v1/sbom/comparisons:
+    get:
+      operationId: listSbomComparisons
+      summary: List immutable comparisons between application releases
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated SBOM comparisons}
+        '400': {description: Invalid cursor}
+        '401': {description: Missing or invalid SBOM reader token}
+  /api/v1/sbom/comparisons/get:
+    get:
+      operationId: getSbomComparison
+      summary: Get an immutable SBOM release comparison
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: comparison_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: SBOM comparison}
+        '400': {description: Unknown comparison}
+        '401': {description: Missing or invalid SBOM reader token}
+  /api/v1/sbom/comparisons/create:
+    post:
+      operationId: createSbomComparison
+      summary: Compare two distinct SBOM releases of the same application
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, base_document_id, target_document_id]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                base_document_id: {type: string, format: uuid}
+                target_document_id: {type: string, format: uuid}
+      responses:
+        '201': {description: Immutable comparison generated or returned idempotently}
+        '400': {description: Unknown, identical or incompatible SBOM documents}
+        '401': {description: Missing or invalid SBOM executor token}

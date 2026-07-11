@@ -138,6 +138,7 @@ class BuiltinRolePolicy:
                 Permission.SIMULATION_READ,
                 Permission.FINOPS_READ,
                 Permission.GREENOPS_READ,
+                Permission.SBOM_READ,
             )
         ),
         "rsot:reader": frozenset(
@@ -302,6 +303,33 @@ class BuiltinRolePolicy:
                 Permission.GREENOPS_ADMIN,
                 Permission.DCIM_LOCATE,
                 Permission.FINOPS_READ,
+                Permission.AUDIT_READ,
+                Permission.SCHEMA_READ,
+            )
+        ),
+        "sbom:reader": frozenset((Permission.SBOM_READ, Permission.SCHEMA_READ)),
+        "sbom:operator": frozenset(
+            (
+                Permission.SBOM_READ,
+                Permission.SBOM_WRITE,
+                Permission.SBOM_IMPORT,
+                Permission.SBOM_EXPORT,
+                Permission.SBOM_EXECUTE,
+                Permission.RSOT_READ,
+                Permission.FLOW_READ,
+                Permission.SCHEMA_READ,
+            )
+        ),
+        "sbom:admin": frozenset(
+            (
+                Permission.SBOM_READ,
+                Permission.SBOM_WRITE,
+                Permission.SBOM_IMPORT,
+                Permission.SBOM_EXPORT,
+                Permission.SBOM_EXECUTE,
+                Permission.SBOM_ADMIN,
+                Permission.RSOT_READ,
+                Permission.FLOW_READ,
                 Permission.AUDIT_READ,
                 Permission.SCHEMA_READ,
             )

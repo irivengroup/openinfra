@@ -35,7 +35,8 @@ def test_greenops_migration_is_partitioned_indexed_and_constrained() -> None:
     assert "truncate " not in normalized
 
 
-def test_greenops_is_latest_postgresql_migration() -> None:
+def test_greenops_precedes_sbom_without_being_modified() -> None:
     migrations = sorted((ROOT / "installers/migrations/postgresql").glob("*.sql"))
-    assert migrations[-1].name == "0047_greenops_energy_capacity.sql"
-    assert len(migrations) == 47
+    assert migrations[-2].name == "0047_greenops_energy_capacity.sql"
+    assert migrations[-1].name == "0048_sbom_vulnerabilities_exposure.sql"
+    assert len(migrations) == 48

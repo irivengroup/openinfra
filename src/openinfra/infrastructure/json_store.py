@@ -37,6 +37,7 @@ from openinfra.application.ports import (
     EnergyAnomalyPage,
     EnergyMeasurementPage,
     ExportRepository,
+    ExposureContextPage,
     FieldOperationRepository,
     FieldOperationSheetPage,
     FinancialPeriodPage,
@@ -60,7 +61,11 @@ from openinfra.application.ports import (
     OfflineSyncPackagePage,
     ReadinessProbe,
     ReadinessStatus,
+    RiskFindingPage,
     RuntimeUsageRepository,
+    SbomComparisonPage,
+    SbomDocumentPage,
+    SbomRepository,
     SchemaStatusProvider,
     SecurityRepository,
     SecurityTokenPage,
@@ -73,6 +78,7 @@ from openinfra.application.ports import (
     SustainabilityReportPage,
     TransactionManager,
     UnitOfWork,
+    VulnerabilityRecordPage,
 )
 from openinfra.domain.access_policy import AccessPolicyRule
 from openinfra.domain.audit import (
@@ -229,6 +235,13 @@ from openinfra.domain.network_config_compliance import (
     NetworkConfigBaseline,
     NetworkConfigObservation,
 )
+from openinfra.domain.sbom import (
+    ExposureContext,
+    RiskFinding,
+    SbomComparison,
+    SbomDocument,
+    VulnerabilityRecord,
+)
 from openinfra.domain.security import ApiTokenCredential, Permission
 from openinfra.domain.simulation import (
     SimulationImpactReport,
@@ -247,6 +260,7 @@ from openinfra.domain.source_of_truth import (
 from openinfra.infrastructure.field_operation_mapper import FieldOperationRecordMapper
 from openinfra.infrastructure.finops_mapper import FinOpsRecordMapper
 from openinfra.infrastructure.greenops_mapper import GreenOpsRecordMapper
+from openinfra.infrastructure.sbom_mapper import SbomRecordMapper
 from openinfra.infrastructure.simulation_mapper import SimulationRecordMapper
 
 _EXPORT_SIGNING_STORAGE_KEY = "export_signing_" + "secret"
@@ -482,6 +496,12 @@ class JsonDocumentStore:
             "greenops_scores": {},
             "greenops_reports": {},
             "greenops_event_outbox": {},
+            "sbom_documents": {},
+            "sbom_vulnerabilities": {},
+            "sbom_exposures": {},
+            "sbom_findings": {},
+            "sbom_comparisons": {},
+            "sbom_event_outbox": {},
             "discovery_collectors": {},
             "discovery_jobs": {},
             "discovery_protocol_profiles": {},
@@ -4791,6 +4811,274 @@ class JsonGreenOpsRepository(GreenOpsRepository):
     def append_event(self, event: DomainEvent) -> None:
         self._save(
             "greenops_event_outbox",
+            event.tenant_id,
+            event.id.value,
+            {
+                "id": event.id.value,
+                "tenant_id": event.tenant_id.value,
+                "aggregate_id": event.aggregate_id.value,
+                "name": event.name,
+                "payload": event.payload,
+                "occurred_at": event.occurred_at.isoformat(),
+                "published_at": None,
+            },
+        )
+
+    def _tenant_values(self, bucket: str, tenant_id: TenantId) -> list[dict[str, Any]]:
+        return [
+            value
+            for value in self._store.data[bucket].values()
+            if value.get("tenant_id") == tenant_id.value
+        ]
+
+    def _get(self, bucket: str, tenant_id: TenantId, identifier: str) -> dict[str, Any] | None:
+        value = self._store.data[bucket].get(
+            self._key(tenant_id, EntityId.from_value(identifier).value)
+        )
+        return cast(dict[str, Any], value) if value is not None else None
+
+    def _save(
+        self, bucket: str, tenant_id: TenantId, identifier: str, value: dict[str, object]
+    ) -> None:
+        self._store.data[bucket][self._key(tenant_id, identifier)] = value
+        self._store.mark_dirty()
+
+    @classmethod
+    def _page(cls, items: list[Any], pagination: Pagination) -> tuple[list[Any], str | None]:
+        start = cls._offset(pagination.cursor)
+        selected = items[start : start + pagination.limit]
+        next_index = start + len(selected)
+        return selected, str(next_index) if next_index < len(items) else None
+
+    @staticmethod
+    def _key(tenant_id: TenantId, identifier: str) -> str:
+        return f"{tenant_id.value}:{identifier}"
+
+    @staticmethod
+    def _offset(cursor: str | None) -> int:
+        try:
+            offset = int(cursor or "0")
+        except ValueError as exc:
+            raise ValidationError("pagination cursor must be a numeric offset") from exc
+        if offset < 0:
+            raise ValidationError("pagination cursor must be positive")
+        return offset
+
+
+class JsonSbomRepository(SbomRepository):
+    def __init__(self, store: JsonDocumentStore) -> None:
+        self._store = store
+
+    def save_document(self, document: SbomDocument) -> None:
+        self._save("sbom_documents", document.tenant_id, document.id.value, document.as_dict())
+
+    def get_document(self, tenant_id: TenantId, document_id: str) -> SbomDocument | None:
+        value = self._get("sbom_documents", tenant_id, document_id)
+        return SbomRecordMapper.document(value) if value else None
+
+    def find_document_by_fingerprint(
+        self, tenant_id: TenantId, fingerprint: str
+    ) -> SbomDocument | None:
+        normalized = fingerprint.strip().lower()
+        for value in self._tenant_values("sbom_documents", tenant_id):
+            document = SbomRecordMapper.document(value)
+            if document.fingerprint == normalized:
+                return document
+        return None
+
+    def next_document_version(self, tenant_id: TenantId, application: str, environment: str) -> int:
+        normalized_application = application.strip().lower().replace("_", "-")
+        normalized_environment = environment.strip().lower().replace("_", "-")
+        versions = [
+            int(value.get("document_version", 0))
+            for value in self._tenant_values("sbom_documents", tenant_id)
+            if value.get("application") == normalized_application
+            and value.get("environment") == normalized_environment
+        ]
+        return max(versions, default=0) + 1
+
+    def list_documents(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        application: str | None = None,
+        environment: str | None = None,
+        format: str | None = None,
+    ) -> SbomDocumentPage:
+        normalized_application = (
+            application.strip().lower().replace("_", "-") if application else None
+        )
+        normalized_environment = (
+            environment.strip().lower().replace("_", "-") if environment else None
+        )
+        normalized_format = format.strip().lower().replace("-", "") if format else None
+        items = [
+            SbomRecordMapper.document(value)
+            for value in self._tenant_values("sbom_documents", tenant_id)
+            if (
+                normalized_application is None or value.get("application") == normalized_application
+            )
+            and (
+                normalized_environment is None or value.get("environment") == normalized_environment
+            )
+            and (
+                normalized_format is None
+                or str(value.get("format", "")).replace("-", "") == normalized_format
+            )
+        ]
+        items.sort(key=lambda item: (item.imported_at, item.id.value), reverse=True)
+        selected, cursor = self._page(items, pagination)
+        return SbomDocumentPage(tuple(selected), cursor)
+
+    def save_vulnerability(self, vulnerability: VulnerabilityRecord) -> None:
+        self._save(
+            "sbom_vulnerabilities",
+            vulnerability.tenant_id,
+            vulnerability.id.value,
+            vulnerability.as_dict(),
+        )
+
+    def find_vulnerability_by_identity(
+        self, tenant_id: TenantId, identity_key: str
+    ) -> VulnerabilityRecord | None:
+        normalized = identity_key.strip()
+        for value in self._tenant_values("sbom_vulnerabilities", tenant_id):
+            vulnerability = SbomRecordMapper.vulnerability(value)
+            if vulnerability.identity_key == normalized:
+                return vulnerability
+        return None
+
+    def list_vulnerabilities(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        cve_id: str | None = None,
+        component: str | None = None,
+        known_exploited: bool | None = None,
+    ) -> VulnerabilityRecordPage:
+        normalized_cve = cve_id.strip().upper() if cve_id else None
+        normalized_component = component.strip().lower() if component else None
+        items = [
+            SbomRecordMapper.vulnerability(value)
+            for value in self._tenant_values("sbom_vulnerabilities", tenant_id)
+        ]
+        items = [
+            item
+            for item in items
+            if (normalized_cve is None or item.cve_id == normalized_cve)
+            and (
+                normalized_component is None
+                or normalized_component in item.component_name.lower()
+                or (
+                    item.component_purl is not None
+                    and normalized_component in item.component_purl.lower()
+                )
+            )
+            and (known_exploited is None or item.known_exploited is known_exploited)
+        ]
+        items.sort(key=lambda item: (item.cvss_score, item.cve_id, item.id.value), reverse=True)
+        selected, cursor = self._page(items, pagination)
+        return VulnerabilityRecordPage(tuple(selected), cursor)
+
+    def save_exposure(self, exposure: ExposureContext) -> None:
+        existing = self.get_exposure(exposure.tenant_id, exposure.application, exposure.environment)
+        if existing is not None:
+            self._store.data["sbom_exposures"].pop(
+                self._key(exposure.tenant_id, existing.id.value), None
+            )
+        self._save("sbom_exposures", exposure.tenant_id, exposure.id.value, exposure.as_dict())
+
+    def get_exposure(
+        self, tenant_id: TenantId, application: str, environment: str
+    ) -> ExposureContext | None:
+        normalized_application = application.strip().lower().replace("_", "-")
+        normalized_environment = environment.strip().lower().replace("_", "-")
+        for value in self._tenant_values("sbom_exposures", tenant_id):
+            if (
+                value.get("application") == normalized_application
+                and value.get("environment") == normalized_environment
+            ):
+                return SbomRecordMapper.exposure(value)
+        return None
+
+    def list_exposures(self, tenant_id: TenantId, pagination: Pagination) -> ExposureContextPage:
+        items = [
+            SbomRecordMapper.exposure(value)
+            for value in self._tenant_values("sbom_exposures", tenant_id)
+        ]
+        items.sort(key=lambda item: (item.application, item.environment, item.id.value))
+        selected, cursor = self._page(items, pagination)
+        return ExposureContextPage(tuple(selected), cursor)
+
+    def replace_findings(
+        self, tenant_id: TenantId, document_id: str, findings: tuple[RiskFinding, ...]
+    ) -> None:
+        EntityId.from_value(document_id)
+        bucket = self._store.data["sbom_findings"]
+        stale = [
+            key
+            for key, value in bucket.items()
+            if value.get("tenant_id") == tenant_id.value and value.get("document_id") == document_id
+        ]
+        for key in stale:
+            bucket.pop(key, None)
+        for finding in findings:
+            bucket[self._key(tenant_id, finding.id.value)] = finding.as_dict()
+        self._store.mark_dirty()
+
+    def list_findings(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        document_id: str | None = None,
+        priority: str | None = None,
+        status: str | None = None,
+    ) -> RiskFindingPage:
+        normalized_priority = priority.strip().lower() if priority else None
+        normalized_status = status.strip().lower().replace("_", "-") if status else None
+        items = [
+            SbomRecordMapper.finding(value)
+            for value in self._tenant_values("sbom_findings", tenant_id)
+            if (document_id is None or value.get("document_id") == document_id)
+            and (normalized_priority is None or value.get("priority") == normalized_priority)
+            and (normalized_status is None or value.get("status") == normalized_status)
+        ]
+        items.sort(
+            key=lambda item: (item.contextual_score, item.generated_at, item.id.value), reverse=True
+        )
+        selected, cursor = self._page(items, pagination)
+        return RiskFindingPage(tuple(selected), cursor)
+
+    def save_comparison(self, comparison: SbomComparison) -> None:
+        self._save(
+            "sbom_comparisons", comparison.tenant_id, comparison.id.value, comparison.as_dict()
+        )
+
+    def find_comparison_by_digest(
+        self, tenant_id: TenantId, input_digest: str
+    ) -> SbomComparison | None:
+        normalized = input_digest.strip().lower()
+        for value in self._tenant_values("sbom_comparisons", tenant_id):
+            if value.get("input_digest") == normalized:
+                return SbomRecordMapper.comparison(value)
+        return None
+
+    def get_comparison(self, tenant_id: TenantId, comparison_id: str) -> SbomComparison | None:
+        value = self._get("sbom_comparisons", tenant_id, comparison_id)
+        return SbomRecordMapper.comparison(value) if value else None
+
+    def list_comparisons(self, tenant_id: TenantId, pagination: Pagination) -> SbomComparisonPage:
+        items = [
+            SbomRecordMapper.comparison(value)
+            for value in self._tenant_values("sbom_comparisons", tenant_id)
+        ]
+        items.sort(key=lambda item: (item.generated_at, item.id.value), reverse=True)
+        selected, cursor = self._page(items, pagination)
+        return SbomComparisonPage(tuple(selected), cursor)
+
+    def append_event(self, event: DomainEvent) -> None:
+        self._save(
+            "sbom_event_outbox",
             event.tenant_id,
             event.id.value,
             {

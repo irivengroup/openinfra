@@ -1,3 +1,15 @@
+## v0.29.99 — SBOM, vulnérabilités et exposition contextualisée
+
+| Exigence / Epic | Implémentation | Vérification |
+|---|---|---|
+| P16 / EPIC-1605 | `domain/sbom.py`, `application/sbom_services.py`, adaptateurs JSON/PostgreSQL | tests domaine, service, CLI, HTTP et persistance |
+| CycloneDX/SPDX versionnés | `SbomPayloadParser`, `SbomDocument`, empreintes et versions incrémentales | tests parseur, idempotence et comparaison de releases |
+| CVE et exposition contextualisée | `VulnerabilityRecord`, `ExposureContext`, `RiskAssessment`, `RiskFinding` | tests score, exploitation connue, flux, criticité et contrôles compensatoires |
+| Comparaison de releases | identité PURL logique et `SbomComparison` | tests ajout, retrait et changement de version |
+| Interfaces regroupées sous Sécurité | 14 routes HTTP/OpenAPI, commandes `sbom`, portail React/runtime | tests CLI, HTTP, web, accessibilité et OpenAPI |
+| Persistance et audit | migration `0048_sbom_vulnerabilities_exposure.sql`, dépôts, index et outbox | tests migration, PostgreSQL, packaging et smoke du wheel |
+| Absence d’action intrusive | aucun scanner actif, aucun exécuteur ni remédiateur | tests frontend, revue statique et gate CI SBOM |
+
 ## v0.29.98 — GreenOps, énergie et capacité
 
 | Exigence / Epic | Implémentation | Vérification |

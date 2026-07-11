@@ -1438,7 +1438,43 @@ const OPENINFRA_MODULES = [
       { name: "health", label: "État de santé", type: "select", options: ["", "retired", "not-yet-valid", "expired", "critical", "warning", "healthy"] },
       { name: "limit", label: "Limite", type: "number", defaultValue: "100" },
       { name: "cursor", label: "Curseur" }
-    ] }
+    ] },
+    { id: "sbom-import", label: "Importer une SBOM", method: "POST", path: "/v1/sbom/documents/import", body: [
+      { name: "application", label: "Application", required: true }, { name: "release", label: "Version / release", required: true }, { name: "environment", label: "Environnement", required: true },
+      { name: "source_name", label: "Source", required: true, defaultValue: "ci-cd" }, { name: "source_uri", label: "URI de provenance", type: "url" },
+      { name: "sbom", label: "Document CycloneDX ou SPDX (JSON)", type: "json", required: true }
+    ] },
+    { id: "sbom-documents", label: "Lister les SBOM", method: "GET", path: "/v1/sbom/documents", query: [
+      { name: "application", label: "Application" }, { name: "environment", label: "Environnement" }, { name: "format", label: "Format", type: "select", options: ["", "cyclonedx", "spdx"] }, FIELD_SETS.limit, FIELD_SETS.cursor
+    ] },
+    { id: "sbom-document-get", label: "Consulter une SBOM", method: "GET", path: "/v1/sbom/documents/get", query: [{ name: "document_id", label: "ID SBOM", required: true }] },
+    { id: "sbom-vulnerability-import", label: "Importer une vulnérabilité", method: "POST", path: "/v1/sbom/vulnerabilities/import", body: [
+      { name: "cve_id", label: "Identifiant CVE", required: true, placeholder: "CVE-2026-12345" }, { name: "component_name", label: "Composant", required: true },
+      { name: "component_version", label: "Version", required: true }, { name: "component_purl", label: "Package URL (PURL)", placeholder: "pkg:pypi/example@1.0.0" },
+      { name: "cvss_score", label: "Score CVSS", type: "number", required: true, min: "0", max: "10", step: "0.1" }, { name: "known_exploited", label: "Exploitation connue", type: "boolean" },
+      { name: "exploit_maturity", label: "Maturité de l’exploit", type: "select", options: ["unknown", "proof-of-concept", "functional", "weaponized"], defaultValue: "unknown" },
+      { name: "source_name", label: "Source", required: true, defaultValue: "external-scanner" }, { name: "published_at", label: "Publication", type: "datetime-local" },
+      { name: "modified_at", label: "Modification", type: "datetime-local" }, { name: "references", label: "Références (JSON)", type: "json", defaultValue: "[]" }, { name: "metadata", label: "Métadonnées (JSON)", type: "json", defaultValue: "{}" }
+    ] },
+    { id: "sbom-vulnerabilities", label: "Lister les vulnérabilités", method: "GET", path: "/v1/sbom/vulnerabilities", query: [
+      { name: "cve_id", label: "Identifiant CVE" }, { name: "component", label: "Composant ou PURL" }, { name: "known_exploited", label: "Exploitation connue", type: "boolean" }, FIELD_SETS.limit, FIELD_SETS.cursor
+    ] },
+    { id: "sbom-exposure-upsert", label: "Définir le contexte d’exposition", method: "POST", path: "/v1/sbom/exposures/upsert", body: [
+      { name: "application", label: "Application", required: true }, { name: "environment", label: "Environnement", required: true }, { name: "internet_exposed", label: "Exposé à Internet", type: "boolean" },
+      { name: "flow_exposed", label: "Accessible par les flux", type: "boolean" }, { name: "business_criticality", label: "Criticité métier (1-5)", type: "number", required: true, min: "1", max: "5", defaultValue: "3" },
+      { name: "compensating_controls", label: "Contrôles compensatoires (JSON)", type: "json", defaultValue: "[]" }, { name: "asset_ids", label: "Actifs associés (JSON)", type: "json", defaultValue: "[]" }, { name: "service_ids", label: "Services associés (JSON)", type: "json", defaultValue: "[]" }
+    ] },
+    { id: "sbom-exposures", label: "Lister les contextes d’exposition", method: "GET", path: "/v1/sbom/exposures", query: [FIELD_SETS.limit, FIELD_SETS.cursor] },
+    { id: "sbom-exposure-get", label: "Consulter un contexte d’exposition", method: "GET", path: "/v1/sbom/exposures/get", query: [{ name: "application", label: "Application", required: true }, { name: "environment", label: "Environnement", required: true }] },
+    { id: "sbom-risk-assess", label: "Évaluer le risque contextualisé", method: "POST", path: "/v1/sbom/risk/assess", body: [{ name: "document_id", label: "ID SBOM", required: true }] },
+    { id: "sbom-findings", label: "Lister les constats de risque", method: "GET", path: "/v1/sbom/findings", query: [
+      { name: "document_id", label: "ID SBOM" }, { name: "priority", label: "Priorité", type: "select", options: ["", "critical", "high", "medium", "low"] },
+      { name: "status", label: "Statut", type: "select", options: ["", "open", "accepted", "mitigated", "false-positive"] }, FIELD_SETS.limit, FIELD_SETS.cursor
+    ] },
+    { id: "sbom-risk-export", label: "Exporter le risque SBOM", method: "GET", path: "/v1/sbom/risk/export", download: true, query: [{ name: "document_id", label: "ID SBOM", required: true }, { name: "format", label: "Format", type: "select", options: ["json", "csv"], defaultValue: "json" }] },
+    { id: "sbom-compare", label: "Comparer deux releases SBOM", method: "POST", path: "/v1/sbom/comparisons/create", body: [{ name: "base_document_id", label: "SBOM de référence", required: true }, { name: "target_document_id", label: "SBOM cible", required: true }] },
+    { id: "sbom-comparisons", label: "Lister les comparaisons SBOM", method: "GET", path: "/v1/sbom/comparisons", query: [FIELD_SETS.limit, FIELD_SETS.cursor] },
+    { id: "sbom-comparison-get", label: "Consulter une comparaison SBOM", method: "GET", path: "/v1/sbom/comparisons/get", query: [{ name: "comparison_id", label: "ID comparaison", required: true }] }
 
   ] }
 ];
@@ -1509,6 +1545,9 @@ const OPENINFRA_SIDEBAR_CONTEXTS = {
     { label: "Inventaire PKI", operationIds: ["certificate-import", "certificate-get", "certificate-list", "certificate-retire"] },
     { label: "Endpoints TLS", operationIds: ["certificate-endpoint-observe", "certificate-endpoint-list"] },
     { label: "Conformité PKI", operationIds: ["certificate-assessment"] },
+    { label: "SBOM — inventaire & versions", operationIds: ["sbom-import", "sbom-documents", "sbom-document-get", "sbom-compare", "sbom-comparisons", "sbom-comparison-get"] },
+    { label: "Vulnérabilités & exposition", operationIds: ["sbom-vulnerability-import", "sbom-vulnerabilities", "sbom-exposure-upsert", "sbom-exposures", "sbom-exposure-get"] },
+    { label: "Risque contextualisé", operationIds: ["sbom-risk-assess", "sbom-findings", "sbom-risk-export"] },
   ]
 };
 

@@ -108,6 +108,14 @@ from openinfra.domain.network_config_compliance import (
     NetworkConfigBaseline,
     NetworkConfigObservation,
 )
+from openinfra.domain.sbom import (
+    ExposureContext,
+    ParsedSbom,
+    RiskFinding,
+    SbomComparison,
+    SbomDocument,
+    VulnerabilityRecord,
+)
 from openinfra.domain.security import ApiTokenCredential, Permission
 from openinfra.domain.simulation import (
     SimulationImpactReport,
@@ -351,6 +359,51 @@ class GreenScorePage:
 @dataclass(frozen=True, slots=True)
 class SustainabilityReportPage:
     items: tuple[SustainabilityReport, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {"items": [item.as_dict() for item in self.items], "next_cursor": self.next_cursor}
+
+
+@dataclass(frozen=True, slots=True)
+class SbomDocumentPage:
+    items: tuple[SbomDocument, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {"items": [item.as_dict() for item in self.items], "next_cursor": self.next_cursor}
+
+
+@dataclass(frozen=True, slots=True)
+class VulnerabilityRecordPage:
+    items: tuple[VulnerabilityRecord, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {"items": [item.as_dict() for item in self.items], "next_cursor": self.next_cursor}
+
+
+@dataclass(frozen=True, slots=True)
+class ExposureContextPage:
+    items: tuple[ExposureContext, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {"items": [item.as_dict() for item in self.items], "next_cursor": self.next_cursor}
+
+
+@dataclass(frozen=True, slots=True)
+class RiskFindingPage:
+    items: tuple[RiskFinding, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {"items": [item.as_dict() for item in self.items], "next_cursor": self.next_cursor}
+
+
+@dataclass(frozen=True, slots=True)
+class SbomComparisonPage:
+    items: tuple[SbomComparison, ...]
     next_cursor: str | None
 
     def as_dict(self) -> dict[str, object]:
@@ -1772,6 +1825,117 @@ class GreenOpsRepository(ABC):
         site_code: str | None = None,
         scope: str | None = None,
     ) -> SustainabilityReportPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def append_event(self, event: DomainEvent) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+
+class SbomPayloadParserPort(ABC):
+    @abstractmethod
+    def parse(self, payload: bytes | str | dict[str, object]) -> ParsedSbom:
+        raise TypeError("adapter contract invoked directly")
+
+
+class SbomRepository(ABC):
+    @abstractmethod
+    def save_document(self, document: SbomDocument) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_document(self, tenant_id: TenantId, document_id: str) -> SbomDocument | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_document_by_fingerprint(
+        self, tenant_id: TenantId, fingerprint: str
+    ) -> SbomDocument | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def next_document_version(self, tenant_id: TenantId, application: str, environment: str) -> int:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_documents(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        application: str | None = None,
+        environment: str | None = None,
+        format: str | None = None,
+    ) -> SbomDocumentPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_vulnerability(self, vulnerability: VulnerabilityRecord) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_vulnerability_by_identity(
+        self, tenant_id: TenantId, identity_key: str
+    ) -> VulnerabilityRecord | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_vulnerabilities(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        cve_id: str | None = None,
+        component: str | None = None,
+        known_exploited: bool | None = None,
+    ) -> VulnerabilityRecordPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_exposure(self, exposure: ExposureContext) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_exposure(
+        self, tenant_id: TenantId, application: str, environment: str
+    ) -> ExposureContext | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_exposures(self, tenant_id: TenantId, pagination: Pagination) -> ExposureContextPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def replace_findings(
+        self, tenant_id: TenantId, document_id: str, findings: tuple[RiskFinding, ...]
+    ) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_findings(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        document_id: str | None = None,
+        priority: str | None = None,
+        status: str | None = None,
+    ) -> RiskFindingPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_comparison(self, comparison: SbomComparison) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_comparison_by_digest(
+        self, tenant_id: TenantId, input_digest: str
+    ) -> SbomComparison | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_comparison(self, tenant_id: TenantId, comparison_id: str) -> SbomComparison | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_comparisons(self, tenant_id: TenantId, pagination: Pagination) -> SbomComparisonPage:
         raise TypeError("adapter contract invoked directly")
 
     @abstractmethod

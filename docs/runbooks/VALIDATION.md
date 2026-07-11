@@ -1,3 +1,25 @@
+## Validation SBOM — v0.29.99
+
+```bash
+PYTHONPATH=src:. pytest -q --no-cov \
+  tests/unit/test_sbom_domain.py \
+  tests/unit/test_sbom_edge_cases.py \
+  tests/integration/test_sbom_services.py \
+  tests/integration/test_sbom_cli.py \
+  tests/integration/test_sbom_http_api.py \
+  tests/integration/test_sbom_migration.py \
+  tests/integration/test_sbom_postgresql_repository.py \
+  tests/integration/test_sbom_web_contract.py
+
+PYTHONPATH=src:. python scripts/validate_openapi.py \
+  docs/api/openapi.yaml \
+  docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1/09-API/OpenAPI/openapi.yaml
+
+cd web && npm test && npm run lint && npm run a11y && npm run a11y:jsx && npm run build
+```
+
+Ces contrôles garantissent les imports CycloneDX/SPDX, l’idempotence, le versionnement, la corrélation CVE, le risque contextualisé, la comparaison des releases, l’isolation tenant, les 14 routes SBOM et la migration `0048`. Ils vérifient également l’absence de scanner actif et de remédiation automatique.
+
 ## Validation GreenOps — v0.29.98
 
 ```bash

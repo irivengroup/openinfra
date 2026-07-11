@@ -345,7 +345,8 @@ const FIELD_EN = Object.freeze({
   utilization_percent: 'Utilization (%)', energy_capacity_percent: 'Energy capacity used (%)',
   cooling_capacity_percent: 'Cooling capacity used (%)', space_capacity_percent: 'Space capacity used (%)',
   weight_capacity_percent: 'Weight capacity used (%)', metadata: 'Secret-free JSON metadata',
-  risk_level: 'Risk level',
+  risk_level: 'Risk level', subject: 'Identity', access_level: 'Access level',
+  required_level: 'Minimum level', site_codes: 'Sites',
 });
 
 const TOKEN_EN = Object.freeze({
@@ -392,7 +393,7 @@ const PHRASE_EN = Object.freeze({
   'Référentiel': 'Repository', 'Relations & historique': 'Relationships & history',
   'Qualité & gouvernance': 'Quality & governance', 'Vue & recherche': 'Overview & search',
   'Adressage IP': 'IP addressing', 'Réseau L2/L3': 'L2/L3 network', 'Observations & DDI': 'Observations & DDI',
-  'Sites & dépendances': 'Sites & dependencies', 'Localisation & capacité': 'Location & capacity',
+  'Sites & dépendances': 'Sites & dependencies', 'Pilotage multisite': 'Multisite management', 'Localisation & capacité': 'Location & capacity',
   'Connectivité': 'Connectivity', 'Énergie & refroidissement': 'Power & cooling',
   'Jumeau numérique': 'Digital twin', 'Organisations': 'Organizations', 'Tenants': 'Subsidiaries/Divisions',
   'Partenaires': 'Partners', 'Fournisseurs et Supports': 'Partners',
@@ -459,7 +460,7 @@ const OPTION_EN = Object.freeze({
   'denied-observed': 'Denied flow observed', 'undeclared-observed': 'Undeclared flow observed',
   'declared-unobserved': 'Declared flow not observed',
   observed: 'Observed', estimated: 'Estimated', warning: 'Warning', error: 'Error',
-  critical: 'Critical', info: 'Information',
+  critical: 'Critical', info: 'Information', viewer: 'Viewer', operator: 'Operator', admin: 'Local administrator',
 });
 
 const CONTINENT_FR = Object.freeze({
@@ -591,6 +592,13 @@ function operationLabelEn(operationId) {
     'greenops-forecasts': 'List capacity forecasts',
     'greenops-candidates': 'List consolidation recommendations',
     'greenops-scores': 'List GreenOps scores',
+    'multisite-grant-upsert': 'Grant access to a site',
+    'multisite-grant-revoke': 'Revoke access to a site',
+    'multisite-grants': 'List site access grants',
+    'multisite-sites': 'List accessible sites',
+    'multisite-report-generate': 'Generate multisite report',
+    'multisite-reports': 'List multisite reports',
+    'multisite-report-get': 'View multisite report',
     'ipam-dashboard': 'IPAM dashboard', 'dcim-digital-twin': 'Room digital twin',
     'effective-identity': 'Effective identity', 'audit-integrity': 'Audit integrity',
   };
@@ -625,7 +633,7 @@ function localizeOptions(options, language) {
     if (!option || typeof option !== 'object') continue;
     const original = captureOriginal(option, 'label');
     if (language === 'fr') option.label = RESOURCE_FR[option.value] || RESOURCE_CATEGORY_FR[option.value] || original;
-    else option.label = original;
+    else option.label = OPTION_EN[option.value] || original;
   }
 }
 

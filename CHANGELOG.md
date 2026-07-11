@@ -1,3 +1,14 @@
+# Changelog
+
+## 0.29.102 - 2026-07-11
+
+- Réalisation de P17 / EPIC-1701 avec un pilotage multisite centralisé pour les éditions Pro et Enterprise.
+- Ajout d’un RBAC par site combinant permissions globales et affectations locales `viewer`, `operator` ou `admin`.
+- Ajout de rapports immuables consolidant bâtiments, étages, salles, racks/châssis et équipements depuis le DCIM.
+- Ajout de 7 routes REST, de la parité CLI/UI/OpenAPI, des persistances JSON/PostgreSQL et de la migration `0050_pro_centralized_multisite.sql`.
+- Ajout de rôles dédiés, de l’audit des affectations/révocations/rapports et d’un gate CI couvrant toutes les couches.
+- Garantie explicite : aucun agent régional, proxy collector ou mécanisme distribué Enterprise n’est activé en Pro.
+
 ## 0.29.101 - 2026-07-11
 
 - Réalisation de P16 / EPIC-1606 avec un assistant RAG local, déterministe et gouverné sous RSOT.
@@ -5,8 +16,6 @@
 - Filtrage strict tenant/permissions avant recherche, audit sans question en clair et absence garantie d’action destructive.
 - Ajout de 13 routes REST, de la parité CLI/UI/OpenAPI, des adaptateurs JSON/PostgreSQL et de la migration `0049_rag_governed_assistant.sql`.
 - Ajout d’un gate CI dédié couvrant domaine, service, CLI, HTTP, PostgreSQL, migration et interfaces.
-
-# Changelog
 
 ## 0.29.100 - 2026-07-11
 

@@ -46,13 +46,13 @@ class TestGitHubWorkflows:
         assert 'PYTHONPATH="$target" python scripts/smoke_installed_wheel.py' in workflow
         smoke = (PROJECT_ROOT / "scripts/smoke_installed_wheel.py").read_text(encoding="utf-8")
         assert "OpenApiDocumentProvider().read_yaml()" in smoke
-        assert "EXPECTED_MIGRATION_COUNT = 49" in smoke
+        assert "EXPECTED_MIGRATION_COUNT = 50" in smoke
         assert "EXPECTED_NETWORK_CONFIG_ROUTES" in smoke
         assert "EXPECTED_FIELD_OPERATION_ROUTES" in smoke
         assert "EXPECTED_SIMULATION_ROUTES" in smoke
         assert "EXPECTED_GREENOPS_ROUTES" in smoke
         assert "EXPECTED_SBOM_ROUTES" in smoke
-        assert 'EXPECTED_LAST_MIGRATION = "0049_rag_governed_assistant.sql"' in smoke
+        assert 'EXPECTED_LAST_MIGRATION = "0050_pro_centralized_multisite.sql"' in smoke
         for route in (
             "/api/v1/graph/traverse",
             "/api/v1/graph/impact",
@@ -117,5 +117,24 @@ class TestGitHubWorkflows:
             "tests/integration/test_sbom_migration.py",
             "tests/integration/test_sbom_postgresql_repository.py",
             "tests/integration/test_sbom_web_contract.py",
+        ):
+            assert test_path in workflow
+
+    def test_multisite_is_a_blocking_ci_regression_gate(self) -> None:
+        workflow = (PROJECT_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+
+        assert (
+            "- name: Pro centralized multisite RBAC and consolidated reports regression" in workflow
+        )
+        smoke = (PROJECT_ROOT / "scripts/smoke_installed_wheel.py").read_text(encoding="utf-8")
+        assert "EXPECTED_MULTISITE_ROUTES" in smoke
+        for test_path in (
+            "tests/unit/test_multisite_domain.py",
+            "tests/integration/test_multisite_services.py",
+            "tests/integration/test_multisite_cli.py",
+            "tests/integration/test_multisite_http_api.py",
+            "tests/integration/test_multisite_migration.py",
+            "tests/integration/test_multisite_postgresql_repository.py",
+            "tests/integration/test_multisite_web_contract.py",
         ):
             assert test_path in workflow

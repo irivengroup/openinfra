@@ -104,6 +104,7 @@ from openinfra.domain.itam import (
     PhysicalAssetSupportProfile,
     SoftwareLicenseEntitlement,
 )
+from openinfra.domain.multisite import MultisitePortfolioReport, SiteAccessGrant
 from openinfra.domain.network_config_compliance import (
     NetworkConfigBaseline,
     NetworkConfigObservation,
@@ -1930,6 +1931,64 @@ class RagRepository(ABC):
 
     @abstractmethod
     def append_event(self, event: DomainEvent) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+
+@dataclass(frozen=True, slots=True)
+class SiteAccessGrantPage:
+    items: tuple[SiteAccessGrant, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {"items": [item.as_dict() for item in self.items], "next_cursor": self.next_cursor}
+
+
+@dataclass(frozen=True, slots=True)
+class MultisiteReportPage:
+    items: tuple[MultisitePortfolioReport, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {"items": [item.as_dict() for item in self.items], "next_cursor": self.next_cursor}
+
+
+class MultisiteRepository(ABC):
+    @abstractmethod
+    def save_grant(self, grant: SiteAccessGrant) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_grant(
+        self, tenant_id: TenantId, subject: str, site_code: str
+    ) -> SiteAccessGrant | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_grants(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        subject: str | None = None,
+        site_code: str | None = None,
+        active_only: bool = True,
+    ) -> SiteAccessGrantPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_report(self, report: MultisitePortfolioReport) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_report(self, tenant_id: TenantId, report_id: str) -> MultisitePortfolioReport | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_reports(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        requested_subject: str | None = None,
+    ) -> MultisiteReportPage:
         raise TypeError("adapter contract invoked directly")
 
 

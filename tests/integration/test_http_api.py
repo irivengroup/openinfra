@@ -161,6 +161,15 @@ class TestHttpApi:
                     "consolidation_candidates": "/api/v1/greenops/consolidation-candidates",
                     "green_scores": "/api/v1/greenops/green-scores",
                 },
+                "multisite": {
+                    "site_access_grants": "/api/v1/multisite/site-access/grants",
+                    "site_access_upsert": "/api/v1/multisite/site-access/grants/upsert",
+                    "site_access_revoke": "/api/v1/multisite/site-access/grants/revoke",
+                    "sites": "/api/v1/multisite/sites",
+                    "reports": "/api/v1/multisite/reports",
+                    "report_get": "/api/v1/multisite/reports/get",
+                    "report_generate": "/api/v1/multisite/reports/generate",
+                },
                 "rag": {
                     "documents": "/api/v1/rag/documents",
                     "document_get": "/api/v1/rag/documents/get",

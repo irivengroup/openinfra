@@ -291,6 +291,15 @@ from openinfra.application.itam_services import (
     UpdateItamTenantCommand,
     UpdateSoftwareLicenseAssignmentCommand,
 )
+from openinfra.application.multisite_services import (
+    GenerateMultisiteReportCommand,
+    GetMultisiteReportCommand,
+    ListAccessibleSitesCommand,
+    ListMultisiteReportsCommand,
+    ListSiteAccessCommand,
+    RevokeSiteAccessCommand,
+    UpsertSiteAccessCommand,
+)
 from openinfra.application.network_config_compliance_services import (
     AssessNetworkConfigComplianceCommand,
     ListNetworkConfigBaselinesCommand,
@@ -416,6 +425,7 @@ class OpenInfraCLI:
         self._add_greenops_commands(subparsers)
         self._add_sbom_commands(subparsers)
         self._add_rag_commands(subparsers)
+        self._add_multisite_commands(subparsers)
         self._add_flow_commands(subparsers)
         self._add_certificate_commands(subparsers)
         self._add_network_config_commands(subparsers)
@@ -2372,6 +2382,69 @@ class OpenInfraCLI:
         parser.add_argument("--admin-token", required=True)
         parser.add_argument("--limit", type=int, default=100)
         parser.add_argument("--cursor")
+
+    def _add_multisite_commands(self, subparsers: Any) -> None:
+        multisite = subparsers.add_parser(
+            "multisite", help="centralized Pro multisite and site-scoped RBAC"
+        )
+        commands = multisite.add_subparsers(dest="multisite_command", required=True)
+        upsert = commands.add_parser("grant-upsert", help="grant or revise access to one site")
+        self._add_backend_arguments(upsert)
+        for name in ("tenant", "admin-token", "subject", "site-code", "access-level"):
+            upsert.add_argument(f"--{name}", required=True)
+        upsert.add_argument("--actor", default="cli")
+        upsert.set_defaults(handler=self._handle_multisite_grant_upsert)
+
+        revoke = commands.add_parser("grant-revoke", help="revoke access to one site")
+        self._add_backend_arguments(revoke)
+        for name in ("tenant", "admin-token", "subject", "site-code"):
+            revoke.add_argument(f"--{name}", required=True)
+        revoke.add_argument("--actor", default="cli")
+        revoke.set_defaults(handler=self._handle_multisite_grant_revoke)
+
+        grants = commands.add_parser("grants", help="list site access grants")
+        self._add_backend_arguments(grants)
+        for name in ("tenant", "admin-token"):
+            grants.add_argument(f"--{name}", required=True)
+        grants.add_argument("--subject")
+        grants.add_argument("--site-code")
+        grants.add_argument("--include-inactive", action="store_true")
+        grants.add_argument("--limit", type=int, default=100)
+        grants.add_argument("--cursor")
+        grants.set_defaults(handler=self._handle_multisite_grants)
+
+        sites = commands.add_parser("sites", help="list accessible DCIM sites")
+        self._add_backend_arguments(sites)
+        for name in ("tenant", "admin-token"):
+            sites.add_argument(f"--{name}", required=True)
+        sites.add_argument("--subject")
+        sites.add_argument(
+            "--required-level", choices=("viewer", "operator", "admin"), default="viewer"
+        )
+        sites.set_defaults(handler=self._handle_multisite_sites)
+
+        generate = commands.add_parser("report-generate", help="generate a site portfolio report")
+        self._add_backend_arguments(generate)
+        for name in ("tenant", "admin-token"):
+            generate.add_argument(f"--{name}", required=True)
+        generate.add_argument("--site-code", action="append", default=[])
+        generate.add_argument("--subject")
+        generate.add_argument("--actor", default="cli")
+        generate.set_defaults(handler=self._handle_multisite_report_generate)
+
+        reports = commands.add_parser("reports", help="list multisite reports")
+        self._add_backend_arguments(reports)
+        for name in ("tenant", "admin-token"):
+            reports.add_argument(f"--{name}", required=True)
+        reports.add_argument("--limit", type=int, default=100)
+        reports.add_argument("--cursor")
+        reports.set_defaults(handler=self._handle_multisite_reports)
+
+        report = commands.add_parser("report-get", help="read one multisite report")
+        self._add_backend_arguments(report)
+        for name in ("tenant", "admin-token", "report-id"):
+            report.add_argument(f"--{name}", required=True)
+        report.set_defaults(handler=self._handle_multisite_report)
 
     def _add_rag_commands(self, subparsers: Any) -> None:
         rag = subparsers.add_parser(
@@ -8977,6 +9050,76 @@ class OpenInfraCLI:
             )
         )
         print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_multisite_grant_upsert(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).multisite_service.upsert_site_access(
+            UpsertSiteAccessCommand(
+                args.tenant,
+                args.admin_token,
+                args.subject,
+                args.site_code,
+                args.access_level,
+                args.actor,
+            )
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_multisite_grant_revoke(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).multisite_service.revoke_site_access(
+            RevokeSiteAccessCommand(
+                args.tenant, args.admin_token, args.subject, args.site_code, args.actor
+            )
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_multisite_grants(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).multisite_service.list_site_access(
+            ListSiteAccessCommand(
+                args.tenant,
+                args.admin_token,
+                args.subject,
+                args.site_code,
+                not args.include_inactive,
+                args.limit,
+                args.cursor,
+            )
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_multisite_sites(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).multisite_service.list_accessible_sites(
+            ListAccessibleSitesCommand(
+                args.tenant, args.admin_token, args.subject, args.required_level
+            )
+        )
+        print(json.dumps({"items": list(result)}, sort_keys=True))
+        return 0
+
+    def _handle_multisite_report_generate(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).multisite_service.generate_report(
+            GenerateMultisiteReportCommand(
+                args.tenant, args.admin_token, tuple(args.site_code), args.subject, args.actor
+            )
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_multisite_reports(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).multisite_service.list_reports(
+            ListMultisiteReportsCommand(args.tenant, args.admin_token, args.limit, args.cursor)
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_multisite_report(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).multisite_service.get_report(
+            GetMultisiteReportCommand(args.tenant, args.admin_token, args.report_id)
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
         return 0
 
     def _create_migration_executor(self, args: argparse.Namespace) -> PostgreSQLMigrationExecutor:

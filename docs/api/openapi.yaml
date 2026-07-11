@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.101
+  version: 0.29.102
 components:
   securitySchemes:
     bearerToken:
@@ -6527,3 +6527,125 @@ paths:
         '201': {description: Immutable comparison generated or returned idempotently}
         '400': {description: Unknown, identical or incompatible SBOM documents}
         '401': {description: Missing or invalid SBOM executor token}
+  /api/v1/multisite/site-access/grants:
+    get:
+      operationId: listMultisiteSiteAccessGrants
+      summary: List site-scoped access grants for centralized Pro multisite
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: subject, in: query, schema: {type: string, minLength: 3, maxLength: 128}}
+        - {name: site_code, in: query, schema: {type: string}}
+        - {name: active_only, in: query, schema: {type: boolean, default: true}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated site access grants}
+        '400': {description: Invalid filter or cursor}
+        '401': {description: Missing or invalid multisite administrator token}
+  /api/v1/multisite/site-access/grants/upsert:
+    post:
+      operationId: upsertMultisiteSiteAccessGrant
+      summary: Grant or revise access to one DCIM site
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, subject, site_code, access_level]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                subject: {type: string, minLength: 3, maxLength: 128}
+                site_code: {type: string}
+                access_level: {type: string, enum: [viewer, operator, admin]}
+      responses:
+        '200': {description: Site access grant created or revised}
+        '400': {description: Unknown site or invalid access grant}
+        '401': {description: Missing or invalid multisite administrator token}
+  /api/v1/multisite/site-access/grants/revoke:
+    post:
+      operationId: revokeMultisiteSiteAccessGrant
+      summary: Revoke access to one DCIM site
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, subject, site_code]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                subject: {type: string, minLength: 3, maxLength: 128}
+                site_code: {type: string}
+      responses:
+        '200': {description: Site access grant revoked}
+        '400': {description: Unknown or invalid site access grant}
+        '401': {description: Missing or invalid multisite administrator token}
+  /api/v1/multisite/sites:
+    get:
+      operationId: listAccessibleMultisiteSites
+      summary: List DCIM sites accessible to the authenticated or selected subject
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: subject, in: query, schema: {type: string, minLength: 3, maxLength: 128}}
+        - {name: required_level, in: query, schema: {type: string, enum: [viewer, operator, admin], default: viewer}}
+      responses:
+        '200': {description: Accessible DCIM sites}
+        '400': {description: Invalid subject or access level}
+        '401': {description: Missing, invalid or insufficiently scoped token}
+  /api/v1/multisite/reports:
+    get:
+      operationId: listMultisitePortfolioReports
+      summary: List immutable centralized multisite portfolio reports
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated multisite reports}
+        '400': {description: Invalid cursor}
+        '401': {description: Missing or invalid multisite report token}
+  /api/v1/multisite/reports/get:
+    get:
+      operationId: getMultisitePortfolioReport
+      summary: Get one immutable centralized multisite portfolio report
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: report_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Multisite portfolio report}
+        '400': {description: Unknown report}
+        '401': {description: Missing, invalid or insufficiently scoped token}
+  /api/v1/multisite/reports/generate:
+    post:
+      operationId: generateMultisitePortfolioReport
+      summary: Generate an immutable consolidated report from accessible DCIM sites
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                subject: {type: string, minLength: 3, maxLength: 128}
+                site_codes:
+                  type: array
+                  maxItems: 500
+                  uniqueItems: true
+                  items: {type: string}
+      responses:
+        '201': {description: Immutable multisite report generated}
+        '400': {description: Unknown or unauthorized site selection}
+        '401': {description: Missing, invalid or insufficiently scoped token}

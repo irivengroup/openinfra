@@ -141,6 +141,8 @@ class BuiltinRolePolicy:
                 Permission.SBOM_READ,
                 Permission.RAG_READ,
                 Permission.RAG_QUERY,
+                Permission.MULTISITE_READ,
+                Permission.MULTISITE_REPORT,
             )
         ),
         "rsot:reader": frozenset(
@@ -359,6 +361,29 @@ class BuiltinRolePolicy:
                 Permission.RAG_QUERY,
                 Permission.RAG_ADMIN,
                 Permission.RSOT_READ,
+                Permission.AUDIT_READ,
+                Permission.SCHEMA_READ,
+            )
+        ),
+        "multisite:reader": frozenset(
+            (Permission.MULTISITE_READ, Permission.MULTISITE_REPORT, Permission.SCHEMA_READ)
+        ),
+        "multisite:operator": frozenset(
+            (
+                Permission.MULTISITE_READ,
+                Permission.MULTISITE_WRITE,
+                Permission.MULTISITE_REPORT,
+                Permission.DCIM_LOCATE,
+                Permission.SCHEMA_READ,
+            )
+        ),
+        "multisite:admin": frozenset(
+            (
+                Permission.MULTISITE_READ,
+                Permission.MULTISITE_WRITE,
+                Permission.MULTISITE_REPORT,
+                Permission.MULTISITE_ADMIN,
+                Permission.DCIM_LOCATE,
                 Permission.AUDIT_READ,
                 Permission.SCHEMA_READ,
             )

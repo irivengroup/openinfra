@@ -58,6 +58,8 @@ from openinfra.application.ports import (
     IpamRepository,
     ItamSupportRepository,
     MeasurementSourcePage,
+    MultisiteReportPage,
+    MultisiteRepository,
     NetworkConfigBaselinePage,
     NetworkConfigComplianceRepository,
     NetworkConfigObservationPage,
@@ -77,6 +79,7 @@ from openinfra.application.ports import (
     SimulationImpactReportPage,
     SimulationRepository,
     SimulationScenarioPage,
+    SiteAccessGrantPage,
     SourceGovernanceRepository,
     SourceOfTruthRepository,
     SustainabilityReportPage,
@@ -232,6 +235,11 @@ from openinfra.domain.itam import (
     PhysicalAssetSupportProfile,
     SoftwareLicenseEntitlement,
     ThirdPartySupportContract,
+)
+from openinfra.domain.multisite import (
+    MultisitePortfolioReport,
+    SiteAccessGrant,
+    SitePortfolioEntry,
 )
 from openinfra.domain.network_config_compliance import (
     NetworkConfigBaseline,
@@ -9473,6 +9481,241 @@ class PostgreSQLRagRepository(PostgreSQLRepositoryBase, RagRepository):
         if not isinstance(value, Mapping):
             raise ValidationError("stored RAG payload must be a JSON object")
         return {str(key): item for key, item in value.items()}
+
+
+class PostgreSQLMultisiteRepository(PostgreSQLRepositoryBase, MultisiteRepository):
+    def save_grant(self, grant: SiteAccessGrant) -> None:
+        self._ensure_tenant(grant.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO multisite_site_access_grants (
+                id, tenant_id, subject, site_code, access_level, active,
+                granted_by, created_at, updated_at, revoked_at, payload
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(subject)s, %(site_code)s, %(access_level)s,
+                %(active)s, %(granted_by)s, %(created_at)s, %(updated_at)s,
+                %(revoked_at)s, %(payload)s::jsonb
+            ) ON CONFLICT (tenant_id, subject, site_code) DO UPDATE SET
+                id = EXCLUDED.id, access_level = EXCLUDED.access_level,
+                active = EXCLUDED.active, granted_by = EXCLUDED.granted_by,
+                updated_at = EXCLUDED.updated_at, revoked_at = EXCLUDED.revoked_at,
+                payload = EXCLUDED.payload
+            """,
+            {
+                "id": grant.id.value,
+                "tenant_id": grant.tenant_id.value,
+                "subject": grant.subject,
+                "site_code": grant.site_code,
+                "access_level": grant.access_level.label,
+                "active": grant.active,
+                "granted_by": grant.granted_by,
+                "created_at": grant.created_at,
+                "updated_at": grant.updated_at,
+                "revoked_at": grant.revoked_at,
+                "payload": json.dumps(grant.as_dict(), sort_keys=True),
+            },
+        )
+
+    def find_grant(
+        self, tenant_id: TenantId, subject: str, site_code: str
+    ) -> SiteAccessGrant | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM multisite_site_access_grants
+            WHERE tenant_id = %(tenant_id)s AND subject = %(subject)s
+              AND site_code = %(site_code)s LIMIT 1
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "subject": subject.strip().lower(),
+                "site_code": Code.from_value(site_code, "site code").value,
+            },
+        )
+        return None if row is None else self._grant(self._json_mapping(row["payload"]))
+
+    def list_grants(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        subject: str | None = None,
+        site_code: str | None = None,
+        active_only: bool = True,
+    ) -> SiteAccessGrantPage:
+        clauses: list[str] = []
+        params: dict[str, object] = {}
+        if subject:
+            clauses.append("subject = %(subject)s")
+            params["subject"] = subject.strip().lower()
+        if site_code:
+            clauses.append("site_code = %(site_code)s")
+            params["site_code"] = Code.from_value(site_code, "site code").value
+        if active_only:
+            clauses.append("active = TRUE")
+        predicate = "" if not clauses else "AND " + " AND ".join(clauses)
+        rows, cursor = self._page(
+            "multisite_site_access_grants",
+            tenant_id,
+            pagination,
+            predicate,
+            params,
+            "subject, site_code, id",
+        )
+        return SiteAccessGrantPage(tuple(self._grant(row) for row in rows), cursor)
+
+    def save_report(self, report: MultisitePortfolioReport) -> None:
+        self._ensure_tenant(report.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO multisite_reports (
+                id, tenant_id, requested_subject, generated_by, generated_at, payload
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(requested_subject)s, %(generated_by)s,
+                %(generated_at)s, %(payload)s::jsonb
+            ) ON CONFLICT (tenant_id, id) DO UPDATE SET
+                requested_subject = EXCLUDED.requested_subject,
+                generated_by = EXCLUDED.generated_by,
+                generated_at = EXCLUDED.generated_at,
+                payload = EXCLUDED.payload
+            """,
+            {
+                "id": report.id.value,
+                "tenant_id": report.tenant_id.value,
+                "requested_subject": report.requested_subject,
+                "generated_by": report.generated_by,
+                "generated_at": report.generated_at,
+                "payload": json.dumps(report.as_dict(), sort_keys=True),
+            },
+        )
+
+    def get_report(self, tenant_id: TenantId, report_id: str) -> MultisitePortfolioReport | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM multisite_reports
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s LIMIT 1
+            """,
+            {"tenant_id": tenant_id.value, "id": EntityId.from_value(report_id).value},
+        )
+        return None if row is None else self._report(self._json_mapping(row["payload"]))
+
+    def list_reports(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        requested_subject: str | None = None,
+    ) -> MultisiteReportPage:
+        predicate = ""
+        params: dict[str, object] = {}
+        if requested_subject:
+            predicate = "AND requested_subject = %(requested_subject)s"
+            params["requested_subject"] = requested_subject.strip().lower()
+        rows, cursor = self._page(
+            "multisite_reports",
+            tenant_id,
+            pagination,
+            predicate,
+            params,
+            "generated_at DESC, id DESC",
+        )
+        return MultisiteReportPage(tuple(self._report(row) for row in rows), cursor)
+
+    def _page(
+        self,
+        table: str,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        predicate: str,
+        params: dict[str, object],
+        ordering: str,
+    ) -> tuple[list[dict[str, Any]], str | None]:
+        allowed = {
+            ("multisite_site_access_grants", "subject, site_code, id"),
+            ("multisite_reports", "generated_at DESC, id DESC"),
+        }
+        if (table, ordering) not in allowed:
+            raise ValueError("unsupported multisite pagination query")
+        offset = self._offset(pagination.cursor)
+        query = f"""
+            SELECT payload FROM {table}
+            WHERE tenant_id = %(tenant_id)s {predicate}
+            ORDER BY {ordering}
+            LIMIT %(fetch_limit)s OFFSET %(offset)s
+        """  # nosec B608 -- table and ordering are validated against a closed whitelist
+        rows = self._fetch_all(
+            query,
+            {
+                "tenant_id": tenant_id.value,
+                "fetch_limit": pagination.limit + 1,
+                "offset": offset,
+                **params,
+            },
+        )
+        selected = rows[: pagination.limit]
+        return [self._json_mapping(row["payload"]) for row in selected], (
+            str(offset + pagination.limit) if len(rows) > pagination.limit else None
+        )
+
+    @staticmethod
+    def _grant(value: dict[str, Any]) -> SiteAccessGrant:
+        revoked_at = value.get("revoked_at")
+        return SiteAccessGrant.restore(
+            id=EntityId.from_value(str(value["id"])),
+            tenant_id=TenantId.from_value(str(value["tenant_id"])),
+            subject=str(value["subject"]),
+            site_code=str(value["site_code"]),
+            access_level=str(value["access_level"]),
+            active=bool(value["active"]),
+            granted_by=str(value["granted_by"]),
+            created_at=datetime.fromisoformat(str(value["created_at"])),
+            updated_at=datetime.fromisoformat(str(value["updated_at"])),
+            revoked_at=None if revoked_at is None else datetime.fromisoformat(str(revoked_at)),
+        )
+
+    @staticmethod
+    def _report(value: dict[str, Any]) -> MultisitePortfolioReport:
+        raw_sites = value.get("sites")
+        if not isinstance(raw_sites, list):
+            raise ValidationError("multisite report sites payload must be a list")
+        sites = tuple(
+            SitePortfolioEntry(
+                site_code=str(item["site_code"]),
+                site_name=str(item["site_name"]),
+                country=str(item["country"]),
+                city=str(item["city"]),
+                status=str(item["status"]),
+                buildings=int(item["buildings"]),
+                floors=int(item["floors"]),
+                rooms=int(item["rooms"]),
+                racks=int(item["racks"]),
+                equipment=int(item["equipment"]),
+            )
+            for item in raw_sites
+            if isinstance(item, Mapping)
+        )
+        return MultisitePortfolioReport.restore(
+            id=EntityId.from_value(str(value["id"])),
+            tenant_id=TenantId.from_value(str(value["tenant_id"])),
+            requested_subject=str(value["requested_subject"]),
+            generated_by=str(value["generated_by"]),
+            generated_at=datetime.fromisoformat(str(value["generated_at"])),
+            sites=sites,
+        )
+
+    @staticmethod
+    def _offset(cursor: str | None) -> int:
+        try:
+            value = int(cursor or "0")
+        except ValueError as exc:
+            raise ValidationError("pagination cursor must be a numeric offset") from exc
+        if value < 0:
+            raise ValidationError("pagination cursor must be positive")
+        return value
+
+    @staticmethod
+    def _json_mapping(value: object) -> dict[str, Any]:
+        loaded = json.loads(value) if isinstance(value, str) else value
+        if not isinstance(loaded, Mapping):
+            raise ValidationError("multisite payload must be a JSON object")
+        return {str(key): item for key, item in loaded.items()}
 
 
 class PostgreSQLCertificateInventoryRepository(

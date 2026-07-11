@@ -1,3 +1,20 @@
+## Validation multisite Pro centralisé — v0.29.102
+
+```bash
+PYTHONPATH=src python -m pytest -q --no-cov \
+  tests/unit/test_multisite_domain.py \
+  tests/integration/test_multisite_services.py \
+  tests/integration/test_multisite_cli.py \
+  tests/integration/test_multisite_http_api.py \
+  tests/integration/test_multisite_migration.py \
+  tests/integration/test_multisite_postgresql_repository.py \
+  tests/integration/test_multisite_web_contract.py
+python scripts/validate_openapi.py docs/api/openapi.yaml \
+  docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1/09-API/OpenAPI/openapi.yaml
+```
+
+Contrôles bloquants : portée locale obligatoire hors `multisite.admin`, rejet atomique des sites non autorisés, disponibilité Pro/Enterprise uniquement, audit des mutations, migration non destructive et absence d’agent régional Pro.
+
 ## Validation RAG gouverné — v0.29.101
 
 ```bash

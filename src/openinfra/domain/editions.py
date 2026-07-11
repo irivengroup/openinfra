@@ -33,6 +33,7 @@ class FeatureCapability(StrEnum):
     RBAC = "rbac"
     AUDIT = "audit"
     IMPORT_EXPORT = "import_export"
+    CENTRALIZED_MULTISITE = "centralized_multisite"
     DISTRIBUTED_DISCOVERY_AGENTS = "distributed_discovery_agents"
     INSTALLER_AGENT_SCOPE = "installer_agent_scope"
 
@@ -177,7 +178,7 @@ class EditionPolicyCatalog:
             ),
             OpenInfraEdition.PRO: EditionPolicy(
                 edition=OpenInfraEdition.PRO,
-                features=shared,
+                features=shared | frozenset({FeatureCapability.CENTRALIZED_MULTISITE}),
                 quotas={
                     QuotaResource.EQUIPMENT: 5_000,
                     QuotaResource.SUBNET_VLAN: 100,
@@ -191,6 +192,7 @@ class EditionPolicyCatalog:
                 features=shared
                 | frozenset(
                     {
+                        FeatureCapability.CENTRALIZED_MULTISITE,
                         FeatureCapability.DISTRIBUTED_DISCOVERY_AGENTS,
                         FeatureCapability.INSTALLER_AGENT_SCOPE,
                     }

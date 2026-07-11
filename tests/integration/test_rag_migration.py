@@ -23,8 +23,9 @@ def test_rag_migration_is_partitioned_indexed_constrained_and_non_destructive() 
     assert "DELETE FROM" not in sql.upper()
 
 
-def test_rag_is_latest_postgresql_migration() -> None:
+def test_rag_precedes_multisite_postgresql_migration() -> None:
     migrations = sorted((ROOT / "installers/migrations/postgresql").glob("*.sql"))
-    assert len(migrations) == 49
-    assert migrations[-2].name == "0048_sbom_vulnerabilities_exposure.sql"
-    assert migrations[-1].name == "0049_rag_governed_assistant.sql"
+    assert len(migrations) == 50
+    assert migrations[-3].name == "0048_sbom_vulnerabilities_exposure.sql"
+    assert migrations[-2].name == "0049_rag_governed_assistant.sql"
+    assert migrations[-1].name == "0050_pro_centralized_multisite.sql"

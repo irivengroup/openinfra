@@ -807,6 +807,38 @@ const MODULES = [
   { id: 'dcim', label: 'DCIM', icon: 'home', operations: [
     { id: 'dcim-sites', label: 'Lister les sites DCIM', path: '/v1/dcim/sites', method: 'GET', fields: ['Inclure retirés'] },
     { id: 'dcim-site', label: 'Consulter un site DCIM', path: '/v1/dcim/site', method: 'GET', fields: ['Site'] },
+    { id: 'multisite-grant-upsert', label: 'Affecter un accès à un site', path: '/v1/multisite/site-access/grants/upsert', method: 'POST', fields: [
+      { name: 'actor', label: 'Opérateur', required: true },
+      { name: 'subject', label: 'Identité', required: true, placeholder: 'prenom.nom@example.net' },
+      { name: 'site_code', label: 'Site', required: true, defaultValue: 'PAR1' },
+      { name: 'access_level', label: 'Niveau d’accès', type: 'select', required: true, options: [{ value: 'viewer', label: 'Lecture' }, { value: 'operator', label: 'Opérateur' }, { value: 'admin', label: 'Administrateur local' }], defaultValue: 'viewer' },
+    ] },
+    { id: 'multisite-grant-revoke', label: 'Révoquer un accès à un site', path: '/v1/multisite/site-access/grants/revoke', method: 'POST', fields: [
+      { name: 'actor', label: 'Opérateur', required: true },
+      { name: 'subject', label: 'Identité', required: true },
+      { name: 'site_code', label: 'Site', required: true, defaultValue: 'PAR1' },
+    ] },
+    { id: 'multisite-grants', label: 'Lister les accès par site', path: '/v1/multisite/site-access/grants', method: 'GET', fields: [
+      { name: 'subject', label: 'Identité' }, { name: 'site_code', label: 'Site' },
+      { name: 'active_only', label: 'Accès actifs uniquement', type: 'boolean', defaultValue: 'true' },
+      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100', min: 1, max: 500 },
+      { name: 'cursor', label: 'Curseur' },
+    ] },
+    { id: 'multisite-sites', label: 'Lister les sites accessibles', path: '/v1/multisite/sites', method: 'GET', fields: [
+      { name: 'subject', label: 'Identité' },
+      { name: 'required_level', label: 'Niveau minimal', type: 'select', options: ['viewer', 'operator', 'admin'], defaultValue: 'viewer' },
+    ] },
+    { id: 'multisite-report-generate', label: 'Générer un rapport multisite', path: '/v1/multisite/reports/generate', method: 'POST', fields: [
+      { name: 'actor', label: 'Opérateur', required: true }, { name: 'subject', label: 'Identité' },
+      { name: 'site_codes', label: 'Sites (JSON)', type: 'json', defaultValue: '[]' },
+    ] },
+    { id: 'multisite-reports', label: 'Lister les rapports multisites', path: '/v1/multisite/reports', method: 'GET', fields: [
+      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100', min: 1, max: 500 },
+      { name: 'cursor', label: 'Curseur' },
+    ] },
+    { id: 'multisite-report-get', label: 'Consulter un rapport multisite', path: '/v1/multisite/reports/get', method: 'GET', fields: [
+      { name: 'report_id', label: 'ID rapport', required: true },
+    ] },
     { id: 'dcim-site-create', label: 'Créer un site DCIM', path: '/v1/dcim/site/create', method: 'POST', fields: ['Opérateur', 'Code site', 'Nom site', 'Pays ISO-2', 'Ville', 'Région'] },
     { id: 'dcim-site-update', label: 'Modifier un site DCIM', path: '/v1/dcim/site/update', method: 'POST', fields: ['Opérateur', 'Site', 'Nom site', 'Pays ISO-2', 'Ville', 'Région', 'Statut'] },
     { id: 'dcim-site-delete', label: 'Retirer un site DCIM', path: '/v1/dcim/site/delete', method: 'POST', fields: ['Opérateur', 'Site'] },
@@ -1168,6 +1200,7 @@ const SIDEBAR_CONTEXTS = {
   ],
   dcim: [
     { label: 'Sites & dépendances', operationIds: ['dcim-sites', 'dcim-site', 'dcim-site-create', 'dcim-site-update', 'dcim-site-delete', 'dcim-buildings', 'dcim-building', 'dcim-building-create', 'dcim-building-update', 'dcim-building-delete', 'dcim-floors', 'dcim-floor', 'dcim-rooms-list', 'dcim-room', 'dcim-room-create', 'dcim-room-update', 'dcim-room-delete', 'dcim-zones', 'dcim-zone', 'dcim-zone-create', 'dcim-zone-update', 'dcim-zone-delete', 'dcim-topology-catalog'] },
+    { label: 'Pilotage multisite', operationIds: ['multisite-sites', 'multisite-grants', 'multisite-grant-upsert', 'multisite-grant-revoke', 'multisite-report-generate', 'multisite-reports', 'multisite-report-get'] },
     { label: 'Localisation & capacité', operationIds: ['dcim-locate-equipment', 'dcim-rack-capacity', 'dcim-room-plan', 'dcim-rack-elevation'] },
     { label: 'Connectivité', operationIds: ['dcim-patch-panel', 'dcim-port', 'dcim-cable', 'dcim-cable-trace'] },
     { label: 'Énergie & refroidissement', operationIds: ['dcim-power-device', 'dcim-power-circuit', 'dcim-cooling-zone', 'dcim-power-reservation', 'dcim-energy-cooling-capacity'] },

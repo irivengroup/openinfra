@@ -57,6 +57,8 @@ from openinfra.application.ports import (
     IpamRepository,
     ItamSupportRepository,
     MeasurementSourcePage,
+    MultisiteReportPage,
+    MultisiteRepository,
     NetworkConfigBaselinePage,
     NetworkConfigComplianceRepository,
     NetworkConfigObservationPage,
@@ -76,6 +78,7 @@ from openinfra.application.ports import (
     SimulationImpactReportPage,
     SimulationRepository,
     SimulationScenarioPage,
+    SiteAccessGrantPage,
     SourceGovernanceRepository,
     SourceOfTruthRepository,
     SustainabilityReportPage,
@@ -233,6 +236,11 @@ from openinfra.domain.itam import (
     PhysicalAssetSupportProfile,
     SoftwareLicenseEntitlement,
     ThirdPartySupportContract,
+)
+from openinfra.domain.multisite import (
+    MultisitePortfolioReport,
+    SiteAccessGrant,
+    SitePortfolioEntry,
 )
 from openinfra.domain.network_config_compliance import (
     NetworkConfigBaseline,
@@ -523,6 +531,8 @@ class JsonDocumentStore:
             "rag_jobs": {},
             "rag_artifacts": {},
             "rag_event_outbox": {},
+            "multisite_site_access_grants": {},
+            "multisite_reports": {},
             "discovery_collectors": {},
             "discovery_jobs": {},
             "discovery_protocol_profiles": {},
@@ -5111,6 +5121,158 @@ class JsonSbomRepository(SbomRepository):
                 "occurred_at": event.occurred_at.isoformat(),
                 "published_at": None,
             },
+        )
+
+    def _tenant_values(self, bucket: str, tenant_id: TenantId) -> list[dict[str, Any]]:
+        return [
+            value
+            for value in self._store.data[bucket].values()
+            if value.get("tenant_id") == tenant_id.value
+        ]
+
+    def _get(self, bucket: str, tenant_id: TenantId, identifier: str) -> dict[str, Any] | None:
+        value = self._store.data[bucket].get(
+            self._key(tenant_id, EntityId.from_value(identifier).value)
+        )
+        return cast(dict[str, Any], value) if value is not None else None
+
+    def _save(
+        self, bucket: str, tenant_id: TenantId, identifier: str, value: dict[str, object]
+    ) -> None:
+        self._store.data[bucket][self._key(tenant_id, identifier)] = value
+        self._store.mark_dirty()
+
+    @classmethod
+    def _page(cls, items: list[Any], pagination: Pagination) -> tuple[list[Any], str | None]:
+        start = cls._offset(pagination.cursor)
+        selected = items[start : start + pagination.limit]
+        next_index = start + len(selected)
+        return selected, str(next_index) if next_index < len(items) else None
+
+    @staticmethod
+    def _key(tenant_id: TenantId, identifier: str) -> str:
+        return f"{tenant_id.value}:{identifier}"
+
+    @staticmethod
+    def _offset(cursor: str | None) -> int:
+        try:
+            offset = int(cursor or "0")
+        except ValueError as exc:
+            raise ValidationError("pagination cursor must be a numeric offset") from exc
+        if offset < 0:
+            raise ValidationError("pagination cursor must be positive")
+        return offset
+
+
+class JsonMultisiteRepository(MultisiteRepository):
+    def __init__(self, store: JsonDocumentStore) -> None:
+        self._store = store
+
+    def save_grant(self, grant: SiteAccessGrant) -> None:
+        existing = self.find_grant(grant.tenant_id, grant.subject, grant.site_code)
+        if existing is not None and existing.id != grant.id:
+            self._store.data["multisite_site_access_grants"].pop(
+                self._key(grant.tenant_id, existing.id.value), None
+            )
+        self._save("multisite_site_access_grants", grant.tenant_id, grant.id.value, grant.as_dict())
+
+    def find_grant(
+        self, tenant_id: TenantId, subject: str, site_code: str
+    ) -> SiteAccessGrant | None:
+        normalized_subject = str(subject).strip().lower()
+        normalized_site = Code.from_value(site_code, "site code").value
+        for value in self._tenant_values("multisite_site_access_grants", tenant_id):
+            if (
+                value.get("subject") == normalized_subject
+                and value.get("site_code") == normalized_site
+            ):
+                return self._grant(value)
+        return None
+
+    def list_grants(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        subject: str | None = None,
+        site_code: str | None = None,
+        active_only: bool = True,
+    ) -> SiteAccessGrantPage:
+        normalized_subject = subject.strip().lower() if subject else None
+        normalized_site = Code.from_value(site_code, "site code").value if site_code else None
+        items = [
+            self._grant(value)
+            for value in self._tenant_values("multisite_site_access_grants", tenant_id)
+            if (normalized_subject is None or value.get("subject") == normalized_subject)
+            and (normalized_site is None or value.get("site_code") == normalized_site)
+            and (not active_only or bool(value.get("active")))
+        ]
+        items.sort(key=lambda item: (item.subject, item.site_code, item.id.value))
+        selected, cursor = self._page(items, pagination)
+        return SiteAccessGrantPage(tuple(selected), cursor)
+
+    def save_report(self, report: MultisitePortfolioReport) -> None:
+        self._save("multisite_reports", report.tenant_id, report.id.value, report.as_dict())
+
+    def get_report(self, tenant_id: TenantId, report_id: str) -> MultisitePortfolioReport | None:
+        value = self._get("multisite_reports", tenant_id, report_id)
+        return self._report(value) if value else None
+
+    def list_reports(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        requested_subject: str | None = None,
+    ) -> MultisiteReportPage:
+        normalized_subject = requested_subject.strip().lower() if requested_subject else None
+        items = [
+            self._report(value)
+            for value in self._tenant_values("multisite_reports", tenant_id)
+            if normalized_subject is None or value.get("requested_subject") == normalized_subject
+        ]
+        items.sort(key=lambda item: (item.generated_at, item.id.value), reverse=True)
+        selected, cursor = self._page(items, pagination)
+        return MultisiteReportPage(tuple(selected), cursor)
+
+    @staticmethod
+    def _grant(value: dict[str, Any]) -> SiteAccessGrant:
+        revoked_at = value.get("revoked_at")
+        return SiteAccessGrant.restore(
+            id=EntityId.from_value(str(value["id"])),
+            tenant_id=TenantId.from_value(str(value["tenant_id"])),
+            subject=str(value["subject"]),
+            site_code=str(value["site_code"]),
+            access_level=str(value["access_level"]),
+            active=bool(value["active"]),
+            granted_by=str(value["granted_by"]),
+            created_at=datetime.fromisoformat(str(value["created_at"])),
+            updated_at=datetime.fromisoformat(str(value["updated_at"])),
+            revoked_at=None if revoked_at is None else datetime.fromisoformat(str(revoked_at)),
+        )
+
+    @staticmethod
+    def _report(value: dict[str, Any]) -> MultisitePortfolioReport:
+        sites = tuple(
+            SitePortfolioEntry(
+                site_code=str(item["site_code"]),
+                site_name=str(item["site_name"]),
+                country=str(item["country"]),
+                city=str(item["city"]),
+                status=str(item["status"]),
+                buildings=int(item["buildings"]),
+                floors=int(item["floors"]),
+                rooms=int(item["rooms"]),
+                racks=int(item["racks"]),
+                equipment=int(item["equipment"]),
+            )
+            for item in cast(list[dict[str, Any]], value["sites"])
+        )
+        return MultisitePortfolioReport.restore(
+            id=EntityId.from_value(str(value["id"])),
+            tenant_id=TenantId.from_value(str(value["tenant_id"])),
+            requested_subject=str(value["requested_subject"]),
+            generated_by=str(value["generated_by"]),
+            generated_at=datetime.fromisoformat(str(value["generated_at"])),
+            sites=sites,
         )
 
     def _tenant_values(self, bucket: str, tenant_id: TenantId) -> list[dict[str, Any]]:

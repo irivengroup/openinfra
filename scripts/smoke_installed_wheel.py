@@ -13,7 +13,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.29.101"
+    EXPECTED_VERSION = "0.29.102"
     EXPECTED_GRAPH_ROUTES = (
         "/api/v1/graph/traverse",
         "/api/v1/graph/impact",
@@ -126,6 +126,15 @@ class InstalledWheelSmoke:
         "/api/v1/rag/jobs/run",
         "/api/v1/rag/jobs/artifact",
     )
+    EXPECTED_MULTISITE_ROUTES = (
+        "/api/v1/multisite/site-access/grants",
+        "/api/v1/multisite/site-access/grants/upsert",
+        "/api/v1/multisite/site-access/grants/revoke",
+        "/api/v1/multisite/sites",
+        "/api/v1/multisite/reports",
+        "/api/v1/multisite/reports/get",
+        "/api/v1/multisite/reports/generate",
+    )
     EXPECTED_FIELD_OPERATION_ROUTES = (
         "/api/v1/field-operation-sheets",
         "/api/v1/field-operation-sheets/get",
@@ -145,8 +154,8 @@ class InstalledWheelSmoke:
         "/api/v1/offline-sync-packages/create",
         "/api/v1/offline-sync-packages/synchronize",
     )
-    EXPECTED_LAST_MIGRATION = "0049_rag_governed_assistant.sql"
-    EXPECTED_MIGRATION_COUNT = 49
+    EXPECTED_LAST_MIGRATION = "0050_pro_centralized_multisite.sql"
+    EXPECTED_MIGRATION_COUNT = 50
     EXPECTED_ASSETS = (
         "openinfra-web.js",
         "openinfra-web.css",
@@ -167,6 +176,7 @@ class InstalledWheelSmoke:
         self._assert_greenops_routes(openapi)
         self._assert_sbom_routes(openapi)
         self._assert_rag_routes(openapi)
+        self._assert_multisite_routes(openapi)
         self._assert_simulation_routes(openapi)
         migrations = self._assert_migrations(package_root)
         self._assert_assets(package_root)
@@ -183,6 +193,7 @@ class InstalledWheelSmoke:
             "greenops_routes": len(self.EXPECTED_GREENOPS_ROUTES),
             "sbom_routes": len(self.EXPECTED_SBOM_ROUTES),
             "rag_routes": len(self.EXPECTED_RAG_ROUTES),
+            "multisite_routes": len(self.EXPECTED_MULTISITE_ROUTES),
             "simulation_routes": len(self.EXPECTED_SIMULATION_ROUTES),
             "migrations": len(migrations),
             "last_migration": migrations[-1].name,
@@ -235,6 +246,13 @@ class InstalledWheelSmoke:
         if missing:
             raise InstalledWheelSmokeError(
                 "installed OpenAPI is missing RAG routes: " + ", ".join(missing)
+            )
+
+    def _assert_multisite_routes(self, openapi: str) -> None:
+        missing = [route for route in self.EXPECTED_MULTISITE_ROUTES if route not in openapi]
+        if missing:
+            raise InstalledWheelSmokeError(
+                "installed OpenAPI is missing multisite routes: " + ", ".join(missing)
             )
 
     def _assert_simulation_routes(self, openapi: str) -> None:

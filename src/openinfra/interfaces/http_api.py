@@ -291,6 +291,15 @@ from openinfra.application.itam_services import (
     UpdateItamTenantCommand,
     UpdateSoftwareLicenseAssignmentCommand,
 )
+from openinfra.application.multisite_services import (
+    GenerateMultisiteReportCommand,
+    GetMultisiteReportCommand,
+    ListAccessibleSitesCommand,
+    ListMultisiteReportsCommand,
+    ListSiteAccessCommand,
+    RevokeSiteAccessCommand,
+    UpsertSiteAccessCommand,
+)
 from openinfra.application.network_config_compliance_services import (
     AssessNetworkConfigComplianceCommand,
     ListNetworkConfigBaselinesCommand,
@@ -1452,6 +1461,77 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         cursor=query.get("cursor", [None])[0],
                         status=query.get("status", [None])[0],
                         source=query.get("source", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/multisite/site-access/grants":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.multisite_service.list_site_access(
+                    ListSiteAccessCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        subject=query.get("subject", [None])[0],
+                        site_code=query.get("site_code", [None])[0],
+                        active_only=self._query_bool(query, "active_only", True),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/multisite/sites":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.multisite_service.list_accessible_sites(
+                    ListAccessibleSitesCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        subject=query.get("subject", [None])[0],
+                        required_level=self._first_query_value(query, "required_level", "viewer"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, {"items": list(result)})
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/multisite/reports":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.multisite_service.list_reports(
+                    ListMultisiteReportsCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/multisite/reports/get":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.multisite_service.get_report(
+                    GetMultisiteReportCommand(
+                        self._first_query_value(query, "tenant_id"),
+                        self._bearer_token(),
+                        self._first_query_value(query, "report_id"),
                     )
                 )
                 responder.send(HTTPStatus.OK, result.as_dict())
@@ -3325,6 +3405,62 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     )
                 )
                 responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/multisite/site-access/grants/upsert":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.multisite_service.upsert_site_access(
+                    UpsertSiteAccessCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        subject=self._required_payload_value(payload, "subject"),
+                        site_code=self._required_payload_value(payload, "site_code"),
+                        access_level=self._required_payload_value(payload, "access_level"),
+                        actor=str(payload.get("actor", "api")),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/multisite/site-access/grants/revoke":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.multisite_service.revoke_site_access(
+                    RevokeSiteAccessCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        subject=self._required_payload_value(payload, "subject"),
+                        site_code=self._required_payload_value(payload, "site_code"),
+                        actor=str(payload.get("actor", "api")),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/multisite/reports/generate":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.multisite_service.generate_report(
+                    GenerateMultisiteReportCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        site_codes=self._payload_string_tuple(payload, "site_codes"),
+                        subject=self._optional_payload_value(payload, "subject"),
+                        actor=str(payload.get("actor", "api")),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
@@ -7525,6 +7661,17 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             return default
         return values[0]
 
+    def _query_bool(self, query: dict[str, list[str]], name: str, default: bool) -> bool:
+        value = self._optional_query_value(query, name)
+        if value is None:
+            return default
+        normalized = value.strip().lower()
+        if normalized in {"true", "1", "yes", "on"}:
+            return True
+        if normalized in {"false", "0", "no", "off"}:
+            return False
+        raise OpenInfraError(name + " must be a boolean")
+
     def _optional_query_value(self, query: dict[str, list[str]], name: str) -> str | None:
         values = query.get(name)
         if not values or values[0] == "":
@@ -7719,6 +7866,15 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "software_license": "/api/v1/itam/software-license",
                     "software_license_assignment": "/api/v1/itam/software-license/assignment",
                     "software_license_compliance": "/api/v1/itam/software-license/compliance",
+                },
+                "multisite": {
+                    "site_access_grants": "/api/v1/multisite/site-access/grants",
+                    "site_access_upsert": "/api/v1/multisite/site-access/grants/upsert",
+                    "site_access_revoke": "/api/v1/multisite/site-access/grants/revoke",
+                    "sites": "/api/v1/multisite/sites",
+                    "reports": "/api/v1/multisite/reports",
+                    "report_get": "/api/v1/multisite/reports/get",
+                    "report_generate": "/api/v1/multisite/reports/generate",
                 },
                 "rag": {
                     "documents": "/api/v1/rag/documents",

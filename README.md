@@ -1,6 +1,19 @@
-# OpenInfra v0.29.101
+# OpenInfra v0.29.102
 
-OpenInfra v0.29.101 réalise **P16 / EPIC-1606 — RAG gouverné**. L’assistant interroge uniquement les sources autorisées du tenant, filtre les permissions avant recherche, produit des réponses extractives avec citations obligatoires et audite les consultations sans stocker la question en clair dans les métadonnées d’audit. Il ne peut exécuter aucune action ni modifier le RSOT.
+OpenInfra v0.29.102 réalise **P17 / EPIC-1701 — multisite Pro centralisé**. Les rôles globaux sont combinés à des affectations locales par site, les révocations sont auditables et les rapports consolidés sont calculés depuis le DCIM sans agent régional ni mutation des ressources.
+
+## Multisite Pro centralisé
+
+Le parcours est rangé sous **DCIM → Pilotage multisite**. Il permet d’affecter les niveaux `viewer`, `operator` ou `admin` à une identité pour un site donné, de consulter le périmètre effectif et de générer des rapports immuables sur les bâtiments, étages, salles, racks et équipements accessibles.
+
+```bash
+openinfra multisite grant-upsert --help
+openinfra multisite sites --help
+openinfra multisite report-generate --help
+openinfra multisite reports --help
+```
+
+Voir `docs/operations/pro-centralized-multisite.md` pour les permissions, les règles de portée, la persistance, l’audit et les limites d’édition.
 
 ## Assistant RAG gouverné
 

@@ -1,3 +1,16 @@
+# Traçabilité OpenInfra
+
+## v0.29.102 — Multisite Pro centralisé
+
+| Exigence | Implémentation | Tests / preuve |
+|---|---|---|
+| P17 / EPIC-1701 : backend central Pro multisite | `domain/multisite.py`, `application/multisite_services.py`, feature gate `centralized_multisite` | `test_multisite_services.py` vérifie Pro/Enterprise et le refus Lite |
+| RBAC par site combiné aux rôles globaux | permissions `multisite.*`, rôles dédiés, affectations `SiteAccessGrant` | tests domaine, service, HTTP et CLI |
+| Rapports consolidés par site | `MultisitePortfolioReport` et agrégation DCIM bornée | tests service et API avec contrôle anti-rapport partiel |
+| Persistance scalable et auditée | JSON, PostgreSQL hash-partitionné, migration `0050`, audit transactionnel | tests repository et migration |
+| Parité des interfaces | CLI `multisite`, 7 routes REST/OpenAPI, parcours DCIM Web | tests CLI, HTTP, OpenAPI et contrat Web |
+| Absence d’agent régional en Pro | aucun endpoint/objet collector introduit ; feature distincte des agents Enterprise | test de contrat Web et revue de migration |
+
 ## v0.29.101 — RAG gouverné et cité
 
 | Exigence / Epic | Implémentation | Vérification |

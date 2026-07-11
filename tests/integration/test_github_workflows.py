@@ -46,19 +46,36 @@ class TestGitHubWorkflows:
         assert 'PYTHONPATH="$target" python scripts/smoke_installed_wheel.py' in workflow
         smoke = (PROJECT_ROOT / "scripts/smoke_installed_wheel.py").read_text(encoding="utf-8")
         assert "OpenApiDocumentProvider().read_yaml()" in smoke
-        assert "EXPECTED_MIGRATION_COUNT = 48" in smoke
+        assert "EXPECTED_MIGRATION_COUNT = 49" in smoke
         assert "EXPECTED_NETWORK_CONFIG_ROUTES" in smoke
         assert "EXPECTED_FIELD_OPERATION_ROUTES" in smoke
         assert "EXPECTED_SIMULATION_ROUTES" in smoke
         assert "EXPECTED_GREENOPS_ROUTES" in smoke
         assert "EXPECTED_SBOM_ROUTES" in smoke
-        assert 'EXPECTED_LAST_MIGRATION = "0048_sbom_vulnerabilities_exposure.sql"' in smoke
+        assert 'EXPECTED_LAST_MIGRATION = "0049_rag_governed_assistant.sql"' in smoke
         for route in (
             "/api/v1/graph/traverse",
             "/api/v1/graph/impact",
             "/api/v1/graph/path",
         ):
             assert route in smoke
+
+    def test_rag_is_a_blocking_ci_regression_gate(self) -> None:
+        workflow = (PROJECT_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+
+        assert (
+            "- name: Governed RAG permissions, citations and resumable jobs regression" in workflow
+        )
+        for test_path in (
+            "tests/unit/test_rag_domain.py",
+            "tests/integration/test_rag_services.py",
+            "tests/integration/test_rag_cli.py",
+            "tests/integration/test_rag_http_api.py",
+            "tests/integration/test_rag_migration.py",
+            "tests/integration/test_rag_postgresql_repository.py",
+            "tests/integration/test_rag_web_contract.py",
+        ):
+            assert test_path in workflow
 
     def test_dependency_graph_volumetric_benchmark_is_a_blocking_ci_gate(self) -> None:
         workflow = (PROJECT_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")

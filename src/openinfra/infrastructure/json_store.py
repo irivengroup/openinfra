@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import ipaddress
 import json
 import secrets
@@ -7,6 +8,7 @@ import threading
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
+from decimal import Decimal
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any, cast
@@ -59,6 +61,7 @@ from openinfra.application.ports import (
     NetworkConfigComplianceRepository,
     NetworkConfigObservationPage,
     OfflineSyncPackagePage,
+    RagRepository,
     ReadinessProbe,
     ReadinessStatus,
     RiskFindingPage,
@@ -235,6 +238,18 @@ from openinfra.domain.network_config_compliance import (
     NetworkConfigBaseline,
     NetworkConfigObservation,
 )
+from openinfra.domain.rag import (
+    RagAnswer,
+    RagAnswerPage,
+    RagArtifact,
+    RagDocument,
+    RagDocumentPage,
+    RagJobPage,
+    RagSearchCandidate,
+    RagSearchResult,
+    RagTextProcessor,
+    RagTransferJob,
+)
 from openinfra.domain.sbom import (
     ExposureContext,
     RiskFinding,
@@ -260,6 +275,7 @@ from openinfra.domain.source_of_truth import (
 from openinfra.infrastructure.field_operation_mapper import FieldOperationRecordMapper
 from openinfra.infrastructure.finops_mapper import FinOpsRecordMapper
 from openinfra.infrastructure.greenops_mapper import GreenOpsRecordMapper
+from openinfra.infrastructure.rag_mapper import RagRecordMapper
 from openinfra.infrastructure.sbom_mapper import SbomRecordMapper
 from openinfra.infrastructure.simulation_mapper import SimulationRecordMapper
 
@@ -502,6 +518,11 @@ class JsonDocumentStore:
             "sbom_findings": {},
             "sbom_comparisons": {},
             "sbom_event_outbox": {},
+            "rag_documents": {},
+            "rag_answers": {},
+            "rag_jobs": {},
+            "rag_artifacts": {},
+            "rag_event_outbox": {},
             "discovery_collectors": {},
             "discovery_jobs": {},
             "discovery_protocol_profiles": {},
@@ -5079,6 +5100,212 @@ class JsonSbomRepository(SbomRepository):
     def append_event(self, event: DomainEvent) -> None:
         self._save(
             "sbom_event_outbox",
+            event.tenant_id,
+            event.id.value,
+            {
+                "id": event.id.value,
+                "tenant_id": event.tenant_id.value,
+                "aggregate_id": event.aggregate_id.value,
+                "name": event.name,
+                "payload": event.payload,
+                "occurred_at": event.occurred_at.isoformat(),
+                "published_at": None,
+            },
+        )
+
+    def _tenant_values(self, bucket: str, tenant_id: TenantId) -> list[dict[str, Any]]:
+        return [
+            value
+            for value in self._store.data[bucket].values()
+            if value.get("tenant_id") == tenant_id.value
+        ]
+
+    def _get(self, bucket: str, tenant_id: TenantId, identifier: str) -> dict[str, Any] | None:
+        value = self._store.data[bucket].get(
+            self._key(tenant_id, EntityId.from_value(identifier).value)
+        )
+        return cast(dict[str, Any], value) if value is not None else None
+
+    def _save(
+        self, bucket: str, tenant_id: TenantId, identifier: str, value: dict[str, object]
+    ) -> None:
+        self._store.data[bucket][self._key(tenant_id, identifier)] = value
+        self._store.mark_dirty()
+
+    @classmethod
+    def _page(cls, items: list[Any], pagination: Pagination) -> tuple[list[Any], str | None]:
+        start = cls._offset(pagination.cursor)
+        selected = items[start : start + pagination.limit]
+        next_index = start + len(selected)
+        return selected, str(next_index) if next_index < len(items) else None
+
+    @staticmethod
+    def _key(tenant_id: TenantId, identifier: str) -> str:
+        return f"{tenant_id.value}:{identifier}"
+
+    @staticmethod
+    def _offset(cursor: str | None) -> int:
+        try:
+            offset = int(cursor or "0")
+        except ValueError as exc:
+            raise ValidationError("pagination cursor must be a numeric offset") from exc
+        if offset < 0:
+            raise ValidationError("pagination cursor must be positive")
+        return offset
+
+
+class JsonRagRepository(RagRepository):
+    def __init__(self, store: JsonDocumentStore) -> None:
+        self._store = store
+
+    def save_document(self, document: RagDocument) -> None:
+        self._save("rag_documents", document.tenant_id, document.id.value, document.as_dict())
+
+    def get_document(self, tenant_id: TenantId, document_id: str) -> RagDocument | None:
+        value = self._get("rag_documents", tenant_id, document_id)
+        return RagRecordMapper.document(value) if value else None
+
+    def find_active_document(
+        self, tenant_id: TenantId, source_type: str, source_ref: str
+    ) -> RagDocument | None:
+        normalized_type = source_type.strip().lower().replace("_", "-")
+        normalized_ref = " ".join(source_ref.strip().split())
+        candidates = [
+            RagRecordMapper.document(value)
+            for value in self._tenant_values("rag_documents", tenant_id)
+            if value.get("source_type") == normalized_type
+            and value.get("source_ref") == normalized_ref
+            and bool(value.get("active"))
+        ]
+        candidates.sort(key=lambda item: (item.version, item.indexed_at), reverse=True)
+        return candidates[0] if candidates else None
+
+    def list_documents(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        source_type: str | None = None,
+        active: bool | None = None,
+    ) -> RagDocumentPage:
+        normalized_type = source_type.strip().lower().replace("_", "-") if source_type else None
+        items = [
+            RagRecordMapper.document(value)
+            for value in self._tenant_values("rag_documents", tenant_id)
+            if (normalized_type is None or value.get("source_type") == normalized_type)
+            and (active is None or bool(value.get("active")) is active)
+        ]
+        items.sort(key=lambda item: (item.indexed_at, item.id.value), reverse=True)
+        selected, cursor = self._page(items, pagination)
+        return RagDocumentPage(tuple(selected), cursor)
+
+    def search(
+        self,
+        tenant_id: TenantId,
+        query: str,
+        permissions: frozenset[str],
+        limit: int,
+    ) -> RagSearchResult:
+        terms = RagTextProcessor.terms(query)
+        normalized_query = RagTextProcessor.normalize(query)
+        candidates: list[RagSearchCandidate] = []
+        filtered: set[str] = set()
+        for value in self._tenant_values("rag_documents", tenant_id):
+            document = RagRecordMapper.document(value)
+            if not document.active:
+                continue
+            permitted = set(document.required_permissions).issubset(permissions)
+            title = RagTextProcessor.normalize(f"{document.title} {document.source_ref}")
+            for chunk in document.chunks:
+                body = RagTextProcessor.normalize(chunk.content)
+                matched = sum(Decimal("1") for term in terms if term in body)
+                title_bonus = sum(Decimal("2") for term in terms if term in title)
+                phrase_bonus = Decimal("4") if normalized_query in body else Decimal("0")
+                score = matched + title_bonus + phrase_bonus
+                if score <= 0:
+                    continue
+                if not permitted:
+                    filtered.add(document.id.value)
+                    continue
+                candidates.append(RagSearchCandidate(document, chunk, score))
+        candidates.sort(
+            key=lambda item: (
+                item.score,
+                item.document.indexed_at,
+                item.document.id.value,
+                -item.chunk.ordinal,
+            ),
+            reverse=True,
+        )
+        return RagSearchResult(tuple(candidates[:limit]), len(filtered))
+
+    def save_answer(self, answer: RagAnswer) -> None:
+        self._save("rag_answers", answer.tenant_id, answer.id.value, answer.as_dict())
+
+    def get_answer(self, tenant_id: TenantId, answer_id: str) -> RagAnswer | None:
+        value = self._get("rag_answers", tenant_id, answer_id)
+        return RagRecordMapper.answer(value) if value else None
+
+    def list_answers(self, tenant_id: TenantId, pagination: Pagination) -> RagAnswerPage:
+        items = [
+            RagRecordMapper.answer(value) for value in self._tenant_values("rag_answers", tenant_id)
+        ]
+        items.sort(key=lambda item: (item.generated_at, item.id.value), reverse=True)
+        selected, cursor = self._page(items, pagination)
+        return RagAnswerPage(tuple(selected), cursor)
+
+    def save_job(self, job: RagTransferJob) -> None:
+        self._save("rag_jobs", job.tenant_id, job.id.value, job.as_dict())
+
+    def get_job(self, tenant_id: TenantId, job_id: str) -> RagTransferJob | None:
+        value = self._get("rag_jobs", tenant_id, job_id)
+        return RagRecordMapper.job(value) if value else None
+
+    def find_job_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> RagTransferJob | None:
+        normalized = idempotency_key.strip().lower().replace("_", "-")
+        for value in self._tenant_values("rag_jobs", tenant_id):
+            if value.get("idempotency_key") == normalized:
+                return RagRecordMapper.job(value)
+        return None
+
+    def list_jobs(self, tenant_id: TenantId, pagination: Pagination) -> RagJobPage:
+        items = [RagRecordMapper.job(value) for value in self._tenant_values("rag_jobs", tenant_id)]
+        items.sort(key=lambda item: (item.created_at, item.id.value), reverse=True)
+        selected, cursor = self._page(items, pagination)
+        return RagJobPage(tuple(selected), cursor)
+
+    def save_artifact(self, tenant_id: TenantId, job_id: str, artifact: RagArtifact) -> None:
+        self._save(
+            "rag_artifacts",
+            tenant_id,
+            EntityId.from_value(job_id).value,
+            {
+                "tenant_id": tenant_id.value,
+                "job_id": job_id,
+                "filename": artifact.filename,
+                "content_type": artifact.content_type,
+                "content": base64.b64encode(artifact.content).decode("ascii"),
+                "sha256": artifact.sha256,
+            },
+        )
+
+    def get_artifact(self, tenant_id: TenantId, job_id: str) -> RagArtifact | None:
+        value = self._get("rag_artifacts", tenant_id, job_id)
+        if value is None:
+            return None
+        try:
+            content = base64.b64decode(str(value["content"]), validate=True)
+        except (ValueError, TypeError) as exc:
+            raise ValidationError("stored RAG artifact is invalid") from exc
+        artifact = RagArtifact.create(str(value["filename"]), str(value["content_type"]), content)
+        if artifact.sha256 != str(value["sha256"]):
+            raise ValidationError("stored RAG artifact checksum is invalid")
+        return artifact
+
+    def append_event(self, event: DomainEvent) -> None:
+        self._save(
+            "rag_event_outbox",
             event.tenant_id,
             event.id.value,
             {

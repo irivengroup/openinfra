@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.100
+  version: 0.29.101
 components:
   securitySchemes:
     bearerToken:
@@ -6049,6 +6049,232 @@ paths:
         '200': {description: Paginated explainable GreenOps scores}
         '400': {description: Invalid filter or cursor}
         '401': {description: Missing or invalid GreenOps reader token}
+  /api/v1/rag/documents:
+    get:
+      operationId: listRagDocuments
+      summary: List governed knowledge documents visible to the caller
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: source_type, in: query, schema: {type: string, enum: [rsot, documentation, runbook, policy, other]}}
+        - {name: active, in: query, schema: {type: boolean}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Permission-filtered document page}
+        '400': {description: Invalid filter or cursor}
+        '401': {description: Missing or invalid RAG reader token}
+  /api/v1/rag/documents/get:
+    get:
+      operationId: getRagDocument
+      summary: Get one governed document when all required permissions are present
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: document_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Governed document and chunks}
+        '400': {description: Unknown or invalid document}
+        '401': {description: Missing or invalid RAG reader token}
+  /api/v1/rag/documents/upsert:
+    post:
+      operationId: upsertRagDocument
+      summary: Index or revise one governed knowledge document
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, source_type, source_ref, title, content]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                source_type: {type: string, enum: [rsot, documentation, runbook, policy, other]}
+                source_ref: {type: string, maxLength: 512}
+                source_uri: {type: string, format: uri, maxLength: 2048}
+                title: {type: string, maxLength: 512}
+                content: {type: string, minLength: 1, maxLength: 1048576}
+                required_permissions: {type: array, maxItems: 100, items: {type: string}, default: [rag.read]}
+                tags: {type: array, maxItems: 100, items: {type: string}}
+                metadata: {type: object}
+      responses:
+        '201': {description: Indexed document version or idempotently resolved existing version}
+        '400': {description: Invalid content, permissions or metadata}
+        '401': {description: Missing or invalid RAG writer token}
+  /api/v1/rag/documents/deactivate:
+    post:
+      operationId: deactivateRagDocument
+      summary: Deactivate one governed document without deleting its history
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, document_id]
+              properties:
+                tenant_id: {type: string}
+                document_id: {type: string, format: uuid}
+                actor: {type: string, default: api}
+      responses:
+        '200': {description: Deactivated document}
+        '400': {description: Unknown or invalid document}
+        '401': {description: Missing or invalid RAG writer token}
+  /api/v1/rag/index/rsot:
+    post:
+      operationId: synchronizeRagFromRsot
+      summary: Synchronize permission-labelled documents from the RSOT without mutating it
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                max_objects: {type: integer, minimum: 1, maximum: 10000, default: 5000}
+                deactivate_missing: {type: boolean, default: false}
+      responses:
+        '200': {description: RSOT synchronization result}
+        '400': {description: Invalid synchronization request}
+        '401': {description: Missing RAG import or RSOT read permission}
+  /api/v1/rag/query:
+    post:
+      operationId: queryGovernedRag
+      summary: Produce an extractive answer with mandatory citations from permitted sources
+      description: Sources are filtered by tenant and permissions before retrieval. This endpoint cannot execute infrastructure actions.
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, question]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                question: {type: string, minLength: 2, maxLength: 4096}
+                limit: {type: integer, minimum: 1, maximum: 10, default: 6}
+      responses:
+        '201': {description: Audited answer with citations or explicit insufficient-context status}
+        '400': {description: Invalid or unsearchable question}
+        '401': {description: Missing or invalid RAG query token}
+  /api/v1/rag/answers:
+    get:
+      operationId: listRagAnswers
+      summary: List audited RAG answers for the tenant
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated answers}
+        '400': {description: Invalid cursor}
+        '401': {description: Missing or invalid RAG reader token}
+  /api/v1/rag/answers/get:
+    get:
+      operationId: getRagAnswer
+      summary: Get one cited answer
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: answer_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Cited answer}
+        '400': {description: Unknown or invalid answer}
+        '401': {description: Missing or invalid RAG reader token}
+  /api/v1/rag/jobs:
+    get:
+      operationId: listRagJobs
+      summary: List resumable RAG import and export jobs
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated jobs}
+        '400': {description: Invalid cursor}
+        '401': {description: Missing or invalid RAG reader token}
+  /api/v1/rag/jobs/get:
+    get:
+      operationId: getRagJob
+      summary: Get one resumable RAG job
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: job_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: RAG job}
+        '400': {description: Unknown or invalid job}
+        '401': {description: Missing or invalid RAG reader token}
+  /api/v1/rag/jobs/create:
+    post:
+      operationId: createRagJob
+      summary: Create an idempotent batched document-import or answer-export job
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, kind, idempotency_key, payload]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                kind: {type: string, enum: [document-import, answer-export]}
+                idempotency_key: {type: string, minLength: 3, maxLength: 255}
+                payload: {type: object}
+                batch_size: {type: integer, minimum: 1, maximum: 1000, default: 100}
+      responses:
+        '201': {description: Created or idempotently resolved job}
+        '400': {description: Invalid job payload}
+        '401': {description: Missing RAG import or export permission}
+  /api/v1/rag/jobs/run:
+    post:
+      operationId: runRagJobBatch
+      summary: Execute the next deterministic batch of a resumable RAG job
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, job_id]
+              properties:
+                tenant_id: {type: string}
+                job_id: {type: string, format: uuid}
+                actor: {type: string, default: api}
+      responses:
+        '200': {description: Updated job progress}
+        '400': {description: Unknown, invalid or failed job}
+        '401': {description: Missing RAG import or export permission}
+  /api/v1/rag/jobs/artifact:
+    get:
+      operationId: downloadRagJobArtifact
+      summary: Download the completed answer-export artifact
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: job_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Downloadable JSON or CSV artifact
+          content:
+            application/json: {schema: {type: object}}
+            text/csv: {schema: {type: string}}
+        '400': {description: Artifact unavailable or invalid job}
+        '401': {description: Missing or invalid RAG export token}
   /api/v1/sbom/documents:
     get:
       operationId: listSbomDocuments

@@ -995,7 +995,38 @@ const OPENINFRA_MODULES = [
     ] },
     { id: "simulation-comparisons", label: "Lister les comparaisons", method: "GET", path: "/v1/scenario-comparisons", query: [
       FIELD_SETS.limit, { name: "cursor", label: "Curseur" }
-    ] }
+    ] }    ,{ id: "rag-document-upsert", label: "Indexer un document gouverné", method: "POST", path: "/v1/rag/documents/upsert", body: [
+      { name: "source_type", label: "Type de source", type: "select", options: ["rsot", "documentation", "runbook", "policy", "other"], defaultValue: "documentation", required: true },
+      { name: "source_ref", label: "Référence source", required: true }, { name: "title", label: "Titre", required: true },
+      { name: "content", label: "Contenu", type: "textarea", required: true }, { name: "source_uri", label: "URI source" },
+      { name: "required_permissions", label: "Permissions requises", type: "csv", defaultValue: "rag.read" },
+      { name: "tags", label: "Tags", type: "csv" }, { name: "metadata", label: "Métadonnées JSON", type: "json", defaultValue: "{}" }, FIELD_SETS.actor
+    ] },
+    { id: "rag-documents", label: "Lister les documents gouvernés", method: "GET", path: "/v1/rag/documents", query: [
+      { name: "source_type", label: "Type de source" }, { name: "active", label: "Actif", type: "boolean" }, FIELD_SETS.limit, FIELD_SETS.cursor
+    ] },
+    { id: "rag-document-get", label: "Consulter un document gouverné", method: "GET", path: "/v1/rag/documents/get", query: [{ name: "document_id", label: "ID document", required: true }] },
+    { id: "rag-document-deactivate", label: "Désactiver un document gouverné", method: "POST", path: "/v1/rag/documents/deactivate", body: [{ name: "document_id", label: "ID document", required: true }, FIELD_SETS.actor] },
+    { id: "rag-rsot-sync", label: "Synchroniser l’index depuis RSOT", method: "POST", path: "/v1/rag/index/rsot", body: [
+      { name: "max_objects", label: "Nombre maximal d’objets", type: "number", defaultValue: "5000" },
+      { name: "deactivate_missing", label: "Désactiver les objets absents", type: "boolean", defaultValue: "false" }, FIELD_SETS.actor
+    ] },
+    { id: "rag-query", label: "Interroger l’assistant gouverné", method: "POST", path: "/v1/rag/query", body: [
+      { name: "question", label: "Question", type: "textarea", required: true },
+      { name: "limit", label: "Nombre maximal de citations", type: "number", defaultValue: "6" }, FIELD_SETS.actor
+    ] },
+    { id: "rag-answers", label: "Lister les réponses citées", method: "GET", path: "/v1/rag/answers", query: [FIELD_SETS.limit, FIELD_SETS.cursor] },
+    { id: "rag-answer-get", label: "Consulter une réponse citée", method: "GET", path: "/v1/rag/answers/get", query: [{ name: "answer_id", label: "ID réponse", required: true }] },
+    { id: "rag-job-create", label: "Créer un job RAG", method: "POST", path: "/v1/rag/jobs/create", body: [
+      { name: "kind", label: "Type de job", type: "select", options: ["document-import", "answer-export"], required: true },
+      { name: "idempotency_key", label: "Clé d’idempotence", required: true }, { name: "payload", label: "Charge utile JSON", type: "json", required: true, defaultValue: "{}" },
+      { name: "batch_size", label: "Taille de lot", type: "number", defaultValue: "100" }, FIELD_SETS.actor
+    ] },
+    { id: "rag-jobs", label: "Lister les jobs RAG", method: "GET", path: "/v1/rag/jobs", query: [FIELD_SETS.limit, FIELD_SETS.cursor] },
+    { id: "rag-job-get", label: "Consulter un job RAG", method: "GET", path: "/v1/rag/jobs/get", query: [{ name: "job_id", label: "ID job", required: true }] },
+    { id: "rag-job-run", label: "Exécuter une tranche de job RAG", method: "POST", path: "/v1/rag/jobs/run", body: [{ name: "job_id", label: "ID job", required: true }, FIELD_SETS.actor] },
+    { id: "rag-job-artifact", label: "Télécharger un export RAG", method: "GET", path: "/v1/rag/jobs/artifact", download: true, query: [{ name: "job_id", label: "ID job", required: true }] }
+
   ] },
   { id: "ipam", label: "IPAM", icon: "grid", description: "IPv4/IPv6, VRF, préfixes, plages, VLAN/VXLAN, ASN/BGP, DNS/DHCP, DDI, conflits, capacité et allocations.", operations: [
     { id: "ipam-dashboard", label: "Dashboard IPAM", method: "GET", path: "/v1/ipam/ui-dashboard", query: [{ name: "vrf", label: "VRF", placeholder: "global" }] },
@@ -1488,7 +1519,10 @@ const OPENINFRA_SIDEBAR_CONTEXTS = {
     { label: "Exploration", operationIds: ["graph-traverse", "graph-path"] },
     { label: "Analyse d’impact", operationIds: ["graph-impact", "graph-spof"] },
     { label: "Exports", operationIds: ["graph-export"] },
-    { label: "Simulation & migrations", operationIds: ["simulation-create", "simulation-list", "simulation-run", "simulation-reports", "simulation-compare", "simulation-comparisons"] }
+    { label: "Simulation & migrations", operationIds: ["simulation-create", "simulation-list", "simulation-run", "simulation-reports", "simulation-compare", "simulation-comparisons"] },
+    { label: "Assistant gouverné", operationIds: ["rag-query", "rag-answers", "rag-answer-get"] },
+    { label: "Index de connaissances", operationIds: ["rag-document-upsert", "rag-documents", "rag-document-get", "rag-document-deactivate", "rag-rsot-sync"] },
+    { label: "Imports / exports RAG", operationIds: ["rag-job-create", "rag-jobs", "rag-job-get", "rag-job-run", "rag-job-artifact"] }
   ],
   ipam: [
     { label: "Vue & recherche", operationIds: ["ipam-dashboard", "ipam-search"] },

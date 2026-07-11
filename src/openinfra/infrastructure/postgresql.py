@@ -10,6 +10,7 @@ import threading
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, ClassVar, Protocol, Self, cast
 
@@ -61,6 +62,7 @@ from openinfra.application.ports import (
     NetworkConfigComplianceRepository,
     NetworkConfigObservationPage,
     OfflineSyncPackagePage,
+    RagRepository,
     ReadinessProbe,
     ReadinessStatus,
     RiskFindingPage,
@@ -235,6 +237,17 @@ from openinfra.domain.network_config_compliance import (
     NetworkConfigBaseline,
     NetworkConfigObservation,
 )
+from openinfra.domain.rag import (
+    RagAnswer,
+    RagAnswerPage,
+    RagArtifact,
+    RagDocument,
+    RagDocumentPage,
+    RagJobPage,
+    RagSearchCandidate,
+    RagSearchResult,
+    RagTransferJob,
+)
 from openinfra.domain.sbom import (
     ExposureContext,
     RiskFinding,
@@ -259,6 +272,7 @@ from openinfra.domain.source_of_truth import (
 from openinfra.infrastructure.field_operation_mapper import FieldOperationRecordMapper
 from openinfra.infrastructure.finops_mapper import FinOpsRecordMapper
 from openinfra.infrastructure.greenops_mapper import GreenOpsRecordMapper
+from openinfra.infrastructure.rag_mapper import RagRecordMapper
 from openinfra.infrastructure.sbom_mapper import SbomRecordMapper
 from openinfra.infrastructure.simulation_mapper import SimulationRecordMapper
 
@@ -9042,6 +9056,423 @@ class PostgreSQLSbomRepository(PostgreSQLRepositoryBase, SbomRepository):
         if not isinstance(loaded, Mapping):
             raise ValidationError("SBOM payload must be a JSON object")
         return {str(key): item for key, item in loaded.items()}
+
+
+class PostgreSQLRagRepository(PostgreSQLRepositoryBase, RagRepository):
+    def save_document(self, document: RagDocument) -> None:
+        self._ensure_tenant(document.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO rag_documents (
+                id, tenant_id, source_type, source_ref, version, active, checksum,
+                required_permissions, indexed_at, payload
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(source_type)s, %(source_ref)s, %(version)s,
+                %(active)s, %(checksum)s, %(required_permissions)s::jsonb,
+                %(indexed_at)s, %(payload)s::jsonb
+            ) ON CONFLICT (tenant_id, id) DO UPDATE SET
+                source_type = EXCLUDED.source_type,
+                source_ref = EXCLUDED.source_ref,
+                version = EXCLUDED.version,
+                active = EXCLUDED.active,
+                checksum = EXCLUDED.checksum,
+                required_permissions = EXCLUDED.required_permissions,
+                indexed_at = EXCLUDED.indexed_at,
+                payload = EXCLUDED.payload
+            """,
+            {
+                "id": document.id.value,
+                "tenant_id": document.tenant_id.value,
+                "source_type": document.source_type.value,
+                "source_ref": document.source_ref,
+                "version": document.version,
+                "active": document.active,
+                "checksum": document.checksum,
+                "required_permissions": json.dumps(list(document.required_permissions)),
+                "indexed_at": document.indexed_at,
+                "payload": json.dumps(document.as_dict(), sort_keys=True),
+            },
+        )
+        self._execute_without_result(
+            """
+            DELETE FROM rag_chunks
+            WHERE tenant_id = %(tenant_id)s AND document_id = %(document_id)s
+            """,
+            {"tenant_id": document.tenant_id.value, "document_id": document.id.value},
+        )
+        for chunk in document.chunks:
+            self._execute_without_result(
+                """
+                INSERT INTO rag_chunks (
+                    id, tenant_id, document_id, ordinal, title, content,
+                    required_permissions, payload
+                ) VALUES (
+                    %(id)s, %(tenant_id)s, %(document_id)s, %(ordinal)s,
+                    %(title)s, %(content)s, %(required_permissions)s::jsonb,
+                    %(payload)s::jsonb
+                )
+                """,
+                {
+                    "id": chunk.id.value,
+                    "tenant_id": document.tenant_id.value,
+                    "document_id": document.id.value,
+                    "ordinal": chunk.ordinal,
+                    "title": document.title,
+                    "content": chunk.content,
+                    "required_permissions": json.dumps(list(document.required_permissions)),
+                    "payload": json.dumps(chunk.as_dict(), sort_keys=True),
+                },
+            )
+
+    def get_document(self, tenant_id: TenantId, document_id: str) -> RagDocument | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM rag_documents
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s LIMIT 1
+            """,
+            {"tenant_id": tenant_id.value, "id": EntityId.from_value(document_id).value},
+        )
+        return None if row is None else RagRecordMapper.document(self._json_mapping(row["payload"]))
+
+    def find_active_document(
+        self, tenant_id: TenantId, source_type: str, source_ref: str
+    ) -> RagDocument | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM rag_documents
+            WHERE tenant_id = %(tenant_id)s AND source_type = %(source_type)s
+              AND source_ref = %(source_ref)s AND active = TRUE
+            ORDER BY version DESC, indexed_at DESC LIMIT 1
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "source_type": source_type.strip().lower().replace("_", "-"),
+                "source_ref": " ".join(source_ref.strip().split()),
+            },
+        )
+        return None if row is None else RagRecordMapper.document(self._json_mapping(row["payload"]))
+
+    def list_documents(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        source_type: str | None = None,
+        active: bool | None = None,
+    ) -> RagDocumentPage:
+        predicates: list[str] = []
+        params: dict[str, object] = {
+            "tenant_id": tenant_id.value,
+            "fetch_limit": pagination.limit + 1,
+            "offset": self._offset(pagination.cursor),
+        }
+        if source_type:
+            predicates.append("source_type = %(source_type)s")
+            params["source_type"] = source_type.strip().lower().replace("_", "-")
+        if active is not None:
+            predicates.append("active = %(active)s")
+            params["active"] = active
+        suffix = "" if not predicates else " AND " + " AND ".join(predicates)
+        query = f"""
+            SELECT payload FROM rag_documents
+            WHERE tenant_id = %(tenant_id)s {suffix}
+            ORDER BY indexed_at DESC, id DESC
+            LIMIT %(fetch_limit)s OFFSET %(offset)s
+        """  # nosec B608 -- suffix contains only closed, static predicate fragments
+        rows = self._fetch_all(query, params)
+        has_more = len(rows) > pagination.limit
+        selected = rows[: pagination.limit]
+        items = tuple(
+            RagRecordMapper.document(self._json_mapping(row["payload"])) for row in selected
+        )
+        next_cursor = str(self._offset(pagination.cursor) + pagination.limit) if has_more else None
+        return RagDocumentPage(items, next_cursor)
+
+    def search(
+        self,
+        tenant_id: TenantId,
+        query: str,
+        permissions: frozenset[str],
+        limit: int,
+    ) -> RagSearchResult:
+        params: dict[str, object] = {
+            "tenant_id": tenant_id.value,
+            "query": query,
+            "permissions": sorted(permissions),
+            "limit": limit,
+        }
+        rows = self._fetch_all(
+            """
+            SELECT d.payload AS document_payload, c.payload AS chunk_payload,
+                   ts_rank_cd(c.search_vector, websearch_to_tsquery('simple', %(query)s)) AS rank
+            FROM rag_chunks c
+            JOIN rag_documents d
+              ON d.tenant_id = c.tenant_id AND d.id = c.document_id
+            WHERE d.tenant_id = %(tenant_id)s
+              AND d.active = TRUE
+              AND c.search_vector @@ websearch_to_tsquery('simple', %(query)s)
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM jsonb_array_elements_text(d.required_permissions) AS required(permission)
+                  WHERE NOT (required.permission = ANY(%(permissions)s))
+              )
+            ORDER BY rank DESC, d.indexed_at DESC, c.ordinal ASC, c.id ASC
+            LIMIT %(limit)s
+            """,
+            params,
+        )
+        filtered_row = self._fetch_one(
+            """
+            SELECT COUNT(DISTINCT d.id) AS total
+            FROM rag_chunks c
+            JOIN rag_documents d
+              ON d.tenant_id = c.tenant_id AND d.id = c.document_id
+            WHERE d.tenant_id = %(tenant_id)s
+              AND d.active = TRUE
+              AND c.search_vector @@ websearch_to_tsquery('simple', %(query)s)
+              AND EXISTS (
+                  SELECT 1
+                  FROM jsonb_array_elements_text(d.required_permissions) AS required(permission)
+                  WHERE NOT (required.permission = ANY(%(permissions)s))
+              )
+            """,
+            params,
+        )
+        candidates = tuple(
+            RagSearchCandidate(
+                RagRecordMapper.document(self._json_mapping(row["document_payload"])),
+                RagRecordMapper.chunk(self._json_mapping(row["chunk_payload"])),
+                Decimal(str(row["rank"])),
+            )
+            for row in rows
+        )
+        filtered = 0 if filtered_row is None else int(str(filtered_row["total"]))
+        return RagSearchResult(candidates, filtered)
+
+    def save_answer(self, answer: RagAnswer) -> None:
+        self._ensure_tenant(answer.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO rag_answers (
+                id, tenant_id, question_hash, status, confidence, generated_at, payload
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(question_hash)s, %(status)s,
+                %(confidence)s, %(generated_at)s, %(payload)s::jsonb
+            ) ON CONFLICT (tenant_id, id) DO UPDATE SET
+                question_hash = EXCLUDED.question_hash,
+                status = EXCLUDED.status,
+                confidence = EXCLUDED.confidence,
+                generated_at = EXCLUDED.generated_at,
+                payload = EXCLUDED.payload
+            """,
+            {
+                "id": answer.id.value,
+                "tenant_id": answer.tenant_id.value,
+                "question_hash": answer.question_hash,
+                "status": answer.status.value,
+                "confidence": answer.confidence,
+                "generated_at": answer.generated_at,
+                "payload": json.dumps(answer.as_dict(), sort_keys=True),
+            },
+        )
+
+    def get_answer(self, tenant_id: TenantId, answer_id: str) -> RagAnswer | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM rag_answers
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s LIMIT 1
+            """,
+            {"tenant_id": tenant_id.value, "id": EntityId.from_value(answer_id).value},
+        )
+        return None if row is None else RagRecordMapper.answer(self._json_mapping(row["payload"]))
+
+    def list_answers(self, tenant_id: TenantId, pagination: Pagination) -> RagAnswerPage:
+        rows, cursor = self._page(
+            "rag_answers", tenant_id, pagination, "generated_at DESC, id DESC"
+        )
+        return RagAnswerPage(tuple(RagRecordMapper.answer(row) for row in rows), cursor)
+
+    def save_job(self, job: RagTransferJob) -> None:
+        self._ensure_tenant(job.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO rag_jobs (
+                id, tenant_id, kind, status, idempotency_key, input_digest,
+                processed_count, total_count, created_at, updated_at, payload
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(kind)s, %(status)s, %(idempotency_key)s,
+                %(input_digest)s, %(processed_count)s, %(total_count)s,
+                %(created_at)s, %(updated_at)s, %(payload)s::jsonb
+            ) ON CONFLICT (tenant_id, id) DO UPDATE SET
+                status = EXCLUDED.status,
+                processed_count = EXCLUDED.processed_count,
+                total_count = EXCLUDED.total_count,
+                updated_at = EXCLUDED.updated_at,
+                payload = EXCLUDED.payload
+            """,
+            {
+                "id": job.id.value,
+                "tenant_id": job.tenant_id.value,
+                "kind": job.kind.value,
+                "status": job.status.value,
+                "idempotency_key": job.idempotency_key,
+                "input_digest": job.input_digest,
+                "processed_count": job.processed_count,
+                "total_count": job.total_count,
+                "created_at": job.created_at,
+                "updated_at": job.updated_at,
+                "payload": json.dumps(job.as_dict(), sort_keys=True),
+            },
+        )
+
+    def get_job(self, tenant_id: TenantId, job_id: str) -> RagTransferJob | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM rag_jobs
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s LIMIT 1
+            """,
+            {"tenant_id": tenant_id.value, "id": EntityId.from_value(job_id).value},
+        )
+        return None if row is None else RagRecordMapper.job(self._json_mapping(row["payload"]))
+
+    def find_job_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> RagTransferJob | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM rag_jobs
+            WHERE tenant_id = %(tenant_id)s AND idempotency_key = %(idempotency_key)s LIMIT 1
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "idempotency_key": idempotency_key.strip().lower().replace("_", "-"),
+            },
+        )
+        return None if row is None else RagRecordMapper.job(self._json_mapping(row["payload"]))
+
+    def list_jobs(self, tenant_id: TenantId, pagination: Pagination) -> RagJobPage:
+        rows, cursor = self._page("rag_jobs", tenant_id, pagination, "created_at DESC, id DESC")
+        return RagJobPage(tuple(RagRecordMapper.job(row) for row in rows), cursor)
+
+    def save_artifact(self, tenant_id: TenantId, job_id: str, artifact: RagArtifact) -> None:
+        self._ensure_tenant(tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO rag_artifacts (
+                tenant_id, job_id, filename, content_type, content, sha256, created_at
+            ) VALUES (
+                %(tenant_id)s, %(job_id)s, %(filename)s, %(content_type)s,
+                %(content)s, %(sha256)s, NOW()
+            ) ON CONFLICT (tenant_id, job_id) DO UPDATE SET
+                filename = EXCLUDED.filename,
+                content_type = EXCLUDED.content_type,
+                content = EXCLUDED.content,
+                sha256 = EXCLUDED.sha256,
+                created_at = EXCLUDED.created_at
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "job_id": EntityId.from_value(job_id).value,
+                "filename": artifact.filename,
+                "content_type": artifact.content_type,
+                "content": artifact.content,
+                "sha256": artifact.sha256,
+            },
+        )
+
+    def get_artifact(self, tenant_id: TenantId, job_id: str) -> RagArtifact | None:
+        row = self._fetch_one(
+            """
+            SELECT filename, content_type, content, sha256 FROM rag_artifacts
+            WHERE tenant_id = %(tenant_id)s AND job_id = %(job_id)s LIMIT 1
+            """,
+            {"tenant_id": tenant_id.value, "job_id": EntityId.from_value(job_id).value},
+        )
+        if row is None:
+            return None
+        raw_content = row["content"]
+        if isinstance(raw_content, memoryview):
+            content = raw_content.tobytes()
+        elif isinstance(raw_content, (bytes, bytearray)):
+            content = bytes(raw_content)
+        else:
+            raise ValidationError("stored RAG artifact content is invalid")
+        artifact = RagArtifact.create(str(row["filename"]), str(row["content_type"]), content)
+        if artifact.sha256 != str(row["sha256"]):
+            raise ValidationError("stored RAG artifact checksum is invalid")
+        return artifact
+
+    def append_event(self, event: DomainEvent) -> None:
+        self._ensure_tenant(event.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO rag_event_outbox (
+                id, tenant_id, aggregate_id, event_name, payload, occurred_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(aggregate_id)s, %(event_name)s,
+                %(payload)s::jsonb, %(occurred_at)s
+            ) ON CONFLICT (tenant_id, id) DO NOTHING
+            """,
+            {
+                "id": event.id.value,
+                "tenant_id": event.tenant_id.value,
+                "aggregate_id": event.aggregate_id.value,
+                "event_name": event.name,
+                "payload": json.dumps(event.payload, sort_keys=True),
+                "occurred_at": event.occurred_at,
+            },
+        )
+
+    def _page(
+        self,
+        table: str,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        ordering: str,
+    ) -> tuple[list[dict[str, Any]], str | None]:
+        allowed = {
+            ("rag_answers", "generated_at DESC, id DESC"),
+            ("rag_jobs", "created_at DESC, id DESC"),
+        }
+        if (table, ordering) not in allowed:
+            raise ValueError("unsupported RAG pagination query")
+        offset = self._offset(pagination.cursor)
+        query = f"""
+            SELECT payload FROM {table}
+            WHERE tenant_id = %(tenant_id)s
+            ORDER BY {ordering}
+            LIMIT %(fetch_limit)s OFFSET %(offset)s
+        """  # nosec B608 -- table and ordering are validated against a closed whitelist
+        rows = self._fetch_all(
+            query,
+            {
+                "tenant_id": tenant_id.value,
+                "fetch_limit": pagination.limit + 1,
+                "offset": offset,
+            },
+        )
+        has_more = len(rows) > pagination.limit
+        selected = rows[: pagination.limit]
+        return [self._json_mapping(row["payload"]) for row in selected], (
+            str(offset + pagination.limit) if has_more else None
+        )
+
+    @staticmethod
+    def _offset(cursor: str | None) -> int:
+        try:
+            value = int(cursor or "0")
+        except ValueError as exc:
+            raise ValidationError("pagination cursor must be a numeric offset") from exc
+        if value < 0:
+            raise ValidationError("pagination cursor must be positive")
+        return value
+
+    @staticmethod
+    def _json_mapping(value: object) -> dict[str, Any]:
+        if isinstance(value, str):
+            value = json.loads(value)
+        if not isinstance(value, Mapping):
+            raise ValidationError("stored RAG payload must be a JSON object")
+        return {str(key): item for key, item in value.items()}
 
 
 class PostgreSQLCertificateInventoryRepository(

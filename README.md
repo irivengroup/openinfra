@@ -1,6 +1,20 @@
-# OpenInfra v0.29.100
+# OpenInfra v0.29.101
 
-OpenInfra v0.29.100 corrige le démarrage du portail web packagé : le catalogue SBOM référençait un champ de pagination partagé absent, ce qui provoquait une exception JavaScript et un écran blanc. Le runtime valide désormais son catalogue, affiche immédiatement le Dashboard avant les appels backend et présente une erreur accessible en cas d’échec fatal.
+OpenInfra v0.29.101 réalise **P16 / EPIC-1606 — RAG gouverné**. L’assistant interroge uniquement les sources autorisées du tenant, filtre les permissions avant recherche, produit des réponses extractives avec citations obligatoires et audite les consultations sans stocker la question en clair dans les métadonnées d’audit. Il ne peut exécuter aucune action ni modifier le RSOT.
+
+## Assistant RAG gouverné
+
+Le parcours est rangé sous **RSOT → Assistant gouverné / Index de connaissances / Imports-exports RAG**. Les documents sont versionnés, les synchronisations RSOT sont en lecture seule et les jobs d’import/export restent idempotents et relançables par lots.
+
+```bash
+openinfra rag document-upsert --help
+openinfra rag sync-rsot --help
+openinfra rag ask --help
+openinfra rag job-create --help
+openinfra rag job-run --help
+```
+
+Voir `docs/operations/rag-governed-assistant.md` pour le modèle de permissions, les citations, l’audit, la persistance et les limites de sécurité.
 
 ## SBOM, vulnérabilités et exposition
 

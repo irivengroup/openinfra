@@ -63,6 +63,7 @@ from openinfra.application.ports import (
     IpamRepository,
     ItamSupportRepository,
     NetworkConfigComplianceRepository,
+    RagRepository,
     ReadinessProbe,
     RuntimeUsageRepository,
     SbomRepository,
@@ -73,6 +74,7 @@ from openinfra.application.ports import (
     SourceOfTruthRepository,
     TransactionManager,
 )
+from openinfra.application.rag_services import RagService
 from openinfra.application.sbom_services import SbomService
 from openinfra.application.search_services import GlobalSearchService
 from openinfra.application.security_services import SecurityService
@@ -103,6 +105,7 @@ from openinfra.infrastructure.json_store import (
     JsonIpamRepository,
     JsonItamSupportRepository,
     JsonNetworkConfigComplianceRepository,
+    JsonRagRepository,
     JsonReadinessProbe,
     JsonRuntimeUsageRepository,
     JsonSbomRepository,
@@ -134,6 +137,7 @@ from openinfra.infrastructure.postgresql import (
     PostgreSQLMigrationCatalog,
     PostgreSQLMigrationExecutor,
     PostgreSQLNetworkConfigComplianceRepository,
+    PostgreSQLRagRepository,
     PostgreSQLReadinessProbe,
     PostgreSQLRuntimeUsageRepository,
     PostgreSQLSbomRepository,
@@ -144,6 +148,7 @@ from openinfra.infrastructure.postgresql import (
     PostgreSQLSourceOfTruthRepository,
     PostgreSQLTransactionManager,
 )
+from openinfra.infrastructure.rag_generator import DeterministicRagGenerator
 from openinfra.infrastructure.sbom_parser import SbomPayloadParser
 
 
@@ -171,6 +176,7 @@ class OpenInfraApplication:
     finops_service: FinOpsService
     greenops_service: GreenOpsService
     sbom_service: SbomService
+    rag_service: RagService
     flow_matrix_service: FlowMatrixService
     certificate_pki_service: CertificatePkiService
     network_config_compliance_service: NetworkConfigComplianceService
@@ -185,6 +191,7 @@ class OpenInfraApplication:
     finops_repository: FinOpsRepository
     greenops_repository: GreenOpsRepository
     sbom_repository: SbomRepository
+    rag_repository: RagRepository
     flow_matrix_repository: FlowMatrixRepository
     certificate_inventory_repository: CertificateInventoryRepository
     network_config_compliance_repository: NetworkConfigComplianceRepository
@@ -246,6 +253,7 @@ class ApplicationFactory:
         finops_repository = JsonFinOpsRepository(store)
         greenops_repository = JsonGreenOpsRepository(store)
         sbom_repository = JsonSbomRepository(store)
+        rag_repository = JsonRagRepository(store)
         flow_matrix_repository = JsonFlowMatrixRepository(store)
         certificate_inventory_repository = JsonCertificateInventoryRepository(store)
         network_config_compliance_repository = JsonNetworkConfigComplianceRepository(store)
@@ -278,6 +286,7 @@ class ApplicationFactory:
             finops_repository=finops_repository,
             greenops_repository=greenops_repository,
             sbom_repository=sbom_repository,
+            rag_repository=rag_repository,
             flow_matrix_repository=flow_matrix_repository,
             certificate_inventory_repository=certificate_inventory_repository,
             network_config_compliance_repository=network_config_compliance_repository,
@@ -313,6 +322,7 @@ class ApplicationFactory:
         finops_repository = PostgreSQLFinOpsRepository(registry)
         greenops_repository = PostgreSQLGreenOpsRepository(registry)
         sbom_repository = PostgreSQLSbomRepository(registry)
+        rag_repository = PostgreSQLRagRepository(registry)
         flow_matrix_repository = PostgreSQLFlowMatrixRepository(registry)
         certificate_inventory_repository = PostgreSQLCertificateInventoryRepository(registry)
         network_config_compliance_repository = PostgreSQLNetworkConfigComplianceRepository(registry)
@@ -345,6 +355,7 @@ class ApplicationFactory:
             finops_repository=finops_repository,
             greenops_repository=greenops_repository,
             sbom_repository=sbom_repository,
+            rag_repository=rag_repository,
             flow_matrix_repository=flow_matrix_repository,
             certificate_inventory_repository=certificate_inventory_repository,
             network_config_compliance_repository=network_config_compliance_repository,
@@ -380,6 +391,7 @@ class ApplicationFactory:
         finops_repository: FinOpsRepository | None = None,
         greenops_repository: GreenOpsRepository | None = None,
         sbom_repository: SbomRepository | None = None,
+        rag_repository: RagRepository | None = None,
         flow_matrix_repository: FlowMatrixRepository | None = None,
         certificate_inventory_repository: CertificateInventoryRepository | None = None,
         network_config_compliance_repository: NetworkConfigComplianceRepository | None = None,
@@ -435,6 +447,11 @@ class ApplicationFactory:
                 sbom_repository = JsonSbomRepository(store)
             else:
                 sbom_repository = PostgreSQLSbomRepository(store)
+        if rag_repository is None:
+            if hasattr(store, "data"):
+                rag_repository = JsonRagRepository(store)
+            else:
+                rag_repository = PostgreSQLRagRepository(store)
         if flow_matrix_repository is None:
             if hasattr(store, "data"):
                 flow_matrix_repository = JsonFlowMatrixRepository(store)
@@ -622,6 +639,14 @@ class ApplicationFactory:
             security_service,
             SbomPayloadParser(),
         )
+        rag_service = RagService(
+            rag_repository,
+            audit_repository,
+            transaction_manager,
+            security_service,
+            source_of_truth_service,
+            DeterministicRagGenerator(),
+        )
         return OpenInfraApplication(
             store=store,
             dcim_service=DcimLocationService(
@@ -678,6 +703,7 @@ class ApplicationFactory:
             finops_service=finops_service,
             greenops_service=greenops_service,
             sbom_service=sbom_service,
+            rag_service=rag_service,
             flow_matrix_service=flow_matrix_service,
             certificate_pki_service=certificate_pki_service,
             network_config_compliance_service=network_config_compliance_service,
@@ -728,6 +754,7 @@ class ApplicationFactory:
             finops_repository=finops_repository,
             greenops_repository=greenops_repository,
             sbom_repository=sbom_repository,
+            rag_repository=rag_repository,
             flow_matrix_repository=flow_matrix_repository,
             certificate_inventory_repository=certificate_inventory_repository,
             network_config_compliance_repository=network_config_compliance_repository,

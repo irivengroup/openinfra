@@ -728,6 +728,44 @@ const MODULES = [
     { id: 'simulation-comparisons', label: 'Lister les comparaisons', path: '/v1/scenario-comparisons', method: 'GET', fields: [
       { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
     ] },
+    { id: 'rag-document-upsert', label: 'Indexer un document gouverné', path: '/v1/rag/documents/upsert', method: 'POST', fields: [
+      { name: 'source_type', label: 'Type de source', type: 'select', options: ['rsot', 'documentation', 'runbook', 'policy', 'other'], defaultValue: 'documentation', required: true },
+      { name: 'source_ref', label: 'Référence source', required: true }, { name: 'title', label: 'Titre', required: true },
+      { name: 'content', label: 'Contenu', type: 'textarea', required: true }, { name: 'source_uri', label: 'URI source' },
+      { name: 'required_permissions', label: 'Permissions requises', type: 'csv', defaultValue: 'rag.read' },
+      { name: 'tags', label: 'Tags', type: 'csv' }, { name: 'metadata', label: 'Métadonnées JSON', type: 'json', defaultValue: '{}' },
+      'Opérateur',
+    ] },
+    { id: 'rag-documents', label: 'Lister les documents gouvernés', path: '/v1/rag/documents', method: 'GET', fields: [
+      { name: 'source_type', label: 'Type de source' }, { name: 'active', label: 'Actif', type: 'boolean' },
+      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
+    ] },
+    { id: 'rag-document-get', label: 'Consulter un document gouverné', path: '/v1/rag/documents/get', method: 'GET', fields: [{ name: 'document_id', label: 'ID document', required: true }] },
+    { id: 'rag-document-deactivate', label: 'Désactiver un document gouverné', path: '/v1/rag/documents/deactivate', method: 'POST', fields: [{ name: 'document_id', label: 'ID document', required: true }, 'Opérateur'] },
+    { id: 'rag-rsot-sync', label: 'Synchroniser l’index depuis RSOT', path: '/v1/rag/index/rsot', method: 'POST', fields: [
+      { name: 'max_objects', label: 'Nombre maximal d’objets', type: 'number', defaultValue: '5000' },
+      { name: 'deactivate_missing', label: 'Désactiver les objets absents', type: 'boolean', defaultValue: 'false' }, 'Opérateur',
+    ] },
+    { id: 'rag-query', label: 'Interroger l’assistant gouverné', path: '/v1/rag/query', method: 'POST', fields: [
+      { name: 'question', label: 'Question', type: 'textarea', required: true },
+      { name: 'limit', label: 'Nombre maximal de citations', type: 'number', defaultValue: '6' }, 'Opérateur',
+    ] },
+    { id: 'rag-answers', label: 'Lister les réponses citées', path: '/v1/rag/answers', method: 'GET', fields: [
+      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
+    ] },
+    { id: 'rag-answer-get', label: 'Consulter une réponse citée', path: '/v1/rag/answers/get', method: 'GET', fields: [{ name: 'answer_id', label: 'ID réponse', required: true }] },
+    { id: 'rag-job-create', label: 'Créer un job RAG', path: '/v1/rag/jobs/create', method: 'POST', fields: [
+      { name: 'kind', label: 'Type de job', type: 'select', options: ['document-import', 'answer-export'], required: true },
+      { name: 'idempotency_key', label: 'Clé d’idempotence', required: true },
+      { name: 'payload', label: 'Charge utile JSON', type: 'json', required: true, defaultValue: '{}' },
+      { name: 'batch_size', label: 'Taille de lot', type: 'number', defaultValue: '100' }, 'Opérateur',
+    ] },
+    { id: 'rag-jobs', label: 'Lister les jobs RAG', path: '/v1/rag/jobs', method: 'GET', fields: [
+      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
+    ] },
+    { id: 'rag-job-get', label: 'Consulter un job RAG', path: '/v1/rag/jobs/get', method: 'GET', fields: [{ name: 'job_id', label: 'ID job', required: true }] },
+    { id: 'rag-job-run', label: 'Exécuter une tranche de job RAG', path: '/v1/rag/jobs/run', method: 'POST', fields: [{ name: 'job_id', label: 'ID job', required: true }, 'Opérateur'] },
+    { id: 'rag-job-artifact', label: 'Télécharger un export RAG', path: '/v1/rag/jobs/artifact', method: 'GET', download: true, fields: [{ name: 'job_id', label: 'ID job', required: true }] },
   ] },
   { id: 'ipam', label: 'IPAM', icon: 'grid', operations: [
     { id: 'ipam-dashboard', label: 'Dashboard IPAM', path: '/v1/ipam/ui-dashboard', method: 'GET', fields: ['VRF'] },
@@ -1114,6 +1152,9 @@ const SIDEBAR_CONTEXTS = {
     { label: 'Analyse d’impact', operationIds: ['graph-impact', 'graph-spof'] },
     { label: 'Exports', operationIds: ['graph-export'] },
     { label: 'Simulation & migrations', operationIds: ['simulation-create', 'simulation-list', 'simulation-run', 'simulation-reports', 'simulation-compare', 'simulation-comparisons'] },
+    { label: 'Assistant gouverné', operationIds: ['rag-query', 'rag-answers', 'rag-answer-get'] },
+    { label: 'Index de connaissances', operationIds: ['rag-document-upsert', 'rag-documents', 'rag-document-get', 'rag-document-deactivate', 'rag-rsot-sync'] },
+    { label: 'Imports / exports RAG', operationIds: ['rag-job-create', 'rag-jobs', 'rag-job-get', 'rag-job-run', 'rag-job-artifact'] },
   ],
   ipam: [
     { label: 'Vue & recherche', operationIds: ['ipam-dashboard', 'ipam-search'] },
@@ -1705,7 +1746,7 @@ function Dashboard() {
   }
 
   async function execute(form, fields) {
-    const isLiveOperation = selected.id.startsWith('graph-') || selected.id.startsWith('field-') || selected.id.startsWith('simulation-') || selected.id.startsWith('greenops-') || selected.id.startsWith('sbom-');
+    const isLiveOperation = selected.id.startsWith('graph-') || selected.id.startsWith('field-') || selected.id.startsWith('simulation-') || selected.id.startsWith('greenops-') || selected.id.startsWith('sbom-') || selected.id.startsWith('rag-');
     if (!isLiveOperation) {
       setResult({ tenant_id: tenant, action: selected.id, via: config.apiBaseUrl, trust: config.webBackendTrust });
       return;

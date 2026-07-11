@@ -1,3 +1,15 @@
+## v0.29.101 — RAG gouverné et cité
+
+| Exigence / Epic | Implémentation | Vérification |
+|---|---|---|
+| P16 / EPIC-1606, REQ-00013, REQ-00250 à REQ-00255 | `domain/rag.py`, `application/rag_services.py`, générateur extractif local | tests domaine, service et cas de sécurité |
+| Filtrage avant recherche | permissions par document et requêtes JSON/PostgreSQL tenant-aware | tests Viewer/Admin et dépôt PostgreSQL |
+| Réponses avec citations | `RagAnswer`, `RagCitation`, statut `insufficient-context` | tests invariants, HTTP et CLI |
+| Synchronisation RSOT sans mutation | projection versionnée et permission `rsot.read` | tests service et absence de route destructive |
+| Imports/exports relançables | `RagTransferJob`, lots, idempotence et artefacts SHA-256 | tests jobs, export JSON/CSV et téléchargement |
+| Interfaces regroupées sous RSOT | 13 routes, commandes `rag`, React/runtime statique | tests OpenAPI, web, accessibilité et packaging |
+| Persistance et audit | migration `0049_rag_governed_assistant.sql`, JSON/PostgreSQL, outbox | tests migration, repository et smoke du wheel |
+
 ## v0.29.100 — Correctif de démarrage du portail web
 
 - Défaut corrigé : écran blanc du runtime statique lors du calcul des métriques SBOM.

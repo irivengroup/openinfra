@@ -299,6 +299,21 @@ from openinfra.application.network_config_compliance_services import (
     SubmitNetworkConfigObservationCommand,
     UpsertNetworkConfigBaselineCommand,
 )
+from openinfra.application.rag_services import (
+    AskRagCommand,
+    CreateRagJobCommand,
+    DeactivateRagDocumentCommand,
+    GetRagAnswerCommand,
+    GetRagArtifactCommand,
+    GetRagDocumentCommand,
+    GetRagJobCommand,
+    ListRagAnswersCommand,
+    ListRagDocumentsCommand,
+    ListRagJobsCommand,
+    RunRagJobCommand,
+    SyncRsotRagCommand,
+    UpsertRagDocumentCommand,
+)
 from openinfra.application.sbom_services import (
     AssessSbomRiskCommand,
     CompareSbomsCommand,
@@ -1440,6 +1455,139 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     )
                 )
                 responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/rag/documents":
+            try:
+                query = parse_qs(parsed.query)
+                raw_active = query.get("active", [None])[0]
+                active: bool | None = None
+                if raw_active is not None:
+                    normalized_active = raw_active.strip().lower()
+                    if normalized_active in {"true", "1", "yes", "on"}:
+                        active = True
+                    elif normalized_active in {"false", "0", "no", "off"}:
+                        active = False
+                    else:
+                        raise ValidationError("active must be a boolean")
+                result = self.server.application.rag_service.list_documents(
+                    ListRagDocumentsCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        source_type=query.get("source_type", [None])[0],
+                        active=active,
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/rag/documents/get":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.rag_service.get_document(
+                    GetRagDocumentCommand(
+                        self._first_query_value(query, "tenant_id"),
+                        self._bearer_token(),
+                        self._first_query_value(query, "document_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/rag/answers":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.rag_service.list_answers(
+                    ListRagAnswersCommand(
+                        self._first_query_value(query, "tenant_id"),
+                        self._bearer_token(),
+                        int(self._first_query_value(query, "limit", "100")),
+                        query.get("cursor", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/rag/answers/get":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.rag_service.get_answer(
+                    GetRagAnswerCommand(
+                        self._first_query_value(query, "tenant_id"),
+                        self._bearer_token(),
+                        self._first_query_value(query, "answer_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/rag/jobs":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.rag_service.list_jobs(
+                    ListRagJobsCommand(
+                        self._first_query_value(query, "tenant_id"),
+                        self._bearer_token(),
+                        int(self._first_query_value(query, "limit", "100")),
+                        query.get("cursor", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/rag/jobs/get":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.rag_service.get_job(
+                    GetRagJobCommand(
+                        self._first_query_value(query, "tenant_id"),
+                        self._bearer_token(),
+                        self._first_query_value(query, "job_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/rag/jobs/artifact":
+            try:
+                query = parse_qs(parsed.query)
+                rag_artifact = self.server.application.rag_service.get_artifact(
+                    GetRagArtifactCommand(
+                        self._first_query_value(query, "tenant_id"),
+                        self._bearer_token(),
+                        self._first_query_value(query, "job_id"),
+                    )
+                )
+                binary_responder.send(
+                    HTTPStatus.OK,
+                    rag_artifact.content,
+                    rag_artifact.content_type,
+                    rag_artifact.filename,
+                )
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (ValueError, OpenInfraError) as exc:
@@ -3174,6 +3322,130 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         ),
                         owner=self._required_payload_value(payload, "owner"),
                         justification=self._required_payload_value(payload, "justification"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/rag/documents/upsert":
+            try:
+                payload = self._read_json_body()
+                raw_metadata = payload.get("metadata", {})
+                if not isinstance(raw_metadata, dict):
+                    raise ValidationError("metadata must be an object")
+                result = self.server.application.rag_service.upsert_document(
+                    UpsertRagDocumentCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        source_type=self._required_payload_value(payload, "source_type"),
+                        source_ref=self._required_payload_value(payload, "source_ref"),
+                        title=self._required_payload_value(payload, "title"),
+                        content=self._required_payload_value(payload, "content"),
+                        required_permissions=self._payload_string_tuple(
+                            payload, "required_permissions"
+                        )
+                        or (Permission.RAG_READ.value,),
+                        tags=self._payload_string_tuple(payload, "tags"),
+                        metadata={str(key): value for key, value in raw_metadata.items()},
+                        source_uri=self._optional_payload_value(payload, "source_uri"),
+                        actor=str(payload.get("actor", "api")),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/rag/documents/deactivate":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.rag_service.deactivate_document(
+                    DeactivateRagDocumentCommand(
+                        self._required_payload_value(payload, "tenant_id"),
+                        self._bearer_token(),
+                        self._required_payload_value(payload, "document_id"),
+                        str(payload.get("actor", "api")),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/rag/index/rsot":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.rag_service.sync_rsot(
+                    SyncRsotRagCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        actor=str(payload.get("actor", "api")),
+                        max_objects=int(payload.get("max_objects", 5000)),
+                        deactivate_missing=self._payload_bool(payload, "deactivate_missing", False),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/rag/query":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.rag_service.ask(
+                    AskRagCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        question=self._required_payload_value(payload, "question"),
+                        limit=int(payload.get("limit", 6)),
+                        actor=str(payload.get("actor", "api")),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/rag/jobs/create":
+            try:
+                payload = self._read_json_body()
+                raw_job_payload = payload.get("payload")
+                if not isinstance(raw_job_payload, dict):
+                    raise ValidationError("payload must be an object")
+                result = self.server.application.rag_service.create_job(
+                    CreateRagJobCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        kind=self._required_payload_value(payload, "kind"),
+                        idempotency_key=self._required_payload_value(payload, "idempotency_key"),
+                        payload={str(key): value for key, value in raw_job_payload.items()},
+                        batch_size=int(payload.get("batch_size", 100)),
+                        actor=str(payload.get("actor", "api")),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/rag/jobs/run":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.rag_service.run_job(
+                    RunRagJobCommand(
+                        self._required_payload_value(payload, "tenant_id"),
+                        self._bearer_token(),
+                        self._required_payload_value(payload, "job_id"),
+                        str(payload.get("actor", "api")),
                     )
                 )
                 responder.send(HTTPStatus.OK, result.as_dict())
@@ -7447,6 +7719,21 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "software_license": "/api/v1/itam/software-license",
                     "software_license_assignment": "/api/v1/itam/software-license/assignment",
                     "software_license_compliance": "/api/v1/itam/software-license/compliance",
+                },
+                "rag": {
+                    "documents": "/api/v1/rag/documents",
+                    "document_get": "/api/v1/rag/documents/get",
+                    "document_upsert": "/api/v1/rag/documents/upsert",
+                    "document_deactivate": "/api/v1/rag/documents/deactivate",
+                    "rsot_sync": "/api/v1/rag/index/rsot",
+                    "query": "/api/v1/rag/query",
+                    "answers": "/api/v1/rag/answers",
+                    "answer_get": "/api/v1/rag/answers/get",
+                    "jobs": "/api/v1/rag/jobs",
+                    "job_get": "/api/v1/rag/jobs/get",
+                    "job_create": "/api/v1/rag/jobs/create",
+                    "job_run": "/api/v1/rag/jobs/run",
+                    "job_artifact": "/api/v1/rag/jobs/artifact",
                 },
                 "sbom": {
                     "documents": "/api/v1/sbom/documents",

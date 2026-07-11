@@ -1,74 +1,71 @@
-# OpenInfra v0.29.100 — Rapport de validation
+# OpenInfra v0.29.101 — Rapport de validation
 
 Date de validation : `2026-07-11`  
-Release : `0.29.100`  
-Périmètre : correctif bloquant du démarrage du portail web packagé
+Release : `0.29.101`  
+Périmètre : P16 / EPIC-1606 — assistant RAG gouverné, cité et cloisonné par permissions
 
 ## Résultat global
 
-La livraison corrige l'écran blanc observé sur `openinfra-web`. Le runtime statique référençait `FIELD_SETS.cursor` dans cinq opérations SBOM sans déclarer ce champ partagé. Les tableaux de champs contenaient donc des valeurs `undefined`, puis le calcul des métriques du Dashboard levait une exception sur `field.required` avant tout rendu.
-
-- Tests Python collectés et validés : **888 PASS** dans **146 fichiers**.
-- Tests unitaires : **375 PASS**.
-- Tests d'intégration : **509 PASS**.
+- Tests Python collectés et validés : **914 PASS** dans **157 fichiers**.
+- Tests unitaires : **385 PASS**.
+- Tests d'intégration : **525 PASS**.
 - Tests d'architecture : **3 PASS**.
 - Tests de performance : **1 PASS**.
-- Couverture exacte : **98,0029060 %**, soit **31 701 / 32 347** lignes couvertes.
+- Couverture exacte : **98,0068810 %**, soit **33 044 / 33 716** lignes couvertes.
 - Seuil bloquant : **98 % PASS**.
-- Tests frontend Node.js : **36 PASS**.
-- Ruff format et lint : **PASS** sur **247 fichiers**.
-- mypy strict : **PASS** sur **82 modules**.
+- Tests frontend Node.js : **39 PASS**.
+- Ruff format et lint : **PASS** sur **262 fichiers Python**.
+- mypy strict : **PASS** sur **86 modules**.
 - Bandit, compilation, gates sécurité et qualité : **PASS**.
-- OpenAPI strict sans clé YAML dupliquée : **PASS**.
+- OpenAPI strict sans clé YAML dupliquée : **PASS** sur les deux spécifications.
 - Contrat WCAG 2.2 AA, JSX-a11y, build Vite et audit npm : **PASS**.
 - Audit npm production : **0 vulnérabilité**.
 
-## Correctifs validés
+## Contrats RAG validés
 
-- Déclaration du champ partagé `FIELD_SETS.cursor` utilisé par les listes SBOM.
-- Validation statique de toutes les références `FIELD_SETS.*` par `scripts/validate_frontend.py`.
-- Validation runtime du catalogue des composants, opérations et champs.
-- Compatibilité conservée avec les anciens champs définis par simple libellé texte.
-- Calcul des métriques rendu défensif avec `field?.required`.
-- Premier rendu du Dashboard avant les appels `/config.json`, `/version`, `/ready`, `/status` et catalogues backend.
-- Écran d'erreur fatal accessible si le point de montage, le catalogue ou l'initialisation JavaScript échoue.
-- Gestion explicite des rejets asynchrones de `start()`.
-- Revalidation HTTP systématique de `index.html` et des assets non versionnés (`Cache-Control: no-cache, max-age=0, must-revalidate`) pour empêcher la conservation de l’ancien bundle défectueux.
-- Test de non-régression vérifiant qu'une référence partagée manquante est rejetée par le gate frontend.
+- Documents tenant-aware, versionnés et désactivables sans suppression destructive.
+- Synchronisation RSOT en lecture seule avec import, mise à jour, idempotence et désactivation des projections obsolètes.
+- Filtrage tenant et permissions **avant** la recherche et avant la génération de réponse.
+- Recherche lexicale déterministe et générateur extractif local, sans appel à un service externe.
+- Citations obligatoires pour toute réponse au statut `answered`.
+- Statut `insufficient-context` sans citation lorsque les sources autorisées sont insuffisantes.
+- Audit des consultations par empreinte SHA-256 sans persistance de la question en clair.
+- Jobs d'import/export idempotents, paginés, relançables et contrôlés par empreinte d'artefact.
+- Rejet récursif des métadonnées contenant des clés sensibles.
+- Aucune action destructive, aucune mutation RSOT/DCIM/IPAM et aucune remédiation automatique.
+- Dépôts JSON local et PostgreSQL transactionnel avec outbox pour les événements critiques.
+- Rejet des curseurs, payloads, artefacts et données persistées invalides ou corrompus.
 
-## Reproduction navigateur
+## Interfaces et packaging
 
-Le runtime JavaScript packagé a été exécuté dans un navigateur headless avec réponses backend simulées :
-
-- avant correction : exception `Cannot read properties of undefined (reading 'required')` et racine vide ;
-- après correction : Dashboard rendu, racine DOM non vide et aucune exception de démarrage.
-
-## Packaging et compatibilité
-
-- Version synchronisée dans `VERSION`, `pyproject.toml`, package Python, package frontend, Compose, `.env.example` et OpenAPI.
-- Aucune route API, commande CLI, permission, migration ou structure de données modifiée.
-- Total migrations PostgreSQL inchangé : **48**.
-- Wheel et sdist `0.29.100` construits avec succès.
+- Parcours regroupé sous **RSOT → Assistant gouverné / Index de connaissances / Imports-exports RAG**.
+- **13 routes REST** sous `/api/v1/rag`.
+- Parité CLI sous `openinfra rag`.
+- Portail React et portail statique packagé alignés.
+- Migration ajoutée : `0049_rag_governed_assistant.sql`.
+- Total packagé : **49 migrations PostgreSQL**.
+- Wheel et sdist `0.29.101` construits avec succès.
+- Vérification du contenu du wheel et du sdist : **PASS**.
 - Installation du wheel dans une cible vierge : **PASS**.
-- Smoke installé : version, routes historiques, 48 migrations, quatre assets runtime et trois points d'entrée publics : **PASS**.
+- Smoke installé : version, 13 routes RAG, routes historiques, 49 migrations, quatre assets runtime et trois points d'entrée publics : **PASS**.
 
 ## Performance
 
-Benchmark déterministe sur **5 000 nœuds** et **100 SPOF** :
+Benchmark exécuté depuis le wheel installé sur **5 000 nœuds** et **100 SPOF** :
 
 | Scénario | p95 observé | Seuil |
 |---|---:|---:|
-| Graphe à un niveau | 261,993 ms | 1 500 ms |
-| Graphe filtré | 125,338 ms | 1 500 ms |
-| Analyse SPOF | 258,961 ms | 5 000 ms |
-| Pagination SPOF complète | 652,891 ms | 15 000 ms |
+| Graphe à un niveau | 220,538 ms | 1 500 ms |
+| Graphe filtré | 107,114 ms | 1 500 ms |
+| Analyse SPOF | 203,438 ms | 5 000 ms |
+| Pagination SPOF complète | 514,475 ms | 15 000 ms |
 
 Tous les seuils passent.
 
 ## Limites de l'environnement
 
-- `pip-audit` n'a pas pu interroger `pypi.org` en raison de l'échec de résolution DNS du runner.
-- Docker, Podman et PostgreSQL live ne sont pas disponibles dans l'environnement courant.
-- Les recettes statiques, installateurs, runtime natif et package installé ont néanmoins été validés.
+- `pip-audit -r requirements/security-audit.txt` n'a pas pu interroger `pypi.org` en raison d'un échec de résolution DNS du runner.
+- Docker, Podman, PostgreSQL live et un navigateur E2E complet ne sont pas disponibles dans l'environnement courant.
+- Les contrats statiques, les doubles PostgreSQL déterministes, les six profils d'installation, le runtime natif et le package installé ont néanmoins été validés.
 
-Le CDC et la roadmap restent inchangés : ce correctif ne modifie aucune exigence fonctionnelle, technique, réglementaire ou architecturale.
+Le CDC et la roadmap restent inchangés : l'EPIC-1606 et ses exigences y étaient déjà définis.

@@ -1,3 +1,27 @@
+## Validation RAG gouverné — v0.29.101
+
+```bash
+PYTHONPATH=src:. pytest -q --no-cov \
+  tests/unit/test_rag_domain.py \
+  tests/unit/test_rag_edge_cases.py \
+  tests/unit/test_rag_infrastructure.py \
+  tests/integration/test_rag_services.py \
+  tests/integration/test_rag_edge_coverage.py \
+  tests/integration/test_rag_cli.py \
+  tests/integration/test_rag_http_api.py \
+  tests/integration/test_rag_migration.py \
+  tests/integration/test_rag_postgresql_repository.py \
+  tests/integration/test_rag_web_contract.py
+
+PYTHONPATH=src:. python scripts/validate_openapi.py \
+  docs/api/openapi.yaml \
+  docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1/09-API/OpenAPI/openapi.yaml
+
+cd web && npm test && npm run lint && npm run a11y && npm run a11y:jsx && npm run build
+```
+
+Ces contrôles garantissent le filtrage tenant/permissions avant recherche, les citations obligatoires, l'audit sans question en clair, la synchronisation RSOT en lecture seule, les jobs d'import/export relançables, les 13 routes RAG, la migration `0049` et l'absence d'action destructive ou de service de génération externe.
+
 ## Validation correctif écran blanc — v0.29.100
 
 ```bash

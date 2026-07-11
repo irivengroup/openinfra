@@ -299,6 +299,21 @@ from openinfra.application.network_config_compliance_services import (
     SubmitNetworkConfigObservationCommand,
     UpsertNetworkConfigBaselineCommand,
 )
+from openinfra.application.rag_services import (
+    AskRagCommand,
+    CreateRagJobCommand,
+    DeactivateRagDocumentCommand,
+    GetRagAnswerCommand,
+    GetRagArtifactCommand,
+    GetRagDocumentCommand,
+    GetRagJobCommand,
+    ListRagAnswersCommand,
+    ListRagDocumentsCommand,
+    ListRagJobsCommand,
+    RunRagJobCommand,
+    SyncRsotRagCommand,
+    UpsertRagDocumentCommand,
+)
 from openinfra.application.sbom_services import (
     AssessSbomRiskCommand,
     CompareSbomsCommand,
@@ -400,6 +415,7 @@ class OpenInfraCLI:
         self._add_finops_commands(subparsers)
         self._add_greenops_commands(subparsers)
         self._add_sbom_commands(subparsers)
+        self._add_rag_commands(subparsers)
         self._add_flow_commands(subparsers)
         self._add_certificate_commands(subparsers)
         self._add_network_config_commands(subparsers)
@@ -2352,6 +2368,121 @@ class OpenInfraCLI:
 
     @staticmethod
     def _add_sbom_list_arguments(parser: Any) -> None:
+        parser.add_argument("--tenant", required=True)
+        parser.add_argument("--admin-token", required=True)
+        parser.add_argument("--limit", type=int, default=100)
+        parser.add_argument("--cursor")
+
+    def _add_rag_commands(self, subparsers: Any) -> None:
+        rag = subparsers.add_parser(
+            "rag", help="RSOT governed natural-language search and cited assistant"
+        )
+        commands = rag.add_subparsers(dest="rag_command", required=True)
+
+        upsert = commands.add_parser(
+            "document-upsert", help="index or revise one governed document"
+        )
+        self._add_backend_arguments(upsert)
+        for name in ("tenant", "admin-token", "source-type", "source-ref", "title"):
+            upsert.add_argument(f"--{name}", required=True)
+        upsert.add_argument("--file", type=Path, required=True)
+        upsert.add_argument("--source-uri")
+        upsert.add_argument("--required-permission", action="append", default=[])
+        upsert.add_argument("--tag", action="append", default=[])
+        upsert.add_argument("--metadata-file", type=Path)
+        upsert.add_argument("--actor", default="cli")
+        upsert.set_defaults(handler=self._handle_rag_document_upsert)
+
+        documents = commands.add_parser("documents", help="list indexed governed documents")
+        self._add_backend_arguments(documents)
+        self._add_rag_list_arguments(documents)
+        documents.add_argument("--source-type")
+        active_group = documents.add_mutually_exclusive_group()
+        active_group.add_argument("--active", action="store_true")
+        active_group.add_argument("--inactive", action="store_true")
+        documents.set_defaults(handler=self._handle_rag_documents)
+
+        document = commands.add_parser("document-get", help="read one governed document")
+        self._add_backend_arguments(document)
+        for name in ("tenant", "admin-token", "document-id"):
+            document.add_argument(f"--{name}", required=True)
+        document.set_defaults(handler=self._handle_rag_document)
+
+        deactivate = commands.add_parser("document-deactivate", help="deactivate one document")
+        self._add_backend_arguments(deactivate)
+        for name in ("tenant", "admin-token", "document-id"):
+            deactivate.add_argument(f"--{name}", required=True)
+        deactivate.add_argument("--actor", default="cli")
+        deactivate.set_defaults(handler=self._handle_rag_document_deactivate)
+
+        sync = commands.add_parser("sync-rsot", help="index authorized RSOT objects")
+        self._add_backend_arguments(sync)
+        for name in ("tenant", "admin-token"):
+            sync.add_argument(f"--{name}", required=True)
+        sync.add_argument("--max-objects", type=int, default=5000)
+        sync.add_argument("--deactivate-missing", action="store_true")
+        sync.add_argument("--actor", default="cli")
+        sync.set_defaults(handler=self._handle_rag_sync_rsot)
+
+        ask = commands.add_parser(
+            "ask", help="answer from authorized indexed sources with citations"
+        )
+        self._add_backend_arguments(ask)
+        for name in ("tenant", "admin-token", "question"):
+            ask.add_argument(f"--{name}", required=True)
+        ask.add_argument("--limit", type=int, default=6)
+        ask.add_argument("--actor", default="cli")
+        ask.set_defaults(handler=self._handle_rag_ask)
+
+        answers = commands.add_parser("answers", help="list governed RAG answers")
+        self._add_backend_arguments(answers)
+        self._add_rag_list_arguments(answers)
+        answers.set_defaults(handler=self._handle_rag_answers)
+
+        answer = commands.add_parser("answer-get", help="read one governed RAG answer")
+        self._add_backend_arguments(answer)
+        for name in ("tenant", "admin-token", "answer-id"):
+            answer.add_argument(f"--{name}", required=True)
+        answer.set_defaults(handler=self._handle_rag_answer)
+
+        job_create = commands.add_parser(
+            "job-create", help="create an asynchronous import/export job"
+        )
+        self._add_backend_arguments(job_create)
+        for name in ("tenant", "admin-token", "kind", "idempotency-key"):
+            job_create.add_argument(f"--{name}", required=True)
+        job_create.add_argument("--payload-file", type=Path, required=True)
+        job_create.add_argument("--batch-size", type=int, default=100)
+        job_create.add_argument("--actor", default="cli")
+        job_create.set_defaults(handler=self._handle_rag_job_create)
+
+        job_run = commands.add_parser("job-run", help="process the next job batch")
+        self._add_backend_arguments(job_run)
+        for name in ("tenant", "admin-token", "job-id"):
+            job_run.add_argument(f"--{name}", required=True)
+        job_run.add_argument("--actor", default="cli")
+        job_run.set_defaults(handler=self._handle_rag_job_run)
+
+        jobs = commands.add_parser("jobs", help="list RAG jobs")
+        self._add_backend_arguments(jobs)
+        self._add_rag_list_arguments(jobs)
+        jobs.set_defaults(handler=self._handle_rag_jobs)
+
+        job = commands.add_parser("job-get", help="read one RAG job")
+        self._add_backend_arguments(job)
+        for name in ("tenant", "admin-token", "job-id"):
+            job.add_argument(f"--{name}", required=True)
+        job.set_defaults(handler=self._handle_rag_job)
+
+        artifact = commands.add_parser("artifact", help="download a completed RAG export artifact")
+        self._add_backend_arguments(artifact)
+        for name in ("tenant", "admin-token", "job-id"):
+            artifact.add_argument(f"--{name}", required=True)
+        artifact.add_argument("--output", type=Path)
+        artifact.set_defaults(handler=self._handle_rag_artifact)
+
+    @staticmethod
+    def _add_rag_list_arguments(parser: Any) -> None:
         parser.add_argument("--tenant", required=True)
         parser.add_argument("--admin-token", required=True)
         parser.add_argument("--limit", type=int, default=100)
@@ -6553,6 +6684,162 @@ class OpenInfraCLI:
     @staticmethod
     def _print_sbom(payload: dict[str, object]) -> int:
         print(json.dumps(payload, indent=2, sort_keys=True))
+        return 0
+
+    @staticmethod
+    def _read_rag_json_object(path: Path, label: str) -> dict[str, object]:
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except OSError as exc:
+            raise ValidationError(f"cannot read {label} file: {exc}") from exc
+        except json.JSONDecodeError as exc:
+            raise ValidationError(f"{label} file is invalid JSON: {exc}") from exc
+        if not isinstance(value, dict):
+            raise ValidationError(f"{label} file must contain one JSON object")
+        return {str(key): item for key, item in value.items()}
+
+    def _handle_rag_document_upsert(self, args: argparse.Namespace) -> int:
+        try:
+            content = args.file.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise ValidationError(f"cannot read RAG document: {exc}") from exc
+        metadata = (
+            {}
+            if args.metadata_file is None
+            else self._read_rag_json_object(args.metadata_file, "RAG metadata")
+        )
+        permissions = tuple(args.required_permission or (Permission.RAG_READ.value,))
+        item = self._create_application(args).rag_service.upsert_document(
+            UpsertRagDocumentCommand(
+                args.tenant,
+                args.admin_token,
+                args.source_type,
+                args.source_ref,
+                args.title,
+                content,
+                permissions,
+                tuple(args.tag),
+                metadata,
+                args.source_uri,
+                args.actor,
+            )
+        )
+        return self._print_rag(item.as_dict())
+
+    def _handle_rag_documents(self, args: argparse.Namespace) -> int:
+        active: bool | None = None
+        if args.active:
+            active = True
+        elif args.inactive:
+            active = False
+        page = self._create_application(args).rag_service.list_documents(
+            ListRagDocumentsCommand(
+                args.tenant,
+                args.admin_token,
+                args.limit,
+                args.cursor,
+                args.source_type,
+                active,
+            )
+        )
+        return self._print_rag(page.as_dict())
+
+    def _handle_rag_document(self, args: argparse.Namespace) -> int:
+        item = self._create_application(args).rag_service.get_document(
+            GetRagDocumentCommand(args.tenant, args.admin_token, args.document_id)
+        )
+        return self._print_rag(item.as_dict())
+
+    def _handle_rag_document_deactivate(self, args: argparse.Namespace) -> int:
+        item = self._create_application(args).rag_service.deactivate_document(
+            DeactivateRagDocumentCommand(
+                args.tenant, args.admin_token, args.document_id, args.actor
+            )
+        )
+        return self._print_rag(item.as_dict())
+
+    def _handle_rag_sync_rsot(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).rag_service.sync_rsot(
+            SyncRsotRagCommand(
+                args.tenant,
+                args.admin_token,
+                args.actor,
+                args.max_objects,
+                args.deactivate_missing,
+            )
+        )
+        return self._print_rag(result.as_dict())
+
+    def _handle_rag_ask(self, args: argparse.Namespace) -> int:
+        item = self._create_application(args).rag_service.ask(
+            AskRagCommand(
+                args.tenant,
+                args.admin_token,
+                args.question,
+                args.limit,
+                args.actor,
+            )
+        )
+        return self._print_rag(item.as_dict())
+
+    def _handle_rag_answers(self, args: argparse.Namespace) -> int:
+        page = self._create_application(args).rag_service.list_answers(
+            ListRagAnswersCommand(args.tenant, args.admin_token, args.limit, args.cursor)
+        )
+        return self._print_rag(page.as_dict())
+
+    def _handle_rag_answer(self, args: argparse.Namespace) -> int:
+        item = self._create_application(args).rag_service.get_answer(
+            GetRagAnswerCommand(args.tenant, args.admin_token, args.answer_id)
+        )
+        return self._print_rag(item.as_dict())
+
+    def _handle_rag_job_create(self, args: argparse.Namespace) -> int:
+        payload = self._read_rag_json_object(args.payload_file, "RAG job payload")
+        item = self._create_application(args).rag_service.create_job(
+            CreateRagJobCommand(
+                args.tenant,
+                args.admin_token,
+                args.kind,
+                args.idempotency_key,
+                payload,
+                args.batch_size,
+                args.actor,
+            )
+        )
+        return self._print_rag(item.as_dict())
+
+    def _handle_rag_job_run(self, args: argparse.Namespace) -> int:
+        item = self._create_application(args).rag_service.run_job(
+            RunRagJobCommand(args.tenant, args.admin_token, args.job_id, args.actor)
+        )
+        return self._print_rag(item.as_dict())
+
+    def _handle_rag_jobs(self, args: argparse.Namespace) -> int:
+        page = self._create_application(args).rag_service.list_jobs(
+            ListRagJobsCommand(args.tenant, args.admin_token, args.limit, args.cursor)
+        )
+        return self._print_rag(page.as_dict())
+
+    def _handle_rag_job(self, args: argparse.Namespace) -> int:
+        item = self._create_application(args).rag_service.get_job(
+            GetRagJobCommand(args.tenant, args.admin_token, args.job_id)
+        )
+        return self._print_rag(item.as_dict())
+
+    def _handle_rag_artifact(self, args: argparse.Namespace) -> int:
+        artifact = self._create_application(args).rag_service.get_artifact(
+            GetRagArtifactCommand(args.tenant, args.admin_token, args.job_id)
+        )
+        if args.output is None:
+            sys.stdout.buffer.write(artifact.content)
+        else:
+            args.output.write_bytes(artifact.content)
+        return 0
+
+    @staticmethod
+    def _print_rag(payload: dict[str, object]) -> int:
+        print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
         return 0
 
     @staticmethod

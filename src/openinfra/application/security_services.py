@@ -139,6 +139,8 @@ class BuiltinRolePolicy:
                 Permission.FINOPS_READ,
                 Permission.GREENOPS_READ,
                 Permission.SBOM_READ,
+                Permission.RAG_READ,
+                Permission.RAG_QUERY,
             )
         ),
         "rsot:reader": frozenset(
@@ -330,6 +332,33 @@ class BuiltinRolePolicy:
                 Permission.SBOM_ADMIN,
                 Permission.RSOT_READ,
                 Permission.FLOW_READ,
+                Permission.AUDIT_READ,
+                Permission.SCHEMA_READ,
+            )
+        ),
+        "rag:reader": frozenset(
+            (Permission.RAG_READ, Permission.RAG_QUERY, Permission.SCHEMA_READ)
+        ),
+        "rag:operator": frozenset(
+            (
+                Permission.RAG_READ,
+                Permission.RAG_WRITE,
+                Permission.RAG_IMPORT,
+                Permission.RAG_EXPORT,
+                Permission.RAG_QUERY,
+                Permission.RSOT_READ,
+                Permission.SCHEMA_READ,
+            )
+        ),
+        "rag:admin": frozenset(
+            (
+                Permission.RAG_READ,
+                Permission.RAG_WRITE,
+                Permission.RAG_IMPORT,
+                Permission.RAG_EXPORT,
+                Permission.RAG_QUERY,
+                Permission.RAG_ADMIN,
+                Permission.RSOT_READ,
                 Permission.AUDIT_READ,
                 Permission.SCHEMA_READ,
             )

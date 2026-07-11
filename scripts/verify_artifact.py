@@ -34,6 +34,10 @@ class WheelVerifier:
             "openinfra/infrastructure/greenops_mapper.py",
             "openinfra/application/greenops_services.py",
             "openinfra/domain/greenops.py",
+            "openinfra/domain/rag.py",
+            "openinfra/application/rag_services.py",
+            "openinfra/infrastructure/rag_mapper.py",
+            "openinfra/infrastructure/rag_generator.py",
             "openinfra/domain/sbom.py",
             "openinfra/application/sbom_services.py",
             "openinfra/infrastructure/sbom_mapper.py",
@@ -58,6 +62,7 @@ class WheelVerifier:
             "openinfra/migrations/postgresql/0046_finops_costs_showback.sql",
             "openinfra/migrations/postgresql/0047_greenops_energy_capacity.sql",
             "openinfra/migrations/postgresql/0048_sbom_vulnerabilities_exposure.sql",
+            "openinfra/migrations/postgresql/0049_rag_governed_assistant.sql",
         )
         missing = [
             suffix

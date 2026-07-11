@@ -108,6 +108,17 @@ from openinfra.domain.network_config_compliance import (
     NetworkConfigBaseline,
     NetworkConfigObservation,
 )
+from openinfra.domain.rag import (
+    RagAnswer,
+    RagAnswerPage,
+    RagArtifact,
+    RagCitation,
+    RagDocument,
+    RagDocumentPage,
+    RagJobPage,
+    RagSearchResult,
+    RagTransferJob,
+)
 from openinfra.domain.sbom import (
     ExposureContext,
     ParsedSbom,
@@ -1835,6 +1846,90 @@ class GreenOpsRepository(ABC):
 class SbomPayloadParserPort(ABC):
     @abstractmethod
     def parse(self, payload: bytes | str | dict[str, object]) -> ParsedSbom:
+        raise TypeError("adapter contract invoked directly")
+
+
+class RagGeneratorPort(ABC):
+    @abstractmethod
+    def generate(self, question: str, citations: tuple[RagCitation, ...]) -> str:
+        raise TypeError("adapter contract invoked directly")
+
+
+class RagRepository(ABC):
+    @abstractmethod
+    def save_document(self, document: RagDocument) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_document(self, tenant_id: TenantId, document_id: str) -> RagDocument | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_active_document(
+        self, tenant_id: TenantId, source_type: str, source_ref: str
+    ) -> RagDocument | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_documents(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        source_type: str | None = None,
+        active: bool | None = None,
+    ) -> RagDocumentPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def search(
+        self,
+        tenant_id: TenantId,
+        query: str,
+        permissions: frozenset[str],
+        limit: int,
+    ) -> RagSearchResult:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_answer(self, answer: RagAnswer) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_answer(self, tenant_id: TenantId, answer_id: str) -> RagAnswer | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_answers(self, tenant_id: TenantId, pagination: Pagination) -> RagAnswerPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_job(self, job: RagTransferJob) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_job(self, tenant_id: TenantId, job_id: str) -> RagTransferJob | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_job_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> RagTransferJob | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_jobs(self, tenant_id: TenantId, pagination: Pagination) -> RagJobPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_artifact(self, tenant_id: TenantId, job_id: str, artifact: RagArtifact) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_artifact(self, tenant_id: TenantId, job_id: str) -> RagArtifact | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def append_event(self, event: DomainEvent) -> None:
         raise TypeError("adapter contract invoked directly")
 
 

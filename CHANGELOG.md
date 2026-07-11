@@ -1,3 +1,11 @@
+## 0.29.101 - 2026-07-11
+
+- Réalisation de P16 / EPIC-1606 avec un assistant RAG local, déterministe et gouverné sous RSOT.
+- Ajout de documents versionnés, fragments indexés, réponses citées, synchronisation RSOT en lecture seule et jobs d’import/export relançables.
+- Filtrage strict tenant/permissions avant recherche, audit sans question en clair et absence garantie d’action destructive.
+- Ajout de 13 routes REST, de la parité CLI/UI/OpenAPI, des adaptateurs JSON/PostgreSQL et de la migration `0049_rag_governed_assistant.sql`.
+- Ajout d’un gate CI dédié couvrant domaine, service, CLI, HTTP, PostgreSQL, migration et interfaces.
+
 # Changelog
 
 ## 0.29.100 - 2026-07-11

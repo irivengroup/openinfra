@@ -136,6 +136,7 @@ class BuiltinRolePolicy:
                 Permission.NETWORK_CONFIG_READ,
                 Permission.FIELD_READ,
                 Permission.SIMULATION_READ,
+                Permission.FINOPS_READ,
             )
         ),
         "rsot:reader": frozenset(
@@ -251,6 +252,29 @@ class BuiltinRolePolicy:
                 Permission.SIMULATION_ADMIN,
                 Permission.RSOT_READ,
                 Permission.FLOW_READ,
+                Permission.AUDIT_READ,
+                Permission.SCHEMA_READ,
+            )
+        ),
+        "finops:reader": frozenset((Permission.FINOPS_READ, Permission.SCHEMA_READ)),
+        "finops:operator": frozenset(
+            (
+                Permission.FINOPS_READ,
+                Permission.FINOPS_WRITE,
+                Permission.FINOPS_IMPORT,
+                Permission.FINOPS_EXPORT,
+                Permission.ITAM_READ,
+                Permission.SCHEMA_READ,
+            )
+        ),
+        "finops:admin": frozenset(
+            (
+                Permission.FINOPS_READ,
+                Permission.FINOPS_WRITE,
+                Permission.FINOPS_IMPORT,
+                Permission.FINOPS_EXPORT,
+                Permission.FINOPS_ADMIN,
+                Permission.ITAM_READ,
                 Permission.AUDIT_READ,
                 Permission.SCHEMA_READ,
             )

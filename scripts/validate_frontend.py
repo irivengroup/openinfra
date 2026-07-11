@@ -78,7 +78,7 @@ class FrontendContractValidator:
             or "RESOURCE_CATEGORY_OPTIONS" not in main_source
             or "Rack server" not in main_source
             or "physical-server" in main_source
-            or "Certificats et PKI" not in main_source
+            or "Inventaire PKI" not in main_source
             or "/v1/certificates/import" not in main_source
             or "/v1/certificates/get" not in main_source
             or "/v1/certificates/endpoints/observe" not in main_source
@@ -579,7 +579,7 @@ class FrontendContractValidator:
             "/v1/ipam/ddi-preview",
             "RT import",
             "Fournisseurs DDI",
-            "Certificats et PKI",
+            "Inventaire PKI",
             "/v1/certificates/import",
             "/v1/certificates/get",
             "/v1/certificates/endpoints/observe",

@@ -1,3 +1,13 @@
+# Changelog
+
+## 0.29.97 - 2026-07-11
+
+- Ajout de P16 / EPIC-1603 : imports de coûts idempotents, règles d’allocation, budgets, anomalies, prévisions, showback, chargeback contrôlé et clôture reproductible.
+- Ajout de 18 routes FinOps, de la parité CLI, des interfaces React/runtime et de la migration PostgreSQL `0046_finops_costs_showback.sql`.
+- Refus récursif des métadonnées de facturation contenant des clés sensibles et utilisation exclusive de montants `Decimal`.
+- Reclassement de Flux réseau et Conformité réseau sous IPAM, et de Certificats & PKI sous Sécurité, sans rupture des routes ni permissions.
+- Ajout des tests domaine, service, HTTP, CLI, migration, OpenAPI, UI, sécurité, packaging et couverture des cas limites.
+
 ## v0.29.96 — Simulation de changement et migration
 
 - Ajout des scénarios immuables de changement/migration et de dix changements typés.

@@ -13,7 +13,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.29.96"
+    EXPECTED_VERSION = "0.29.97"
     EXPECTED_GRAPH_ROUTES = (
         "/api/v1/graph/traverse",
         "/api/v1/graph/impact",
@@ -57,6 +57,26 @@ class InstalledWheelSmoke:
         "/api/v1/scenario-comparisons",
         "/api/v1/scenario-comparisons/create",
     )
+    EXPECTED_FINOPS_ROUTES = (
+        "/api/v1/finops/allocation-rules",
+        "/api/v1/finops/allocation-rules/create",
+        "/api/v1/finops/import-jobs",
+        "/api/v1/finops/import-jobs/get",
+        "/api/v1/finops/import-jobs/submit",
+        "/api/v1/finops/import-jobs/run",
+        "/api/v1/finops/import-jobs/cancel",
+        "/api/v1/finops/cost-records",
+        "/api/v1/finops/budgets",
+        "/api/v1/finops/budgets/upsert",
+        "/api/v1/finops/periods",
+        "/api/v1/finops/periods/close",
+        "/api/v1/finops/reports",
+        "/api/v1/finops/reports/get",
+        "/api/v1/finops/reports/generate",
+        "/api/v1/finops/reports/export",
+        "/api/v1/finops/anomalies",
+        "/api/v1/finops/forecasts",
+    )
     EXPECTED_FIELD_OPERATION_ROUTES = (
         "/api/v1/field-operation-sheets",
         "/api/v1/field-operation-sheets/get",
@@ -76,8 +96,8 @@ class InstalledWheelSmoke:
         "/api/v1/offline-sync-packages/create",
         "/api/v1/offline-sync-packages/synchronize",
     )
-    EXPECTED_LAST_MIGRATION = "0045_simulation_migration_planning.sql"
-    EXPECTED_MIGRATION_COUNT = 45
+    EXPECTED_LAST_MIGRATION = "0046_finops_costs_showback.sql"
+    EXPECTED_MIGRATION_COUNT = 46
     EXPECTED_ASSETS = (
         "openinfra-web.js",
         "openinfra-web.css",
@@ -94,6 +114,7 @@ class InstalledWheelSmoke:
         self._assert_certificate_routes(openapi)
         self._assert_network_config_routes(openapi)
         self._assert_field_operation_routes(openapi)
+        self._assert_finops_routes(openapi)
         self._assert_simulation_routes(openapi)
         migrations = self._assert_migrations(package_root)
         self._assert_assets(package_root)
@@ -106,6 +127,7 @@ class InstalledWheelSmoke:
             "certificate_routes": len(self.EXPECTED_CERTIFICATE_ROUTES),
             "network_config_routes": len(self.EXPECTED_NETWORK_CONFIG_ROUTES),
             "field_operation_routes": len(self.EXPECTED_FIELD_OPERATION_ROUTES),
+            "finops_routes": len(self.EXPECTED_FINOPS_ROUTES),
             "simulation_routes": len(self.EXPECTED_SIMULATION_ROUTES),
             "migrations": len(migrations),
             "last_migration": migrations[-1].name,
@@ -158,6 +180,13 @@ class InstalledWheelSmoke:
         if missing:
             raise InstalledWheelSmokeError(
                 "installed OpenAPI document is missing simulation routes: " + ", ".join(missing)
+            )
+
+    def _assert_finops_routes(self, openapi: str) -> None:
+        missing = [route for route in self.EXPECTED_FINOPS_ROUTES if route not in openapi]
+        if missing:
+            raise InstalledWheelSmokeError(
+                "installed OpenAPI document is missing FinOps routes: " + ", ".join(missing)
             )
 
     def _assert_field_operation_routes(self, openapi: str) -> None:

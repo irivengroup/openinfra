@@ -30,6 +30,7 @@ from openinfra.application.field_operation_services import (
     FieldOperationService,
     FieldSafetyAssessmentService,
 )
+from openinfra.application.finops_services import FinOpsService
 from openinfra.application.flow_matrix_services import FlowMatrixService
 from openinfra.application.identity_services import IdentityService
 from openinfra.application.import_services import GenericImportService
@@ -53,6 +54,7 @@ from openinfra.application.ports import (
     DiscoveryRepository,
     ExportRepository,
     FieldOperationRepository,
+    FinOpsRepository,
     FlowMatrixRepository,
     IdentityRepository,
     ImportRepository,
@@ -89,6 +91,7 @@ from openinfra.infrastructure.json_store import (
     JsonDocumentStore,
     JsonExportRepository,
     JsonFieldOperationRepository,
+    JsonFinOpsRepository,
     JsonFlowMatrixRepository,
     JsonIdentityRepository,
     JsonImportRepository,
@@ -115,6 +118,7 @@ from openinfra.infrastructure.postgresql import (
     PostgreSQLDiscoveryRepository,
     PostgreSQLExportRepository,
     PostgreSQLFieldOperationRepository,
+    PostgreSQLFinOpsRepository,
     PostgreSQLFlowMatrixRepository,
     PostgreSQLIdentityRepository,
     PostgreSQLImportRepository,
@@ -155,6 +159,7 @@ class OpenInfraApplication:
     dependency_graph_service: DependencyGraphService
     field_operation_service: FieldOperationService
     simulation_service: SimulationService
+    finops_service: FinOpsService
     flow_matrix_service: FlowMatrixService
     certificate_pki_service: CertificatePkiService
     network_config_compliance_service: NetworkConfigComplianceService
@@ -166,6 +171,7 @@ class OpenInfraApplication:
     discovery_repository: DiscoveryRepository
     field_operation_repository: FieldOperationRepository
     simulation_repository: SimulationRepository
+    finops_repository: FinOpsRepository
     flow_matrix_repository: FlowMatrixRepository
     certificate_inventory_repository: CertificateInventoryRepository
     network_config_compliance_repository: NetworkConfigComplianceRepository
@@ -224,6 +230,7 @@ class ApplicationFactory:
         export_repository = JsonExportRepository(store)
         field_operation_repository = JsonFieldOperationRepository(store)
         simulation_repository = JsonSimulationRepository(store)
+        finops_repository = JsonFinOpsRepository(store)
         flow_matrix_repository = JsonFlowMatrixRepository(store)
         certificate_inventory_repository = JsonCertificateInventoryRepository(store)
         network_config_compliance_repository = JsonNetworkConfigComplianceRepository(store)
@@ -253,6 +260,7 @@ class ApplicationFactory:
             discovery_repository=discovery_repository,
             field_operation_repository=field_operation_repository,
             simulation_repository=simulation_repository,
+            finops_repository=finops_repository,
             flow_matrix_repository=flow_matrix_repository,
             certificate_inventory_repository=certificate_inventory_repository,
             network_config_compliance_repository=network_config_compliance_repository,
@@ -285,6 +293,7 @@ class ApplicationFactory:
         export_repository = PostgreSQLExportRepository(registry)
         field_operation_repository = PostgreSQLFieldOperationRepository(registry)
         simulation_repository = PostgreSQLSimulationRepository(registry)
+        finops_repository = PostgreSQLFinOpsRepository(registry)
         flow_matrix_repository = PostgreSQLFlowMatrixRepository(registry)
         certificate_inventory_repository = PostgreSQLCertificateInventoryRepository(registry)
         network_config_compliance_repository = PostgreSQLNetworkConfigComplianceRepository(registry)
@@ -314,6 +323,7 @@ class ApplicationFactory:
             discovery_repository=discovery_repository,
             field_operation_repository=field_operation_repository,
             simulation_repository=simulation_repository,
+            finops_repository=finops_repository,
             flow_matrix_repository=flow_matrix_repository,
             certificate_inventory_repository=certificate_inventory_repository,
             network_config_compliance_repository=network_config_compliance_repository,
@@ -346,6 +356,7 @@ class ApplicationFactory:
         discovery_repository: DiscoveryRepository | None = None,
         field_operation_repository: FieldOperationRepository | None = None,
         simulation_repository: SimulationRepository | None = None,
+        finops_repository: FinOpsRepository | None = None,
         flow_matrix_repository: FlowMatrixRepository | None = None,
         certificate_inventory_repository: CertificateInventoryRepository | None = None,
         network_config_compliance_repository: NetworkConfigComplianceRepository | None = None,
@@ -386,6 +397,11 @@ class ApplicationFactory:
                 simulation_repository = JsonSimulationRepository(store)
             else:
                 simulation_repository = PostgreSQLSimulationRepository(store)
+        if finops_repository is None:
+            if hasattr(store, "data"):
+                finops_repository = JsonFinOpsRepository(store)
+            else:
+                finops_repository = PostgreSQLFinOpsRepository(store)
         if flow_matrix_repository is None:
             if hasattr(store, "data"):
                 flow_matrix_repository = JsonFlowMatrixRepository(store)
@@ -554,6 +570,12 @@ class ApplicationFactory:
                 dependency_graph_service,
             ),
         )
+        finops_service = FinOpsService(
+            finops_repository,
+            audit_repository,
+            transaction_manager,
+            security_service,
+        )
         return OpenInfraApplication(
             store=store,
             dcim_service=DcimLocationService(
@@ -607,6 +629,7 @@ class ApplicationFactory:
             dependency_graph_service=dependency_graph_service,
             field_operation_service=field_operation_service,
             simulation_service=simulation_service,
+            finops_service=finops_service,
             flow_matrix_service=flow_matrix_service,
             certificate_pki_service=certificate_pki_service,
             network_config_compliance_service=network_config_compliance_service,
@@ -654,6 +677,7 @@ class ApplicationFactory:
             discovery_repository=discovery_repository,
             field_operation_repository=field_operation_repository,
             simulation_repository=simulation_repository,
+            finops_repository=finops_repository,
             flow_matrix_repository=flow_matrix_repository,
             certificate_inventory_repository=certificate_inventory_repository,
             network_config_compliance_repository=network_config_compliance_repository,

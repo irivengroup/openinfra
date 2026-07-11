@@ -718,3 +718,35 @@ python scripts/verify_artifact.py dist/openinfra-0.29.96-py3-none-any.whl
 ```
 
 Vérifier dans chaque rapport les valeurs `production_mutation=false` et `execution_order=false`. Une analyse `truncated=true` n’est pas exhaustive et doit être relancée avec un périmètre ou une limite adaptés.
+
+## FinOps et rangement de navigation — v0.29.97
+
+```bash
+PYTHONPATH=src:. pytest -q --no-cov \
+  tests/unit/test_finops_domain.py \
+  tests/unit/test_finops_edge_cases.py \
+  tests/integration/test_finops_services.py \
+  tests/integration/test_finops_http_api.py \
+  tests/integration/test_finops_cli.py \
+  tests/integration/test_finops_migration.py \
+  tests/integration/test_finops_web_contract.py \
+  tests/integration/test_navigation_grouping_contract.py
+
+PYTHONPATH=src:. pytest -q --no-cov \
+  tests/integration/test_certificate_pki_web_contract.py \
+  tests/integration/test_openinfra_web.py \
+  tests/integration/test_web_accessibility_contract.py
+
+PYTHONPATH=src:. python scripts/validate_openapi.py \
+  docs/api/openapi.yaml \
+  docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1/09-API/OpenAPI/openapi.yaml
+
+ruff format --check src tests scripts docker installers
+ruff check src tests scripts docker installers
+mypy src/openinfra
+bandit -q -r src/openinfra
+python -m build
+python scripts/verify_artifact.py dist/openinfra-0.29.97-py3-none-any.whl
+```
+
+Vérifier que les rapports FinOps contiennent `production_billing_mutation=false`, que les périodes clôturées conservent leur digest et que la navigation n’expose plus Flux, Conformité réseau ou Certificats comme composants de premier niveau.

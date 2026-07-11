@@ -9,7 +9,7 @@ import secrets
 import threading
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any, ClassVar, Protocol, Self, cast
 
@@ -20,6 +20,10 @@ from openinfra.application.ports import (
     CertificateAssetPage,
     CertificateEndpointPage,
     CertificateInventoryRepository,
+    CostAllocationRulePage,
+    CostAnomalyPage,
+    CostImportJobPage,
+    CostRecordPage,
     DcimRepository,
     DiscoveryCollectorPage,
     DiscoveryEvidencePage,
@@ -32,6 +36,11 @@ from openinfra.application.ports import (
     ExportRepository,
     FieldOperationRepository,
     FieldOperationSheetPage,
+    FinancialPeriodPage,
+    FinOpsBudgetPage,
+    FinOpsForecastPage,
+    FinOpsReportPage,
+    FinOpsRepository,
     FlowDeclarationPage,
     FlowMatrixRepository,
     FlowObservationPage,
@@ -147,6 +156,16 @@ from openinfra.domain.field_operations import (
     InterventionLock,
     OfflineSyncPackage,
 )
+from openinfra.domain.finops import (
+    CostAllocationRule,
+    CostAnomaly,
+    CostImportJob,
+    CostRecord,
+    FinancialPeriod,
+    FinOpsBudget,
+    FinOpsForecast,
+    FinOpsReport,
+)
 from openinfra.domain.flow_matrix import (
     FlowDeclaration,
     FlowObservation,
@@ -205,6 +224,7 @@ from openinfra.domain.source_of_truth import (
     SourceRelationPage,
 )
 from openinfra.infrastructure.field_operation_mapper import FieldOperationRecordMapper
+from openinfra.infrastructure.finops_mapper import FinOpsRecordMapper
 from openinfra.infrastructure.simulation_mapper import SimulationRecordMapper
 
 
@@ -7433,6 +7453,539 @@ class PostgreSQLSimulationRepository(PostgreSQLRepositoryBase, SimulationReposit
         loaded = json.loads(value) if isinstance(value, str) else value
         if not isinstance(loaded, Mapping):
             raise ValidationError("simulation payload must be a JSON object")
+        return {str(key): item for key, item in loaded.items()}
+
+
+class PostgreSQLFinOpsRepository(PostgreSQLRepositoryBase, FinOpsRepository):
+    def save_allocation_rule(self, rule: CostAllocationRule) -> None:
+        self._upsert_payload(
+            "finops_allocation_rules",
+            rule.tenant_id,
+            rule.id.value,
+            rule.as_dict(),
+            "priority, active, dimension",
+            {
+                "priority": rule.priority,
+                "active": rule.active,
+                "dimension": rule.dimension.value,
+            },
+        )
+
+    def list_allocation_rules(
+        self, tenant_id: TenantId, pagination: Pagination, active_only: bool = False
+    ) -> CostAllocationRulePage:
+        predicate = "AND active = TRUE" if active_only else ""
+        rows, next_cursor = self._payload_page(
+            "finops_allocation_rules",
+            tenant_id,
+            pagination,
+            predicate,
+            {},
+            "priority ASC, id ASC",
+        )
+        return CostAllocationRulePage(
+            tuple(FinOpsRecordMapper.allocation_rule(row) for row in rows), next_cursor
+        )
+
+    def save_import_job(self, job: CostImportJob) -> None:
+        self._upsert_payload(
+            "finops_import_jobs",
+            job.tenant_id,
+            job.id.value,
+            job.as_dict(include_records=True),
+            "idempotency_key, status, submitted_at",
+            {
+                "idempotency_key": job.idempotency_key,
+                "status": job.status.value,
+                "submitted_at": job.submitted_at,
+            },
+        )
+
+    def get_import_job(self, tenant_id: TenantId, job_id: str) -> CostImportJob | None:
+        value = self._get_payload("finops_import_jobs", tenant_id, job_id)
+        return FinOpsRecordMapper.import_job(value) if value else None
+
+    def find_import_job_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> CostImportJob | None:
+        value = self._find_payload(
+            "finops_import_jobs", tenant_id, "idempotency_key", idempotency_key.strip()
+        )
+        return FinOpsRecordMapper.import_job(value) if value else None
+
+    def list_import_jobs(
+        self, tenant_id: TenantId, pagination: Pagination, status: str | None = None
+    ) -> CostImportJobPage:
+        predicate = "" if status is None else "AND status = %(status)s"
+        params: dict[str, object] = {} if status is None else {"status": status.strip().lower()}
+        rows, next_cursor = self._payload_page(
+            "finops_import_jobs",
+            tenant_id,
+            pagination,
+            predicate,
+            params,
+            "submitted_at DESC, id DESC",
+        )
+        return CostImportJobPage(
+            tuple(FinOpsRecordMapper.import_job(row) for row in rows), next_cursor
+        )
+
+    def save_cost_record(self, record: CostRecord) -> None:
+        self._ensure_tenant(record.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO finops_cost_records (
+                id, tenant_id, idempotency_key, period_start, period_end,
+                currency, category, source, quality_status, amount, payload, created_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(idempotency_key)s, %(period_start)s, %(period_end)s,
+                %(currency)s, %(category)s, %(source)s, %(quality_status)s, %(amount)s,
+                %(payload)s, %(created_at)s
+            )
+            ON CONFLICT (tenant_id, period_start, id) DO UPDATE SET
+                period_end = EXCLUDED.period_end,
+                currency = EXCLUDED.currency,
+                category = EXCLUDED.category,
+                source = EXCLUDED.source,
+                quality_status = EXCLUDED.quality_status,
+                amount = EXCLUDED.amount,
+                payload = EXCLUDED.payload
+            """,
+            {
+                "id": record.id.value,
+                "tenant_id": record.tenant_id.value,
+                "idempotency_key": record.idempotency_key,
+                "period_start": record.period_start,
+                "period_end": record.period_end,
+                "currency": record.currency,
+                "category": record.category.value,
+                "source": record.source,
+                "quality_status": record.quality_status.value,
+                "amount": record.amount,
+                "payload": json.dumps(record.as_dict(), sort_keys=True),
+                "created_at": record.imported_at,
+            },
+        )
+
+    def find_cost_record_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> CostRecord | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM finops_cost_records
+            WHERE tenant_id = %(tenant_id)s AND idempotency_key = %(idempotency_key)s
+            ORDER BY period_start DESC LIMIT 1
+            """,
+            {"tenant_id": tenant_id.value, "idempotency_key": idempotency_key.strip()},
+        )
+        return (
+            None
+            if row is None
+            else FinOpsRecordMapper.cost_record(self._json_mapping(row["payload"]))
+        )
+
+    def list_cost_records(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        period_start: date | None = None,
+        period_end: date | None = None,
+        currency: str | None = None,
+        category: str | None = None,
+        source: str | None = None,
+        quality_status: str | None = None,
+    ) -> CostRecordPage:
+        filters: list[str] = []
+        params: dict[str, object] = {}
+        candidates = {
+            "period_start": period_start,
+            "period_end": period_end,
+            "currency": currency.strip().upper() if currency else None,
+            "category": category.strip().lower() if category else None,
+            "source": source.strip().lower().replace("_", "-") if source else None,
+            "quality_status": quality_status.strip().lower() if quality_status else None,
+        }
+        for name, value in candidates.items():
+            if value is None:
+                continue
+            operator = ">=" if name == "period_start" else "<=" if name == "period_end" else "="
+            filters.append(f"AND {name} {operator} %({name})s")
+            params[name] = value
+        rows, next_cursor = self._payload_page(
+            "finops_cost_records",
+            tenant_id,
+            pagination,
+            " ".join(filters),
+            params,
+            "period_start DESC, id DESC",
+        )
+        return CostRecordPage(
+            tuple(FinOpsRecordMapper.cost_record(row) for row in rows), next_cursor
+        )
+
+    def save_budget(self, budget: FinOpsBudget) -> None:
+        self._upsert_payload(
+            "finops_budgets",
+            budget.tenant_id,
+            budget.id.value,
+            budget.as_dict(),
+            "dimension, target, period_start, period_end, currency",
+            {
+                "dimension": budget.dimension.value,
+                "target": budget.target,
+                "period_start": budget.period_start,
+                "period_end": budget.period_end,
+                "currency": budget.currency,
+            },
+        )
+
+    def find_budget(
+        self,
+        tenant_id: TenantId,
+        dimension: str,
+        target: str,
+        period_start: date,
+        period_end: date,
+        currency: str,
+    ) -> FinOpsBudget | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM finops_budgets
+            WHERE tenant_id = %(tenant_id)s AND dimension = %(dimension)s
+              AND target = %(target)s AND period_start = %(period_start)s
+              AND period_end = %(period_end)s AND currency = %(currency)s
+            LIMIT 1
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "dimension": dimension.strip().lower().replace("_", "-"),
+                "target": target.strip().lower().replace("_", "-"),
+                "period_start": period_start,
+                "period_end": period_end,
+                "currency": currency.strip().upper(),
+            },
+        )
+        return (
+            None if row is None else FinOpsRecordMapper.budget(self._json_mapping(row["payload"]))
+        )
+
+    def list_budgets(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        dimension: str | None = None,
+        target: str | None = None,
+        currency: str | None = None,
+    ) -> FinOpsBudgetPage:
+        predicate, params = self._optional_filters(
+            {
+                "dimension": dimension.strip().lower().replace("_", "-") if dimension else None,
+                "target": target.strip().lower().replace("_", "-") if target else None,
+                "currency": currency.strip().upper() if currency else None,
+            }
+        )
+        rows, next_cursor = self._payload_page(
+            "finops_budgets", tenant_id, pagination, predicate, params, "period_start DESC, id DESC"
+        )
+        return FinOpsBudgetPage(tuple(FinOpsRecordMapper.budget(row) for row in rows), next_cursor)
+
+    def save_period(self, period: FinancialPeriod) -> None:
+        self._upsert_payload(
+            "finops_financial_periods",
+            period.tenant_id,
+            period.id.value,
+            period.as_dict(),
+            "period_start, period_end, currency, status",
+            {
+                "period_start": period.period_start,
+                "period_end": period.period_end,
+                "currency": period.currency,
+                "status": period.status.value,
+            },
+        )
+
+    def find_period(
+        self, tenant_id: TenantId, period_start: date, period_end: date, currency: str
+    ) -> FinancialPeriod | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM finops_financial_periods
+            WHERE tenant_id = %(tenant_id)s AND period_start = %(period_start)s
+              AND period_end = %(period_end)s AND currency = %(currency)s LIMIT 1
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "period_start": period_start,
+                "period_end": period_end,
+                "currency": currency.strip().upper(),
+            },
+        )
+        return (
+            None if row is None else FinOpsRecordMapper.period(self._json_mapping(row["payload"]))
+        )
+
+    def list_periods(
+        self, tenant_id: TenantId, pagination: Pagination, status: str | None = None
+    ) -> FinancialPeriodPage:
+        predicate = "" if status is None else "AND status = %(status)s"
+        params: dict[str, object] = {} if status is None else {"status": status.strip().lower()}
+        rows, next_cursor = self._payload_page(
+            "finops_financial_periods",
+            tenant_id,
+            pagination,
+            predicate,
+            params,
+            "period_start DESC, id DESC",
+        )
+        return FinancialPeriodPage(
+            tuple(FinOpsRecordMapper.period(row) for row in rows), next_cursor
+        )
+
+    def save_anomaly(self, anomaly: CostAnomaly) -> None:
+        self._upsert_payload(
+            "finops_cost_anomalies",
+            anomaly.tenant_id,
+            anomaly.id.value,
+            anomaly.as_dict(),
+            "severity, detected_at",
+            {"severity": anomaly.severity.value, "detected_at": anomaly.detected_at},
+        )
+
+    def list_anomalies(
+        self, tenant_id: TenantId, pagination: Pagination, severity: str | None = None
+    ) -> CostAnomalyPage:
+        predicate = "" if severity is None else "AND severity = %(severity)s"
+        params: dict[str, object] = (
+            {} if severity is None else {"severity": severity.strip().lower()}
+        )
+        rows, next_cursor = self._payload_page(
+            "finops_cost_anomalies",
+            tenant_id,
+            pagination,
+            predicate,
+            params,
+            "detected_at DESC, id DESC",
+        )
+        return CostAnomalyPage(tuple(FinOpsRecordMapper.anomaly(row) for row in rows), next_cursor)
+
+    def save_forecast(self, forecast: FinOpsForecast) -> None:
+        self._upsert_payload(
+            "finops_forecasts",
+            forecast.tenant_id,
+            forecast.id.value,
+            forecast.as_dict(),
+            "dimension, target, period_start, period_end",
+            {
+                "dimension": forecast.dimension.value,
+                "target": forecast.target,
+                "period_start": forecast.period_start,
+                "period_end": forecast.period_end,
+            },
+        )
+
+    def list_forecasts(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        dimension: str | None = None,
+        target: str | None = None,
+    ) -> FinOpsForecastPage:
+        predicate, params = self._optional_filters(
+            {
+                "dimension": dimension.strip().lower().replace("_", "-") if dimension else None,
+                "target": target.strip().lower().replace("_", "-") if target else None,
+            }
+        )
+        rows, next_cursor = self._payload_page(
+            "finops_forecasts",
+            tenant_id,
+            pagination,
+            predicate,
+            params,
+            "period_start DESC, id DESC",
+        )
+        return FinOpsForecastPage(
+            tuple(FinOpsRecordMapper.forecast(row) for row in rows), next_cursor
+        )
+
+    def save_report(self, report: FinOpsReport) -> None:
+        self._upsert_payload(
+            "finops_reports",
+            report.tenant_id,
+            report.id.value,
+            report.as_dict(),
+            "kind, currency, reproducibility_key, generated_at",
+            {
+                "kind": report.kind.value,
+                "currency": report.currency,
+                "reproducibility_key": report.reproducibility_key(),
+                "generated_at": report.generated_at,
+            },
+        )
+
+    def get_report(self, tenant_id: TenantId, report_id: str) -> FinOpsReport | None:
+        value = self._get_payload("finops_reports", tenant_id, report_id)
+        return FinOpsRecordMapper.report(value) if value else None
+
+    def find_report_by_reproducibility_key(
+        self, tenant_id: TenantId, reproducibility_key: str
+    ) -> FinOpsReport | None:
+        value = self._find_payload(
+            "finops_reports", tenant_id, "reproducibility_key", reproducibility_key.strip().lower()
+        )
+        return FinOpsRecordMapper.report(value) if value else None
+
+    def list_reports(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        kind: str | None = None,
+        currency: str | None = None,
+    ) -> FinOpsReportPage:
+        predicate, params = self._optional_filters(
+            {
+                "kind": kind.strip().lower() if kind else None,
+                "currency": currency.strip().upper() if currency else None,
+            }
+        )
+        rows, next_cursor = self._payload_page(
+            "finops_reports", tenant_id, pagination, predicate, params, "generated_at DESC, id DESC"
+        )
+        return FinOpsReportPage(tuple(FinOpsRecordMapper.report(row) for row in rows), next_cursor)
+
+    def append_event(self, event: DomainEvent) -> None:
+        self._ensure_tenant(event.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO finops_event_outbox (
+                id, tenant_id, aggregate_id, event_name, payload, occurred_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(aggregate_id)s, %(event_name)s,
+                %(payload)s, %(occurred_at)s
+            ) ON CONFLICT (tenant_id, id) DO NOTHING
+            """,
+            {
+                "id": event.id.value,
+                "tenant_id": event.tenant_id.value,
+                "aggregate_id": event.aggregate_id.value,
+                "event_name": event.name,
+                "payload": json.dumps(event.payload, sort_keys=True),
+                "occurred_at": event.occurred_at,
+            },
+        )
+
+    def _upsert_payload(
+        self,
+        table: str,
+        tenant_id: TenantId,
+        identifier: str,
+        payload: dict[str, object],
+        column_list: str,
+        values: dict[str, object],
+    ) -> None:
+        self._ensure_tenant(tenant_id)
+        columns = [item.strip() for item in column_list.split(",") if item.strip()]
+        insert_columns = ", ".join(columns)
+        insert_values = ", ".join(f"%({column})s" for column in columns)
+        updates = ", ".join(f"{column} = EXCLUDED.{column}" for column in columns)
+        query = f"""
+            INSERT INTO {table} (id, tenant_id, {insert_columns}, payload)
+            VALUES (%(id)s, %(tenant_id)s, {insert_values}, %(payload)s)
+            ON CONFLICT (tenant_id, id) DO UPDATE SET {updates}, payload = EXCLUDED.payload
+        """  # nosec B608 -- table and columns are fixed internal constants
+        params = {
+            "id": identifier,
+            "tenant_id": tenant_id.value,
+            "payload": json.dumps(payload, sort_keys=True),
+            **values,
+        }
+        self._execute_without_result(query, params)
+
+    def _get_payload(
+        self, table: str, tenant_id: TenantId, identifier: str
+    ) -> dict[str, Any] | None:
+        query = f"SELECT payload FROM {table} WHERE tenant_id = %(tenant_id)s AND id = %(id)s"  # nosec B608
+        row = self._fetch_one(
+            query,
+            {"tenant_id": tenant_id.value, "id": EntityId.from_value(identifier).value},
+        )
+        return None if row is None else self._json_mapping(row["payload"])
+
+    def _find_payload(
+        self, table: str, tenant_id: TenantId, column: str, value: object
+    ) -> dict[str, Any] | None:
+        lookup = (table, column)
+        if lookup == ("finops_import_jobs", "idempotency_key"):
+            query = """
+                SELECT payload FROM finops_import_jobs
+                WHERE tenant_id = %(tenant_id)s
+                  AND idempotency_key = %(value)s
+                LIMIT 1
+            """
+        elif lookup == ("finops_reports", "reproducibility_key"):
+            query = """
+                SELECT payload FROM finops_reports
+                WHERE tenant_id = %(tenant_id)s
+                  AND reproducibility_key = %(value)s
+                LIMIT 1
+            """
+        else:
+            raise ValueError("unsupported FinOps payload lookup")
+        row = self._fetch_one(query, {"tenant_id": tenant_id.value, "value": value})
+        return None if row is None else self._json_mapping(row["payload"])
+
+    def _payload_page(
+        self,
+        table: str,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        predicate: str,
+        extra_params: dict[str, object],
+        ordering: str,
+    ) -> tuple[list[dict[str, Any]], str | None]:
+        offset = self._offset(pagination.cursor)
+        query = f"""
+            SELECT payload FROM {table}
+            WHERE tenant_id = %(tenant_id)s {predicate}
+            ORDER BY {ordering}
+            LIMIT %(fetch_limit)s OFFSET %(offset)s
+        """  # nosec B608 -- table, predicate and ordering are fixed internal values
+        rows = self._fetch_all(
+            query,
+            {
+                "tenant_id": tenant_id.value,
+                "fetch_limit": pagination.limit + 1,
+                "offset": offset,
+                **extra_params,
+            },
+        )
+        has_more = len(rows) > pagination.limit
+        selected = rows[: pagination.limit]
+        return (
+            [self._json_mapping(row["payload"]) for row in selected],
+            str(offset + pagination.limit) if has_more else None,
+        )
+
+    @staticmethod
+    def _optional_filters(values: dict[str, object | None]) -> tuple[str, dict[str, object]]:
+        params = {key: value for key, value in values.items() if value is not None}
+        return " ".join(f"AND {key} = %({key})s" for key in params), params
+
+    @staticmethod
+    def _offset(cursor: str | None) -> int:
+        try:
+            offset = int(cursor or "0")
+        except ValueError as exc:
+            raise ValidationError("pagination cursor must be a numeric offset") from exc
+        if offset < 0:
+            raise ValidationError("pagination cursor must be positive")
+        return offset
+
+    @staticmethod
+    def _json_mapping(value: object) -> dict[str, Any]:
+        loaded = json.loads(value) if isinstance(value, str) else value
+        if not isinstance(loaded, Mapping):
+            raise ValidationError("finops payload must be a JSON object")
         return {str(key): item for key, item in loaded.items()}
 
 

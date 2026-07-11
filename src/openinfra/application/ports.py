@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from typing import Generic, TypeVar
 
 from openinfra.domain.access_policy import AccessPolicyRule
@@ -51,6 +51,16 @@ from openinfra.domain.field_operations import (
     FieldOperationSheet,
     InterventionLock,
     OfflineSyncPackage,
+)
+from openinfra.domain.finops import (
+    CostAllocationRule,
+    CostAnomaly,
+    CostImportJob,
+    CostRecord,
+    FinancialPeriod,
+    FinOpsBudget,
+    FinOpsForecast,
+    FinOpsReport,
 )
 from openinfra.domain.flow_matrix import FlowDeclaration, FlowObservation
 from openinfra.domain.identity import (
@@ -187,6 +197,81 @@ class SimulationComparisonPage:
             "items": [item.as_dict() for item in self.items],
             "next_cursor": self.next_cursor,
         }
+
+
+@dataclass(frozen=True, slots=True)
+class CostAllocationRulePage:
+    items: tuple[CostAllocationRule, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {"items": [item.as_dict() for item in self.items], "next_cursor": self.next_cursor}
+
+
+@dataclass(frozen=True, slots=True)
+class CostImportJobPage:
+    items: tuple[CostImportJob, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "items": [item.as_dict(include_records=False) for item in self.items],
+            "next_cursor": self.next_cursor,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class CostRecordPage:
+    items: tuple[CostRecord, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {"items": [item.as_dict() for item in self.items], "next_cursor": self.next_cursor}
+
+
+@dataclass(frozen=True, slots=True)
+class FinOpsBudgetPage:
+    items: tuple[FinOpsBudget, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {"items": [item.as_dict() for item in self.items], "next_cursor": self.next_cursor}
+
+
+@dataclass(frozen=True, slots=True)
+class FinancialPeriodPage:
+    items: tuple[FinancialPeriod, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {"items": [item.as_dict() for item in self.items], "next_cursor": self.next_cursor}
+
+
+@dataclass(frozen=True, slots=True)
+class CostAnomalyPage:
+    items: tuple[CostAnomaly, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {"items": [item.as_dict() for item in self.items], "next_cursor": self.next_cursor}
+
+
+@dataclass(frozen=True, slots=True)
+class FinOpsForecastPage:
+    items: tuple[FinOpsForecast, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {"items": [item.as_dict() for item in self.items], "next_cursor": self.next_cursor}
+
+
+@dataclass(frozen=True, slots=True)
+class FinOpsReportPage:
+    items: tuple[FinOpsReport, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {"items": [item.as_dict() for item in self.items], "next_cursor": self.next_cursor}
 
 
 @dataclass(frozen=True, slots=True)
@@ -1311,6 +1396,157 @@ class SimulationRepository(ABC):
     def list_comparisons(
         self, tenant_id: TenantId, pagination: Pagination
     ) -> SimulationComparisonPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def append_event(self, event: DomainEvent) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+
+class FinOpsRepository(ABC):
+    @abstractmethod
+    def save_allocation_rule(self, rule: CostAllocationRule) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_allocation_rules(
+        self, tenant_id: TenantId, pagination: Pagination, active_only: bool = False
+    ) -> CostAllocationRulePage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_import_job(self, job: CostImportJob) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_import_job(self, tenant_id: TenantId, job_id: str) -> CostImportJob | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_import_job_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> CostImportJob | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_import_jobs(
+        self, tenant_id: TenantId, pagination: Pagination, status: str | None = None
+    ) -> CostImportJobPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_cost_record(self, record: CostRecord) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_cost_record_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> CostRecord | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_cost_records(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        period_start: date | None = None,
+        period_end: date | None = None,
+        currency: str | None = None,
+        category: str | None = None,
+        source: str | None = None,
+        quality_status: str | None = None,
+    ) -> CostRecordPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_budget(self, budget: FinOpsBudget) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_budget(
+        self,
+        tenant_id: TenantId,
+        dimension: str,
+        target: str,
+        period_start: date,
+        period_end: date,
+        currency: str,
+    ) -> FinOpsBudget | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_budgets(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        dimension: str | None = None,
+        target: str | None = None,
+        currency: str | None = None,
+    ) -> FinOpsBudgetPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_period(self, period: FinancialPeriod) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_period(
+        self, tenant_id: TenantId, period_start: date, period_end: date, currency: str
+    ) -> FinancialPeriod | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_periods(
+        self, tenant_id: TenantId, pagination: Pagination, status: str | None = None
+    ) -> FinancialPeriodPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_anomaly(self, anomaly: CostAnomaly) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_anomalies(
+        self, tenant_id: TenantId, pagination: Pagination, severity: str | None = None
+    ) -> CostAnomalyPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_forecast(self, forecast: FinOpsForecast) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_forecasts(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        dimension: str | None = None,
+        target: str | None = None,
+    ) -> FinOpsForecastPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_report(self, report: FinOpsReport) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_report(self, tenant_id: TenantId, report_id: str) -> FinOpsReport | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_report_by_reproducibility_key(
+        self, tenant_id: TenantId, reproducibility_key: str
+    ) -> FinOpsReport | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_reports(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        kind: str | None = None,
+        currency: str | None = None,
+    ) -> FinOpsReportPage:
         raise TypeError("adapter contract invoked directly")
 
     @abstractmethod

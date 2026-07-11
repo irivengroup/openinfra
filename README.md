@@ -1,25 +1,32 @@
-# OpenInfra v0.29.96
+# OpenInfra v0.29.97
 
-OpenInfra v0.29.96 livre la simulation gouvernée des changements et migrations sous RSOT : impacts multidimensionnels, préparation, groupes d’affinité, vagues consultatives et comparaison avant/après, sans aucune mutation de production.
+OpenInfra v0.29.97 réalise **P16 / EPIC-1603 — FinOps et coûts** et réorganise la navigation métier : **Flux réseau** et **Conformité réseau** sont rangés sous IPAM, tandis que **Certificats & PKI** est rangé sous Sécurité. Les routes, commandes et permissions publiques restent compatibles.
 
-## Simulation de changement et migration
+## FinOps et coûts
 
-Le parcours **RSOT → Simulation & migrations** permet de modéliser un déplacement, un ajout, un retrait ou une indisponibilité d’équipement, ainsi que des évolutions VLAN, VRF, sous-réseau, DNS, pare-feu ou PDU. Le moteur travaille exclusivement sur une projection du RSOT : il ne modifie ni l’inventaire, ni l’IPAM, ni le DCIM, ni les flux, et ne crée aucun changement ITSM natif.
+Le parcours **ITAM → FinOps & coûts** consolide les coûts cloud, SaaS, datacenter, énergie, licences, support et contrats. Les imports sont asynchrones, idempotents et contrôlés par empreinte SHA-256. Les allocations utilisent des règles prioritaires et conservent explicitement toute part non attribuable.
 
-Chaque exécution produit un rapport versionné contenant les objets impactés, les écarts de capacité électrique/froid/coût/U, les risques métier, les contrôles IPAM/flux, un score de préparation, les groupes d’affinité, les dépendances bloquantes et des vagues de migration **consultatives**. Une comparaison déterministe permet d’arbitrer deux rapports sans transformer le résultat en ordre d’exécution.
+Les budgets, anomalies, prévisions, showbacks et chargebacks contrôlés sont disponibles en CLI, API HTTP, OpenAPI et dans les deux portails web. Tous les montants utilisent `Decimal`; une période clôturée est protégée par un digest reproductible. Le chargeback reste consultatif et ne produit aucune écriture comptable ou mutation ITSM.
 
 ```bash
-openinfra simulation create --tenant default --admin-token "$OPENINFRA_TOKEN" \
-  --name "Migration ERP vers PAR2" \
-  --description "Évaluer le déplacement du serveur ERP et ses dépendances." \
-  --owner architecture.team --idempotency-key simulation-erp-par2-0001 \
-  --changes-file changes.json
+openinfra finops import-submit --tenant default --admin-token "$OPENINFRA_TOKEN" \
+  --idempotency-key finops-aws-2026-06-0001 --source aws-cur \
+  --records-file costs.json
 
-openinfra simulation run --tenant default --admin-token "$OPENINFRA_TOKEN" \
-  --scenario-id "$SCENARIO_ID" --max-depth 8 --max-nodes 2000
+openinfra finops report-generate --tenant default --admin-token "$OPENINFRA_TOKEN" \
+  --kind showback --period-start 2026-06-01 --period-end 2026-06-30 \
+  --group-by application --currency EUR
 ```
 
-Voir `docs/operations/simulation-migration-planning.md` pour les changements acceptés, les contrats API/CLI, les règles d’exploitation, les limites et les procédures de sauvegarde/restauration.
+Voir `docs/operations/finops-costs-showback.md` pour le modèle, les permissions, les règles de clôture, les contrats API/CLI et les procédures d’exploitation.
+
+## Organisation de la navigation
+
+- **IPAM** : adressage, **Conformité réseau** et **Flux réseau** ;
+- **Sécurité** : contrôles de sécurité et **Certificats & PKI** ;
+- **ITAM** : actifs, contrats, licences et **FinOps & coûts**.
+
+Cette organisation ne modifie aucun endpoint ni identifiant d’opération ; elle évite la dispersion des fonctions transversales dans le premier niveau de navigation.
 
 ## Performance volumétrique du graphe RSOT
 

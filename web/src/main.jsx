@@ -729,31 +729,6 @@ const MODULES = [
       { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
     ] },
   ] },
-  { id: 'flows', label: 'Matrice de flux', shortLabel: 'Flux', icon: 'activity', operations: [
-    { id: 'flow-declaration-upsert', label: 'Créer ou réviser un flux déclaré', path: '/v1/flows/declarations/upsert', method: 'POST', fields: ['Opérateur', 'Code', 'Sélecteur source', 'Sélecteur destination', 'Protocole', 'Port destination début', 'Port destination fin', 'Décision', 'Priorité', 'Propriétaire', 'Justification', 'Début validité', 'Fin validité'] },
-    { id: 'flow-declaration-list', label: 'Lister les flux déclarés', path: '/v1/flows/declarations', method: 'GET', fields: ['Limite', 'Curseur', 'Inclure retirés'] },
-    { id: 'flow-declaration-retire', label: 'Retirer un flux déclaré', path: '/v1/flows/declarations/retire', method: 'POST', fields: ['Opérateur', 'ID déclaration'] },
-    { id: 'flow-observation-submit', label: 'Ingérer un flux observé', path: '/v1/flows/observations/submit', method: 'POST', fields: ['Opérateur', 'Clé d’idempotence', 'Source observation', 'Collecteur', 'IP source', 'IP destination', 'Objet source', 'Objet destination', 'Protocole', 'Port destination', 'Paquets', 'Octets', 'Premier événement', 'Dernier événement'] },
-    { id: 'flow-observation-list', label: 'Lister les flux observés', path: '/v1/flows/observations', method: 'GET', fields: ['Début fenêtre', 'Fin fenêtre', 'Source observation', 'Limite', 'Curseur'] },
-    { id: 'flow-matrix', label: 'Comparer flux déclarés et observés', path: '/v1/flows/matrix', method: 'GET', fields: ['Début fenêtre', 'Fin fenêtre', 'Statut conformité', 'Source observation', 'Limite', 'Curseur'] },
-  ] },
-  { id: 'network-config', label: 'Conformité réseau', shortLabel: 'Config', icon: 'sliders', operations: [
-    { id: 'network-config-baseline-upsert', label: 'Créer ou réviser une golden configuration', path: '/v1/network-config/baselines/upsert', method: 'POST', fields: ['Opérateur', 'Code', 'Objet équipement RSOT', 'Plateforme réseau', 'Configuration attendue JSON', 'Chemins ignorés', 'Chemins critiques', 'Propriétaire', 'Justification'] },
-    { id: 'network-config-baseline-list', label: 'Lister les golden configurations', path: '/v1/network-config/baselines', method: 'GET', fields: ['Limite', 'Curseur', 'Inclure retirés'] },
-    { id: 'network-config-baseline-retire', label: 'Retirer une golden configuration', path: '/v1/network-config/baselines/retire', method: 'POST', fields: ['Opérateur', 'ID baseline'] },
-    { id: 'network-config-observation-submit', label: 'Ingérer une configuration découverte', path: '/v1/network-config/observations/submit', method: 'POST', fields: ['Opérateur', 'Clé d’idempotence', 'Source observation', 'Collecteur', 'Objet équipement RSOT', 'Plateforme réseau', 'Configuration observée JSON', 'Observé le (ISO-8601)'] },
-    { id: 'network-config-observation-list', label: 'Lister les configurations découvertes', path: '/v1/network-config/observations', method: 'GET', fields: ['Objet équipement RSOT', 'Plateforme réseau', 'Observé avant', 'Limite', 'Curseur'] },
-    { id: 'network-config-assessment', label: 'Évaluer la dérive réseau', path: '/v1/network-config/assessment', method: 'GET', fields: ['Opérateur', 'Code baseline', 'Date de référence', 'Statut conformité', 'Limite', 'Curseur'] },
-  ] },
-  { id: 'certificates', label: 'Certificats et PKI', shortLabel: 'Certificats', icon: 'shield', operations: [
-    { id: 'certificate-import', label: 'Importer une chaîne PEM', path: '/v1/certificates/import', method: 'POST', fields: ['Opérateur', 'Chaîne de certificats PEM', 'Propriétaire', 'Environnement', 'Source certificat', 'Objet RSOT associé'] },
-    { id: 'certificate-get', label: 'Consulter un certificat', path: '/v1/certificates/get', method: 'GET', fields: ['Empreinte SHA-256'] },
-    { id: 'certificate-list', label: 'Lister les certificats', path: '/v1/certificates', method: 'GET', fields: ['Limite', 'Curseur', 'Inclure retirés'] },
-    { id: 'certificate-retire', label: 'Retirer un certificat', path: '/v1/certificates/retire', method: 'POST', fields: ['Opérateur', 'Empreinte SHA-256'] },
-    { id: 'certificate-endpoint-observe', label: 'Observer un endpoint TLS', path: '/v1/certificates/endpoints/observe', method: 'POST', fields: ['Opérateur', 'Clé d’idempotence', 'Protocole endpoint', 'Hôte endpoint', 'Port', 'Service', 'Empreinte certificat', 'Observé le (ISO-8601)', 'Source observation', 'Collecteur', 'Objet RSOT associé', 'Version TLS', 'Suite cryptographique'] },
-    { id: 'certificate-endpoint-list', label: 'Lister les endpoints TLS', path: '/v1/certificates/endpoints', method: 'GET', fields: ['Empreinte certificat', 'Limite', 'Curseur'] },
-    { id: 'certificate-assessment', label: 'Évaluer l’état PKI', path: '/v1/certificates/assessment', method: 'GET', fields: ['Date de référence', 'Seuil critique (jours)', 'Seuil avertissement (jours)', 'État certificat', 'Limite', 'Curseur'] },
-  ] },
   { id: 'ipam', label: 'IPAM', icon: 'grid', operations: [
     { id: 'ipam-dashboard', label: 'Dashboard IPAM', path: '/v1/ipam/ui-dashboard', method: 'GET', fields: ['VRF'] },
     { id: 'ipam-search', label: 'Rechercher dans l’IPAM', path: '/v1/ipam/ui-search', method: 'GET', fields: ['Recherche', 'VRF'] },
@@ -777,6 +752,19 @@ const MODULES = [
     { id: 'ipam-observe-dhcp', label: 'Observer un bail DHCP', path: '/v1/ipam/dhcp-leases', method: 'POST', fields: ['Opérateur', 'VRF', 'Préfixe', 'Adresse IP', 'Adresse MAC', 'Nom DHCP', 'Source observation', 'Bail actif'] },
     { id: 'ipam-conflicts', label: 'Détecter les conflits', path: '/v1/ipam/conflicts', method: 'GET', fields: ['VRF'] },
     { id: 'ipam-ddi-preview', label: 'Prévisualiser DDI', path: '/v1/ipam/ddi-preview', method: 'POST', fields: ['Opérateur', 'VRF', 'Clé d’idempotence', 'Fournisseurs DDI', 'Zone DNS', 'Adresse MAC', 'TTL', 'Appliquer la prévisualisation'] },
+    { id: 'network-config-baseline-upsert', label: 'Créer ou réviser une golden configuration', path: '/v1/network-config/baselines/upsert', method: 'POST', fields: ['Opérateur', 'Code', 'Objet équipement RSOT', 'Plateforme réseau', 'Configuration attendue JSON', 'Chemins ignorés', 'Chemins critiques', 'Propriétaire', 'Justification'] },
+    { id: 'network-config-baseline-list', label: 'Lister les golden configurations', path: '/v1/network-config/baselines', method: 'GET', fields: ['Limite', 'Curseur', 'Inclure retirés'] },
+    { id: 'network-config-baseline-retire', label: 'Retirer une golden configuration', path: '/v1/network-config/baselines/retire', method: 'POST', fields: ['Opérateur', 'ID baseline'] },
+    { id: 'network-config-observation-submit', label: 'Ingérer une configuration découverte', path: '/v1/network-config/observations/submit', method: 'POST', fields: ['Opérateur', 'Clé d’idempotence', 'Source observation', 'Collecteur', 'Objet équipement RSOT', 'Plateforme réseau', 'Configuration observée JSON', 'Observé le (ISO-8601)'] },
+    { id: 'network-config-observation-list', label: 'Lister les configurations découvertes', path: '/v1/network-config/observations', method: 'GET', fields: ['Objet équipement RSOT', 'Plateforme réseau', 'Observé avant', 'Limite', 'Curseur'] },
+    { id: 'network-config-assessment', label: 'Évaluer la dérive réseau', path: '/v1/network-config/assessment', method: 'GET', fields: ['Opérateur', 'Code baseline', 'Date de référence', 'Statut conformité', 'Limite', 'Curseur'] },
+    { id: 'flow-declaration-upsert', label: 'Créer ou réviser un flux déclaré', path: '/v1/flows/declarations/upsert', method: 'POST', fields: ['Opérateur', 'Code', 'Sélecteur source', 'Sélecteur destination', 'Protocole', 'Port destination début', 'Port destination fin', 'Décision', 'Priorité', 'Propriétaire', 'Justification', 'Début validité', 'Fin validité'] },
+    { id: 'flow-declaration-list', label: 'Lister les flux déclarés', path: '/v1/flows/declarations', method: 'GET', fields: ['Limite', 'Curseur', 'Inclure retirés'] },
+    { id: 'flow-declaration-retire', label: 'Retirer un flux déclaré', path: '/v1/flows/declarations/retire', method: 'POST', fields: ['Opérateur', 'ID déclaration'] },
+    { id: 'flow-observation-submit', label: 'Ingérer un flux observé', path: '/v1/flows/observations/submit', method: 'POST', fields: ['Opérateur', 'Clé d’idempotence', 'Source observation', 'Collecteur', 'IP source', 'IP destination', 'Objet source', 'Objet destination', 'Protocole', 'Port destination', 'Paquets', 'Octets', 'Premier événement', 'Dernier événement'] },
+    { id: 'flow-observation-list', label: 'Lister les flux observés', path: '/v1/flows/observations', method: 'GET', fields: ['Début fenêtre', 'Fin fenêtre', 'Source observation', 'Limite', 'Curseur'] },
+    { id: 'flow-matrix', label: 'Comparer flux déclarés et observés', path: '/v1/flows/matrix', method: 'GET', fields: ['Début fenêtre', 'Fin fenêtre', 'Statut conformité', 'Source observation', 'Limite', 'Curseur'] },
+
   ] },
   { id: 'dcim', label: 'DCIM', icon: 'home', operations: [
     { id: 'dcim-sites', label: 'Lister les sites DCIM', path: '/v1/dcim/sites', method: 'GET', fields: ['Inclure retirés'] },
@@ -883,6 +871,73 @@ const MODULES = [
     { id: 'itam-software-compliance', label: 'Conformité licence', path: '/v1/itam/software-license/compliance', method: 'GET', fields: ['Référence licence', 'Date de référence'] },
     { id: 'itam-register-software', label: 'Déclarer licence logicielle', path: '/v1/itam/software-license', method: 'POST', fields: ['Opérateur', 'Produit', 'Éditeur accrédité', 'Référence licence', 'Référence contrat', 'Métrique', 'Quantité achetée', 'Quantité assignée', 'Début droit', 'Fin droit', 'Version', 'Statut', 'Propriétaire', 'Notes'] },
     { id: 'itam-update-license-assignment', label: 'Mettre à jour affectation licence', path: '/v1/itam/software-license/assignment', method: 'POST', fields: ['Opérateur', 'Référence licence', 'Quantité assignée', 'Notes'] },
+
+    { id: 'finops-rule-create', label: 'Créer une règle d’allocation', path: '/v1/finops/allocation-rules/create', method: 'POST', fields: [
+      'Opérateur', { name: 'name', label: 'Nom de la règle', required: true }, { name: 'priority', label: 'Priorité', type: 'number', defaultValue: '100' },
+      { name: 'dimension', label: 'Dimension', type: 'select', options: ['asset', 'application', 'business-service', 'tenant', 'owner', 'tag', 'cost-center', 'environment', 'dependency'], required: true },
+      { name: 'selector_key', label: 'Clé de sélection', required: true }, { name: 'fixed_target', label: 'Cible fixe' },
+      { name: 'percentage', label: 'Pourcentage', type: 'number', required: true }, { name: 'category', label: 'Catégorie de coût' },
+      { name: 'source', label: 'Source de coût' }, { name: 'active', label: 'Règle active', type: 'boolean', defaultValue: 'true' },
+    ] },
+    { id: 'finops-rules', label: 'Lister les règles d’allocation', path: '/v1/finops/allocation-rules', method: 'GET', fields: [
+      { name: 'active_only', label: 'Uniquement actives', type: 'boolean' }, { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
+    ] },
+    { id: 'finops-import-submit', label: 'Importer des coûts', path: '/v1/finops/import-jobs/submit', method: 'POST', fields: [
+      'Opérateur', { name: 'idempotency_key', label: 'Clé d’idempotence', required: true }, { name: 'source', label: 'Source', required: true },
+      { name: 'records', label: 'Enregistrements de coûts JSON', type: 'json', required: true, defaultValue: '[]' },
+    ] },
+    { id: 'finops-import-get', label: 'Consulter un import de coûts', path: '/v1/finops/import-jobs/get', method: 'GET', fields: [
+      { name: 'job_id', label: 'ID import', required: true }, { name: 'include_records', label: 'Inclure les enregistrements', type: 'boolean' },
+    ] },
+    { id: 'finops-imports', label: 'Lister les imports de coûts', path: '/v1/finops/import-jobs', method: 'GET', fields: [
+      { name: 'status', label: 'Statut' }, { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
+    ] },
+    { id: 'finops-import-run', label: 'Exécuter un import de coûts', path: '/v1/finops/import-jobs/run', method: 'POST', fields: ['Opérateur', { name: 'job_id', label: 'ID import', required: true }] },
+    { id: 'finops-import-cancel', label: 'Annuler un import de coûts', path: '/v1/finops/import-jobs/cancel', method: 'POST', fields: ['Opérateur', { name: 'job_id', label: 'ID import', required: true }] },
+    { id: 'finops-costs', label: 'Lister les coûts normalisés', path: '/v1/finops/cost-records', method: 'GET', fields: [
+      { name: 'period_start', label: 'Début de période', type: 'date' }, { name: 'period_end', label: 'Fin de période', type: 'date' },
+      { name: 'currency', label: 'Devise ISO-4217' }, { name: 'category', label: 'Catégorie' }, { name: 'source', label: 'Source' },
+      { name: 'quality_status', label: 'Qualité d’allocation' }, { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
+    ] },
+    { id: 'finops-budget-upsert', label: 'Créer ou modifier un budget', path: '/v1/finops/budgets/upsert', method: 'POST', fields: [
+      'Opérateur', { name: 'dimension', label: 'Dimension', required: true }, { name: 'target', label: 'Cible', required: true },
+      { name: 'period_start', label: 'Début de période', type: 'date', required: true }, { name: 'period_end', label: 'Fin de période', type: 'date', required: true },
+      { name: 'currency', label: 'Devise ISO-4217', required: true }, { name: 'amount', label: 'Montant', type: 'number', required: true },
+      { name: 'warning_threshold_percent', label: 'Seuil d’alerte (%)', type: 'number', required: true }, { name: 'owner', label: 'Propriétaire', required: true },
+    ] },
+    { id: 'finops-budgets', label: 'Lister les budgets', path: '/v1/finops/budgets', method: 'GET', fields: [
+      { name: 'dimension', label: 'Dimension' }, { name: 'target', label: 'Cible' }, { name: 'currency', label: 'Devise' },
+      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
+    ] },
+    { id: 'finops-period-close', label: 'Clôturer une période financière', path: '/v1/finops/periods/close', method: 'POST', fields: [
+      'Opérateur', { name: 'period_start', label: 'Début de période', type: 'date', required: true }, { name: 'period_end', label: 'Fin de période', type: 'date', required: true },
+      { name: 'currency', label: 'Devise ISO-4217', required: true },
+    ] },
+    { id: 'finops-periods', label: 'Lister les périodes financières', path: '/v1/finops/periods', method: 'GET', fields: [
+      { name: 'status', label: 'Statut' }, { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
+    ] },
+    { id: 'finops-report-generate', label: 'Générer un showback / chargeback', path: '/v1/finops/reports/generate', method: 'POST', fields: [
+      'Opérateur', { name: 'kind', label: 'Type de rapport', type: 'select', options: ['showback', 'chargeback'], required: true },
+      { name: 'period_start', label: 'Début de période', type: 'date', required: true }, { name: 'period_end', label: 'Fin de période', type: 'date', required: true },
+      { name: 'group_by', label: 'Regroupement', required: true }, { name: 'currency', label: 'Devise ISO-4217', required: true },
+      { name: 'chargeback_markup_percent', label: 'Marge chargeback (%)', type: 'number', defaultValue: '0' },
+    ] },
+    { id: 'finops-report-get', label: 'Consulter un rapport financier', path: '/v1/finops/reports/get', method: 'GET', fields: [
+      { name: 'report_id', label: 'ID rapport', required: true },
+    ] },
+    { id: 'finops-reports', label: 'Lister les rapports financiers', path: '/v1/finops/reports', method: 'GET', fields: [
+      { name: 'kind', label: 'Type de rapport' }, { name: 'currency', label: 'Devise' }, { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
+    ] },
+    { id: 'finops-report-export', label: 'Exporter un rapport financier', path: '/v1/finops/reports/export', method: 'GET', fields: [
+      { name: 'report_id', label: 'ID rapport', required: true }, { name: 'format', label: 'Format', type: 'select', options: ['json', 'csv'], defaultValue: 'json' },
+    ] },
+    { id: 'finops-anomalies', label: 'Lister les anomalies de coûts', path: '/v1/finops/anomalies', method: 'GET', fields: [
+      { name: 'severity', label: 'Sévérité' }, { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
+    ] },
+    { id: 'finops-forecasts', label: 'Lister les prévisions de coûts', path: '/v1/finops/forecasts', method: 'GET', fields: [
+      { name: 'dimension', label: 'Dimension' }, { name: 'target', label: 'Cible' }, { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
+    ] },
+
   ] },
   { id: 'discovery', label: 'Discovery', icon: 'activity', operations: [
     { id: 'discovery-evidence-list', label: 'Lister les preuves immuables', path: '/v1/discovery/evidence-list', method: 'GET', fields: ['Clé objet', 'Limite'] },
@@ -907,6 +962,14 @@ const MODULES = [
     { id: 'edition-feature-check', label: 'Vérifier une capacité édition', path: '/v1/editions/feature-check', method: 'GET', fields: ['Édition', 'Capacité'] },
     { id: 'edition-quota-check', label: 'Vérifier un quota édition', path: '/v1/editions/quota-check', method: 'GET', fields: ['Édition', 'Ressource quota', 'Incrément demandé'] },
     { id: 'audit-events', label: 'Événements d’audit', path: '/v1/audit/events', method: 'GET', fields: ['Action', 'Type cible', 'Limite'] },
+    { id: 'certificate-import', label: 'Importer une chaîne PEM', path: '/v1/certificates/import', method: 'POST', fields: ['Opérateur', 'Chaîne de certificats PEM', 'Propriétaire', 'Environnement', 'Source certificat', 'Objet RSOT associé'] },
+    { id: 'certificate-get', label: 'Consulter un certificat', path: '/v1/certificates/get', method: 'GET', fields: ['Empreinte SHA-256'] },
+    { id: 'certificate-list', label: 'Lister les certificats', path: '/v1/certificates', method: 'GET', fields: ['Limite', 'Curseur', 'Inclure retirés'] },
+    { id: 'certificate-retire', label: 'Retirer un certificat', path: '/v1/certificates/retire', method: 'POST', fields: ['Opérateur', 'Empreinte SHA-256'] },
+    { id: 'certificate-endpoint-observe', label: 'Observer un endpoint TLS', path: '/v1/certificates/endpoints/observe', method: 'POST', fields: ['Opérateur', 'Clé d’idempotence', 'Protocole endpoint', 'Hôte endpoint', 'Port', 'Service', 'Empreinte certificat', 'Observé le (ISO-8601)', 'Source observation', 'Collecteur', 'Objet RSOT associé', 'Version TLS', 'Suite cryptographique'] },
+    { id: 'certificate-endpoint-list', label: 'Lister les endpoints TLS', path: '/v1/certificates/endpoints', method: 'GET', fields: ['Empreinte certificat', 'Limite', 'Curseur'] },
+    { id: 'certificate-assessment', label: 'Évaluer l’état PKI', path: '/v1/certificates/assessment', method: 'GET', fields: ['Date de référence', 'Seuil critique (jours)', 'Seuil avertissement (jours)', 'État certificat', 'Limite', 'Curseur'] },
+
   ] },
 ];
 
@@ -920,26 +983,15 @@ const SIDEBAR_CONTEXTS = {
     { label: 'Exports', operationIds: ['graph-export'] },
     { label: 'Simulation & migrations', operationIds: ['simulation-create', 'simulation-list', 'simulation-run', 'simulation-reports', 'simulation-compare', 'simulation-comparisons'] },
   ],
-  flows: [
-    { label: 'Flux déclarés', operationIds: ['flow-declaration-upsert', 'flow-declaration-list', 'flow-declaration-retire'] },
-    { label: 'Flux observés', operationIds: ['flow-observation-submit', 'flow-observation-list'] },
-    { label: 'Conformité des flux', operationIds: ['flow-matrix'] },
-  ],
-  'network-config': [
-    { label: 'Golden configurations', operationIds: ['network-config-baseline-upsert', 'network-config-baseline-list', 'network-config-baseline-retire'] },
-    { label: 'Configurations découvertes', operationIds: ['network-config-observation-submit', 'network-config-observation-list'] },
-    { label: 'Conformité et drift', operationIds: ['network-config-assessment'] },
-  ],
-  certificates: [
-    { label: 'Inventaire PKI', operationIds: ['certificate-import', 'certificate-get', 'certificate-list', 'certificate-retire'] },
-    { label: 'Endpoints TLS', operationIds: ['certificate-endpoint-observe', 'certificate-endpoint-list'] },
-    { label: 'Conformité PKI', operationIds: ['certificate-assessment'] },
-  ],
   ipam: [
     { label: 'Vue & recherche', operationIds: ['ipam-dashboard', 'ipam-search'] },
     { label: 'Adressage IP', operationIds: ['ipam-define-vrf', 'ipam-define-aggregate', 'ipam-define-prefix', 'ipam-list-prefixes', 'ipam-define-range', 'ipam-register-address', 'ipam-allocate', 'ipam-reservation-wizard', 'ipam-capacity'] },
     { label: 'Réseau L2/L3', operationIds: ['ipam-network-bindings', 'ipam-topology', 'ipam-define-vlan-group', 'ipam-define-vxlan-vni', 'ipam-define-vlan', 'ipam-define-asn', 'ipam-define-bgp-peer'] },
     { label: 'Observations & DDI', operationIds: ['ipam-observe-dns', 'ipam-observe-dhcp', 'ipam-conflicts', 'ipam-ddi-preview'] },
+    { label: 'Conformité réseau', operationIds: ['network-config-baseline-upsert', 'network-config-baseline-list', 'network-config-baseline-retire', 'network-config-observation-submit', 'network-config-observation-list', 'network-config-assessment'] },
+    { label: 'Flux déclarés', operationIds: ['flow-declaration-upsert', 'flow-declaration-list', 'flow-declaration-retire'] },
+    { label: 'Flux observés', operationIds: ['flow-observation-submit', 'flow-observation-list'] },
+    { label: 'Conformité des flux', operationIds: ['flow-matrix'] },
   ],
   dcim: [
     { label: 'Sites & dépendances', operationIds: ['dcim-sites', 'dcim-site', 'dcim-site-create', 'dcim-site-update', 'dcim-site-delete', 'dcim-buildings', 'dcim-building', 'dcim-building-create', 'dcim-building-update', 'dcim-building-delete', 'dcim-floors', 'dcim-floor', 'dcim-rooms-list', 'dcim-room', 'dcim-room-create', 'dcim-room-update', 'dcim-room-delete', 'dcim-zones', 'dcim-zone', 'dcim-zone-create', 'dcim-zone-update', 'dcim-zone-delete', 'dcim-topology-catalog'] },
@@ -955,6 +1007,11 @@ const SIDEBAR_CONTEXTS = {
     { label: 'Partenaires', operationIds: ['itam-partners', 'itam-partner', 'itam-partner-create', 'itam-partner-update', 'itam-partner-delete'] },
     { label: 'Support matériel', operationIds: ['itam-support-profile', 'itam-support-coverage', 'itam-register-manufacturer', 'itam-add-third-party'] },
     { label: 'Licences logicielles', operationIds: ['itam-software-license', 'itam-software-compliance', 'itam-register-software', 'itam-update-license-assignment'] },
+    { label: 'Règles d’allocation', operationIds: ['finops-rule-create', 'finops-rules'] },
+    { label: 'Imports & coûts', operationIds: ['finops-import-submit', 'finops-import-get', 'finops-imports', 'finops-import-run', 'finops-import-cancel', 'finops-costs'] },
+    { label: 'Budgets & périodes', operationIds: ['finops-budget-upsert', 'finops-budgets', 'finops-period-close', 'finops-periods'] },
+    { label: 'Showback / chargeback', operationIds: ['finops-report-generate', 'finops-report-get', 'finops-reports', 'finops-report-export'] },
+    { label: 'Prévisions & anomalies', operationIds: ['finops-anomalies', 'finops-forecasts'] },
   ],
   discovery: [
     { label: 'Locale Lite/Pro', operationIds: ['local-discovery-plan'] },
@@ -976,6 +1033,9 @@ const SIDEBAR_CONTEXTS = {
     { label: 'Éditions & quotas', operationIds: ['edition-policies', 'edition-feature-check', 'edition-quota-check'] },
     { label: 'Identité & accès', operationIds: ['tokens-list', 'effective-identity', 'access-rules'] },
     { label: 'Audit', operationIds: ['audit-events', 'audit-integrity'] },
+    { label: 'Inventaire PKI', operationIds: ['certificate-import', 'certificate-get', 'certificate-list', 'certificate-retire'] },
+    { label: 'Endpoints TLS', operationIds: ['certificate-endpoint-observe', 'certificate-endpoint-list'] },
+    { label: 'Conformité PKI', operationIds: ['certificate-assessment'] },
   ],
 };
 

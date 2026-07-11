@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import sys
+from datetime import date
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -164,6 +165,26 @@ from openinfra.application.field_operation_services import (
     SynchronizeOfflinePackageCommand,
     ValidateFieldEvidenceCommand,
     VerifyFieldQrCommand,
+)
+from openinfra.application.finops_services import (
+    CancelCostImportJobCommand,
+    CloseFinancialPeriodCommand,
+    CreateCostAllocationRuleCommand,
+    ExportFinOpsReportCommand,
+    GenerateFinOpsReportCommand,
+    GetCostImportJobCommand,
+    GetFinOpsReportCommand,
+    ListCostAllocationRulesCommand,
+    ListCostAnomaliesCommand,
+    ListCostImportJobsCommand,
+    ListCostRecordsCommand,
+    ListFinancialPeriodsCommand,
+    ListFinOpsBudgetsCommand,
+    ListFinOpsForecastsCommand,
+    ListFinOpsReportsCommand,
+    RunCostImportJobCommand,
+    SubmitCostImportJobCommand,
+    UpsertFinOpsBudgetCommand,
 )
 from openinfra.application.flow_matrix_services import (
     CompareFlowMatrixCommand,
@@ -1391,6 +1412,218 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
+        if route == "/api/v1/finops/allocation-rules":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.finops_service.list_allocation_rules(
+                    ListCostAllocationRulesCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        active_only=self._first_query_value(query, "active_only", "false").lower()
+                        in {"1", "true", "yes"},
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/finops/import-jobs":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.finops_service.list_import_jobs(
+                    ListCostImportJobsCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        status=query.get("status", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/finops/import-jobs/get":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.finops_service.get_import_job(
+                    GetCostImportJobCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        job_id=self._first_query_value(query, "job_id"),
+                        include_records=self._first_query_value(
+                            query, "include_records", "false"
+                        ).lower()
+                        in {"1", "true", "yes"},
+                    )
+                )
+                responder.send(HTTPStatus.OK, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/finops/cost-records":
+            try:
+                query = parse_qs(parsed.query)
+                start = query.get("period_start", [None])[0]
+                end = query.get("period_end", [None])[0]
+                result = self.server.application.finops_service.list_cost_records(
+                    ListCostRecordsCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        period_start=None if start is None else date.fromisoformat(start),
+                        period_end=None if end is None else date.fromisoformat(end),
+                        currency=query.get("currency", [None])[0],
+                        category=query.get("category", [None])[0],
+                        source=query.get("source", [None])[0],
+                        quality_status=query.get("quality_status", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/finops/budgets":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.finops_service.list_budgets(
+                    ListFinOpsBudgetsCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        dimension=query.get("dimension", [None])[0],
+                        target=query.get("target", [None])[0],
+                        currency=query.get("currency", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/finops/periods":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.finops_service.list_periods(
+                    ListFinancialPeriodsCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        status=query.get("status", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/finops/reports":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.finops_service.list_reports(
+                    ListFinOpsReportsCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        kind=query.get("kind", [None])[0],
+                        currency=query.get("currency", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/finops/reports/get":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.finops_service.get_report(
+                    GetFinOpsReportCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        report_id=self._first_query_value(query, "report_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/finops/reports/export":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.finops_service.export_report(
+                    ExportFinOpsReportCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        report_id=self._first_query_value(query, "report_id"),
+                        format=self._first_query_value(query, "format", "json"),
+                    )
+                )
+                BinaryHttpResponder(self).send(
+                    HTTPStatus.OK, result.content, result.content_type, result.filename
+                )
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/finops/anomalies":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.finops_service.list_anomalies(
+                    ListCostAnomaliesCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        severity=query.get("severity", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/finops/forecasts":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.finops_service.list_forecasts(
+                    ListFinOpsForecastsCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        dimension=query.get("dimension", [None])[0],
+                        target=query.get("target", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
         if route == "/api/v1/simulation-scenarios":
             try:
                 query = parse_qs(parsed.query)
@@ -2529,6 +2762,171 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/finops/allocation-rules/create":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.finops_service.create_allocation_rule(
+                    CreateCostAllocationRuleCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        actor=str(payload.get("actor", "api")),
+                        name=self._required_payload_value(payload, "name"),
+                        priority=int(payload.get("priority", 100)),
+                        dimension=self._required_payload_value(payload, "dimension"),
+                        selector_key=self._required_payload_value(payload, "selector_key"),
+                        percentage=self._required_payload_value(payload, "percentage"),
+                        category=self._optional_payload_value(payload, "category"),
+                        source=self._optional_payload_value(payload, "source"),
+                        fixed_target=self._optional_payload_value(payload, "fixed_target"),
+                        active=self._payload_bool(payload, "active", True),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/finops/import-jobs/submit":
+            try:
+                payload = self._read_json_body()
+                records = payload.get("records")
+                if not isinstance(records, list) or any(
+                    not isinstance(item, dict) for item in records
+                ):
+                    raise ValidationError("finops records must be a JSON array of objects")
+                result = self.server.application.finops_service.submit_import_job(
+                    SubmitCostImportJobCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        actor=str(payload.get("actor", "api")),
+                        idempotency_key=self._required_payload_value(payload, "idempotency_key"),
+                        source=self._required_payload_value(payload, "source"),
+                        records=tuple(dict(item) for item in records),
+                    )
+                )
+                responder.send(HTTPStatus.ACCEPTED, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/finops/import-jobs/run":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.finops_service.run_import_job(
+                    RunCostImportJobCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        actor=str(payload.get("actor", "api")),
+                        job_id=self._required_payload_value(payload, "job_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/finops/import-jobs/cancel":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.finops_service.cancel_import_job(
+                    CancelCostImportJobCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        actor=str(payload.get("actor", "api")),
+                        job_id=self._required_payload_value(payload, "job_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/finops/budgets/upsert":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.finops_service.upsert_budget(
+                    UpsertFinOpsBudgetCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        actor=str(payload.get("actor", "api")),
+                        dimension=self._required_payload_value(payload, "dimension"),
+                        target=self._required_payload_value(payload, "target"),
+                        period_start=date.fromisoformat(
+                            self._required_payload_value(payload, "period_start")
+                        ),
+                        period_end=date.fromisoformat(
+                            self._required_payload_value(payload, "period_end")
+                        ),
+                        currency=self._required_payload_value(payload, "currency"),
+                        amount=self._required_payload_value(payload, "amount"),
+                        warning_threshold_percent=self._required_payload_value(
+                            payload, "warning_threshold_percent"
+                        ),
+                        owner=self._required_payload_value(payload, "owner"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/finops/periods/close":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.finops_service.close_period(
+                    CloseFinancialPeriodCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        actor=str(payload.get("actor", "api")),
+                        period_start=date.fromisoformat(
+                            self._required_payload_value(payload, "period_start")
+                        ),
+                        period_end=date.fromisoformat(
+                            self._required_payload_value(payload, "period_end")
+                        ),
+                        currency=self._required_payload_value(payload, "currency"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/finops/reports/generate":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.finops_service.generate_report(
+                    GenerateFinOpsReportCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        actor=str(payload.get("actor", "api")),
+                        kind=self._required_payload_value(payload, "kind"),
+                        period_start=date.fromisoformat(
+                            self._required_payload_value(payload, "period_start")
+                        ),
+                        period_end=date.fromisoformat(
+                            self._required_payload_value(payload, "period_end")
+                        ),
+                        group_by=self._required_payload_value(payload, "group_by"),
+                        currency=self._required_payload_value(payload, "currency"),
+                        chargeback_markup_percent=str(
+                            payload.get("chargeback_markup_percent", "0")
+                        ),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
@@ -6184,6 +6582,19 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             raise OpenInfraError(name + " must be a list")
         return tuple(str(item) for item in value)
 
+    @staticmethod
+    def _payload_bool(payload: dict[str, Any], name: str, default: bool) -> bool:
+        value = payload.get(name, default)
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"true", "1", "yes", "on"}:
+                return True
+            if normalized in {"false", "0", "no", "off"}:
+                return False
+        raise OpenInfraError(name + " must be a boolean")
+
     def _optional_payload_value(self, payload: dict[str, Any], name: str) -> str | None:
         value = payload.get(name)
         if value is None or str(value).strip() == "":
@@ -6320,6 +6731,26 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "software_license": "/api/v1/itam/software-license",
                     "software_license_assignment": "/api/v1/itam/software-license/assignment",
                     "software_license_compliance": "/api/v1/itam/software-license/compliance",
+                },
+                "finops": {
+                    "allocation_rules": "/api/v1/finops/allocation-rules",
+                    "allocation_rule_create": "/api/v1/finops/allocation-rules/create",
+                    "import_jobs": "/api/v1/finops/import-jobs",
+                    "import_job_get": "/api/v1/finops/import-jobs/get",
+                    "import_job_submit": "/api/v1/finops/import-jobs/submit",
+                    "import_job_run": "/api/v1/finops/import-jobs/run",
+                    "import_job_cancel": "/api/v1/finops/import-jobs/cancel",
+                    "cost_records": "/api/v1/finops/cost-records",
+                    "budgets": "/api/v1/finops/budgets",
+                    "budget_upsert": "/api/v1/finops/budgets/upsert",
+                    "periods": "/api/v1/finops/periods",
+                    "period_close": "/api/v1/finops/periods/close",
+                    "reports": "/api/v1/finops/reports",
+                    "report_get": "/api/v1/finops/reports/get",
+                    "report_generate": "/api/v1/finops/reports/generate",
+                    "report_export": "/api/v1/finops/reports/export",
+                    "anomalies": "/api/v1/finops/anomalies",
+                    "forecasts": "/api/v1/finops/forecasts",
                 },
                 "simulation": {
                     "scenarios": "/api/v1/simulation-scenarios",

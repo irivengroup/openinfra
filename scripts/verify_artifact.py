@@ -30,9 +30,12 @@ class WheelVerifier:
             "openinfra/domain/network_config_compliance.py",
             "openinfra/application/network_config_compliance_services.py",
             "openinfra/domain/field_operations.py",
+            "openinfra/domain/finops.py",
             "openinfra/domain/simulation.py",
             "openinfra/application/simulation_services.py",
             "openinfra/infrastructure/simulation_mapper.py",
+            "openinfra/application/finops_services.py",
+            "openinfra/infrastructure/finops_mapper.py",
             "openinfra/application/field_operation_services.py",
             "openinfra/infrastructure/field_operation_mapper.py",
             "openinfra/interfaces/cli.py",
@@ -45,6 +48,7 @@ class WheelVerifier:
             "openinfra/migrations/postgresql/0043_network_config_compliance.sql",
             "openinfra/migrations/postgresql/0044_field_operations_mobile_offline.sql",
             "openinfra/migrations/postgresql/0045_simulation_migration_planning.sql",
+            "openinfra/migrations/postgresql/0046_finops_costs_showback.sql",
         )
         missing = [
             suffix

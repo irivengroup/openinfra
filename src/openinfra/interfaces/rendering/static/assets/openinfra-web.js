@@ -996,7 +996,35 @@ const OPENINFRA_MODULES = [
       FIELD_SETS.limit, { name: "cursor", label: "Curseur" }
     ] }
   ] },
-  { id: "flows", label: "Matrice de flux", shortLabel: "Flux", icon: "activity", description: "Comparaison gouvernée des flux réseau déclarés et observés, détection des écarts et traçabilité.", operations: [
+  { id: "ipam", label: "IPAM", icon: "grid", description: "IPv4/IPv6, VRF, préfixes, plages, VLAN/VXLAN, ASN/BGP, DNS/DHCP, DDI, conflits, capacité et allocations.", operations: [
+    { id: "ipam-dashboard", label: "Dashboard IPAM", method: "GET", path: "/v1/ipam/ui-dashboard", query: [{ name: "vrf", label: "VRF", placeholder: "global" }] },
+    { id: "ipam-search", label: "Rechercher dans l’IPAM", method: "GET", path: "/v1/ipam/ui-search", query: [{ name: "query", label: "Recherche", required: true, placeholder: "10.20.0.0/24 ou srv-db" }, { name: "vrf", label: "VRF", placeholder: "global" }] },
+    { id: "ipam-define-vrf", label: "Définir une VRF", method: "POST", path: "/v1/ipam/vrfs", body: [FIELD_SETS.actor, { name: "name", label: "Nom VRF", required: true, placeholder: "global" }, { name: "route_distinguisher", label: "Route distinguisher", placeholder: "65000:100" }] },
+    { id: "ipam-define-aggregate", label: "Définir un agrégat IP", method: "POST", path: "/v1/ipam/aggregates", body: [FIELD_SETS.actor, { name: "vrf", label: "VRF", required: true, placeholder: "global" }, { name: "cidr", label: "CIDR agrégat", required: true, placeholder: "10.20.0.0/16" }, { name: "description", label: "Description", placeholder: "Bloc site PAR1" }] },
+    { id: "ipam-define-prefix", label: "Définir un préfixe IP", method: "POST", path: "/v1/ipam/prefixes", body: [FIELD_SETS.actor, { name: "vrf", label: "VRF", required: true, placeholder: "global" }, { name: "cidr", label: "CIDR préfixe", required: true, placeholder: "10.20.30.0/24" }, { name: "description", label: "Description", placeholder: "Réseau serveurs" }] },
+    { id: "ipam-list-prefixes", label: "Lister les préfixes", method: "GET", path: "/v1/ipam/prefixes", query: [{ name: "vrf", label: "VRF", required: true, placeholder: "global" }] },
+    { id: "ipam-define-range", label: "Définir une plage IP", method: "POST", path: "/v1/ipam/ranges", body: [FIELD_SETS.actor, { name: "vrf", label: "VRF", required: true, placeholder: "global" }, { name: "prefix", label: "Préfixe", required: true, placeholder: "10.20.30.0/24" }, { name: "start", label: "Début plage", required: true, placeholder: "10.20.30.10" }, { name: "end", label: "Fin plage", required: true, placeholder: "10.20.30.200" }, { name: "purpose", label: "Usage plage", type: "select", options: [{ value: "allocation", label: "Allocation" }, { value: "reservation", label: "Réservation" }, { value: "exclusion", label: "Exclusion" }], defaultValue: "allocation" }, { name: "description", label: "Description", placeholder: "Pool applicatif" }] },
+    { id: "ipam-register-address", label: "Enregistrer une adresse IP", method: "POST", path: "/v1/ipam/addresses", body: [FIELD_SETS.actor, { name: "vrf", label: "VRF", required: true, placeholder: "global" }, { name: "prefix", label: "Préfixe", required: true, placeholder: "10.20.30.0/24" }, { name: "address", label: "Adresse IP", required: true, placeholder: "10.20.30.21" }, { name: "hostname", label: "Nom DNS / équipement", required: true, placeholder: "srv-app-01" }, { name: "interface_name", label: "Interface", placeholder: "eth0" }, { name: "status", label: "Statut adresse", type: "select", options: [{ value: "planned", label: "Planifiée" }, { value: "reserved", label: "Réservée" }, { value: "active", label: "Active" }, { value: "deprecated", label: "Dépréciée" }], defaultValue: "reserved" }] },
+    { id: "ipam-allocate", label: "Allouer une adresse IP", method: "POST", path: "/v1/ipam/allocate", body: [FIELD_SETS.actor, { name: "vrf", label: "VRF", required: true, placeholder: "global" }, { name: "prefix", label: "Préfixe", required: true, placeholder: "10.20.30.0/24" }, { name: "hostname", label: "Nom DNS / équipement", required: true, placeholder: "srv-app-01" }, { name: "idempotency_key", label: "Clé d’idempotence", required: true, placeholder: "ipam-alloc-srv-app-01" }] },
+    { id: "ipam-reservation-wizard", label: "Assistant de réservation IP", method: "POST", path: "/v1/ipam/reservation-wizard", body: [FIELD_SETS.actor, { name: "vrf", label: "VRF", required: true, placeholder: "global" }, { name: "prefix", label: "Préfixe", required: true, placeholder: "10.20.30.0/24" }, { name: "hostname", label: "Nom DNS / équipement", required: true, placeholder: "srv-app-02" }, { name: "idempotency_key", label: "Clé d’idempotence", required: true, placeholder: "ipam-wizard-srv-app-02" }, { name: "apply", label: "Appliquer la réservation", type: "boolean" }] },
+    { id: "ipam-capacity", label: "Calculer la capacité d’un préfixe", method: "GET", path: "/v1/ipam/capacity", query: [{ name: "vrf", label: "VRF", required: true, placeholder: "global" }, { name: "prefix", label: "Préfixe", required: true, placeholder: "10.20.30.0/24" }] },
+    { id: "ipam-network-bindings", label: "Afficher les bindings réseau", method: "GET", path: "/v1/ipam/network-bindings", query: [{ name: "vrf", label: "VRF", placeholder: "global" }] },
+    { id: "ipam-topology", label: "Topologie opérationnelle IPAM", method: "GET", path: "/v1/ipam/topology", query: [{ name: "vrf", label: "VRF", placeholder: "global" }] },
+    { id: "ipam-define-vlan-group", label: "Définir un groupe VLAN", method: "POST", path: "/v1/ipam/vlan-groups", body: [FIELD_SETS.actor, { name: "name", label: "Groupe VLAN", required: true, placeholder: "dc-par1" }, { name: "scope", label: "Scope VLAN", placeholder: "site/PAR1" }, { name: "description", label: "Description", placeholder: "VLAN datacenter PAR1" }] },
+    { id: "ipam-define-vxlan-vni", label: "Définir un VXLAN VNI", method: "POST", path: "/v1/ipam/vxlan-vnis", body: [FIELD_SETS.actor, { name: "vni", label: "VNI", type: "number", required: true, placeholder: "10010" }, { name: "name", label: "Nom VNI", required: true, placeholder: "prod-app" }, { name: "vrf", label: "VRF", required: true, placeholder: "global" }, { name: "route_targets_import", label: "RT import", type: "csv", placeholder: "65000:10010" }, { name: "route_targets_export", label: "RT export", type: "csv", placeholder: "65000:10010" }, { name: "description", label: "Description", placeholder: "Segment applicatif" }] },
+    { id: "ipam-define-vlan", label: "Définir un VLAN", method: "POST", path: "/v1/ipam/vlans", body: [FIELD_SETS.actor, { name: "group", label: "Groupe VLAN", required: true, placeholder: "dc-par1" }, { name: "vlan_id", label: "VLAN ID", type: "number", required: true, placeholder: "210" }, { name: "name", label: "Nom VLAN", required: true, placeholder: "prod-app" }, { name: "vrf", label: "VRF", placeholder: "global" }, { name: "vni", label: "VNI", type: "number", placeholder: "10010" }, { name: "description", label: "Description", placeholder: "Réseau applicatif" }] },
+    { id: "ipam-define-asn", label: "Définir un ASN", method: "POST", path: "/v1/ipam/asns", body: [FIELD_SETS.actor, { name: "asn", label: "ASN", type: "number", required: true, placeholder: "65000" }, { name: "name", label: "Nom AS", required: true, placeholder: "OpenInfra Core" }, { name: "description", label: "Description", placeholder: "Autonomous system interne" }] },
+    { id: "ipam-define-bgp-peer", label: "Définir un peer BGP", method: "POST", path: "/v1/ipam/bgp-peers", body: [FIELD_SETS.actor, { name: "vrf", label: "VRF", required: true, placeholder: "global" }, { name: "local_asn", label: "ASN local", type: "number", required: true, placeholder: "65000" }, { name: "remote_asn", label: "ASN distant", type: "number", required: true, placeholder: "65010" }, { name: "peer_address", label: "Adresse peer", required: true, placeholder: "192.0.2.2" }, { name: "address_family", label: "Famille d’adresses", type: "select", options: [{ value: "ipv4", label: "IPv4" }, { value: "ipv6", label: "IPv6" }] }, { name: "route_targets_import", label: "RT import", type: "csv", placeholder: "65000:10010" }, { name: "route_targets_export", label: "RT export", type: "csv", placeholder: "65000:10010" }, { name: "description", label: "Description", placeholder: "Peer datacenter" }] },
+    { id: "ipam-observe-dns", label: "Observer un enregistrement DNS", method: "POST", path: "/v1/ipam/dns-observations", body: [FIELD_SETS.actor, { name: "vrf", label: "VRF", required: true, placeholder: "global" }, { name: "hostname", label: "Nom DNS", required: true, placeholder: "srv-app-01.example.net" }, { name: "address", label: "Adresse IP", required: true, placeholder: "10.20.30.21" }, { name: "ptr_hostname", label: "Nom PTR", placeholder: "srv-app-01.example.net" }, { name: "source", label: "Source observation", placeholder: "bind" }] },
+    { id: "ipam-observe-dhcp", label: "Observer un bail DHCP", method: "POST", path: "/v1/ipam/dhcp-leases", body: [FIELD_SETS.actor, { name: "vrf", label: "VRF", required: true, placeholder: "global" }, { name: "prefix", label: "Préfixe", required: true, placeholder: "10.20.30.0/24" }, { name: "address", label: "Adresse IP", required: true, placeholder: "10.20.30.44" }, { name: "mac_address", label: "Adresse MAC", required: true, placeholder: "00:11:22:33:44:55" }, { name: "hostname", label: "Nom DHCP", required: true, placeholder: "srv-dhcp-01" }, { name: "source", label: "Source observation", placeholder: "kea" }, { name: "active", label: "Bail actif", type: "boolean", defaultValue: "true" }] },
+    { id: "ipam-conflicts", label: "Détecter les conflits", method: "GET", path: "/v1/ipam/conflicts", query: [{ name: "vrf", label: "VRF", placeholder: "global" }] },
+    { id: "ipam-ddi-preview", label: "Prévisualiser DDI", method: "POST", path: "/v1/ipam/ddi-preview", body: [FIELD_SETS.actor, { name: "vrf", label: "VRF", required: true, placeholder: "global" }, { name: "idempotency_key", label: "Clé d’idempotence", required: true, placeholder: "ipam-alloc-srv-app-01" }, { name: "providers", label: "Fournisseurs DDI", type: "csv", placeholder: "bind,kea" }, { name: "dns_zone", label: "Zone DNS", placeholder: "example.net" }, { name: "mac_address", label: "Adresse MAC", placeholder: "00:11:22:33:44:55" }, { name: "ttl", label: "TTL", type: "number", placeholder: "300" }, { name: "apply_preview", label: "Appliquer la prévisualisation", type: "boolean" }] },
+    { id: "network-config-baseline-upsert", label: "Créer ou réviser une golden configuration", method: "POST", path: "/v1/network-config/baselines/upsert", body: [FIELD_SETS.actor, { name: "code", label: "Code", required: true }, { name: "device_object_key", label: "Objet équipement RSOT", required: true }, { name: "platform", label: "Plateforme réseau", required: true }, { name: "expected_config", label: "Configuration attendue JSON", type: "textarea", required: true }, { name: "ignored_paths", label: "Chemins ignorés", type: "csv" }, { name: "critical_paths", label: "Chemins critiques", type: "csv" }, { name: "owner", label: "Propriétaire", required: true }, { name: "justification", label: "Justification", required: true }] },
+    { id: "network-config-baseline-list", label: "Lister les golden configurations", method: "GET", path: "/v1/network-config/baselines", query: [{ name: "limit", label: "Limite", type: "number", defaultValue: "100" }, { name: "cursor", label: "Curseur" }, { name: "include_retired", label: "Inclure retirés", type: "boolean" }] },
+    { id: "network-config-baseline-retire", label: "Retirer une golden configuration", method: "POST", path: "/v1/network-config/baselines/retire", body: [FIELD_SETS.actor, { name: "baseline_id", label: "ID baseline", required: true }] },
+    { id: "network-config-observation-submit", label: "Ingérer une configuration découverte", method: "POST", path: "/v1/network-config/observations/submit", body: [FIELD_SETS.actor, { name: "idempotency_key", label: "Clé d’idempotence", required: true }, { name: "source", label: "Source observation", type: "select", options: ["ssh", "api", "netconf", "restconf", "gnmi", "discovery", "import", "manual"], required: true }, { name: "collector", label: "Collecteur", required: true }, { name: "device_object_key", label: "Objet équipement RSOT", required: true }, { name: "platform", label: "Plateforme réseau", required: true }, { name: "observed_config", label: "Configuration observée JSON", type: "textarea", required: true }, { name: "observed_at", label: "Observé le (ISO-8601)", required: true }] },
+    { id: "network-config-observation-list", label: "Lister les configurations découvertes", method: "GET", path: "/v1/network-config/observations", query: [{ name: "device_object_key", label: "Objet équipement RSOT" }, { name: "platform", label: "Plateforme réseau" }, { name: "observed_before", label: "Observé avant" }, { name: "limit", label: "Limite", type: "number", defaultValue: "100" }, { name: "cursor", label: "Curseur" }] },
+    { id: "network-config-assessment", label: "Évaluer la dérive réseau", method: "GET", path: "/v1/network-config/assessment", query: [{ name: "actor", label: "Opérateur", defaultValue: "web" }, { name: "baseline_code", label: "Code baseline" }, { name: "as_of", label: "Date de référence", format: "date-time" }, { name: "status", label: "Statut conformité", type: "select", options: ["compliant", "drift", "missing-observation"] }, { name: "limit", label: "Limite", type: "number", defaultValue: "100" }, { name: "cursor", label: "Curseur" }] },
     { id: "flow-declaration-upsert", label: "Créer ou réviser un flux déclaré", method: "POST", path: "/v1/flows/declarations/upsert", body: [
       FIELD_SETS.actor,
       { name: "code", label: "Code", required: true, placeholder: "APP-WEB-HTTPS" },
@@ -1052,88 +1080,7 @@ const OPENINFRA_MODULES = [
       { name: "limit", label: "Limite", type: "number", defaultValue: "100" },
       { name: "cursor", label: "Curseur" }
     ] }
-  ] },
-  { id: "network-config", label: "Conformité réseau", shortLabel: "Config", icon: "sliders", description: "Comparaison gouvernée des golden configurations et des configurations réseau découvertes, sans remédiation automatique.", operations: [
-    { id: "network-config-baseline-upsert", label: "Créer ou réviser une golden configuration", method: "POST", path: "/v1/network-config/baselines/upsert", body: [FIELD_SETS.actor, { name: "code", label: "Code", required: true }, { name: "device_object_key", label: "Objet équipement RSOT", required: true }, { name: "platform", label: "Plateforme réseau", required: true }, { name: "expected_config", label: "Configuration attendue JSON", type: "textarea", required: true }, { name: "ignored_paths", label: "Chemins ignorés", type: "csv" }, { name: "critical_paths", label: "Chemins critiques", type: "csv" }, { name: "owner", label: "Propriétaire", required: true }, { name: "justification", label: "Justification", required: true }] },
-    { id: "network-config-baseline-list", label: "Lister les golden configurations", method: "GET", path: "/v1/network-config/baselines", query: [{ name: "limit", label: "Limite", type: "number", defaultValue: "100" }, { name: "cursor", label: "Curseur" }, { name: "include_retired", label: "Inclure retirés", type: "boolean" }] },
-    { id: "network-config-baseline-retire", label: "Retirer une golden configuration", method: "POST", path: "/v1/network-config/baselines/retire", body: [FIELD_SETS.actor, { name: "baseline_id", label: "ID baseline", required: true }] },
-    { id: "network-config-observation-submit", label: "Ingérer une configuration découverte", method: "POST", path: "/v1/network-config/observations/submit", body: [FIELD_SETS.actor, { name: "idempotency_key", label: "Clé d’idempotence", required: true }, { name: "source", label: "Source observation", type: "select", options: ["ssh", "api", "netconf", "restconf", "gnmi", "discovery", "import", "manual"], required: true }, { name: "collector", label: "Collecteur", required: true }, { name: "device_object_key", label: "Objet équipement RSOT", required: true }, { name: "platform", label: "Plateforme réseau", required: true }, { name: "observed_config", label: "Configuration observée JSON", type: "textarea", required: true }, { name: "observed_at", label: "Observé le (ISO-8601)", required: true }] },
-    { id: "network-config-observation-list", label: "Lister les configurations découvertes", method: "GET", path: "/v1/network-config/observations", query: [{ name: "device_object_key", label: "Objet équipement RSOT" }, { name: "platform", label: "Plateforme réseau" }, { name: "observed_before", label: "Observé avant" }, { name: "limit", label: "Limite", type: "number", defaultValue: "100" }, { name: "cursor", label: "Curseur" }] },
-    { id: "network-config-assessment", label: "Évaluer la dérive réseau", method: "GET", path: "/v1/network-config/assessment", query: [{ name: "actor", label: "Opérateur", defaultValue: "web" }, { name: "baseline_code", label: "Code baseline" }, { name: "as_of", label: "Date de référence", format: "date-time" }, { name: "status", label: "Statut conformité", type: "select", options: ["compliant", "drift", "missing-observation"] }, { name: "limit", label: "Limite", type: "number", defaultValue: "100" }, { name: "cursor", label: "Curseur" }] },
-  ] },
-  { id: "certificates", label: "Certificats et PKI", shortLabel: "Certificats", icon: "shield", description: "Inventaire gouverné des certificats, validation des chaînes, endpoints TLS, SAN et échéances.", operations: [
-    { id: "certificate-import", label: "Importer une chaîne PEM", method: "POST", path: "/v1/certificates/import", body: [
-      FIELD_SETS.actor,
-      { name: "pem_bundle", label: "Chaîne PEM", type: "textarea", required: true, placeholder: "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----" },
-      { name: "owner", label: "Propriétaire", required: true, placeholder: "Équipe PKI" },
-      { name: "environment", label: "Environnement", required: true, placeholder: "production" },
-      { name: "source", label: "Source", type: "select", options: ["manual", "discovery", "import", "acme", "internal-pki", "external-pki"], defaultValue: "manual" },
-      { name: "object_key", label: "Objet RSOT", placeholder: "application/portail" }
-    ] },
-    { id: "certificate-get", label: "Consulter un certificat", method: "GET", path: "/v1/certificates/get", query: [
-      { name: "fingerprint", label: "Empreinte SHA-256", required: true, placeholder: "64 caractères hexadécimaux" }
-    ] },
-    { id: "certificate-list", label: "Lister les certificats", method: "GET", path: "/v1/certificates", query: [
-      { name: "limit", label: "Limite", type: "number", defaultValue: "100" },
-      { name: "cursor", label: "Curseur" },
-      { name: "include_retired", label: "Inclure retirés", type: "boolean" }
-    ] },
-    { id: "certificate-retire", label: "Retirer un certificat", method: "POST", path: "/v1/certificates/retire", body: [
-      FIELD_SETS.actor,
-      { name: "fingerprint", label: "Empreinte SHA-256", required: true }
-    ] },
-    { id: "certificate-endpoint-observe", label: "Observer un endpoint TLS", method: "POST", path: "/v1/certificates/endpoints/observe", body: [
-      FIELD_SETS.actor,
-      { name: "idempotency_key", label: "Clé d’idempotence", required: true, placeholder: "scanner-01:20260710:443" },
-      { name: "protocol", label: "Protocole", type: "select", options: ["https", "tls", "ldaps", "smtps", "imaps", "pop3s", "mqtts", "custom"], defaultValue: "https" },
-      { name: "host", label: "Hôte", required: true, placeholder: "portal.example.net" },
-      { name: "port", label: "Port", type: "number", required: true, defaultValue: "443" },
-      { name: "service", label: "Service", required: true, placeholder: "Portail OpenInfra" },
-      { name: "certificate_fingerprint", label: "Empreinte du certificat", required: true },
-      { name: "observed_at", label: "Observé le", required: true, placeholder: "2026-07-10T12:00:00Z" },
-      { name: "source", label: "Source observation", required: true, placeholder: "tls-scanner" },
-      { name: "collector", label: "Collecteur", required: true, placeholder: "scanner-par-01" },
-      { name: "object_key", label: "Objet RSOT", placeholder: "application/portail" },
-      { name: "tls_version", label: "Version TLS", placeholder: "TLSv1.3" },
-      { name: "cipher", label: "Suite cryptographique", placeholder: "TLS_AES_256_GCM_SHA384" }
-    ] },
-    { id: "certificate-endpoint-list", label: "Lister les endpoints TLS", method: "GET", path: "/v1/certificates/endpoints", query: [
-      { name: "certificate_fingerprint", label: "Empreinte du certificat" },
-      { name: "limit", label: "Limite", type: "number", defaultValue: "100" },
-      { name: "cursor", label: "Curseur" }
-    ] },
-    { id: "certificate-assessment", label: "Évaluer la conformité PKI", method: "GET", path: "/v1/certificates/assessment", query: [
-      { name: "as_of", label: "Date de référence", placeholder: "2026-07-10T12:00:00Z" },
-      { name: "critical_days", label: "Seuil critique (jours)", type: "number", defaultValue: "14" },
-      { name: "warning_days", label: "Seuil avertissement (jours)", type: "number", defaultValue: "30" },
-      { name: "health", label: "État de santé", type: "select", options: ["", "retired", "not-yet-valid", "expired", "critical", "warning", "healthy"] },
-      { name: "limit", label: "Limite", type: "number", defaultValue: "100" },
-      { name: "cursor", label: "Curseur" }
-    ] }
-  ] },
-  { id: "ipam", label: "IPAM", icon: "grid", description: "IPv4/IPv6, VRF, préfixes, plages, VLAN/VXLAN, ASN/BGP, DNS/DHCP, DDI, conflits, capacité et allocations.", operations: [
-    { id: "ipam-dashboard", label: "Dashboard IPAM", method: "GET", path: "/v1/ipam/ui-dashboard", query: [{ name: "vrf", label: "VRF", placeholder: "global" }] },
-    { id: "ipam-search", label: "Rechercher dans l’IPAM", method: "GET", path: "/v1/ipam/ui-search", query: [{ name: "query", label: "Recherche", required: true, placeholder: "10.20.0.0/24 ou srv-db" }, { name: "vrf", label: "VRF", placeholder: "global" }] },
-    { id: "ipam-define-vrf", label: "Définir une VRF", method: "POST", path: "/v1/ipam/vrfs", body: [FIELD_SETS.actor, { name: "name", label: "Nom VRF", required: true, placeholder: "global" }, { name: "route_distinguisher", label: "Route distinguisher", placeholder: "65000:100" }] },
-    { id: "ipam-define-aggregate", label: "Définir un agrégat IP", method: "POST", path: "/v1/ipam/aggregates", body: [FIELD_SETS.actor, { name: "vrf", label: "VRF", required: true, placeholder: "global" }, { name: "cidr", label: "CIDR agrégat", required: true, placeholder: "10.20.0.0/16" }, { name: "description", label: "Description", placeholder: "Bloc site PAR1" }] },
-    { id: "ipam-define-prefix", label: "Définir un préfixe IP", method: "POST", path: "/v1/ipam/prefixes", body: [FIELD_SETS.actor, { name: "vrf", label: "VRF", required: true, placeholder: "global" }, { name: "cidr", label: "CIDR préfixe", required: true, placeholder: "10.20.30.0/24" }, { name: "description", label: "Description", placeholder: "Réseau serveurs" }] },
-    { id: "ipam-list-prefixes", label: "Lister les préfixes", method: "GET", path: "/v1/ipam/prefixes", query: [{ name: "vrf", label: "VRF", required: true, placeholder: "global" }] },
-    { id: "ipam-define-range", label: "Définir une plage IP", method: "POST", path: "/v1/ipam/ranges", body: [FIELD_SETS.actor, { name: "vrf", label: "VRF", required: true, placeholder: "global" }, { name: "prefix", label: "Préfixe", required: true, placeholder: "10.20.30.0/24" }, { name: "start", label: "Début plage", required: true, placeholder: "10.20.30.10" }, { name: "end", label: "Fin plage", required: true, placeholder: "10.20.30.200" }, { name: "purpose", label: "Usage plage", type: "select", options: [{ value: "allocation", label: "Allocation" }, { value: "reservation", label: "Réservation" }, { value: "exclusion", label: "Exclusion" }], defaultValue: "allocation" }, { name: "description", label: "Description", placeholder: "Pool applicatif" }] },
-    { id: "ipam-register-address", label: "Enregistrer une adresse IP", method: "POST", path: "/v1/ipam/addresses", body: [FIELD_SETS.actor, { name: "vrf", label: "VRF", required: true, placeholder: "global" }, { name: "prefix", label: "Préfixe", required: true, placeholder: "10.20.30.0/24" }, { name: "address", label: "Adresse IP", required: true, placeholder: "10.20.30.21" }, { name: "hostname", label: "Nom DNS / équipement", required: true, placeholder: "srv-app-01" }, { name: "interface_name", label: "Interface", placeholder: "eth0" }, { name: "status", label: "Statut adresse", type: "select", options: [{ value: "planned", label: "Planifiée" }, { value: "reserved", label: "Réservée" }, { value: "active", label: "Active" }, { value: "deprecated", label: "Dépréciée" }], defaultValue: "reserved" }] },
-    { id: "ipam-allocate", label: "Allouer une adresse IP", method: "POST", path: "/v1/ipam/allocate", body: [FIELD_SETS.actor, { name: "vrf", label: "VRF", required: true, placeholder: "global" }, { name: "prefix", label: "Préfixe", required: true, placeholder: "10.20.30.0/24" }, { name: "hostname", label: "Nom DNS / équipement", required: true, placeholder: "srv-app-01" }, { name: "idempotency_key", label: "Clé d’idempotence", required: true, placeholder: "ipam-alloc-srv-app-01" }] },
-    { id: "ipam-reservation-wizard", label: "Assistant de réservation IP", method: "POST", path: "/v1/ipam/reservation-wizard", body: [FIELD_SETS.actor, { name: "vrf", label: "VRF", required: true, placeholder: "global" }, { name: "prefix", label: "Préfixe", required: true, placeholder: "10.20.30.0/24" }, { name: "hostname", label: "Nom DNS / équipement", required: true, placeholder: "srv-app-02" }, { name: "idempotency_key", label: "Clé d’idempotence", required: true, placeholder: "ipam-wizard-srv-app-02" }, { name: "apply", label: "Appliquer la réservation", type: "boolean" }] },
-    { id: "ipam-capacity", label: "Calculer la capacité d’un préfixe", method: "GET", path: "/v1/ipam/capacity", query: [{ name: "vrf", label: "VRF", required: true, placeholder: "global" }, { name: "prefix", label: "Préfixe", required: true, placeholder: "10.20.30.0/24" }] },
-    { id: "ipam-network-bindings", label: "Afficher les bindings réseau", method: "GET", path: "/v1/ipam/network-bindings", query: [{ name: "vrf", label: "VRF", placeholder: "global" }] },
-    { id: "ipam-topology", label: "Topologie opérationnelle IPAM", method: "GET", path: "/v1/ipam/topology", query: [{ name: "vrf", label: "VRF", placeholder: "global" }] },
-    { id: "ipam-define-vlan-group", label: "Définir un groupe VLAN", method: "POST", path: "/v1/ipam/vlan-groups", body: [FIELD_SETS.actor, { name: "name", label: "Groupe VLAN", required: true, placeholder: "dc-par1" }, { name: "scope", label: "Scope VLAN", placeholder: "site/PAR1" }, { name: "description", label: "Description", placeholder: "VLAN datacenter PAR1" }] },
-    { id: "ipam-define-vxlan-vni", label: "Définir un VXLAN VNI", method: "POST", path: "/v1/ipam/vxlan-vnis", body: [FIELD_SETS.actor, { name: "vni", label: "VNI", type: "number", required: true, placeholder: "10010" }, { name: "name", label: "Nom VNI", required: true, placeholder: "prod-app" }, { name: "vrf", label: "VRF", required: true, placeholder: "global" }, { name: "route_targets_import", label: "RT import", type: "csv", placeholder: "65000:10010" }, { name: "route_targets_export", label: "RT export", type: "csv", placeholder: "65000:10010" }, { name: "description", label: "Description", placeholder: "Segment applicatif" }] },
-    { id: "ipam-define-vlan", label: "Définir un VLAN", method: "POST", path: "/v1/ipam/vlans", body: [FIELD_SETS.actor, { name: "group", label: "Groupe VLAN", required: true, placeholder: "dc-par1" }, { name: "vlan_id", label: "VLAN ID", type: "number", required: true, placeholder: "210" }, { name: "name", label: "Nom VLAN", required: true, placeholder: "prod-app" }, { name: "vrf", label: "VRF", placeholder: "global" }, { name: "vni", label: "VNI", type: "number", placeholder: "10010" }, { name: "description", label: "Description", placeholder: "Réseau applicatif" }] },
-    { id: "ipam-define-asn", label: "Définir un ASN", method: "POST", path: "/v1/ipam/asns", body: [FIELD_SETS.actor, { name: "asn", label: "ASN", type: "number", required: true, placeholder: "65000" }, { name: "name", label: "Nom AS", required: true, placeholder: "OpenInfra Core" }, { name: "description", label: "Description", placeholder: "Autonomous system interne" }] },
-    { id: "ipam-define-bgp-peer", label: "Définir un peer BGP", method: "POST", path: "/v1/ipam/bgp-peers", body: [FIELD_SETS.actor, { name: "vrf", label: "VRF", required: true, placeholder: "global" }, { name: "local_asn", label: "ASN local", type: "number", required: true, placeholder: "65000" }, { name: "remote_asn", label: "ASN distant", type: "number", required: true, placeholder: "65010" }, { name: "peer_address", label: "Adresse peer", required: true, placeholder: "192.0.2.2" }, { name: "address_family", label: "Famille d’adresses", type: "select", options: [{ value: "ipv4", label: "IPv4" }, { value: "ipv6", label: "IPv6" }] }, { name: "route_targets_import", label: "RT import", type: "csv", placeholder: "65000:10010" }, { name: "route_targets_export", label: "RT export", type: "csv", placeholder: "65000:10010" }, { name: "description", label: "Description", placeholder: "Peer datacenter" }] },
-    { id: "ipam-observe-dns", label: "Observer un enregistrement DNS", method: "POST", path: "/v1/ipam/dns-observations", body: [FIELD_SETS.actor, { name: "vrf", label: "VRF", required: true, placeholder: "global" }, { name: "hostname", label: "Nom DNS", required: true, placeholder: "srv-app-01.example.net" }, { name: "address", label: "Adresse IP", required: true, placeholder: "10.20.30.21" }, { name: "ptr_hostname", label: "Nom PTR", placeholder: "srv-app-01.example.net" }, { name: "source", label: "Source observation", placeholder: "bind" }] },
-    { id: "ipam-observe-dhcp", label: "Observer un bail DHCP", method: "POST", path: "/v1/ipam/dhcp-leases", body: [FIELD_SETS.actor, { name: "vrf", label: "VRF", required: true, placeholder: "global" }, { name: "prefix", label: "Préfixe", required: true, placeholder: "10.20.30.0/24" }, { name: "address", label: "Adresse IP", required: true, placeholder: "10.20.30.44" }, { name: "mac_address", label: "Adresse MAC", required: true, placeholder: "00:11:22:33:44:55" }, { name: "hostname", label: "Nom DHCP", required: true, placeholder: "srv-dhcp-01" }, { name: "source", label: "Source observation", placeholder: "kea" }, { name: "active", label: "Bail actif", type: "boolean", defaultValue: "true" }] },
-    { id: "ipam-conflicts", label: "Détecter les conflits", method: "GET", path: "/v1/ipam/conflicts", query: [{ name: "vrf", label: "VRF", placeholder: "global" }] },
-    { id: "ipam-ddi-preview", label: "Prévisualiser DDI", method: "POST", path: "/v1/ipam/ddi-preview", body: [FIELD_SETS.actor, { name: "vrf", label: "VRF", required: true, placeholder: "global" }, { name: "idempotency_key", label: "Clé d’idempotence", required: true, placeholder: "ipam-alloc-srv-app-01" }, { name: "providers", label: "Fournisseurs DDI", type: "csv", placeholder: "bind,kea" }, { name: "dns_zone", label: "Zone DNS", placeholder: "example.net" }, { name: "mac_address", label: "Adresse MAC", placeholder: "00:11:22:33:44:55" }, { name: "ttl", label: "TTL", type: "number", placeholder: "300" }, { name: "apply_preview", label: "Appliquer la prévisualisation", type: "boolean" }] }
+
   ] },
   { id: "dcim", label: "DCIM", icon: "home", description: "Sites, salles, zones, racks, ports, câbles, énergie et localisation terrain.", operations: [
     { id: "dcim-sites", label: "Lister les sites DCIM", method: "GET", path: "/v1/dcim/sites", query: [{ name: "include_retired", label: "Inclure retirés", type: "boolean" }] },
@@ -1238,7 +1185,74 @@ const OPENINFRA_MODULES = [
     { id: "itam-software-license", label: "Licence logicielle", method: "GET", path: "/v1/itam/software-license", query: [{ name: "license_reference", label: "Référence licence", required: true, placeholder: "LIC-OPENINFRA-001" }] },
     { id: "itam-software-compliance", label: "Conformité licence", method: "GET", path: "/v1/itam/software-license/compliance", query: [{ name: "license_reference", label: "Référence licence", required: true, placeholder: "LIC-OPENINFRA-001" }, { name: "as_of", label: "Date de référence", placeholder: "2026-07-08" }] },
     { id: "itam-register-software", label: "Déclarer licence logicielle", method: "POST", path: "/v1/itam/software-license", body: [FIELD_SETS.actor, { name: "product_name", label: "Produit", required: true, placeholder: "PostgreSQL Enterprise Support" }, { name: "vendor_partner_id", label: "Éditeur accrédité", type: "partner-select", partnerKind: "software_publisher", required: true }, { name: "vendor", label: "Éditeur", type: "hidden", defaultValue: "accredited" }, { name: "license_reference", label: "Référence licence", required: true, placeholder: "LIC-OPENINFRA-001" }, { name: "contract_reference", label: "Référence contrat", placeholder: "CTR-SW-001" }, { name: "metric", label: "Métrique", type: "select", required: true, options: ["device", "user", "core", "socket", "instance", "subscription"], defaultValue: "device" }, { name: "purchased_quantity", label: "Quantité achetée", required: true, placeholder: "100" }, { name: "assigned_quantity", label: "Quantité assignée", placeholder: "0" }, { name: "entitlement_start", label: "Début droit", required: true, placeholder: "2026-01-01" }, { name: "entitlement_end", label: "Fin droit", required: true, placeholder: "2027-01-01" }, { name: "version", label: "Version", placeholder: "2026" }, { name: "status", label: "Statut", type: "select", options: ["planned", "active", "expired", "terminated"], defaultValue: "active" }, { name: "owner", label: "Propriétaire", placeholder: "DSI" }, { name: "notes", label: "Notes", placeholder: "Périmètre licence" }] },
-    { id: "itam-update-license-assignment", label: "Mettre à jour affectation licence", method: "POST", path: "/v1/itam/software-license/assignment", body: [FIELD_SETS.actor, { name: "license_reference", label: "Référence licence", required: true, placeholder: "LIC-OPENINFRA-001" }, { name: "assigned_quantity", label: "Quantité assignée", required: true, placeholder: "75" }, { name: "notes", label: "Notes", placeholder: "Ajustement inventaire" }] }
+    { id: "itam-update-license-assignment", label: "Mettre à jour affectation licence", method: "POST", path: "/v1/itam/software-license/assignment", body: [FIELD_SETS.actor, { name: "license_reference", label: "Référence licence", required: true, placeholder: "LIC-OPENINFRA-001" }, { name: "assigned_quantity", label: "Quantité assignée", required: true, placeholder: "75" }, { name: "notes", label: "Notes", placeholder: "Ajustement inventaire" }] },
+
+    { id: "finops-rule-create", label: "Créer une règle d’allocation", path: "/v1/finops/allocation-rules/create", method: "POST", body: [
+      "Opérateur", { name: "name", label: "Nom de la règle", required: true }, { name: "priority", label: "Priorité", type: "number", defaultValue: "100" },
+      { name: "dimension", label: "Dimension", type: "select", options: ["asset", "application", "business-service", "tenant", "owner", "tag", "cost-center", "environment", "dependency"], required: true },
+      { name: "selector_key", label: "Clé de sélection", required: true }, { name: "fixed_target", label: "Cible fixe" },
+      { name: "percentage", label: "Pourcentage", type: "number", required: true }, { name: "category", label: "Catégorie de coût" },
+      { name: "source", label: "Source de coût" }, { name: "active", label: "Règle active", type: "boolean", defaultValue: "true" },
+    ] },
+    { id: "finops-rules", label: "Lister les règles d’allocation", path: "/v1/finops/allocation-rules", method: "GET", query: [
+      { name: "active_only", label: "Uniquement actives", type: "boolean" }, { name: "limit", label: "Limite", type: "number", defaultValue: "100" }, { name: "cursor", label: "Curseur" },
+    ] },
+    { id: "finops-import-submit", label: "Importer des coûts", path: "/v1/finops/import-jobs/submit", method: "POST", body: [
+      "Opérateur", { name: "idempotency_key", label: "Clé d’idempotence", required: true }, { name: "source", label: "Source", required: true },
+      { name: "records", label: "Enregistrements de coûts JSON", type: "json", required: true, defaultValue: "[]" },
+    ] },
+    { id: "finops-import-get", label: "Consulter un import de coûts", path: "/v1/finops/import-jobs/get", method: "GET", query: [
+      { name: "job_id", label: "ID import", required: true }, { name: "include_records", label: "Inclure les enregistrements", type: "boolean" },
+    ] },
+    { id: "finops-imports", label: "Lister les imports de coûts", path: "/v1/finops/import-jobs", method: "GET", query: [
+      { name: "status", label: "Statut" }, { name: "limit", label: "Limite", type: "number", defaultValue: "100" }, { name: "cursor", label: "Curseur" },
+    ] },
+    { id: "finops-import-run", label: "Exécuter un import de coûts", path: "/v1/finops/import-jobs/run", method: "POST", body: ["Opérateur", { name: "job_id", label: "ID import", required: true }] },
+    { id: "finops-import-cancel", label: "Annuler un import de coûts", path: "/v1/finops/import-jobs/cancel", method: "POST", body: ["Opérateur", { name: "job_id", label: "ID import", required: true }] },
+    { id: "finops-costs", label: "Lister les coûts normalisés", path: "/v1/finops/cost-records", method: "GET", query: [
+      { name: "period_start", label: "Début de période", type: "date" }, { name: "period_end", label: "Fin de période", type: "date" },
+      { name: "currency", label: "Devise ISO-4217" }, { name: "category", label: "Catégorie" }, { name: "source", label: "Source" },
+      { name: "quality_status", label: "Qualité d’allocation" }, { name: "limit", label: "Limite", type: "number", defaultValue: "100" }, { name: "cursor", label: "Curseur" },
+    ] },
+    { id: "finops-budget-upsert", label: "Créer ou modifier un budget", path: "/v1/finops/budgets/upsert", method: "POST", body: [
+      "Opérateur", { name: "dimension", label: "Dimension", required: true }, { name: "target", label: "Cible", required: true },
+      { name: "period_start", label: "Début de période", type: "date", required: true }, { name: "period_end", label: "Fin de période", type: "date", required: true },
+      { name: "currency", label: "Devise ISO-4217", required: true }, { name: "amount", label: "Montant", type: "number", required: true },
+      { name: "warning_threshold_percent", label: "Seuil d’alerte (%)", type: "number", required: true }, { name: "owner", label: "Propriétaire", required: true },
+    ] },
+    { id: "finops-budgets", label: "Lister les budgets", path: "/v1/finops/budgets", method: "GET", query: [
+      { name: "dimension", label: "Dimension" }, { name: "target", label: "Cible" }, { name: "currency", label: "Devise" },
+      { name: "limit", label: "Limite", type: "number", defaultValue: "100" }, { name: "cursor", label: "Curseur" },
+    ] },
+    { id: "finops-period-close", label: "Clôturer une période financière", path: "/v1/finops/periods/close", method: "POST", body: [
+      "Opérateur", { name: "period_start", label: "Début de période", type: "date", required: true }, { name: "period_end", label: "Fin de période", type: "date", required: true },
+      { name: "currency", label: "Devise ISO-4217", required: true },
+    ] },
+    { id: "finops-periods", label: "Lister les périodes financières", path: "/v1/finops/periods", method: "GET", query: [
+      { name: "status", label: "Statut" }, { name: "limit", label: "Limite", type: "number", defaultValue: "100" }, { name: "cursor", label: "Curseur" },
+    ] },
+    { id: "finops-report-generate", label: "Générer un showback / chargeback", path: "/v1/finops/reports/generate", method: "POST", body: [
+      "Opérateur", { name: "kind", label: "Type de rapport", type: "select", options: ["showback", "chargeback"], required: true },
+      { name: "period_start", label: "Début de période", type: "date", required: true }, { name: "period_end", label: "Fin de période", type: "date", required: true },
+      { name: "group_by", label: "Regroupement", required: true }, { name: "currency", label: "Devise ISO-4217", required: true },
+      { name: "chargeback_markup_percent", label: "Marge chargeback (%)", type: "number", defaultValue: "0" },
+    ] },
+    { id: "finops-report-get", label: "Consulter un rapport financier", path: "/v1/finops/reports/get", method: "GET", query: [
+      { name: "report_id", label: "ID rapport", required: true },
+    ] },
+    { id: "finops-reports", label: "Lister les rapports financiers", path: "/v1/finops/reports", method: "GET", query: [
+      { name: "kind", label: "Type de rapport" }, { name: "currency", label: "Devise" }, { name: "limit", label: "Limite", type: "number", defaultValue: "100" }, { name: "cursor", label: "Curseur" },
+    ] },
+    { id: "finops-report-export", label: "Exporter un rapport financier", path: "/v1/finops/reports/export", method: "GET", query: [
+      { name: "report_id", label: "ID rapport", required: true }, { name: "format", label: "Format", type: "select", options: ["json", "csv"], defaultValue: "json" },
+    ] },
+    { id: "finops-anomalies", label: "Lister les anomalies de coûts", path: "/v1/finops/anomalies", method: "GET", query: [
+      { name: "severity", label: "Sévérité" }, { name: "limit", label: "Limite", type: "number", defaultValue: "100" }, { name: "cursor", label: "Curseur" },
+    ] },
+    { id: "finops-forecasts", label: "Lister les prévisions de coûts", path: "/v1/finops/forecasts", method: "GET", query: [
+      { name: "dimension", label: "Dimension" }, { name: "target", label: "Cible" }, { name: "limit", label: "Limite", type: "number", defaultValue: "100" }, { name: "cursor", label: "Curseur" },
+    ] },
+
   ] },
   { id: "discovery", label: "Discovery", icon: "activity", description: "Collecte backend locale en Lite/Pro ; agents proxy collectors Enterprise uniquement en topologie étoile.", operations: [
     { id: "discovery-evidence-list", label: "Lister les preuves immuables", method: "GET", path: "/v1/discovery/evidence-list", query: [{ name: "object_key", label: "Clé objet" }, FIELD_SETS.limit] },
@@ -1296,7 +1310,56 @@ const OPENINFRA_MODULES = [
     { id: "effective-identity", label: "Identité effective", method: "GET", path: "/v1/identity/effective", query: [{ name: "subject", label: "Sujet", placeholder: "user@example.com" }] },
     { id: "access-rules", label: "Politiques d’accès", method: "GET", path: "/v1/access/rules", query: [FIELD_SETS.limit, { name: "include_inactive", label: "Inclure inactives", type: "boolean" }] },
     { id: "audit-events", label: "Événements d’audit", method: "GET", path: "/v1/audit/events", query: [{ name: "action", label: "Action" }, { name: "target_type", label: "Type cible" }, FIELD_SETS.limit] },
-    { id: "audit-integrity", label: "Intégrité audit", method: "GET", path: "/v1/audit/integrity", query: [FIELD_SETS.limit] }
+    { id: "audit-integrity", label: "Intégrité audit", method: "GET", path: "/v1/audit/integrity", query: [FIELD_SETS.limit] },
+    { id: "certificate-import", label: "Importer une chaîne PEM", method: "POST", path: "/v1/certificates/import", body: [
+      FIELD_SETS.actor,
+      { name: "pem_bundle", label: "Chaîne PEM", type: "textarea", required: true, placeholder: "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----" },
+      { name: "owner", label: "Propriétaire", required: true, placeholder: "Équipe PKI" },
+      { name: "environment", label: "Environnement", required: true, placeholder: "production" },
+      { name: "source", label: "Source", type: "select", options: ["manual", "discovery", "import", "acme", "internal-pki", "external-pki"], defaultValue: "manual" },
+      { name: "object_key", label: "Objet RSOT", placeholder: "application/portail" }
+    ] },
+    { id: "certificate-get", label: "Consulter un certificat", method: "GET", path: "/v1/certificates/get", query: [
+      { name: "fingerprint", label: "Empreinte SHA-256", required: true, placeholder: "64 caractères hexadécimaux" }
+    ] },
+    { id: "certificate-list", label: "Lister les certificats", method: "GET", path: "/v1/certificates", query: [
+      { name: "limit", label: "Limite", type: "number", defaultValue: "100" },
+      { name: "cursor", label: "Curseur" },
+      { name: "include_retired", label: "Inclure retirés", type: "boolean" }
+    ] },
+    { id: "certificate-retire", label: "Retirer un certificat", method: "POST", path: "/v1/certificates/retire", body: [
+      FIELD_SETS.actor,
+      { name: "fingerprint", label: "Empreinte SHA-256", required: true }
+    ] },
+    { id: "certificate-endpoint-observe", label: "Observer un endpoint TLS", method: "POST", path: "/v1/certificates/endpoints/observe", body: [
+      FIELD_SETS.actor,
+      { name: "idempotency_key", label: "Clé d’idempotence", required: true, placeholder: "scanner-01:20260710:443" },
+      { name: "protocol", label: "Protocole", type: "select", options: ["https", "tls", "ldaps", "smtps", "imaps", "pop3s", "mqtts", "custom"], defaultValue: "https" },
+      { name: "host", label: "Hôte", required: true, placeholder: "portal.example.net" },
+      { name: "port", label: "Port", type: "number", required: true, defaultValue: "443" },
+      { name: "service", label: "Service", required: true, placeholder: "Portail OpenInfra" },
+      { name: "certificate_fingerprint", label: "Empreinte du certificat", required: true },
+      { name: "observed_at", label: "Observé le", required: true, placeholder: "2026-07-10T12:00:00Z" },
+      { name: "source", label: "Source observation", required: true, placeholder: "tls-scanner" },
+      { name: "collector", label: "Collecteur", required: true, placeholder: "scanner-par-01" },
+      { name: "object_key", label: "Objet RSOT", placeholder: "application/portail" },
+      { name: "tls_version", label: "Version TLS", placeholder: "TLSv1.3" },
+      { name: "cipher", label: "Suite cryptographique", placeholder: "TLS_AES_256_GCM_SHA384" }
+    ] },
+    { id: "certificate-endpoint-list", label: "Lister les endpoints TLS", method: "GET", path: "/v1/certificates/endpoints", query: [
+      { name: "certificate_fingerprint", label: "Empreinte du certificat" },
+      { name: "limit", label: "Limite", type: "number", defaultValue: "100" },
+      { name: "cursor", label: "Curseur" }
+    ] },
+    { id: "certificate-assessment", label: "Évaluer la conformité PKI", method: "GET", path: "/v1/certificates/assessment", query: [
+      { name: "as_of", label: "Date de référence", placeholder: "2026-07-10T12:00:00Z" },
+      { name: "critical_days", label: "Seuil critique (jours)", type: "number", defaultValue: "14" },
+      { name: "warning_days", label: "Seuil avertissement (jours)", type: "number", defaultValue: "30" },
+      { name: "health", label: "État de santé", type: "select", options: ["", "retired", "not-yet-valid", "expired", "critical", "warning", "healthy"] },
+      { name: "limit", label: "Limite", type: "number", defaultValue: "100" },
+      { name: "cursor", label: "Curseur" }
+    ] }
+
   ] }
 ];
 
@@ -1310,26 +1373,15 @@ const OPENINFRA_SIDEBAR_CONTEXTS = {
     { label: "Exports", operationIds: ["graph-export"] },
     { label: "Simulation & migrations", operationIds: ["simulation-create", "simulation-list", "simulation-run", "simulation-reports", "simulation-compare", "simulation-comparisons"] }
   ],
-  flows: [
-    { label: "Flux déclarés", operationIds: ["flow-declaration-upsert", "flow-declaration-list", "flow-declaration-retire"] },
-    { label: "Flux observés", operationIds: ["flow-observation-submit", "flow-observation-list"] },
-    { label: "Conformité des flux", operationIds: ["flow-matrix"] }
-  ],
-  "network-config": [
-    { label: "Golden configurations", operationIds: ["network-config-baseline-upsert", "network-config-baseline-list", "network-config-baseline-retire"] },
-    { label: "Configurations découvertes", operationIds: ["network-config-observation-submit", "network-config-observation-list"] },
-    { label: "Conformité et drift", operationIds: ["network-config-assessment"] }
-  ],
-  certificates: [
-    { label: "Inventaire PKI", operationIds: ["certificate-import", "certificate-get", "certificate-list", "certificate-retire"] },
-    { label: "Endpoints TLS", operationIds: ["certificate-endpoint-observe", "certificate-endpoint-list"] },
-    { label: "Conformité PKI", operationIds: ["certificate-assessment"] }
-  ],
   ipam: [
     { label: "Vue & recherche", operationIds: ["ipam-dashboard", "ipam-search"] },
     { label: "Adressage IP", operationIds: ["ipam-define-vrf", "ipam-define-aggregate", "ipam-define-prefix", "ipam-list-prefixes", "ipam-define-range", "ipam-register-address", "ipam-allocate", "ipam-reservation-wizard", "ipam-capacity"] },
     { label: "Réseau L2/L3", operationIds: ["ipam-network-bindings", "ipam-topology", "ipam-define-vlan-group", "ipam-define-vxlan-vni", "ipam-define-vlan", "ipam-define-asn", "ipam-define-bgp-peer"] },
-    { label: "Observations & DDI", operationIds: ["ipam-observe-dns", "ipam-observe-dhcp", "ipam-conflicts", "ipam-ddi-preview"] }
+    { label: "Observations & DDI", operationIds: ["ipam-observe-dns", "ipam-observe-dhcp", "ipam-conflicts", "ipam-ddi-preview"] },
+    { label: "Conformité réseau", operationIds: ["network-config-baseline-upsert", "network-config-baseline-list", "network-config-baseline-retire", "network-config-observation-submit", "network-config-observation-list", "network-config-assessment"] },
+    { label: "Flux déclarés", operationIds: ["flow-declaration-upsert", "flow-declaration-list", "flow-declaration-retire"] },
+    { label: "Flux observés", operationIds: ["flow-observation-submit", "flow-observation-list"] },
+    { label: "Conformité des flux", operationIds: ["flow-matrix"] },
   ],
   dcim: [
     { label: "Sites & dépendances", operationIds: ["dcim-sites", "dcim-site", "dcim-site-create", "dcim-site-update", "dcim-site-delete", "dcim-buildings", "dcim-building", "dcim-building-create", "dcim-building-update", "dcim-building-delete", "dcim-floors", "dcim-floor", "dcim-rooms-list", "dcim-room", "dcim-room-create", "dcim-room-update", "dcim-room-delete", "dcim-racks", "dcim-rack", "dcim-rack-create", "dcim-rack-update", "dcim-rack-delete", "dcim-zones", "dcim-zone", "dcim-zone-create", "dcim-zone-update", "dcim-zone-delete", "dcim-topology-catalog", "dcim-define-room"] },
@@ -1343,7 +1395,12 @@ const OPENINFRA_SIDEBAR_CONTEXTS = {
     { label: "Organisations", operationIds: ["itam-organizations", "itam-organization", "itam-organization-create", "itam-organization-update", "itam-organization-delete", "itam-tenants", "itam-tenant", "itam-tenant-create", "itam-tenant-update", "itam-tenant-delete"] },
     { label: "Partenaires", operationIds: ["itam-partners", "itam-partner", "itam-partner-create", "itam-partner-update", "itam-partner-delete"] },
     { label: "Support matériel", operationIds: ["itam-support-profile", "itam-support-coverage", "itam-register-manufacturer", "itam-add-third-party"] },
-    { label: "Licences logicielles", operationIds: ["itam-software-license", "itam-software-compliance", "itam-register-software", "itam-update-license-assignment"] }
+    { label: "Licences logicielles", operationIds: ["itam-software-license", "itam-software-compliance", "itam-register-software", "itam-update-license-assignment"] },
+    { label: "Règles d’allocation", operationIds: ["finops-rule-create", "finops-rules"] },
+    { label: "Imports & coûts", operationIds: ["finops-import-submit", "finops-import-get", "finops-imports", "finops-import-run", "finops-import-cancel", "finops-costs"] },
+    { label: "Budgets & périodes", operationIds: ["finops-budget-upsert", "finops-budgets", "finops-period-close", "finops-periods"] },
+    { label: "Showback / chargeback", operationIds: ["finops-report-generate", "finops-report-get", "finops-reports", "finops-report-export"] },
+    { label: "Prévisions & anomalies", operationIds: ["finops-anomalies", "finops-forecasts"] },
   ],
   discovery: [
     { label: "Locale Lite/Pro", operationIds: ["local-discovery-plan"] },
@@ -1364,7 +1421,10 @@ const OPENINFRA_SIDEBAR_CONTEXTS = {
   security: [
     { label: "Éditions & quotas", operationIds: ["edition-policies", "edition-feature-check", "edition-quota-check"] },
     { label: "Identité & accès", operationIds: ["tokens-list", "effective-identity", "access-rules"] },
-    { label: "Audit", operationIds: ["audit-events", "audit-integrity"] }
+    { label: "Audit", operationIds: ["audit-events", "audit-integrity"] },
+    { label: "Inventaire PKI", operationIds: ["certificate-import", "certificate-get", "certificate-list", "certificate-retire"] },
+    { label: "Endpoints TLS", operationIds: ["certificate-endpoint-observe", "certificate-endpoint-list"] },
+    { label: "Conformité PKI", operationIds: ["certificate-assessment"] },
   ]
 };
 

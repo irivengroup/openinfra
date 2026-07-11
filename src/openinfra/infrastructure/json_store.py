@@ -6,7 +6,7 @@ import secrets
 import threading
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any, cast
@@ -18,6 +18,10 @@ from openinfra.application.ports import (
     CertificateAssetPage,
     CertificateEndpointPage,
     CertificateInventoryRepository,
+    CostAllocationRulePage,
+    CostAnomalyPage,
+    CostImportJobPage,
+    CostRecordPage,
     DcimRepository,
     DiscoveryCollectorPage,
     DiscoveryEvidencePage,
@@ -30,6 +34,11 @@ from openinfra.application.ports import (
     ExportRepository,
     FieldOperationRepository,
     FieldOperationSheetPage,
+    FinancialPeriodPage,
+    FinOpsBudgetPage,
+    FinOpsForecastPage,
+    FinOpsReportPage,
+    FinOpsRepository,
     FlowDeclarationPage,
     FlowMatrixRepository,
     FlowObservationPage,
@@ -147,6 +156,16 @@ from openinfra.domain.field_operations import (
     InterventionLock,
     OfflineSyncPackage,
 )
+from openinfra.domain.finops import (
+    CostAllocationRule,
+    CostAnomaly,
+    CostImportJob,
+    CostRecord,
+    FinancialPeriod,
+    FinOpsBudget,
+    FinOpsForecast,
+    FinOpsReport,
+)
 from openinfra.domain.flow_matrix import (
     FlowDeclaration,
     FlowObservation,
@@ -206,6 +225,7 @@ from openinfra.domain.source_of_truth import (
     SourceRelationPage,
 )
 from openinfra.infrastructure.field_operation_mapper import FieldOperationRecordMapper
+from openinfra.infrastructure.finops_mapper import FinOpsRecordMapper
 from openinfra.infrastructure.simulation_mapper import SimulationRecordMapper
 
 _EXPORT_SIGNING_STORAGE_KEY = "export_signing_" + "secret"
@@ -422,6 +442,15 @@ class JsonDocumentStore:
             "simulation_impact_reports": {},
             "simulation_comparisons": {},
             "simulation_event_outbox": {},
+            "finops_allocation_rules": {},
+            "finops_import_jobs": {},
+            "finops_cost_records": {},
+            "finops_budgets": {},
+            "finops_periods": {},
+            "finops_anomalies": {},
+            "finops_forecasts": {},
+            "finops_reports": {},
+            "finops_event_outbox": {},
             "discovery_collectors": {},
             "discovery_jobs": {},
             "discovery_protocol_profiles": {},
@@ -4162,6 +4191,321 @@ class JsonSimulationRepository(SimulationRepository):
             "published_at": None,
         }
         self._store.mark_dirty()
+
+    @staticmethod
+    def _key(tenant_id: TenantId, identifier: str) -> str:
+        return f"{tenant_id.value}:{identifier}"
+
+    @staticmethod
+    def _offset(cursor: str | None) -> int:
+        try:
+            offset = int(cursor or "0")
+        except ValueError as exc:
+            raise ValidationError("pagination cursor must be a numeric offset") from exc
+        if offset < 0:
+            raise ValidationError("pagination cursor must be positive")
+        return offset
+
+
+class JsonFinOpsRepository(FinOpsRepository):
+    def __init__(self, store: JsonDocumentStore) -> None:
+        self._store = store
+
+    def save_allocation_rule(self, rule: CostAllocationRule) -> None:
+        self._save("finops_allocation_rules", rule.tenant_id, rule.id.value, rule.as_dict())
+
+    def list_allocation_rules(
+        self, tenant_id: TenantId, pagination: Pagination, active_only: bool = False
+    ) -> CostAllocationRulePage:
+        items = [
+            FinOpsRecordMapper.allocation_rule(value)
+            for value in self._tenant_values("finops_allocation_rules", tenant_id)
+            if not active_only or bool(value.get("active"))
+        ]
+        items.sort(key=lambda item: (item.priority, item.name, item.id.value))
+        selected, next_cursor = self._page(items, pagination)
+        return CostAllocationRulePage(tuple(selected), next_cursor)
+
+    def save_import_job(self, job: CostImportJob) -> None:
+        self._save(
+            "finops_import_jobs", job.tenant_id, job.id.value, job.as_dict(include_records=True)
+        )
+
+    def get_import_job(self, tenant_id: TenantId, job_id: str) -> CostImportJob | None:
+        value = self._get("finops_import_jobs", tenant_id, job_id)
+        return FinOpsRecordMapper.import_job(value) if value else None
+
+    def find_import_job_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> CostImportJob | None:
+        normalized = idempotency_key.strip()
+        for value in self._tenant_values("finops_import_jobs", tenant_id):
+            if value.get("idempotency_key") == normalized:
+                return FinOpsRecordMapper.import_job(value)
+        return None
+
+    def list_import_jobs(
+        self, tenant_id: TenantId, pagination: Pagination, status: str | None = None
+    ) -> CostImportJobPage:
+        normalized = status.strip().lower() if status else None
+        items = [
+            FinOpsRecordMapper.import_job(value)
+            for value in self._tenant_values("finops_import_jobs", tenant_id)
+            if normalized is None or value.get("status") == normalized
+        ]
+        items.sort(key=lambda item: (item.submitted_at, item.id.value), reverse=True)
+        selected, next_cursor = self._page(items, pagination)
+        return CostImportJobPage(tuple(selected), next_cursor)
+
+    def save_cost_record(self, record: CostRecord) -> None:
+        self._save("finops_cost_records", record.tenant_id, record.id.value, record.as_dict())
+
+    def find_cost_record_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> CostRecord | None:
+        normalized = idempotency_key.strip()
+        for value in self._tenant_values("finops_cost_records", tenant_id):
+            if value.get("idempotency_key") == normalized:
+                return FinOpsRecordMapper.cost_record(value)
+        return None
+
+    def list_cost_records(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        period_start: date | None = None,
+        period_end: date | None = None,
+        currency: str | None = None,
+        category: str | None = None,
+        source: str | None = None,
+        quality_status: str | None = None,
+    ) -> CostRecordPage:
+        items = [
+            FinOpsRecordMapper.cost_record(value)
+            for value in self._tenant_values("finops_cost_records", tenant_id)
+        ]
+        items = [
+            item
+            for item in items
+            if (period_start is None or item.period_start >= period_start)
+            and (period_end is None or item.period_end <= period_end)
+            and (currency is None or item.currency == currency.strip().upper())
+            and (category is None or item.category.value == category.strip().lower())
+            and (source is None or item.source == source.strip().lower().replace("_", "-"))
+            and (
+                quality_status is None
+                or item.quality_status.value == quality_status.strip().lower()
+            )
+        ]
+        items.sort(key=lambda item: (item.period_start, item.source, item.id.value), reverse=True)
+        selected, next_cursor = self._page(items, pagination)
+        return CostRecordPage(tuple(selected), next_cursor)
+
+    def save_budget(self, budget: FinOpsBudget) -> None:
+        self._save("finops_budgets", budget.tenant_id, budget.id.value, budget.as_dict())
+
+    def find_budget(
+        self,
+        tenant_id: TenantId,
+        dimension: str,
+        target: str,
+        period_start: date,
+        period_end: date,
+        currency: str,
+    ) -> FinOpsBudget | None:
+        normalized_dimension = dimension.strip().lower().replace("_", "-")
+        normalized_target = target.strip().lower().replace("_", "-")
+        normalized_currency = currency.strip().upper()
+        for value in self._tenant_values("finops_budgets", tenant_id):
+            if (
+                value.get("dimension") == normalized_dimension
+                and value.get("target") == normalized_target
+                and value.get("period_start") == period_start.isoformat()
+                and value.get("period_end") == period_end.isoformat()
+                and value.get("currency") == normalized_currency
+            ):
+                return FinOpsRecordMapper.budget(value)
+        return None
+
+    def list_budgets(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        dimension: str | None = None,
+        target: str | None = None,
+        currency: str | None = None,
+    ) -> FinOpsBudgetPage:
+        items = [
+            FinOpsRecordMapper.budget(value)
+            for value in self._tenant_values("finops_budgets", tenant_id)
+        ]
+        items = [
+            item
+            for item in items
+            if (
+                dimension is None
+                or item.dimension.value == dimension.strip().lower().replace("_", "-")
+            )
+            and (target is None or item.target == target.strip().lower().replace("_", "-"))
+            and (currency is None or item.currency == currency.strip().upper())
+        ]
+        items.sort(
+            key=lambda item: (item.period_start, item.dimension.value, item.target), reverse=True
+        )
+        selected, next_cursor = self._page(items, pagination)
+        return FinOpsBudgetPage(tuple(selected), next_cursor)
+
+    def save_period(self, period: FinancialPeriod) -> None:
+        self._save("finops_periods", period.tenant_id, period.id.value, period.as_dict())
+
+    def find_period(
+        self, tenant_id: TenantId, period_start: date, period_end: date, currency: str
+    ) -> FinancialPeriod | None:
+        normalized_currency = currency.strip().upper()
+        for value in self._tenant_values("finops_periods", tenant_id):
+            if (
+                value.get("period_start") == period_start.isoformat()
+                and value.get("period_end") == period_end.isoformat()
+                and value.get("currency") == normalized_currency
+            ):
+                return FinOpsRecordMapper.period(value)
+        return None
+
+    def list_periods(
+        self, tenant_id: TenantId, pagination: Pagination, status: str | None = None
+    ) -> FinancialPeriodPage:
+        normalized = status.strip().lower() if status else None
+        items = [
+            FinOpsRecordMapper.period(value)
+            for value in self._tenant_values("finops_periods", tenant_id)
+            if normalized is None or value.get("status") == normalized
+        ]
+        items.sort(key=lambda item: (item.period_start, item.id.value), reverse=True)
+        selected, next_cursor = self._page(items, pagination)
+        return FinancialPeriodPage(tuple(selected), next_cursor)
+
+    def save_anomaly(self, anomaly: CostAnomaly) -> None:
+        self._save("finops_anomalies", anomaly.tenant_id, anomaly.id.value, anomaly.as_dict())
+
+    def list_anomalies(
+        self, tenant_id: TenantId, pagination: Pagination, severity: str | None = None
+    ) -> CostAnomalyPage:
+        normalized = severity.strip().lower() if severity else None
+        items = [
+            FinOpsRecordMapper.anomaly(value)
+            for value in self._tenant_values("finops_anomalies", tenant_id)
+            if normalized is None or value.get("severity") == normalized
+        ]
+        items.sort(key=lambda item: (item.detected_at, item.id.value), reverse=True)
+        selected, next_cursor = self._page(items, pagination)
+        return CostAnomalyPage(tuple(selected), next_cursor)
+
+    def save_forecast(self, forecast: FinOpsForecast) -> None:
+        self._save("finops_forecasts", forecast.tenant_id, forecast.id.value, forecast.as_dict())
+
+    def list_forecasts(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        dimension: str | None = None,
+        target: str | None = None,
+    ) -> FinOpsForecastPage:
+        items = [
+            FinOpsRecordMapper.forecast(value)
+            for value in self._tenant_values("finops_forecasts", tenant_id)
+        ]
+        items = [
+            item
+            for item in items
+            if (
+                dimension is None
+                or item.dimension.value == dimension.strip().lower().replace("_", "-")
+            )
+            and (target is None or item.target == target.strip().lower().replace("_", "-"))
+        ]
+        items.sort(
+            key=lambda item: (item.period_start, item.dimension.value, item.target), reverse=True
+        )
+        selected, next_cursor = self._page(items, pagination)
+        return FinOpsForecastPage(tuple(selected), next_cursor)
+
+    def save_report(self, report: FinOpsReport) -> None:
+        self._save("finops_reports", report.tenant_id, report.id.value, report.as_dict())
+
+    def get_report(self, tenant_id: TenantId, report_id: str) -> FinOpsReport | None:
+        value = self._get("finops_reports", tenant_id, report_id)
+        return FinOpsRecordMapper.report(value) if value else None
+
+    def find_report_by_reproducibility_key(
+        self, tenant_id: TenantId, reproducibility_key: str
+    ) -> FinOpsReport | None:
+        normalized = reproducibility_key.strip().lower()
+        for value in self._tenant_values("finops_reports", tenant_id):
+            report = FinOpsRecordMapper.report(value)
+            if report.reproducibility_key() == normalized:
+                return report
+        return None
+
+    def list_reports(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        kind: str | None = None,
+        currency: str | None = None,
+    ) -> FinOpsReportPage:
+        normalized_kind = kind.strip().lower() if kind else None
+        normalized_currency = currency.strip().upper() if currency else None
+        items = [
+            FinOpsRecordMapper.report(value)
+            for value in self._tenant_values("finops_reports", tenant_id)
+            if (normalized_kind is None or value.get("kind") == normalized_kind)
+            and (normalized_currency is None or value.get("currency") == normalized_currency)
+        ]
+        items.sort(key=lambda item: (item.generated_at, item.id.value), reverse=True)
+        selected, next_cursor = self._page(items, pagination)
+        return FinOpsReportPage(tuple(selected), next_cursor)
+
+    def append_event(self, event: DomainEvent) -> None:
+        self._save(
+            "finops_event_outbox",
+            event.tenant_id,
+            event.id.value,
+            {
+                "id": event.id.value,
+                "tenant_id": event.tenant_id.value,
+                "aggregate_id": event.aggregate_id.value,
+                "name": event.name,
+                "payload": event.payload,
+                "occurred_at": event.occurred_at.isoformat(),
+                "published_at": None,
+            },
+        )
+
+    def _tenant_values(self, bucket: str, tenant_id: TenantId) -> list[dict[str, Any]]:
+        return [
+            value
+            for value in self._store.data[bucket].values()
+            if value.get("tenant_id") == tenant_id.value
+        ]
+
+    def _get(self, bucket: str, tenant_id: TenantId, identifier: str) -> dict[str, Any] | None:
+        value = self._store.data[bucket].get(
+            self._key(tenant_id, EntityId.from_value(identifier).value)
+        )
+        return cast(dict[str, Any], value) if value is not None else None
+
+    def _save(
+        self, bucket: str, tenant_id: TenantId, identifier: str, value: dict[str, object]
+    ) -> None:
+        self._store.data[bucket][self._key(tenant_id, identifier)] = value
+        self._store.mark_dirty()
+
+    @classmethod
+    def _page(cls, items: list[Any], pagination: Pagination) -> tuple[list[Any], str | None]:
+        start = cls._offset(pagination.cursor)
+        selected = items[start : start + pagination.limit]
+        next_index = start + len(selected)
+        return selected, str(next_index) if next_index < len(items) else None
 
     @staticmethod
     def _key(tenant_id: TenantId, identifier: str) -> str:

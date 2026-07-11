@@ -1,3 +1,13 @@
+## v0.29.97 — Traçabilité FinOps et rangement de navigation
+
+- Roadmap : P16 / `EPIC-1603` — consolidation des coûts et showback par service/tenant.
+- Domaine : règles d’allocation, imports, coûts, périodes, budgets, anomalies, prévisions et rapports en précision `Decimal`.
+- Application : imports idempotents, allocation déterministe, bucket non attribué, clôture par digest, showback et chargeback sans mutation comptable.
+- Infrastructure : dépôts JSON/PostgreSQL, mapper, outbox et migration `0046_finops_costs_showback.sql`.
+- Interfaces : 18 commandes/routes FinOps et groupe web **ITAM → FinOps & coûts**.
+- Navigation : **Flux réseau** et **Conformité réseau** sous IPAM ; **Certificats & PKI** sous Sécurité.
+- Tests : domaine, cas limites, service, HTTP, CLI, OpenAPI, migration, portail, sécurité, packaging et non-régression.
+
 ## v0.29.96 — Traçabilité simulation et migration
 
 - Roadmap : P16 / `EPIC-1602` — simulation de changement, analyse d’impact et planification de migration.

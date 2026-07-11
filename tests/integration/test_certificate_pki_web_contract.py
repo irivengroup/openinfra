@@ -23,8 +23,11 @@ def test_certificate_pki_component_is_exposed_by_both_web_runtimes() -> None:
     )
 
     for source in (static, react):
-        assert "certificates" in source
-        assert "Certificats et PKI" in source
+        assert "Inventaire PKI" in source
+        assert "Endpoints TLS" in source
+        assert "Conformité PKI" in source
+        assert "id: 'certificates'" not in source
+        assert 'id: "certificates"' not in source
         for operation_id in operation_ids:
             assert operation_id in source
         for route in (

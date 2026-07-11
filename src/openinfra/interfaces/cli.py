@@ -5,6 +5,7 @@ import base64
 import json
 import os
 import sys
+from datetime import date
 from pathlib import Path
 from typing import Any, NoReturn
 
@@ -164,6 +165,26 @@ from openinfra.application.field_operation_services import (
     SynchronizeOfflinePackageCommand,
     ValidateFieldEvidenceCommand,
     VerifyFieldQrCommand,
+)
+from openinfra.application.finops_services import (
+    CancelCostImportJobCommand,
+    CloseFinancialPeriodCommand,
+    CreateCostAllocationRuleCommand,
+    ExportFinOpsReportCommand,
+    GenerateFinOpsReportCommand,
+    GetCostImportJobCommand,
+    GetFinOpsReportCommand,
+    ListCostAllocationRulesCommand,
+    ListCostAnomaliesCommand,
+    ListCostImportJobsCommand,
+    ListCostRecordsCommand,
+    ListFinancialPeriodsCommand,
+    ListFinOpsBudgetsCommand,
+    ListFinOpsForecastsCommand,
+    ListFinOpsReportsCommand,
+    RunCostImportJobCommand,
+    SubmitCostImportJobCommand,
+    UpsertFinOpsBudgetCommand,
 )
 from openinfra.application.flow_matrix_services import (
     CompareFlowMatrixCommand,
@@ -342,6 +363,7 @@ class OpenInfraCLI:
         self._add_discovery_commands(subparsers)
         self._add_graph_commands(subparsers)
         self._add_simulation_commands(subparsers)
+        self._add_finops_commands(subparsers)
         self._add_flow_commands(subparsers)
         self._add_certificate_commands(subparsers)
         self._add_network_config_commands(subparsers)
@@ -1977,6 +1999,183 @@ class OpenInfraCLI:
         export.add_argument("--output", type=Path)
         self._add_graph_spof_filter_arguments(export, include_pagination=False)
         export.set_defaults(handler=self._handle_graph_export)
+
+    def _add_finops_commands(self, subparsers: Any) -> None:
+        finops = subparsers.add_parser(
+            "finops", help="ITAM financial operations, showback and controlled chargeback"
+        )
+        commands = finops.add_subparsers(dest="finops_command", required=True)
+
+        rule = commands.add_parser("rule-create", help="create a cost allocation rule")
+        self._add_backend_arguments(rule)
+        for name in ("tenant", "admin-token", "name", "dimension", "selector-key", "percentage"):
+            rule.add_argument(f"--{name}", required=True)
+        rule.add_argument("--actor", default="cli")
+        rule.add_argument("--priority", type=int, default=100)
+        rule.add_argument("--category")
+        rule.add_argument("--source")
+        rule.add_argument("--fixed-target")
+        rule.add_argument("--inactive", action="store_true")
+        rule.set_defaults(handler=self._handle_finops_rule_create)
+
+        rules = commands.add_parser("rules", help="list cost allocation rules")
+        self._add_backend_arguments(rules)
+        rules.add_argument("--tenant", required=True)
+        rules.add_argument("--admin-token", required=True)
+        rules.add_argument("--limit", type=int, default=100)
+        rules.add_argument("--cursor")
+        rules.add_argument("--active-only", action="store_true")
+        rules.set_defaults(handler=self._handle_finops_rules)
+
+        submit = commands.add_parser("import-submit", help="submit a JSON cost import job")
+        self._add_backend_arguments(submit)
+        submit.add_argument("--tenant", required=True)
+        submit.add_argument("--admin-token", required=True)
+        submit.add_argument("--actor", default="cli")
+        submit.add_argument("--idempotency-key", required=True)
+        submit.add_argument("--source", required=True)
+        submit.add_argument("--records-file", type=Path, required=True)
+        submit.set_defaults(handler=self._handle_finops_import_submit)
+
+        for command_name, handler, help_text in (
+            ("import-get", self._handle_finops_import_get, "read a cost import job"),
+            ("import-run", self._handle_finops_import_run, "run a cost import job"),
+            ("import-cancel", self._handle_finops_import_cancel, "cancel a cost import job"),
+        ):
+            command = commands.add_parser(command_name, help=help_text)
+            self._add_backend_arguments(command)
+            command.add_argument("--tenant", required=True)
+            command.add_argument("--admin-token", required=True)
+            command.add_argument("--job-id", required=True)
+            command.add_argument("--actor", default="cli")
+            if command_name == "import-get":
+                command.add_argument("--include-records", action="store_true")
+            command.set_defaults(handler=handler)
+
+        imports = commands.add_parser("imports", help="list cost import jobs")
+        self._add_backend_arguments(imports)
+        imports.add_argument("--tenant", required=True)
+        imports.add_argument("--admin-token", required=True)
+        imports.add_argument("--limit", type=int, default=100)
+        imports.add_argument("--cursor")
+        imports.add_argument("--status")
+        imports.set_defaults(handler=self._handle_finops_imports)
+
+        costs = commands.add_parser("costs", help="list normalized cost records")
+        self._add_backend_arguments(costs)
+        costs.add_argument("--tenant", required=True)
+        costs.add_argument("--admin-token", required=True)
+        costs.add_argument("--limit", type=int, default=100)
+        costs.add_argument("--cursor")
+        costs.add_argument("--period-start")
+        costs.add_argument("--period-end")
+        costs.add_argument("--currency")
+        costs.add_argument("--category")
+        costs.add_argument("--source")
+        costs.add_argument("--quality-status")
+        costs.set_defaults(handler=self._handle_finops_costs)
+
+        budget = commands.add_parser("budget-upsert", help="create or update a FinOps budget")
+        self._add_backend_arguments(budget)
+        for name in (
+            "tenant",
+            "admin-token",
+            "dimension",
+            "target",
+            "period-start",
+            "period-end",
+            "currency",
+            "amount",
+            "warning-threshold-percent",
+            "owner",
+        ):
+            budget.add_argument(f"--{name}", required=True)
+        budget.add_argument("--actor", default="cli")
+        budget.set_defaults(handler=self._handle_finops_budget_upsert)
+
+        budgets = commands.add_parser("budgets", help="list FinOps budgets")
+        self._add_backend_arguments(budgets)
+        budgets.add_argument("--tenant", required=True)
+        budgets.add_argument("--admin-token", required=True)
+        budgets.add_argument("--limit", type=int, default=100)
+        budgets.add_argument("--cursor")
+        budgets.add_argument("--dimension")
+        budgets.add_argument("--target")
+        budgets.add_argument("--currency")
+        budgets.set_defaults(handler=self._handle_finops_budgets)
+
+        close = commands.add_parser("period-close", help="close a reproducible financial period")
+        self._add_backend_arguments(close)
+        for name in ("tenant", "admin-token", "period-start", "period-end", "currency"):
+            close.add_argument(f"--{name}", required=True)
+        close.add_argument("--actor", default="cli")
+        close.set_defaults(handler=self._handle_finops_period_close)
+
+        periods = commands.add_parser("periods", help="list financial periods")
+        self._add_backend_arguments(periods)
+        periods.add_argument("--tenant", required=True)
+        periods.add_argument("--admin-token", required=True)
+        periods.add_argument("--limit", type=int, default=100)
+        periods.add_argument("--cursor")
+        periods.add_argument("--status")
+        periods.set_defaults(handler=self._handle_finops_periods)
+
+        generate = commands.add_parser("report-generate", help="generate showback or chargeback")
+        self._add_backend_arguments(generate)
+        for name in (
+            "tenant",
+            "admin-token",
+            "kind",
+            "period-start",
+            "period-end",
+            "group-by",
+            "currency",
+        ):
+            generate.add_argument(f"--{name}", required=True)
+        generate.add_argument("--actor", default="cli")
+        generate.add_argument("--chargeback-markup-percent", default="0")
+        generate.set_defaults(handler=self._handle_finops_report_generate)
+
+        report = commands.add_parser("report", help="read a FinOps report")
+        self._add_backend_arguments(report)
+        report.add_argument("--tenant", required=True)
+        report.add_argument("--admin-token", required=True)
+        report.add_argument("--report-id", required=True)
+        report.set_defaults(handler=self._handle_finops_report)
+
+        reports = commands.add_parser("reports", help="list FinOps reports")
+        self._add_backend_arguments(reports)
+        reports.add_argument("--tenant", required=True)
+        reports.add_argument("--admin-token", required=True)
+        reports.add_argument("--limit", type=int, default=100)
+        reports.add_argument("--cursor")
+        reports.add_argument("--kind")
+        reports.add_argument("--currency")
+        reports.set_defaults(handler=self._handle_finops_reports)
+
+        export = commands.add_parser("report-export", help="export a FinOps report")
+        self._add_backend_arguments(export)
+        export.add_argument("--tenant", required=True)
+        export.add_argument("--admin-token", required=True)
+        export.add_argument("--report-id", required=True)
+        export.add_argument("--format", choices=("json", "csv"), default="json")
+        export.add_argument("--output", type=Path)
+        export.set_defaults(handler=self._handle_finops_report_export)
+
+        for command_name, handler, help_text in (
+            ("anomalies", self._handle_finops_anomalies, "list detected cost anomalies"),
+            ("forecasts", self._handle_finops_forecasts, "list generated forecasts"),
+        ):
+            command = commands.add_parser(command_name, help=help_text)
+            self._add_backend_arguments(command)
+            command.add_argument("--tenant", required=True)
+            command.add_argument("--admin-token", required=True)
+            command.add_argument("--limit", type=int, default=100)
+            command.add_argument("--cursor")
+            command.add_argument("--severity")
+            command.add_argument("--dimension")
+            command.add_argument("--target")
+            command.set_defaults(handler=handler)
 
     def _add_simulation_commands(self, subparsers: Any) -> None:
         simulation = subparsers.add_parser(
@@ -5805,6 +6004,224 @@ class OpenInfraCLI:
             )
         )
         print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    @staticmethod
+    def _read_finops_records(path: Path) -> tuple[dict[str, Any], ...]:
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except OSError as exc:
+            raise ValidationError(f"cannot read FinOps records file: {exc}") from exc
+        except json.JSONDecodeError as exc:
+            raise ValidationError(f"FinOps records file is invalid JSON: {exc}") from exc
+        if not isinstance(payload, list) or not payload:
+            raise ValidationError("FinOps records file must contain a non-empty JSON array")
+        if any(not isinstance(item, dict) for item in payload):
+            raise ValidationError("each FinOps record must be a JSON object")
+        return tuple(dict(item) for item in payload)
+
+    def _handle_finops_rule_create(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).finops_service.create_allocation_rule(
+            CreateCostAllocationRuleCommand(
+                args.tenant,
+                args.admin_token,
+                args.actor,
+                args.name,
+                args.priority,
+                args.dimension,
+                args.selector_key,
+                args.percentage,
+                args.category,
+                args.source,
+                args.fixed_target,
+                not args.inactive,
+            )
+        )
+        return self._print_finops(result.as_dict())
+
+    def _handle_finops_rules(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).finops_service.list_allocation_rules(
+            ListCostAllocationRulesCommand(
+                args.tenant, args.admin_token, args.limit, args.cursor, args.active_only
+            )
+        )
+        return self._print_finops(result.as_dict())
+
+    def _handle_finops_import_submit(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).finops_service.submit_import_job(
+            SubmitCostImportJobCommand(
+                args.tenant,
+                args.admin_token,
+                args.actor,
+                args.idempotency_key,
+                args.source,
+                self._read_finops_records(args.records_file),
+            )
+        )
+        return self._print_finops(result.as_dict())
+
+    def _handle_finops_import_get(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).finops_service.get_import_job(
+            GetCostImportJobCommand(
+                args.tenant, args.admin_token, args.job_id, args.include_records
+            )
+        )
+        return self._print_finops(result)
+
+    def _handle_finops_import_run(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).finops_service.run_import_job(
+            RunCostImportJobCommand(args.tenant, args.admin_token, args.actor, args.job_id)
+        )
+        return self._print_finops(result.as_dict())
+
+    def _handle_finops_import_cancel(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).finops_service.cancel_import_job(
+            CancelCostImportJobCommand(args.tenant, args.admin_token, args.actor, args.job_id)
+        )
+        return self._print_finops(result.as_dict())
+
+    def _handle_finops_imports(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).finops_service.list_import_jobs(
+            ListCostImportJobsCommand(
+                args.tenant, args.admin_token, args.limit, args.cursor, args.status
+            )
+        )
+        return self._print_finops(result.as_dict())
+
+    def _handle_finops_costs(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).finops_service.list_cost_records(
+            ListCostRecordsCommand(
+                args.tenant,
+                args.admin_token,
+                args.limit,
+                args.cursor,
+                None if args.period_start is None else date.fromisoformat(args.period_start),
+                None if args.period_end is None else date.fromisoformat(args.period_end),
+                args.currency,
+                args.category,
+                args.source,
+                args.quality_status,
+            )
+        )
+        return self._print_finops(result.as_dict())
+
+    def _handle_finops_budget_upsert(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).finops_service.upsert_budget(
+            UpsertFinOpsBudgetCommand(
+                args.tenant,
+                args.admin_token,
+                args.actor,
+                args.dimension,
+                args.target,
+                date.fromisoformat(args.period_start),
+                date.fromisoformat(args.period_end),
+                args.currency,
+                args.amount,
+                args.warning_threshold_percent,
+                args.owner,
+            )
+        )
+        return self._print_finops(result.as_dict())
+
+    def _handle_finops_budgets(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).finops_service.list_budgets(
+            ListFinOpsBudgetsCommand(
+                args.tenant,
+                args.admin_token,
+                args.limit,
+                args.cursor,
+                args.dimension,
+                args.target,
+                args.currency,
+            )
+        )
+        return self._print_finops(result.as_dict())
+
+    def _handle_finops_period_close(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).finops_service.close_period(
+            CloseFinancialPeriodCommand(
+                args.tenant,
+                args.admin_token,
+                args.actor,
+                date.fromisoformat(args.period_start),
+                date.fromisoformat(args.period_end),
+                args.currency,
+            )
+        )
+        return self._print_finops(result.as_dict())
+
+    def _handle_finops_periods(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).finops_service.list_periods(
+            ListFinancialPeriodsCommand(
+                args.tenant, args.admin_token, args.limit, args.cursor, args.status
+            )
+        )
+        return self._print_finops(result.as_dict())
+
+    def _handle_finops_report_generate(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).finops_service.generate_report(
+            GenerateFinOpsReportCommand(
+                args.tenant,
+                args.admin_token,
+                args.actor,
+                args.kind,
+                date.fromisoformat(args.period_start),
+                date.fromisoformat(args.period_end),
+                args.group_by,
+                args.currency,
+                args.chargeback_markup_percent,
+            )
+        )
+        return self._print_finops(result.as_dict())
+
+    def _handle_finops_report(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).finops_service.get_report(
+            GetFinOpsReportCommand(args.tenant, args.admin_token, args.report_id)
+        )
+        return self._print_finops(result.as_dict())
+
+    def _handle_finops_reports(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).finops_service.list_reports(
+            ListFinOpsReportsCommand(
+                args.tenant, args.admin_token, args.limit, args.cursor, args.kind, args.currency
+            )
+        )
+        return self._print_finops(result.as_dict())
+
+    def _handle_finops_report_export(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).finops_service.export_report(
+            ExportFinOpsReportCommand(args.tenant, args.admin_token, args.report_id, args.format)
+        )
+        if args.output is None:
+            sys.stdout.buffer.write(result.content)
+        else:
+            args.output.write_bytes(result.content)
+        return 0
+
+    def _handle_finops_anomalies(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).finops_service.list_anomalies(
+            ListCostAnomaliesCommand(
+                args.tenant, args.admin_token, args.limit, args.cursor, args.severity
+            )
+        )
+        return self._print_finops(result.as_dict())
+
+    def _handle_finops_forecasts(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).finops_service.list_forecasts(
+            ListFinOpsForecastsCommand(
+                args.tenant,
+                args.admin_token,
+                args.limit,
+                args.cursor,
+                args.dimension,
+                args.target,
+            )
+        )
+        return self._print_finops(result.as_dict())
+
+    @staticmethod
+    def _print_finops(payload: dict[str, object]) -> int:
+        print(json.dumps(payload, indent=2, sort_keys=True))
         return 0
 
     @staticmethod

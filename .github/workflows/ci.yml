@@ -167,6 +167,18 @@ jobs:
             tests/integration/test_openinfra_web.py \
             tests/integration/test_web_accessibility_contract.py
 
+      - name: FinOps costs and showback regression
+        run: |
+          python -m pytest -q --no-cov \
+            tests/unit/test_finops_domain.py \
+            tests/unit/test_finops_edge_cases.py \
+            tests/integration/test_finops_services.py \
+            tests/integration/test_finops_http_api.py \
+            tests/integration/test_finops_cli.py \
+            tests/integration/test_finops_migration.py \
+            tests/integration/test_finops_web_contract.py \
+            tests/integration/test_navigation_grouping_contract.py
+
       - name: Flow matrix governance regression
         run: |
           python -m pytest -q --no-cov \

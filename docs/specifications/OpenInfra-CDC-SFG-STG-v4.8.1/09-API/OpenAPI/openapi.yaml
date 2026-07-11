@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.96
+  version: 0.29.97
 components:
   securitySchemes:
     bearerToken:
@@ -5392,3 +5392,356 @@ paths:
         '400': {description: Invalid comparison payload}
         '401': {description: Missing or invalid simulation writer token}
         '404': {description: One or both reports not found}
+  /api/v1/finops/allocation-rules:
+    get:
+      operationId: listFinOpsAllocationRules
+      summary: List tenant-scoped cost allocation rules
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: active_only, in: query, schema: {type: boolean, default: false}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated allocation rules}
+        '400': {description: Invalid filter or cursor}
+        '401': {description: Missing or invalid FinOps reader token}
+  /api/v1/finops/allocation-rules/create:
+    post:
+      operationId: createFinOpsAllocationRule
+      summary: Create a governed cost allocation rule
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, name, dimension, selector_key, percentage]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                name: {type: string, minLength: 3, maxLength: 160}
+                priority: {type: integer, minimum: 1, maximum: 10000, default: 100}
+                dimension: {type: string, enum: [asset, application, business-service, tenant, owner, tag, cost-center, environment, dependency]}
+                selector_key: {type: string}
+                fixed_target: {type: string}
+                percentage: {type: string, pattern: '^(100(?:\.0{1,4})?|[0-9]{1,2}(?:\.[0-9]{1,4})?)$'}
+                category: {type: string, enum: [cloud, saas, datacenter, energy, license, support, contract]}
+                source: {type: string}
+                active: {type: boolean, default: true}
+      responses:
+        '201': {description: Allocation rule created}
+        '400': {description: Invalid allocation rule}
+        '401': {description: Missing or invalid FinOps writer token}
+  /api/v1/finops/import-jobs:
+    get:
+      operationId: listFinOpsImportJobs
+      summary: List asynchronous cost import jobs
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: status, in: query, schema: {type: string, enum: [queued, running, completed, failed, cancelled]}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated import jobs}
+        '400': {description: Invalid filter or cursor}
+        '401': {description: Missing or invalid FinOps reader token}
+  /api/v1/finops/import-jobs/get:
+    get:
+      operationId: getFinOpsImportJob
+      summary: Get one cost import job
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: job_id, in: query, required: true, schema: {type: string, format: uuid}}
+        - {name: include_records, in: query, schema: {type: boolean, default: false}}
+      responses:
+        '200': {description: Import job and optional source records}
+        '400': {description: Invalid identifier}
+        '401': {description: Missing or invalid FinOps reader token}
+        '404': {description: Import job not found}
+  /api/v1/finops/import-jobs/submit:
+    post:
+      operationId: submitFinOpsImportJob
+      summary: Submit an idempotent asynchronous cost import
+      description: Accepts up to 10000 normalized provider, SaaS, datacenter, energy, licence, support or contract records. Sensitive metadata keys are rejected recursively.
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, idempotency_key, source, records]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                idempotency_key: {type: string, minLength: 8, maxLength: 192}
+                source: {type: string, maxLength: 128}
+                records:
+                  type: array
+                  minItems: 1
+                  maxItems: 10000
+                  items:
+                    type: object
+                    required: [category, period_start, period_end, currency, amount]
+                    properties:
+                      external_id: {type: string}
+                      idempotency_key: {type: string, minLength: 8, maxLength: 192}
+                      category: {type: string, enum: [cloud, saas, datacenter, energy, license, support, contract]}
+                      source: {type: string}
+                      period_start: {type: string, format: date}
+                      period_end: {type: string, format: date}
+                      currency: {type: string, pattern: '^[A-Z]{3}$'}
+                      amount: {type: string, pattern: '^[0-9]+(?:\.[0-9]{1,6})?$'}
+                      owner: {type: string}
+                      allocation_method: {type: string}
+                      metadata: {type: object, additionalProperties: true}
+                    additionalProperties: true
+      responses:
+        '202': {description: Import job queued or idempotently reused}
+        '400': {description: Invalid import payload, duplicate key mismatch or sensitive metadata}
+        '401': {description: Missing or invalid FinOps import token}
+  /api/v1/finops/import-jobs/run:
+    post:
+      operationId: runFinOpsImportJob
+      summary: Execute a queued cost import job
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, job_id]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                job_id: {type: string, format: uuid}
+      responses:
+        '200': {description: Completed or already completed import job}
+        '400': {description: Invalid state, record or closed period}
+        '401': {description: Missing or invalid FinOps import token}
+        '404': {description: Import job not found}
+  /api/v1/finops/import-jobs/cancel:
+    post:
+      operationId: cancelFinOpsImportJob
+      summary: Cancel a non-terminal cost import job
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, job_id]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                job_id: {type: string, format: uuid}
+      responses:
+        '200': {description: Cancelled or already terminal import job}
+        '400': {description: Invalid identifier or state}
+        '401': {description: Missing or invalid FinOps import token}
+        '404': {description: Import job not found}
+  /api/v1/finops/cost-records:
+    get:
+      operationId: listFinOpsCostRecords
+      summary: List normalized and allocated cost records
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: period_start, in: query, schema: {type: string, format: date}}
+        - {name: period_end, in: query, schema: {type: string, format: date}}
+        - {name: currency, in: query, schema: {type: string, pattern: '^[A-Z]{3}$'}}
+        - {name: category, in: query, schema: {type: string, enum: [cloud, saas, datacenter, energy, license, support, contract]}}
+        - {name: source, in: query, schema: {type: string}}
+        - {name: quality_status, in: query, schema: {type: string, enum: [allocated, partial, unallocated]}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated normalized costs with allocation quality}
+        '400': {description: Invalid date, filter, cursor or unbounded large query}
+        '401': {description: Missing or invalid FinOps reader token}
+  /api/v1/finops/budgets:
+    get:
+      operationId: listFinOpsBudgets
+      summary: List financial budgets
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: dimension, in: query, schema: {type: string}}
+        - {name: target, in: query, schema: {type: string}}
+        - {name: currency, in: query, schema: {type: string, pattern: '^[A-Z]{3}$'}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated financial budgets}
+        '400': {description: Invalid filter or cursor}
+        '401': {description: Missing or invalid FinOps reader token}
+  /api/v1/finops/budgets/upsert:
+    post:
+      operationId: upsertFinOpsBudget
+      summary: Create or revise a financial budget
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, dimension, target, period_start, period_end, currency, amount, warning_threshold_percent, owner]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                dimension: {type: string, enum: [asset, application, business-service, tenant, owner, tag, cost-center, environment, dependency]}
+                target: {type: string}
+                period_start: {type: string, format: date}
+                period_end: {type: string, format: date}
+                currency: {type: string, pattern: '^[A-Z]{3}$'}
+                amount: {type: string, pattern: '^[0-9]+(?:\.[0-9]{1,6})?$'}
+                warning_threshold_percent: {type: string}
+                owner: {type: string}
+      responses:
+        '200': {description: Created or revised budget}
+        '400': {description: Invalid budget}
+        '401': {description: Missing or invalid FinOps writer token}
+  /api/v1/finops/periods:
+    get:
+      operationId: listFinOpsFinancialPeriods
+      summary: List open and closed financial periods
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: status, in: query, schema: {type: string, enum: [open, closed]}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated financial periods}
+        '400': {description: Invalid filter or cursor}
+        '401': {description: Missing or invalid FinOps reader token}
+  /api/v1/finops/periods/close:
+    post:
+      operationId: closeFinOpsFinancialPeriod
+      summary: Close a financial period with an immutable source digest
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, period_start, period_end, currency]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                period_start: {type: string, format: date}
+                period_end: {type: string, format: date}
+                currency: {type: string, pattern: '^[A-Z]{3}$'}
+      responses:
+        '200': {description: Reproducibly closed financial period}
+        '400': {description: Invalid period or changed closed-period source digest}
+        '401': {description: Missing or invalid FinOps administrator token}
+  /api/v1/finops/reports:
+    get:
+      operationId: listFinOpsReports
+      summary: List showback and controlled chargeback reports
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: kind, in: query, schema: {type: string, enum: [showback, chargeback]}}
+        - {name: currency, in: query, schema: {type: string, pattern: '^[A-Z]{3}$'}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated financial reports}
+        '400': {description: Invalid filter or cursor}
+        '401': {description: Missing or invalid FinOps reader token}
+  /api/v1/finops/reports/get:
+    get:
+      operationId: getFinOpsReport
+      summary: Get one immutable financial report
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: report_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Financial report with explicit no-production-billing-mutation flag}
+        '400': {description: Invalid identifier}
+        '401': {description: Missing or invalid FinOps reader token}
+        '404': {description: Report not found}
+  /api/v1/finops/reports/generate:
+    post:
+      operationId: generateFinOpsReport
+      summary: Generate showback or controlled chargeback
+      description: The chargeback calculation is advisory and never mutates accounting or production billing systems.
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, kind, period_start, period_end, group_by, currency]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                kind: {type: string, enum: [showback, chargeback]}
+                period_start: {type: string, format: date}
+                period_end: {type: string, format: date}
+                group_by: {type: string, enum: [asset, application, business-service, tenant, owner, tag, cost-center, environment, dependency]}
+                currency: {type: string, pattern: '^[A-Z]{3}$'}
+                chargeback_markup_percent: {type: string, default: '0'}
+      responses:
+        '201': {description: Versioned financial report and forecasts}
+        '400': {description: Invalid grouping, markup, period or closed-period digest}
+        '401': {description: Missing or invalid FinOps writer token}
+  /api/v1/finops/reports/export:
+    get:
+      operationId: exportFinOpsReport
+      summary: Export a financial report as JSON or CSV
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: report_id, in: query, required: true, schema: {type: string, format: uuid}}
+        - {name: format, in: query, schema: {type: string, enum: [json, csv], default: json}}
+      responses:
+        '200':
+          description: Governed financial export
+          content:
+            application/json: {schema: {type: object}}
+            text/csv: {schema: {type: string}}
+        '400': {description: Invalid identifier or export format}
+        '401': {description: Missing or invalid FinOps export token}
+        '404': {description: Report not found}
+  /api/v1/finops/anomalies:
+    get:
+      operationId: listFinOpsCostAnomalies
+      summary: List detected cost quality and trend anomalies
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: severity, in: query, schema: {type: string, enum: [info, warning, error, critical]}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated cost anomalies}
+        '400': {description: Invalid filter or cursor}
+        '401': {description: Missing or invalid FinOps reader token}
+  /api/v1/finops/forecasts:
+    get:
+      operationId: listFinOpsForecasts
+      summary: List deterministic cost forecasts
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: dimension, in: query, schema: {type: string}}
+        - {name: target, in: query, schema: {type: string}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated cost forecasts}
+        '400': {description: Invalid filter or cursor}
+        '401': {description: Missing or invalid FinOps reader token}

@@ -1,3 +1,22 @@
+## Validation Discovery régionale Enterprise — v0.29.103
+
+```bash
+PYTHONPATH=src:. python -m pytest -q --no-cov \
+  tests/unit/test_multisite_domain.py \
+  tests/integration/test_enterprise_multisite_discovery_routing.py \
+  tests/integration/test_enterprise_multisite_http_api.py \
+  tests/integration/test_multisite_cli.py \
+  tests/integration/test_multisite_migration.py \
+  tests/integration/test_multisite_postgresql_repository.py \
+  tests/integration/test_multisite_web_contract.py
+
+PYTHONPATH=src:. python scripts/validate_openapi.py \
+  docs/api/openapi.yaml \
+  docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1/09-API/OpenAPI/openapi.yaml
+```
+
+Contrôles bloquants : disponibilité Enterprise uniquement, site DCIM existant, proxy actif, endpoint HTTPS, portée région/site/VRF exacte, idempotence des jobs, audit, isolation tenant, migration non destructive et absence d’écriture RSOT directe.
+
 ## Validation multisite Pro centralisé — v0.29.102
 
 ```bash

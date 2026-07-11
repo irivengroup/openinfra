@@ -276,3 +276,160 @@ class MultisitePortfolioReport:
             "totals": self.totals,
             "sites": [item.as_dict() for item in self.sites],
         }
+
+
+@dataclass(frozen=True, slots=True)
+class RegionalDiscoveryRoute:
+    id: EntityId
+    tenant_id: TenantId
+    region_code: str
+    site_code: str
+    vrf_code: str
+    collector_id: EntityId
+    discovery_scope: str
+    active: bool
+    configured_by: str
+    created_at: datetime
+    updated_at: datetime
+    disabled_at: datetime | None = None
+
+    @classmethod
+    def create(
+        cls,
+        tenant_id: TenantId,
+        region_code: str,
+        site_code: str,
+        vrf_code: str,
+        collector_id: str | EntityId,
+        configured_by: str,
+        now: datetime | None = None,
+    ) -> Self:
+        timestamp = datetime.now(UTC) if now is None else MultisiteValidator.aware(now, "now")
+        region = Code.from_value(region_code, "region code").value
+        site = Code.from_value(site_code, "site code").value
+        vrf = Code.from_value(vrf_code, "VRF code").value
+        collector = (
+            collector_id
+            if isinstance(collector_id, EntityId)
+            else EntityId.from_value(collector_id)
+        )
+        return cls(
+            id=EntityId.new(),
+            tenant_id=tenant_id,
+            region_code=region,
+            site_code=site,
+            vrf_code=vrf,
+            collector_id=collector,
+            discovery_scope=cls.scope_for(region, site, vrf),
+            active=True,
+            configured_by=MultisiteValidator.actor(configured_by),
+            created_at=timestamp,
+            updated_at=timestamp,
+        )
+
+    @classmethod
+    def restore(
+        cls,
+        *,
+        id: EntityId,
+        tenant_id: TenantId,
+        region_code: str,
+        site_code: str,
+        vrf_code: str,
+        collector_id: EntityId,
+        discovery_scope: str,
+        active: bool,
+        configured_by: str,
+        created_at: datetime,
+        updated_at: datetime,
+        disabled_at: datetime | None = None,
+    ) -> Self:
+        region = Code.from_value(region_code, "region code").value
+        site = Code.from_value(site_code, "site code").value
+        vrf = Code.from_value(vrf_code, "VRF code").value
+        expected_scope = cls.scope_for(region, site, vrf)
+        if discovery_scope.strip().lower() != expected_scope:
+            raise ValidationError("regional discovery route scope is inconsistent")
+        normalized_disabled = (
+            None if disabled_at is None else MultisiteValidator.aware(disabled_at, "disabled_at")
+        )
+        if bool(active) == (normalized_disabled is not None):
+            raise ValidationError("regional discovery route active state is inconsistent")
+        return cls(
+            id=id,
+            tenant_id=tenant_id,
+            region_code=region,
+            site_code=site,
+            vrf_code=vrf,
+            collector_id=collector_id,
+            discovery_scope=expected_scope,
+            active=bool(active),
+            configured_by=MultisiteValidator.actor(configured_by),
+            created_at=MultisiteValidator.aware(created_at, "created_at"),
+            updated_at=MultisiteValidator.aware(updated_at, "updated_at"),
+            disabled_at=normalized_disabled,
+        )
+
+    def reassign(
+        self,
+        collector_id: str | EntityId,
+        configured_by: str,
+        now: datetime | None = None,
+    ) -> Self:
+        timestamp = datetime.now(UTC) if now is None else MultisiteValidator.aware(now, "now")
+        collector = (
+            collector_id
+            if isinstance(collector_id, EntityId)
+            else EntityId.from_value(collector_id)
+        )
+        return replace(
+            self,
+            collector_id=collector,
+            active=True,
+            configured_by=MultisiteValidator.actor(configured_by),
+            updated_at=timestamp,
+            disabled_at=None,
+        )
+
+    def disable(self, configured_by: str, now: datetime | None = None) -> Self:
+        if not self.active:
+            return self
+        timestamp = datetime.now(UTC) if now is None else MultisiteValidator.aware(now, "now")
+        return replace(
+            self,
+            active=False,
+            configured_by=MultisiteValidator.actor(configured_by),
+            updated_at=timestamp,
+            disabled_at=timestamp,
+        )
+
+    def matches(self, region_code: str, site_code: str, vrf_code: str) -> bool:
+        return (
+            self.active
+            and self.region_code == Code.from_value(region_code, "region code").value
+            and self.site_code == Code.from_value(site_code, "site code").value
+            and self.vrf_code == Code.from_value(vrf_code, "VRF code").value
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "id": self.id.value,
+            "tenant_id": self.tenant_id.value,
+            "region_code": self.region_code,
+            "site_code": self.site_code,
+            "vrf_code": self.vrf_code,
+            "collector_id": self.collector_id.value,
+            "discovery_scope": self.discovery_scope,
+            "active": self.active,
+            "configured_by": self.configured_by,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+            "disabled_at": self.disabled_at.isoformat() if self.disabled_at else None,
+        }
+
+    @staticmethod
+    def scope_for(region_code: str, site_code: str, vrf_code: str) -> str:
+        region = Code.from_value(region_code, "region code").value.lower()
+        site = Code.from_value(site_code, "site code").value.lower()
+        vrf = Code.from_value(vrf_code, "VRF code").value.lower()
+        return f"region/{region}/site/{site}/vrf/{vrf}"

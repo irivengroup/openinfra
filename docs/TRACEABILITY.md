@@ -1,5 +1,16 @@
 # Traçabilité OpenInfra
 
+## v0.29.103 — Multisite Enterprise distribué
+
+- Roadmap existante : réalisation de P17 / `EPIC-1702`, sans extension du périmètre fonctionnel.
+- Domaine : `RegionalDiscoveryRoute`, portée déterministe région/site/VRF, cycle actif/désactivé et réaffectation idempotente.
+- Application : contrôle `multisite.admin`, garde d’édition Enterprise, validation DCIM/collector et délégation au moteur de jobs Discovery.
+- Persistance : adaptateurs JSON/PostgreSQL, table hash-partitionnée, unicité du triplet de routage, clé étrangère collector et index d’audit.
+- Interfaces : cinq commandes CLI, cinq routes HTTP, OpenAPI et parité des portails React/runtime statique.
+- Sécurité : endpoint HTTPS obligatoire, collectors proxy uniquement, portée exacte, revalidation avant chaque job et aucun secret matérialisé.
+- Tests/CI : domaine, service, CLI, HTTP, PostgreSQL, migration, Web, packaging et gate de régression dédié.
+- CDC/roadmap : inchangés, car EPIC-1702 était déjà planifié et aucune nouvelle recommandation n’impacte l’existant.
+
 ## v0.29.102 — Multisite Pro centralisé
 
 | Exigence | Implémentation | Tests / preuve |

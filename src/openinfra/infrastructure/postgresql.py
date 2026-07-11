@@ -67,6 +67,7 @@ from openinfra.application.ports import (
     RagRepository,
     ReadinessProbe,
     ReadinessStatus,
+    RegionalDiscoveryRoutePage,
     RiskFindingPage,
     RuntimeUsageRepository,
     SbomComparisonPage,
@@ -238,6 +239,7 @@ from openinfra.domain.itam import (
 )
 from openinfra.domain.multisite import (
     MultisitePortfolioReport,
+    RegionalDiscoveryRoute,
     SiteAccessGrant,
     SitePortfolioEntry,
 )
@@ -9618,6 +9620,100 @@ class PostgreSQLMultisiteRepository(PostgreSQLRepositoryBase, MultisiteRepositor
         )
         return MultisiteReportPage(tuple(self._report(row) for row in rows), cursor)
 
+    def save_regional_route(self, route: RegionalDiscoveryRoute) -> None:
+        self._ensure_tenant(route.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO multisite_regional_discovery_routes (
+                id, tenant_id, region_code, site_code, vrf_code, collector_id,
+                discovery_scope, active, configured_by, created_at, updated_at,
+                disabled_at, payload
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(region_code)s, %(site_code)s, %(vrf_code)s,
+                %(collector_id)s, %(discovery_scope)s, %(active)s, %(configured_by)s,
+                %(created_at)s, %(updated_at)s, %(disabled_at)s, %(payload)s::jsonb
+            ) ON CONFLICT (tenant_id, region_code, site_code, vrf_code) DO UPDATE SET
+                id = EXCLUDED.id, collector_id = EXCLUDED.collector_id,
+                discovery_scope = EXCLUDED.discovery_scope, active = EXCLUDED.active,
+                configured_by = EXCLUDED.configured_by, updated_at = EXCLUDED.updated_at,
+                disabled_at = EXCLUDED.disabled_at, payload = EXCLUDED.payload
+            """,
+            {
+                "id": route.id.value,
+                "tenant_id": route.tenant_id.value,
+                "region_code": route.region_code,
+                "site_code": route.site_code,
+                "vrf_code": route.vrf_code,
+                "collector_id": route.collector_id.value,
+                "discovery_scope": route.discovery_scope,
+                "active": route.active,
+                "configured_by": route.configured_by,
+                "created_at": route.created_at,
+                "updated_at": route.updated_at,
+                "disabled_at": route.disabled_at,
+                "payload": json.dumps(route.as_dict(), sort_keys=True),
+            },
+        )
+
+    def get_regional_route(
+        self, tenant_id: TenantId, route_id: str
+    ) -> RegionalDiscoveryRoute | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM multisite_regional_discovery_routes
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s LIMIT 1
+            """,
+            {"tenant_id": tenant_id.value, "id": EntityId.from_value(route_id).value},
+        )
+        return None if row is None else self._regional_route(self._json_mapping(row["payload"]))
+
+    def find_regional_route(
+        self, tenant_id: TenantId, region_code: str, site_code: str, vrf_code: str
+    ) -> RegionalDiscoveryRoute | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM multisite_regional_discovery_routes
+            WHERE tenant_id = %(tenant_id)s AND region_code = %(region_code)s
+              AND site_code = %(site_code)s AND vrf_code = %(vrf_code)s LIMIT 1
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "region_code": Code.from_value(region_code, "region code").value,
+                "site_code": Code.from_value(site_code, "site code").value,
+                "vrf_code": Code.from_value(vrf_code, "VRF code").value,
+            },
+        )
+        return None if row is None else self._regional_route(self._json_mapping(row["payload"]))
+
+    def list_regional_routes(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        region_code: str | None = None,
+        site_code: str | None = None,
+        active_only: bool = True,
+    ) -> RegionalDiscoveryRoutePage:
+        clauses: list[str] = []
+        params: dict[str, object] = {}
+        if region_code:
+            clauses.append("region_code = %(region_code)s")
+            params["region_code"] = Code.from_value(region_code, "region code").value
+        if site_code:
+            clauses.append("site_code = %(site_code)s")
+            params["site_code"] = Code.from_value(site_code, "site code").value
+        if active_only:
+            clauses.append("active = TRUE")
+        predicate = "" if not clauses else "AND " + " AND ".join(clauses)
+        rows, cursor = self._page(
+            "multisite_regional_discovery_routes",
+            tenant_id,
+            pagination,
+            predicate,
+            params,
+            "region_code, site_code, vrf_code, id",
+        )
+        return RegionalDiscoveryRoutePage(tuple(self._regional_route(row) for row in rows), cursor)
+
     def _page(
         self,
         table: str,
@@ -9630,6 +9726,10 @@ class PostgreSQLMultisiteRepository(PostgreSQLRepositoryBase, MultisiteRepositor
         allowed = {
             ("multisite_site_access_grants", "subject, site_code, id"),
             ("multisite_reports", "generated_at DESC, id DESC"),
+            (
+                "multisite_regional_discovery_routes",
+                "region_code, site_code, vrf_code, id",
+            ),
         }
         if (table, ordering) not in allowed:
             raise ValueError("unsupported multisite pagination query")
@@ -9668,6 +9768,24 @@ class PostgreSQLMultisiteRepository(PostgreSQLRepositoryBase, MultisiteRepositor
             created_at=datetime.fromisoformat(str(value["created_at"])),
             updated_at=datetime.fromisoformat(str(value["updated_at"])),
             revoked_at=None if revoked_at is None else datetime.fromisoformat(str(revoked_at)),
+        )
+
+    @staticmethod
+    def _regional_route(value: dict[str, Any]) -> RegionalDiscoveryRoute:
+        disabled_at = value.get("disabled_at")
+        return RegionalDiscoveryRoute.restore(
+            id=EntityId.from_value(str(value["id"])),
+            tenant_id=TenantId.from_value(str(value["tenant_id"])),
+            region_code=str(value["region_code"]),
+            site_code=str(value["site_code"]),
+            vrf_code=str(value["vrf_code"]),
+            collector_id=EntityId.from_value(str(value["collector_id"])),
+            discovery_scope=str(value["discovery_scope"]),
+            active=bool(value["active"]),
+            configured_by=str(value["configured_by"]),
+            created_at=datetime.fromisoformat(str(value["created_at"])),
+            updated_at=datetime.fromisoformat(str(value["updated_at"])),
+            disabled_at=None if disabled_at is None else datetime.fromisoformat(str(disabled_at)),
         )
 
     @staticmethod

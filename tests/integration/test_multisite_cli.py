@@ -77,3 +77,86 @@ def test_multisite_cli_grant_scope_report_and_revoke(tmp_path: Path, capsys: obj
     assert json.loads(capsys.readouterr().out)["active"] is False  # type: ignore[attr-defined]
     assert cli.run(["multisite", "grants", *common, "--include-inactive"]) == 0
     assert json.loads(capsys.readouterr().out)["items"][0]["active"] is False  # type: ignore[attr-defined]
+
+
+def test_multisite_cli_enterprise_regional_discovery_routing(
+    tmp_path: Path, capsys: object
+) -> None:
+    from openinfra.application.discovery_services import EnrollDiscoveryProxyCommand
+
+    state = tmp_path / "enterprise-state.json"
+    token = "r" * 40
+    app = ApplicationFactory().create_json_application(state, seed=True, edition="enterprise")
+    app.security_service.bootstrap_token(
+        BootstrapTokenCommand("default", "pytest", "enterprise-admin", ("admin",), token)
+    )
+    scope = "region/eu-west/site/par1/vrf/prod"
+    collector = app.discovery_service.enroll_proxy(
+        EnrollDiscoveryProxyCommand(
+            "default",
+            "pytest",
+            token,
+            "EU West regional proxy",
+            "network-proxy",
+            "d" * 64,
+            (scope,),
+            "0.29.103",
+            "https://regional-agent.example.invalid:8443",
+        )
+    )
+    cli = OpenInfraCLI()
+    common = ["--data", str(state), "--tenant", "default", "--admin-token", token]
+
+    assert (
+        cli.run(
+            [
+                "multisite",
+                "route-configure",
+                *common,
+                "--region-code",
+                "EU-WEST",
+                "--site-code",
+                "PAR1",
+                "--vrf-code",
+                "PROD",
+                "--collector-id",
+                collector.id.value,
+            ]
+        )
+        == 0
+    )
+    route = json.loads(capsys.readouterr().out)  # type: ignore[attr-defined]
+    assert route["discovery_scope"] == scope
+
+    assert cli.run(["multisite", "routes", *common, "--region-code", "EU-WEST"]) == 0
+    assert json.loads(capsys.readouterr().out)["items"][0]["id"] == route["id"]  # type: ignore[attr-defined]
+    assert cli.run(["multisite", "route-get", *common, "--route-id", route["id"]]) == 0
+    assert json.loads(capsys.readouterr().out)["collector_id"] == collector.id.value  # type: ignore[attr-defined]
+
+    assert (
+        cli.run(
+            [
+                "multisite",
+                "job-route",
+                *common,
+                "--region-code",
+                "EU-WEST",
+                "--site-code",
+                "PAR1",
+                "--vrf-code",
+                "PROD",
+                "--job-type",
+                "network-inventory",
+                "--target",
+                "10.20.0.0/24",
+                "--idempotency-key",
+                "cli-regional-route-0001",
+            ]
+        )
+        == 0
+    )
+    dispatch = json.loads(capsys.readouterr().out)  # type: ignore[attr-defined]
+    assert dispatch["job"]["collector_id"] == collector.id.value
+
+    assert cli.run(["multisite", "route-disable", *common, "--route-id", route["id"]]) == 0
+    assert json.loads(capsys.readouterr().out)["active"] is False  # type: ignore[attr-defined]

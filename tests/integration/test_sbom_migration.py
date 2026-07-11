@@ -26,8 +26,9 @@ def test_sbom_migration_is_partitioned_indexed_constrained_and_non_destructive()
 
 def test_sbom_precedes_rag_postgresql_migration() -> None:
     migrations = sorted((ROOT / "installers/migrations/postgresql").glob("*.sql"))
-    assert len(migrations) == 50
-    assert migrations[-4].name == "0047_greenops_energy_capacity.sql"
-    assert migrations[-3].name == "0048_sbom_vulnerabilities_exposure.sql"
-    assert migrations[-2].name == "0049_rag_governed_assistant.sql"
-    assert migrations[-1].name == "0050_pro_centralized_multisite.sql"
+    assert len(migrations) == 51
+    assert migrations[-5].name == "0047_greenops_energy_capacity.sql"
+    assert migrations[-4].name == "0048_sbom_vulnerabilities_exposure.sql"
+    assert migrations[-3].name == "0049_rag_governed_assistant.sql"
+    assert migrations[-2].name == "0050_pro_centralized_multisite.sql"
+    assert migrations[-1].name == "0051_enterprise_regional_discovery_routing.sql"

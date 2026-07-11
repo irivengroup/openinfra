@@ -37,8 +37,9 @@ def test_greenops_migration_is_partitioned_indexed_and_constrained() -> None:
 
 def test_greenops_precedes_sbom_and_rag_without_being_modified() -> None:
     migrations = sorted((ROOT / "installers/migrations/postgresql").glob("*.sql"))
-    assert migrations[-4].name == "0047_greenops_energy_capacity.sql"
-    assert migrations[-3].name == "0048_sbom_vulnerabilities_exposure.sql"
-    assert migrations[-2].name == "0049_rag_governed_assistant.sql"
-    assert migrations[-1].name == "0050_pro_centralized_multisite.sql"
-    assert len(migrations) == 50
+    assert migrations[-5].name == "0047_greenops_energy_capacity.sql"
+    assert migrations[-4].name == "0048_sbom_vulnerabilities_exposure.sql"
+    assert migrations[-3].name == "0049_rag_governed_assistant.sql"
+    assert migrations[-2].name == "0050_pro_centralized_multisite.sql"
+    assert migrations[-1].name == "0051_enterprise_regional_discovery_routing.sql"
+    assert len(migrations) == 51

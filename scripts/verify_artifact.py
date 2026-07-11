@@ -66,6 +66,7 @@ class WheelVerifier:
             "openinfra/migrations/postgresql/0048_sbom_vulnerabilities_exposure.sql",
             "openinfra/migrations/postgresql/0049_rag_governed_assistant.sql",
             "openinfra/migrations/postgresql/0050_pro_centralized_multisite.sql",
+            "openinfra/migrations/postgresql/0051_enterprise_regional_discovery_routing.sql",
         )
         missing = [
             suffix

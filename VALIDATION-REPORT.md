@@ -1,73 +1,104 @@
-# OpenInfra v0.29.102 — Rapport de validation
+# OpenInfra v0.29.103 — Rapport de validation
 
-Date de validation : `2026-07-11`  
-Release : `0.29.102`  
-Périmètre : P17 / EPIC-1701 — pilotage multisite centralisé Pro, RBAC par site et rapports consolidés DCIM
+Date : `2026-07-11`  
+Release : `0.29.103`  
+Jalon : `P17 / EPIC-1702 — multisite Enterprise distribué`
 
-## Résultat global
+## Périmètre livré
 
-- Tests Python collectés et validés : **929 PASS**.
-- Tests unitaires : **388 PASS**.
-- Tests d’intégration : **537 PASS**.
-- Tests d’architecture : **3 PASS**.
-- Tests de performance : **1 PASS**.
-- Couverture exacte : **98,0020999825 %**, soit **33 601 / 34 286** lignes couvertes.
-- Seuil bloquant : **98 % PASS**.
-- Tests frontend Node.js : **42 PASS**.
-- Ruff format et lint : **PASS** sur **271 fichiers Python**.
-- mypy strict : **PASS** sur **88 modules source**.
-- Compilation Python : **PASS**.
-- Bandit SAST, gate secrets/CI et gate qualité interne : **PASS**.
-- OpenAPI strict sans clé YAML dupliquée : **PASS** sur les deux spécifications.
-- Contrats frontend statique/React, WCAG 2.2 AA, JSX-a11y et build Vite : **PASS**.
-- Validation des six profils d’installation et du runtime natif : **PASS**.
+- Route Discovery régionale immuable et tenant-aware pour le triplet région/site/VRF.
+- Affectation à un collector `network-proxy` ou `datacenter-proxy` actif.
+- Validation du site DCIM, de l’endpoint HTTPS et de la portée autorisée.
+- Revalidation du collector lors de chaque soumission de job.
+- Routage vers le moteur Discovery existant : idempotence, retries, baux, fencing et DLQ préservés.
+- Garde d’édition : fonctionnalité disponible uniquement en Enterprise.
+- Persistance JSON et PostgreSQL.
+- Migration `0051_enterprise_regional_discovery_routing.sql`.
+- Cinq commandes CLI et cinq routes REST/OpenAPI.
+- Parité React/runtime statique, traductions FR/EN et formulaires typés.
+- Audit de configuration, désactivation et routage.
+- Documentation d’exploitation et de rollback.
 
-## Contrats multisites validés
+## Résultats automatisés
 
-- Feature gate `centralized_multisite` disponible en **Pro** et **Enterprise**, refusée en **Lite**.
-- Combinaison des permissions globales et des affectations locales `viewer`, `operator` ou `admin`.
-- Contournement de la portée locale réservé à la permission explicite `multisite.admin`.
-- Création, révision et révocation non destructives des affectations avec audit transactionnel.
-- Pagination complète des affectations : **501 sites** validés sans troncature au premier lot de 500.
-- Refus d’inspecter ou de générer un rapport pour une autre identité sans permission globale.
-- Rejet atomique d’une sélection contenant un site inconnu ou non autorisé ; aucun rapport partiel.
-- Rapports immuables agrégeant bâtiments, étages, salles, racks/châssis et équipements depuis le DCIM.
-- Limite explicite de 500 sites par rapport et validation stricte des dates timezone-aware.
-- Persistance JSON et PostgreSQL, requêtes paramétrées, contraintes d’intégrité et index d’audit.
-- Aucun agent régional, proxy collector ou mécanisme distribué Enterprise activé en édition Pro.
+### Python
 
-## Interfaces et packaging
+- Tests fonctionnels sans couverture : **936 réussis** en **106,59 s**.
+- Suite finale avec couverture : **937 réussis** en **140,30 s**.
+- Couverture globale : **98,01 %**.
+- Seuil contractuel : **98 % — PASS**.
+- Ruff format : **273 fichiers conformes**.
+- Ruff lint strict : **PASS**.
+- mypy strict : **94 modules — PASS**.
+- `compileall` : **PASS**.
 
-- Parcours regroupé sous **DCIM → Pilotage multisite**.
-- **7 routes REST** sous `/api/v1/multisite`.
-- Parité CLI sous `openinfra multisite`.
-- Parité des formulaires typés entre le portail React et le runtime statique packagé.
-- Traductions FR/EN des opérations, champs et niveaux d’accès.
-- Migration ajoutée : `0050_pro_centralized_multisite.sql`.
-- Total packagé : **50 migrations PostgreSQL**.
-- Toutes les migrations ont été chargées, validées et rendues ; la migration `0050` a également été rendue via la CLI.
-- Wheel et sdist `0.29.102` construits avec succès.
-- Vérification du contenu du wheel et du sdist : **PASS**.
-- Installation du wheel dans une cible vierge : **PASS**.
-- Smoke installé : version, 7 routes multisites, routes historiques, 50 migrations, quatre assets runtime et trois points d’entrée publics : **PASS**.
+### Frontend
 
-## Performance
+- Tests Node.js : **43 réussis**.
+- Contrat des assets statiques : **PASS**.
+- ESLint/JSX accessibilité : **PASS**.
+- Contrat WCAG 2.2 AA : **PASS**.
+- Build Vite : **PASS**.
+- Parité i18n React/runtime statique : **PASS**.
 
-Benchmark volumétrique exécuté sur **5 000 nœuds** et **100 SPOF** :
+### Sécurité
 
-| Scénario | p95 observé | Seuil | Résultat |
-|---|---:|---:|---|
-| Graphe à un niveau | 221,445 ms | 1 500 ms | PASS |
-| Graphe filtré | 102,830 ms | 1 500 ms | PASS |
-| Analyse SPOF | 207,662 ms | 5 000 ms | PASS |
-| Pagination SPOF complète | 540,820 ms | 15 000 ms | PASS |
+- Bandit SAST : **PASS**.
+- Security gate secrets/CI/dépendances : **PASS**.
+- Aucun secret, placeholder, `TODO`, `FIXME` ou `NotImplementedError` ajouté.
+- `pip-audit` : **non exécutable localement**, car la résolution DNS de `pypi.org` échoue dans l’environnement. Le gate CI strict reste configuré.
 
-La pagination multisite a en complément été validée fonctionnellement au-delà de la taille maximale d’une page repository.
+### API et documentation
 
-## Limites de l’environnement
+- OpenAPI principal : **PASS**.
+- OpenAPI embarqué dans le CDC : **PASS**.
+- Version OpenAPI : `0.29.103`.
+- Nombre de paths OpenAPI : **311**.
+- Cinq routes régionales présentes dans l’index API et le wheel.
+- CDC v4.8.1 : **828 exigences / 628 tests — PASS**.
+- Roadmap v2 : **19 phases / 115 epics / 8 gates / 97 tests — PASS**.
+- CDC et roadmap inchangés : EPIC-1702 était déjà planifié et aucune nouvelle recommandation ne modifie l’existant.
 
-- `pip-audit --strict -r requirements/security-audit.txt` n’a pas pu interroger `pypi.org` en raison d’un échec de résolution DNS du runner. Le gate reste bloquant dans GitHub Actions.
-- Docker et Podman ne sont pas installés dans l’environnement courant ; les smokes Compose ne peuvent pas être exécutés localement.
-- Aucun cluster PostgreSQL réel ni navigateur E2E complet n’est disponible. Les adaptateurs PostgreSQL sont couverts par des doubles transactionnels déterministes, les migrations par les validateurs structurels, et les portails par les contrats Node/JSX/accessibilité et le build de production.
+### Base de données et migrations
 
-Le CDC et la roadmap restent inchangés : P17 / EPIC-1701 et ses exigences étaient déjà définis, sans nouvelle recommandation fonctionnelle, technique, réglementaire ou architecturale à intégrer.
+- Total : **51 migrations PostgreSQL**.
+- Dernière migration : `0051_enterprise_regional_discovery_routing.sql`.
+- Les 51 migrations ont été rendues par la CLI et comparées octet pour octet à leur source : **PASS**.
+- Migration `0051` : transactionnelle, additive, partitionnée, indexée, contrainte et non destructive : **PASS**.
+- Adaptateur PostgreSQL testé avec doubles transactionnels : **PASS**.
+- PostgreSQL réel non disponible dans l’environnement courant ; la validation réelle reste exécutée par la CI.
+
+### Installateurs et runtime
+
+- Six profils `install.ini` : **PASS**.
+- Alignement Enterprise/CDC/roadmap : **PASS**.
+- Validation et dry-run installateur : **PASS**.
+- Smoke runtime natif : **PASS**.
+- Docker et Podman absents de l’environnement ; les smokes conteneurisés restent des gates CI.
+
+### Packaging
+
+- Wheel : `openinfra-0.29.103-py3-none-any.whl`.
+- sdist : `openinfra-0.29.103.tar.gz`.
+- Vérification du contenu wheel : **PASS**.
+- Installation du wheel dans un répertoire vierge : **PASS**.
+- Smoke installé : version `0.29.103`, **12 routes multisites**, **51 migrations**, dernière migration `0051`, quatre assets runtime et trois points d’entrée publics : **PASS**.
+
+## Empreintes des packages Python
+
+```text
+openinfra-0.29.103-py3-none-any.whl
+SHA-256: cf3b44fa23931bb83526d2c687ca949f1075e5fe2cb604652cb01e3c7c2755fc
+Taille: 749149 octets
+
+openinfra-0.29.103.tar.gz
+SHA-256: 427a2544d3d8b77627f9a25076fdc119a0af84dbdca9b3c0df9e2826ccef2bff
+Taille: 1539314 octets
+```
+
+## Risques résiduels
+
+- Aucun test PostgreSQL réel n’a pu être exécuté localement.
+- Aucun smoke Docker/Podman n’a pu être exécuté localement.
+- L’audit CVE distant dépend de la connectivité PyPI et doit être confirmé par la CI.
+- Le routage soumet des jobs ; l’exécution effective du scan reste de la responsabilité de l’agent Discovery et de son workflow existant.

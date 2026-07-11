@@ -292,12 +292,17 @@ from openinfra.application.itam_services import (
     UpdateSoftwareLicenseAssignmentCommand,
 )
 from openinfra.application.multisite_services import (
+    ConfigureRegionalDiscoveryRouteCommand,
+    DisableRegionalDiscoveryRouteCommand,
     GenerateMultisiteReportCommand,
     GetMultisiteReportCommand,
+    GetRegionalDiscoveryRouteCommand,
     ListAccessibleSitesCommand,
     ListMultisiteReportsCommand,
+    ListRegionalDiscoveryRoutesCommand,
     ListSiteAccessCommand,
     RevokeSiteAccessCommand,
+    RouteRegionalDiscoveryJobCommand,
     UpsertSiteAccessCommand,
 )
 from openinfra.application.network_config_compliance_services import (
@@ -1532,6 +1537,43 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         self._first_query_value(query, "tenant_id"),
                         self._bearer_token(),
                         self._first_query_value(query, "report_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/multisite/regional-discovery/routes":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.multisite_service.list_regional_discovery_routes(
+                    ListRegionalDiscoveryRoutesCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        region_code=query.get("region_code", [None])[0],
+                        site_code=query.get("site_code", [None])[0],
+                        active_only=self._query_bool(query, "active_only", True),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/multisite/regional-discovery/routes/get":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.multisite_service.get_regional_discovery_route(
+                    GetRegionalDiscoveryRouteCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        route_id=self._first_query_value(query, "route_id"),
                     )
                 )
                 responder.send(HTTPStatus.OK, result.as_dict())
@@ -3457,6 +3499,69 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         admin_token=self._bearer_token(),
                         site_codes=self._payload_string_tuple(payload, "site_codes"),
                         subject=self._optional_payload_value(payload, "subject"),
+                        actor=str(payload.get("actor", "api")),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/multisite/regional-discovery/routes/configure":
+            try:
+                payload = self._read_json_body()
+                result = (
+                    self.server.application.multisite_service.configure_regional_discovery_route(
+                        ConfigureRegionalDiscoveryRouteCommand(
+                            tenant_id=self._required_payload_value(payload, "tenant_id"),
+                            admin_token=self._bearer_token(),
+                            region_code=self._required_payload_value(payload, "region_code"),
+                            site_code=self._required_payload_value(payload, "site_code"),
+                            vrf_code=self._required_payload_value(payload, "vrf_code"),
+                            collector_id=self._required_payload_value(payload, "collector_id"),
+                            actor=str(payload.get("actor", "api")),
+                        )
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/multisite/regional-discovery/routes/disable":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.multisite_service.disable_regional_discovery_route(
+                    DisableRegionalDiscoveryRouteCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        route_id=self._required_payload_value(payload, "route_id"),
+                        actor=str(payload.get("actor", "api")),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/multisite/regional-discovery/jobs/route":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.multisite_service.route_regional_discovery_job(
+                    RouteRegionalDiscoveryJobCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        region_code=self._required_payload_value(payload, "region_code"),
+                        site_code=self._required_payload_value(payload, "site_code"),
+                        vrf_code=self._required_payload_value(payload, "vrf_code"),
+                        job_type=self._required_payload_value(payload, "job_type"),
+                        target=self._required_payload_value(payload, "target"),
+                        idempotency_key=self._required_payload_value(payload, "idempotency_key"),
+                        max_attempts=int(payload.get("max_attempts", 3)),
                         actor=str(payload.get("actor", "api")),
                     )
                 )
@@ -7875,6 +7980,15 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "reports": "/api/v1/multisite/reports",
                     "report_get": "/api/v1/multisite/reports/get",
                     "report_generate": "/api/v1/multisite/reports/generate",
+                    "regional_routes": "/api/v1/multisite/regional-discovery/routes",
+                    "regional_route_get": ("/api/v1/multisite/regional-discovery/routes/get"),
+                    "regional_route_configure": (
+                        "/api/v1/multisite/regional-discovery/routes/configure"
+                    ),
+                    "regional_route_disable": (
+                        "/api/v1/multisite/regional-discovery/routes/disable"
+                    ),
+                    "regional_job_route": ("/api/v1/multisite/regional-discovery/jobs/route"),
                 },
                 "rag": {
                     "documents": "/api/v1/rag/documents",

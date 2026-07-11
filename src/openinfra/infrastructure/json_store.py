@@ -66,6 +66,7 @@ from openinfra.application.ports import (
     RagRepository,
     ReadinessProbe,
     ReadinessStatus,
+    RegionalDiscoveryRoutePage,
     RiskFindingPage,
     RuntimeUsageRepository,
     SbomComparisonPage,
@@ -239,6 +240,7 @@ from openinfra.domain.itam import (
 )
 from openinfra.domain.multisite import (
     MultisitePortfolioReport,
+    RegionalDiscoveryRoute,
     SiteAccessGrant,
     SitePortfolioEntry,
 )
@@ -533,6 +535,7 @@ class JsonDocumentStore:
             "rag_event_outbox": {},
             "multisite_site_access_grants": {},
             "multisite_reports": {},
+            "multisite_regional_discovery_routes": {},
             "discovery_collectors": {},
             "discovery_jobs": {},
             "discovery_protocol_profiles": {},
@@ -5233,6 +5236,65 @@ class JsonMultisiteRepository(MultisiteRepository):
         selected, cursor = self._page(items, pagination)
         return MultisiteReportPage(tuple(selected), cursor)
 
+    def save_regional_route(self, route: RegionalDiscoveryRoute) -> None:
+        existing = self.find_regional_route(
+            route.tenant_id, route.region_code, route.site_code, route.vrf_code
+        )
+        if existing is not None and existing.id != route.id:
+            self._store.data["multisite_regional_discovery_routes"].pop(
+                self._key(route.tenant_id, existing.id.value), None
+            )
+        self._save(
+            "multisite_regional_discovery_routes",
+            route.tenant_id,
+            route.id.value,
+            route.as_dict(),
+        )
+
+    def get_regional_route(
+        self, tenant_id: TenantId, route_id: str
+    ) -> RegionalDiscoveryRoute | None:
+        value = self._get("multisite_regional_discovery_routes", tenant_id, route_id)
+        return self._regional_route(value) if value else None
+
+    def find_regional_route(
+        self, tenant_id: TenantId, region_code: str, site_code: str, vrf_code: str
+    ) -> RegionalDiscoveryRoute | None:
+        region = Code.from_value(region_code, "region code").value
+        site = Code.from_value(site_code, "site code").value
+        vrf = Code.from_value(vrf_code, "VRF code").value
+        for value in self._tenant_values("multisite_regional_discovery_routes", tenant_id):
+            if (
+                value.get("region_code") == region
+                and value.get("site_code") == site
+                and value.get("vrf_code") == vrf
+            ):
+                return self._regional_route(value)
+        return None
+
+    def list_regional_routes(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        region_code: str | None = None,
+        site_code: str | None = None,
+        active_only: bool = True,
+    ) -> RegionalDiscoveryRoutePage:
+        region = Code.from_value(region_code, "region code").value if region_code else None
+        site = Code.from_value(site_code, "site code").value if site_code else None
+        items = [
+            self._regional_route(value)
+            for value in self._tenant_values("multisite_regional_discovery_routes", tenant_id)
+            if (region is None or value.get("region_code") == region)
+            and (site is None or value.get("site_code") == site)
+            and (not active_only or bool(value.get("active")))
+        ]
+        items.sort(
+            key=lambda item: (item.region_code, item.site_code, item.vrf_code, item.id.value)
+        )
+        selected, cursor = self._page(items, pagination)
+        return RegionalDiscoveryRoutePage(tuple(selected), cursor)
+
     @staticmethod
     def _grant(value: dict[str, Any]) -> SiteAccessGrant:
         revoked_at = value.get("revoked_at")
@@ -5247,6 +5309,24 @@ class JsonMultisiteRepository(MultisiteRepository):
             created_at=datetime.fromisoformat(str(value["created_at"])),
             updated_at=datetime.fromisoformat(str(value["updated_at"])),
             revoked_at=None if revoked_at is None else datetime.fromisoformat(str(revoked_at)),
+        )
+
+    @staticmethod
+    def _regional_route(value: dict[str, Any]) -> RegionalDiscoveryRoute:
+        disabled_at = value.get("disabled_at")
+        return RegionalDiscoveryRoute.restore(
+            id=EntityId.from_value(str(value["id"])),
+            tenant_id=TenantId.from_value(str(value["tenant_id"])),
+            region_code=str(value["region_code"]),
+            site_code=str(value["site_code"]),
+            vrf_code=str(value["vrf_code"]),
+            collector_id=EntityId.from_value(str(value["collector_id"])),
+            discovery_scope=str(value["discovery_scope"]),
+            active=bool(value["active"]),
+            configured_by=str(value["configured_by"]),
+            created_at=datetime.fromisoformat(str(value["created_at"])),
+            updated_at=datetime.fromisoformat(str(value["updated_at"])),
+            disabled_at=None if disabled_at is None else datetime.fromisoformat(str(disabled_at)),
         )
 
     @staticmethod

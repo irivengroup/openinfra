@@ -46,13 +46,13 @@ class TestGitHubWorkflows:
         assert 'PYTHONPATH="$target" python scripts/smoke_installed_wheel.py' in workflow
         smoke = (PROJECT_ROOT / "scripts/smoke_installed_wheel.py").read_text(encoding="utf-8")
         assert "OpenApiDocumentProvider().read_yaml()" in smoke
-        assert "EXPECTED_MIGRATION_COUNT = 50" in smoke
+        assert "EXPECTED_MIGRATION_COUNT = 51" in smoke
         assert "EXPECTED_NETWORK_CONFIG_ROUTES" in smoke
         assert "EXPECTED_FIELD_OPERATION_ROUTES" in smoke
         assert "EXPECTED_SIMULATION_ROUTES" in smoke
         assert "EXPECTED_GREENOPS_ROUTES" in smoke
         assert "EXPECTED_SBOM_ROUTES" in smoke
-        assert 'EXPECTED_LAST_MIGRATION = "0050_pro_centralized_multisite.sql"' in smoke
+        assert 'EXPECTED_LAST_MIGRATION = "0051_enterprise_regional_discovery_routing.sql"' in smoke
         for route in (
             "/api/v1/graph/traverse",
             "/api/v1/graph/impact",
@@ -136,5 +136,8 @@ class TestGitHubWorkflows:
             "tests/integration/test_multisite_migration.py",
             "tests/integration/test_multisite_postgresql_repository.py",
             "tests/integration/test_multisite_web_contract.py",
+            "tests/integration/test_enterprise_multisite_discovery_routing.py",
+            "tests/integration/test_enterprise_multisite_http_api.py",
         ):
             assert test_path in workflow
+        assert "Enterprise regional discovery routing regression" in workflow

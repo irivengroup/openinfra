@@ -104,7 +104,11 @@ from openinfra.domain.itam import (
     PhysicalAssetSupportProfile,
     SoftwareLicenseEntitlement,
 )
-from openinfra.domain.multisite import MultisitePortfolioReport, SiteAccessGrant
+from openinfra.domain.multisite import (
+    MultisitePortfolioReport,
+    RegionalDiscoveryRoute,
+    SiteAccessGrant,
+)
 from openinfra.domain.network_config_compliance import (
     NetworkConfigBaseline,
     NetworkConfigObservation,
@@ -1952,6 +1956,15 @@ class MultisiteReportPage:
         return {"items": [item.as_dict() for item in self.items], "next_cursor": self.next_cursor}
 
 
+@dataclass(frozen=True, slots=True)
+class RegionalDiscoveryRoutePage:
+    items: tuple[RegionalDiscoveryRoute, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {"items": [item.as_dict() for item in self.items], "next_cursor": self.next_cursor}
+
+
 class MultisiteRepository(ABC):
     @abstractmethod
     def save_grant(self, grant: SiteAccessGrant) -> None:
@@ -1989,6 +2002,33 @@ class MultisiteRepository(ABC):
         pagination: Pagination,
         requested_subject: str | None = None,
     ) -> MultisiteReportPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_regional_route(self, route: RegionalDiscoveryRoute) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_regional_route(
+        self, tenant_id: TenantId, route_id: str
+    ) -> RegionalDiscoveryRoute | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_regional_route(
+        self, tenant_id: TenantId, region_code: str, site_code: str, vrf_code: str
+    ) -> RegionalDiscoveryRoute | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_regional_routes(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        region_code: str | None = None,
+        site_code: str | None = None,
+        active_only: bool = True,
+    ) -> RegionalDiscoveryRoutePage:
         raise TypeError("adapter contract invoked directly")
 
 

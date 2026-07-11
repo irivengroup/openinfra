@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.102
+  version: 0.29.103
 components:
   securitySchemes:
     bearerToken:
@@ -6649,3 +6649,102 @@ paths:
         '201': {description: Immutable multisite report generated}
         '400': {description: Unknown or unauthorized site selection}
         '401': {description: Missing, invalid or insufficiently scoped token}
+  /api/v1/multisite/regional-discovery/routes:
+    get:
+      operationId: listRegionalDiscoveryRoutes
+      summary: List Enterprise discovery routes by region, site and VRF
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: region_code, in: query, schema: {type: string}}
+        - {name: site_code, in: query, schema: {type: string}}
+        - {name: active_only, in: query, schema: {type: boolean, default: true}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated regional discovery routes}
+        '400': {description: Invalid filter, cursor or non-Enterprise edition}
+        '401': {description: Missing or invalid multisite administrator token}
+  /api/v1/multisite/regional-discovery/routes/get:
+    get:
+      operationId: getRegionalDiscoveryRoute
+      summary: Get one Enterprise regional discovery route
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: route_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Regional discovery route}
+        '400': {description: Unknown or invalid route}
+        '401': {description: Missing or invalid multisite administrator token}
+  /api/v1/multisite/regional-discovery/routes/configure:
+    post:
+      operationId: configureRegionalDiscoveryRoute
+      summary: Configure or reassign an Enterprise regional discovery route
+      description: The selected active regional proxy must expose the deterministic region/site/VRF scope and an HTTPS endpoint.
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, region_code, site_code, vrf_code, collector_id]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                region_code: {type: string, minLength: 2, maxLength: 64}
+                site_code: {type: string, minLength: 2, maxLength: 64}
+                vrf_code: {type: string, minLength: 2, maxLength: 64}
+                collector_id: {type: string, format: uuid}
+      responses:
+        '200': {description: Regional discovery route configured or reassigned}
+        '400': {description: Unknown site, collector, invalid scope or non-Enterprise edition}
+        '401': {description: Missing or invalid multisite administrator token}
+  /api/v1/multisite/regional-discovery/routes/disable:
+    post:
+      operationId: disableRegionalDiscoveryRoute
+      summary: Disable one Enterprise regional discovery route
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, route_id]
+              properties:
+                tenant_id: {type: string}
+                route_id: {type: string, format: uuid}
+                actor: {type: string, default: api}
+      responses:
+        '200': {description: Regional discovery route disabled idempotently}
+        '400': {description: Unknown or invalid route}
+        '401': {description: Missing or invalid multisite administrator token}
+  /api/v1/multisite/regional-discovery/jobs/route:
+    post:
+      operationId: routeRegionalDiscoveryJob
+      summary: Route a Discovery job to an authorized Enterprise regional proxy
+      description: Resolves the active route by region, DCIM site and VRF, revalidates the collector, then creates an idempotent durable Discovery job.
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, region_code, site_code, vrf_code, job_type, target, idempotency_key]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                region_code: {type: string, minLength: 2, maxLength: 64}
+                site_code: {type: string, minLength: 2, maxLength: 64}
+                vrf_code: {type: string, minLength: 2, maxLength: 64}
+                job_type: {type: string, minLength: 2, maxLength: 64}
+                target: {type: string, minLength: 1, maxLength: 512}
+                idempotency_key: {type: string, minLength: 3, maxLength: 255}
+                max_attempts: {type: integer, minimum: 1, maximum: 10, default: 3}
+      responses:
+        '201': {description: Regional route and durable Discovery job}
+        '400': {description: No active route, invalid collector, scope or job request}
+        '401': {description: Missing or invalid multisite administrator token}

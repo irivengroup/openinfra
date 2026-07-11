@@ -36,12 +36,43 @@ const routes = [
   '/v1/multisite/reports/get',
 ];
 
+const regionalOperations = [
+  'multisite-route-configure',
+  'multisite-route-disable',
+  'multisite-routes',
+  'multisite-route-get',
+  'multisite-job-route',
+];
+
+const regionalRoutes = [
+  '/v1/multisite/regional-discovery/routes/configure',
+  '/v1/multisite/regional-discovery/routes/disable',
+  '/v1/multisite/regional-discovery/routes',
+  '/v1/multisite/regional-discovery/routes/get',
+  '/v1/multisite/regional-discovery/jobs/route',
+];
+
 test('centralized multisite operations keep static and React route parity', () => {
   for (const source of [react, packaged]) {
     assert.match(source, /Pilotage multisite/u);
     for (const operation of operations) assert.match(source, new RegExp(operation, 'u'));
     for (const route of routes) assert.match(source, new RegExp(route.replaceAll('/', '\\/'), 'u'));
   }
+});
+
+test('Enterprise regional discovery routes keep static and React parity', () => {
+  for (const source of [react, packaged]) {
+    for (const operation of regionalOperations) assert.match(source, new RegExp(operation, 'u'));
+    for (const route of regionalRoutes) {
+      assert.match(source, new RegExp(route.replaceAll('/', '\\/'), 'u'));
+    }
+    for (const field of ['region_code', 'site_code', 'vrf_code', 'collector_id', 'job_type']) {
+      assert.match(source, new RegExp(`name:\\s*['"]${field}['"]`, 'u'));
+    }
+    assert.match(source, /name:\s*['"]max_attempts['"][^}]*type:\s*['"]number['"]/u);
+  }
+  assert.match(translations, /Configure regional Discovery route/u);
+  assert.match(translations, /Route regional Discovery job/u);
 });
 
 test('multisite forms use typed access, boolean and site-list controls', () => {

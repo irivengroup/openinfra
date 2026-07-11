@@ -670,6 +670,8 @@ class ApplicationFactory:
             transaction_manager,
             security_service,
             edition_guard,
+            discovery_repository,
+            discovery_service,
         )
         return OpenInfraApplication(
             store=store,

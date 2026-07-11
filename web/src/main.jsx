@@ -839,6 +839,36 @@ const MODULES = [
     { id: 'multisite-report-get', label: 'Consulter un rapport multisite', path: '/v1/multisite/reports/get', method: 'GET', fields: [
       { name: 'report_id', label: 'ID rapport', required: true },
     ] },
+    { id: 'multisite-route-configure', label: 'Configurer une route Discovery régionale', path: '/v1/multisite/regional-discovery/routes/configure', method: 'POST', fields: [
+      { name: 'actor', label: 'Opérateur', required: true },
+      { name: 'region_code', label: 'Région', required: true, placeholder: 'EU-WEST' },
+      { name: 'site_code', label: 'Site', required: true, defaultValue: 'PAR1' },
+      { name: 'vrf_code', label: 'VRF', required: true, placeholder: 'PROD' },
+      { name: 'collector_id', label: 'ID agent régional', required: true },
+    ] },
+    { id: 'multisite-route-disable', label: 'Désactiver une route Discovery régionale', path: '/v1/multisite/regional-discovery/routes/disable', method: 'POST', fields: [
+      { name: 'actor', label: 'Opérateur', required: true },
+      { name: 'route_id', label: 'ID route', required: true },
+    ] },
+    { id: 'multisite-routes', label: 'Lister les routes Discovery régionales', path: '/v1/multisite/regional-discovery/routes', method: 'GET', fields: [
+      { name: 'region_code', label: 'Région' }, { name: 'site_code', label: 'Site' },
+      { name: 'active_only', label: 'Routes actives uniquement', type: 'boolean', defaultValue: 'true' },
+      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100', min: 1, max: 500 },
+      { name: 'cursor', label: 'Curseur' },
+    ] },
+    { id: 'multisite-route-get', label: 'Consulter une route Discovery régionale', path: '/v1/multisite/regional-discovery/routes/get', method: 'GET', fields: [
+      { name: 'route_id', label: 'ID route', required: true },
+    ] },
+    { id: 'multisite-job-route', label: 'Router un job Discovery régional', path: '/v1/multisite/regional-discovery/jobs/route', method: 'POST', fields: [
+      { name: 'actor', label: 'Opérateur', required: true },
+      { name: 'region_code', label: 'Région', required: true, placeholder: 'EU-WEST' },
+      { name: 'site_code', label: 'Site', required: true, defaultValue: 'PAR1' },
+      { name: 'vrf_code', label: 'VRF', required: true, placeholder: 'PROD' },
+      { name: 'job_type', label: 'Type de job', required: true, placeholder: 'network-inventory' },
+      { name: 'target', label: 'Cible', required: true, placeholder: '10.20.0.0/24' },
+      { name: 'idempotency_key', label: 'Clé d’idempotence', required: true },
+      { name: 'max_attempts', label: 'Tentatives maximales', type: 'number', defaultValue: '3', min: 1, max: 10 },
+    ] },
     { id: 'dcim-site-create', label: 'Créer un site DCIM', path: '/v1/dcim/site/create', method: 'POST', fields: ['Opérateur', 'Code site', 'Nom site', 'Pays ISO-2', 'Ville', 'Région'] },
     { id: 'dcim-site-update', label: 'Modifier un site DCIM', path: '/v1/dcim/site/update', method: 'POST', fields: ['Opérateur', 'Site', 'Nom site', 'Pays ISO-2', 'Ville', 'Région', 'Statut'] },
     { id: 'dcim-site-delete', label: 'Retirer un site DCIM', path: '/v1/dcim/site/delete', method: 'POST', fields: ['Opérateur', 'Site'] },
@@ -1200,7 +1230,7 @@ const SIDEBAR_CONTEXTS = {
   ],
   dcim: [
     { label: 'Sites & dépendances', operationIds: ['dcim-sites', 'dcim-site', 'dcim-site-create', 'dcim-site-update', 'dcim-site-delete', 'dcim-buildings', 'dcim-building', 'dcim-building-create', 'dcim-building-update', 'dcim-building-delete', 'dcim-floors', 'dcim-floor', 'dcim-rooms-list', 'dcim-room', 'dcim-room-create', 'dcim-room-update', 'dcim-room-delete', 'dcim-zones', 'dcim-zone', 'dcim-zone-create', 'dcim-zone-update', 'dcim-zone-delete', 'dcim-topology-catalog'] },
-    { label: 'Pilotage multisite', operationIds: ['multisite-sites', 'multisite-grants', 'multisite-grant-upsert', 'multisite-grant-revoke', 'multisite-report-generate', 'multisite-reports', 'multisite-report-get'] },
+    { label: 'Pilotage multisite', operationIds: ['multisite-sites', 'multisite-grants', 'multisite-grant-upsert', 'multisite-grant-revoke', 'multisite-report-generate', 'multisite-reports', 'multisite-report-get', 'multisite-routes', 'multisite-route-get', 'multisite-route-configure', 'multisite-route-disable', 'multisite-job-route'] },
     { label: 'Localisation & capacité', operationIds: ['dcim-locate-equipment', 'dcim-rack-capacity', 'dcim-room-plan', 'dcim-rack-elevation'] },
     { label: 'Connectivité', operationIds: ['dcim-patch-panel', 'dcim-port', 'dcim-cable', 'dcim-cable-trace'] },
     { label: 'Énergie & refroidissement', operationIds: ['dcim-power-device', 'dcim-power-circuit', 'dcim-cooling-zone', 'dcim-power-reservation', 'dcim-energy-cooling-capacity'] },

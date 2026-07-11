@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.29.103 - 2026-07-11
+
+- Réalisation de P17 / EPIC-1702 avec un routage Discovery distribué réservé à l’édition Enterprise.
+- Ajout de routes régionales déterministes par région, site et VRF vers des collectors `network-proxy` ou `datacenter-proxy` enrôlés.
+- Validation systématique du site DCIM, du statut du collector, de son endpoint HTTPS et de sa portée autorisée avant configuration et avant chaque soumission.
+- Réutilisation du moteur Discovery existant pour l’idempotence, les retries, les baux, le fencing et la DLQ, sans scan direct ni écriture RSOT par le module multisite.
+- Ajout de 5 routes REST, de 5 commandes CLI, de la parité UI/OpenAPI, des persistances JSON/PostgreSQL et de la migration `0051_enterprise_regional_discovery_routing.sql`.
+- Ajout d’un gate CI dédié, de tests domaine/service/CLI/HTTP/PostgreSQL/migration/Web et d’un runbook d’exploitation/rollback.
+- Garantie explicite : les éditions Lite et Pro ne peuvent pas utiliser le routage régional distribué.
+
 ## 0.29.102 - 2026-07-11
 
 - Réalisation de P17 / EPIC-1701 avec un pilotage multisite centralisé pour les éditions Pro et Enterprise.

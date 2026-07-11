@@ -1,6 +1,19 @@
-# OpenInfra v0.29.102
+# OpenInfra v0.29.103
 
-OpenInfra v0.29.102 réalise **P17 / EPIC-1701 — multisite Pro centralisé**. Les rôles globaux sont combinés à des affectations locales par site, les révocations sont auditables et les rapports consolidés sont calculés depuis le DCIM sans agent régional ni mutation des ressources.
+OpenInfra v0.29.103 réalise **P17 / EPIC-1702 — multisite Enterprise distribué**. Les jobs Discovery sont routés de manière déterministe vers des proxies régionaux autorisés par région, site et VRF, sans scan direct ni écriture RSOT depuis le composant multisite.
+
+## Discovery régionale distribuée Enterprise
+
+Le parcours est rangé sous **DCIM → Pilotage multisite**. Une route associe un triplet région/site/VRF à un collector `network-proxy` ou `datacenter-proxy` actif, disposant d’un endpoint HTTPS et de la portée correspondante. Lite et Pro restent strictement exclus de cette capacité distribuée.
+
+```bash
+openinfra multisite route-configure --help
+openinfra multisite routes --help
+openinfra multisite job-route --help
+openinfra multisite route-disable --help
+```
+
+Voir `docs/operations/enterprise-regional-discovery-routing.md` pour l’enrôlement, les permissions, le routage, l’audit, la persistance et le rollback.
 
 ## Multisite Pro centralisé
 

@@ -144,3 +144,77 @@ def test_multisite_report_totals_order_restore_and_guards() -> None:
             "pytest",
             tuple(_entry(f"S{index:03d}") for index in range(501)),
         )
+
+
+def test_regional_discovery_route_lifecycle_scope_and_guards() -> None:
+    from openinfra.domain.multisite import RegionalDiscoveryRoute
+
+    tenant = TenantId.from_value("default")
+    created_at = datetime(2026, 7, 11, 9, 0, tzinfo=UTC)
+    collector_id = EntityId.new()
+    route = RegionalDiscoveryRoute.create(
+        tenant,
+        "eu-west",
+        "par1",
+        "prod",
+        collector_id,
+        "multisite-admin",
+        created_at,
+    )
+    assert route.discovery_scope == "region/eu-west/site/par1/vrf/prod"
+    assert route.matches("EU-WEST", "PAR1", "PROD") is True
+    assert route.matches("EU-WEST", "LON1", "PROD") is False
+
+    reassigned = route.reassign(
+        EntityId.new(), "routing-admin", datetime(2026, 7, 11, 10, 0, tzinfo=UTC)
+    )
+    assert reassigned.id == route.id
+    assert reassigned.collector_id != route.collector_id
+    disabled = reassigned.disable("routing-admin", datetime(2026, 7, 11, 11, 0, tzinfo=UTC))
+    assert disabled.active is False and disabled.disabled_at is not None
+    assert disabled.disable("routing-admin") == disabled
+
+    restored = RegionalDiscoveryRoute.restore(
+        id=disabled.id,
+        tenant_id=disabled.tenant_id,
+        region_code=disabled.region_code,
+        site_code=disabled.site_code,
+        vrf_code=disabled.vrf_code,
+        collector_id=disabled.collector_id,
+        discovery_scope=disabled.discovery_scope,
+        active=False,
+        configured_by=disabled.configured_by,
+        created_at=disabled.created_at,
+        updated_at=disabled.updated_at,
+        disabled_at=disabled.disabled_at,
+    )
+    assert restored.as_dict() == disabled.as_dict()
+
+    with pytest.raises(ValidationError, match="scope is inconsistent"):
+        RegionalDiscoveryRoute.restore(
+            id=route.id,
+            tenant_id=tenant,
+            region_code="EU-WEST",
+            site_code="PAR1",
+            vrf_code="PROD",
+            collector_id=collector_id,
+            discovery_scope="region/eu/site/par1/vrf/prod",
+            active=True,
+            configured_by="pytest",
+            created_at=created_at,
+            updated_at=created_at,
+        )
+    with pytest.raises(ValidationError, match="active state is inconsistent"):
+        RegionalDiscoveryRoute.restore(
+            id=route.id,
+            tenant_id=tenant,
+            region_code="EU-WEST",
+            site_code="PAR1",
+            vrf_code="PROD",
+            collector_id=collector_id,
+            discovery_scope=route.discovery_scope,
+            active=False,
+            configured_by="pytest",
+            created_at=created_at,
+            updated_at=created_at,
+        )

@@ -169,6 +169,15 @@ class TestHttpApi:
                     "reports": "/api/v1/multisite/reports",
                     "report_get": "/api/v1/multisite/reports/get",
                     "report_generate": "/api/v1/multisite/reports/generate",
+                    "regional_routes": "/api/v1/multisite/regional-discovery/routes",
+                    "regional_route_get": "/api/v1/multisite/regional-discovery/routes/get",
+                    "regional_route_configure": (
+                        "/api/v1/multisite/regional-discovery/routes/configure"
+                    ),
+                    "regional_route_disable": (
+                        "/api/v1/multisite/regional-discovery/routes/disable"
+                    ),
+                    "regional_job_route": "/api/v1/multisite/regional-discovery/jobs/route",
                 },
                 "rag": {
                     "documents": "/api/v1/rag/documents",

@@ -7,8 +7,13 @@ import pytest
 from pytest import MonkeyPatch
 from tests.integration.test_postgresql_runtime import FakeConnection
 
-from openinfra.domain.common import Pagination, TenantId, ValidationError
-from openinfra.domain.multisite import MultisitePortfolioReport, SiteAccessGrant, SitePortfolioEntry
+from openinfra.domain.common import EntityId, Pagination, TenantId, ValidationError
+from openinfra.domain.multisite import (
+    MultisitePortfolioReport,
+    RegionalDiscoveryRoute,
+    SiteAccessGrant,
+    SitePortfolioEntry,
+)
 from openinfra.infrastructure.postgresql import (
     PostgreSQLConnectionFactory,
     PostgreSQLMultisiteRepository,
@@ -110,3 +115,60 @@ def test_multisite_postgresql_reads_filters_pagination_and_guards(
         repo._report({**report.as_dict(), "sites": "invalid"})
     with pytest.raises(ValidationError, match="JSON object"):
         repo._json_mapping([])
+
+
+def test_multisite_postgresql_regional_routes_are_parameterized_and_mapped(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    repo = _repository()
+    tenant = TenantId.from_value("default")
+    route = RegionalDiscoveryRoute.create(
+        tenant,
+        "EU-WEST",
+        "PAR1",
+        "PROD",
+        EntityId.new(),
+        "pytest",
+        datetime(2026, 7, 11, 10, tzinfo=UTC),
+    )
+    statements: list[tuple[str, dict[str, object]]] = []
+    monkeypatch.setattr(repo, "_ensure_tenant", lambda _tenant: None)
+    monkeypatch.setattr(
+        repo,
+        "_execute_without_result",
+        lambda query, params: statements.append((" ".join(query.split()), dict(params))),
+    )
+    repo.save_regional_route(route)
+    assert "INSERT INTO multisite_regional_discovery_routes" in statements[0][0]
+    assert statements[0][1]["collector_id"] == route.collector_id.value
+
+    rows = iter(
+        [
+            {"payload": json.dumps(route.as_dict())},
+            {"payload": json.dumps(route.as_dict())},
+        ]
+    )
+    monkeypatch.setattr(repo, "_fetch_one", lambda _query, _params: next(rows))
+    assert repo.get_regional_route(tenant, route.id.value) == route
+    assert repo.find_regional_route(tenant, "eu-west", "par1", "prod") == route
+
+    calls: list[tuple[str, dict[str, object]]] = []
+
+    def fetch_all(query: str, params: dict[str, object]) -> list[dict[str, object]]:
+        calls.append((" ".join(query.split()), dict(params)))
+        return [
+            {"payload": json.dumps(route.as_dict())},
+            {"payload": json.dumps(route.as_dict())},
+        ]
+
+    monkeypatch.setattr(repo, "_fetch_all", fetch_all)
+    page = repo.list_regional_routes(
+        tenant,
+        Pagination(limit=1),
+        region_code="eu-west",
+        site_code="par1",
+        active_only=True,
+    )
+    assert page.items == (route,) and page.next_cursor == "1"
+    assert "active = TRUE" in calls[0][0]
+    assert calls[0][1]["region_code"] == "EU-WEST"

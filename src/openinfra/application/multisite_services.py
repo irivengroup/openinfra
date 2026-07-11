@@ -2,12 +2,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from openinfra.application.discovery_services import (
+    DiscoveryCollectorService,
+    SubmitDiscoveryJobCommand,
+)
 from openinfra.application.edition_services import EditionRuntimeGuard
 from openinfra.application.ports import (
     AuditRepository,
     DcimRepository,
+    DiscoveryRepository,
     MultisiteReportPage,
     MultisiteRepository,
+    RegionalDiscoveryRoutePage,
     SiteAccessGrantPage,
     TransactionManager,
 )
@@ -20,10 +26,18 @@ from openinfra.domain.common import (
     TenantId,
 )
 from openinfra.domain.dcim import Site
+from openinfra.domain.discovery import (
+    CollectorKind,
+    CollectorStatus,
+    DiscoveryCollector,
+    DiscoveryScope,
+)
+from openinfra.domain.discovery_jobs import DiscoveryJob
 from openinfra.domain.editions import FeatureCapability
 from openinfra.domain.multisite import (
     MultisitePortfolioReport,
     MultisiteValidator,
+    RegionalDiscoveryRoute,
     SiteAccessGrant,
     SiteAccessLevel,
     SitePortfolioEntry,
@@ -93,6 +107,66 @@ class ListMultisiteReportsCommand:
     cursor: str | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class ConfigureRegionalDiscoveryRouteCommand:
+    tenant_id: str
+    admin_token: str
+    region_code: str
+    site_code: str
+    vrf_code: str
+    collector_id: str
+    actor: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class DisableRegionalDiscoveryRouteCommand:
+    tenant_id: str
+    admin_token: str
+    route_id: str
+    actor: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class GetRegionalDiscoveryRouteCommand:
+    tenant_id: str
+    admin_token: str
+    route_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class ListRegionalDiscoveryRoutesCommand:
+    tenant_id: str
+    admin_token: str
+    region_code: str | None = None
+    site_code: str | None = None
+    active_only: bool = True
+    limit: int = 100
+    cursor: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class RouteRegionalDiscoveryJobCommand:
+    tenant_id: str
+    admin_token: str
+    region_code: str
+    site_code: str
+    vrf_code: str
+    job_type: str
+    target: str
+    idempotency_key: str
+    max_attempts: int = 3
+    actor: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class RegionalDiscoveryDispatch:
+    route: RegionalDiscoveryRoute
+    job: DiscoveryJob
+
+    def as_dict(self) -> dict[str, object]:
+        return {"route": self.route.as_dict(), "job": self.job.as_dict()}
+
+
 class MultisiteService:
     def __init__(
         self,
@@ -102,6 +176,8 @@ class MultisiteService:
         transaction_manager: TransactionManager,
         security_service: SecurityService,
         edition_guard: EditionRuntimeGuard,
+        discovery_repository: DiscoveryRepository,
+        discovery_service: DiscoveryCollectorService,
     ) -> None:
         self._repository = repository
         self._dcim_repository = dcim_repository
@@ -109,6 +185,8 @@ class MultisiteService:
         self._transaction_manager = transaction_manager
         self._security_service = security_service
         self._edition_guard = edition_guard
+        self._discovery_repository = discovery_repository
+        self._discovery_service = discovery_service
 
     def upsert_site_access(self, command: UpsertSiteAccessCommand) -> SiteAccessGrant:
         tenant_id, principal = self._authorize(
@@ -237,6 +315,128 @@ class MultisiteService:
             tenant_id, Pagination.from_values(command.limit, command.cursor), subject
         )
 
+    def configure_regional_discovery_route(
+        self, command: ConfigureRegionalDiscoveryRouteCommand
+    ) -> RegionalDiscoveryRoute:
+        tenant_id, principal = self._authorize(
+            command.tenant_id, command.admin_token, Permission.MULTISITE_ADMIN
+        )
+        self._require_enterprise_multisite(tenant_id, principal.subject, command.site_code)
+        site = self._dcim_repository.find_site(tenant_id, command.site_code)
+        if site is None:
+            raise NotFoundError("DCIM site not found")
+        candidate = RegionalDiscoveryRoute.create(
+            tenant_id,
+            command.region_code,
+            site.code.value,
+            command.vrf_code,
+            command.collector_id,
+            command.actor or principal.subject,
+        )
+        collector = self._discovery_repository.get_collector(tenant_id, command.collector_id)
+        self._validate_regional_collector(collector, candidate)
+        existing = self._repository.find_regional_route(
+            tenant_id, candidate.region_code, candidate.site_code, candidate.vrf_code
+        )
+        route = (
+            candidate
+            if existing is None
+            else existing.reassign(candidate.collector_id, command.actor or principal.subject)
+        )
+        self._save_regional_route(route, "multisite.regional_route.configured")
+        return route
+
+    def disable_regional_discovery_route(
+        self, command: DisableRegionalDiscoveryRouteCommand
+    ) -> RegionalDiscoveryRoute:
+        tenant_id, principal = self._authorize(
+            command.tenant_id, command.admin_token, Permission.MULTISITE_ADMIN
+        )
+        self._require_enterprise_multisite(tenant_id, principal.subject, command.route_id)
+        route = self._repository.get_regional_route(tenant_id, command.route_id)
+        if route is None:
+            raise NotFoundError("regional discovery route not found")
+        disabled = route.disable(command.actor or principal.subject)
+        self._save_regional_route(disabled, "multisite.regional_route.disabled")
+        return disabled
+
+    def get_regional_discovery_route(
+        self, command: GetRegionalDiscoveryRouteCommand
+    ) -> RegionalDiscoveryRoute:
+        tenant_id, principal = self._authorize(
+            command.tenant_id, command.admin_token, Permission.MULTISITE_ADMIN
+        )
+        self._require_enterprise_multisite(tenant_id, principal.subject, command.route_id)
+        route = self._repository.get_regional_route(tenant_id, command.route_id)
+        if route is None:
+            raise NotFoundError("regional discovery route not found")
+        return route
+
+    def list_regional_discovery_routes(
+        self, command: ListRegionalDiscoveryRoutesCommand
+    ) -> RegionalDiscoveryRoutePage:
+        tenant_id, principal = self._authorize(
+            command.tenant_id, command.admin_token, Permission.MULTISITE_ADMIN
+        )
+        self._require_enterprise_multisite(
+            tenant_id, principal.subject, command.site_code or command.region_code or "routes"
+        )
+        return self._repository.list_regional_routes(
+            tenant_id,
+            Pagination.from_values(command.limit, command.cursor),
+            command.region_code,
+            command.site_code,
+            command.active_only,
+        )
+
+    def route_regional_discovery_job(
+        self, command: RouteRegionalDiscoveryJobCommand
+    ) -> RegionalDiscoveryDispatch:
+        tenant_id, principal = self._authorize(
+            command.tenant_id, command.admin_token, Permission.MULTISITE_ADMIN
+        )
+        self._require_enterprise_multisite(tenant_id, principal.subject, command.site_code)
+        route = self._repository.find_regional_route(
+            tenant_id, command.region_code, command.site_code, command.vrf_code
+        )
+        if route is None or not route.active:
+            raise NotFoundError("active regional discovery route not found")
+        collector = self._discovery_repository.get_collector(tenant_id, route.collector_id.value)
+        self._validate_regional_collector(collector, route)
+        job = self._discovery_service.submit_job(
+            SubmitDiscoveryJobCommand(
+                tenant_id=tenant_id.value,
+                actor=command.actor or principal.subject,
+                admin_token=command.admin_token,
+                collector_id=route.collector_id.value,
+                requested_scope=route.discovery_scope,
+                job_type=command.job_type,
+                target=command.target,
+                idempotency_key=command.idempotency_key,
+                max_attempts=command.max_attempts,
+            )
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id,
+                    command.actor or principal.subject,
+                    "multisite.regional_discovery.routed",
+                    "discovery_job",
+                    job.id.value,
+                    {
+                        "route_id": route.id.value,
+                        "region_code": route.region_code,
+                        "site_code": route.site_code,
+                        "vrf_code": route.vrf_code,
+                        "collector_id": route.collector_id.value,
+                        "discovery_scope": route.discovery_scope,
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return RegionalDiscoveryDispatch(route, job)
+
     def _accessible_sites(
         self,
         tenant_id: TenantId,
@@ -335,6 +535,52 @@ class MultisiteService:
             AuthenticateTokenCommand(tenant_id.value, token, permission)
         )
         return tenant_id, principal
+
+    def _save_regional_route(self, route: RegionalDiscoveryRoute, action: str) -> None:
+        with self._transaction_manager.begin() as unit_of_work:
+            self._repository.save_regional_route(route)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    route.tenant_id,
+                    route.configured_by,
+                    action,
+                    "regional_discovery_route",
+                    route.id.value,
+                    {
+                        "region_code": route.region_code,
+                        "site_code": route.site_code,
+                        "vrf_code": route.vrf_code,
+                        "collector_id": route.collector_id.value,
+                        "discovery_scope": route.discovery_scope,
+                        "active": route.active,
+                    },
+                )
+            )
+            unit_of_work.commit()
+
+    @staticmethod
+    def _validate_regional_collector(
+        collector: DiscoveryCollector | None, route: RegionalDiscoveryRoute
+    ) -> None:
+        if collector is None:
+            raise NotFoundError("regional discovery collector not found")
+        if collector.status is not CollectorStatus.ACTIVE:
+            raise AccessDeniedError("regional discovery collector is not active")
+        if collector.kind not in {CollectorKind.NETWORK_PROXY, CollectorKind.DATACENTER_PROXY}:
+            raise AccessDeniedError("regional discovery route requires a regional proxy collector")
+        if collector.endpoint_url is None:
+            raise AccessDeniedError("regional discovery collector requires an HTTPS endpoint")
+        if not collector.allows_scope(DiscoveryScope.from_value(route.discovery_scope)):
+            raise AccessDeniedError("regional discovery collector does not authorize route scope")
+
+    def _require_enterprise_multisite(self, tenant_id: TenantId, actor: str, target: str) -> None:
+        self._edition_guard.require_feature(
+            tenant_id,
+            FeatureCapability.DISTRIBUTED_DISCOVERY_AGENTS,
+            actor,
+            "multisite_regional_discovery",
+            target,
+        )
 
     def _require_pro_multisite(self, tenant_id: TenantId, actor: str, target: str) -> None:
         self._edition_guard.require_feature(

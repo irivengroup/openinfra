@@ -129,6 +129,17 @@ jobs:
             tests/integration/test_multisite_postgresql_repository.py \
             tests/integration/test_multisite_web_contract.py
 
+      - name: Enterprise regional discovery routing regression
+        run: |
+          python -m pytest -q --no-cov \
+            tests/unit/test_multisite_domain.py \
+            tests/integration/test_enterprise_multisite_discovery_routing.py \
+            tests/integration/test_enterprise_multisite_http_api.py \
+            tests/integration/test_multisite_cli.py \
+            tests/integration/test_multisite_migration.py \
+            tests/integration/test_multisite_postgresql_repository.py \
+            tests/integration/test_multisite_web_contract.py
+
       - name: Discovery multisource reconciliation regression
         run: |
           python -m pytest -q --no-cov \

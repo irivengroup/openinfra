@@ -292,12 +292,17 @@ from openinfra.application.itam_services import (
     UpdateSoftwareLicenseAssignmentCommand,
 )
 from openinfra.application.multisite_services import (
+    ConfigureRegionalDiscoveryRouteCommand,
+    DisableRegionalDiscoveryRouteCommand,
     GenerateMultisiteReportCommand,
     GetMultisiteReportCommand,
+    GetRegionalDiscoveryRouteCommand,
     ListAccessibleSitesCommand,
     ListMultisiteReportsCommand,
+    ListRegionalDiscoveryRoutesCommand,
     ListSiteAccessCommand,
     RevokeSiteAccessCommand,
+    RouteRegionalDiscoveryJobCommand,
     UpsertSiteAccessCommand,
 )
 from openinfra.application.network_config_compliance_services import (
@@ -2385,7 +2390,7 @@ class OpenInfraCLI:
 
     def _add_multisite_commands(self, subparsers: Any) -> None:
         multisite = subparsers.add_parser(
-            "multisite", help="centralized Pro multisite and site-scoped RBAC"
+            "multisite", help="Pro centralized and Enterprise distributed multisite"
         )
         commands = multisite.add_subparsers(dest="multisite_command", required=True)
         upsert = commands.add_parser("grant-upsert", help="grant or revise access to one site")
@@ -2445,6 +2450,69 @@ class OpenInfraCLI:
         for name in ("tenant", "admin-token", "report-id"):
             report.add_argument(f"--{name}", required=True)
         report.set_defaults(handler=self._handle_multisite_report)
+
+        route_configure = commands.add_parser(
+            "route-configure", help="configure an Enterprise regional discovery route"
+        )
+        self._add_backend_arguments(route_configure)
+        for name in (
+            "tenant",
+            "admin-token",
+            "region-code",
+            "site-code",
+            "vrf-code",
+            "collector-id",
+        ):
+            route_configure.add_argument(f"--{name}", required=True)
+        route_configure.add_argument("--actor", default="cli")
+        route_configure.set_defaults(handler=self._handle_multisite_route_configure)
+
+        route_disable = commands.add_parser(
+            "route-disable", help="disable an Enterprise regional discovery route"
+        )
+        self._add_backend_arguments(route_disable)
+        for name in ("tenant", "admin-token", "route-id"):
+            route_disable.add_argument(f"--{name}", required=True)
+        route_disable.add_argument("--actor", default="cli")
+        route_disable.set_defaults(handler=self._handle_multisite_route_disable)
+
+        routes = commands.add_parser("routes", help="list Enterprise regional discovery routes")
+        self._add_backend_arguments(routes)
+        for name in ("tenant", "admin-token"):
+            routes.add_argument(f"--{name}", required=True)
+        routes.add_argument("--region-code")
+        routes.add_argument("--site-code")
+        routes.add_argument("--include-inactive", action="store_true")
+        routes.add_argument("--limit", type=int, default=100)
+        routes.add_argument("--cursor")
+        routes.set_defaults(handler=self._handle_multisite_routes)
+
+        route_get = commands.add_parser(
+            "route-get", help="read one Enterprise regional discovery route"
+        )
+        self._add_backend_arguments(route_get)
+        for name in ("tenant", "admin-token", "route-id"):
+            route_get.add_argument(f"--{name}", required=True)
+        route_get.set_defaults(handler=self._handle_multisite_route_get)
+
+        job_route = commands.add_parser(
+            "job-route", help="route a discovery job by region, site and VRF"
+        )
+        self._add_backend_arguments(job_route)
+        for name in (
+            "tenant",
+            "admin-token",
+            "region-code",
+            "site-code",
+            "vrf-code",
+            "job-type",
+            "target",
+            "idempotency-key",
+        ):
+            job_route.add_argument(f"--{name}", required=True)
+        job_route.add_argument("--max-attempts", type=int, default=3)
+        job_route.add_argument("--actor", default="cli")
+        job_route.set_defaults(handler=self._handle_multisite_job_route)
 
     def _add_rag_commands(self, subparsers: Any) -> None:
         rag = subparsers.add_parser(
@@ -9118,6 +9186,72 @@ class OpenInfraCLI:
     def _handle_multisite_report(self, args: argparse.Namespace) -> int:
         result = self._create_application(args).multisite_service.get_report(
             GetMultisiteReportCommand(args.tenant, args.admin_token, args.report_id)
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_multisite_route_configure(self, args: argparse.Namespace) -> int:
+        result = self._create_application(
+            args
+        ).multisite_service.configure_regional_discovery_route(
+            ConfigureRegionalDiscoveryRouteCommand(
+                args.tenant,
+                args.admin_token,
+                args.region_code,
+                args.site_code,
+                args.vrf_code,
+                args.collector_id,
+                args.actor,
+            )
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_multisite_route_disable(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).multisite_service.disable_regional_discovery_route(
+            DisableRegionalDiscoveryRouteCommand(
+                args.tenant, args.admin_token, args.route_id, args.actor
+            )
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_multisite_routes(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).multisite_service.list_regional_discovery_routes(
+            ListRegionalDiscoveryRoutesCommand(
+                args.tenant,
+                args.admin_token,
+                args.region_code,
+                args.site_code,
+                not args.include_inactive,
+                args.limit,
+                args.cursor,
+            )
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_multisite_route_get(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).multisite_service.get_regional_discovery_route(
+            GetRegionalDiscoveryRouteCommand(args.tenant, args.admin_token, args.route_id)
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_multisite_job_route(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).multisite_service.route_regional_discovery_job(
+            RouteRegionalDiscoveryJobCommand(
+                args.tenant,
+                args.admin_token,
+                args.region_code,
+                args.site_code,
+                args.vrf_code,
+                args.job_type,
+                args.target,
+                args.idempotency_key,
+                args.max_attempts,
+                args.actor,
+            )
         )
         print(json.dumps(result.as_dict(), sort_keys=True))
         return 0

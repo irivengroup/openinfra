@@ -13,7 +13,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.29.102"
+    EXPECTED_VERSION = "0.29.103"
     EXPECTED_GRAPH_ROUTES = (
         "/api/v1/graph/traverse",
         "/api/v1/graph/impact",
@@ -134,6 +134,11 @@ class InstalledWheelSmoke:
         "/api/v1/multisite/reports",
         "/api/v1/multisite/reports/get",
         "/api/v1/multisite/reports/generate",
+        "/api/v1/multisite/regional-discovery/routes",
+        "/api/v1/multisite/regional-discovery/routes/get",
+        "/api/v1/multisite/regional-discovery/routes/configure",
+        "/api/v1/multisite/regional-discovery/routes/disable",
+        "/api/v1/multisite/regional-discovery/jobs/route",
     )
     EXPECTED_FIELD_OPERATION_ROUTES = (
         "/api/v1/field-operation-sheets",
@@ -154,8 +159,8 @@ class InstalledWheelSmoke:
         "/api/v1/offline-sync-packages/create",
         "/api/v1/offline-sync-packages/synchronize",
     )
-    EXPECTED_LAST_MIGRATION = "0050_pro_centralized_multisite.sql"
-    EXPECTED_MIGRATION_COUNT = 50
+    EXPECTED_LAST_MIGRATION = "0051_enterprise_regional_discovery_routing.sql"
+    EXPECTED_MIGRATION_COUNT = 51
     EXPECTED_ASSETS = (
         "openinfra-web.js",
         "openinfra-web.css",

@@ -16,6 +16,11 @@ def test_multisite_is_grouped_under_dcim_with_api_parity() -> None:
         "multisite-report-generate",
         "multisite-reports",
         "multisite-report-get",
+        "multisite-route-configure",
+        "multisite-route-disable",
+        "multisite-routes",
+        "multisite-route-get",
+        "multisite-job-route",
     )
     routes = (
         "/v1/multisite/site-access/grants/upsert",
@@ -25,6 +30,11 @@ def test_multisite_is_grouped_under_dcim_with_api_parity() -> None:
         "/v1/multisite/reports/generate",
         "/v1/multisite/reports",
         "/v1/multisite/reports/get",
+        "/v1/multisite/regional-discovery/routes/configure",
+        "/v1/multisite/regional-discovery/routes/disable",
+        "/v1/multisite/regional-discovery/routes",
+        "/v1/multisite/regional-discovery/routes/get",
+        "/v1/multisite/regional-discovery/jobs/route",
     )
     for path in SOURCES:
         source = path.read_text(encoding="utf-8")
@@ -36,10 +46,13 @@ def test_multisite_is_grouped_under_dcim_with_api_parity() -> None:
         assert "id: 'multisite'" not in source and 'id: "multisite"' not in source
 
 
-def test_multisite_static_forms_use_typed_controls_and_no_agent_workflow() -> None:
+def test_multisite_static_forms_use_typed_controls_and_governed_regional_routes() -> None:
     source = SOURCES[1].read_text(encoding="utf-8")
     assert 'name: "access_level"' in source and 'type: "select"' in source
     assert 'name: "site_codes"' in source and 'type: "json"' in source
     assert 'name: "active_only"' in source and 'type: "boolean"' in source
+    for field in ("region_code", "site_code", "vrf_code", "collector_id", "job_type"):
+        assert f'name: "{field}"' in source
+    assert 'name: "max_attempts"' in source and 'type: "number"' in source
     assert "/v1/multisite/agents" not in source
     assert "/v1/multisite/regions" not in source

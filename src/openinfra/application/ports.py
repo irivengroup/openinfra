@@ -105,6 +105,8 @@ from openinfra.domain.itam import (
     SoftwareLicenseEntitlement,
 )
 from openinfra.domain.multisite import (
+    MultisiteDisasterRecoveryDrill,
+    MultisiteDisasterRecoveryPlan,
     MultisitePortfolioReport,
     RegionalDiscoveryRoute,
     SiteAccessGrant,
@@ -1965,6 +1967,24 @@ class RegionalDiscoveryRoutePage:
         return {"items": [item.as_dict() for item in self.items], "next_cursor": self.next_cursor}
 
 
+@dataclass(frozen=True, slots=True)
+class DisasterRecoveryPlanPage:
+    items: tuple[MultisiteDisasterRecoveryPlan, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {"items": [item.as_dict() for item in self.items], "next_cursor": self.next_cursor}
+
+
+@dataclass(frozen=True, slots=True)
+class DisasterRecoveryDrillPage:
+    items: tuple[MultisiteDisasterRecoveryDrill, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {"items": [item.as_dict() for item in self.items], "next_cursor": self.next_cursor}
+
+
 class MultisiteRepository(ABC):
     @abstractmethod
     def save_grant(self, grant: SiteAccessGrant) -> None:
@@ -2029,6 +2049,51 @@ class MultisiteRepository(ABC):
         site_code: str | None = None,
         active_only: bool = True,
     ) -> RegionalDiscoveryRoutePage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_dr_plan(self, plan: MultisiteDisasterRecoveryPlan) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_dr_plan(
+        self, tenant_id: TenantId, plan_id: str
+    ) -> MultisiteDisasterRecoveryPlan | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_dr_plan_by_sites(
+        self, tenant_id: TenantId, primary_site_code: str, recovery_site_code: str
+    ) -> MultisiteDisasterRecoveryPlan | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_dr_plans(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        active_only: bool = True,
+    ) -> DisasterRecoveryPlanPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_dr_drill(self, drill: MultisiteDisasterRecoveryDrill) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_dr_drill(
+        self, tenant_id: TenantId, drill_id: str
+    ) -> MultisiteDisasterRecoveryDrill | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_dr_drills(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        plan_id: str | None = None,
+        status: str | None = None,
+    ) -> DisasterRecoveryDrillPage:
         raise TypeError("adapter contract invoked directly")
 
 

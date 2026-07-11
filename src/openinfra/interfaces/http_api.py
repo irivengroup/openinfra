@@ -292,12 +292,19 @@ from openinfra.application.itam_services import (
     UpdateSoftwareLicenseAssignmentCommand,
 )
 from openinfra.application.multisite_services import (
+    ConfigureDisasterRecoveryPlanCommand,
     ConfigureRegionalDiscoveryRouteCommand,
+    DisableDisasterRecoveryPlanCommand,
     DisableRegionalDiscoveryRouteCommand,
+    ExecuteDisasterRecoveryDrillCommand,
     GenerateMultisiteReportCommand,
+    GetDisasterRecoveryDrillCommand,
+    GetDisasterRecoveryPlanCommand,
     GetMultisiteReportCommand,
     GetRegionalDiscoveryRouteCommand,
     ListAccessibleSitesCommand,
+    ListDisasterRecoveryDrillsCommand,
+    ListDisasterRecoveryPlansCommand,
     ListMultisiteReportsCommand,
     ListRegionalDiscoveryRoutesCommand,
     ListSiteAccessCommand,
@@ -1574,6 +1581,76 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         tenant_id=self._first_query_value(query, "tenant_id"),
                         admin_token=self._bearer_token(),
                         route_id=self._first_query_value(query, "route_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/multisite/disaster-recovery/plans":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.multisite_service.list_disaster_recovery_plans(
+                    ListDisasterRecoveryPlansCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        active_only=self._query_bool(query, "active_only", True),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/multisite/disaster-recovery/plans/get":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.multisite_service.get_disaster_recovery_plan(
+                    GetDisasterRecoveryPlanCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        plan_id=self._first_query_value(query, "plan_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/multisite/disaster-recovery/drills":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.multisite_service.list_disaster_recovery_drills(
+                    ListDisasterRecoveryDrillsCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        plan_id=query.get("plan_id", [None])[0],
+                        status=query.get("status", [None])[0],
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/multisite/disaster-recovery/drills/get":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.multisite_service.get_disaster_recovery_drill(
+                    GetDisasterRecoveryDrillCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        drill_id=self._first_query_value(query, "drill_id"),
                     )
                 )
                 responder.send(HTTPStatus.OK, result.as_dict())
@@ -3562,6 +3639,75 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         target=self._required_payload_value(payload, "target"),
                         idempotency_key=self._required_payload_value(payload, "idempotency_key"),
                         max_attempts=int(payload.get("max_attempts", 3)),
+                        actor=str(payload.get("actor", "api")),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/multisite/disaster-recovery/plans/configure":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.multisite_service.configure_disaster_recovery_plan(
+                    ConfigureDisasterRecoveryPlanCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        name=self._required_payload_value(payload, "name"),
+                        primary_site_code=self._required_payload_value(
+                            payload, "primary_site_code"
+                        ),
+                        recovery_site_code=self._required_payload_value(
+                            payload, "recovery_site_code"
+                        ),
+                        replication_mode=str(payload.get("replication_mode", "asynchronous")),
+                        rpo_seconds=int(payload.get("rpo_seconds", 300)),
+                        rto_seconds=int(payload.get("rto_seconds", 1800)),
+                        max_backup_age_seconds=int(payload.get("max_backup_age_seconds", 86400)),
+                        actor=str(payload.get("actor", "api")),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/multisite/disaster-recovery/plans/disable":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.multisite_service.disable_disaster_recovery_plan(
+                    DisableDisasterRecoveryPlanCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        plan_id=self._required_payload_value(payload, "plan_id"),
+                        actor=str(payload.get("actor", "api")),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/multisite/disaster-recovery/drills/execute":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.multisite_service.execute_disaster_recovery_drill(
+                    ExecuteDisasterRecoveryDrillCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        plan_id=self._required_payload_value(payload, "plan_id"),
+                        replication_lag_seconds=int(payload.get("replication_lag_seconds", -1)),
+                        backup_age_seconds=int(payload.get("backup_age_seconds", -1)),
+                        measured_rto_seconds=int(payload.get("measured_rto_seconds", -1)),
+                        restore_verified=self._payload_bool(payload, "restore_verified", False),
+                        recovery_available=self._payload_bool(payload, "recovery_available", False),
+                        vip_reachable=self._payload_bool(payload, "vip_reachable", False),
+                        operator_confirmed=self._payload_bool(payload, "operator_confirmed", False),
                         actor=str(payload.get("actor", "api")),
                     )
                 )

@@ -172,3 +172,87 @@ def test_multisite_postgresql_regional_routes_are_parameterized_and_mapped(
     assert page.items == (route,) and page.next_cursor == "1"
     assert "active = TRUE" in calls[0][0]
     assert calls[0][1]["region_code"] == "EU-WEST"
+
+
+def test_multisite_postgresql_disaster_recovery_is_parameterized_and_mapped(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    from openinfra.domain.multisite import (
+        MultisiteDisasterRecoveryDrill,
+        MultisiteDisasterRecoveryPlan,
+    )
+
+    repo = _repository()
+    tenant = TenantId.from_value("default")
+    plan = MultisiteDisasterRecoveryPlan.create(
+        tenant,
+        "Paris to London",
+        "PAR1",
+        "LON1",
+        "async",
+        300,
+        1800,
+        86400,
+        "pytest",
+        datetime(2026, 7, 11, 12, tzinfo=UTC),
+    )
+    drill = MultisiteDisasterRecoveryDrill.execute_site_loss(
+        plan,
+        replication_lag_seconds=30,
+        backup_age_seconds=3600,
+        measured_rto_seconds=600,
+        restore_verified=True,
+        recovery_available=True,
+        vip_reachable=True,
+        operator_confirmed=True,
+        executed_by="pytest",
+        now=datetime(2026, 7, 11, 13, tzinfo=UTC),
+    )
+    statements: list[tuple[str, dict[str, object]]] = []
+    monkeypatch.setattr(repo, "_ensure_tenant", lambda _tenant: None)
+    monkeypatch.setattr(
+        repo,
+        "_execute_without_result",
+        lambda query, params: statements.append((" ".join(query.split()), dict(params))),
+    )
+    repo.save_dr_plan(plan)
+    repo.save_dr_drill(drill)
+    assert "INSERT INTO multisite_dr_plans" in statements[0][0]
+    assert "id = EXCLUDED.id" not in statements[0][0]
+    assert "INSERT INTO multisite_dr_drills" in statements[1][0]
+    assert "ON CONFLICT (tenant_id, id) DO NOTHING" in statements[1][0]
+    assert statements[0][1]["primary_site_code"] == "PAR1"
+    assert statements[1][1]["status"] == "passed"
+
+    rows = iter(
+        [
+            {"payload": json.dumps(plan.as_dict())},
+            {"payload": json.dumps(plan.as_dict())},
+            {"payload": json.dumps(drill.as_dict())},
+        ]
+    )
+    monkeypatch.setattr(repo, "_fetch_one", lambda _query, _params: next(rows))
+    assert repo.get_dr_plan(tenant, plan.id.value) == plan
+    assert repo.find_dr_plan_by_sites(tenant, "par1", "lon1") == plan
+    assert repo.get_dr_drill(tenant, drill.id.value) == drill
+
+    calls: list[tuple[str, dict[str, object]]] = []
+
+    def fetch_all(query: str, params: dict[str, object]) -> list[dict[str, object]]:
+        calls.append((" ".join(query.split()), dict(params)))
+        payload = drill.as_dict() if "dr_drills" in query else plan.as_dict()
+        return [{"payload": json.dumps(payload)}, {"payload": json.dumps(payload)}]
+
+    monkeypatch.setattr(repo, "_fetch_all", fetch_all)
+    plans = repo.list_dr_plans(tenant, Pagination(limit=1), active_only=True)
+    drills = repo.list_dr_drills(
+        tenant, Pagination(limit=1), plan_id=plan.id.value, status="passed"
+    )
+    assert plans.items == (plan,) and plans.next_cursor == "1"
+    assert drills.items == (drill,) and drills.next_cursor == "1"
+    assert "active = TRUE" in calls[0][0]
+    assert calls[1][1]["status"] == "passed"
+    with pytest.raises(ValidationError, match="passed or failed"):
+        repo.list_dr_drills(tenant, Pagination(limit=1), status="invalid")
+    with pytest.raises(ValidationError, match="failure reasons payload"):
+        repo._dr_drill({**drill.as_dict(), "failure_reasons": "invalid"})

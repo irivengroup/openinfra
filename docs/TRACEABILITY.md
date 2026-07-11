@@ -1,5 +1,17 @@
 # Traçabilité OpenInfra
 
+## v0.29.104 — Reprise après sinistre multisite
+
+- Roadmap existante : réalisation de P17 / `EPIC-1703`, sans extension du périmètre fonctionnel.
+- Domaine : plans primaire/secours, mode de réplication, objectifs RPO/RTO, fraîcheur de sauvegarde et preuves immuables d’exercices `primary-site-loss`.
+- Application : contrôle `multisite.admin`, garde Pro/Enterprise, validation des sites DCIM, évaluation déterministe de sept critères et audit transactionnel.
+- Persistance : adaptateurs JSON/PostgreSQL, deux tables hash-partitionnées, contraintes, index et migration additive `0052`.
+- Interfaces : sept commandes CLI, sept routes HTTP/OpenAPI et parité des portails React/runtime statique sous DCIM.
+- Sécurité : aucune promotion, restauration, opération de fencing ou mutation DNS/VIP automatique ; `automatic_promotion=false` est inscrit dans l’audit.
+- Exploitation : runbook de préparation, site loss, validation, failback et rollback non destructif.
+- Tests/CI : domaine, service, CLI, HTTP, PostgreSQL, migration, Web, packaging et gate de régression dédié.
+- CDC/roadmap : inchangés, car EPIC-1703 était déjà planifié et aucune nouvelle recommandation n’impacte l’existant.
+
 ## v0.29.103 — Multisite Enterprise distribué
 
 - Roadmap existante : réalisation de P17 / `EPIC-1702`, sans extension du périmètre fonctionnel.

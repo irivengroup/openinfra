@@ -1,6 +1,19 @@
-# OpenInfra v0.29.103
+# OpenInfra v0.29.104
 
-OpenInfra v0.29.103 réalise **P17 / EPIC-1702 — multisite Enterprise distribué**. Les jobs Discovery sont routés de manière déterministe vers des proxies régionaux autorisés par région, site et VRF, sans scan direct ni écriture RSOT depuis le composant multisite.
+OpenInfra v0.29.104 réalise **P17 / EPIC-1703 — reprise après sinistre multisite**. Les éditions Pro et Enterprise disposent d’un registre audité de plans primaire/secours et d’exercices contrôlés de perte du site primaire, sans promotion PostgreSQL, fencing ni changement DNS/VIP automatique.
+
+## Reprise après sinistre multisite
+
+Le parcours **DCIM → Pilotage multisite** permet de définir les sites primaire et de secours, le mode de réplication, le RPO, le RTO et l’âge maximal d’une sauvegarde. Chaque exercice produit une preuve immuable `passed` ou `failed` selon les mesures et confirmations explicites fournies par l’opérateur.
+
+```bash
+openinfra multisite dr-plan-configure --help
+openinfra multisite dr-plans --help
+openinfra multisite dr-drill-execute --help
+openinfra multisite dr-drills --help
+```
+
+Voir `docs/operations/multisite-disaster-recovery.md` pour les prérequis, la procédure de perte réelle d’un site, le failback, les critères RPO/RTO, l’audit et le rollback.
 
 ## Discovery régionale distribuée Enterprise
 

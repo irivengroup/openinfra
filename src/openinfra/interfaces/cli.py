@@ -292,12 +292,19 @@ from openinfra.application.itam_services import (
     UpdateSoftwareLicenseAssignmentCommand,
 )
 from openinfra.application.multisite_services import (
+    ConfigureDisasterRecoveryPlanCommand,
     ConfigureRegionalDiscoveryRouteCommand,
+    DisableDisasterRecoveryPlanCommand,
     DisableRegionalDiscoveryRouteCommand,
+    ExecuteDisasterRecoveryDrillCommand,
     GenerateMultisiteReportCommand,
+    GetDisasterRecoveryDrillCommand,
+    GetDisasterRecoveryPlanCommand,
     GetMultisiteReportCommand,
     GetRegionalDiscoveryRouteCommand,
     ListAccessibleSitesCommand,
+    ListDisasterRecoveryDrillsCommand,
+    ListDisasterRecoveryPlansCommand,
     ListMultisiteReportsCommand,
     ListRegionalDiscoveryRoutesCommand,
     ListSiteAccessCommand,
@@ -2513,6 +2520,83 @@ class OpenInfraCLI:
         job_route.add_argument("--max-attempts", type=int, default=3)
         job_route.add_argument("--actor", default="cli")
         job_route.set_defaults(handler=self._handle_multisite_job_route)
+
+        dr_plan_configure = commands.add_parser(
+            "dr-plan-configure", help="configure a Pro or Enterprise multisite DR plan"
+        )
+        self._add_backend_arguments(dr_plan_configure)
+        for name in (
+            "tenant",
+            "admin-token",
+            "name",
+            "primary-site-code",
+            "recovery-site-code",
+        ):
+            dr_plan_configure.add_argument(f"--{name}", required=True)
+        dr_plan_configure.add_argument(
+            "--replication-mode",
+            choices=("asynchronous", "synchronous"),
+            default="asynchronous",
+        )
+        dr_plan_configure.add_argument("--rpo-seconds", type=int, default=300)
+        dr_plan_configure.add_argument("--rto-seconds", type=int, default=1800)
+        dr_plan_configure.add_argument("--max-backup-age-seconds", type=int, default=86400)
+        dr_plan_configure.add_argument("--actor", default="cli")
+        dr_plan_configure.set_defaults(handler=self._handle_multisite_dr_plan_configure)
+
+        dr_plan_disable = commands.add_parser("dr-plan-disable", help="disable a multisite DR plan")
+        self._add_backend_arguments(dr_plan_disable)
+        for name in ("tenant", "admin-token", "plan-id"):
+            dr_plan_disable.add_argument(f"--{name}", required=True)
+        dr_plan_disable.add_argument("--actor", default="cli")
+        dr_plan_disable.set_defaults(handler=self._handle_multisite_dr_plan_disable)
+
+        dr_plans = commands.add_parser("dr-plans", help="list multisite DR plans")
+        self._add_backend_arguments(dr_plans)
+        for name in ("tenant", "admin-token"):
+            dr_plans.add_argument(f"--{name}", required=True)
+        dr_plans.add_argument("--include-inactive", action="store_true")
+        dr_plans.add_argument("--limit", type=int, default=100)
+        dr_plans.add_argument("--cursor")
+        dr_plans.set_defaults(handler=self._handle_multisite_dr_plans)
+
+        dr_plan_get = commands.add_parser("dr-plan-get", help="read one multisite DR plan")
+        self._add_backend_arguments(dr_plan_get)
+        for name in ("tenant", "admin-token", "plan-id"):
+            dr_plan_get.add_argument(f"--{name}", required=True)
+        dr_plan_get.set_defaults(handler=self._handle_multisite_dr_plan_get)
+
+        dr_drill_execute = commands.add_parser(
+            "dr-drill-execute", help="record a controlled primary-site-loss DR drill"
+        )
+        self._add_backend_arguments(dr_drill_execute)
+        for name in ("tenant", "admin-token", "plan-id"):
+            dr_drill_execute.add_argument(f"--{name}", required=True)
+        dr_drill_execute.add_argument("--replication-lag-seconds", type=int, required=True)
+        dr_drill_execute.add_argument("--backup-age-seconds", type=int, required=True)
+        dr_drill_execute.add_argument("--measured-rto-seconds", type=int, required=True)
+        dr_drill_execute.add_argument("--restore-verified", action="store_true")
+        dr_drill_execute.add_argument("--recovery-available", action="store_true")
+        dr_drill_execute.add_argument("--vip-reachable", action="store_true")
+        dr_drill_execute.add_argument("--operator-confirmed", action="store_true")
+        dr_drill_execute.add_argument("--actor", default="cli")
+        dr_drill_execute.set_defaults(handler=self._handle_multisite_dr_drill_execute)
+
+        dr_drills = commands.add_parser("dr-drills", help="list multisite DR drills")
+        self._add_backend_arguments(dr_drills)
+        for name in ("tenant", "admin-token"):
+            dr_drills.add_argument(f"--{name}", required=True)
+        dr_drills.add_argument("--plan-id")
+        dr_drills.add_argument("--status", choices=("passed", "failed"))
+        dr_drills.add_argument("--limit", type=int, default=100)
+        dr_drills.add_argument("--cursor")
+        dr_drills.set_defaults(handler=self._handle_multisite_dr_drills)
+
+        dr_drill_get = commands.add_parser("dr-drill-get", help="read one multisite DR drill")
+        self._add_backend_arguments(dr_drill_get)
+        for name in ("tenant", "admin-token", "drill-id"):
+            dr_drill_get.add_argument(f"--{name}", required=True)
+        dr_drill_get.set_defaults(handler=self._handle_multisite_dr_drill_get)
 
     def _add_rag_commands(self, subparsers: Any) -> None:
         rag = subparsers.add_parser(
@@ -9252,6 +9336,93 @@ class OpenInfraCLI:
                 args.max_attempts,
                 args.actor,
             )
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_multisite_dr_plan_configure(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).multisite_service.configure_disaster_recovery_plan(
+            ConfigureDisasterRecoveryPlanCommand(
+                args.tenant,
+                args.admin_token,
+                args.name,
+                args.primary_site_code,
+                args.recovery_site_code,
+                args.replication_mode,
+                args.rpo_seconds,
+                args.rto_seconds,
+                args.max_backup_age_seconds,
+                args.actor,
+            )
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_multisite_dr_plan_disable(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).multisite_service.disable_disaster_recovery_plan(
+            DisableDisasterRecoveryPlanCommand(
+                args.tenant, args.admin_token, args.plan_id, args.actor
+            )
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_multisite_dr_plans(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).multisite_service.list_disaster_recovery_plans(
+            ListDisasterRecoveryPlansCommand(
+                args.tenant,
+                args.admin_token,
+                not args.include_inactive,
+                args.limit,
+                args.cursor,
+            )
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_multisite_dr_plan_get(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).multisite_service.get_disaster_recovery_plan(
+            GetDisasterRecoveryPlanCommand(args.tenant, args.admin_token, args.plan_id)
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_multisite_dr_drill_execute(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).multisite_service.execute_disaster_recovery_drill(
+            ExecuteDisasterRecoveryDrillCommand(
+                args.tenant,
+                args.admin_token,
+                args.plan_id,
+                args.replication_lag_seconds,
+                args.backup_age_seconds,
+                args.measured_rto_seconds,
+                args.restore_verified,
+                args.recovery_available,
+                args.vip_reachable,
+                args.operator_confirmed,
+                args.actor,
+            )
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_multisite_dr_drills(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).multisite_service.list_disaster_recovery_drills(
+            ListDisasterRecoveryDrillsCommand(
+                args.tenant,
+                args.admin_token,
+                args.plan_id,
+                args.status,
+                args.limit,
+                args.cursor,
+            )
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_multisite_dr_drill_get(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).multisite_service.get_disaster_recovery_drill(
+            GetDisasterRecoveryDrillCommand(args.tenant, args.admin_token, args.drill_id)
         )
         print(json.dumps(result.as_dict(), sort_keys=True))
         return 0

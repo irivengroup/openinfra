@@ -36,6 +36,27 @@ const routes = [
   '/v1/multisite/reports/get',
 ];
 
+
+const disasterRecoveryOperations = [
+  'multisite-dr-plan-configure',
+  'multisite-dr-plan-disable',
+  'multisite-dr-plans',
+  'multisite-dr-plan-get',
+  'multisite-dr-drill-execute',
+  'multisite-dr-drills',
+  'multisite-dr-drill-get',
+];
+
+const disasterRecoveryRoutes = [
+  '/v1/multisite/disaster-recovery/plans/configure',
+  '/v1/multisite/disaster-recovery/plans/disable',
+  '/v1/multisite/disaster-recovery/plans',
+  '/v1/multisite/disaster-recovery/plans/get',
+  '/v1/multisite/disaster-recovery/drills/execute',
+  '/v1/multisite/disaster-recovery/drills',
+  '/v1/multisite/disaster-recovery/drills/get',
+];
+
 const regionalOperations = [
   'multisite-route-configure',
   'multisite-route-disable',
@@ -91,4 +112,27 @@ test('site-scoped access enumerates every repository page', () => {
   assert.match(service, /while True:/u);
   assert.match(service, /Pagination\.from_values\(500, cursor\)/u);
   assert.match(service, /page\.next_cursor/u);
+});
+
+
+test('multisite disaster recovery keeps typed static and React parity', () => {
+  const fields = [
+    'replication_mode', 'rpo_seconds', 'rto_seconds', 'max_backup_age_seconds',
+    'replication_lag_seconds', 'backup_age_seconds', 'measured_rto_seconds',
+    'restore_verified', 'recovery_available', 'vip_reachable', 'operator_confirmed',
+  ];
+  for (const source of [react, packaged]) {
+    for (const operation of disasterRecoveryOperations) {
+      assert.match(source, new RegExp(operation, 'u'));
+    }
+    for (const route of disasterRecoveryRoutes) {
+      assert.match(source, new RegExp(route.replaceAll('/', '\\/'), 'u'));
+    }
+    for (const field of fields) {
+      assert.match(source, new RegExp(`name:\\s*['"]${field}['"]`, 'u'));
+    }
+    assert.doesNotMatch(source, /automatic_promotion/u);
+  }
+  assert.match(translations, /Configure multisite disaster-recovery plan/u);
+  assert.match(translations, /Record primary-site-loss disaster-recovery drill/u);
 });

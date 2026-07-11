@@ -8,7 +8,7 @@ def test_structural_increments_create_distinct_postgresql_migrations() -> None:
     migrations = sorted(Path("installers/migrations/postgresql").glob("*.sql"))
 
     assert migrations
-    assert migrations[-1].name == "0051_enterprise_regional_discovery_routing.sql"
+    assert migrations[-1].name == "0052_multisite_disaster_recovery.sql"
     assert len([path for path in migrations if path.name.startswith("0032_")]) == 1
     assert len([path for path in migrations if path.name.startswith("0033_")]) == 1
     assert len([path for path in migrations if path.name.startswith("0034_")]) == 1

@@ -28,6 +28,8 @@ from openinfra.application.ports import (
     CostImportJobPage,
     CostRecordPage,
     DcimRepository,
+    DisasterRecoveryDrillPage,
+    DisasterRecoveryPlanPage,
     DiscoveryCollectorPage,
     DiscoveryEvidencePage,
     DiscoveryIntegrationProfilePage,
@@ -239,6 +241,9 @@ from openinfra.domain.itam import (
     ThirdPartySupportContract,
 )
 from openinfra.domain.multisite import (
+    DisasterRecoveryDrillStatus,
+    MultisiteDisasterRecoveryDrill,
+    MultisiteDisasterRecoveryPlan,
     MultisitePortfolioReport,
     RegionalDiscoveryRoute,
     SiteAccessGrant,
@@ -536,6 +541,8 @@ class JsonDocumentStore:
             "multisite_site_access_grants": {},
             "multisite_reports": {},
             "multisite_regional_discovery_routes": {},
+            "multisite_dr_plans": {},
+            "multisite_dr_drills": {},
             "discovery_collectors": {},
             "discovery_jobs": {},
             "discovery_protocol_profiles": {},
@@ -5295,6 +5302,88 @@ class JsonMultisiteRepository(MultisiteRepository):
         selected, cursor = self._page(items, pagination)
         return RegionalDiscoveryRoutePage(tuple(selected), cursor)
 
+    def save_dr_plan(self, plan: MultisiteDisasterRecoveryPlan) -> None:
+        existing = self.find_dr_plan_by_sites(
+            plan.tenant_id, plan.primary_site_code, plan.recovery_site_code
+        )
+        if existing is not None and existing.id != plan.id:
+            self._store.data["multisite_dr_plans"].pop(
+                self._key(plan.tenant_id, existing.id.value), None
+            )
+        self._save("multisite_dr_plans", plan.tenant_id, plan.id.value, plan.as_dict())
+
+    def get_dr_plan(
+        self, tenant_id: TenantId, plan_id: str
+    ) -> MultisiteDisasterRecoveryPlan | None:
+        value = self._get("multisite_dr_plans", tenant_id, plan_id)
+        return self._dr_plan(value) if value else None
+
+    def find_dr_plan_by_sites(
+        self, tenant_id: TenantId, primary_site_code: str, recovery_site_code: str
+    ) -> MultisiteDisasterRecoveryPlan | None:
+        primary = Code.from_value(primary_site_code, "primary site code").value
+        recovery = Code.from_value(recovery_site_code, "recovery site code").value
+        for value in self._tenant_values("multisite_dr_plans", tenant_id):
+            if (
+                value.get("primary_site_code") == primary
+                and value.get("recovery_site_code") == recovery
+            ):
+                return self._dr_plan(value)
+        return None
+
+    def list_dr_plans(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        active_only: bool = True,
+    ) -> DisasterRecoveryPlanPage:
+        items = [
+            self._dr_plan(value)
+            for value in self._tenant_values("multisite_dr_plans", tenant_id)
+            if not active_only or bool(value.get("active"))
+        ]
+        items.sort(
+            key=lambda item: (item.primary_site_code, item.recovery_site_code, item.id.value)
+        )
+        selected, cursor = self._page(items, pagination)
+        return DisasterRecoveryPlanPage(tuple(selected), cursor)
+
+    def save_dr_drill(self, drill: MultisiteDisasterRecoveryDrill) -> None:
+        payload = drill.as_dict()
+        existing = self._get("multisite_dr_drills", drill.tenant_id, drill.id.value)
+        if existing is not None and existing != payload:
+            raise ValidationError("DR drill evidence is immutable")
+        if existing is None:
+            self._save("multisite_dr_drills", drill.tenant_id, drill.id.value, payload)
+
+    def get_dr_drill(
+        self, tenant_id: TenantId, drill_id: str
+    ) -> MultisiteDisasterRecoveryDrill | None:
+        value = self._get("multisite_dr_drills", tenant_id, drill_id)
+        return self._dr_drill(value) if value else None
+
+    def list_dr_drills(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        plan_id: str | None = None,
+        status: str | None = None,
+    ) -> DisasterRecoveryDrillPage:
+        normalized_plan = EntityId.from_value(plan_id).value if plan_id else None
+        try:
+            normalized_status = DisasterRecoveryDrillStatus(status).value if status else None
+        except ValueError as exc:
+            raise ValidationError("DR drill status must be passed or failed") from exc
+        items = [
+            self._dr_drill(value)
+            for value in self._tenant_values("multisite_dr_drills", tenant_id)
+            if (normalized_plan is None or value.get("plan_id") == normalized_plan)
+            and (normalized_status is None or value.get("status") == normalized_status)
+        ]
+        items.sort(key=lambda item: (item.executed_at, item.id.value), reverse=True)
+        selected, cursor = self._page(items, pagination)
+        return DisasterRecoveryDrillPage(tuple(selected), cursor)
+
     @staticmethod
     def _grant(value: dict[str, Any]) -> SiteAccessGrant:
         revoked_at = value.get("revoked_at")
@@ -5309,6 +5398,51 @@ class JsonMultisiteRepository(MultisiteRepository):
             created_at=datetime.fromisoformat(str(value["created_at"])),
             updated_at=datetime.fromisoformat(str(value["updated_at"])),
             revoked_at=None if revoked_at is None else datetime.fromisoformat(str(revoked_at)),
+        )
+
+    @staticmethod
+    def _dr_plan(value: dict[str, Any]) -> MultisiteDisasterRecoveryPlan:
+        disabled_at = value.get("disabled_at")
+        return MultisiteDisasterRecoveryPlan.restore(
+            id=EntityId.from_value(str(value["id"])),
+            tenant_id=TenantId.from_value(str(value["tenant_id"])),
+            name=str(value["name"]),
+            primary_site_code=str(value["primary_site_code"]),
+            recovery_site_code=str(value["recovery_site_code"]),
+            replication_mode=str(value["replication_mode"]),
+            rpo_seconds=int(value["rpo_seconds"]),
+            rto_seconds=int(value["rto_seconds"]),
+            max_backup_age_seconds=int(value["max_backup_age_seconds"]),
+            active=bool(value["active"]),
+            configured_by=str(value["configured_by"]),
+            created_at=datetime.fromisoformat(str(value["created_at"])),
+            updated_at=datetime.fromisoformat(str(value["updated_at"])),
+            disabled_at=None if disabled_at is None else datetime.fromisoformat(str(disabled_at)),
+        )
+
+    @staticmethod
+    def _dr_drill(value: dict[str, Any]) -> MultisiteDisasterRecoveryDrill:
+        raw_reasons = value.get("failure_reasons", [])
+        if not isinstance(raw_reasons, list):
+            raise ValidationError("DR drill failure reasons payload must be a list")
+        return MultisiteDisasterRecoveryDrill.restore(
+            id=EntityId.from_value(str(value["id"])),
+            tenant_id=TenantId.from_value(str(value["tenant_id"])),
+            plan_id=EntityId.from_value(str(value["plan_id"])),
+            scenario=str(value["scenario"]),
+            unavailable_site_code=str(value["unavailable_site_code"]),
+            recovery_site_code=str(value["recovery_site_code"]),
+            replication_lag_seconds=int(value["replication_lag_seconds"]),
+            backup_age_seconds=int(value["backup_age_seconds"]),
+            measured_rto_seconds=int(value["measured_rto_seconds"]),
+            restore_verified=bool(value["restore_verified"]),
+            recovery_available=bool(value["recovery_available"]),
+            vip_reachable=bool(value["vip_reachable"]),
+            operator_confirmed=bool(value["operator_confirmed"]),
+            status=str(value["status"]),
+            failure_reasons=tuple(str(item) for item in raw_reasons),
+            executed_by=str(value["executed_by"]),
+            executed_at=datetime.fromisoformat(str(value["executed_at"])),
         )
 
     @staticmethod

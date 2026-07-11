@@ -36,10 +36,18 @@ def test_greenops_migration_is_partitioned_indexed_and_constrained() -> None:
 
 
 def test_greenops_precedes_sbom_and_rag_without_being_modified() -> None:
-    migrations = sorted((ROOT / "installers/migrations/postgresql").glob("*.sql"))
-    assert migrations[-5].name == "0047_greenops_energy_capacity.sql"
-    assert migrations[-4].name == "0048_sbom_vulnerabilities_exposure.sql"
-    assert migrations[-3].name == "0049_rag_governed_assistant.sql"
-    assert migrations[-2].name == "0050_pro_centralized_multisite.sql"
-    assert migrations[-1].name == "0051_enterprise_regional_discovery_routing.sql"
-    assert len(migrations) == 51
+    names = [
+        path.name for path in sorted((ROOT / "installers/migrations/postgresql").glob("*.sql"))
+    ]
+    expected_order = (
+        "0047_greenops_energy_capacity.sql",
+        "0048_sbom_vulnerabilities_exposure.sql",
+        "0049_rag_governed_assistant.sql",
+        "0050_pro_centralized_multisite.sql",
+        "0051_enterprise_regional_discovery_routing.sql",
+        "0052_multisite_disaster_recovery.sql",
+    )
+    assert len(names) == 52
+    assert [names.index(name) for name in expected_order] == sorted(
+        names.index(name) for name in expected_order
+    )

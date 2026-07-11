@@ -21,11 +21,12 @@ def test_multisite_migration_is_partitioned_indexed_constrained_and_non_destruct
     assert "DELETE FROM" not in sql.upper()
 
 
-def test_enterprise_multisite_is_latest_postgresql_migration() -> None:
+def test_multisite_dr_is_latest_postgresql_migration() -> None:
     migrations = sorted((ROOT / "installers/migrations/postgresql").glob("*.sql"))
-    assert len(migrations) == 51
-    assert migrations[-2].name == "0050_pro_centralized_multisite.sql"
-    assert migrations[-1].name == "0051_enterprise_regional_discovery_routing.sql"
+    assert len(migrations) == 52
+    assert migrations[-3].name == "0050_pro_centralized_multisite.sql"
+    assert migrations[-2].name == "0051_enterprise_regional_discovery_routing.sql"
+    assert migrations[-1].name == "0052_multisite_disaster_recovery.sql"
 
 
 def test_enterprise_regional_discovery_migration_is_safe_and_operable() -> None:
@@ -41,6 +42,25 @@ def test_enterprise_regional_discovery_migration_is_safe_and_operable() -> None:
     assert "'network-proxy'" in sql and "'datacenter-proxy'" in sql
     assert "idx_multisite_regional_routes_lookup" in sql
     assert "idx_audit_events_multisite_regional_discovery" in sql
+    assert sql.count("BEGIN;") == 1 and sql.count("COMMIT;") == 1
+    assert "DROP TABLE" not in sql.upper()
+    assert "TRUNCATE" not in sql.upper()
+    assert "DELETE FROM" not in sql.upper()
+
+
+def test_multisite_disaster_recovery_migration_is_safe_partitioned_and_audited() -> None:
+    migration = ROOT / "installers/migrations/postgresql/0052_multisite_disaster_recovery.sql"
+    sql = migration.read_text(encoding="utf-8")
+    for table in ("multisite_dr_plans", "multisite_dr_drills"):
+        assert f"CREATE TABLE IF NOT EXISTS {table}" in sql
+    assert sql.count("PARTITION BY HASH (tenant_id)") == 2
+    assert sql.count("PARTITION OF multisite_dr_plans") == 8
+    assert sql.count("PARTITION OF multisite_dr_drills") == 8
+    assert "UNIQUE (tenant_id, primary_site_code, recovery_site_code)" in sql
+    assert "REFERENCES multisite_dr_plans (tenant_id, id) ON DELETE RESTRICT" in sql
+    assert "idx_multisite_dr_plans_active" in sql
+    assert "idx_multisite_dr_drills_plan_time" in sql
+    assert "idx_audit_events_multisite_dr" in sql
     assert sql.count("BEGIN;") == 1 and sql.count("COMMIT;") == 1
     assert "DROP TABLE" not in sql.upper()
     assert "TRUNCATE" not in sql.upper()

@@ -867,3 +867,55 @@ python scripts/verify_artifact.py dist/openinfra-0.29.97-py3-none-any.whl
 ```
 
 Vérifier que les rapports FinOps contiennent `production_billing_mutation=false`, que les périodes clôturées conservent leur digest et que la navigation n’expose plus Flux, Conformité réseau ou Certificats comme composants de premier niveau.
+
+## Reprise d’activité multisite — v0.29.104
+
+Les contrôles P17/EPIC-1703 valident les plans primaire/secours, les objectifs RPO/RTO, les preuves immuables d’exercice et l’absence de bascule automatique.
+
+```bash
+PYTHONPATH=src python -m pytest -q --no-cov \
+  tests/unit/test_multisite_disaster_recovery_domain.py \
+  tests/integration/test_multisite_disaster_recovery.py \
+  tests/integration/test_multisite_disaster_recovery_cli.py \
+  tests/integration/test_multisite_disaster_recovery_http_api.py \
+  tests/integration/test_multisite_migration.py \
+  tests/integration/test_multisite_postgresql_repository.py \
+  tests/integration/test_multisite_web_contract.py
+
+PYTHONPATH=src python -m pytest
+ruff format --check src tests scripts docker installers
+ruff check src tests scripts docker installers
+mypy src/openinfra
+bandit -q -r src/openinfra
+python scripts/security_gate.py --project-root .
+python scripts/quality_gate.py
+```
+
+Contrats, frontend et installateurs :
+
+```bash
+python scripts/validate_openapi.py \
+  docs/api/openapi.yaml \
+  docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1/09-API/OpenAPI/openapi.yaml
+npm --prefix web run lint
+npm --prefix web run a11y
+npm --prefix web run a11y:jsx
+npm --prefix web test
+npm --prefix web run build
+python scripts/validate_frontend.py --project-root .
+python scripts/validate_autonomous_installer.py --root installers
+python scripts/validate_enterprise_alignment.py --project-root .
+```
+
+Packaging :
+
+```bash
+python -m build
+python scripts/verify_artifact.py dist/openinfra-0.29.104-py3-none-any.whl
+target="$(mktemp -d)/site-packages"
+python -m pip install --no-deps --target "$target" dist/openinfra-0.29.104-py3-none-any.whl
+PYTHONPATH="$target" python scripts/smoke_installed_wheel.py
+```
+
+Un exercice n’est réussi que si la confirmation opérateur, la disponibilité du site de secours, la restauration, l’endpoint de service, le RPO, l’ancienneté de sauvegarde et le RTO sont tous conformes. Le module ne doit jamais promouvoir PostgreSQL, exécuter un fencing, restaurer une sauvegarde ou modifier DNS/VIP automatiquement.
+

@@ -13,7 +13,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.29.103"
+    EXPECTED_VERSION = "0.29.104"
     EXPECTED_GRAPH_ROUTES = (
         "/api/v1/graph/traverse",
         "/api/v1/graph/impact",
@@ -134,6 +134,13 @@ class InstalledWheelSmoke:
         "/api/v1/multisite/reports",
         "/api/v1/multisite/reports/get",
         "/api/v1/multisite/reports/generate",
+        "/api/v1/multisite/disaster-recovery/plans",
+        "/api/v1/multisite/disaster-recovery/plans/get",
+        "/api/v1/multisite/disaster-recovery/plans/configure",
+        "/api/v1/multisite/disaster-recovery/plans/disable",
+        "/api/v1/multisite/disaster-recovery/drills",
+        "/api/v1/multisite/disaster-recovery/drills/get",
+        "/api/v1/multisite/disaster-recovery/drills/execute",
         "/api/v1/multisite/regional-discovery/routes",
         "/api/v1/multisite/regional-discovery/routes/get",
         "/api/v1/multisite/regional-discovery/routes/configure",
@@ -159,8 +166,8 @@ class InstalledWheelSmoke:
         "/api/v1/offline-sync-packages/create",
         "/api/v1/offline-sync-packages/synchronize",
     )
-    EXPECTED_LAST_MIGRATION = "0051_enterprise_regional_discovery_routing.sql"
-    EXPECTED_MIGRATION_COUNT = 51
+    EXPECTED_LAST_MIGRATION = "0052_multisite_disaster_recovery.sql"
+    EXPECTED_MIGRATION_COUNT = 52
     EXPECTED_ASSETS = (
         "openinfra-web.js",
         "openinfra-web.css",

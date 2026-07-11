@@ -24,9 +24,16 @@ def test_rag_migration_is_partitioned_indexed_constrained_and_non_destructive() 
 
 
 def test_rag_precedes_multisite_postgresql_migration() -> None:
-    migrations = sorted((ROOT / "installers/migrations/postgresql").glob("*.sql"))
-    assert len(migrations) == 51
-    assert migrations[-4].name == "0048_sbom_vulnerabilities_exposure.sql"
-    assert migrations[-3].name == "0049_rag_governed_assistant.sql"
-    assert migrations[-2].name == "0050_pro_centralized_multisite.sql"
-    assert migrations[-1].name == "0051_enterprise_regional_discovery_routing.sql"
+    names = [
+        path.name for path in sorted((ROOT / "installers/migrations/postgresql").glob("*.sql"))
+    ]
+    expected_order = (
+        "0049_rag_governed_assistant.sql",
+        "0050_pro_centralized_multisite.sql",
+        "0051_enterprise_regional_discovery_routing.sql",
+        "0052_multisite_disaster_recovery.sql",
+    )
+    assert len(names) == 52
+    assert [names.index(name) for name in expected_order] == sorted(
+        names.index(name) for name in expected_order
+    )

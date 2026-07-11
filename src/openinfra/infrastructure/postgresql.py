@@ -29,6 +29,8 @@ from openinfra.application.ports import (
     CostImportJobPage,
     CostRecordPage,
     DcimRepository,
+    DisasterRecoveryDrillPage,
+    DisasterRecoveryPlanPage,
     DiscoveryCollectorPage,
     DiscoveryEvidencePage,
     DiscoveryIntegrationProfilePage,
@@ -238,6 +240,9 @@ from openinfra.domain.itam import (
     ThirdPartySupportContract,
 )
 from openinfra.domain.multisite import (
+    DisasterRecoveryDrillStatus,
+    MultisiteDisasterRecoveryDrill,
+    MultisiteDisasterRecoveryPlan,
     MultisitePortfolioReport,
     RegionalDiscoveryRoute,
     SiteAccessGrant,
@@ -9714,6 +9719,181 @@ class PostgreSQLMultisiteRepository(PostgreSQLRepositoryBase, MultisiteRepositor
         )
         return RegionalDiscoveryRoutePage(tuple(self._regional_route(row) for row in rows), cursor)
 
+    def save_dr_plan(self, plan: MultisiteDisasterRecoveryPlan) -> None:
+        self._ensure_tenant(plan.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO multisite_dr_plans (
+                id, tenant_id, name, primary_site_code, recovery_site_code,
+                replication_mode, rpo_seconds, rto_seconds, max_backup_age_seconds,
+                active, configured_by, created_at, updated_at, disabled_at, payload
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(name)s, %(primary_site_code)s,
+                %(recovery_site_code)s, %(replication_mode)s, %(rpo_seconds)s,
+                %(rto_seconds)s, %(max_backup_age_seconds)s, %(active)s,
+                %(configured_by)s, %(created_at)s, %(updated_at)s, %(disabled_at)s,
+                %(payload)s::jsonb
+            ) ON CONFLICT (tenant_id, primary_site_code, recovery_site_code) DO UPDATE SET
+                name = EXCLUDED.name,
+                replication_mode = EXCLUDED.replication_mode,
+                rpo_seconds = EXCLUDED.rpo_seconds, rto_seconds = EXCLUDED.rto_seconds,
+                max_backup_age_seconds = EXCLUDED.max_backup_age_seconds,
+                active = EXCLUDED.active, configured_by = EXCLUDED.configured_by,
+                updated_at = EXCLUDED.updated_at, disabled_at = EXCLUDED.disabled_at,
+                payload = EXCLUDED.payload
+            """,
+            {
+                "id": plan.id.value,
+                "tenant_id": plan.tenant_id.value,
+                "name": plan.name,
+                "primary_site_code": plan.primary_site_code,
+                "recovery_site_code": plan.recovery_site_code,
+                "replication_mode": plan.replication_mode.value,
+                "rpo_seconds": plan.rpo_seconds,
+                "rto_seconds": plan.rto_seconds,
+                "max_backup_age_seconds": plan.max_backup_age_seconds,
+                "active": plan.active,
+                "configured_by": plan.configured_by,
+                "created_at": plan.created_at,
+                "updated_at": plan.updated_at,
+                "disabled_at": plan.disabled_at,
+                "payload": json.dumps(plan.as_dict(), sort_keys=True),
+            },
+        )
+
+    def get_dr_plan(
+        self, tenant_id: TenantId, plan_id: str
+    ) -> MultisiteDisasterRecoveryPlan | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM multisite_dr_plans
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s LIMIT 1
+            """,
+            {"tenant_id": tenant_id.value, "id": EntityId.from_value(plan_id).value},
+        )
+        return None if row is None else self._dr_plan(self._json_mapping(row["payload"]))
+
+    def find_dr_plan_by_sites(
+        self, tenant_id: TenantId, primary_site_code: str, recovery_site_code: str
+    ) -> MultisiteDisasterRecoveryPlan | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM multisite_dr_plans
+            WHERE tenant_id = %(tenant_id)s
+              AND primary_site_code = %(primary_site_code)s
+              AND recovery_site_code = %(recovery_site_code)s
+            LIMIT 1
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "primary_site_code": Code.from_value(primary_site_code, "primary site code").value,
+                "recovery_site_code": Code.from_value(
+                    recovery_site_code, "recovery site code"
+                ).value,
+            },
+        )
+        return None if row is None else self._dr_plan(self._json_mapping(row["payload"]))
+
+    def list_dr_plans(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        active_only: bool = True,
+    ) -> DisasterRecoveryPlanPage:
+        predicate = "AND active = TRUE" if active_only else ""
+        rows, cursor = self._page(
+            "multisite_dr_plans",
+            tenant_id,
+            pagination,
+            predicate,
+            {},
+            "primary_site_code, recovery_site_code, id",
+        )
+        return DisasterRecoveryPlanPage(tuple(self._dr_plan(row) for row in rows), cursor)
+
+    def save_dr_drill(self, drill: MultisiteDisasterRecoveryDrill) -> None:
+        self._ensure_tenant(drill.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO multisite_dr_drills (
+                id, tenant_id, plan_id, scenario, unavailable_site_code,
+                recovery_site_code, status, replication_lag_seconds,
+                backup_age_seconds, measured_rto_seconds, restore_verified,
+                recovery_available, vip_reachable, operator_confirmed,
+                executed_by, executed_at, payload
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(plan_id)s, %(scenario)s,
+                %(unavailable_site_code)s, %(recovery_site_code)s, %(status)s,
+                %(replication_lag_seconds)s, %(backup_age_seconds)s,
+                %(measured_rto_seconds)s, %(restore_verified)s,
+                %(recovery_available)s, %(vip_reachable)s,
+                %(operator_confirmed)s, %(executed_by)s, %(executed_at)s,
+                %(payload)s::jsonb
+            ) ON CONFLICT (tenant_id, id) DO NOTHING
+            """,
+            {
+                "id": drill.id.value,
+                "tenant_id": drill.tenant_id.value,
+                "plan_id": drill.plan_id.value,
+                "scenario": drill.scenario,
+                "unavailable_site_code": drill.unavailable_site_code,
+                "recovery_site_code": drill.recovery_site_code,
+                "status": drill.status.value,
+                "replication_lag_seconds": drill.replication_lag_seconds,
+                "backup_age_seconds": drill.backup_age_seconds,
+                "measured_rto_seconds": drill.measured_rto_seconds,
+                "restore_verified": drill.restore_verified,
+                "recovery_available": drill.recovery_available,
+                "vip_reachable": drill.vip_reachable,
+                "operator_confirmed": drill.operator_confirmed,
+                "executed_by": drill.executed_by,
+                "executed_at": drill.executed_at,
+                "payload": json.dumps(drill.as_dict(), sort_keys=True),
+            },
+        )
+
+    def get_dr_drill(
+        self, tenant_id: TenantId, drill_id: str
+    ) -> MultisiteDisasterRecoveryDrill | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM multisite_dr_drills
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s LIMIT 1
+            """,
+            {"tenant_id": tenant_id.value, "id": EntityId.from_value(drill_id).value},
+        )
+        return None if row is None else self._dr_drill(self._json_mapping(row["payload"]))
+
+    def list_dr_drills(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        plan_id: str | None = None,
+        status: str | None = None,
+    ) -> DisasterRecoveryDrillPage:
+        clauses: list[str] = []
+        params: dict[str, object] = {}
+        if plan_id:
+            clauses.append("plan_id = %(plan_id)s")
+            params["plan_id"] = EntityId.from_value(plan_id).value
+        if status:
+            try:
+                normalized_status = DisasterRecoveryDrillStatus(status).value
+            except ValueError as exc:
+                raise ValidationError("DR drill status must be passed or failed") from exc
+            clauses.append("status = %(status)s")
+            params["status"] = normalized_status
+        predicate = "" if not clauses else "AND " + " AND ".join(clauses)
+        rows, cursor = self._page(
+            "multisite_dr_drills",
+            tenant_id,
+            pagination,
+            predicate,
+            params,
+            "executed_at DESC, id DESC",
+        )
+        return DisasterRecoveryDrillPage(tuple(self._dr_drill(row) for row in rows), cursor)
+
     def _page(
         self,
         table: str,
@@ -9730,6 +9910,8 @@ class PostgreSQLMultisiteRepository(PostgreSQLRepositoryBase, MultisiteRepositor
                 "multisite_regional_discovery_routes",
                 "region_code, site_code, vrf_code, id",
             ),
+            ("multisite_dr_plans", "primary_site_code, recovery_site_code, id"),
+            ("multisite_dr_drills", "executed_at DESC, id DESC"),
         }
         if (table, ordering) not in allowed:
             raise ValueError("unsupported multisite pagination query")
@@ -9786,6 +9968,51 @@ class PostgreSQLMultisiteRepository(PostgreSQLRepositoryBase, MultisiteRepositor
             created_at=datetime.fromisoformat(str(value["created_at"])),
             updated_at=datetime.fromisoformat(str(value["updated_at"])),
             disabled_at=None if disabled_at is None else datetime.fromisoformat(str(disabled_at)),
+        )
+
+    @staticmethod
+    def _dr_plan(value: dict[str, Any]) -> MultisiteDisasterRecoveryPlan:
+        disabled_at = value.get("disabled_at")
+        return MultisiteDisasterRecoveryPlan.restore(
+            id=EntityId.from_value(str(value["id"])),
+            tenant_id=TenantId.from_value(str(value["tenant_id"])),
+            name=str(value["name"]),
+            primary_site_code=str(value["primary_site_code"]),
+            recovery_site_code=str(value["recovery_site_code"]),
+            replication_mode=str(value["replication_mode"]),
+            rpo_seconds=int(value["rpo_seconds"]),
+            rto_seconds=int(value["rto_seconds"]),
+            max_backup_age_seconds=int(value["max_backup_age_seconds"]),
+            active=bool(value["active"]),
+            configured_by=str(value["configured_by"]),
+            created_at=datetime.fromisoformat(str(value["created_at"])),
+            updated_at=datetime.fromisoformat(str(value["updated_at"])),
+            disabled_at=None if disabled_at is None else datetime.fromisoformat(str(disabled_at)),
+        )
+
+    @staticmethod
+    def _dr_drill(value: dict[str, Any]) -> MultisiteDisasterRecoveryDrill:
+        raw_reasons = value.get("failure_reasons", [])
+        if not isinstance(raw_reasons, list):
+            raise ValidationError("DR drill failure reasons payload must be a list")
+        return MultisiteDisasterRecoveryDrill.restore(
+            id=EntityId.from_value(str(value["id"])),
+            tenant_id=TenantId.from_value(str(value["tenant_id"])),
+            plan_id=EntityId.from_value(str(value["plan_id"])),
+            scenario=str(value["scenario"]),
+            unavailable_site_code=str(value["unavailable_site_code"]),
+            recovery_site_code=str(value["recovery_site_code"]),
+            replication_lag_seconds=int(value["replication_lag_seconds"]),
+            backup_age_seconds=int(value["backup_age_seconds"]),
+            measured_rto_seconds=int(value["measured_rto_seconds"]),
+            restore_verified=bool(value["restore_verified"]),
+            recovery_available=bool(value["recovery_available"]),
+            vip_reachable=bool(value["vip_reachable"]),
+            operator_confirmed=bool(value["operator_confirmed"]),
+            status=str(value["status"]),
+            failure_reasons=tuple(str(item) for item in raw_reasons),
+            executed_by=str(value["executed_by"]),
+            executed_at=datetime.fromisoformat(str(value["executed_at"])),
         )
 
     @staticmethod

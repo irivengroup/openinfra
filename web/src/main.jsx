@@ -839,6 +839,45 @@ const MODULES = [
     { id: 'multisite-report-get', label: 'Consulter un rapport multisite', path: '/v1/multisite/reports/get', method: 'GET', fields: [
       { name: 'report_id', label: 'ID rapport', required: true },
     ] },
+    { id: 'multisite-dr-plan-configure', label: 'Configurer un plan de reprise multisite', path: '/v1/multisite/disaster-recovery/plans/configure', method: 'POST', fields: [
+      { name: 'actor', label: 'Opérateur', required: true },
+      { name: 'name', label: 'Nom du plan', required: true, placeholder: 'Reprise PAR1 vers LON1' },
+      { name: 'primary_site_code', label: 'Site primaire', required: true, defaultValue: 'PAR1' },
+      { name: 'recovery_site_code', label: 'Site de secours', required: true, placeholder: 'LON1' },
+      { name: 'replication_mode', label: 'Mode de réplication', type: 'select', required: true, options: [{ value: 'asynchronous', label: 'Asynchrone' }, { value: 'synchronous', label: 'Synchrone' }], defaultValue: 'asynchronous' },
+      { name: 'rpo_seconds', label: 'RPO (secondes)', type: 'number', required: true, defaultValue: '300', min: 1, max: 86400 },
+      { name: 'rto_seconds', label: 'RTO (secondes)', type: 'number', required: true, defaultValue: '1800', min: 1, max: 604800 },
+      { name: 'max_backup_age_seconds', label: 'Âge maximal sauvegarde (secondes)', type: 'number', required: true, defaultValue: '86400', min: 60, max: 2592000 },
+    ] },
+    { id: 'multisite-dr-plan-disable', label: 'Désactiver un plan de reprise multisite', path: '/v1/multisite/disaster-recovery/plans/disable', method: 'POST', fields: [
+      { name: 'actor', label: 'Opérateur', required: true }, { name: 'plan_id', label: 'ID plan', required: true },
+    ] },
+    { id: 'multisite-dr-plans', label: 'Lister les plans de reprise multisites', path: '/v1/multisite/disaster-recovery/plans', method: 'GET', fields: [
+      { name: 'active_only', label: 'Plans actifs uniquement', type: 'boolean', defaultValue: 'true' },
+      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100', min: 1, max: 500 },
+      { name: 'cursor', label: 'Curseur' },
+    ] },
+    { id: 'multisite-dr-plan-get', label: 'Consulter un plan de reprise multisite', path: '/v1/multisite/disaster-recovery/plans/get', method: 'GET', fields: [
+      { name: 'plan_id', label: 'ID plan', required: true },
+    ] },
+    { id: 'multisite-dr-drill-execute', label: 'Enregistrer un exercice de perte du site primaire', path: '/v1/multisite/disaster-recovery/drills/execute', method: 'POST', fields: [
+      { name: 'actor', label: 'Opérateur', required: true }, { name: 'plan_id', label: 'ID plan', required: true },
+      { name: 'replication_lag_seconds', label: 'Retard réplication (secondes)', type: 'number', required: true, min: 0 },
+      { name: 'backup_age_seconds', label: 'Âge sauvegarde (secondes)', type: 'number', required: true, min: 0 },
+      { name: 'measured_rto_seconds', label: 'RTO mesuré (secondes)', type: 'number', required: true, min: 0 },
+      { name: 'restore_verified', label: 'Restauration vérifiée', type: 'boolean', required: true, defaultValue: 'false' },
+      { name: 'recovery_available', label: 'Site de secours disponible', type: 'boolean', required: true, defaultValue: 'false' },
+      { name: 'vip_reachable', label: 'DNS/VIP joignable', type: 'boolean', required: true, defaultValue: 'false' },
+      { name: 'operator_confirmed', label: 'Validation opérateur', type: 'boolean', required: true, defaultValue: 'false' },
+    ] },
+    { id: 'multisite-dr-drills', label: 'Lister les exercices de reprise multisites', path: '/v1/multisite/disaster-recovery/drills', method: 'GET', fields: [
+      { name: 'plan_id', label: 'ID plan' }, { name: 'status', label: 'Statut', type: 'select', options: ['', 'passed', 'failed'] },
+      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100', min: 1, max: 500 },
+      { name: 'cursor', label: 'Curseur' },
+    ] },
+    { id: 'multisite-dr-drill-get', label: 'Consulter un exercice de reprise multisite', path: '/v1/multisite/disaster-recovery/drills/get', method: 'GET', fields: [
+      { name: 'drill_id', label: 'ID exercice', required: true },
+    ] },
     { id: 'multisite-route-configure', label: 'Configurer une route Discovery régionale', path: '/v1/multisite/regional-discovery/routes/configure', method: 'POST', fields: [
       { name: 'actor', label: 'Opérateur', required: true },
       { name: 'region_code', label: 'Région', required: true, placeholder: 'EU-WEST' },
@@ -1230,7 +1269,7 @@ const SIDEBAR_CONTEXTS = {
   ],
   dcim: [
     { label: 'Sites & dépendances', operationIds: ['dcim-sites', 'dcim-site', 'dcim-site-create', 'dcim-site-update', 'dcim-site-delete', 'dcim-buildings', 'dcim-building', 'dcim-building-create', 'dcim-building-update', 'dcim-building-delete', 'dcim-floors', 'dcim-floor', 'dcim-rooms-list', 'dcim-room', 'dcim-room-create', 'dcim-room-update', 'dcim-room-delete', 'dcim-zones', 'dcim-zone', 'dcim-zone-create', 'dcim-zone-update', 'dcim-zone-delete', 'dcim-topology-catalog'] },
-    { label: 'Pilotage multisite', operationIds: ['multisite-sites', 'multisite-grants', 'multisite-grant-upsert', 'multisite-grant-revoke', 'multisite-report-generate', 'multisite-reports', 'multisite-report-get', 'multisite-routes', 'multisite-route-get', 'multisite-route-configure', 'multisite-route-disable', 'multisite-job-route'] },
+    { label: 'Pilotage multisite', operationIds: ['multisite-sites', 'multisite-grants', 'multisite-grant-upsert', 'multisite-grant-revoke', 'multisite-report-generate', 'multisite-reports', 'multisite-report-get', 'multisite-dr-plan-configure', 'multisite-dr-plan-disable', 'multisite-dr-plans', 'multisite-dr-plan-get', 'multisite-dr-drill-execute', 'multisite-dr-drills', 'multisite-dr-drill-get', 'multisite-routes', 'multisite-route-get', 'multisite-route-configure', 'multisite-route-disable', 'multisite-job-route'] },
     { label: 'Localisation & capacité', operationIds: ['dcim-locate-equipment', 'dcim-rack-capacity', 'dcim-room-plan', 'dcim-rack-elevation'] },
     { label: 'Connectivité', operationIds: ['dcim-patch-panel', 'dcim-port', 'dcim-cable', 'dcim-cable-trace'] },
     { label: 'Énergie & refroidissement', operationIds: ['dcim-power-device', 'dcim-power-circuit', 'dcim-cooling-zone', 'dcim-power-reservation', 'dcim-energy-cooling-capacity'] },

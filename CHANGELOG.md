@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.29.104 - 2026-07-11
+
+- Réalisation de P17 / EPIC-1703 avec plans de reprise primaire/secours pour les éditions Pro et Enterprise.
+- Ajout des objectifs RPO/RTO, du mode de réplication et du seuil de fraîcheur des sauvegardes.
+- Ajout d’exercices immuables de perte du site primaire avec sept contrôles explicites et motifs d’échec stables.
+- Garantie de sécurité : aucune promotion PostgreSQL, opération de fencing, restauration ou mutation DNS/VIP automatique.
+- Ajout de sept routes REST/OpenAPI, sept commandes CLI, de la parité Web FR/EN et des persistances JSON/PostgreSQL.
+- Ajout de la migration additive `0052_multisite_disaster_recovery.sql`, du runbook d’exploitation et du gate CI dédié.
+
 ## 0.29.103 - 2026-07-11
 
 - Réalisation de P17 / EPIC-1702 avec un routage Discovery distribué réservé à l’édition Enterprise.

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.103
+  version: 0.29.104
 components:
   securitySchemes:
     bearerToken:
@@ -6649,6 +6649,134 @@ paths:
         '201': {description: Immutable multisite report generated}
         '400': {description: Unknown or unauthorized site selection}
         '401': {description: Missing, invalid or insufficiently scoped token}
+  /api/v1/multisite/disaster-recovery/plans:
+    get:
+      operationId: listMultisiteDisasterRecoveryPlans
+      summary: List active or historical multisite disaster-recovery plans
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: active_only, in: query, schema: {type: boolean, default: true}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated disaster-recovery plans}
+        '400': {description: Invalid filter, cursor or unsupported edition}
+        '401': {description: Missing or invalid multisite administrator token}
+  /api/v1/multisite/disaster-recovery/plans/get:
+    get:
+      operationId: getMultisiteDisasterRecoveryPlan
+      summary: Get one multisite disaster-recovery plan
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: plan_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Disaster-recovery plan}
+        '400': {description: Unknown or invalid disaster-recovery plan}
+        '401': {description: Missing or invalid multisite administrator token}
+  /api/v1/multisite/disaster-recovery/plans/configure:
+    post:
+      operationId: configureMultisiteDisasterRecoveryPlan
+      summary: Configure or revise a Pro or Enterprise multisite disaster-recovery plan
+      description: Defines the primary and recovery sites plus measurable RPO, RTO and backup-freshness objectives. It never promotes a database or changes DNS/VIP automatically.
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, name, primary_site_code, recovery_site_code]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                name: {type: string, minLength: 3, maxLength: 128}
+                primary_site_code: {type: string, minLength: 2, maxLength: 64}
+                recovery_site_code: {type: string, minLength: 2, maxLength: 64}
+                replication_mode: {type: string, enum: [asynchronous, synchronous], default: asynchronous}
+                rpo_seconds: {type: integer, minimum: 1, maximum: 86400, default: 300}
+                rto_seconds: {type: integer, minimum: 1, maximum: 604800, default: 1800}
+                max_backup_age_seconds: {type: integer, minimum: 60, maximum: 2592000, default: 86400}
+      responses:
+        '200': {description: Disaster-recovery plan configured or revised}
+        '400': {description: Unknown site, invalid objective or unsupported edition}
+        '401': {description: Missing or invalid multisite administrator token}
+  /api/v1/multisite/disaster-recovery/plans/disable:
+    post:
+      operationId: disableMultisiteDisasterRecoveryPlan
+      summary: Disable one multisite disaster-recovery plan idempotently
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, plan_id]
+              properties:
+                tenant_id: {type: string}
+                plan_id: {type: string, format: uuid}
+                actor: {type: string, default: api}
+      responses:
+        '200': {description: Disaster-recovery plan disabled}
+        '400': {description: Unknown or invalid disaster-recovery plan}
+        '401': {description: Missing or invalid multisite administrator token}
+  /api/v1/multisite/disaster-recovery/drills:
+    get:
+      operationId: listMultisiteDisasterRecoveryDrills
+      summary: List immutable controlled site-loss disaster-recovery drill evidence
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: plan_id, in: query, schema: {type: string, format: uuid}}
+        - {name: status, in: query, schema: {type: string, enum: [passed, failed]}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated disaster-recovery drill evidence}
+        '400': {description: Invalid filter or cursor}
+        '401': {description: Missing or invalid multisite administrator token}
+  /api/v1/multisite/disaster-recovery/drills/get:
+    get:
+      operationId: getMultisiteDisasterRecoveryDrill
+      summary: Get one immutable controlled site-loss drill result
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: drill_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Disaster-recovery drill evidence}
+        '400': {description: Unknown or invalid disaster-recovery drill}
+        '401': {description: Missing or invalid multisite administrator token}
+  /api/v1/multisite/disaster-recovery/drills/execute:
+    post:
+      operationId: executeMultisiteDisasterRecoveryDrill
+      summary: Record and evaluate a controlled primary-site-loss disaster-recovery drill
+      description: Evaluates explicit operator evidence against the plan objectives. The endpoint never performs automatic promotion, fencing, DNS or VIP changes.
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, plan_id, replication_lag_seconds, backup_age_seconds, measured_rto_seconds, restore_verified, recovery_available, vip_reachable, operator_confirmed]
+              properties:
+                tenant_id: {type: string}
+                plan_id: {type: string, format: uuid}
+                replication_lag_seconds: {type: integer, minimum: 0}
+                backup_age_seconds: {type: integer, minimum: 0}
+                measured_rto_seconds: {type: integer, minimum: 0}
+                restore_verified: {type: boolean}
+                recovery_available: {type: boolean}
+                vip_reachable: {type: boolean}
+                operator_confirmed: {type: boolean}
+                actor: {type: string, default: api}
+      responses:
+        '201': {description: Immutable site-loss drill result recorded as passed or failed}
+        '400': {description: Disabled plan, invalid evidence or unsupported edition}
+        '401': {description: Missing or invalid multisite administrator token}
   /api/v1/multisite/regional-discovery/routes:
     get:
       operationId: listRegionalDiscoveryRoutes

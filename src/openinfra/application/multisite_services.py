@@ -10,6 +10,8 @@ from openinfra.application.edition_services import EditionRuntimeGuard
 from openinfra.application.ports import (
     AuditRepository,
     DcimRepository,
+    DisasterRecoveryDrillPage,
+    DisasterRecoveryPlanPage,
     DiscoveryRepository,
     MultisiteReportPage,
     MultisiteRepository,
@@ -35,6 +37,8 @@ from openinfra.domain.discovery import (
 from openinfra.domain.discovery_jobs import DiscoveryJob
 from openinfra.domain.editions import FeatureCapability
 from openinfra.domain.multisite import (
+    MultisiteDisasterRecoveryDrill,
+    MultisiteDisasterRecoveryPlan,
     MultisitePortfolioReport,
     MultisiteValidator,
     RegionalDiscoveryRoute,
@@ -156,6 +160,76 @@ class RouteRegionalDiscoveryJobCommand:
     idempotency_key: str
     max_attempts: int = 3
     actor: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ConfigureDisasterRecoveryPlanCommand:
+    tenant_id: str
+    admin_token: str
+    name: str
+    primary_site_code: str
+    recovery_site_code: str
+    replication_mode: str
+    rpo_seconds: int
+    rto_seconds: int
+    max_backup_age_seconds: int
+    actor: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class DisableDisasterRecoveryPlanCommand:
+    tenant_id: str
+    admin_token: str
+    plan_id: str
+    actor: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class GetDisasterRecoveryPlanCommand:
+    tenant_id: str
+    admin_token: str
+    plan_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class ListDisasterRecoveryPlansCommand:
+    tenant_id: str
+    admin_token: str
+    active_only: bool = True
+    limit: int = 100
+    cursor: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ExecuteDisasterRecoveryDrillCommand:
+    tenant_id: str
+    admin_token: str
+    plan_id: str
+    replication_lag_seconds: int
+    backup_age_seconds: int
+    measured_rto_seconds: int
+    restore_verified: bool
+    recovery_available: bool
+    vip_reachable: bool
+    operator_confirmed: bool
+    actor: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class GetDisasterRecoveryDrillCommand:
+    tenant_id: str
+    admin_token: str
+    drill_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class ListDisasterRecoveryDrillsCommand:
+    tenant_id: str
+    admin_token: str
+    plan_id: str | None = None
+    status: str | None = None
+    limit: int = 100
+    cursor: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -437,6 +511,164 @@ class MultisiteService:
             unit_of_work.commit()
         return RegionalDiscoveryDispatch(route, job)
 
+    def configure_disaster_recovery_plan(
+        self, command: ConfigureDisasterRecoveryPlanCommand
+    ) -> MultisiteDisasterRecoveryPlan:
+        tenant_id, principal = self._authorize(
+            command.tenant_id, command.admin_token, Permission.MULTISITE_ADMIN
+        )
+        self._require_disaster_recovery(
+            tenant_id,
+            principal.subject,
+            f"{command.primary_site_code}:{command.recovery_site_code}",
+        )
+        primary = self._dcim_repository.find_site(tenant_id, command.primary_site_code)
+        recovery = self._dcim_repository.find_site(tenant_id, command.recovery_site_code)
+        if primary is None:
+            raise NotFoundError("DR primary DCIM site not found")
+        if recovery is None:
+            raise NotFoundError("DR recovery DCIM site not found")
+        actor = command.actor or principal.subject
+        candidate = MultisiteDisasterRecoveryPlan.create(
+            tenant_id,
+            command.name,
+            primary.code.value,
+            recovery.code.value,
+            command.replication_mode,
+            command.rpo_seconds,
+            command.rto_seconds,
+            command.max_backup_age_seconds,
+            actor,
+        )
+        existing = self._repository.find_dr_plan_by_sites(
+            tenant_id, candidate.primary_site_code, candidate.recovery_site_code
+        )
+        plan = (
+            candidate
+            if existing is None
+            else existing.revise(
+                name=candidate.name,
+                replication_mode=candidate.replication_mode,
+                rpo_seconds=candidate.rpo_seconds,
+                rto_seconds=candidate.rto_seconds,
+                max_backup_age_seconds=candidate.max_backup_age_seconds,
+                configured_by=actor,
+            )
+        )
+        self._save_dr_plan(plan, "multisite.dr_plan.configured")
+        return plan
+
+    def disable_disaster_recovery_plan(
+        self, command: DisableDisasterRecoveryPlanCommand
+    ) -> MultisiteDisasterRecoveryPlan:
+        tenant_id, principal = self._authorize(
+            command.tenant_id, command.admin_token, Permission.MULTISITE_ADMIN
+        )
+        self._require_disaster_recovery(tenant_id, principal.subject, command.plan_id)
+        plan = self._repository.get_dr_plan(tenant_id, command.plan_id)
+        if plan is None:
+            raise NotFoundError("DR plan not found")
+        disabled = plan.disable(command.actor or principal.subject)
+        self._save_dr_plan(disabled, "multisite.dr_plan.disabled")
+        return disabled
+
+    def get_disaster_recovery_plan(
+        self, command: GetDisasterRecoveryPlanCommand
+    ) -> MultisiteDisasterRecoveryPlan:
+        tenant_id, principal = self._authorize(
+            command.tenant_id, command.admin_token, Permission.MULTISITE_ADMIN
+        )
+        self._require_disaster_recovery(tenant_id, principal.subject, command.plan_id)
+        plan = self._repository.get_dr_plan(tenant_id, command.plan_id)
+        if plan is None:
+            raise NotFoundError("DR plan not found")
+        return plan
+
+    def list_disaster_recovery_plans(
+        self, command: ListDisasterRecoveryPlansCommand
+    ) -> DisasterRecoveryPlanPage:
+        tenant_id, principal = self._authorize(
+            command.tenant_id, command.admin_token, Permission.MULTISITE_ADMIN
+        )
+        self._require_disaster_recovery(tenant_id, principal.subject, "plans")
+        return self._repository.list_dr_plans(
+            tenant_id,
+            Pagination.from_values(command.limit, command.cursor),
+            command.active_only,
+        )
+
+    def execute_disaster_recovery_drill(
+        self, command: ExecuteDisasterRecoveryDrillCommand
+    ) -> MultisiteDisasterRecoveryDrill:
+        tenant_id, principal = self._authorize(
+            command.tenant_id, command.admin_token, Permission.MULTISITE_ADMIN
+        )
+        self._require_disaster_recovery(tenant_id, principal.subject, command.plan_id)
+        plan = self._repository.get_dr_plan(tenant_id, command.plan_id)
+        if plan is None:
+            raise NotFoundError("DR plan not found")
+        if self._dcim_repository.find_site(tenant_id, plan.primary_site_code) is None:
+            raise NotFoundError("DR primary DCIM site not found")
+        if self._dcim_repository.find_site(tenant_id, plan.recovery_site_code) is None:
+            raise NotFoundError("DR recovery DCIM site not found")
+        drill = MultisiteDisasterRecoveryDrill.execute_site_loss(
+            plan,
+            replication_lag_seconds=command.replication_lag_seconds,
+            backup_age_seconds=command.backup_age_seconds,
+            measured_rto_seconds=command.measured_rto_seconds,
+            restore_verified=command.restore_verified,
+            recovery_available=command.recovery_available,
+            vip_reachable=command.vip_reachable,
+            operator_confirmed=command.operator_confirmed,
+            executed_by=command.actor or principal.subject,
+        )
+        with self._transaction_manager.begin() as unit_of_work:
+            self._repository.save_dr_drill(drill)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    tenant_id,
+                    drill.executed_by,
+                    "multisite.dr_drill.executed",
+                    "multisite_dr_drill",
+                    drill.id.value,
+                    {
+                        "plan_id": plan.id.value,
+                        "scenario": drill.scenario,
+                        "status": drill.status.value,
+                        "failure_reasons": list(drill.failure_reasons),
+                        "automatic_promotion": False,
+                    },
+                )
+            )
+            unit_of_work.commit()
+        return drill
+
+    def get_disaster_recovery_drill(
+        self, command: GetDisasterRecoveryDrillCommand
+    ) -> MultisiteDisasterRecoveryDrill:
+        tenant_id, principal = self._authorize(
+            command.tenant_id, command.admin_token, Permission.MULTISITE_ADMIN
+        )
+        self._require_disaster_recovery(tenant_id, principal.subject, command.drill_id)
+        drill = self._repository.get_dr_drill(tenant_id, command.drill_id)
+        if drill is None:
+            raise NotFoundError("DR drill not found")
+        return drill
+
+    def list_disaster_recovery_drills(
+        self, command: ListDisasterRecoveryDrillsCommand
+    ) -> DisasterRecoveryDrillPage:
+        tenant_id, principal = self._authorize(
+            command.tenant_id, command.admin_token, Permission.MULTISITE_ADMIN
+        )
+        self._require_disaster_recovery(tenant_id, principal.subject, command.plan_id or "drills")
+        return self._repository.list_dr_drills(
+            tenant_id,
+            Pagination.from_values(command.limit, command.cursor),
+            command.plan_id,
+            command.status,
+        )
+
     def _accessible_sites(
         self,
         tenant_id: TenantId,
@@ -558,6 +790,28 @@ class MultisiteService:
             )
             unit_of_work.commit()
 
+    def _save_dr_plan(self, plan: MultisiteDisasterRecoveryPlan, action: str) -> None:
+        with self._transaction_manager.begin() as unit_of_work:
+            self._repository.save_dr_plan(plan)
+            self._audit_repository.append(
+                AuditEvent.record(
+                    plan.tenant_id,
+                    plan.configured_by,
+                    action,
+                    "multisite_dr_plan",
+                    plan.id.value,
+                    {
+                        "primary_site_code": plan.primary_site_code,
+                        "recovery_site_code": plan.recovery_site_code,
+                        "replication_mode": plan.replication_mode.value,
+                        "rpo_seconds": plan.rpo_seconds,
+                        "rto_seconds": plan.rto_seconds,
+                        "active": plan.active,
+                    },
+                )
+            )
+            unit_of_work.commit()
+
     @staticmethod
     def _validate_regional_collector(
         collector: DiscoveryCollector | None, route: RegionalDiscoveryRoute
@@ -588,5 +842,14 @@ class MultisiteService:
             FeatureCapability.CENTRALIZED_MULTISITE,
             actor,
             "multisite",
+            target,
+        )
+
+    def _require_disaster_recovery(self, tenant_id: TenantId, actor: str, target: str) -> None:
+        self._edition_guard.require_feature(
+            tenant_id,
+            FeatureCapability.MULTISITE_DISASTER_RECOVERY,
+            actor,
+            "multisite_disaster_recovery",
             target,
         )

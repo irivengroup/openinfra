@@ -16,6 +16,13 @@ def test_multisite_is_grouped_under_dcim_with_api_parity() -> None:
         "multisite-report-generate",
         "multisite-reports",
         "multisite-report-get",
+        "multisite-dr-plan-configure",
+        "multisite-dr-plan-disable",
+        "multisite-dr-plans",
+        "multisite-dr-plan-get",
+        "multisite-dr-drill-execute",
+        "multisite-dr-drills",
+        "multisite-dr-drill-get",
         "multisite-route-configure",
         "multisite-route-disable",
         "multisite-routes",
@@ -30,6 +37,13 @@ def test_multisite_is_grouped_under_dcim_with_api_parity() -> None:
         "/v1/multisite/reports/generate",
         "/v1/multisite/reports",
         "/v1/multisite/reports/get",
+        "/v1/multisite/disaster-recovery/plans/configure",
+        "/v1/multisite/disaster-recovery/plans/disable",
+        "/v1/multisite/disaster-recovery/plans",
+        "/v1/multisite/disaster-recovery/plans/get",
+        "/v1/multisite/disaster-recovery/drills/execute",
+        "/v1/multisite/disaster-recovery/drills",
+        "/v1/multisite/disaster-recovery/drills/get",
         "/v1/multisite/regional-discovery/routes/configure",
         "/v1/multisite/regional-discovery/routes/disable",
         "/v1/multisite/regional-discovery/routes",
@@ -56,3 +70,23 @@ def test_multisite_static_forms_use_typed_controls_and_governed_regional_routes(
     assert 'name: "max_attempts"' in source and 'type: "number"' in source
     assert "/v1/multisite/agents" not in source
     assert "/v1/multisite/regions" not in source
+
+
+def test_multisite_dr_forms_are_typed_and_never_expose_automatic_promotion() -> None:
+    for path in SOURCES:
+        source = path.read_text(encoding="utf-8")
+        for field in (
+            "replication_mode",
+            "rpo_seconds",
+            "rto_seconds",
+            "max_backup_age_seconds",
+            "replication_lag_seconds",
+            "backup_age_seconds",
+            "measured_rto_seconds",
+            "restore_verified",
+            "recovery_available",
+            "vip_reachable",
+            "operator_confirmed",
+        ):
+            assert field in source
+        assert "automatic_promotion" not in source

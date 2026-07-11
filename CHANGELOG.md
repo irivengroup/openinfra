@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.29.100 - 2026-07-11
+
+- Correction de l’écran blanc du portail web packagé causé par cinq références SBOM à `FIELD_SETS.cursor` alors que le champ partagé n’était pas déclaré.
+- Ajout du champ de pagination partagé `cursor` et validation exhaustive des références `FIELD_SETS` dans le gate frontend.
+- Validation du catalogue des composants, opérations et champs au démarrage afin de produire une erreur explicite plutôt qu’une exception silencieuse.
+- Premier rendu du Dashboard avant les appels réseau pour éviter un écran vide lorsque le backend est lent ou indisponible.
+- Ajout d’un écran d’erreur fatal accessible lorsque le montage ou l’initialisation JavaScript échoue.
+- Durcissement du calcul des métriques de champs obligatoires contre une entrée de catalogue invalide.
+- Remplacement du cache `immutable` des assets non versionnés par une revalidation systématique afin qu’un navigateur ne conserve pas un bundle défectueux après mise à niveau.
+
 ## 0.29.99 - 2026-07-11
 
 - Réalisation de P16 / EPIC-1605 avec un module SBOM regroupé sous **Sécurité**, sans nouveau composant de premier niveau.

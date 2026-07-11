@@ -839,6 +839,7 @@ const DCIM_REFERENCE_LABELS = { site: "Site", site_code: "Site", building: "Bât
 const FIELD_SETS = {
   tenant: { name: "tenant_id", label: "Filiale/Subdivision", type: "tenant-select", defaultValue: "default", placeholder: "default" },
   limit: { name: "limit", label: "Limite", type: "number", placeholder: "100" },
+  cursor: { name: "cursor", label: "Curseur", placeholder: "Curseur de pagination" },
   jobId: { name: "job_id", label: "Job ID", required: true, placeholder: "job import massif" },
   exportJobId: { name: "job_id", label: "Job export", required: true, placeholder: "job export signé" },
   chunkOffset: { name: "offset", label: "Offset octets", type: "number", defaultValue: "0", placeholder: "0" },
@@ -1552,8 +1553,64 @@ const OPENINFRA_SIDEBAR_CONTEXTS = {
 };
 
 
+function validateOperationCatalog(modules) {
+  if (!Array.isArray(modules) || modules.length === 0) {
+    throw new Error("Le catalogue des opérations OpenInfra est vide ou invalide.");
+  }
+  const operationIds = new Set();
+  for (const module of modules) {
+    if (!module || typeof module !== "object" || !Array.isArray(module.operations)) {
+      throw new Error("Un composant du catalogue OpenInfra est invalide.");
+    }
+    for (const operation of module.operations) {
+      if (!operation || typeof operation !== "object" || !operation.id || !operation.path || !operation.method) {
+        throw new Error(`Une opération du composant ${module.id || "inconnu"} est invalide.`);
+      }
+      if (operationIds.has(operation.id)) {
+        throw new Error(`Identifiant d’opération dupliqué : ${operation.id}.`);
+      }
+      operationIds.add(operation.id);
+      const fields = [...(operation.query || []), ...(operation.body || [])];
+      for (const [fieldIndex, field] of fields.entries()) {
+        const validLegacyLabel = typeof field === "string" && field.trim() !== "";
+        const validDefinition = field && typeof field === "object" && Boolean(field.name);
+        if (!validLegacyLabel && !validDefinition) {
+          throw new Error(`Champ invalide dans ${operation.id} à l’index ${fieldIndex}.`);
+        }
+      }
+    }
+  }
+}
+
+function renderFatalStartupError(root, error) {
+  const message = error instanceof Error ? error.message : String(error || "Erreur inconnue");
+  console.error("OpenInfra web startup failed", error);
+  if (!root) {
+    return;
+  }
+  const wrapper = document.createElement("main");
+  wrapper.className = "container py-5";
+  wrapper.setAttribute("role", "main");
+  const alert = document.createElement("div");
+  alert.className = "alert alert-danger";
+  alert.setAttribute("role", "alert");
+  const title = document.createElement("h1");
+  title.className = "h4";
+  title.textContent = "OpenInfra Web ne peut pas démarrer";
+  const detail = document.createElement("p");
+  detail.className = "mb-0";
+  detail.textContent = message;
+  alert.append(title, detail);
+  wrapper.append(alert);
+  root.replaceChildren(wrapper);
+}
+
 class OpenInfraDashboard {
   constructor(root) {
+    if (!root) {
+      throw new Error("Le point de montage #openinfra-root est introuvable.");
+    }
+    validateOperationCatalog(OPENINFRA_MODULES);
     this.root = root;
     this.i18n = new OpenInfraI18n();
     this.applyLanguage();
@@ -1629,6 +1686,7 @@ class OpenInfraDashboard {
     document.documentElement.lang = this.i18n.language;
     window.addEventListener("resize", this.handleResize);
     document.addEventListener("keydown", this.handleDocumentKeydown);
+    this.render();
     await this.refreshRuntime();
     this.render();
   }
@@ -2037,7 +2095,7 @@ class OpenInfraDashboard {
     const writeOperations = operations - readOperations;
     const fields = module.operations.reduce((total, operation) => total + (operation.query || []).length + (operation.body || []).length, 0);
     const requiredFields = module.operations.reduce((total, operation) => {
-      return total + [...(operation.query || []), ...(operation.body || [])].filter((field) => field.required).length;
+      return total + [...(operation.query || []), ...(operation.body || [])].filter((field) => field?.required).length;
     }, 0);
     const readPercent = operations === 0 ? 0 : Math.round((readOperations / operations) * 100);
     return {
@@ -3194,4 +3252,10 @@ class OpenInfraDashboard {
   }
 }
 
-new OpenInfraDashboard(document.getElementById("openinfra-root")).start();
+const openInfraRoot = document.getElementById("openinfra-root");
+try {
+  const dashboard = new OpenInfraDashboard(openInfraRoot);
+  dashboard.start().catch((error) => renderFatalStartupError(openInfraRoot, error));
+} catch (error) {
+  renderFatalStartupError(openInfraRoot, error);
+}

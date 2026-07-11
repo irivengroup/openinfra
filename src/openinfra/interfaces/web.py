@@ -567,8 +567,8 @@ class OpenInfraWebRequestHandler(BaseHTTPRequestHandler):
         self.send_response(HTTPStatus.OK.value)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(length))
-        if candidate.name != "index.html":
-            self.send_header("Cache-Control", "public, max-age=3600, immutable")
+        self.send_header("Cache-Control", "no-cache, max-age=0, must-revalidate")
+
         OpenInfraWebSecurityHeaders().write(self)
         self.end_headers()
         if not head_only:

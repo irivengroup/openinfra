@@ -1,3 +1,9 @@
+## v0.29.100 — Correctif de démarrage du portail web
+
+- Défaut corrigé : écran blanc du runtime statique lors du calcul des métriques SBOM.
+- Cause : références à `FIELD_SETS.cursor` non déclaré dans cinq opérations de sécurité.
+- Prévention : validation CI des références partagées, validation runtime du catalogue, rendu initial avant I/O et écran d’erreur accessible.
+
 ## v0.29.99 — SBOM, vulnérabilités et exposition contextualisée
 
 | Exigence / Epic | Implémentation | Vérification |

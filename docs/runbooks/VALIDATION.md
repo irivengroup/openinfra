@@ -1,3 +1,18 @@
+## Validation correctif écran blanc — v0.29.100
+
+```bash
+PYTHONPATH=src:. pytest --no-cov -q \
+  tests/integration/test_frontend_runtime_startup.py \
+  tests/integration/test_sbom_web_contract.py \
+  tests/integration/test_openinfra_web.py
+
+python scripts/validate_frontend.py --project-root .
+node --check src/openinfra/interfaces/rendering/static/assets/openinfra-web.js
+cd web && npm test && npm run lint && npm run a11y && npm run a11y:jsx && npm run build
+```
+
+Ces contrôles garantissent que toutes les références `FIELD_SETS.*` du portail statique sont déclarées, que le catalogue d’opérations ne contient aucune entrée nulle ou indéfinie, que le Dashboard est rendu avant les appels backend, que les assets non versionnés sont revalidés par le navigateur et qu’une erreur de démarrage est affichée de manière accessible au lieu de laisser un écran blanc.
+
 ## Validation SBOM — v0.29.99
 
 ```bash

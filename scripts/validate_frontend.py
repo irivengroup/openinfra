@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -304,6 +305,42 @@ class FrontendContractValidator:
             raise FrontendValidationError("invalid JSON object: " + str(path))
         return data
 
+    @staticmethod
+    def _validate_static_operation_catalog(runtime_js: str) -> None:
+        field_sets_match = re.search(
+            r"const FIELD_SETS = \{(?P<body>.*?)\n\};\n\nconst OPENINFRA_MODULES",
+            runtime_js,
+            flags=re.DOTALL,
+        )
+        if field_sets_match is None:
+            raise FrontendValidationError("runtime FIELD_SETS catalog is missing")
+        declared = set(
+            re.findall(
+                r"^\s{2}([A-Za-z_$][A-Za-z0-9_$]*):",
+                field_sets_match.group("body"),
+                flags=re.MULTILINE,
+            )
+        )
+        referenced = set(re.findall(r"\bFIELD_SETS\.([A-Za-z_$][A-Za-z0-9_$]*)", runtime_js))
+        missing = sorted(referenced - declared)
+        if missing:
+            raise FrontendValidationError(
+                "runtime FIELD_SETS references are undefined: " + ", ".join(missing)
+            )
+        required_startup_fragments = (
+            "validateOperationCatalog(OPENINFRA_MODULES)",
+            "this.render();\n    await this.refreshRuntime();",
+            "renderFatalStartupError(openInfraRoot, error)",
+            ".filter((field) => field?.required)",
+        )
+        missing_startup = [
+            fragment for fragment in required_startup_fragments if fragment not in runtime_js
+        ]
+        if missing_startup:
+            raise FrontendValidationError(
+                "runtime startup resilience contract is incomplete: " + ", ".join(missing_startup)
+            )
+
     def _validate_i18n_contract(self, main_source: str, i18n_source: str) -> None:
         required_main = (
             "OpenInfraI18n",
@@ -365,6 +402,7 @@ class FrontendContractValidator:
                 "form validation implementation"
             )
         self._validate_i18n_contract(runtime_js, runtime_i18n)
+        self._validate_static_operation_catalog(runtime_js)
         if "Dashboard de pilotage OpenInfra" in payload:
             raise FrontendValidationError("runtime dashboard title must be shortened to Dashboard")
         if "renderOverviewRuntimeMetrics(displayedVersion, config, protectedForms)" not in payload:

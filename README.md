@@ -1,6 +1,6 @@
-# OpenInfra v0.29.99
+# OpenInfra v0.29.100
 
-OpenInfra v0.29.99 réalise **P16 / EPIC-1605 — SBOM, vulnérabilités et exposition contextualisée**. Le parcours est regroupé sous **Sécurité → SBOM & vulnérabilités** et corrèle les composants CycloneDX/SPDX, les CVE importées, l’exposition réseau et la criticité métier. Le module reste analytique : aucun scan actif ni aucune remédiation automatique n’est exécuté.
+OpenInfra v0.29.100 corrige le démarrage du portail web packagé : le catalogue SBOM référençait un champ de pagination partagé absent, ce qui provoquait une exception JavaScript et un écran blanc. Le runtime valide désormais son catalogue, affiche immédiatement le Dashboard avant les appels backend et présente une erreur accessible en cas d’échec fatal.
 
 ## SBOM, vulnérabilités et exposition
 

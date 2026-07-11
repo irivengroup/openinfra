@@ -152,6 +152,10 @@ class TestOpenInfraWeb:
                     web.base_url + "/assets/openinfra-form-fields.js"
                 )
                 static_js = self._get_text(web.base_url + "/assets/openinfra-web.js")
+                index_cache_control = self._get_header(web.base_url + "/", "Cache-Control")
+                asset_cache_control = self._get_header(
+                    web.base_url + "/assets/openinfra-web.js", "Cache-Control"
+                )
                 main_js = Path("web/src/main.jsx").read_text(encoding="utf-8")
                 package_metadata = json.loads(Path("web/package.json").read_text(encoding="utf-8"))
                 public_config = self._get_json(web.base_url + "/config.json")
@@ -171,6 +175,8 @@ class TestOpenInfraWeb:
                 )
 
         assert package_metadata["version"] == __version__
+        assert index_cache_control == "no-cache, max-age=0, must-revalidate"
+        assert asset_cache_control == "no-cache, max-age=0, must-revalidate"
         assert "openinfra-root" in index
         assert "/assets/bootstrap.min.css" in index
         assert "Bootstrap" in bootstrap_css and "v5." in bootstrap_css
@@ -983,6 +989,11 @@ class TestOpenInfraWeb:
         request = urllib.request.Request(url, method="GET")
         with urllib.request.urlopen(request, timeout=5) as response:
             return response.read().decode("utf-8")
+
+    def _get_header(self, url: str, name: str) -> str:
+        request = urllib.request.Request(url, method="GET")
+        with urllib.request.urlopen(request, timeout=5) as response:
+            return response.headers.get(name, "")
 
     def _post_json(
         self, url: str, payload: dict[str, object], browser_bearer: str = ""

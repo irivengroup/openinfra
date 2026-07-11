@@ -1159,6 +1159,86 @@ const OPENINFRA_MODULES = [
     { id: "field-offline-list", label: "Lister les paquets hors ligne", method: "GET", path: "/v1/offline-sync-packages", query: [{ name: "sheet_id", label: "ID fiche" }, { name: "limit", label: "Limite", type: "number", defaultValue: "100", min: 1, max: 500 }, { name: "cursor", label: "Curseur" }] },
     { id: "field-offline-get", label: "Consulter un paquet hors ligne", method: "GET", path: "/v1/offline-sync-packages/get", query: [{ name: "package_id", label: "ID paquet", required: true }, { name: "include_payload", label: "Inclure le contenu", type: "boolean", defaultValue: "true" }] },
     { id: "field-offline-sync", label: "Synchroniser un paquet hors ligne", method: "POST", path: "/v1/offline-sync-packages/synchronize", body: [FIELD_SETS.actor, { name: "package_id", label: "ID paquet", required: true }, { name: "payload_sha256", label: "Empreinte SHA-256 du paquet", required: true, maxLength: 64 }] },
+    { id: "greenops-source-create", label: "Enregistrer une source de mesure", method: "POST", path: "/v1/greenops/measurement-sources/create", body: [
+      FIELD_SETS.actor, { name: "code", label: "Code source", required: true }, { name: "name", label: "Nom source", required: true },
+      { name: "source_type", label: "Type de source", required: true }, { name: "owner", label: "Responsable", required: true },
+      { name: "active", label: "Source active", type: "boolean", defaultValue: "true" }
+    ] },
+    { id: "greenops-sources", label: "Lister les sources de mesure", method: "GET", path: "/v1/greenops/measurement-sources", query: [
+      { name: "active_only", label: "Sources actives uniquement", type: "boolean", defaultValue: "false" }, FIELD_SETS.limit,
+      { name: "cursor", label: "Curseur" }
+    ] },
+    { id: "greenops-policy-upsert", label: "Configurer la politique GreenOps d’un site", method: "POST", path: "/v1/greenops/policies/upsert", body: [
+      FIELD_SETS.actor, { name: "site_code", label: "Site", required: true },
+      { name: "default_pue", label: "PUE par défaut", type: "number", step: "0.000001", required: true },
+      { name: "energy_cost_per_kwh", label: "Coût énergie par kWh", type: "number", step: "0.000001", required: true },
+      { name: "currency", label: "Devise ISO-4217", required: true, maxLength: 3 },
+      { name: "carbon_factor_code", label: "Code facteur carbone", required: true },
+      { name: "underutilized_percent", label: "Seuil de sous-utilisation (%)", type: "number", defaultValue: "20", min: 0, max: 100 },
+      { name: "warning_capacity_percent", label: "Seuil capacité avertissement (%)", type: "number", defaultValue: "80", min: 0, max: 100 },
+      { name: "critical_capacity_percent", label: "Seuil capacité critique (%)", type: "number", defaultValue: "90", min: 0, max: 100 },
+      { name: "minimum_samples", label: "Échantillons minimaux", type: "number", defaultValue: "3", min: 2, max: 1000 }
+    ] },
+    { id: "greenops-policy-get", label: "Consulter la politique GreenOps", method: "GET", path: "/v1/greenops/policies/get", query: [{ name: "site_code", label: "Site", required: true }] },
+    { id: "greenops-factor-create", label: "Enregistrer un facteur carbone", method: "POST", path: "/v1/greenops/carbon-factors/create", body: [
+      FIELD_SETS.actor, { name: "code", label: "Code facteur", required: true }, { name: "region", label: "Région", required: true },
+      { name: "grams_co2e_per_kwh", label: "gCO₂e par kWh", type: "number", step: "0.000001", required: true },
+      { name: "source_name", label: "Source du facteur", required: true }, { name: "source_uri", label: "URL de provenance", type: "url" },
+      { name: "period_start", label: "Début de validité", type: "date", required: true }, { name: "period_end", label: "Fin de validité", type: "date", required: true }
+    ] },
+    { id: "greenops-factors", label: "Lister les facteurs carbone", method: "GET", path: "/v1/greenops/carbon-factors", query: [
+      { name: "code", label: "Code facteur" }, { name: "region", label: "Région" }, FIELD_SETS.limit, { name: "cursor", label: "Curseur" }
+    ] },
+    { id: "greenops-measurement-ingest", label: "Ingérer une mesure énergétique", method: "POST", path: "/v1/greenops/energy-measurements/ingest", body: [
+      FIELD_SETS.actor, { name: "idempotency_key", label: "Clé d’idempotence", required: true },
+      { name: "source_code", label: "Code source", required: true }, { name: "kind", label: "Nature de la mesure", type: "select", options: ["observed", "estimated"], required: true },
+      { name: "scope", label: "Périmètre", type: "select", options: ["site", "room", "rack", "pdu", "asset", "application"], required: true },
+      { name: "scope_key", label: "Identifiant du périmètre", required: true }, { name: "site_code", label: "Site", required: true },
+      { name: "application_key", label: "Application associée" },
+      { name: "period_start", label: "Début de mesure", type: "datetime-local", required: true }, { name: "period_end", label: "Fin de mesure", type: "datetime-local", required: true },
+      { name: "energy_kwh", label: "Énergie (kWh)", type: "number", step: "0.000001", required: true },
+      { name: "it_energy_kwh", label: "Énergie IT (kWh)", type: "number", step: "0.000001" }, { name: "facility_energy_kwh", label: "Énergie totale site (kWh)", type: "number", step: "0.000001" },
+      { name: "utilization_percent", label: "Utilisation (%)", type: "number", min: 0, max: 100, step: "0.0001" },
+      { name: "energy_capacity_percent", label: "Capacité énergie utilisée (%)", type: "number", min: 0, max: 100, step: "0.0001" },
+      { name: "cooling_capacity_percent", label: "Capacité refroidissement utilisée (%)", type: "number", min: 0, max: 100, step: "0.0001" },
+      { name: "space_capacity_percent", label: "Capacité espace utilisée (%)", type: "number", min: 0, max: 100, step: "0.0001" },
+      { name: "weight_capacity_percent", label: "Capacité poids utilisée (%)", type: "number", min: 0, max: 100, step: "0.0001" },
+      { name: "metadata", label: "Métadonnées JSON sans secret", type: "json", defaultValue: "{}" }
+    ] },
+    { id: "greenops-measurements", label: "Lister les mesures énergétiques", method: "GET", path: "/v1/greenops/energy-measurements", query: [
+      { name: "period_start", label: "Début de période", type: "datetime-local" }, { name: "period_end", label: "Fin de période", type: "datetime-local" },
+      { name: "site_code", label: "Site" }, { name: "scope", label: "Périmètre", type: "select", options: ["site", "room", "rack", "pdu", "asset", "application"] },
+      { name: "scope_key", label: "Identifiant du périmètre" }, { name: "kind", label: "Nature", type: "select", options: ["observed", "estimated"] },
+      FIELD_SETS.limit, { name: "cursor", label: "Curseur" }
+    ] },
+    { id: "greenops-report-generate", label: "Générer un rapport de durabilité", method: "POST", path: "/v1/greenops/reports/generate", body: [
+      FIELD_SETS.actor, { name: "site_code", label: "Site", required: true },
+      { name: "period_start", label: "Début de période", type: "date", required: true }, { name: "period_end", label: "Fin de période", type: "date", required: true },
+      { name: "scope", label: "Périmètre", type: "select", options: ["site", "room", "rack", "pdu", "asset", "application"], defaultValue: "site" },
+      { name: "scope_key", label: "Identifiant du périmètre" }
+    ] },
+    { id: "greenops-report-get", label: "Consulter un rapport de durabilité", method: "GET", path: "/v1/greenops/reports/get", query: [{ name: "report_id", label: "ID rapport", required: true }] },
+    { id: "greenops-reports", label: "Lister les rapports de durabilité", method: "GET", path: "/v1/greenops/reports", query: [
+      { name: "site_code", label: "Site" }, { name: "scope", label: "Périmètre" }, FIELD_SETS.limit, { name: "cursor", label: "Curseur" }
+    ] },
+    { id: "greenops-report-export", label: "Exporter un rapport de durabilité", method: "GET", path: "/v1/greenops/reports/export", download: true, downloadFilename: "openinfra-greenops-report.json", query: [
+      { name: "report_id", label: "ID rapport", required: true }, { name: "format", label: "Format", type: "select", options: ["json", "csv"], defaultValue: "json" }
+    ] },
+    { id: "greenops-anomalies", label: "Lister les anomalies énergétiques", method: "GET", path: "/v1/greenops/anomalies", query: [
+      { name: "site_code", label: "Site" }, { name: "severity", label: "Sévérité", type: "select", options: ["info", "warning", "error", "critical"] },
+      FIELD_SETS.limit, { name: "cursor", label: "Curseur" }
+    ] },
+    { id: "greenops-forecasts", label: "Lister les prévisions de capacité", method: "GET", path: "/v1/greenops/capacity-forecasts", query: [
+      { name: "site_code", label: "Site" }, { name: "dimension", label: "Dimension", type: "select", options: ["energy", "cooling", "space", "weight"] },
+      FIELD_SETS.limit, { name: "cursor", label: "Curseur" }
+    ] },
+    { id: "greenops-candidates", label: "Lister les recommandations de consolidation", method: "GET", path: "/v1/greenops/consolidation-candidates", query: [
+      { name: "site_code", label: "Site" }, { name: "risk_level", label: "Niveau de risque", type: "select", options: ["info", "warning", "error", "critical"] },
+      FIELD_SETS.limit, { name: "cursor", label: "Curseur" }
+    ] },
+    { id: "greenops-scores", label: "Lister les scores GreenOps", method: "GET", path: "/v1/greenops/green-scores", query: [
+      { name: "scope", label: "Périmètre" }, FIELD_SETS.limit, { name: "cursor", label: "Curseur" }
+    ] },
     { id: "dcim-digital-twin", label: "Jumeau numérique salle", method: "GET", path: "/v1/dcim/digital-twin", query: [{ name: "site", label: "Site", required: true, placeholder: "PAR1" }, { name: "building", label: "Bâtiment", required: true, placeholder: "BAT-A" }, { name: "room", label: "Salle", required: true, placeholder: "MMR1" }] },
     { id: "dcim-energy-cooling-capacity", label: "Capacité énergie/refroidissement", method: "GET", path: "/v1/dcim/energy-cooling-capacity", query: [{ name: "site", label: "Site", required: true, placeholder: "PAR1" }, { name: "building", label: "Bâtiment", required: true, placeholder: "BAT-A" }, { name: "room", label: "Salle", required: true, placeholder: "MMR1" }, { name: "rack", label: "Rack", required: true, placeholder: "R01" }] }
   ] },
@@ -1388,6 +1468,10 @@ const OPENINFRA_SIDEBAR_CONTEXTS = {
     { label: "Localisation & capacité", operationIds: ["dcim-locate-equipment", "dcim-rack-capacity", "dcim-room-plan", "dcim-rack-elevation"] },
     { label: "Connectivité", operationIds: ["dcim-patch-panel", "dcim-port", "dcim-cable", "dcim-cable-trace"] },
     { label: "Énergie & refroidissement", operationIds: ["dcim-power-device", "dcim-power-circuit", "dcim-cooling-zone", "dcim-power-reservation", "dcim-energy-cooling-capacity"] },
+    { label: "GreenOps — sources & politiques", operationIds: ["greenops-source-create", "greenops-sources", "greenops-policy-upsert", "greenops-policy-get", "greenops-factor-create", "greenops-factors"] },
+    { label: "GreenOps — mesures", operationIds: ["greenops-measurement-ingest", "greenops-measurements"] },
+    { label: "GreenOps — rapports & empreinte", operationIds: ["greenops-report-generate", "greenops-report-get", "greenops-reports", "greenops-report-export", "greenops-scores"] },
+    { label: "GreenOps — capacité & recommandations", operationIds: ["greenops-anomalies", "greenops-forecasts", "greenops-candidates"] },
     { label: "Opérations terrain", operationIds: ["field-sheet-list", "field-sheet-get", "field-sheet-generate", "field-lock-acquire", "field-operation-start", "field-checklist-record", "field-evidence-attach", "field-evidence-list", "field-evidence-validate", "field-operation-complete", "field-operation-cancel", "field-qr-verify", "field-lock-release", "field-offline-create", "field-offline-list", "field-offline-get", "field-offline-sync"] },
     { label: "Jumeau numérique", operationIds: ["dcim-digital-twin"] }
   ],

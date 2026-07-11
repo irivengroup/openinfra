@@ -1,71 +1,69 @@
-# OpenInfra v0.29.97 — Rapport de validation
+# OpenInfra v0.29.98 — Rapport de validation
 
 Date de validation : `2026-07-11`  
-Release : `0.29.97`  
-Périmètre : P16 / EPIC-1603 — FinOps, coûts et showback ; rationalisation de la navigation
+Release : `0.29.98`  
+Périmètre : P16 / EPIC-1604 — GreenOps, énergie, empreinte carbone et capacité
 
 ## Résultat global
 
-La livraison ajoute un domaine FinOps complet sous **ITAM**, sans créer de composant principal supplémentaire. Elle réorganise également les fonctions transverses pour conserver une interface cohérente : **Conformité réseau** et les flux sont rattachés à **IPAM**, tandis que les certificats et la PKI sont rattachés à **Sécurité**. Les routes, commandes CLI, permissions et identifiants d'opération historiques restent compatibles.
+La livraison ajoute GreenOps sous **DCIM**, sans nouveau composant principal. Les mesures observées restent strictement distinguées des estimations ; les facteurs carbone, hypothèses PUE et données sources sont versionnés et traçables. Les recommandations restent consultatives et exigent une validation humaine.
 
-- Tests Python collectés et validés : **811 PASS** dans **129 fichiers**.
-- Tests unitaires : **329 PASS**.
-- Tests d'intégration : **478 PASS**.
+- Tests Python collectés et validés : **861 PASS** dans **137 fichiers**.
+- Tests unitaires : **365 PASS**.
+- Tests d'intégration : **492 PASS**.
 - Tests d'architecture : **3 PASS**.
 - Tests de performance : **1 PASS**.
-- Couverture exacte : **98,0219556 %**, soit **28 841 / 29 423** lignes couvertes.
+- Couverture exacte : **98,0026502 %**, soit **30 323 / 30 941** lignes couvertes.
 - Seuil bloquant : **98 % PASS**.
-- Tests frontend Node.js : **30 PASS**.
-- Ruff format et lint : **PASS** sur **223 fichiers**.
-- mypy : **PASS** sur **75 modules**.
+- Tests frontend Node.js : **33 PASS**.
+- Ruff format et lint : **PASS** sur **234 fichiers**.
+- mypy : **PASS** sur **78 modules**.
 - Bandit, compilation, gates sécurité et qualité : **PASS**.
 - Contrat WCAG 2.2 AA, JSX-a11y, build Vite et audit npm : **PASS**.
 - Audit npm production : **0 vulnérabilité**.
 
-La campagne Python a été exécutée par fragments exhaustifs pour éviter les dépassements du runner sur certains parcours CLI/HTTP instrumentés. Chaque fragment publié a terminé avec succès. Les données Coverage.py ont ensuite été consolidées par union ; le taux indiqué utilise la valeur exacte, et non l'arrondi à l'entier affiché par défaut.
+La campagne Python a été exécutée par fragments exhaustifs pour éviter les dépassements du runner sous instrumentation Coverage.py. Seuls les fragments terminés avec succès ont produit un fichier de données ; une unique consolidation finale a été utilisée. La valeur de couverture est calculée exactement, sans accepter l'arrondi à l'entier affiché par défaut.
 
-## Navigation validée
+## Organisation de l'interface validée
 
-- **IPAM → Conformité réseau** : baselines, observations et évaluations de conformité réseau.
-- **IPAM → Flux déclarés / Flux observés / Conformité des flux**.
-- **Sécurité → Inventaire PKI / Endpoints TLS / Conformité PKI**.
-- **ITAM → Règles d'allocation / Imports & coûts / Budgets & périodes / Showback-chargeback / Prévisions & anomalies**.
-- Suppression des entrées principales autonomes `flows`, `network-config`, `certificates` et `finops`.
-- Conservation de toutes les routes REST, commandes CLI, permissions et identifiants d'opération existants.
+- **DCIM → GreenOps** : sources, facteurs carbone, politiques, mesures, rapports, anomalies, prévisions, recommandations et scores.
+- **IPAM → Conformité réseau / Flux réseau** : classement conservé.
+- **Sécurité → Certificats & PKI** : classement conservé.
+- **ITAM → FinOps & coûts** : classement conservé.
+- Aucune entrée GreenOps autonome de premier niveau.
+- Conservation des routes REST, commandes CLI, permissions et identifiants d'opération historiques.
 
-## Fonctionnalités FinOps validées
+## Fonctionnalités GreenOps validées
 
-- Montants financiers représentés exclusivement avec `Decimal`.
-- Catégories cloud, SaaS, datacenter, énergie, licences, support et contrats.
-- Jobs d'import idempotents, annulables et auditables.
-- Empreinte SHA-256 liant la clé d'idempotence au contenu importé.
-- Règles d'allocation ordonnées par priorité et dimension.
-- Bucket explicite `financial-quality/unallocated` pour les coûts non attribuables.
-- Budgets et seuils d'alerte.
-- Détection d'anomalies de coût, dont les hausses par rapport à l'historique comparable.
-- Prévisions fondées sur douze périodes historiques au maximum.
-- Groupement par tenant, actif, application, service métier, propriétaire, centre de coûts, environnement, dépendance et tags.
-- Identifiants de tags canoniques sous la forme `clé:valeur`.
-- Showback informatif et chargeback calculé sans écriture comptable de production.
-- Clôture de périodes financières avec digest des sources.
-- Rapports reproductibles JSON/CSV.
+- Sources de mesure versionnées et administrables.
+- Mesures énergétiques `observed` ou `estimated`, sans requalification silencieuse.
+- Périmètres site, rack, PDU, actif et application.
+- Périodes timezone-aware et valeurs financières/énergétiques représentées avec `Decimal`.
+- Facteurs carbone versionnés par région et période avec source et URI HTTPS.
+- Politiques par site : PUE par défaut, coût énergétique, devise, seuils de capacité et minimum d'échantillons.
+- PUE mesuré lorsque les énergies IT et totale sont présentes ; estimation politique explicitement signalée sinon.
+- Calcul reproductible des émissions CO₂e et du coût énergétique.
+- Anomalies d'énergie, prévisions de saturation, scores GreenOps et recommandations de consolidation/capacité.
+- Recommandations portant systématiquement `requires_human_approval=true`.
+- Rapports reproductibles avec digest des mesures, politique, facteur carbone et périmètre.
+- Exports JSON et CSV.
+- Idempotence globale par tenant et empreinte SHA-256, y compris entre partitions PostgreSQL temporelles.
 - Persistance JSON locale et PostgreSQL transactionnelle.
-- Outbox transactionnel et événements contractuels.
-- Rejet récursif des clés de métadonnées sensibles.
+- Outbox transactionnel pour les événements critiques.
+- Aucune mutation automatique de ressource, aucun arrêt, déplacement ou retrait en production.
 
 ## Interfaces
 
 ### REST
 
-Dix-huit routes sont exposées sous `/api/v1/finops` :
+Seize routes sont exposées sous `/api/v1/greenops` :
 
-- règles d'allocation : création et liste ;
-- imports : soumission, consultation, liste, exécution et annulation ;
-- coûts normalisés : liste filtrée ;
-- budgets : création/mise à jour et liste ;
-- périodes financières : clôture et liste ;
+- sources de mesure : création et liste ;
+- politiques : consultation et création/mise à jour ;
+- facteurs carbone : création et liste ;
+- mesures énergétiques : ingestion et liste ;
 - rapports : génération, consultation, liste et export ;
-- anomalies et prévisions : listes filtrées.
+- anomalies, prévisions de capacité, recommandations et scores : listes paginées.
 
 Les deux spécifications OpenAPI passent le parseur YAML strict avec interdiction des clés dupliquées :
 
@@ -74,26 +72,28 @@ Les deux spécifications OpenAPI passent le parseur YAML strict avec interdictio
 
 ### CLI
 
-La parité publique est fournie sous `openinfra finops` pour les règles, imports, coûts, budgets, périodes, rapports, exports, anomalies et prévisions.
+La parité publique est fournie sous `openinfra greenops` pour les sources, facteurs, politiques, mesures, rapports, exports, anomalies, prévisions, recommandations et scores.
 
 ### Interface web
 
 - Portail React et portail statique packagé alignés.
-- Champs date servis par calendriers natifs thémés.
+- GreenOps regroupé sous DCIM.
+- Champs date et date-heure servis par calendriers natifs thémés.
 - Validation anticipée des saisies libres.
-- Navigation regroupée sous les composants parents.
-- Focus formulaire sans épaississement du contour.
-- Contrats clavier, lecteurs d'écran, contraste et réduction des animations validés.
+- Export de rapport téléchargeable.
+- Recommandations signalées comme consultatives et soumises à validation humaine.
+- Navigation clavier, lecteurs d'écran, contraste, réduction des animations et focus sans épaississement validés.
 
 ## Base de données et packaging
 
-- Migration ajoutée : `0046_finops_costs_showback.sql`.
-- Total attendu et vérifié : **46 migrations PostgreSQL**.
-- Tables et index dédiés aux règles, imports, coûts, allocations, budgets, périodes, rapports, anomalies, prévisions et événements outbox.
-- Contraintes de tenant, devise, montants, périodes, états et idempotence.
-- Wheel et sdist construits depuis les sources `0.29.97`.
+- Migration ajoutée : `0047_greenops_energy_capacity.sql`.
+- Total attendu et vérifié : **47 migrations PostgreSQL**.
+- Partitionnement temporel des mesures et index tenant/site/périmètre/période.
+- Registre global d'idempotence par tenant protégeant les partitions contre les doublons ou collisions de contenu.
+- Tables dédiées aux sources, facteurs, politiques, mesures, anomalies, prévisions, recommandations, scores, rapports et événements outbox.
+- Wheel et sdist construits depuis les sources `0.29.98`.
 - Installation du wheel dans une cible vierge et smoke test des points d'entrée.
-- Présence contrôlée des **18 routes FinOps**, des assets web, du benchmark et des **46 migrations**.
+- Présence contrôlée des **16 routes GreenOps**, des assets web, du benchmark et des **47 migrations**.
 
 ## Performance
 
@@ -101,15 +101,22 @@ Benchmark déterministe sur **5 000 nœuds** et **100 SPOF** :
 
 | Scénario | p95 observé | Seuil |
 |---|---:|---:|
-| Graphe à un niveau | 201,743 ms | 1 500 ms |
-| Graphe filtré | 99,102 ms | 1 500 ms |
-| Analyse SPOF | 207,275 ms | 5 000 ms |
-| Pagination complète SPOF | 546,770 ms | 15 000 ms |
+| Graphe à un niveau | 204,231 ms | 1 500 ms |
+| Graphe filtré | 103,704 ms | 1 500 ms |
+| Analyse SPOF | 212,647 ms | 5 000 ms |
+| Pagination complète SPOF | 521,568 ms | 15 000 ms |
 
 Tous les seuils sont respectés.
+
+## Documentation et traçabilité
+
+- CDC : **828 exigences**, 529 entités de traçabilité, validation documentaire PASS.
+- Roadmap : **19 phases**, **115 epics**, **8 gates**, **97 tests**, validation PASS.
+- Documentation GreenOps : unités, provenance, PUE, facteurs carbone, permissions, idempotence, API, CLI, exploitation et limites.
+- Gate CI GreenOps : domaine, cas limites, service, CLI, HTTP, migration, PostgreSQL et interface web.
 
 ## Contrôles non concluants ou indisponibles
 
 - `pip-audit` n'a pas pu interroger `pypi.org` en raison de l'échec de résolution DNS du runner. Aucun résultat de vulnérabilité Python externe n'est donc revendiqué.
-- Docker, Podman et PostgreSQL live ne sont pas disponibles dans cet environnement ; les contrats, migrations, mappings, profils d'installation et smokes natifs correspondants ont toutefois été exécutés.
+- Docker, Podman et PostgreSQL live ne sont pas disponibles dans cet environnement ; les contrats, migrations, mappings PostgreSQL, profils d'installation et smokes natifs correspondants ont toutefois été exécutés.
 - Aucun navigateur E2E réel n'est disponible ; les contrats statiques, Node.js, JSX-a11y et WCAG ont été validés.

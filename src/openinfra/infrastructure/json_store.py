@@ -15,9 +15,12 @@ from openinfra.application.ports import (
     AccessPolicyRepository,
     AccessPolicyRulePage,
     AuditRepository,
+    CapacityForecastPage,
+    CarbonFactorPage,
     CertificateAssetPage,
     CertificateEndpointPage,
     CertificateInventoryRepository,
+    ConsolidationCandidatePage,
     CostAllocationRulePage,
     CostAnomalyPage,
     CostImportJobPage,
@@ -31,6 +34,8 @@ from openinfra.application.ports import (
     DiscoveryProtocolProfilePage,
     DiscoveryReconciliationCasePage,
     DiscoveryRepository,
+    EnergyAnomalyPage,
+    EnergyMeasurementPage,
     ExportRepository,
     FieldOperationRepository,
     FieldOperationSheetPage,
@@ -42,10 +47,13 @@ from openinfra.application.ports import (
     FlowDeclarationPage,
     FlowMatrixRepository,
     FlowObservationPage,
+    GreenOpsRepository,
+    GreenScorePage,
     IdentityRepository,
     ImportRepository,
     IpamRepository,
     ItamSupportRepository,
+    MeasurementSourcePage,
     NetworkConfigBaselinePage,
     NetworkConfigComplianceRepository,
     NetworkConfigObservationPage,
@@ -62,6 +70,7 @@ from openinfra.application.ports import (
     SimulationScenarioPage,
     SourceGovernanceRepository,
     SourceOfTruthRepository,
+    SustainabilityReportPage,
     TransactionManager,
     UnitOfWork,
 )
@@ -170,6 +179,17 @@ from openinfra.domain.flow_matrix import (
     FlowDeclaration,
     FlowObservation,
 )
+from openinfra.domain.greenops import (
+    CapacityForecast,
+    CarbonFactor,
+    ConsolidationCandidate,
+    EnergyAnomaly,
+    EnergyMeasurement,
+    GreenOpsPolicy,
+    GreenScore,
+    MeasurementSource,
+    SustainabilityReport,
+)
 from openinfra.domain.identity import (
     EffectiveIdentity,
     GroupMembership,
@@ -226,6 +246,7 @@ from openinfra.domain.source_of_truth import (
 )
 from openinfra.infrastructure.field_operation_mapper import FieldOperationRecordMapper
 from openinfra.infrastructure.finops_mapper import FinOpsRecordMapper
+from openinfra.infrastructure.greenops_mapper import GreenOpsRecordMapper
 from openinfra.infrastructure.simulation_mapper import SimulationRecordMapper
 
 _EXPORT_SIGNING_STORAGE_KEY = "export_signing_" + "secret"
@@ -451,6 +472,16 @@ class JsonDocumentStore:
             "finops_forecasts": {},
             "finops_reports": {},
             "finops_event_outbox": {},
+            "greenops_measurement_sources": {},
+            "greenops_policies": {},
+            "greenops_carbon_factors": {},
+            "greenops_energy_measurements": {},
+            "greenops_anomalies": {},
+            "greenops_forecasts": {},
+            "greenops_candidates": {},
+            "greenops_scores": {},
+            "greenops_reports": {},
+            "greenops_event_outbox": {},
             "discovery_collectors": {},
             "discovery_jobs": {},
             "discovery_protocol_profiles": {},
@@ -4468,6 +4499,298 @@ class JsonFinOpsRepository(FinOpsRepository):
     def append_event(self, event: DomainEvent) -> None:
         self._save(
             "finops_event_outbox",
+            event.tenant_id,
+            event.id.value,
+            {
+                "id": event.id.value,
+                "tenant_id": event.tenant_id.value,
+                "aggregate_id": event.aggregate_id.value,
+                "name": event.name,
+                "payload": event.payload,
+                "occurred_at": event.occurred_at.isoformat(),
+                "published_at": None,
+            },
+        )
+
+    def _tenant_values(self, bucket: str, tenant_id: TenantId) -> list[dict[str, Any]]:
+        return [
+            value
+            for value in self._store.data[bucket].values()
+            if value.get("tenant_id") == tenant_id.value
+        ]
+
+    def _get(self, bucket: str, tenant_id: TenantId, identifier: str) -> dict[str, Any] | None:
+        value = self._store.data[bucket].get(
+            self._key(tenant_id, EntityId.from_value(identifier).value)
+        )
+        return cast(dict[str, Any], value) if value is not None else None
+
+    def _save(
+        self, bucket: str, tenant_id: TenantId, identifier: str, value: dict[str, object]
+    ) -> None:
+        self._store.data[bucket][self._key(tenant_id, identifier)] = value
+        self._store.mark_dirty()
+
+    @classmethod
+    def _page(cls, items: list[Any], pagination: Pagination) -> tuple[list[Any], str | None]:
+        start = cls._offset(pagination.cursor)
+        selected = items[start : start + pagination.limit]
+        next_index = start + len(selected)
+        return selected, str(next_index) if next_index < len(items) else None
+
+    @staticmethod
+    def _key(tenant_id: TenantId, identifier: str) -> str:
+        return f"{tenant_id.value}:{identifier}"
+
+    @staticmethod
+    def _offset(cursor: str | None) -> int:
+        try:
+            offset = int(cursor or "0")
+        except ValueError as exc:
+            raise ValidationError("pagination cursor must be a numeric offset") from exc
+        if offset < 0:
+            raise ValidationError("pagination cursor must be positive")
+        return offset
+
+
+class JsonGreenOpsRepository(GreenOpsRepository):
+    def __init__(self, store: JsonDocumentStore) -> None:
+        self._store = store
+
+    def save_source(self, source: MeasurementSource) -> None:
+        self._save(
+            "greenops_measurement_sources", source.tenant_id, source.id.value, source.as_dict()
+        )
+
+    def find_source(self, tenant_id: TenantId, code: str) -> MeasurementSource | None:
+        normalized = code.strip().lower().replace("_", "-")
+        for value in self._tenant_values("greenops_measurement_sources", tenant_id):
+            if value.get("code") == normalized:
+                return GreenOpsRecordMapper.source(value)
+        return None
+
+    def list_sources(
+        self, tenant_id: TenantId, pagination: Pagination, active_only: bool = False
+    ) -> MeasurementSourcePage:
+        items = [
+            GreenOpsRecordMapper.source(value)
+            for value in self._tenant_values("greenops_measurement_sources", tenant_id)
+            if not active_only or bool(value.get("active"))
+        ]
+        items.sort(key=lambda item: (item.code, item.id.value))
+        selected, cursor = self._page(items, pagination)
+        return MeasurementSourcePage(tuple(selected), cursor)
+
+    def save_policy(self, policy: GreenOpsPolicy) -> None:
+        self._save("greenops_policies", policy.tenant_id, policy.id.value, policy.as_dict())
+
+    def get_policy(self, tenant_id: TenantId, site_code: str) -> GreenOpsPolicy | None:
+        normalized = site_code.strip().lower().replace("_", "-")
+        for value in self._tenant_values("greenops_policies", tenant_id):
+            if value.get("site_code") == normalized:
+                return GreenOpsRecordMapper.policy(value)
+        return None
+
+    def save_carbon_factor(self, factor: CarbonFactor) -> None:
+        self._save("greenops_carbon_factors", factor.tenant_id, factor.id.value, factor.as_dict())
+
+    def list_carbon_factors(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        code: str | None = None,
+        region: str | None = None,
+    ) -> CarbonFactorPage:
+        normalized_code = code.strip().lower().replace("_", "-") if code else None
+        normalized_region = region.strip().lower().replace("_", "-") if region else None
+        items = [
+            GreenOpsRecordMapper.factor(value)
+            for value in self._tenant_values("greenops_carbon_factors", tenant_id)
+            if (normalized_code is None or value.get("code") == normalized_code)
+            and (normalized_region is None or value.get("region") == normalized_region)
+        ]
+        items.sort(
+            key=lambda item: (item.period_start, item.created_at, item.id.value), reverse=True
+        )
+        selected, cursor = self._page(items, pagination)
+        return CarbonFactorPage(tuple(selected), cursor)
+
+    def save_measurement(self, measurement: EnergyMeasurement) -> None:
+        self._save(
+            "greenops_energy_measurements",
+            measurement.tenant_id,
+            measurement.id.value,
+            measurement.as_dict(),
+        )
+
+    def find_measurement_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> EnergyMeasurement | None:
+        normalized = idempotency_key.strip()
+        for value in self._tenant_values("greenops_energy_measurements", tenant_id):
+            if value.get("idempotency_key") == normalized:
+                return GreenOpsRecordMapper.measurement(value)
+        return None
+
+    def list_measurements(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        period_start: datetime | None = None,
+        period_end: datetime | None = None,
+        site_code: str | None = None,
+        scope: str | None = None,
+        scope_key: str | None = None,
+        kind: str | None = None,
+    ) -> EnergyMeasurementPage:
+        normalized_site = site_code.strip().lower().replace("_", "-") if site_code else None
+        normalized_scope = scope.strip().lower().replace("_", "-") if scope else None
+        normalized_scope_key = scope_key.strip().lower().replace("_", "-") if scope_key else None
+        normalized_kind = kind.strip().lower() if kind else None
+        items = [
+            GreenOpsRecordMapper.measurement(value)
+            for value in self._tenant_values("greenops_energy_measurements", tenant_id)
+        ]
+        items = [
+            item
+            for item in items
+            if (period_start is None or item.period_end >= period_start)
+            and (period_end is None or item.period_start < period_end)
+            and (normalized_site is None or item.site_code == normalized_site)
+            and (normalized_scope is None or item.scope.value == normalized_scope)
+            and (normalized_scope_key is None or item.scope_key == normalized_scope_key)
+            and (normalized_kind is None or item.kind.value == normalized_kind)
+        ]
+        items.sort(key=lambda item: (item.period_start, item.id.value), reverse=True)
+        selected, cursor = self._page(items, pagination)
+        return EnergyMeasurementPage(tuple(selected), cursor)
+
+    def save_anomaly(self, anomaly: EnergyAnomaly) -> None:
+        self._save("greenops_anomalies", anomaly.tenant_id, anomaly.id.value, anomaly.as_dict())
+
+    def list_anomalies(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        severity: str | None = None,
+        site_code: str | None = None,
+    ) -> EnergyAnomalyPage:
+        normalized_severity = severity.strip().lower() if severity else None
+        normalized_site = site_code.strip().lower().replace("_", "-") if site_code else None
+        items = [
+            GreenOpsRecordMapper.anomaly(value)
+            for value in self._tenant_values("greenops_anomalies", tenant_id)
+            if (normalized_severity is None or value.get("severity") == normalized_severity)
+            and (normalized_site is None or value.get("site_code") == normalized_site)
+        ]
+        items.sort(key=lambda item: (item.detected_at, item.id.value), reverse=True)
+        selected, cursor = self._page(items, pagination)
+        return EnergyAnomalyPage(tuple(selected), cursor)
+
+    def save_forecast(self, forecast: CapacityForecast) -> None:
+        self._save("greenops_forecasts", forecast.tenant_id, forecast.id.value, forecast.as_dict())
+
+    def list_forecasts(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        site_code: str | None = None,
+        dimension: str | None = None,
+    ) -> CapacityForecastPage:
+        normalized_site = site_code.strip().lower().replace("_", "-") if site_code else None
+        normalized_dimension = dimension.strip().lower().replace("_", "-") if dimension else None
+        items = [
+            GreenOpsRecordMapper.forecast(value)
+            for value in self._tenant_values("greenops_forecasts", tenant_id)
+            if (normalized_site is None or value.get("site_code") == normalized_site)
+            and (normalized_dimension is None or value.get("dimension") == normalized_dimension)
+        ]
+        items.sort(key=lambda item: (item.generated_at, item.id.value), reverse=True)
+        selected, cursor = self._page(items, pagination)
+        return CapacityForecastPage(tuple(selected), cursor)
+
+    def save_candidate(self, candidate: ConsolidationCandidate) -> None:
+        self._save(
+            "greenops_candidates", candidate.tenant_id, candidate.id.value, candidate.as_dict()
+        )
+
+    def list_candidates(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        site_code: str | None = None,
+        risk_level: str | None = None,
+    ) -> ConsolidationCandidatePage:
+        normalized_site = site_code.strip().lower().replace("_", "-") if site_code else None
+        normalized_risk = risk_level.strip().lower() if risk_level else None
+        items = [
+            GreenOpsRecordMapper.candidate(value)
+            for value in self._tenant_values("greenops_candidates", tenant_id)
+            if (normalized_site is None or value.get("site_code") == normalized_site)
+            and (normalized_risk is None or value.get("risk_level") == normalized_risk)
+        ]
+        items.sort(key=lambda item: (item.generated_at, item.id.value), reverse=True)
+        selected, cursor = self._page(items, pagination)
+        return ConsolidationCandidatePage(tuple(selected), cursor)
+
+    def save_score(self, score: GreenScore) -> None:
+        self._save("greenops_scores", score.tenant_id, score.id.value, score.as_dict())
+
+    def list_scores(
+        self, tenant_id: TenantId, pagination: Pagination, scope: str | None = None
+    ) -> GreenScorePage:
+        normalized = scope.strip().lower().replace("_", "-") if scope else None
+        items = [
+            GreenOpsRecordMapper.score(value)
+            for value in self._tenant_values("greenops_scores", tenant_id)
+            if normalized is None or value.get("scope") == normalized
+        ]
+        items.sort(key=lambda item: (item.generated_at, item.id.value), reverse=True)
+        selected, cursor = self._page(items, pagination)
+        return GreenScorePage(tuple(selected), cursor)
+
+    def save_report(self, report: SustainabilityReport) -> None:
+        self._save("greenops_reports", report.tenant_id, report.id.value, report.as_dict())
+
+    def get_report(self, tenant_id: TenantId, report_id: str) -> SustainabilityReport | None:
+        value = self._get("greenops_reports", tenant_id, report_id)
+        return GreenOpsRecordMapper.report(value) if value else None
+
+    def find_report_by_reproducibility_key(
+        self, tenant_id: TenantId, reproducibility_key: str
+    ) -> SustainabilityReport | None:
+        normalized = reproducibility_key.strip().lower()
+        for value in self._tenant_values("greenops_reports", tenant_id):
+            report = GreenOpsRecordMapper.report(value)
+            if report.reproducibility_key() == normalized:
+                return report
+        return None
+
+    def list_reports(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        site_code: str | None = None,
+        scope: str | None = None,
+    ) -> SustainabilityReportPage:
+        normalized_site = site_code.strip().lower().replace("_", "-") if site_code else None
+        normalized_scope = scope.strip().lower().replace("_", "-") if scope else None
+        items = [
+            GreenOpsRecordMapper.report(value)
+            for value in self._tenant_values("greenops_reports", tenant_id)
+            if (normalized_site is None or value.get("site_code") == normalized_site)
+            and (
+                normalized_scope is None
+                or str(value.get("scope", "")).startswith(normalized_scope + ":")
+            )
+        ]
+        items.sort(key=lambda item: (item.generated_at, item.id.value), reverse=True)
+        selected, cursor = self._page(items, pagination)
+        return SustainabilityReportPage(tuple(selected), cursor)
+
+    def append_event(self, event: DomainEvent) -> None:
+        self._save(
+            "greenops_event_outbox",
             event.tenant_id,
             event.id.value,
             {

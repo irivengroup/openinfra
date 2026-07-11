@@ -137,6 +137,7 @@ class BuiltinRolePolicy:
                 Permission.FIELD_READ,
                 Permission.SIMULATION_READ,
                 Permission.FINOPS_READ,
+                Permission.GREENOPS_READ,
             )
         ),
         "rsot:reader": frozenset(
@@ -275,6 +276,32 @@ class BuiltinRolePolicy:
                 Permission.FINOPS_EXPORT,
                 Permission.FINOPS_ADMIN,
                 Permission.ITAM_READ,
+                Permission.AUDIT_READ,
+                Permission.SCHEMA_READ,
+            )
+        ),
+        "greenops:reader": frozenset((Permission.GREENOPS_READ, Permission.SCHEMA_READ)),
+        "greenops:operator": frozenset(
+            (
+                Permission.GREENOPS_READ,
+                Permission.GREENOPS_WRITE,
+                Permission.GREENOPS_IMPORT,
+                Permission.GREENOPS_EXPORT,
+                Permission.GREENOPS_EXECUTE,
+                Permission.DCIM_LOCATE,
+                Permission.SCHEMA_READ,
+            )
+        ),
+        "greenops:admin": frozenset(
+            (
+                Permission.GREENOPS_READ,
+                Permission.GREENOPS_WRITE,
+                Permission.GREENOPS_IMPORT,
+                Permission.GREENOPS_EXPORT,
+                Permission.GREENOPS_EXECUTE,
+                Permission.GREENOPS_ADMIN,
+                Permission.DCIM_LOCATE,
+                Permission.FINOPS_READ,
                 Permission.AUDIT_READ,
                 Permission.SCHEMA_READ,
             )

@@ -83,6 +83,18 @@ jobs:
           docs/api/openapi.yaml
           docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1/09-API/OpenAPI/openapi.yaml
 
+      - name: GreenOps energy, carbon and capacity regression
+        run: |
+          python -m pytest -q --no-cov \
+            tests/unit/test_greenops_domain.py \
+            tests/unit/test_greenops_edge_cases.py \
+            tests/integration/test_greenops_services.py \
+            tests/integration/test_greenops_cli.py \
+            tests/integration/test_greenops_http_api.py \
+            tests/integration/test_greenops_migration.py \
+            tests/integration/test_greenops_postgresql_repository.py \
+            tests/integration/test_greenops_web_contract.py
+
       - name: Discovery multisource reconciliation regression
         run: |
           python -m pytest -q --no-cov \

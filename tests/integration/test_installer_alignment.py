@@ -131,9 +131,9 @@ class TestInstallerAlignment:
         combined_requirements = "\n".join(path.read_text(encoding="utf-8") for path in requirements)
 
         assert not Path("migrations").exists()
-        assert len(installer_migrations) == 46
+        assert len(installer_migrations) == 47
         assert installer_migrations[0].name == "0001_bootstrap.sql"
-        assert installer_migrations[-1].name == "0046_finops_costs_showback.sql"
+        assert installer_migrations[-1].name == "0047_greenops_energy_capacity.sql"
         assert "psycopg[binary]" in combined_requirements
         forbidden_dev_tools = ("pytest", "ruff", "mypy", "bandit", "pip-audit", "build")
         assert not any(tool in combined_requirements for tool in forbidden_dev_tools)

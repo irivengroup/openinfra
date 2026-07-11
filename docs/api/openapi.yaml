@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.97
+  version: 0.29.98
 components:
   securitySchemes:
     bearerToken:
@@ -5745,3 +5745,307 @@ paths:
         '200': {description: Paginated cost forecasts}
         '400': {description: Invalid filter or cursor}
         '401': {description: Missing or invalid FinOps reader token}
+  /api/v1/greenops/measurement-sources:
+    get:
+      operationId: listGreenOpsMeasurementSources
+      summary: List tenant GreenOps measurement sources
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: active_only, in: query, schema: {type: boolean, default: false}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated measurement sources}
+        '400': {description: Invalid filter or cursor}
+        '401': {description: Missing or invalid GreenOps reader token}
+  /api/v1/greenops/measurement-sources/create:
+    post:
+      operationId: createGreenOpsMeasurementSource
+      summary: Register a tenant-scoped energy measurement source
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, code, name, source_type, owner]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                code: {type: string, minLength: 1, maxLength: 64, pattern: '^[a-z0-9][a-z0-9_.:@/-]{0,63}$'}
+                name: {type: string, minLength: 1, maxLength: 160}
+                source_type: {type: string, minLength: 1, maxLength: 64}
+                owner: {type: string, minLength: 1, maxLength: 160}
+                active: {type: boolean, default: true}
+      responses:
+        '201': {description: Measurement source registered}
+        '400': {description: Invalid or conflicting source}
+        '401': {description: Missing or invalid GreenOps writer token}
+  /api/v1/greenops/policies/get:
+    get:
+      operationId: getGreenOpsPolicy
+      summary: Read the GreenOps calculation policy of a site
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: site_code, in: query, required: true, schema: {type: string, maxLength: 64}}
+      responses:
+        '200': {description: Site GreenOps policy}
+        '400': {description: Invalid site code or policy not found}
+        '401': {description: Missing or invalid GreenOps reader token}
+  /api/v1/greenops/policies/upsert:
+    post:
+      operationId: upsertGreenOpsPolicy
+      summary: Configure versioned GreenOps thresholds and cost assumptions for a site
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, site_code, default_pue, energy_cost_per_kwh, currency, carbon_factor_code]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                site_code: {type: string, minLength: 1, maxLength: 64}
+                default_pue: {type: string, pattern: '^[0-9]+(?:\.[0-9]{1,6})?$'}
+                energy_cost_per_kwh: {type: string, pattern: '^[0-9]+(?:\.[0-9]{1,6})?$'}
+                currency: {type: string, minLength: 3, maxLength: 3, pattern: '^[A-Z]{3}$'}
+                carbon_factor_code: {type: string, minLength: 1, maxLength: 64}
+                underutilized_percent: {type: string, default: '20'}
+                warning_capacity_percent: {type: string, default: '80'}
+                critical_capacity_percent: {type: string, default: '90'}
+                minimum_samples: {type: integer, minimum: 2, maximum: 1000, default: 3}
+      responses:
+        '200': {description: Policy created or updated}
+        '400': {description: Invalid thresholds or unknown carbon factor}
+        '401': {description: Missing or invalid GreenOps writer token}
+  /api/v1/greenops/carbon-factors:
+    get:
+      operationId: listGreenOpsCarbonFactors
+      summary: List versioned carbon factors and their provenance
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: code, in: query, schema: {type: string}}
+        - {name: region, in: query, schema: {type: string}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated carbon factors}
+        '400': {description: Invalid filter or cursor}
+        '401': {description: Missing or invalid GreenOps reader token}
+  /api/v1/greenops/carbon-factors/create:
+    post:
+      operationId: createGreenOpsCarbonFactor
+      summary: Register a dated carbon factor with explicit source provenance
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, code, region, grams_co2e_per_kwh, source_name, period_start, period_end]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                code: {type: string, minLength: 1, maxLength: 64}
+                region: {type: string, minLength: 1, maxLength: 64}
+                grams_co2e_per_kwh: {type: string, pattern: '^[0-9]+(?:\.[0-9]{1,6})?$'}
+                source_name: {type: string, minLength: 1, maxLength: 160}
+                source_uri: {type: string, format: uri, maxLength: 2048}
+                period_start: {type: string, format: date}
+                period_end: {type: string, format: date}
+      responses:
+        '201': {description: Carbon factor registered}
+        '400': {description: Invalid factor, period or provenance}
+        '401': {description: Missing or invalid GreenOps writer token}
+  /api/v1/greenops/energy-measurements:
+    get:
+      operationId: listGreenOpsEnergyMeasurements
+      summary: List observed or estimated energy measurements
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: period_start, in: query, schema: {type: string, format: date-time}}
+        - {name: period_end, in: query, schema: {type: string, format: date-time}}
+        - {name: site_code, in: query, schema: {type: string}}
+        - {name: scope, in: query, schema: {type: string, enum: [site, room, rack, pdu, asset, application]}}
+        - {name: scope_key, in: query, schema: {type: string}}
+        - {name: kind, in: query, schema: {type: string, enum: [observed, estimated]}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated energy measurements}
+        '400': {description: Invalid filter, period or cursor}
+        '401': {description: Missing or invalid GreenOps reader token}
+  /api/v1/greenops/energy-measurements/ingest:
+    post:
+      operationId: ingestGreenOpsEnergyMeasurement
+      summary: Ingest one idempotent observed or estimated energy measurement
+      description: The idempotency key is globally unique per tenant, including across PostgreSQL time partitions.
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, idempotency_key, source_code, kind, scope, scope_key, site_code, period_start, period_end, energy_kwh]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                idempotency_key: {type: string, minLength: 8, maxLength: 192}
+                source_code: {type: string, minLength: 1, maxLength: 64}
+                kind: {type: string, enum: [observed, estimated]}
+                scope: {type: string, enum: [site, room, rack, pdu, asset, application]}
+                scope_key: {type: string, minLength: 1, maxLength: 192}
+                site_code: {type: string, minLength: 1, maxLength: 64}
+                application_key: {type: string, maxLength: 192}
+                period_start: {type: string, format: date-time}
+                period_end: {type: string, format: date-time}
+                energy_kwh: {type: string, pattern: '^[0-9]+(?:\.[0-9]{1,6})?$'}
+                it_energy_kwh: {type: string}
+                facility_energy_kwh: {type: string}
+                utilization_percent: {type: string}
+                energy_capacity_percent: {type: string}
+                cooling_capacity_percent: {type: string}
+                space_capacity_percent: {type: string}
+                weight_capacity_percent: {type: string}
+                metadata: {type: object, additionalProperties: true}
+      responses:
+        '201': {description: Energy measurement ingested}
+        '400': {description: Invalid measurement, missing source or conflicting idempotency key}
+        '401': {description: Missing or invalid GreenOps import token}
+  /api/v1/greenops/reports:
+    get:
+      operationId: listGreenOpsSustainabilityReports
+      summary: List reproducible sustainability reports
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: site_code, in: query, schema: {type: string}}
+        - {name: scope, in: query, schema: {type: string}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated sustainability reports}
+        '400': {description: Invalid filter or cursor}
+        '401': {description: Missing or invalid GreenOps reader token}
+  /api/v1/greenops/reports/get:
+    get:
+      operationId: getGreenOpsSustainabilityReport
+      summary: Read one immutable sustainability report
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: report_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Sustainability report}
+        '400': {description: Invalid or unknown report}
+        '401': {description: Missing or invalid GreenOps reader token}
+  /api/v1/greenops/reports/generate:
+    post:
+      operationId: generateGreenOpsSustainabilityReport
+      summary: Generate energy, PUE, carbon, capacity and recommendation findings
+      description: The result is advisory and never mutates DCIM, RSOT, ITAM, IPAM or production infrastructure.
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, site_code, period_start, period_end]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                site_code: {type: string, minLength: 1, maxLength: 64}
+                period_start: {type: string, format: date}
+                period_end: {type: string, format: date}
+                scope: {type: string, enum: [site, room, rack, pdu, asset, application], default: site}
+                scope_key: {type: string, maxLength: 192}
+      responses:
+        '201': {description: Reproducible sustainability report generated}
+        '400': {description: Missing policy, factor, measurements or invalid period}
+        '401': {description: Missing or invalid GreenOps executor token}
+  /api/v1/greenops/reports/export:
+    get:
+      operationId: exportGreenOpsSustainabilityReport
+      summary: Export an immutable GreenOps report as JSON or CSV
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: report_id, in: query, required: true, schema: {type: string, format: uuid}}
+        - {name: format, in: query, schema: {type: string, enum: [json, csv], default: json}}
+      responses:
+        '200':
+          description: Downloadable GreenOps report
+          content:
+            application/json: {schema: {type: object}}
+            text/csv: {schema: {type: string}}
+        '400': {description: Invalid report or export format}
+        '401': {description: Missing or invalid GreenOps export token}
+  /api/v1/greenops/anomalies:
+    get:
+      operationId: listGreenOpsEnergyAnomalies
+      summary: List deterministic energy anomalies
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: site_code, in: query, schema: {type: string}}
+        - {name: severity, in: query, schema: {type: string, enum: [info, warning, error, critical]}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated energy anomalies}
+        '400': {description: Invalid filter or cursor}
+        '401': {description: Missing or invalid GreenOps reader token}
+  /api/v1/greenops/capacity-forecasts:
+    get:
+      operationId: listGreenOpsCapacityForecasts
+      summary: List deterministic site capacity forecasts
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: site_code, in: query, schema: {type: string}}
+        - {name: dimension, in: query, schema: {type: string, enum: [energy, cooling, space, weight]}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated capacity forecasts}
+        '400': {description: Invalid filter or cursor}
+        '401': {description: Missing or invalid GreenOps reader token}
+  /api/v1/greenops/consolidation-candidates:
+    get:
+      operationId: listGreenOpsConsolidationCandidates
+      summary: List advisory consolidation recommendations requiring human approval
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: site_code, in: query, schema: {type: string}}
+        - {name: risk_level, in: query, schema: {type: string, enum: [info, warning, error, critical]}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated advisory consolidation candidates}
+        '400': {description: Invalid filter or cursor}
+        '401': {description: Missing or invalid GreenOps reader token}
+  /api/v1/greenops/green-scores:
+    get:
+      operationId: listGreenOpsScores
+      summary: List explainable GreenOps scores by site, rack or application scope
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: scope, in: query, schema: {type: string}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated explainable GreenOps scores}
+        '400': {description: Invalid filter or cursor}
+        '401': {description: Missing or invalid GreenOps reader token}

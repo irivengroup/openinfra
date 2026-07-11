@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.29.98 - 2026-07-11
+
+- Réalisation de P16 / EPIC-1604 avec un module GreenOps regroupé sous **DCIM**, sans nouveau composant de premier niveau.
+- Ajout de sources de mesure, facteurs carbone versionnés, politiques par site et mesures énergétiques observées ou estimées.
+- Calcul reproductible de l’énergie IT, de l’énergie totale, du PUE, des émissions CO₂e, des coûts énergétiques et des hypothèses appliquées.
+- Ajout des anomalies, prévisions de capacité, scores GreenOps et recommandations consultatives exigeant une validation humaine.
+- Idempotence globale par tenant et empreinte SHA-256, y compris entre partitions PostgreSQL temporelles.
+- Ajout de 16 routes HTTP/OpenAPI, des commandes `openinfra greenops`, de la persistance JSON/PostgreSQL et de la migration `0047_greenops_energy_capacity.sql`.
+- Ajout de la parité React/runtime packagé, des exports JSON/CSV, de la documentation d’exploitation et du gate CI GreenOps.
+- Garantie explicite : aucune mesure estimée n’est présentée comme observée et aucune recommandation ne modifie la production.
+
 ## 0.29.97 - 2026-07-11
 
 - Ajout de P16 / EPIC-1603 : imports de coûts idempotents, règles d’allocation, budgets, anomalies, prévisions, showback, chargeback contrôlé et clôture reproductible.

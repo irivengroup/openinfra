@@ -1,3 +1,23 @@
+## Validation GreenOps — v0.29.98
+
+```bash
+PYTHONPATH=src:. pytest -q --no-cov \
+  tests/unit/test_greenops_domain.py \
+  tests/unit/test_greenops_edge_cases.py \
+  tests/integration/test_greenops_services.py \
+  tests/integration/test_greenops_cli.py \
+  tests/integration/test_greenops_http_api.py \
+  tests/integration/test_greenops_migration.py \
+  tests/integration/test_greenops_postgresql_repository.py \
+  tests/integration/test_greenops_web_contract.py
+
+PYTHONPATH=src:. python scripts/validate_openapi.py \
+  docs/api/openapi.yaml \
+  docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1/09-API/OpenAPI/openapi.yaml
+```
+
+Ces contrôles garantissent la distinction observé/estimé, la provenance du facteur carbone, les calculs PUE/CO₂e reproductibles, l’idempotence tenant-wide, les recommandations soumises à validation humaine, les 16 routes GreenOps et la migration `0047`.
+
 ## Validation discovery locale Lite/Pro — v0.29.61
 
 Valider `openinfra discovery local-plan`, `POST /api/v1/discovery/local-plan`, OpenAPI, discovery document, portail web et garde-fous `dry_run`, `agent_required`, `network_scan_executed`, `rsot_write_enabled`.

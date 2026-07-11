@@ -46,11 +46,12 @@ class TestGitHubWorkflows:
         assert 'PYTHONPATH="$target" python scripts/smoke_installed_wheel.py' in workflow
         smoke = (PROJECT_ROOT / "scripts/smoke_installed_wheel.py").read_text(encoding="utf-8")
         assert "OpenApiDocumentProvider().read_yaml()" in smoke
-        assert "EXPECTED_MIGRATION_COUNT = 46" in smoke
+        assert "EXPECTED_MIGRATION_COUNT = 47" in smoke
         assert "EXPECTED_NETWORK_CONFIG_ROUTES" in smoke
         assert "EXPECTED_FIELD_OPERATION_ROUTES" in smoke
         assert "EXPECTED_SIMULATION_ROUTES" in smoke
-        assert 'EXPECTED_LAST_MIGRATION = "0046_finops_costs_showback.sql"' in smoke
+        assert "EXPECTED_GREENOPS_ROUTES" in smoke
+        assert 'EXPECTED_LAST_MIGRATION = "0047_greenops_energy_capacity.sql"' in smoke
         for route in (
             "/api/v1/graph/traverse",
             "/api/v1/graph/impact",
@@ -68,3 +69,19 @@ class TestGitHubWorkflows:
         assert "--spof-hubs 100" in workflow
         assert "dependency-graph-benchmark.json" in workflow
         assert "GITHUB_STEP_SUMMARY" in workflow
+
+    def test_greenops_is_a_blocking_ci_regression_gate(self) -> None:
+        workflow = (PROJECT_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+
+        assert "- name: GreenOps energy, carbon and capacity regression" in workflow
+        for test_path in (
+            "tests/unit/test_greenops_domain.py",
+            "tests/unit/test_greenops_edge_cases.py",
+            "tests/integration/test_greenops_services.py",
+            "tests/integration/test_greenops_cli.py",
+            "tests/integration/test_greenops_http_api.py",
+            "tests/integration/test_greenops_migration.py",
+            "tests/integration/test_greenops_postgresql_repository.py",
+            "tests/integration/test_greenops_web_contract.py",
+        ):
+            assert test_path in workflow

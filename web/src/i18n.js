@@ -334,6 +334,18 @@ const FIELD_EN = Object.freeze({
   warning_threshold_percent: 'Warning threshold (%)', group_by: 'Group by',
   chargeback_markup_percent: 'Chargeback markup (%)', report_id: 'Report ID',
   severity: 'Severity', job_id: 'Import job ID',
+  source_type: 'Source type', active: 'Active', default_pue: 'Default PUE',
+  energy_cost_per_kwh: 'Energy cost per kWh', carbon_factor_code: 'Carbon factor code',
+  underutilized_percent: 'Underutilization threshold (%)',
+  warning_capacity_percent: 'Capacity warning threshold (%)',
+  critical_capacity_percent: 'Capacity critical threshold (%)', minimum_samples: 'Minimum samples',
+  grams_co2e_per_kwh: 'gCO₂e per kWh', source_name: 'Factor source', source_uri: 'Provenance URL',
+  scope_key: 'Scope identifier', application_key: 'Associated application', energy_kwh: 'Energy (kWh)',
+  it_energy_kwh: 'IT energy (kWh)', facility_energy_kwh: 'Total facility energy (kWh)',
+  utilization_percent: 'Utilization (%)', energy_capacity_percent: 'Energy capacity used (%)',
+  cooling_capacity_percent: 'Cooling capacity used (%)', space_capacity_percent: 'Space capacity used (%)',
+  weight_capacity_percent: 'Weight capacity used (%)', metadata: 'Secret-free JSON metadata',
+  risk_level: 'Risk level',
 });
 
 const TOKEN_EN = Object.freeze({
@@ -394,6 +406,10 @@ const PHRASE_EN = Object.freeze({
   'Règles d’allocation': 'Allocation rules', 'Imports & coûts': 'Imports & costs',
   'Budgets & périodes': 'Budgets & periods', 'Showback / chargeback': 'Showback / chargeback',
   'Prévisions & anomalies': 'Forecasts & anomalies',
+  'GreenOps — sources & politiques': 'GreenOps — sources & policies',
+  'GreenOps — mesures': 'GreenOps — measurements',
+  'GreenOps — rapports & empreinte': 'GreenOps — reports & footprint',
+  'GreenOps — capacité & recommandations': 'GreenOps — capacity & recommendations',
   'Inventaire PKI': 'PKI inventory', 'Endpoints TLS': 'TLS endpoints', 'Conformité PKI': 'PKI compliance',
   'Chaîne de certificats PEM': 'PEM certificate chain', 'Source certificat': 'Certificate source',
   'Objet RSOT associé': 'Associated RSOT object', 'Empreinte SHA-256': 'SHA-256 fingerprint',
@@ -430,6 +446,9 @@ const OPTION_FR = Object.freeze({
   'denied-observed': 'Flux refusé observé', 'undeclared-observed': 'Flux observé non déclaré',
   'declared-unobserved': 'Flux déclaré non observé', netflow: 'NetFlow', sflow: 'sFlow', ipfix: 'IPFIX',
   'firewall-log': 'Journal pare-feu', 'application-log': 'Journal applicatif', import: 'Import',
+  observed: 'Observé', estimated: 'Estimé', application: 'Application', asset: 'Équipement',
+  energy: 'Énergie', space: 'Espace', weight: 'Poids', warning: 'Avertissement', error: 'Erreur',
+  critical: 'Critique', info: 'Information',
 });
 
 const OPTION_EN = Object.freeze({
@@ -439,6 +458,8 @@ const OPTION_EN = Object.freeze({
   allow: 'Allow', deny: 'Deny', compliant: 'Compliant',
   'denied-observed': 'Denied flow observed', 'undeclared-observed': 'Undeclared flow observed',
   'declared-unobserved': 'Declared flow not observed',
+  observed: 'Observed', estimated: 'Estimated', warning: 'Warning', error: 'Error',
+  critical: 'Critical', info: 'Information',
 });
 
 const CONTINENT_FR = Object.freeze({
@@ -554,6 +575,22 @@ function operationLabelEn(operationId) {
     'finops-report-export': 'Export financial report',
     'finops-anomalies': 'List cost anomalies',
     'finops-forecasts': 'List cost forecasts',
+    'greenops-source-create': 'Register measurement source',
+    'greenops-sources': 'List measurement sources',
+    'greenops-policy-upsert': 'Configure site GreenOps policy',
+    'greenops-policy-get': 'View site GreenOps policy',
+    'greenops-factor-create': 'Register carbon factor',
+    'greenops-factors': 'List carbon factors',
+    'greenops-measurement-ingest': 'Ingest energy measurement',
+    'greenops-measurements': 'List energy measurements',
+    'greenops-report-generate': 'Generate sustainability report',
+    'greenops-report-get': 'View sustainability report',
+    'greenops-reports': 'List sustainability reports',
+    'greenops-report-export': 'Export sustainability report',
+    'greenops-anomalies': 'List energy anomalies',
+    'greenops-forecasts': 'List capacity forecasts',
+    'greenops-candidates': 'List consolidation recommendations',
+    'greenops-scores': 'List GreenOps scores',
     'ipam-dashboard': 'IPAM dashboard', 'dcim-digital-twin': 'Room digital twin',
     'effective-identity': 'Effective identity', 'audit-integrity': 'Audit integrity',
   };

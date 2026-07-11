@@ -63,6 +63,17 @@ from openinfra.domain.finops import (
     FinOpsReport,
 )
 from openinfra.domain.flow_matrix import FlowDeclaration, FlowObservation
+from openinfra.domain.greenops import (
+    CapacityForecast,
+    CarbonFactor,
+    ConsolidationCandidate,
+    EnergyAnomaly,
+    EnergyMeasurement,
+    GreenOpsPolicy,
+    GreenScore,
+    MeasurementSource,
+    SustainabilityReport,
+)
 from openinfra.domain.identity import (
     EffectiveIdentity,
     GroupMembership,
@@ -268,6 +279,78 @@ class FinOpsForecastPage:
 @dataclass(frozen=True, slots=True)
 class FinOpsReportPage:
     items: tuple[FinOpsReport, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {"items": [item.as_dict() for item in self.items], "next_cursor": self.next_cursor}
+
+
+@dataclass(frozen=True, slots=True)
+class MeasurementSourcePage:
+    items: tuple[MeasurementSource, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {"items": [item.as_dict() for item in self.items], "next_cursor": self.next_cursor}
+
+
+@dataclass(frozen=True, slots=True)
+class CarbonFactorPage:
+    items: tuple[CarbonFactor, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {"items": [item.as_dict() for item in self.items], "next_cursor": self.next_cursor}
+
+
+@dataclass(frozen=True, slots=True)
+class EnergyMeasurementPage:
+    items: tuple[EnergyMeasurement, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {"items": [item.as_dict() for item in self.items], "next_cursor": self.next_cursor}
+
+
+@dataclass(frozen=True, slots=True)
+class EnergyAnomalyPage:
+    items: tuple[EnergyAnomaly, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {"items": [item.as_dict() for item in self.items], "next_cursor": self.next_cursor}
+
+
+@dataclass(frozen=True, slots=True)
+class CapacityForecastPage:
+    items: tuple[CapacityForecast, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {"items": [item.as_dict() for item in self.items], "next_cursor": self.next_cursor}
+
+
+@dataclass(frozen=True, slots=True)
+class ConsolidationCandidatePage:
+    items: tuple[ConsolidationCandidate, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {"items": [item.as_dict() for item in self.items], "next_cursor": self.next_cursor}
+
+
+@dataclass(frozen=True, slots=True)
+class GreenScorePage:
+    items: tuple[GreenScore, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {"items": [item.as_dict() for item in self.items], "next_cursor": self.next_cursor}
+
+
+@dataclass(frozen=True, slots=True)
+class SustainabilityReportPage:
+    items: tuple[SustainabilityReport, ...]
     next_cursor: str | None
 
     def as_dict(self) -> dict[str, object]:
@@ -1547,6 +1630,148 @@ class FinOpsRepository(ABC):
         kind: str | None = None,
         currency: str | None = None,
     ) -> FinOpsReportPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def append_event(self, event: DomainEvent) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+
+class GreenOpsRepository(ABC):
+    @abstractmethod
+    def save_source(self, source: MeasurementSource) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_source(self, tenant_id: TenantId, code: str) -> MeasurementSource | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_sources(
+        self, tenant_id: TenantId, pagination: Pagination, active_only: bool = False
+    ) -> MeasurementSourcePage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_policy(self, policy: GreenOpsPolicy) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_policy(self, tenant_id: TenantId, site_code: str) -> GreenOpsPolicy | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_carbon_factor(self, factor: CarbonFactor) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_carbon_factors(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        code: str | None = None,
+        region: str | None = None,
+    ) -> CarbonFactorPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_measurement(self, measurement: EnergyMeasurement) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_measurement_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> EnergyMeasurement | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_measurements(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        period_start: datetime | None = None,
+        period_end: datetime | None = None,
+        site_code: str | None = None,
+        scope: str | None = None,
+        scope_key: str | None = None,
+        kind: str | None = None,
+    ) -> EnergyMeasurementPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_anomaly(self, anomaly: EnergyAnomaly) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_anomalies(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        severity: str | None = None,
+        site_code: str | None = None,
+    ) -> EnergyAnomalyPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_forecast(self, forecast: CapacityForecast) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_forecasts(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        site_code: str | None = None,
+        dimension: str | None = None,
+    ) -> CapacityForecastPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_candidate(self, candidate: ConsolidationCandidate) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_candidates(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        site_code: str | None = None,
+        risk_level: str | None = None,
+    ) -> ConsolidationCandidatePage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_score(self, score: GreenScore) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_scores(
+        self, tenant_id: TenantId, pagination: Pagination, scope: str | None = None
+    ) -> GreenScorePage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_report(self, report: SustainabilityReport) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_report(self, tenant_id: TenantId, report_id: str) -> SustainabilityReport | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_report_by_reproducibility_key(
+        self, tenant_id: TenantId, reproducibility_key: str
+    ) -> SustainabilityReport | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_reports(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        site_code: str | None = None,
+        scope: str | None = None,
+    ) -> SustainabilityReportPage:
         raise TypeError("adapter contract invoked directly")
 
     @abstractmethod

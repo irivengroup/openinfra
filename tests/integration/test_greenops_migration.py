@@ -1,0 +1,41 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+MIGRATION = ROOT / "installers/migrations/postgresql/0047_greenops_energy_capacity.sql"
+
+
+def test_greenops_migration_is_partitioned_indexed_and_constrained() -> None:
+    sql = MIGRATION.read_text(encoding="utf-8")
+    normalized = " ".join(sql.lower().split())
+    for table in (
+        "greenops_measurement_sources",
+        "greenops_policies",
+        "greenops_carbon_factors",
+        "greenops_measurement_idempotency",
+        "greenops_energy_measurements",
+        "greenops_anomalies",
+        "greenops_forecasts",
+        "greenops_consolidation_candidates",
+        "greenops_scores",
+        "greenops_reports",
+        "greenops_event_outbox",
+    ):
+        assert f"create table if not exists {table}" in normalized
+    assert normalized.count("partition by hash (tenant_id)") == 10
+    assert "partition by range (period_start)" in normalized
+    assert "primary key (tenant_id, idempotency_key)" in normalized
+    assert "payload_digest ~ '^[a-f0-9]{64}$'" in normalized
+    assert "using gin (payload jsonb_path_ops)" in normalized
+    assert "using brin (period_start)" in normalized
+    assert "where published_at is null" in normalized
+    assert "payload ->> 'requires_human_approval' = 'true'" in normalized
+    assert "drop table" not in normalized
+    assert "truncate " not in normalized
+
+
+def test_greenops_is_latest_postgresql_migration() -> None:
+    migrations = sorted((ROOT / "installers/migrations/postgresql").glob("*.sql"))
+    assert migrations[-1].name == "0047_greenops_energy_capacity.sql"
+    assert len(migrations) == 47

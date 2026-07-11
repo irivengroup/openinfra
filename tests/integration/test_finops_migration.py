@@ -33,7 +33,7 @@ def test_finops_migration_is_partitioned_indexed_and_constrained() -> None:
     assert "truncate " not in normalized
 
 
-def test_finops_is_latest_postgresql_migration() -> None:
+def test_finops_migration_precedes_greenops_without_being_modified() -> None:
     migrations = sorted((ROOT / "installers/migrations/postgresql").glob("*.sql"))
-    assert migrations[-1].name == "0046_finops_costs_showback.sql"
-    assert len(migrations) == 46
+    assert MIGRATION in migrations
+    assert migrations.index(MIGRATION) == 45

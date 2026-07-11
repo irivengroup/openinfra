@@ -5,7 +5,7 @@ import base64
 import json
 import os
 import sys
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, NoReturn
 
@@ -194,6 +194,24 @@ from openinfra.application.flow_matrix_services import (
     SubmitFlowObservationCommand,
     UpsertFlowDeclarationCommand,
 )
+from openinfra.application.greenops_services import (
+    CreateCarbonFactorCommand,
+    CreateMeasurementSourceCommand,
+    ExportSustainabilityReportCommand,
+    GenerateSustainabilityReportCommand,
+    GetGreenOpsPolicyCommand,
+    GetSustainabilityReportCommand,
+    IngestEnergyMeasurementCommand,
+    ListCapacityForecastsCommand,
+    ListCarbonFactorsCommand,
+    ListConsolidationCandidatesCommand,
+    ListEnergyAnomaliesCommand,
+    ListEnergyMeasurementsCommand,
+    ListGreenScoresCommand,
+    ListMeasurementSourcesCommand,
+    ListSustainabilityReportsCommand,
+    UpsertGreenOpsPolicyCommand,
+)
 from openinfra.application.identity_services import (
     AddUserToGroupCommand,
     CreateGroupCommand,
@@ -364,6 +382,7 @@ class OpenInfraCLI:
         self._add_graph_commands(subparsers)
         self._add_simulation_commands(subparsers)
         self._add_finops_commands(subparsers)
+        self._add_greenops_commands(subparsers)
         self._add_flow_commands(subparsers)
         self._add_certificate_commands(subparsers)
         self._add_network_config_commands(subparsers)
@@ -2176,6 +2195,171 @@ class OpenInfraCLI:
             command.add_argument("--dimension")
             command.add_argument("--target")
             command.set_defaults(handler=handler)
+
+    def _add_greenops_commands(self, subparsers: Any) -> None:
+        greenops = subparsers.add_parser(
+            "greenops", help="DCIM energy, carbon and capacity sustainability operations"
+        )
+        commands = greenops.add_subparsers(dest="greenops_command", required=True)
+
+        source = commands.add_parser("source-create", help="register a measurement source")
+        self._add_backend_arguments(source)
+        for name in ("tenant", "admin-token", "code", "name", "source-type", "owner"):
+            source.add_argument(f"--{name}", required=True)
+        source.add_argument("--actor", default="cli")
+        source.add_argument("--inactive", action="store_true")
+        source.set_defaults(handler=self._handle_greenops_source_create)
+
+        sources = commands.add_parser("sources", help="list measurement sources")
+        self._add_backend_arguments(sources)
+        self._add_greenops_list_arguments(sources)
+        sources.add_argument("--active-only", action="store_true")
+        sources.set_defaults(handler=self._handle_greenops_sources)
+
+        policy = commands.add_parser("policy-upsert", help="configure a site GreenOps policy")
+        self._add_backend_arguments(policy)
+        for name in (
+            "tenant",
+            "admin-token",
+            "site-code",
+            "default-pue",
+            "energy-cost-per-kwh",
+            "currency",
+            "carbon-factor-code",
+        ):
+            policy.add_argument(f"--{name}", required=True)
+        policy.add_argument("--actor", default="cli")
+        policy.add_argument("--underutilized-percent", default="20")
+        policy.add_argument("--warning-capacity-percent", default="80")
+        policy.add_argument("--critical-capacity-percent", default="90")
+        policy.add_argument("--minimum-samples", type=int, default=3)
+        policy.set_defaults(handler=self._handle_greenops_policy_upsert)
+
+        policy_get = commands.add_parser("policy-get", help="read a site GreenOps policy")
+        self._add_backend_arguments(policy_get)
+        for name in ("tenant", "admin-token", "site-code"):
+            policy_get.add_argument(f"--{name}", required=True)
+        policy_get.set_defaults(handler=self._handle_greenops_policy_get)
+
+        factor = commands.add_parser("factor-create", help="register a versioned carbon factor")
+        self._add_backend_arguments(factor)
+        for name in (
+            "tenant",
+            "admin-token",
+            "code",
+            "region",
+            "grams-co2e-per-kwh",
+            "source-name",
+            "period-start",
+            "period-end",
+        ):
+            factor.add_argument(f"--{name}", required=True)
+        factor.add_argument("--actor", default="cli")
+        factor.add_argument("--source-uri")
+        factor.set_defaults(handler=self._handle_greenops_factor_create)
+
+        factors = commands.add_parser("factors", help="list carbon factors")
+        self._add_backend_arguments(factors)
+        self._add_greenops_list_arguments(factors)
+        factors.add_argument("--code")
+        factors.add_argument("--region")
+        factors.set_defaults(handler=self._handle_greenops_factors)
+
+        measurement = commands.add_parser(
+            "measurement-ingest", help="ingest an observed or estimated energy measurement"
+        )
+        self._add_backend_arguments(measurement)
+        for name in (
+            "tenant",
+            "admin-token",
+            "idempotency-key",
+            "source-code",
+            "kind",
+            "scope",
+            "scope-key",
+            "site-code",
+            "period-start",
+            "period-end",
+            "energy-kwh",
+        ):
+            measurement.add_argument(f"--{name}", required=True)
+        measurement.add_argument("--actor", default="cli")
+        measurement.add_argument("--application-key")
+        measurement.add_argument("--it-energy-kwh")
+        measurement.add_argument("--facility-energy-kwh")
+        measurement.add_argument("--utilization-percent")
+        measurement.add_argument("--energy-capacity-percent")
+        measurement.add_argument("--cooling-capacity-percent")
+        measurement.add_argument("--space-capacity-percent")
+        measurement.add_argument("--weight-capacity-percent")
+        measurement.add_argument("--metadata-file", type=Path)
+        measurement.set_defaults(handler=self._handle_greenops_measurement_ingest)
+
+        measurements = commands.add_parser("measurements", help="list energy measurements")
+        self._add_backend_arguments(measurements)
+        self._add_greenops_list_arguments(measurements)
+        measurements.add_argument("--period-start")
+        measurements.add_argument("--period-end")
+        measurements.add_argument("--site-code")
+        measurements.add_argument("--scope")
+        measurements.add_argument("--scope-key")
+        measurements.add_argument("--kind")
+        measurements.set_defaults(handler=self._handle_greenops_measurements)
+
+        generate = commands.add_parser(
+            "report-generate", help="generate a reproducible sustainability report"
+        )
+        self._add_backend_arguments(generate)
+        for name in ("tenant", "admin-token", "site-code", "period-start", "period-end"):
+            generate.add_argument(f"--{name}", required=True)
+        generate.add_argument("--actor", default="cli")
+        generate.add_argument("--scope", default="site")
+        generate.add_argument("--scope-key")
+        generate.set_defaults(handler=self._handle_greenops_report_generate)
+
+        report = commands.add_parser("report", help="read one sustainability report")
+        self._add_backend_arguments(report)
+        for name in ("tenant", "admin-token", "report-id"):
+            report.add_argument(f"--{name}", required=True)
+        report.set_defaults(handler=self._handle_greenops_report)
+
+        reports = commands.add_parser("reports", help="list sustainability reports")
+        self._add_backend_arguments(reports)
+        self._add_greenops_list_arguments(reports)
+        reports.add_argument("--site-code")
+        reports.add_argument("--scope")
+        reports.set_defaults(handler=self._handle_greenops_reports)
+
+        export = commands.add_parser("report-export", help="export a sustainability report")
+        self._add_backend_arguments(export)
+        for name in ("tenant", "admin-token", "report-id"):
+            export.add_argument(f"--{name}", required=True)
+        export.add_argument("--format", choices=("json", "csv"), default="json")
+        export.add_argument("--output", type=Path)
+        export.set_defaults(handler=self._handle_greenops_report_export)
+
+        for command_name, handler, help_text in (
+            ("anomalies", self._handle_greenops_anomalies, "list energy anomalies"),
+            ("forecasts", self._handle_greenops_forecasts, "list capacity forecasts"),
+            ("candidates", self._handle_greenops_candidates, "list consolidation candidates"),
+            ("scores", self._handle_greenops_scores, "list GreenOps scores"),
+        ):
+            command = commands.add_parser(command_name, help=help_text)
+            self._add_backend_arguments(command)
+            self._add_greenops_list_arguments(command)
+            command.add_argument("--site-code")
+            command.add_argument("--severity")
+            command.add_argument("--dimension")
+            command.add_argument("--risk-level")
+            command.add_argument("--scope")
+            command.set_defaults(handler=handler)
+
+    @staticmethod
+    def _add_greenops_list_arguments(parser: Any) -> None:
+        parser.add_argument("--tenant", required=True)
+        parser.add_argument("--admin-token", required=True)
+        parser.add_argument("--limit", type=int, default=100)
+        parser.add_argument("--cursor")
 
     def _add_simulation_commands(self, subparsers: Any) -> None:
         simulation = subparsers.add_parser(
@@ -6019,6 +6203,241 @@ class OpenInfraCLI:
         if any(not isinstance(item, dict) for item in payload):
             raise ValidationError("each FinOps record must be a JSON object")
         return tuple(dict(item) for item in payload)
+
+    @staticmethod
+    def _greenops_datetime(value: str | None) -> datetime | None:
+        if value is None:
+            return None
+        return datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+
+    @staticmethod
+    def _read_greenops_metadata(path: Path | None) -> dict[str, object]:
+        if path is None:
+            return {}
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except OSError as exc:
+            raise ValidationError(f"cannot read GreenOps metadata file: {exc}") from exc
+        except json.JSONDecodeError as exc:
+            raise ValidationError(f"GreenOps metadata file is invalid JSON: {exc}") from exc
+        if not isinstance(value, dict):
+            raise ValidationError("GreenOps metadata file must contain one JSON object")
+        return dict(value)
+
+    def _handle_greenops_source_create(self, args: argparse.Namespace) -> int:
+        item = self._create_application(args).greenops_service.create_source(
+            CreateMeasurementSourceCommand(
+                args.tenant,
+                args.admin_token,
+                args.actor,
+                args.code,
+                args.name,
+                args.source_type,
+                args.owner,
+                not args.inactive,
+            )
+        )
+        return self._print_greenops(item.as_dict())
+
+    def _handle_greenops_sources(self, args: argparse.Namespace) -> int:
+        page = self._create_application(args).greenops_service.list_sources(
+            ListMeasurementSourcesCommand(
+                args.tenant, args.admin_token, args.limit, args.cursor, args.active_only
+            )
+        )
+        return self._print_greenops(page.as_dict())
+
+    def _handle_greenops_policy_upsert(self, args: argparse.Namespace) -> int:
+        item = self._create_application(args).greenops_service.upsert_policy(
+            UpsertGreenOpsPolicyCommand(
+                args.tenant,
+                args.admin_token,
+                args.actor,
+                args.site_code,
+                args.default_pue,
+                args.energy_cost_per_kwh,
+                args.currency,
+                args.carbon_factor_code,
+                args.underutilized_percent,
+                args.warning_capacity_percent,
+                args.critical_capacity_percent,
+                args.minimum_samples,
+            )
+        )
+        return self._print_greenops(item.as_dict())
+
+    def _handle_greenops_policy_get(self, args: argparse.Namespace) -> int:
+        item = self._create_application(args).greenops_service.get_policy(
+            GetGreenOpsPolicyCommand(args.tenant, args.admin_token, args.site_code)
+        )
+        return self._print_greenops(item.as_dict())
+
+    def _handle_greenops_factor_create(self, args: argparse.Namespace) -> int:
+        item = self._create_application(args).greenops_service.create_carbon_factor(
+            CreateCarbonFactorCommand(
+                args.tenant,
+                args.admin_token,
+                args.actor,
+                args.code,
+                args.region,
+                args.grams_co2e_per_kwh,
+                args.source_name,
+                date.fromisoformat(args.period_start),
+                date.fromisoformat(args.period_end),
+                args.source_uri,
+            )
+        )
+        return self._print_greenops(item.as_dict())
+
+    def _handle_greenops_factors(self, args: argparse.Namespace) -> int:
+        page = self._create_application(args).greenops_service.list_carbon_factors(
+            ListCarbonFactorsCommand(
+                args.tenant, args.admin_token, args.limit, args.cursor, args.code, args.region
+            )
+        )
+        return self._print_greenops(page.as_dict())
+
+    def _handle_greenops_measurement_ingest(self, args: argparse.Namespace) -> int:
+        start = self._greenops_datetime(args.period_start)
+        end = self._greenops_datetime(args.period_end)
+        if start is None or end is None:
+            raise ValidationError("GreenOps measurement period is required")
+        item = self._create_application(args).greenops_service.ingest_measurement(
+            IngestEnergyMeasurementCommand(
+                args.tenant,
+                args.admin_token,
+                args.actor,
+                args.idempotency_key,
+                args.source_code,
+                args.kind,
+                args.scope,
+                args.scope_key,
+                args.site_code,
+                start,
+                end,
+                args.energy_kwh,
+                args.application_key,
+                args.it_energy_kwh,
+                args.facility_energy_kwh,
+                args.utilization_percent,
+                args.energy_capacity_percent,
+                args.cooling_capacity_percent,
+                args.space_capacity_percent,
+                args.weight_capacity_percent,
+                self._read_greenops_metadata(args.metadata_file),
+            )
+        )
+        return self._print_greenops(item.as_dict())
+
+    def _handle_greenops_measurements(self, args: argparse.Namespace) -> int:
+        page = self._create_application(args).greenops_service.list_measurements(
+            ListEnergyMeasurementsCommand(
+                args.tenant,
+                args.admin_token,
+                args.limit,
+                args.cursor,
+                self._greenops_datetime(args.period_start),
+                self._greenops_datetime(args.period_end),
+                args.site_code,
+                args.scope,
+                args.scope_key,
+                args.kind,
+            )
+        )
+        return self._print_greenops(page.as_dict())
+
+    def _handle_greenops_report_generate(self, args: argparse.Namespace) -> int:
+        item = self._create_application(args).greenops_service.generate_report(
+            GenerateSustainabilityReportCommand(
+                args.tenant,
+                args.admin_token,
+                args.actor,
+                args.site_code,
+                date.fromisoformat(args.period_start),
+                date.fromisoformat(args.period_end),
+                args.scope,
+                args.scope_key,
+            )
+        )
+        return self._print_greenops(item.as_dict())
+
+    def _handle_greenops_report(self, args: argparse.Namespace) -> int:
+        item = self._create_application(args).greenops_service.get_report(
+            GetSustainabilityReportCommand(args.tenant, args.admin_token, args.report_id)
+        )
+        return self._print_greenops(item.as_dict())
+
+    def _handle_greenops_reports(self, args: argparse.Namespace) -> int:
+        page = self._create_application(args).greenops_service.list_reports(
+            ListSustainabilityReportsCommand(
+                args.tenant, args.admin_token, args.limit, args.cursor, args.site_code, args.scope
+            )
+        )
+        return self._print_greenops(page.as_dict())
+
+    def _handle_greenops_report_export(self, args: argparse.Namespace) -> int:
+        export = self._create_application(args).greenops_service.export_report(
+            ExportSustainabilityReportCommand(
+                args.tenant, args.admin_token, args.report_id, args.format
+            )
+        )
+        if args.output is None:
+            sys.stdout.buffer.write(export.content)
+        else:
+            args.output.write_bytes(export.content)
+        return 0
+
+    def _handle_greenops_anomalies(self, args: argparse.Namespace) -> int:
+        page = self._create_application(args).greenops_service.list_anomalies(
+            ListEnergyAnomaliesCommand(
+                args.tenant,
+                args.admin_token,
+                args.limit,
+                args.cursor,
+                args.severity,
+                args.site_code,
+            )
+        )
+        return self._print_greenops(page.as_dict())
+
+    def _handle_greenops_forecasts(self, args: argparse.Namespace) -> int:
+        page = self._create_application(args).greenops_service.list_forecasts(
+            ListCapacityForecastsCommand(
+                args.tenant,
+                args.admin_token,
+                args.limit,
+                args.cursor,
+                args.site_code,
+                args.dimension,
+            )
+        )
+        return self._print_greenops(page.as_dict())
+
+    def _handle_greenops_candidates(self, args: argparse.Namespace) -> int:
+        page = self._create_application(args).greenops_service.list_candidates(
+            ListConsolidationCandidatesCommand(
+                args.tenant,
+                args.admin_token,
+                args.limit,
+                args.cursor,
+                args.site_code,
+                args.risk_level,
+            )
+        )
+        return self._print_greenops(page.as_dict())
+
+    def _handle_greenops_scores(self, args: argparse.Namespace) -> int:
+        page = self._create_application(args).greenops_service.list_scores(
+            ListGreenScoresCommand(
+                args.tenant, args.admin_token, args.limit, args.cursor, args.scope
+            )
+        )
+        return self._print_greenops(page.as_dict())
+
+    @staticmethod
+    def _print_greenops(payload: dict[str, object]) -> int:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+        return 0
 
     def _handle_finops_rule_create(self, args: argparse.Namespace) -> int:
         result = self._create_application(args).finops_service.create_allocation_rule(

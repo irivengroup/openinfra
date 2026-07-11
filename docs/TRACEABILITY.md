@@ -1,3 +1,15 @@
+## v0.29.98 — GreenOps, énergie et capacité
+
+| Exigence / Epic | Implémentation | Vérification |
+|---|---|---|
+| P16 / EPIC-1604 | `domain/greenops.py`, `application/greenops_services.py`, adaptateurs JSON/PostgreSQL | tests domaine, service, CLI, HTTP et persistance |
+| Mesures observées/estimées et provenance | `MeasurementKind`, `MeasurementSource`, `EnergyMeasurement` | `test_greenops_domain.py`, `test_greenops_services.py` |
+| PUE, énergie et CO₂e reproductibles | `SustainabilityReport`, `CarbonFactor`, `GreenOpsPolicy` | tests rapports, facteurs, hypothèses et exports |
+| Capacité, anomalies et recommandations | `CapacityForecast`, `EnergyAnomaly`, `ConsolidationCandidate`, `GreenScore` | tests prévisions, seuils et validation humaine obligatoire |
+| Idempotence globale par tenant | registre PostgreSQL `greenops_measurement_idempotency` et digest SHA-256 | `test_greenops_migration.py`, contrats PostgreSQL |
+| Interfaces regroupées sous DCIM | 16 routes HTTP/OpenAPI, commandes `greenops`, portail React/runtime | tests CLI, HTTP, web, accessibilité et OpenAPI |
+| Persistance à grande volumétrie | migration `0047_greenops_energy_capacity.sql`, partitions temporelles et index | tests migration, packaging et smoke du wheel |
+
 ## v0.29.97 — Traçabilité FinOps et rangement de navigation
 
 - Roadmap : P16 / `EPIC-1603` — consolidation des coûts et showback par service/tenant.

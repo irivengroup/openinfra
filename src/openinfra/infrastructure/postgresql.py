@@ -17,9 +17,12 @@ from openinfra.application.ports import (
     AccessPolicyRepository,
     AccessPolicyRulePage,
     AuditRepository,
+    CapacityForecastPage,
+    CarbonFactorPage,
     CertificateAssetPage,
     CertificateEndpointPage,
     CertificateInventoryRepository,
+    ConsolidationCandidatePage,
     CostAllocationRulePage,
     CostAnomalyPage,
     CostImportJobPage,
@@ -33,6 +36,8 @@ from openinfra.application.ports import (
     DiscoveryProtocolProfilePage,
     DiscoveryReconciliationCasePage,
     DiscoveryRepository,
+    EnergyAnomalyPage,
+    EnergyMeasurementPage,
     ExportRepository,
     FieldOperationRepository,
     FieldOperationSheetPage,
@@ -44,10 +49,13 @@ from openinfra.application.ports import (
     FlowDeclarationPage,
     FlowMatrixRepository,
     FlowObservationPage,
+    GreenOpsRepository,
+    GreenScorePage,
     IdentityRepository,
     ImportRepository,
     IpamRepository,
     ItamSupportRepository,
+    MeasurementSourcePage,
     NetworkConfigBaselinePage,
     NetworkConfigComplianceRepository,
     NetworkConfigObservationPage,
@@ -64,6 +72,7 @@ from openinfra.application.ports import (
     SimulationScenarioPage,
     SourceGovernanceRepository,
     SourceOfTruthRepository,
+    SustainabilityReportPage,
     TransactionManager,
     UnitOfWork,
 )
@@ -170,6 +179,17 @@ from openinfra.domain.flow_matrix import (
     FlowDeclaration,
     FlowObservation,
 )
+from openinfra.domain.greenops import (
+    CapacityForecast,
+    CarbonFactor,
+    ConsolidationCandidate,
+    EnergyAnomaly,
+    EnergyMeasurement,
+    GreenOpsPolicy,
+    GreenScore,
+    MeasurementSource,
+    SustainabilityReport,
+)
 from openinfra.domain.identity import (
     EffectiveIdentity,
     GroupMembership,
@@ -225,6 +245,7 @@ from openinfra.domain.source_of_truth import (
 )
 from openinfra.infrastructure.field_operation_mapper import FieldOperationRecordMapper
 from openinfra.infrastructure.finops_mapper import FinOpsRecordMapper
+from openinfra.infrastructure.greenops_mapper import GreenOpsRecordMapper
 from openinfra.infrastructure.simulation_mapper import SimulationRecordMapper
 
 
@@ -7986,6 +8007,585 @@ class PostgreSQLFinOpsRepository(PostgreSQLRepositoryBase, FinOpsRepository):
         loaded = json.loads(value) if isinstance(value, str) else value
         if not isinstance(loaded, Mapping):
             raise ValidationError("finops payload must be a JSON object")
+        return {str(key): item for key, item in loaded.items()}
+
+
+class PostgreSQLGreenOpsRepository(PostgreSQLRepositoryBase, GreenOpsRepository):
+    def save_source(self, source: MeasurementSource) -> None:
+        self._upsert_payload(
+            "greenops_measurement_sources",
+            source.tenant_id,
+            source.id.value,
+            source.as_dict(),
+            {"code": source.code, "active": source.active, "created_at": source.created_at},
+        )
+
+    def find_source(self, tenant_id: TenantId, code: str) -> MeasurementSource | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM greenops_measurement_sources
+            WHERE tenant_id = %(tenant_id)s AND code = %(code)s LIMIT 1
+            """,
+            {"tenant_id": tenant_id.value, "code": code.strip().lower().replace("_", "-")},
+        )
+        return (
+            None if row is None else GreenOpsRecordMapper.source(self._json_mapping(row["payload"]))
+        )
+
+    def list_sources(
+        self, tenant_id: TenantId, pagination: Pagination, active_only: bool = False
+    ) -> MeasurementSourcePage:
+        predicate = "AND active = TRUE" if active_only else ""
+        rows, cursor = self._payload_page(
+            "greenops_measurement_sources", tenant_id, pagination, predicate, {}, "code, id"
+        )
+        return MeasurementSourcePage(
+            tuple(GreenOpsRecordMapper.source(row) for row in rows), cursor
+        )
+
+    def save_policy(self, policy: GreenOpsPolicy) -> None:
+        self._upsert_payload(
+            "greenops_policies",
+            policy.tenant_id,
+            policy.id.value,
+            policy.as_dict(),
+            {"site_code": policy.site_code, "updated_at": policy.updated_at},
+        )
+
+    def get_policy(self, tenant_id: TenantId, site_code: str) -> GreenOpsPolicy | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM greenops_policies
+            WHERE tenant_id = %(tenant_id)s AND site_code = %(site_code)s LIMIT 1
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "site_code": site_code.strip().lower().replace("_", "-"),
+            },
+        )
+        return (
+            None if row is None else GreenOpsRecordMapper.policy(self._json_mapping(row["payload"]))
+        )
+
+    def save_carbon_factor(self, factor: CarbonFactor) -> None:
+        self._upsert_payload(
+            "greenops_carbon_factors",
+            factor.tenant_id,
+            factor.id.value,
+            factor.as_dict(),
+            {
+                "code": factor.code,
+                "region": factor.region,
+                "period_start": factor.period_start,
+                "period_end": factor.period_end,
+                "created_at": factor.created_at,
+            },
+        )
+
+    def list_carbon_factors(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        code: str | None = None,
+        region: str | None = None,
+    ) -> CarbonFactorPage:
+        predicate, params = self._optional_filters(
+            {
+                "code": code.strip().lower().replace("_", "-") if code else None,
+                "region": region.strip().lower().replace("_", "-") if region else None,
+            }
+        )
+        rows, cursor = self._payload_page(
+            "greenops_carbon_factors",
+            tenant_id,
+            pagination,
+            predicate,
+            params,
+            "period_start DESC, created_at DESC, id DESC",
+        )
+        return CarbonFactorPage(tuple(GreenOpsRecordMapper.factor(row) for row in rows), cursor)
+
+    def save_measurement(self, measurement: EnergyMeasurement) -> None:
+        self._ensure_tenant(measurement.tenant_id)
+        payload = json.dumps(measurement.as_dict(), sort_keys=True)
+        payload_digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+        registry_row = self._fetch_one(
+            """
+            INSERT INTO greenops_measurement_idempotency (
+                tenant_id, idempotency_key, measurement_id, period_start,
+                payload_digest, created_at
+            ) VALUES (
+                %(tenant_id)s, %(idempotency_key)s, %(id)s, %(period_start)s,
+                %(payload_digest)s, %(recorded_at)s
+            )
+            ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
+            RETURNING measurement_id, payload_digest
+            """,
+            {
+                "tenant_id": measurement.tenant_id.value,
+                "idempotency_key": measurement.idempotency_key,
+                "id": measurement.id.value,
+                "period_start": measurement.period_start,
+                "payload_digest": payload_digest,
+                "recorded_at": measurement.recorded_at,
+            },
+        )
+        if registry_row is None:
+            registry_row = self._fetch_one(
+                """
+                SELECT measurement_id, payload_digest
+                FROM greenops_measurement_idempotency
+                WHERE tenant_id = %(tenant_id)s
+                  AND idempotency_key = %(idempotency_key)s
+                LIMIT 1
+                """,
+                {
+                    "tenant_id": measurement.tenant_id.value,
+                    "idempotency_key": measurement.idempotency_key,
+                },
+            )
+            if registry_row is None:
+                raise OpenInfraError("GreenOps idempotency reservation could not be verified")
+            if str(registry_row["payload_digest"]) != payload_digest:
+                raise ValidationError(
+                    "GreenOps idempotency key is already bound to another payload"
+                )
+            if str(registry_row["measurement_id"]) != measurement.id.value:
+                raise ValidationError(
+                    "GreenOps idempotent request is already committed or in progress; retry"
+                )
+        self._execute_without_result(
+            """
+            INSERT INTO greenops_energy_measurements (
+                id, tenant_id, idempotency_key, source_code, kind, scope, scope_key,
+                site_code, period_start, period_end, energy_kwh, recorded_at, payload
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(idempotency_key)s, %(source_code)s, %(kind)s,
+                %(scope)s, %(scope_key)s, %(site_code)s, %(period_start)s, %(period_end)s,
+                %(energy_kwh)s, %(recorded_at)s, %(payload)s
+            ) ON CONFLICT (tenant_id, period_start, id) DO UPDATE SET
+                payload = EXCLUDED.payload,
+                period_end = EXCLUDED.period_end,
+                energy_kwh = EXCLUDED.energy_kwh
+            """,
+            {
+                "id": measurement.id.value,
+                "tenant_id": measurement.tenant_id.value,
+                "idempotency_key": measurement.idempotency_key,
+                "source_code": measurement.source_code,
+                "kind": measurement.kind.value,
+                "scope": measurement.scope.value,
+                "scope_key": measurement.scope_key,
+                "site_code": measurement.site_code,
+                "period_start": measurement.period_start,
+                "period_end": measurement.period_end,
+                "energy_kwh": measurement.energy_kwh,
+                "recorded_at": measurement.recorded_at,
+                "payload": payload,
+            },
+        )
+
+    def find_measurement_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> EnergyMeasurement | None:
+        row = self._fetch_one(
+            """
+            SELECT measurement.payload
+            FROM greenops_measurement_idempotency AS registry
+            JOIN greenops_energy_measurements AS measurement
+              ON measurement.tenant_id = registry.tenant_id
+             AND measurement.id = registry.measurement_id
+             AND measurement.period_start = registry.period_start
+            WHERE registry.tenant_id = %(tenant_id)s
+              AND registry.idempotency_key = %(idempotency_key)s
+            LIMIT 1
+            """,
+            {"tenant_id": tenant_id.value, "idempotency_key": idempotency_key.strip()},
+        )
+        return (
+            None
+            if row is None
+            else GreenOpsRecordMapper.measurement(self._json_mapping(row["payload"]))
+        )
+
+    def list_measurements(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        period_start: datetime | None = None,
+        period_end: datetime | None = None,
+        site_code: str | None = None,
+        scope: str | None = None,
+        scope_key: str | None = None,
+        kind: str | None = None,
+    ) -> EnergyMeasurementPage:
+        clauses: list[str] = []
+        params: dict[str, object] = {}
+        if period_start is not None:
+            clauses.append("period_end >= %(period_start)s")
+            params["period_start"] = period_start
+        if period_end is not None:
+            clauses.append("period_start < %(period_end)s")
+            params["period_end"] = period_end
+        for key, value in {
+            "site_code": site_code.strip().lower().replace("_", "-") if site_code else None,
+            "scope": scope.strip().lower().replace("_", "-") if scope else None,
+            "scope_key": scope_key.strip().lower().replace("_", "-") if scope_key else None,
+            "kind": kind.strip().lower() if kind else None,
+        }.items():
+            if value is not None:
+                clauses.append(f"{key} = %({key})s")
+                params[key] = value
+        predicate = "" if not clauses else "AND " + " AND ".join(clauses)
+        rows, cursor = self._payload_page(
+            "greenops_energy_measurements",
+            tenant_id,
+            pagination,
+            predicate,
+            params,
+            "period_start DESC, id DESC",
+        )
+        return EnergyMeasurementPage(
+            tuple(GreenOpsRecordMapper.measurement(row) for row in rows), cursor
+        )
+
+    def save_anomaly(self, anomaly: EnergyAnomaly) -> None:
+        self._upsert_payload(
+            "greenops_anomalies",
+            anomaly.tenant_id,
+            anomaly.id.value,
+            anomaly.as_dict(),
+            {
+                "site_code": anomaly.site_code,
+                "severity": anomaly.severity.value,
+                "detected_at": anomaly.detected_at,
+            },
+        )
+
+    def list_anomalies(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        severity: str | None = None,
+        site_code: str | None = None,
+    ) -> EnergyAnomalyPage:
+        predicate, params = self._optional_filters(
+            {
+                "severity": severity.strip().lower() if severity else None,
+                "site_code": site_code.strip().lower().replace("_", "-") if site_code else None,
+            }
+        )
+        rows, cursor = self._payload_page(
+            "greenops_anomalies",
+            tenant_id,
+            pagination,
+            predicate,
+            params,
+            "detected_at DESC, id DESC",
+        )
+        return EnergyAnomalyPage(tuple(GreenOpsRecordMapper.anomaly(row) for row in rows), cursor)
+
+    def save_forecast(self, forecast: CapacityForecast) -> None:
+        self._upsert_payload(
+            "greenops_forecasts",
+            forecast.tenant_id,
+            forecast.id.value,
+            forecast.as_dict(),
+            {
+                "site_code": forecast.site_code,
+                "dimension": forecast.dimension.value,
+                "generated_at": forecast.generated_at,
+            },
+        )
+
+    def list_forecasts(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        site_code: str | None = None,
+        dimension: str | None = None,
+    ) -> CapacityForecastPage:
+        predicate, params = self._optional_filters(
+            {
+                "site_code": site_code.strip().lower().replace("_", "-") if site_code else None,
+                "dimension": dimension.strip().lower().replace("_", "-") if dimension else None,
+            }
+        )
+        rows, cursor = self._payload_page(
+            "greenops_forecasts",
+            tenant_id,
+            pagination,
+            predicate,
+            params,
+            "generated_at DESC, id DESC",
+        )
+        return CapacityForecastPage(
+            tuple(GreenOpsRecordMapper.forecast(row) for row in rows), cursor
+        )
+
+    def save_candidate(self, candidate: ConsolidationCandidate) -> None:
+        self._upsert_payload(
+            "greenops_consolidation_candidates",
+            candidate.tenant_id,
+            candidate.id.value,
+            candidate.as_dict(),
+            {
+                "site_code": candidate.site_code,
+                "risk_level": candidate.risk_level.value,
+                "generated_at": candidate.generated_at,
+            },
+        )
+
+    def list_candidates(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        site_code: str | None = None,
+        risk_level: str | None = None,
+    ) -> ConsolidationCandidatePage:
+        predicate, params = self._optional_filters(
+            {
+                "site_code": site_code.strip().lower().replace("_", "-") if site_code else None,
+                "risk_level": risk_level.strip().lower() if risk_level else None,
+            }
+        )
+        rows, cursor = self._payload_page(
+            "greenops_consolidation_candidates",
+            tenant_id,
+            pagination,
+            predicate,
+            params,
+            "generated_at DESC, id DESC",
+        )
+        return ConsolidationCandidatePage(
+            tuple(GreenOpsRecordMapper.candidate(row) for row in rows), cursor
+        )
+
+    def save_score(self, score: GreenScore) -> None:
+        self._upsert_payload(
+            "greenops_scores",
+            score.tenant_id,
+            score.id.value,
+            score.as_dict(),
+            {"scope": score.scope, "generated_at": score.generated_at},
+        )
+
+    def list_scores(
+        self, tenant_id: TenantId, pagination: Pagination, scope: str | None = None
+    ) -> GreenScorePage:
+        predicate, params = self._optional_filters(
+            {
+                "scope": scope.strip().lower().replace("_", "-") if scope else None,
+            }
+        )
+        rows, cursor = self._payload_page(
+            "greenops_scores",
+            tenant_id,
+            pagination,
+            predicate,
+            params,
+            "generated_at DESC, id DESC",
+        )
+        return GreenScorePage(tuple(GreenOpsRecordMapper.score(row) for row in rows), cursor)
+
+    def save_report(self, report: SustainabilityReport) -> None:
+        self._upsert_payload(
+            "greenops_reports",
+            report.tenant_id,
+            report.id.value,
+            report.as_dict(),
+            {
+                "site_code": report.site_code,
+                "scope": report.scope,
+                "reproducibility_key": report.reproducibility_key(),
+                "generated_at": report.generated_at,
+            },
+        )
+
+    def get_report(self, tenant_id: TenantId, report_id: str) -> SustainabilityReport | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM greenops_reports
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s LIMIT 1
+            """,
+            {"tenant_id": tenant_id.value, "id": EntityId.from_value(report_id).value},
+        )
+        return (
+            None if row is None else GreenOpsRecordMapper.report(self._json_mapping(row["payload"]))
+        )
+
+    def find_report_by_reproducibility_key(
+        self, tenant_id: TenantId, reproducibility_key: str
+    ) -> SustainabilityReport | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM greenops_reports
+            WHERE tenant_id = %(tenant_id)s AND reproducibility_key = %(key)s LIMIT 1
+            """,
+            {"tenant_id": tenant_id.value, "key": reproducibility_key.strip().lower()},
+        )
+        return (
+            None if row is None else GreenOpsRecordMapper.report(self._json_mapping(row["payload"]))
+        )
+
+    def list_reports(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        site_code: str | None = None,
+        scope: str | None = None,
+    ) -> SustainabilityReportPage:
+        clauses: list[str] = []
+        params: dict[str, object] = {}
+        if site_code:
+            clauses.append("site_code = %(site_code)s")
+            params["site_code"] = site_code.strip().lower().replace("_", "-")
+        if scope:
+            clauses.append("scope LIKE %(scope)s")
+            params["scope"] = scope.strip().lower().replace("_", "-") + ":%"
+        predicate = "" if not clauses else "AND " + " AND ".join(clauses)
+        rows, cursor = self._payload_page(
+            "greenops_reports",
+            tenant_id,
+            pagination,
+            predicate,
+            params,
+            "generated_at DESC, id DESC",
+        )
+        return SustainabilityReportPage(
+            tuple(GreenOpsRecordMapper.report(row) for row in rows), cursor
+        )
+
+    def append_event(self, event: DomainEvent) -> None:
+        self._ensure_tenant(event.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO greenops_event_outbox (
+                id, tenant_id, aggregate_id, event_name, payload, occurred_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(aggregate_id)s, %(event_name)s,
+                %(payload)s, %(occurred_at)s
+            ) ON CONFLICT (tenant_id, id) DO NOTHING
+            """,
+            {
+                "id": event.id.value,
+                "tenant_id": event.tenant_id.value,
+                "aggregate_id": event.aggregate_id.value,
+                "event_name": event.name,
+                "payload": json.dumps(event.payload, sort_keys=True),
+                "occurred_at": event.occurred_at,
+            },
+        )
+
+    def _upsert_payload(
+        self,
+        table: str,
+        tenant_id: TenantId,
+        identifier: str,
+        payload: dict[str, object],
+        values: dict[str, object],
+    ) -> None:
+        allowed = {
+            "greenops_measurement_sources": ("code", "active", "created_at"),
+            "greenops_policies": ("site_code", "updated_at"),
+            "greenops_carbon_factors": (
+                "code",
+                "region",
+                "period_start",
+                "period_end",
+                "created_at",
+            ),
+            "greenops_anomalies": ("site_code", "severity", "detected_at"),
+            "greenops_forecasts": ("site_code", "dimension", "generated_at"),
+            "greenops_consolidation_candidates": ("site_code", "risk_level", "generated_at"),
+            "greenops_scores": ("scope", "generated_at"),
+            "greenops_reports": ("site_code", "scope", "reproducibility_key", "generated_at"),
+        }
+        columns = allowed.get(table)
+        if columns is None or tuple(values) != columns:
+            raise ValueError("unsupported GreenOps payload table or columns")
+        self._ensure_tenant(tenant_id)
+        insert_columns = ", ".join(columns)
+        insert_values = ", ".join(f"%({column})s" for column in columns)
+        updates = ", ".join(f"{column} = EXCLUDED.{column}" for column in columns)
+        query = f"""
+            INSERT INTO {table} (id, tenant_id, {insert_columns}, payload)
+            VALUES (%(id)s, %(tenant_id)s, {insert_values}, %(payload)s)
+            ON CONFLICT (tenant_id, id) DO UPDATE SET {updates}, payload = EXCLUDED.payload
+        """  # nosec B608 -- table and columns are validated against a closed internal whitelist
+        self._execute_without_result(
+            query,
+            {
+                "id": identifier,
+                "tenant_id": tenant_id.value,
+                "payload": json.dumps(payload, sort_keys=True),
+                **values,
+            },
+        )
+
+    def _payload_page(
+        self,
+        table: str,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        predicate: str,
+        params: dict[str, object],
+        ordering: str,
+    ) -> tuple[list[dict[str, Any]], str | None]:
+        allowed = {
+            ("greenops_measurement_sources", "code, id"),
+            ("greenops_carbon_factors", "period_start DESC, created_at DESC, id DESC"),
+            ("greenops_energy_measurements", "period_start DESC, id DESC"),
+            ("greenops_anomalies", "detected_at DESC, id DESC"),
+            ("greenops_forecasts", "generated_at DESC, id DESC"),
+            ("greenops_consolidation_candidates", "generated_at DESC, id DESC"),
+            ("greenops_scores", "generated_at DESC, id DESC"),
+            ("greenops_reports", "generated_at DESC, id DESC"),
+        }
+        if (table, ordering) not in allowed:
+            raise ValueError("unsupported GreenOps pagination query")
+        offset = self._offset(pagination.cursor)
+        query = f"""
+            SELECT payload FROM {table}
+            WHERE tenant_id = %(tenant_id)s {predicate}
+            ORDER BY {ordering}
+            LIMIT %(fetch_limit)s OFFSET %(offset)s
+        """  # nosec B608 -- table and ordering are validated against a closed internal whitelist
+        rows = self._fetch_all(
+            query,
+            {
+                "tenant_id": tenant_id.value,
+                "fetch_limit": pagination.limit + 1,
+                "offset": offset,
+                **params,
+            },
+        )
+        has_more = len(rows) > pagination.limit
+        selected = rows[: pagination.limit]
+        return [self._json_mapping(row["payload"]) for row in selected], (
+            str(offset + pagination.limit) if has_more else None
+        )
+
+    @staticmethod
+    def _optional_filters(values: dict[str, object | None]) -> tuple[str, dict[str, object]]:
+        params = {key: value for key, value in values.items() if value is not None}
+        return " ".join(f"AND {key} = %({key})s" for key in params), params
+
+    @staticmethod
+    def _offset(cursor: str | None) -> int:
+        try:
+            value = int(cursor or "0")
+        except ValueError as exc:
+            raise ValidationError("pagination cursor must be a numeric offset") from exc
+        if value < 0:
+            raise ValidationError("pagination cursor must be positive")
+        return value
+
+    @staticmethod
+    def _json_mapping(value: object) -> dict[str, Any]:
+        loaded = json.loads(value) if isinstance(value, str) else value
+        if not isinstance(loaded, Mapping):
+            raise ValidationError("GreenOps payload must be a JSON object")
         return {str(key): item for key, item in loaded.items()}
 
 

@@ -1,6 +1,29 @@
-# OpenInfra v0.29.97
+# OpenInfra v0.29.98
 
-OpenInfra v0.29.97 réalise **P16 / EPIC-1603 — FinOps et coûts** et réorganise la navigation métier : **Flux réseau** et **Conformité réseau** sont rangés sous IPAM, tandis que **Certificats & PKI** est rangé sous Sécurité. Les routes, commandes et permissions publiques restent compatibles.
+OpenInfra v0.29.98 réalise **P16 / EPIC-1604 — GreenOps**. Le parcours est regroupé sous **DCIM → GreenOps**, avec des mesures énergétiques observées ou estimées, des facteurs carbone versionnés, des rapports PUE/CO₂e reproductibles, des prévisions de capacité et des recommandations consultatives. Les routes, commandes et permissions historiques restent compatibles.
+
+## GreenOps, énergie et capacité
+
+OpenInfra distingue toujours les mesures observées des estimations. Chaque donnée conserve sa source, sa période, son périmètre, sa méthode et son empreinte d’idempotence. Les rapports utilisent `Decimal`, publient les hypothèses PUE et les facteurs carbone appliqués, puis exposent l’énergie IT, l’énergie totale, les émissions estimées, les anomalies, les prévisions et les scores GreenOps par site, rack, PDU, actif ou application.
+
+Les recommandations de consolidation ou de capacité sont strictement consultatives et portent `requires_human_approval=true`. Elles ne déplacent, n’arrêtent et ne modifient aucune ressource de production.
+
+```bash
+openinfra greenops measurement-ingest --tenant default \
+  --admin-token "$OPENINFRA_TOKEN" \
+  --idempotency-key greenops-par01-20260701 \
+  --source-code dcim-meter --kind observed --scope rack \
+  --scope-key rack-a01 --site-code par-01 \
+  --period-start 2026-07-01T00:00:00+00:00 \
+  --period-end 2026-07-02T00:00:00+00:00 --energy-kwh 125.4
+
+openinfra greenops report-generate --tenant default \
+  --admin-token "$OPENINFRA_TOKEN" --site-code par-01 \
+  --period-start 2026-07-01 --period-end 2026-07-31 \
+  --scope site
+```
+
+Voir `docs/operations/greenops-energy-capacity.md` pour les unités, les hypothèses, les permissions, les API/CLI, la persistance et les procédures de validation.
 
 ## FinOps et coûts
 

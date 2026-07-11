@@ -4,7 +4,7 @@ import argparse
 import json
 import os
 import sys
-from datetime import date
+from datetime import date, datetime
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -193,6 +193,24 @@ from openinfra.application.flow_matrix_services import (
     RetireFlowDeclarationCommand,
     SubmitFlowObservationCommand,
     UpsertFlowDeclarationCommand,
+)
+from openinfra.application.greenops_services import (
+    CreateCarbonFactorCommand,
+    CreateMeasurementSourceCommand,
+    ExportSustainabilityReportCommand,
+    GenerateSustainabilityReportCommand,
+    GetGreenOpsPolicyCommand,
+    GetSustainabilityReportCommand,
+    IngestEnergyMeasurementCommand,
+    ListCapacityForecastsCommand,
+    ListCarbonFactorsCommand,
+    ListConsolidationCandidatesCommand,
+    ListEnergyAnomaliesCommand,
+    ListEnergyMeasurementsCommand,
+    ListGreenScoresCommand,
+    ListMeasurementSourcesCommand,
+    ListSustainabilityReportsCommand,
+    UpsertGreenOpsPolicyCommand,
 )
 from openinfra.application.identity_services import (
     AddUserToGroupCommand,
@@ -1403,6 +1421,223 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                         cursor=query.get("cursor", [None])[0],
                         status=query.get("status", [None])[0],
                         source=query.get("source", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/greenops/measurement-sources":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.greenops_service.list_sources(
+                    ListMeasurementSourcesCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        active_only=self._first_query_value(query, "active_only", "false").lower()
+                        in {"1", "true", "yes"},
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/greenops/policies/get":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.greenops_service.get_policy(
+                    GetGreenOpsPolicyCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        site_code=self._first_query_value(query, "site_code"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/greenops/carbon-factors":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.greenops_service.list_carbon_factors(
+                    ListCarbonFactorsCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        code=query.get("code", [None])[0],
+                        region=query.get("region", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/greenops/energy-measurements":
+            try:
+                query = parse_qs(parsed.query)
+                start = query.get("period_start", [None])[0]
+                end = query.get("period_end", [None])[0]
+                result = self.server.application.greenops_service.list_measurements(
+                    ListEnergyMeasurementsCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        period_start=(
+                            None
+                            if start is None
+                            else datetime.fromisoformat(start.replace("Z", "+00:00"))
+                        ),
+                        period_end=(
+                            None
+                            if end is None
+                            else datetime.fromisoformat(end.replace("Z", "+00:00"))
+                        ),
+                        site_code=query.get("site_code", [None])[0],
+                        scope=query.get("scope", [None])[0],
+                        scope_key=query.get("scope_key", [None])[0],
+                        kind=query.get("kind", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/greenops/reports":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.greenops_service.list_reports(
+                    ListSustainabilityReportsCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        site_code=query.get("site_code", [None])[0],
+                        scope=query.get("scope", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/greenops/reports/get":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.greenops_service.get_report(
+                    GetSustainabilityReportCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        report_id=self._first_query_value(query, "report_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/greenops/reports/export":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.greenops_service.export_report(
+                    ExportSustainabilityReportCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        report_id=self._first_query_value(query, "report_id"),
+                        format=self._first_query_value(query, "format", "json"),
+                    )
+                )
+                BinaryHttpResponder(self).send(
+                    HTTPStatus.OK, result.content, result.content_type, result.filename
+                )
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/greenops/anomalies":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.greenops_service.list_anomalies(
+                    ListEnergyAnomaliesCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        severity=query.get("severity", [None])[0],
+                        site_code=query.get("site_code", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/greenops/capacity-forecasts":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.greenops_service.list_forecasts(
+                    ListCapacityForecastsCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        site_code=query.get("site_code", [None])[0],
+                        dimension=query.get("dimension", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/greenops/consolidation-candidates":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.greenops_service.list_candidates(
+                    ListConsolidationCandidatesCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        site_code=query.get("site_code", [None])[0],
+                        risk_level=query.get("risk_level", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/greenops/green-scores":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.greenops_service.list_scores(
+                    ListGreenScoresCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        scope=query.get("scope", [None])[0],
                     )
                 )
                 responder.send(HTTPStatus.OK, result.as_dict())
@@ -2759,6 +2994,170 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     )
                 )
                 responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/greenops/measurement-sources/create":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.greenops_service.create_source(
+                    CreateMeasurementSourceCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        actor=str(payload.get("actor", "api")),
+                        code=self._required_payload_value(payload, "code"),
+                        name=self._required_payload_value(payload, "name"),
+                        source_type=self._required_payload_value(payload, "source_type"),
+                        owner=self._required_payload_value(payload, "owner"),
+                        active=self._payload_bool(payload, "active", True),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/greenops/policies/upsert":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.greenops_service.upsert_policy(
+                    UpsertGreenOpsPolicyCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        actor=str(payload.get("actor", "api")),
+                        site_code=self._required_payload_value(payload, "site_code"),
+                        default_pue=self._required_payload_value(payload, "default_pue"),
+                        energy_cost_per_kwh=self._required_payload_value(
+                            payload, "energy_cost_per_kwh"
+                        ),
+                        currency=self._required_payload_value(payload, "currency"),
+                        carbon_factor_code=self._required_payload_value(
+                            payload, "carbon_factor_code"
+                        ),
+                        underutilized_percent=str(payload.get("underutilized_percent", "20")),
+                        warning_capacity_percent=str(payload.get("warning_capacity_percent", "80")),
+                        critical_capacity_percent=str(
+                            payload.get("critical_capacity_percent", "90")
+                        ),
+                        minimum_samples=int(payload.get("minimum_samples", 3)),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/greenops/carbon-factors/create":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.greenops_service.create_carbon_factor(
+                    CreateCarbonFactorCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        actor=str(payload.get("actor", "api")),
+                        code=self._required_payload_value(payload, "code"),
+                        region=self._required_payload_value(payload, "region"),
+                        grams_co2e_per_kwh=self._required_payload_value(
+                            payload, "grams_co2e_per_kwh"
+                        ),
+                        source_name=self._required_payload_value(payload, "source_name"),
+                        period_start=date.fromisoformat(
+                            self._required_payload_value(payload, "period_start")
+                        ),
+                        period_end=date.fromisoformat(
+                            self._required_payload_value(payload, "period_end")
+                        ),
+                        source_uri=self._optional_payload_value(payload, "source_uri"),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/greenops/energy-measurements/ingest":
+            try:
+                payload = self._read_json_body()
+                metadata = payload.get("metadata", {})
+                if not isinstance(metadata, dict):
+                    raise ValidationError("GreenOps metadata must be a JSON object")
+                result = self.server.application.greenops_service.ingest_measurement(
+                    IngestEnergyMeasurementCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        actor=str(payload.get("actor", "api")),
+                        idempotency_key=self._required_payload_value(payload, "idempotency_key"),
+                        source_code=self._required_payload_value(payload, "source_code"),
+                        kind=self._required_payload_value(payload, "kind"),
+                        scope=self._required_payload_value(payload, "scope"),
+                        scope_key=self._required_payload_value(payload, "scope_key"),
+                        site_code=self._required_payload_value(payload, "site_code"),
+                        period_start=datetime.fromisoformat(
+                            self._required_payload_value(payload, "period_start").replace(
+                                "Z", "+00:00"
+                            )
+                        ),
+                        period_end=datetime.fromisoformat(
+                            self._required_payload_value(payload, "period_end").replace(
+                                "Z", "+00:00"
+                            )
+                        ),
+                        energy_kwh=self._required_payload_value(payload, "energy_kwh"),
+                        application_key=self._optional_payload_value(payload, "application_key"),
+                        it_energy_kwh=self._optional_payload_value(payload, "it_energy_kwh"),
+                        facility_energy_kwh=self._optional_payload_value(
+                            payload, "facility_energy_kwh"
+                        ),
+                        utilization_percent=self._optional_payload_value(
+                            payload, "utilization_percent"
+                        ),
+                        energy_capacity_percent=self._optional_payload_value(
+                            payload, "energy_capacity_percent"
+                        ),
+                        cooling_capacity_percent=self._optional_payload_value(
+                            payload, "cooling_capacity_percent"
+                        ),
+                        space_capacity_percent=self._optional_payload_value(
+                            payload, "space_capacity_percent"
+                        ),
+                        weight_capacity_percent=self._optional_payload_value(
+                            payload, "weight_capacity_percent"
+                        ),
+                        metadata=dict(metadata),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/greenops/reports/generate":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.greenops_service.generate_report(
+                    GenerateSustainabilityReportCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        actor=str(payload.get("actor", "api")),
+                        site_code=self._required_payload_value(payload, "site_code"),
+                        period_start=date.fromisoformat(
+                            self._required_payload_value(payload, "period_start")
+                        ),
+                        period_end=date.fromisoformat(
+                            self._required_payload_value(payload, "period_end")
+                        ),
+                        scope=str(payload.get("scope", "site")),
+                        scope_key=self._optional_payload_value(payload, "scope_key"),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result.as_dict())
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
@@ -6731,6 +7130,24 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "software_license": "/api/v1/itam/software-license",
                     "software_license_assignment": "/api/v1/itam/software-license/assignment",
                     "software_license_compliance": "/api/v1/itam/software-license/compliance",
+                },
+                "greenops": {
+                    "measurement_sources": "/api/v1/greenops/measurement-sources",
+                    "measurement_source_create": "/api/v1/greenops/measurement-sources/create",
+                    "policy_get": "/api/v1/greenops/policies/get",
+                    "policy_upsert": "/api/v1/greenops/policies/upsert",
+                    "carbon_factors": "/api/v1/greenops/carbon-factors",
+                    "carbon_factor_create": "/api/v1/greenops/carbon-factors/create",
+                    "energy_measurements": "/api/v1/greenops/energy-measurements",
+                    "energy_measurement_ingest": "/api/v1/greenops/energy-measurements/ingest",
+                    "reports": "/api/v1/greenops/reports",
+                    "report_get": "/api/v1/greenops/reports/get",
+                    "report_generate": "/api/v1/greenops/reports/generate",
+                    "report_export": "/api/v1/greenops/reports/export",
+                    "anomalies": "/api/v1/greenops/anomalies",
+                    "capacity_forecasts": "/api/v1/greenops/capacity-forecasts",
+                    "consolidation_candidates": "/api/v1/greenops/consolidation-candidates",
+                    "green_scores": "/api/v1/greenops/green-scores",
                 },
                 "finops": {
                     "allocation_rules": "/api/v1/finops/allocation-rules",

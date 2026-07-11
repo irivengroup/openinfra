@@ -1,6 +1,6 @@
-# OpenInfra v0.30.1
+# OpenInfra v0.30.4
 
-OpenInfra 0.30.1 poursuit le socle d’exécution haute performance des éditions Pro et Entreprise. Cette version conserve la Clean Architecture, le DDD, les contrats métier, la CLI, REST, OpenAPI, RBAC et les migrations, tout en remplaçant les principaux plafonds techniques du runtime HTTP et de l’accès PostgreSQL.
+OpenInfra 0.30.4 poursuit le socle d’exécution haute performance des éditions Pro et Entreprise. Cette version conserve la Clean Architecture, le DDD, les contrats métier, la CLI, REST, OpenAPI, RBAC et les migrations, tout en remplaçant les principaux plafonds techniques du runtime HTTP et de l’accès PostgreSQL.
 
 ## Plan de données PostgreSQL haute performance — P20 / EPIC-2001
 
@@ -13,6 +13,8 @@ OpenInfra 0.30.1 poursuit le socle d’exécution haute performance des édition
 - métriques d’acquisition primaire, réplique et fallback par worker.
 
 Voir `docs/operations/postgresql-read-routing.md`.
+
+Le correctif `0.30.4` supprime également la substitution `psql` invalide utilisée par le contrôle final de `pg_hba_file_rules`. Le bootstrap peut désormais être relancé directement après l’échec observé en `0.30.2`, sans supprimer le volume primaire.
 
 ## Socle haute performance livré en P19
 
@@ -39,7 +41,7 @@ Le benchmark P19 détecte les régressions du transport applicatif ; il ne const
 
 ## Séquencement professionnel P19 / P20
 
-| Capacité | État 0.30.1 | Étape suivante |
+| Capacité | État 0.30.4 | Étape suivante |
 |---|---|---|
 | ASGI API/Web, backpressure, workers | Livrée | Observabilité fine P20 |
 | Pool PostgreSQL borné | Livré | PgBouncer et routage lecture/écriture livrés en EPIC-2001 |

@@ -53,6 +53,17 @@ Les gates bloquent la livraison si :
 - l'asset i18n manque dans le wheel ;
 - les tests de localisation, le lint ou le build frontend échouent.
 
+## Hiérarchie chromatique des textes
+
+Le thème n’utilise pas les gris Bootstrap par défaut pour le contenu fonctionnel. La lisibilité et l’identité visuelle reposent sur quatre jetons sémantiques explicitement bleus :
+
+- `--openinfra-text-primary: #001b41` pour le texte principal et les titres ;
+- `--openinfra-text-secondary: #234f7d` pour les sous-titres et informations secondaires importantes ;
+- `--openinfra-text-muted: #315d8a` pour les métadonnées et aides contextuelles ;
+- `--openinfra-text-subtle: #3d648d` pour les placeholders et informations de moindre priorité.
+
+Les utilitaires Bootstrap `text-secondary`, `text-muted` et `text-body-secondary` sont redéfinis avec ces jetons. Les couleurs sont des valeurs opaques et déterministes : aucun mélange alpha du bleu nuit sur un fond clair n’est utilisé pour les textes, car ce mélange produisait un rendu grisâtre variable. Chaque niveau conserve un contraste WCAG 2.2 AA supérieur à 4,5:1 sur les surfaces blanches, bleu très pâle et fond de page OpenInfra. Les thèmes React et runtime packagé doivent rester strictement identiques.
+
 ## Accessibilité transversale
 
 Toutes les pages et tous les composants appliquent la baseline WCAG 2.2 AA décrite dans `docs/ui/WEB_ACCESSIBILITY.md`. Le contrat couvre la navigation clavier, les lecteurs d’écran, les annonces dynamiques, les formulaires, le focus, le contraste, les couleurs forcées, la réduction des mouvements et les alternatives textuelles. Aucun état métier n’est communiqué uniquement par une couleur ou par un son.

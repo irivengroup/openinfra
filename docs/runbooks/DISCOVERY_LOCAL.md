@@ -12,7 +12,7 @@ openinfra discovery local-plan \
   --name "Discovery PAR1" \
   --scope site/par1 \
   --protocol snmp \
-  --target 10.20.30.10 \
+  --target 10.20.30.20 \
   --target srv-app-01 \
   --credential-secret-ref vault://openinfra/discovery/local/par1 \
   --max-concurrency 4 \
@@ -30,7 +30,7 @@ openinfra discovery local-plan \
   "name": "Discovery PAR1",
   "scope": "site/par1",
   "protocol": "snmp",
-  "targets": ["10.20.30.10", "srv-app-01"],
+  "targets": ["10.20.30.20", "srv-app-01"],
   "credential_secret_ref": "vault://openinfra/discovery/local/par1",
   "max_concurrency": 4,
   "rate_limit_per_minute": 120

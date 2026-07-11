@@ -12,7 +12,15 @@ fi
 : "${OPENINFRA_POSTGRES_REPLICATION_USER:?replication user is required}"
 : "${OPENINFRA_POSTGRES_REPLICATION_PASSWORD:?replication password is required}"
 
-if [ ! -s "$PGDATA/PG_VERSION" ]; then
+initialization_marker="$PGDATA/.openinfra-basebackup-complete"
+if [ ! -f "$initialization_marker" ] \
+    && [ -s "$PGDATA/PG_VERSION" ] \
+    && [ -f "$PGDATA/standby.signal" ] \
+    && grep -q '^primary_conninfo' "$PGDATA/postgresql.auto.conf" 2>/dev/null; then
+    touch "$initialization_marker"
+fi
+
+if [ ! -f "$initialization_marker" ]; then
     find "$PGDATA" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
     export PGPASSWORD=$OPENINFRA_POSTGRES_REPLICATION_PASSWORD
     until pg_isready -h "$OPENINFRA_POSTGRES_PRIMARY_HOST" -p 5432 >/dev/null 2>&1; do
@@ -29,6 +37,12 @@ if [ ! -s "$PGDATA/PG_VERSION" ]; then
         --checkpoint=fast \
         --no-password
     unset PGPASSWORD
+
+    if [ ! -s "$PGDATA/PG_VERSION" ] || [ ! -f "$PGDATA/standby.signal" ]; then
+        echo "pg_basebackup completed without a valid standby layout" >&2
+        exit 70
+    fi
+    touch "$initialization_marker"
 fi
 
 exec docker-entrypoint.sh postgres \

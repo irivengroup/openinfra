@@ -48,7 +48,7 @@ Surveiller :
 
 ## Déploiement et mise à niveau
 
-Le service `replication-bootstrap` crée ou remet en conformité le rôle de réplication à chaque déploiement. Cette étape fonctionne aussi avec un volume primaire existant. Un volume standby vide est initialisé par `pg_basebackup`; un volume déjà initialisé est conservé.
+Le service `replication-bootstrap` crée ou remet en conformité le rôle de réplication et la règle `pg_hba.conf` dédiée à chaque déploiement. Cette étape fonctionne aussi avec un volume primaire existant. Un volume standby vide est initialisé par `pg_basebackup`; un volume déjà initialisé est conservé.
 
 Ne jamais réutiliser le volume primaire pour le standby. Avant suppression d’un volume standby, vérifier qu’il ne contient aucune donnée unique et qu’un nouveau base backup peut être produit.
 
@@ -60,3 +60,15 @@ Ne jamais réutiliser le volume primaire pour le standby. Avant suppression d’
 4. Ne supprimer le volume standby qu’après validation d’une reconstruction complète.
 
 Le rollback ne nécessite aucune migration et ne modifie aucune donnée métier.
+
+## Réparation d’un déploiement 0.30.1
+
+L’erreur `no pg_hba.conf entry for replication connection` est corrigée en 0.30.4. Conserver le volume primaire, recréer le réseau Compose puis reconstruire le standby :
+
+```powershell
+docker compose --env-file .env down --remove-orphans
+docker volume rm openinfra-runtime_openinfra-postgres-replica-data 2>$null
+docker compose --env-file .env up --build -d postgres replication-bootstrap postgres-replica pgbouncer-primary pgbouncer-replica migrate auth-bootstrap api web pgadmin
+```
+
+Ne jamais supprimer `openinfra-postgres-data` pendant cette réparation. Le sous-réseau `OPENINFRA_DOCKER_SUBNET` doit être libre sur l’hôte ; sa valeur par défaut est `172.30.0.0/24`.

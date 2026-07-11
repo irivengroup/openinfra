@@ -53,9 +53,13 @@ services:
       OPENINFRA_POSTGRES_PRIMARY_HOST: postgres
       OPENINFRA_POSTGRES_REPLICATION_USER: ${OPENINFRA_POSTGRES_REPLICATION_USER:-openinfra_replica}
       OPENINFRA_POSTGRES_REPLICATION_PASSWORD: ${OPENINFRA_POSTGRES_REPLICATION_PASSWORD:?OPENINFRA_POSTGRES_REPLICATION_PASSWORD is required}
+      OPENINFRA_POSTGRES_REPLICATION_CIDR: ${OPENINFRA_DOCKER_SUBNET:-172.30.0.0/24}
+      PGDATA: /var/lib/postgresql/data
+    user: postgres
     entrypoint:
     - /usr/local/bin/openinfra-bootstrap-replication-role
     volumes:
+    - openinfra-postgres-data:/var/lib/postgresql/data
     - ./docker/postgresql/bootstrap-replication-role.sh:/usr/local/bin/openinfra-bootstrap-replication-role:ro
     networks:
     - openinfra
@@ -161,7 +165,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.1}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.4}
     container_name: openinfra-migrate
     restart: 'no'
     depends_on:
@@ -178,7 +182,7 @@ services:
     networks:
     - openinfra
   auth-bootstrap:
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.1}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.4}
     container_name: openinfra-auth-bootstrap
     restart: 'no'
     depends_on:
@@ -206,7 +210,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.1}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.4}
     container_name: openinfra-api
     restart: unless-stopped
     depends_on:
@@ -254,7 +258,7 @@ services:
     networks:
     - openinfra
   web:
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.1}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.4}
     container_name: openinfra-web
     restart: unless-stopped
     depends_on:
@@ -334,7 +338,7 @@ services:
     networks:
     - openinfra
   smoke:
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.1}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.4}
     container_name: openinfra-smoke
     restart: 'no'
     depends_on:
@@ -363,3 +367,6 @@ volumes:
 networks:
   openinfra:
     driver: bridge
+    ipam:
+      config:
+      - subnet: ${OPENINFRA_DOCKER_SUBNET:-172.30.0.0/24}

@@ -16,6 +16,7 @@ Le portail React et le runtime web packagé utilisent **WCAG 2.2 niveau AA** com
 ## Accessibilité visuelle et motrice
 
 - le focus visible utilise un contour à double contraste ;
+- les textes principaux, secondaires, atténués et subtils utilisent des bleus opaques déterministes, tous validés à au moins 4,5:1 sur les surfaces claires OpenInfra ;
 - les états actif, survol et focus ne reposent jamais uniquement sur la couleur ;
 - les modes `prefers-contrast: more` et couleurs forcées sont pris en charge ;
 - les cibles tactiles atteignent au moins 44 px sur les périphériques à pointeur grossier ;

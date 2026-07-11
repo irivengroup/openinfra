@@ -13,7 +13,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.30.1"
+    EXPECTED_VERSION = "0.30.4"
     EXPECTED_DATA_PLANE_ROUTES = ("/api/v1/database/routing",)
     EXPECTED_GRAPH_ROUTES = (
         "/api/v1/graph/traverse",

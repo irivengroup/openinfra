@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.30.4 - 2026-07-11
+
+### Correctifs UI
+
+- restauration d’une hiérarchie visuelle explicitement bleu nuit pour les textes principaux et secondaires ;
+- remplacement des couleurs secondaires calculées par transparence, dont le rendu pouvait dériver vers le gris foncé selon le fond et le navigateur ;
+- ajout de quatre jetons sémantiques de texte : principal, secondaire, atténué et subtil ;
+- alignement des utilitaires Bootstrap `text-secondary`, `text-muted` et `text-body-secondary` sur la palette OpenInfra ;
+- correction de la variable CSS non définie utilisée par la notice des champs obligatoires ;
+- parité stricte des thèmes React et runtime packagé ;
+- tests automatisés de teinte bleue, de contraste WCAG AA et d’absence de réintroduction des gris Bootstrap.
+
+## 0.30.3 - 2026-07-11
+
+### Correctifs
+
+- correction de la validation post-rechargement de `pg_hba.conf` : suppression du placeholder `psql` non interprété dans une commande `-c` ;
+- utilisation d’un littéral SQL sûr après validation stricte du nom du rôle de réplication ;
+- ajout d’un test de non-régression qui échoue si `:'replication_user'` est transmis littéralement à PostgreSQL ;
+- conservation de l’idempotence du bootstrap et compatibilité avec les volumes primaire/standby déjà créés.
+
+## 0.30.2 - 2026-07-11
+
+### Correctifs
+
+- correction du bootstrap de réplication PostgreSQL : ajout idempotent d’une règle `pg_hba.conf` dédiée à la réplication physique ;
+- rechargement et validation explicites de `pg_hba.conf` avant le démarrage du standby ;
+- réseau Compose déterministe et configurable via `OPENINFRA_DOCKER_SUBNET` ;
+- prise en charge des volumes primaires déjà initialisés ;
+- reconstruction sûre d’un volume standby partiellement initialisé ;
+- tests de non-régression sur l’idempotence, la sécurité et la topologie Compose.
+
 ## 0.30.1 - 2026-07-11
 
 - Réalisation prioritaire de P20 / EPIC-2001 : PgBouncer en mode transaction, standby PostgreSQL chaud et routage lecture/écriture borné pour Pro et Entreprise.

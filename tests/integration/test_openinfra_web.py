@@ -548,7 +548,12 @@ class TestOpenInfraWeb:
         assert "--bs-btn-bg: #24d8ab" in static_css
         assert "--bs-btn-focus-shadow-rgb: 36, 216, 171" in static_css
         assert "openinfra-submit-btn" not in static_js + main_js + static_css
-        assert "color: #003D8F !important" in static_css
+        assert "--openinfra-text-primary: #001b41" in static_css
+        assert "--openinfra-text-secondary: #234f7d" in static_css
+        assert "--openinfra-text-muted: #315d8a" in static_css
+        assert "--openinfra-text-subtle: #3d648d" in static_css
+        assert "color: var(--openinfra-blue) !important" in static_css
+        assert "color: rgba(var(--openinfra-ink-rgb)" not in static_css
         assert "background: linear-gradient(135deg, rgba(0, 174, 239, .08)" not in static_css
         assert "border: 1px solid rgba(0, 174, 239, .18)" not in static_css
         assert ".form-control:focus" in static_css

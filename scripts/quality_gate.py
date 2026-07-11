@@ -31,10 +31,11 @@ class ContractFileGuard:
 
     def assert_sources_present(self) -> None:
         required = (
-            self._project_root / "docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1/VERSION",
-            self._project_root / "docs/specifications/OpenInfra-Roadmap-Developpement-v2/VERSION",
+            self._project_root / "docs/specifications/OpenInfra-CDC-SFG-STG-v4.9.0/VERSION",
+            self._project_root / "docs/specifications/OpenInfra-Roadmap-Developpement-v2.1/VERSION",
             self._project_root
-            / "docs/specifications/OpenInfra-Roadmap-Developpement-v2/14-alignement-cdc-v4.8.1.csv",
+            / "docs/specifications/OpenInfra-Roadmap-Developpement-v2.1"
+            / "14-alignement-cdc-v4.9.0.csv",
         )
         missing = [str(path) for path in required if not path.is_file()]
         if missing:
@@ -315,6 +316,92 @@ class DockerRuntimeGuard:
             raise QualityGateError("docker environment manager must generate pgAdmin4 credentials")
 
 
+class HighPerformanceRuntimeGuard:
+    def __init__(self, project_root: Path) -> None:
+        self._project_root = project_root
+
+    def assert_pro_enterprise_runtime_is_bounded(self) -> None:
+        required_files = (
+            "src/openinfra/interfaces/asgi.py",
+            "src/openinfra/interfaces/asgi_web.py",
+            "docs/architecture/high-performance-pro-enterprise.md",
+            "docs/runbooks/HIGH_PERFORMANCE_RUNTIME.md",
+            "tests/integration/test_asgi_performance_runtime.py",
+            "tests/performance/test_high_performance_runtime_benchmark.py",
+            "scripts/benchmark_high_performance_runtime.py",
+            "docs/specifications/OpenInfra-CDC-SFG-STG-v4.9.0/00-Delta-v4.9.md",
+            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.1/02-roadmap-phases.csv",
+        )
+        missing = [name for name in required_files if not (self._project_root / name).is_file()]
+        if missing:
+            raise QualityGateError("missing high-performance runtime assets: " + ", ".join(missing))
+        pyproject = (self._project_root / "pyproject.toml").read_text(encoding="utf-8")
+        for dependency in ("uvicorn>=", "httpx>=", "psycopg_pool>="):
+            if dependency not in pyproject:
+                raise QualityGateError("missing high-performance runtime dependency: " + dependency)
+        api = (self._project_root / "src/openinfra/interfaces/http_api.py").read_text(
+            encoding="utf-8"
+        )
+        web = (self._project_root / "src/openinfra/interfaces/web.py").read_text(encoding="utf-8")
+        postgresql = (self._project_root / "src/openinfra/infrastructure/postgresql.py").read_text(
+            encoding="utf-8"
+        )
+        bff = (self._project_root / "src/openinfra/interfaces/asgi_web.py").read_text(
+            encoding="utf-8"
+        )
+        required_fragments = {
+            "api": (
+                'default=os.environ.get("OPENINFRA_API_RUNTIME", "asgi")',
+                'choices=("asgi", "legacy")',
+                "limit_concurrency",
+                "workers",
+            ),
+            "web": (
+                'default=os.environ.get("OPENINFRA_WEB_RUNTIME", "asgi")',
+                'choices=("asgi", "legacy")',
+                "limit_concurrency",
+            ),
+            "postgresql": (
+                "PostgreSQLConnectionPoolSettings",
+                "OPENINFRA_DB_CONNECTION_BUDGET",
+                "max_size * self.worker_count",
+                "psycopg_pool",
+            ),
+            "bff": (
+                "httpx.AsyncClient",
+                "max_keepalive_connections",
+                "client.stream",
+                "pool_timeout_seconds",
+            ),
+        }
+        payloads = {"api": api, "web": web, "postgresql": postgresql, "bff": bff}
+        for component, fragments in required_fragments.items():
+            absent = [fragment for fragment in fragments if fragment not in payloads[component]]
+            if absent:
+                raise QualityGateError(
+                    component + " high-performance contract is incomplete: " + ", ".join(absent)
+                )
+        env_example = (self._project_root / ".env.example").read_text(encoding="utf-8")
+        for setting in (
+            "OPENINFRA_API_RUNTIME=asgi",
+            "OPENINFRA_DB_CONNECTION_BUDGET=",
+            "OPENINFRA_WEB_RUNTIME=asgi",
+            "OPENINFRA_WEB_HTTP_MAX_CONNECTIONS=",
+        ):
+            if setting not in env_example:
+                raise QualityGateError("missing runtime setting in .env.example: " + setting)
+        workflow = (self._project_root / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+        for marker in (
+            "High-performance ASGI and pooling regression",
+            "benchmark_high_performance_runtime.py",
+            "high-performance-runtime.json",
+        ):
+            if marker not in workflow:
+                raise QualityGateError(
+                    "CI must execute and persist the high-performance runtime regression: " + marker
+                )
+
+
 class PostgreSQLMigrationSchemaGuard:
     def __init__(self, project_root: Path) -> None:
         self._project_root = project_root
@@ -409,6 +496,7 @@ class QualityGate:
         ModuleFunctionGuard(self._project_root / "src/openinfra").assert_no_module_level_functions()
         ContractFileGuard(self._project_root).assert_sources_present()
         NativeRuntimeGuard(self._project_root).assert_runtime_environment_present()
+        HighPerformanceRuntimeGuard(self._project_root).assert_pro_enterprise_runtime_is_bounded()
         CiWorkflowTriggerGuard(self._project_root).assert_push_triggers_are_not_branch_locked()
         DockerRuntimeGuard(self._project_root).assert_optional_compose_runtime_is_well_scoped()
         CommandRunner().run(

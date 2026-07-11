@@ -1,4 +1,4 @@
-import { OpenInfraI18n, localizeOpenInfraCatalog } from "./openinfra-i18n.js?v=0.29.105";
+import { OpenInfraI18n, localizeOpenInfraCatalog } from "./openinfra-i18n.js?v=0.30.0";
 import {
   fieldValidationMessage,
   formCountryCode,
@@ -7,7 +7,7 @@ import {
   normalizeFieldDefinition,
   normalizeFieldValue,
   validateControl
-} from "./openinfra-form-fields.js?v=0.29.105";
+} from "./openinfra-form-fields.js?v=0.30.0";
 
 class OpenInfraApiClient {
   constructor(apiBaseUrl, tenantProvider, i18n = null) {

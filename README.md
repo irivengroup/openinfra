@@ -1,4 +1,46 @@
-# OpenInfra v0.29.105
+# OpenInfra v0.30.0
+
+OpenInfra 0.30.0 inaugure le socle d’exécution haute performance des éditions Pro et Entreprise. Cette version conserve la Clean Architecture, le DDD, les contrats métier, la CLI, REST, OpenAPI, RBAC et les migrations, tout en remplaçant les principaux plafonds techniques du runtime HTTP et de l’accès PostgreSQL.
+
+## Socle haute performance livré en P19
+
+- API et BFF Web ASGI stateless, multiprocessus et réplicables par défaut en Pro/Entreprise ;
+- concurrence, backlog, keep-alive et workers bornés et configurables ;
+- pool PostgreSQL `psycopg_pool` par worker avec budget global bloquant ;
+- client HTTP BFF asynchrone persistant, keep-alive, timeouts distincts et streaming ;
+- restauration atomique de l’environnement après arrêt ou erreur de démarrage ;
+- rollback explicite `--runtime legacy`, réservé aux incidents contrôlés ;
+- gate CI p95/p99 du transport ASGI avec rapport JSON `capacity_certification=false` ;
+- CDC 4.9.0 et roadmap 2.1.0 réalignés sur les exigences Pro/Entreprise.
+
+```bash
+PYTHONPATH=src:. pytest -q --no-cov \
+  tests/integration/test_asgi_performance_runtime.py \
+  tests/performance/test_high_performance_runtime_benchmark.py
+
+PYTHONPATH=src:. python scripts/benchmark_high_performance_runtime.py \
+  --requests 500 --concurrency 50 --warmups 25 \
+  --output build/reports/high-performance-runtime.json --enforce
+```
+
+Le benchmark P19 détecte les régressions du transport applicatif ; il ne constitue pas une certification de capacité. La qualification complète sur PostgreSQL réel, PgBouncer, réplicas, endurance, spike, saturation et chaos est un gate P20 distinct.
+
+## Séquencement professionnel P19 / P20
+
+| Capacité | État 0.30.0 | Étape suivante |
+|---|---|---|
+| ASGI API/Web, backpressure, workers | Livrée | Observabilité fine P20 |
+| Pool PostgreSQL borné | Livré | PgBouncer et routage lecture/écriture P20 |
+| BFF HTTP persistant et streaming | Livré | Tests de saturation inter-services P20 |
+| Gate transport p95/p99 | Livré et bloquant | Certification de capacité/endurance P20 |
+| Pagination par curseur | Planifiée | EPIC-2002 |
+| Outbox et workers spécialisés | Planifiés | EPIC-2003 |
+| Frontend modulaire/virtualisé | Planifié | EPIC-2004 |
+| Stockage objet des payloads massifs | Planifié | EPIC-2003 |
+
+Voir `docs/architecture/high-performance-pro-enterprise.md` et `docs/runbooks/HIGH_PERFORMANCE_RUNTIME.md`.
+
+## Historique v0.29.105
 
 OpenInfra v0.29.105 corrige les lenteurs de chargement du portail web sans modifier le comportement métier livré en v0.29.104. Le Dashboard est rendu immédiatement, le bootstrap local est agrégé, la disponibilité backend est non bloquante et les catalogues volumineux sont chargés uniquement lorsque le formulaire sélectionné en a besoin.
 

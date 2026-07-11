@@ -1042,6 +1042,7 @@ class TestOpenInfraWeb:
             auth_mode="standard",
             allow_insecure_backend=True,
             backend_bearer_token=backend_bearer_token,
+            runtime="legacy",
         )
 
     def _get_text(self, url: str) -> str:
@@ -1187,6 +1188,7 @@ class TestOpenInfraWebEdges:
             edition="pro",
             auth_mode="standard",
             allow_insecure_backend=True,
+            runtime="legacy",
         )
         with RunningServer(OpenInfraWebServer(("127.0.0.1", 0), unavailable)) as web:
             with pytest.raises(urllib.error.HTTPError) as ready:
@@ -1257,6 +1259,7 @@ class TestOpenInfraWebEdges:
             edition="pro",
             auth_mode="standard",
             allow_insecure_backend=True,
+            runtime="legacy",
         )
 
     def _raw_config(

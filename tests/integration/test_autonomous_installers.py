@@ -113,6 +113,13 @@ class TestAutonomousScopeInstallers:
         ).is_file()
         assert (lite_app / "config/install-lite-all-in-one.ini").is_file()
         assert (lite_app / "config/openinfra.conf").is_file()
+        lite_runtime = (lite_app / "config/openinfra.conf").read_text(encoding="utf-8")
+        assert 'OPENINFRA_API_RUNTIME="asgi"' in lite_runtime
+        assert 'OPENINFRA_API_WORKERS="1"' in lite_runtime
+        assert 'OPENINFRA_DB_POOL_MAX_SIZE="4"' in lite_runtime
+        assert 'OPENINFRA_DB_CONNECTION_BUDGET="20"' in lite_runtime
+        assert 'OPENINFRA_WEB_RUNTIME="asgi"' in lite_runtime
+        assert 'OPENINFRA_WEB_HTTP_MAX_CONNECTIONS="32"' in lite_runtime
         assert (lite_app / "config/.openinfra-installed.lock").is_file()
         assert (tmp_path / "lite-target/etc/openinfra").is_symlink()
         assert (tmp_path / "lite-target/etc/openinfra").readlink() == Path("/opt/openinfra/config")
@@ -137,6 +144,35 @@ class TestAutonomousScopeInstallers:
         agent_unit = tmp_path / "agent-target/etc/systemd/system/openinfra-agent.service"
         assert agent_unit.is_file()
         assert "WorkingDirectory=/opt/openinfra" in agent_unit.read_text(encoding="utf-8")
+
+    def test_pro_and_enterprise_runtime_configs_are_performance_bounded(
+        self, tmp_path: Path
+    ) -> None:
+        module = InstallerRuntimeModule().load()
+        program_cls = cast(Any, module).AutonomousInstallerProgram
+
+        pro_web = program_cls(Path("installers/setup/pro/web/install.py"))
+        pro_plan = pro_web.build_plan(tmp_path / "pro-web-target")
+        pro_web.execute(pro_plan, skip_service_enable=True)
+        pro_runtime = (tmp_path / "pro-web-target/opt/openinfra/config/openinfra.conf").read_text(
+            encoding="utf-8"
+        )
+        assert 'OPENINFRA_WEB_RUNTIME="asgi"' in pro_runtime
+        assert 'OPENINFRA_WEB_WORKERS="0"' in pro_runtime
+        assert 'OPENINFRA_WEB_HTTP_MAX_CONNECTIONS="200"' in pro_runtime
+        assert 'OPENINFRA_WEB_HTTP_MAX_KEEPALIVE_CONNECTIONS="50"' in pro_runtime
+
+        enterprise_server = program_cls(Path("installers/setup/enterprise/server/install.py"))
+        enterprise_plan = enterprise_server.build_plan(tmp_path / "enterprise-server-target")
+        enterprise_server.execute(enterprise_plan, skip_service_enable=True)
+        enterprise_runtime = (
+            tmp_path / "enterprise-server-target/opt/openinfra/config/openinfra.conf"
+        ).read_text(encoding="utf-8")
+        assert 'OPENINFRA_API_RUNTIME="asgi"' in enterprise_runtime
+        assert 'OPENINFRA_API_WORKERS="0"' in enterprise_runtime
+        assert 'OPENINFRA_DB_POOL_MIN_SIZE="2"' in enterprise_runtime
+        assert 'OPENINFRA_DB_POOL_MAX_SIZE="12"' in enterprise_runtime
+        assert 'OPENINFRA_DB_CONNECTION_BUDGET="192"' in enterprise_runtime
 
     def test_plans_include_runtime_bootstrap_prerequisites_and_rollback(
         self, tmp_path: Path

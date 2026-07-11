@@ -81,7 +81,23 @@ jobs:
         run: >-
           python scripts/validate_openapi.py
           docs/api/openapi.yaml
-          docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1/09-API/OpenAPI/openapi.yaml
+          docs/specifications/OpenInfra-CDC-SFG-STG-v4.9.0/09-API/OpenAPI/openapi.yaml
+
+      - name: High-performance ASGI and pooling regression
+        run: |
+          python -m pytest -q --no-cov \
+            tests/integration/test_asgi_performance_runtime.py \
+            tests/performance/test_high_performance_runtime_benchmark.py
+          mkdir -p build/reports
+          PYTHONPATH=src:. python scripts/benchmark_high_performance_runtime.py \
+            --requests 500 \
+            --concurrency 50 \
+            --warmups 25 \
+            --output build/reports/high-performance-runtime.json \
+            --enforce
+          python docs/specifications/OpenInfra-CDC-SFG-STG-v4.9.0/scripts/validate_docs.py
+          python docs/specifications/OpenInfra-Roadmap-Developpement-v2.1/scripts/validate_roadmap.py
+          python scripts/validate_enterprise_alignment.py --project-root .
 
       - name: GreenOps energy, carbon and capacity regression
         run: |
@@ -320,7 +336,7 @@ jobs:
         run: openinfra version
 
       - name: Smoke specification validation
-        run: openinfra spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1
+        run: openinfra spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.9.0
 
       - name: Smoke installer validation
         run: |

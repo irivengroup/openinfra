@@ -1,138 +1,153 @@
-# OpenInfra v0.29.105 — Rapport de validation
+# OpenInfra v0.30.0 — Rapport de validation
 
 Date : `2026-07-11`  
-Release : `0.29.105`  
-Nature : `correctif prioritaire de performance et de fiabilité du portail web`
+Release : `0.30.0`  
+CDC : `4.9.0`  
+Roadmap : `2.1.0`  
+Nature : `évolution architecturale majeure — socle haute performance Pro et Entreprise`
 
 ## Périmètre livré
 
-- Réduction du fan-out initial du Dashboard de neuf requêtes à deux : `/bootstrap.json` puis `/ready` en arrière-plan.
-- Affichage immédiat du shell accessible sans attendre le backend.
-- Chargement paresseux des référentiels pays, organisations, filiales, partenaires et topologie DCIM uniquement lorsqu’un formulaire en dépend.
-- Déduplication des requêtes de catalogues simultanées et protection contre les réponses tardives d’une opération devenue inactive.
-- Compression gzip déterministe des assets texte supérieurs ou égaux à 1 024 octets.
-- ETag distinct pour les représentations identité et gzip, `Vary: Accept-Encoding` et réponses `304 Not Modified`.
-- Cache `immutable` d’un an pour les URL versionnées et revalidation bornée pour les accès non versionnés.
-- Maintien de `no-store` pour les réponses dynamiques, la configuration, le statut, la readiness et le proxy API.
-- Parité du runtime statique packagé et du portail React, sans modification des contrats métier.
-- Documentation d’exploitation, tests de budgets réseau et gate GitHub Actions dédiés.
+### Runtime API et Web
 
-## Mesures de transfert du runtime packagé
+- ASGI stateless activé par défaut pour l’API et le BFF Web en Pro et Entreprise.
+- Politiques multiprocessus bornées par édition.
+- Limites configurables de concurrence, backlog et keep-alive.
+- Lifespan applicatif avec fermeture déterministe des ressources.
+- Runtime historique conservé via `--runtime legacy` pour rollback contrôlé.
+- Restauration atomique des variables d’environnement après arrêt, interruption ou échec de démarrage.
 
-| Asset | Brut | Gzip déterministe | Ratio |
-|---|---:|---:|---:|
-| `bootstrap.min.css` | 232 111 octets | 31 119 octets | 13,41 % |
-| `openinfra-web.css` | 47 009 octets | 8 741 octets | 18,59 % |
-| `openinfra-web.js` | 266 231 octets | 47 987 octets | 18,02 % |
-| `openinfra-i18n.js` | 61 713 octets | 19 613 octets | 31,78 % |
-| `openinfra-form-fields.js` | 12 807 octets | 3 499 octets | 27,32 % |
-| **Total** | **619 871 octets** | **110 959 octets** | **17,90 %** |
+### PostgreSQL
 
-Budgets bloquants validés : JavaScript principal `< 55 Ko gzip`, ensemble initial `< 125 Ko gzip`, ratio global `< 22 %`.
+- Pool `psycopg_pool` par worker.
+- Bornes min/max, timeout d’acquisition, idle timeout et durée de vie maximale.
+- Budget global de connexions contrôlant le produit `workers × pool_max`.
+- Restitution des connexions après transaction et fermeture explicite du pool.
+- Paramètres externalisés dans `.env.example`, Compose et installateurs.
 
-## Résultats automatisés
+### BFF Web
 
-### Python
+- Client `httpx.AsyncClient` persistant.
+- Pools de connexions et keep-alive bornés.
+- Timeouts distincts de connexion, lecture, écriture et acquisition du pool.
+- Streaming des réponses backend sans buffering intégral.
+- Conservation des protections CSP, anti-traversal, tailles de corps, cache, ETag et compression.
 
-- Suite exhaustive : **948 tests réussis** en **162,76 s**.
-- Couverture globale : **98,004548 %** (`34 478 / 35 180` instructions).
-- Seuil contractuel : **98 % — PASS**.
-- Ruff format : **277 fichiers conformes**.
-- Ruff lint strict : **PASS**.
-- mypy strict : **88 modules — PASS**.
-- `compileall` : **PASS**.
-- Tests Web ciblés : **20 réussis**.
+### Gouvernance et qualité
 
-### Frontend
+- CDC réaligné en version 4.9.0 avec 12 exigences haute performance supplémentaires.
+- Roadmap réalignée en version 2.1.0 avec phases P19/P20, releases, epics, risques, tests et gates Go/No-Go.
+- Gate CI p95/p99 du transport ASGI avec rapport JSON.
+- Distinction obligatoire entre régression de transport P19 et certification de capacité P20.
+- Documentation d’architecture, runbook d’exploitation, rollback et traçabilité actualisés.
 
-- Tests Node.js : **47 réussis**.
-- Contrat des assets statiques : **PASS**.
-- ESLint/JSX : **PASS**.
-- Contrat WCAG 2.2 AA : **PASS**.
-- Build Vite de production : **PASS**.
-- `npm ci` : **220 packages installés, 0 vulnérabilité signalée**.
-- Parité React/runtime statique : **PASS**.
+## Capacités explicitement non revendiquées en 0.30.0
 
-### Cache, transport et démarrage
+Les éléments suivants restent planifiés en P20 et ne sont pas déclarés comme livrés :
 
-- Endpoint agrégé `/bootstrap.json` : **PASS**.
-- Sonde `/ready` non bloquante : **PASS**.
-- Absence de catalogues métier au chargement du Dashboard : **PASS**.
-- Chargement à la demande et déduplication : **PASS**.
-- Négociation gzip avec prise en charge de `q=0` et valeurs invalides : **PASS**.
-- ETag identité/gzip distincts : **PASS**.
-- Réponse conditionnelle `304` : **PASS**.
-- Cache immutable des URL `?v=0.29.105` : **PASS**.
-- Réponses dynamiques conservées en `no-store` : **PASS**.
+- PgBouncer en mode transaction ;
+- routage primaire/réplicas avec contrôle du lag ;
+- pagination par curseur généralisée ;
+- outbox transactionnelle et workers spécialisés ;
+- frontend React découpé par domaine et listes virtualisées ;
+- stockage objet des payloads append-only massifs ;
+- certification de capacité sur PostgreSQL réel avec endurance, spike, saturation et chaos.
 
-### Sécurité
+## Résultats Python
 
-- Bandit SAST : **PASS**.
-- Security gate secrets/CI/dépendances : **PASS**.
-- Traversée de chemins, injection de token backend et sanitisation des erreurs proxy : **PASS**.
-- Aucun secret ou mécanisme d’authentification déplacé dans le navigateur.
-- `pip-audit` a été lancé avec la commande CI officielle, mais la résolution DNS de `pypi.org` a échoué dans l’environnement courant. Le gate CI strict reste configuré.
+| Contrôle | Résultat |
+|---|---:|
+| Tests réussis | **967** |
+| Échecs | **0** |
+| Durée | **155,22 s** |
+| Instructions mesurées | **35 774** |
+| Instructions non couvertes | **712** |
+| Couverture globale | **98,01 %** |
+| Seuil contractuel | **98 % — PASS** |
 
-### API, CDC et roadmap
+La couverture a été exécutée sur la suite complète avec la configuration du projet. Aucun seuil, fichier source ou branche nouvelle n’a été exclu pour obtenir le résultat.
 
-- OpenAPI principal : **PASS**.
-- OpenAPI embarqué dans le CDC : **PASS**.
-- Version OpenAPI : `0.29.105`.
-- Nombre de paths OpenAPI : **318**.
-- CDC v4.8.1 : **828 exigences / 628 tests — PASS**.
-- Roadmap v2 : **19 phases / 115 epics / 8 gates / 97 tests — PASS**.
-- CDC et roadmap non réémis : le correctif ne change aucun périmètre fonctionnel, architectural ou réglementaire.
+## Benchmark p95/p99 du transport ASGI
 
-### Base de données et migrations
+Profil : 500 requêtes par scénario, concurrence 50, 25 warmups.
 
-- Total : **52 migrations PostgreSQL**.
-- Dernière migration : `0052_multisite_disaster_recovery.sql`.
-- Aucune migration ajoutée : le correctif concerne exclusivement le BFF et les assets Web.
-- Les tests de régression JSON/PostgreSQL existants sont inclus dans les 948 tests réussis.
+| Scénario | Débit | p50 | p95 | p99 | Seuil p95/p99 | Résultat |
+|---|---:|---:|---:|---:|---:|---|
+| API `/health` | 2 263,498 req/s | 11,912 ms | 20,687 ms | 23,397 ms | 150 / 300 ms | PASS |
+| Web `/bootstrap.json` | 4 510,601 req/s | 0,200 ms | 0,263 ms | 0,534 ms | 150 / 300 ms | PASS |
+| Proxy BFF | 3 172,892 req/s | 0,293 ms | 0,367 ms | 0,674 ms | 200 / 400 ms | PASS |
 
-### Installateurs et runtime
-
-- Six profils `install.ini` : **PASS**.
-- Alignement Enterprise/CDC/roadmap : **PASS**.
-- Validation des installateurs : **PASS**.
-- Smoke runtime natif et unités systemd rendues : **PASS**.
-- Docker et Podman absents de l’environnement ; les smokes conteneurisés restent des gates CI.
-
-### Performance métier existante
-
-Benchmark du graphe RSOT sur **5 000 nœuds** et **100 hubs SPOF** : **PASS**.
-
-| Scénario | p95 mesuré | Seuil | Résultat |
-|---|---:|---:|---|
-| Parcours un niveau | 202,036 ms | 1 500 ms | PASS |
-| Parcours filtré | 108,102 ms | 1 500 ms | PASS |
-| Analyse SPOF | 223,525 ms | 5 000 ms | PASS |
-| Pagination SPOF complète | 563,790 ms | 15 000 ms | PASS |
-
-### Packaging
-
-- Wheel : `openinfra-0.29.105-py3-none-any.whl`.
-- sdist : `openinfra-0.29.105.tar.gz`.
-- Vérification du contenu wheel : **PASS**.
-- Installation du wheel dans un répertoire vierge : **PASS**.
-- Smoke installé : version `0.29.105`, **19 routes multisites**, **52 migrations**, dernière migration `0052`, quatre assets runtime et trois points d’entrée publics : **PASS**.
-- Le sdist contient la documentation de performance et le runbook de validation actualisé : **PASS**.
-
-## Empreintes des packages Python
+Le rapport porte :
 
 ```text
-openinfra-0.29.105-py3-none-any.whl
-SHA-256: 600183334899bfcf3aa97ea69d704b462d381fd903c5b5ca25da3f1397ede862
-Taille: 761664 octets
-
-openinfra-0.29.105.tar.gz
-SHA-256: b5f8cf44be9528efb100a808bddd869d094a10a7b5302988e0bec572aa69d8b8
-Taille: 1564663 octets
+scope=asgi-transport-regression
+capacity_certification=false
 ```
 
-## Risques résiduels
+Ce benchmark est un gate déterministe de non-régression du transport. Il ne remplace pas la certification de capacité P20 sur une topologie PostgreSQL/PgBouncer représentative.
 
-- Aucun test PostgreSQL réel n’a pu être exécuté localement ; aucune modification de schéma ou de dépôt n’est toutefois incluse dans cette version.
-- Aucun smoke Docker/Podman n’a pu être exécuté localement.
-- L’audit CVE Python distant dépend de la résolution DNS de PyPI et doit être confirmé par la CI.
-- Les gains de temps ressentis dépendront de la latence réseau et du navigateur, mais les volumes transférés, le nombre de requêtes initiales et les politiques de cache sont désormais bornés par des tests bloquants.
+## Benchmark volumétrique RSOT
+
+Profil : 5 000 nœuds, 100 hubs SPOF, 3 échantillons.
+
+| Scénario | p95 | Seuil | Résultat |
+|---|---:|---:|---|
+| Parcours un niveau | 200,481 ms | 1 500 ms | PASS |
+| Parcours filtré | 102,810 ms | 1 500 ms | PASS |
+| Analyse SPOF | 199,388 ms | 5 000 ms | PASS |
+| Pagination SPOF complète | 518,578 ms | 15 000 ms | PASS |
+
+## Frontend
+
+| Contrôle | Résultat |
+|---|---|
+| Tests Node.js | **47/47 PASS** |
+| Contrat statique | PASS |
+| ESLint JSX | PASS |
+| WCAG 2.2 AA | PASS |
+| Build Vite | PASS |
+| Bundle CSS | 268,49 Ko brut / 38,10 Ko gzip |
+| Bundle JavaScript | 320,39 Ko brut / 92,87 Ko gzip |
+
+Le bundle React reste monolithique. Sa modularisation, son cache de requêtes et sa virtualisation sont inscrits en P20/EPIC-2004.
+
+## Contrôles statiques, sécurité et contrats
+
+| Contrôle | Résultat |
+|---|---|
+| Ruff format | **283 fichiers conformes** |
+| Ruff lint strict | PASS |
+| mypy strict | **91 modules — PASS** |
+| `compileall` | PASS |
+| Bandit | PASS |
+| Security gate | PASS |
+| Quality gate | PASS |
+| OpenAPI principal | **318 paths — PASS** |
+| OpenAPI CDC | **318 paths — PASS** |
+| Installateurs | **6 profils — PASS** |
+| Dry-run installateurs | PASS |
+| Alignement Enterprise | PASS |
+| CDC 4.9.0 | **840 exigences / 529 entités — PASS** |
+| Roadmap 2.1.0 | **21 phases / 125 epics / 10 gates / 106 tests — PASS** |
+
+Les avertissements Bandit correspondent à des annotations `nosec` existantes et reconnues sur des fragments SQL internes bornés ; aucun finding bloquant n’a été produit.
+
+## Packaging
+
+- Wheel `openinfra-0.30.0-py3-none-any.whl` construit et vérifié.
+- Sdist `openinfra-0.30.0.tar.gz` construit et vérifié.
+- Installation du wheel avec `--no-deps` dans un répertoire vierge : PASS.
+- Smoke du package installé : version 0.30.0, 52 migrations, dernière migration `0052_multisite_disaster_recovery.sql`.
+- Présence vérifiée dans le wheel des adaptateurs ASGI, du scope d’environnement et de l’infrastructure PostgreSQL.
+- Métadonnées runtime vérifiées pour `uvicorn`, `httpx` et `psycopg-pool`.
+- Présence vérifiée dans le sdist du CDC 4.9.0, de la roadmap 2.1.0, du benchmark et de ses tests.
+
+## Contrôles non exécutables dans l’environnement local
+
+- `pip-audit` a été lancé mais n’a pas pu résoudre `pypi.org` ; aucune conclusion sur les vulnérabilités distantes ne peut être tirée localement. Le gate reste bloquant en CI avec accès réseau.
+- Docker et Podman ne sont pas installés ; les smokes conteneurisés restent des gates CI.
+- `psql` et une instance PostgreSQL réelle ne sont pas disponibles ; la saturation réelle, PgBouncer, les réplicas, l’endurance et le chaos restent des validations P20.
+
+## Conclusion
+
+Le socle P19 est validé pour livraison : runtime ASGI, pooling borné, BFF asynchrone persistant, compatibilité, documentation et gates CI sont intégrés et régressés. La release ne doit pas être présentée comme une certification de capacité Pro/Entreprise tant que le gate P20 sur infrastructure représentative n’a pas été exécuté avec succès.

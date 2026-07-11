@@ -17,8 +17,11 @@ from typing import Any
 from urllib import error, request
 from urllib.parse import urljoin, urlparse
 
+import uvicorn
+
 from openinfra import __version__
 from openinfra.domain.common import OpenInfraError
+from openinfra.interfaces.runtime_environment import OpenInfraRuntimeEnvironmentScope
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,6 +41,11 @@ class OpenInfraWebConfig:
     database_user_ref: str = ""
     database_password_ref: str = ""
     backend_bearer_token: str = ""
+    runtime: str = "asgi"
+    workers: int = 0
+    limit_concurrency: int = 1000
+    backlog: int = 2048
+    timeout_keep_alive: int = 5
 
     def normalized_backend_url(self) -> str:
         return self.backend_url.rstrip("/") + "/"
@@ -180,6 +188,31 @@ class OpenInfraWebConfigFactory:
             "--database-password-ref",
             default=os.environ.get("OPENINFRA_WEB_DATABASE_PASSWORD_REF", ""),
         )
+        parser.add_argument(
+            "--runtime",
+            choices=("asgi", "legacy"),
+            default=os.environ.get("OPENINFRA_WEB_RUNTIME", "asgi"),
+        )
+        parser.add_argument(
+            "--workers",
+            type=int,
+            default=int(os.environ.get("OPENINFRA_WEB_WORKERS", "0")),
+        )
+        parser.add_argument(
+            "--limit-concurrency",
+            type=int,
+            default=int(os.environ.get("OPENINFRA_WEB_LIMIT_CONCURRENCY", "1000")),
+        )
+        parser.add_argument(
+            "--backlog",
+            type=int,
+            default=int(os.environ.get("OPENINFRA_WEB_BACKLOG", "2048")),
+        )
+        parser.add_argument(
+            "--timeout-keep-alive",
+            type=int,
+            default=int(os.environ.get("OPENINFRA_WEB_KEEPALIVE_SECONDS", "5")),
+        )
         namespace = parser.parse_args(argv)
         static_root = OpenInfraWebStaticLocator().resolve(namespace.static_root or None)
         config = OpenInfraWebConfig(
@@ -196,6 +229,11 @@ class OpenInfraWebConfigFactory:
             database_user_ref=str(namespace.database_user_ref).strip(),
             database_password_ref=str(namespace.database_password_ref).strip(),
             backend_bearer_token=str(namespace.backend_bearer_token).strip(),
+            runtime=str(namespace.runtime),
+            workers=int(namespace.workers),
+            limit_concurrency=int(namespace.limit_concurrency),
+            backlog=int(namespace.backlog),
+            timeout_keep_alive=int(namespace.timeout_keep_alive),
         )
         OpenInfraWebConfigValidator().validate(config)
         return config
@@ -256,6 +294,14 @@ class OpenInfraWebConfigValidator:
             )
         if config.max_request_body_bytes <= 0:
             raise OpenInfraError("max request body size must be positive")
+        if config.runtime not in {"asgi", "legacy"}:
+            raise OpenInfraError("OPENINFRA_WEB_RUNTIME must be asgi or legacy")
+        if config.workers < 0 or config.workers > 64:
+            raise OpenInfraError("OPENINFRA_WEB_WORKERS must be between 0 and 64")
+        if config.limit_concurrency <= 0 or config.backlog <= 0:
+            raise OpenInfraError("web concurrency limit and backlog must be positive")
+        if config.timeout_keep_alive <= 0:
+            raise OpenInfraError("web keep-alive timeout must be positive")
         self._validate_public_api_docs_base_url(config.public_api_docs_base_url)
         for key, value in (
             ("OPENINFRA_WEB_DATABASE_DSN_REF", config.database_dsn_ref),
@@ -722,14 +768,85 @@ class OpenInfraWebEntrypoint:
     def main(cls) -> int:
         try:
             config = OpenInfraWebConfigFactory().from_args(sys.argv[1:])
-            server = OpenInfraWebServer((config.host, config.port), config)
-            server.serve_forever()
+            if config.runtime == "legacy":
+                return cls._run_legacy(config)
+            return cls._run_asgi(config)
         except KeyboardInterrupt:
             return 0
         except OpenInfraError as exc:
             sys.stderr.write(f"openinfra-web: error: {exc}\n")
             return 2
+
+    @staticmethod
+    def _run_legacy(config: OpenInfraWebConfig) -> int:
+        server = OpenInfraWebServer((config.host, config.port), config)
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            pass
+        finally:
+            close_server = getattr(server, "server_close", None)
+            if callable(close_server):
+                close_server()
         return 0
+
+    @classmethod
+    def _run_asgi(cls, config: OpenInfraWebConfig) -> int:
+        workers = cls._resolve_workers(config)
+        values = cls._runtime_environment(config, workers)
+        try:
+            with OpenInfraRuntimeEnvironmentScope(values):
+                uvicorn.run(
+                    "openinfra.interfaces.asgi_web:web_app_factory",
+                    factory=True,
+                    host=config.host,
+                    port=config.port,
+                    workers=workers,
+                    limit_concurrency=config.limit_concurrency,
+                    backlog=config.backlog,
+                    timeout_keep_alive=config.timeout_keep_alive,
+                    proxy_headers=True,
+                    server_header=False,
+                    date_header=False,
+                    access_log=False,
+                    log_level=os.environ.get("OPENINFRA_WEB_LOG_LEVEL", "info"),
+                )
+        except KeyboardInterrupt:
+            return 0
+        return 0
+
+    @staticmethod
+    def _resolve_workers(config: OpenInfraWebConfig) -> int:
+        if config.workers > 0:
+            return config.workers
+        cpu_count = os.cpu_count() or 1
+        if config.edition == "lite":
+            return 1
+        if config.edition == "pro":
+            return max(2, min(cpu_count, 4))
+        return max(2, min(cpu_count, 8))
+
+    @staticmethod
+    def _runtime_environment(config: OpenInfraWebConfig, workers: int) -> dict[str, str]:
+        values = {
+            "OPENINFRA_WEB_HOST": config.host,
+            "OPENINFRA_WEB_PORT": str(config.port),
+            "OPENINFRA_WEB_BACKEND_URL": config.backend_url,
+            "OPENINFRA_WEB_PUBLIC_API_BASE_URL": config.public_api_base_url,
+            "OPENINFRA_WEB_PUBLIC_API_DOCS_BASE_URL": config.public_api_docs_base_url,
+            "OPENINFRA_WEB_STATIC_ROOT": str(config.static_root),
+            "OPENINFRA_EDITION": config.edition,
+            "OPENINFRA_WEB_AUTH_MODE": config.auth_mode,
+            "OPENINFRA_WEB_ALLOW_INSECURE_BACKEND": (
+                "true" if config.allow_insecure_backend else "false"
+            ),
+            "OPENINFRA_WEB_DATABASE_DSN_REF": config.database_dsn_ref,
+            "OPENINFRA_WEB_DATABASE_USER_REF": config.database_user_ref,
+            "OPENINFRA_WEB_DATABASE_PASSWORD_REF": config.database_password_ref,
+            "OPENINFRA_WEB_BACKEND_BEARER_TOKEN": config.backend_bearer_token,
+            "OPENINFRA_WEB_WORKERS_RESOLVED": str(workers),
+        }
+        return values
 
 
 if __name__ == "__main__":

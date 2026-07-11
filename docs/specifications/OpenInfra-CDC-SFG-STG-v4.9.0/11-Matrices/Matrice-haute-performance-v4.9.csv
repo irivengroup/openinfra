@@ -1,0 +1,4 @@
+edition,runtime_api,runtime_web,api_workers_default,web_workers_default,db_pool_per_worker,global_db_budget,http_pool,pgbouncer,read_replicas,frontend_code_splitting,load_gate
+Lite,ASGI ou legacy contrôlé,ASGI ou legacy contrôlé,1,1,1-4,20,32/8,optionnel,non,optionnel,smoke
+Pro,ASGI obligatoire,ASGI obligatoire,auto max 8,auto max 4,1-8,80,200/50,obligatoire en HA,oui,obligatoire,P19 transport p95/p99 bloquant ; P20 capacité/endurance certifiante
+Entreprise,ASGI obligatoire,ASGI obligatoire,auto max 16,auto max 8,2-12,192,500/100,obligatoire,oui multi-région,obligatoire,P19 transport p95/p99 bloquant ; P20 saturation/endurance/chaos certifiants

@@ -1,5 +1,18 @@
 # Traçabilité OpenInfra
 
+## v0.30.0 — Socle haute performance Pro et Entreprise
+
+| Exigence / Epic | Implémentation | Vérification |
+|---|---|---|
+| REQ-00829 / EPIC-1901 — ASGI API/Web | `interfaces/asgi.py`, `interfaces/asgi_web.py`, politiques workers par édition, backpressure et lifespan | `test_asgi_performance_runtime.py`, smoke installé, quality gate |
+| REQ-00830 / EPIC-1902 — pool PostgreSQL borné | `PostgreSQLConnectionPoolSettings`, `PostgreSQLConnectionPool`, budget workers × pool | tests acquisition, restitution, fermeture, timeout et configuration invalide |
+| REQ-00831 / EPIC-1903 — BFF persistant/streaming | `httpx.AsyncClient` partagé, limites keep-alive, timeouts séparés et `client.stream` | tests MockTransport, flux brut, HEAD, corps bornés, erreurs et lifespan |
+| REQ-00838 / EPIC-1904 — gate p95/p99 P19 | `benchmark_high_performance_runtime.py`, rapport JSON, contrôle CI bloquant | p95/p99 API, bootstrap et proxy ; `capacity_certification=false` |
+| REQ-00840 — compatibilité | runtime `legacy`, contrats inchangés et portée d’environnement restaurée | régression CLI/HTTP/Web/OpenAPI, interruption et erreur de démarrage |
+| EPIC-1905 — gouvernance | CDC 4.9.0, roadmap 2.1.0, ADR-0018 à ADR-0020, matrice performance et runbook | validateurs CDC/roadmap et `validate_enterprise_alignment.py` |
+
+Les exigences REQ-00832 à REQ-00839 qui nécessitent PgBouncer, réplicas, pagination curseur, outbox/workers, frontend modulaire, observabilité système et stockage objet restent séquencées en P20. La réussite du benchmark P19 ne vaut pas certification de capacité Pro/Entreprise.
+
 ## v0.29.105 — Optimisation du chargement web
 
 - Défaut corrigé : chargement lent du portail packagé, particulièrement lorsque le backend ou les catalogues métier répondent lentement.

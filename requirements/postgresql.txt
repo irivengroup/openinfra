@@ -1,2 +1,3 @@
-# Production dependency required only when the PostgreSQL backend is enabled.
+# Production dependencies required when the PostgreSQL backend is enabled.
 psycopg[binary]>=3.2
+psycopg_pool>=3.2

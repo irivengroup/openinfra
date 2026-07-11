@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.30.0 - 2026-07-11
+
+- Réalisation prioritaire de P19 / EPIC-1901 à EPIC-1905 pour le socle haute performance Pro et Entreprise.
+- API et BFF Web exécutés par défaut sur ASGI avec politiques multiprocessus, concurrence, backlog et keep-alive bornés.
+- Ajout d’un pool PostgreSQL `psycopg_pool` par worker avec délais d’acquisition, idle/lifetime et budget global de connexions refusant les configurations dangereuses.
+- Remplacement du proxy Web bloquant par un client HTTP asynchrone persistant avec pools keep-alive, timeouts distincts et streaming sans buffering intégral.
+- Ajout d’une portée d’environnement atomique restaurant exactement les variables du processus après arrêt, interruption ou échec de démarrage.
+- Conservation du runtime historique via `--runtime legacy` uniquement pour rollback contrôlé, sans rupture des contrats métier, CLI, REST, OpenAPI, RBAC ou migrations.
+- Ajout d’un gate CI p95/p99 déterministe du transport ASGI, d’un rapport JSON versionnable et de l’indicateur explicite `capacity_certification=false`.
+- Réalignement du CDC en version 4.9.0 et de la roadmap en version 2.1.0 avec 12 exigences, phases P19/P20, ADR, risques, tests et gates Go/No-Go cohérents.
+- Séparation explicite entre les capacités livrées en P19 et les évolutions P20 non encore revendiquées : PgBouncer, réplicas de lecture, pagination curseur, outbox/workers, frontend modulaire et certification de charge/endurance.
+
 ## 0.29.105 - 2026-07-11
 
 - Correction prioritaire des lenteurs de chargement du portail web packagé.

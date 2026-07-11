@@ -1,2 +1,4 @@
 # Production dependencies for web frontend scope.
 -r common.txt
+httpx>=0.28,<1.0
+uvicorn>=0.30,<1.0

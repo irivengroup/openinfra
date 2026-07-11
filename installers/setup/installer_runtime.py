@@ -918,6 +918,7 @@ class AutonomousInstallerProgram:
         }
         if plan.edition == "lite":
             values["OPENINFRA_DATABASE_DSN"] = "postgresql:///openinfra"
+        self._add_performance_runtime_values(plan, values)
         if plan.scope in {"all-in-one", "web"}:
             self._add_web_runtime_values(parser, plan, values)
         for section in parser.sections():
@@ -940,6 +941,56 @@ class AutonomousInstallerProgram:
             )
         )
         self._replace_text(plan.runtime_config_file, content, 0o640, journal)
+
+    def _add_performance_runtime_values(
+        self, plan: InstallationPlan, values: dict[str, str]
+    ) -> None:
+        database_defaults = {
+            "lite": ("1", "1", "4", "20"),
+            "pro": ("0", "1", "8", "80"),
+            "enterprise": ("0", "2", "12", "192"),
+        }
+        web_worker_defaults = {"lite": "1", "pro": "0", "enterprise": "0"}
+        api_workers, pool_min, pool_max, connection_budget = database_defaults[plan.edition]
+        if plan.scope in {"all-in-one", "server"}:
+            values.update(
+                {
+                    "OPENINFRA_API_RUNTIME": "asgi",
+                    "OPENINFRA_API_WORKERS": api_workers,
+                    "OPENINFRA_API_LIMIT_CONCURRENCY": "1000",
+                    "OPENINFRA_API_BACKLOG": "2048",
+                    "OPENINFRA_API_KEEPALIVE_SECONDS": "5",
+                    "OPENINFRA_DB_POOL_MIN_SIZE": pool_min,
+                    "OPENINFRA_DB_POOL_MAX_SIZE": pool_max,
+                    "OPENINFRA_DB_POOL_TIMEOUT_SECONDS": "5",
+                    "OPENINFRA_DB_POOL_MAX_IDLE_SECONDS": "300",
+                    "OPENINFRA_DB_POOL_MAX_LIFETIME_SECONDS": "1800",
+                    "OPENINFRA_DB_CONNECTION_BUDGET": connection_budget,
+                }
+            )
+        if plan.scope in {"all-in-one", "web"}:
+            http_defaults = {
+                "lite": ("32", "8"),
+                "pro": ("200", "50"),
+                "enterprise": ("500", "100"),
+            }
+            max_connections, max_keepalive = http_defaults[plan.edition]
+            values.update(
+                {
+                    "OPENINFRA_WEB_RUNTIME": "asgi",
+                    "OPENINFRA_WEB_WORKERS": web_worker_defaults[plan.edition],
+                    "OPENINFRA_WEB_LIMIT_CONCURRENCY": "1000",
+                    "OPENINFRA_WEB_BACKLOG": "2048",
+                    "OPENINFRA_WEB_KEEPALIVE_SECONDS": "5",
+                    "OPENINFRA_WEB_HTTP_MAX_CONNECTIONS": max_connections,
+                    "OPENINFRA_WEB_HTTP_MAX_KEEPALIVE_CONNECTIONS": max_keepalive,
+                    "OPENINFRA_WEB_HTTP_KEEPALIVE_EXPIRY_SECONDS": "30",
+                    "OPENINFRA_WEB_HTTP_CONNECT_TIMEOUT_SECONDS": "2",
+                    "OPENINFRA_WEB_HTTP_READ_TIMEOUT_SECONDS": "30",
+                    "OPENINFRA_WEB_HTTP_WRITE_TIMEOUT_SECONDS": "30",
+                    "OPENINFRA_WEB_HTTP_POOL_TIMEOUT_SECONDS": "2",
+                }
+            )
 
     def _add_web_runtime_values(
         self, parser: configparser.ConfigParser, plan: InstallationPlan, values: dict[str, str]

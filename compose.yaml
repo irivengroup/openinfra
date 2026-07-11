@@ -34,7 +34,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.29.105}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.0}
     container_name: openinfra-migrate
     restart: "no"
     depends_on:
@@ -52,7 +52,7 @@ services:
       - openinfra
 
   auth-bootstrap:
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.29.105}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.0}
     container_name: openinfra-auth-bootstrap
     restart: "no"
     depends_on:
@@ -81,7 +81,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.29.105}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.0}
     container_name: openinfra-api
     restart: unless-stopped
     depends_on:
@@ -90,6 +90,18 @@ services:
     environment:
       OPENINFRA_DATABASE_DSN: postgresql://${OPENINFRA_POSTGRES_USER:?OPENINFRA_POSTGRES_USER is required}:${OPENINFRA_POSTGRES_PASSWORD:?OPENINFRA_POSTGRES_PASSWORD is required}@postgres:5432/${OPENINFRA_POSTGRES_DB:?OPENINFRA_POSTGRES_DB is required}
       OPENINFRA_AUTH_REQUIRED: "true"
+      OPENINFRA_EDITION: ${OPENINFRA_EDITION:-pro}
+      OPENINFRA_API_RUNTIME: ${OPENINFRA_API_RUNTIME:-asgi}
+      OPENINFRA_API_WORKERS: ${OPENINFRA_API_WORKERS:-2}
+      OPENINFRA_API_LIMIT_CONCURRENCY: ${OPENINFRA_API_LIMIT_CONCURRENCY:-1000}
+      OPENINFRA_API_BACKLOG: ${OPENINFRA_API_BACKLOG:-2048}
+      OPENINFRA_API_KEEPALIVE_SECONDS: ${OPENINFRA_API_KEEPALIVE_SECONDS:-5}
+      OPENINFRA_DB_POOL_MIN_SIZE: ${OPENINFRA_DB_POOL_MIN_SIZE:-1}
+      OPENINFRA_DB_POOL_MAX_SIZE: ${OPENINFRA_DB_POOL_MAX_SIZE:-8}
+      OPENINFRA_DB_POOL_TIMEOUT_SECONDS: ${OPENINFRA_DB_POOL_TIMEOUT_SECONDS:-5}
+      OPENINFRA_DB_POOL_MAX_IDLE_SECONDS: ${OPENINFRA_DB_POOL_MAX_IDLE_SECONDS:-300}
+      OPENINFRA_DB_POOL_MAX_LIFETIME_SECONDS: ${OPENINFRA_DB_POOL_MAX_LIFETIME_SECONDS:-1800}
+      OPENINFRA_DB_CONNECTION_BUDGET: ${OPENINFRA_DB_CONNECTION_BUDGET:-80}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/ready', timeout=3).read()"]
       interval: 5s
@@ -103,7 +115,7 @@ services:
 
 
   web:
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.29.105}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.0}
     container_name: openinfra-web
     restart: unless-stopped
     depends_on:
@@ -120,6 +132,18 @@ services:
       OPENINFRA_WEB_ALLOW_INSECURE_BACKEND: ${OPENINFRA_WEB_ALLOW_INSECURE_BACKEND:-true}
       OPENINFRA_EDITION: ${OPENINFRA_WEB_EDITION:-pro}
       OPENINFRA_WEB_AUTH_MODE: ${OPENINFRA_WEB_AUTH_MODE:-standard}
+      OPENINFRA_WEB_RUNTIME: ${OPENINFRA_WEB_RUNTIME:-asgi}
+      OPENINFRA_WEB_WORKERS: ${OPENINFRA_WEB_WORKERS:-2}
+      OPENINFRA_WEB_LIMIT_CONCURRENCY: ${OPENINFRA_WEB_LIMIT_CONCURRENCY:-1000}
+      OPENINFRA_WEB_BACKLOG: ${OPENINFRA_WEB_BACKLOG:-2048}
+      OPENINFRA_WEB_KEEPALIVE_SECONDS: ${OPENINFRA_WEB_KEEPALIVE_SECONDS:-5}
+      OPENINFRA_WEB_HTTP_MAX_CONNECTIONS: ${OPENINFRA_WEB_HTTP_MAX_CONNECTIONS:-200}
+      OPENINFRA_WEB_HTTP_MAX_KEEPALIVE_CONNECTIONS: ${OPENINFRA_WEB_HTTP_MAX_KEEPALIVE_CONNECTIONS:-50}
+      OPENINFRA_WEB_HTTP_KEEPALIVE_EXPIRY_SECONDS: ${OPENINFRA_WEB_HTTP_KEEPALIVE_EXPIRY_SECONDS:-30}
+      OPENINFRA_WEB_HTTP_CONNECT_TIMEOUT_SECONDS: ${OPENINFRA_WEB_HTTP_CONNECT_TIMEOUT_SECONDS:-2}
+      OPENINFRA_WEB_HTTP_READ_TIMEOUT_SECONDS: ${OPENINFRA_WEB_HTTP_READ_TIMEOUT_SECONDS:-30}
+      OPENINFRA_WEB_HTTP_WRITE_TIMEOUT_SECONDS: ${OPENINFRA_WEB_HTTP_WRITE_TIMEOUT_SECONDS:-30}
+      OPENINFRA_WEB_HTTP_POOL_TIMEOUT_SECONDS: ${OPENINFRA_WEB_HTTP_POOL_TIMEOUT_SECONDS:-2}
     command:
       - openinfra-web
       - --host
@@ -165,7 +189,7 @@ services:
       - openinfra
 
   smoke:
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.29.105}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.0}
     container_name: openinfra-smoke
     restart: "no"
     depends_on:

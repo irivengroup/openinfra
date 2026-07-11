@@ -4,6 +4,7 @@ import hashlib
 import importlib
 import ipaddress
 import json
+import os
 import re
 import secrets
 import threading
@@ -606,7 +607,7 @@ class PostgreSQLMigrationExecutor(SchemaStatusProvider):
             raise
         finally:
             cursor.close()
-            connection.close()
+            self._registry.release(connection)
 
     def status_as_dict(self) -> dict[str, object]:
         return self.status().as_dict()
@@ -648,7 +649,7 @@ class PostgreSQLMigrationExecutor(SchemaStatusProvider):
             raise
         finally:
             cursor.close()
-            connection.close()
+            self._registry.release(connection)
 
     def _transactional_sql(self, migration: PostgreSQLMigration) -> str:
         return "\n".join(self._transactional_statements(migration)).strip() + "\n"
@@ -827,6 +828,106 @@ class PostgreSQLStatementSplitter:
         return sql[index : closing_index + 1]
 
 
+@dataclass(frozen=True, slots=True)
+class PostgreSQLConnectionPoolSettings:
+    min_size: int
+    max_size: int
+    timeout_seconds: float
+    max_idle_seconds: float
+    max_lifetime_seconds: float
+    worker_count: int = 1
+    connection_budget: int = 120
+
+    def __post_init__(self) -> None:
+        if self.min_size < 0:
+            raise ValidationError("postgresql pool min_size cannot be negative")
+        if self.max_size <= 0:
+            raise ValidationError("postgresql pool max_size must be positive")
+        if self.min_size > self.max_size:
+            raise ValidationError("postgresql pool min_size cannot exceed max_size")
+        if self.timeout_seconds <= 0:
+            raise ValidationError("postgresql pool timeout must be positive")
+        if self.max_idle_seconds <= 0 or self.max_lifetime_seconds <= 0:
+            raise ValidationError("postgresql pool lifetime values must be positive")
+        if self.worker_count <= 0:
+            raise ValidationError("postgresql pool worker_count must be positive")
+        if self.connection_budget <= 0:
+            raise ValidationError("postgresql connection budget must be positive")
+        if self.max_size * self.worker_count > self.connection_budget:
+            raise ValidationError(
+                "postgresql pool capacity exceeds the configured process connection budget"
+            )
+
+    @classmethod
+    def from_environment(cls, edition: str, worker_count: int) -> Self:
+        normalized = edition.strip().lower()
+        defaults = {
+            "lite": (1, 4, 20),
+            "pro": (1, 8, 80),
+            "enterprise": (2, 12, 192),
+        }
+        if normalized not in defaults:
+            raise ValidationError("edition must be lite, pro or enterprise")
+        default_min, default_max, default_budget = defaults[normalized]
+        return cls(
+            min_size=int(os.environ.get("OPENINFRA_DB_POOL_MIN_SIZE", str(default_min))),
+            max_size=int(os.environ.get("OPENINFRA_DB_POOL_MAX_SIZE", str(default_max))),
+            timeout_seconds=float(os.environ.get("OPENINFRA_DB_POOL_TIMEOUT_SECONDS", "5")),
+            max_idle_seconds=float(os.environ.get("OPENINFRA_DB_POOL_MAX_IDLE_SECONDS", "300")),
+            max_lifetime_seconds=float(
+                os.environ.get("OPENINFRA_DB_POOL_MAX_LIFETIME_SECONDS", "1800")
+            ),
+            worker_count=worker_count,
+            connection_budget=int(
+                os.environ.get("OPENINFRA_DB_CONNECTION_BUDGET", str(default_budget))
+            ),
+        )
+
+
+class PostgreSQLConnectionPool:
+    def __init__(
+        self,
+        dsn: str,
+        profile: PostgreSQLClusterProfile,
+        settings: PostgreSQLConnectionPoolSettings,
+    ) -> None:
+        try:
+            pool_module = importlib.import_module("psycopg_pool")
+            rows = importlib.import_module("psycopg.rows")
+        except ModuleNotFoundError as exc:
+            raise OpenInfraError(
+                "postgresql pooling requires optional dependency: pip install openinfra[postgresql]"
+            ) from exc
+        pool_type = pool_module.ConnectionPool
+        self._pool: Any = pool_type(
+            conninfo=dsn,
+            min_size=settings.min_size,
+            max_size=settings.max_size,
+            timeout=settings.timeout_seconds,
+            max_idle=settings.max_idle_seconds,
+            max_lifetime=settings.max_lifetime_seconds,
+            kwargs={
+                "autocommit": False,
+                "row_factory": rows.dict_row,
+                "options": "-c " + profile.dsn_options().replace(" ", " -c "),
+            },
+            open=False,
+        )
+        self._pool.open(wait=False)
+
+    def getconn(self) -> ConnectionProtocol:
+        try:
+            return cast(ConnectionProtocol, self._pool.getconn())
+        except Exception as exc:  # pragma: no cover - external PostgreSQL runtime
+            raise OpenInfraError("postgresql pool acquisition failed: " + str(exc)) from exc
+
+    def putconn(self, connection: ConnectionProtocol) -> None:
+        self._pool.putconn(connection)
+
+    def close(self) -> None:
+        self._pool.close()
+
+
 class PostgreSQLDriver:
     def connect(self, dsn: str, profile: PostgreSQLClusterProfile) -> ConnectionProtocol:
         try:
@@ -855,6 +956,12 @@ class PostgreSQLConnectionFactory:
         dsn: str,
         profile: PostgreSQLClusterProfile | None = None,
         connector: Callable[[str, PostgreSQLClusterProfile], ConnectionProtocol] | None = None,
+        pool_settings: PostgreSQLConnectionPoolSettings | None = None,
+        pool_factory: Callable[
+            [str, PostgreSQLClusterProfile, PostgreSQLConnectionPoolSettings],
+            PostgreSQLConnectionPool,
+        ]
+        | None = None,
     ) -> None:
         normalized = dsn.strip()
         if not normalized:
@@ -862,9 +969,33 @@ class PostgreSQLConnectionFactory:
         self._dsn = normalized
         self._profile = profile or PostgreSQLClusterProfile.production_default()
         self._connector = connector or PostgreSQLDriver().connect
+        self._pool: PostgreSQLConnectionPool | None = None
+        if pool_settings is not None:
+            if connector is not None and pool_factory is None:
+                raise ValidationError(
+                    "postgresql connector and pool settings require an explicit pool_factory"
+                )
+            factory = pool_factory or PostgreSQLConnectionPool
+            self._pool = factory(self._dsn, self._profile, pool_settings)
+
+    @property
+    def pooled(self) -> bool:
+        return self._pool is not None
 
     def create(self) -> ConnectionProtocol:
+        if self._pool is not None:
+            return self._pool.getconn()
         return self._connector(self._dsn, self._profile)
+
+    def release(self, connection: ConnectionProtocol) -> None:
+        if self._pool is not None:
+            self._pool.putconn(connection)
+            return
+        connection.close()
+
+    def close(self) -> None:
+        if self._pool is not None:
+            self._pool.close()
 
 
 class PostgreSQLSessionRegistry:
@@ -874,6 +1005,12 @@ class PostgreSQLSessionRegistry:
 
     def open(self) -> ConnectionProtocol:
         return self._factory.create()
+
+    def release(self, connection: ConnectionProtocol) -> None:
+        self._factory.release(connection)
+
+    def close(self) -> None:
+        self._factory.close()
 
     def bind(self, connection: ConnectionProtocol) -> None:
         self._local.connection = connection
@@ -908,7 +1045,7 @@ class PostgreSQLUnitOfWork(UnitOfWork):
                 self.rollback()
         finally:
             self._registry.unbind()
-            connection.close()
+            self._registry.release(connection)
             self._connection = None
 
     def commit(self) -> None:
@@ -962,7 +1099,7 @@ class PostgreSQLReadinessProbe(ReadinessProbe):
             return ReadinessStatus("postgresql", False, f"postgresql readiness failed: {exc}")
         finally:
             cursor.close()
-            connection.close()
+            self._registry.release(connection)
 
     def _check_schema(
         self,
@@ -1136,7 +1273,7 @@ class PostgreSQLRuntimeUsageRepository(PostgreSQLRepositoryBase, RuntimeUsageRep
                 return total
             finally:
                 self._registry.unbind()
-                connection.close()
+                self._registry.release(connection)
 
     def _count_with_active_connection(self, tenant_id: TenantId, resource: QuotaResource) -> int:
         total = 0

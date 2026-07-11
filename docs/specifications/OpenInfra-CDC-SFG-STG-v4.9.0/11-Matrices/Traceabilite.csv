@@ -1,0 +1,823 @@
+requirement_id,requirement_priority,domain,use_case_id,test_id,verification
+REQ-00001,N1,DATA,UC-0002,TST-REQ-0001,"Test d’intégration cluster, test de bascule, audit configuration."
+REQ-00002,N1,DATA,UC-0002,TST-REQ-0002,"Revue d’architecture, benchmarks synthétiques, validation de schéma."
+REQ-00003,N1,DATA,UC-0002,TST-REQ-0003,"Analyse DDL, contrôle automatisé des migrations."
+REQ-00004,N1,RSOT,UC-0001,TST-REQ-0004,"Tests fonctionnels UI/API, vérification contraintes données."
+REQ-00005,N1,RSOT,UC-0001,TST-REQ-0005,"Test de restitution à date, comparaison snapshot."
+REQ-00006,N1,IPAM,UC-0002,TST-REQ-0006,Tests de concurrence multi-workers.
+REQ-00007,N1,IPAM,UC-0002,TST-REQ-0007,"Tests API, fixtures réseau, revue modèle."
+REQ-00008,N1,DISC,UC-0004,TST-REQ-0008,"Tests workers, crash recovery, test charge."
+REQ-00009,N1,DCIM,UC-0001,TST-REQ-0009,Tests UI/API et jeu de salle représentatif.
+REQ-00010,N1,DEP,UC-0005,TST-REQ-0010,"Tests graphes, scénarios impact."
+REQ-00011,N1,SEC,UC-0004,TST-REQ-0011,"Tests sécurité, revue RBAC, audit logs."
+REQ-00012,N1,API,UC-0002,TST-REQ-0012,Tests API négatifs et inspection SQL.
+REQ-00013,N1,AI,UC-0007,TST-REQ-0013,"Tests gouvernance IA, logs décisions."
+REQ-00014,N1,OPS,UC-0006,TST-REQ-0014,"Test déploiement, test restauration, test supervision."
+REQ-00015,N1,QA,UC-0003,TST-REQ-0015,Contrôle matrice exigences/tests.
+REQ-00016,N2,OPS,UC-0006,TST-REQ-0016,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00017,N2,OPS,UC-0006,TST-REQ-0017,Test audit et test de corrélation trace/log/event.
+REQ-00018,N2,OPS,UC-0006,TST-REQ-0018,"Test import/export, test file de messages et test reprise."
+REQ-00019,N2,OPS,UC-0006,TST-REQ-0019,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00020,N2,OPS,UC-0006,TST-REQ-0020,Test audit et test de corrélation trace/log/event.
+REQ-00021,N2,OPS,UC-0006,TST-REQ-0021,"Test import/export, test file de messages et test reprise."
+REQ-00022,N2,OPS,UC-0006,TST-REQ-0022,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00023,N2,OPS,UC-0006,TST-REQ-0023,Test audit et test de corrélation trace/log/event.
+REQ-00024,N2,OPS,UC-0006,TST-REQ-0024,"Test import/export, test file de messages et test reprise."
+REQ-00025,N2,OPS,UC-0006,TST-REQ-0025,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00026,N2,OPS,UC-0006,TST-REQ-0026,Test audit et test de corrélation trace/log/event.
+REQ-00027,N2,OPS,UC-0006,TST-REQ-0027,"Test import/export, test file de messages et test reprise."
+REQ-00028,N2,OPS,UC-0006,TST-REQ-0028,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00029,N2,OPS,UC-0006,TST-REQ-0029,Test audit et test de corrélation trace/log/event.
+REQ-00030,N2,OPS,UC-0006,TST-REQ-0030,"Test import/export, test file de messages et test reprise."
+REQ-00031,N1,RSOT,UC-0001,TST-REQ-0031,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00032,N1,RSOT,UC-0001,TST-REQ-0032,Test audit et test de corrélation trace/log/event.
+REQ-00033,N2,RSOT,UC-0001,TST-REQ-0033,"Test import/export, test file de messages et test reprise."
+REQ-00034,N1,RSOT,UC-0001,TST-REQ-0034,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00035,N1,RSOT,UC-0001,TST-REQ-0035,Test audit et test de corrélation trace/log/event.
+REQ-00036,N2,RSOT,UC-0001,TST-REQ-0036,"Test import/export, test file de messages et test reprise."
+REQ-00037,N1,RSOT,UC-0001,TST-REQ-0037,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00038,N1,RSOT,UC-0001,TST-REQ-0038,Test audit et test de corrélation trace/log/event.
+REQ-00039,N2,RSOT,UC-0001,TST-REQ-0039,"Test import/export, test file de messages et test reprise."
+REQ-00040,N1,RSOT,UC-0001,TST-REQ-0040,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00041,N1,RSOT,UC-0001,TST-REQ-0041,Test audit et test de corrélation trace/log/event.
+REQ-00042,N2,RSOT,UC-0001,TST-REQ-0042,"Test import/export, test file de messages et test reprise."
+REQ-00043,N1,RSOT,UC-0001,TST-REQ-0043,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00044,N1,RSOT,UC-0001,TST-REQ-0044,Test audit et test de corrélation trace/log/event.
+REQ-00045,N2,RSOT,UC-0001,TST-REQ-0045,"Test import/export, test file de messages et test reprise."
+REQ-00046,N1,RSOT,UC-0001,TST-REQ-0046,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00047,N1,RSOT,UC-0001,TST-REQ-0047,Test audit et test de corrélation trace/log/event.
+REQ-00048,N2,RSOT,UC-0001,TST-REQ-0048,"Test import/export, test file de messages et test reprise."
+REQ-00049,N1,IPAM,UC-0002,TST-REQ-0049,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00050,N1,IPAM,UC-0002,TST-REQ-0050,Test audit et test de corrélation trace/log/event.
+REQ-00051,N1,IPAM,UC-0002,TST-REQ-0051,"Test import/export, test file de messages et test reprise."
+REQ-00052,N1,IPAM,UC-0002,TST-REQ-0052,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00053,N1,IPAM,UC-0002,TST-REQ-0053,Test audit et test de corrélation trace/log/event.
+REQ-00054,N1,IPAM,UC-0002,TST-REQ-0054,"Test import/export, test file de messages et test reprise."
+REQ-00055,N1,IPAM,UC-0002,TST-REQ-0055,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00056,N1,IPAM,UC-0002,TST-REQ-0056,Test audit et test de corrélation trace/log/event.
+REQ-00057,N1,IPAM,UC-0002,TST-REQ-0057,"Test import/export, test file de messages et test reprise."
+REQ-00058,N1,IPAM,UC-0002,TST-REQ-0058,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00059,N1,IPAM,UC-0002,TST-REQ-0059,Test audit et test de corrélation trace/log/event.
+REQ-00060,N1,IPAM,UC-0002,TST-REQ-0060,"Test import/export, test file de messages et test reprise."
+REQ-00061,N1,IPAM,UC-0002,TST-REQ-0061,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00062,N1,IPAM,UC-0002,TST-REQ-0062,Test audit et test de corrélation trace/log/event.
+REQ-00063,N1,IPAM,UC-0002,TST-REQ-0063,"Test import/export, test file de messages et test reprise."
+REQ-00064,N1,IPAM,UC-0002,TST-REQ-0064,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00065,N1,IPAM,UC-0002,TST-REQ-0065,Test audit et test de corrélation trace/log/event.
+REQ-00066,N1,IPAM,UC-0002,TST-REQ-0066,"Test import/export, test file de messages et test reprise."
+REQ-00067,N1,IPAM,UC-0002,TST-REQ-0067,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00068,N1,IPAM,UC-0002,TST-REQ-0068,Test audit et test de corrélation trace/log/event.
+REQ-00069,N1,IPAM,UC-0002,TST-REQ-0069,"Test import/export, test file de messages et test reprise."
+REQ-00070,N1,IPAM,UC-0002,TST-REQ-0070,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00071,N1,IPAM,UC-0002,TST-REQ-0071,Test audit et test de corrélation trace/log/event.
+REQ-00072,N1,IPAM,UC-0002,TST-REQ-0072,"Test import/export, test file de messages et test reprise."
+REQ-00073,N1,IPAM,UC-0002,TST-REQ-0073,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00074,N1,IPAM,UC-0002,TST-REQ-0074,Test audit et test de corrélation trace/log/event.
+REQ-00075,N1,IPAM,UC-0002,TST-REQ-0075,"Test import/export, test file de messages et test reprise."
+REQ-00076,N1,IPAM,UC-0002,TST-REQ-0076,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00077,N1,IPAM,UC-0002,TST-REQ-0077,Test audit et test de corrélation trace/log/event.
+REQ-00078,N1,IPAM,UC-0002,TST-REQ-0078,"Test import/export, test file de messages et test reprise."
+REQ-00079,N1,IPAM,UC-0002,TST-REQ-0079,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00080,N1,IPAM,UC-0002,TST-REQ-0080,Test audit et test de corrélation trace/log/event.
+REQ-00081,N1,IPAM,UC-0002,TST-REQ-0081,"Test import/export, test file de messages et test reprise."
+REQ-00082,N1,IPAM,UC-0002,TST-REQ-0082,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00083,N1,IPAM,UC-0002,TST-REQ-0083,Test audit et test de corrélation trace/log/event.
+REQ-00084,N1,IPAM,UC-0002,TST-REQ-0084,"Test import/export, test file de messages et test reprise."
+REQ-00085,N1,IPAM,UC-0002,TST-REQ-0085,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00086,N1,IPAM,UC-0002,TST-REQ-0086,Test audit et test de corrélation trace/log/event.
+REQ-00087,N1,IPAM,UC-0002,TST-REQ-0087,"Test import/export, test file de messages et test reprise."
+REQ-00088,N1,IPAM,UC-0002,TST-REQ-0088,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00089,N1,IPAM,UC-0002,TST-REQ-0089,Test audit et test de corrélation trace/log/event.
+REQ-00090,N1,IPAM,UC-0002,TST-REQ-0090,"Test import/export, test file de messages et test reprise."
+REQ-00091,N1,IPAM,UC-0002,TST-REQ-0091,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00092,N1,IPAM,UC-0002,TST-REQ-0092,Test audit et test de corrélation trace/log/event.
+REQ-00093,N1,IPAM,UC-0002,TST-REQ-0093,"Test import/export, test file de messages et test reprise."
+REQ-00094,N2,DISC,UC-0004,TST-REQ-0094,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00095,N2,DISC,UC-0004,TST-REQ-0095,Test audit et test de corrélation trace/log/event.
+REQ-00096,N1,DISC,UC-0004,TST-REQ-0096,"Test import/export, test file de messages et test reprise."
+REQ-00097,N2,DISC,UC-0004,TST-REQ-0097,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00098,N2,DISC,UC-0004,TST-REQ-0098,Test audit et test de corrélation trace/log/event.
+REQ-00099,N1,DISC,UC-0004,TST-REQ-0099,"Test import/export, test file de messages et test reprise."
+REQ-00100,N2,DISC,UC-0004,TST-REQ-0100,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00101,N2,DISC,UC-0004,TST-REQ-0101,Test audit et test de corrélation trace/log/event.
+REQ-00102,N1,DISC,UC-0004,TST-REQ-0102,"Test import/export, test file de messages et test reprise."
+REQ-00103,N2,DISC,UC-0004,TST-REQ-0103,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00104,N2,DISC,UC-0004,TST-REQ-0104,Test audit et test de corrélation trace/log/event.
+REQ-00105,N1,DISC,UC-0004,TST-REQ-0105,"Test import/export, test file de messages et test reprise."
+REQ-00106,N2,DISC,UC-0004,TST-REQ-0106,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00107,N2,DISC,UC-0004,TST-REQ-0107,Test audit et test de corrélation trace/log/event.
+REQ-00108,N1,DISC,UC-0004,TST-REQ-0108,"Test import/export, test file de messages et test reprise."
+REQ-00109,N2,DISC,UC-0004,TST-REQ-0109,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00110,N2,DISC,UC-0004,TST-REQ-0110,Test audit et test de corrélation trace/log/event.
+REQ-00111,N1,DISC,UC-0004,TST-REQ-0111,"Test import/export, test file de messages et test reprise."
+REQ-00112,N2,DISC,UC-0004,TST-REQ-0112,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00113,N2,DISC,UC-0004,TST-REQ-0113,Test audit et test de corrélation trace/log/event.
+REQ-00114,N1,DISC,UC-0004,TST-REQ-0114,"Test import/export, test file de messages et test reprise."
+REQ-00115,N2,DISC,UC-0004,TST-REQ-0115,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00116,N2,DISC,UC-0004,TST-REQ-0116,Test audit et test de corrélation trace/log/event.
+REQ-00117,N1,DISC,UC-0004,TST-REQ-0117,"Test import/export, test file de messages et test reprise."
+REQ-00118,N2,DISC,UC-0004,TST-REQ-0118,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00119,N2,DISC,UC-0004,TST-REQ-0119,Test audit et test de corrélation trace/log/event.
+REQ-00120,N1,DISC,UC-0004,TST-REQ-0120,"Test import/export, test file de messages et test reprise."
+REQ-00121,N2,DISC,UC-0004,TST-FUNC-0001,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00122,N2,DISC,UC-0004,TST-FUNC-0002,Test audit et test de corrélation trace/log/event.
+REQ-00123,N1,DISC,UC-0004,TST-FUNC-0003,"Test import/export, test file de messages et test reprise."
+REQ-00124,N2,DISC,UC-0004,TST-FUNC-0004,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00125,N2,DISC,UC-0004,TST-FUNC-0005,Test audit et test de corrélation trace/log/event.
+REQ-00126,N1,DISC,UC-0004,TST-FUNC-0006,"Test import/export, test file de messages et test reprise."
+REQ-00127,N1,DCIM,UC-0001,TST-FUNC-0007,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00128,N2,DCIM,UC-0001,TST-FUNC-0008,Test audit et test de corrélation trace/log/event.
+REQ-00129,N2,DCIM,UC-0001,TST-FUNC-0009,"Test import/export, test file de messages et test reprise."
+REQ-00130,N1,DCIM,UC-0001,TST-FUNC-0010,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00131,N2,DCIM,UC-0001,TST-FUNC-0001,Test audit et test de corrélation trace/log/event.
+REQ-00132,N2,DCIM,UC-0001,TST-FUNC-0002,"Test import/export, test file de messages et test reprise."
+REQ-00133,N1,DCIM,UC-0001,TST-FUNC-0003,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00134,N2,DCIM,UC-0001,TST-FUNC-0004,Test audit et test de corrélation trace/log/event.
+REQ-00135,N2,DCIM,UC-0001,TST-FUNC-0005,"Test import/export, test file de messages et test reprise."
+REQ-00136,N1,DCIM,UC-0001,TST-FUNC-0006,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00137,N2,DCIM,UC-0001,TST-FUNC-0007,Test audit et test de corrélation trace/log/event.
+REQ-00138,N2,DCIM,UC-0001,TST-FUNC-0008,"Test import/export, test file de messages et test reprise."
+REQ-00139,N1,DCIM,UC-0001,TST-FUNC-0009,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00140,N2,DCIM,UC-0001,TST-FUNC-0010,Test audit et test de corrélation trace/log/event.
+REQ-00141,N2,DCIM,UC-0001,TST-FUNC-0001,"Test import/export, test file de messages et test reprise."
+REQ-00142,N1,DCIM,UC-0001,TST-FUNC-0002,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00143,N2,DCIM,UC-0001,TST-FUNC-0003,Test audit et test de corrélation trace/log/event.
+REQ-00144,N2,DCIM,UC-0001,TST-FUNC-0004,"Test import/export, test file de messages et test reprise."
+REQ-00145,N1,DCIM,UC-0001,TST-FUNC-0005,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00146,N2,DCIM,UC-0001,TST-FUNC-0006,Test audit et test de corrélation trace/log/event.
+REQ-00147,N2,DCIM,UC-0001,TST-FUNC-0007,"Test import/export, test file de messages et test reprise."
+REQ-00148,N1,DCIM,UC-0001,TST-FUNC-0008,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00149,N2,DCIM,UC-0001,TST-FUNC-0009,Test audit et test de corrélation trace/log/event.
+REQ-00150,N2,DCIM,UC-0001,TST-FUNC-0010,"Test import/export, test file de messages et test reprise."
+REQ-00151,N1,DCIM,UC-0001,TST-FUNC-0001,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00152,N2,DCIM,UC-0001,TST-FUNC-0002,Test audit et test de corrélation trace/log/event.
+REQ-00153,N2,DCIM,UC-0001,TST-FUNC-0003,"Test import/export, test file de messages et test reprise."
+REQ-00154,N2,DEP,UC-0005,TST-FUNC-0004,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00155,N2,DEP,UC-0005,TST-FUNC-0005,Test audit et test de corrélation trace/log/event.
+REQ-00156,N2,DEP,UC-0005,TST-FUNC-0006,"Test import/export, test file de messages et test reprise."
+REQ-00157,N2,DEP,UC-0005,TST-FUNC-0007,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00158,N2,DEP,UC-0005,TST-FUNC-0008,Test audit et test de corrélation trace/log/event.
+REQ-00159,N2,DEP,UC-0005,TST-FUNC-0009,"Test import/export, test file de messages et test reprise."
+REQ-00160,N2,DEP,UC-0005,TST-FUNC-0010,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00161,N2,DEP,UC-0005,TST-FUNC-0001,Test audit et test de corrélation trace/log/event.
+REQ-00162,N2,DEP,UC-0005,TST-FUNC-0002,"Test import/export, test file de messages et test reprise."
+REQ-00163,N2,DEP,UC-0005,TST-FUNC-0003,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00164,N2,DEP,UC-0005,TST-FUNC-0004,Test audit et test de corrélation trace/log/event.
+REQ-00165,N2,DEP,UC-0005,TST-FUNC-0005,"Test import/export, test file de messages et test reprise."
+REQ-00166,N2,DEP,UC-0005,TST-FUNC-0006,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00167,N2,DEP,UC-0005,TST-FUNC-0007,Test audit et test de corrélation trace/log/event.
+REQ-00168,N2,DEP,UC-0005,TST-FUNC-0008,"Test import/export, test file de messages et test reprise."
+REQ-00169,N2,DEP,UC-0005,TST-FUNC-0009,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00170,N2,DEP,UC-0005,TST-FUNC-0010,Test audit et test de corrélation trace/log/event.
+REQ-00171,N2,DEP,UC-0005,TST-FUNC-0001,"Test import/export, test file de messages et test reprise."
+REQ-00172,N2,DEP,UC-0005,TST-FUNC-0002,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00173,N2,DEP,UC-0005,TST-FUNC-0003,Test audit et test de corrélation trace/log/event.
+REQ-00174,N2,DEP,UC-0005,TST-FUNC-0004,"Test import/export, test file de messages et test reprise."
+REQ-00175,N2,ITAM,UC-0003,TST-FUNC-0005,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00176,N2,ITAM,UC-0003,TST-FUNC-0006,Test audit et test de corrélation trace/log/event.
+REQ-00177,N1,ITAM,UC-0003,TST-FUNC-0007,"Test import/export, test file de messages et test reprise."
+REQ-00178,N2,ITAM,UC-0003,TST-FUNC-0008,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00179,N2,ITAM,UC-0003,TST-FUNC-0009,Test audit et test de corrélation trace/log/event.
+REQ-00180,N1,ITAM,UC-0003,TST-FUNC-0010,"Test import/export, test file de messages et test reprise."
+REQ-00181,N2,ITAM,UC-0003,TST-FUNC-0001,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00182,N2,ITAM,UC-0003,TST-FUNC-0002,Test audit et test de corrélation trace/log/event.
+REQ-00183,N1,ITAM,UC-0003,TST-FUNC-0003,"Test import/export, test file de messages et test reprise."
+REQ-00184,N2,ITAM,UC-0003,TST-FUNC-0004,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00185,N2,ITAM,UC-0003,TST-FUNC-0005,Test audit et test de corrélation trace/log/event.
+REQ-00186,N1,ITAM,UC-0003,TST-FUNC-0006,"Test import/export, test file de messages et test reprise."
+REQ-00187,N2,ITAM,UC-0003,TST-FUNC-0007,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00188,N2,ITAM,UC-0003,TST-FUNC-0008,Test audit et test de corrélation trace/log/event.
+REQ-00189,N1,ITAM,UC-0003,TST-FUNC-0009,"Test import/export, test file de messages et test reprise."
+REQ-00190,N2,ITAM,UC-0003,TST-FUNC-0010,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00191,N2,ITAM,UC-0003,TST-FUNC-0001,Test audit et test de corrélation trace/log/event.
+REQ-00192,N1,ITAM,UC-0003,TST-FUNC-0002,"Test import/export, test file de messages et test reprise."
+REQ-00193,N2,ITAM,UC-0003,TST-FUNC-0003,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00194,N2,ITAM,UC-0003,TST-FUNC-0004,Test audit et test de corrélation trace/log/event.
+REQ-00195,N1,ITAM,UC-0003,TST-FUNC-0005,"Test import/export, test file de messages et test reprise."
+REQ-00196,N1,SEC,UC-0004,TST-FUNC-0006,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00197,N1,SEC,UC-0004,TST-FUNC-0007,Test audit et test de corrélation trace/log/event.
+REQ-00198,N2,SEC,UC-0004,TST-FUNC-0008,"Test import/export, test file de messages et test reprise."
+REQ-00199,N1,SEC,UC-0004,TST-FUNC-0009,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00200,N1,SEC,UC-0004,TST-FUNC-0010,Test audit et test de corrélation trace/log/event.
+REQ-00201,N2,SEC,UC-0004,TST-FUNC-0001,"Test import/export, test file de messages et test reprise."
+REQ-00202,N1,SEC,UC-0004,TST-FUNC-0002,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00203,N1,SEC,UC-0004,TST-FUNC-0003,Test audit et test de corrélation trace/log/event.
+REQ-00204,N2,SEC,UC-0004,TST-FUNC-0004,"Test import/export, test file de messages et test reprise."
+REQ-00205,N1,SEC,UC-0004,TST-FUNC-0005,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00206,N1,SEC,UC-0004,TST-FUNC-0006,Test audit et test de corrélation trace/log/event.
+REQ-00207,N2,SEC,UC-0004,TST-FUNC-0007,"Test import/export, test file de messages et test reprise."
+REQ-00208,N1,SEC,UC-0004,TST-FUNC-0008,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00209,N1,SEC,UC-0004,TST-FUNC-0009,Test audit et test de corrélation trace/log/event.
+REQ-00210,N2,SEC,UC-0004,TST-FUNC-0010,"Test import/export, test file de messages et test reprise."
+REQ-00211,N1,SEC,UC-0004,TST-FUNC-0001,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00212,N1,SEC,UC-0004,TST-FUNC-0002,Test audit et test de corrélation trace/log/event.
+REQ-00213,N2,SEC,UC-0004,TST-FUNC-0003,"Test import/export, test file de messages et test reprise."
+REQ-00214,N1,SEC,UC-0004,TST-FUNC-0004,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00215,N1,SEC,UC-0004,TST-FUNC-0005,Test audit et test de corrélation trace/log/event.
+REQ-00216,N2,SEC,UC-0004,TST-FUNC-0006,"Test import/export, test file de messages et test reprise."
+REQ-00217,N2,API,UC-0002,TST-FUNC-0007,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00218,N2,API,UC-0002,TST-FUNC-0008,Test audit et test de corrélation trace/log/event.
+REQ-00219,N2,API,UC-0002,TST-FUNC-0009,"Test import/export, test file de messages et test reprise."
+REQ-00220,N2,API,UC-0002,TST-FUNC-0010,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00221,N2,API,UC-0002,TST-FUNC-0001,Test audit et test de corrélation trace/log/event.
+REQ-00222,N2,API,UC-0002,TST-FUNC-0002,"Test import/export, test file de messages et test reprise."
+REQ-00223,N2,API,UC-0002,TST-FUNC-0003,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00224,N2,API,UC-0002,TST-FUNC-0004,Test audit et test de corrélation trace/log/event.
+REQ-00225,N2,API,UC-0002,TST-FUNC-0005,"Test import/export, test file de messages et test reprise."
+REQ-00226,N2,API,UC-0002,TST-FUNC-0006,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00227,N2,API,UC-0002,TST-FUNC-0007,Test audit et test de corrélation trace/log/event.
+REQ-00228,N2,API,UC-0002,TST-FUNC-0008,"Test import/export, test file de messages et test reprise."
+REQ-00229,N2,API,UC-0002,TST-FUNC-0009,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00230,N2,API,UC-0002,TST-FUNC-0010,Test audit et test de corrélation trace/log/event.
+REQ-00231,N2,API,UC-0002,TST-FUNC-0001,"Test import/export, test file de messages et test reprise."
+REQ-00232,N2,API,UC-0002,TST-FUNC-0002,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00233,N2,API,UC-0002,TST-FUNC-0003,Test audit et test de corrélation trace/log/event.
+REQ-00234,N2,API,UC-0002,TST-FUNC-0004,"Test import/export, test file de messages et test reprise."
+REQ-00235,N2,AI,UC-0007,TST-FUNC-0005,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00236,N2,AI,UC-0007,TST-FUNC-0006,Test audit et test de corrélation trace/log/event.
+REQ-00237,N2,AI,UC-0007,TST-FUNC-0007,"Test import/export, test file de messages et test reprise."
+REQ-00238,N2,AI,UC-0007,TST-FUNC-0008,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00239,N2,AI,UC-0007,TST-FUNC-0009,Test audit et test de corrélation trace/log/event.
+REQ-00240,N2,AI,UC-0007,TST-FUNC-0010,"Test import/export, test file de messages et test reprise."
+REQ-00241,N2,AI,UC-0007,TST-FUNC-0001,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00242,N2,AI,UC-0007,TST-FUNC-0002,Test audit et test de corrélation trace/log/event.
+REQ-00243,N2,AI,UC-0007,TST-FUNC-0003,"Test import/export, test file de messages et test reprise."
+REQ-00244,N2,AI,UC-0007,TST-FUNC-0004,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00245,N2,AI,UC-0007,TST-FUNC-0005,Test audit et test de corrélation trace/log/event.
+REQ-00246,N2,AI,UC-0007,TST-FUNC-0006,"Test import/export, test file de messages et test reprise."
+REQ-00247,N2,AI,UC-0007,TST-FUNC-0007,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00248,N2,AI,UC-0007,TST-FUNC-0008,Test audit et test de corrélation trace/log/event.
+REQ-00249,N2,AI,UC-0007,TST-FUNC-0009,"Test import/export, test file de messages et test reprise."
+REQ-00250,N2,AI,UC-0007,TST-FUNC-0010,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00251,N2,AI,UC-0007,TST-FUNC-0001,Test audit et test de corrélation trace/log/event.
+REQ-00252,N2,AI,UC-0007,TST-FUNC-0002,"Test import/export, test file de messages et test reprise."
+REQ-00253,N2,AI,UC-0007,TST-FUNC-0003,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00254,N2,AI,UC-0007,TST-FUNC-0004,Test audit et test de corrélation trace/log/event.
+REQ-00255,N2,AI,UC-0007,TST-FUNC-0005,"Test import/export, test file de messages et test reprise."
+REQ-00256,N1,OPS,UC-0006,TST-FUNC-0006,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00257,N2,OPS,UC-0006,TST-FUNC-0007,Test audit et test de corrélation trace/log/event.
+REQ-00258,N2,OPS,UC-0006,TST-FUNC-0008,"Test import/export, test file de messages et test reprise."
+REQ-00259,N1,OPS,UC-0006,TST-FUNC-0009,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00260,N2,OPS,UC-0006,TST-FUNC-0010,Test audit et test de corrélation trace/log/event.
+REQ-00261,N2,OPS,UC-0006,TST-FUNC-0001,"Test import/export, test file de messages et test reprise."
+REQ-00262,N1,OPS,UC-0006,TST-FUNC-0002,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00263,N2,OPS,UC-0006,TST-FUNC-0003,Test audit et test de corrélation trace/log/event.
+REQ-00264,N2,OPS,UC-0006,TST-FUNC-0004,"Test import/export, test file de messages et test reprise."
+REQ-00265,N1,OPS,UC-0006,TST-FUNC-0005,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00266,N2,OPS,UC-0006,TST-FUNC-0006,Test audit et test de corrélation trace/log/event.
+REQ-00267,N2,OPS,UC-0006,TST-FUNC-0007,"Test import/export, test file de messages et test reprise."
+REQ-00268,N1,OPS,UC-0006,TST-FUNC-0008,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00269,N2,OPS,UC-0006,TST-FUNC-0009,Test audit et test de corrélation trace/log/event.
+REQ-00270,N2,OPS,UC-0006,TST-FUNC-0010,"Test import/export, test file de messages et test reprise."
+REQ-00271,N1,OPS,UC-0006,TST-FUNC-0001,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00272,N2,OPS,UC-0006,TST-FUNC-0002,Test audit et test de corrélation trace/log/event.
+REQ-00273,N2,OPS,UC-0006,TST-FUNC-0003,"Test import/export, test file de messages et test reprise."
+REQ-00274,N1,QA,UC-0003,TST-FUNC-0004,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00275,N2,QA,UC-0003,TST-FUNC-0005,Test audit et test de corrélation trace/log/event.
+REQ-00276,N1,QA,UC-0003,TST-FUNC-0006,"Test import/export, test file de messages et test reprise."
+REQ-00277,N1,QA,UC-0003,TST-FUNC-0007,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00278,N2,QA,UC-0003,TST-FUNC-0008,Test audit et test de corrélation trace/log/event.
+REQ-00279,N1,QA,UC-0003,TST-FUNC-0009,"Test import/export, test file de messages et test reprise."
+REQ-00280,N1,QA,UC-0003,TST-FUNC-0010,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00281,N2,QA,UC-0003,TST-FUNC-0001,Test audit et test de corrélation trace/log/event.
+REQ-00282,N1,QA,UC-0003,TST-FUNC-0002,"Test import/export, test file de messages et test reprise."
+REQ-00283,N1,QA,UC-0003,TST-FUNC-0003,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00284,N2,QA,UC-0003,TST-FUNC-0004,Test audit et test de corrélation trace/log/event.
+REQ-00285,N1,QA,UC-0003,TST-FUNC-0005,"Test import/export, test file de messages et test reprise."
+REQ-00286,N1,QA,UC-0003,TST-FUNC-0006,"Revue documentaire, test API/UI, test d’intégration et matrice de conformité."
+REQ-00287,N2,QA,UC-0003,TST-FUNC-0007,Test audit et test de corrélation trace/log/event.
+REQ-00288,N1,QA,UC-0003,TST-FUNC-0008,"Test import/export, test file de messages et test reprise."
+REQ-00289,N1,DATA,UC-0002,TST-FUNC-0009,Contrôle manifeste de déploiement.
+REQ-00290,N1,DATA,UC-0002,TST-FUNC-0010,Test d’intégration cluster.
+REQ-00291,N1,DATA,UC-0002,TST-FUNC-0001,Test charge connexions.
+REQ-00292,N1,DATA,UC-0002,TST-FUNC-0002,Test restauration.
+REQ-00293,N1,DATA,UC-0002,TST-FUNC-0003,Contrôle DDL automatique.
+REQ-00294,N1,DATA,UC-0002,TST-FUNC-0004,Test archivage/purge.
+REQ-00295,N1,DATA,UC-0002,TST-FUNC-0005,Pipeline performance.
+REQ-00296,N1,DATA,UC-0002,TST-FUNC-0006,Contrôle métriques.
+REQ-00297,N1,DATA,UC-0002,TST-FUNC-0007,Test migration forward/rollback.
+REQ-00298,N1,DATA,UC-0002,TST-FUNC-0008,Revue architecture reporting.
+REQ-00299,N1,API,UC-0002,TST-FUNC-0009,Benchmark API.
+REQ-00300,N1,API,UC-0002,TST-FUNC-0010,Benchmark API.
+REQ-00301,N1,IPAM,UC-0002,TST-FUNC-0001,Benchmark IPAM.
+REQ-00302,N1,RSOT,UC-0001,TST-FUNC-0002,Benchmark RSOT.
+REQ-00303,N1,API,UC-0002,TST-FUNC-0003,Benchmark API.
+REQ-00304,N1,DATA,UC-0002,TST-FUNC-0004,Benchmark batch.
+REQ-00305,N1,API,UC-0002,TST-FUNC-0005,Test charge.
+REQ-00306,N1,OPS,UC-0006,TST-FUNC-0006,Test charge distribué.
+REQ-00307,N1,DISC,UC-0004,TST-FUNC-0007,Test charge mixte.
+REQ-00308,N1,IPAM,UC-0002,TST-FUNC-0008,Test de concurrence.
+REQ-00309,N1,GOV,UC-0011,TST-REQ-0309,"Test fonctionnel bout-en-bout, revue API/UI et vérification audit."
+REQ-00310,N1,GOV,UC-0011,TST-REQ-0310,Revue fonctionnelle et tests négatifs sur les workflows.
+REQ-00311,N1,GOV,UC-0011,TST-REQ-0311,"Revue dictionnaire, tests migrations et tests contraintes."
+REQ-00312,N1,GOV,UC-0011,TST-REQ-0312,"Analyse DDL, tests EXPLAIN, benchmark API."
+REQ-00313,N1,GOV,UC-0011,TST-REQ-0313,"Tests RBAC/ABAC, tests audit et tests sécurité."
+REQ-00314,N1,GOV,UC-0011,TST-REQ-0314,"Tests worker, crash recovery, dead-letter queue et reprise."
+REQ-00315,N2,GOV,UC-0011,TST-REQ-0315,Test observabilité et contrôle dashboards.
+REQ-00316,N1,GOV,UC-0011,TST-REQ-0316,Tests API contractuels et tests de charge.
+REQ-00317,N1,GOV,UC-0011,TST-REQ-0317,Tests audit et relecture historique.
+REQ-00318,N2,GOV,UC-0011,TST-REQ-0318,Test event bus et test cohérence inter-domaines.
+REQ-00319,N1,GOV,UC-0011,TST-REQ-0319,Scénarios nominaux API/UI et tests fonctionnels.
+REQ-00320,N2,GOV,UC-0011,TST-REQ-0320,Tests fonctionnels et revue documentaire.
+REQ-00321,N1,GOV,UC-0011,TST-REQ-0321,Tests règles qualité et tests exceptions.
+REQ-00322,N2,GOV,UC-0011,TST-REQ-0322,Revue runbooks et test restauration ciblée.
+REQ-00323,N1,GOV,UC-0011,TST-REQ-0323,Contrôle matrice de traçabilité.
+REQ-00324,N1,DQ,UC-0012,TST-REQ-0324,"Test fonctionnel bout-en-bout, revue API/UI et vérification audit."
+REQ-00325,N1,DQ,UC-0012,TST-REQ-0325,Revue fonctionnelle et tests négatifs sur les workflows.
+REQ-00326,N1,DQ,UC-0012,TST-REQ-0326,"Revue dictionnaire, tests migrations et tests contraintes."
+REQ-00327,N1,DQ,UC-0012,TST-REQ-0327,"Analyse DDL, tests EXPLAIN, benchmark API."
+REQ-00328,N1,DQ,UC-0012,TST-REQ-0328,"Tests RBAC/ABAC, tests audit et tests sécurité."
+REQ-00329,N1,DQ,UC-0012,TST-REQ-0329,"Tests worker, crash recovery, dead-letter queue et reprise."
+REQ-00330,N2,DQ,UC-0012,TST-REQ-0330,Test observabilité et contrôle dashboards.
+REQ-00331,N1,DQ,UC-0012,TST-REQ-0331,Tests API contractuels et tests de charge.
+REQ-00332,N1,DQ,UC-0012,TST-REQ-0332,Tests audit et relecture historique.
+REQ-00333,N2,DQ,UC-0012,TST-REQ-0333,Test event bus et test cohérence inter-domaines.
+REQ-00334,N1,DQ,UC-0012,TST-REQ-0334,Scénarios nominaux API/UI et tests fonctionnels.
+REQ-00335,N2,DQ,UC-0012,TST-REQ-0335,Tests fonctionnels et revue documentaire.
+REQ-00336,N1,DQ,UC-0012,TST-REQ-0336,Tests règles qualité et tests exceptions.
+REQ-00337,N2,DQ,UC-0012,TST-REQ-0337,Revue runbooks et test restauration ciblée.
+REQ-00338,N1,DQ,UC-0012,TST-REQ-0338,Contrôle matrice de traçabilité.
+REQ-00339,N1,FLOW,UC-0013,TST-REQ-0339,"Test fonctionnel bout-en-bout, revue API/UI et vérification audit."
+REQ-00340,N1,FLOW,UC-0013,TST-REQ-0340,Revue fonctionnelle et tests négatifs sur les workflows.
+REQ-00341,N1,FLOW,UC-0013,TST-REQ-0341,"Revue dictionnaire, tests migrations et tests contraintes."
+REQ-00342,N1,FLOW,UC-0013,TST-REQ-0342,"Analyse DDL, tests EXPLAIN, benchmark API."
+REQ-00343,N1,FLOW,UC-0013,TST-REQ-0343,"Tests RBAC/ABAC, tests audit et tests sécurité."
+REQ-00344,N1,FLOW,UC-0013,TST-REQ-0344,"Tests worker, crash recovery, dead-letter queue et reprise."
+REQ-00345,N2,FLOW,UC-0013,TST-REQ-0345,Test observabilité et contrôle dashboards.
+REQ-00346,N1,FLOW,UC-0013,TST-REQ-0346,Tests API contractuels et tests de charge.
+REQ-00347,N1,FLOW,UC-0013,TST-REQ-0347,Tests audit et relecture historique.
+REQ-00348,N2,FLOW,UC-0013,TST-REQ-0348,Test event bus et test cohérence inter-domaines.
+REQ-00349,N1,FLOW,UC-0013,TST-REQ-0349,Scénarios nominaux API/UI et tests fonctionnels.
+REQ-00350,N2,FLOW,UC-0013,TST-REQ-0350,Tests fonctionnels et revue documentaire.
+REQ-00351,N1,FLOW,UC-0013,TST-REQ-0351,Tests règles qualité et tests exceptions.
+REQ-00352,N2,FLOW,UC-0013,TST-REQ-0352,Revue runbooks et test restauration ciblée.
+REQ-00353,N1,FLOW,UC-0013,TST-REQ-0353,Contrôle matrice de traçabilité.
+REQ-00354,N1,CERT,UC-0014,TST-REQ-0354,"Test fonctionnel bout-en-bout, revue API/UI et vérification audit."
+REQ-00355,N1,CERT,UC-0014,TST-REQ-0355,Revue fonctionnelle et tests négatifs sur les workflows.
+REQ-00356,N1,CERT,UC-0014,TST-REQ-0356,"Revue dictionnaire, tests migrations et tests contraintes."
+REQ-00357,N1,CERT,UC-0014,TST-REQ-0357,"Analyse DDL, tests EXPLAIN, benchmark API."
+REQ-00358,N1,CERT,UC-0014,TST-REQ-0358,"Tests RBAC/ABAC, tests audit et tests sécurité."
+REQ-00359,N1,CERT,UC-0014,TST-REQ-0359,"Tests worker, crash recovery, dead-letter queue et reprise."
+REQ-00360,N2,CERT,UC-0014,TST-REQ-0360,Test observabilité et contrôle dashboards.
+REQ-00361,N1,CERT,UC-0014,TST-REQ-0361,Tests API contractuels et tests de charge.
+REQ-00362,N1,CERT,UC-0014,TST-REQ-0362,Tests audit et relecture historique.
+REQ-00363,N2,CERT,UC-0014,TST-REQ-0363,Test event bus et test cohérence inter-domaines.
+REQ-00364,N1,CERT,UC-0014,TST-REQ-0364,Scénarios nominaux API/UI et tests fonctionnels.
+REQ-00365,N2,CERT,UC-0014,TST-REQ-0365,Tests fonctionnels et revue documentaire.
+REQ-00366,N1,CERT,UC-0014,TST-REQ-0366,Tests règles qualité et tests exceptions.
+REQ-00367,N2,CERT,UC-0014,TST-REQ-0367,Revue runbooks et test restauration ciblée.
+REQ-00368,N1,CERT,UC-0014,TST-REQ-0368,Contrôle matrice de traçabilité.
+REQ-00369,N1,NCFG,UC-0015,TST-REQ-0369,"Test fonctionnel bout-en-bout, revue API/UI et vérification audit."
+REQ-00370,N1,NCFG,UC-0015,TST-REQ-0370,Revue fonctionnelle et tests négatifs sur les workflows.
+REQ-00371,N1,NCFG,UC-0015,TST-REQ-0371,"Revue dictionnaire, tests migrations et tests contraintes."
+REQ-00372,N1,NCFG,UC-0015,TST-REQ-0372,"Analyse DDL, tests EXPLAIN, benchmark API."
+REQ-00373,N1,NCFG,UC-0015,TST-REQ-0373,"Tests RBAC/ABAC, tests audit et tests sécurité."
+REQ-00374,N1,NCFG,UC-0015,TST-REQ-0374,"Tests worker, crash recovery, dead-letter queue et reprise."
+REQ-00375,N2,NCFG,UC-0015,TST-REQ-0375,Test observabilité et contrôle dashboards.
+REQ-00376,N1,NCFG,UC-0015,TST-REQ-0376,Tests API contractuels et tests de charge.
+REQ-00377,N1,NCFG,UC-0015,TST-REQ-0377,Tests audit et relecture historique.
+REQ-00378,N2,NCFG,UC-0015,TST-REQ-0378,Test event bus et test cohérence inter-domaines.
+REQ-00379,N1,NCFG,UC-0015,TST-REQ-0379,Scénarios nominaux API/UI et tests fonctionnels.
+REQ-00380,N2,NCFG,UC-0015,TST-REQ-0380,Tests fonctionnels et revue documentaire.
+REQ-00381,N1,NCFG,UC-0015,TST-REQ-0381,Tests règles qualité et tests exceptions.
+REQ-00382,N2,NCFG,UC-0015,TST-REQ-0382,Revue runbooks et test restauration ciblée.
+REQ-00383,N1,NCFG,UC-0015,TST-REQ-0383,Contrôle matrice de traçabilité.
+REQ-00384,N1,FINOPS,UC-0016,TST-REQ-0384,"Test fonctionnel bout-en-bout, revue API/UI et vérification audit."
+REQ-00385,N1,FINOPS,UC-0016,TST-REQ-0385,Revue fonctionnelle et tests négatifs sur les workflows.
+REQ-00386,N1,FINOPS,UC-0016,TST-REQ-0386,"Revue dictionnaire, tests migrations et tests contraintes."
+REQ-00387,N1,FINOPS,UC-0016,TST-REQ-0387,"Analyse DDL, tests EXPLAIN, benchmark API."
+REQ-00388,N1,FINOPS,UC-0016,TST-REQ-0388,"Tests RBAC/ABAC, tests audit et tests sécurité."
+REQ-00389,N1,FINOPS,UC-0016,TST-REQ-0389,"Tests worker, crash recovery, dead-letter queue et reprise."
+REQ-00390,N2,FINOPS,UC-0016,TST-REQ-0390,Test observabilité et contrôle dashboards.
+REQ-00391,N1,FINOPS,UC-0016,TST-REQ-0391,Tests API contractuels et tests de charge.
+REQ-00392,N1,FINOPS,UC-0016,TST-REQ-0392,Tests audit et relecture historique.
+REQ-00393,N2,FINOPS,UC-0016,TST-REQ-0393,Test event bus et test cohérence inter-domaines.
+REQ-00394,N1,FINOPS,UC-0016,TST-REQ-0394,Scénarios nominaux API/UI et tests fonctionnels.
+REQ-00395,N2,FINOPS,UC-0016,TST-REQ-0395,Tests fonctionnels et revue documentaire.
+REQ-00396,N1,FINOPS,UC-0016,TST-REQ-0396,Tests règles qualité et tests exceptions.
+REQ-00397,N2,FINOPS,UC-0016,TST-REQ-0397,Revue runbooks et test restauration ciblée.
+REQ-00398,N1,FINOPS,UC-0016,TST-REQ-0398,Contrôle matrice de traçabilité.
+REQ-00399,N1,FIELD,UC-0017,TST-REQ-0399,"Test fonctionnel bout-en-bout, revue API/UI et vérification audit."
+REQ-00400,N1,FIELD,UC-0017,TST-REQ-0400,Revue fonctionnelle et tests négatifs sur les workflows.
+REQ-00401,N1,FIELD,UC-0017,TST-REQ-0401,"Revue dictionnaire, tests migrations et tests contraintes."
+REQ-00402,N1,FIELD,UC-0017,TST-REQ-0402,"Analyse DDL, tests EXPLAIN, benchmark API."
+REQ-00403,N1,FIELD,UC-0017,TST-REQ-0403,"Tests RBAC/ABAC, tests audit et tests sécurité."
+REQ-00404,N1,FIELD,UC-0017,TST-REQ-0404,"Tests worker, crash recovery, dead-letter queue et reprise."
+REQ-00405,N2,FIELD,UC-0017,TST-REQ-0405,Test observabilité et contrôle dashboards.
+REQ-00406,N1,FIELD,UC-0017,TST-REQ-0406,Tests API contractuels et tests de charge.
+REQ-00407,N1,FIELD,UC-0017,TST-REQ-0407,Tests audit et relecture historique.
+REQ-00408,N2,FIELD,UC-0017,TST-REQ-0408,Test event bus et test cohérence inter-domaines.
+REQ-00409,N1,FIELD,UC-0017,TST-REQ-0409,Scénarios nominaux API/UI et tests fonctionnels.
+REQ-00410,N2,FIELD,UC-0017,TST-REQ-0410,Tests fonctionnels et revue documentaire.
+REQ-00411,N1,FIELD,UC-0017,TST-REQ-0411,Tests règles qualité et tests exceptions.
+REQ-00412,N2,FIELD,UC-0017,TST-REQ-0412,Revue runbooks et test restauration ciblée.
+REQ-00413,N1,FIELD,UC-0017,TST-REQ-0413,Contrôle matrice de traçabilité.
+REQ-00414,N1,SIM,UC-0018,TST-REQ-0414,"Test fonctionnel bout-en-bout, revue API/UI et vérification audit."
+REQ-00415,N1,SIM,UC-0018,TST-REQ-0415,Revue fonctionnelle et tests négatifs sur les workflows.
+REQ-00416,N1,SIM,UC-0018,TST-REQ-0416,"Revue dictionnaire, tests migrations et tests contraintes."
+REQ-00417,N1,SIM,UC-0018,TST-REQ-0417,"Analyse DDL, tests EXPLAIN, benchmark API."
+REQ-00418,N1,SIM,UC-0018,TST-REQ-0418,"Tests RBAC/ABAC, tests audit et tests sécurité."
+REQ-00419,N1,SIM,UC-0018,TST-REQ-0419,"Tests worker, crash recovery, dead-letter queue et reprise."
+REQ-00420,N2,SIM,UC-0018,TST-REQ-0420,Test observabilité et contrôle dashboards.
+REQ-00421,N1,SIM,UC-0018,TST-REQ-0421,Tests API contractuels et tests de charge.
+REQ-00422,N1,SIM,UC-0018,TST-REQ-0422,Tests audit et relecture historique.
+REQ-00423,N2,SIM,UC-0018,TST-REQ-0423,Test event bus et test cohérence inter-domaines.
+REQ-00424,N1,SIM,UC-0018,TST-REQ-0424,Scénarios nominaux API/UI et tests fonctionnels.
+REQ-00425,N2,SIM,UC-0018,TST-REQ-0425,Tests fonctionnels et revue documentaire.
+REQ-00426,N1,SIM,UC-0018,TST-REQ-0426,Tests règles qualité et tests exceptions.
+REQ-00427,N2,SIM,UC-0018,TST-REQ-0427,Revue runbooks et test restauration ciblée.
+REQ-00428,N1,SIM,UC-0018,TST-REQ-0428,Contrôle matrice de traçabilité.
+REQ-00429,N1,GREEN,UC-0019,TST-REQ-0429,"Test fonctionnel bout-en-bout, revue API/UI et vérification audit."
+REQ-00430,N1,GREEN,UC-0019,TST-REQ-0430,Revue fonctionnelle et tests négatifs sur les workflows.
+REQ-00431,N1,GREEN,UC-0019,TST-REQ-0431,"Revue dictionnaire, tests migrations et tests contraintes."
+REQ-00432,N1,GREEN,UC-0019,TST-REQ-0432,"Analyse DDL, tests EXPLAIN, benchmark API."
+REQ-00433,N1,GREEN,UC-0019,TST-REQ-0433,"Tests RBAC/ABAC, tests audit et tests sécurité."
+REQ-00434,N1,GREEN,UC-0019,TST-REQ-0434,"Tests worker, crash recovery, dead-letter queue et reprise."
+REQ-00435,N2,GREEN,UC-0019,TST-REQ-0435,Test observabilité et contrôle dashboards.
+REQ-00436,N1,GREEN,UC-0019,TST-REQ-0436,Tests API contractuels et tests de charge.
+REQ-00437,N1,GREEN,UC-0019,TST-REQ-0437,Tests audit et relecture historique.
+REQ-00438,N2,GREEN,UC-0019,TST-REQ-0438,Test event bus et test cohérence inter-domaines.
+REQ-00439,N1,GREEN,UC-0019,TST-REQ-0439,Scénarios nominaux API/UI et tests fonctionnels.
+REQ-00440,N2,GREEN,UC-0019,TST-REQ-0440,Tests fonctionnels et revue documentaire.
+REQ-00441,N1,GREEN,UC-0019,TST-REQ-0441,Tests règles qualité et tests exceptions.
+REQ-00442,N2,GREEN,UC-0019,TST-REQ-0442,Revue runbooks et test restauration ciblée.
+REQ-00443,N1,GREEN,UC-0019,TST-REQ-0443,Contrôle matrice de traçabilité.
+REQ-00444,N1,SBOM,UC-0020,TST-REQ-0444,"Test fonctionnel bout-en-bout, revue API/UI et vérification audit."
+REQ-00445,N1,SBOM,UC-0020,TST-REQ-0445,Revue fonctionnelle et tests négatifs sur les workflows.
+REQ-00446,N1,SBOM,UC-0020,TST-REQ-0446,"Revue dictionnaire, tests migrations et tests contraintes."
+REQ-00447,N1,SBOM,UC-0020,TST-REQ-0447,"Analyse DDL, tests EXPLAIN, benchmark API."
+REQ-00448,N1,SBOM,UC-0020,TST-REQ-0448,"Tests RBAC/ABAC, tests audit et tests sécurité."
+REQ-00449,N1,SBOM,UC-0020,TST-REQ-0449,"Tests worker, crash recovery, dead-letter queue et reprise."
+REQ-00450,N2,SBOM,UC-0020,TST-REQ-0450,Test observabilité et contrôle dashboards.
+REQ-00451,N1,SBOM,UC-0020,TST-REQ-0451,Tests API contractuels et tests de charge.
+REQ-00452,N1,SBOM,UC-0020,TST-REQ-0452,Tests audit et relecture historique.
+REQ-00453,N2,SBOM,UC-0020,TST-REQ-0453,Test event bus et test cohérence inter-domaines.
+REQ-00454,N1,SBOM,UC-0020,TST-REQ-0454,Scénarios nominaux API/UI et tests fonctionnels.
+REQ-00455,N2,SBOM,UC-0020,TST-REQ-0455,Tests fonctionnels et revue documentaire.
+REQ-00456,N1,SBOM,UC-0020,TST-REQ-0456,Tests règles qualité et tests exceptions.
+REQ-00457,N2,SBOM,UC-0020,TST-REQ-0457,Revue runbooks et test restauration ciblée.
+REQ-00458,N1,SBOM,UC-0020,TST-REQ-0458,Contrôle matrice de traçabilité.
+REQ-00459,N1,K8S,UC-0021,TST-REQ-0459,"Test fonctionnel bout-en-bout, revue API/UI et vérification audit."
+REQ-00460,N1,K8S,UC-0021,TST-REQ-0460,Revue fonctionnelle et tests négatifs sur les workflows.
+REQ-00461,N1,K8S,UC-0021,TST-REQ-0461,"Revue dictionnaire, tests migrations et tests contraintes."
+REQ-00462,N1,K8S,UC-0021,TST-REQ-0462,"Analyse DDL, tests EXPLAIN, benchmark API."
+REQ-00463,N1,K8S,UC-0021,TST-REQ-0463,"Tests RBAC/ABAC, tests audit et tests sécurité."
+REQ-00464,N1,K8S,UC-0021,TST-REQ-0464,"Tests worker, crash recovery, dead-letter queue et reprise."
+REQ-00465,N2,K8S,UC-0021,TST-REQ-0465,Test observabilité et contrôle dashboards.
+REQ-00466,N1,K8S,UC-0021,TST-REQ-0466,Tests API contractuels et tests de charge.
+REQ-00467,N1,K8S,UC-0021,TST-REQ-0467,Tests audit et relecture historique.
+REQ-00468,N2,K8S,UC-0021,TST-REQ-0468,Test event bus et test cohérence inter-domaines.
+REQ-00469,N1,K8S,UC-0021,TST-REQ-0469,Scénarios nominaux API/UI et tests fonctionnels.
+REQ-00470,N2,K8S,UC-0021,TST-REQ-0470,Tests fonctionnels et revue documentaire.
+REQ-00471,N1,K8S,UC-0021,TST-REQ-0471,Tests règles qualité et tests exceptions.
+REQ-00472,N2,K8S,UC-0021,TST-REQ-0472,Revue runbooks et test restauration ciblée.
+REQ-00473,N1,K8S,UC-0021,TST-REQ-0473,Contrôle matrice de traçabilité.
+REQ-00474,N1,POLICY,UC-0022,TST-REQ-0474,"Test fonctionnel bout-en-bout, revue API/UI et vérification audit."
+REQ-00475,N1,POLICY,UC-0022,TST-REQ-0475,Revue fonctionnelle et tests négatifs sur les workflows.
+REQ-00476,N1,POLICY,UC-0022,TST-REQ-0476,"Revue dictionnaire, tests migrations et tests contraintes."
+REQ-00477,N1,POLICY,UC-0022,TST-REQ-0477,"Analyse DDL, tests EXPLAIN, benchmark API."
+REQ-00478,N1,POLICY,UC-0022,TST-REQ-0478,"Tests RBAC/ABAC, tests audit et tests sécurité."
+REQ-00479,N1,POLICY,UC-0022,TST-REQ-0479,"Tests worker, crash recovery, dead-letter queue et reprise."
+REQ-00480,N2,POLICY,UC-0022,TST-REQ-0480,Test observabilité et contrôle dashboards.
+REQ-00481,N1,POLICY,UC-0022,TST-REQ-0481,Tests API contractuels et tests de charge.
+REQ-00482,N1,POLICY,UC-0022,TST-REQ-0482,Tests audit et relecture historique.
+REQ-00483,N2,POLICY,UC-0022,TST-REQ-0483,Test event bus et test cohérence inter-domaines.
+REQ-00484,N1,POLICY,UC-0022,TST-REQ-0484,Scénarios nominaux API/UI et tests fonctionnels.
+REQ-00485,N2,POLICY,UC-0022,TST-REQ-0485,Tests fonctionnels et revue documentaire.
+REQ-00486,N1,POLICY,UC-0022,TST-REQ-0486,Tests règles qualité et tests exceptions.
+REQ-00487,N2,POLICY,UC-0022,TST-REQ-0487,Revue runbooks et test restauration ciblée.
+REQ-00488,N1,POLICY,UC-0022,TST-REQ-0488,Contrôle matrice de traçabilité.
+REQ-00489,N1,EDITION,UC-V43-0001,TST-V43-001,Contrôle matrice éditions et tests multi-éditions.
+REQ-00490,N1,PACKAGING,UC-V43-0002,TST-V43-002,Test packaging et grep des unit files.
+REQ-00491,N1,PACKAGING,UC-V43-0003,TST-V43-003,Test packaging par scope.
+REQ-00492,N1,DISCOVERY,UC-V43-0004,TST-V43-004,Test installation agent et vérification connectivité mTLS.
+REQ-00493,N1,FRONTEND,UC-V43-0005,TST-V43-005,Tests E2E et analyse configuration frontend.
+REQ-00494,N1,FRONTEND,UC-V43-0006,TST-V43-006,Matrice CLI/API/UI et tests E2E.
+REQ-00495,N1,ITSM,UC-V43-0007,TST-V43-007,"Revue modules, routes API et menus UI."
+REQ-00496,N1,ITSM,UC-V43-0008,TST-V43-008,Tests connecteurs mockés et contrat API.
+REQ-00497,N1,ITSM,UC-V43-0008,TST-V43-009,Test feature gate Lite.
+REQ-00498,N1,ASSET,UC-V43-0008,TST-V43-010,Test création/certification asset.
+REQ-00499,N1,ASSET,UC-V43-0008,TST-V43-011,Tests import/API/connecteur.
+REQ-00500,N1,SECURITY,UC-V43-0008,TST-V43-012,Tests sécurité connecteur et inspection logs.
+REQ-00501,N1,DATA,UC-V43-0008,TST-V43-013,Tests API directs et UI.
+REQ-00502,N1,OPS,UC-V43-0008,TST-V43-014,Test réinstallation et smoke systemd.
+REQ-00503,N1,QA,UC-V43-0008,TST-V43-015,Pipeline CI multi-profil.
+REQ-00504,N1,API,UC-V43-0008,TST-V43-016,Tests contractuels API.
+REQ-00505,N1,GOVERNANCE,UC-V43-0008,TST-V43-017,Tests conflit et réconciliation.
+REQ-00506,N1,OBSERVABILITY,UC-V43-0008,TST-V43-018,Test endpoint métriques et dashboard.
+REQ-00507,N1,COMPATIBILITY,UC-V43-0008,TST-V43-019,Tests migration cross-edition.
+REQ-00508,N1,COMPLIANCE,UC-V43-0008,TST-V43-020,Validation documentaire.
+REQ-00509,N1,INSTALLER,UC-V44-0001,TST-V44-001,Validation structure dépôt et packaging.
+REQ-00510,N1,INSTALLER,UC-V44-0002,TST-V44-002,Contrôle matrice installateurs et tests packaging.
+REQ-00511,N1,INSTALLER,UC-V44-0003,TST-V44-003,Test installation Lite.
+REQ-00512,N1,INSTALLER,UC-V44-0004,TST-V44-004,Test installation Pro multi-scope.
+REQ-00513,N1,INSTALLER,UC-V44-0005,TST-V44-005,Test installation Entreprise multi-scope.
+REQ-00514,N1,SYSTEMD,UC-V44-0006,TST-V44-006,Validation matrice services.
+REQ-00515,N1,SYSTEMD,UC-V44-0007,TST-V44-007,Test systemd.
+REQ-00516,N1,SYSTEMD,UC-V44-0008,TST-V44-008,Test systemd.
+REQ-00517,N1,SYSTEMD,UC-V44-0001,TST-V44-009,Test systemd agent.
+REQ-00518,N1,CLUSTER,UC-V44-0002,TST-V44-010,Test bootstrap cluster backend.
+REQ-00519,N1,CLUSTER,UC-V44-0003,TST-V44-011,Test bootstrap cluster frontend.
+REQ-00520,N1,CLUSTER,UC-V44-0004,TST-V44-012,Test bootstrap cluster agent.
+REQ-00521,N1,DEPENDENCIES,UC-V44-0005,TST-V44-013,Test sur distributions supportées.
+REQ-00522,N1,DEPENDENCIES,UC-V44-0006,TST-V44-014,Test environnement vierge.
+REQ-00523,N1,DEPENDENCIES,UC-V44-0007,TST-V44-015,Test dépendance indisponible.
+REQ-00524,N1,SECURITY,UC-V44-0008,TST-V44-016,Scan inventaire et logs.
+REQ-00525,N1,SECURITY,UC-V44-0001,TST-V44-017,Test TLS.
+REQ-00526,N1,NETWORK,UC-V44-0002,TST-V44-018,Test préflight DNS.
+REQ-00527,N1,NETWORK,UC-V44-0003,TST-V44-019,Test failover VIP.
+REQ-00528,N1,NETWORK,UC-V44-0004,TST-V44-020,Inspection firewall.
+REQ-00529,N1,BACKEND,UC-V44-0005,TST-V44-021,Test migration complète.
+REQ-00530,N1,BACKEND,UC-V44-0006,TST-V44-022,Test ordre migrations.
+REQ-00531,N1,BACKEND,UC-V44-0007,TST-V44-023,Test double exécution.
+REQ-00532,N1,BACKEND,UC-V44-0008,TST-V44-024,Contrôle rapport.
+REQ-00533,N1,BACKEND,UC-V44-0001,TST-V44-025,Test installation web.
+REQ-00534,N1,BACKEND,UC-V44-0002,TST-V44-026,Test installation agent.
+REQ-00535,N1,POSTGRESQL,UC-V44-0003,TST-V44-027,Test cluster PostgreSQL géré.
+REQ-00536,N1,POSTGRESQL,UC-V44-0004,TST-V44-028,Test PostgreSQL externe.
+REQ-00537,N1,POSTGRESQL,UC-V44-0005,TST-V44-029,Test vérification schéma.
+REQ-00538,N1,FRONTEND,UC-V44-0006,TST-V44-030,Test réseau et code config.
+REQ-00539,N1,FRONTEND,UC-V44-0007,TST-V44-031,Tests E2E parité CLI/API/UI.
+REQ-00540,N1,AGENT,UC-V44-0008,TST-V44-032,Test collecte agent.
+REQ-00541,N1,AGENT,UC-V44-0001,TST-V44-033,Test connectivité agent.
+REQ-00542,N1,OBSERVABILITY,UC-V44-0002,TST-V44-034,Contrôle rapport SHA256.
+REQ-00543,N1,OBSERVABILITY,UC-V44-0003,TST-V44-035,Test endpoint health metrics.
+REQ-00544,N1,RESILIENCE,UC-V44-0004,TST-V44-036,Test arrêt nœud backend.
+REQ-00545,N1,RESILIENCE,UC-V44-0005,TST-V44-037,Test arrêt nœud web.
+REQ-00546,N1,RESILIENCE,UC-V44-0006,TST-V44-038,Test crash agent.
+REQ-00547,N1,INSTALLER,UC-V44-0007,TST-V44-039,Test dry-run.
+REQ-00548,N1,INSTALLER,UC-V44-0008,TST-V44-040,Contrôle plan.
+REQ-00549,N1,INSTALLER,UC-V44-0001,TST-V44-041,Test échec simulé.
+REQ-00550,N1,INSTALLER,UC-V44-0002,TST-V44-042,Test double exécution.
+REQ-00551,N1,COMPATIBILITY,UC-V44-0003,TST-V44-043,Matrice OS et tests CI.
+REQ-00552,N1,COMPATIBILITY,UC-V44-0004,TST-V44-044,Test OS non supporté.
+REQ-00553,N1,CI_CD,UC-V44-0005,TST-V44-045,Test CI structure.
+REQ-00554,N1,CI_CD,UC-V44-0006,TST-V44-046,Job CI dry-run.
+REQ-00555,N1,CI_CD,UC-V44-0007,TST-V44-047,Job CI migration.
+REQ-00556,N1,CI_CD,UC-V44-0008,TST-V44-048,Job CI négatif.
+REQ-00557,N1,SECURITY,UC-V44-0001,TST-V44-049,Scan logs.
+REQ-00558,N1,SECURITY,UC-V44-0002,TST-V44-050,Contrôle permissions.
+REQ-00559,N1,OPERATIONS,UC-V44-0003,TST-V44-051,Test post-install.
+REQ-00560,N1,OPERATIONS,UC-V44-0004,TST-V44-052,Contrôle documentation générée.
+REQ-00561,N1,OPERATIONS,UC-V44-0005,TST-V44-053,Test inventaire installation.
+REQ-00562,N1,EDITION,UC-V44-0006,TST-V44-054,Test feature gates.
+REQ-00563,N1,EDITION,UC-V44-0007,TST-V44-055,Test upgrade Lite vers Pro vers Entreprise.
+REQ-00564,N1,MIGRATION,UC-V44-0008,TST-V44-056,Test migration destructive simulée.
+REQ-00565,N1,MIGRATION,UC-V44-0001,TST-V44-057,Test upgrade schéma.
+REQ-00566,N1,MIGRATION,UC-V44-0002,TST-V44-058,Test CLI/API migration status.
+REQ-00567,N1,VALIDATION,UC-V44-0003,TST-V44-059,Test failover post-install.
+REQ-00568,N1,VALIDATION,UC-V44-0004,TST-V44-060,Test erreur critique.
+REQ-00569,N1,VALIDATION,UC-V44-0005,TST-V44-061,Contrôle archivage rapport.
+REQ-00570,N1,DOCUMENTATION,UC-V44-0006,TST-V44-062,Revue documentaire.
+REQ-00571,N1,SYSTEMD,UC-V45-0001,TST-V45-001,Test packaging systemd multi-éditions.
+REQ-00572,N1,PACKAGING,UC-V45-0002,TST-V45-002,Test installateur server Pro et Entreprise.
+REQ-00573,N1,MIGRATION,UC-V45-0003,TST-V45-003,Test migration verrouillée et idempotente.
+REQ-00574,N1,POSTGRESQL,UC-V45-0004,TST-V45-004,Test bootstrap PostgreSQL géré.
+REQ-00575,N1,FRONTEND,UC-V45-0005,TST-V45-005,Test configuration frontend.
+REQ-00576,N1,AGENT,UC-V45-0006,TST-V45-006,Test agent vers API backend.
+REQ-00577,N1,SYSTEMD,UC-V45-0007,TST-V45-007,Validation documentaire automatisée.
+REQ-00578,N1,COMPATIBILITY,UC-V45-0008,TST-V45-008,Test upgrade de service.
+REQ-00579,N1,OBSERVABILITY,UC-V45-0009,TST-V45-009,Test journald et métriques.
+REQ-00580,N1,SECURITY,UC-V45-0010,TST-V45-010,Audit unit systemd.
+REQ-00581,N1,DOCUMENTATION,UC-V45-0011,TST-V45-011,Revue documentaire.
+REQ-00582,N1,VALIDATION,UC-V45-0012,TST-V45-012,Script de validation.
+REQ-00583,N1,AUTH,UC-0029,TST-AUTH-001,Test intégration LDAP/LDAPS avec certificat valide.
+REQ-00584,N1,AUTH,UC-0029,TST-AUTH-002,Test intégration IPA/FreeIPA.
+REQ-00585,N1,AUTH,UC-0029,TST-AUTH-003,Test installation Lite sans annuaire.
+REQ-00586,N1,AUTH,UC-0029,TST-AUTH-004,Revue architecture et tests réseau.
+REQ-00587,N1,AUTH,UC-0029,TST-AUTH-005,Tests sécurité logs et configuration.
+REQ-00588,N1,AUTH,UC-0029,TST-AUTH-006,Test certificat invalide et certificat valide.
+REQ-00589,N1,AUTH,UC-0029,TST-AUTH-007,Exécution du diagnostic installateur.
+REQ-00590,N1,AUTH,UC-0029,TST-AUTH-008,Test TTL et invalidation.
+REQ-00591,N1,AUTH,UC-0029,TST-AUTH-009,Vérification audit log.
+REQ-00592,N1,AUTH,UC-0029,TST-AUTH-010,"Test activation, utilisation, désactivation."
+REQ-00593,N1,RBAC,UC-0029,TST-AUTH-011,Test mapping groupe vers rôle.
+REQ-00594,N1,RBAC,UC-0029,TST-AUTH-012,Tests RBAC multi-scopes.
+REQ-00595,N1,RBAC,UC-0029,TST-AUTH-013,Test groupe imbriqué.
+REQ-00596,N1,RBAC,UC-0029,TST-AUTH-014,Test conflit allow deny.
+REQ-00597,N1,RBAC,UC-0029,TST-AUTH-015,Test modification mapping.
+REQ-00598,N1,RBAC,UC-0029,TST-AUTH-016,Tests UI permissions.
+REQ-00599,N1,RBAC,UC-0029,TST-AUTH-017,Tests CLI RBAC.
+REQ-00600,N1,RBAC,UC-0029,TST-AUTH-018,Suite de tests RBAC.
+REQ-00601,N1,SYSTEM,UC-0028,TST-SYS-005,Test installation root et getent passwd.
+REQ-00602,N1,SYSTEM,UC-0028,TST-SYS-006,Test getent group.
+REQ-00603,N1,SYSTEM,UC-0028,TST-SYS-007,Test installateur sans root et avec root.
+REQ-00604,N1,SYSTEM,UC-0028,TST-SYS-008,Contrôle shell et test login.
+REQ-00605,N1,SYSTEM,UC-0028,TST-SYS-009,Contrôle passwd.
+REQ-00606,N1,SYSTEM,UC-0028,TST-SYS-010,Contrôle systemd et processus.
+REQ-00607,N1,SYSTEM,UC-0028,TST-SYS-011,Tests CLI par édition.
+REQ-00608,N1,SYSTEM,UC-0028,TST-SYS-012,Audit sudo -l et tests sécurité.
+REQ-00609,N1,SYSTEM,UC-0028,TST-SYS-013,Analyse sudoers et tests exploitation.
+REQ-00610,N1,SYSTEM,UC-0028,TST-SYS-014,Stat fichier et visudo -c.
+REQ-00611,N1,SYSTEM,UC-0028,TST-SYS-001,Test permissions faibles.
+REQ-00612,N1,SYSTEM,UC-0028,TST-SYS-002,Double exécution installateur.
+REQ-00613,N1,LVM,UC-0030,TST-LVM-003,Test LVM installateur.
+REQ-00614,N1,LVM,UC-0030,TST-LVM-004,Contrôle configuration par défaut.
+REQ-00615,N1,LVM,UC-0030,TST-LVM-005,Contrôle lvs.
+REQ-00616,N1,LVM,UC-0030,TST-LVM-006,Contrôle findmnt.
+REQ-00617,N1,LVM,UC-0030,TST-LVM-007,Contrôle lvs --units.
+REQ-00618,N1,LVM,UC-0030,TST-LVM-008,Contrôle findmnt et configuration.
+REQ-00619,N1,LVM,UC-0030,TST-LVM-009,Test fstab et backup.
+REQ-00620,N1,LVM,UC-0030,TST-LVM-010,Test LV existant non conforme.
+REQ-00621,N1,LVM,UC-0030,TST-LVM-011,Stat mountpoint.
+REQ-00622,N1,LVM,UC-0030,TST-LVM-012,Stat permissions.
+REQ-00623,N1,LVM,UC-0030,TST-LVM-013,Test VG insuffisant.
+REQ-00624,N1,LVM,UC-0030,TST-LVM-014,Test extension non destructive.
+REQ-00625,N1,INSTALL,UC-0028,TST-SYS-001,Audit ordre installateur.
+REQ-00626,N1,INSTALL,UC-0028,TST-SYS-002,Audit ordre installateur.
+REQ-00627,N1,INSTALL,UC-0028,TST-SYS-003,Test assistant installation.
+REQ-00628,N1,INSTALL,UC-0028,TST-SYS-004,Exécution dry-run.
+REQ-00629,N1,INSTALL,UC-0028,TST-SYS-005,Test dry-run.
+REQ-00630,N1,INSTALL,UC-0028,TST-SYS-006,Vérification journal installation.
+REQ-00631,N1,INSTALL,UC-0028,TST-SYS-007,Tests d erreurs injectées.
+REQ-00632,N1,INSTALL,UC-0028,TST-SYS-008,Audit ordre installation.
+REQ-00633,N1,SECURITY,UC-0028,TST-SYS-009,Scan secrets et revue configuration.
+REQ-00634,N1,SECURITY,UC-0028,TST-SYS-010,Test logs installation.
+REQ-00635,N1,SECURITY,UC-0028,TST-SYS-011,Test upgrade.
+REQ-00636,N1,SECURITY,UC-0028,TST-SYS-012,Test environnement enforcing.
+REQ-00637,N1,OPS,UC-0028,TST-SYS-013,Vérification métriques et health checks.
+REQ-00638,N1,OPS,UC-0028,TST-SYS-014,Test seuil disque.
+REQ-00639,N1,OPS,UC-0028,TST-SYS-001,Test panne annuaire.
+REQ-00640,N1,OPS,UC-0028,TST-SYS-002,Revue runbook et test rotation.
+REQ-00641,N1,OPS,UC-0028,TST-SYS-003,Revue runbook et test extension.
+REQ-00642,N1,QA,UC-0028,TST-SYS-004,Exécution validate_auth_lvm.py.
+REQ-00643,N1,OPS,UC-0031,TST-STOR-001,Test installateur et contrôle mountpoints.
+REQ-00644,N1,OPS,UC-0031,TST-STOR-002,Contrôle permissions post-installation.
+REQ-00645,N1,DATA,UC-0031,TST-STOR-003,Test installateur backend.
+REQ-00646,N1,DATA,UC-0031,TST-STOR-004,Contrôle fichier de réponses et LVM.
+REQ-00647,N1,DATA,UC-0031,TST-STOR-005,Contrôle LVM.
+REQ-00648,N1,DATA,UC-0031,TST-STOR-006,Test création LV.
+REQ-00649,N1,SEC,UC-0031,TST-STOR-007,Test ownership.
+REQ-00650,N1,SEC,UC-0031,TST-STOR-008,Revue config installateur.
+REQ-00651,N1,SEC,UC-0031,TST-STOR-009,Test permissions négatif.
+REQ-00652,N1,OPS,UC-0031,TST-STOR-010,Test readlink.
+REQ-00653,N1,OPS,UC-0031,TST-STOR-011,Contrôle chown -h si supporté.
+REQ-00654,N1,OPS,UC-0031,TST-STOR-012,Test ordre installation.
+REQ-00655,N1,OPS,UC-0031,TST-STOR-013,Test prérequis.
+REQ-00656,N1,DATA,UC-0031,TST-STOR-014,Test cluster bootstrap.
+REQ-00657,N1,DATA,UC-0031,TST-STOR-015,Test transactionnel et inspection config.
+REQ-00658,N1,DATA,UC-0031,TST-STOR-016,Test topologie.
+REQ-00659,N1,DATA,UC-0031,TST-STOR-017,Test configuration.
+REQ-00660,N1,DATA,UC-0031,TST-STOR-018,Revue architecture multisite.
+REQ-00661,N1,OPS,UC-0031,TST-STOR-019,Test métriques Prometheus.
+REQ-00662,N1,OPS,UC-0031,TST-STOR-020,Test failover.
+REQ-00663,N1,OPS,UC-0031,TST-STOR-021,Test rejoin.
+REQ-00664,N1,OPS,UC-0031,TST-STOR-022,Test unit systemd et installateur.
+REQ-00665,N1,OPS,UC-0031,TST-STOR-023,Test packaging frontend.
+REQ-00666,N1,OPS,UC-0031,TST-STOR-024,Test agent.
+REQ-00667,N1,RSOT,UC-0032,TST-REPL-001,Test fonctionnel UI/API.
+REQ-00668,N1,SEC,UC-0032,TST-REPL-002,Test autorisation.
+REQ-00669,N1,REPORT,UC-0032,TST-REPL-003,Test reporting.
+REQ-00670,N1,DISC,UC-0032,TST-REPL-004,Test discovery centralisée.
+REQ-00671,N1,RSOT,UC-0032,TST-REPL-005,Test agents régionaux.
+REQ-00672,N1,DISC,UC-0032,TST-REPL-006,Test cluster agent.
+REQ-00673,N1,DISC,UC-0032,TST-REPL-007,Test orchestrateur.
+REQ-00674,N1,OPS,UC-0032,TST-REPL-008,Test dashboard/API.
+REQ-00675,N1,DATA,UC-0032,TST-REPL-009,Revue dictionnaire et migrations.
+REQ-00676,N1,OPS,UC-0032,TST-REPL-010,Test backup.
+REQ-00677,N1,OPS,UC-0032,TST-REPL-011,Revue runbook.
+REQ-00678,N1,OPS,UC-0032,TST-REPL-012,Test supervision.
+REQ-00679,N1,OPS,UC-0032,TST-REPL-013,Test rapport.
+REQ-00680,N1,SEC,UC-0032,TST-REPL-014,Scan secret.
+REQ-00681,N1,OPS,UC-0033,TST-MSITE-001,Test dry-run.
+REQ-00682,N1,OPS,UC-0033,TST-MSITE-002,Test rollback.
+REQ-00683,N1,DATA,UC-0033,TST-MSITE-003,Test rôles PostgreSQL.
+REQ-00684,N1,DATA,UC-0033,TST-MSITE-004,Test inventaire local.
+REQ-00685,N1,OPS,UC-0033,TST-MSITE-005,Test HAProxy/PgBouncer.
+REQ-00686,N1,OPS,UC-0033,TST-MSITE-006,Test routing.
+REQ-00687,N1,DATA,UC-0033,TST-MSITE-007,Test concurrence migrations.
+REQ-00688,N1,OPS,UC-0033,TST-MSITE-008,Test intégration.
+REQ-00689,N1,SEC,UC-0033,TST-MSITE-009,Test sécurité filesystem.
+REQ-00690,N1,QA,UC-0033,TST-MSITE-010,Exécution validate_storage_multisite.py.
+REQ-00691,N1,QA,UC-0033,TST-MSITE-011,Pipeline performance.
+REQ-00692,N1,QA,UC-0033,TST-MSITE-012,Test chaos.
+REQ-00693,N1,QA,UC-0033,TST-MSITE-013,Tests fonctionnels éditions.
+REQ-00694,N1,OPS,UC-0033,TST-MSITE-014,Validation documentaire.
+REQ-00695,N1,INSTALL,UC-0042,TST-INICFG-001,Validation documentaire et test d’existence par scope.
+REQ-00696,N1,INSTALL,UC-0042,TST-INICFG-002,Revue d’installation et test de modification contrôlée.
+REQ-00697,N1,INSTALL,UC-0042,TST-INICFG-003,Test négatif avec configuration invalide.
+REQ-00698,N1,INSTALL,UC-0042,TST-INICFG-004,Test de validation des combinaisons.
+REQ-00699,N1,INSTALL,UC-0042,TST-INICFG-005,Test de validation réseau.
+REQ-00700,N1,INSTALL,UC-0042,TST-INICFG-006,Test d’installation compte système.
+REQ-00701,N1,INSTALL,UC-0042,TST-INICFG-007,Test LVM applicatif.
+REQ-00702,N1,INSTALL,UC-0042,TST-INICFG-008,Test LVM PostgreSQL.
+REQ-00703,N1,INSTALL,UC-0042,TST-INICFG-009,Test symlink et ownership.
+REQ-00704,N1,INSTALL,UC-0042,TST-INICFG-010,Test de validation par scope.
+REQ-00705,N1,INSTALL,UC-0042,TST-INICFG-011,Test de validation migrations.
+REQ-00706,N1,INSTALL,UC-0042,TST-INICFG-012,Test de migration backend.
+REQ-00707,N1,INSTALL,UC-0042,TST-INICFG-013,Scan secret et validation de schéma.
+REQ-00708,N1,INSTALL,UC-0042,TST-INICFG-014,Test permissions fichier.
+REQ-00709,N1,INSTALL,UC-0042,TST-INICFG-015,Test de configuration auth.
+REQ-00710,N1,INSTALL,UC-0042,TST-INICFG-016,Test négatif édition Lite.
+REQ-00711,N1,INSTALL,UC-0042,TST-INICFG-017,Test configuration frontend.
+REQ-00712,N1,INSTALL,UC-0042,TST-INICFG-018,Test configuration agent.
+REQ-00713,N1,INSTALL,UC-0042,TST-INICFG-019,Test plan/apply cluster.
+REQ-00714,N1,INSTALL,UC-0042,TST-INICFG-020,Test de plan sans modification.
+REQ-00715,N1,INSTALL,UC-0042,TST-INICFG-021,Test compatibilité schéma.
+REQ-00716,N1,INSTALL,UC-0042,TST-INICFG-022,Test clé inconnue.
+REQ-00717,N1,INSTALL,UC-0042,TST-INICFG-023,Revue sécurité install.ini.
+REQ-00718,N1,INSTALL,UC-0042,TST-INICFG-024,Test génération rapport.
+REQ-00719,N1,INSTALL,UC-0042,TST-INICFG-025,Test double exécution.
+REQ-00720,N1,INSTALL,UC-0042,TST-INICFG-026,Test surcharge LVM.
+REQ-00721,N1,INSTALL,UC-0042,TST-INICFG-027,Test multisite.
+REQ-00722,N1,INSTALL,UC-0042,TST-INICFG-028,Test agent multisite.
+REQ-00723,N1,INSTALL,UC-0042,TST-INICFG-029,Test négatif.
+REQ-00724,N1,INSTALL,UC-0042,TST-INICFG-030,Test matrice systemd.
+REQ-00725,N1,INSTALL,UC-0042,TST-INICFG-031,Test logs masqués.
+REQ-00726,N1,INSTALL,UC-0042,TST-INICFG-032,Test log_file.
+REQ-00727,N1,INSTALL,UC-0042,TST-INICFG-033,Test health checks.
+REQ-00728,N1,INSTALL,UC-0042,TST-INICFG-034,Test réplication.
+REQ-00729,N1,INSTALL,UC-0042,TST-INICFG-035,Test codes retour.
+REQ-00730,N1,INSTALL,UC-0042,TST-INICFG-036,Revue documentation.
+REQ-00731,N1,INSTALL,UC-0042,TST-INICFG-037,Script validate_install_ini.py.
+REQ-00732,N1,INSTALL,UC-0042,TST-INICFG-038,Comparaison automatisée.
+REQ-00733,N1,INSTALL,UC-0042,TST-INICFG-039,Test plan.
+REQ-00734,N1,INSTALL,UC-0042,TST-INICFG-040,Revue release.
+REQ-00735,N1,INSTALL,UC-0042,TST-INICFG-041,Revue d’architecture.
+REQ-00736,N1,INSTALL,UC-0042,TST-INICFG-042,"Test installateur offline, contrôle systemd, contrôle runtime resolver."
+REQ-00737,N1,INSTALL,UC-0042,TST-INICFG-042,Test installateur et contrôle de rollback.
+REQ-00738,N1,INSTALL,UC-0042,TST-INICFG-043,Test de non-régression installateur.
+REQ-00739,N1,AUTH,UC-0042,TST-AUTH-045,Tests de politique auth et validation install.ini.
+REQ-00740,N1,AUTH,UC-0042,TST-AUTH-045,"Tests RBAC, audit et authentification externe."
+REQ-00741,N1,SECURITY,UC-0042,TST-SEC-044,"Tests install.ini, scan sécurité, revue systemd et runbook."
+REQ-00742,N1,SECURITY,UC-0042,TST-SEC-044,Tests négatifs par édition.
+REQ-00746,N1,WEB,UC-0042,TST-WEB-049,"Validation frontend, tests serveur web, inspection des assets Bootstrap et test de non-exposition des secrets."
+REQ-00747,N1,WEB,UC-0042,TST-WEB-050,"Validation frontend, tests serveur web, inspection des assets et tests de non-transmission Authorization navigateur."
+REQ-00748,N1,WEB,UC-0042,TST-WEB-051,Validation frontend et tests intégration serveur web.
+REQ-00749,N1,WEB,UC-0042,TST-WEB-052,Validation frontend et tests intégration serveur web.
+REQ-00750,N1,WEB,UC-0042,TST-WEB-053,"Tests CLI, API, frontend, smoke runtime et validation documentaire."
+REQ-00751,N1,WEB,UC-0042,TST-WEB-054,Validation frontend et tests intégration serveur web.
+REQ-00752,N1,WEB,UC-0042,TST-WEB-055,Validation frontend et tests proxy web.
+REQ-00753,N1,WEB,UC-0042,TST-WEB-056,Tests proxy web et inspection assets.
+REQ-00754,N2,WEB,UC-0042,TST-WEB-057,Validation frontend et tests intégration serveur web.
+REQ-00755,N2,WEB,UC-0042,TST-WEB-058,Validation frontend et tests intégration serveur web.
+REQ-00759,N1,RSOT,UC-0042,TST-RSOT-062,"Tests service, API, CLI, frontend et audit pour la réconciliation gouvernée."
+REQ-00760,N1,RSOT,UC-0042,TST-RSOT-063,"Tests domaine, service, API, CLI et frontend pour la taxonomie RSOT."
+REQ-00761,N1,WEB,UC-0042,TST-WEB-064,Tests web et validation backend des combinaisons catégorie/type.
+REQ-00762,N2,WEB,UC-0042,TST-WEB-065,Inspection des assets runtime et mécanisme générique de selects dépendants.
+REQ-00763,N1,DCIM,UC-0001,TST-DCIM-066,Tests API HTTP et frontend pour la localisation ou relocalisation d’équipement DCIM.
+REQ-00764,N1,DCIM,UC-0001,TST-DCIM-067,"Validation frontend, tests intégration web et vérification du routage dashboard vers /api/v1/dcim/rack-elevation."
+REQ-00765,N1,DCIM,UC-0001,TST-DCIM-068,Validation frontend et tests intégration web du câblage DCIM.
+REQ-00766,N1,DCIM,UC-0001,TST-DCIM-069,"Validation frontend, tests intégration web et découverte API/OpenAPI de l’énergie/refroidissement DCIM."
+REQ-00767,N1,RSOT,UC-0042,TST-RSOT-070,"Tests domaine, service et frontend pour libellés opérateur, valeurs internes et retrait des types obsolètes."
+REQ-00768,N1,DCIM,UC-0001,TST-DCIM-071,"Tests service, CLI, API HTTP, frontend et OpenAPI du jumeau numérique DCIM initial."
+REQ-00769,N1,IPAM,UC-0003,TST-IPAM-072,"Validation frontend, tests openinfra-web et découverte API pour les opérations IPAM Enterprise++."
+REQ-00770,N1,IPAM,UC-0003,TST-IPAM-073,"Tests service, CLI, API HTTP, frontend et OpenAPI de la topologie opérationnelle IPAM."
+REQ-00771,N1,DISCOVERY,UC-0004,TST-DISCOVERY-074,"Tests édition, service, CLI local/distant, API HTTP et OpenAPI de l’enrôlement proxy Discovery Enterprise."
+REQ-00772,N2,WEB,UC-WEB-001,TST-WEB-075,"Validation frontend, tests intégration openinfra-web et inspection assets CSS."
+REQ-00773,N1,DISCOVERY,UC-0004,TST-DISCOVERY-076,Tests unitaires et CLI de vérification locale des fichiers d’enrôlement proxy Enterprise.
+REQ-00774,N2,WEB,UC-WEB-001,TST-WEB-077,Validation frontend et tests intégration openinfra-web du titre Dashboard court et du scoping overview.
+REQ-00775,N2,WEB,UC-WEB-001,TST-WEB-078,"Validation frontend, tests intégration openinfra-web et inspection CSS des ombres de contenu allégées."
+REQ-00776,N2,WEB,UC-WEB-001,TST-WEB-079,Validation frontend et tests intégration openinfra-web des alertes contextuelles et du retrait des messages permanents hérités.
+REQ-00777,N2,WEB,UC-WEB-001,TST-WEB-080,"Validation frontend et tests intégration openinfra-web de la double barre, recherche globale groupée et actions Swagger/ReDoc."
+REQ-00778,N2,WEB/API,UC-WEB-001,TST-WEB-081,Tests service/API/CLI/frontend de la recherche globale backend groupée par composant.
+REQ-00779,N2,WEB,UC-WEB-001,TST-WEB-082,Validation frontend et tests intégration openinfra-web de la recherche globale tolérante et du respect apiBaseUrl.
+REQ-00780,N2,WEB,UC-WEB-001,TST-WEB-083,Validation frontend et tests intégration openinfra-web de la palette initiale action/vert des camemberts.
+REQ-00781,N2,WEB,UC-WEB-001,TST-WEB-084,Validation frontend et tests intégration openinfra-web du branchement Swagger/ReDoc sur les routes backend API.
+REQ-00782,N2,WEB,UC-WEB-001,TST-WEB-085,Validation frontend et tests intégration openinfra-web de l’icône RSOT référentiel/référence pleine et opaque.
+REQ-00783,N2,WEB,UC-WEB-001,TST-WEB-086,"Validation frontend et tests intégration openinfra-web du header fixe, de l’ombre prioritaire et du scroll sous-jacent."
+REQ-00784,N1,ITAM,UC-V43-0007,TST-ITAM-001,"Tests domaine, service, API HTTP, CLI, migration PostgreSQL et audit du profil support constructeur/tiers."
+REQ-00785,N1,ITAM,UC-V43-0007,TST-ITAM-002,"Tests domaine, service, API HTTP, CLI et OpenAPI du rapport de couverture garantie/support ITAM."
+REQ-00786,N2,WEB,UC-WEB-001,TST-WEB-087,Validation frontend et tests intégration openinfra-web du flux accordéon sidebar et du scroll latéral sans masquage.
+REQ-00787,N2,WEB,UC-WEB-001,TST-WEB-088,Validation frontend et tests intégration openinfra-web de la visibilité ITAM Dashboard/header/sidebar/recherche et icône asset pleine.
+REQ-00788,N2,WEB,UC-WEB-001,TST-WEB-089,Validation frontend et tests intégration openinfra-web de la réduction de moitié des boutons Swagger/ReDoc.
+REQ-00789,N1,WEB,UC-WEB-001,TST-WEB-090,"Lint JSX accessible, tests React/runtime, Node.js, Python et build Vite pour la baseline WCAG 2.2 AA transversale, la navigation clavier, les lecteurs d’écran, le contraste, la réduction des mouvements et les alternatives textuelles."
+REQ-00790,N2,WEB,UC-WEB-001,TST-WEB-091,Validation frontend et tests intégration openinfra-web du badge édition dans le header principal et du retrait de l’indication visible du mode d’authentification.
+REQ-00791,N2,WEB,UC-WEB-001,TST-WEB-092,Validation frontend et tests intégration openinfra-web du badge édition fuchsia effectif sans classe text-bg-primary ni composante bleue dans le gradient dédié.
+REQ-00792,N2,WEB,UC-WEB-001,TST-WEB-093,Validation frontend et tests intégration openinfra-web du badge édition fuchsia très foncé sans retour au bleu Bootstrap ni rendu marron.
+REQ-00793,N2,WEB/API,UC-WEB-001,TST-WEB-094,"Tests API HTTP, OpenAPI, discovery et openinfra-web pour l’administration éditions/capacités/quotas."
+REQ-00794,N1,ITAM,UC-ITAM-005,TST-WEB-095,Tests service/API/CLI/frontend/migration de la gestion des licences logicielles et de la conformité ITAM.
+REQ-00795,N1,IMPORT/API/WEB,UC-IMPORT-001,TST-WEB-096,Tests service/API/CLI/frontend/OpenAPI de la progression des imports massifs reprenables.
+REQ-00796,N1,EXPORT/API/WEB,UC-IMPORT-001,TST-WEB-097,Tests service/API/CLI/frontend/OpenAPI du streaming par chunks des artefacts exportés signés.
+REQ-00799,,,,TST-WEB-100,
+REQ-00800,N1,INTEGRATIONS-ITSM,UC-INTEGRATIONS-ITSM-001,TST-WEB-101,Tests domaine/service/API/CLI/frontend/OpenAPI des connecteurs externes GLPI Inventory et Freshservice Assets sans ticketing natif.
+REQ-00801,N1,INTEGRATIONS-ITSM/API/CLI,UC-INTEGRATIONS-ITSM-001,TST-WEB-102,Tests domaine/service/API/CLI/OpenAPI/discovery et contrôle négatif frontend pour OpenService autonome sans UI openinfra-web.
+REQ-00802,N1,IMPORT/API/CLI/WEB,UC-IMPORT-001,TST-WEB-103,Tests service/API/CLI/frontend/OpenAPI du rollback conflict-aware des imports massifs sans suppression physique.
+REQ-00803,N1,IMPORT/API/CLI/WEB,UC-IMPORT-001,TST-WEB-104,"Tests service/API/CLI/frontend/OpenAPI des guides opérables de migration Device42, NetBox, Nautobot, GLPI et CSV sans mutation RSOT."
+REQ-00804,N1,DISCOVERY/API/CLI/WEB,UC-DISC-001,TST-WEB-105,Tests domaine/service/API/CLI/frontend/OpenAPI du plan discovery locale Lite/Pro sans agent ni mutation RSOT.
+REQ-00805,N2,WEB/UX,UC-WEB-001,TST-WEB-106,Tests frontend/web du regroupement contextuel du panneau latéral sans perte d’opération ni exposition OpenService.
+REQ-00807,N1,DISCOVERY/API/CLI/WEB,UC-DISC-002,TST-WEB-107,Tests domaine/service/API/CLI/OpenAPI/discovery/frontend pour le plan bootstrap openinfra-agent.service Enterprise sans installation ni secret en clair.
+REQ-00817,N1,DCIM/ITAM/WEB/API/CLI/POSTGRESQL,UC-0001,TST-WEB-116,"Tests service/API/CLI/frontend/OpenAPI/migration pour salles à étage conditionnel, plages bornées, racks CRUD, pays ISO groupés et libellés ITAM réalignés."
+REQ-00818,N1,QUALITE/SECURITE/POSTGRESQL,UC-0001,TST-WEB-117,Tests Ruff/Bandit et régression source pour empêcher la réintroduction de fragments SQL interpolés dans les requêtes racks.
+REQ-00819,N1,DISCOVERY/PROTOCOLES,UC-0001,TST-WEB-118,"Tests unitaires domaine, intégration service, CLI, API, migration PostgreSQL, Ruff et Bandit pour profils protocoles discovery sécurisés."
+REQ-00820,N1,DCIM/WEB/API/CLI/POSTGRESQL,UC-0001,TST-WEB-119,"Tests domaine/service/API/CLI/frontend/OpenAPI/migrations JSON/PostgreSQL pour codes L locaux, alias historiques, références dépendantes et libellés localisés."
+REQ-00821,N1,DCIM/ITAM/WEB/API/CLI/POSTGRESQL,UC-0001,TST-WEB-120,"Tests DCIM/ITAM service, CLI, API, web, migration PostgreSQL, Ruff et Bandit pour adresse complète sites, organisations et partenaires, incluant code postal obligatoire."
+REQ-00822,N1,DISCOVERY/API/CLI/WEB/POSTGRESQL,UC-DISC-001,TST-WEB-121,Tests domaine/service/API/CLI/frontend/OpenAPI/migration pour profils Discovery virtualisation Kubernetes et cloud sans secret matérialisé ni scan réseau exécuté.
+REQ-00823,N1,DISCOVERY/API/CLI/WEB/POSTGRESQL,UC-DISC-001,TST-WEB-122,"Tests domaine/service/persistance/CLI/API/OpenAPI/frontend/migration/audit pour preuves immuables, scores reproductibles, conflits explicites, résolution justifiée et rsot_write_executed=false."
+REQ-00824,N1,WEB/UX/I18N,UC-WEB-001,TST-WEB-123,"Tests i18n Node.js/Python, parité moteur React/runtime, détection navigateur, fallback EN, sélecteur persistant et build frontend."
+REQ-00825,N1,WEB/UX/HEADER,UC-WEB-001,TST-WEB-125,"Tests CSS/DOM React/runtime, Node.js, Python, lint a11y et build Vite pour hauteur/recherche, états translucides, faibles rayons, transitions adaptées, contrôles réduits, focus et cibles tactiles."
+REQ-00826,N1,WEB/UX/FORMULAIRES,UC-WEB-001,TST-WEB-126,"Tests calendriers, normalisation ISO 8601, validation amont, parité React/runtime, accessibilité et focus CSS stable."
+REQ-00827,N1,API/OPENAPI/CI,UC-WEB-001,TST-API-127,"Parseur YAML strict, fixtures invalides, gate CI, vérification OpenAPI packagée et rendu Swagger/ReDoc."
+REQ-00828,N1,RSOT/DEPENDENCY/WEB,UC-WEB-001,TST-RSOT-128,"Tests navigation React/runtime, absence de composant autonome, parité API/CLI et build frontend."
+REQ-00829,N1,ARCH/API/WEB,UC-0002,TST-PERF-129,Validation automatisée ARCH/API/WEB et gate CI haute performance.
+REQ-00830,N1,POSTGRESQL/PERFORMANCE,UC-0002,TST-PERF-130,Validation automatisée POSTGRESQL/PERFORMANCE et gate CI haute performance.
+REQ-00831,N1,WEB/BFF/HTTP,UC-0002,TST-PERF-131,Validation automatisée WEB/BFF/HTTP et gate CI haute performance.
+REQ-00832,N1,POSTGRESQL/HA,UC-0002,TST-PERF-132,Validation automatisée POSTGRESQL/HA et gate CI haute performance.
+REQ-00833,N1,POSTGRESQL/READ-MODEL,UC-0002,TST-PERF-133,Validation automatisée POSTGRESQL/READ-MODEL et gate CI haute performance.
+REQ-00834,N1,API/DATA,UC-0002,TST-PERF-134,Validation automatisée API/DATA et gate CI haute performance.
+REQ-00835,N1,WORKERS/OUTBOX,UC-0002,TST-PERF-135,Validation automatisée WORKERS/OUTBOX et gate CI haute performance.
+REQ-00836,N1,WEB/FRONTEND,UC-0002,TST-PERF-136,Validation automatisée WEB/FRONTEND et gate CI haute performance.
+REQ-00837,N1,OBSERVABILITE/PERFORMANCE,UC-0002,TST-PERF-137,Validation automatisée OBSERVABILITE/PERFORMANCE et gate CI haute performance.
+REQ-00838,N1,QA/CHARGE/CI,UC-0002,TST-PERF-138,Validation automatisée QA/CHARGE/CI et gate CI haute performance.
+REQ-00839,N1,DATA/STORAGE,UC-0002,TST-PERF-139,Validation automatisée DATA/STORAGE et gate CI haute performance.
+REQ-00840,N1,ARCH/COMPATIBILITE,UC-0002,TST-PERF-140,Validation automatisée ARCH/COMPATIBILITE et gate CI haute performance.

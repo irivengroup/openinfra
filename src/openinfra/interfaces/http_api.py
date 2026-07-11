@@ -8,8 +8,11 @@ from datetime import date, datetime
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from socketserver import BaseServer
 from typing import Any
 from urllib.parse import parse_qs, urlparse
+
+import uvicorn
 
 from openinfra import __version__
 from openinfra.application.access_policy_services import (
@@ -380,6 +383,7 @@ from openinfra.domain.common import AccessDeniedError, OpenInfraError, Validatio
 from openinfra.domain.countries import CountryCatalog
 from openinfra.domain.security import AuthenticatedPrincipal, Permission
 from openinfra.infrastructure.runtime_config import RuntimeDatabaseDsnResolver
+from openinfra.interfaces.runtime_environment import OpenInfraRuntimeEnvironmentScope
 
 
 class JsonHttpResponder:
@@ -494,7 +498,7 @@ class ApiDocumentationRenderer:
 
 
 class OpenInfraRequestHandler(BaseHTTPRequestHandler):
-    server: OpenInfraThreadingServer
+    server: OpenInfraApiRuntime
 
     def log_message(self, _format: str, *args: object) -> None:
         return None
@@ -8023,15 +8027,16 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         return payload
 
 
-class OpenInfraThreadingServer(ThreadingHTTPServer):
+class OpenInfraApiRuntime(BaseServer):
+    """Transport-neutral runtime shared by legacy HTTP and ASGI adapters."""
+
     def __init__(
         self,
-        server_address: tuple[str, int],
         application: OpenInfraApplication,
         auth_required: bool = False,
         openapi_path: str | None = None,
     ) -> None:
-        super().__init__(server_address, OpenInfraRequestHandler)
+        super().__init__(("runtime", 0), OpenInfraRequestHandler)
         self.application = application
         self.auth_required = auth_required
         self.openapi_document_provider = OpenApiDocumentProvider(openapi_path)
@@ -8385,6 +8390,32 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
         }
 
 
+class OpenInfraThreadingServer(ThreadingHTTPServer, OpenInfraApiRuntime):
+    """Compatibility HTTP server kept for tests and controlled rollback only."""
+
+    daemon_threads = True
+
+    def __init__(
+        self,
+        server_address: tuple[str, int],
+        application: OpenInfraApplication,
+        auth_required: bool = False,
+        openapi_path: str | None = None,
+    ) -> None:
+        ThreadingHTTPServer.__init__(self, server_address, OpenInfraRequestHandler)
+        self.application = application
+        self.auth_required = auth_required
+        self.openapi_document_provider = OpenApiDocumentProvider(openapi_path)
+
+    def server_close(self) -> None:
+        try:
+            close = getattr(self.application.store, "close", None)
+            if callable(close):
+                close()
+        finally:
+            super().server_close()
+
+
 class OpenInfraApiEntrypoint:
     @classmethod
     def main(cls) -> int:
@@ -8396,19 +8427,123 @@ class OpenInfraApiEntrypoint:
         parser.add_argument("--postgres-dsn")
         parser.add_argument("--edition", default=os.environ.get("OPENINFRA_EDITION", "enterprise"))
         parser.add_argument("--auth-required", action="store_true")
+        parser.add_argument(
+            "--runtime",
+            choices=("asgi", "legacy"),
+            default=os.environ.get("OPENINFRA_API_RUNTIME", "asgi"),
+        )
+        parser.add_argument(
+            "--workers",
+            type=int,
+            default=int(os.environ.get("OPENINFRA_API_WORKERS", "0")),
+        )
+        parser.add_argument(
+            "--limit-concurrency",
+            type=int,
+            default=int(os.environ.get("OPENINFRA_API_LIMIT_CONCURRENCY", "1000")),
+        )
+        parser.add_argument(
+            "--backlog",
+            type=int,
+            default=int(os.environ.get("OPENINFRA_API_BACKLOG", "2048")),
+        )
+        parser.add_argument(
+            "--timeout-keep-alive",
+            type=int,
+            default=int(os.environ.get("OPENINFRA_API_KEEPALIVE_SECONDS", "5")),
+        )
         args = parser.parse_args(sys.argv[1:])
-        app = cls()._create_application(args)
         auth_required = args.auth_required or os.environ.get("OPENINFRA_AUTH_REQUIRED") == "true"
+        workers = cls._resolve_workers(args.backend, args.edition, args.workers)
+        cls._validate_runtime_limits(args, workers)
+        cls._write_startup_log(args, auth_required, workers)
+        if args.runtime == "legacy":
+            return cls._run_legacy(args, auth_required)
+        return cls._run_asgi(args, auth_required, workers)
+
+    @classmethod
+    def _run_legacy(cls, args: argparse.Namespace, auth_required: bool) -> int:
+        app = cls()._create_application(args)
         server = OpenInfraThreadingServer((args.host, args.port), app, auth_required=auth_required)
-        cls._write_startup_log(args, auth_required)
         try:
             server.serve_forever()
         except KeyboardInterrupt:
+            pass
+        finally:
             server.server_close()
         return 0
 
     @staticmethod
-    def _write_startup_log(args: argparse.Namespace, auth_required: bool) -> None:
+    def _run_asgi(args: argparse.Namespace, auth_required: bool, workers: int) -> int:
+        values = {
+            "OPENINFRA_API_BACKEND": str(args.backend),
+            "OPENINFRA_API_DATA": str(args.data),
+            "OPENINFRA_EDITION": str(args.edition).strip().lower(),
+            "OPENINFRA_AUTH_REQUIRED": "true" if auth_required else "false",
+            "OPENINFRA_API_WORKERS_RESOLVED": str(workers),
+        }
+        if args.postgres_dsn:
+            values["OPENINFRA_API_POSTGRES_DSN"] = str(args.postgres_dsn)
+        try:
+            with OpenInfraRuntimeEnvironmentScope(values):
+                uvicorn.run(
+                    "openinfra.interfaces.asgi:api_app_factory",
+                    factory=True,
+                    host=str(args.host),
+                    port=int(args.port),
+                    workers=workers,
+                    limit_concurrency=int(args.limit_concurrency),
+                    backlog=int(args.backlog),
+                    timeout_keep_alive=int(args.timeout_keep_alive),
+                    proxy_headers=True,
+                    server_header=False,
+                    date_header=False,
+                    access_log=False,
+                    log_level=os.environ.get("OPENINFRA_API_LOG_LEVEL", "info"),
+                )
+        except KeyboardInterrupt:
+            return 0
+        return 0
+
+    @staticmethod
+    def _resolve_workers(backend: str, edition: str, requested: int) -> int:
+        if requested < 0:
+            raise OpenInfraError("API worker count cannot be negative")
+        if backend == "json":
+            if requested not in {0, 1}:
+                raise OpenInfraError("JSON backend supports exactly one API worker")
+            return 1
+        if requested > 0:
+            if requested > 64:
+                raise OpenInfraError("API worker count cannot exceed 64")
+            return requested
+        cpu_count = os.cpu_count() or 1
+        normalized = str(edition).strip().lower()
+        if normalized == "lite":
+            return 1
+        if normalized == "pro":
+            return max(2, min(cpu_count, 8))
+        if normalized == "enterprise":
+            return max(2, min(cpu_count * 2, 16))
+        raise OpenInfraError("edition must be lite, pro or enterprise")
+
+    @staticmethod
+    def _validate_runtime_limits(args: argparse.Namespace, workers: int) -> None:
+        if workers <= 0:
+            raise OpenInfraError("API worker count must be positive")
+        if int(args.limit_concurrency) <= 0:
+            raise OpenInfraError("API concurrency limit must be positive")
+        if int(args.backlog) <= 0:
+            raise OpenInfraError("API backlog must be positive")
+        if int(args.timeout_keep_alive) <= 0:
+            raise OpenInfraError("API keep-alive timeout must be positive")
+
+    @staticmethod
+    def _write_startup_log(
+        args: argparse.Namespace,
+        auth_required: bool,
+        workers: int = 1,
+    ) -> None:
         sys.stdout.write(
             json.dumps(
                 {
@@ -8419,6 +8554,8 @@ class OpenInfraApiEntrypoint:
                     "port": int(args.port),
                     "backend": str(args.backend),
                     "edition": str(args.edition),
+                    "runtime": str(getattr(args, "runtime", "legacy")),
+                    "workers": workers,
                     "auth_required": auth_required,
                     "root_url": "/",
                     "health_url": "/health",
@@ -8435,7 +8572,7 @@ class OpenInfraApiEntrypoint:
         sys.stdout.flush()
 
     def _create_application(self, args: argparse.Namespace) -> OpenInfraApplication:
-        edition = getattr(args, "edition", os.environ.get("OPENINFRA_EDITION", "enterprise"))
+        edition = str(getattr(args, "edition", "enterprise")).strip().lower()
         if args.backend == "json":
             return ApplicationFactory().create_json_application(args.data, edition=edition)
         dsn = RuntimeDatabaseDsnResolver().resolve(args.postgres_dsn)

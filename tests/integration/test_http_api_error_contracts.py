@@ -289,6 +289,8 @@ def test_http_api_authenticated_bad_request_branches_and_entrypoint(
             "--port",
             "0",
             "--auth-required",
+            "--runtime",
+            "legacy",
         ],
     )
     assert OpenInfraApiEntrypoint.main() == 0

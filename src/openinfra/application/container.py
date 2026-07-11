@@ -126,6 +126,7 @@ from openinfra.infrastructure.postgresql import (
     PostgreSQLCertificateInventoryRepository,
     PostgreSQLClusterProfile,
     PostgreSQLConnectionFactory,
+    PostgreSQLConnectionPoolSettings,
     PostgreSQLDcimRepository,
     PostgreSQLDiscoveryRepository,
     PostgreSQLExportRepository,
@@ -311,8 +312,13 @@ class ApplicationFactory:
         seed: bool = False,
         profile: PostgreSQLClusterProfile | None = None,
         edition: str = "enterprise",
+        pool_settings: PostgreSQLConnectionPoolSettings | None = None,
     ) -> OpenInfraApplication:
-        connection_factory = PostgreSQLConnectionFactory(dsn, profile=profile)
+        connection_factory = PostgreSQLConnectionFactory(
+            dsn,
+            profile=profile,
+            pool_settings=pool_settings,
+        )
         registry = PostgreSQLSessionRegistry(connection_factory)
         transaction_manager = PostgreSQLTransactionManager(registry)
         dcim_repository = PostgreSQLDcimRepository(registry)

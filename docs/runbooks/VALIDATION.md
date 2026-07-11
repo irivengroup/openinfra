@@ -1,3 +1,20 @@
+## Validation performance de chargement web — v0.29.105
+
+```bash
+PYTHONPATH=src:. python -m pytest -q --no-cov \
+  tests/integration/test_openinfra_web.py \
+  tests/integration/test_frontend_runtime_startup.py
+
+npm --prefix web test
+npm --prefix web run lint
+npm --prefix web run a11y
+npm --prefix web run a11y:jsx
+npm --prefix web run build
+PYTHONPATH=src:. python scripts/validate_frontend.py --project-root .
+```
+
+Contrôles bloquants : bootstrap local agrégé, sonde backend non bloquante, absence de chargement initial des catalogues métier, déduplication des chargements à la demande, compression gzip, ETag distinct par représentation, réponse `304`, cache immutable des assets versionnés, transfert initial inférieur à 125 Ko gzip et maintien de l’accessibilité WCAG 2.2 AA.
+
 ## Validation Discovery régionale Enterprise — v0.29.103
 
 ```bash

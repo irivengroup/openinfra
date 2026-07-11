@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gzip
 import json
 import re
 import threading
@@ -159,6 +160,7 @@ class TestOpenInfraWeb:
                 main_js = Path("web/src/main.jsx").read_text(encoding="utf-8")
                 package_metadata = json.loads(Path("web/package.json").read_text(encoding="utf-8"))
                 public_config = self._get_json(web.base_url + "/config.json")
+                bootstrap = self._get_json(web.base_url + "/bootstrap.json")
                 bff_status = self._get_json(web.base_url + "/status")
                 readiness = self._get_json(web.base_url + "/ready")
                 version = self._get_json(web.base_url + "/api/v1/version")
@@ -176,9 +178,10 @@ class TestOpenInfraWeb:
 
         assert package_metadata["version"] == __version__
         assert index_cache_control == "no-cache, max-age=0, must-revalidate"
-        assert asset_cache_control == "no-cache, max-age=0, must-revalidate"
+        assert asset_cache_control == "public, max-age=3600, must-revalidate"
         assert "openinfra-root" in index
-        assert "/assets/bootstrap.min.css" in index
+        assert f"/assets/bootstrap.min.css?v={__version__}" in index
+        assert f"/assets/openinfra-web.js?v={__version__}" in index
         assert "Bootstrap" in bootstrap_css and "v5." in bootstrap_css
         assert "openinfra-sidebar" in static_css
         assert "OpenInfraDashboard" in static_js
@@ -198,6 +201,9 @@ class TestOpenInfraWeb:
         assert "renderGlobalSearchToolbar" in static_js
         assert "renderGlobalSearchResults" in static_js
         assert "globalSearchGroups" in static_js + main_js
+        assert bootstrap["config"] == public_config
+        assert bootstrap["status"] == bff_status
+        assert bootstrap["version"] == web_version
         assert "buildGlobalSearchUrl" in main_js
         assert "globalSearchUrl" in static_js
         assert "Recherche backend temporairement indisponible" in static_i18n
@@ -467,7 +473,8 @@ class TestOpenInfraWeb:
         assert "openinfra-titlebar h1" in static_css
         assert "--openinfra-pie-size: clamp(8rem, 14vw, 10.5rem)" in static_css
         assert "Formulaires protégés" in static_i18n
-        assert 'fetch("/status"' in static_js
+        assert 'fetch("/bootstrap.json"' in static_js
+        assert "bootstrap.status || null" in static_js
         assert "@media (max-width: 575.98px)" in static_css
         assert "v0.29.65: responsive sidebar" in static_css
         assert (
@@ -876,6 +883,58 @@ class TestOpenInfraWeb:
         assert echoed["authorization"] == "Bearer server-side-secret"
         assert echoed["browser_authorization_forwarded"] is False
         assert echoed["web_trust"] == "server-side"
+
+    def test_static_assets_are_compressed_cached_and_conditionally_revalidated(self) -> None:
+        with RunningServer(ThreadingHTTPServer(("127.0.0.1", 0), BackendFakeHandler)) as backend:
+            config = self._config(backend.base_url)
+            with RunningServer(OpenInfraWebServer(("127.0.0.1", 0), config)) as web:
+                identity_request = urllib.request.Request(
+                    web.base_url + f"/assets/openinfra-web.js?v={__version__}",
+                    headers={"Accept-Encoding": "identity"},
+                )
+                with urllib.request.urlopen(identity_request, timeout=5) as response:
+                    identity = response.read()
+                    identity_etag = response.headers["ETag"]
+                    assert response.headers["Cache-Control"] == (
+                        "public, max-age=31536000, immutable"
+                    )
+                    assert response.headers.get("Content-Encoding") is None
+
+                gzip_request = urllib.request.Request(
+                    web.base_url + f"/assets/openinfra-web.js?v={__version__}",
+                    headers={"Accept-Encoding": "gzip"},
+                )
+                with urllib.request.urlopen(gzip_request, timeout=5) as response:
+                    compressed = response.read()
+                    gzip_etag = response.headers["ETag"]
+                    assert response.headers["Content-Encoding"] == "gzip"
+                    assert response.headers["Vary"] == "Accept-Encoding"
+                    assert gzip.decompress(compressed) == identity
+
+                conditional = urllib.request.Request(
+                    web.base_url + f"/assets/openinfra-web.js?v={__version__}",
+                    headers={"Accept-Encoding": "gzip", "If-None-Match": gzip_etag},
+                )
+                with pytest.raises(urllib.error.HTTPError) as not_modified:
+                    urllib.request.urlopen(conditional, timeout=5)
+
+                bootstrap_request = urllib.request.Request(web.base_url + "/bootstrap.json")
+                with urllib.request.urlopen(bootstrap_request, timeout=5) as response:
+                    assert response.headers["Cache-Control"] == "no-store"
+
+                for accept_encoding in ("br, gzip;q=0", "gzip;q=invalid", "br"):
+                    disabled_gzip = urllib.request.Request(
+                        web.base_url + f"/assets/openinfra-web.js?v={__version__}",
+                        headers={"Accept-Encoding": accept_encoding},
+                    )
+                    with urllib.request.urlopen(disabled_gzip, timeout=5) as response:
+                        assert response.headers.get("Content-Encoding") is None
+                        assert response.read() == identity
+
+        assert len(compressed) < len(identity) * 0.25
+        assert identity_etag != gzip_etag
+        assert not_modified.value.code == HTTPStatus.NOT_MODIFIED.value
+        assert not_modified.value.headers["ETag"] == gzip_etag
 
     def test_config_factory_falls_back_to_bootstrap_token_when_web_token_is_blank(
         self, monkeypatch: pytest.MonkeyPatch

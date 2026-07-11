@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import argparse
+import gzip
+import hashlib
 import json
 import mimetypes
 import os
 import sys
 from dataclasses import dataclass
+from email.utils import formatdate
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from threading import RLock
 from typing import Any
 from urllib import error, request
 from urllib.parse import urljoin, urlparse
@@ -104,6 +108,13 @@ class OpenInfraWebConfig:
                 "message": "configure a server-side backend bearer token for protected forms",
             }
         return status
+
+    def as_bootstrap_dict(self) -> dict[str, object]:
+        return {
+            "config": self.as_public_dict(),
+            "status": self.as_status_dict(),
+            "version": {"service": "openinfra-web", "version": __version__},
+        }
 
 
 class OpenInfraWebConfigFactory:
@@ -292,12 +303,19 @@ class OpenInfraWebJsonResponder:
 
 
 class OpenInfraWebSecurityHeaders:
-    def write(self, handler: BaseHTTPRequestHandler, *, api_docs: bool = False) -> None:
+    def write(
+        self,
+        handler: BaseHTTPRequestHandler,
+        *,
+        api_docs: bool = False,
+        cache_control: str | None = "no-store",
+    ) -> None:
         handler.send_header("X-Content-Type-Options", "nosniff")
         handler.send_header("Referrer-Policy", "no-referrer")
         handler.send_header("X-Frame-Options", "DENY")
         handler.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
-        handler.send_header("Cache-Control", "no-store")
+        if cache_control is not None:
+            handler.send_header("Cache-Control", cache_control)
         if api_docs:
             handler.send_header(
                 "Content-Security-Policy",
@@ -311,6 +329,66 @@ class OpenInfraWebSecurityHeaders:
             "default-src 'self'; connect-src 'self'; "
             "img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'",
         )
+
+
+@dataclass(frozen=True, slots=True)
+class OpenInfraStaticAsset:
+    content_type: str
+    identity_body: bytes
+    gzip_body: bytes | None
+    identity_etag: str
+    gzip_etag: str | None
+    last_modified: str
+
+
+class OpenInfraStaticAssetStore:
+    _compressible_prefixes = ("text/",)
+    _compressible_types = frozenset(
+        {
+            "application/javascript",
+            "application/json",
+            "application/manifest+json",
+            "application/xml",
+            "image/svg+xml",
+        }
+    )
+
+    def __init__(self) -> None:
+        self._cache: dict[Path, tuple[int, int, OpenInfraStaticAsset]] = {}
+        self._lock = RLock()
+
+    def load(self, path: Path) -> OpenInfraStaticAsset:
+        stat = path.stat()
+        signature = (stat.st_mtime_ns, stat.st_size)
+        with self._lock:
+            cached = self._cache.get(path)
+            if cached is not None and cached[:2] == signature:
+                return cached[2]
+            body = path.read_bytes()
+            content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+            gzip_body = self._gzip_body(content_type, body)
+            asset = OpenInfraStaticAsset(
+                content_type=content_type,
+                identity_body=body,
+                gzip_body=gzip_body,
+                identity_etag=self._etag(body, "identity"),
+                gzip_etag=self._etag(gzip_body, "gzip") if gzip_body is not None else None,
+                last_modified=formatdate(stat.st_mtime, usegmt=True),
+            )
+            self._cache[path] = (*signature, asset)
+            return asset
+
+    def _gzip_body(self, content_type: str, body: bytes) -> bytes | None:
+        compressible = content_type.startswith(self._compressible_prefixes) or (
+            content_type in self._compressible_types
+        )
+        if not compressible or len(body) < 1_024:
+            return None
+        return gzip.compress(body, compresslevel=6, mtime=0)
+
+    def _etag(self, body: bytes, encoding: str) -> str:
+        digest = hashlib.sha256(body).hexdigest()[:32]
+        return f'"{digest}-{encoding}"'
 
 
 class OpenInfraBackendProxy:
@@ -505,6 +583,9 @@ class OpenInfraWebRequestHandler(BaseHTTPRequestHandler):
         if route == "/config.json":
             self._json(HTTPStatus.OK, self.server.config.as_public_dict())
             return
+        if route == "/bootstrap.json":
+            self._json(HTTPStatus.OK, self.server.config.as_bootstrap_dict())
+            return
         if route == "/status":
             self._json(HTTPStatus.OK, self.server.config.as_status_dict())
             return
@@ -561,18 +642,59 @@ class OpenInfraWebRequestHandler(BaseHTTPRequestHandler):
         if not self._is_safe_static_path(candidate):
             self._json(HTTPStatus.NOT_FOUND, {"error": "asset not found"})
             return
-        content_type = mimetypes.guess_type(candidate.name)[0] or "application/octet-stream"
-        body = b"" if head_only else candidate.read_bytes()
-        length = candidate.stat().st_size
+        asset = self.server.static_assets.load(candidate)
+        gzip_body = asset.gzip_body
+        use_gzip = self._accepts_gzip() and gzip_body is not None
+        body = gzip_body if use_gzip and gzip_body is not None else asset.identity_body
+        etag = (asset.gzip_etag or asset.identity_etag) if use_gzip else asset.identity_etag
+        cache_control = self._static_cache_control(route)
+        if self.headers.get("If-None-Match", "").strip() == etag:
+            self.send_response(HTTPStatus.NOT_MODIFIED.value)
+            self.send_header("ETag", etag)
+            self.send_header("Last-Modified", asset.last_modified)
+            self.send_header("Vary", "Accept-Encoding")
+            OpenInfraWebSecurityHeaders().write(self, cache_control=cache_control)
+            self.end_headers()
+            return
         self.send_response(HTTPStatus.OK.value)
-        self.send_header("Content-Type", content_type)
-        self.send_header("Content-Length", str(length))
-        self.send_header("Cache-Control", "no-cache, max-age=0, must-revalidate")
-
-        OpenInfraWebSecurityHeaders().write(self)
+        self.send_header("Content-Type", asset.content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("ETag", etag)
+        self.send_header("Last-Modified", asset.last_modified)
+        self.send_header("Vary", "Accept-Encoding")
+        if use_gzip:
+            self.send_header("Content-Encoding", "gzip")
+        OpenInfraWebSecurityHeaders().write(self, cache_control=cache_control)
         self.end_headers()
         if not head_only:
             self.wfile.write(body)
+
+    def _accepts_gzip(self) -> bool:
+        values = self.headers.get("Accept-Encoding", "").lower().split(",")
+        for value in values:
+            encoding, *parameters = (part.strip() for part in value.split(";"))
+            if encoding != "gzip":
+                continue
+            for parameter in parameters:
+                name, separator, raw_value = parameter.partition("=")
+                if separator and name.strip() == "q":
+                    try:
+                        return float(raw_value.strip()) > 0
+                    except ValueError:
+                        return False
+            return True
+        return False
+
+    def _static_cache_control(self, route: str) -> str:
+        if route in {"", "/", "/index.html"}:
+            return "no-cache, max-age=0, must-revalidate"
+        if route.startswith("/assets/"):
+            parsed = urlparse(self.path)
+            versioned = any(pair == f"v={__version__}" for pair in parsed.query.split("&") if pair)
+            if versioned:
+                return "public, max-age=31536000, immutable"
+            return "public, max-age=3600, must-revalidate"
+        return "no-cache, max-age=0, must-revalidate"
 
     def _is_safe_static_path(self, candidate: Path) -> bool:
         try:
@@ -592,6 +714,7 @@ class OpenInfraWebServer(ThreadingHTTPServer):
         super().__init__(server_address, OpenInfraWebRequestHandler)
         self.config = config
         self.backend_proxy = OpenInfraBackendProxy(config)
+        self.static_assets = OpenInfraStaticAssetStore()
 
 
 class OpenInfraWebEntrypoint:

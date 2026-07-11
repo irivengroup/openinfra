@@ -284,6 +284,13 @@ jobs:
             tests/integration/test_web_accessibility_contract.py \
             tests/integration/test_openinfra_web.py
 
+      - name: Web startup transfer, cache and lazy catalog regression
+        if: matrix.python-version == '3.13'
+        run: |
+          python -m pytest -q --no-cov \
+            tests/integration/test_openinfra_web.py \
+            tests/integration/test_frontend_runtime_startup.py
+
       - name: Unit and integration tests with coverage
         run: python -m pytest
 

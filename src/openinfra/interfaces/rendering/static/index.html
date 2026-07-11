@@ -4,12 +4,19 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>OpenInfra Web</title>
-    <link rel="stylesheet" href="/assets/bootstrap.min.css">
-    <link rel="stylesheet" href="/assets/openinfra-web.css">
+    <link rel="stylesheet" href="/assets/bootstrap.min.css?v=0.29.105">
+    <link rel="stylesheet" href="/assets/openinfra-web.css?v=0.29.105">
   </head>
   <body>
     <noscript>OpenInfra Web requires JavaScript to display the dashboard.</noscript>
-    <div id="openinfra-root"></div>
-    <script type="module" src="/assets/openinfra-web.js"></script>
+    <div id="openinfra-root">
+      <main class="container-fluid min-vh-100 d-flex align-items-center justify-content-center" role="main">
+        <div class="d-flex align-items-center gap-3" role="status" aria-live="polite" aria-atomic="true">
+          <span class="spinner-border text-primary" aria-hidden="true"></span>
+          <span>Loading OpenInfra…</span>
+        </div>
+      </main>
+    </div>
+    <script type="module" src="/assets/openinfra-web.js?v=0.29.105"></script>
   </body>
 </html>

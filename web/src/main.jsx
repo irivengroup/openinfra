@@ -1572,12 +1572,12 @@ function OperationForm({ i18n, language, selected, tenant, setTenant, execute })
 function Dashboard() {
   const [i18n] = useState(() => new OpenInfraI18n());
   const [language, setLanguage] = useState(i18n.language);
-  localizeOpenInfraCatalog({
+  useMemo(() => localizeOpenInfraCatalog({
     modules: MODULES,
     contexts: SIDEBAR_CONTEXTS,
     resourceTaxonomy: RESOURCE_TAXONOMY,
     resourceCategories: RESOURCE_CATEGORY_OPTIONS,
-  }, language);
+  }, language), [language]);
   const [config, setConfig] = useState({ apiBaseUrl: '/api', apiDocumentation: { swaggerUrl: '/docs', redocUrl: '/redoc', openapiUrl: '/openapi.yaml' }, version: i18n.t('unavailable'), webBackendTrust: 'server-side' });
   const [ready, setReady] = useState(null);
   const [bffStatus, setBffStatus] = useState(null);
@@ -1702,17 +1702,21 @@ function Dashboard() {
   }, [activeModuleId, i18n, megaMenuModuleId, mobileSidebarOpen]);
 
   useEffect(() => {
-    Promise.all([
-      fetch('/config.json', { credentials: 'same-origin' }).then((response) => response.json()),
-      fetch('/ready', { credentials: 'same-origin' }).then((response) => response.ok ? response.json() : { ready: false }),
-      fetch('/version', { credentials: 'same-origin' }).then((response) => response.ok ? response.json() : null),
-      fetch('/status', { credentials: 'same-origin' }).then((response) => response.ok ? response.json() : { protectedForms: 'unknown', trust: {} }),
-    ]).then(([loadedConfig, loadedReady, loadedVersion, loadedBffStatus]) => {
-      setConfig(loadedConfig);
-      setReady(loadedReady);
-      setVersion(loadedVersion);
-      setBffStatus(loadedBffStatus);
-    }).catch(() => setReady({ ready: false }));
+    fetch('/bootstrap.json', { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+      .then((response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+      })
+      .then((bootstrap) => {
+        setConfig((current) => bootstrap.config || current);
+        setVersion(bootstrap.version || null);
+        setBffStatus(bootstrap.status || { protectedForms: 'unknown', trust: {} });
+      })
+      .catch(() => setBffStatus({ protectedForms: 'unknown', trust: {} }));
+    fetch('/ready', { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+      .then((response) => response.ok ? response.json() : { ready: false })
+      .then(setReady)
+      .catch(() => setReady({ ready: false }));
   }, []);
 
   function chooseOperation(module, operation, focusMain = false) {

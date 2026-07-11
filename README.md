@@ -1,6 +1,20 @@
-# OpenInfra v0.29.104
+# OpenInfra v0.29.105
 
-OpenInfra v0.29.104 réalise **P17 / EPIC-1703 — reprise après sinistre multisite**. Les éditions Pro et Enterprise disposent d’un registre audité de plans primaire/secours et d’exercices contrôlés de perte du site primaire, sans promotion PostgreSQL, fencing ni changement DNS/VIP automatique.
+OpenInfra v0.29.105 corrige les lenteurs de chargement du portail web sans modifier le comportement métier livré en v0.29.104. Le Dashboard est rendu immédiatement, le bootstrap local est agrégé, la disponibilité backend est non bloquante et les catalogues volumineux sont chargés uniquement lorsque le formulaire sélectionné en a besoin.
+
+## Performance du portail web
+
+Les assets statiques utilisent désormais des URL versionnées, un cache immutable, des ETag et la compression gzip. Le JavaScript principal passe d’environ 260 Ko à 47 Ko transférés avec gzip ; l’ensemble CSS/JavaScript initial passe d’environ 620 Ko à moins de 125 Ko. Le Dashboard n’émet plus neuf requêtes de démarrage : il utilise uniquement `/bootstrap.json` et une sonde `/ready` asynchrone.
+
+```bash
+python -m pytest -q --no-cov \
+  tests/integration/test_openinfra_web.py \
+  tests/integration/test_frontend_runtime_startup.py
+
+npm --prefix web test
+```
+
+Voir `docs/operations/web-loading-performance.md` pour les politiques de cache, les budgets, le chargement paresseux et les contrôles de diagnostic.
 
 ## Reprise après sinistre multisite
 

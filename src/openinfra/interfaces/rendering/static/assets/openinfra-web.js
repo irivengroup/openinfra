@@ -1,4 +1,4 @@
-import { OpenInfraI18n, localizeOpenInfraCatalog } from "./openinfra-i18n.js";
+import { OpenInfraI18n, localizeOpenInfraCatalog } from "./openinfra-i18n.js?v=0.29.105";
 import {
   fieldValidationMessage,
   formCountryCode,
@@ -7,7 +7,7 @@ import {
   normalizeFieldDefinition,
   normalizeFieldValue,
   validateControl
-} from "./openinfra-form-fields.js";
+} from "./openinfra-form-fields.js?v=0.29.105";
 
 class OpenInfraApiClient {
   constructor(apiBaseUrl, tenantProvider, i18n = null) {
@@ -1696,9 +1696,12 @@ class OpenInfraDashboard {
       globalSearchBackend: null,
       globalSearchLoading: false,
       globalSearchError: null,
+      catalogLoading: false,
       mobileSidebarOpen: false,
       megaMenuModuleId: null
     };
+    this.catalogPromises = new Map();
+    this.catalogLoadSequence = 0;
     this.handleResize = () => {
       this.syncFixedHeaderOffset();
       if (!this.isMegamenuViewport() && this.state.megaMenuModuleId !== null) {
@@ -1743,29 +1746,163 @@ class OpenInfraDashboard {
     this.render();
     await this.refreshRuntime();
     this.render();
+    void this.refreshReadiness();
   }
 
   async refreshRuntime() {
     try {
-      const configResponse = await fetch("/config.json", { credentials: "same-origin", headers: { Accept: "application/json" } });
-      if (!configResponse.ok) {
-        throw new Error(`Configuration unavailable: ${configResponse.status}`);
+      const response = await fetch("/bootstrap.json", { credentials: "same-origin", headers: { Accept: "application/json" } });
+      if (!response.ok) {
+        throw new Error(`Bootstrap unavailable: ${response.status}`);
       }
-      const config = await configResponse.json();
-      const [version, ready, status] = await Promise.all([
-        fetch("/version", { credentials: "same-origin", headers: { Accept: "application/json" } }).then((response) => response.ok ? response.json() : { version: config.version }),
-        fetch("/ready", { credentials: "same-origin", headers: { Accept: "application/json" } }).then((response) => response.ok ? response.json() : { ready: false }),
-        fetch("/status", { credentials: "same-origin", headers: { Accept: "application/json" } }).then((response) => response.ok ? response.json() : { protectedForms: "unknown", trust: {} })
-      ]);
-      this.state = { ...this.state, config, version, ready, status, error: null };
-      await this.refreshCountryCatalog();
-      await this.refreshOrganizationCatalog();
-      await this.refreshTenantCatalog();
-      await this.refreshPartnerCatalog();
-      await this.refreshDcimCatalog();
+      const bootstrap = await response.json();
+      this.state = {
+        ...this.state,
+        config: bootstrap.config || null,
+        version: bootstrap.version || null,
+        status: bootstrap.status || null,
+        error: null
+      };
     } catch (error) {
       this.state = { ...this.state, error };
     }
+  }
+
+  async refreshReadiness() {
+    try {
+      const response = await fetch("/ready", { credentials: "same-origin", headers: { Accept: "application/json" } });
+      this.state = { ...this.state, ready: response.ok ? await response.json() : { ready: false } };
+    } catch (_error) {
+      this.state = { ...this.state, ready: { ready: false } };
+    }
+    this.updateRuntimeStatus();
+  }
+
+  updateRuntimeStatus() {
+    const markup = this.renderRuntimeStatus();
+    for (const element of document.querySelectorAll(".openinfra-runtime-status")) {
+      element.outerHTML = markup;
+    }
+  }
+
+  operationCatalogDependencies(operation) {
+    if (!operation || operation.id === "overview") {
+      return [];
+    }
+    const fields = [...(operation.query || []), ...(operation.body || [])];
+    const dependencies = new Set();
+    const fieldTypes = new Set(fields.map((field) => String(field?.type || "")));
+    const fieldNames = new Set(fields.map((field) => String(field?.name || "").toLowerCase()));
+    if (this.operationNeedsGlobalScopeSelectors(operation)
+      || fieldTypes.has("organization-select")
+      || fieldTypes.has("tenant-select")
+      || fieldTypes.has("partner-select")) {
+      dependencies.add("scope");
+    }
+    if (fieldTypes.has("country-select") || fieldNames.has("country") || fieldNames.has("country_code")) {
+      dependencies.add("countries");
+    }
+    if (fieldTypes.has("partner-select")) {
+      dependencies.add("partners");
+    }
+    if (fields.some((field) => this.isDcimReferenceField(field))) {
+      dependencies.add("dcim");
+    }
+    return [...dependencies];
+  }
+
+  catalogDependencyLoaded(dependency) {
+    if (dependency === "scope") return Boolean(this.state.organizationCatalog && this.state.tenantCatalog);
+    if (dependency === "countries") return Boolean(this.state.countryCatalog);
+    if (dependency === "partners") return Boolean(this.state.partnerCatalog);
+    if (dependency === "dcim") return Boolean(this.state.dcimCatalog);
+    return true;
+  }
+
+  operationCatalogsNeedLoading(operation) {
+    return this.operationCatalogDependencies(operation).some((dependency) => !this.catalogDependencyLoaded(dependency));
+  }
+
+  async loadCatalogsForOperation(operation) {
+    const dependencies = this.operationCatalogDependencies(operation);
+    if (dependencies.length === 0 || !this.operationCatalogsNeedLoading(operation)) {
+      return;
+    }
+    const sequence = ++this.catalogLoadSequence;
+    const independent = [];
+    if (dependencies.includes("scope") && !this.catalogDependencyLoaded("scope")) {
+      independent.push(this.catalogPromise("scope", () => this.refreshScopeCatalogs()));
+    }
+    if (dependencies.includes("countries") && !this.catalogDependencyLoaded("countries")) {
+      independent.push(this.catalogPromise("countries", () => this.refreshCountryCatalog()));
+    }
+    if (dependencies.includes("dcim") && !this.catalogDependencyLoaded("dcim")) {
+      independent.push(this.catalogPromise("dcim", () => this.refreshDcimCatalog()));
+    }
+    await Promise.all(independent);
+    if (dependencies.includes("partners") && !this.catalogDependencyLoaded("partners")) {
+      await this.catalogPromise("partners", () => this.refreshPartnerCatalog());
+    }
+    if (sequence !== this.catalogLoadSequence || this.state.selected.id !== operation.id) {
+      return;
+    }
+    this.state = { ...this.state, catalogLoading: false };
+    this.render();
+  }
+
+  catalogPromise(key, loader) {
+    const current = this.catalogPromises.get(key);
+    if (current) {
+      return current;
+    }
+    const promise = Promise.resolve().then(loader).finally(() => this.catalogPromises.delete(key));
+    this.catalogPromises.set(key, promise);
+    return promise;
+  }
+
+  async refreshScopeCatalogs() {
+    const base = String(this.state.config?.apiBaseUrl || "/api").replace(/\/$/, "");
+    const tenantId = encodeURIComponent(this.state.tenant || "default");
+    const [organizationResult, tenantResult] = await Promise.allSettled([
+      fetch(`${base}/v1/itam/organizations?tenant_id=${tenantId}`, {
+        credentials: "same-origin",
+        headers: { Accept: "application/json" }
+      }).then((response) => {
+        if (!response.ok) throw new Error(`ITAM organization catalog returned ${response.status}`);
+        return response.json();
+      }),
+      fetch(`${base}/v1/itam/tenants?tenant_id=${tenantId}`, {
+        credentials: "same-origin",
+        headers: { Accept: "application/json" }
+      }).then((response) => {
+        if (!response.ok) throw new Error(`ITAM tenant catalog returned ${response.status}`);
+        return response.json();
+      })
+    ]);
+    let organization = this.state.organization;
+    let tenant = this.state.tenant;
+    const updates = {};
+    if (organizationResult.status === "fulfilled") {
+      const catalog = organizationResult.value;
+      const selectable = (catalog.items || []).filter((item) => item.selectable !== false && item.status === "active");
+      const selected = catalog.auto_selected_organization_id || catalog.default_organization_id || organization;
+      organization = selectable.some((item) => item.organization_id === selected) ? selected : organization;
+      Object.assign(updates, { organizationCatalog: catalog, organizationCatalogError: null, organization });
+    } else {
+      Object.assign(updates, { organizationCatalog: null, organizationCatalogError: organizationResult.reason });
+    }
+    if (tenantResult.status === "fulfilled") {
+      const catalog = tenantResult.value;
+      const selectable = (catalog.items || []).filter((item) => item.selectable !== false && item.status === "active" && item.organization_id === organization);
+      const selected = catalog.auto_selected_tenant_id || catalog.default_tenant_id || tenant;
+      tenant = selectable.some((item) => item.tenant_id === selected)
+        ? selected
+        : (selectable[0]?.tenant_id || organization || tenant);
+      Object.assign(updates, { tenantCatalog: catalog, tenantCatalogError: null, tenant });
+    } else {
+      Object.assign(updates, { tenantCatalog: null, tenantCatalogError: tenantResult.reason });
+    }
+    this.state = { ...this.state, ...updates };
   }
 
 
@@ -2358,6 +2495,9 @@ class OpenInfraDashboard {
   renderWorkspace(selected, result, displayedVersion, config, protectedForms) {
     if (this.state.activeModuleId === "overview") {
       return `${this.renderOverviewRuntimeMetrics(displayedVersion, config, protectedForms)}${this.renderOverviewDashboard()}`;
+    }
+    if (this.state.catalogLoading) {
+      return `<section class="card openinfra-operation-card"><div class="card-body"><div class="d-flex align-items-center gap-3" role="status" aria-live="polite"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span>${this.escape(this.i18n.t("loadingFormReferences"))}</span></div></div></section>`;
     }
     return `<section class="card openinfra-operation-card"><div class="card-body">${this.renderOperationPanel(selected, result)}</div></section>`;
   }
@@ -3132,8 +3272,13 @@ class OpenInfraDashboard {
         openedContexts.add(this.sidebarContextKey(module.id, defaultContext.label));
       }
     }
-    this.state = { ...this.state, activeModuleId: module.id, activeNavigationModuleId: module.id, selected: module.operations[0], openedModules, openedContexts, result: null, error: null, mobileSidebarOpen: false, megaMenuModuleId: null };
+    const operation = module.operations[0];
+    const catalogLoading = module.id !== "overview" && this.operationCatalogsNeedLoading(operation);
+    this.state = { ...this.state, activeModuleId: module.id, activeNavigationModuleId: module.id, selected: operation, openedModules, openedContexts, result: null, error: null, catalogLoading, mobileSidebarOpen: false, megaMenuModuleId: null };
     this.render();
+    if (catalogLoading) {
+      void this.loadCatalogsForOperation(operation);
+    }
   }
 
   async selectSearchRoute(route) {
@@ -3170,6 +3315,7 @@ class OpenInfraDashboard {
             openedContexts.add(this.sidebarContextKey(module.id, context.label));
           }
         }
+        const catalogLoading = module.id !== "overview" && this.operationCatalogsNeedLoading(operation);
         this.state = {
           ...this.state,
           activeModuleId: module.id,
@@ -3179,11 +3325,15 @@ class OpenInfraDashboard {
           openedContexts,
           result: null,
           error: null,
+          catalogLoading,
           globalSearchQuery: "",
           mobileSidebarOpen: false, megaMenuModuleId: null
         };
         this.pendingMainFocus = true;
         this.render();
+        if (catalogLoading) {
+          void this.loadCatalogsForOperation(operation);
+        }
         return;
       }
     }
@@ -3206,8 +3356,12 @@ class OpenInfraDashboard {
             openedContexts.add(this.sidebarContextKey(module.id, context.label));
           }
         }
-        this.state = { ...this.state, activeModuleId: module.id, activeNavigationModuleId: module.id, selected: operation, openedModules, openedContexts, result: null, error: null, mobileSidebarOpen: false, megaMenuModuleId: null };
+        const catalogLoading = module.id !== "overview" && this.operationCatalogsNeedLoading(operation);
+        this.state = { ...this.state, activeModuleId: module.id, activeNavigationModuleId: module.id, selected: operation, openedModules, openedContexts, result: null, error: null, catalogLoading, mobileSidebarOpen: false, megaMenuModuleId: null };
         this.render();
+        if (catalogLoading) {
+          void this.loadCatalogsForOperation(operation);
+        }
         return;
       }
     }

@@ -1,5 +1,15 @@
 # Traçabilité OpenInfra
 
+## v0.29.105 — Optimisation du chargement web
+
+- Défaut corrigé : chargement lent du portail packagé, particulièrement lorsque le backend ou les catalogues métier répondent lentement.
+- Transport : compression gzip déterministe, ETag par représentation, revalidation `304` et cache immutable des ressources versionnées.
+- Bootstrap : endpoint local `/bootstrap.json` agrégeant configuration, statut BFF et version ; `/ready` reste asynchrone et non bloquant.
+- Données métier : chargement paresseux et dédupliqué des catalogues pays, ITAM et DCIM selon les champs du formulaire sélectionné.
+- UX/accessibilité : shell de chargement immédiatement visible, état de chargement annoncé par région `status`, sans régression WCAG 2.2 AA.
+- Tests/CI : budgets gzip, cache, ETag, réponse 304, fan-out de démarrage, parité React/runtime, typage strict et régression web dédiée.
+- CDC/roadmap : inchangés ; il s’agit d’un correctif de performance et de fiabilité sans évolution du périmètre contractuel.
+
 ## v0.29.104 — Reprise après sinistre multisite
 
 - Roadmap existante : réalisation de P17 / `EPIC-1703`, sans extension du périmètre fonctionnel.

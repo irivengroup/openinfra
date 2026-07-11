@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.29.105 - 2026-07-11
+
+- Correction prioritaire des lenteurs de chargement du portail web packagé.
+- Compression gzip déterministe des ressources texte avec réduction du transfert initial d’environ 82 %.
+- Ajout d’ETag, de réponses `304 Not Modified` et d’un cache immutable pour les URL d’assets versionnées.
+- Remplacement de quatre requêtes locales de démarrage par un endpoint agrégé `/bootstrap.json`.
+- Découplage de la disponibilité backend afin qu’un backend lent ou indisponible ne bloque plus l’initialisation de l’interface.
+- Chargement paresseux et dédupliqué des catalogues pays, organisations, filiales, partenaires et topologie DCIM uniquement lors de l’ouverture des formulaires concernés.
+- Ajout de tests de budgets de transfert, de cache, de compression, de revalidation conditionnelle et de non-régression du démarrage.
+
 ## 0.29.104 - 2026-07-11
 
 - Réalisation de P17 / EPIC-1703 avec plans de reprise primaire/secours pour les éditions Pro et Enterprise.

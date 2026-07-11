@@ -71,7 +71,8 @@ class FrontendContractValidator:
             or "mobileSidebarOpen" not in main_source
             or "i18n.t('componentStatistics')" not in main_source
             or "openinfra-pie-chart" not in main_source
-            or "fetch('/status'" not in main_source
+            or "fetch('/bootstrap.json'" not in main_source
+            or "fetch('/ready'" not in main_source
             or "i18n.t('forms')" not in main_source
             or "Numéro de série" not in main_source
             or "Catalogue catégories / types" not in main_source
@@ -330,6 +331,10 @@ class FrontendContractValidator:
         required_startup_fragments = (
             "validateOperationCatalog(OPENINFRA_MODULES)",
             "this.render();\n    await this.refreshRuntime();",
+            'fetch("/bootstrap.json"',
+            "void this.refreshReadiness();",
+            "operationCatalogDependencies(operation)",
+            "loadCatalogsForOperation(operation)",
             "renderFatalStartupError(openInfraRoot, error)",
             ".filter((field) => field?.required)",
         )
@@ -533,7 +538,8 @@ class FrontendContractValidator:
             "padding-block: .5rem !important",
             ".btn-primary",
             ".form-control:focus",
-            'fetch("/status"',
+            'fetch("/bootstrap.json"',
+            'fetch("/ready"',
             "Formulaires protégés",
             "openinfra-runtime-status",
             "#003D8F",

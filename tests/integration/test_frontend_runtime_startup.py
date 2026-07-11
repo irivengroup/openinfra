@@ -16,6 +16,18 @@ def test_packaged_runtime_catalog_and_startup_resilience_contract() -> None:
     assert 'cursor: { name: "cursor"' in source
     assert "validateOperationCatalog(OPENINFRA_MODULES)" in source
     assert "this.render();\n    await this.refreshRuntime();" in source
+    assert 'fetch("/bootstrap.json"' in source
+    assert "void this.refreshReadiness();" in source
+    assert "operationCatalogDependencies(operation)" in source
+    assert "loadCatalogsForOperation(operation)" in source
+    refresh_runtime = source.split("async refreshRuntime()", 1)[1].split(
+        "async refreshReadiness()", 1
+    )[0]
+    assert "refreshCountryCatalog" not in refresh_runtime
+    assert "refreshOrganizationCatalog" not in refresh_runtime
+    assert "refreshTenantCatalog" not in refresh_runtime
+    assert "refreshPartnerCatalog" not in refresh_runtime
+    assert "refreshDcimCatalog" not in refresh_runtime
     assert "renderFatalStartupError(openInfraRoot, error)" in source
     assert ".filter((field) => field?.required)" in source
 

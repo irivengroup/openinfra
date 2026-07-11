@@ -13,7 +13,8 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.30.0"
+    EXPECTED_VERSION = "0.30.1"
+    EXPECTED_DATA_PLANE_ROUTES = ("/api/v1/database/routing",)
     EXPECTED_GRAPH_ROUTES = (
         "/api/v1/graph/traverse",
         "/api/v1/graph/impact",
@@ -179,6 +180,7 @@ class InstalledWheelSmoke:
         self._assert_version()
         package_root = Path(openinfra.__file__).resolve().parent
         openapi = OpenApiDocumentProvider().read_yaml()
+        self._assert_data_plane_routes(openapi)
         self._assert_graph_routes(openapi)
         self._assert_flow_routes(openapi)
         self._assert_certificate_routes(openapi)
@@ -196,6 +198,7 @@ class InstalledWheelSmoke:
         self._assert_console_scripts()
         return {
             "version": openinfra.__version__,
+            "data_plane_routes": len(self.EXPECTED_DATA_PLANE_ROUTES),
             "graph_routes": len(self.EXPECTED_GRAPH_ROUTES),
             "flow_routes": len(self.EXPECTED_FLOW_ROUTES),
             "certificate_routes": len(self.EXPECTED_CERTIFICATE_ROUTES),
@@ -222,6 +225,13 @@ class InstalledWheelSmoke:
         if distribution_version != self.EXPECTED_VERSION:
             raise InstalledWheelSmokeError(
                 "installed distribution metadata version does not match runtime version"
+            )
+
+    def _assert_data_plane_routes(self, openapi: str) -> None:
+        missing = [route for route in self.EXPECTED_DATA_PLANE_ROUTES if route not in openapi]
+        if missing:
+            raise InstalledWheelSmokeError(
+                "installed OpenAPI document is missing data-plane routes: " + ", ".join(missing)
             )
 
     def _assert_graph_routes(self, openapi: str) -> None:

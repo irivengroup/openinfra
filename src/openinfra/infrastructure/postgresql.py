@@ -8,7 +8,9 @@ import os
 import re
 import secrets
 import threading
-from collections.abc import Callable, Mapping, Sequence
+import time
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -289,6 +291,12 @@ from openinfra.infrastructure.field_operation_mapper import FieldOperationRecord
 from openinfra.infrastructure.finops_mapper import FinOpsRecordMapper
 from openinfra.infrastructure.greenops_mapper import GreenOpsRecordMapper
 from openinfra.infrastructure.rag_mapper import RagRecordMapper
+from openinfra.infrastructure.read_routing import (
+    PostgreSQLReadRoutingSettings,
+    PostgreSQLReplicaHealth,
+    ReadRoute,
+    ReadRoutingContext,
+)
 from openinfra.infrastructure.sbom_mapper import SbomRecordMapper
 from openinfra.infrastructure.simulation_mapper import SimulationRecordMapper
 
@@ -909,6 +917,7 @@ class PostgreSQLConnectionPool:
             kwargs={
                 "autocommit": False,
                 "row_factory": rows.dict_row,
+                "prepare_threshold": None,
                 "options": "-c " + profile.dsn_options().replace(" ", " -c "),
             },
             open=False,
@@ -944,6 +953,7 @@ class PostgreSQLDriver:
                 dsn,
                 autocommit=False,
                 row_factory=row_factory,
+                prepare_threshold=None,
                 options="-c " + profile.dsn_options().replace(" ", " -c "),
             )
         except Exception as exc:  # pragma: no cover - depends on external PostgreSQL runtime
@@ -998,19 +1008,142 @@ class PostgreSQLConnectionFactory:
             self._pool.close()
 
 
-class PostgreSQLSessionRegistry:
-    def __init__(self, factory: PostgreSQLConnectionFactory) -> None:
-        self._factory = factory
-        self._local = threading.local()
+class PostgreSQLReplicaMonitor:
+    _probe_sql = """
+        SELECT
+            pg_is_in_recovery() AS is_replica,
+            CASE
+                WHEN pg_last_xact_replay_timestamp() IS NULL THEN NULL
+                ELSE EXTRACT(EPOCH FROM (clock_timestamp() - pg_last_xact_replay_timestamp()))
+            END AS lag_seconds
+    """
 
-    def open(self) -> ConnectionProtocol:
-        return self._factory.create()
+    def __init__(
+        self,
+        read_factory: PostgreSQLConnectionFactory,
+        settings: PostgreSQLReadRoutingSettings,
+        *,
+        monotonic_clock: Callable[[], float] = time.monotonic,
+        epoch_clock: Callable[[], float] = time.time,
+    ) -> None:
+        self._read_factory = read_factory
+        self._settings = settings
+        self._monotonic_clock = monotonic_clock
+        self._epoch_clock = epoch_clock
+        self._lock = threading.Lock()
+        self._last_probe_monotonic = float("-inf")
+        self._snapshot = PostgreSQLReplicaHealth.disabled()
+
+    def snapshot(self, *, force: bool = False) -> PostgreSQLReplicaHealth:
+        now = self._monotonic_clock()
+        with self._lock:
+            if (
+                not force
+                and self._snapshot.checked_at_epoch is not None
+                and now - self._last_probe_monotonic < self._settings.probe_interval_seconds
+            ):
+                return self._snapshot
+            self._snapshot = self._probe()
+            self._last_probe_monotonic = now
+            return self._snapshot
+
+    def _probe(self) -> PostgreSQLReplicaHealth:
+        connection = self._read_factory.create()
+        cursor = connection.cursor()
+        try:
+            cursor.execute(self._probe_sql)
+            row = cursor.fetchone() or {}
+            connection.rollback()
+            is_replica = bool(row.get("is_replica", False))
+            raw_lag = row.get("lag_seconds")
+            lag_seconds = float(str(raw_lag)) if raw_lag is not None else None
+            recovery_ok = is_replica or not self._settings.require_recovery
+            lag_ok = lag_seconds is not None and lag_seconds <= (
+                self._settings.max_replica_lag_seconds
+            )
+            eligible = recovery_ok and lag_ok
+            if not recovery_ok:
+                detail = "configured read endpoint is not a PostgreSQL standby"
+            elif lag_seconds is None:
+                detail = "replica replay timestamp is unavailable"
+            elif not lag_ok:
+                detail = (
+                    "replica lag exceeds threshold: "
+                    f"{lag_seconds:.3f}s > {self._settings.max_replica_lag_seconds:.3f}s"
+                )
+            else:
+                detail = f"replica is eligible with {lag_seconds:.3f}s replay lag"
+            return PostgreSQLReplicaHealth(
+                configured=True,
+                eligible=eligible,
+                is_replica=is_replica,
+                lag_seconds=lag_seconds,
+                checked_at_epoch=self._epoch_clock(),
+                detail=detail,
+            )
+        except Exception as exc:
+            with suppress(Exception):
+                connection.rollback()
+            return PostgreSQLReplicaHealth(
+                configured=True,
+                eligible=False,
+                is_replica=False,
+                lag_seconds=None,
+                checked_at_epoch=self._epoch_clock(),
+                detail="replica probe failed: " + str(exc),
+            )
+        finally:
+            cursor.close()
+            self._read_factory.release(connection)
+
+
+class PostgreSQLSessionRegistry:
+    def __init__(
+        self,
+        factory: PostgreSQLConnectionFactory,
+        read_factory: PostgreSQLConnectionFactory | None = None,
+        read_routing_settings: PostgreSQLReadRoutingSettings | None = None,
+        replica_monitor: PostgreSQLReplicaMonitor | None = None,
+    ) -> None:
+        self._factory = factory
+        self._read_factory = read_factory
+        self._read_routing_settings = read_routing_settings or PostgreSQLReadRoutingSettings(
+            enabled=False,
+            max_replica_lag_seconds=0,
+            probe_interval_seconds=1,
+            fallback_to_primary=True,
+        )
+        self._replica_monitor = replica_monitor
+        if self._read_routing_settings.enabled and self._read_factory is None:
+            raise ValidationError("postgresql read routing requires a read connection factory")
+        if self._read_factory is not None and self._replica_monitor is None:
+            self._replica_monitor = PostgreSQLReplicaMonitor(
+                self._read_factory, self._read_routing_settings
+            )
+        self._local = threading.local()
+        self._lease_lock = threading.Lock()
+        self._lease_factories: dict[int, PostgreSQLConnectionFactory] = {}
+        self._stats_lock = threading.Lock()
+        self._primary_acquisitions = 0
+        self._replica_acquisitions = 0
+        self._replica_fallbacks = 0
+
+    def open(self, *, read_only: bool = False) -> ConnectionProtocol:
+        factory = self._select_factory(read_only=read_only)
+        connection = factory.create()
+        with self._lease_lock:
+            self._lease_factories[id(connection)] = factory
+        return connection
 
     def release(self, connection: ConnectionProtocol) -> None:
-        self._factory.release(connection)
+        with self._lease_lock:
+            factory = self._lease_factories.pop(id(connection), self._factory)
+        factory.release(connection)
 
     def close(self) -> None:
         self._factory.close()
+        if self._read_factory is not None and self._read_factory is not self._factory:
+            self._read_factory.close()
 
     def bind(self, connection: ConnectionProtocol) -> None:
         self._local.connection = connection
@@ -1019,11 +1152,83 @@ class PostgreSQLSessionRegistry:
         if hasattr(self._local, "connection"):
             del self._local.connection
 
+    def has_current(self) -> bool:
+        return getattr(self._local, "connection", None) is not None
+
     def current(self) -> ConnectionProtocol:
         connection = getattr(self._local, "connection", None)
         if connection is None:
             raise OpenInfraError("postgresql operation requires an active unit of work")
         return cast(ConnectionProtocol, connection)
+
+    @contextmanager
+    def read_scope(self) -> Iterator[ConnectionProtocol]:
+        if self.has_current():
+            yield self.current()
+            return
+        connection = self.open(read_only=True)
+        self.bind(connection)
+        try:
+            yield connection
+        finally:
+            try:
+                connection.rollback()
+            finally:
+                self.unbind()
+                self.release(connection)
+
+    def routing_status_as_dict(self, *, force_probe: bool = False) -> dict[str, object]:
+        snapshot = (
+            self._replica_monitor.snapshot(force=force_probe)
+            if self._replica_monitor is not None
+            else PostgreSQLReplicaHealth.disabled()
+        )
+        with self._stats_lock:
+            counters = {
+                "primary_acquisitions": self._primary_acquisitions,
+                "replica_acquisitions": self._replica_acquisitions,
+                "replica_fallbacks": self._replica_fallbacks,
+            }
+        return {
+            "read_routing_enabled": self._read_routing_settings.enabled,
+            "fallback_to_primary": self._read_routing_settings.fallback_to_primary,
+            "max_replica_lag_seconds": (self._read_routing_settings.max_replica_lag_seconds),
+            "replica": snapshot.as_dict(),
+            "counters": counters,
+        }
+
+    def _select_factory(self, *, read_only: bool) -> PostgreSQLConnectionFactory:
+        prefer_replica = (
+            read_only
+            and ReadRoutingContext.current() is ReadRoute.REPLICA
+            and self._read_routing_settings.enabled
+            and self._read_factory is not None
+        )
+        if not prefer_replica:
+            self._increment("primary")
+            return self._factory
+        monitor = self._replica_monitor
+        snapshot = monitor.snapshot() if monitor is not None else PostgreSQLReplicaHealth.disabled()
+        if snapshot.eligible:
+            self._increment("replica")
+            read_factory = self._read_factory
+            if read_factory is None:  # pragma: no cover - guarded by prefer_replica
+                raise OpenInfraError("postgresql read factory is unavailable")
+            return read_factory
+        if self._read_routing_settings.fallback_to_primary:
+            self._increment("fallback")
+            self._increment("primary")
+            return self._factory
+        raise OpenInfraError("postgresql read replica is not eligible: " + snapshot.detail)
+
+    def _increment(self, counter: str) -> None:
+        with self._stats_lock:
+            if counter == "primary":
+                self._primary_acquisitions += 1
+            elif counter == "replica":
+                self._replica_acquisitions += 1
+            else:
+                self._replica_fallbacks += 1
 
 
 class PostgreSQLUnitOfWork(UnitOfWork):
@@ -1180,8 +1385,9 @@ class PostgreSQLRepositoryBase:
         query: str,
         params: Mapping[str, object] | None = None,
     ) -> Mapping[str, object] | None:
-        cursor = self._execute(query, params)
+        cursor = self._registry.current().cursor()
         try:
+            cursor.execute(query, params or {})
             return cursor.fetchone()
         finally:
             cursor.close()
@@ -1191,8 +1397,9 @@ class PostgreSQLRepositoryBase:
         query: str,
         params: Mapping[str, object] | None = None,
     ) -> Sequence[Mapping[str, object]]:
-        cursor = self._execute(query, params)
+        cursor = self._registry.current().cursor()
         try:
+            cursor.execute(query, params or {})
             return cursor.fetchall()
         finally:
             cursor.close()

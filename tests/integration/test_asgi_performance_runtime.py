@@ -17,6 +17,11 @@ from openinfra.infrastructure.postgresql import (
     PostgreSQLConnectionFactory,
     PostgreSQLConnectionPoolSettings,
 )
+from openinfra.infrastructure.read_routing import (
+    ReadConsistencyTokenCodec,
+    ReadRoute,
+    ReadRoutingContext,
+)
 from openinfra.interfaces import asgi as api_asgi
 from openinfra.interfaces import asgi_web as web_asgi
 from openinfra.interfaces.asgi import OpenInfraApiAsgiApplication
@@ -486,7 +491,7 @@ def test_web_asgi_static_bootstrap_cache_and_security() -> None:
         app,
         "GET",
         "/assets/openinfra-web.js",
-        query=b"v=0.30.0",
+        query=b"v=0.30.1",
         headers=((b"accept-encoding", b"gzip"),),
     )
     assert asset_status == 200
@@ -799,3 +804,204 @@ def test_web_pool_settings_lifespan_and_entrypoint(monkeypatch: pytest.MonkeyPat
     assert "OPENINFRA_WEB_BACKEND_URL" not in os.environ
     assert "OPENINFRA_WEB_WORKERS_RESOLVED" not in os.environ
     assert os.environ["OPENINFRA_EDITION"] == "baseline"
+
+
+def test_api_asgi_read_after_write_consistency_token_routing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    application = ApplicationFactory().create_json_application(tmp_path / "consistency.json")
+    observed_routes: list[ReadRoute] = []
+
+    class RoutingHandler:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            del args, kwargs
+
+        def dispatch(self) -> tuple[int, tuple[tuple[str, str], ...], bytes]:
+            observed_routes.append(ReadRoutingContext.current())
+            return 200, (("Content-Type", "application/json"),), b"{}"
+
+    monkeypatch.setattr(api_asgi, "OpenInfraAsgiRequestHandler", RoutingHandler)
+    now = [1_000.0]
+    codec = ReadConsistencyTokenCodec("c" * 32, ttl_seconds=7, clock=lambda: now[0])
+    app = OpenInfraApiAsgiApplication(
+        OpenInfraApiRuntime(application), consistency_token_codec=codec
+    )
+
+    assert _request(app, "GET", "/api/v1/version")[0] == 200
+    post_status, post_headers, _ = _request(app, "POST", "/api/v1/test", body=b"{}")
+    token = post_headers["x-openinfra-consistency-token"]
+    assert post_status == 200
+    assert post_headers["access-control-expose-headers"] == ("X-OpenInfra-Consistency-Token")
+    assert codec.validate(token) is True
+    assert (
+        _request(
+            app,
+            "GET",
+            "/api/v1/version",
+            headers=((b"x-openinfra-consistency-token", token.encode()),),
+        )[0]
+        == 200
+    )
+    assert observed_routes == [ReadRoute.REPLICA, ReadRoute.PRIMARY, ReadRoute.PRIMARY]
+
+    invalid_status, _, invalid_body = _request(
+        app,
+        "GET",
+        "/api/v1/version",
+        headers=((b"x-openinfra-consistency-token", b"invalid"),),
+    )
+    assert invalid_status == 400
+    assert "invalid or expired" in invalid_body.decode()
+
+
+def test_web_asgi_persists_and_forwards_consistency_cookie(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    received_tokens: list[str] = []
+
+    async def backend(request: httpx.Request) -> httpx.Response:
+        received_tokens.append(request.headers.get("x-openinfra-consistency-token", ""))
+        headers = {"content-type": "application/json"}
+        if request.method == "POST":
+            headers["x-openinfra-consistency-token"] = "signed-token"
+            headers["access-control-expose-headers"] = "X-OpenInfra-Consistency-Token"
+        return httpx.Response(200, content=b"{}", headers=headers)
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(backend))
+    app = OpenInfraWebAsgiApplication(
+        _web_config(),
+        _pool_settings(),
+        client=client,
+        consistency_cookie_ttl_seconds=7,
+    )
+    status, headers, _ = _request(app, "POST", "/api/v1/test", body=b"{}")
+    assert status == 200
+    assert "openinfra_read_consistency=signed-token" in headers["set-cookie"]
+    assert "Max-Age=7" in headers["set-cookie"]
+    assert "Secure" not in headers["set-cookie"]
+    secure_status, secure_headers, _ = _request(
+        app,
+        "POST",
+        "/api/v1/test",
+        body=b"{}",
+        headers=((b"x-forwarded-proto", b"https"),),
+    )
+    assert secure_status == 200
+    assert "; Secure" in secure_headers["set-cookie"]
+    assert app._consistency_token_from_cookie("\x00") == ""
+
+    class BrokenCookie:
+        def load(self, raw_cookie: str) -> None:
+            raise ValueError(raw_cookie)
+
+    original_cookie = web_asgi.SimpleCookie
+    monkeypatch.setattr(web_asgi, "SimpleCookie", BrokenCookie)
+    assert app._consistency_token_from_cookie("malformed") == ""
+    monkeypatch.setattr(web_asgi, "SimpleCookie", original_cookie)
+
+    get_status, _, _ = _request(
+        app,
+        "GET",
+        "/api/v1/version",
+        headers=((b"cookie", b"openinfra_read_consistency=signed-token"),),
+    )
+    assert get_status == 200
+    assert received_tokens == ["", "", "signed-token"]
+    asyncio.run(client.aclose())
+
+    with pytest.raises(ValidationError, match="cookie TTL"):
+        OpenInfraWebAsgiApplication(
+            _web_config(), _pool_settings(), consistency_cookie_ttl_seconds=0
+        )
+
+
+def test_api_asgi_read_scope_and_read_replica_factories(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    application = ApplicationFactory().create_json_application(tmp_path / "read-scope.json")
+    scope_events: list[str] = []
+
+    class ReadScope:
+        def __enter__(self) -> None:
+            scope_events.append("enter")
+
+        def __exit__(self, *args: object) -> None:
+            del args
+            scope_events.append("exit")
+
+    application.store.read_scope = ReadScope  # type: ignore[attr-defined]
+    assert (
+        _request(
+            OpenInfraApiAsgiApplication(OpenInfraApiRuntime(application)),
+            "GET",
+            "/health",
+        )[0]
+        == 200
+    )
+    assert scope_events == ["enter", "exit"]
+
+    captured: dict[str, object] = {}
+
+    def create_postgresql(_self: object, dsn: str, **kwargs: object) -> object:
+        captured.update(dsn=dsn, **kwargs)
+        return application
+
+    monkeypatch.setenv("OPENINFRA_API_BACKEND", "postgresql")
+    monkeypatch.setenv("OPENINFRA_EDITION", "pro")
+    monkeypatch.setenv("OPENINFRA_API_WORKERS_RESOLVED", "2")
+    monkeypatch.setenv("OPENINFRA_DB_READ_ROUTING_ENABLED", "true")
+    monkeypatch.setattr(
+        api_asgi.RuntimeDatabaseDsnResolver,
+        "resolve",
+        lambda self, value: "postgresql:///primary",
+    )
+    monkeypatch.setattr(
+        api_asgi.RuntimeDatabaseDsnResolver,
+        "resolve_read_replica",
+        lambda self, value=None: "postgresql:///replica",
+    )
+    monkeypatch.setattr(
+        api_asgi.PostgreSQLConnectionPoolSettings,
+        "from_environment",
+        lambda edition, workers: (edition, workers),
+    )
+    monkeypatch.setattr(
+        api_asgi.ApplicationFactory, "create_postgresql_application", create_postgresql
+    )
+    assert api_asgi.OpenInfraApiEnvironmentApplicationFactory().create() is application
+    assert captured["read_dsn"] == "postgresql:///replica"
+    assert captured["read_pool_settings"] == ("pro", 2)
+    assert captured["read_routing_settings"].enabled is True  # type: ignore[union-attr]
+
+
+def test_api_asgi_factory_requires_and_accepts_consistency_key(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    application = ApplicationFactory().create_json_application(tmp_path / "factory-key.json")
+    monkeypatch.setattr(
+        api_asgi.OpenInfraApiEnvironmentApplicationFactory,
+        "create",
+        lambda self: application,
+    )
+    monkeypatch.setattr(
+        api_asgi.RuntimeDatabaseDsnResolver,
+        "resolve_read_replica",
+        lambda self, value=None: "postgresql:///replica",
+    )
+    monkeypatch.setattr(
+        api_asgi.RuntimeDatabaseDsnResolver,
+        "resolve_consistency_secret",
+        lambda self: "",
+    )
+    with pytest.raises(OpenInfraError, match="CONSISTENCY_SECRET"):
+        api_asgi.OpenInfraApiAsgiFactory()()
+
+    monkeypatch.setattr(
+        api_asgi.RuntimeDatabaseDsnResolver,
+        "resolve_consistency_secret",
+        lambda self: "k" * 32,
+    )
+    monkeypatch.setenv("OPENINFRA_READ_AFTER_WRITE_TTL_SECONDS", "9")
+    app = api_asgi.OpenInfraApiAsgiFactory()()
+    assert app._consistency_token_codec is not None
+    assert app._consistency_token_codec.ttl_seconds == 9

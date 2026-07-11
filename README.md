@@ -1,6 +1,18 @@
-# OpenInfra v0.30.0
+# OpenInfra v0.30.1
 
-OpenInfra 0.30.0 inaugure le socle d’exécution haute performance des éditions Pro et Entreprise. Cette version conserve la Clean Architecture, le DDD, les contrats métier, la CLI, REST, OpenAPI, RBAC et les migrations, tout en remplaçant les principaux plafonds techniques du runtime HTTP et de l’accès PostgreSQL.
+OpenInfra 0.30.1 poursuit le socle d’exécution haute performance des éditions Pro et Entreprise. Cette version conserve la Clean Architecture, le DDD, les contrats métier, la CLI, REST, OpenAPI, RBAC et les migrations, tout en remplaçant les principaux plafonds techniques du runtime HTTP et de l’accès PostgreSQL.
+
+## Plan de données PostgreSQL haute performance — P20 / EPIC-2001
+
+- PgBouncer `pool_mode=transaction` devant le primaire et le standby ;
+- réplication physique PostgreSQL avec bootstrap idempotent ;
+- lectures GET/HEAD routées uniquement vers un standby sain et sous le seuil de lag ;
+- fallback vers le primaire configurable ;
+- cohérence lecture-après-écriture par jeton signé à courte durée de vie ;
+- statut opérationnel via `GET /api/v1/database/routing?tenant_id=default` ;
+- métriques d’acquisition primaire, réplique et fallback par worker.
+
+Voir `docs/operations/postgresql-read-routing.md`.
 
 ## Socle haute performance livré en P19
 
@@ -27,10 +39,10 @@ Le benchmark P19 détecte les régressions du transport applicatif ; il ne const
 
 ## Séquencement professionnel P19 / P20
 
-| Capacité | État 0.30.0 | Étape suivante |
+| Capacité | État 0.30.1 | Étape suivante |
 |---|---|---|
 | ASGI API/Web, backpressure, workers | Livrée | Observabilité fine P20 |
-| Pool PostgreSQL borné | Livré | PgBouncer et routage lecture/écriture P20 |
+| Pool PostgreSQL borné | Livré | PgBouncer et routage lecture/écriture livrés en EPIC-2001 |
 | BFF HTTP persistant et streaming | Livré | Tests de saturation inter-services P20 |
 | Gate transport p95/p99 | Livré et bloquant | Certification de capacité/endurance P20 |
 | Pagination par curseur | Planifiée | EPIC-2002 |

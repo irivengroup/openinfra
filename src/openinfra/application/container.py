@@ -154,6 +154,7 @@ from openinfra.infrastructure.postgresql import (
     PostgreSQLTransactionManager,
 )
 from openinfra.infrastructure.rag_generator import DeterministicRagGenerator
+from openinfra.infrastructure.read_routing import PostgreSQLReadRoutingSettings
 from openinfra.infrastructure.sbom_parser import SbomPayloadParser
 
 
@@ -313,13 +314,30 @@ class ApplicationFactory:
         profile: PostgreSQLClusterProfile | None = None,
         edition: str = "enterprise",
         pool_settings: PostgreSQLConnectionPoolSettings | None = None,
+        read_dsn: str = "",
+        read_pool_settings: PostgreSQLConnectionPoolSettings | None = None,
+        read_routing_settings: PostgreSQLReadRoutingSettings | None = None,
     ) -> OpenInfraApplication:
         connection_factory = PostgreSQLConnectionFactory(
             dsn,
             profile=profile,
             pool_settings=pool_settings,
         )
-        registry = PostgreSQLSessionRegistry(connection_factory)
+        normalized_read_dsn = read_dsn.strip()
+        read_factory = (
+            PostgreSQLConnectionFactory(
+                normalized_read_dsn,
+                profile=profile,
+                pool_settings=read_pool_settings or pool_settings,
+            )
+            if normalized_read_dsn
+            else None
+        )
+        registry = PostgreSQLSessionRegistry(
+            connection_factory,
+            read_factory=read_factory,
+            read_routing_settings=read_routing_settings,
+        )
         transaction_manager = PostgreSQLTransactionManager(registry)
         dcim_repository = PostgreSQLDcimRepository(registry)
         ipam_repository = PostgreSQLIpamRepository(registry)

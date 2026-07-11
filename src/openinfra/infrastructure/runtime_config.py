@@ -90,18 +90,14 @@ class RuntimeDatabaseDsnResolver:
         self._secret_resolver = secret_resolver or RuntimeSecretResolver()
 
     def resolve(self, explicit_dsn: str | None = None) -> str:
-        direct = (explicit_dsn or "").strip() or os.environ.get(
-            "OPENINFRA_DATABASE_DSN", ""
-        ).strip()
+        direct = self._resolve_named_dsn(
+            explicit_dsn,
+            direct_key="OPENINFRA_DATABASE_DSN",
+            reference_key="OPENINFRA_DATABASE_DSN_REF",
+        )
         if direct:
             return direct
         runtime = self._loader.load()
-        configured_direct = runtime.get("OPENINFRA_DATABASE_DSN")
-        if configured_direct:
-            return configured_direct
-        dsn_ref = runtime.get("OPENINFRA_DATABASE_DSN_REF")
-        if dsn_ref:
-            return self._secret_resolver.resolve(dsn_ref)
         user_ref = runtime.get("OPENINFRA_POSTGRES_USER_REF")
         password_ref = runtime.get("OPENINFRA_POSTGRES_PASSWORD_REF")
         if user_ref and password_ref:
@@ -115,3 +111,40 @@ class RuntimeDatabaseDsnResolver:
                 + "@127.0.0.1:5432/openinfra"
             )
         return ""
+
+    def resolve_read_replica(self, explicit_dsn: str | None = None) -> str:
+        return self._resolve_named_dsn(
+            explicit_dsn,
+            direct_key="OPENINFRA_DATABASE_READ_DSN",
+            reference_key="OPENINFRA_DATABASE_READ_DSN_REF",
+        )
+
+    def resolve_consistency_secret(self, explicit_secret: str | None = None) -> str:
+        direct = (explicit_secret or "").strip() or os.environ.get(
+            "OPENINFRA_READ_CONSISTENCY_SECRET", ""
+        ).strip()
+        if direct:
+            return direct
+        runtime = self._loader.load()
+        configured = runtime.get("OPENINFRA_READ_CONSISTENCY_SECRET")
+        if configured:
+            return configured
+        reference = runtime.get("OPENINFRA_READ_CONSISTENCY_SECRET_REF")
+        return self._secret_resolver.resolve(reference) if reference else ""
+
+    def _resolve_named_dsn(
+        self,
+        explicit_dsn: str | None,
+        *,
+        direct_key: str,
+        reference_key: str,
+    ) -> str:
+        direct = (explicit_dsn or "").strip() or os.environ.get(direct_key, "").strip()
+        if direct:
+            return direct
+        runtime = self._loader.load()
+        configured_direct = runtime.get(direct_key)
+        if configured_direct:
+            return configured_direct
+        dsn_ref = runtime.get(reference_key)
+        return self._secret_resolver.resolve(dsn_ref) if dsn_ref else ""

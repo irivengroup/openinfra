@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.30.0
+  version: 0.30.1
 components:
   securitySchemes:
     bearerToken:
@@ -102,6 +102,21 @@ paths:
           description: Schema is up to date or JSON backend does not require migrations
         '409':
           description: PostgreSQL schema has pending migrations or checksum drift
+  /api/v1/database/routing:
+    get:
+      summary: PostgreSQL primary/read-replica routing status
+      description: Returns replica eligibility, replay lag, fallback policy and per-worker routing counters. Requires SECURITY_ADMIN when authentication is enabled.
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: false, schema: {type: string, default: default}}
+      responses:
+        '200':
+          description: Read-routing status or a disabled status for the JSON backend
+        '401':
+          description: Missing or invalid bearer token
+        '503':
+          description: Routing status provider is unavailable
   /api/v1/search/global:
     get:
       summary: Search OpenInfra business data across RSOT, IPAM and Discovery

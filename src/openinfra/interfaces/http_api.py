@@ -559,6 +559,29 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             http_status = HTTPStatus.OK if status.get("ready") is True else HTTPStatus.CONFLICT
             responder.send(http_status, status)
             return
+        if route == "/api/v1/database/routing":
+            try:
+                query = parse_qs(parsed.query)
+                tenant_id = self._first_query_value(query, "tenant_id", "default")
+                if self.server.auth_required:
+                    self._authenticate(tenant_id, Permission.SECURITY_ADMIN)
+                provider = getattr(self.server.application.store, "routing_status_as_dict", None)
+                if callable(provider):
+                    responder.send(HTTPStatus.OK, provider(force_probe=True))
+                else:
+                    responder.send(
+                        HTTPStatus.OK,
+                        {
+                            "read_routing_enabled": False,
+                            "backend": "json",
+                            "detail": "read routing is only available with PostgreSQL",
+                        },
+                    )
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except OpenInfraError as exc:
+                responder.send(HTTPStatus.SERVICE_UNAVAILABLE, {"error": str(exc)})
+            return
         if route == "/api/v1/editions/policies":
             try:
                 query = parse_qs(parsed.query)
@@ -8053,6 +8076,7 @@ class OpenInfraApiRuntime(BaseServer):
                 "base_path": "/api/v1",
                 "version_url": "/api/v1/version",
                 "schema_url": "/api/v1/database/schema",
+                "routing_url": "/api/v1/database/routing",
                 "openapi_url": "/openapi.yaml",
             },
             "documentation": {

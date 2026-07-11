@@ -36,6 +36,7 @@ class TestHttpApi:
             version = self._get_json(base_url + "/api/v1/version")
             countries = self._get_json(base_url + "/api/v1/reference/countries")
             self._get_json(base_url + "/api/v1/database/schema")
+            routing = self._get_json(base_url + "/api/v1/database/routing")
             allocation = self._post_json(
                 base_url + "/api/v1/ipam/allocate",
                 {
@@ -57,6 +58,7 @@ class TestHttpApi:
                 "base_path": "/api/v1",
                 "version_url": "/api/v1/version",
                 "schema_url": "/api/v1/database/schema",
+                "routing_url": "/api/v1/database/routing",
                 "openapi_url": "/openapi.yaml",
             }
             assert root["documentation"] == {

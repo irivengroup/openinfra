@@ -13,6 +13,12 @@ from typing import Any, cast
 from openinfra.application.container import ApplicationFactory, OpenInfraApplication
 from openinfra.domain.common import OpenInfraError
 from openinfra.infrastructure.postgresql import PostgreSQLConnectionPoolSettings
+from openinfra.infrastructure.read_routing import (
+    PostgreSQLReadRoutingSettings,
+    ReadConsistencyTokenCodec,
+    ReadRoute,
+    ReadRoutingContext,
+)
 from openinfra.infrastructure.runtime_config import RuntimeDatabaseDsnResolver
 from openinfra.interfaces.http_api import OpenInfraApiRuntime, OpenInfraRequestHandler
 
@@ -89,11 +95,13 @@ class OpenInfraApiAsgiApplication:
         runtime: OpenInfraApiRuntime,
         *,
         max_request_body_bytes: int = 1_048_576,
+        consistency_token_codec: ReadConsistencyTokenCodec | None = None,
     ) -> None:
         if max_request_body_bytes <= 0:
             raise OpenInfraError("ASGI max request body size must be positive")
         self._runtime = runtime
         self._max_request_body_bytes = max_request_body_bytes
+        self._consistency_token_codec = consistency_token_codec
 
     async def __call__(self, scope: AsgiScope, receive: AsgiReceive, send: AsgiSend) -> None:
         scope_type = str(scope.get("type", ""))
@@ -114,8 +122,19 @@ class OpenInfraApiAsgiApplication:
             raw_query = bytes(scope.get("query_string", b""))
             path = raw_path + (("?" + raw_query.decode("ascii")) if raw_query else "")
             headers = self._headers(scope, len(body))
+            route = self._resolve_read_route(method, headers)
             handler = OpenInfraAsgiRequestHandler(self._runtime, method, path, headers, body)
-            status, response_headers, payload = await asyncio.to_thread(handler.dispatch)
+
+            def dispatch() -> tuple[int, tuple[tuple[str, str], ...], bytes]:
+                with ReadRoutingContext.scope(route):
+                    read_scope = getattr(self._runtime.application.store, "read_scope", None)
+                    if method in {"GET", "HEAD"} and callable(read_scope):
+                        with read_scope():
+                            return handler.dispatch()
+                    return handler.dispatch()
+
+            status, response_headers, payload = await asyncio.to_thread(dispatch)
+            response_headers = self._consistency_response_headers(method, status, response_headers)
         except OpenInfraError as exc:
             await self._send_json(send, HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
@@ -137,6 +156,36 @@ class OpenInfraApiAsgiApplication:
             }
         )
         await send({"type": "http.response.body", "body": payload, "more_body": False})
+
+    def _resolve_read_route(self, method: str, headers: Message) -> ReadRoute:
+        if method not in {"GET", "HEAD"}:
+            return ReadRoute.PRIMARY
+        token = headers.get("X-OpenInfra-Consistency-Token", "").strip()
+        if not token:
+            return ReadRoute.REPLICA
+        codec = self._consistency_token_codec
+        if codec is None or not codec.validate(token):
+            raise OpenInfraError("invalid or expired read consistency token")
+        return ReadRoute.PRIMARY
+
+    def _consistency_response_headers(
+        self,
+        method: str,
+        status: int,
+        headers: tuple[tuple[str, str], ...],
+    ) -> tuple[tuple[str, str], ...]:
+        codec = self._consistency_token_codec
+        if (
+            codec is None
+            or method not in {"POST", "PUT", "PATCH", "DELETE"}
+            or status >= HTTPStatus.BAD_REQUEST.value
+        ):
+            return headers
+        return (
+            *headers,
+            ("X-OpenInfra-Consistency-Token", codec.issue()),
+            ("Access-Control-Expose-Headers", "X-OpenInfra-Consistency-Token"),
+        )
 
     async def _read_body(self, receive: AsgiReceive) -> bytes:
         chunks: list[bytes] = []
@@ -214,11 +263,25 @@ class OpenInfraApiEnvironmentApplicationFactory:
             raise OpenInfraError("OPENINFRA_DATABASE_DSN is required for PostgreSQL ASGI runtime")
         workers = int(os.environ.get("OPENINFRA_API_WORKERS_RESOLVED", "1"))
         pool_settings = PostgreSQLConnectionPoolSettings.from_environment(edition, workers)
+        read_dsn = RuntimeDatabaseDsnResolver().resolve_read_replica(
+            os.environ.get("OPENINFRA_API_POSTGRES_READ_DSN")
+        )
+        if not read_dsn:
+            return ApplicationFactory().create_postgresql_application(
+                dsn,
+                seed=False,
+                edition=edition,
+                pool_settings=pool_settings,
+            )
+        read_routing_settings = PostgreSQLReadRoutingSettings.from_environment(read_dsn)
         return ApplicationFactory().create_postgresql_application(
             dsn,
             seed=False,
             edition=edition,
             pool_settings=pool_settings,
+            read_dsn=read_dsn,
+            read_pool_settings=pool_settings,
+            read_routing_settings=read_routing_settings,
         )
 
 
@@ -228,9 +291,24 @@ class OpenInfraApiAsgiFactory:
         auth_required = os.environ.get("OPENINFRA_AUTH_REQUIRED", "false").strip().lower() == "true"
         openapi_path = os.environ.get("OPENINFRA_API_OPENAPI_PATH", "").strip() or None
         max_body = int(os.environ.get("OPENINFRA_API_MAX_REQUEST_BODY_BYTES", "1048576"))
+        read_dsn = RuntimeDatabaseDsnResolver().resolve_read_replica(
+            os.environ.get("OPENINFRA_API_POSTGRES_READ_DSN")
+        )
+        codec: ReadConsistencyTokenCodec | None = None
+        if read_dsn:
+            key_material = RuntimeDatabaseDsnResolver().resolve_consistency_secret()
+            if not key_material:
+                raise OpenInfraError(
+                    "OPENINFRA_READ_CONSISTENCY_SECRET is required when read routing is enabled"
+                )
+            codec = ReadConsistencyTokenCodec(
+                key_material,
+                int(os.environ.get("OPENINFRA_READ_AFTER_WRITE_TTL_SECONDS", "10")),
+            )
         return OpenInfraApiAsgiApplication(
             OpenInfraApiRuntime(application, auth_required, openapi_path),
             max_request_body_bytes=max_body,
+            consistency_token_codec=codec,
         )
 
 

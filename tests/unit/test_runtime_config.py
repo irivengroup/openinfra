@@ -136,3 +136,33 @@ class TestRuntimeConfig:
             resolver.resolve("file://" + str(tmp_path / "missing.secret"))
         with pytest.raises(ValidationError):
             resolver.resolve("vault://secret/openinfra")
+
+    def test_database_read_dsn_and_consistency_secret_resolution(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        config = tmp_path / "openinfra.conf"
+        config.write_text(
+            'OPENINFRA_DATABASE_READ_DSN_REF="env:OPENINFRA_READ_DSN_SECRET"\n'
+            'OPENINFRA_READ_CONSISTENCY_SECRET_REF="env:OPENINFRA_CONSISTENCY_SECRET_REF"\n',
+            encoding="utf-8",
+        )
+        monkeypatch.setenv("OPENINFRA_RUNTIME_CONFIG", str(config))
+        monkeypatch.setenv("OPENINFRA_READ_DSN_SECRET", "postgresql:///replica")
+        monkeypatch.setenv("OPENINFRA_CONSISTENCY_SECRET_REF", "r" * 32)
+        resolver = RuntimeDatabaseDsnResolver()
+        assert resolver.resolve_read_replica() == "postgresql:///replica"
+        assert resolver.resolve_consistency_secret() == "r" * 32
+
+        monkeypatch.setenv("OPENINFRA_DATABASE_READ_DSN", "postgresql:///environment")
+        monkeypatch.setenv("OPENINFRA_READ_CONSISTENCY_SECRET", "e" * 32)
+        assert resolver.resolve_read_replica() == "postgresql:///environment"
+        assert resolver.resolve_consistency_secret() == "e" * 32
+        assert resolver.resolve_read_replica("postgresql:///explicit") == ("postgresql:///explicit")
+        assert resolver.resolve_consistency_secret("x" * 32) == "x" * 32
+
+        monkeypatch.delenv("OPENINFRA_READ_CONSISTENCY_SECRET", raising=False)
+        config.write_text(
+            'OPENINFRA_READ_CONSISTENCY_SECRET="' + "c" * 32 + '"\n',
+            encoding="utf-8",
+        )
+        assert resolver.resolve_consistency_secret() == "c" * 32

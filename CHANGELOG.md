@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.30.1 - 2026-07-11
+
+- Réalisation prioritaire de P20 / EPIC-2001 : PgBouncer en mode transaction, standby PostgreSQL chaud et routage lecture/écriture borné pour Pro et Entreprise.
+- Ajout de deux pools PgBouncer indépendants devant le primaire et la réplique, avec authentification SCRAM-SHA-256, budgets de connexions et requêtes préparées côté client désactivées pour la compatibilité transactionnelle.
+- Création idempotente du rôle de réplication, y compris sur les volumes PostgreSQL déjà initialisés, puis bootstrap du standby par `pg_basebackup -R`.
+- Routage des requêtes GET/HEAD vers la réplique uniquement si elle est en recovery et sous le seuil de lag ; fallback automatique et observable vers le primaire.
+- Garantie read-after-write via jeton HMAC-SHA256 Base64URL à durée de vie courte, relayé par le BFF dans un cookie HttpOnly/SameSite=Strict.
+- Portée de lecture unique par requête pour conserver un snapshot cohérent et une seule connexion PostgreSQL, sans assouplir l’obligation d’unité de travail des repositories.
+- Ajout de `/api/v1/database/routing`, des compteurs par worker, de tests de lag/panne/fallback/strict mode, du contrat Compose et d’un gate CI dédié.
+
 ## 0.30.0 - 2026-07-11
 
 - Réalisation prioritaire de P19 / EPIC-1901 à EPIC-1905 pour le socle haute performance Pro et Entreprise.

@@ -1,5 +1,4 @@
 name: openinfra-runtime
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -9,87 +8,217 @@ services:
       POSTGRES_DB: ${OPENINFRA_POSTGRES_DB:?OPENINFRA_POSTGRES_DB is required}
       POSTGRES_USER: ${OPENINFRA_POSTGRES_USER:?OPENINFRA_POSTGRES_USER is required}
       POSTGRES_PASSWORD: ${OPENINFRA_POSTGRES_PASSWORD:?OPENINFRA_POSTGRES_PASSWORD is required}
+      OPENINFRA_POSTGRES_REPLICATION_USER: ${OPENINFRA_POSTGRES_REPLICATION_USER:-openinfra_replica}
+      OPENINFRA_POSTGRES_REPLICATION_PASSWORD: ${OPENINFRA_POSTGRES_REPLICATION_PASSWORD:?OPENINFRA_POSTGRES_REPLICATION_PASSWORD is required}
     command:
-      - postgres
-      - -c
-      - shared_buffers=256MB
-      - -c
-      - max_connections=120
-      - -c
-      - wal_level=replica
-      - -c
-      - log_min_duration_statement=500
+    - postgres
+    - -c
+    - shared_buffers=256MB
+    - -c
+    - max_connections=120
+    - -c
+    - wal_level=replica
+    - -c
+    - log_min_duration_statement=500
+    - -c
+    - max_wal_senders=10
+    - -c
+    - max_replication_slots=10
+    - -c
+    - hot_standby=on
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test:
+      - CMD-SHELL
+      - pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB
       interval: 5s
       timeout: 3s
       retries: 20
       start_period: 10s
     volumes:
-      - openinfra-postgres-data:/var/lib/postgresql/data
+    - openinfra-postgres-data:/var/lib/postgresql/data
+    - ./docker/postgresql/01-create-replication-role.sh:/docker-entrypoint-initdb.d/01-create-replication-role.sh:ro
     networks:
-      - openinfra
-
+    - openinfra
+  replication-bootstrap:
+    image: postgres:16-alpine
+    container_name: openinfra-replication-bootstrap
+    restart: 'no'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_DB: ${OPENINFRA_POSTGRES_DB:?OPENINFRA_POSTGRES_DB is required}
+      POSTGRES_USER: ${OPENINFRA_POSTGRES_USER:?OPENINFRA_POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${OPENINFRA_POSTGRES_PASSWORD:?OPENINFRA_POSTGRES_PASSWORD is required}
+      OPENINFRA_POSTGRES_PRIMARY_HOST: postgres
+      OPENINFRA_POSTGRES_REPLICATION_USER: ${OPENINFRA_POSTGRES_REPLICATION_USER:-openinfra_replica}
+      OPENINFRA_POSTGRES_REPLICATION_PASSWORD: ${OPENINFRA_POSTGRES_REPLICATION_PASSWORD:?OPENINFRA_POSTGRES_REPLICATION_PASSWORD is required}
+    entrypoint:
+    - /usr/local/bin/openinfra-bootstrap-replication-role
+    volumes:
+    - ./docker/postgresql/bootstrap-replication-role.sh:/usr/local/bin/openinfra-bootstrap-replication-role:ro
+    networks:
+    - openinfra
+  postgres-replica:
+    image: postgres:16-alpine
+    container_name: openinfra-postgres-replica
+    restart: unless-stopped
+    depends_on:
+      replication-bootstrap:
+        condition: service_completed_successfully
+    environment:
+      POSTGRES_DB: ${OPENINFRA_POSTGRES_DB:?OPENINFRA_POSTGRES_DB is required}
+      POSTGRES_USER: ${OPENINFRA_POSTGRES_USER:?OPENINFRA_POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${OPENINFRA_POSTGRES_PASSWORD:?OPENINFRA_POSTGRES_PASSWORD is required}
+      PGDATA: /var/lib/postgresql/data
+      OPENINFRA_POSTGRES_PRIMARY_HOST: postgres
+      OPENINFRA_POSTGRES_REPLICATION_USER: ${OPENINFRA_POSTGRES_REPLICATION_USER:-openinfra_replica}
+      OPENINFRA_POSTGRES_REPLICATION_PASSWORD: ${OPENINFRA_POSTGRES_REPLICATION_PASSWORD:?OPENINFRA_POSTGRES_REPLICATION_PASSWORD is required}
+    entrypoint:
+    - /usr/local/bin/openinfra-replica-entrypoint
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB && test -f $$PGDATA/standby.signal
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 20s
+    volumes:
+    - openinfra-postgres-replica-data:/var/lib/postgresql/data
+    - ./docker/postgresql/replica-entrypoint.sh:/usr/local/bin/openinfra-replica-entrypoint:ro
+    networks:
+    - openinfra
+  pgbouncer-primary:
+    build: &id001
+      context: .
+      dockerfile: docker/pgbouncer/Dockerfile
+    image: openinfra/pgbouncer:${OPENINFRA_PGBOUNCER_IMAGE_TAG:-1.25.2}
+    container_name: openinfra-pgbouncer-primary
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGBOUNCER_DATABASE_PORT: '5432'
+      PGBOUNCER_DATABASE_NAME: ${OPENINFRA_POSTGRES_DB:?OPENINFRA_POSTGRES_DB is required}
+      PGBOUNCER_DATABASE_USER: ${OPENINFRA_POSTGRES_USER:?OPENINFRA_POSTGRES_USER is required}
+      PGBOUNCER_DATABASE_PASSWORD: ${OPENINFRA_POSTGRES_PASSWORD:?OPENINFRA_POSTGRES_PASSWORD is required}
+      PGBOUNCER_MAX_CLIENT_CONN: ${OPENINFRA_PGBOUNCER_MAX_CLIENT_CONN:-1000}
+      PGBOUNCER_DEFAULT_POOL_SIZE: ${OPENINFRA_PGBOUNCER_DEFAULT_POOL_SIZE:-40}
+      PGBOUNCER_MIN_POOL_SIZE: ${OPENINFRA_PGBOUNCER_MIN_POOL_SIZE:-4}
+      PGBOUNCER_RESERVE_POOL_SIZE: ${OPENINFRA_PGBOUNCER_RESERVE_POOL_SIZE:-10}
+      PGBOUNCER_MAX_DB_CONNECTIONS: ${OPENINFRA_PGBOUNCER_MAX_DB_CONNECTIONS:-80}
+      PGBOUNCER_MAX_DB_CLIENT_CONNECTIONS: ${OPENINFRA_PGBOUNCER_MAX_DB_CLIENT_CONNECTIONS:-1000}
+      PGBOUNCER_QUERY_WAIT_TIMEOUT: ${OPENINFRA_PGBOUNCER_QUERY_WAIT_TIMEOUT:-10}
+      PGBOUNCER_IDLE_TRANSACTION_TIMEOUT: ${OPENINFRA_PGBOUNCER_IDLE_TRANSACTION_TIMEOUT:-60}
+      PGBOUNCER_TRANSACTION_TIMEOUT: ${OPENINFRA_PGBOUNCER_TRANSACTION_TIMEOUT:-120}
+      PGBOUNCER_DATABASE_HOST: postgres
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - PGPASSWORD=$$PGBOUNCER_DATABASE_PASSWORD pg_isready -h 127.0.0.1 -p 6432 -U $$PGBOUNCER_DATABASE_USER -d $$PGBOUNCER_DATABASE_NAME
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    networks:
+    - openinfra
+  pgbouncer-replica:
+    build: *id001
+    image: openinfra/pgbouncer:${OPENINFRA_PGBOUNCER_IMAGE_TAG:-1.25.2}
+    container_name: openinfra-pgbouncer-replica
+    restart: unless-stopped
+    depends_on:
+      postgres-replica:
+        condition: service_healthy
+    environment:
+      PGBOUNCER_DATABASE_PORT: '5432'
+      PGBOUNCER_DATABASE_NAME: ${OPENINFRA_POSTGRES_DB:?OPENINFRA_POSTGRES_DB is required}
+      PGBOUNCER_DATABASE_USER: ${OPENINFRA_POSTGRES_USER:?OPENINFRA_POSTGRES_USER is required}
+      PGBOUNCER_DATABASE_PASSWORD: ${OPENINFRA_POSTGRES_PASSWORD:?OPENINFRA_POSTGRES_PASSWORD is required}
+      PGBOUNCER_MAX_CLIENT_CONN: ${OPENINFRA_PGBOUNCER_MAX_CLIENT_CONN:-1000}
+      PGBOUNCER_DEFAULT_POOL_SIZE: ${OPENINFRA_PGBOUNCER_DEFAULT_POOL_SIZE:-40}
+      PGBOUNCER_MIN_POOL_SIZE: ${OPENINFRA_PGBOUNCER_MIN_POOL_SIZE:-4}
+      PGBOUNCER_RESERVE_POOL_SIZE: ${OPENINFRA_PGBOUNCER_RESERVE_POOL_SIZE:-10}
+      PGBOUNCER_MAX_DB_CONNECTIONS: ${OPENINFRA_PGBOUNCER_MAX_DB_CONNECTIONS:-80}
+      PGBOUNCER_MAX_DB_CLIENT_CONNECTIONS: ${OPENINFRA_PGBOUNCER_MAX_DB_CLIENT_CONNECTIONS:-1000}
+      PGBOUNCER_QUERY_WAIT_TIMEOUT: ${OPENINFRA_PGBOUNCER_QUERY_WAIT_TIMEOUT:-10}
+      PGBOUNCER_IDLE_TRANSACTION_TIMEOUT: ${OPENINFRA_PGBOUNCER_IDLE_TRANSACTION_TIMEOUT:-60}
+      PGBOUNCER_TRANSACTION_TIMEOUT: ${OPENINFRA_PGBOUNCER_TRANSACTION_TIMEOUT:-120}
+      PGBOUNCER_DATABASE_HOST: postgres-replica
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - PGPASSWORD=$$PGBOUNCER_DATABASE_PASSWORD pg_isready -h 127.0.0.1 -p 6432 -U $$PGBOUNCER_DATABASE_USER -d $$PGBOUNCER_DATABASE_NAME
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    networks:
+    - openinfra
   migrate:
     build:
       context: .
       dockerfile: Dockerfile
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.0}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.1}
     container_name: openinfra-migrate
-    restart: "no"
+    restart: 'no'
     depends_on:
       postgres:
         condition: service_healthy
     environment:
       OPENINFRA_DATABASE_DSN: postgresql://${OPENINFRA_POSTGRES_USER:?OPENINFRA_POSTGRES_USER is required}:${OPENINFRA_POSTGRES_PASSWORD:?OPENINFRA_POSTGRES_PASSWORD is required}@postgres:5432/${OPENINFRA_POSTGRES_DB:?OPENINFRA_POSTGRES_DB is required}
     command:
-      - openinfra
-      - database
-      - apply-migrations
-      - --root
-      - /app/installers/migrations/postgresql
+    - openinfra
+    - database
+    - apply-migrations
+    - --root
+    - /app/installers/migrations/postgresql
     networks:
-      - openinfra
-
+    - openinfra
   auth-bootstrap:
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.0}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.1}
     container_name: openinfra-auth-bootstrap
-    restart: "no"
+    restart: 'no'
     depends_on:
       migrate:
         condition: service_completed_successfully
     environment:
       OPENINFRA_DATABASE_DSN: postgresql://${OPENINFRA_POSTGRES_USER:?OPENINFRA_POSTGRES_USER is required}:${OPENINFRA_POSTGRES_PASSWORD:?OPENINFRA_POSTGRES_PASSWORD is required}@postgres:5432/${OPENINFRA_POSTGRES_DB:?OPENINFRA_POSTGRES_DB is required}
     command:
-      - openinfra
-      - security
-      - bootstrap-token
-      - --backend
-      - postgresql
-      - --tenant
-      - default
-      - --subject
-      - docker-runtime
-      - --role
-      - admin
-      - --token
-      - ${OPENINFRA_BOOTSTRAP_TOKEN:?OPENINFRA_BOOTSTRAP_TOKEN is required}
+    - openinfra
+    - security
+    - bootstrap-token
+    - --backend
+    - postgresql
+    - --tenant
+    - default
+    - --subject
+    - docker-runtime
+    - --role
+    - admin
+    - --token
+    - ${OPENINFRA_BOOTSTRAP_TOKEN:?OPENINFRA_BOOTSTRAP_TOKEN is required}
     networks:
-      - openinfra
-
+    - openinfra
   api:
     build:
       context: .
       dockerfile: Dockerfile
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.0}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.1}
     container_name: openinfra-api
     restart: unless-stopped
     depends_on:
       auth-bootstrap:
         condition: service_completed_successfully
+      pgbouncer-primary:
+        condition: service_healthy
+      pgbouncer-replica:
+        condition: service_healthy
     environment:
-      OPENINFRA_DATABASE_DSN: postgresql://${OPENINFRA_POSTGRES_USER:?OPENINFRA_POSTGRES_USER is required}:${OPENINFRA_POSTGRES_PASSWORD:?OPENINFRA_POSTGRES_PASSWORD is required}@postgres:5432/${OPENINFRA_POSTGRES_DB:?OPENINFRA_POSTGRES_DB is required}
-      OPENINFRA_AUTH_REQUIRED: "true"
+      OPENINFRA_DATABASE_DSN: postgresql://${OPENINFRA_POSTGRES_USER:?OPENINFRA_POSTGRES_USER is required}:${OPENINFRA_POSTGRES_PASSWORD:?OPENINFRA_POSTGRES_PASSWORD is required}@pgbouncer-primary:6432/${OPENINFRA_POSTGRES_DB:?OPENINFRA_POSTGRES_DB is required}
+      OPENINFRA_AUTH_REQUIRED: 'true'
       OPENINFRA_EDITION: ${OPENINFRA_EDITION:-pro}
       OPENINFRA_API_RUNTIME: ${OPENINFRA_API_RUNTIME:-asgi}
       OPENINFRA_API_WORKERS: ${OPENINFRA_API_WORKERS:-2}
@@ -102,28 +231,38 @@ services:
       OPENINFRA_DB_POOL_MAX_IDLE_SECONDS: ${OPENINFRA_DB_POOL_MAX_IDLE_SECONDS:-300}
       OPENINFRA_DB_POOL_MAX_LIFETIME_SECONDS: ${OPENINFRA_DB_POOL_MAX_LIFETIME_SECONDS:-1800}
       OPENINFRA_DB_CONNECTION_BUDGET: ${OPENINFRA_DB_CONNECTION_BUDGET:-80}
+      OPENINFRA_DATABASE_READ_DSN: postgresql://${OPENINFRA_POSTGRES_USER:?OPENINFRA_POSTGRES_USER is required}:${OPENINFRA_POSTGRES_PASSWORD:?OPENINFRA_POSTGRES_PASSWORD is required}@pgbouncer-replica:6432/${OPENINFRA_POSTGRES_DB:?OPENINFRA_POSTGRES_DB is required}
+      OPENINFRA_DB_READ_ROUTING_ENABLED: ${OPENINFRA_DB_READ_ROUTING_ENABLED:-true}
+      OPENINFRA_DB_MAX_REPLICA_LAG_SECONDS: ${OPENINFRA_DB_MAX_REPLICA_LAG_SECONDS:-5}
+      OPENINFRA_DB_REPLICA_PROBE_INTERVAL_SECONDS: ${OPENINFRA_DB_REPLICA_PROBE_INTERVAL_SECONDS:-2}
+      OPENINFRA_DB_READ_FALLBACK_TO_PRIMARY: ${OPENINFRA_DB_READ_FALLBACK_TO_PRIMARY:-true}
+      OPENINFRA_DB_READ_REQUIRE_RECOVERY: ${OPENINFRA_DB_READ_REQUIRE_RECOVERY:-true}
+      OPENINFRA_READ_CONSISTENCY_SECRET: ${OPENINFRA_READ_CONSISTENCY_SECRET:?OPENINFRA_READ_CONSISTENCY_SECRET is required}
+      OPENINFRA_READ_AFTER_WRITE_TTL_SECONDS: ${OPENINFRA_READ_AFTER_WRITE_TTL_SECONDS:-10}
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/ready', timeout=3).read()"]
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/ready', timeout=3).read()
       interval: 5s
       timeout: 3s
       retries: 20
       start_period: 10s
     ports:
-      - "${OPENINFRA_API_BIND:-127.0.0.1}:${OPENINFRA_API_PORT:-8080}:8080"
+    - ${OPENINFRA_API_BIND:-127.0.0.1}:${OPENINFRA_API_PORT:-8080}:8080
     networks:
-      - openinfra
-
-
+    - openinfra
   web:
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.0}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.1}
     container_name: openinfra-web
     restart: unless-stopped
     depends_on:
       api:
         condition: service_healthy
     environment:
-      OPENINFRA_WEB_HOST: "0.0.0.0"
-      OPENINFRA_WEB_PORT: "2006"
+      OPENINFRA_WEB_HOST: 0.0.0.0
+      OPENINFRA_WEB_PORT: '2006'
       OPENINFRA_WEB_BACKEND_URL: ${OPENINFRA_WEB_BACKEND_URL:-http://api:8080}
       OPENINFRA_WEB_PUBLIC_API_BASE_URL: ${OPENINFRA_WEB_PUBLIC_API_BASE_URL:-/api}
       OPENINFRA_WEB_PUBLIC_API_DOCS_BASE_URL: ${OPENINFRA_WEB_PUBLIC_API_DOCS_BASE_URL:-}
@@ -145,22 +284,25 @@ services:
       OPENINFRA_WEB_HTTP_WRITE_TIMEOUT_SECONDS: ${OPENINFRA_WEB_HTTP_WRITE_TIMEOUT_SECONDS:-30}
       OPENINFRA_WEB_HTTP_POOL_TIMEOUT_SECONDS: ${OPENINFRA_WEB_HTTP_POOL_TIMEOUT_SECONDS:-2}
     command:
-      - openinfra-web
-      - --host
-      - 0.0.0.0
-      - --port
-      - "2006"
+    - openinfra-web
+    - --host
+    - 0.0.0.0
+    - --port
+    - '2006'
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:2006/health', timeout=3).read()"]
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:2006/health', timeout=3).read()
       interval: 5s
       timeout: 3s
       retries: 20
       start_period: 10s
     ports:
-      - "${OPENINFRA_WEB_BIND:-127.0.0.1}:${OPENINFRA_WEB_PORT:-2006}:2006"
+    - ${OPENINFRA_WEB_BIND:-127.0.0.1}:${OPENINFRA_WEB_PORT:-2006}:2006
     networks:
-      - openinfra
-
+    - openinfra
   pgadmin:
     image: ${OPENINFRA_PGADMIN_IMAGE:-dpage/pgadmin4:latest}
     container_name: openinfra-pgadmin
@@ -171,27 +313,30 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: ${OPENINFRA_PGADMIN_EMAIL:?OPENINFRA_PGADMIN_EMAIL is required}
       PGADMIN_DEFAULT_PASSWORD: ${OPENINFRA_PGADMIN_PASSWORD:?OPENINFRA_PGADMIN_PASSWORD is required}
-      PGADMIN_DISABLE_POSTFIX: "true"
-      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: "True"
-      PGADMIN_CONFIG_CONSOLE_LOG_LEVEL: "10"
+      PGADMIN_DISABLE_POSTFIX: 'true'
+      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: 'True'
+      PGADMIN_CONFIG_CONSOLE_LOG_LEVEL: '10'
     healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1/misc/ping', timeout=3).read()"]
+      test:
+      - CMD
+      - python3
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://127.0.0.1/misc/ping', timeout=3).read()
       interval: 10s
       timeout: 3s
       retries: 20
       start_period: 20s
     ports:
-      - "${OPENINFRA_PGADMIN_BIND:-127.0.0.1}:${OPENINFRA_PGADMIN_PORT:-5050}:80"
+    - ${OPENINFRA_PGADMIN_BIND:-127.0.0.1}:${OPENINFRA_PGADMIN_PORT:-5050}:80
     volumes:
-      - openinfra-pgadmin-data:/var/lib/pgadmin
-      - ./docker/pgadmin/servers.json:/pgadmin4/servers.json:ro
+    - openinfra-pgadmin-data:/var/lib/pgadmin
+    - ./docker/pgadmin/servers.json:/pgadmin4/servers.json:ro
     networks:
-      - openinfra
-
+    - openinfra
   smoke:
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.0}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.1}
     container_name: openinfra-smoke
-    restart: "no"
+    restart: 'no'
     depends_on:
       api:
         condition: service_healthy
@@ -203,17 +348,18 @@ services:
       OPENINFRA_DATABASE_DSN: postgresql://${OPENINFRA_POSTGRES_USER:?OPENINFRA_POSTGRES_USER is required}:${OPENINFRA_POSTGRES_PASSWORD:?OPENINFRA_POSTGRES_PASSWORD is required}@postgres:5432/${OPENINFRA_POSTGRES_DB:?OPENINFRA_POSTGRES_DB is required}
       OPENINFRA_BOOTSTRAP_TOKEN: ${OPENINFRA_BOOTSTRAP_TOKEN:?OPENINFRA_BOOTSTRAP_TOKEN is required}
     volumes:
-      - ./docker/openinfra-runtime-smoke.py:/app/docker/openinfra-runtime-smoke.py:ro
-    command: ["python", "/app/docker/openinfra-runtime-smoke.py"]
+    - ./docker/openinfra-runtime-smoke.py:/app/docker/openinfra-runtime-smoke.py:ro
+    command:
+    - python
+    - /app/docker/openinfra-runtime-smoke.py
     profiles:
-      - validation
+    - validation
     networks:
-      - openinfra
-
+    - openinfra
 volumes:
-  openinfra-postgres-data:
-  openinfra-pgadmin-data:
-
+  openinfra-postgres-data: null
+  openinfra-pgadmin-data: null
+  openinfra-postgres-replica-data: null
 networks:
   openinfra:
     driver: bridge

@@ -87,6 +87,9 @@ jobs:
         run: |
           python -m pytest -q --no-cov \
             tests/integration/test_asgi_performance_runtime.py \
+            tests/integration/test_postgresql_read_routing.py \
+            tests/integration/test_high_performance_data_plane.py \
+            tests/unit/test_read_routing.py \
             tests/performance/test_high_performance_runtime_benchmark.py
           mkdir -p build/reports
           PYTHONPATH=src:. python scripts/benchmark_high_performance_runtime.py \

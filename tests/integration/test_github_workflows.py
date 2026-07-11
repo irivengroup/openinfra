@@ -47,6 +47,8 @@ class TestGitHubWorkflows:
         smoke = (PROJECT_ROOT / "scripts/smoke_installed_wheel.py").read_text(encoding="utf-8")
         assert "OpenApiDocumentProvider().read_yaml()" in smoke
         assert "EXPECTED_MIGRATION_COUNT = 52" in smoke
+        assert "EXPECTED_DATA_PLANE_ROUTES" in smoke
+        assert "/api/v1/database/routing" in smoke
         assert "EXPECTED_NETWORK_CONFIG_ROUTES" in smoke
         assert "EXPECTED_FIELD_OPERATION_ROUTES" in smoke
         assert "EXPECTED_SIMULATION_ROUTES" in smoke

@@ -6,6 +6,7 @@ import os
 from collections.abc import Awaitable, Callable, Mapping, MutableMapping
 from dataclasses import dataclass
 from http import HTTPStatus
+from http.cookies import SimpleCookie
 from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin
@@ -91,24 +92,45 @@ class OpenInfraWebHttpPoolSettings:
 
 class OpenInfraWebAsgiApplication:
     _forwarded_request_headers = frozenset(
-        {"accept", "accept-encoding", "content-type", "x-request-id", "x-openinfra-tenant"}
+        {
+            "accept",
+            "accept-encoding",
+            "content-type",
+            "x-request-id",
+            "x-openinfra-tenant",
+            "x-openinfra-consistency-token",
+        }
     )
     _forwarded_response_headers = frozenset(
-        {"content-type", "content-disposition", "content-encoding", "etag", "last-modified"}
+        {
+            "content-type",
+            "content-disposition",
+            "content-encoding",
+            "etag",
+            "last-modified",
+            "x-openinfra-consistency-token",
+            "access-control-expose-headers",
+        }
     )
+    _consistency_cookie_name = "openinfra_read_consistency"
 
     def __init__(
         self,
         config: OpenInfraWebConfig,
         pool_settings: OpenInfraWebHttpPoolSettings,
         client: httpx.AsyncClient | None = None,
+        *,
+        consistency_cookie_ttl_seconds: int = 10,
     ) -> None:
         self._config = config
         self._pool_settings = pool_settings
         self._static_assets = OpenInfraStaticAssetStore()
+        if consistency_cookie_ttl_seconds <= 0 or consistency_cookie_ttl_seconds > 300:
+            raise ValidationError("web consistency cookie TTL must be between 1 and 300 seconds")
         self._client = client
         self._client_lock = asyncio.Lock()
         self._owns_client = client is None
+        self._consistency_cookie_ttl_seconds = consistency_cookie_ttl_seconds
 
     async def __call__(self, scope: AsgiScope, receive: AsgiReceive, send: AsgiSend) -> None:
         scope_type = str(scope.get("type", ""))
@@ -264,9 +286,16 @@ class OpenInfraWebAsgiApplication:
                         response.headers,
                         error_body,
                         route,
+                        method=method,
+                        secure=self._is_secure_request(scope, headers),
                     )
                     return
-                response_headers = self._response_headers(response.headers, route)
+                response_headers = self._response_headers(
+                    response.headers,
+                    route,
+                    method=method,
+                    secure=self._is_secure_request(scope, headers),
+                )
                 await send(
                     {
                         "type": "http.response.start",
@@ -305,8 +334,11 @@ class OpenInfraWebAsgiApplication:
         headers: httpx.Headers,
         body: bytes,
         route: str,
+        *,
+        method: str,
+        secure: bool,
     ) -> None:
-        response_headers = self._response_headers(headers, route)
+        response_headers = self._response_headers(headers, route, method=method, secure=secure)
         response_headers = [
             (name, value) for name, value in response_headers if name != b"content-length"
         ]
@@ -435,9 +467,21 @@ class OpenInfraWebAsgiApplication:
             headers["X-OpenInfra-Web-Database-Trust"] = "configured"
         if self._config.backend_bearer_token:
             headers["Authorization"] = "Bearer " + self._config.backend_bearer_token
+        consistency_token = incoming.get("x-openinfra-consistency-token", "").strip()
+        if not consistency_token:
+            consistency_token = self._consistency_token_from_cookie(incoming.get("cookie", ""))
+        if consistency_token:
+            headers["X-OpenInfra-Consistency-Token"] = consistency_token
         return headers
 
-    def _response_headers(self, headers: httpx.Headers, route: str) -> list[tuple[bytes, bytes]]:
+    def _response_headers(
+        self,
+        headers: httpx.Headers,
+        route: str,
+        *,
+        method: str,
+        secure: bool,
+    ) -> list[tuple[bytes, bytes]]:
         result = [
             (name.lower().encode("latin-1"), value.encode("latin-1"))
             for name, value in headers.multi_items()
@@ -449,7 +493,32 @@ class OpenInfraWebAsgiApplication:
                 cache_control="no-store",
             )
         )
+        token = headers.get("x-openinfra-consistency-token", "").strip()
+        if token and method in {"POST", "PUT", "PATCH", "DELETE"}:
+            cookie = (
+                f"{self._consistency_cookie_name}={token}; Path=/api; HttpOnly; "
+                "SameSite=Strict; "
+                f"Max-Age={self._consistency_cookie_ttl_seconds}"
+            )
+            if secure:
+                cookie += "; Secure"
+            result.append((b"set-cookie", cookie.encode("latin-1")))
         return result
+
+    def _consistency_token_from_cookie(self, raw_cookie: str) -> str:
+        if not raw_cookie.strip():
+            return ""
+        cookie = SimpleCookie()
+        try:
+            cookie.load(raw_cookie)
+        except Exception:
+            return ""
+        morsel = cookie.get(self._consistency_cookie_name)
+        return morsel.value.strip() if morsel is not None else ""
+
+    def _is_secure_request(self, scope: AsgiScope, headers: Mapping[str, str]) -> bool:
+        forwarded = headers.get("x-forwarded-proto", "").split(",", 1)[0].strip().lower()
+        return forwarded == "https" or str(scope.get("scheme", "http")).lower() == "https"
 
     def _security_headers(
         self,
@@ -587,6 +656,9 @@ class OpenInfraWebAsgiFactory:
         return OpenInfraWebAsgiApplication(
             config,
             OpenInfraWebHttpPoolSettings.from_environment(config.edition),
+            consistency_cookie_ttl_seconds=int(
+                os.environ.get("OPENINFRA_READ_AFTER_WRITE_TTL_SECONDS", "10")
+            ),
         )
 
 

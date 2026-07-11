@@ -1,71 +1,81 @@
-# OpenInfra v0.30.0 — Rapport de validation
+# OpenInfra v0.30.1 — Rapport de validation
 
 Date : `2026-07-11`  
-Release : `0.30.0`  
+Release : `0.30.1`  
 CDC : `4.9.0`  
 Roadmap : `2.1.0`  
-Nature : `évolution architecturale majeure — socle haute performance Pro et Entreprise`
+Phase : `P20 / EPIC-2001`  
+Nature : `plan de données PostgreSQL haute performance Pro et Entreprise`
 
 ## Périmètre livré
 
-### Runtime API et Web
+### PgBouncer et topologie PostgreSQL
 
-- ASGI stateless activé par défaut pour l’API et le BFF Web en Pro et Entreprise.
-- Politiques multiprocessus bornées par édition.
-- Limites configurables de concurrence, backlog et keep-alive.
-- Lifespan applicatif avec fermeture déterministe des ressources.
-- Runtime historique conservé via `--runtime legacy` pour rollback contrôlé.
-- Restauration atomique des variables d’environnement après arrêt, interruption ou échec de démarrage.
+- Deux pools PgBouncer indépendants devant le primaire et le standby.
+- `pool_mode=transaction`, authentification SCRAM-SHA-256 et limites de connexions bornées.
+- Désactivation des requêtes préparées côté client pour la compatibilité avec le pooling transactionnel.
+- Standby PostgreSQL initialisé avec `pg_basebackup --write-recovery-conf`.
+- Rôle de réplication créé ou remis en conformité de manière idempotente, y compris lorsque le volume primaire existe déjà.
+- Scripts shell validés syntaxiquement et contrat Compose vérifié sur les services, dépendances et variables obligatoires.
 
-### PostgreSQL
+### Routage lecture/écriture
 
-- Pool `psycopg_pool` par worker.
-- Bornes min/max, timeout d’acquisition, idle timeout et durée de vie maximale.
-- Budget global de connexions contrôlant le produit `workers × pool_max`.
-- Restitution des connexions après transaction et fermeture explicite du pool.
-- Paramètres externalisés dans `.env.example`, Compose et installateurs.
+- Toutes les mutations restent dirigées vers le primaire.
+- Les requêtes `GET` et `HEAD` éligibles utilisent la réplique uniquement lorsqu'elle est en recovery et sous le seuil de lag configuré.
+- Fallback automatique vers le primaire lorsque la réplique est absente, indisponible ou trop en retard.
+- Mode strict disponible pour refuser une lecture plutôt que basculer silencieusement.
+- Portée de lecture unique par requête : une connexion et un snapshot cohérent sont réutilisés pendant tout le traitement.
+- Compteurs d'acquisition primaire, réplique et fallback exposés par worker.
+- Endpoint d'exploitation : `GET /api/v1/database/routing?tenant_id=default`.
 
-### BFF Web
+### Cohérence lecture-après-écriture
 
-- Client `httpx.AsyncClient` persistant.
-- Pools de connexions et keep-alive bornés.
-- Timeouts distincts de connexion, lecture, écriture et acquisition du pool.
-- Streaming des réponses backend sans buffering intégral.
-- Conservation des protections CSP, anti-traversal, tailles de corps, cache, ETag et compression.
+- Jeton HMAC-SHA256 court, signé et expirant.
+- Encodage déterministe en deux segments Base64URL `payload.signature`.
+- Rejet des jetons altérés, expirés ou mal formés.
+- Transmission par en-tête `X-OpenInfra-Consistency-Token`.
+- Relais BFF dans un cookie `HttpOnly`, `SameSite=Strict`, `Secure` sous HTTPS et durée de vie synchronisée avec le jeton.
+- Une requête de lecture portant un jeton valide reste sur le primaire jusqu'à expiration.
 
-### Gouvernance et qualité
+### Compatibilité et sécurité
 
-- CDC réaligné en version 4.9.0 avec 12 exigences haute performance supplémentaires.
-- Roadmap réalignée en version 2.1.0 avec phases P19/P20, releases, epics, risques, tests et gates Go/No-Go.
-- Gate CI p95/p99 du transport ASGI avec rapport JSON.
-- Distinction obligatoire entre régression de transport P19 et certification de capacité P20.
-- Documentation d’architecture, runbook d’exploitation, rollback et traçabilité actualisés.
-
-## Capacités explicitement non revendiquées en 0.30.0
-
-Les éléments suivants restent planifiés en P20 et ne sont pas déclarés comme livrés :
-
-- PgBouncer en mode transaction ;
-- routage primaire/réplicas avec contrôle du lag ;
-- pagination par curseur généralisée ;
-- outbox transactionnelle et workers spécialisés ;
-- frontend React découpé par domaine et listes virtualisées ;
-- stockage objet des payloads append-only massifs ;
-- certification de capacité sur PostgreSQL réel avec endurance, spike, saturation et chaos.
+- Les repositories PostgreSQL continuent d'exiger une unité de travail active.
+- Aucun accès direct aux agents ou au frontend vers PostgreSQL.
+- Les secrets peuvent être fournis directement ou par référence externe ; aucune valeur n'est embarquée dans le code.
+- Le runtime historique reste disponible uniquement comme mécanisme de rollback contrôlé.
+- Le format OpenAPI, le BFF, la CLI, les contrats existants et les 52 migrations restent compatibles.
 
 ## Résultats Python
 
 | Contrôle | Résultat |
 |---|---:|
-| Tests réussis | **967** |
+| Tests collectés et réussis | **983** |
 | Échecs | **0** |
-| Durée | **155,22 s** |
-| Instructions mesurées | **35 774** |
-| Instructions non couvertes | **712** |
-| Couverture globale | **98,01 %** |
+| Durée sans collecte de couverture | **129,04 s** |
+| Instructions mesurées | **35 986** |
+| Instructions non couvertes | **718** |
+| Couverture mesurée | **98,0048 %** |
 | Seuil contractuel | **98 % — PASS** |
 
-La couverture a été exécutée sur la suite complète avec la configuration du projet. Aucun seuil, fichier source ou branche nouvelle n’a été exclu pour obtenir le résultat.
+La couverture est calculée selon la configuration contractuelle du projet. L'adaptateur PostgreSQL monolithique reste exclu du calcul global par la configuration historique et fait l'objet de tests d'intégration dédiés ; sa validation sur PostgreSQL réel demeure un gate P20 non exécutable dans cet environnement.
+
+## Tests spécifiques du plan de données
+
+Les tests couvrent notamment :
+
+- lecture sur standby sain ;
+- fallback primaire sur panne et lag excessif ;
+- mode strict ;
+- absence de DSN de lecture ;
+- acquisition et restitution des connexions ;
+- portée transactionnelle de lecture ;
+- invariant d'unité de travail des repositories ;
+- jetons valides, expirés, altérés et mal formés ;
+- propagation en-tête/cookie par le BFF ;
+- cookies sécurisés sous HTTPS ;
+- restauration des variables d'environnement ;
+- contrat Compose et scripts de réplication idempotents ;
+- endpoint de statut et permissions administrateur sécurité.
 
 ## Benchmark p95/p99 du transport ASGI
 
@@ -73,29 +83,18 @@ Profil : 500 requêtes par scénario, concurrence 50, 25 warmups.
 
 | Scénario | Débit | p50 | p95 | p99 | Seuil p95/p99 | Résultat |
 |---|---:|---:|---:|---:|---:|---|
-| API `/health` | 2 263,498 req/s | 11,912 ms | 20,687 ms | 23,397 ms | 150 / 300 ms | PASS |
-| Web `/bootstrap.json` | 4 510,601 req/s | 0,200 ms | 0,263 ms | 0,534 ms | 150 / 300 ms | PASS |
-| Proxy BFF | 3 172,892 req/s | 0,293 ms | 0,367 ms | 0,674 ms | 200 / 400 ms | PASS |
+| API `/health` | 2 230,064 req/s | 12,082 ms | 20,138 ms | 22,712 ms | 150 / 300 ms | PASS |
+| Web `/bootstrap.json` | 4 231,237 req/s | 0,212 ms | 0,292 ms | 0,593 ms | 150 / 300 ms | PASS |
+| Proxy BFF | 2 515,984 req/s | 0,358 ms | 0,497 ms | 1,043 ms | 200 / 400 ms | PASS |
 
-Le rapport porte :
+Le rapport conserve les marqueurs :
 
 ```text
 scope=asgi-transport-regression
 capacity_certification=false
 ```
 
-Ce benchmark est un gate déterministe de non-régression du transport. Il ne remplace pas la certification de capacité P20 sur une topologie PostgreSQL/PgBouncer représentative.
-
-## Benchmark volumétrique RSOT
-
-Profil : 5 000 nœuds, 100 hubs SPOF, 3 échantillons.
-
-| Scénario | p95 | Seuil | Résultat |
-|---|---:|---:|---|
-| Parcours un niveau | 200,481 ms | 1 500 ms | PASS |
-| Parcours filtré | 102,810 ms | 1 500 ms | PASS |
-| Analyse SPOF | 199,388 ms | 5 000 ms | PASS |
-| Pagination SPOF complète | 518,578 ms | 15 000 ms | PASS |
+Ce benchmark détecte les régressions du transport. Il ne certifie pas encore la capacité PostgreSQL/PgBouncer sur une topologie réelle.
 
 ## Frontend
 
@@ -106,48 +105,51 @@ Profil : 5 000 nœuds, 100 hubs SPOF, 3 échantillons.
 | ESLint JSX | PASS |
 | WCAG 2.2 AA | PASS |
 | Build Vite | PASS |
+| Audit npm niveau high | **0 vulnérabilité** |
 | Bundle CSS | 268,49 Ko brut / 38,10 Ko gzip |
 | Bundle JavaScript | 320,39 Ko brut / 92,87 Ko gzip |
 
-Le bundle React reste monolithique. Sa modularisation, son cache de requêtes et sa virtualisation sont inscrits en P20/EPIC-2004.
+La modularisation du bundle React, le cache de requêtes et la virtualisation restent planifiés dans les epics P20 suivants.
 
 ## Contrôles statiques, sécurité et contrats
 
 | Contrôle | Résultat |
 |---|---|
-| Ruff format | **283 fichiers conformes** |
+| Ruff format | **280 fichiers conformes** |
 | Ruff lint strict | PASS |
-| mypy strict | **91 modules — PASS** |
+| mypy strict | **92 modules — PASS** |
 | `compileall` | PASS |
 | Bandit | PASS |
 | Security gate | PASS |
 | Quality gate | PASS |
-| OpenAPI principal | **318 paths — PASS** |
-| OpenAPI CDC | **318 paths — PASS** |
+| OpenAPI principal | **319 paths — PASS** |
+| OpenAPI CDC | **319 paths — PASS** |
+| Scripts PostgreSQL/PgBouncer `bash -n` | PASS |
+| Contrat Compose YAML | **11 services — PASS** |
 | Installateurs | **6 profils — PASS** |
-| Dry-run installateurs | PASS |
 | Alignement Enterprise | PASS |
 | CDC 4.9.0 | **840 exigences / 529 entités — PASS** |
 | Roadmap 2.1.0 | **21 phases / 125 epics / 10 gates / 106 tests — PASS** |
 
-Les avertissements Bandit correspondent à des annotations `nosec` existantes et reconnues sur des fragments SQL internes bornés ; aucun finding bloquant n’a été produit.
+Les avertissements Bandit correspondent uniquement à des annotations `nosec` déjà contrôlées sur des fragments SQL internes bornés ; aucun finding bloquant n'a été produit.
 
 ## Packaging
 
-- Wheel `openinfra-0.30.0-py3-none-any.whl` construit et vérifié.
-- Sdist `openinfra-0.30.0.tar.gz` construit et vérifié.
+- Wheel `openinfra-0.30.1-py3-none-any.whl` construit et vérifié.
+- Sdist `openinfra-0.30.1.tar.gz` construit et vérifié.
 - Installation du wheel avec `--no-deps` dans un répertoire vierge : PASS.
-- Smoke du package installé : version 0.30.0, 52 migrations, dernière migration `0052_multisite_disaster_recovery.sql`.
-- Présence vérifiée dans le wheel des adaptateurs ASGI, du scope d’environnement et de l’infrastructure PostgreSQL.
-- Métadonnées runtime vérifiées pour `uvicorn`, `httpx` et `psycopg-pool`.
-- Présence vérifiée dans le sdist du CDC 4.9.0, de la roadmap 2.1.0, du benchmark et de ses tests.
+- Smoke du package installé : version 0.30.1, 52 migrations, dernière migration `0052_multisite_disaster_recovery.sql`.
+- Présence vérifiée des adaptateurs ASGI, du routeur de lecture, des assets Web et de l'OpenAPI embarqué.
+- Route `/api/v1/database/routing` vérifiée dans le package installé.
+- Présence vérifiée dans le sdist du CDC 4.9.0, de la roadmap 2.1.0, du runbook PostgreSQL, des scripts PgBouncer/réplication et du présent rapport.
+- Vérificateur d'artefact renforcé pour rendre ces fichiers obligatoires dans les prochaines constructions CI.
 
-## Contrôles non exécutables dans l’environnement local
+## Contrôles non exécutables dans l'environnement local
 
-- `pip-audit` a été lancé mais n’a pas pu résoudre `pypi.org` ; aucune conclusion sur les vulnérabilités distantes ne peut être tirée localement. Le gate reste bloquant en CI avec accès réseau.
-- Docker et Podman ne sont pas installés ; les smokes conteneurisés restent des gates CI.
-- `psql` et une instance PostgreSQL réelle ne sont pas disponibles ; la saturation réelle, PgBouncer, les réplicas, l’endurance et le chaos restent des validations P20.
+- `pip-audit` a été lancé en mode strict mais la résolution DNS de `pypi.org` a échoué. Aucune conclusion distante ne peut être tirée localement ; le gate reste bloquant en CI avec accès réseau.
+- Docker et Podman ne sont pas installés ; aucun démarrage réel de la topologie Compose n'a été revendiqué.
+- `psql` et une instance PostgreSQL réelle ne sont pas disponibles ; la réplication physique, le lag, la saturation PgBouncer, l'endurance, les spikes et les scénarios de chaos restent à certifier dans le gate P20 sur infrastructure représentative.
 
 ## Conclusion
 
-Le socle P19 est validé pour livraison : runtime ASGI, pooling borné, BFF asynchrone persistant, compatibilité, documentation et gates CI sont intégrés et régressés. La release ne doit pas être présentée comme une certification de capacité Pro/Entreprise tant que le gate P20 sur infrastructure représentative n’a pas été exécuté avec succès.
+La release 0.30.1 est validée au niveau code, contrats, sécurité statique, tests fonctionnels, frontend et benchmark de transport. Elle livre le premier plan de données P20 sans revendiquer une certification de capacité PostgreSQL réelle. La prochaine priorité reste la généralisation de la pagination par curseur et l'outbox transactionnelle, après validation conteneurisée du présent socle.

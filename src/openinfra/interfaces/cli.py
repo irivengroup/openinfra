@@ -268,6 +268,17 @@ from openinfra.application.security_services import (
     RevokeTokenCommand,
     RotateTokenCommand,
 )
+from openinfra.application.simulation_services import (
+    CancelSimulationScenarioCommand,
+    CompareSimulationReportsCommand,
+    CreateSimulationScenarioCommand,
+    GetSimulationReportCommand,
+    GetSimulationScenarioCommand,
+    ListSimulationComparisonsCommand,
+    ListSimulationReportsCommand,
+    ListSimulationScenariosCommand,
+    RunSimulationScenarioCommand,
+)
 from openinfra.application.source_governance_services import (
     CreateSourceGovernanceRuleCommand,
     DeactivateSourceGovernanceRuleCommand,
@@ -330,6 +341,7 @@ class OpenInfraCLI:
         self._add_integrations_commands(subparsers)
         self._add_discovery_commands(subparsers)
         self._add_graph_commands(subparsers)
+        self._add_simulation_commands(subparsers)
         self._add_flow_commands(subparsers)
         self._add_certificate_commands(subparsers)
         self._add_network_config_commands(subparsers)
@@ -1965,6 +1977,96 @@ class OpenInfraCLI:
         export.add_argument("--output", type=Path)
         self._add_graph_spof_filter_arguments(export, include_pagination=False)
         export.set_defaults(handler=self._handle_graph_export)
+
+    def _add_simulation_commands(self, subparsers: Any) -> None:
+        simulation = subparsers.add_parser(
+            "simulation",
+            help="RSOT change and migration impact simulation without production mutation",
+        )
+        commands = simulation.add_subparsers(dest="simulation_command", required=True)
+
+        create = commands.add_parser("create", help="create an immutable simulation scenario")
+        self._add_backend_arguments(create)
+        create.add_argument("--tenant", required=True)
+        create.add_argument("--actor", default="cli")
+        create.add_argument("--admin-token", required=True)
+        create.add_argument("--name", required=True)
+        create.add_argument("--description", required=True)
+        create.add_argument("--owner", required=True)
+        create.add_argument("--idempotency-key", required=True)
+        create.add_argument("--changes-file", type=Path, required=True)
+        create.add_argument("--site")
+        create.add_argument("--environment")
+        create.add_argument("--criticality")
+        create.set_defaults(handler=self._handle_simulation_create)
+
+        listing = commands.add_parser("list", help="list simulation scenarios")
+        self._add_backend_arguments(listing)
+        listing.add_argument("--tenant", required=True)
+        listing.add_argument("--admin-token", required=True)
+        listing.add_argument("--limit", type=int, default=100)
+        listing.add_argument("--cursor")
+        listing.add_argument("--status")
+        listing.add_argument("--site")
+        listing.set_defaults(handler=self._handle_simulation_list)
+
+        get = commands.add_parser("get", help="read a simulation scenario")
+        self._add_backend_arguments(get)
+        get.add_argument("--tenant", required=True)
+        get.add_argument("--admin-token", required=True)
+        get.add_argument("--scenario-id", required=True)
+        get.set_defaults(handler=self._handle_simulation_get)
+
+        run = commands.add_parser("run", help="generate an impact report for a scenario")
+        self._add_backend_arguments(run)
+        run.add_argument("--tenant", required=True)
+        run.add_argument("--actor", default="cli")
+        run.add_argument("--admin-token", required=True)
+        run.add_argument("--scenario-id", required=True)
+        run.add_argument("--max-depth", type=int, default=8)
+        run.add_argument("--max-nodes", type=int, default=2000)
+        run.set_defaults(handler=self._handle_simulation_run)
+
+        cancel = commands.add_parser("cancel", help="cancel a non-terminal simulation scenario")
+        self._add_backend_arguments(cancel)
+        cancel.add_argument("--tenant", required=True)
+        cancel.add_argument("--actor", default="cli")
+        cancel.add_argument("--admin-token", required=True)
+        cancel.add_argument("--scenario-id", required=True)
+        cancel.set_defaults(handler=self._handle_simulation_cancel)
+
+        report = commands.add_parser("report", help="read a simulation impact report")
+        self._add_backend_arguments(report)
+        report.add_argument("--tenant", required=True)
+        report.add_argument("--admin-token", required=True)
+        report.add_argument("--report-id", required=True)
+        report.set_defaults(handler=self._handle_simulation_report)
+
+        reports = commands.add_parser("reports", help="list simulation impact reports")
+        self._add_backend_arguments(reports)
+        reports.add_argument("--tenant", required=True)
+        reports.add_argument("--admin-token", required=True)
+        reports.add_argument("--scenario-id")
+        reports.add_argument("--limit", type=int, default=100)
+        reports.add_argument("--cursor")
+        reports.set_defaults(handler=self._handle_simulation_reports)
+
+        compare = commands.add_parser("compare", help="compare two impact reports")
+        self._add_backend_arguments(compare)
+        compare.add_argument("--tenant", required=True)
+        compare.add_argument("--actor", default="cli")
+        compare.add_argument("--admin-token", required=True)
+        compare.add_argument("--left-report-id", required=True)
+        compare.add_argument("--right-report-id", required=True)
+        compare.set_defaults(handler=self._handle_simulation_compare)
+
+        comparisons = commands.add_parser("comparisons", help="list report comparisons")
+        self._add_backend_arguments(comparisons)
+        comparisons.add_argument("--tenant", required=True)
+        comparisons.add_argument("--admin-token", required=True)
+        comparisons.add_argument("--limit", type=int, default=100)
+        comparisons.add_argument("--cursor")
+        comparisons.set_defaults(handler=self._handle_simulation_comparisons)
 
     def _add_graph_spof_filter_arguments(
         self, parser: argparse.ArgumentParser, *, include_pagination: bool
@@ -5700,6 +5802,140 @@ class OpenInfraCLI:
                 cursor=args.cursor,
                 status=args.status,
                 source=args.source,
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    @staticmethod
+    def _read_simulation_changes(path: Path) -> tuple[dict[str, Any], ...]:
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except OSError as exc:
+            raise ValidationError(f"cannot read simulation changes file: {exc}") from exc
+        except json.JSONDecodeError as exc:
+            raise ValidationError(f"simulation changes file is invalid JSON: {exc}") from exc
+        if not isinstance(payload, list) or not payload:
+            raise ValidationError("simulation changes file must contain a non-empty JSON array")
+        changes: list[dict[str, Any]] = []
+        for index, item in enumerate(payload):
+            if not isinstance(item, dict):
+                raise ValidationError(f"simulation change at index {index} must be a JSON object")
+            changes.append(dict(item))
+        return tuple(changes)
+
+    def _handle_simulation_create(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.simulation_service.create_scenario(
+            CreateSimulationScenarioCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                name=args.name,
+                description=args.description,
+                owner=args.owner,
+                idempotency_key=args.idempotency_key,
+                changes=self._read_simulation_changes(args.changes_file),
+                site=args.site,
+                environment=args.environment,
+                criticality=args.criticality,
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_simulation_list(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.simulation_service.list_scenarios(
+            ListSimulationScenariosCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                limit=args.limit,
+                cursor=args.cursor,
+                status=args.status,
+                site=args.site,
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_simulation_get(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.simulation_service.get_scenario(
+            GetSimulationScenarioCommand(args.tenant, args.admin_token, args.scenario_id)
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_simulation_run(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.simulation_service.run_scenario(
+            RunSimulationScenarioCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                scenario_id=args.scenario_id,
+                max_depth=args.max_depth,
+                max_nodes=args.max_nodes,
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_simulation_cancel(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.simulation_service.cancel_scenario(
+            CancelSimulationScenarioCommand(
+                args.tenant, args.actor, args.admin_token, args.scenario_id
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_simulation_report(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.simulation_service.get_report(
+            GetSimulationReportCommand(args.tenant, args.admin_token, args.report_id)
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_simulation_reports(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.simulation_service.list_reports(
+            ListSimulationReportsCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                limit=args.limit,
+                cursor=args.cursor,
+                scenario_id=args.scenario_id,
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_simulation_compare(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.simulation_service.compare_reports(
+            CompareSimulationReportsCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=args.admin_token,
+                left_report_id=args.left_report_id,
+                right_report_id=args.right_report_id,
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_simulation_comparisons(self, args: argparse.Namespace) -> int:
+        application = self._create_application(args)
+        result = application.simulation_service.list_comparisons(
+            ListSimulationComparisonsCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                limit=args.limit,
+                cursor=args.cursor,
             )
         )
         print(json.dumps(result.as_dict(), indent=2, sort_keys=True))

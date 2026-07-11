@@ -135,6 +135,7 @@ class BuiltinRolePolicy:
                 Permission.CERTIFICATE_READ,
                 Permission.NETWORK_CONFIG_READ,
                 Permission.FIELD_READ,
+                Permission.SIMULATION_READ,
             )
         ),
         "rsot:reader": frozenset(
@@ -225,6 +226,31 @@ class BuiltinRolePolicy:
                 Permission.FIELD_WRITE,
                 Permission.FIELD_SYNC,
                 Permission.FIELD_ADMIN,
+                Permission.AUDIT_READ,
+                Permission.SCHEMA_READ,
+            )
+        ),
+        "simulation:reader": frozenset(
+            (Permission.SIMULATION_READ, Permission.RSOT_READ, Permission.SCHEMA_READ)
+        ),
+        "simulation:operator": frozenset(
+            (
+                Permission.SIMULATION_READ,
+                Permission.SIMULATION_WRITE,
+                Permission.SIMULATION_EXECUTE,
+                Permission.RSOT_READ,
+                Permission.FLOW_READ,
+                Permission.SCHEMA_READ,
+            )
+        ),
+        "simulation:admin": frozenset(
+            (
+                Permission.SIMULATION_READ,
+                Permission.SIMULATION_WRITE,
+                Permission.SIMULATION_EXECUTE,
+                Permission.SIMULATION_ADMIN,
+                Permission.RSOT_READ,
+                Permission.FLOW_READ,
                 Permission.AUDIT_READ,
                 Permission.SCHEMA_READ,
             )

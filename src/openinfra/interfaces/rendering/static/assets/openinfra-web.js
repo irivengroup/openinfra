@@ -964,6 +964,36 @@ const OPENINFRA_MODULES = [
       { name: "candidate_resource_type", label: "Type de ressource candidat", placeholder: "switch" },
       { name: "candidate_status", label: "Statut candidat", placeholder: "active" },
       { name: "minimum_affected_nodes", label: "Nombre minimal d’objets affectés", type: "number", min: "1", max: "4999", defaultValue: "1" }
+    ] },
+    { id: "simulation-create", label: "Créer un scénario de changement", method: "POST", path: "/v1/simulation-scenarios/create", body: [
+      FIELD_SETS.actor,
+      { name: "name", label: "Nom du scénario", required: true },
+      { name: "description", label: "Description", type: "textarea", rows: 4, required: true },
+      { name: "owner", label: "Propriétaire", required: true },
+      { name: "idempotency_key", label: "Clé d’idempotence", required: true },
+      { name: "site", label: "Site" },
+      { name: "environment", label: "Environnement" },
+      { name: "criticality", label: "Criticité", type: "select", options: ["low", "medium", "high", "critical"] },
+      { name: "changes", label: "Changements JSON", type: "json", required: true, defaultValue: "[]" }
+    ] },
+    { id: "simulation-list", label: "Lister les scénarios", method: "GET", path: "/v1/simulation-scenarios", query: [
+      { name: "status", label: "Statut", type: "select", options: ["draft", "queued", "running", "completed", "failed", "cancelled"] },
+      { name: "site", label: "Site" }, FIELD_SETS.limit, { name: "cursor", label: "Curseur" }
+    ] },
+    { id: "simulation-run", label: "Calculer l’impact d’un scénario", method: "POST", path: "/v1/simulation-scenarios/run", body: [
+      FIELD_SETS.actor, { name: "scenario_id", label: "ID scénario", required: true },
+      { name: "max_depth", label: "Profondeur maximale", type: "number", min: "1", max: "12", defaultValue: "8" },
+      { name: "max_nodes", label: "Nombre maximal de nœuds", type: "number", min: "2", max: "5000", defaultValue: "2000" }
+    ] },
+    { id: "simulation-reports", label: "Lister les rapports d’impact", method: "GET", path: "/v1/impact-reports", query: [
+      { name: "scenario_id", label: "ID scénario" }, FIELD_SETS.limit, { name: "cursor", label: "Curseur" }
+    ] },
+    { id: "simulation-compare", label: "Comparer deux rapports", method: "POST", path: "/v1/scenario-comparisons/create", body: [
+      FIELD_SETS.actor, { name: "left_report_id", label: "ID rapport gauche", required: true },
+      { name: "right_report_id", label: "ID rapport droit", required: true }
+    ] },
+    { id: "simulation-comparisons", label: "Lister les comparaisons", method: "GET", path: "/v1/scenario-comparisons", query: [
+      FIELD_SETS.limit, { name: "cursor", label: "Curseur" }
     ] }
   ] },
   { id: "flows", label: "Matrice de flux", shortLabel: "Flux", icon: "activity", description: "Comparaison gouvernée des flux réseau déclarés et observés, détection des écarts et traçabilité.", operations: [
@@ -1277,7 +1307,8 @@ const OPENINFRA_SIDEBAR_CONTEXTS = {
     { label: "Qualité & gouvernance", operationIds: ["rsot-quality-object", "rsot-quality-summary", "rsot-governance", "rsot-reconcile"] },
     { label: "Exploration", operationIds: ["graph-traverse", "graph-path"] },
     { label: "Analyse d’impact", operationIds: ["graph-impact", "graph-spof"] },
-    { label: "Exports", operationIds: ["graph-export"] }
+    { label: "Exports", operationIds: ["graph-export"] },
+    { label: "Simulation & migrations", operationIds: ["simulation-create", "simulation-list", "simulation-run", "simulation-reports", "simulation-compare", "simulation-comparisons"] }
   ],
   flows: [
     { label: "Flux déclarés", operationIds: ["flow-declaration-upsert", "flow-declaration-list", "flow-declaration-retire"] },

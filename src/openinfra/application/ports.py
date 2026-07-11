@@ -88,6 +88,11 @@ from openinfra.domain.network_config_compliance import (
     NetworkConfigObservation,
 )
 from openinfra.domain.security import ApiTokenCredential, Permission
+from openinfra.domain.simulation import (
+    SimulationImpactReport,
+    SimulationScenario,
+    SimulationScenarioComparison,
+)
 from openinfra.domain.source_governance import SourceGovernanceRule, SourceGovernanceRulePage
 from openinfra.domain.source_of_truth import (
     SourceObjectPage,
@@ -144,6 +149,42 @@ class OfflineSyncPackagePage:
     def as_dict(self) -> dict[str, object]:
         return {
             "items": [item.as_dict(include_payload=False) for item in self.items],
+            "next_cursor": self.next_cursor,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class SimulationScenarioPage:
+    items: tuple[SimulationScenario, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "items": [item.as_dict() for item in self.items],
+            "next_cursor": self.next_cursor,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class SimulationImpactReportPage:
+    items: tuple[SimulationImpactReport, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "items": [item.as_dict() for item in self.items],
+            "next_cursor": self.next_cursor,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class SimulationComparisonPage:
+    items: tuple[SimulationScenarioComparison, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "items": [item.as_dict() for item in self.items],
             "next_cursor": self.next_cursor,
         }
 
@@ -1201,6 +1242,75 @@ class FieldOperationRepository(ABC):
     def list_offline_packages(
         self, tenant_id: TenantId, pagination: Pagination, sheet_id: str | None = None
     ) -> OfflineSyncPackagePage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def append_event(self, event: DomainEvent) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+
+class SimulationRepository(ABC):
+    @abstractmethod
+    def save_scenario(self, scenario: SimulationScenario) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_scenario(self, tenant_id: TenantId, scenario_id: str) -> SimulationScenario | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_scenario_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> SimulationScenario | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_scenarios(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        status: str | None = None,
+        site: str | None = None,
+    ) -> SimulationScenarioPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_report(self, report: SimulationImpactReport) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_report(self, tenant_id: TenantId, report_id: str) -> SimulationImpactReport | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_latest_report(
+        self, tenant_id: TenantId, scenario_id: str
+    ) -> SimulationImpactReport | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_reports(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        scenario_id: str | None = None,
+    ) -> SimulationImpactReportPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_comparison(self, comparison: SimulationScenarioComparison) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_comparison(
+        self, tenant_id: TenantId, comparison_id: str
+    ) -> SimulationScenarioComparison | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_comparisons(
+        self, tenant_id: TenantId, pagination: Pagination
+    ) -> SimulationComparisonPage:
         raise TypeError("adapter contract invoked directly")
 
     @abstractmethod

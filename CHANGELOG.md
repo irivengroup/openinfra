@@ -1,3 +1,13 @@
+## v0.29.96 — Simulation de changement et migration
+
+- Ajout des scénarios immuables de changement/migration et de dix changements typés.
+- Ajout de l’analyse multidimensionnelle RSOT, flux, IPAM, énergie, refroidissement, coûts et services métier.
+- Ajout des scores de préparation, groupes d’affinité, dépendances bloquantes et vagues consultatives.
+- Ajout de la comparaison déterministe de rapports avant/après.
+- Ajout des dépôts JSON/PostgreSQL, de l’outbox transactionnel et de la migration `0045_simulation_migration_planning.sql`.
+- Ajout de neuf routes HTTP/OpenAPI, des commandes `openinfra simulation` et du parcours **RSOT → Simulation & migrations**.
+- Garantie explicite : aucune mutation de production, aucun ordre d’exécution et aucun changement ITSM natif.
+
 ## v0.29.95 — Field Operations mobile/offline
 
 - Ajout des fiches d’intervention terrain issues du DCIM pour les équipements, racks, câbles, équipements électriques et certificats localisés.

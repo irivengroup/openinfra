@@ -1,6 +1,25 @@
-# OpenInfra v0.29.95
+# OpenInfra v0.29.96
 
-OpenInfra v0.29.95 livre les opérations terrain guidées sous DCIM : fiches d’intervention, QR, checklists, preuves immuables, verrouillage logique et synchronisation mobile/offline contrôlée.
+OpenInfra v0.29.96 livre la simulation gouvernée des changements et migrations sous RSOT : impacts multidimensionnels, préparation, groupes d’affinité, vagues consultatives et comparaison avant/après, sans aucune mutation de production.
+
+## Simulation de changement et migration
+
+Le parcours **RSOT → Simulation & migrations** permet de modéliser un déplacement, un ajout, un retrait ou une indisponibilité d’équipement, ainsi que des évolutions VLAN, VRF, sous-réseau, DNS, pare-feu ou PDU. Le moteur travaille exclusivement sur une projection du RSOT : il ne modifie ni l’inventaire, ni l’IPAM, ni le DCIM, ni les flux, et ne crée aucun changement ITSM natif.
+
+Chaque exécution produit un rapport versionné contenant les objets impactés, les écarts de capacité électrique/froid/coût/U, les risques métier, les contrôles IPAM/flux, un score de préparation, les groupes d’affinité, les dépendances bloquantes et des vagues de migration **consultatives**. Une comparaison déterministe permet d’arbitrer deux rapports sans transformer le résultat en ordre d’exécution.
+
+```bash
+openinfra simulation create --tenant default --admin-token "$OPENINFRA_TOKEN" \
+  --name "Migration ERP vers PAR2" \
+  --description "Évaluer le déplacement du serveur ERP et ses dépendances." \
+  --owner architecture.team --idempotency-key simulation-erp-par2-0001 \
+  --changes-file changes.json
+
+openinfra simulation run --tenant default --admin-token "$OPENINFRA_TOKEN" \
+  --scenario-id "$SCENARIO_ID" --max-depth 8 --max-nodes 2000
+```
+
+Voir `docs/operations/simulation-migration-planning.md` pour les changements acceptés, les contrats API/CLI, les règles d’exploitation, les limites et les procédures de sauvegarde/restauration.
 
 ## Performance volumétrique du graphe RSOT
 

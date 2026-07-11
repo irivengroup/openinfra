@@ -130,6 +130,17 @@ class TestHttpApi:
                     "spof": "/api/v1/graph/spof",
                     "export": "/api/v1/graph/export",
                 },
+                "simulation": {
+                    "scenarios": "/api/v1/simulation-scenarios",
+                    "scenario_get": "/api/v1/simulation-scenarios/get",
+                    "scenario_create": "/api/v1/simulation-scenarios/create",
+                    "scenario_run": "/api/v1/simulation-scenarios/run",
+                    "scenario_cancel": "/api/v1/simulation-scenarios/cancel",
+                    "impact_reports": "/api/v1/impact-reports",
+                    "impact_report_get": "/api/v1/impact-reports/get",
+                    "comparisons": "/api/v1/scenario-comparisons",
+                    "comparison_create": "/api/v1/scenario-comparisons/create",
+                },
                 "field_operations": {
                     "sheets": "/api/v1/field-operation-sheets",
                     "sheet_get": "/api/v1/field-operation-sheets/get",

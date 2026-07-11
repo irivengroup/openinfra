@@ -267,6 +267,17 @@ from openinfra.application.security_services import (
     RevokeTokenCommand,
     RotateTokenCommand,
 )
+from openinfra.application.simulation_services import (
+    CancelSimulationScenarioCommand,
+    CompareSimulationReportsCommand,
+    CreateSimulationScenarioCommand,
+    GetSimulationReportCommand,
+    GetSimulationScenarioCommand,
+    ListSimulationComparisonsCommand,
+    ListSimulationReportsCommand,
+    ListSimulationScenariosCommand,
+    RunSimulationScenarioCommand,
+)
 from openinfra.application.source_governance_services import (
     CreateSourceGovernanceRuleCommand,
     DeactivateSourceGovernanceRuleCommand,
@@ -274,7 +285,7 @@ from openinfra.application.source_governance_services import (
     ListSourceGovernanceRulesCommand,
 )
 from openinfra.domain.access_policy import AccessRequestContext
-from openinfra.domain.common import AccessDeniedError, OpenInfraError
+from openinfra.domain.common import AccessDeniedError, OpenInfraError, ValidationError
 from openinfra.domain.countries import CountryCatalog
 from openinfra.domain.security import AuthenticatedPrincipal, Permission
 from openinfra.infrastructure.runtime_config import RuntimeDatabaseDsnResolver
@@ -1380,6 +1391,93 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
+        if route == "/api/v1/simulation-scenarios":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.simulation_service.list_scenarios(
+                    ListSimulationScenariosCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        status=query.get("status", [None])[0],
+                        site=query.get("site", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/simulation-scenarios/get":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.simulation_service.get_scenario(
+                    GetSimulationScenarioCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        scenario_id=self._first_query_value(query, "scenario_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/impact-reports":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.simulation_service.list_reports(
+                    ListSimulationReportsCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        scenario_id=query.get("scenario_id", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/impact-reports/get":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.simulation_service.get_report(
+                    GetSimulationReportCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        report_id=self._first_query_value(query, "report_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/scenario-comparisons":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.simulation_service.list_comparisons(
+                    ListSimulationComparisonsCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
         if route == "/api/v1/field-operation-sheets":
             try:
                 query = parse_qs(parsed.query)
@@ -2431,6 +2529,91 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/simulation-scenarios/create":
+            try:
+                payload = self._read_json_body()
+                raw_changes = payload.get("changes")
+                if not isinstance(raw_changes, list):
+                    raise ValidationError("simulation changes must be a JSON array")
+                changes = tuple(dict(item) for item in raw_changes if isinstance(item, dict))
+                if len(changes) != len(raw_changes):
+                    raise ValidationError("each simulation change must be a JSON object")
+                result = self.server.application.simulation_service.create_scenario(
+                    CreateSimulationScenarioCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        name=self._required_payload_value(payload, "name"),
+                        description=self._required_payload_value(payload, "description"),
+                        owner=self._required_payload_value(payload, "owner"),
+                        idempotency_key=self._required_payload_value(payload, "idempotency_key"),
+                        changes=changes,
+                        site=self._optional_payload_value(payload, "site"),
+                        environment=self._optional_payload_value(payload, "environment"),
+                        criticality=self._optional_payload_value(payload, "criticality"),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/simulation-scenarios/run":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.simulation_service.run_scenario(
+                    RunSimulationScenarioCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        scenario_id=self._required_payload_value(payload, "scenario_id"),
+                        max_depth=int(payload.get("max_depth", 8)),
+                        max_nodes=int(payload.get("max_nodes", 2000)),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/simulation-scenarios/cancel":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.simulation_service.cancel_scenario(
+                    CancelSimulationScenarioCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        scenario_id=self._required_payload_value(payload, "scenario_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/scenario-comparisons/create":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.simulation_service.compare_reports(
+                    CompareSimulationReportsCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        left_report_id=self._required_payload_value(payload, "left_report_id"),
+                        right_report_id=self._required_payload_value(payload, "right_report_id"),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
@@ -6137,6 +6320,17 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "software_license": "/api/v1/itam/software-license",
                     "software_license_assignment": "/api/v1/itam/software-license/assignment",
                     "software_license_compliance": "/api/v1/itam/software-license/compliance",
+                },
+                "simulation": {
+                    "scenarios": "/api/v1/simulation-scenarios",
+                    "scenario_get": "/api/v1/simulation-scenarios/get",
+                    "scenario_create": "/api/v1/simulation-scenarios/create",
+                    "scenario_run": "/api/v1/simulation-scenarios/run",
+                    "scenario_cancel": "/api/v1/simulation-scenarios/cancel",
+                    "impact_reports": "/api/v1/impact-reports",
+                    "impact_report_get": "/api/v1/impact-reports/get",
+                    "comparisons": "/api/v1/scenario-comparisons",
+                    "comparison_create": "/api/v1/scenario-comparisons/create",
                 },
                 "field_operations": {
                     "sheets": "/api/v1/field-operation-sheets",

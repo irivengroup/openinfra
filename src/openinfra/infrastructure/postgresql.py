@@ -49,6 +49,10 @@ from openinfra.application.ports import (
     SchemaStatusProvider,
     SecurityRepository,
     SecurityTokenPage,
+    SimulationComparisonPage,
+    SimulationImpactReportPage,
+    SimulationRepository,
+    SimulationScenarioPage,
     SourceGovernanceRepository,
     SourceOfTruthRepository,
     TransactionManager,
@@ -187,6 +191,11 @@ from openinfra.domain.network_config_compliance import (
     NetworkConfigObservation,
 )
 from openinfra.domain.security import ApiTokenCredential, Permission
+from openinfra.domain.simulation import (
+    SimulationImpactReport,
+    SimulationScenario,
+    SimulationScenarioComparison,
+)
 from openinfra.domain.source_governance import SourceGovernanceRule, SourceGovernanceRulePage
 from openinfra.domain.source_of_truth import (
     SourceObjectPage,
@@ -196,6 +205,7 @@ from openinfra.domain.source_of_truth import (
     SourceRelationPage,
 )
 from openinfra.infrastructure.field_operation_mapper import FieldOperationRecordMapper
+from openinfra.infrastructure.simulation_mapper import SimulationRecordMapper
 
 
 class CursorProtocol(Protocol):
@@ -7100,6 +7110,329 @@ class PostgreSQLFieldOperationRepository(PostgreSQLRepositoryBase, FieldOperatio
         loaded = json.loads(value) if isinstance(value, str) else value
         if not isinstance(loaded, Mapping):
             raise ValidationError("field operation payload must be a JSON object")
+        return {str(key): item for key, item in loaded.items()}
+
+
+class PostgreSQLSimulationRepository(PostgreSQLRepositoryBase, SimulationRepository):
+    def save_scenario(self, scenario: SimulationScenario) -> None:
+        self._ensure_tenant(scenario.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO simulation_scenarios (
+                id, tenant_id, idempotency_key, site_code, environment, criticality,
+                status, owner_name, version, payload, created_at, updated_at,
+                started_at, completed_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(idempotency_key)s, %(site_code)s,
+                %(environment)s, %(criticality)s, %(status)s, %(owner_name)s,
+                %(version)s, %(payload)s, %(created_at)s, %(updated_at)s,
+                %(started_at)s, %(completed_at)s
+            )
+            ON CONFLICT (tenant_id, id) DO UPDATE SET
+                status = EXCLUDED.status,
+                version = EXCLUDED.version,
+                payload = EXCLUDED.payload,
+                updated_at = EXCLUDED.updated_at,
+                started_at = EXCLUDED.started_at,
+                completed_at = EXCLUDED.completed_at
+            """,
+            {
+                "id": scenario.id.value,
+                "tenant_id": scenario.tenant_id.value,
+                "idempotency_key": scenario.idempotency_key,
+                "site_code": scenario.site,
+                "environment": scenario.environment,
+                "criticality": scenario.criticality,
+                "status": scenario.status.value,
+                "owner_name": scenario.owner,
+                "version": scenario.version,
+                "payload": json.dumps(scenario.as_dict(), sort_keys=True),
+                "created_at": scenario.created_at,
+                "updated_at": scenario.updated_at,
+                "started_at": scenario.started_at,
+                "completed_at": scenario.completed_at,
+            },
+        )
+
+    def get_scenario(self, tenant_id: TenantId, scenario_id: str) -> SimulationScenario | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM simulation_scenarios
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s
+            """,
+            {"tenant_id": tenant_id.value, "id": EntityId.from_value(scenario_id).value},
+        )
+        return (
+            None
+            if row is None
+            else SimulationRecordMapper.scenario(self._json_mapping(row["payload"]))
+        )
+
+    def find_scenario_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> SimulationScenario | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM simulation_scenarios
+            WHERE tenant_id = %(tenant_id)s AND idempotency_key = %(idempotency_key)s
+            """,
+            {"tenant_id": tenant_id.value, "idempotency_key": idempotency_key.strip()},
+        )
+        return (
+            None
+            if row is None
+            else SimulationRecordMapper.scenario(self._json_mapping(row["payload"]))
+        )
+
+    def list_scenarios(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        status: str | None = None,
+        site: str | None = None,
+    ) -> SimulationScenarioPage:
+        offset = self._offset(pagination.cursor)
+        clauses = ["tenant_id = %(tenant_id)s"]
+        params: dict[str, object] = {
+            "tenant_id": tenant_id.value,
+            "fetch_limit": pagination.limit + 1,
+            "offset": offset,
+        }
+        if status:
+            clauses.append("status = %(status)s")
+            params["status"] = status.strip().lower()
+        if site:
+            clauses.append("site_code = %(site_code)s")
+            params["site_code"] = site.strip().lower().replace("_", "-")
+        rows = self._fetch_all(
+            f"""
+            SELECT payload FROM simulation_scenarios
+            WHERE {" AND ".join(clauses)}
+            ORDER BY updated_at DESC, id DESC
+            LIMIT %(fetch_limit)s OFFSET %(offset)s
+            """,  # nosec B608 -- predicates are fixed and values are bound
+            params,
+        )
+        has_more = len(rows) > pagination.limit
+        selected = rows[: pagination.limit]
+        return SimulationScenarioPage(
+            tuple(
+                SimulationRecordMapper.scenario(self._json_mapping(row["payload"]))
+                for row in selected
+            ),
+            str(offset + pagination.limit) if has_more else None,
+        )
+
+    def save_report(self, report: SimulationImpactReport) -> None:
+        self._ensure_tenant(report.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO simulation_impact_reports (
+                id, tenant_id, scenario_id, scenario_version, input_sha256,
+                risk_before, risk_after, readiness_score, impacted_count,
+                truncated, payload, generated_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(scenario_id)s, %(scenario_version)s,
+                %(input_sha256)s, %(risk_before)s, %(risk_after)s,
+                %(readiness_score)s, %(impacted_count)s, %(truncated)s,
+                %(payload)s, %(generated_at)s
+            )
+            ON CONFLICT (tenant_id, id) DO UPDATE SET
+                payload = EXCLUDED.payload,
+                risk_after = EXCLUDED.risk_after,
+                readiness_score = EXCLUDED.readiness_score,
+                impacted_count = EXCLUDED.impacted_count,
+                truncated = EXCLUDED.truncated
+            """,
+            {
+                "id": report.id.value,
+                "tenant_id": report.tenant_id.value,
+                "scenario_id": report.scenario_id.value,
+                "scenario_version": report.scenario_version,
+                "input_sha256": report.input_sha256,
+                "risk_before": report.risk_before,
+                "risk_after": report.risk_after,
+                "readiness_score": report.readiness_scores[0].score,
+                "impacted_count": len(report.impacted_keys),
+                "truncated": report.truncated,
+                "payload": json.dumps(report.as_dict(), sort_keys=True),
+                "generated_at": report.generated_at,
+            },
+        )
+
+    def get_report(self, tenant_id: TenantId, report_id: str) -> SimulationImpactReport | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM simulation_impact_reports
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s
+            """,
+            {"tenant_id": tenant_id.value, "id": EntityId.from_value(report_id).value},
+        )
+        return (
+            None
+            if row is None
+            else SimulationRecordMapper.report(self._json_mapping(row["payload"]))
+        )
+
+    def find_latest_report(
+        self, tenant_id: TenantId, scenario_id: str
+    ) -> SimulationImpactReport | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM simulation_impact_reports
+            WHERE tenant_id = %(tenant_id)s AND scenario_id = %(scenario_id)s
+            ORDER BY generated_at DESC, id DESC LIMIT 1
+            """,
+            {"tenant_id": tenant_id.value, "scenario_id": EntityId.from_value(scenario_id).value},
+        )
+        return (
+            None
+            if row is None
+            else SimulationRecordMapper.report(self._json_mapping(row["payload"]))
+        )
+
+    def list_reports(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        scenario_id: str | None = None,
+    ) -> SimulationImpactReportPage:
+        offset = self._offset(pagination.cursor)
+        predicate = "" if scenario_id is None else "AND scenario_id = %(scenario_id)s"
+        params: dict[str, object] = {
+            "tenant_id": tenant_id.value,
+            "fetch_limit": pagination.limit + 1,
+            "offset": offset,
+        }
+        if scenario_id is not None:
+            params["scenario_id"] = EntityId.from_value(scenario_id).value
+        rows = self._fetch_all(
+            f"""
+            SELECT payload FROM simulation_impact_reports
+            WHERE tenant_id = %(tenant_id)s {predicate}
+            ORDER BY generated_at DESC, id DESC
+            LIMIT %(fetch_limit)s OFFSET %(offset)s
+            """,  # nosec B608 -- predicate is fixed and value is bound
+            params,
+        )
+        has_more = len(rows) > pagination.limit
+        selected = rows[: pagination.limit]
+        return SimulationImpactReportPage(
+            tuple(
+                SimulationRecordMapper.report(self._json_mapping(row["payload"]))
+                for row in selected
+            ),
+            str(offset + pagination.limit) if has_more else None,
+        )
+
+    def save_comparison(self, comparison: SimulationScenarioComparison) -> None:
+        self._ensure_tenant(comparison.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO simulation_scenario_comparisons (
+                id, tenant_id, left_report_id, right_report_id,
+                preferred_report_id, payload, created_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(left_report_id)s, %(right_report_id)s,
+                %(preferred_report_id)s, %(payload)s, %(created_at)s
+            )
+            ON CONFLICT (tenant_id, id) DO NOTHING
+            """,
+            {
+                "id": comparison.id.value,
+                "tenant_id": comparison.tenant_id.value,
+                "left_report_id": comparison.left_report_id.value,
+                "right_report_id": comparison.right_report_id.value,
+                "preferred_report_id": (
+                    comparison.preferred_report_id.value
+                    if comparison.preferred_report_id is not None
+                    else None
+                ),
+                "payload": json.dumps(comparison.as_dict(), sort_keys=True),
+                "created_at": comparison.created_at,
+            },
+        )
+
+    def get_comparison(
+        self, tenant_id: TenantId, comparison_id: str
+    ) -> SimulationScenarioComparison | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM simulation_scenario_comparisons
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s
+            """,
+            {"tenant_id": tenant_id.value, "id": EntityId.from_value(comparison_id).value},
+        )
+        return (
+            None
+            if row is None
+            else SimulationRecordMapper.comparison(self._json_mapping(row["payload"]))
+        )
+
+    def list_comparisons(
+        self, tenant_id: TenantId, pagination: Pagination
+    ) -> SimulationComparisonPage:
+        offset = self._offset(pagination.cursor)
+        rows = self._fetch_all(
+            """
+            SELECT payload FROM simulation_scenario_comparisons
+            WHERE tenant_id = %(tenant_id)s
+            ORDER BY created_at DESC, id DESC
+            LIMIT %(fetch_limit)s OFFSET %(offset)s
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "fetch_limit": pagination.limit + 1,
+                "offset": offset,
+            },
+        )
+        has_more = len(rows) > pagination.limit
+        selected = rows[: pagination.limit]
+        return SimulationComparisonPage(
+            tuple(
+                SimulationRecordMapper.comparison(self._json_mapping(row["payload"]))
+                for row in selected
+            ),
+            str(offset + pagination.limit) if has_more else None,
+        )
+
+    def append_event(self, event: DomainEvent) -> None:
+        self._ensure_tenant(event.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO simulation_event_outbox (
+                id, tenant_id, aggregate_id, event_name, payload, occurred_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(aggregate_id)s, %(event_name)s,
+                %(payload)s, %(occurred_at)s
+            )
+            ON CONFLICT (tenant_id, id) DO NOTHING
+            """,
+            {
+                "id": event.id.value,
+                "tenant_id": event.tenant_id.value,
+                "aggregate_id": event.aggregate_id.value,
+                "event_name": event.name,
+                "payload": json.dumps(event.payload, sort_keys=True),
+                "occurred_at": event.occurred_at,
+            },
+        )
+
+    @staticmethod
+    def _offset(cursor: str | None) -> int:
+        try:
+            offset = int(cursor or "0")
+        except ValueError as exc:
+            raise ValidationError("pagination cursor must be a numeric offset") from exc
+        if offset < 0:
+            raise ValidationError("pagination cursor must be positive")
+        return offset
+
+    @staticmethod
+    def _json_mapping(value: object) -> dict[str, Any]:
+        loaded = json.loads(value) if isinstance(value, str) else value
+        if not isinstance(loaded, Mapping):
+            raise ValidationError("simulation payload must be a JSON object")
         return {str(key): item for key, item in loaded.items()}
 
 

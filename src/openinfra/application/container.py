@@ -63,12 +63,17 @@ from openinfra.application.ports import (
     RuntimeUsageRepository,
     SchemaStatusProvider,
     SecurityRepository,
+    SimulationRepository,
     SourceGovernanceRepository,
     SourceOfTruthRepository,
     TransactionManager,
 )
 from openinfra.application.search_services import GlobalSearchService
 from openinfra.application.security_services import SecurityService
+from openinfra.application.simulation_services import (
+    SimulationImpactEngine,
+    SimulationService,
+)
 from openinfra.application.source_governance_services import SourceGovernanceService
 from openinfra.application.source_of_truth_services import SourceOfTruthService
 from openinfra.infrastructure.certificate_parser import CryptographyCertificateParser
@@ -94,6 +99,7 @@ from openinfra.infrastructure.json_store import (
     JsonRuntimeUsageRepository,
     JsonSchemaStatusProvider,
     JsonSecurityRepository,
+    JsonSimulationRepository,
     JsonSourceGovernanceRepository,
     JsonSourceOfTruthRepository,
     JsonTransactionManager,
@@ -121,6 +127,7 @@ from openinfra.infrastructure.postgresql import (
     PostgreSQLRuntimeUsageRepository,
     PostgreSQLSecurityRepository,
     PostgreSQLSessionRegistry,
+    PostgreSQLSimulationRepository,
     PostgreSQLSourceGovernanceRepository,
     PostgreSQLSourceOfTruthRepository,
     PostgreSQLTransactionManager,
@@ -147,6 +154,7 @@ class OpenInfraApplication:
     discovery_service: DiscoveryCollectorService
     dependency_graph_service: DependencyGraphService
     field_operation_service: FieldOperationService
+    simulation_service: SimulationService
     flow_matrix_service: FlowMatrixService
     certificate_pki_service: CertificatePkiService
     network_config_compliance_service: NetworkConfigComplianceService
@@ -157,6 +165,7 @@ class OpenInfraApplication:
     export_repository: ExportRepository
     discovery_repository: DiscoveryRepository
     field_operation_repository: FieldOperationRepository
+    simulation_repository: SimulationRepository
     flow_matrix_repository: FlowMatrixRepository
     certificate_inventory_repository: CertificateInventoryRepository
     network_config_compliance_repository: NetworkConfigComplianceRepository
@@ -214,6 +223,7 @@ class ApplicationFactory:
         import_repository = JsonImportRepository(store)
         export_repository = JsonExportRepository(store)
         field_operation_repository = JsonFieldOperationRepository(store)
+        simulation_repository = JsonSimulationRepository(store)
         flow_matrix_repository = JsonFlowMatrixRepository(store)
         certificate_inventory_repository = JsonCertificateInventoryRepository(store)
         network_config_compliance_repository = JsonNetworkConfigComplianceRepository(store)
@@ -242,6 +252,7 @@ class ApplicationFactory:
             export_repository=export_repository,
             discovery_repository=discovery_repository,
             field_operation_repository=field_operation_repository,
+            simulation_repository=simulation_repository,
             flow_matrix_repository=flow_matrix_repository,
             certificate_inventory_repository=certificate_inventory_repository,
             network_config_compliance_repository=network_config_compliance_repository,
@@ -273,6 +284,7 @@ class ApplicationFactory:
         import_repository = PostgreSQLImportRepository(registry)
         export_repository = PostgreSQLExportRepository(registry)
         field_operation_repository = PostgreSQLFieldOperationRepository(registry)
+        simulation_repository = PostgreSQLSimulationRepository(registry)
         flow_matrix_repository = PostgreSQLFlowMatrixRepository(registry)
         certificate_inventory_repository = PostgreSQLCertificateInventoryRepository(registry)
         network_config_compliance_repository = PostgreSQLNetworkConfigComplianceRepository(registry)
@@ -301,6 +313,7 @@ class ApplicationFactory:
             export_repository=export_repository,
             discovery_repository=discovery_repository,
             field_operation_repository=field_operation_repository,
+            simulation_repository=simulation_repository,
             flow_matrix_repository=flow_matrix_repository,
             certificate_inventory_repository=certificate_inventory_repository,
             network_config_compliance_repository=network_config_compliance_repository,
@@ -332,6 +345,7 @@ class ApplicationFactory:
         export_repository: ExportRepository | None = None,
         discovery_repository: DiscoveryRepository | None = None,
         field_operation_repository: FieldOperationRepository | None = None,
+        simulation_repository: SimulationRepository | None = None,
         flow_matrix_repository: FlowMatrixRepository | None = None,
         certificate_inventory_repository: CertificateInventoryRepository | None = None,
         network_config_compliance_repository: NetworkConfigComplianceRepository | None = None,
@@ -367,6 +381,11 @@ class ApplicationFactory:
                 field_operation_repository = JsonFieldOperationRepository(store)
             else:
                 field_operation_repository = PostgreSQLFieldOperationRepository(store)
+        if simulation_repository is None:
+            if hasattr(store, "data"):
+                simulation_repository = JsonSimulationRepository(store)
+            else:
+                simulation_repository = PostgreSQLSimulationRepository(store)
         if flow_matrix_repository is None:
             if hasattr(store, "data"):
                 flow_matrix_repository = JsonFlowMatrixRepository(store)
@@ -524,6 +543,17 @@ class ApplicationFactory:
                 dependency_graph_service, flow_matrix_repository, dcim_repository
             ),
         )
+        simulation_service = SimulationService(
+            simulation_repository,
+            audit_repository,
+            transaction_manager,
+            security_service,
+            SimulationImpactEngine(
+                source_of_truth_repository,
+                flow_matrix_repository,
+                dependency_graph_service,
+            ),
+        )
         return OpenInfraApplication(
             store=store,
             dcim_service=DcimLocationService(
@@ -576,6 +606,7 @@ class ApplicationFactory:
             discovery_service=discovery_service,
             dependency_graph_service=dependency_graph_service,
             field_operation_service=field_operation_service,
+            simulation_service=simulation_service,
             flow_matrix_service=flow_matrix_service,
             certificate_pki_service=certificate_pki_service,
             network_config_compliance_service=network_config_compliance_service,
@@ -622,6 +653,7 @@ class ApplicationFactory:
             export_repository=export_repository,
             discovery_repository=discovery_repository,
             field_operation_repository=field_operation_repository,
+            simulation_repository=simulation_repository,
             flow_matrix_repository=flow_matrix_repository,
             certificate_inventory_repository=certificate_inventory_repository,
             network_config_compliance_repository=network_config_compliance_repository,

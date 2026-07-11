@@ -693,3 +693,28 @@ PYTHONPATH=src python -m openinfra.interfaces.cli dcim field-generate \
 ```
 
 Le parcours complet de verrouillage, démarrage, checklist, preuve, paquet hors ligne, synchronisation et clôture est validé par les tests d'intégration CLI et HTTP dédiés.
+
+## Simulation de changement et migration — v0.29.96
+
+```bash
+PYTHONPATH=src:. pytest -q \
+  tests/unit/test_simulation_domain.py \
+  tests/integration/test_simulation_services.py \
+  tests/integration/test_simulation_cli.py \
+  tests/integration/test_simulation_http_api.py \
+  tests/integration/test_simulation_migration.py \
+  tests/integration/test_simulation_web_contract.py
+
+PYTHONPATH=src python scripts/validate_openapi.py \
+  docs/api/openapi.yaml \
+  docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1/09-API/OpenAPI/openapi.yaml
+
+ruff format --check src tests scripts docker installers
+ruff check src tests scripts docker installers
+mypy src/openinfra
+bandit -q -r src/openinfra
+python -m build
+python scripts/verify_artifact.py dist/openinfra-0.29.96-py3-none-any.whl
+```
+
+Vérifier dans chaque rapport les valeurs `production_mutation=false` et `execution_order=false`. Une analyse `truncated=true` n’est pas exhaustive et doit être relancée avec un périmètre ou une limite adaptés.

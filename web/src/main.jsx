@@ -703,6 +703,31 @@ const MODULES = [
       { name: 'candidate_resource_category', label: 'Catégorie ressource candidate' }, { name: 'candidate_resource_type', label: 'Type de ressource candidat' },
       { name: 'candidate_status', label: 'Statut candidat' }, { name: 'minimum_affected_nodes', label: 'Nombre minimal d’objets affectés', type: 'number', defaultValue: '1' },
     ] },
+    { id: 'simulation-create', label: 'Créer un scénario de changement', path: '/v1/simulation-scenarios/create', method: 'POST', fields: [
+      'Opérateur', { name: 'name', label: 'Nom du scénario', required: true }, { name: 'description', label: 'Description', type: 'textarea', required: true },
+      { name: 'owner', label: 'Propriétaire', required: true }, { name: 'idempotency_key', label: 'Clé d’idempotence', required: true },
+      { name: 'site', label: 'Site' }, { name: 'environment', label: 'Environnement' },
+      { name: 'criticality', label: 'Criticité', type: 'select', options: ['low', 'medium', 'high', 'critical'] },
+      { name: 'changes', label: 'Changements JSON', type: 'json', required: true, defaultValue: '[]' },
+    ] },
+    { id: 'simulation-list', label: 'Lister les scénarios', path: '/v1/simulation-scenarios', method: 'GET', fields: [
+      { name: 'status', label: 'Statut', type: 'select', options: ['draft', 'queued', 'running', 'completed', 'failed', 'cancelled'] },
+      { name: 'site', label: 'Site' }, { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
+    ] },
+    { id: 'simulation-run', label: 'Calculer l’impact d’un scénario', path: '/v1/simulation-scenarios/run', method: 'POST', fields: [
+      'Opérateur', { name: 'scenario_id', label: 'ID scénario', required: true },
+      { name: 'max_depth', label: 'Profondeur maximale', type: 'number', defaultValue: '8' },
+      { name: 'max_nodes', label: 'Nombre maximal de nœuds', type: 'number', defaultValue: '2000' },
+    ] },
+    { id: 'simulation-reports', label: 'Lister les rapports d’impact', path: '/v1/impact-reports', method: 'GET', fields: [
+      { name: 'scenario_id', label: 'ID scénario' }, { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
+    ] },
+    { id: 'simulation-compare', label: 'Comparer deux rapports', path: '/v1/scenario-comparisons/create', method: 'POST', fields: [
+      'Opérateur', { name: 'left_report_id', label: 'ID rapport gauche', required: true }, { name: 'right_report_id', label: 'ID rapport droit', required: true },
+    ] },
+    { id: 'simulation-comparisons', label: 'Lister les comparaisons', path: '/v1/scenario-comparisons', method: 'GET', fields: [
+      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
+    ] },
   ] },
   { id: 'flows', label: 'Matrice de flux', shortLabel: 'Flux', icon: 'activity', operations: [
     { id: 'flow-declaration-upsert', label: 'Créer ou réviser un flux déclaré', path: '/v1/flows/declarations/upsert', method: 'POST', fields: ['Opérateur', 'Code', 'Sélecteur source', 'Sélecteur destination', 'Protocole', 'Port destination début', 'Port destination fin', 'Décision', 'Priorité', 'Propriétaire', 'Justification', 'Début validité', 'Fin validité'] },
@@ -893,6 +918,7 @@ const SIDEBAR_CONTEXTS = {
     { label: 'Exploration', operationIds: ['graph-traverse', 'graph-path'] },
     { label: 'Analyse d’impact', operationIds: ['graph-impact', 'graph-spof'] },
     { label: 'Exports', operationIds: ['graph-export'] },
+    { label: 'Simulation & migrations', operationIds: ['simulation-create', 'simulation-list', 'simulation-run', 'simulation-reports', 'simulation-compare', 'simulation-comparisons'] },
   ],
   flows: [
     { label: 'Flux déclarés', operationIds: ['flow-declaration-upsert', 'flow-declaration-list', 'flow-declaration-retire'] },
@@ -1480,7 +1506,7 @@ function Dashboard() {
   }
 
   async function execute(form, fields) {
-    const isLiveOperation = selected.id.startsWith('graph-') || selected.id.startsWith('field-');
+    const isLiveOperation = selected.id.startsWith('graph-') || selected.id.startsWith('field-') || selected.id.startsWith('simulation-');
     if (!isLiveOperation) {
       setResult({ tenant_id: tenant, action: selected.id, via: config.apiBaseUrl, trust: config.webBackendTrust });
       return;

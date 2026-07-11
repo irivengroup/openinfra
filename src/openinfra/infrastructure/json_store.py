@@ -47,6 +47,10 @@ from openinfra.application.ports import (
     SchemaStatusProvider,
     SecurityRepository,
     SecurityTokenPage,
+    SimulationComparisonPage,
+    SimulationImpactReportPage,
+    SimulationRepository,
+    SimulationScenarioPage,
     SourceGovernanceRepository,
     SourceOfTruthRepository,
     TransactionManager,
@@ -187,6 +191,11 @@ from openinfra.domain.network_config_compliance import (
     NetworkConfigObservation,
 )
 from openinfra.domain.security import ApiTokenCredential, Permission
+from openinfra.domain.simulation import (
+    SimulationImpactReport,
+    SimulationScenario,
+    SimulationScenarioComparison,
+)
 from openinfra.domain.source_governance import SourceGovernanceRule, SourceGovernanceRulePage
 from openinfra.domain.source_of_truth import (
     SourceObjectKey,
@@ -197,6 +206,7 @@ from openinfra.domain.source_of_truth import (
     SourceRelationPage,
 )
 from openinfra.infrastructure.field_operation_mapper import FieldOperationRecordMapper
+from openinfra.infrastructure.simulation_mapper import SimulationRecordMapper
 
 _EXPORT_SIGNING_STORAGE_KEY = "export_signing_" + "secret"
 
@@ -408,6 +418,10 @@ class JsonDocumentStore:
             "intervention_locks": {},
             "offline_sync_packages": {},
             "field_event_outbox": {},
+            "simulation_scenarios": {},
+            "simulation_impact_reports": {},
+            "simulation_comparisons": {},
+            "simulation_event_outbox": {},
             "discovery_collectors": {},
             "discovery_jobs": {},
             "discovery_protocol_profiles": {},
@@ -4009,6 +4023,159 @@ class JsonFieldOperationRepository(FieldOperationRepository):
             "published_at": None,
         }
         self._store.mark_dirty()
+
+
+class JsonSimulationRepository(SimulationRepository):
+    def __init__(self, store: JsonDocumentStore) -> None:
+        self._store = store
+
+    def save_scenario(self, scenario: SimulationScenario) -> None:
+        self._store.data["simulation_scenarios"][
+            self._key(scenario.tenant_id, scenario.id.value)
+        ] = scenario.as_dict()
+        self._store.mark_dirty()
+
+    def get_scenario(self, tenant_id: TenantId, scenario_id: str) -> SimulationScenario | None:
+        value = self._store.data["simulation_scenarios"].get(
+            self._key(tenant_id, EntityId.from_value(scenario_id).value)
+        )
+        return SimulationRecordMapper.scenario(value) if value else None
+
+    def find_scenario_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> SimulationScenario | None:
+        normalized = idempotency_key.strip()
+        for value in self._store.data["simulation_scenarios"].values():
+            if (
+                value.get("tenant_id") == tenant_id.value
+                and value.get("idempotency_key") == normalized
+            ):
+                return SimulationRecordMapper.scenario(value)
+        return None
+
+    def list_scenarios(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        status: str | None = None,
+        site: str | None = None,
+    ) -> SimulationScenarioPage:
+        start = self._offset(pagination.cursor)
+        normalized_status = status.strip().lower() if status else None
+        normalized_site = site.strip().lower().replace("_", "-") if site else None
+        items = [
+            SimulationRecordMapper.scenario(value)
+            for value in self._store.data["simulation_scenarios"].values()
+            if value.get("tenant_id") == tenant_id.value
+            and (normalized_status is None or value.get("status") == normalized_status)
+            and (normalized_site is None or value.get("site") == normalized_site)
+        ]
+        items.sort(key=lambda item: (item.updated_at, item.id.value), reverse=True)
+        selected = tuple(items[start : start + pagination.limit])
+        next_index = start + len(selected)
+        return SimulationScenarioPage(
+            selected, str(next_index) if next_index < len(items) else None
+        )
+
+    def save_report(self, report: SimulationImpactReport) -> None:
+        self._store.data["simulation_impact_reports"][
+            self._key(report.tenant_id, report.id.value)
+        ] = report.as_dict()
+        self._store.mark_dirty()
+
+    def get_report(self, tenant_id: TenantId, report_id: str) -> SimulationImpactReport | None:
+        value = self._store.data["simulation_impact_reports"].get(
+            self._key(tenant_id, EntityId.from_value(report_id).value)
+        )
+        return SimulationRecordMapper.report(value) if value else None
+
+    def find_latest_report(
+        self, tenant_id: TenantId, scenario_id: str
+    ) -> SimulationImpactReport | None:
+        normalized = EntityId.from_value(scenario_id).value
+        items = [
+            SimulationRecordMapper.report(value)
+            for value in self._store.data["simulation_impact_reports"].values()
+            if value.get("tenant_id") == tenant_id.value and value.get("scenario_id") == normalized
+        ]
+        return max(items, key=lambda item: (item.generated_at, item.id.value), default=None)
+
+    def list_reports(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        scenario_id: str | None = None,
+    ) -> SimulationImpactReportPage:
+        start = self._offset(pagination.cursor)
+        normalized = EntityId.from_value(scenario_id).value if scenario_id else None
+        items = [
+            SimulationRecordMapper.report(value)
+            for value in self._store.data["simulation_impact_reports"].values()
+            if value.get("tenant_id") == tenant_id.value
+            and (normalized is None or value.get("scenario_id") == normalized)
+        ]
+        items.sort(key=lambda item: (item.generated_at, item.id.value), reverse=True)
+        selected = tuple(items[start : start + pagination.limit])
+        next_index = start + len(selected)
+        return SimulationImpactReportPage(
+            selected, str(next_index) if next_index < len(items) else None
+        )
+
+    def save_comparison(self, comparison: SimulationScenarioComparison) -> None:
+        self._store.data["simulation_comparisons"][
+            self._key(comparison.tenant_id, comparison.id.value)
+        ] = comparison.as_dict()
+        self._store.mark_dirty()
+
+    def get_comparison(
+        self, tenant_id: TenantId, comparison_id: str
+    ) -> SimulationScenarioComparison | None:
+        value = self._store.data["simulation_comparisons"].get(
+            self._key(tenant_id, EntityId.from_value(comparison_id).value)
+        )
+        return SimulationRecordMapper.comparison(value) if value else None
+
+    def list_comparisons(
+        self, tenant_id: TenantId, pagination: Pagination
+    ) -> SimulationComparisonPage:
+        start = self._offset(pagination.cursor)
+        items = [
+            SimulationRecordMapper.comparison(value)
+            for value in self._store.data["simulation_comparisons"].values()
+            if value.get("tenant_id") == tenant_id.value
+        ]
+        items.sort(key=lambda item: (item.created_at, item.id.value), reverse=True)
+        selected = tuple(items[start : start + pagination.limit])
+        next_index = start + len(selected)
+        return SimulationComparisonPage(
+            selected, str(next_index) if next_index < len(items) else None
+        )
+
+    def append_event(self, event: DomainEvent) -> None:
+        self._store.data["simulation_event_outbox"][self._key(event.tenant_id, event.id.value)] = {
+            "id": event.id.value,
+            "tenant_id": event.tenant_id.value,
+            "aggregate_id": event.aggregate_id.value,
+            "name": event.name,
+            "payload": event.payload,
+            "occurred_at": event.occurred_at.isoformat(),
+            "published_at": None,
+        }
+        self._store.mark_dirty()
+
+    @staticmethod
+    def _key(tenant_id: TenantId, identifier: str) -> str:
+        return f"{tenant_id.value}:{identifier}"
+
+    @staticmethod
+    def _offset(cursor: str | None) -> int:
+        try:
+            offset = int(cursor or "0")
+        except ValueError as exc:
+            raise ValidationError("pagination cursor must be a numeric offset") from exc
+        if offset < 0:
+            raise ValidationError("pagination cursor must be positive")
+        return offset
 
 
 class JsonCertificateInventoryRepository(CertificateInventoryRepository):

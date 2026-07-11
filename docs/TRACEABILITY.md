@@ -1,3 +1,13 @@
+## v0.29.96 — Traçabilité simulation et migration
+
+- Roadmap : P16 / `EPIC-1602` — simulation de changement, analyse d’impact et planification de migration.
+- CDC : `REQ-00414` à `REQ-00428`.
+- Domaine : scénarios, changements typés, constats, scores de préparation, groupes, blocages, vagues, rapports et comparaisons.
+- Application : moteur d’impact réutilisant RSOT, Graphe et matrice de flux, sans mutation de production.
+- Infrastructure : dépôts JSON/PostgreSQL, mapper, outbox et migration `0045_simulation_migration_planning.sql`.
+- Interfaces : commandes `simulation`, neuf routes HTTP/OpenAPI et groupe web **RSOT → Simulation & migrations**.
+- Tests : domaine, service, CLI, HTTP, OpenAPI, migration, portail, sécurité, packaging et non-régression.
+
 ## v0.29.95 — Field Operations mobile/offline
 
 | Exigence / Epic | Implémentation | Vérification |

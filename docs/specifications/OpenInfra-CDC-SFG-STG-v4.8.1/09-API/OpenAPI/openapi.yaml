@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.95
+  version: 0.29.96
 components:
   securitySchemes:
     bearerToken:
@@ -5217,3 +5217,178 @@ paths:
         '200': {description: Synchronized package metadata}
         '400': {description: Invalid, expired or mismatched offline package}
         '401': {description: Missing or invalid field operations operator token}
+  /api/v1/simulation-scenarios:
+    get:
+      operationId: listSimulationScenarios
+      summary: List immutable change and migration simulation scenarios
+      description: Returns tenant-scoped scenarios. Simulation never executes a production change and never creates a native ITSM change.
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: status, in: query, schema: {type: string, enum: [draft, queued, running, completed, failed, cancelled]}}
+        - {name: site, in: query, schema: {type: string}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated simulation scenarios}
+        '400': {description: Invalid filter or cursor}
+        '401': {description: Missing or invalid simulation reader token}
+  /api/v1/simulation-scenarios/get:
+    get:
+      operationId: getSimulationScenario
+      summary: Get one simulation scenario
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: scenario_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Simulation scenario and typed proposed changes}
+        '401': {description: Missing or invalid simulation reader token}
+        '404': {description: Scenario not found}
+  /api/v1/simulation-scenarios/create:
+    post:
+      operationId: createSimulationScenario
+      summary: Create an immutable change or migration simulation scenario
+      description: Registers proposed typed changes without mutating RSOT, IPAM, DCIM, flow declarations or any production system.
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, name, description, owner, idempotency_key, changes]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                name: {type: string, minLength: 3, maxLength: 200}
+                description: {type: string, minLength: 10, maxLength: 2000}
+                owner: {type: string, minLength: 2, maxLength: 200}
+                idempotency_key: {type: string, minLength: 8, maxLength: 128}
+                site: {type: string, nullable: true}
+                environment: {type: string, nullable: true}
+                criticality: {type: string, nullable: true}
+                changes:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items:
+                    type: object
+                    required: [kind, target_key]
+                    properties:
+                      kind: {type: string, enum: [equipment-move, equipment-add, equipment-remove, equipment-outage, vlan-change, vrf-change, subnet-change, dns-change, firewall-change, pdu-outage]}
+                      target_key: {type: string}
+                      before: {type: object, additionalProperties: true}
+                      after: {type: object, additionalProperties: true}
+                      assumptions: {type: array, maxItems: 50, items: {type: string}}
+      responses:
+        '201': {description: Created or idempotently reused simulation scenario}
+        '400': {description: Invalid scenario or typed change payload}
+        '401': {description: Missing or invalid simulation writer token}
+  /api/v1/simulation-scenarios/run:
+    post:
+      operationId: runSimulationScenario
+      summary: Generate a bounded impact and migration planning report
+      description: Evaluates dependency, flow, IPAM, energy, cooling, cost and business-service impacts. The result contains advisory waves only and is never an execution order.
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, scenario_id]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                scenario_id: {type: string, format: uuid}
+                max_depth: {type: integer, minimum: 1, maximum: 12, default: 8}
+                max_nodes: {type: integer, minimum: 2, maximum: 5000, default: 2000}
+      responses:
+        '200': {description: Versioned impact report with findings, readiness, affinity groups, blockers and advisory waves}
+        '400': {description: Invalid scenario state, input or bounded graph constraints}
+        '401': {description: Missing or invalid simulation execution token}
+        '404': {description: Scenario or referenced RSOT target not found}
+  /api/v1/simulation-scenarios/cancel:
+    post:
+      operationId: cancelSimulationScenario
+      summary: Cancel a non-terminal simulation scenario
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, scenario_id]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                scenario_id: {type: string, format: uuid}
+      responses:
+        '200': {description: Cancelled simulation scenario}
+        '400': {description: Invalid terminal-state transition}
+        '401': {description: Missing or invalid simulation writer token}
+        '404': {description: Scenario not found}
+  /api/v1/impact-reports:
+    get:
+      operationId: listSimulationImpactReports
+      summary: List versioned simulation impact reports
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: scenario_id, in: query, schema: {type: string, format: uuid}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated immutable impact reports}
+        '400': {description: Invalid filter or cursor}
+        '401': {description: Missing or invalid simulation reader token}
+  /api/v1/impact-reports/get:
+    get:
+      operationId: getSimulationImpactReport
+      summary: Get one versioned simulation impact report
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: report_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Impact report with before/after summaries and explicit non-execution flags}
+        '401': {description: Missing or invalid simulation reader token}
+        '404': {description: Report not found}
+  /api/v1/scenario-comparisons:
+    get:
+      operationId: listSimulationScenarioComparisons
+      summary: List comparisons between impact reports
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated scenario comparisons}
+        '400': {description: Invalid cursor}
+        '401': {description: Missing or invalid simulation reader token}
+  /api/v1/scenario-comparisons/create:
+    post:
+      operationId: compareSimulationImpactReports
+      summary: Compare two simulation impact reports
+      description: Computes risk, readiness, capacity, impacted-object and finding deltas and selects a preferred report only when deterministic criteria differ.
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, left_report_id, right_report_id]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                left_report_id: {type: string, format: uuid}
+                right_report_id: {type: string, format: uuid}
+      responses:
+        '201': {description: Persisted deterministic impact report comparison}
+        '400': {description: Invalid comparison payload}
+        '401': {description: Missing or invalid simulation writer token}
+        '404': {description: One or both reports not found}

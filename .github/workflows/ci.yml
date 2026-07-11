@@ -155,6 +155,18 @@ jobs:
               )
           PYTHON
 
+
+      - name: Field Operations mobile and offline regression
+        run: |
+          python -m pytest -q --no-cov \
+            tests/unit/test_field_operations_domain.py \
+            tests/integration/test_field_operation_services.py \
+            tests/integration/test_field_operation_http_api.py \
+            tests/integration/test_field_operation_cli.py \
+            tests/integration/test_field_operations_migration.py \
+            tests/integration/test_openinfra_web.py \
+            tests/integration/test_web_accessibility_contract.py
+
       - name: Flow matrix governance regression
         run: |
           python -m pytest -q --no-cov \

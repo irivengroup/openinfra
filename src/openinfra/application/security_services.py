@@ -119,6 +119,9 @@ class BuiltinRolePolicy:
                 Permission.DCIM_LOCATE,
                 Permission.DCIM_WRITE,
                 Permission.DCIM_IDENTIFY,
+                Permission.FIELD_READ,
+                Permission.FIELD_WRITE,
+                Permission.FIELD_SYNC,
                 Permission.SCHEMA_READ,
             )
         ),
@@ -131,6 +134,7 @@ class BuiltinRolePolicy:
                 Permission.FLOW_READ,
                 Permission.CERTIFICATE_READ,
                 Permission.NETWORK_CONFIG_READ,
+                Permission.FIELD_READ,
             )
         ),
         "rsot:reader": frozenset(
@@ -204,6 +208,25 @@ class BuiltinRolePolicy:
                 Permission.SECURITY_ADMIN,
                 Permission.SCHEMA_READ,
                 Permission.AUDIT_READ,
+            )
+        ),
+        "field:reader": frozenset((Permission.FIELD_READ, Permission.SCHEMA_READ)),
+        "field:operator": frozenset(
+            (
+                Permission.FIELD_READ,
+                Permission.FIELD_WRITE,
+                Permission.FIELD_SYNC,
+                Permission.SCHEMA_READ,
+            )
+        ),
+        "field:admin": frozenset(
+            (
+                Permission.FIELD_READ,
+                Permission.FIELD_WRITE,
+                Permission.FIELD_SYNC,
+                Permission.FIELD_ADMIN,
+                Permission.AUDIT_READ,
+                Permission.SCHEMA_READ,
             )
         ),
         "flow:reader": frozenset((Permission.FLOW_READ, Permission.SCHEMA_READ)),

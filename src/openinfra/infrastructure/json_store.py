@@ -28,6 +28,8 @@ from openinfra.application.ports import (
     DiscoveryReconciliationCasePage,
     DiscoveryRepository,
     ExportRepository,
+    FieldOperationRepository,
+    FieldOperationSheetPage,
     FlowDeclarationPage,
     FlowMatrixRepository,
     FlowObservationPage,
@@ -38,6 +40,7 @@ from openinfra.application.ports import (
     NetworkConfigBaselinePage,
     NetworkConfigComplianceRepository,
     NetworkConfigObservationPage,
+    OfflineSyncPackagePage,
     ReadinessProbe,
     ReadinessStatus,
     RuntimeUsageRepository,
@@ -67,6 +70,7 @@ from openinfra.domain.common import (
     Code,
     ConflictError,
     Coordinates3D,
+    DomainEvent,
     EntityId,
     Name,
     Pagination,
@@ -133,6 +137,12 @@ from openinfra.domain.discovery import (
 )
 from openinfra.domain.discovery_jobs import DiscoveryJob, DiscoveryJobStatus
 from openinfra.domain.editions import QuotaResource
+from openinfra.domain.field_operations import (
+    FieldEvidence,
+    FieldOperationSheet,
+    InterventionLock,
+    OfflineSyncPackage,
+)
 from openinfra.domain.flow_matrix import (
     FlowDeclaration,
     FlowObservation,
@@ -186,6 +196,7 @@ from openinfra.domain.source_of_truth import (
     SourceRelation,
     SourceRelationPage,
 )
+from openinfra.infrastructure.field_operation_mapper import FieldOperationRecordMapper
 
 _EXPORT_SIGNING_STORAGE_KEY = "export_signing_" + "secret"
 
@@ -392,6 +403,11 @@ class JsonDocumentStore:
             "certificate_endpoint_observations": {},
             "network_config_baselines": {},
             "network_config_observations": {},
+            "field_operation_sheets": {},
+            "field_evidence": {},
+            "intervention_locks": {},
+            "offline_sync_packages": {},
+            "field_event_outbox": {},
             "discovery_collectors": {},
             "discovery_jobs": {},
             "discovery_protocol_profiles": {},
@@ -3816,6 +3832,183 @@ class JsonSourceOfTruthRepository(SourceOfTruthRepository):
             active=bool(value["active"]),
             created_at=created_at,
         )
+
+
+class JsonFieldOperationRepository(FieldOperationRepository):
+    def __init__(self, store: JsonDocumentStore) -> None:
+        self._store = store
+
+    def save_sheet(self, sheet: FieldOperationSheet) -> None:
+        self._store.data["field_operation_sheets"][self._key(sheet.tenant_id, sheet.id.value)] = (
+            sheet.as_dict()
+        )
+        self._store.mark_dirty()
+
+    def get_sheet(self, tenant_id: TenantId, sheet_id: str) -> FieldOperationSheet | None:
+        value = self._store.data["field_operation_sheets"].get(
+            self._key(tenant_id, EntityId.from_value(sheet_id).value)
+        )
+        return FieldOperationRecordMapper.sheet(value) if value else None
+
+    def list_sheets(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        status: str | None = None,
+        target_type: str | None = None,
+        site: str | None = None,
+    ) -> FieldOperationSheetPage:
+        start = self._cursor_offset(pagination.cursor)
+        normalized_status = status.strip().lower() if status else None
+        normalized_target = target_type.strip().lower().replace("_", "-") if target_type else None
+        normalized_site = Code.from_value(site, "site code").value if site else None
+        items = [
+            FieldOperationRecordMapper.sheet(value)
+            for value in self._store.data["field_operation_sheets"].values()
+            if value.get("tenant_id") == tenant_id.value
+            and (normalized_status is None or value.get("status") == normalized_status)
+            and (normalized_target is None or value.get("target_type") == normalized_target)
+            and (
+                normalized_site is None
+                or dict(value.get("location", {})).get("site") == normalized_site
+            )
+        ]
+        items.sort(key=lambda item: (item.updated_at, item.id.value), reverse=True)
+        selected = tuple(items[start : start + pagination.limit])
+        next_index = start + len(selected)
+        return FieldOperationSheetPage(
+            selected, str(next_index) if next_index < len(items) else None
+        )
+
+    def save_evidence(self, evidence: FieldEvidence) -> None:
+        self._store.data["field_evidence"][self._key(evidence.tenant_id, evidence.id.value)] = (
+            evidence.as_dict(include_content=True)
+        )
+        self._store.mark_dirty()
+
+    def get_evidence(self, tenant_id: TenantId, evidence_id: str) -> FieldEvidence | None:
+        value = self._store.data["field_evidence"].get(
+            self._key(tenant_id, EntityId.from_value(evidence_id).value)
+        )
+        return FieldOperationRecordMapper.evidence(value) if value else None
+
+    def list_evidence(self, tenant_id: TenantId, sheet_id: str) -> tuple[FieldEvidence, ...]:
+        normalized_sheet = EntityId.from_value(sheet_id).value
+        items = [
+            FieldOperationRecordMapper.evidence(value)
+            for value in self._store.data["field_evidence"].values()
+            if value.get("tenant_id") == tenant_id.value
+            and value.get("sheet_id") == normalized_sheet
+        ]
+        return tuple(sorted(items, key=lambda item: (item.attached_at, item.id.value)))
+
+    def save_lock(self, lock: InterventionLock) -> None:
+        self._store.data["intervention_locks"][self._key(lock.tenant_id, lock.id.value)] = (
+            lock.as_dict()
+        )
+        self._store.mark_dirty()
+
+    def get_lock(self, tenant_id: TenantId, lock_id: str) -> InterventionLock | None:
+        value = self._store.data["intervention_locks"].get(
+            self._key(tenant_id, EntityId.from_value(lock_id).value)
+        )
+        return FieldOperationRecordMapper.lock(value) if value else None
+
+    def find_active_lock(
+        self, tenant_id: TenantId, target_type: str, target_id: str
+    ) -> InterventionLock | None:
+        for value in self._store.data["intervention_locks"].values():
+            if (
+                value.get("tenant_id") == tenant_id.value
+                and value.get("target_type") == target_type.strip().lower().replace("_", "-")
+                and value.get("target_id") == target_id.strip()
+            ):
+                lock = FieldOperationRecordMapper.lock(value)
+                if lock.active():
+                    return lock
+        return None
+
+    def find_lock_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> InterventionLock | None:
+        normalized = idempotency_key.strip()
+        for value in self._store.data["intervention_locks"].values():
+            if (
+                value.get("tenant_id") == tenant_id.value
+                and value.get("idempotency_key") == normalized
+            ):
+                return FieldOperationRecordMapper.lock(value)
+        return None
+
+    def save_offline_package(self, package: OfflineSyncPackage) -> None:
+        self._store.data["offline_sync_packages"][
+            self._key(package.tenant_id, package.id.value)
+        ] = package.as_dict(include_payload=True)
+        self._store.mark_dirty()
+
+    def get_offline_package(
+        self, tenant_id: TenantId, package_id: str
+    ) -> OfflineSyncPackage | None:
+        value = self._store.data["offline_sync_packages"].get(
+            self._key(tenant_id, EntityId.from_value(package_id).value)
+        )
+        return FieldOperationRecordMapper.package(value) if value else None
+
+    def find_offline_package_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> OfflineSyncPackage | None:
+        normalized = idempotency_key.strip()
+        for value in self._store.data["offline_sync_packages"].values():
+            if (
+                value.get("tenant_id") == tenant_id.value
+                and value.get("idempotency_key") == normalized
+            ):
+                return FieldOperationRecordMapper.package(value)
+        return None
+
+    def list_offline_packages(
+        self, tenant_id: TenantId, pagination: Pagination, sheet_id: str | None = None
+    ) -> OfflineSyncPackagePage:
+        start = self._cursor_offset(pagination.cursor)
+        normalized_sheet = EntityId.from_value(sheet_id).value if sheet_id else None
+        items = [
+            FieldOperationRecordMapper.package(value)
+            for value in self._store.data["offline_sync_packages"].values()
+            if value.get("tenant_id") == tenant_id.value
+            and (normalized_sheet is None or value.get("sheet_id") == normalized_sheet)
+        ]
+        items.sort(key=lambda item: (item.created_at, item.id.value), reverse=True)
+        selected = tuple(items[start : start + pagination.limit])
+        next_index = start + len(selected)
+        return OfflineSyncPackagePage(
+            selected, str(next_index) if next_index < len(items) else None
+        )
+
+    @staticmethod
+    def _key(tenant_id: TenantId, identifier: str) -> str:
+        return f"{tenant_id.value}:{identifier}"
+
+    @staticmethod
+    def _cursor_offset(cursor: str | None) -> int:
+        try:
+            offset = int(cursor or "0")
+        except ValueError as exc:
+            raise ValidationError("pagination cursor must be a numeric offset") from exc
+        if offset < 0:
+            raise ValidationError("pagination cursor must be positive")
+        return offset
+
+    def append_event(self, event: DomainEvent) -> None:
+        self._store.data["field_event_outbox"][self._key(event.tenant_id, event.id.value)] = {
+            "id": event.id.value,
+            "tenant_id": event.tenant_id.value,
+            "aggregate_id": event.aggregate_id.value,
+            "name": event.name,
+            "payload": event.payload,
+            "occurred_at": event.occurred_at.isoformat(),
+            "published_at": None,
+        }
+        self._store.mark_dirty()
 
 
 class JsonCertificateInventoryRepository(CertificateInventoryRepository):

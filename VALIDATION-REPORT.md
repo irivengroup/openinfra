@@ -1,96 +1,109 @@
-# OpenInfra v0.29.94 — Rapport de validation
+# OpenInfra v0.29.95 — Rapport de validation
 
 Date de validation : `2026-07-11`  
-Release : `0.29.94`  
-Périmètre : P15 / EPIC-1506 — tests volumétriques du graphe de dépendances
+Release : `0.29.95`  
+Périmètre : P16 / EPIC-1601 — opérations terrain mobiles et synchronisation hors ligne
 
 ## Résultat global
 
-La livraison industrialise la validation de capacité du Graphe RSOT sans modifier les contrats métier, les routes API, les commandes CLI, le schéma PostgreSQL ni l'interface. Elle ajoute un banc déterministe qui mesure les parcours à un niveau, les filtres, l'analyse des points uniques de défaillance (SPOF) et la pagination complète sur un graphe synthétique de 5 000 nœuds.
+La livraison ajoute un parcours complet d'opérations terrain rattaché à **DCIM → Opérations terrain**. Elle couvre la génération de fiches depuis les objets DCIM, l'identification QR/code-barres, les checklists avant/après, les preuves horodatées, les avertissements d'impact, les verrous logiques et la synchronisation hors ligne contrôlée. Les contrats REST, CLI, interface web, persistance JSON et PostgreSQL sont alignés.
 
-- Tests Python collectés et validés : **752 PASS** dans **106 fichiers**.
-- Tests unitaires : **304 PASS**.
-- Tests d'intégration : **444 PASS**.
+- Tests Python collectés et validés : **773 PASS** dans **106 fichiers**.
+- Tests unitaires : **315 PASS**.
+- Tests d'intégration : **454 PASS**.
 - Tests d'architecture : **3 PASS**.
 - Tests de performance : **1 PASS**.
-- Couverture : **98,06150002015073 %**, soit **24 332 / 24 813** lignes couvertes.
+- Couverture : **98,0228 %**, soit **25 829 / 26 350** lignes couvertes.
 - Seuil bloquant : **98 % PASS**.
-- Tests frontend Node.js : **28 PASS**.
+- Tests frontend Node.js : **30 PASS**.
 - Lint frontend, accessibilité JSX, contrat WCAG 2.2 AA et build Vite : **PASS**.
 - Audit npm production : **0 vulnérabilité**.
 
-La suite Python a été exécutée par fragments exhaustifs puis consolidée avec Coverage.py. Cette segmentation évite les limites d'exécution des parcours CLI monolithiques sans omettre de fichier ni de scénario.
+La suite Python a été exécutée par fragments exhaustifs puis consolidée avec Coverage.py. Les fichiers comportant des parcours CLI longs ont été isolés afin d'éviter la limite d'exécution du runner, sans omettre de test ni de scénario.
 
-## Banc volumétrique du Graphe
+## Fonctionnalités validées
 
-Le banc utilise le service public `DependencyGraphService` et un adaptateur RSOT synthétique indexé. Il génère des topologies reproductibles, vérifie les cardinalités et le déterminisme à chaque échantillon, puis produit un rapport JSON écrit atomiquement.
+- Génération d'une fiche terrain depuis un équipement, rack, câble, alimentation, panneau de brassage ou certificat.
+- Résolution de la localisation physique depuis les dépendances DCIM.
+- QR/code-barres signé logiquement et comparaison en temps constant.
+- Verrou logique idempotent, propriétaire, expiration TTL et libération contrôlée.
+- Démarrage, annulation et clôture selon une machine d'états explicite.
+- Checklists avant et après intervention avec contrôle des étapes obligatoires.
+- Preuves JPEG, PNG, WebP ou PDF, limitées à 2 MiB, décodage Base64 strict et empreinte SHA-256.
+- Avertissements issus du graphe RSOT : impact, SPOF, flux déclarés et analyse tronquée.
+- Contrôle de redondance électrique A/B du rack avant intervention.
+- Paquet hors ligne canonique borné au tenant et au site, expirant et protégé par SHA-256.
+- Synchronisation idempotente avec détection des conflits et conservation de la traçabilité.
+- Événements critiques publiés dans un outbox transactionnel PostgreSQL.
+- Aucune fonction ITSM native : l'orchestration de tickets demeure externe.
 
-Configuration maximale validée :
+## Interfaces
 
-- nœuds : **5 000** ;
-- arêtes : **4 999** ;
-- hubs SPOF : **100** ;
-- échantillons mesurés : **3** après **1** préchauffage ;
-- processeurs logiques détectés : **56** ;
-- Python : **3.13.5**.
+### REST
 
-Mesures p95 observées le 11 juillet 2026 :
+Dix-sept routes Field Operations sont exposées sous `/api/v1/dcim/field-operations`, couvrant consultation, génération, verrouillage, démarrage, checklist, preuves, paquet hors ligne, synchronisation, clôture, annulation et libération.
 
-| Scénario | p95 observé | Seuil CI | Résultat |
-|---|---:|---:|---|
-| Parcours à un niveau, 5 000 nœuds | 244,779 ms | 1 500 ms | PASS |
-| Parcours filtré `calls`, 2 501 nœuds | 106,017 ms | 1 500 ms | PASS |
-| Analyse SPOF, 100 résultats | 201,123 ms | 5 000 ms | PASS |
-| Pagination complète, 4 pages | 520,696 ms | 15 000 ms | PASS |
+Les deux contrats OpenAPI sont validés par un parseur YAML strict refusant les clés dupliquées :
 
-Le gate CI échoue si un seuil est dépassé, si une cardinalité devient incohérente, si le résultat n'est plus déterministe ou si la configuration est invalide. Les codes de sortie sont documentés : `0` succès, `1` seuil dépassé, `2` configuration ou invariant invalide.
+- `docs/api/openapi.yaml` ;
+- `docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1/09-API/OpenAPI/openapi.yaml`.
 
-Commande de référence :
+### CLI
+
+La hiérarchie publique reste rattachée au DCIM :
 
 ```bash
-PYTHONPATH=src python scripts/benchmark_dependency_graph.py \
-  --nodes 5000 \
-  --spof-hubs 100 \
-  --samples 3 \
-  --warmups 1 \
-  --one-level-threshold-ms 1500 \
-  --filtered-threshold-ms 1500 \
-  --spof-threshold-ms 5000 \
-  --pagination-threshold-ms 15000 \
-  --output build/reports/dependency-graph-benchmark.json
+openinfra dcim field-generate
+openinfra dcim field-show
+openinfra dcim field-lock
+openinfra dcim field-start
+openinfra dcim field-checklist
+openinfra dcim field-evidence
+openinfra dcim field-offline-package
+openinfra dcim field-sync
+openinfra dcim field-close
+openinfra dcim field-cancel
+openinfra dcim field-release
 ```
 
-## Architecture et compatibilité
+### Interface web
 
-- Le banc est isolé dans `openinfra.quality` et respecte la politique Python orientée objet stricte.
-- Aucun accès aux fonctions internes du Graphe : seuls les ports et services publics existants sont exercés.
-- Aucune dépendance runtime supplémentaire.
-- Aucun changement de route API, de commande CLI, de structure de données ou de comportement public.
-- Aucun traitement asynchrone artificiel : les mesures évaluent le coût réel des algorithmes et de la pagination.
-- Rapport JSON versionné par `schema_version`, trié et exploitable par CI ou observabilité externe.
-- Écriture atomique du rapport afin d'éviter les fichiers partiels.
+- Entrée unique **DCIM → Opérations terrain**.
+- Aucun nouveau composant principal dispersé dans le header ou la sidebar.
+- Navigation au clavier, libellés, erreurs et états accessibles.
+- Formulaires React et portail statique packagé alignés.
+- Import de preuves limité aux types et tailles autorisés.
+- Affichage des avertissements avant toute transition critique.
+
+## Persistance et migration
+
+- Repository JSON pour l'exploitation locale et les tests déterministes.
+- Repository PostgreSQL transactionnel pour la production.
+- Migration `0044_field_operations_mobile_offline.sql`.
+- Nombre total de migrations packagées : **44**.
+- Tables partitionnées et indexées pour fiches, checklists, preuves, verrous, synchronisations et outbox.
+- Contraintes de tenant, site, état, unicité et intégrité explicites.
+- L'outbox utilise l'horodatage métier `occurred_at` ; le contrôle qualité continue d'imposer `created_at` aux seules requêtes visant `audit_events`.
 
 ## CI/CD
 
-Un gate `Dependency graph volumetric benchmark` est ajouté à GitHub Actions sur Python 3.13. Il s'exécute avant le packaging avec les seuils documentés, produit `build/reports/dependency-graph-benchmark.json` et publie un résumé lisible dans `$GITHUB_STEP_SUMMARY`.
+Les workflows GitHub Actions vérifient désormais :
 
-Les contrats de workflow vérifient :
-
-- la présence du gate ;
-- les paramètres de volumétrie ;
-- les quatre seuils bloquants ;
-- la génération du rapport JSON ;
-- la publication du résumé GitHub Actions.
+- la migration `0044` et le total de 44 migrations ;
+- les 17 routes Field Operations dans le wheel installé ;
+- les nouveaux modules domaine, application et mapping ;
+- les contrats CLI, HTTP, PostgreSQL, OpenAPI et frontend ;
+- l'absence de régression du gate de schéma `audit_events` ;
+- le build, l'installation isolée et les smoke tests de l'artefact.
 
 ## Qualité, sécurité et typage
 
-- `ruff format --check src tests scripts docker installers` : **PASS**, 191 fichiers.
+- `ruff format --check src tests scripts docker installers` : **PASS**.
 - `ruff check src tests scripts docker installers` : **PASS**.
-- `mypy src/openinfra` : **PASS**, 66 fichiers source.
+- `mypy src/openinfra` : **PASS**, 69 fichiers source.
 - `bandit -q -r src/openinfra` : **PASS**.
 - `python -m compileall -q src tests scripts docker installers` : **PASS**.
-- `python scripts/validate_openapi.py docs/api/openapi.yaml` : **PASS**.
-- `python scripts/validate_openapi.py src/openinfra/interfaces/web_assets/openapi.yaml` : **PASS**.
+- Validation OpenAPI stricte des deux spécifications : **PASS**.
 - `python scripts/security_gate.py --project-root .` : **PASS**.
 - `python scripts/quality_gate.py --project-root .` : **PASS**.
 - `python scripts/native_runtime_smoke.py --project-root .` : **PASS**.
@@ -101,12 +114,10 @@ Les contrats de workflow vérifient :
 
 ## Frontend
 
-Aucun comportement frontend n'est modifié par cet incrément. Les contrôles complets ont néanmoins été rejoués :
-
 - `npm --prefix web run lint` : **PASS**.
 - `npm --prefix web run a11y` : **PASS**.
 - `npm --prefix web run a11y:jsx` : **PASS**.
-- `npm --prefix web test` : **28 PASS**.
+- `npm --prefix web test` : **30 PASS**.
 - `npm --prefix web run build` : **PASS**, Vite 8.1.4.
 - `npm --prefix web audit --omit=dev --audit-level=high` : **0 vulnérabilité**.
 - `python scripts/validate_frontend.py --project-root .` : **PASS**.
@@ -114,30 +125,30 @@ Aucun comportement frontend n'est modifié par cet incrément. Les contrôles co
 
 ## Packaging et smoke tests
 
-- Build wheel `openinfra-0.29.94-py3-none-any.whl` : **PASS**.
-- Build sdist `openinfra-0.29.94.tar.gz` : **PASS**.
+- Build wheel `openinfra-0.29.95-py3-none-any.whl` : **PASS**.
+- Build sdist `openinfra-0.29.95.tar.gz` : **PASS**.
 - Vérification d'artefact : **PASS**.
 - Installation du wheel dans une cible vierge hors arbre source : **PASS**.
-- Version runtime et métadonnées : `0.29.94` — **PASS**.
+- Version runtime et métadonnées : `0.29.95` — **PASS**.
 - Points d'entrée `openinfra`, `openinfra-api`, `openinfra-web` : **PASS**.
 - OpenAPI packagé : **PASS**.
-- Cinq routes Graphe, six routes Matrice de flux, sept routes Certificats/PKI et six routes Conformité réseau : **PASS**.
+- Routes packagées : 5 Graphe, 6 Matrice de flux, 7 Certificats/PKI, 6 Conformité réseau et **17 Opérations terrain** — **PASS**.
 - Quatre assets runtime web : **PASS**.
-- Migrations packagées : **43**, dernière migration `0043_network_config_compliance.sql` — **PASS**.
-- Import et exécution du benchmark depuis le wheel installé : **PASS**.
+- Migrations packagées : **44**, dernière migration `0044_field_operations_mobile_offline.sql` — **PASS**.
+- Import et exécution du benchmark Graphe depuis le wheel installé : **PASS**.
 
-## CDC, roadmap et migrations
+## CDC et roadmap
 
-Le lot EPIC-1506 figurait déjà dans la roadmap et ne modifie aucune exigence fonctionnelle, technique, réglementaire ou architecturale existante. Conformément à la politique de livraison OpenInfra :
+L'EPIC-1601 et ses exigences figuraient déjà dans le CDC et la roadmap de référence. L'implémentation ne crée pas de nouvelle exigence fonctionnelle, réglementaire ou architecturale au-delà de ce périmètre planifié. Conformément à la politique de livraison OpenInfra :
 
 - le CDC reste inchangé et n'est pas réémis ;
 - la roadmap reste inchangée et n'est pas réémise ;
-- aucune migration PostgreSQL n'est ajoutée ;
-- la compatibilité ascendante est intégralement préservée.
+- la migration PostgreSQL `0044` est incluse dans la livraison applicative ;
+- la compatibilité ascendante des interfaces existantes est préservée.
 
 ## Contrôles limités par l'environnement
 
 - `pip-audit --strict --requirement requirements/security-audit.txt` est **non concluant** : la résolution DNS de `pypi.org` est indisponible dans le runner.
 - Docker et Podman ne sont pas disponibles ; la recette Compose n'a pas pu être exécutée en conteneurs.
-- Aucun serveur PostgreSQL live n'est disponible ; les 43 migrations, adaptateurs et contrats SQL sont validés statiquement et par tests simulés.
+- Aucun serveur PostgreSQL live n'est disponible ; la migration, les repositories et les transactions sont validés statiquement et par tests d'intégration simulés.
 - Aucun navigateur E2E n'est fourni ; les contrats DOM/CSS/ARIA, JSX-a11y, tests Node.js et build frontend ont été exécutés.

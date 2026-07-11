@@ -1,3 +1,13 @@
+## v0.29.95 — Field Operations mobile/offline
+
+- Ajout des fiches d’intervention terrain issues du DCIM pour les équipements, racks, câbles, équipements électriques et certificats localisés.
+- Ajout des chemins physiques complets, QR codes, codes-barres, checklists avant/après et avertissements RSOT/Graphe/flux/alimentation.
+- Ajout des preuves immuables photo/PDF avec contrôle MIME, taille, base64 et empreinte SHA-256.
+- Ajout des verrous logiques idempotents avec expiration, audit et événements outbox transactionnels.
+- Ajout des paquets de synchronisation hors ligne bornés, expirables, limités au tenant/site autorisé et validés par empreinte canonique.
+- Ajout de la persistance JSON et PostgreSQL partitionnée, de la migration `0044`, des API REST, de la CLI `openinfra dcim field-*` et du parcours web sous DCIM → Opérations terrain.
+- Ajout des tests domaine, application, HTTP, CLI, migration, frontend, sécurité et non-régression.
+
 ## v0.29.94 — Tests volumétriques du graphe RSOT
 
 - Réalisation de P15 / EPIC-1506 avec un banc de performance déterministe sans dépendance externe.

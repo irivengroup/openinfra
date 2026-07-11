@@ -1,13 +1,25 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.94
+  version: 0.29.95
 components:
   securitySchemes:
     bearerToken:
       type: http
       scheme: bearer
       bearerFormat: OpenInfra API token
+  requestBodies:
+    FieldSheetAction:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [tenant_id, sheet_id]
+            properties:
+              tenant_id: {type: string}
+              actor: {type: string, default: api}
+              sheet_id: {type: string, format: uuid}
 paths:
   /:
     get:
@@ -4921,3 +4933,287 @@ paths:
         '200': {description: Network configuration compliance reports and totals}
         '400': {description: Validation error}
         '401': {description: Missing or invalid network configuration reader token}
+  /api/v1/field-operation-sheets:
+    get:
+      summary: List field intervention sheets
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: status, in: query, schema: {type: string, enum: [ready, in-progress, completed, cancelled]}}
+        - {name: target_type, in: query, schema: {type: string, enum: [equipment, rack, cable, power-device, certificate]}}
+        - {name: site, in: query, schema: {type: string}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated field intervention sheets}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid field operations reader token}
+  /api/v1/field-operation-sheets/get:
+    get:
+      summary: Get one field intervention sheet
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: sheet_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Field intervention sheet, checklist, warnings and QR payload}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid field operations reader token}
+  /api/v1/field-operation-sheets/generate:
+    post:
+      summary: Generate a field intervention sheet from authoritative DCIM data
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, target_type, target_id, title, purpose, owner, operator]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                target_type: {type: string, enum: [equipment, rack, cable, power-device, certificate]}
+                target_id: {type: string}
+                title: {type: string, minLength: 3, maxLength: 255}
+                purpose: {type: string, minLength: 3, maxLength: 2000}
+                owner: {type: string, minLength: 2, maxLength: 255}
+                operator: {type: string, minLength: 2, maxLength: 255}
+                source_object_key: {type: string}
+                site: {type: string}
+                building: {type: string}
+                room: {type: string}
+                location_target_type: {type: string, enum: [equipment, rack, cable, power-device]}
+                location_target_id: {type: string}
+      responses:
+        '201': {description: Generated intervention sheet with safety assessment}
+        '400': {description: Validation error or missing physical location}
+        '401': {description: Missing or invalid field operations operator token}
+  /api/v1/field-operation-sheets/start:
+    post:
+      summary: Start a locked field intervention
+      security: [{bearerToken: []}]
+      requestBody: {$ref: '#/components/requestBodies/FieldSheetAction'}
+      responses:
+        '200': {description: Started field intervention sheet}
+        '400': {description: Validation error or missing lock}
+        '401': {description: Missing or invalid field operations operator token}
+  /api/v1/field-operation-sheets/checklist:
+    post:
+      summary: Record one before or after field checklist item
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, sheet_id, item_id, result]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                sheet_id: {type: string, format: uuid}
+                item_id: {type: string, format: uuid}
+                result: {type: string, enum: [passed, failed, not-applicable]}
+                operator_note: {type: string, maxLength: 2000}
+      responses:
+        '200': {description: Updated field intervention sheet}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid field operations operator token}
+  /api/v1/field-operation-sheets/complete:
+    post:
+      summary: Complete a field intervention after checklist and evidence validation
+      security: [{bearerToken: []}]
+      requestBody: {$ref: '#/components/requestBodies/FieldSheetAction'}
+      responses:
+        '200': {description: Completed field intervention sheet}
+        '400': {description: Incomplete checklist, evidence or lock}
+        '401': {description: Missing or invalid field operations operator token}
+  /api/v1/field-operation-sheets/cancel:
+    post:
+      summary: Cancel a field intervention and release its active lock
+      security: [{bearerToken: []}]
+      requestBody: {$ref: '#/components/requestBodies/FieldSheetAction'}
+      responses:
+        '200': {description: Cancelled field intervention sheet}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid field operations operator token}
+  /api/v1/qr-codes/verify:
+    post:
+      summary: Verify a field intervention QR payload
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, sheet_id, payload]
+              properties:
+                tenant_id: {type: string}
+                sheet_id: {type: string, format: uuid}
+                payload: {type: string, minLength: 16, maxLength: 2048}
+      responses:
+        '200': {description: Verified QR identity and target}
+        '400': {description: Invalid or mismatched QR payload}
+        '401': {description: Missing or invalid field operations reader token}
+  /api/v1/field-evidence:
+    get:
+      summary: List immutable field evidence metadata for one sheet
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: sheet_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Field evidence metadata without binary content}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid field operations reader token}
+  /api/v1/field-evidence/attach:
+    post:
+      summary: Attach an immutable before or after photo or PDF evidence
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, sheet_id, phase, media_type, filename, content_base64, caption]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                sheet_id: {type: string, format: uuid}
+                phase: {type: string, enum: [before, after]}
+                media_type: {type: string, enum: [image/jpeg, image/png, image/webp, application/pdf]}
+                filename: {type: string, minLength: 1, maxLength: 255}
+                content_base64: {type: string, contentEncoding: base64, maxLength: 2796204}
+                caption: {type: string, minLength: 3, maxLength: 1000}
+      responses:
+        '201': {description: Attached evidence metadata and SHA-256 digest}
+        '400': {description: Invalid media, encoding or size greater than 2 MiB}
+        '401': {description: Missing or invalid field operations operator token}
+  /api/v1/field-evidence/validate:
+    post:
+      summary: Validate immutable field evidence
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, evidence_id]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                evidence_id: {type: string, format: uuid}
+      responses:
+        '200': {description: Validated field evidence metadata}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid field operations operator token}
+  /api/v1/intervention-locks/acquire:
+    post:
+      summary: Acquire an idempotent logical lock for a field target
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, sheet_id, idempotency_key]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                sheet_id: {type: string, format: uuid}
+                idempotency_key: {type: string, minLength: 8, maxLength: 128}
+                ttl_seconds: {type: integer, minimum: 60, maximum: 86400, default: 3600}
+      responses:
+        '201': {description: Active intervention lock}
+        '400': {description: Validation or lock conflict}
+        '401': {description: Missing or invalid field operations operator token}
+  /api/v1/intervention-locks/release:
+    post:
+      summary: Release an active field intervention lock
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, lock_id]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                lock_id: {type: string, format: uuid}
+      responses:
+        '200': {description: Released intervention lock}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid field operations operator token}
+  /api/v1/offline-sync-packages:
+    get:
+      summary: List controlled offline field operation packages
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: sheet_id, in: query, schema: {type: string, format: uuid}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated offline package metadata}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid field operations reader token}
+  /api/v1/offline-sync-packages/get:
+    get:
+      summary: Get one controlled offline field operation package
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: package_id, in: query, required: true, schema: {type: string, format: uuid}}
+        - {name: include_payload, in: query, schema: {type: boolean, default: true}}
+      responses:
+        '200': {description: Offline package metadata and optional signed payload}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid field operations reader token}
+  /api/v1/offline-sync-packages/create:
+    post:
+      summary: Create an expiring and checksummed offline field operation package
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, sheet_id, idempotency_key]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                sheet_id: {type: string, format: uuid}
+                idempotency_key: {type: string, minLength: 8, maxLength: 128}
+                ttl_seconds: {type: integer, minimum: 300, maximum: 604800, default: 86400}
+      responses:
+        '201': {description: Offline package with canonical payload and SHA-256 digest}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid field operations operator token}
+  /api/v1/offline-sync-packages/synchronize:
+    post:
+      summary: Synchronize a controlled offline package by its canonical digest
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, package_id, payload_sha256]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                package_id: {type: string, format: uuid}
+                payload_sha256: {type: string, pattern: '^[0-9a-f]{64}$'}
+      responses:
+        '200': {description: Synchronized package metadata}
+        '400': {description: Invalid, expired or mismatched offline package}
+        '401': {description: Missing or invalid field operations operator token}

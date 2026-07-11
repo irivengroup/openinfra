@@ -1,3 +1,15 @@
+## v0.29.95 — Field Operations mobile/offline
+
+| Exigence / Epic | Implémentation | Vérification |
+|---|---|---|
+| EPIC-1601, REQ-00399 à REQ-00413 | `domain/field_operations.py`, `application/field_operation_services.py`, adaptateurs JSON/PostgreSQL, migration `0044` | tests domaine, services, HTTP, CLI, migration, frontend |
+| Fiche issue d’une cible localisée | `FieldLocationResolver`, `FieldOperationSheet` | `test_field_operation_services.py`, `test_field_operations_domain.py` |
+| QR, checklist, preuves avant/après | domaine Field Operations et routes `/api/v1/field-*` | tests domaine, API et CLI |
+| Verrou logique non bloquant pour les lectures | `InterventionLock`, repository idempotent et TTL | tests conflits, expiration et libération |
+| Offline contrôlé, borné et expirant | `OfflineSyncPackage`, permission `field.sync`, SHA-256 canonique | tests création, lecture, synchronisation et empreinte invalide |
+| Audit et outbox | transactions JSON/PostgreSQL, `field_event_outbox` partitionnée | tests workflow et migration |
+| Mobile web organisé sous DCIM | React et runtime statique, contexte `Opérations terrain` | tests Node, accessibilité et contrats web |
+
 ## v0.29.94 — Performance volumétrique du graphe RSOT
 
 - Roadmap existante : réalisation de `EPIC-1506` sans modification de son périmètre ni création d’une exigence CDC.

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 import sys
@@ -145,6 +146,24 @@ from openinfra.application.external_itsm_services import (
     ValidateJiraServiceManagementConnectorCommand,
     ValidateOpenServiceConnectorCommand,
     ValidateServiceNowConnectorCommand,
+)
+from openinfra.application.field_operation_services import (
+    AcquireInterventionLockCommand,
+    AttachFieldEvidenceCommand,
+    CancelFieldOperationCommand,
+    CompleteFieldOperationCommand,
+    CreateOfflineSyncPackageCommand,
+    GenerateFieldOperationSheetCommand,
+    GetFieldOperationSheetCommand,
+    GetOfflineSyncPackageCommand,
+    ListFieldOperationSheetsCommand,
+    ListOfflineSyncPackagesCommand,
+    RecordFieldChecklistCommand,
+    ReleaseInterventionLockCommand,
+    StartFieldOperationCommand,
+    SynchronizeOfflinePackageCommand,
+    ValidateFieldEvidenceCommand,
+    VerifyFieldQrCommand,
 )
 from openinfra.application.flow_matrix_services import (
     CompareFlowMatrixCommand,
@@ -2816,9 +2835,203 @@ class OpenInfraCLI:
         ddi_preview.add_argument("--apply-preview", action="store_true")
         ddi_preview.set_defaults(handler=self._handle_ipam_ddi_preview)
 
+    def _add_dcim_field_operation_commands(self, commands: Any) -> None:
+        list_sheets = commands.add_parser(
+            "field-sheet-list", help="list DCIM field operation sheets"
+        )
+        self._add_backend_arguments(list_sheets)
+        list_sheets.add_argument("--tenant", default="default")
+        list_sheets.add_argument("--admin-token", required=True)
+        list_sheets.add_argument("--limit", type=int, default=100)
+        list_sheets.add_argument("--cursor")
+        list_sheets.add_argument(
+            "--status", choices=("ready", "in-progress", "completed", "cancelled")
+        )
+        list_sheets.add_argument(
+            "--target-type",
+            choices=("equipment", "rack", "cable", "power-device", "certificate"),
+        )
+        list_sheets.add_argument("--site")
+        list_sheets.set_defaults(handler=self._handle_dcim_field_sheet_list)
+
+        get_sheet = commands.add_parser(
+            "field-sheet-get", help="show one DCIM field operation sheet"
+        )
+        self._add_backend_arguments(get_sheet)
+        get_sheet.add_argument("--tenant", default="default")
+        get_sheet.add_argument("--admin-token", required=True)
+        get_sheet.add_argument("--sheet-id", required=True)
+        get_sheet.set_defaults(handler=self._handle_dcim_field_sheet_get)
+
+        generate = commands.add_parser(
+            "field-sheet-generate", help="generate a governed field operation sheet"
+        )
+        self._add_backend_arguments(generate)
+        generate.add_argument("--tenant", default="default")
+        generate.add_argument("--actor", default="cli")
+        generate.add_argument("--admin-token", required=True)
+        generate.add_argument(
+            "--target-type",
+            choices=("equipment", "rack", "cable", "power-device", "certificate"),
+            required=True,
+        )
+        generate.add_argument("--target-id", required=True)
+        generate.add_argument("--title", required=True)
+        generate.add_argument("--purpose", required=True)
+        generate.add_argument("--owner", required=True)
+        generate.add_argument("--operator", required=True)
+        generate.add_argument("--source-object-key")
+        generate.add_argument("--site")
+        generate.add_argument("--building")
+        generate.add_argument("--room")
+        generate.add_argument("--location-target-type")
+        generate.add_argument("--location-target-id")
+        generate.set_defaults(handler=self._handle_dcim_field_sheet_generate)
+
+        lock = commands.add_parser(
+            "field-lock-acquire", help="acquire an idempotent logical intervention lock"
+        )
+        self._add_backend_arguments(lock)
+        self._add_field_write_arguments(lock)
+        lock.add_argument("--sheet-id", required=True)
+        lock.add_argument("--idempotency-key", required=True)
+        lock.add_argument("--ttl-seconds", type=int, default=3600)
+        lock.set_defaults(handler=self._handle_dcim_field_lock_acquire)
+
+        start = commands.add_parser("field-start", help="start a locked field operation")
+        self._add_backend_arguments(start)
+        self._add_field_write_arguments(start)
+        start.add_argument("--sheet-id", required=True)
+        start.set_defaults(handler=self._handle_dcim_field_start)
+
+        checklist = commands.add_parser(
+            "field-checklist-record", help="record one before/after checklist result"
+        )
+        self._add_backend_arguments(checklist)
+        self._add_field_write_arguments(checklist)
+        checklist.add_argument("--sheet-id", required=True)
+        checklist.add_argument("--item-id", required=True)
+        checklist.add_argument(
+            "--result", choices=("passed", "failed", "not-applicable"), required=True
+        )
+        checklist.add_argument("--operator-note")
+        checklist.set_defaults(handler=self._handle_dcim_field_checklist_record)
+
+        attach = commands.add_parser(
+            "field-evidence-attach", help="attach an immutable photo or PDF evidence"
+        )
+        self._add_backend_arguments(attach)
+        self._add_field_write_arguments(attach)
+        attach.add_argument("--sheet-id", required=True)
+        attach.add_argument("--phase", choices=("before", "after"), required=True)
+        attach.add_argument(
+            "--media-type",
+            choices=("image/jpeg", "image/png", "image/webp", "application/pdf"),
+            required=True,
+        )
+        attach.add_argument("--file", type=Path, required=True)
+        attach.add_argument("--caption", required=True)
+        attach.set_defaults(handler=self._handle_dcim_field_evidence_attach)
+
+        evidence_list = commands.add_parser(
+            "field-evidence-list", help="list evidence attached to a field sheet"
+        )
+        self._add_backend_arguments(evidence_list)
+        evidence_list.add_argument("--tenant", default="default")
+        evidence_list.add_argument("--admin-token", required=True)
+        evidence_list.add_argument("--sheet-id", required=True)
+        evidence_list.set_defaults(handler=self._handle_dcim_field_evidence_list)
+
+        validate = commands.add_parser(
+            "field-evidence-validate", help="validate immutable field evidence"
+        )
+        self._add_backend_arguments(validate)
+        self._add_field_write_arguments(validate)
+        validate.add_argument("--evidence-id", required=True)
+        validate.set_defaults(handler=self._handle_dcim_field_evidence_validate)
+
+        complete = commands.add_parser(
+            "field-complete", help="complete a field operation after mandatory controls"
+        )
+        self._add_backend_arguments(complete)
+        self._add_field_write_arguments(complete)
+        complete.add_argument("--sheet-id", required=True)
+        complete.set_defaults(handler=self._handle_dcim_field_complete)
+
+        cancel = commands.add_parser("field-cancel", help="cancel an open field operation")
+        self._add_backend_arguments(cancel)
+        self._add_field_write_arguments(cancel)
+        cancel.add_argument("--sheet-id", required=True)
+        cancel.set_defaults(handler=self._handle_dcim_field_cancel)
+
+        qr = commands.add_parser("field-qr-verify", help="verify a field sheet QR payload")
+        self._add_backend_arguments(qr)
+        qr.add_argument("--tenant", default="default")
+        qr.add_argument("--admin-token", required=True)
+        qr.add_argument("--sheet-id", required=True)
+        qr_source = qr.add_mutually_exclusive_group(required=True)
+        qr_source.add_argument("--payload")
+        qr_source.add_argument("--payload-file", type=Path)
+        qr.set_defaults(handler=self._handle_dcim_field_qr_verify)
+
+        unlock = commands.add_parser("field-lock-release", help="release an intervention lock")
+        self._add_backend_arguments(unlock)
+        self._add_field_write_arguments(unlock)
+        unlock.add_argument("--lock-id", required=True)
+        unlock.set_defaults(handler=self._handle_dcim_field_lock_release)
+
+        offline_create = commands.add_parser(
+            "field-offline-create", help="create a bounded offline synchronization package"
+        )
+        self._add_backend_arguments(offline_create)
+        self._add_field_write_arguments(offline_create)
+        offline_create.add_argument("--sheet-id", required=True)
+        offline_create.add_argument("--idempotency-key", required=True)
+        offline_create.add_argument("--ttl-seconds", type=int, default=86400)
+        offline_create.set_defaults(handler=self._handle_dcim_field_offline_create)
+
+        offline_list = commands.add_parser(
+            "field-offline-list", help="list offline synchronization packages"
+        )
+        self._add_backend_arguments(offline_list)
+        offline_list.add_argument("--tenant", default="default")
+        offline_list.add_argument("--admin-token", required=True)
+        offline_list.add_argument("--sheet-id")
+        offline_list.add_argument("--limit", type=int, default=100)
+        offline_list.add_argument("--cursor")
+        offline_list.set_defaults(handler=self._handle_dcim_field_offline_list)
+
+        offline_get = commands.add_parser(
+            "field-offline-get", help="show one offline synchronization package"
+        )
+        self._add_backend_arguments(offline_get)
+        offline_get.add_argument("--tenant", default="default")
+        offline_get.add_argument("--admin-token", required=True)
+        offline_get.add_argument("--package-id", required=True)
+        offline_get.add_argument(
+            "--include-payload", action=argparse.BooleanOptionalAction, default=True
+        )
+        offline_get.set_defaults(handler=self._handle_dcim_field_offline_get)
+
+        offline_sync = commands.add_parser(
+            "field-offline-sync", help="synchronize and close an offline package"
+        )
+        self._add_backend_arguments(offline_sync)
+        self._add_field_write_arguments(offline_sync)
+        offline_sync.add_argument("--package-id", required=True)
+        offline_sync.add_argument("--payload-sha256", required=True)
+        offline_sync.set_defaults(handler=self._handle_dcim_field_offline_sync)
+
+    @staticmethod
+    def _add_field_write_arguments(parser: argparse.ArgumentParser) -> None:
+        parser.add_argument("--tenant", default="default")
+        parser.add_argument("--actor", default="cli")
+        parser.add_argument("--admin-token", required=True)
+
     def _add_dcim_commands(self, subparsers: Any) -> None:
         dcim = subparsers.add_parser("dcim", help="dcim operations")
         dcim_subparsers = dcim.add_subparsers(dest="dcim_command", required=True)
+        self._add_dcim_field_operation_commands(dcim_subparsers)
         sites = dcim_subparsers.add_parser("sites", help="list DCIM sites")
         self._add_backend_arguments(sites)
         sites.add_argument("--tenant", default="default")
@@ -6154,6 +6367,193 @@ class OpenInfraCLI:
             )
         )
         print(json.dumps(preview.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_dcim_field_sheet_list(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).field_operation_service.list_sheets(
+            ListFieldOperationSheetsCommand(
+                args.tenant,
+                args.admin_token,
+                args.limit,
+                args.cursor,
+                args.status,
+                args.target_type,
+                args.site,
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_dcim_field_sheet_get(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).field_operation_service.get_sheet(
+            GetFieldOperationSheetCommand(args.tenant, args.admin_token, args.sheet_id)
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_dcim_field_sheet_generate(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).field_operation_service.generate_sheet(
+            GenerateFieldOperationSheetCommand(
+                args.tenant,
+                args.actor,
+                args.admin_token,
+                args.target_type,
+                args.target_id,
+                args.title,
+                args.purpose,
+                args.owner,
+                args.operator,
+                args.source_object_key,
+                args.site,
+                args.building,
+                args.room,
+                args.location_target_type,
+                args.location_target_id,
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_dcim_field_lock_acquire(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).field_operation_service.acquire_lock(
+            AcquireInterventionLockCommand(
+                args.tenant,
+                args.actor,
+                args.admin_token,
+                args.sheet_id,
+                args.idempotency_key,
+                args.ttl_seconds,
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_dcim_field_start(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).field_operation_service.start(
+            StartFieldOperationCommand(args.tenant, args.actor, args.admin_token, args.sheet_id)
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_dcim_field_checklist_record(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).field_operation_service.record_checklist(
+            RecordFieldChecklistCommand(
+                args.tenant,
+                args.actor,
+                args.admin_token,
+                args.sheet_id,
+                args.item_id,
+                args.result,
+                args.operator_note,
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_dcim_field_evidence_attach(self, args: argparse.Namespace) -> int:
+        content = base64.b64encode(args.file.read_bytes()).decode("ascii")
+        result = self._create_application(args).field_operation_service.attach_evidence(
+            AttachFieldEvidenceCommand(
+                args.tenant,
+                args.actor,
+                args.admin_token,
+                args.sheet_id,
+                args.phase,
+                args.media_type,
+                args.file.name,
+                content,
+                args.caption,
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_dcim_field_evidence_list(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).field_operation_service.list_evidence(
+            GetFieldOperationSheetCommand(args.tenant, args.admin_token, args.sheet_id)
+        )
+        print(json.dumps({"items": [item.as_dict() for item in result]}, indent=2, sort_keys=True))
+        return 0
+
+    def _handle_dcim_field_evidence_validate(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).field_operation_service.validate_evidence(
+            ValidateFieldEvidenceCommand(
+                args.tenant, args.actor, args.admin_token, args.evidence_id
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_dcim_field_complete(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).field_operation_service.complete(
+            CompleteFieldOperationCommand(args.tenant, args.actor, args.admin_token, args.sheet_id)
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_dcim_field_cancel(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).field_operation_service.cancel(
+            CancelFieldOperationCommand(args.tenant, args.actor, args.admin_token, args.sheet_id)
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_dcim_field_qr_verify(self, args: argparse.Namespace) -> int:
+        payload = args.payload
+        if args.payload_file is not None:
+            payload = args.payload_file.read_text(encoding="utf-8")
+        result = self._create_application(args).field_operation_service.verify_qr(
+            VerifyFieldQrCommand(args.tenant, args.admin_token, args.sheet_id, payload or "")
+        )
+        print(json.dumps(result, indent=2, sort_keys=True))
+        return 0
+
+    def _handle_dcim_field_lock_release(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).field_operation_service.release_lock(
+            ReleaseInterventionLockCommand(args.tenant, args.actor, args.admin_token, args.lock_id)
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_dcim_field_offline_create(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).field_operation_service.create_offline_package(
+            CreateOfflineSyncPackageCommand(
+                args.tenant,
+                args.actor,
+                args.admin_token,
+                args.sheet_id,
+                args.idempotency_key,
+                args.ttl_seconds,
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_dcim_field_offline_list(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).field_operation_service.list_offline_packages(
+            ListOfflineSyncPackagesCommand(
+                args.tenant, args.admin_token, args.limit, args.cursor, args.sheet_id
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_dcim_field_offline_get(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).field_operation_service.get_offline_package(
+            GetOfflineSyncPackageCommand(
+                args.tenant, args.admin_token, args.package_id, bool(args.include_payload)
+            )
+        )
+        print(json.dumps(result, indent=2, sort_keys=True))
+        return 0
+
+    def _handle_dcim_field_offline_sync(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).field_operation_service.synchronize_offline_package(
+            SynchronizeOfflinePackageCommand(
+                args.tenant, args.actor, args.admin_token, args.package_id, args.payload_sha256
+            )
+        )
+        print(json.dumps(result.as_dict(), indent=2, sort_keys=True))
         return 0
 
     def _handle_dcim_sites(self, args: argparse.Namespace) -> int:

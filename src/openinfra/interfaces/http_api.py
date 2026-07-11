@@ -147,6 +147,24 @@ from openinfra.application.external_itsm_services import (
     ValidateOpenServiceConnectorCommand,
     ValidateServiceNowConnectorCommand,
 )
+from openinfra.application.field_operation_services import (
+    AcquireInterventionLockCommand,
+    AttachFieldEvidenceCommand,
+    CancelFieldOperationCommand,
+    CompleteFieldOperationCommand,
+    CreateOfflineSyncPackageCommand,
+    GenerateFieldOperationSheetCommand,
+    GetFieldOperationSheetCommand,
+    GetOfflineSyncPackageCommand,
+    ListFieldOperationSheetsCommand,
+    ListOfflineSyncPackagesCommand,
+    RecordFieldChecklistCommand,
+    ReleaseInterventionLockCommand,
+    StartFieldOperationCommand,
+    SynchronizeOfflinePackageCommand,
+    ValidateFieldEvidenceCommand,
+    VerifyFieldQrCommand,
+)
 from openinfra.application.flow_matrix_services import (
     CompareFlowMatrixCommand,
     ListFlowDeclarationsCommand,
@@ -1362,6 +1380,100 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
+        if route == "/api/v1/field-operation-sheets":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.field_operation_service.list_sheets(
+                    ListFieldOperationSheetsCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        status=query.get("status", [None])[0],
+                        target_type=query.get("target_type", [None])[0],
+                        site=query.get("site", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/field-operation-sheets/get":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.field_operation_service.get_sheet(
+                    GetFieldOperationSheetCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        sheet_id=self._first_query_value(query, "sheet_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/field-evidence":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.field_operation_service.list_evidence(
+                    GetFieldOperationSheetCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        sheet_id=self._first_query_value(query, "sheet_id"),
+                    )
+                )
+                responder.send(
+                    HTTPStatus.OK,
+                    {"items": [item.as_dict(include_content=False) for item in result]},
+                )
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/offline-sync-packages":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.field_operation_service.list_offline_packages(
+                    ListOfflineSyncPackagesCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        sheet_id=query.get("sheet_id", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/offline-sync-packages/get":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.field_operation_service.get_offline_package(
+                    GetOfflineSyncPackageCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        package_id=self._first_query_value(query, "package_id"),
+                        include_payload=self._first_query_value(
+                            query, "include_payload", "true"
+                        ).lower()
+                        in {"1", "true", "yes"},
+                    )
+                )
+                responder.send(HTTPStatus.OK, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
         if route == "/api/v1/graph/traverse":
             try:
                 query = parse_qs(parsed.query)
@@ -2319,6 +2431,223 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/field-operation-sheets/generate":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.field_operation_service.generate_sheet(
+                    GenerateFieldOperationSheetCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        target_type=self._required_payload_value(payload, "target_type"),
+                        target_id=self._required_payload_value(payload, "target_id"),
+                        title=self._required_payload_value(payload, "title"),
+                        purpose=self._required_payload_value(payload, "purpose"),
+                        owner=self._required_payload_value(payload, "owner"),
+                        operator=self._required_payload_value(payload, "operator"),
+                        source_object_key=self._optional_payload_value(
+                            payload, "source_object_key"
+                        ),
+                        site=self._optional_payload_value(payload, "site"),
+                        building=self._optional_payload_value(payload, "building"),
+                        room=self._optional_payload_value(payload, "room"),
+                        location_target_type=self._optional_payload_value(
+                            payload, "location_target_type"
+                        ),
+                        location_target_id=self._optional_payload_value(
+                            payload, "location_target_id"
+                        ),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route in {
+            "/api/v1/field-operation-sheets/start",
+            "/api/v1/field-operation-sheets/complete",
+            "/api/v1/field-operation-sheets/cancel",
+        }:
+            try:
+                payload = self._read_json_body()
+                common = {
+                    "tenant_id": self._required_payload_value(payload, "tenant_id"),
+                    "actor": str(payload.get("actor", "api")),
+                    "admin_token": self._bearer_token(),
+                    "sheet_id": self._required_payload_value(payload, "sheet_id"),
+                }
+                if route.endswith("/start"):
+                    result = self.server.application.field_operation_service.start(
+                        StartFieldOperationCommand(**common)
+                    )
+                elif route.endswith("/complete"):
+                    result = self.server.application.field_operation_service.complete(
+                        CompleteFieldOperationCommand(**common)
+                    )
+                else:
+                    result = self.server.application.field_operation_service.cancel(
+                        CancelFieldOperationCommand(**common)
+                    )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/field-operation-sheets/checklist":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.field_operation_service.record_checklist(
+                    RecordFieldChecklistCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        sheet_id=self._required_payload_value(payload, "sheet_id"),
+                        item_id=self._required_payload_value(payload, "item_id"),
+                        result=self._required_payload_value(payload, "result"),
+                        operator_note=self._optional_payload_value(payload, "operator_note"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/qr-codes/verify":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.field_operation_service.verify_qr(
+                    VerifyFieldQrCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        sheet_id=self._required_payload_value(payload, "sheet_id"),
+                        payload=self._required_payload_value(payload, "payload"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/field-evidence/attach":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.field_operation_service.attach_evidence(
+                    AttachFieldEvidenceCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        sheet_id=self._required_payload_value(payload, "sheet_id"),
+                        phase=self._required_payload_value(payload, "phase"),
+                        media_type=self._required_payload_value(payload, "media_type"),
+                        filename=self._required_payload_value(payload, "filename"),
+                        content_base64=self._required_payload_value(payload, "content_base64"),
+                        caption=self._required_payload_value(payload, "caption"),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result.as_dict(include_content=False))
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/field-evidence/validate":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.field_operation_service.validate_evidence(
+                    ValidateFieldEvidenceCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        evidence_id=self._required_payload_value(payload, "evidence_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict(include_content=False))
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/intervention-locks/acquire":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.field_operation_service.acquire_lock(
+                    AcquireInterventionLockCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        sheet_id=self._required_payload_value(payload, "sheet_id"),
+                        idempotency_key=self._required_payload_value(payload, "idempotency_key"),
+                        ttl_seconds=int(payload.get("ttl_seconds", 3600)),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/intervention-locks/release":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.field_operation_service.release_lock(
+                    ReleaseInterventionLockCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        lock_id=self._required_payload_value(payload, "lock_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/offline-sync-packages/create":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.field_operation_service.create_offline_package(
+                    CreateOfflineSyncPackageCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        sheet_id=self._required_payload_value(payload, "sheet_id"),
+                        idempotency_key=self._required_payload_value(payload, "idempotency_key"),
+                        ttl_seconds=int(payload.get("ttl_seconds", 86400)),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result.as_dict(include_payload=True))
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/offline-sync-packages/synchronize":
+            try:
+                payload = self._read_json_body()
+                result = (
+                    self.server.application.field_operation_service.synchronize_offline_package(
+                        SynchronizeOfflinePackageCommand(
+                            tenant_id=self._required_payload_value(payload, "tenant_id"),
+                            actor=str(payload.get("actor", "api")),
+                            admin_token=self._bearer_token(),
+                            package_id=self._required_payload_value(payload, "package_id"),
+                            payload_sha256=self._required_payload_value(payload, "payload_sha256"),
+                        )
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict(include_payload=False))
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
@@ -5808,6 +6137,25 @@ class OpenInfraThreadingServer(ThreadingHTTPServer):
                     "software_license": "/api/v1/itam/software-license",
                     "software_license_assignment": "/api/v1/itam/software-license/assignment",
                     "software_license_compliance": "/api/v1/itam/software-license/compliance",
+                },
+                "field_operations": {
+                    "sheets": "/api/v1/field-operation-sheets",
+                    "sheet_get": "/api/v1/field-operation-sheets/get",
+                    "sheet_generate": "/api/v1/field-operation-sheets/generate",
+                    "sheet_start": "/api/v1/field-operation-sheets/start",
+                    "sheet_checklist": "/api/v1/field-operation-sheets/checklist",
+                    "sheet_complete": "/api/v1/field-operation-sheets/complete",
+                    "sheet_cancel": "/api/v1/field-operation-sheets/cancel",
+                    "qr_verify": "/api/v1/qr-codes/verify",
+                    "evidence": "/api/v1/field-evidence",
+                    "evidence_attach": "/api/v1/field-evidence/attach",
+                    "evidence_validate": "/api/v1/field-evidence/validate",
+                    "lock_acquire": "/api/v1/intervention-locks/acquire",
+                    "lock_release": "/api/v1/intervention-locks/release",
+                    "offline_packages": "/api/v1/offline-sync-packages",
+                    "offline_package_get": "/api/v1/offline-sync-packages/get",
+                    "offline_package_create": "/api/v1/offline-sync-packages/create",
+                    "offline_package_sync": "/api/v1/offline-sync-packages/synchronize",
                 },
                 "graph": {
                     "traverse": "/api/v1/graph/traverse",

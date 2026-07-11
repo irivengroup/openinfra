@@ -113,6 +113,18 @@ class OpenInfraApiClient {
     const body = {};
     for (const field of operation.body || []) {
       const raw = payload[field.name];
+      if (field.type === "file") {
+        if (!raw) {
+          if (field.required) {
+            throw new Error(this.i18n?.t("requiredField", { field: field.label || field.name }) || `Missing required field: ${field.label || field.name}`);
+          }
+          continue;
+        }
+        this.assignBodyValue(body, "filename", raw.filename);
+        this.assignBodyValue(body, "media_type", raw.media_type);
+        this.assignBodyValue(body, "content_base64", raw.content_base64);
+        continue;
+      }
       const value = this.normalizedFieldValue(field, raw, payload);
       if (value === undefined || value === null || String(value).trim?.() === "") {
         if (field.required) {
@@ -1153,6 +1165,23 @@ const OPENINFRA_MODULES = [
     { id: "dcim-power-circuit", label: "Définir un circuit électrique", method: "POST", path: "/v1/dcim/power-circuits", body: [FIELD_SETS.actor, { name: "circuit_id", label: "Identifiant circuit", required: true, placeholder: "CIR-A-R01" }, { name: "source_device", label: "Source électrique", required: true, placeholder: "PDU-A-R01" }, { name: "site", label: "Site", required: true, placeholder: "PAR1" }, { name: "building", label: "Bâtiment", required: true, placeholder: "BAT-A" }, { name: "room", label: "Salle", required: true, placeholder: "MMR1" }, { name: "rack", label: "Rack", required: true, placeholder: "R01" }, { name: "side", label: "Chaîne électrique", type: "select", options: ["A", "B"], defaultValue: "A" }, { name: "capacity_watts", label: "Capacité watts", type: "number", required: true, placeholder: "2000" }, { name: "breaker_rating_amps", label: "Calibre disjoncteur A", type: "number", required: true, placeholder: "16" }, { name: "redundancy_group", label: "Groupe redondance", placeholder: "default" }, { name: "label", label: "Libellé", placeholder: "Circuit A baie R01" }] },
     { id: "dcim-cooling-zone", label: "Définir une zone de refroidissement", method: "POST", path: "/v1/dcim/cooling-zones", body: [FIELD_SETS.actor, { name: "site", label: "Site", required: true, placeholder: "PAR1" }, { name: "building", label: "Bâtiment", required: true, placeholder: "BAT-A" }, { name: "room", label: "Salle", required: true, placeholder: "MMR1" }, { name: "zone", label: "Zone froid/chaud", required: true, placeholder: "Z1" }, { name: "role", label: "Rôle refroidissement", type: "select", options: ["cold_aisle", "hot_aisle", "neutral"], defaultValue: "cold_aisle" }, { name: "cooling_capacity_watts", label: "Capacité froid watts", type: "number", required: true, placeholder: "3000" }, { name: "supply_temperature_c", label: "Température soufflage °C", type: "number", required: true, placeholder: "18" }, { name: "return_temperature_c", label: "Température retour °C", type: "number", required: true, placeholder: "30" }, { name: "label", label: "Libellé", placeholder: "Allée froide A" }] },
     { id: "dcim-power-reservation", label: "Réserver la puissance équipement", method: "POST", path: "/v1/dcim/power-reservations", body: [FIELD_SETS.actor, { name: "asset_tag", label: "Numéro d’actif", required: true, placeholder: "PAR-SRV-001" }, { name: "circuit_id", label: "Identifiant circuit", required: true, placeholder: "CIR-A-R01" }, { name: "expected_watts", label: "Puissance attendue watts", type: "number", required: true, placeholder: "600" }, { name: "label", label: "Libellé", placeholder: "Réservation alimentation principale" }] },
+    { id: "field-sheet-list", label: "Lister les fiches d’intervention", method: "GET", path: "/v1/field-operation-sheets", query: [{ name: "status", label: "Statut", type: "select", options: ["ready", "in-progress", "completed", "cancelled"] }, { name: "target_type", label: "Type de cible", type: "select", options: ["equipment", "rack", "cable", "power-device", "certificate"] }, { name: "site", label: "Site" }, { name: "limit", label: "Limite", type: "number", defaultValue: "100", min: 1, max: 500 }, { name: "cursor", label: "Curseur" }] },
+    { id: "field-sheet-get", label: "Consulter une fiche d’intervention", method: "GET", path: "/v1/field-operation-sheets/get", query: [{ name: "sheet_id", label: "ID fiche", required: true }] },
+    { id: "field-sheet-generate", label: "Générer une fiche d’intervention", method: "POST", path: "/v1/field-operation-sheets/generate", body: [FIELD_SETS.actor, { name: "target_type", label: "Type de cible", type: "select", options: ["equipment", "rack", "cable", "power-device", "certificate"], required: true }, { name: "target_id", label: "Identifiant cible", required: true }, { name: "title", label: "Titre", required: true }, { name: "purpose", label: "Objet de l’intervention", type: "textarea", rows: 4, required: true }, { name: "owner", label: "Responsable", required: true }, { name: "operator", label: "Intervenant", required: true }, { name: "source_object_key", label: "Clé objet RSOT" }, { name: "site", label: "Site" }, { name: "building", label: "Bâtiment" }, { name: "room", label: "Salle" }, { name: "location_target_type", label: "Type de cible physique", type: "select", options: ["equipment", "rack", "cable", "power-device"] }, { name: "location_target_id", label: "Identifiant cible physique" }] },
+    { id: "field-lock-acquire", label: "Verrouiller la cible", method: "POST", path: "/v1/intervention-locks/acquire", body: [FIELD_SETS.actor, { name: "sheet_id", label: "ID fiche", required: true }, { name: "idempotency_key", label: "Clé d’idempotence", required: true }, { name: "ttl_seconds", label: "Durée du verrou (secondes)", type: "number", defaultValue: "3600", min: 60, max: 86400 }] },
+    { id: "field-operation-start", label: "Démarrer l’intervention", method: "POST", path: "/v1/field-operation-sheets/start", body: [FIELD_SETS.actor, { name: "sheet_id", label: "ID fiche", required: true }] },
+    { id: "field-checklist-record", label: "Renseigner une étape de checklist", method: "POST", path: "/v1/field-operation-sheets/checklist", body: [FIELD_SETS.actor, { name: "sheet_id", label: "ID fiche", required: true }, { name: "item_id", label: "ID étape", required: true }, { name: "result", label: "Résultat", type: "select", options: ["passed", "failed", "not-applicable"], required: true }, { name: "operator_note", label: "Note intervenant", type: "textarea", rows: 3 }] },
+    { id: "field-evidence-attach", label: "Joindre une preuve terrain", method: "POST", path: "/v1/field-evidence/attach", body: [FIELD_SETS.actor, { name: "sheet_id", label: "ID fiche", required: true }, { name: "phase", label: "Phase", type: "select", options: ["before", "after"], required: true }, { name: "evidence_file", label: "Photo ou document", type: "file", accept: "image/jpeg,image/png,image/webp,application/pdf", capture: "environment", required: true }, { name: "caption", label: "Description de la preuve", type: "textarea", rows: 3, required: true }] },
+    { id: "field-evidence-list", label: "Lister les preuves terrain", method: "GET", path: "/v1/field-evidence", query: [{ name: "sheet_id", label: "ID fiche", required: true }] },
+    { id: "field-evidence-validate", label: "Valider une preuve terrain", method: "POST", path: "/v1/field-evidence/validate", body: [FIELD_SETS.actor, { name: "evidence_id", label: "ID preuve", required: true }] },
+    { id: "field-operation-complete", label: "Clôturer l’intervention", method: "POST", path: "/v1/field-operation-sheets/complete", body: [FIELD_SETS.actor, { name: "sheet_id", label: "ID fiche", required: true }] },
+    { id: "field-operation-cancel", label: "Annuler l’intervention", method: "POST", path: "/v1/field-operation-sheets/cancel", body: [FIELD_SETS.actor, { name: "sheet_id", label: "ID fiche", required: true }] },
+    { id: "field-qr-verify", label: "Vérifier un QR code terrain", method: "POST", path: "/v1/qr-codes/verify", body: [{ name: "sheet_id", label: "ID fiche", required: true }, { name: "payload", label: "Contenu QR", type: "textarea", rows: 4, required: true }] },
+    { id: "field-lock-release", label: "Libérer le verrou terrain", method: "POST", path: "/v1/intervention-locks/release", body: [FIELD_SETS.actor, { name: "lock_id", label: "ID verrou", required: true }] },
+    { id: "field-offline-create", label: "Créer un paquet hors ligne", method: "POST", path: "/v1/offline-sync-packages/create", body: [FIELD_SETS.actor, { name: "sheet_id", label: "ID fiche", required: true }, { name: "idempotency_key", label: "Clé d’idempotence", required: true }, { name: "ttl_seconds", label: "Validité hors ligne (secondes)", type: "number", defaultValue: "86400", min: 300, max: 604800 }] },
+    { id: "field-offline-list", label: "Lister les paquets hors ligne", method: "GET", path: "/v1/offline-sync-packages", query: [{ name: "sheet_id", label: "ID fiche" }, { name: "limit", label: "Limite", type: "number", defaultValue: "100", min: 1, max: 500 }, { name: "cursor", label: "Curseur" }] },
+    { id: "field-offline-get", label: "Consulter un paquet hors ligne", method: "GET", path: "/v1/offline-sync-packages/get", query: [{ name: "package_id", label: "ID paquet", required: true }, { name: "include_payload", label: "Inclure le contenu", type: "boolean", defaultValue: "true" }] },
+    { id: "field-offline-sync", label: "Synchroniser un paquet hors ligne", method: "POST", path: "/v1/offline-sync-packages/synchronize", body: [FIELD_SETS.actor, { name: "package_id", label: "ID paquet", required: true }, { name: "payload_sha256", label: "Empreinte SHA-256 du paquet", required: true, maxLength: 64 }] },
     { id: "dcim-digital-twin", label: "Jumeau numérique salle", method: "GET", path: "/v1/dcim/digital-twin", query: [{ name: "site", label: "Site", required: true, placeholder: "PAR1" }, { name: "building", label: "Bâtiment", required: true, placeholder: "BAT-A" }, { name: "room", label: "Salle", required: true, placeholder: "MMR1" }] },
     { id: "dcim-energy-cooling-capacity", label: "Capacité énergie/refroidissement", method: "GET", path: "/v1/dcim/energy-cooling-capacity", query: [{ name: "site", label: "Site", required: true, placeholder: "PAR1" }, { name: "building", label: "Bâtiment", required: true, placeholder: "BAT-A" }, { name: "room", label: "Salle", required: true, placeholder: "MMR1" }, { name: "rack", label: "Rack", required: true, placeholder: "R01" }] }
   ] },
@@ -1276,6 +1305,7 @@ const OPENINFRA_SIDEBAR_CONTEXTS = {
     { label: "Localisation & capacité", operationIds: ["dcim-locate-equipment", "dcim-rack-capacity", "dcim-room-plan", "dcim-rack-elevation"] },
     { label: "Connectivité", operationIds: ["dcim-patch-panel", "dcim-port", "dcim-cable", "dcim-cable-trace"] },
     { label: "Énergie & refroidissement", operationIds: ["dcim-power-device", "dcim-power-circuit", "dcim-cooling-zone", "dcim-power-reservation", "dcim-energy-cooling-capacity"] },
+    { label: "Opérations terrain", operationIds: ["field-sheet-list", "field-sheet-get", "field-sheet-generate", "field-lock-acquire", "field-operation-start", "field-checklist-record", "field-evidence-attach", "field-evidence-list", "field-evidence-validate", "field-operation-complete", "field-operation-cancel", "field-qr-verify", "field-lock-release", "field-offline-create", "field-offline-list", "field-offline-get", "field-offline-sync"] },
     { label: "Jumeau numérique", operationIds: ["dcim-digital-twin"] }
   ],
   itam: [
@@ -2248,6 +2278,12 @@ class OpenInfraDashboard {
     if (field.type === "hidden") {
       return `<input type="hidden"${common} value="${this.escape(value)}">`;
     }
+    if (field.type === "file") {
+      const attributes = inputAttributesForField(field);
+      const accept = attributes.accept ? ` accept="${this.escape(attributes.accept)}"` : "";
+      const capture = attributes.capture ? ` capture="${this.escape(attributes.capture)}"` : "";
+      return `<label${visibility} class="col-12 form-label">${this.escape(this.i18n.label(field.label || field.name))}${requiredText}<input class="form-control" type="file"${common}${accept}${capture}${required}><span class="form-text">JPEG, PNG, WebP ou PDF — 2 Mio maximum.</span></label>`;
+    }
     if (field.type === "tenant-select") {
       const options = this.tenantOptions();
       const fallback = field.defaultValue || this.state.tenant || this.state.organization || "default";
@@ -2491,7 +2527,21 @@ class OpenInfraDashboard {
     let valid = true;
     for (const field of fields) {
       const control = [...form.querySelectorAll("[data-field]")].find((candidate) => candidate.dataset.field === field.name);
-      if (control && !control.disabled && !validateControl(control, field, this.i18n, { countryCode })) {
+      if (!control || control.disabled) {
+        continue;
+      }
+      if (field.type === "file") {
+        const file = control.files?.[0];
+        const accepted = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
+        let message = "";
+        if (file && file.size > 2 * 1024 * 1024) {
+          message = "Le fichier dépasse la limite de 2 Mio.";
+        } else if (file && !accepted.has(file.type)) {
+          message = "Le format de fichier n’est pas autorisé.";
+        }
+        control.setCustomValidity(message);
+        valid = valid && !message;
+      } else if (!validateControl(control, field, this.i18n, { countryCode })) {
         valid = false;
       }
     }
@@ -2512,7 +2562,12 @@ class OpenInfraDashboard {
     const validateOne = (control) => {
       const field = fieldMap.get(control.dataset.field);
       if (field && !control.disabled) {
-        validateControl(control, field, this.i18n, { countryCode: formCountryCode(form) });
+        if (field.type === "file") {
+          control.setCustomValidity("");
+          control.setAttribute("aria-invalid", "false");
+        } else {
+          validateControl(control, field, this.i18n, { countryCode: formCountryCode(form) });
+        }
       }
     };
     const validateAll = () => {
@@ -2832,6 +2887,27 @@ class OpenInfraDashboard {
     }
   }
 
+  filePayload(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("Impossible de lire la preuve sélectionnée."));
+      reader.onload = () => {
+        const result = String(reader.result || "");
+        const separator = result.indexOf(",");
+        if (separator < 0) {
+          reject(new Error("Le fichier sélectionné est invalide."));
+          return;
+        }
+        resolve({
+          filename: file.name,
+          media_type: file.type,
+          content_base64: result.slice(separator + 1)
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
   async executeSelected() {
     try {
       const payload = {};
@@ -2839,7 +2915,12 @@ class OpenInfraDashboard {
         if (input.disabled) {
           continue;
         }
-        payload[input.dataset.field] = input.value;
+        if (input.type === "file") {
+          const file = input.files?.[0];
+          payload[input.dataset.field] = file ? await this.filePayload(file) : undefined;
+        } else {
+          payload[input.dataset.field] = input.value;
+        }
       }
       const data = await this.client().request(this.state.selected, payload);
       if (this.state.selected.id.startsWith("itam-organization")) {

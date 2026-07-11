@@ -132,7 +132,12 @@ class TestRuntimeEnvironment:
         )
 
         assert "created_at timestamptz NOT NULL" in migration_payload
-        assert "occurred_at" not in migration_payload
+        audit_statements = "\n".join(
+            statement
+            for statement in migration_payload.split(";")
+            if "audit_events" in statement.lower()
+        )
+        assert "occurred_at" not in audit_statements
 
     def test_ipam_enterprise_migration_backfills_legacy_prefix_family_column(self) -> None:
         migration = Path(

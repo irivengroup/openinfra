@@ -617,3 +617,79 @@ PYTHONPATH=src python -m pytest -q --no-cov \
 ```
 
 Un code `1` signale un dépassement de p95. Un code `2` signale une configuration invalide, une pagination non terminante ou une cardinalité incohérente. Le rapport `build/reports/dependency-graph-benchmark.json` doit être conservé avec les preuves de validation de la release.
+
+## Opérations terrain mobiles/offline — v0.29.95
+
+Les contrôles P16/EPIC-1601 couvrent le domaine, l'application, la persistance JSON/PostgreSQL, les interfaces REST/CLI, le parcours web accessible et la migration `0044`.
+
+### Tests ciblés
+
+```bash
+PYTHONPATH=src python -m pytest -q --no-cov \
+  tests/unit/test_field_operations_domain.py \
+  tests/unit/test_field_operation_location_and_safety.py \
+  tests/integration/test_field_operation_services.py \
+  tests/integration/test_field_operation_http_api.py \
+  tests/integration/test_field_operation_cli.py \
+  tests/integration/test_postgresql_migration.py \
+  tests/integration/test_quality_gate_postgresql_schema.py \
+  tests/integration/test_github_workflows.py
+```
+
+### Contrats OpenAPI, sécurité et qualité
+
+```bash
+python scripts/validate_openapi.py docs/api/openapi.yaml
+python scripts/validate_openapi.py \
+  docs/specifications/OpenInfra-CDC-SFG-STG-v4.8.1/09-API/OpenAPI/openapi.yaml
+PYTHONPATH=src python scripts/security_gate.py --project-root .
+PYTHONPATH=src python scripts/quality_gate.py --project-root .
+```
+
+Le validateur YAML doit refuser toute clé dupliquée. Le gate PostgreSQL doit interdire `occurred_at` dans les instructions SQL visant `audit_events`, sans interdire l'horodatage métier de `field_event_outbox`.
+
+### Frontend et accessibilité
+
+```bash
+npm --prefix web run lint
+npm --prefix web run a11y
+npm --prefix web run a11y:jsx
+npm --prefix web test
+npm --prefix web run build
+npm --prefix web audit --omit=dev --audit-level=high
+python scripts/validate_frontend.py --project-root .
+```
+
+Le menu attendu est **DCIM → Opérations terrain** dans les deux runtimes. Les formulaires doivent conserver les validations anticipées, les erreurs accessibles et les limites MIME/taille des preuves.
+
+### Migration, installateurs et artefacts
+
+```bash
+PYTHONPATH=src python scripts/validate_enterprise_alignment.py --project-root .
+PYTHONPATH=src python scripts/validate_autonomous_installer.py --root installers
+PYTHONPATH=src python -m openinfra.interfaces.cli installer validate \
+  --path installers/setup/lite/server/install.ini
+PYTHONPATH=src python -m openinfra.interfaces.cli installer apply \
+  --path installers/setup/lite/server/install.ini \
+  --dry-run
+python -m build
+python scripts/verify_artifact.py dist/openinfra-0.29.95-py3-none-any.whl
+```
+
+Le wheel doit contenir **44 migrations**, la dernière étant `0044_field_operations_mobile_offline.sql`, les modules Field Operations et les **17 routes** correspondantes.
+
+### Smoke CLI local
+
+```bash
+state_file="$(mktemp)"
+token="$(python -c 'print("x" * 40)')"
+PYTHONPATH=src python -m openinfra.interfaces.cli security bootstrap-token \
+  --data "$state_file" --tenant default --subject field-admin \
+  --role dcim:operator --token "$token"
+PYTHONPATH=src python -m openinfra.interfaces.cli dcim field-generate \
+  --data "$state_file" --tenant default --admin-token "$token" \
+  --target-kind equipment --target-key equipment/field-smoke \
+  --site-key site/default --title "Field smoke"
+```
+
+Le parcours complet de verrouillage, démarrage, checklist, preuve, paquet hors ligne, synchronisation et clôture est validé par les tests d'intégration CLI et HTTP dédiés.

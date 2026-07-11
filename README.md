@@ -1,6 +1,6 @@
-# OpenInfra v0.29.94
+# OpenInfra v0.29.95
 
-OpenInfra v0.29.94 industrialise les performances du graphe RSOT avec un benchmark volumétrique reproductible, des mesures p50/p95, des seuils CI bloquants et un rapport JSON exploitable.
+OpenInfra v0.29.95 livre les opérations terrain guidées sous DCIM : fiches d’intervention, QR, checklists, preuves immuables, verrouillage logique et synchronisation mobile/offline contrôlée.
 
 ## Performance volumétrique du graphe RSOT
 
@@ -93,3 +93,20 @@ Chaque réservation repose sur un bail expirant et un **jeton de fencing monoton
 - runbook `docs/runbooks/DISCOVERY_JOB_RESILIENCE.md`.
 
 La réconciliation multisource v0.29.82 et les corrections DCIM/ITAM antérieures restent compatibles. Le CDC et la roadmap ne sont pas modifiés : EPIC-1406 était déjà défini et aucune nouvelle recommandation n’impacte l’existant.
+
+## Opérations terrain DCIM
+
+Le parcours **DCIM → Opérations terrain** guide les interventions physiques sans introduire de ticketing ITSM natif. Une fiche est générée depuis une cible réellement localisée, enrichie par les dépendances RSOT/Graphe, les flux déclarés et la redondance électrique A/B.
+
+Interfaces principales :
+
+```bash
+openinfra dcim field-sheet-list --tenant default --admin-token "$OPENINFRA_TOKEN"
+openinfra dcim field-sheet-generate --tenant default --admin-token "$OPENINFRA_TOKEN" \
+  --target-type equipment --target-id PAR-SRV-001 \
+  --title "Remplacement alimentation" \
+  --purpose "Remplacer le bloc et contrôler le service" \
+  --owner ops.owner --operator field.operator
+```
+
+Les preuves acceptées sont JPEG, PNG, WebP ou PDF, limitées à 2 Mio. Les paquets hors ligne sont limités au tenant et au site autorisés, expirent automatiquement et sont synchronisés uniquement si leur empreinte SHA-256 canonique correspond. Le runbook complet est disponible dans `docs/runbooks/FIELD_OPERATIONS.md`.

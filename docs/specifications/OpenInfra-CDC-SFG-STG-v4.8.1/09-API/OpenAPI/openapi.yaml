@@ -1,13 +1,25 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.29.74
+  version: 0.29.95
 components:
   securitySchemes:
     bearerToken:
       type: http
       scheme: bearer
       bearerFormat: OpenInfra API token
+  requestBodies:
+    FieldSheetAction:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [tenant_id, sheet_id]
+            properties:
+              tenant_id: {type: string}
+              actor: {type: string, default: api}
+              sheet_id: {type: string, format: uuid}
 paths:
   /:
     get:
@@ -1847,6 +1859,159 @@ paths:
         '401':
           description: Missing or invalid Bearer token when authentication is enabled
 
+  /api/v1/graph/traverse:
+    get:
+      operationId: traverseDependencyGraph
+      summary: Traverse the tenant RSOT dependency graph
+      description: Performs a breadth-first, cycle-safe and bounded traversal over time-aware RSOT relations without duplicating the source of truth.
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: root_key, in: query, required: true, schema: {type: string}}
+        - {name: direction, in: query, required: false, schema: {type: string, enum: [outgoing, incoming, both], default: both}}
+        - {name: max_depth, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 12, default: 3}}
+        - {name: max_nodes, in: query, required: false, schema: {type: integer, minimum: 2, maximum: 5000, default: 500}}
+        - {name: relation_type, in: query, required: false, schema: {type: array, items: {type: string}}, style: form, explode: true}
+        - {name: as_of, in: query, required: false, schema: {type: string, format: date-time}}
+      responses:
+        '200': {description: Bounded dependency graph projection}
+        '400': {description: Invalid graph constraints or query}
+        '401': {description: Missing or invalid Bearer token}
+  /api/v1/graph/impact:
+    get:
+      operationId: analyzeDependencyImpact
+      summary: Analyze direct and indirect dependency impact
+      description: Summarizes impacted RSOT objects by distance, kind and resource category. Incoming traversal is the default for dependent-object impact analysis.
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: root_key, in: query, required: true, schema: {type: string}}
+        - {name: direction, in: query, required: false, schema: {type: string, enum: [outgoing, incoming, both], default: incoming}}
+        - {name: max_depth, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 12, default: 6}}
+        - {name: max_nodes, in: query, required: false, schema: {type: integer, minimum: 2, maximum: 5000, default: 1000}}
+        - {name: relation_type, in: query, required: false, schema: {type: array, items: {type: string}}, style: form, explode: true}
+        - {name: as_of, in: query, required: false, schema: {type: string, format: date-time}}
+      responses:
+        '200': {description: Impact summary and impacted graph projection}
+        '400': {description: Invalid graph constraints or query}
+        '401': {description: Missing or invalid Bearer token}
+  /api/v1/graph/path:
+    get:
+      operationId: findDependencyPath
+      summary: Find the shortest dependency path
+      description: Uses bounded breadth-first search to return the shortest path between two RSOT objects according to direction, relation filters and reference time.
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: source_key, in: query, required: true, schema: {type: string}}
+        - {name: target_key, in: query, required: true, schema: {type: string}}
+        - {name: direction, in: query, required: false, schema: {type: string, enum: [outgoing, incoming, both], default: outgoing}}
+        - {name: max_depth, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 12, default: 8}}
+        - {name: max_nodes, in: query, required: false, schema: {type: integer, minimum: 2, maximum: 5000, default: 1000}}
+        - {name: relation_type, in: query, required: false, schema: {type: array, items: {type: string}}, style: form, explode: true}
+        - {name: as_of, in: query, required: false, schema: {type: string, format: date-time}}
+      responses:
+        '200': {description: Shortest path result, including found=false when no path exists}
+        '400': {description: Invalid graph constraints or query}
+        '401': {description: Missing or invalid Bearer token}
+
+  /api/v1/graph/spof:
+    get:
+      operationId: analyzeDependencySinglePointsOfFailure
+      summary: Identify dependency single points of failure
+      description: Computes rooted dominators over the bounded RSOT dependency projection. A returned candidate is a SPOF because removing it makes at least minimum_affected_nodes other reachable objects unreachable from the selected root. Candidate filters do not alter topology correctness; they only filter the ranked result set.
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: root_key, in: query, required: true, schema: {type: string}}
+        - {name: direction, in: query, required: false, schema: {type: string, enum: [outgoing, incoming, both], default: both}}
+        - {name: max_depth, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 12, default: 8}}
+        - {name: max_nodes, in: query, required: false, schema: {type: integer, minimum: 2, maximum: 5000, default: 2000}}
+        - {name: relation_type, in: query, required: false, schema: {type: array, maxItems: 100, items: {type: string}}, style: form, explode: true}
+        - {name: as_of, in: query, required: false, schema: {type: string, format: date-time}}
+        - {name: candidate_kind, in: query, required: false, schema: {type: array, maxItems: 100, items: {type: string}}, style: form, explode: true}
+        - {name: candidate_resource_category, in: query, required: false, schema: {type: array, maxItems: 100, items: {type: string}}, style: form, explode: true}
+        - {name: candidate_resource_type, in: query, required: false, schema: {type: array, maxItems: 100, items: {type: string}}, style: form, explode: true}
+        - {name: candidate_status, in: query, required: false, schema: {type: array, maxItems: 100, items: {type: string}}, style: form, explode: true}
+        - {name: minimum_affected_nodes, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 4999, default: 1}}
+        - {name: affected_sample_limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 200, default: 25}}
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, required: false, schema: {type: string}}
+      responses:
+        '200':
+          description: Ranked and paginated SPOF report. complete=false means the source graph reached max_nodes and the analysis is limited to that bounded projection.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [root_key, direction, node_count, edge_count, spof_count, returned_count, complete, algorithm, items]
+                properties:
+                  root_key: {type: string}
+                  direction: {type: string, enum: [outgoing, incoming, both]}
+                  node_count: {type: integer}
+                  edge_count: {type: integer}
+                  spof_count: {type: integer}
+                  returned_count: {type: integer}
+                  next_cursor: {type: string, nullable: true}
+                  complete: {type: boolean}
+                  algorithm: {type: string, enum: [rooted-dominators]}
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [rank, node, affected_count, direct_affected_count, affected_ratio]
+                      properties:
+                        rank: {type: integer}
+                        node: {type: object}
+                        affected_count: {type: integer}
+                        direct_affected_count: {type: integer}
+                        affected_ratio: {type: number, format: double}
+                        affected_sample: {type: array, items: {type: string}}
+                        affected_sample_truncated: {type: boolean}
+        '400': {description: Invalid graph constraints, filters or cursor}
+        '401': {description: Missing or invalid Bearer token}
+  /api/v1/graph/export:
+    get:
+      operationId: exportDependencyGraph
+      summary: Export the bounded dependency graph
+      description: Exports the selected dependency projection as JSON, normalized CSV or GraphML. Optional SPOF annotations are computed with the same rooted-dominator semantics and never modify RSOT data.
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: root_key, in: query, required: true, schema: {type: string}}
+        - {name: format, in: query, required: false, schema: {type: string, enum: [json, csv, graphml], default: json}}
+        - {name: direction, in: query, required: false, schema: {type: string, enum: [outgoing, incoming, both], default: both}}
+        - {name: max_depth, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 12, default: 8}}
+        - {name: max_nodes, in: query, required: false, schema: {type: integer, minimum: 2, maximum: 5000, default: 2000}}
+        - {name: relation_type, in: query, required: false, schema: {type: array, maxItems: 100, items: {type: string}}, style: form, explode: true}
+        - {name: as_of, in: query, required: false, schema: {type: string, format: date-time}}
+        - {name: include_spof, in: query, required: false, schema: {type: boolean, default: true}}
+        - {name: candidate_kind, in: query, required: false, schema: {type: array, maxItems: 100, items: {type: string}}, style: form, explode: true}
+        - {name: candidate_resource_category, in: query, required: false, schema: {type: array, maxItems: 100, items: {type: string}}, style: form, explode: true}
+        - {name: candidate_resource_type, in: query, required: false, schema: {type: array, maxItems: 100, items: {type: string}}, style: form, explode: true}
+        - {name: candidate_status, in: query, required: false, schema: {type: array, maxItems: 100, items: {type: string}}, style: form, explode: true}
+        - {name: minimum_affected_nodes, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 4999, default: 1}}
+      responses:
+        '200':
+          description: Downloadable graph export with Content-Disposition attachment header
+          headers:
+            Content-Disposition:
+              schema: {type: string}
+          content:
+            application/json:
+              schema: {type: string, format: binary}
+            text/csv:
+              schema: {type: string, format: binary}
+            application/graphml+xml:
+              schema: {type: string, format: binary}
+        '400': {description: Invalid graph constraints, filters or export format}
+        '401': {description: Missing or invalid Bearer token}
+
   /api/v1/rsot/resource-taxonomy:
     get:
       summary: List supported RSOT resource categories and category-filtered resource types
@@ -2953,6 +3118,134 @@ paths:
         '400': {description: Validation error or unknown bulk import job}
 
 
+  /api/v1/discovery/evidence:
+    get:
+      summary: Get immutable discovery evidence
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: evidence_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Immutable discovery evidence}
+        '400': {description: Validation error}
+        '401': {description: RSOT governance read permission required}
+    post:
+      summary: Store immutable discovery evidence without mutating RSOT
+      description: Stores a tenant-isolated evidence document, rejects secret-bearing payload keys, computes payload hash and completeness, and records an audit event without copying the evidence payload into the audit trail.
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, object_key, object_kind, source, source_ref, scope, external_id, confidence, payload]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                evidence_id: {type: string, format: uuid, nullable: true}
+                object_key: {type: string}
+                object_kind: {type: string}
+                source: {type: string, enum: [snmp, ssh, winrm, vmware, proxmox, hyperv, kubernetes, aws, azure, gcp, openstack, cloud, import, manual]}
+                source_ref: {type: string}
+                scope: {type: string}
+                external_id: {type: string}
+                confidence: {type: number, minimum: 0, maximum: 1}
+                observed_at: {type: string, format: date-time, nullable: true}
+                payload: {type: object, additionalProperties: true}
+      responses:
+        '201': {description: Immutable discovery evidence stored}
+        '400': {description: Validation or secret-material rejection}
+        '401': {description: RSOT governance write permission required}
+        '409': {description: Evidence identifier already exists with different content}
+  /api/v1/discovery/evidence-list:
+    get:
+      summary: List immutable discovery evidence with cursor pagination
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: object_key, in: query, required: false, schema: {type: string}}
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 1000, default: 100}}
+        - {name: cursor, in: query, required: false, schema: {type: string, nullable: true}}
+      responses:
+        '200': {description: Paginated immutable evidence}
+        '400': {description: Validation error}
+        '401': {description: RSOT governance read permission required}
+  /api/v1/discovery/reconciliation:
+    get:
+      summary: Get a multisource discovery reconciliation case
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: case_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Reconciliation case including conflicts and scoring}
+        '400': {description: Validation error}
+        '401': {description: RSOT governance read permission required}
+    post:
+      summary: Evaluate multisource discovery evidence
+      description: Computes confidence, freshness and completeness scores, merges non-conflicting attributes, exposes every conflict explicitly and never writes directly to RSOT.
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, object_key, evidence_ids]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                object_key: {type: string}
+                evidence_ids:
+                  type: array
+                  minItems: 2
+                  uniqueItems: true
+                  items: {type: string, format: uuid}
+                max_age_seconds: {type: integer, minimum: 60, maximum: 31622400, default: 86400}
+      responses:
+        '201': {description: Idempotent reconciliation case created or returned by signature}
+        '400': {description: Validation error or insufficient distinct sources}
+        '401': {description: RSOT governance write permission required}
+  /api/v1/discovery/reconciliation-list:
+    get:
+      summary: List discovery reconciliation cases with cursor pagination
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: status, in: query, required: false, schema: {type: string, enum: [ready, conflict, resolved]}}
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 1000, default: 100}}
+        - {name: cursor, in: query, required: false, schema: {type: string, nullable: true}}
+      responses:
+        '200': {description: Paginated reconciliation cases}
+        '400': {description: Validation error}
+        '401': {description: RSOT governance read permission required}
+  /api/v1/discovery/reconciliation/resolve:
+    post:
+      summary: Resolve every discovery conflict with explicit evidence selections
+      description: Requires one evidence selection for every conflict path and an auditable operator justification. The resolved payload remains a governed decision and is not written to RSOT automatically.
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, case_id, selected_evidence_by_path, justification]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                case_id: {type: string, format: uuid}
+                selected_evidence_by_path:
+                  type: object
+                  minProperties: 1
+                  additionalProperties: {type: string, format: uuid}
+                justification: {type: string, minLength: 8, maxLength: 1024}
+      responses:
+        '200': {description: Reconciliation case fully resolved without RSOT mutation}
+        '400': {description: Missing conflict selection or validation error}
+        '401': {description: RSOT governance write permission required}
+
   /api/v1/discovery/collectors:
     get:
       summary: List discovery collectors
@@ -2990,6 +3283,204 @@ paths:
         '201': {description: Collector registered}
         '401': {description: Security administrator token required}
         '400': {description: Validation error}
+  /api/v1/discovery/protocol-profiles:
+    get:
+      summary: List secured SNMP/SSH/WinRM discovery protocol profiles
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, required: false, schema: {type: string}}
+        - {name: include_inactive, in: query, required: false, schema: {type: boolean, default: false}}
+      responses:
+        '200': {description: Protocol profile page with masked vault references}
+        '401': {description: Security administrator token required}
+        '400': {description: Validation error}
+  /api/v1/discovery/protocol-profile:
+    get:
+      summary: Read a secured discovery protocol profile
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: profile_id, in: query, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Protocol profile with masked vault reference}
+        '401': {description: Security administrator token required}
+        '400': {description: Validation error}
+  /api/v1/discovery/protocol-profile/create:
+    post:
+      summary: Create a secured SNMP/SSH/WinRM discovery protocol profile
+      description: Stores only vault:// credential references, bounded concurrency and rate-limit settings; no secret material is returned.
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, name, protocol, scope, credential_secret_ref]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                name: {type: string}
+                protocol: {type: string, enum: [snmp, ssh, winrm]}
+                scope: {type: string}
+                credential_secret_ref: {type: string, pattern: '^vault://'}
+                port: {type: integer, minimum: 1, maximum: 65535, nullable: true}
+                timeout_seconds: {type: integer, minimum: 1, maximum: 300, default: 30}
+                max_concurrency: {type: integer, minimum: 1, maximum: 64, default: 4}
+                rate_limit_per_minute: {type: integer, minimum: 1, maximum: 10000, default: 120}
+                retry_count: {type: integer, minimum: 0, maximum: 5, default: 1}
+      responses:
+        '201': {description: Created protocol profile with masked vault reference}
+        '401': {description: Security administrator token required}
+        '400': {description: Validation error}
+  /api/v1/discovery/protocol-profile/update:
+    post:
+      summary: Update a secured discovery protocol profile
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, profile_id]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                profile_id: {type: string}
+                name: {type: string}
+                scope: {type: string}
+                credential_secret_ref: {type: string, pattern: '^vault://'}
+                port: {type: integer, minimum: 1, maximum: 65535}
+                timeout_seconds: {type: integer, minimum: 1, maximum: 300}
+                max_concurrency: {type: integer, minimum: 1, maximum: 64}
+                rate_limit_per_minute: {type: integer, minimum: 1, maximum: 10000}
+                retry_count: {type: integer, minimum: 0, maximum: 5}
+      responses:
+        '200': {description: Updated protocol profile with masked vault reference}
+        '401': {description: Security administrator token required}
+        '400': {description: Validation error}
+  /api/v1/discovery/protocol-profile/delete:
+    post:
+      summary: Disable a secured discovery protocol profile
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, profile_id, reason]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                profile_id: {type: string}
+                reason: {type: string}
+      responses:
+        '200': {description: Disabled protocol profile}
+        '401': {description: Security administrator token required}
+        '400': {description: Validation error}
+  /api/v1/discovery/integration-profiles:
+    get:
+      summary: List virtualization Kubernetes and cloud discovery integration profiles
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, required: false, schema: {type: string}}
+        - {name: include_inactive, in: query, required: false, schema: {type: boolean, default: false}}
+      responses:
+        '200': {description: Integration profile page with masked vault references}
+        '401': {description: Security administrator token required}
+        '400': {description: Validation error}
+  /api/v1/discovery/integration-profile:
+    get:
+      summary: Read a virtualization Kubernetes or cloud discovery integration profile
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: profile_id, in: query, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Integration profile with masked vault reference}
+        '401': {description: Security administrator token required}
+        '400': {description: Validation error}
+  /api/v1/discovery/integration-profile/create:
+    post:
+      summary: Create a virtualization Kubernetes or cloud discovery integration profile
+      description: Stores only vault:// credential references and connector metadata. The profile is plan-only and never executes scans directly.
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, name, kind, scope, credential_secret_ref]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                name: {type: string}
+                kind: {type: string, enum: [vmware, proxmox, hyperv, kubernetes, aws, azure, gcp, openstack]}
+                scope: {type: string}
+                endpoint_url: {type: string, nullable: true}
+                credential_secret_ref: {type: string, pattern: '^vault://'}
+                verify_tls: {type: boolean, default: true}
+                inventory_enabled: {type: boolean, default: true}
+                max_concurrency: {type: integer, minimum: 1, maximum: 64, default: 4}
+                rate_limit_per_minute: {type: integer, minimum: 1, maximum: 10000, default: 120}
+      responses:
+        '201': {description: Created integration profile with masked vault reference}
+        '401': {description: Security administrator token required}
+        '400': {description: Validation error}
+  /api/v1/discovery/integration-profile/update:
+    post:
+      summary: Update a discovery integration profile
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, profile_id]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                profile_id: {type: string}
+                name: {type: string}
+                scope: {type: string}
+                endpoint_url: {type: string, nullable: true}
+                credential_secret_ref: {type: string, pattern: '^vault://'}
+                verify_tls: {type: boolean}
+                inventory_enabled: {type: boolean}
+                max_concurrency: {type: integer, minimum: 1, maximum: 64}
+                rate_limit_per_minute: {type: integer, minimum: 1, maximum: 10000}
+      responses:
+        '200': {description: Updated integration profile with masked vault reference}
+        '401': {description: Security administrator token required}
+        '400': {description: Validation error}
+  /api/v1/discovery/integration-profile/delete:
+    post:
+      summary: Disable a discovery integration profile
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, profile_id, reason]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                profile_id: {type: string}
+                reason: {type: string}
+      responses:
+        '200': {description: Disabled integration profile}
+        '401': {description: Security administrator token required}
+        '400': {description: Validation error}
   /api/v1/discovery/local-plan:
     post:
       summary: Build a Lite/Pro local discovery plan without agent execution
@@ -3010,7 +3501,8 @@ paths:
                 protocol: {type: string, enum: [snmp, ssh, winrm]}
                 targets: {type: array, minItems: 1, items: {type: string}}
                 credential_secret_ref: {type: string, pattern: '^vault://'}
-                max_concurrency: {type: integer, minimum: 1, maximum: 32, default: 4}
+                protocol_profile_id: {type: string, nullable: true}
+                max_concurrency: {type: integer, minimum: 1, maximum: 64, default: 4}
                 rate_limit_per_minute: {type: integer, minimum: 1, maximum: 10000, default: 120}
       responses:
         '200': {description: Plan-only dry-run discovery jobs with safety guardrails}
@@ -3090,6 +3582,161 @@ paths:
       responses:
         '200': {description: Collector heartbeat stored}
         '400': {description: Validation error or unregistered collector}
+  /api/v1/discovery/job:
+    get:
+      summary: Get a persisted discovery job
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: job_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Discovery job with lease, retry and completion state}
+        '400': {description: Validation error or unknown job}
+        '401': {description: Security administrator token required}
+  /api/v1/discovery/jobs:
+    get:
+      summary: List persisted discovery jobs
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: status, in: query, required: false, schema: {type: string, enum: [queued, leased, retry-wait, completed, dead-letter]}}
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 1000, default: 100}}
+        - {name: cursor, in: query, required: false, schema: {type: string, nullable: true}}
+      responses:
+        '200': {description: Paginated discovery jobs}
+        '400': {description: Validation error}
+        '401': {description: Security administrator token required}
+    post:
+      summary: Submit an idempotent discovery job
+      description: Persists an authorized job before delivery so an agent crash cannot lose validated work. Duplicate requests with the same idempotency key return the original job.
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, collector_id, requested_scope, job_type, target, idempotency_key]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                collector_id: {type: string, format: uuid}
+                requested_scope: {type: string}
+                job_type: {type: string}
+                target: {type: string}
+                idempotency_key: {type: string, minLength: 8, maxLength: 128}
+                max_attempts: {type: integer, minimum: 1, maximum: 20, default: 3}
+      responses:
+        '201': {description: Persisted queued discovery job}
+        '400': {description: Validation, authorization or idempotency conflict}
+        '401': {description: Security administrator token required}
+  /api/v1/discovery/jobs/claim:
+    post:
+      summary: Atomically claim or reclaim the next discovery job
+      description: Uses collector certificate identity, an expiring lease and a monotonic fencing token. PostgreSQL uses FOR UPDATE SKIP LOCKED to support concurrent workers without duplicate claims.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, collector_id, certificate_fingerprint, worker_id]
+              properties:
+                tenant_id: {type: string}
+                collector_id: {type: string, format: uuid}
+                certificate_fingerprint: {type: string}
+                worker_id: {type: string}
+                lease_seconds: {type: integer, minimum: 5, maximum: 3600, default: 60}
+      responses:
+        '200': {description: Claimed job or a null job when the queue is empty}
+        '400': {description: Validation or edition gate error}
+        '401': {description: Collector certificate identity rejected}
+  /api/v1/discovery/jobs/renew:
+    post:
+      summary: Renew a discovery job lease
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, collector_id, certificate_fingerprint, job_id, worker_id, lease_token]
+              properties:
+                tenant_id: {type: string}
+                collector_id: {type: string, format: uuid}
+                certificate_fingerprint: {type: string}
+                job_id: {type: string, format: uuid}
+                worker_id: {type: string}
+                lease_token: {type: integer, minimum: 1}
+                lease_seconds: {type: integer, minimum: 5, maximum: 3600, default: 60}
+      responses:
+        '200': {description: Renewed lease}
+        '400': {description: Expired or stale fencing token or validation error}
+        '401': {description: Collector certificate identity rejected}
+  /api/v1/discovery/jobs/complete:
+    post:
+      summary: Complete a discovery job idempotently
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, collector_id, certificate_fingerprint, job_id, worker_id, lease_token, result_hash]
+              properties:
+                tenant_id: {type: string}
+                collector_id: {type: string, format: uuid}
+                certificate_fingerprint: {type: string}
+                job_id: {type: string, format: uuid}
+                worker_id: {type: string}
+                lease_token: {type: integer, minimum: 1}
+                result_hash: {type: string, pattern: '^[a-f0-9]{64}$'}
+      responses:
+        '200': {description: Completed job; identical repeated completion is accepted}
+        '400': {description: Stale token, conflicting result hash or validation error}
+        '401': {description: Collector certificate identity rejected}
+  /api/v1/discovery/jobs/fail:
+    post:
+      summary: Schedule a bounded retry or move a job to the dead-letter queue
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, collector_id, certificate_fingerprint, job_id, worker_id, lease_token, error]
+              properties:
+                tenant_id: {type: string}
+                collector_id: {type: string, format: uuid}
+                certificate_fingerprint: {type: string}
+                job_id: {type: string, format: uuid}
+                worker_id: {type: string}
+                lease_token: {type: integer, minimum: 1}
+                error: {type: string, minLength: 1, maxLength: 1024}
+                retry_delay_seconds: {type: integer, minimum: 0, maximum: 86400, default: 30}
+      responses:
+        '200': {description: Job in retry-wait or dead-letter state}
+        '400': {description: Stale token or validation error}
+        '401': {description: Collector certificate identity rejected}
+  /api/v1/discovery/jobs/replay:
+    post:
+      summary: Requeue a dead-letter discovery job
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, job_id]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                job_id: {type: string, format: uuid}
+      responses:
+        '200': {description: Audited job replayed in queued state}
+        '400': {description: Job is not in dead-letter state or validation error}
+        '401': {description: Security administrator token required}
   /api/v1/discovery/jobs/authorize:
     post:
       summary: Authorize or reject a discovery job for a collector
@@ -3132,6 +3779,136 @@ paths:
         '401': {description: Security administrator token required}
         '400': {description: Validation error}
 
+  /api/v1/flows/declarations:
+    get:
+      operationId: listFlowDeclarations
+      summary: List governed declared network flows
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, required: false, schema: {type: string}}
+        - {name: include_retired, in: query, required: false, schema: {type: boolean, default: false}}
+      responses:
+        '200': {description: Paginated declared flow rules}
+        '400': {description: Validation error}
+        '401': {description: Flow reader token required}
+  /api/v1/flows/declarations/upsert:
+    post:
+      operationId: upsertFlowDeclaration
+      summary: Create or revise a governed declared network flow
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, code, source_selector, destination_selector, protocol, decision, owner, justification]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                code: {type: string, minLength: 3, maxLength: 64}
+                source_selector: {type: string, description: 'any, object:<RSOT key> or cidr:<network>'}
+                destination_selector: {type: string, description: 'any, object:<RSOT key> or cidr:<network>'}
+                protocol: {type: string, enum: [any, tcp, udp, sctp, icmp, icmpv6, esp, ah, gre]}
+                destination_port_start: {type: integer, minimum: 1, maximum: 65535}
+                destination_port_end: {type: integer, minimum: 1, maximum: 65535}
+                decision: {type: string, enum: [allow, deny]}
+                priority: {type: integer, minimum: 0, maximum: 1000, default: 100}
+                owner: {type: string, minLength: 2, maxLength: 128}
+                justification: {type: string, minLength: 5, maxLength: 1000}
+                valid_from: {type: string, format: date-time}
+                valid_to: {type: string, format: date-time}
+      responses:
+        '200': {description: Declared flow created or revised}
+        '400': {description: Validation error}
+        '401': {description: Flow operator token required}
+  /api/v1/flows/declarations/retire:
+    post:
+      operationId: retireFlowDeclaration
+      summary: Retire a governed declared network flow
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, declaration_id]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                declaration_id: {type: string, format: uuid}
+      responses:
+        '200': {description: Declared flow retired idempotently}
+        '400': {description: Validation error or unknown declaration}
+        '401': {description: Flow operator token required}
+  /api/v1/flows/observations:
+    get:
+      operationId: listFlowObservations
+      summary: List immutable observed network flows within a bounded time window
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: window_start, in: query, required: true, schema: {type: string, format: date-time}}
+        - {name: window_end, in: query, required: true, schema: {type: string, format: date-time}}
+        - {name: source, in: query, required: false, schema: {type: string, enum: [netflow, sflow, ipfix, firewall-log, application-log, import, manual]}}
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, required: false, schema: {type: string}}
+      responses:
+        '200': {description: Paginated observed network flows}
+        '400': {description: Validation error}
+        '401': {description: Flow reader token required}
+  /api/v1/flows/observations/submit:
+    post:
+      operationId: submitFlowObservation
+      summary: Ingest one immutable and idempotent observed network flow
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, idempotency_key, source, collector, source_ip, destination_ip, protocol, packets, bytes, first_seen, last_seen]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                idempotency_key: {type: string, minLength: 8, maxLength: 128}
+                source: {type: string, enum: [netflow, sflow, ipfix, firewall-log, application-log, import, manual]}
+                collector: {type: string}
+                source_ip: {type: string, format: ip}
+                destination_ip: {type: string, format: ip}
+                source_object_key: {type: string}
+                destination_object_key: {type: string}
+                protocol: {type: string, enum: [tcp, udp, sctp, icmp, icmpv6, esp, ah, gre]}
+                destination_port: {type: integer, minimum: 1, maximum: 65535}
+                packets: {type: integer, minimum: 1}
+                bytes: {type: integer, minimum: 0}
+                first_seen: {type: string, format: date-time}
+                last_seen: {type: string, format: date-time}
+      responses:
+        '201': {description: Observation ingested or idempotently returned}
+        '400': {description: Validation or idempotency conflict}
+        '401': {description: Flow operator token required}
+  /api/v1/flows/matrix:
+    get:
+      operationId: compareFlowMatrix
+      summary: Compare declared and observed flows and expose compliance violations
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: window_start, in: query, required: false, schema: {type: string, format: date-time}}
+        - {name: window_end, in: query, required: false, schema: {type: string, format: date-time}}
+        - {name: status, in: query, required: false, schema: {type: string, enum: [compliant, denied-observed, undeclared-observed, declared-unobserved]}}
+        - {name: source, in: query, required: false, schema: {type: string, enum: [netflow, sflow, ipfix, firewall-log, application-log, import, manual]}}
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, required: false, schema: {type: string}}
+      responses:
+        '200': {description: Paginated flow compliance matrix and aggregate counters}
+        '400': {description: Validation error or time window larger than 31 days}
+        '401': {description: Flow reader token required}
   /api/v1/itam/organizations:
     get:
       summary: List ITAM organizations and selection metadata
@@ -3904,3 +4681,539 @@ paths:
         '200': {description: ServiceNow CI synchronization plan}
         '400': {description: Validation error}
         '401': {description: Missing or invalid security administrator token when authentication is enabled}
+  /api/v1/certificates:
+    get:
+      summary: List governed certificate inventory records
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+        - {name: include_retired, in: query, schema: {type: boolean, default: false}}
+      responses:
+        '200': {description: Paginated certificate inventory}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid certificate reader token}
+  /api/v1/certificates/get:
+    get:
+      summary: Get one certificate by SHA-256 fingerprint
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: fingerprint, in: query, required: true, schema: {type: string, pattern: '^[a-fA-F0-9:]{64,95}$'}}
+      responses:
+        '200': {description: Certificate inventory record with chain and SAN metadata}
+        '400': {description: Validation error or certificate not found}
+        '401': {description: Missing or invalid certificate reader token}
+  /api/v1/certificates/import:
+    post:
+      summary: Import and cryptographically validate a PEM certificate chain
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, pem_bundle, owner, environment, source]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                pem_bundle: {type: string, description: Leaf-first PEM certificate bundle, maximum 16 certificates}
+                owner: {type: string, minLength: 2, maxLength: 255}
+                environment: {type: string, maxLength: 64}
+                source: {type: string, enum: [manual, discovery, import, acme, internal-pki, external-pki]}
+                object_key: {type: string, nullable: true}
+      responses:
+        '201': {description: Imported leaf and chain certificates}
+        '400': {description: Invalid PEM, invalid chain, conflict or validation error}
+        '401': {description: Missing or invalid certificate operator token}
+  /api/v1/certificates/retire:
+    post:
+      summary: Retire one certificate inventory record
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, fingerprint]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                fingerprint: {type: string, pattern: '^[a-fA-F0-9:]{64,95}$'}
+      responses:
+        '200': {description: Retired certificate inventory record}
+        '400': {description: Validation error or certificate not found}
+        '401': {description: Missing or invalid certificate operator token}
+  /api/v1/certificates/endpoints:
+    get:
+      summary: List immutable certificate endpoint observations
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: certificate_fingerprint, in: query, schema: {type: string, pattern: '^[a-fA-F0-9:]{64,95}$'}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated certificate endpoint observations}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid certificate reader token}
+  /api/v1/certificates/endpoints/observe:
+    post:
+      summary: Record an immutable and idempotent certificate endpoint observation
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, idempotency_key, protocol, host, port, service, certificate_fingerprint, observed_at, source, collector]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                idempotency_key: {type: string, minLength: 3, maxLength: 128}
+                protocol: {type: string, example: https}
+                host: {type: string, example: api.example.com}
+                port: {type: integer, minimum: 1, maximum: 65535}
+                service: {type: string, maxLength: 128}
+                certificate_fingerprint: {type: string, pattern: '^[a-fA-F0-9:]{64,95}$'}
+                observed_at: {type: string, format: date-time}
+                source: {type: string, enum: [manual, discovery, import, acme, internal-pki, external-pki]}
+                collector: {type: string, maxLength: 128}
+                object_key: {type: string, nullable: true}
+                tls_version: {type: string, nullable: true}
+                cipher: {type: string, nullable: true}
+      responses:
+        '201': {description: Persisted endpoint observation}
+        '400': {description: Unknown certificate, idempotency conflict or validation error}
+        '401': {description: Missing or invalid certificate operator token}
+  /api/v1/certificates/assessment:
+    get:
+      summary: Assess certificate expiration, chain completeness and hostname coverage
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: as_of, in: query, schema: {type: string, format: date-time}}
+        - {name: critical_days, in: query, schema: {type: integer, minimum: 0, maximum: 3650, default: 7}}
+        - {name: warning_days, in: query, schema: {type: integer, minimum: 0, maximum: 3650, default: 30}}
+        - {name: health, in: query, schema: {type: string, enum: [retired, not-yet-valid, expired, critical, warning, healthy]}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Certificate inventory assessment and health totals}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid certificate reader token}
+  /api/v1/network-config/baselines:
+    get:
+      summary: List governed network golden configuration baselines
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+        - {name: include_retired, in: query, schema: {type: boolean, default: false}}
+      responses:
+        '200': {description: Paginated network configuration baselines}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid network configuration reader token}
+  /api/v1/network-config/baselines/upsert:
+    post:
+      summary: Create or revise a governed network golden configuration baseline
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, code, device_object_key, platform, expected_config, owner, justification]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                code: {type: string, pattern: '^[A-Z0-9][A-Z0-9_.:-]{0,63}$'}
+                device_object_key: {type: string}
+                platform: {type: string}
+                expected_config: {type: object}
+                ignored_paths: {type: array, items: {type: string}}
+                critical_paths: {type: array, items: {type: string}}
+                owner: {type: string, minLength: 2, maxLength: 255}
+                justification: {type: string, minLength: 8, maxLength: 1000}
+      responses:
+        '200': {description: Created or revised baseline}
+        '400': {description: Validation or conflict error}
+        '401': {description: Missing or invalid network configuration operator token}
+  /api/v1/network-config/baselines/retire:
+    post:
+      summary: Retire a network golden configuration baseline
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, baseline_id]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                baseline_id: {type: string, format: uuid}
+      responses:
+        '200': {description: Retired baseline}
+        '400': {description: Validation error or baseline not found}
+        '401': {description: Missing or invalid network configuration operator token}
+  /api/v1/network-config/observations:
+    get:
+      summary: List immutable discovered network configurations
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: device_object_key, in: query, schema: {type: string}}
+        - {name: platform, in: query, schema: {type: string}}
+        - {name: observed_before, in: query, schema: {type: string, format: date-time}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated discovered network configurations}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid network configuration reader token}
+  /api/v1/network-config/observations/submit:
+    post:
+      summary: Ingest one immutable and idempotent discovered network configuration
+      security:
+        - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, idempotency_key, source, collector, device_object_key, platform, observed_config, observed_at]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                idempotency_key: {type: string, minLength: 8, maxLength: 128}
+                source: {type: string, enum: [ssh, api, netconf, restconf, gnmi, discovery, import, manual]}
+                collector: {type: string, minLength: 2, maxLength: 255}
+                device_object_key: {type: string}
+                platform: {type: string}
+                observed_config: {type: object}
+                observed_at: {type: string, format: date-time}
+      responses:
+        '201': {description: Persisted discovered configuration}
+        '400': {description: Validation or idempotency conflict}
+        '401': {description: Missing or invalid network configuration operator token}
+  /api/v1/network-config/assessment:
+    get:
+      summary: Compare golden and discovered network configurations and report drift
+      security:
+        - bearerToken: []
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: actor, in: query, schema: {type: string, default: api}}
+        - {name: baseline_code, in: query, schema: {type: string}}
+        - {name: as_of, in: query, schema: {type: string, format: date-time}}
+        - {name: status, in: query, schema: {type: string, enum: [compliant, drift, missing-observation]}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Network configuration compliance reports and totals}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid network configuration reader token}
+  /api/v1/field-operation-sheets:
+    get:
+      summary: List field intervention sheets
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: status, in: query, schema: {type: string, enum: [ready, in-progress, completed, cancelled]}}
+        - {name: target_type, in: query, schema: {type: string, enum: [equipment, rack, cable, power-device, certificate]}}
+        - {name: site, in: query, schema: {type: string}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated field intervention sheets}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid field operations reader token}
+  /api/v1/field-operation-sheets/get:
+    get:
+      summary: Get one field intervention sheet
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: sheet_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Field intervention sheet, checklist, warnings and QR payload}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid field operations reader token}
+  /api/v1/field-operation-sheets/generate:
+    post:
+      summary: Generate a field intervention sheet from authoritative DCIM data
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, target_type, target_id, title, purpose, owner, operator]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                target_type: {type: string, enum: [equipment, rack, cable, power-device, certificate]}
+                target_id: {type: string}
+                title: {type: string, minLength: 3, maxLength: 255}
+                purpose: {type: string, minLength: 3, maxLength: 2000}
+                owner: {type: string, minLength: 2, maxLength: 255}
+                operator: {type: string, minLength: 2, maxLength: 255}
+                source_object_key: {type: string}
+                site: {type: string}
+                building: {type: string}
+                room: {type: string}
+                location_target_type: {type: string, enum: [equipment, rack, cable, power-device]}
+                location_target_id: {type: string}
+      responses:
+        '201': {description: Generated intervention sheet with safety assessment}
+        '400': {description: Validation error or missing physical location}
+        '401': {description: Missing or invalid field operations operator token}
+  /api/v1/field-operation-sheets/start:
+    post:
+      summary: Start a locked field intervention
+      security: [{bearerToken: []}]
+      requestBody: {$ref: '#/components/requestBodies/FieldSheetAction'}
+      responses:
+        '200': {description: Started field intervention sheet}
+        '400': {description: Validation error or missing lock}
+        '401': {description: Missing or invalid field operations operator token}
+  /api/v1/field-operation-sheets/checklist:
+    post:
+      summary: Record one before or after field checklist item
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, sheet_id, item_id, result]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                sheet_id: {type: string, format: uuid}
+                item_id: {type: string, format: uuid}
+                result: {type: string, enum: [passed, failed, not-applicable]}
+                operator_note: {type: string, maxLength: 2000}
+      responses:
+        '200': {description: Updated field intervention sheet}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid field operations operator token}
+  /api/v1/field-operation-sheets/complete:
+    post:
+      summary: Complete a field intervention after checklist and evidence validation
+      security: [{bearerToken: []}]
+      requestBody: {$ref: '#/components/requestBodies/FieldSheetAction'}
+      responses:
+        '200': {description: Completed field intervention sheet}
+        '400': {description: Incomplete checklist, evidence or lock}
+        '401': {description: Missing or invalid field operations operator token}
+  /api/v1/field-operation-sheets/cancel:
+    post:
+      summary: Cancel a field intervention and release its active lock
+      security: [{bearerToken: []}]
+      requestBody: {$ref: '#/components/requestBodies/FieldSheetAction'}
+      responses:
+        '200': {description: Cancelled field intervention sheet}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid field operations operator token}
+  /api/v1/qr-codes/verify:
+    post:
+      summary: Verify a field intervention QR payload
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, sheet_id, payload]
+              properties:
+                tenant_id: {type: string}
+                sheet_id: {type: string, format: uuid}
+                payload: {type: string, minLength: 16, maxLength: 2048}
+      responses:
+        '200': {description: Verified QR identity and target}
+        '400': {description: Invalid or mismatched QR payload}
+        '401': {description: Missing or invalid field operations reader token}
+  /api/v1/field-evidence:
+    get:
+      summary: List immutable field evidence metadata for one sheet
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: sheet_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Field evidence metadata without binary content}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid field operations reader token}
+  /api/v1/field-evidence/attach:
+    post:
+      summary: Attach an immutable before or after photo or PDF evidence
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, sheet_id, phase, media_type, filename, content_base64, caption]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                sheet_id: {type: string, format: uuid}
+                phase: {type: string, enum: [before, after]}
+                media_type: {type: string, enum: [image/jpeg, image/png, image/webp, application/pdf]}
+                filename: {type: string, minLength: 1, maxLength: 255}
+                content_base64: {type: string, contentEncoding: base64, maxLength: 2796204}
+                caption: {type: string, minLength: 3, maxLength: 1000}
+      responses:
+        '201': {description: Attached evidence metadata and SHA-256 digest}
+        '400': {description: Invalid media, encoding or size greater than 2 MiB}
+        '401': {description: Missing or invalid field operations operator token}
+  /api/v1/field-evidence/validate:
+    post:
+      summary: Validate immutable field evidence
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, evidence_id]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                evidence_id: {type: string, format: uuid}
+      responses:
+        '200': {description: Validated field evidence metadata}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid field operations operator token}
+  /api/v1/intervention-locks/acquire:
+    post:
+      summary: Acquire an idempotent logical lock for a field target
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, sheet_id, idempotency_key]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                sheet_id: {type: string, format: uuid}
+                idempotency_key: {type: string, minLength: 8, maxLength: 128}
+                ttl_seconds: {type: integer, minimum: 60, maximum: 86400, default: 3600}
+      responses:
+        '201': {description: Active intervention lock}
+        '400': {description: Validation or lock conflict}
+        '401': {description: Missing or invalid field operations operator token}
+  /api/v1/intervention-locks/release:
+    post:
+      summary: Release an active field intervention lock
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, lock_id]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                lock_id: {type: string, format: uuid}
+      responses:
+        '200': {description: Released intervention lock}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid field operations operator token}
+  /api/v1/offline-sync-packages:
+    get:
+      summary: List controlled offline field operation packages
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: sheet_id, in: query, schema: {type: string, format: uuid}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Paginated offline package metadata}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid field operations reader token}
+  /api/v1/offline-sync-packages/get:
+    get:
+      summary: Get one controlled offline field operation package
+      security: [{bearerToken: []}]
+      parameters:
+        - {name: tenant_id, in: query, required: true, schema: {type: string}}
+        - {name: package_id, in: query, required: true, schema: {type: string, format: uuid}}
+        - {name: include_payload, in: query, schema: {type: boolean, default: true}}
+      responses:
+        '200': {description: Offline package metadata and optional signed payload}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid field operations reader token}
+  /api/v1/offline-sync-packages/create:
+    post:
+      summary: Create an expiring and checksummed offline field operation package
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, sheet_id, idempotency_key]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                sheet_id: {type: string, format: uuid}
+                idempotency_key: {type: string, minLength: 8, maxLength: 128}
+                ttl_seconds: {type: integer, minimum: 300, maximum: 604800, default: 86400}
+      responses:
+        '201': {description: Offline package with canonical payload and SHA-256 digest}
+        '400': {description: Validation error}
+        '401': {description: Missing or invalid field operations operator token}
+  /api/v1/offline-sync-packages/synchronize:
+    post:
+      summary: Synchronize a controlled offline package by its canonical digest
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, package_id, payload_sha256]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                package_id: {type: string, format: uuid}
+                payload_sha256: {type: string, pattern: '^[0-9a-f]{64}$'}
+      responses:
+        '200': {description: Synchronized package metadata}
+        '400': {description: Invalid, expired or mismatched offline package}
+        '401': {description: Missing or invalid field operations operator token}

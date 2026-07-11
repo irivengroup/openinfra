@@ -326,7 +326,10 @@ class PostgreSQLMigrationSchemaGuard:
                 (self._project_root / "installers/migrations/postgresql").glob("*.sql")
             )
         )
-        if "occurred_at" in payload:
+        audit_statements = "\n".join(
+            statement for statement in payload.split(";") if "audit_events" in statement.lower()
+        )
+        if "occurred_at" in audit_statements:
             raise QualityGateError(
                 "PostgreSQL migrations must not reference missing audit_events.occurred_at"
             )

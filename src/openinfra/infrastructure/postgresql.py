@@ -30,6 +30,8 @@ from openinfra.application.ports import (
     DiscoveryReconciliationCasePage,
     DiscoveryRepository,
     ExportRepository,
+    FieldOperationRepository,
+    FieldOperationSheetPage,
     FlowDeclarationPage,
     FlowMatrixRepository,
     FlowObservationPage,
@@ -40,6 +42,7 @@ from openinfra.application.ports import (
     NetworkConfigBaselinePage,
     NetworkConfigComplianceRepository,
     NetworkConfigObservationPage,
+    OfflineSyncPackagePage,
     ReadinessProbe,
     ReadinessStatus,
     RuntimeUsageRepository,
@@ -69,6 +72,7 @@ from openinfra.domain.common import (
     Code,
     ConflictError,
     Coordinates3D,
+    DomainEvent,
     EntityId,
     Name,
     OpenInfraError,
@@ -133,6 +137,12 @@ from openinfra.domain.discovery import (
 )
 from openinfra.domain.discovery_jobs import DiscoveryJob, DiscoveryJobStatus
 from openinfra.domain.editions import QuotaResource
+from openinfra.domain.field_operations import (
+    FieldEvidence,
+    FieldOperationSheet,
+    InterventionLock,
+    OfflineSyncPackage,
+)
 from openinfra.domain.flow_matrix import (
     FlowDeclaration,
     FlowObservation,
@@ -185,6 +195,7 @@ from openinfra.domain.source_of_truth import (
     SourceRelation,
     SourceRelationPage,
 )
+from openinfra.infrastructure.field_operation_mapper import FieldOperationRecordMapper
 
 
 class CursorProtocol(Protocol):
@@ -6716,6 +6727,380 @@ class PostgreSQLItamSupportRepository(PostgreSQLRepositoryBase, ItamSupportRepos
             return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
         parsed = datetime.fromisoformat(str(value))
         return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
+
+
+class PostgreSQLFieldOperationRepository(PostgreSQLRepositoryBase, FieldOperationRepository):
+    def save_sheet(self, sheet: FieldOperationSheet) -> None:
+        self._ensure_tenant(sheet.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO field_operation_sheets (
+                id, tenant_id, target_type, target_id, site_code, status,
+                owner, operator_name, version, payload, created_at, updated_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(target_type)s, %(target_id)s, %(site_code)s,
+                %(status)s, %(owner)s, %(operator_name)s, %(version)s,
+                %(payload)s, %(created_at)s, %(updated_at)s
+            )
+            ON CONFLICT (tenant_id, id) DO UPDATE SET
+                status = EXCLUDED.status,
+                owner = EXCLUDED.owner,
+                operator_name = EXCLUDED.operator_name,
+                version = EXCLUDED.version,
+                payload = EXCLUDED.payload,
+                updated_at = EXCLUDED.updated_at
+            """,
+            {
+                "id": sheet.id.value,
+                "tenant_id": sheet.tenant_id.value,
+                "target_type": sheet.target_type.value,
+                "target_id": sheet.target_id,
+                "site_code": sheet.location.site,
+                "status": sheet.status.value,
+                "owner": sheet.owner,
+                "operator_name": sheet.operator,
+                "version": sheet.version,
+                "payload": json.dumps(sheet.as_dict(), sort_keys=True),
+                "created_at": sheet.created_at,
+                "updated_at": sheet.updated_at,
+            },
+        )
+
+    def get_sheet(self, tenant_id: TenantId, sheet_id: str) -> FieldOperationSheet | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM field_operation_sheets
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s
+            """,
+            {"tenant_id": tenant_id.value, "id": EntityId.from_value(sheet_id).value},
+        )
+        return (
+            None
+            if row is None
+            else FieldOperationRecordMapper.sheet(self._json_mapping(row["payload"]))
+        )
+
+    def list_sheets(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        status: str | None = None,
+        target_type: str | None = None,
+        site: str | None = None,
+    ) -> FieldOperationSheetPage:
+        offset = self._offset(pagination.cursor)
+        clauses = ["tenant_id = %(tenant_id)s"]
+        params: dict[str, object] = {
+            "tenant_id": tenant_id.value,
+            "fetch_limit": pagination.limit + 1,
+            "offset": offset,
+        }
+        if status:
+            clauses.append("status = %(status)s")
+            params["status"] = status.strip().lower()
+        if target_type:
+            clauses.append("target_type = %(target_type)s")
+            params["target_type"] = target_type.strip().lower().replace("_", "-")
+        if site:
+            clauses.append("site_code = %(site_code)s")
+            params["site_code"] = Code.from_value(site, "site code").value
+        where = " AND ".join(clauses)
+        rows = self._fetch_all(
+            f"""
+            SELECT payload FROM field_operation_sheets
+            WHERE {where}
+            ORDER BY updated_at DESC, id DESC
+            LIMIT %(fetch_limit)s OFFSET %(offset)s
+            """,  # nosec B608 -- predicates are fixed and values are bound
+            params,
+        )
+        has_more = len(rows) > pagination.limit
+        selected = rows[: pagination.limit]
+        return FieldOperationSheetPage(
+            tuple(
+                FieldOperationRecordMapper.sheet(self._json_mapping(row["payload"]))
+                for row in selected
+            ),
+            str(offset + pagination.limit) if has_more else None,
+        )
+
+    def save_evidence(self, evidence: FieldEvidence) -> None:
+        self._ensure_tenant(evidence.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO field_evidence (
+                id, tenant_id, sheet_id, phase, status, content_sha256,
+                size_bytes, payload, attached_at, validated_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(sheet_id)s, %(phase)s, %(status)s,
+                %(content_sha256)s, %(size_bytes)s, %(payload)s,
+                %(attached_at)s, %(validated_at)s
+            )
+            ON CONFLICT (tenant_id, id) DO UPDATE SET
+                status = EXCLUDED.status,
+                payload = EXCLUDED.payload,
+                validated_at = EXCLUDED.validated_at
+            """,
+            {
+                "id": evidence.id.value,
+                "tenant_id": evidence.tenant_id.value,
+                "sheet_id": evidence.sheet_id.value,
+                "phase": evidence.phase.value,
+                "status": evidence.status.value,
+                "content_sha256": evidence.content_sha256,
+                "size_bytes": evidence.size_bytes,
+                "payload": json.dumps(evidence.as_dict(include_content=True), sort_keys=True),
+                "attached_at": evidence.attached_at,
+                "validated_at": evidence.validated_at,
+            },
+        )
+
+    def get_evidence(self, tenant_id: TenantId, evidence_id: str) -> FieldEvidence | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM field_evidence
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s
+            """,
+            {"tenant_id": tenant_id.value, "id": EntityId.from_value(evidence_id).value},
+        )
+        return (
+            None
+            if row is None
+            else FieldOperationRecordMapper.evidence(self._json_mapping(row["payload"]))
+        )
+
+    def list_evidence(self, tenant_id: TenantId, sheet_id: str) -> tuple[FieldEvidence, ...]:
+        rows = self._fetch_all(
+            """
+            SELECT payload FROM field_evidence
+            WHERE tenant_id = %(tenant_id)s AND sheet_id = %(sheet_id)s
+            ORDER BY attached_at ASC, id ASC
+            """,
+            {"tenant_id": tenant_id.value, "sheet_id": EntityId.from_value(sheet_id).value},
+        )
+        return tuple(
+            FieldOperationRecordMapper.evidence(self._json_mapping(row["payload"])) for row in rows
+        )
+
+    def save_lock(self, lock: InterventionLock) -> None:
+        self._ensure_tenant(lock.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO intervention_locks (
+                id, tenant_id, sheet_id, target_type, target_id, idempotency_key,
+                owner, status, acquired_at, expires_at, released_at, payload
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(sheet_id)s, %(target_type)s, %(target_id)s,
+                %(idempotency_key)s, %(owner)s, %(status)s, %(acquired_at)s,
+                %(expires_at)s, %(released_at)s, %(payload)s
+            )
+            ON CONFLICT (tenant_id, id) DO UPDATE SET
+                status = EXCLUDED.status,
+                released_at = EXCLUDED.released_at,
+                payload = EXCLUDED.payload
+            """,
+            {
+                "id": lock.id.value,
+                "tenant_id": lock.tenant_id.value,
+                "sheet_id": lock.sheet_id.value,
+                "target_type": lock.target_type.value,
+                "target_id": lock.target_id,
+                "idempotency_key": lock.idempotency_key,
+                "owner": lock.owner,
+                "status": lock.status.value,
+                "acquired_at": lock.acquired_at,
+                "expires_at": lock.expires_at,
+                "released_at": lock.released_at,
+                "payload": json.dumps(lock.as_dict(), sort_keys=True),
+            },
+        )
+
+    def get_lock(self, tenant_id: TenantId, lock_id: str) -> InterventionLock | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM intervention_locks
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s
+            """,
+            {"tenant_id": tenant_id.value, "id": EntityId.from_value(lock_id).value},
+        )
+        return (
+            None
+            if row is None
+            else FieldOperationRecordMapper.lock(self._json_mapping(row["payload"]))
+        )
+
+    def find_active_lock(
+        self, tenant_id: TenantId, target_type: str, target_id: str
+    ) -> InterventionLock | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM intervention_locks
+            WHERE tenant_id = %(tenant_id)s AND target_type = %(target_type)s
+              AND target_id = %(target_id)s AND status = 'active'
+              AND expires_at > CURRENT_TIMESTAMP
+            ORDER BY acquired_at DESC LIMIT 1
+            """,
+            {
+                "tenant_id": tenant_id.value,
+                "target_type": target_type.strip().lower().replace("_", "-"),
+                "target_id": target_id.strip(),
+            },
+        )
+        return (
+            None
+            if row is None
+            else FieldOperationRecordMapper.lock(self._json_mapping(row["payload"]))
+        )
+
+    def find_lock_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> InterventionLock | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM intervention_locks
+            WHERE tenant_id = %(tenant_id)s AND idempotency_key = %(idempotency_key)s
+            """,
+            {"tenant_id": tenant_id.value, "idempotency_key": idempotency_key.strip()},
+        )
+        return (
+            None
+            if row is None
+            else FieldOperationRecordMapper.lock(self._json_mapping(row["payload"]))
+        )
+
+    def save_offline_package(self, package: OfflineSyncPackage) -> None:
+        self._ensure_tenant(package.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO offline_sync_packages (
+                id, tenant_id, sheet_id, idempotency_key, authorized_site, status,
+                payload_sha256, created_at, expires_at, synchronized_at, package_payload
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(sheet_id)s, %(idempotency_key)s,
+                %(authorized_site)s, %(status)s, %(payload_sha256)s, %(created_at)s,
+                %(expires_at)s, %(synchronized_at)s, %(payload)s
+            )
+            ON CONFLICT (tenant_id, id) DO UPDATE SET
+                status = EXCLUDED.status,
+                synchronized_at = EXCLUDED.synchronized_at,
+                package_payload = EXCLUDED.package_payload
+            """,
+            {
+                "id": package.id.value,
+                "tenant_id": package.tenant_id.value,
+                "sheet_id": package.sheet_id.value,
+                "idempotency_key": package.idempotency_key,
+                "authorized_site": package.authorized_site,
+                "status": package.status.value,
+                "payload_sha256": package.payload_sha256,
+                "created_at": package.created_at,
+                "expires_at": package.expires_at,
+                "synchronized_at": package.synchronized_at,
+                "payload": json.dumps(package.as_dict(include_payload=True), sort_keys=True),
+            },
+        )
+
+    def get_offline_package(
+        self, tenant_id: TenantId, package_id: str
+    ) -> OfflineSyncPackage | None:
+        row = self._fetch_one(
+            """
+            SELECT package_payload FROM offline_sync_packages
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s
+            """,
+            {"tenant_id": tenant_id.value, "id": EntityId.from_value(package_id).value},
+        )
+        return (
+            None
+            if row is None
+            else FieldOperationRecordMapper.package(self._json_mapping(row["package_payload"]))
+        )
+
+    def find_offline_package_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> OfflineSyncPackage | None:
+        row = self._fetch_one(
+            """
+            SELECT package_payload FROM offline_sync_packages
+            WHERE tenant_id = %(tenant_id)s AND idempotency_key = %(idempotency_key)s
+            """,
+            {"tenant_id": tenant_id.value, "idempotency_key": idempotency_key.strip()},
+        )
+        return (
+            None
+            if row is None
+            else FieldOperationRecordMapper.package(self._json_mapping(row["package_payload"]))
+        )
+
+    def list_offline_packages(
+        self, tenant_id: TenantId, pagination: Pagination, sheet_id: str | None = None
+    ) -> OfflineSyncPackagePage:
+        offset = self._offset(pagination.cursor)
+        predicate = "" if sheet_id is None else "AND sheet_id = %(sheet_id)s"
+        params: dict[str, object] = {
+            "tenant_id": tenant_id.value,
+            "fetch_limit": pagination.limit + 1,
+            "offset": offset,
+        }
+        if sheet_id is not None:
+            params["sheet_id"] = EntityId.from_value(sheet_id).value
+        rows = self._fetch_all(
+            f"""
+            SELECT package_payload FROM offline_sync_packages
+            WHERE tenant_id = %(tenant_id)s {predicate}
+            ORDER BY created_at DESC, id DESC
+            LIMIT %(fetch_limit)s OFFSET %(offset)s
+            """,  # nosec B608 -- predicate is fixed and value is bound
+            params,
+        )
+        has_more = len(rows) > pagination.limit
+        selected = rows[: pagination.limit]
+        return OfflineSyncPackagePage(
+            tuple(
+                FieldOperationRecordMapper.package(self._json_mapping(row["package_payload"]))
+                for row in selected
+            ),
+            str(offset + pagination.limit) if has_more else None,
+        )
+
+    def append_event(self, event: DomainEvent) -> None:
+        self._ensure_tenant(event.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO field_event_outbox (
+                id, tenant_id, aggregate_id, event_name, payload, occurred_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(aggregate_id)s, %(event_name)s,
+                %(payload)s, %(occurred_at)s
+            )
+            ON CONFLICT (tenant_id, id) DO NOTHING
+            """,
+            {
+                "id": event.id.value,
+                "tenant_id": event.tenant_id.value,
+                "aggregate_id": event.aggregate_id.value,
+                "event_name": event.name,
+                "payload": json.dumps(event.payload, sort_keys=True),
+                "occurred_at": event.occurred_at,
+            },
+        )
+
+    @staticmethod
+    def _offset(cursor: str | None) -> int:
+        try:
+            offset = int(cursor or "0")
+        except ValueError as exc:
+            raise ValidationError("pagination cursor must be a numeric offset") from exc
+        if offset < 0:
+            raise ValidationError("pagination cursor must be positive")
+        return offset
+
+    @staticmethod
+    def _json_mapping(value: object) -> dict[str, Any]:
+        loaded = json.loads(value) if isinstance(value, str) else value
+        if not isinstance(loaded, Mapping):
+            raise ValidationError("field operation payload must be a JSON object")
+        return {str(key): item for key, item in loaded.items()}
 
 
 class PostgreSQLCertificateInventoryRepository(

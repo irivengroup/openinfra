@@ -29,6 +29,9 @@ class WheelVerifier:
             "openinfra/infrastructure/certificate_parser.py",
             "openinfra/domain/network_config_compliance.py",
             "openinfra/application/network_config_compliance_services.py",
+            "openinfra/domain/field_operations.py",
+            "openinfra/application/field_operation_services.py",
+            "openinfra/infrastructure/field_operation_mapper.py",
             "openinfra/interfaces/cli.py",
             "openinfra/interfaces/rendering/static/assets/openinfra-i18n.js",
             "openinfra/interfaces/rendering/static/assets/openinfra-form-fields.js",
@@ -37,6 +40,7 @@ class WheelVerifier:
             "openinfra/api/openapi.yaml",
             "openinfra/migrations/postgresql/0041_flow_matrix.sql",
             "openinfra/migrations/postgresql/0043_network_config_compliance.sql",
+            "openinfra/migrations/postgresql/0044_field_operations_mobile_offline.sql",
         )
         missing = [
             suffix

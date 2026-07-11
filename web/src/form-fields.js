@@ -55,7 +55,7 @@ export function normalizeFieldDefinition(field, index = 0) {
 
 export function inferValidationKind(field) {
   const explicitType = String(field?.type || '').toLowerCase();
-  if (['select', 'boolean', 'hidden', 'tenant-select', 'organization-select', 'partner-select', 'country-select'].includes(explicitType)) return 'selection';
+  if (['select', 'boolean', 'hidden', 'tenant-select', 'organization-select', 'partner-select', 'country-select', 'file'].includes(explicitType)) return 'selection';
   if (explicitType === 'number') return 'number';
   if (explicitType === 'json') return 'json';
   if (explicitType === 'csv') return 'csv';
@@ -81,6 +81,7 @@ export function inferValidationKind(field) {
 
 export function inputTypeForField(field) {
   const normalized = normalizeFieldDefinition(field);
+  if (String(normalized.type || '').toLowerCase() === 'file') return 'file';
   switch (normalized.validation) {
     case 'date': return 'date';
     case 'datetime': return 'datetime-local';
@@ -94,8 +95,13 @@ export function inputTypeForField(field) {
 
 export function inputAttributesForField(field) {
   const normalized = normalizeFieldDefinition(field);
-  const textLike = !['date', 'datetime', 'number', 'selection'].includes(normalized.validation);
   const attributes = {};
+  if (String(normalized.type || '').toLowerCase() === 'file') {
+    if (normalized.accept) attributes.accept = normalized.accept;
+    if (normalized.capture) attributes.capture = normalized.capture;
+    return attributes;
+  }
+  const textLike = !['date', 'datetime', 'number', 'selection'].includes(normalized.validation);
   if (textLike) attributes.maxLength = normalized.maxLength || (normalized.type === 'textarea' || normalized.type === 'json' ? TEXTAREA_MAX_LENGTH : TEXT_MAX_LENGTH);
   if (normalized.validation === 'email') {
     attributes.autoComplete = 'email';

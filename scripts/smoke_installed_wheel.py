@@ -13,7 +13,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.29.94"
+    EXPECTED_VERSION = "0.29.95"
     EXPECTED_GRAPH_ROUTES = (
         "/api/v1/graph/traverse",
         "/api/v1/graph/impact",
@@ -46,8 +46,27 @@ class InstalledWheelSmoke:
         "/api/v1/network-config/observations/submit",
         "/api/v1/network-config/assessment",
     )
-    EXPECTED_LAST_MIGRATION = "0043_network_config_compliance.sql"
-    EXPECTED_MIGRATION_COUNT = 43
+    EXPECTED_FIELD_OPERATION_ROUTES = (
+        "/api/v1/field-operation-sheets",
+        "/api/v1/field-operation-sheets/get",
+        "/api/v1/field-operation-sheets/generate",
+        "/api/v1/field-operation-sheets/start",
+        "/api/v1/field-operation-sheets/checklist",
+        "/api/v1/field-operation-sheets/complete",
+        "/api/v1/field-operation-sheets/cancel",
+        "/api/v1/qr-codes/verify",
+        "/api/v1/field-evidence",
+        "/api/v1/field-evidence/attach",
+        "/api/v1/field-evidence/validate",
+        "/api/v1/intervention-locks/acquire",
+        "/api/v1/intervention-locks/release",
+        "/api/v1/offline-sync-packages",
+        "/api/v1/offline-sync-packages/get",
+        "/api/v1/offline-sync-packages/create",
+        "/api/v1/offline-sync-packages/synchronize",
+    )
+    EXPECTED_LAST_MIGRATION = "0044_field_operations_mobile_offline.sql"
+    EXPECTED_MIGRATION_COUNT = 44
     EXPECTED_ASSETS = (
         "openinfra-web.js",
         "openinfra-web.css",
@@ -63,6 +82,7 @@ class InstalledWheelSmoke:
         self._assert_flow_routes(openapi)
         self._assert_certificate_routes(openapi)
         self._assert_network_config_routes(openapi)
+        self._assert_field_operation_routes(openapi)
         migrations = self._assert_migrations(package_root)
         self._assert_assets(package_root)
         self._assert_benchmark_contract()
@@ -73,6 +93,7 @@ class InstalledWheelSmoke:
             "flow_routes": len(self.EXPECTED_FLOW_ROUTES),
             "certificate_routes": len(self.EXPECTED_CERTIFICATE_ROUTES),
             "network_config_routes": len(self.EXPECTED_NETWORK_CONFIG_ROUTES),
+            "field_operation_routes": len(self.EXPECTED_FIELD_OPERATION_ROUTES),
             "migrations": len(migrations),
             "last_migration": migrations[-1].name,
             "runtime_assets": len(self.EXPECTED_ASSETS),
@@ -116,6 +137,14 @@ class InstalledWheelSmoke:
         if missing:
             raise InstalledWheelSmokeError(
                 "installed OpenAPI document is missing network configuration routes: "
+                + ", ".join(missing)
+            )
+
+    def _assert_field_operation_routes(self, openapi: str) -> None:
+        missing = [route for route in self.EXPECTED_FIELD_OPERATION_ROUTES if route not in openapi]
+        if missing:
+            raise InstalledWheelSmokeError(
+                "installed OpenAPI document is missing field operation routes: "
                 + ", ".join(missing)
             )
 

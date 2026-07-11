@@ -12,7 +12,7 @@ from openinfra.domain.certificate_pki import (
     CertificateEndpointObservation,
     CertificateMaterial,
 )
-from openinfra.domain.common import AuditEvent, EntityId, Pagination, TenantId
+from openinfra.domain.common import AuditEvent, DomainEvent, EntityId, Pagination, TenantId
 from openinfra.domain.data_export import ExportJob
 from openinfra.domain.data_import import (
     BulkImportCheckpoint,
@@ -46,6 +46,12 @@ from openinfra.domain.discovery import (
 )
 from openinfra.domain.discovery_jobs import DiscoveryJob
 from openinfra.domain.editions import QuotaResource
+from openinfra.domain.field_operations import (
+    FieldEvidence,
+    FieldOperationSheet,
+    InterventionLock,
+    OfflineSyncPackage,
+)
 from openinfra.domain.flow_matrix import FlowDeclaration, FlowObservation
 from openinfra.domain.identity import (
     EffectiveIdentity,
@@ -114,6 +120,30 @@ class SecurityTokenPage:
     def as_dict(self) -> dict[str, object]:
         return {
             "items": [item.as_public_dict() for item in self.items],
+            "next_cursor": self.next_cursor,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class FieldOperationSheetPage:
+    items: tuple[FieldOperationSheet, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "items": [item.as_dict() for item in self.items],
+            "next_cursor": self.next_cursor,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class OfflineSyncPackagePage:
+    items: tuple[OfflineSyncPackage, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "items": [item.as_dict(include_payload=False) for item in self.items],
             "next_cursor": self.next_cursor,
         }
 
@@ -1096,6 +1126,85 @@ class CertificateInventoryRepository(ABC):
         pagination: Pagination,
         certificate_fingerprint: str | None = None,
     ) -> CertificateEndpointPage:
+        raise TypeError("adapter contract invoked directly")
+
+
+class FieldOperationRepository(ABC):
+    @abstractmethod
+    def save_sheet(self, sheet: FieldOperationSheet) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_sheet(self, tenant_id: TenantId, sheet_id: str) -> FieldOperationSheet | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_sheets(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        status: str | None = None,
+        target_type: str | None = None,
+        site: str | None = None,
+    ) -> FieldOperationSheetPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_evidence(self, evidence: FieldEvidence) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_evidence(self, tenant_id: TenantId, evidence_id: str) -> FieldEvidence | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_evidence(self, tenant_id: TenantId, sheet_id: str) -> tuple[FieldEvidence, ...]:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_lock(self, lock: InterventionLock) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_lock(self, tenant_id: TenantId, lock_id: str) -> InterventionLock | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_active_lock(
+        self, tenant_id: TenantId, target_type: str, target_id: str
+    ) -> InterventionLock | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_lock_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> InterventionLock | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_offline_package(self, package: OfflineSyncPackage) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_offline_package(
+        self, tenant_id: TenantId, package_id: str
+    ) -> OfflineSyncPackage | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_offline_package_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> OfflineSyncPackage | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_offline_packages(
+        self, tenant_id: TenantId, pagination: Pagination, sheet_id: str | None = None
+    ) -> OfflineSyncPackagePage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def append_event(self, event: DomainEvent) -> None:
         raise TypeError("adapter contract invoked directly")
 
 

@@ -788,6 +788,50 @@ const MODULES = [
     { id: 'dcim-power-circuit', label: 'Définir un circuit électrique', path: '/v1/dcim/power-circuits', method: 'POST', fields: ['Opérateur', 'Identifiant circuit', 'Source électrique', 'Site', 'Bâtiment', 'Salle', 'Rack', 'Chaîne électrique', 'Capacité watts', 'Calibre disjoncteur A', 'Groupe redondance', 'Libellé'] },
     { id: 'dcim-cooling-zone', label: 'Définir une zone de refroidissement', path: '/v1/dcim/cooling-zones', method: 'POST', fields: ['Opérateur', 'Site', 'Bâtiment', 'Salle', 'Zone froid/chaud', 'Rôle refroidissement', 'Capacité froid watts', 'Température soufflage °C', 'Température retour °C', 'Libellé'] },
     { id: 'dcim-power-reservation', label: 'Réserver la puissance équipement', path: '/v1/dcim/power-reservations', method: 'POST', fields: ['Opérateur', 'Numéro d’actif', 'Identifiant circuit', 'Puissance attendue watts', 'Libellé'] },
+    { id: 'field-sheet-list', label: 'Lister les fiches d’intervention', path: '/v1/field-operation-sheets', method: 'GET', fields: [
+      { name: 'status', label: 'Statut', type: 'select', options: ['ready', 'in-progress', 'completed', 'cancelled'] },
+      { name: 'target_type', label: 'Type de cible', type: 'select', options: ['equipment', 'rack', 'cable', 'power-device', 'certificate'] },
+      { name: 'site', label: 'Site' }, { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100', min: 1, max: 500 }, { name: 'cursor', label: 'Curseur' },
+    ] },
+    { id: 'field-sheet-get', label: 'Consulter une fiche d’intervention', path: '/v1/field-operation-sheets/get', method: 'GET', fields: [{ name: 'sheet_id', label: 'ID fiche', required: true }] },
+    { id: 'field-sheet-generate', label: 'Générer une fiche d’intervention', path: '/v1/field-operation-sheets/generate', method: 'POST', fields: [
+      { name: 'actor', label: 'Opérateur', required: true },
+      { name: 'target_type', label: 'Type de cible', type: 'select', options: ['equipment', 'rack', 'cable', 'power-device', 'certificate'], required: true },
+      { name: 'target_id', label: 'Identifiant cible', required: true }, { name: 'title', label: 'Titre', required: true },
+      { name: 'purpose', label: 'Objet de l’intervention', type: 'textarea', rows: 4, required: true },
+      { name: 'owner', label: 'Responsable', required: true }, { name: 'operator', label: 'Intervenant', required: true },
+      { name: 'source_object_key', label: 'Clé objet RSOT' }, { name: 'site', label: 'Site' }, { name: 'building', label: 'Bâtiment' }, { name: 'room', label: 'Salle' },
+      { name: 'location_target_type', label: 'Type de cible physique', type: 'select', options: ['equipment', 'rack', 'cable', 'power-device'] },
+      { name: 'location_target_id', label: 'Identifiant cible physique' },
+    ] },
+    { id: 'field-lock-acquire', label: 'Verrouiller la cible', path: '/v1/intervention-locks/acquire', method: 'POST', fields: [
+      { name: 'actor', label: 'Opérateur', required: true }, { name: 'sheet_id', label: 'ID fiche', required: true },
+      { name: 'idempotency_key', label: 'Clé d’idempotence', required: true }, { name: 'ttl_seconds', label: 'Durée du verrou (secondes)', type: 'number', defaultValue: '3600', min: 60, max: 86400 },
+    ] },
+    { id: 'field-operation-start', label: 'Démarrer l’intervention', path: '/v1/field-operation-sheets/start', method: 'POST', fields: [{ name: 'actor', label: 'Opérateur', required: true }, { name: 'sheet_id', label: 'ID fiche', required: true }] },
+    { id: 'field-checklist-record', label: 'Renseigner une étape de checklist', path: '/v1/field-operation-sheets/checklist', method: 'POST', fields: [
+      { name: 'actor', label: 'Opérateur', required: true }, { name: 'sheet_id', label: 'ID fiche', required: true }, { name: 'item_id', label: 'ID étape', required: true },
+      { name: 'result', label: 'Résultat', type: 'select', options: ['passed', 'failed', 'not-applicable'], required: true }, { name: 'operator_note', label: 'Note intervenant', type: 'textarea', rows: 3 },
+    ] },
+    { id: 'field-evidence-attach', label: 'Joindre une preuve terrain', path: '/v1/field-evidence/attach', method: 'POST', fields: [
+      { name: 'actor', label: 'Opérateur', required: true }, { name: 'sheet_id', label: 'ID fiche', required: true },
+      { name: 'phase', label: 'Phase', type: 'select', options: ['before', 'after'], required: true },
+      { name: 'evidence_file', label: 'Photo ou document', type: 'file', accept: 'image/jpeg,image/png,image/webp,application/pdf', capture: 'environment', required: true },
+      { name: 'caption', label: 'Description de la preuve', type: 'textarea', rows: 3, required: true },
+    ] },
+    { id: 'field-evidence-list', label: 'Lister les preuves terrain', path: '/v1/field-evidence', method: 'GET', fields: [{ name: 'sheet_id', label: 'ID fiche', required: true }] },
+    { id: 'field-evidence-validate', label: 'Valider une preuve terrain', path: '/v1/field-evidence/validate', method: 'POST', fields: [{ name: 'actor', label: 'Opérateur', required: true }, { name: 'evidence_id', label: 'ID preuve', required: true }] },
+    { id: 'field-operation-complete', label: 'Clôturer l’intervention', path: '/v1/field-operation-sheets/complete', method: 'POST', fields: [{ name: 'actor', label: 'Opérateur', required: true }, { name: 'sheet_id', label: 'ID fiche', required: true }] },
+    { id: 'field-operation-cancel', label: 'Annuler l’intervention', path: '/v1/field-operation-sheets/cancel', method: 'POST', fields: [{ name: 'actor', label: 'Opérateur', required: true }, { name: 'sheet_id', label: 'ID fiche', required: true }] },
+    { id: 'field-qr-verify', label: 'Vérifier un QR code terrain', path: '/v1/qr-codes/verify', method: 'POST', fields: [{ name: 'sheet_id', label: 'ID fiche', required: true }, { name: 'payload', label: 'Contenu QR', type: 'textarea', rows: 4, required: true }] },
+    { id: 'field-lock-release', label: 'Libérer le verrou terrain', path: '/v1/intervention-locks/release', method: 'POST', fields: [{ name: 'actor', label: 'Opérateur', required: true }, { name: 'lock_id', label: 'ID verrou', required: true }] },
+    { id: 'field-offline-create', label: 'Créer un paquet hors ligne', path: '/v1/offline-sync-packages/create', method: 'POST', fields: [
+      { name: 'actor', label: 'Opérateur', required: true }, { name: 'sheet_id', label: 'ID fiche', required: true },
+      { name: 'idempotency_key', label: 'Clé d’idempotence', required: true }, { name: 'ttl_seconds', label: 'Validité hors ligne (secondes)', type: 'number', defaultValue: '86400', min: 300, max: 604800 },
+    ] },
+    { id: 'field-offline-list', label: 'Lister les paquets hors ligne', path: '/v1/offline-sync-packages', method: 'GET', fields: [{ name: 'sheet_id', label: 'ID fiche' }, { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100', min: 1, max: 500 }, { name: 'cursor', label: 'Curseur' }] },
+    { id: 'field-offline-get', label: 'Consulter un paquet hors ligne', path: '/v1/offline-sync-packages/get', method: 'GET', fields: [{ name: 'package_id', label: 'ID paquet', required: true }, { name: 'include_payload', label: 'Inclure le contenu', type: 'boolean', defaultValue: 'true' }] },
+    { id: 'field-offline-sync', label: 'Synchroniser un paquet hors ligne', path: '/v1/offline-sync-packages/synchronize', method: 'POST', fields: [{ name: 'actor', label: 'Opérateur', required: true }, { name: 'package_id', label: 'ID paquet', required: true }, { name: 'payload_sha256', label: 'Empreinte SHA-256 du paquet', required: true, maxLength: 64 }] },
     { id: 'dcim-digital-twin', label: 'Jumeau numérique salle', path: '/v1/dcim/digital-twin', method: 'GET', fields: ['Site', 'Bâtiment', 'Salle'] },
     { id: 'dcim-energy-cooling-capacity', label: 'Capacité énergie/refroidissement', path: '/v1/dcim/energy-cooling-capacity', method: 'GET', fields: ['Site', 'Bâtiment', 'Salle', 'Rack'] },
   ] },
@@ -876,6 +920,7 @@ const SIDEBAR_CONTEXTS = {
     { label: 'Localisation & capacité', operationIds: ['dcim-locate-equipment', 'dcim-rack-capacity', 'dcim-room-plan', 'dcim-rack-elevation'] },
     { label: 'Connectivité', operationIds: ['dcim-patch-panel', 'dcim-port', 'dcim-cable', 'dcim-cable-trace'] },
     { label: 'Énergie & refroidissement', operationIds: ['dcim-power-device', 'dcim-power-circuit', 'dcim-cooling-zone', 'dcim-power-reservation', 'dcim-energy-cooling-capacity'] },
+    { label: 'Opérations terrain', operationIds: ['field-sheet-list', 'field-sheet-get', 'field-sheet-generate', 'field-lock-acquire', 'field-operation-start', 'field-checklist-record', 'field-evidence-attach', 'field-evidence-list', 'field-evidence-validate', 'field-operation-complete', 'field-operation-cancel', 'field-qr-verify', 'field-lock-release', 'field-offline-create', 'field-offline-list', 'field-offline-get', 'field-offline-sync'] },
     { label: 'Jumeau numérique', operationIds: ['dcim-digital-twin'] },
   ],
   itam: [
@@ -1079,10 +1124,28 @@ function MegaMenu({ module, selectedOperationId, chooseOperation, close, i18n })
   </section>;
 }
 
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Impossible de lire la preuve sélectionnée.'));
+    reader.onload = () => {
+      const result = String(reader.result || '');
+      const separator = result.indexOf(',');
+      if (separator < 0) reject(new Error('Le fichier sélectionné est invalide.'));
+      else resolve(result.slice(separator + 1));
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 function OperationField({ entry, index, i18n, language }) {
   const field = normalizeFieldDefinition(entry, index);
   const fieldId = `openinfra-react-field-${index}`;
   const requiredText = field.required ? <span aria-hidden="true"> *</span> : null;
+  if (field.type === 'file') {
+    const attributes = inputAttributesForField(field);
+    return <div className="col-12"><label className="form-label" htmlFor={fieldId}>{i18n.label(field.label)}{requiredText}</label><input id={fieldId} name={field.name} className="form-control" type="file" required={field.required} {...attributes} onChange={(event) => { event.currentTarget.setCustomValidity(''); event.currentTarget.removeAttribute('aria-invalid'); }} /><p className="form-text">JPEG, PNG, WebP ou PDF — 2 Mio maximum.</p></div>;
+  }
   if (field.type === 'select' || field.type === 'boolean') {
     const options = field.type === 'boolean' ? ['false', 'true'] : field.options || [];
     return <div className="col-md-6 col-xl-4"><label className="form-label" htmlFor={fieldId}>{i18n.label(field.label)}{requiredText}</label><select id={fieldId} name={field.name} className="form-select" defaultValue={field.defaultValue ?? ''} required={field.required} onInput={(event) => validateControl(event.currentTarget, field, i18n, { countryCode: formCountryCode(event.currentTarget.form) })}><option value=""></option>{options.map((option) => <option value={option} key={option}>{field.type === 'boolean' ? (option === 'true' ? i18n.t('yes') : i18n.t('no')) : i18n.optionLabel(option)}</option>)}</select></div>;
@@ -1110,7 +1173,21 @@ function validateOperationForm(form, fields, i18n) {
   fields.forEach((entry, index) => {
     const field = normalizeFieldDefinition(entry, index);
     const control = controls.find((candidate) => candidate.name === field.name);
-    if (control && !validateControl(control, field, i18n, { countryCode })) valid = false;
+    if (!control) return;
+    if (field.type === 'file') {
+      const file = control.files?.[0];
+      const accepted = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
+      let message = '';
+      if (file && file.size > 2 * 1024 * 1024) message = 'Le fichier dépasse la limite de 2 Mio.';
+      else if (file && !accepted.has(file.type)) message = 'Le format de fichier n’est pas autorisé.';
+      control.setCustomValidity(message);
+      if (message) {
+        control.setAttribute('aria-invalid', 'true');
+        valid = false;
+      } else control.removeAttribute('aria-invalid');
+      return;
+    }
+    if (!validateControl(control, field, i18n, { countryCode })) valid = false;
   });
   if (!valid || !form.checkValidity()) {
     form.reportValidity();
@@ -1403,22 +1480,40 @@ function Dashboard() {
   }
 
   async function execute(form, fields) {
-    if (!selected.id.startsWith('graph-')) {
+    const isLiveOperation = selected.id.startsWith('graph-') || selected.id.startsWith('field-');
+    if (!isLiveOperation) {
       setResult({ tenant_id: tenant, action: selected.id, via: config.apiBaseUrl, trust: config.webBackendTrust });
       return;
     }
     try {
       const formData = new FormData(form);
-      const query = new URLSearchParams();
-      query.set('tenant_id', tenant);
       const countryCode = formCountryCode(form);
+      const query = new URLSearchParams();
+      const body = { tenant_id: tenant };
+      query.set('tenant_id', tenant);
       for (const field of fields) {
+        if (field.type === 'file') {
+          const file = form.querySelector(`[name="${field.name}"]`)?.files?.[0];
+          if (!file) continue;
+          body.filename = file.name;
+          body.media_type = file.type;
+          body.content_base64 = await readFileAsBase64(file);
+          continue;
+        }
         const normalized = normalizeFieldValue(field, formData.get(field.name), { countryCode });
-        if (normalized !== undefined) query.append(field.name, typeof normalized === 'string' ? normalized : JSON.stringify(normalized));
+        if (normalized === undefined) continue;
+        if (selected.method === 'GET') query.append(field.name, typeof normalized === 'string' ? normalized : JSON.stringify(normalized));
+        else body[field.name] = normalized;
       }
-      const response = await fetch(`${String(config.apiBaseUrl || '/api').replace(/\/$/, '')}${selected.path}?${query}`, {
+      const apiBase = String(config.apiBaseUrl || '/api').replace(/\/$/, '');
+      const requestUrl = selected.method === 'GET' ? `${apiBase}${selected.path}?${query}` : `${apiBase}${selected.path}`;
+      const response = await fetch(requestUrl, {
+        method: selected.method,
         credentials: 'same-origin',
-        headers: { Accept: selected.download ? '*/*' : 'application/json' },
+        headers: selected.method === 'GET'
+          ? { Accept: selected.download ? '*/*' : 'application/json' }
+          : { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: selected.method === 'GET' ? undefined : JSON.stringify(body),
       });
       if (selected.download) {
         const blob = await response.blob();

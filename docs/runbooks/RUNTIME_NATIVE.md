@@ -30,7 +30,7 @@ sudo install -d -o root -g root -m 0755 /opt/openinfra
 sudo install -d -o root -g openinfra -m 0750 /opt/openinfra/config /opt/openinfra/share /var/log/openinfra
 sudo ln -sfn /opt/openinfra/config /etc/openinfra
 python3.11 -m venv /opt/openinfra/venv
-/opt/openinfra/venv/bin/python -m pip install --upgrade pip
+/opt/openinfra/venv/bin/python -m pip install --upgrade "pip>=26.0"
 /opt/openinfra/venv/bin/python -m pip install /opt/openinfra/openinfra-*.whl
 ```
 

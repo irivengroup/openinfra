@@ -72,3 +72,23 @@ test('Bootstrap text helpers use OpenInfra semantic navy tokens instead of gray 
   assert.doesNotMatch(reactTheme, /color:\s*rgba\(var\(--openinfra-ink-rgb\),\s*\.[0-9]+\)/);
   assert.doesNotMatch(reactTheme, /var\(--openinfra-muted\)/);
 });
+
+test('visual excellence layer preserves premium surfaces and restrained interaction depth', async () => {
+  const { reactTheme } = await themes();
+  for (const token of [
+    '--openinfra-surface: #ffffff;',
+    '--openinfra-surface-soft: #f7faff;',
+    '--openinfra-radius-xl: 1.55rem;',
+    '--openinfra-elevation-1:',
+    '--openinfra-elevation-2:',
+    '--openinfra-transition:',
+  ]) {
+    assert.ok(reactTheme.includes(token), `missing visual-system token ${token}`);
+  }
+  assert.match(reactTheme, /\.openinfra-titlebar::before\s*\{/);
+  assert.match(reactTheme, /\.table thead th\s*\{/);
+  assert.match(reactTheme, /@supports not \(\(-webkit-backdrop-filter:/);
+  assert.match(reactTheme, /@media \(prefers-contrast: more\)/);
+  assert.match(reactTheme, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.doesNotMatch(reactTheme, /^\s*filter:\s*blur\(/m);
+});

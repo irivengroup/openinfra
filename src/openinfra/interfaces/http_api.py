@@ -383,6 +383,7 @@ from openinfra.domain.common import AccessDeniedError, OpenInfraError, Validatio
 from openinfra.domain.countries import CountryCatalog
 from openinfra.domain.security import AuthenticatedPrincipal, Permission
 from openinfra.infrastructure.runtime_config import RuntimeDatabaseDsnResolver
+from openinfra.interfaces.openapi_taxonomy import OpenApiDocumentationTaxonomy
 from openinfra.interfaces.runtime_environment import OpenInfraRuntimeEnvironmentScope
 
 
@@ -459,22 +460,46 @@ class OpenApiDocumentProvider:
 class ApiDocumentationRenderer:
     @staticmethod
     def swagger_html(openapi_url: str) -> str:
+        component_order = json.dumps(
+            OpenApiDocumentationTaxonomy.component_order(), ensure_ascii=False
+        )
         return f"""<!doctype html>
-<html lang=\"en\">
+<html lang=\"fr\">
 <head>
   <meta charset=\"utf-8\">
   <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
   <title>OpenInfra API - Swagger UI</title>
   <link rel=\"stylesheet\" href=\"https://unpkg.com/swagger-ui-dist@5/swagger-ui.css\">
+  <style>
+    body {{ margin: 0; background: #f4f7fb; }}
+    .swagger-ui .topbar {{ background: #001b41; }}
+    .swagger-ui .opblock-tag {{ border-bottom-color: #dbe7f3; color: #001b41; }}
+    .swagger-ui .opblock-tag small {{ color: #315d8a; }}
+  </style>
 </head>
 <body>
   <div id=\"swagger-ui\"></div>
   <script src=\"https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js\"></script>
   <script>
+    const componentOrder = {component_order};
+    const componentIndex = (tag) => {{
+      const component = String(tag).split(' · ', 1)[0];
+      const index = componentOrder.indexOf(component);
+      return index === -1 ? componentOrder.length : index;
+    }};
     window.ui = SwaggerUIBundle({{
       url: \"{openapi_url}\",
       dom_id: '#swagger-ui',
       deepLinking: true,
+      docExpansion: 'none',
+      defaultModelsExpandDepth: -1,
+      displayOperationId: true,
+      filter: true,
+      tagsSorter: (left, right) => {{
+        const componentDifference = componentIndex(left) - componentIndex(right);
+        return componentDifference || String(left).localeCompare(String(right), 'fr');
+      }},
+      operationsSorter: 'alpha',
       layout: 'BaseLayout'
     }});
   </script>

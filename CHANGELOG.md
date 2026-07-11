@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.30.5 - 2026-07-11
+
+### Sécurité des dépendances
+
+- relèvement de `cryptography` à `>=48.0.1,<50.0` afin d'exclure les wheels embarquant une version OpenSSL vulnérable ;
+- relèvement de `urllib3` à `>=2.7.0,<3.0` pour exclure les vulnérabilités de décompression et de redirection corrigées en 2.7.0 ;
+- maintien d'un gate `pip-audit --strict` bloquant sur toutes les dépendances runtime, PostgreSQL, LDAP et développement ;
+- mise à niveau préalable de `pip` dans la CI et l'image d'exécution.
+
+### Expérience visuelle
+
+- ajout d'un système de design commun aux portails React et packagé ;
+- surfaces lumineuses, hiérarchie bleu nuit, profondeurs contenues, tableaux et formulaires affinés ;
+- navigation, cartes, boutons, champs, alertes et résultats harmonisés ;
+- conservation des modes contraste renforcé et réduction des mouvements ;
+- aucune dépendance frontend ni ressource média supplémentaire.
+
+### Documentation API
+
+- regroupement des 331 opérations OpenAPI par **composant**, puis par **contexte métier** ;
+- groupes hiérarchiques ReDoc via `x-tagGroups` ;
+- groupes Swagger `Composant · Contexte`, triés selon l'ordre métier et repliés par défaut ;
+- maintien des flux et de la conformité réseau sous IPAM, et des certificats sous Sécurité ;
+- tests bloquants empêchant tout endpoint non classifié ou tout tag dupliqué.
+
 ## 0.30.4 - 2026-07-11
 
 ### Correctifs UI

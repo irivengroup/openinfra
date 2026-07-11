@@ -1953,3 +1953,453 @@ input.form-control[type="datetime-local"]::-webkit-calendar-picker-indicator:hov
   background-color: rgba(var(--openinfra-action-rgb), .16);
   opacity: 1;
 }
+
+/* v0.30.5: OpenInfra visual excellence layer.
+ * The interface keeps the established IONOS-inspired navy identity while
+ * improving hierarchy, depth, rhythm and interactive feedback. The layer is
+ * deliberately token-driven so React and the packaged runtime stay identical.
+ */
+:root {
+  --openinfra-surface: #ffffff;
+  --openinfra-surface-soft: #f7faff;
+  --openinfra-surface-tint: #edf5ff;
+  --openinfra-surface-strong: #e2efff;
+  --openinfra-accent-soft: #e6f2ff;
+  --openinfra-aqua-soft: #e8fbf7;
+  --openinfra-danger: #b42318;
+  --openinfra-danger-rgb: 180, 35, 24;
+  --openinfra-radius-sm: .65rem;
+  --openinfra-radius-md: .95rem;
+  --openinfra-radius-lg: 1.25rem;
+  --openinfra-radius-xl: 1.55rem;
+  --openinfra-elevation-1: 0 .2rem .55rem rgba(0, 27, 65, .055), 0 1px 2px rgba(0, 27, 65, .035);
+  --openinfra-elevation-2: 0 .65rem 1.6rem rgba(0, 27, 65, .085), 0 .12rem .35rem rgba(0, 61, 143, .055);
+  --openinfra-elevation-3: 0 1.15rem 2.8rem rgba(0, 27, 65, .13), 0 .2rem .55rem rgba(0, 61, 143, .075);
+  --openinfra-glass-border: rgba(255, 255, 255, .62);
+  --openinfra-transition-fast: 140ms ease;
+  --openinfra-transition: 220ms cubic-bezier(.2, .72, .24, 1);
+}
+
+::selection {
+  background: rgba(var(--openinfra-action-rgb), .2);
+  color: var(--openinfra-navy);
+}
+
+body {
+  background-color: var(--openinfra-page-bg);
+  background-image:
+    radial-gradient(circle at 8% -5%, rgba(var(--openinfra-cyan-rgb), .15), transparent 24rem),
+    radial-gradient(circle at 94% 2%, rgba(var(--openinfra-action-rgb), .11), transparent 30rem),
+    linear-gradient(rgba(0, 61, 143, .018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 61, 143, .018) 1px, transparent 1px),
+    linear-gradient(180deg, #fbfdff 0, var(--openinfra-page-bg) 28rem, #f8fbff 100%);
+  background-size: auto, auto, 2.25rem 2.25rem, 2.25rem 2.25rem, auto;
+  text-rendering: optimizeLegibility;
+}
+
+.openinfra-header-stack {
+  box-shadow: var(--openinfra-header-shadow), 0 1px 0 rgba(255, 255, 255, .55);
+}
+
+.openinfra-top-header.bg-dark {
+  background:
+    radial-gradient(circle at 18% -80%, rgba(var(--openinfra-cyan-rgb), .42), transparent 18rem),
+    linear-gradient(112deg, #00152f 0%, var(--openinfra-navy) 34%, #003679 72%, #0755bd 100%) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, .16);
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, .06);
+}
+
+.openinfra-brand-mark {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, .28), transparent 42%),
+    linear-gradient(135deg, var(--openinfra-cyan), var(--openinfra-action) 58%, var(--openinfra-blue));
+  border-radius: .72rem;
+  box-shadow: 0 .55rem 1.2rem rgba(0, 66, 160, .32), inset 0 1px 0 rgba(255, 255, 255, .48);
+}
+
+.openinfra-component-nav .nav-link {
+  border: 1px solid transparent;
+  border-radius: .64rem;
+  color: rgba(255, 255, 255, .8);
+  transition: background-color var(--openinfra-transition-fast), border-color var(--openinfra-transition-fast), color var(--openinfra-transition-fast), transform var(--openinfra-transition-fast);
+}
+
+.openinfra-component-nav .nav-link:hover,
+.openinfra-component-nav .nav-link:focus-visible {
+  background: rgba(255, 255, 255, .105);
+  border-color: rgba(255, 255, 255, .16);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.openinfra-component-nav .nav-link.active,
+.openinfra-component-nav .nav-link[aria-current="page"] {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .96), rgba(239, 247, 255, .93));
+  border-color: rgba(255, 255, 255, .75);
+  box-shadow: 0 .4rem 1rem rgba(0, 17, 47, .2), inset 0 1px 0 #fff;
+  color: var(--openinfra-blue);
+}
+
+.openinfra-global-toolbar {
+  background: rgba(250, 253, 255, .92);
+  border-bottom: 1px solid rgba(var(--openinfra-blue-rgb), .1) !important;
+  box-shadow: 0 .24rem .7rem rgba(0, 27, 65, .045);
+  -webkit-backdrop-filter: blur(16px) saturate(145%);
+  backdrop-filter: blur(16px) saturate(145%);
+}
+
+.openinfra-global-search-control .form-control {
+  background: rgba(255, 255, 255, .96);
+  border: 1px solid rgba(var(--openinfra-blue-rgb), .2);
+  box-shadow: inset 0 1px 0 #fff, 0 .18rem .5rem rgba(0, 27, 65, .055);
+}
+
+.openinfra-global-search-control .form-control:hover {
+  border-color: rgba(var(--openinfra-action-rgb), .38);
+  box-shadow: inset 0 1px 0 #fff, var(--openinfra-elevation-1);
+}
+
+.openinfra-global-search-control .form-control:focus,
+.openinfra-global-search-control .form-control:focus-visible {
+  border-color: var(--openinfra-action);
+  box-shadow: 0 0 0 .2rem rgba(var(--openinfra-action-rgb), .14) !important;
+}
+
+.openinfra-sidebar {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .985), rgba(244, 249, 255, .97)),
+    radial-gradient(circle at 0 0, rgba(var(--openinfra-cyan-rgb), .1), transparent 18rem);
+  border-right-color: rgba(var(--openinfra-blue-rgb), .11);
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, .82), .35rem 0 1.5rem rgba(0, 27, 65, .035);
+  scrollbar-color: rgba(var(--openinfra-blue-rgb), .3) transparent;
+  scrollbar-width: thin;
+}
+
+.openinfra-sidebar::-webkit-scrollbar,
+.openinfra-operation-list::-webkit-scrollbar,
+.openinfra-global-search-results::-webkit-scrollbar {
+  height: .55rem;
+  width: .55rem;
+}
+
+.openinfra-sidebar::-webkit-scrollbar-thumb,
+.openinfra-operation-list::-webkit-scrollbar-thumb,
+.openinfra-global-search-results::-webkit-scrollbar-thumb {
+  background: rgba(var(--openinfra-blue-rgb), .25);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+.openinfra-sidebar-heading {
+  color: var(--openinfra-text-muted);
+  font-size: .69rem;
+  letter-spacing: .115em;
+}
+
+.openinfra-sidebar-dashboard,
+.openinfra-accordion-toggle {
+  border: 1px solid transparent;
+  border-radius: .72rem;
+}
+
+.openinfra-sidebar-dashboard:hover,
+.openinfra-sidebar-dashboard:focus,
+.openinfra-accordion-toggle:hover,
+.openinfra-accordion-toggle:focus {
+  background: linear-gradient(90deg, rgba(var(--openinfra-action-rgb), .085), rgba(var(--openinfra-cyan-rgb), .055));
+  border-color: rgba(var(--openinfra-action-rgb), .11);
+}
+
+.openinfra-sidebar-dashboard.active,
+.openinfra-accordion-toggle.active {
+  background: linear-gradient(135deg, #00377f, var(--openinfra-action));
+  border-color: rgba(var(--openinfra-action-rgb), .38);
+  box-shadow: 0 .45rem 1rem rgba(0, 72, 175, .18), inset 0 1px 0 rgba(255, 255, 255, .18);
+}
+
+.openinfra-sidebar-context {
+  border-left-color: rgba(var(--openinfra-action-rgb), .18);
+}
+
+.openinfra-sidebar-operation {
+  border-radius: .58rem;
+}
+
+.openinfra-sidebar-operation.active {
+  background: linear-gradient(90deg, rgba(var(--openinfra-action-rgb), .14), rgba(var(--openinfra-cyan-rgb), .045));
+  box-shadow: inset 0 0 0 1px rgba(var(--openinfra-action-rgb), .08);
+}
+
+.openinfra-titlebar {
+  background:
+    radial-gradient(circle at 92% 0, rgba(var(--openinfra-cyan-rgb), .15), transparent 19rem),
+    linear-gradient(135deg, rgba(255, 255, 255, .985), rgba(239, 247, 255, .94));
+  border-color: rgba(var(--openinfra-blue-rgb), .13);
+  border-radius: var(--openinfra-radius-xl);
+  box-shadow: var(--openinfra-elevation-1);
+  overflow: hidden;
+  position: relative;
+}
+
+.openinfra-titlebar::before {
+  background: linear-gradient(180deg, var(--openinfra-cyan), var(--openinfra-action));
+  border-radius: 999px;
+  content: "";
+  inset: 1.05rem auto 1.05rem 0;
+  position: absolute;
+  width: .24rem;
+}
+
+.openinfra-titlebar h1 {
+  color: var(--openinfra-navy);
+  font-size: clamp(1.55rem, 2vw, 2.15rem);
+  letter-spacing: -.038em;
+}
+
+.openinfra-titlebar p {
+  color: var(--openinfra-text-secondary) !important;
+  font-size: .94rem;
+}
+
+.openinfra-metric,
+.openinfra-operation-card,
+.openinfra-overview-summary,
+.openinfra-component-card,
+.card {
+  background: rgba(255, 255, 255, .975);
+  border-color: rgba(var(--openinfra-blue-rgb), .105);
+  border-radius: var(--openinfra-radius-lg);
+  box-shadow: var(--openinfra-elevation-1);
+}
+
+.openinfra-component-card,
+.openinfra-metric {
+  transition: border-color var(--openinfra-transition), box-shadow var(--openinfra-transition), transform var(--openinfra-transition);
+}
+
+.openinfra-component-card:hover,
+.openinfra-metric:hover {
+  border-color: rgba(var(--openinfra-action-rgb), .22);
+  box-shadow: var(--openinfra-elevation-2);
+  transform: translateY(-2px);
+}
+
+.openinfra-metric::before {
+  background: linear-gradient(180deg, var(--openinfra-cyan), var(--openinfra-action) 58%, var(--openinfra-blue));
+  width: .2rem;
+}
+
+.openinfra-component-icon {
+  background: linear-gradient(145deg, rgba(var(--openinfra-cyan-rgb), .14), rgba(var(--openinfra-action-rgb), .1));
+  border: 1px solid rgba(var(--openinfra-action-rgb), .13);
+  border-radius: .9rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .72);
+}
+
+.openinfra-component-metrics > div {
+  background: linear-gradient(135deg, var(--openinfra-surface-soft), var(--openinfra-accent-soft));
+  border-color: rgba(var(--openinfra-blue-rgb), .09);
+  border-radius: .78rem;
+}
+
+.btn {
+  border-radius: .72rem;
+  font-weight: 750;
+  transition: background-color var(--openinfra-transition-fast), border-color var(--openinfra-transition-fast), box-shadow var(--openinfra-transition-fast), color var(--openinfra-transition-fast), transform var(--openinfra-transition-fast);
+}
+
+.btn-primary {
+  --bs-btn-bg: #24d8ab;
+  --bs-btn-border-color: #20cca1;
+  --bs-btn-hover-bg: #20cda3;
+  --bs-btn-hover-border-color: #18b990;
+  background-image: linear-gradient(135deg, rgba(255, 255, 255, .22), transparent 52%);
+  box-shadow: 0 .4rem .9rem rgba(21, 163, 98, .18), inset 0 1px 0 rgba(255, 255, 255, .45);
+}
+
+.btn-primary:hover,
+.btn-primary:focus-visible {
+  box-shadow: 0 .55rem 1.15rem rgba(21, 163, 98, .24), inset 0 1px 0 rgba(255, 255, 255, .36);
+  transform: translateY(-1px);
+}
+
+.btn-outline-primary,
+.btn-outline-secondary {
+  background: rgba(255, 255, 255, .82);
+  border-color: rgba(var(--openinfra-blue-rgb), .24);
+  color: var(--openinfra-blue);
+}
+
+.btn-outline-primary:hover,
+.btn-outline-secondary:hover {
+  background: var(--openinfra-accent-soft);
+  border-color: rgba(var(--openinfra-action-rgb), .38);
+  color: var(--openinfra-blue);
+}
+
+.form-label {
+  color: var(--openinfra-navy);
+  font-size: .79rem;
+  font-weight: 800;
+  letter-spacing: .012em;
+}
+
+.form-control,
+.form-select {
+  background-color: rgba(255, 255, 255, .98);
+  border-color: rgba(var(--openinfra-blue-rgb), .2);
+  border-radius: .72rem;
+  box-shadow: inset 0 1px 2px rgba(0, 27, 65, .025);
+  min-height: 2.55rem;
+}
+
+.form-control:hover,
+.form-select:hover {
+  border-color: rgba(var(--openinfra-action-rgb), .42);
+}
+
+:where(.form-control, .form-select):focus,
+:where(.form-control, .form-select):focus-visible {
+  border-color: var(--openinfra-action);
+  box-shadow: 0 0 0 .2rem rgba(var(--openinfra-action-rgb), .14) !important;
+}
+
+.form-check-input:checked {
+  background-color: var(--openinfra-action);
+  border-color: var(--openinfra-action);
+}
+
+.table {
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--openinfra-ink);
+  --bs-table-hover-bg: rgba(var(--openinfra-action-rgb), .045);
+  border-color: rgba(var(--openinfra-blue-rgb), .09);
+  margin-bottom: 0;
+}
+
+.table > :not(caption) > * > * {
+  padding: .78rem .82rem;
+}
+
+.table thead th {
+  background: linear-gradient(180deg, #f8fbff, #eef5ff);
+  border-bottom-color: rgba(var(--openinfra-blue-rgb), .15);
+  color: var(--openinfra-text-secondary);
+  font-size: .73rem;
+  font-weight: 850;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+}
+
+.table tbody tr {
+  transition: background-color var(--openinfra-transition-fast);
+}
+
+.alert {
+  border-width: 1px 1px 1px .24rem;
+  border-radius: var(--openinfra-radius-md);
+  box-shadow: var(--openinfra-elevation-1);
+}
+
+.alert-info {
+  border-left-color: var(--openinfra-action);
+}
+
+.alert-success {
+  border-left-color: var(--openinfra-green);
+}
+
+.alert-warning {
+  border-left-color: var(--openinfra-warning);
+}
+
+.alert-danger {
+  --bs-alert-color: #74140d;
+  --bs-alert-bg: rgba(var(--openinfra-danger-rgb), .08);
+  --bs-alert-border-color: rgba(var(--openinfra-danger-rgb), .22);
+  border-left-color: var(--openinfra-danger);
+}
+
+.badge {
+  border-radius: .52rem;
+  font-weight: 800;
+  letter-spacing: .015em;
+  padding: .38em .62em;
+}
+
+.openinfra-global-search-results,
+.openinfra-mega-menu,
+.openinfra-compact-navigation {
+  background: rgba(255, 255, 255, .985);
+  border-color: rgba(var(--openinfra-blue-rgb), .12);
+  box-shadow: var(--openinfra-elevation-3);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+  backdrop-filter: blur(18px) saturate(135%);
+}
+
+.openinfra-global-search-item:hover,
+.openinfra-global-search-item:focus {
+  background: linear-gradient(90deg, rgba(var(--openinfra-action-rgb), .085), rgba(var(--openinfra-cyan-rgb), .05));
+}
+
+.openinfra-result {
+  background:
+    radial-gradient(circle at 100% 0, rgba(var(--openinfra-cyan-rgb), .13), transparent 22rem),
+    linear-gradient(145deg, #06142b, #0a2145);
+  border-color: rgba(var(--openinfra-cyan-rgb), .16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .055), 0 .7rem 1.8rem rgba(0, 27, 65, .14);
+}
+
+.openinfra-graph-canvas {
+  background: linear-gradient(180deg, #fff, var(--openinfra-surface-soft));
+  border-color: rgba(var(--openinfra-blue-rgb), .13);
+  border-radius: var(--openinfra-radius-md);
+  box-shadow: inset 0 1px 0 #fff;
+}
+
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .openinfra-global-toolbar,
+  .openinfra-global-search-results,
+  .openinfra-mega-menu,
+  .openinfra-compact-navigation {
+    background: #fbfdff;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .openinfra-titlebar {
+    border-radius: var(--openinfra-radius-lg);
+  }
+
+  .openinfra-component-card:hover,
+  .openinfra-metric:hover {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .openinfra-component-card:hover,
+  .openinfra-metric:hover,
+  .btn-primary:hover,
+  .btn-primary:focus-visible {
+    transform: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --openinfra-border: rgba(0, 27, 65, .34);
+    --openinfra-border-strong: rgba(0, 27, 65, .55);
+  }
+
+  .openinfra-metric,
+  .openinfra-operation-card,
+  .openinfra-overview-summary,
+  .openinfra-component-card,
+  .card,
+  .openinfra-titlebar {
+    border-color: var(--openinfra-border-strong);
+    box-shadow: none;
+  }
+}

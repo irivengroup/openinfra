@@ -13,7 +13,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.30.4"
+    EXPECTED_VERSION = "0.30.5"
     EXPECTED_DATA_PLANE_ROUTES = ("/api/v1/database/routing",)
     EXPECTED_GRAPH_ROUTES = (
         "/api/v1/graph/traverse",
@@ -180,6 +180,7 @@ class InstalledWheelSmoke:
         self._assert_version()
         package_root = Path(openinfra.__file__).resolve().parent
         openapi = OpenApiDocumentProvider().read_yaml()
+        self._assert_openapi_taxonomy(openapi)
         self._assert_data_plane_routes(openapi)
         self._assert_graph_routes(openapi)
         self._assert_flow_routes(openapi)
@@ -198,6 +199,7 @@ class InstalledWheelSmoke:
         self._assert_console_scripts()
         return {
             "version": openinfra.__version__,
+            "openapi_taxonomy": True,
             "data_plane_routes": len(self.EXPECTED_DATA_PLANE_ROUTES),
             "graph_routes": len(self.EXPECTED_GRAPH_ROUTES),
             "flow_routes": len(self.EXPECTED_FLOW_ROUTES),
@@ -215,6 +217,20 @@ class InstalledWheelSmoke:
             "runtime_assets": len(self.EXPECTED_ASSETS),
             "dependency_graph_benchmark": True,
         }
+
+    def _assert_openapi_taxonomy(self, openapi: str) -> None:
+        required_fragments = (
+            "x-tagGroups:",
+            "Plateforme · Exploitation et documentation",
+            "Sécurité · Inventaire PKI",
+            "IPAM · Conformité réseau",
+            "Multisite · Reprise d'activité",
+        )
+        missing = [fragment for fragment in required_fragments if fragment not in openapi]
+        if missing:
+            raise InstalledWheelSmokeError(
+                "installed OpenAPI taxonomy is incomplete: " + ", ".join(missing)
+            )
 
     def _assert_version(self) -> None:
         if openinfra.__version__ != self.EXPECTED_VERSION:

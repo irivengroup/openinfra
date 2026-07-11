@@ -1,6 +1,18 @@
-# OpenInfra v0.30.4
+# OpenInfra v0.30.5
 
-OpenInfra 0.30.4 poursuit le socle d’exécution haute performance des éditions Pro et Entreprise. Cette version conserve la Clean Architecture, le DDD, les contrats métier, la CLI, REST, OpenAPI, RBAC et les migrations, tout en remplaçant les principaux plafonds techniques du runtime HTTP et de l’accès PostgreSQL.
+OpenInfra 0.30.5 poursuit le socle d’exécution haute performance des éditions Pro et Entreprise. Cette version conserve la Clean Architecture, le DDD, les contrats métier, la CLI, REST, OpenAPI, RBAC et les migrations, tout en remplaçant les principaux plafonds techniques du runtime HTTP et de l’accès PostgreSQL.
+
+## Sécurité, design system et documentation API
+
+La version `0.30.5` durcit les planchers de dépendances audités, harmonise les deux portails avec un système de design bleu nuit commun et organise Swagger/ReDoc selon la hiérarchie **Composant → Contexte métier → Endpoint**.
+
+- `cryptography>=48.0.1,<50.0` ;
+- `urllib3>=2.7.0,<3.0` pour l'outillage de développement et d'audit ;
+- 51 tests frontend couvrant palette, contrastes, parité des thèmes et accessibilité ;
+- 331 opérations OpenAPI classifiées dans 69 contextes et 16 composants ;
+- `x-tagGroups` pour ReDoc et tri métier déterministe dans Swagger UI.
+
+Voir `docs/operations/api-documentation-organization.md`.
 
 ## Plan de données PostgreSQL haute performance — P20 / EPIC-2001
 
@@ -14,7 +26,7 @@ OpenInfra 0.30.4 poursuit le socle d’exécution haute performance des édition
 
 Voir `docs/operations/postgresql-read-routing.md`.
 
-Le correctif `0.30.4` supprime également la substitution `psql` invalide utilisée par le contrôle final de `pg_hba_file_rules`. Le bootstrap peut désormais être relancé directement après l’échec observé en `0.30.2`, sans supprimer le volume primaire.
+Le correctif `0.30.5` supprime également la substitution `psql` invalide utilisée par le contrôle final de `pg_hba_file_rules`. Le bootstrap peut désormais être relancé directement après l’échec observé en `0.30.2`, sans supprimer le volume primaire.
 
 ## Socle haute performance livré en P19
 
@@ -41,7 +53,7 @@ Le benchmark P19 détecte les régressions du transport applicatif ; il ne const
 
 ## Séquencement professionnel P19 / P20
 
-| Capacité | État 0.30.4 | Étape suivante |
+| Capacité | État 0.30.5 | Étape suivante |
 |---|---|---|
 | ASGI API/Web, backpressure, workers | Livrée | Observabilité fine P20 |
 | Pool PostgreSQL borné | Livré | PgBouncer et routage lecture/écriture livrés en EPIC-2001 |

@@ -16,7 +16,7 @@ COPY installers ./installers
 COPY docs/api ./docs/api
 COPY web ./web
 
-RUN python -m pip install --upgrade pip \
+RUN python -m pip install --upgrade "pip>=26.0" \
     && python -m pip install '.[postgresql]' \
     && chown -R openinfra:openinfra /app
 

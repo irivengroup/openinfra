@@ -59,7 +59,7 @@ class TestSecurityGate:
                     "ruff>=0.5",
                     "mypy>=1.10",
                     "bandit>=1.7",
-                    "pip-audit>=2.7",
+                    "pip-audit>=2.10.1",
                     "build>=1.2",
                 )
             )

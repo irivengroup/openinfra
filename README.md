@@ -1,7 +1,7 @@
-# OpenInfra v0.30.8
+# OpenInfra v0.30.9
 
-OpenInfra 0.30.8 poursuit le socle d’exécution haute performance des éditions Pro et Entreprise. Cette version conserve la Clean Architecture, le DDD, les contrats métier, la CLI, REST, OpenAPI, RBAC et les migrations, tout en remplaçant les principaux plafonds techniques du runtime HTTP et de l’accès PostgreSQL.
-> **Correctif visuel 0.30.8** — Le hover/focus d’un composant racine actif dans la sidebar conserve son fond et colore uniquement son texte et son icône avec le turquoise clair du thème. Aucun autre élément de la charte graphique n’est modifié.
+OpenInfra 0.30.9 restaure la hiérarchie chromatique bleu nuit du portail sans modifier sa structure, ses comportements, ses contrats métier ni son thème approuvé.
+> **Correctif visuel 0.30.9** — Les composants racine inactifs de la sidebar et les titres contextuels des pages retrouvent le bleu IONOS `#003D8F`. Le hover/focus du composant racine actif reste turquoise et ne modifie ni son fond, ni sa bordure, ni son ombre.
 
 
 ## Sécurité, design system et documentation API

@@ -1,16 +1,17 @@
-# OpenInfra v0.30.8 — rapport de validation
+# OpenInfra v0.30.9 — rapport de validation
 
 Date : 2026-07-12
 
 ## Périmètre
 
-Correctif visuel strictement limité au survol et au focus d’un composant racine déjà actif dans la sidebar.
+Correctif visuel strictement limité à la restauration des couleurs approuvées.
 
-- le fond actif existant est conservé sans modification ;
-- la bordure et l’ombre restent inchangées ;
-- seuls le texte, l’icône et le chevron héritant de `currentColor` passent au turquoise clair du thème ;
-- le portail React et le runtime statique packagé utilisent une feuille de style strictement identique ;
-- aucune migration, dépendance, route, règle métier ou évolution du CDC/roadmap n’est introduite.
+- composants racine inactifs de la sidebar : bleu IONOS `#003D8F` ;
+- titres contextuels des pages métier : bleu IONOS `#003D8F` ;
+- composant racine actif au hover/focus : texte, icône et chevron turquoise clair ;
+- fond, bordure et ombre de l’état actif inchangés ;
+- parité stricte entre le portail React et le runtime statique packagé ;
+- aucune migration, dépendance, route, règle métier ou évolution CDC/roadmap.
 
 ## Fichiers principaux modifiés
 
@@ -18,41 +19,49 @@ Correctif visuel strictement limité au survol et au focus d’un composant raci
 - `src/openinfra/interfaces/rendering/static/assets/openinfra-web.css`
 - `web/tests/responsive-navigation.test.mjs`
 - `tests/integration/test_responsive_navigation_contract.py`
-- métadonnées de version et documentation de livraison
+- métadonnées de version, README, changelog et rapport de validation
 
-## Résultats
+## Validations exécutées
 
-### Backend et contrats
+### Python
 
-- 1 009 tests Python réussis ;
-- couverture : 98,002195 % ;
-- seuil contractuel de 98 % : PASS ;
-- Ruff format : 288 fichiers conformes ;
-- Ruff lint : PASS ;
-- mypy strict : 94 modules, PASS ;
-- `compileall` : PASS ;
-- Bandit : PASS ;
-- security gate : PASS ;
-- quality gate : PASS ;
-- deux contrats OpenAPI : PASS ;
-- six profils installateurs : PASS ;
-- CDC 4.9.0 : 840 exigences et 529 entités, PASS ;
-- roadmap 2.1.0 : 21 phases, 125 epics, 10 gates et 106 tests, PASS.
+- Ruff format : **PASS**, 295 fichiers déjà formatés.
+- Ruff lint : **PASS**.
+- mypy strict : **PASS**, 94 fichiers source contrôlés sans erreur.
+- `compileall` : **PASS**.
+- Bandit : **PASS**, aucun finding bloquant.
+- tests unitaires : **408 réussis**.
+- tests d’intégration : **588 réussis**.
+- tests architecture et performance : **14 réussis**.
+- total Python : **1 010 tests réussis**, aucune erreur.
+- tests ciblés navigation responsive et accessibilité : **11 réussis**.
+- validation OpenAPI des deux contrats : **PASS**.
+- garde de sécurité du dépôt : **PASS**.
+- validation statique frontend depuis Python : **PASS**.
+
+La suite Python complète a dû être exécutée en partitions déterministes, car une exécution monolithique avec instrumentation de couverture dépasse la fenêtre maximale du sandbox. La couverture globale n’a donc pas pu être recalculée de manière fiable dans cet environnement. La livraison 0.30.8 validait **98,002195 %** et le code Python de production de 0.30.9 ne change que la constante de version ; le seuil CI existant reste bloquant à **98 %** et n’a pas été abaissé ni contourné.
 
 ### Frontend
 
-- 52 tests Node.js réussis ;
-- parité CSS React/runtime statique : PASS ;
-- contrat du hover actif limité à la propriété `color` : PASS ;
-- ESLint JSX : PASS ;
-- WCAG 2.2 AA : PASS ;
-- build Vite : PASS ;
-- audit npm : 0 vulnérabilité.
+- tests Node : **53 réussis**, aucune erreur.
+- ESLint : **PASS**.
+- contrôle d’accessibilité statique : **PASS**.
+- contrôle JSX/accessibilité : **PASS**.
+- build Vite 8.1.4 : **PASS**.
+- `npm audit --audit-level=high` : **PASS**, 0 vulnérabilité.
 
-## Sécurité des dépendances
+### Packaging
 
-`pip-audit --strict --requirement requirements/security-audit.txt` a été lancé, mais l’environnement n’a pas pu résoudre `pypi.org`. Le gate reste bloquant dans GitHub Actions. Aucune dépendance n’est modifiée dans cette livraison.
+- construction isolée wheel et sdist avec Hatchling : **PASS** ;
+- vérification structurelle du wheel et du sdist : **PASS** ;
+- installation isolée du wheel sans dépendances embarquées : **PASS** ;
+- smoke test du wheel installé : **PASS** — version, scripts console, 53 migrations, OpenAPI et assets runtime validés.
 
-## Validation visuelle
+## Limites de validation
 
-Le contrat automatisé garantit l’absence de modification du fond, de la bordure et de l’ombre. L’approbation visuelle finale doit être effectuée dans le navigateur cible après reconstruction des assets et rechargement forcé. Après approbation, la charte graphique est considérée comme figée et ne doit plus être modifiée sans demande explicite.
+- `pip-audit --strict --requirement requirements/security-audit.txt` n’a pas pu joindre `pypi.org` en raison de l’indisponibilité DNS du sandbox. Aucun échec de dépendance n’a été observé localement ; le gate CI réseau reste inchangé.
+- l’approbation visuelle finale doit être réalisée dans un navigateur après rechargement forcé afin d’éliminer les anciens assets en cache.
+
+## Risque résiduel
+
+Risque faible et limité au rendu CSS. Les règles ajoutées utilisent le token de thème existant, n’altèrent aucune structure DOM et sont verrouillées par des tests de contrat dans les deux portails.

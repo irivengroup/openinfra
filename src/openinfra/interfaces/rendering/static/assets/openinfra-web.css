@@ -210,7 +210,7 @@ body {
 }
 
 .openinfra-titlebar h1 {
-  color: var(--openinfra-navy);
+  color: var(--openinfra-blue);
   font-weight: 800;
   letter-spacing: -.03em;
   margin-bottom: .45rem;
@@ -440,7 +440,7 @@ body {
 
 .openinfra-sidebar-dashboard {
   border-radius: .82rem;
-  color: var(--openinfra-ink);
+  color: var(--openinfra-blue);
   font-weight: 800;
   margin-bottom: .35rem;
   padding: .65rem .75rem;
@@ -460,7 +460,7 @@ body {
 .openinfra-accordion-toggle {
   align-items: center;
   border-radius: .82rem;
-  color: var(--openinfra-ink);
+  color: var(--openinfra-blue);
   display: flex;
   font-weight: 800;
   justify-content: space-between;
@@ -2116,6 +2116,7 @@ body {
 .openinfra-sidebar-dashboard,
 .openinfra-accordion-toggle {
   border: 1px solid transparent;
+  color: var(--openinfra-blue);
   border-radius: .72rem;
 }
 
@@ -2176,7 +2177,7 @@ body {
 }
 
 .openinfra-titlebar h1 {
-  color: var(--openinfra-navy);
+  color: var(--openinfra-blue);
   font-size: clamp(1.55rem, 2vw, 2.15rem);
   letter-spacing: -.038em;
 }
@@ -2184,6 +2185,11 @@ body {
 .openinfra-titlebar p {
   color: var(--openinfra-text-secondary) !important;
   font-size: .94rem;
+}
+
+/* Contextual page titles keep the established IONOS midnight-blue hierarchy. */
+.openinfra-operation-card h2 {
+  color: var(--openinfra-blue);
 }
 
 .openinfra-metric,

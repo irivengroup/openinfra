@@ -185,3 +185,27 @@ def test_active_sidebar_root_hover_changes_only_foreground_to_theme_turquoise() 
     assert "box-shadow" not in body
     assert ".openinfra-accordion-toggle svg" in css
     assert "fill: currentColor" in css
+
+
+def test_sidebar_and_contextual_page_titles_keep_midnight_blue_defaults() -> None:
+    css = _read(STATIC_CSS)
+
+    root_rule = re.search(
+        r"\.openinfra-sidebar-dashboard,\s*"
+        r"\.openinfra-accordion-toggle\s*"
+        r"\{(?P<body>[^}]*)\}",
+        css,
+        re.DOTALL,
+    )
+    assert root_rule is not None
+    assert "color: var(--openinfra-blue);" in root_rule.group("body")
+
+    title_rule = re.search(
+        r"\.openinfra-operation-card h2\s*\{(?P<body>[^}]*)\}",
+        css,
+        re.DOTALL,
+    )
+    assert title_rule is not None
+    assert "color: var(--openinfra-blue);" in title_rule.group("body")
+
+    assert "--openinfra-blue: #003d8f;" in css.lower()

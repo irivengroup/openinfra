@@ -1,6 +1,16 @@
 # Changelog
 
 
+## 0.30.9 - 2026-07-12
+
+### Corrigé
+
+- Restauration du bleu IONOS `#003D8F` pour les composants racine inactifs de la sidebar.
+- Restauration du même bleu nuit pour les titres contextuels des pages métier.
+- Conservation stricte du correctif 0.30.8 : seul le texte, l’icône et le chevron du composant racine actif deviennent turquoise au survol ou au focus ; sa surface reste inchangée.
+- Ajout de contrats Python et Node.js bloquant toute nouvelle régression vers une teinte noire.
+- Aucune modification du CDC, de la roadmap, des migrations, des dépendances ou des contrats publics.
+
 ## 0.30.8 - 2026-07-12
 
 ### Corrigé

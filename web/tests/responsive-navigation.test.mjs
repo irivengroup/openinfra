@@ -89,3 +89,18 @@ test('active sidebar root keeps its surface and turns only icon and text turquoi
   assert.doesNotMatch(match.groups.body, /background|border|box-shadow/);
   assert.match(runtimeCss, /\.openinfra-accordion-toggle svg,[\s\S]*?fill: currentColor;/);
 });
+
+
+test('sidebar roots and contextual page titles retain the midnight-blue palette', async () => {
+  const { runtimeCss } = await sources();
+
+  assert.match(
+    runtimeCss,
+    /\.openinfra-sidebar-dashboard,\s*\.openinfra-accordion-toggle\s*\{[^}]*color: var\(--openinfra-blue\);/s,
+  );
+  assert.match(
+    runtimeCss,
+    /\.openinfra-operation-card h2\s*\{[^}]*color: var\(--openinfra-blue\);/s,
+  );
+  assert.match(runtimeCss, /--openinfra-blue: #003d8f;/i);
+});

@@ -1,4 +1,4 @@
-import { OpenInfraI18n, localizeOpenInfraCatalog } from "./openinfra-i18n.js?v=0.30.8";
+import { OpenInfraI18n, localizeOpenInfraCatalog } from "./openinfra-i18n.js?v=0.30.9";
 import {
   fieldValidationMessage,
   formCountryCode,
@@ -7,7 +7,7 @@ import {
   normalizeFieldDefinition,
   normalizeFieldValue,
   validateControl
-} from "./openinfra-form-fields.js?v=0.30.8";
+} from "./openinfra-form-fields.js?v=0.30.9";
 
 class OpenInfraApiClient {
   constructor(apiBaseUrl, tenantProvider, i18n = null) {
@@ -1048,7 +1048,7 @@ const OPENINFRA_MODULES = [
     { id: "ipam-define-asn", label: "Définir un ASN", method: "POST", path: "/v1/ipam/asns", body: [FIELD_SETS.actor, { name: "asn", label: "ASN", type: "number", required: true, placeholder: "65000" }, { name: "name", label: "Nom AS", required: true, placeholder: "OpenInfra Core" }, { name: "description", label: "Description", placeholder: "Autonomous system interne" }] },
     { id: "ipam-define-bgp-peer", label: "Définir un peer BGP", method: "POST", path: "/v1/ipam/bgp-peers", body: [FIELD_SETS.actor, { name: "vrf", label: "VRF", required: true, placeholder: "global" }, { name: "local_asn", label: "ASN local", type: "number", required: true, placeholder: "65000" }, { name: "remote_asn", label: "ASN distant", type: "number", required: true, placeholder: "65010" }, { name: "peer_address", label: "Adresse peer", required: true, placeholder: "192.0.2.2" }, { name: "address_family", label: "Famille d’adresses", type: "select", options: [{ value: "ipv4", label: "IPv4" }, { value: "ipv6", label: "IPv6" }] }, { name: "route_targets_import", label: "RT import", type: "csv", placeholder: "65000:10010" }, { name: "route_targets_export", label: "RT export", type: "csv", placeholder: "65000:10010" }, { name: "description", label: "Description", placeholder: "Peer datacenter" }] },
     { id: "ipam-observe-dns", label: "Observer un enregistrement DNS", method: "POST", path: "/v1/ipam/dns-observations", body: [FIELD_SETS.actor, { name: "vrf", label: "VRF", required: true, placeholder: "global" }, { name: "hostname", label: "Nom DNS", required: true, placeholder: "srv-app-01.example.net" }, { name: "address", label: "Adresse IP", required: true, placeholder: "10.20.30.21" }, { name: "ptr_hostname", label: "Nom PTR", placeholder: "srv-app-01.example.net" }, { name: "source", label: "Source observation", placeholder: "bind" }] },
-    { id: "ipam-observe-dhcp", label: "Observer un bail DHCP", method: "POST", path: "/v1/ipam/dhcp-leases", body: [FIELD_SETS.actor, { name: "vrf", label: "VRF", required: true, placeholder: "global" }, { name: "prefix", label: "Préfixe", required: true, placeholder: "10.20.30.2/24" }, { name: "address", label: "Adresse IP", required: true, placeholder: "10.20.30.84" }, { name: "mac_address", label: "Adresse MAC", required: true, placeholder: "00:11:22:33:44:55" }, { name: "hostname", label: "Nom DHCP", required: true, placeholder: "srv-dhcp-01" }, { name: "source", label: "Source observation", placeholder: "kea" }, { name: "active", label: "Bail actif", type: "boolean", defaultValue: "true" }] },
+    { id: "ipam-observe-dhcp", label: "Observer un bail DHCP", method: "POST", path: "/v1/ipam/dhcp-leases", body: [FIELD_SETS.actor, { name: "vrf", label: "VRF", required: true, placeholder: "global" }, { name: "prefix", label: "Préfixe", required: true, placeholder: "10.20.30.2/24" }, { name: "address", label: "Adresse IP", required: true, placeholder: "10.20.30.94" }, { name: "mac_address", label: "Adresse MAC", required: true, placeholder: "00:11:22:33:44:55" }, { name: "hostname", label: "Nom DHCP", required: true, placeholder: "srv-dhcp-01" }, { name: "source", label: "Source observation", placeholder: "kea" }, { name: "active", label: "Bail actif", type: "boolean", defaultValue: "true" }] },
     { id: "ipam-conflicts", label: "Détecter les conflits", method: "GET", path: "/v1/ipam/conflicts", query: [{ name: "vrf", label: "VRF", placeholder: "global" }] },
     { id: "ipam-ddi-preview", label: "Prévisualiser DDI", method: "POST", path: "/v1/ipam/ddi-preview", body: [FIELD_SETS.actor, { name: "vrf", label: "VRF", required: true, placeholder: "global" }, { name: "idempotency_key", label: "Clé d’idempotence", required: true, placeholder: "ipam-alloc-srv-app-01" }, { name: "providers", label: "Fournisseurs DDI", type: "csv", placeholder: "bind,kea" }, { name: "dns_zone", label: "Zone DNS", placeholder: "example.net" }, { name: "mac_address", label: "Adresse MAC", placeholder: "00:11:22:33:44:55" }, { name: "ttl", label: "TTL", type: "number", placeholder: "300" }, { name: "apply_preview", label: "Appliquer la prévisualisation", type: "boolean" }] },
     { id: "network-config-baseline-upsert", label: "Créer ou réviser une golden configuration", method: "POST", path: "/v1/network-config/baselines/upsert", body: [FIELD_SETS.actor, { name: "code", label: "Code", required: true }, { name: "device_object_key", label: "Objet équipement RSOT", required: true }, { name: "platform", label: "Plateforme réseau", required: true }, { name: "expected_config", label: "Configuration attendue JSON", type: "textarea", required: true }, { name: "ignored_paths", label: "Chemins ignorés", type: "csv" }, { name: "critical_paths", label: "Chemins critiques", type: "csv" }, { name: "owner", label: "Propriétaire", required: true }, { name: "justification", label: "Justification", required: true }] },
@@ -1087,7 +1087,7 @@ const OPENINFRA_MODULES = [
       { name: "source", label: "Source observation", type: "select", options: ["netflow", "sflow", "ipfix", "firewall-log", "application-log", "import", "manual"], defaultValue: "netflow" },
       { name: "collector", label: "Collecteur", required: true, placeholder: "netflow-par-01" },
       { name: "source_ip", label: "IP source", required: true, placeholder: "10.10.1.10" },
-      { name: "destination_ip", label: "IP destination", required: true, placeholder: "10.20.30.80" },
+      { name: "destination_ip", label: "IP destination", required: true, placeholder: "10.20.30.90" },
       { name: "source_object_key", label: "Objet source", placeholder: "application/portail" },
       { name: "destination_object_key", label: "Objet destination", placeholder: "server/web-01" },
       { name: "protocol", label: "Protocole", type: "select", options: ["tcp", "udp", "sctp", "icmp", "icmpv6", "esp", "ah", "gre"], defaultValue: "tcp" },

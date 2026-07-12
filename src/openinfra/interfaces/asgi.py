@@ -20,6 +20,7 @@ from openinfra.infrastructure.read_routing import (
     ReadRoutingContext,
 )
 from openinfra.infrastructure.runtime_config import RuntimeDatabaseDsnResolver
+from openinfra.interfaces.asgi_observability import ObservedAsgiSend
 from openinfra.interfaces.http_api import OpenInfraApiRuntime, OpenInfraRequestHandler
 
 AsgiMessage = MutableMapping[str, Any]
@@ -115,10 +116,20 @@ class OpenInfraApiAsgiApplication:
                 {"error": "unsupported ASGI scope"},
             )
             return
+        method = str(scope.get("method", "GET")).upper()
+        raw_path = str(scope.get("path", "/"))
+        if raw_path == "/metrics" and method in {"GET", "HEAD"}:
+            await self._send_metrics(send, head_only=method == "HEAD")
+            return
+        header_map = self._header_map(scope)
+        observation = self._runtime.application.telemetry.begin_http_request(
+            method=method, route=raw_path, headers=header_map
+        )
+        observed_send = ObservedAsgiSend(send, observation)
+        request_size = 0
         try:
             body = await self._read_body(receive)
-            method = str(scope.get("method", "GET")).upper()
-            raw_path = str(scope.get("path", "/"))
+            request_size = len(body)
             raw_query = bytes(scope.get("query_string", b""))
             path = raw_path + (("?" + raw_query.decode("ascii")) if raw_query else "")
             headers = self._headers(scope, len(body))
@@ -135,27 +146,58 @@ class OpenInfraApiAsgiApplication:
 
             status, response_headers, payload = await asyncio.to_thread(dispatch)
             response_headers = self._consistency_response_headers(method, status, response_headers)
+            await observed_send(
+                {
+                    "type": "http.response.start",
+                    "status": status,
+                    "headers": [
+                        (name.lower().encode("latin-1"), value.encode("latin-1"))
+                        for name, value in response_headers
+                    ],
+                }
+            )
+            await observed_send({"type": "http.response.body", "body": payload, "more_body": False})
         except OpenInfraError as exc:
-            await self._send_json(send, HTTPStatus.BAD_REQUEST, {"error": str(exc)})
-            return
+            observed_send.record_exception(exc)
+            await self._send_json(observed_send, HTTPStatus.BAD_REQUEST, {"error": str(exc)})
         except Exception as exc:  # pragma: no cover - defensive runtime boundary
+            observed_send.record_exception(exc)
             await self._send_json(
-                send,
+                observed_send,
                 HTTPStatus.INTERNAL_SERVER_ERROR,
                 {"error": "internal server error", "reason": type(exc).__name__},
             )
-            return
+        finally:
+            observed_send.finish(request_size)
+
+    def _header_map(self, scope: AsgiScope) -> dict[str, str]:
+        values: dict[str, str] = {}
+        for raw_name, raw_value in scope.get("headers", []):
+            name = bytes(raw_name).decode("latin-1").lower()
+            value = bytes(raw_value).decode("latin-1")
+            values[name] = value
+        return values
+
+    async def _send_metrics(self, send: AsgiSend, *, head_only: bool) -> None:
+        payload = self._runtime.application.telemetry.render_prometheus()
         await send(
             {
                 "type": "http.response.start",
-                "status": status,
+                "status": HTTPStatus.OK.value,
                 "headers": [
-                    (name.lower().encode("latin-1"), value.encode("latin-1"))
-                    for name, value in response_headers
+                    (b"content-type", b"text/plain; version=0.0.4; charset=utf-8"),
+                    (b"content-length", str(len(payload)).encode("ascii")),
+                    (b"cache-control", b"no-store"),
                 ],
             }
         )
-        await send({"type": "http.response.body", "body": payload, "more_body": False})
+        await send(
+            {
+                "type": "http.response.body",
+                "body": b"" if head_only else payload,
+                "more_body": False,
+            }
+        )
 
     def _resolve_read_route(self, method: str, headers: Message) -> ReadRoute:
         if method not in {"GET", "HEAD"}:
@@ -226,6 +268,7 @@ class OpenInfraApiAsgiApplication:
                 close = getattr(self._runtime.application.store, "close", None)
                 if callable(close):
                     await asyncio.to_thread(close)
+                await asyncio.to_thread(self._runtime.application.telemetry.close)
                 await send({"type": "lifespan.shutdown.complete"})
                 return
 

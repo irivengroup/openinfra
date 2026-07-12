@@ -1,0 +1,83 @@
+groups:
+  - name: openinfra-runtime-slo
+    interval: 30s
+    rules:
+      - alert: OpenInfraApiP95LatencyHigh
+        expr: histogram_quantile(0.95, sum by (le) (rate(openinfra_http_request_duration_seconds_bucket{service="openinfra-api"}[5m]))) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: OpenInfra API p95 latency exceeds 500 ms
+
+      - alert: OpenInfraApiP99LatencyCritical
+        expr: histogram_quantile(0.99, sum by (le) (rate(openinfra_http_request_duration_seconds_bucket{service="openinfra-api"}[5m]))) > 1
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: OpenInfra API p99 latency exceeds 1 second
+
+      - alert: OpenInfraHttpErrorRateHigh
+        expr: sum(rate(openinfra_http_requests_total{status_class="5xx"}[5m])) / clamp_min(sum(rate(openinfra_http_requests_total[5m])), 0.001) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: OpenInfra HTTP 5xx error rate exceeds 1 percent
+
+      - alert: OpenInfraAsyncQueueStalled
+        expr: max(openinfra_async_oldest_ready_age_seconds) > 300
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: OpenInfra asynchronous queue has ready work older than 5 minutes
+
+      - alert: OpenInfraDeadLetterQueueNotEmpty
+        expr: sum(openinfra_async_queue_depth{status="dead-letter"}) > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: OpenInfra dead-letter queue contains work items
+
+      - alert: OpenInfraReplicaLagHigh
+        expr: openinfra_db_replica_lag_seconds > 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: OpenInfra PostgreSQL replica lag exceeds 5 seconds
+
+      - alert: OpenInfraReplicaIneligible
+        expr: openinfra_db_replica_eligible == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: OpenInfra PostgreSQL read replica is ineligible
+
+      - alert: OpenInfraDatabasePoolWaiting
+        expr: sum(openinfra_db_pool_state{metric="requests_waiting"}) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: OpenInfra PostgreSQL pool has waiting requests
+
+      - alert: OpenInfraRuntimeSaturationHigh
+        expr: sum(openinfra_http_requests_in_flight) / clamp_min(sum(openinfra_runtime_concurrency_limit), 1) > 0.9
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: OpenInfra runtime concurrency saturation exceeds 90 percent
+
+      - alert: OpenInfraMetricsMissing
+        expr: absent(openinfra_build_info)
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: OpenInfra metrics endpoint is unavailable

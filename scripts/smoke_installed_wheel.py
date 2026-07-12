@@ -13,7 +13,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.31.2"
+    EXPECTED_VERSION = "0.31.4"
     EXPECTED_ASYNC_ROUTES = (
         "/api/v1/async/jobs",
         "/api/v1/async/jobs/get",
@@ -38,6 +38,7 @@ class InstalledWheelSmoke:
         "/api/v1/async/outbox-events/replay",
         "/api/v1/async/metrics",
     )
+    EXPECTED_OBSERVABILITY_ROUTES = ("/metrics",)
     EXPECTED_DATA_PLANE_ROUTES = ("/api/v1/database/routing",)
     EXPECTED_GRAPH_ROUTES = (
         "/api/v1/graph/traverse",
@@ -221,6 +222,7 @@ class InstalledWheelSmoke:
         openapi = OpenApiDocumentProvider().read_yaml()
         self._assert_openapi_taxonomy(openapi)
         self._assert_async_routes(openapi)
+        self._assert_observability_routes(openapi)
         self._assert_data_plane_routes(openapi)
         self._assert_graph_routes(openapi)
         self._assert_flow_routes(openapi)
@@ -241,6 +243,7 @@ class InstalledWheelSmoke:
             "version": openinfra.__version__,
             "openapi_taxonomy": True,
             "async_routes": len(self.EXPECTED_ASYNC_ROUTES),
+            "observability_routes": len(self.EXPECTED_OBSERVABILITY_ROUTES),
             "data_plane_routes": len(self.EXPECTED_DATA_PLANE_ROUTES),
             "graph_routes": len(self.EXPECTED_GRAPH_ROUTES),
             "flow_routes": len(self.EXPECTED_FLOW_ROUTES),
@@ -263,6 +266,7 @@ class InstalledWheelSmoke:
         required_fragments = (
             "x-tagGroups:",
             "Plateforme · Exploitation et documentation",
+            "Plateforme · Observabilité et capacité",
             "Sécurité · Inventaire PKI",
             "IPAM · Conformité réseau",
             "Multisite · Reprise d'activité",
@@ -289,6 +293,13 @@ class InstalledWheelSmoke:
         if missing:
             raise InstalledWheelSmokeError(
                 "installed OpenAPI document is missing async routes: " + ", ".join(missing)
+            )
+
+    def _assert_observability_routes(self, openapi: str) -> None:
+        missing = [route for route in self.EXPECTED_OBSERVABILITY_ROUTES if route not in openapi]
+        if missing:
+            raise InstalledWheelSmokeError(
+                "installed OpenAPI document is missing observability routes: " + ", ".join(missing)
             )
 
     def _assert_data_plane_routes(self, openapi: str) -> None:

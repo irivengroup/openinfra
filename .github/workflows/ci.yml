@@ -338,6 +338,15 @@ jobs:
             tests/integration/test_frontend_modular_performance.py
           python scripts/validate_frontend.py --project-root .
 
+      - name: Observability, SLO and capacity certification contracts
+        run: |
+          python scripts/validate_observability.py --project-root .
+          python -m pytest -q --no-cov \
+            tests/unit/test_observability_runtime.py \
+            tests/unit/test_capacity_certification.py \
+            tests/unit/test_capacity_tooling.py \
+            tests/integration/test_observability_interfaces.py
+
       - name: Unit and integration tests with coverage
         run: python -m pytest
 

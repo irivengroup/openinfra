@@ -1,12 +1,15 @@
 FROM python:3.11-slim
 
+ARG OPENINFRA_UID=10001
+ARG OPENINFRA_GID=10001
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     OPENINFRA_APP_HOME=/app
 
-RUN groupadd --system openinfra \
-    && useradd --system --gid openinfra --home-dir /app --shell /usr/sbin/nologin openinfra
+RUN groupadd --gid "${OPENINFRA_GID}" openinfra \
+    && useradd --uid "${OPENINFRA_UID}" --gid openinfra --create-home --home-dir /app --shell /usr/sbin/nologin openinfra
 
 WORKDIR /app
 

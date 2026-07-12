@@ -954,6 +954,34 @@ class PostgreSQLConnectionPool:
     def close(self) -> None:
         self._pool.close()
 
+    def statistics(self) -> dict[str, float]:
+        getter = getattr(self._pool, "get_stats", None)
+        if not callable(getter):
+            return {}
+        raw = getter()
+        allowed = {
+            "pool_min",
+            "pool_max",
+            "pool_size",
+            "pool_available",
+            "requests_waiting",
+            "requests_num",
+            "requests_queued",
+            "requests_wait_ms",
+            "requests_errors",
+            "usage_ms",
+        }
+        result: dict[str, float] = {}
+        for name, value in raw.items():
+            normalized = str(name)
+            if normalized not in allowed or isinstance(value, bool):
+                continue
+            try:
+                result[normalized] = float(value)
+            except (TypeError, ValueError):
+                continue
+        return result
+
 
 class PostgreSQLDriver:
     def connect(self, dsn: str, profile: PostgreSQLClusterProfile) -> ConnectionProtocol:
@@ -1024,6 +1052,11 @@ class PostgreSQLConnectionFactory:
     def close(self) -> None:
         if self._pool is not None:
             self._pool.close()
+
+    def statistics(self) -> dict[str, float]:
+        if self._pool is None:
+            return {"pooled": 0.0}
+        return {"pooled": 1.0, **self._pool.statistics()}
 
 
 class PostgreSQLReplicaMonitor:
@@ -1145,10 +1178,23 @@ class PostgreSQLSessionRegistry:
         self._primary_acquisitions = 0
         self._replica_acquisitions = 0
         self._replica_fallbacks = 0
+        self._acquisition_failures = {"primary": 0, "replica": 0}
+        self._acquisition_duration_seconds = {"primary": 0.0, "replica": 0.0}
 
     def open(self, *, read_only: bool = False) -> ConnectionProtocol:
         factory = self._select_factory(read_only=read_only)
-        connection = factory.create()
+        target = "replica" if factory is self._read_factory else "primary"
+        started_at = time.perf_counter()
+        try:
+            connection = factory.create()
+        except Exception:
+            with self._stats_lock:
+                self._acquisition_failures[target] += 1
+            raise
+        finally:
+            elapsed = max(0.0, time.perf_counter() - started_at)
+            with self._stats_lock:
+                self._acquisition_duration_seconds[target] += elapsed
         with self._lease_lock:
             self._lease_factories[id(connection)] = factory
         return connection
@@ -1214,6 +1260,33 @@ class PostgreSQLSessionRegistry:
             "replica": snapshot.as_dict(),
             "counters": counters,
         }
+
+    def operational_metrics(self, *, force_probe: bool = False) -> dict[str, object]:
+        routing = self.routing_status_as_dict(force_probe=force_probe)
+        with self._stats_lock:
+            primary_count = self._primary_acquisitions
+            replica_count = self._replica_acquisitions
+            primary_duration = self._acquisition_duration_seconds["primary"]
+            replica_duration = self._acquisition_duration_seconds["replica"]
+            primary_failures = self._acquisition_failures["primary"]
+            replica_failures = self._acquisition_failures["replica"]
+        primary = {
+            **self._factory.statistics(),
+            "acquisitions": float(primary_count),
+            "acquisition_failures": float(primary_failures),
+            "acquisition_duration_seconds_sum": primary_duration,
+            "acquisition_duration_seconds_count": float(primary_count + primary_failures),
+        }
+        replica: dict[str, float] = {}
+        if self._read_factory is not None:
+            replica = {
+                **self._read_factory.statistics(),
+                "acquisitions": float(replica_count),
+                "acquisition_failures": float(replica_failures),
+                "acquisition_duration_seconds_sum": replica_duration,
+                "acquisition_duration_seconds_count": float(replica_count + replica_failures),
+            }
+        return {"routing": routing, "pools": {"primary": primary, "replica": replica}}
 
     def _select_factory(self, *, read_only: bool) -> PostgreSQLConnectionFactory:
         prefer_replica = (
@@ -11910,6 +11983,84 @@ class PostgreSQLAsyncProcessingRepository(PostgreSQLRepositoryBase, AsyncProcess
             "generated_at": datetime.now(UTC).isoformat(),
             "jobs": {state.value: jobs.get(state.value, 0) for state in WorkStatus},
             "outbox": {state.value: outbox.get(state.value, 0) for state in WorkStatus},
+        }
+
+    def operational_metrics(self) -> dict[str, object]:
+        job_rows = self._fetch_all(
+            """
+            SELECT specialization, status, COUNT(*) AS total
+            FROM async_jobs
+            GROUP BY specialization, status
+            """
+        )
+        outbox_rows = self._fetch_all(
+            """
+            SELECT status, COUNT(*) AS total
+            FROM outbox_events
+            GROUP BY status
+            """
+        )
+        age_row = (
+            self._fetch_one(
+                """
+            SELECT
+                COALESCE(
+                    EXTRACT(EPOCH FROM (
+                        clock_timestamp() - MIN(created_at) FILTER (
+                            WHERE status IN ('queued', 'retry-wait')
+                              AND next_attempt_at <= clock_timestamp()
+                        )
+                    )),
+                    0
+                ) AS oldest_ready_job_age_seconds
+            FROM async_jobs
+            """
+            )
+            or {}
+        )
+        outbox_age_row = (
+            self._fetch_one(
+                """
+            SELECT
+                COALESCE(
+                    EXTRACT(EPOCH FROM (
+                        clock_timestamp() - MIN(created_at) FILTER (
+                            WHERE status IN ('queued', 'retry-wait')
+                              AND next_attempt_at <= clock_timestamp()
+                        )
+                    )),
+                    0
+                ) AS oldest_ready_outbox_age_seconds
+            FROM outbox_events
+            """
+            )
+            or {}
+        )
+        jobs = {status.value: 0 for status in WorkStatus}
+        by_specialization = {
+            specialization.value: {status.value: 0 for status in WorkStatus}
+            for specialization in WorkerSpecialization
+        }
+        for row in job_rows:
+            status = str(row["status"])
+            specialization = str(row["specialization"])
+            total = self._row_int(row, "total")
+            jobs[status] = jobs.get(status, 0) + total
+            if specialization in by_specialization:
+                by_specialization[specialization][status] = total
+        outbox = {status.value: 0 for status in WorkStatus}
+        for row in outbox_rows:
+            outbox[str(row["status"])] = self._row_int(row, "total")
+        return {
+            "jobs": jobs,
+            "outbox": outbox,
+            "jobs_by_specialization": by_specialization,
+            "oldest_ready_job_age_seconds": float(
+                str(age_row.get("oldest_ready_job_age_seconds", 0))
+            ),
+            "oldest_ready_outbox_age_seconds": float(
+                str(outbox_age_row.get("oldest_ready_outbox_age_seconds", 0))
+            ),
         }
 
     @staticmethod

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -12,9 +13,11 @@ from openinfra.application.ports import (
     AuditRepository,
     OutboxEventPage,
     OutboxPublisher,
+    RuntimeTelemetry,
     TransactionManager,
 )
 from openinfra.application.security_services import AuthenticateTokenCommand, SecurityService
+from openinfra.application.telemetry import NullRuntimeTelemetry
 from openinfra.domain.async_processing import (
     ArtifactReference,
     AsyncJob,
@@ -764,8 +767,13 @@ class AsyncProcessingService:
 
 
 class ReportingWorker:
-    def __init__(self, service: AsyncProcessingService) -> None:
+    def __init__(
+        self,
+        service: AsyncProcessingService,
+        telemetry: RuntimeTelemetry | None = None,
+    ) -> None:
         self._service = service
+        self._telemetry = telemetry or NullRuntimeTelemetry()
 
     def run_once(
         self,
@@ -776,71 +784,94 @@ class ReportingWorker:
         lease_seconds: int = 60,
         retry_delay_seconds: int = 30,
     ) -> AsyncJob | None:
-        claimed = self._service.claim_job(
-            ClaimAsyncJobCommand(
-                tenant_id,
-                admin_token,
-                worker_id,
-                WorkerSpecialization.REPORTING.value,
-                worker_id,
-                lease_seconds,
-            )
-        )
-        if claimed is None:
-            return None
+        started_at = time.perf_counter()
+        outcome = "failed"
+        self._telemetry.worker_started(WorkerSpecialization.REPORTING.value)
         try:
-            payload_artifact = self._service.get_artifact(
-                GetAsyncArtifactCommand(tenant_id, admin_token, claimed.id.value, "payload")
-            )
-            payload = json.loads(payload_artifact.content.decode("utf-8"))
-            if not isinstance(payload, dict):
-                raise ValidationError("reporting job payload must be a JSON object")
-            if claimed.operation != "reporting.async-queue-health":
-                raise ValidationError("reporting worker does not support this operation")
-            report = {
-                "schema_version": "1.0",
-                "generated_at": datetime.now(UTC).isoformat(),
-                "tenant_id": tenant_id,
-                "job_id": claimed.id.value,
-                "operation": claimed.operation,
-                "request": payload,
-                "queues": self._service.queue_metrics(
-                    GetAsyncQueueMetricsCommand(tenant_id, admin_token)
-                ),
-            }
-            result = json.dumps(
-                report, sort_keys=True, separators=(",", ":"), ensure_ascii=False
-            ).encode("utf-8")
-            return self._service.complete_job(
-                CompleteAsyncJobCommand(
+            claimed = self._service.claim_job(
+                ClaimAsyncJobCommand(
                     tenant_id,
                     admin_token,
                     worker_id,
-                    claimed.id.value,
+                    WorkerSpecialization.REPORTING.value,
                     worker_id,
-                    claimed.state.lease_token,
-                    result,
+                    lease_seconds,
                 )
             )
-        except Exception as exc:
-            return self._service.fail_job(
-                FailAsyncJobCommand(
-                    tenant_id,
-                    admin_token,
-                    worker_id,
-                    claimed.id.value,
-                    worker_id,
-                    claimed.state.lease_token,
-                    str(exc),
-                    retry_delay_seconds,
+            if claimed is None:
+                outcome = "idle"
+                return None
+            try:
+                payload_artifact = self._service.get_artifact(
+                    GetAsyncArtifactCommand(tenant_id, admin_token, claimed.id.value, "payload")
                 )
+                payload = json.loads(payload_artifact.content.decode("utf-8"))
+                if not isinstance(payload, dict):
+                    raise ValidationError("reporting job payload must be a JSON object")
+                if claimed.operation != "reporting.async-queue-health":
+                    raise ValidationError("reporting worker does not support this operation")
+                report = {
+                    "schema_version": "1.0",
+                    "generated_at": datetime.now(UTC).isoformat(),
+                    "tenant_id": tenant_id,
+                    "job_id": claimed.id.value,
+                    "operation": claimed.operation,
+                    "request": payload,
+                    "queues": self._service.queue_metrics(
+                        GetAsyncQueueMetricsCommand(tenant_id, admin_token)
+                    ),
+                }
+                result = json.dumps(
+                    report, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+                ).encode("utf-8")
+                completed = self._service.complete_job(
+                    CompleteAsyncJobCommand(
+                        tenant_id,
+                        admin_token,
+                        worker_id,
+                        claimed.id.value,
+                        worker_id,
+                        claimed.state.lease_token,
+                        result,
+                    )
+                )
+                outcome = "completed"
+                return completed
+            except Exception as exc:
+                failed = self._service.fail_job(
+                    FailAsyncJobCommand(
+                        tenant_id,
+                        admin_token,
+                        worker_id,
+                        claimed.id.value,
+                        worker_id,
+                        claimed.state.lease_token,
+                        str(exc),
+                        retry_delay_seconds,
+                    )
+                )
+                outcome = (
+                    "dead-letter" if failed.state.status is WorkStatus.DEAD_LETTER else "retry"
+                )
+                return failed
+        finally:
+            self._telemetry.worker_finished(
+                WorkerSpecialization.REPORTING.value,
+                outcome,
+                max(0.0, time.perf_counter() - started_at),
             )
 
 
 class OutboxDispatcher:
-    def __init__(self, service: AsyncProcessingService, publisher: OutboxPublisher) -> None:
+    def __init__(
+        self,
+        service: AsyncProcessingService,
+        publisher: OutboxPublisher,
+        telemetry: RuntimeTelemetry | None = None,
+    ) -> None:
         self._service = service
         self._publisher = publisher
+        self._telemetry = telemetry or NullRuntimeTelemetry()
 
     def run_once(
         self,
@@ -851,39 +882,53 @@ class OutboxDispatcher:
         lease_seconds: int = 60,
         retry_delay_seconds: int = 30,
     ) -> OutboxEvent | None:
-        claimed = self._service.claim_outbox_event(
-            ClaimOutboxEventCommand(
-                tenant_id,
-                admin_token,
-                worker_id,
-                worker_id,
-                lease_seconds,
-            )
-        )
-        if claimed is None:
-            return None
+        started_at = time.perf_counter()
+        outcome = "failed"
         try:
-            self._publisher.publish(claimed)
-            return self._service.mark_outbox_published(
-                PublishOutboxEventCommand(
+            claimed = self._service.claim_outbox_event(
+                ClaimOutboxEventCommand(
                     tenant_id,
                     admin_token,
                     worker_id,
-                    claimed.id.value,
                     worker_id,
-                    claimed.state.lease_token,
+                    lease_seconds,
                 )
             )
-        except Exception as exc:
-            return self._service.fail_outbox_event(
-                FailOutboxEventCommand(
-                    tenant_id,
-                    admin_token,
-                    worker_id,
-                    claimed.id.value,
-                    worker_id,
-                    claimed.state.lease_token,
-                    str(exc),
-                    retry_delay_seconds,
+            if claimed is None:
+                outcome = "idle"
+                return None
+            try:
+                self._publisher.publish(claimed)
+                published = self._service.mark_outbox_published(
+                    PublishOutboxEventCommand(
+                        tenant_id,
+                        admin_token,
+                        worker_id,
+                        claimed.id.value,
+                        worker_id,
+                        claimed.state.lease_token,
+                    )
                 )
+                outcome = "published"
+                return published
+            except Exception as exc:
+                failed = self._service.fail_outbox_event(
+                    FailOutboxEventCommand(
+                        tenant_id,
+                        admin_token,
+                        worker_id,
+                        claimed.id.value,
+                        worker_id,
+                        claimed.state.lease_token,
+                        str(exc),
+                        retry_delay_seconds,
+                    )
+                )
+                outcome = (
+                    "dead-letter" if failed.state.status is WorkStatus.DEAD_LETTER else "retry"
+                )
+                return failed
+        finally:
+            self._telemetry.outbox_dispatch_finished(
+                outcome, max(0.0, time.perf_counter() - started_at)
             )

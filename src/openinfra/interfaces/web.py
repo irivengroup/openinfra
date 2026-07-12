@@ -21,6 +21,7 @@ import uvicorn
 
 from openinfra import __version__
 from openinfra.domain.common import OpenInfraError
+from openinfra.infrastructure.observability import PrometheusMultiprocessDirectory
 from openinfra.interfaces.runtime_environment import OpenInfraRuntimeEnvironmentScope
 
 
@@ -796,6 +797,7 @@ class OpenInfraWebEntrypoint:
         values = cls._runtime_environment(config, workers)
         try:
             with OpenInfraRuntimeEnvironmentScope(values):
+                PrometheusMultiprocessDirectory.prepare_from_environment()
                 uvicorn.run(
                     "openinfra.interfaces.asgi_web:web_app_factory",
                     factory=True,
@@ -845,6 +847,7 @@ class OpenInfraWebEntrypoint:
             "OPENINFRA_WEB_DATABASE_PASSWORD_REF": config.database_password_ref,
             "OPENINFRA_WEB_BACKEND_BEARER_TOKEN": config.backend_bearer_token,
             "OPENINFRA_WEB_WORKERS_RESOLVED": str(workers),
+            "OPENINFRA_WEB_LIMIT_CONCURRENCY": str(config.limit_concurrency),
         }
         return values
 

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.31.2
+  version: 0.31.4
   description: >-
     API OpenInfra organisée dans Swagger et ReDoc par composant, puis par contexte métier.
     Chaque opération appartient à un contexte unique afin de conserver une navigation déterministe.
@@ -100,6 +100,20 @@ paths:
       - Plateforme · Exploitation et documentation
       x-openinfra-component: Plateforme
       x-openinfra-context: Exploitation et documentation
+  /metrics:
+    get:
+      summary: Prometheus operational metrics
+      responses:
+        '200':
+          description: Tenant-neutral Prometheus exposition document
+          content:
+            text/plain:
+              schema:
+                type: string
+      tags:
+      - Plateforme · Observabilité et capacité
+      x-openinfra-component: Plateforme
+      x-openinfra-context: Observabilité et capacité
   /health:
     get:
       summary: Health check
@@ -9516,6 +9530,8 @@ paths:
 tags:
 - name: Plateforme · Exploitation et documentation
   description: Découverte API, documentation, santé, disponibilité et version du runtime.
+- name: Plateforme · Observabilité et capacité
+  description: Métriques Prometheus, télémétrie runtime et qualification de capacité.
 - name: Plateforme · Référentiels
   description: Référentiels transverses publiés par la plateforme.
 - name: Plateforme · Base de données
@@ -9658,6 +9674,7 @@ x-tagGroups:
 - name: Plateforme
   tags:
   - Plateforme · Exploitation et documentation
+  - Plateforme · Observabilité et capacité
   - Plateforme · Référentiels
   - Plateforme · Base de données
   - Plateforme · Recherche globale

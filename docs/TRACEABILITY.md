@@ -1,3 +1,28 @@
+## v0.31.4 — Correctif runtime Prometheus multiprocessus
+
+| Exigence | Implémentation | Vérification |
+|---|---|---|
+| Runtime non-root | UID/GID Docker déterministes `10001:10001`, identiques au tmpfs Compose | test de contrat Docker/Compose et validateur observabilité |
+| Démarrage multiprocessus | préflight d'écriture, nettoyage des fichiers mmap et diagnostic explicite avant Uvicorn | tests unitaires succès/refus et tests d'interfaces |
+| Compatibilité | aucune migration, route métier, commande CLI ou feuille CSS modifiée | gates OpenAPI, packaging et comparaison CSS |
+
+- Portée 0.31.4 : correctif de démarrage de l'observabilité multiprocessus ; EPIC-2005 reste fonctionnellement inchangé.
+
+## v0.31.3 — P20 / EPIC-2005, observabilité et charge Enterprise
+
+| Exigence / Epic | Implémentation | Vérification |
+|---|---|---|
+| EPIC-2005 / CDC-PERF-008 / REQ-00837 / REQ-00838 | `OpenInfraTelemetry`, métriques Prometheus, traces OpenTelemetry, `/metrics` API/web | tests unitaires et intégration ASGI, validateur d'observabilité |
+| SLO calculables | règles Prometheus, dashboard Grafana, métriques HTTP/files/workers/DB/réplication | validation YAML/JSON et tests de contrats |
+| Qualification p95/p99 et saturation | profil versionné, cinq phases de charge, seuils exacts | tests du runner et moteur de certification |
+| Endurance et absence de fuite | durée 6 h, mémoire/GC, métriques complètes | preuve `endurance.json` obligatoire |
+| Chaos et récupération | quatre scénarios contrôlés, intégrité avant/après, perte acquittée interdite | tests du runner et preuve chaos obligatoire |
+| Certification probatoire | empreintes SHA-256, rapport atomique, `--enforce`, runner Enterprise protégé | tests négatifs complets et workflow manuel |
+
+- Portée 0.31.3 : instrumentation et chaîne de certification entièrement livrées.
+- Une certification Enterprise réelle n'est acquise qu'après exécution du workflow sur une topologie représentative ; le sandbox de build ne constitue pas cette preuve.
+- Aucun changement de CDC/roadmap n'est requis : les exigences EPIC-2005 existaient déjà.
+
 # Traçabilité OpenInfra
 
 ## v0.31.2 — P20 / EPIC-2004, frontend modulaire et virtualisé

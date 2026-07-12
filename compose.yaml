@@ -165,7 +165,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.31.2}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.31.4}
     container_name: openinfra-migrate
     restart: 'no'
     depends_on:
@@ -182,7 +182,7 @@ services:
     networks:
     - openinfra
   auth-bootstrap:
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.31.2}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.31.4}
     container_name: openinfra-auth-bootstrap
     restart: 'no'
     depends_on:
@@ -210,7 +210,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.31.2}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.31.4}
     container_name: openinfra-api
     restart: unless-stopped
     depends_on:
@@ -244,6 +244,12 @@ services:
       OPENINFRA_READ_CONSISTENCY_SECRET: ${OPENINFRA_READ_CONSISTENCY_SECRET:?OPENINFRA_READ_CONSISTENCY_SECRET is required}
       OPENINFRA_CURSOR_SIGNING_SECRET: ${OPENINFRA_CURSOR_SIGNING_SECRET:-}
       OPENINFRA_READ_AFTER_WRITE_TTL_SECONDS: ${OPENINFRA_READ_AFTER_WRITE_TTL_SECONDS:-10}
+      PROMETHEUS_MULTIPROC_DIR: /tmp/openinfra-prometheus
+      OPENINFRA_PROMETHEUS_CLEAN_START: ${OPENINFRA_PROMETHEUS_CLEAN_START:-true}
+      OPENINFRA_OTEL_ENABLED: ${OPENINFRA_OTEL_ENABLED:-false}
+      OPENINFRA_OTEL_TRACE_SAMPLE_RATIO: ${OPENINFRA_OTEL_TRACE_SAMPLE_RATIO:-0.1}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
     healthcheck:
       test:
       - CMD
@@ -256,10 +262,12 @@ services:
       start_period: 10s
     ports:
     - ${OPENINFRA_API_BIND:-127.0.0.1}:${OPENINFRA_API_PORT:-8080}:8080
+    tmpfs:
+    - /tmp/openinfra-prometheus:mode=0770,uid=10001,gid=10001
     networks:
     - openinfra
   web:
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.31.2}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.31.4}
     container_name: openinfra-web
     restart: unless-stopped
     depends_on:
@@ -288,6 +296,12 @@ services:
       OPENINFRA_WEB_HTTP_READ_TIMEOUT_SECONDS: ${OPENINFRA_WEB_HTTP_READ_TIMEOUT_SECONDS:-30}
       OPENINFRA_WEB_HTTP_WRITE_TIMEOUT_SECONDS: ${OPENINFRA_WEB_HTTP_WRITE_TIMEOUT_SECONDS:-30}
       OPENINFRA_WEB_HTTP_POOL_TIMEOUT_SECONDS: ${OPENINFRA_WEB_HTTP_POOL_TIMEOUT_SECONDS:-2}
+      PROMETHEUS_MULTIPROC_DIR: /tmp/openinfra-prometheus
+      OPENINFRA_PROMETHEUS_CLEAN_START: ${OPENINFRA_PROMETHEUS_CLEAN_START:-true}
+      OPENINFRA_OTEL_ENABLED: ${OPENINFRA_OTEL_ENABLED:-false}
+      OPENINFRA_OTEL_TRACE_SAMPLE_RATIO: ${OPENINFRA_OTEL_TRACE_SAMPLE_RATIO:-0.1}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
     command:
     - openinfra-web
     - --host
@@ -306,8 +320,82 @@ services:
       start_period: 10s
     ports:
     - ${OPENINFRA_WEB_BIND:-127.0.0.1}:${OPENINFRA_WEB_PORT:-2006}:2006
+    tmpfs:
+    - /tmp/openinfra-prometheus:mode=0770,uid=10001,gid=10001
     networks:
     - openinfra
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:${OPENINFRA_OTEL_COLLECTOR_IMAGE_TAG:-0.156.0}
+    container_name: openinfra-otel-collector
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+    - ./docker/observability/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+    depends_on:
+      tempo:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "/otelcol-contrib", "components"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    profiles: [observability]
+    networks: [openinfra]
+  tempo:
+    image: grafana/tempo:${OPENINFRA_TEMPO_IMAGE_TAG:-3.0.0}
+    container_name: openinfra-tempo
+    restart: unless-stopped
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+    - ./docker/observability/tempo.yaml:/etc/tempo.yaml:ro
+    - openinfra-tempo-data:/var/tempo
+    profiles: [observability]
+    networks: [openinfra]
+  prometheus:
+    image: prom/prometheus:${OPENINFRA_PROMETHEUS_IMAGE_TAG:-v3.13.1}
+    container_name: openinfra-prometheus
+    restart: unless-stopped
+    command:
+    - --config.file=/etc/prometheus/prometheus.yml
+    - --storage.tsdb.path=/prometheus
+    - --storage.tsdb.retention.time=${OPENINFRA_PROMETHEUS_RETENTION:-30d}
+    - --web.enable-lifecycle
+    volumes:
+    - ./docker/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    - ./docker/observability/openinfra-alerts.yml:/etc/prometheus/openinfra-alerts.yml:ro
+    - openinfra-prometheus-data:/prometheus
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    ports:
+    - ${OPENINFRA_PROMETHEUS_BIND:-127.0.0.1}:${OPENINFRA_PROMETHEUS_PORT:-9090}:9090
+    profiles: [observability]
+    networks: [openinfra]
+  grafana:
+    image: grafana/grafana:${OPENINFRA_GRAFANA_IMAGE_TAG:-13.1.0}
+    container_name: openinfra-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${OPENINFRA_GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${OPENINFRA_GRAFANA_ADMIN_PASSWORD:?OPENINFRA_GRAFANA_ADMIN_PASSWORD is required}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+    - ./docker/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+    - ./docker/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    - openinfra-grafana-data:/var/lib/grafana
+    depends_on:
+      prometheus:
+        condition: service_started
+      tempo:
+        condition: service_started
+    ports:
+    - ${OPENINFRA_GRAFANA_BIND:-127.0.0.1}:${OPENINFRA_GRAFANA_PORT:-3000}:3000
+    profiles: [observability]
+    networks: [openinfra]
   pgadmin:
     image: ${OPENINFRA_PGADMIN_IMAGE:-dpage/pgadmin4:latest}
     container_name: openinfra-pgadmin
@@ -339,7 +427,7 @@ services:
     networks:
     - openinfra
   smoke:
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.31.2}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.31.4}
     container_name: openinfra-smoke
     restart: 'no'
     depends_on:
@@ -365,6 +453,9 @@ volumes:
   openinfra-postgres-data: null
   openinfra-pgadmin-data: null
   openinfra-postgres-replica-data: null
+  openinfra-prometheus-data: null
+  openinfra-grafana-data: null
+  openinfra-tempo-data: null
 networks:
   openinfra:
     driver: bridge

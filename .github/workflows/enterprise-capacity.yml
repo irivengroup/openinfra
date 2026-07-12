@@ -1,0 +1,142 @@
+name: Enterprise Capacity Certification
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: HTTPS base URL of the representative OpenInfra API topology
+        required: true
+        type: string
+      metrics_url:
+        description: HTTPS Prometheus exposition URL for the tested API topology
+        required: true
+        type: string
+      integrity_url:
+        description: Stable read-only endpoint used to verify integrity before and after chaos
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: openinfra-enterprise-capacity-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  certify:
+    name: Representative Enterprise capacity and chaos certification
+    runs-on: [self-hosted, linux, x64, openinfra-enterprise-capacity]
+    environment: enterprise-capacity
+    timeout-minutes: 480
+    env:
+      OPENINFRA_CAPACITY_BEARER_TOKEN: ${{ secrets.OPENINFRA_CAPACITY_BEARER_TOKEN }}
+      OPENINFRA_GRAFANA_ADMIN_PASSWORD: ${{ secrets.OPENINFRA_GRAFANA_ADMIN_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: pip
+
+      - name: Install production and certification dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements/runtime.txt -r requirements/dev.txt
+
+      - name: Validate observability and capacity contracts
+        run: python scripts/validate_observability.py --project-root .
+
+      - name: Materialize protected topology evidence
+        env:
+          OPENINFRA_CAPACITY_TOPOLOGY_JSON: ${{ secrets.OPENINFRA_CAPACITY_TOPOLOGY_JSON }}
+        run: |
+          test -n "$OPENINFRA_CAPACITY_TOPOLOGY_JSON"
+          mkdir -p build/capacity/stages build/capacity/chaos
+          printf '%s\n' "$OPENINFRA_CAPACITY_TOPOLOGY_JSON" > build/capacity/topology.json
+          python -m json.tool build/capacity/topology.json >/dev/null
+
+      - name: Baseline load
+        run: >-
+          python scripts/run_enterprise_capacity_profile.py
+          --base-url '${{ inputs.base_url }}' --metrics-url '${{ inputs.metrics_url }}'
+          --stage baseline --duration-seconds 300 --concurrency 20 --target-rps 10
+          --output build/capacity/stages/baseline.json
+
+      - name: Step load
+        run: >-
+          python scripts/run_enterprise_capacity_profile.py
+          --base-url '${{ inputs.base_url }}' --metrics-url '${{ inputs.metrics_url }}'
+          --stage step-load --duration-seconds 1800 --concurrency 100 --target-rps 100
+          --output build/capacity/stages/step-load.json
+
+      - name: Endurance load
+        run: >-
+          python scripts/run_enterprise_capacity_profile.py
+          --base-url '${{ inputs.base_url }}' --metrics-url '${{ inputs.metrics_url }}'
+          --stage endurance --duration-seconds 21600 --concurrency 100 --target-rps 100
+          --output build/capacity/stages/endurance.json
+
+      - name: Spike load
+        run: >-
+          python scripts/run_enterprise_capacity_profile.py
+          --base-url '${{ inputs.base_url }}' --metrics-url '${{ inputs.metrics_url }}'
+          --stage spike --duration-seconds 600 --concurrency 500 --target-rps 500
+          --output build/capacity/stages/spike.json
+
+      - name: Saturation load
+        run: >-
+          python scripts/run_enterprise_capacity_profile.py
+          --base-url '${{ inputs.base_url }}' --metrics-url '${{ inputs.metrics_url }}'
+          --stage saturation --duration-seconds 900 --concurrency 1000 --target-rps 1000
+          --output build/capacity/stages/saturation.json
+
+      - name: API worker loss chaos
+        run: >-
+          python scripts/run_enterprise_chaos_profile.py --scenario api-worker-loss
+          --health-url '${{ inputs.base_url }}/ready' --integrity-url '${{ inputs.integrity_url }}'
+          --output build/capacity/chaos/api-worker-loss.json
+
+      - name: Web worker loss chaos
+        run: >-
+          python scripts/run_enterprise_chaos_profile.py --scenario web-worker-loss
+          --health-url '${{ inputs.base_url }}/ready' --integrity-url '${{ inputs.integrity_url }}'
+          --output build/capacity/chaos/web-worker-loss.json
+
+      - name: PostgreSQL replica loss chaos
+        run: >-
+          python scripts/run_enterprise_chaos_profile.py --scenario db-replica-loss
+          --health-url '${{ inputs.base_url }}/ready' --integrity-url '${{ inputs.integrity_url }}'
+          --output build/capacity/chaos/db-replica-loss.json
+
+      - name: PgBouncer restart chaos
+        run: >-
+          python scripts/run_enterprise_chaos_profile.py --scenario pgbouncer-restart
+          --health-url '${{ inputs.base_url }}/ready' --integrity-url '${{ inputs.integrity_url }}'
+          --output build/capacity/chaos/pgbouncer-restart.json
+
+      - name: Assemble signed-by-hash evidence
+        run: >-
+          python scripts/assemble_enterprise_capacity_evidence.py
+          --profile docs/operations/enterprise-capacity-profile.json
+          --topology build/capacity/topology.json
+          --stages build/capacity/stages
+          --chaos build/capacity/chaos
+          --output build/capacity/evidence.json
+
+      - name: Enforce certification thresholds
+        run: >-
+          python scripts/certify_enterprise_capacity.py
+          --evidence build/capacity/evidence.json
+          --output build/capacity/certification-report.json
+          --enforce
+
+      - name: Publish certification evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: openinfra-enterprise-capacity-${{ github.run_id }}
+          path: build/capacity
+          if-no-files-found: error
+          retention-days: 90

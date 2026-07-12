@@ -1,5 +1,44 @@
 # Changelog
 
+## 0.31.4 - 2026-07-12
+
+### Fixed
+
+- alignement déterministe de l'utilisateur non-root Docker sur l'UID/GID `10001:10001` du tmpfs Prometheus ;
+- vérification d'écriture et nettoyage contrôlé de `PROMETHEUS_MULTIPROC_DIR` avant le fork Uvicorn ;
+- diagnostic explicite en cas de montage non inscriptible, au lieu d'un `PermissionError` tardif dans un worker ;
+- tests et gate d'observabilité empêchant toute divergence future entre l'image et Compose.
+
+### Compatibility
+
+- aucune migration PostgreSQL ;
+- aucun changement des contrats API/CLI métier ;
+- aucune modification CSS ou du thème.
+
+## 0.31.3 - 2026-07-12
+
+### Added
+
+- instrumentation Prometheus et OpenTelemetry pour API, BFF, workers, outbox, files asynchrones et PostgreSQL ;
+- endpoints `/metrics` API/web et propagation W3C `traceparent` ;
+- pile d'observabilité Compose avec Prometheus, Tempo, OpenTelemetry Collector et Grafana provisionné ;
+- règles d'alerte SLO p95/p99, erreurs, saturation, DLQ, pool et réplication ;
+- profil et moteur stricts de certification Enterprise : paliers, endurance, spike, saturation et chaos ;
+- workflow manuel de certification sur runner Enterprise protégé ;
+- runbook, architecture, tests de sécurité, d'intégration et de non-régression.
+
+### Changed
+
+- version applicative et cache-busters alignés sur 0.31.3 ;
+- contrats OpenAPI enrichis avec `/metrics` ;
+- dépendances runtime séparées pour Prometheus et OpenTelemetry.
+
+### Compatibility
+
+- aucune migration PostgreSQL ;
+- aucune modification CSS ou du thème ;
+- OpenTelemetry désactivable et pile d'observabilité isolée derrière le profil Compose `observability`.
+
 ## 0.31.2 - 2026-07-12
 
 ### P20 / EPIC-2004 — frontend modulaire et virtualisé

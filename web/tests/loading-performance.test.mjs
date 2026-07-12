@@ -37,8 +37,9 @@ test('business catalogs and domain chunks are loaded only for the selected opera
   assert.match(runtime, /catalogPromise\("scope", \(\) => this\.refreshScopeCatalogs\(\)\)/);
   assert.match(runtime, /Promise\.allSettled/);
   assert.match(runtime, /ensureModuleLoaded\(moduleId\)/);
-  assert.match(manifest, /import\("\.\/domains\/rsot\.js\?v=0\.31\.2"\)/);
-  assert.match(manifest, /import\("\.\/domains\/security\.js\?v=0\.31\.2"\)/);
+  const escapedVersion = packageMetadata.version.replaceAll('.', '\\.');
+  assert.match(manifest, new RegExp(`import\\("\\./domains/rsot\\.js\\?v=${escapedVersion}"\\)`));
+  assert.match(manifest, new RegExp(`import\\("\\./domains/security\\.js\\?v=${escapedVersion}"\\)`));
   assert.doesNotMatch(runtimeIndex, /\/assets\/domains\//);
   assert.match(reactBootstrap, /import\('\.\/main\.jsx'\)/);
 });

@@ -404,6 +404,7 @@ from openinfra.domain.access_policy import AccessRequestContext
 from openinfra.domain.common import AccessDeniedError, OpenInfraError, ValidationError
 from openinfra.domain.countries import CountryCatalog
 from openinfra.domain.security import AuthenticatedPrincipal, Permission
+from openinfra.infrastructure.observability import PrometheusMultiprocessDirectory
 from openinfra.infrastructure.runtime_config import RuntimeDatabaseDsnResolver
 from openinfra.interfaces.openapi_taxonomy import OpenApiDocumentationTaxonomy
 from openinfra.interfaces.runtime_environment import OpenInfraRuntimeEnvironmentScope
@@ -8501,6 +8502,7 @@ class OpenInfraApiRuntime(BaseServer):
             "status": "ok",
             "health": "/health",
             "readiness": "/ready",
+            "metrics": "/metrics",
             "api": {
                 "version": "v1",
                 "base_path": "/api/v1",
@@ -8959,11 +8961,13 @@ class OpenInfraApiEntrypoint:
             "OPENINFRA_EDITION": str(args.edition).strip().lower(),
             "OPENINFRA_AUTH_REQUIRED": "true" if auth_required else "false",
             "OPENINFRA_API_WORKERS_RESOLVED": str(workers),
+            "OPENINFRA_API_LIMIT_CONCURRENCY": str(args.limit_concurrency),
         }
         if args.postgres_dsn:
             values["OPENINFRA_API_POSTGRES_DSN"] = str(args.postgres_dsn)
         try:
             with OpenInfraRuntimeEnvironmentScope(values):
+                PrometheusMultiprocessDirectory.prepare_from_environment()
                 uvicorn.run(
                     "openinfra.interfaces.asgi:api_app_factory",
                     factory=True,

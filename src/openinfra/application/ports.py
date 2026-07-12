@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Generic, TypeVar
@@ -2557,6 +2558,72 @@ class OutboxEventPage:
         }
 
 
+class HttpRequestObservation(ABC):
+    @property
+    @abstractmethod
+    def traceparent(self) -> str:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def record_exception(self, exception: BaseException) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def finish(
+        self,
+        *,
+        status_code: int,
+        request_size_bytes: int,
+        response_size_bytes: int,
+    ) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+
+class RuntimeTelemetry(ABC):
+    @abstractmethod
+    def begin_http_request(
+        self,
+        *,
+        method: str,
+        route: str,
+        headers: Mapping[str, str],
+    ) -> HttpRequestObservation:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def worker_started(self, specialization: str) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def worker_finished(
+        self,
+        specialization: str,
+        outcome: str,
+        duration_seconds: float,
+    ) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def outbox_dispatch_finished(self, outcome: str, duration_seconds: float) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def render_prometheus(self) -> bytes:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def inject_trace_headers(self, headers: Mapping[str, str]) -> dict[str, str]:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def refresh_operational_metrics(self) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def close(self) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+
 class AsyncProcessingRepository(ABC):
     @abstractmethod
     def save_job(self, job: AsyncJob) -> None:
@@ -2627,6 +2694,11 @@ class AsyncProcessingRepository(ABC):
 
     @abstractmethod
     def queue_metrics(self, tenant_id: TenantId) -> dict[str, object]:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def operational_metrics(self) -> dict[str, object]:
+        """Return tenant-neutral queue depth and age metrics for operations tooling."""
         raise TypeError("adapter contract invoked directly")
 
 

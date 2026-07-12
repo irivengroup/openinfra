@@ -98,6 +98,17 @@ class TestRuntimeEnvironment:
         assert "openinfra" in smoke
         assert "production" in runbook.lower()
 
+    def test_runtime_user_matches_prometheus_tmpfs_owner(self) -> None:
+        dockerfile = Path("Dockerfile").read_text(encoding="utf-8")
+        compose = Path("compose.yaml").read_text(encoding="utf-8")
+
+        assert "ARG OPENINFRA_UID=10001" in dockerfile
+        assert "ARG OPENINFRA_GID=10001" in dockerfile
+        assert 'groupadd --gid "${OPENINFRA_GID}" openinfra' in dockerfile
+        assert 'useradd --uid "${OPENINFRA_UID}" --gid openinfra' in dockerfile
+        prometheus_tmpfs = "/tmp/openinfra-prometheus:mode=0770,uid=10001,gid=10001"  # noqa: S108
+        assert compose.count(prometheus_tmpfs) == 2
+
     def test_runtime_env_manager_creates_private_env_file(self, tmp_path: Path) -> None:
         module_path = Path("scripts/docker_environment.py")
         spec = importlib.util.spec_from_file_location("docker_environment", module_path)

@@ -14,7 +14,11 @@ from urllib.parse import urljoin
 import httpx
 
 from openinfra import __version__
+from openinfra.application.ports import RuntimeTelemetry
+from openinfra.application.telemetry import NullRuntimeTelemetry
 from openinfra.domain.common import OpenInfraError, ValidationError
+from openinfra.infrastructure.observability import OpenInfraTelemetry
+from openinfra.interfaces.asgi_observability import ObservedAsgiReceive, ObservedAsgiSend
 from openinfra.interfaces.web import (
     OpenInfraStaticAssetStore,
     OpenInfraWebConfig,
@@ -121,6 +125,7 @@ class OpenInfraWebAsgiApplication:
         client: httpx.AsyncClient | None = None,
         *,
         consistency_cookie_ttl_seconds: int = 10,
+        telemetry: RuntimeTelemetry | None = None,
     ) -> None:
         self._config = config
         self._pool_settings = pool_settings
@@ -131,6 +136,7 @@ class OpenInfraWebAsgiApplication:
         self._client_lock = asyncio.Lock()
         self._owns_client = client is None
         self._consistency_cookie_ttl_seconds = consistency_cookie_ttl_seconds
+        self._telemetry = telemetry or NullRuntimeTelemetry()
 
     async def __call__(self, scope: AsgiScope, receive: AsgiReceive, send: AsgiSend) -> None:
         scope_type = str(scope.get("type", ""))
@@ -142,8 +148,46 @@ class OpenInfraWebAsgiApplication:
             return
         method = str(scope.get("method", "GET")).upper()
         path = str(scope.get("path", "/"))
-        query_string = bytes(scope.get("query_string", b""))
+        if path == "/metrics" and method in {"GET", "HEAD"}:
+            await self._send_metrics(send, head_only=method == "HEAD")
+            return
         headers = self._request_header_map(scope)
+        observation = self._telemetry.begin_http_request(method=method, route=path, headers=headers)
+        observed_receive = ObservedAsgiReceive(receive)
+        observed_send = ObservedAsgiSend(send, observation)
+        try:
+            await self._dispatch_http(
+                scope,
+                observed_receive,
+                observed_send,
+                method=method,
+                path=path,
+                headers=headers,
+            )
+        except OpenInfraError as exc:
+            observed_send.record_exception(exc)
+            await self._json(observed_send, HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+        except Exception as exc:  # pragma: no cover - defensive runtime boundary
+            observed_send.record_exception(exc)
+            await self._json(
+                observed_send,
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+                {"error": "internal server error", "reason": type(exc).__name__},
+            )
+        finally:
+            observed_send.finish(observed_receive.request_size_bytes)
+
+    async def _dispatch_http(
+        self,
+        scope: AsgiScope,
+        receive: AsgiReceive,
+        send: AsgiSend,
+        *,
+        method: str,
+        path: str,
+        headers: Mapping[str, str],
+    ) -> None:
+        query_string = bytes(scope.get("query_string", b""))
         if method in {"GET", "HEAD"}:
             if path == "/health":
                 await self._json(
@@ -226,6 +270,27 @@ class OpenInfraWebAsgiApplication:
             )
             return
         await self._json(send, HTTPStatus.NOT_FOUND, {"error": "route not served by openinfra-web"})
+
+    async def _send_metrics(self, send: AsgiSend, *, head_only: bool) -> None:
+        payload = self._telemetry.render_prometheus()
+        await send(
+            {
+                "type": "http.response.start",
+                "status": HTTPStatus.OK.value,
+                "headers": [
+                    (b"content-type", b"text/plain; version=0.0.4; charset=utf-8"),
+                    (b"content-length", str(len(payload)).encode("ascii")),
+                    (b"cache-control", b"no-store"),
+                ],
+            }
+        )
+        await send(
+            {
+                "type": "http.response.body",
+                "body": b"" if head_only else payload,
+                "more_body": False,
+            }
+        )
 
     def _is_proxy_route(self, path: str) -> bool:
         return path in {"/docs", "/swagger", "/redoc", "/openapi.yaml"} or path.startswith("/api/")
@@ -472,7 +537,7 @@ class OpenInfraWebAsgiApplication:
             consistency_token = self._consistency_token_from_cookie(incoming.get("cookie", ""))
         if consistency_token:
             headers["X-OpenInfra-Consistency-Token"] = consistency_token
-        return headers
+        return self._telemetry.inject_trace_headers(headers)
 
     def _response_headers(
         self,
@@ -646,6 +711,7 @@ class OpenInfraWebAsgiApplication:
                 if self._owns_client and self._client is not None:
                     await self._client.aclose()
                     self._client = None
+                await asyncio.to_thread(self._telemetry.close)
                 await send({"type": "lifespan.shutdown.complete"})
                 return
 
@@ -653,12 +719,16 @@ class OpenInfraWebAsgiApplication:
 class OpenInfraWebAsgiFactory:
     def __call__(self) -> OpenInfraWebAsgiApplication:
         config = OpenInfraWebConfigFactory().from_args([])
+        telemetry = OpenInfraTelemetry.from_environment(
+            service_name="openinfra-web", edition=config.edition
+        )
         return OpenInfraWebAsgiApplication(
             config,
             OpenInfraWebHttpPoolSettings.from_environment(config.edition),
             consistency_cookie_ttl_seconds=int(
                 os.environ.get("OPENINFRA_READ_AFTER_WRITE_TTL_SECONDS", "10")
             ),
+            telemetry=telemetry,
         )
 
 

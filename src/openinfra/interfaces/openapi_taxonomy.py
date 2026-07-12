@@ -22,6 +22,11 @@ class OpenApiDocumentationTaxonomy:
             "Découverte API, documentation, santé, disponibilité et version du runtime.",
         ),
         OpenApiDocumentationContext(
+            "Plateforme",
+            "Observabilité et capacité",
+            "Métriques Prometheus, télémétrie runtime et qualification de capacité.",
+        ),
+        OpenApiDocumentationContext(
             "Plateforme", "Référentiels", "Référentiels transverses publiés par la plateforme."
         ),
         OpenApiDocumentationContext(
@@ -321,6 +326,8 @@ class OpenApiDocumentationTaxonomy:
             "/api/v1/version",
         }:
             return "Plateforme", "Exploitation et documentation"
+        if path == "/metrics":
+            return "Plateforme", "Observabilité et capacité"
         if path.startswith("/api/v1/reference/"):
             return "Plateforme", "Référentiels"
         if path.startswith("/api/v1/database/"):

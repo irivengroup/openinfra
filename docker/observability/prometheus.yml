@@ -1,0 +1,23 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    platform: openinfra
+
+rule_files:
+  - /etc/prometheus/openinfra-alerts.yml
+
+scrape_configs:
+  - job_name: openinfra-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: [api:8080]
+        labels:
+          service: openinfra-api
+
+  - job_name: openinfra-web
+    metrics_path: /metrics
+    static_configs:
+      - targets: [web:2006]
+        labels:
+          service: openinfra-web

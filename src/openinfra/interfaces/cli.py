@@ -9867,7 +9867,9 @@ class OpenInfraCLI:
     def _handle_async_outbox_dispatch_once(self, args: argparse.Namespace) -> int:
         app = self._create_application(args)
         dispatcher = OutboxDispatcher(
-            app.async_processing_service, FileOutboxPublisher(Path(args.event_sink))
+            app.async_processing_service,
+            FileOutboxPublisher(Path(args.event_sink)),
+            telemetry=app.telemetry,
         )
         result = dispatcher.run_once(
             tenant_id=args.tenant,

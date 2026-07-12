@@ -16,6 +16,9 @@ const runtimeAssetRoot = resolve(
   projectRoot,
   'src/openinfra/interfaces/rendering/static/assets',
 );
+const packageMetadata = JSON.parse(
+  await readFile(resolve(projectRoot, 'web/package.json'), 'utf8'),
+);
 
 function deferred() {
   let resolvePromise;
@@ -156,7 +159,11 @@ test('runtime and React cache implementations remain identical and memory-only',
   assert.equal(runtimeCache, reactCache);
   assert.doesNotMatch(reactCache, /localStorage|sessionStorage|indexedDB/u);
   assert.match(runtimeManifest, /OPENINFRA_DOMAIN_LOADERS/u);
-  assert.match(runtimeManifest, /import\("\.\/domains\/dcim\.js\?v=0\.31\.2"\)/u);
+  const escapedVersion = packageMetadata.version.replaceAll('.', '\\.');
+  assert.match(
+    runtimeManifest,
+    new RegExp(`import\\("\\./domains/dcim\\.js\\?v=${escapedVersion}"\\)`, 'u'),
+  );
   assert.match(runtimeIndex, /field-sheet-list/u);
   assert.doesNotMatch(runtimeManifest, /"path": "\/v1\/field/u);
 });

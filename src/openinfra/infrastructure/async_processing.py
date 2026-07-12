@@ -534,6 +534,57 @@ class JsonAsyncProcessingRepository(AsyncProcessingRepository):
             "outbox": {status.value: outbox.get(status.value, 0) for status in WorkStatus},
         }
 
+    def operational_metrics(self) -> dict[str, object]:
+        now = datetime.now(UTC)
+        with self._store.lock:
+            job_payloads = [
+                cast(dict[str, object], value) for value in self._store.data["async_jobs"].values()
+            ]
+            outbox_payloads = [
+                cast(dict[str, object], value)
+                for value in self._store.data["outbox_events"].values()
+            ]
+        jobs = Counter(str(payload.get("status", "")) for payload in job_payloads)
+        outbox = Counter(str(payload.get("status", "")) for payload in outbox_payloads)
+        by_specialization: dict[str, Counter[str]] = {}
+        for payload in job_payloads:
+            specialization = str(payload.get("specialization", "unknown"))
+            by_specialization.setdefault(specialization, Counter())[
+                str(payload.get("status", ""))
+            ] += 1
+        return {
+            "jobs": {status.value: jobs.get(status.value, 0) for status in WorkStatus},
+            "outbox": {status.value: outbox.get(status.value, 0) for status in WorkStatus},
+            "jobs_by_specialization": {
+                specialization.value: {
+                    status.value: by_specialization.get(specialization.value, Counter()).get(
+                        status.value, 0
+                    )
+                    for status in WorkStatus
+                }
+                for specialization in WorkerSpecialization
+            },
+            "oldest_ready_job_age_seconds": self._oldest_ready_age(job_payloads, now),
+            "oldest_ready_outbox_age_seconds": self._oldest_ready_age(outbox_payloads, now),
+        }
+
+    @staticmethod
+    def _oldest_ready_age(payloads: list[dict[str, object]], now: datetime) -> float:
+        oldest: datetime | None = None
+        for payload in payloads:
+            status = str(payload.get("status", ""))
+            if status not in {WorkStatus.QUEUED.value, WorkStatus.RETRY_WAIT.value}:
+                continue
+            next_attempt_raw = payload.get("next_attempt_at")
+            if next_attempt_raw is not None:
+                next_attempt = datetime.fromisoformat(str(next_attempt_raw)).astimezone(UTC)
+                if next_attempt > now:
+                    continue
+            created = datetime.fromisoformat(str(payload["created_at"])).astimezone(UTC)
+            if oldest is None or created < oldest:
+                oldest = created
+        return 0.0 if oldest is None else max(0.0, (now - oldest).total_seconds())
+
     def _tenant_payloads(self, bucket: str, tenant_id: TenantId) -> list[dict[str, object]]:
         prefix = tenant_id.value + ":"
         return [

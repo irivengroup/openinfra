@@ -74,6 +74,7 @@ from openinfra.application.ports import (
     NetworkConfigComplianceRepository,
     RagRepository,
     ReadinessProbe,
+    RuntimeTelemetry,
     RuntimeUsageRepository,
     SbomRepository,
     SchemaStatusProvider,
@@ -98,6 +99,7 @@ from openinfra.application.specialized_worker_services import (
     ImportWorker,
     RagWorker,
 )
+from openinfra.application.telemetry import NullRuntimeTelemetry
 from openinfra.infrastructure.async_processing import (
     JsonAsyncProcessingRepository,
     LocalArtifactStore,
@@ -138,6 +140,7 @@ from openinfra.infrastructure.json_store import (
     JsonTransactionManager,
     SeedDataFactory,
 )
+from openinfra.infrastructure.observability import OpenInfraTelemetry
 from openinfra.infrastructure.postgresql import (
     PostgreSQLAccessPolicyRepository,
     PostgreSQLAsyncProcessingRepository,
@@ -181,6 +184,7 @@ from openinfra.infrastructure.sbom_parser import SbomPayloadParser
 @dataclass(frozen=True, slots=True)
 class OpenInfraApplication:
     store: Any
+    telemetry: RuntimeTelemetry
     async_processing_service: AsyncProcessingService
     async_processing_repository: AsyncProcessingRepository
     artifact_store: ArtifactStore
@@ -299,6 +303,11 @@ class ApplicationFactory:
         schema_status_provider = JsonSchemaStatusProvider()
         runtime_usage_repository = JsonRuntimeUsageRepository(store)
         async_processing_repository = JsonAsyncProcessingRepository(store)
+        telemetry = OpenInfraTelemetry.from_environment(
+            service_name="openinfra-api",
+            edition=edition,
+            queue_metrics_provider=async_processing_repository.operational_metrics,
+        )
         artifact_store = self._create_artifact_store(
             Path(
                 os.environ.get(
@@ -342,6 +351,7 @@ class ApplicationFactory:
             runtime_usage_repository=runtime_usage_repository,
             async_processing_repository=async_processing_repository,
             artifact_store=artifact_store,
+            telemetry=telemetry,
             edition=edition,
         )
 
@@ -413,6 +423,17 @@ class ApplicationFactory:
         schema_status_provider = PostgreSQLMigrationExecutor(registry, migration_catalog)
         runtime_usage_repository = PostgreSQLRuntimeUsageRepository(registry, cursor_codec)
         async_processing_repository = PostgreSQLAsyncProcessingRepository(registry, cursor_codec)
+
+        def queue_metrics_provider() -> dict[str, object]:
+            with registry.read_scope():
+                return async_processing_repository.operational_metrics()
+
+        telemetry = OpenInfraTelemetry.from_environment(
+            service_name="openinfra-api",
+            edition=edition,
+            queue_metrics_provider=queue_metrics_provider,
+            runtime_metrics_provider=registry.operational_metrics,
+        )
         artifact_store = self._create_artifact_store(
             Path(os.environ.get("OPENINFRA_ARTIFACT_ROOT", "/data/openinfra/artifacts"))
         )
@@ -451,6 +472,7 @@ class ApplicationFactory:
             runtime_usage_repository=runtime_usage_repository,
             async_processing_repository=async_processing_repository,
             artifact_store=artifact_store,
+            telemetry=telemetry,
             edition=edition,
         )
 
@@ -507,6 +529,7 @@ class ApplicationFactory:
         runtime_usage_repository: RuntimeUsageRepository | None = None,
         async_processing_repository: AsyncProcessingRepository | None = None,
         artifact_store: ArtifactStore | None = None,
+        telemetry: RuntimeTelemetry | None = None,
         edition: str = "enterprise",
         source_of_truth_repository: SourceOfTruthRepository | None = None,
         source_governance_repository: SourceGovernanceRepository | None = None,
@@ -799,6 +822,7 @@ class ApplicationFactory:
             discovery_repository,
             discovery_service,
         )
+        runtime_telemetry = telemetry or NullRuntimeTelemetry()
         async_processing_service = AsyncProcessingService(
             async_processing_repository,
             artifact_store,
@@ -806,12 +830,19 @@ class ApplicationFactory:
             transaction_manager,
             security_service,
         )
-        reporting_worker = ReportingWorker(async_processing_service)
-        import_worker = ImportWorker(async_processing_service, import_service, artifact_store)
-        graph_worker = GraphWorker(async_processing_service, dependency_graph_service)
-        rag_worker = RagWorker(async_processing_service, rag_service, artifact_store)
+        reporting_worker = ReportingWorker(async_processing_service, runtime_telemetry)
+        import_worker = ImportWorker(
+            async_processing_service, import_service, artifact_store, runtime_telemetry
+        )
+        graph_worker = GraphWorker(
+            async_processing_service, dependency_graph_service, runtime_telemetry
+        )
+        rag_worker = RagWorker(
+            async_processing_service, rag_service, artifact_store, runtime_telemetry
+        )
         return OpenInfraApplication(
             store=store,
+            telemetry=runtime_telemetry,
             async_processing_service=async_processing_service,
             async_processing_repository=async_processing_repository,
             artifact_store=artifact_store,

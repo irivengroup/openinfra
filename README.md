@@ -1,6 +1,19 @@
-# OpenInfra v0.31.2
+# OpenInfra v0.31.4
 
-OpenInfra 0.31.2 livre P20 / EPIC-2004 : le portail est découpé en chunks par domaine, les catalogues et l’index de recherche sont chargés à la demande, les lectures sont dédupliquées et annulables, les listes volumineuses sont virtualisées et les Web Vitals sont mesurés en mémoire. Les contrats métier et le thème approuvé de la version 0.30.9 restent strictement inchangés.
+OpenInfra 0.31.4 est une livraison corrective de P20 / EPIC-2005. Elle aligne l'UID/GID non-root du conteneur sur le tmpfs Prometheus multiprocessus et ajoute une vérification d'écriture avant le fork Uvicorn. Les contrats métier, le frontend et le thème approuvé restent inchangés.
+
+## Observabilité et charge Enterprise — P20 / EPIC-2005
+
+- instrumentation API, BFF, workers, outbox, files asynchrones, pools PostgreSQL et réplication ;
+- endpoints `/metrics` API et web compatibles avec les workers ASGI multiprocessus ;
+- propagation W3C `traceparent` et export OTLP/HTTP optionnel ;
+- pile Compose optionnelle Prometheus, OpenTelemetry Collector, Tempo et Grafana ;
+- règles d'alerte p95/p99, 5xx, saturation, file bloquée, DLQ, pool et lag réplique ;
+- profil versionné en cinq phases de charge et quatre scénarios de chaos ;
+- rapport atomique avec empreintes SHA-256 et gate `--enforce` ;
+- aucune certification possible sans preuves Enterprise complètes.
+
+Voir `docs/architecture/enterprise-observability-capacity.md` et `docs/runbooks/OBSERVABILITY_CAPACITY.md`.
 
 ## Frontend modulaire et virtualisé — P20 / EPIC-2004
 

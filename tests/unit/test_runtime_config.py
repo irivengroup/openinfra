@@ -171,3 +171,17 @@ class TestRuntimeConfig:
         monkeypatch.setenv("OPENINFRA_CURSOR_SIGNING_SECRET", "k" * 32)
         assert resolver.resolve_cursor_signing_secret() == "k" * 32
         assert resolver.resolve_cursor_signing_secret("z" * 32) == "z" * 32
+
+        monkeypatch.delenv("OPENINFRA_CURSOR_SIGNING_SECRET", raising=False)
+        config.write_text(
+            'OPENINFRA_CURSOR_SIGNING_SECRET="' + "q" * 32 + '"\n',
+            encoding="utf-8",
+        )
+        assert resolver.resolve_cursor_signing_secret() == "q" * 32
+
+        config.write_text(
+            'OPENINFRA_CURSOR_SIGNING_SECRET_REF="env:OPENINFRA_CURSOR_SECRET_REF"\n',
+            encoding="utf-8",
+        )
+        monkeypatch.setenv("OPENINFRA_CURSOR_SECRET_REF", "v" * 32)
+        assert resolver.resolve_cursor_signing_secret() == "v" * 32

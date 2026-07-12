@@ -1,0 +1,34 @@
+{
+  "profile_id": "openinfra-enterprise-capacity-v1",
+  "profile_version": 1,
+  "required_capacity_stages": ["baseline", "step-load", "endurance", "spike", "saturation"],
+  "required_chaos_scenarios": ["api-worker-loss", "web-worker-loss", "db-replica-loss", "pgbouncer-restart"],
+  "topology_minimums": {
+    "api_instances": 2,
+    "web_instances": 2,
+    "specialized_workers": 4,
+    "database_primaries": 1,
+    "database_replicas": 1,
+    "pgbouncer_instances": 2,
+    "regions": 1,
+    "dataset_objects": 100000,
+    "dataset_relations": 100000
+  },
+  "thresholds": {
+    "p95_ms": 500,
+    "p99_ms": 1000,
+    "error_rate_percent": 1,
+    "saturation_percent": 90,
+    "recovery_seconds": 120,
+    "memory_growth_percent": 10,
+    "replica_lag_seconds": 5,
+    "trace_coverage_percent": 99
+  },
+  "stage_recommendations": {
+    "baseline": {"duration_seconds": 300, "target_rps": 10},
+    "step-load": {"duration_seconds": 1800, "target_rps": 100},
+    "endurance": {"duration_seconds": 21600, "target_rps": 100},
+    "spike": {"duration_seconds": 600, "target_rps": 500},
+    "saturation": {"duration_seconds": 900, "target_rps": 1000}
+  }
+}

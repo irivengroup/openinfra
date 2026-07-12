@@ -4,6 +4,7 @@ import csv
 import io
 import json
 import tempfile
+import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
@@ -29,7 +30,7 @@ from openinfra.application.import_services import (
     GenericImportService,
     ImportDatasetCommand,
 )
-from openinfra.application.ports import ArtifactStore
+from openinfra.application.ports import ArtifactStore, RuntimeTelemetry
 from openinfra.application.rag_services import (
     GetRagAnswerCommand,
     ListRagAnswersCommand,
@@ -37,10 +38,12 @@ from openinfra.application.rag_services import (
     SyncRsotRagCommand,
     UpsertRagDocumentCommand,
 )
+from openinfra.application.telemetry import NullRuntimeTelemetry
 from openinfra.domain.async_processing import (
     ArtifactReference,
     AsyncJob,
     WorkerSpecialization,
+    WorkStatus,
 )
 from openinfra.domain.common import TenantId, ValidationError
 from openinfra.domain.rag import RagAnswer
@@ -137,8 +140,13 @@ class WorkerPayload:
 class SpecializedWorker(ABC):
     specialization: WorkerSpecialization
 
-    def __init__(self, async_service: AsyncProcessingService) -> None:
+    def __init__(
+        self,
+        async_service: AsyncProcessingService,
+        telemetry: RuntimeTelemetry | None = None,
+    ) -> None:
         self._async_service = async_service
+        self._telemetry = telemetry or NullRuntimeTelemetry()
 
     def run_once(
         self,
@@ -149,54 +157,71 @@ class SpecializedWorker(ABC):
         lease_seconds: int = 60,
         retry_delay_seconds: int = 30,
     ) -> AsyncJob | None:
-        claimed = self._async_service.claim_job(
-            ClaimAsyncJobCommand(
-                tenant_id=tenant_id,
-                admin_token=admin_token,
-                actor=worker_id,
-                specialization=self.specialization.value,
-                worker_id=worker_id,
-                lease_seconds=lease_seconds,
-            )
-        )
-        if claimed is None:
-            return None
+        started_at = time.perf_counter()
+        outcome = "failed"
+        self._telemetry.worker_started(self.specialization.value)
         try:
-            artifact = self._async_service.get_artifact(
-                GetAsyncArtifactCommand(tenant_id, admin_token, claimed.id.value, "payload")
-            )
-            payload = WorkerPayload.from_bytes(artifact.content)
-            result = self._execute(
-                claimed=claimed,
-                payload=payload,
-                tenant_id=tenant_id,
-                admin_token=admin_token,
-                worker_id=worker_id,
-            )
-            return self._async_service.complete_job(
-                CompleteAsyncJobCommand(
+            claimed = self._async_service.claim_job(
+                ClaimAsyncJobCommand(
                     tenant_id=tenant_id,
                     admin_token=admin_token,
                     actor=worker_id,
-                    job_id=claimed.id.value,
+                    specialization=self.specialization.value,
                     worker_id=worker_id,
-                    lease_token=claimed.state.lease_token,
-                    result=result.content,
-                    media_type=self._base_media_type(result.media_type),
+                    lease_seconds=lease_seconds,
                 )
             )
-        except Exception as exc:
-            return self._async_service.fail_job(
-                FailAsyncJobCommand(
+            if claimed is None:
+                outcome = "idle"
+                return None
+            try:
+                artifact = self._async_service.get_artifact(
+                    GetAsyncArtifactCommand(tenant_id, admin_token, claimed.id.value, "payload")
+                )
+                payload = WorkerPayload.from_bytes(artifact.content)
+                result = self._execute(
+                    claimed=claimed,
+                    payload=payload,
                     tenant_id=tenant_id,
                     admin_token=admin_token,
-                    actor=worker_id,
-                    job_id=claimed.id.value,
                     worker_id=worker_id,
-                    lease_token=claimed.state.lease_token,
-                    error=str(exc),
-                    retry_delay_seconds=retry_delay_seconds,
                 )
+                completed = self._async_service.complete_job(
+                    CompleteAsyncJobCommand(
+                        tenant_id=tenant_id,
+                        admin_token=admin_token,
+                        actor=worker_id,
+                        job_id=claimed.id.value,
+                        worker_id=worker_id,
+                        lease_token=claimed.state.lease_token,
+                        result=result.content,
+                        media_type=self._base_media_type(result.media_type),
+                    )
+                )
+                outcome = "completed"
+                return completed
+            except Exception as exc:
+                failed = self._async_service.fail_job(
+                    FailAsyncJobCommand(
+                        tenant_id=tenant_id,
+                        admin_token=admin_token,
+                        actor=worker_id,
+                        job_id=claimed.id.value,
+                        worker_id=worker_id,
+                        lease_token=claimed.state.lease_token,
+                        error=str(exc),
+                        retry_delay_seconds=retry_delay_seconds,
+                    )
+                )
+                outcome = (
+                    "dead-letter" if failed.state.status is WorkStatus.DEAD_LETTER else "retry"
+                )
+                return failed
+        finally:
+            self._telemetry.worker_finished(
+                self.specialization.value,
+                outcome,
+                max(0.0, time.perf_counter() - started_at),
             )
 
     @abstractmethod
@@ -235,8 +260,9 @@ class ImportWorker(SpecializedWorker):
         async_service: AsyncProcessingService,
         import_service: GenericImportService,
         artifact_store: ArtifactStore,
+        telemetry: RuntimeTelemetry | None = None,
     ) -> None:
-        super().__init__(async_service)
+        super().__init__(async_service, telemetry)
         self._import_service = import_service
         self._artifact_store = artifact_store
 
@@ -305,8 +331,9 @@ class GraphWorker(SpecializedWorker):
         self,
         async_service: AsyncProcessingService,
         graph_service: DependencyGraphService,
+        telemetry: RuntimeTelemetry | None = None,
     ) -> None:
-        super().__init__(async_service)
+        super().__init__(async_service, telemetry)
         self._graph_service = graph_service
 
     def _execute(
@@ -421,8 +448,9 @@ class RagWorker(SpecializedWorker):
         async_service: AsyncProcessingService,
         rag_service: RagService,
         artifact_store: ArtifactStore,
+        telemetry: RuntimeTelemetry | None = None,
     ) -> None:
-        super().__init__(async_service)
+        super().__init__(async_service, telemetry)
         self._rag_service = rag_service
         self._artifact_store = artifact_store
 

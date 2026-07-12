@@ -175,6 +175,68 @@ class CiWorkflowTriggerGuard:
             raise QualityGateError("CI workflow must run on every branch push and pull request")
 
 
+class ReleaseSecurityGuard:
+    def __init__(self, project_root: Path) -> None:
+        self._project_root = project_root
+
+    def assert_release_security_controls_are_present(self) -> None:
+        required_files = (
+            "src/openinfra/quality/release_security.py",
+            "scripts/release_security_audit.py",
+            "scripts/security_http_probe.py",
+            ".github/workflows/release-security.yml",
+            "docs/runbooks/RELEASE_SECURITY.md",
+        )
+        missing = [
+            relative for relative in required_files if not (self._project_root / relative).is_file()
+        ]
+        if missing:
+            raise QualityGateError("missing release security controls: " + ", ".join(missing))
+        workflow = (self._project_root / ".github/workflows/release-security.yml").read_text(
+            encoding="utf-8"
+        )
+        required_fragments = (
+            "tags: ['v*']",
+            "workflow_dispatch:",
+            "actions/checkout@v6",
+            "actions/setup-python@v6",
+            "actions/setup-node@v6",
+            "actions/upload-artifact@v6",
+            "python scripts/docker_environment.py init",
+            "docker compose --env-file .env build api",
+            "scripts/release_security_audit.py",
+            "--enforce",
+            "retention-days: 90",
+        )
+        missing_fragments = [
+            fragment for fragment in required_fragments if fragment not in workflow
+        ]
+        if missing_fragments:
+            raise QualityGateError(
+                "release security workflow is incomplete: " + ", ".join(missing_fragments)
+            )
+        if "pull_request_target:" in workflow:
+            raise QualityGateError(
+                "release security workflow must not execute from pull_request_target"
+            )
+        environment_manager = (self._project_root / "scripts/docker_environment.py").read_text(
+            encoding="utf-8"
+        )
+        required_environment_keys = (
+            "OPENINFRA_POSTGRES_REPLICATION_PASSWORD",
+            "OPENINFRA_READ_CONSISTENCY_SECRET",
+            "OPENINFRA_GRAFANA_ADMIN_PASSWORD",
+        )
+        missing_environment_keys = [
+            key for key in required_environment_keys if key not in environment_manager
+        ]
+        if missing_environment_keys:
+            raise QualityGateError(
+                "runtime environment generator misses mandatory secrets: "
+                + ", ".join(missing_environment_keys)
+            )
+
+
 class DockerRuntimeGuard:
     def __init__(self, project_root: Path) -> None:
         self._project_root = project_root
@@ -257,7 +319,10 @@ class DockerRuntimeGuard:
             raise QualityGateError(
                 ".env.example missing openinfra-web variables: " + ", ".join(missing_web_env)
             )
-        if "OPENINFRA_WEB_BACKEND_URL=http://api:8080" not in env_manager:
+        if (
+            '"OPENINFRA_WEB_BACKEND_URL"' not in env_manager
+            or '"http://api:8080"' not in env_manager
+        ):
             raise QualityGateError(
                 "docker environment manager must generate openinfra-web settings"
             )
@@ -306,13 +371,16 @@ class DockerRuntimeGuard:
             )
         if "OPENINFRA_PGADMIN_EMAIL=admin@openinfra.tld" not in env_example:
             raise QualityGateError(".env.example must use a pgAdmin4 email accepted by pgAdmin4")
-        if "OPENINFRA_PGADMIN_EMAIL=admin@openinfra.tld" not in env_manager:
+        if (
+            '"OPENINFRA_PGADMIN_EMAIL"' not in env_manager
+            or '"admin@openinfra.tld"' not in env_manager
+        ):
             raise QualityGateError(
                 "docker environment manager must generate a pgAdmin4 email accepted by pgAdmin4"
             )
         if "admin@openinfra.local" in env_example + env_manager:
             raise QualityGateError("pgAdmin4 email must not use reserved .local domain")
-        if "OPENINFRA_PGADMIN_PASSWORD=" not in env_manager:
+        if '"OPENINFRA_PGADMIN_PASSWORD"' not in env_manager:
             raise QualityGateError("docker environment manager must generate pgAdmin4 credentials")
 
 
@@ -537,6 +605,7 @@ class QualityGate:
         NativeRuntimeGuard(self._project_root).assert_runtime_environment_present()
         HighPerformanceRuntimeGuard(self._project_root).assert_pro_enterprise_runtime_is_bounded()
         CiWorkflowTriggerGuard(self._project_root).assert_push_triggers_are_not_branch_locked()
+        ReleaseSecurityGuard(self._project_root).assert_release_security_controls_are_present()
         DockerRuntimeGuard(self._project_root).assert_optional_compose_runtime_is_well_scoped()
         CommandRunner().run(
             [sys.executable, "scripts/validate_autonomous_installer.py", "--root", "installers"]

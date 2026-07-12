@@ -54,6 +54,27 @@ class _ItamSupportService:
 
 
 class _DiscoveryService:
+    def submit_evidence(self, _command: object) -> _Payload:
+        return _Payload(id="evidence-1", object_key="device/srv1")
+
+    def get_evidence(self, _command: object) -> _Payload:
+        return _Payload(id="evidence-1", object_key="device/srv1")
+
+    def list_evidence(self, _command: object) -> _Page:
+        return _Page(_Payload(id="evidence-1", object_key="device/srv1"))
+
+    def reconcile_evidence(self, _command: object) -> _Payload:
+        return _Payload(id="case-1", status="open")
+
+    def get_reconciliation(self, _command: object) -> _Payload:
+        return _Payload(id="case-1", status="open")
+
+    def list_reconciliations(self, _command: object) -> _Page:
+        return _Page(_Payload(id="case-1", status="open"))
+
+    def resolve_reconciliation(self, _command: object) -> _Payload:
+        return _Payload(id="case-1", status="resolved")
+
     def get_protocol_profile(self, _command: object) -> _Payload:
         return _Payload(id="protocol-1", protocol="snmp")
 
@@ -121,9 +142,13 @@ def _args(tmp_path: Path) -> SimpleNamespace:
         code="L01",
         cursor=None,
         collector_id="collector-1",
+        confidence="0.95",
+        case_id="case-1",
         data=tmp_path / "state.json",
         description="test",
         edition="enterprise",
+        evidence_id="evidence-1",
+        external_id="external-1",
         group_name="group",
         idempotency_key="req-1",
         include_inactive=True,
@@ -139,8 +164,13 @@ def _args(tmp_path: Path) -> SimpleNamespace:
         license_reference="LIC-1",
         limit=10,
         level_index=1,
+        max_age_seconds=3600,
         name="Name",
+        object_key="device/srv1",
+        object_kind="device",
+        observed_at="2026-07-12T12:00:00Z",
         organization="ORG-1",
+        payload_json='{"hostname":"srv1"}',
         postgres_dsn=None,
         prefix="10.0.0.0/24",
         profile_id="profile-1",
@@ -148,9 +178,12 @@ def _args(tmp_path: Path) -> SimpleNamespace:
         root=None,
         scope="site/par1",
         scope_tenant="filiale-1",
+        selections_json='{"hostname":"evidence-1"}',
+        source_ref="collector/par1",
         site="PAR1",
-        status="active",
+        status="open",
         tenant="default",
+        justification="operator-reviewed evidence",
         username="user",
         vrf="default",
     )
@@ -255,3 +288,35 @@ def test_cli_main_fail_fast_and_single_installer_file_validation(
     assert cli._handle_installer_validate(args) == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["valid"] is True
+
+
+def test_cli_direct_handlers_cover_discovery_reconciliation_lifecycle(
+    tmp_path: Path, capsys: object
+) -> None:
+    cli = OpenInfraCLI()
+    _install_fake_application(cli, _Application())
+    args = _args(tmp_path)
+
+    handlers = (
+        cli._handle_discovery_evidence_submit,
+        cli._handle_discovery_evidence_get,
+        cli._handle_discovery_evidence_list,
+        cli._handle_discovery_reconcile,
+        cli._handle_discovery_reconciliation_get,
+        cli._handle_discovery_reconciliation_list,
+        cli._handle_discovery_reconciliation_resolve,
+    )
+    for handler in handlers:
+        assert handler(args) == 0
+        payload = json.loads(capsys.readouterr().out)
+        assert payload
+
+
+def test_cli_json_object_parser_rejects_invalid_or_non_object_payloads() -> None:
+    cli = OpenInfraCLI()
+
+    assert cli._parse_json_object('{"key":"value"}', "payload") == {"key": "value"}
+    with pytest.raises(Exception, match="must contain valid JSON"):
+        cli._parse_json_object("{", "payload")
+    with pytest.raises(Exception, match="must be a JSON object"):
+        cli._parse_json_object("[]", "payload")

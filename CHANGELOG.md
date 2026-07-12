@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.32.0 - 2026-07-12
+
+### P18 / EPIC-1802 — audit sécurité de release
+
+- gate de certification de sécurité agrégeant huit contrôles obligatoires et refusant toute preuve incomplète ;
+- SAST Bandit, audit Python/Node, tests RBAC/authentification, scanner de secrets et scans Trivy dépôt/image ;
+- sonde DAST HTTP réelle vérifiant santé, readiness, métriques, refus anonyme et en-têtes de sécurité web ;
+- preuves atomiques nettoyées, empreintes SHA-256 par contrôle et digest global déterministe ;
+- workflow bloquant sur tags avec image finale, runtime Compose réel, collecte de logs et rétention des preuves ;
+- génération et mise à niveau idempotente du `.env`, incluant les secrets obligatoires PostgreSQL, cohérence de lecture et Grafana ;
+- documentation d'architecture, runbook, tests unitaires/intégration et quality gate dédiés.
+
+### Compatibility
+
+- aucune migration PostgreSQL ;
+- aucun changement des contrats métier API/CLI ;
+- aucune modification CSS ou du thème ;
+- le mode hors ligne reste explicitement non certifiant.
+
 ## 0.31.4 - 2026-07-12
 
 ### Fixed

@@ -1,3 +1,18 @@
+## v0.32.0 — P18 / EPIC-1802, audit sécurité de release
+
+| Exigence | Implémentation | Vérification |
+|---|---|---|
+| EPIC-1802 / TST-RM-020 | `ReleaseSecurityAuditService`, catalogue fermé de huit contrôles et rapport bloquant | tests service, commandes, cas incomplets et workflow |
+| SAST, dépendances et secrets | Bandit, `pip-audit`, `npm audit`, scanner dépôt et Trivy filesystem | codes retour bloquants, preuves et empreintes SHA-256 |
+| Image de release | build Compose puis scan Trivy de l'image réellement produite | workflow tag et contrôle `container-image-scan` |
+| RBAC et DAST | régression authentification/RBAC et sonde HTTP live API/web | tests ciblés et topologie Compose CI |
+| Protection des preuves | redaction, écritures atomiques, logs séparés et digest global | tests de tokens, mots de passe, erreurs et intégrité |
+| Secrets runtime | création/mise à niveau `.env` avec secrets obligatoires et mode `0600` | tests création, valeurs vides, conservation et idempotence |
+
+- Portée 0.32.0 : outillage et gate automatique EPIC-1802 livrés ; un test d'intrusion humain et l'audit de l'infrastructure cible restent des preuves externes de Go/No-Go GA.
+- Aucun changement de CDC/roadmap n'est requis : EPIC-1802 et le gate P18 existaient déjà.
+- Aucune feuille CSS n'est modifiée.
+
 ## v0.31.4 — Correctif runtime Prometheus multiprocessus
 
 | Exigence | Implémentation | Vérification |

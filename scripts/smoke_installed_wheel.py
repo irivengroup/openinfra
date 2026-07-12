@@ -6,6 +6,7 @@ from pathlib import Path
 import openinfra
 from openinfra.interfaces.http_api import OpenApiDocumentProvider
 from openinfra.quality.dependency_graph_benchmark import DependencyGraphBenchmarkConfig
+from openinfra.quality.release_security import ReleaseSecurityControlCatalog
 
 
 class InstalledWheelSmokeError(RuntimeError):
@@ -13,7 +14,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.31.4"
+    EXPECTED_VERSION = "0.32.0"
     EXPECTED_ASYNC_ROUTES = (
         "/api/v1/async/jobs",
         "/api/v1/async/jobs/get",
@@ -238,6 +239,7 @@ class InstalledWheelSmoke:
         migrations = self._assert_migrations(package_root)
         self._assert_assets(package_root)
         self._assert_benchmark_contract()
+        self._assert_release_security_contract(package_root)
         self._assert_console_scripts()
         return {
             "version": openinfra.__version__,
@@ -260,6 +262,7 @@ class InstalledWheelSmoke:
             "last_migration": migrations[-1].name,
             "runtime_assets": len(self.EXPECTED_ASSETS) + len(self.EXPECTED_DOMAIN_ASSETS),
             "dependency_graph_benchmark": True,
+            "release_security_controls": 8,
         }
 
     def _assert_openapi_taxonomy(self, openapi: str) -> None:
@@ -422,6 +425,29 @@ class InstalledWheelSmoke:
         ).validate()
         if config.node_count != 100 or config.spof_hub_count != 10:
             raise InstalledWheelSmokeError("dependency graph benchmark contract is invalid")
+
+    @staticmethod
+    def _assert_release_security_contract(package_root: Path) -> None:
+        controls = ReleaseSecurityControlCatalog.build(
+            package_root,
+            image_ref="openinfra/runtime:0.32.0",
+            api_base_url="http://127.0.0.1:8080",
+            web_base_url="http://127.0.0.1:2006",
+        )
+        if len(controls) != 8:
+            raise InstalledWheelSmokeError(
+                f"expected 8 release security controls, got {len(controls)}"
+            )
+        trivy_commands = [
+            control.command for control in controls if control.identifier.startswith("container-")
+        ]
+        digest = "sha256:cffe3f5161a47a6823fbd23d985795b3ed72a4c806da4c4df16266c02accdd6f"
+        if len(trivy_commands) != 2 or any(
+            not any(digest in argument for argument in command) for command in trivy_commands
+        ):
+            raise InstalledWheelSmokeError(
+                "installed release security controls do not pin the Trivy OCI digest"
+            )
 
     def _assert_console_scripts(self) -> None:
         entry_points = {

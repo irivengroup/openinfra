@@ -2,12 +2,12 @@
 
 ## 1. Prérequis
 
-- OpenInfra 0.31.4 en runtime ASGI ;
+- OpenInfra 0.32.0 en runtime ASGI ;
 - accès privé aux endpoints `/metrics` API et web ;
 - Docker Compose pour la pile locale d'observabilité ;
 - pour une certification : topologie Enterprise représentative, dataset minimal, runner dédié et fenêtre de maintenance pour les scénarios de chaos ;
 - runner GitHub Actions auto-hébergé en version `2.327.1` ou ultérieure pour les actions Node.js 24 utilisées par le workflow de certification.
-- pour Docker Compose, reconstruire obligatoirement l'image `0.31.4` afin d'appliquer l'identité non-root `10001:10001` utilisée par le tmpfs Prometheus.
+- pour Docker Compose, reconstruire l'image `0.32.0` ; l'identité non-root `10001:10001` du tmpfs Prometheus est garantie depuis 0.31.4.
 
 ## 2. Activer la pile d'observabilité
 

@@ -126,6 +126,9 @@ class TestRuntimeEnvironment:
 
         assert mode == 0o600
         assert "OPENINFRA_POSTGRES_PASSWORD=" in payload
+        assert "OPENINFRA_POSTGRES_REPLICATION_PASSWORD=" in payload
+        assert "OPENINFRA_READ_CONSISTENCY_SECRET=" in payload
+        assert "OPENINFRA_GRAFANA_ADMIN_PASSWORD=" in payload
         assert f"OPENINFRA_IMAGE_TAG={current_version}" in payload
         assert "OPENINFRA_PGADMIN_EMAIL=admin@openinfra.tld" in payload
         assert "admin@openinfra.local" not in payload
@@ -135,6 +138,43 @@ class TestRuntimeEnvironment:
         assert "OPENINFRA_WEB_BACKEND_URL=http://api:8080" in payload
         assert "replace-with" not in payload
         assert os.linesep in payload
+
+    def test_runtime_env_manager_upgrades_missing_and_blank_required_secrets(
+        self, tmp_path: Path
+    ) -> None:
+        module_path = Path("scripts/docker_environment.py")
+        spec = importlib.util.spec_from_file_location("docker_environment_upgrade", module_path)
+        assert spec is not None
+        assert spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        sys.modules["docker_environment_upgrade"] = module
+        spec.loader.exec_module(module)
+        env_file = tmp_path / ".env"
+        env_file.write_text(
+            "OPENINFRA_POSTGRES_PASSWORD=preserved\n"
+            "OPENINFRA_POSTGRES_REPLICATION_PASSWORD=\n"
+            "OPENINFRA_READ_CONSISTENCY_SECRET=\n",
+            encoding="utf-8",
+        )
+        env_file.chmod(0o644)
+        config = module.RuntimeEnvironmentConfig(project_root=tmp_path, env_file=env_file)
+
+        module.EnvFileManager(config).ensure()
+        first_payload = env_file.read_text(encoding="utf-8")
+        module.EnvFileManager(config).ensure()
+        second_payload = env_file.read_text(encoding="utf-8")
+
+        values = dict(
+            line.split("=", 1)
+            for line in first_payload.splitlines()
+            if line and not line.startswith("#")
+        )
+        assert values["OPENINFRA_POSTGRES_PASSWORD"] == "preserved"
+        assert values["OPENINFRA_POSTGRES_REPLICATION_PASSWORD"]
+        assert values["OPENINFRA_READ_CONSISTENCY_SECRET"]
+        assert values["OPENINFRA_GRAFANA_ADMIN_PASSWORD"]
+        assert stat.S_IMODE(env_file.stat().st_mode) == 0o600
+        assert second_payload == first_payload
 
     def test_postgresql_migrations_use_existing_audit_timestamp_column(self) -> None:
         migration_payload = "\n".join(

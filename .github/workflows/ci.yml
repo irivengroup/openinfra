@@ -1061,6 +1061,15 @@ jobs:
           assert report["cooling"]["remaining_watts"] == 4800
           PYENERGY
 
+      - name: Release security audit contracts
+        if: matrix.python-version == '3.13'
+        run: |
+          python -m pytest -q --no-cov \
+            tests/unit/test_release_security_audit.py \
+            tests/integration/test_security_http_probe.py \
+            tests/integration/test_release_security_workflow.py \
+            tests/integration/test_runtime_docker_environment.py
+
       - name: Native runtime asset smoke
         run: python scripts/native_runtime_smoke.py --project-root .
 

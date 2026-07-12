@@ -17,13 +17,13 @@ L'environnement n'est pas un simple conteneur de tests unitaires. Il exécute la
 
 ## Sécurité locale
 
-Le fichier `.env` n'est pas versionné. Il est généré localement avec un secret aléatoire et des permissions `0600` par le script d'orchestration.
+Le fichier `.env` n'est pas versionné. Il est créé ou mis à niveau localement avec des secrets cryptographiquement aléatoires et des permissions `0600` par le script d'orchestration.
 
 ```bash
 python scripts/docker_environment.py init
 ```
 
-Le fichier `.env.example` documente les variables attendues sans contenir de secret exploitable.
+Le script conserve les valeurs non vides déjà présentes et complète atomiquement les clés absentes ou les secrets obligatoires vides, notamment la réplication PostgreSQL, la cohérence de lecture, le bootstrap API et l'administration Grafana. Le fichier `.env.example` documente les variables attendues sans contenir de secret exploitable.
 
 ## Démarrage du runtime
 

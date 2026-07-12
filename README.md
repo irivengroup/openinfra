@@ -1,6 +1,18 @@
-# OpenInfra v0.31.4
+# OpenInfra v0.32.0
 
-OpenInfra 0.31.4 est une livraison corrective de P20 / EPIC-2005. Elle aligne l'UID/GID non-root du conteneur sur le tmpfs Prometheus multiprocessus et ajoute une vérification d'écriture avant le fork Uvicorn. Les contrats métier, le frontend et le thème approuvé restent inchangés.
+OpenInfra 0.32.0 ouvre l'industrialisation GA P18 avec EPIC-1802 : audit de sécurité de release, preuves versionnées et blocage de toute promotion incomplète. Le correctif Prometheus 0.31.4, les capacités P20 et le thème approuvé restent préservés.
+
+## Audit sécurité de release — P18 / EPIC-1802
+
+- catalogue fermé de huit contrôles : secrets/workflows, SAST, RBAC/authentification, dépendances Python/Node, dépôt, image et DAST ;
+- exécution sans shell, timeout borné et environnement enfant réduit ;
+- redaction des secrets avant persistance des preuves ;
+- empreinte SHA-256 de chaque sortie et digest global du rapport ;
+- workflow de release sur tags, image construite, topologie Compose réelle et artefacts conservés 90 jours ;
+- certification impossible si un contrôle est absent, non exécuté, indisponible, en timeout ou en échec ;
+- gestionnaire `.env` idempotent générant tous les secrets obligatoires sans écraser les valeurs existantes.
+
+Voir `docs/architecture/release-security-certification.md` et `docs/runbooks/RELEASE_SECURITY.md`.
 
 ## Observabilité et charge Enterprise — P20 / EPIC-2005
 

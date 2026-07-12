@@ -1,112 +1,147 @@
-# OpenInfra v0.31.1 — rapport de validation
+# OpenInfra v0.31.2 — rapport de validation
 
 Date : 2026-07-12
 
 ## Périmètre
 
-Cette livraison clôt le périmètre fonctionnel de **P20 / EPIC-2003 — outbox transactionnelle et workers spécialisés** en branchant les traitements imports, graphes et RAG sur l'infrastructure asynchrone durable introduite en 0.31.0, sans modifier le thème approuvé.
+Cette livraison implémente **P20 / EPIC-2004 — frontend modulaire et virtualisé** sans modifier la charte graphique approuvée.
 
-- worker `reporting` pour l'état de la file asynchrone ;
-- worker `imports` pour les imports unitaires et massifs depuis un artefact externe ;
-- worker `graph` pour la traversée, l'analyse d'impact, le calcul de chemin, la détection SPOF et l'export ;
-- worker `rag` pour la synchronisation RSOT, l'import documentaire et l'export des réponses ;
-- dépôt contrôlé d'artefacts d'entrée par CLI et HTTP ;
-- résultats volumineux externalisés dans l'object store avec intégrité SHA-256 ;
-- rôles dédiés en moindre privilège pour chaque spécialisation ;
-- parité domaine, application, persistance, CLI, HTTP, OpenAPI, documentation et tests ;
-- aucune migration supplémentaire : le schéma `0054_async_outbox_workers.sql` de 0.31.0 couvre les nouvelles spécialisations ;
+- séparation du portail en huit chunks métier chargés à la navigation : `RSOT`, `IPAM`, `DCIM`, `ITAM`, `Discovery`, `Data`, `Intégrations` et `Sécurité` ;
+- Dashboard limité au manifeste statistique et au shell initial ;
+- index de recherche globale et taxonomie RSOT chargés à la demande ;
+- cache de requêtes éphémère, dédupliqué, borné par TTL/LRU et protégé contre les réponses obsolètes concurrentes ;
+- annulation des lectures avec `AbortController` et invalidation ciblée après mutation ;
+- virtualisation des résultats volumineux au-delà de 40 éléments ;
+- collecte bornée en mémoire des Web Vitals avec budgets LCP, INP et tâches longues ;
+- chunks Vite distincts pour le portail React et parité avec le runtime statique livré ;
+- budgets de transfert et de bundle intégrés aux tests et à la CI ;
+- aucune modification d'API, de CLI, de modèle métier ou de schéma PostgreSQL ;
 - aucune modification CSS ni régression de la charte graphique.
 
-Les exigences textuelles du CDC v4.9.0 et la roadmap v2.1 ne sont pas rééditées, car `REQ-00835`, `REQ-00839`, `CDC-PERF-006`, `EPIC-2003` et `TST-P20-OUTBOX-WORKERS` décrivent déjà le périmètre. Le miroir OpenAPI inclus dans le CDC est synchronisé avec le contrat runtime.
+Les exigences textuelles du CDC v4.9.0 et la roadmap v2.1 ne sont pas rééditées : `EPIC-2004` et ses critères décrivent déjà ce périmètre. Le miroir OpenAPI est uniquement synchronisé avec la version applicative.
 
 ## Fichiers principaux
 
-- `src/openinfra/domain/async_processing.py`
-- `src/openinfra/application/async_processing_services.py`
-- `src/openinfra/application/specialized_worker_services.py`
-- `src/openinfra/application/container.py`
-- `src/openinfra/application/security_services.py`
-- `src/openinfra/interfaces/cli.py`
-- `src/openinfra/interfaces/http_api.py`
-- `docs/architecture/transactional-outbox-workers.md`
-- `docs/runbooks/ASYNC_WORKERS.md`
-- `docs/api/openapi.yaml`
-- `docs/specifications/OpenInfra-CDC-SFG-STG-v4.9.0/09-API/OpenAPI/openapi.yaml`
-- tests unitaires et d'intégration des workers, autorisations, interfaces et packaging.
+### Runtime statique livré
+
+- `src/openinfra/interfaces/rendering/static/assets/openinfra-web.js`
+- `src/openinfra/interfaces/rendering/static/assets/openinfra-domain-manifest.js`
+- `src/openinfra/interfaces/rendering/static/assets/openinfra-search-index.js`
+- `src/openinfra/interfaces/rendering/static/assets/openinfra-query-cache.js`
+- `src/openinfra/interfaces/rendering/static/assets/openinfra-virtual-list.js`
+- `src/openinfra/interfaces/rendering/static/assets/openinfra-web-vitals.js`
+- `src/openinfra/interfaces/rendering/static/assets/domains/*.js`
+
+### Portail React/Vite
+
+- `web/src/domain-manifest.js`
+- `web/src/domains/*.js`
+- `web/src/core/query-cache.js`
+- `web/src/core/virtual-window.js`
+- `web/src/core/web-vitals.js`
+- `web/src/VirtualizedList.jsx`
+- `web/src/bootstrap.js`
+- `web/src/main.jsx`
+- `web/vite.config.js`
+- `web/scripts/validate-bundle.mjs`
+
+### Validation, CI et documentation
+
+- `scripts/validate_frontend.py`
+- `scripts/verify_artifact.py`
+- `scripts/smoke_installed_wheel.py`
+- `.github/workflows/ci.yml`
+- `tests/integration/test_frontend_modular_performance.py`
+- `docs/architecture/modular-virtualized-frontend.md`
+- `docs/operations/frontend-performance.md`
 
 ## Invariants vérifiés
 
-- un worker ne réclame que les jobs correspondant à sa spécialisation ;
-- les payloads sont strictement typés et les opérations non supportées sont rejetées explicitement ;
-- les imports consomment un artefact externe, utilisent les services d'import existants et produisent un rapport immuable ;
-- les cinq opérations graphe utilisent les services métier existants et externalisent leurs résultats ;
-- l'import documentaire RAG est borné à 10 000 documents par job ;
-- l'export de réponses RAG est borné à 10 000 résultats et supporte JSON et CSV ;
-- les erreurs de payload, de lecture d'artefact ou d'exécution passent par le cycle retries/DLQ du socle 0.31.0 ;
-- les artefacts d'entrée sont soumis par un utilisateur autorisé et audités ;
-- les rôles workers possèdent uniquement les permissions asynchrones et métier nécessaires ;
-- les contenus volumineux ne sont pas insérés dans PostgreSQL ;
-- l'isolation tenant, le fencing, l'idempotence et les transitions d'état restent appliqués par le socle commun.
+- le shell initial n'embarque aucune définition d'opération métier ;
+- les 274 identifiants d'opération restent uniques et disponibles après chargement du domaine concerné ;
+- les huit domaines existent dans les deux portails et restent des chunks dynamiques ;
+- le Dashboard ne déclenche pas le chargement des catalogues métier ;
+- le cache ne persiste aucune donnée dans `localStorage`, `sessionStorage` ou IndexedDB ;
+- une requête déjà en vol est dédupliquée ;
+- une réponse ancienne ne peut pas repeupler le cache après invalidation ou mutation ;
+- la virtualisation borne le nombre de nœuds rendus tout en conservant la géométrie complète du défilement ;
+- les métriques de performance restent bornées en mémoire et ne bloquent pas l'interface ;
+- la recherche globale, les formulaires, la navigation responsive et l'accessibilité conservent leur comportement ;
+- les feuilles CSS restent identiques à la version 0.31.1.
 
 ## Validations exécutées
 
 ### Python et contrats
 
-- collection : **1 087 tests** sur **187 fichiers** ;
+- collection : **1 093 tests** sur **188 fichiers** ;
 - exécution complète par partitions déterministes : **PASS**, aucune erreur ;
-- couverture : **37 558 / 38 322 lignes**, soit **98,006367099838 %** ;
+- couverture : **37 558 / 38 322 lignes**, soit **98,00636709983822 %** ;
 - seuil bloquant `--fail-under=98` : **PASS**, sans arrondi ni exclusion ajoutée ;
-- Ruff format : **PASS**, 306 fichiers conformes ;
+- Ruff format : **PASS**, 308 fichiers conformes ;
 - Ruff lint : **PASS** ;
 - mypy strict : **PASS**, 98 modules source ;
 - `compileall` : **PASS** ;
 - Bandit : **PASS**, aucun finding bloquant ;
 - gate de sécurité du dépôt : **PASS** ;
 - gate qualité interne : **PASS** ;
-- validation des 6 profils installateur : **PASS** ;
-- validation de l'alignement CDC/roadmap : **PASS** ;
-- smoke des assets runtime natifs : **PASS** ;
-- validation des deux documents OpenAPI : **PASS**.
+- validation des six profils installateur : **PASS** ;
+- validation de l'alignement Enterprise : **PASS** ;
+- validation CDC/roadmap : **PASS** ;
+- validation des deux contrats OpenAPI : **PASS** ;
+- smoke des assets runtime natifs : **PASS**.
 
-La suite instrumentée est exécutée en partitions dans ce sandbox afin d'éviter la limite de fermeture du processus monolithique sous xdist. Les mêmes fichiers source sont mesurés dans une base de couverture unique, consolidée puis vérifiée par le gate officiel. Aucun test ni seuil n'est désactivé.
+La suite instrumentée est exécutée par partitions dans ce sandbox afin d'éviter le blocage de fermeture de certains serveurs de test après la fin de pytest. Chaque partition sauvegarde son statut et sa mesure avant consolidation dans une base de couverture unique. Aucun test ni seuil n'est désactivé.
 
 ### Frontend
 
-- tests Node : **53 réussis** ;
-- validation des assets statiques : **PASS** ;
+- tests Node : **60 réussis** ;
+- validation des assets statiques et des 274 opérations : **PASS** ;
 - ESLint JSX : **PASS** ;
 - contrôles WCAG 2.2 AA : **PASS** ;
 - build Vite : **PASS** ;
+- chunks dynamiques produits : **11**, dont les huit domaines métier, la recherche globale et la taxonomie RSOT ;
+- bundle Vite initial JavaScript : **2 556 octets** ;
+- bundle Vite initial compressé : **1 260 octets** avant chargement différé de l'application ;
+- runtime statique initial JavaScript : **208 115 octets** — 203,24 Kio, seuil 250 Kio ;
+- runtime statique initial compressé : **95 642 octets** — 93,40 Kio, seuil 150 Kio ;
 - `npm audit --audit-level=high` : **PASS**, 0 vulnérabilité ;
-- les feuilles `web/src/openinfra-theme.css` et `src/openinfra/interfaces/rendering/static/assets/openinfra-web.css` sont **strictement identiques octet par octet** à la version 0.31.0.
+- installation Node CI verrouillée par `npm ci` ;
+- le validateur de bundle vérifie explicitement les huit chunks métier, y compris `Intégrations`.
+
+### Charte graphique
+
+Les fichiers suivants sont strictement identiques octet par octet à la version 0.31.1 et partagent le SHA-256 `1df955fd51fdd253590c391a3ee9430c9ca9db88b76819f4482007a5cf567dad` :
+
+- `web/src/openinfra-theme.css` ;
+- `src/openinfra/interfaces/rendering/static/assets/openinfra-web.css`.
 
 ### Interfaces et persistance
 
-- contrat OpenAPI : **341 chemins**, dont **22 opérations asynchrones** ;
-- CLI `openinfra async` : **20 sous-commandes** ;
-- migrations PostgreSQL embarquées : **54**, aucune nouvelle migration dans cet incrément ;
-- upload d'artefacts CLI/HTTP : **PASS** ;
-- workers reporting/imports/graph/RAG via CLI et HTTP : **PASS** ;
-- rôles dédiés et permissions minimales : **PASS** ;
-- adaptateurs JSON, PostgreSQL, filesystem et S3 compatible : non-régression **PASS**.
+- contrats API et CLI : non-régression **PASS** ;
+- migrations PostgreSQL embarquées : **54**, aucune nouvelle migration ;
+- services asynchrones et workers spécialisés : non-régression **PASS** ;
+- navigation, recherche, formulaires et catalogues métier : parité runtime/React **PASS** ;
+- package runtime : manifeste, cache, virtualisation, Web Vitals et huit chunks de domaine présents.
 
 ## Packaging
 
 - construction isolée Hatchling du wheel et du sdist : **PASS** ;
-- contrôle d’intégrité ZIP/TAR : **PASS** ;
-- wheel : migration `0054`, 54 migrations, OpenAPI et assets runtime présents ;
-- sdist : code, tests, documentation, scripts, installateurs et rapport de validation présents ;
-- installation du wheel dans un environnement Python vierge avec ses seules dépendances runtime : **PASS** ;
+- vérification du contenu obligatoire du wheel et du sdist : **PASS** ;
+- wheel : version `0.31.2`, OpenAPI, 54 migrations et 17 assets runtime modulaires présents ;
+- sdist : code, tests, CI, documentation, installateurs et rapport de validation présents ;
+- installation du wheel avec ses seules dépendances runtime dans un environnement Python vierge : **PASS** ;
 - `pip check` : **PASS**, aucune dépendance cassée ;
-- smoke du wheel installé : **PASS** — version `0.31.1`, 22 routes asynchrones, 54 migrations et assets runtime ;
-- commande `openinfra async --help` : **PASS**, 20 sous-commandes exposées.
+- smoke du package installé : **PASS** — 22 routes asynchrones, 54 migrations et dernier script `0054_async_outbox_workers.sql` ;
+- commande `openinfra version` : **PASS**, résultat `0.31.2` ;
+- commande `openinfra async --help` : **PASS**, 20 sous-commandes exposées ;
+- contrôle d'intégrité ZIP/TAR/Wheel et nettoyage des caches : exécuté lors du scellement final des artefacts.
 
 ## Limites de validation
 
-- aucun serveur PostgreSQL ni endpoint S3 externe n'est disponible dans le sandbox ; les contrats SQL, transactions, signatures SigV4, erreurs réseau et adaptateurs sont couverts par tests déterministes, mais leur qualification sur l'infrastructure cible reste un gate de déploiement Pro/Entreprise ;
-- `pip-audit --strict --requirement requirements/security-audit.txt` n'a pas pu interroger `pypi.org` en raison d'une indisponibilité DNS du sandbox ; le gate CI réseau reste inchangé et bloquant ;
-- les benchmarks de charge représentatifs de `GATE-09` restent un gate de qualification de l'environnement cible et ne sont pas simulés par des chiffres artificiels.
+- aucun serveur PostgreSQL ni endpoint S3 externe n'est disponible dans le sandbox ; les contrats SQL, transactions et adaptateurs restent couverts par les tests déterministes existants ;
+- `pip-audit --strict --requirement requirements/security-audit.txt` dépend de l'accès à `pypi.org` et peut rester non exécutable si la résolution DNS du sandbox est indisponible ; le gate CI réseau reste inchangé et bloquant ;
+- les Web Vitals réels dépendent du navigateur, du terminal et du réseau de production ; les budgets et observateurs sont testés, mais leur qualification terrain reste un gate de déploiement.
 
 ## Risques résiduels
 
-Le risque fonctionnel résiduel est faible. Il se concentre sur les caractéristiques de l'infrastructure réelle : latence et disponibilité PostgreSQL/S3, dimensionnement des workers, débit d'artefacts et politiques de rétention. Les mécanismes d'idempotence, de fencing, de retries, de DLQ, d'isolation tenant, de limitation des lots et d'intégrité SHA-256 réduisent ces risques. Le passage à l'étape suivante de la roadmap peut désormais s'appuyer sur un socle EPIC-2003 complet sans dupliquer les mécanismes de file, d'outbox ou de stockage d'artefacts.
+Le risque fonctionnel résiduel est faible. Il se concentre sur la performance réelle des navigateurs les plus anciens, la qualité réseau et la taille future des catalogues. Les budgets CI, le chargement différé, l'annulation, la protection générationnelle du cache, la virtualisation et la télémétrie bornée permettent de détecter et contenir ces dérives sans revenir à un frontend monolithique.

@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 
-const react = fs.readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
-const packaged = fs.readFileSync(new URL('../../src/openinfra/interfaces/rendering/static/assets/openinfra-web.js', import.meta.url), 'utf8');
+import { readReactPortalSource, readRuntimePortalSource } from './helpers/frontend-sources.mjs';
+
+const react = await readReactPortalSource();
+const packaged = await readRuntimePortalSource();
 
 const operations = [
   'greenops-source-create', 'greenops-sources', 'greenops-policy-upsert', 'greenops-policy-get',
@@ -37,12 +39,12 @@ test('GreenOps is grouped under DCIM with complete route parity', () => {
 
 test('GreenOps temporal fields use calendars and report export is downloadable', () => {
   for (const source of [react, packaged]) {
-    assert.match(source, /name:\s*['"]period_start['"][^\n]*type:\s*['"]date['"]/u);
-    assert.match(source, /name:\s*['"]period_end['"][^\n]*type:\s*['"]date['"]/u);
-    assert.match(source, /name:\s*['"]period_start['"][^\n]*type:\s*['"]datetime-local['"]/u);
-    assert.match(source, /name:\s*['"]period_end['"][^\n]*type:\s*['"]datetime-local['"]/u);
+    assert.match(source, /["']?name["']?\s*:\s*['"]period_start['"][\s\S]{0,240}?["']?type["']?\s*:\s*['"]date['"]/u);
+    assert.match(source, /["']?name["']?\s*:\s*['"]period_end['"][\s\S]{0,240}?["']?type["']?\s*:\s*['"]date['"]/u);
+    assert.match(source, /["']?name["']?\s*:\s*['"]period_start['"][\s\S]{0,240}?["']?type["']?\s*:\s*['"]datetime-local['"]/u);
+    assert.match(source, /["']?name["']?\s*:\s*['"]period_end['"][\s\S]{0,240}?["']?type["']?\s*:\s*['"]datetime-local['"]/u);
     assert.match(source, /greenops-report-export/u);
-    assert.match(source, /download:\s*true/u);
+    assert.match(source, /["']?download["']?\s*:\s*true/u);
   }
 });
 

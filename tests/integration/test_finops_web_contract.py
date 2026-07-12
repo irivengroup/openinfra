@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from tests.frontend_contract_sources import REACT_PORTAL, RUNTIME_PORTAL
+
 ROOT = Path(__file__).resolve().parents[2]
-REACT = ROOT / "web/src/main.jsx"
-STATIC = ROOT / "src/openinfra/interfaces/rendering/static/assets/openinfra-web.js"
+REACT = REACT_PORTAL
+STATIC = RUNTIME_PORTAL
 SOURCE_I18N = ROOT / "web/src/i18n.js"
 RUNTIME_I18N = ROOT / "src/openinfra/interfaces/rendering/static/assets/openinfra-i18n.js"
 
@@ -69,8 +71,8 @@ def test_finops_dates_use_calendars_and_i18n_is_identical() -> None:
     react = REACT.read_text(encoding="utf-8")
     static = STATIC.read_text(encoding="utf-8")
     for source in (react, static):
-        assert source.count("name: 'period_start'") + source.count('name: "period_start"') >= 3
-        assert source.count("type: 'date'") + source.count('type: "date"') >= 6
+        assert source.count('"name": "period_start"') >= 3
+        assert source.count('"type": "date"') >= 6
     source_i18n = SOURCE_I18N.read_text(encoding="utf-8")
     runtime_i18n = RUNTIME_I18N.read_text(encoding="utf-8")
     assert runtime_i18n == source_i18n

@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from tests.frontend_contract_sources import REACT_PORTAL, RUNTIME_PORTAL
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-STATIC_JS = PROJECT_ROOT / "src/openinfra/interfaces/rendering/static/assets/openinfra-web.js"
-REACT_JS = PROJECT_ROOT / "web/src/main.jsx"
+STATIC_JS = RUNTIME_PORTAL
+REACT_JS = REACT_PORTAL
 SOURCE_I18N = PROJECT_ROOT / "web/src/i18n.js"
 RUNTIME_I18N = PROJECT_ROOT / "src/openinfra/interfaces/rendering/static/assets/openinfra-i18n.js"
 
@@ -41,7 +43,7 @@ def test_simulation_forms_are_typed_and_execute_against_backend() -> None:
     react = REACT_JS.read_text(encoding="utf-8")
     for source in (static, react):
         assert "Changements JSON" in source
-        assert 'type: "json"' in source or "type: 'json'" in source
+        assert '"type": "json"' in source
         assert "max_depth" in source
         assert "max_nodes" in source
     assert "selected.id.startsWith('simulation-')" in react

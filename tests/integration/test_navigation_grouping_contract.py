@@ -2,11 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from tests.frontend_contract_sources import REACT_PORTAL, RUNTIME_PORTAL
+
 ROOT = Path(__file__).resolve().parents[2]
-RUNTIMES = (
-    ROOT / "web/src/main.jsx",
-    ROOT / "src/openinfra/interfaces/rendering/static/assets/openinfra-web.js",
-)
+RUNTIMES = (REACT_PORTAL, RUNTIME_PORTAL)
 
 
 def test_network_flows_and_compliance_are_grouped_under_ipam() -> None:

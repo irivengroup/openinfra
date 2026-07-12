@@ -4,6 +4,14 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 're
 import { createRoot } from 'react-dom/client';
 import { OpenInfraI18n, localizeOpenInfraCatalog } from './i18n.js';
 import { formCountryCode, inputAttributesForField, inputTypeForField, normalizeFieldDefinition, normalizeFieldValue, validateControl } from './form-fields.js';
+import { MODULES, SIDEBAR_CONTEXTS, loadDomain } from './domain-manifest.js';
+import { OpenInfraQueryCache } from './core/query-cache.js';
+import { installOpenInfraWebVitals } from './core/web-vitals.js';
+import { VirtualizedList } from './VirtualizedList.jsx';
+
+let RESOURCE_TAXONOMY = {};
+let RESOURCE_CATEGORY_OPTIONS = [];
+
 
 const ICONS = {
   speedometer2: 'M8 4a.5.5 0 0 1 .5.5V6a.5.5 0 0 1-1 0V4.5A.5.5 0 0 1 8 4z',
@@ -19,1309 +27,6 @@ const ICONS = {
   shield: 'M5.338 1.59a61.44 61.44 0 0 0-2.837.856.48.48 0 0 0-.328.39c-.554 4.157.726 7.19 2.253 9.188A10.7 10.7 0 0 0 8 15a10.7 10.7 0 0 0 3.574-2.976c1.527-1.998 2.807-5.031 2.253-9.188a.48.48 0 0 0-.328-.39 61.44 61.44 0 0 0-2.837-.856C9.552 1.29 8.531 1.067 8 1.067c-.531 0-1.552.223-2.662.523z',
 };
 
-const RESOURCE_TAXONOMY = {
-  'server': [
-    {
-      'value': 'rack-server',
-      'label': 'Rack server'
-    },
-    {
-      'value': 'blade-server',
-      'label': 'Blade server'
-    },
-    {
-      'value': 'tower-server',
-      'label': 'Tower server'
-    },
-    {
-      'value': 'hypervisor-host',
-      'label': 'Hypervisor host'
-    },
-    {
-      'value': 'virtual-machine',
-      'label': 'Virtual machine'
-    },
-    {
-      'value': 'container-host',
-      'label': 'Container host'
-    },
-    {
-      'value': 'compute-appliance',
-      'label': 'Compute appliance'
-    }
-  ],
-  'personal-computer': [
-    {
-      'value': 'laptop',
-      'label': 'Laptop'
-    },
-    {
-      'value': 'desktop',
-      'label': 'Desktop'
-    },
-    {
-      'value': 'workstation',
-      'label': 'Workstation'
-    },
-    {
-      'value': 'thin-client',
-      'label': 'Thin client'
-    },
-    {
-      'value': 'all-in-one',
-      'label': 'All-in-one'
-    },
-    {
-      'value': 'tablet',
-      'label': 'Tablet'
-    },
-    {
-      'value': 'kiosk',
-      'label': 'Kiosk'
-    }
-  ],
-  'monitor-peripheral': [
-    {
-      'value': 'monitor',
-      'label': 'Monitor'
-    },
-    {
-      'value': 'keyboard',
-      'label': 'Keyboard'
-    },
-    {
-      'value': 'mouse',
-      'label': 'Mouse'
-    },
-    {
-      'value': 'docking-station',
-      'label': 'Docking station'
-    },
-    {
-      'value': 'webcam',
-      'label': 'Webcam'
-    },
-    {
-      'value': 'headset',
-      'label': 'Headset'
-    },
-    {
-      'value': 'printer',
-      'label': 'Printer'
-    },
-    {
-      'value': 'scanner',
-      'label': 'Scanner'
-    },
-    {
-      'value': 'barcode-scanner',
-      'label': 'Barcode scanner'
-    },
-    {
-      'value': 'kvm-console',
-      'label': 'KVM console'
-    }
-  ],
-  'network-device': [
-    {
-      'value': 'switch',
-      'label': 'Switch'
-    },
-    {
-      'value': 'core-switch',
-      'label': 'Core switch'
-    },
-    {
-      'value': 'distribution-switch',
-      'label': 'Distribution switch'
-    },
-    {
-      'value': 'access-switch',
-      'label': 'Access switch'
-    },
-    {
-      'value': 'router',
-      'label': 'Router'
-    },
-    {
-      'value': 'firewall',
-      'label': 'Firewall'
-    },
-    {
-      'value': 'load-balancer',
-      'label': 'Load balancer'
-    },
-    {
-      'value': 'vpn-gateway',
-      'label': 'VPN gateway'
-    },
-    {
-      'value': 'sdwan-edge',
-      'label': 'SD-WAN edge'
-    },
-    {
-      'value': 'wireless-controller',
-      'label': 'Wireless controller'
-    },
-    {
-      'value': 'wireless-access-point',
-      'label': 'Wireless access point'
-    },
-    {
-      'value': 'proxy-appliance',
-      'label': 'Proxy appliance'
-    },
-    {
-      'value': 'wan-accelerator',
-      'label': 'WAN accelerator'
-    },
-    {
-      'value': 'network-tap',
-      'label': 'Network TAP'
-    },
-    {
-      'value': 'packet-broker',
-      'label': 'Packet broker'
-    },
-    {
-      'value': 'network-interface',
-      'label': 'Network interface'
-    }
-  ],
-  'storage': [
-    {
-      'value': 'storage-array',
-      'label': 'Storage array'
-    },
-    {
-      'value': 'nas-appliance',
-      'label': 'NAS appliance'
-    },
-    {
-      'value': 'san-switch',
-      'label': 'SAN switch'
-    },
-    {
-      'value': 'storage-controller',
-      'label': 'Storage controller'
-    },
-    {
-      'value': 'storage-shelf',
-      'label': 'Storage shelf'
-    },
-    {
-      'value': 'hdd',
-      'label': 'HDD'
-    },
-    {
-      'value': 'ssd',
-      'label': 'SSD'
-    },
-    {
-      'value': 'nvme-drive',
-      'label': 'NVMe drive'
-    },
-    {
-      'value': 'tape-library',
-      'label': 'Tape library'
-    },
-    {
-      'value': 'backup-appliance',
-      'label': 'Backup appliance'
-    },
-    {
-      'value': 'object-storage-node',
-      'label': 'Object storage node'
-    }
-  ],
-  'power-supply': [
-    {
-      'value': 'ups',
-      'label': 'UPS'
-    },
-    {
-      'value': 'pdu',
-      'label': 'PDU'
-    },
-    {
-      'value': 'ats',
-      'label': 'Automatic transfer switch'
-    },
-    {
-      'value': 'sts',
-      'label': 'Static transfer switch'
-    },
-    {
-      'value': 'rectifier',
-      'label': 'Rectifier'
-    },
-    {
-      'value': 'inverter',
-      'label': 'Inverter'
-    },
-    {
-      'value': 'battery-pack',
-      'label': 'Battery pack'
-    },
-    {
-      'value': 'power-shelf',
-      'label': 'Power shelf'
-    },
-    {
-      'value': 'generator',
-      'label': 'Generator'
-    },
-    {
-      'value': 'busway',
-      'label': 'Busway'
-    },
-    {
-      'value': 'power-meter',
-      'label': 'Power meter'
-    }
-  ],
-  'rack-facility': [
-    {
-      'value': 'rack',
-      'label': 'Rack'
-    },
-    {
-      'value': 'cabinet',
-      'label': 'Cabinet'
-    },
-    {
-      'value': 'patch-panel',
-      'label': 'Patch panel'
-    },
-    {
-      'value': 'fiber-panel',
-      'label': 'Fiber panel'
-    },
-    {
-      'value': 'cable-management',
-      'label': 'Cable management'
-    },
-    {
-      'value': 'containment',
-      'label': 'Containment'
-    },
-    {
-      'value': 'raised-floor-tile',
-      'label': 'Raised floor tile'
-    },
-    {
-      'value': 'sensor-probe',
-      'label': 'Sensor probe'
-    },
-    {
-      'value': 'rack-accessory',
-      'label': 'Rack accessory'
-    }
-  ],
-  'cooling': [
-    {
-      'value': 'crac',
-      'label': 'CRAC'
-    },
-    {
-      'value': 'crah',
-      'label': 'CRAH'
-    },
-    {
-      'value': 'in-row-cooler',
-      'label': 'In-row cooler'
-    },
-    {
-      'value': 'rear-door-heat-exchanger',
-      'label': 'Rear-door heat exchanger'
-    },
-    {
-      'value': 'chiller',
-      'label': 'Chiller'
-    },
-    {
-      'value': 'cooling-tower',
-      'label': 'Cooling tower'
-    },
-    {
-      'value': 'heat-exchanger',
-      'label': 'Heat exchanger'
-    },
-    {
-      'value': 'humidifier',
-      'label': 'Humidifier'
-    },
-    {
-      'value': 'environmental-sensor',
-      'label': 'Environmental sensor'
-    }
-  ],
-  'security-safety': [
-    {
-      'value': 'cctv-camera',
-      'label': 'CCTV camera'
-    },
-    {
-      'value': 'access-control-reader',
-      'label': 'Access control reader'
-    },
-    {
-      'value': 'door-controller',
-      'label': 'Door controller'
-    },
-    {
-      'value': 'biometric-reader',
-      'label': 'Biometric reader'
-    },
-    {
-      'value': 'fire-panel',
-      'label': 'Fire panel'
-    },
-    {
-      'value': 'smoke-detector',
-      'label': 'Smoke detector'
-    },
-    {
-      'value': 'leak-detector',
-      'label': 'Leak detector'
-    },
-    {
-      'value': 'alarm-siren',
-      'label': 'Alarm siren'
-    }
-  ],
-  'telecom': [
-    {
-      'value': 'pbx',
-      'label': 'PBX'
-    },
-    {
-      'value': 'voip-gateway',
-      'label': 'VoIP gateway'
-    },
-    {
-      'value': 'ip-phone',
-      'label': 'IP phone'
-    },
-    {
-      'value': 'conference-phone',
-      'label': 'Conference phone'
-    },
-    {
-      'value': 'modem',
-      'label': 'Modem'
-    },
-    {
-      'value': 'optical-transponder',
-      'label': 'Optical transponder'
-    },
-    {
-      'value': 'mux',
-      'label': 'Multiplexer'
-    },
-    {
-      'value': 'radio-link',
-      'label': 'Radio link'
-    }
-  ],
-  'cloud-virtualization': [
-    {
-      'value': 'cloud-account',
-      'label': 'Cloud account'
-    },
-    {
-      'value': 'cloud-region',
-      'label': 'Cloud region'
-    },
-    {
-      'value': 'vpc',
-      'label': 'VPC'
-    },
-    {
-      'value': 'cloud-subnet',
-      'label': 'Cloud subnet'
-    },
-    {
-      'value': 'security-group',
-      'label': 'Security group'
-    },
-    {
-      'value': 'cloud-load-balancer',
-      'label': 'Cloud load balancer'
-    },
-    {
-      'value': 'cloud-instance',
-      'label': 'Cloud instance'
-    },
-    {
-      'value': 'cloud-volume',
-      'label': 'Cloud volume'
-    },
-    {
-      'value': 'kubernetes-cluster',
-      'label': 'Kubernetes cluster'
-    },
-    {
-      'value': 'kubernetes-node',
-      'label': 'Kubernetes node'
-    },
-    {
-      'value': 'container',
-      'label': 'Container'
-    },
-    {
-      'value': 'namespace',
-      'label': 'Namespace'
-    }
-  ],
-  'software-service': [
-    {
-      'value': 'application',
-      'label': 'Application'
-    },
-    {
-      'value': 'service',
-      'label': 'Service'
-    },
-    {
-      'value': 'api-service',
-      'label': 'API service'
-    },
-    {
-      'value': 'web-service',
-      'label': 'Web service'
-    },
-    {
-      'value': 'database-instance',
-      'label': 'Database instance'
-    },
-    {
-      'value': 'middleware',
-      'label': 'Middleware'
-    },
-    {
-      'value': 'message-broker',
-      'label': 'Message broker'
-    },
-    {
-      'value': 'license',
-      'label': 'License'
-    },
-    {
-      'value': 'certificate',
-      'label': 'Certificate'
-    },
-    {
-      'value': 'dns-zone',
-      'label': 'DNS zone'
-    }
-  ],
-  'cable-connectivity': [
-    {
-      'value': 'copper-cable',
-      'label': 'Copper cable'
-    },
-    {
-      'value': 'fiber-cable',
-      'label': 'Fiber cable'
-    },
-    {
-      'value': 'patch-cord',
-      'label': 'Patch cord'
-    },
-    {
-      'value': 'trunk-cable',
-      'label': 'Trunk cable'
-    },
-    {
-      'value': 'transceiver',
-      'label': 'Transceiver'
-    },
-    {
-      'value': 'sfp-module',
-      'label': 'SFP module'
-    },
-    {
-      'value': 'qsfp-module',
-      'label': 'QSFP module'
-    },
-    {
-      'value': 'patch-cassette',
-      'label': 'Patch cassette'
-    }
-  ],
-  'mobile-iot': [
-    {
-      'value': 'smartphone',
-      'label': 'Smartphone'
-    },
-    {
-      'value': 'rugged-handheld',
-      'label': 'Rugged handheld'
-    },
-    {
-      'value': 'iot-gateway',
-      'label': 'IoT gateway'
-    },
-    {
-      'value': 'industrial-controller',
-      'label': 'Industrial controller'
-    },
-    {
-      'value': 'plc',
-      'label': 'PLC'
-    },
-    {
-      'value': 'sensor',
-      'label': 'Sensor'
-    },
-    {
-      'value': 'actuator',
-      'label': 'Actuator'
-    }
-  ],
-  'other': [
-    {
-      'value': 'generic-asset',
-      'label': 'Generic asset'
-    },
-    {
-      'value': 'unknown-device',
-      'label': 'Unknown device'
-    },
-    {
-      'value': 'external-resource',
-      'label': 'External resource'
-    }
-  ]
-};
-
-const RESOURCE_CATEGORY_OPTIONS = [
-  {
-    'value': 'server',
-    'label': 'Server'
-  },
-  {
-    'value': 'personal-computer',
-    'label': 'Personal computer'
-  },
-  {
-    'value': 'monitor-peripheral',
-    'label': 'Monitor and peripheral'
-  },
-  {
-    'value': 'network-device',
-    'label': 'Network device'
-  },
-  {
-    'value': 'storage',
-    'label': 'Storage'
-  },
-  {
-    'value': 'power-supply',
-    'label': 'Power supply'
-  },
-  {
-    'value': 'rack-facility',
-    'label': 'Rack and facility'
-  },
-  {
-    'value': 'cooling',
-    'label': 'Cooling'
-  },
-  {
-    'value': 'security-safety',
-    'label': 'Security and safety'
-  },
-  {
-    'value': 'telecom',
-    'label': 'Telecom'
-  },
-  {
-    'value': 'cloud-virtualization',
-    'label': 'Cloud and virtualization'
-  },
-  {
-    'value': 'software-service',
-    'label': 'Software and service'
-  },
-  {
-    'value': 'cable-connectivity',
-    'label': 'Cable and connectivity'
-  },
-  {
-    'value': 'mobile-iot',
-    'label': 'Mobile and IoT'
-  },
-  {
-    'value': 'other',
-    'label': 'Other'
-  }
-];
-
-const MODULES = [
-  { id: 'overview', label: 'Dashboard', icon: 'speedometer2', operations: [{ id: 'version', label: 'Version runtime', path: '/v1/version', method: 'GET', fields: [] }] },
-  { id: 'rsot', label: 'RSOT (Ressource Source of Truth)', shortLabel: 'RSOT', icon: 'reference', operations: [
-    { id: 'rsot-taxonomy', label: 'Catalogue catégories / types', path: '/v1/rsot/resource-taxonomy', method: 'GET', fields: [] },
-    { id: 'rsot-list', label: 'Lister les objets RSOT', path: '/v1/rsot/objects', method: 'GET', fields: ['Catégorie', 'Type de ressource', 'Tag', 'Limite'] },
-    { id: 'rsot-upsert', label: 'Créer / mettre à jour une ressource', path: '/v1/rsot/objects', method: 'POST', fields: ['Opérateur', 'Clé RSOT', 'Catégorie', 'Type de ressource', 'Nom affiché', 'Source autoritative', 'Numéro de série', 'Constructeur accrédité', 'Modèle', 'Site', 'Bâtiment', 'Salle', 'Ligne salle', 'Colonne salle', 'Rack', 'IP de management', 'État cycle de vie', 'Tags'] },
-    { id: 'rsot-as-of', label: 'Restituer une ressource à date', path: '/v1/rsot/object-as-of', method: 'GET', fields: ['Clé RSOT', 'Date ISO-8601'] },
-    { id: 'rsot-object-audit', label: 'Audit d’une ressource', path: '/v1/rsot/object-audit', method: 'GET', fields: ['Clé RSOT', 'Limite'] },
-    { id: 'rsot-reconcile', label: 'Réconcilier une ressource', path: '/v1/rsot/reconcile-object', method: 'POST', fields: ['Opérateur', 'Clé RSOT', 'Source entrante', 'Catégorie', 'Type de ressource', 'Nom affiché cible', 'Numéro de série', 'Constructeur accrédité', 'Modèle', 'Site', 'Rack', 'Tags', 'Appliquer le plan'] },
-    { id: 'graph-traverse', label: 'Explorer le graphe de dépendances', path: '/v1/graph/traverse', method: 'GET', fields: [
-      { name: 'root_key', label: 'Clé racine', required: true }, { name: 'direction', label: 'Direction', type: 'select', options: ['outgoing', 'incoming', 'both'], defaultValue: 'both' },
-      { name: 'max_depth', label: 'Profondeur maximale', type: 'number', defaultValue: '3' }, { name: 'max_nodes', label: 'Nombre maximal de nœuds', type: 'number', defaultValue: '500' },
-      { name: 'relation_type', label: 'Type de relation' }, { name: 'as_of', label: 'Date ISO-8601' },
-    ] },
-    { id: 'graph-impact', label: 'Analyser les impacts', path: '/v1/graph/impact', method: 'GET', fields: [
-      { name: 'root_key', label: 'Clé racine', required: true }, { name: 'direction', label: 'Direction', type: 'select', options: ['incoming', 'outgoing', 'both'], defaultValue: 'incoming' },
-      { name: 'max_depth', label: 'Profondeur maximale', type: 'number', defaultValue: '6' }, { name: 'max_nodes', label: 'Nombre maximal de nœuds', type: 'number', defaultValue: '1000' },
-      { name: 'relation_type', label: 'Type de relation' }, { name: 'as_of', label: 'Date ISO-8601' },
-    ] },
-    { id: 'graph-path', label: 'Trouver le chemin le plus court', path: '/v1/graph/path', method: 'GET', fields: [
-      { name: 'source_key', label: 'Ressource source', required: true }, { name: 'target_key', label: 'Ressource cible', required: true },
-      { name: 'direction', label: 'Direction', type: 'select', options: ['outgoing', 'incoming', 'both'], defaultValue: 'outgoing' },
-      { name: 'max_depth', label: 'Profondeur maximale', type: 'number', defaultValue: '8' }, { name: 'max_nodes', label: 'Nombre maximal de nœuds', type: 'number', defaultValue: '1000' },
-      { name: 'relation_type', label: 'Type de relation' }, { name: 'as_of', label: 'Date ISO-8601' },
-    ] },
-    { id: 'graph-spof', label: 'Détecter les points uniques de défaillance', path: '/v1/graph/spof', method: 'GET', fields: [
-      { name: 'root_key', label: 'Clé racine', required: true }, { name: 'direction', label: 'Direction', type: 'select', options: ['outgoing', 'incoming', 'both'], defaultValue: 'both' },
-      { name: 'max_depth', label: 'Profondeur maximale', type: 'number', defaultValue: '8' }, { name: 'max_nodes', label: 'Nombre maximal de nœuds', type: 'number', defaultValue: '2000' },
-      { name: 'relation_type', label: 'Type de relation' }, { name: 'as_of', label: 'Date ISO-8601' },
-      { name: 'candidate_kind', label: 'Type de candidat' }, { name: 'candidate_resource_category', label: 'Catégorie ressource candidate' },
-      { name: 'candidate_resource_type', label: 'Type de ressource candidat' }, { name: 'candidate_status', label: 'Statut candidat' },
-      { name: 'minimum_affected_nodes', label: 'Nombre minimal d’objets affectés', type: 'number', defaultValue: '1' },
-      { name: 'affected_sample_limit', label: 'Limite échantillon affecté', type: 'number', defaultValue: '25' },
-      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'graph-export', label: 'Exporter le graphe de dépendances', path: '/v1/graph/export', method: 'GET', download: true, fields: [
-      { name: 'root_key', label: 'Clé racine', required: true }, { name: 'format', label: 'Format d’export', type: 'select', options: ['json', 'csv', 'graphml'], defaultValue: 'json' },
-      { name: 'direction', label: 'Direction', type: 'select', options: ['outgoing', 'incoming', 'both'], defaultValue: 'both' },
-      { name: 'max_depth', label: 'Profondeur maximale', type: 'number', defaultValue: '8' }, { name: 'max_nodes', label: 'Nombre maximal de nœuds', type: 'number', defaultValue: '2000' },
-      { name: 'relation_type', label: 'Type de relation' }, { name: 'as_of', label: 'Date ISO-8601' },
-      { name: 'include_spof', label: 'Inclure les SPOF', type: 'boolean', defaultValue: 'true' }, { name: 'candidate_kind', label: 'Type de candidat' },
-      { name: 'candidate_resource_category', label: 'Catégorie ressource candidate' }, { name: 'candidate_resource_type', label: 'Type de ressource candidat' },
-      { name: 'candidate_status', label: 'Statut candidat' }, { name: 'minimum_affected_nodes', label: 'Nombre minimal d’objets affectés', type: 'number', defaultValue: '1' },
-    ] },
-    { id: 'simulation-create', label: 'Créer un scénario de changement', path: '/v1/simulation-scenarios/create', method: 'POST', fields: [
-      'Opérateur', { name: 'name', label: 'Nom du scénario', required: true }, { name: 'description', label: 'Description', type: 'textarea', required: true },
-      { name: 'owner', label: 'Propriétaire', required: true }, { name: 'idempotency_key', label: 'Clé d’idempotence', required: true },
-      { name: 'site', label: 'Site' }, { name: 'environment', label: 'Environnement' },
-      { name: 'criticality', label: 'Criticité', type: 'select', options: ['low', 'medium', 'high', 'critical'] },
-      { name: 'changes', label: 'Changements JSON', type: 'json', required: true, defaultValue: '[]' },
-    ] },
-    { id: 'simulation-list', label: 'Lister les scénarios', path: '/v1/simulation-scenarios', method: 'GET', fields: [
-      { name: 'status', label: 'Statut', type: 'select', options: ['draft', 'queued', 'running', 'completed', 'failed', 'cancelled'] },
-      { name: 'site', label: 'Site' }, { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'simulation-run', label: 'Calculer l’impact d’un scénario', path: '/v1/simulation-scenarios/run', method: 'POST', fields: [
-      'Opérateur', { name: 'scenario_id', label: 'ID scénario', required: true },
-      { name: 'max_depth', label: 'Profondeur maximale', type: 'number', defaultValue: '8' },
-      { name: 'max_nodes', label: 'Nombre maximal de nœuds', type: 'number', defaultValue: '2000' },
-    ] },
-    { id: 'simulation-reports', label: 'Lister les rapports d’impact', path: '/v1/impact-reports', method: 'GET', fields: [
-      { name: 'scenario_id', label: 'ID scénario' }, { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'simulation-compare', label: 'Comparer deux rapports', path: '/v1/scenario-comparisons/create', method: 'POST', fields: [
-      'Opérateur', { name: 'left_report_id', label: 'ID rapport gauche', required: true }, { name: 'right_report_id', label: 'ID rapport droit', required: true },
-    ] },
-    { id: 'simulation-comparisons', label: 'Lister les comparaisons', path: '/v1/scenario-comparisons', method: 'GET', fields: [
-      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'rag-document-upsert', label: 'Indexer un document gouverné', path: '/v1/rag/documents/upsert', method: 'POST', fields: [
-      { name: 'source_type', label: 'Type de source', type: 'select', options: ['rsot', 'documentation', 'runbook', 'policy', 'other'], defaultValue: 'documentation', required: true },
-      { name: 'source_ref', label: 'Référence source', required: true }, { name: 'title', label: 'Titre', required: true },
-      { name: 'content', label: 'Contenu', type: 'textarea', required: true }, { name: 'source_uri', label: 'URI source' },
-      { name: 'required_permissions', label: 'Permissions requises', type: 'csv', defaultValue: 'rag.read' },
-      { name: 'tags', label: 'Tags', type: 'csv' }, { name: 'metadata', label: 'Métadonnées JSON', type: 'json', defaultValue: '{}' },
-      'Opérateur',
-    ] },
-    { id: 'rag-documents', label: 'Lister les documents gouvernés', path: '/v1/rag/documents', method: 'GET', fields: [
-      { name: 'source_type', label: 'Type de source' }, { name: 'active', label: 'Actif', type: 'boolean' },
-      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'rag-document-get', label: 'Consulter un document gouverné', path: '/v1/rag/documents/get', method: 'GET', fields: [{ name: 'document_id', label: 'ID document', required: true }] },
-    { id: 'rag-document-deactivate', label: 'Désactiver un document gouverné', path: '/v1/rag/documents/deactivate', method: 'POST', fields: [{ name: 'document_id', label: 'ID document', required: true }, 'Opérateur'] },
-    { id: 'rag-rsot-sync', label: 'Synchroniser l’index depuis RSOT', path: '/v1/rag/index/rsot', method: 'POST', fields: [
-      { name: 'max_objects', label: 'Nombre maximal d’objets', type: 'number', defaultValue: '5000' },
-      { name: 'deactivate_missing', label: 'Désactiver les objets absents', type: 'boolean', defaultValue: 'false' }, 'Opérateur',
-    ] },
-    { id: 'rag-query', label: 'Interroger l’assistant gouverné', path: '/v1/rag/query', method: 'POST', fields: [
-      { name: 'question', label: 'Question', type: 'textarea', required: true },
-      { name: 'limit', label: 'Nombre maximal de citations', type: 'number', defaultValue: '6' }, 'Opérateur',
-    ] },
-    { id: 'rag-answers', label: 'Lister les réponses citées', path: '/v1/rag/answers', method: 'GET', fields: [
-      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'rag-answer-get', label: 'Consulter une réponse citée', path: '/v1/rag/answers/get', method: 'GET', fields: [{ name: 'answer_id', label: 'ID réponse', required: true }] },
-    { id: 'rag-job-create', label: 'Créer un job RAG', path: '/v1/rag/jobs/create', method: 'POST', fields: [
-      { name: 'kind', label: 'Type de job', type: 'select', options: ['document-import', 'answer-export'], required: true },
-      { name: 'idempotency_key', label: 'Clé d’idempotence', required: true },
-      { name: 'payload', label: 'Charge utile JSON', type: 'json', required: true, defaultValue: '{}' },
-      { name: 'batch_size', label: 'Taille de lot', type: 'number', defaultValue: '100' }, 'Opérateur',
-    ] },
-    { id: 'rag-jobs', label: 'Lister les jobs RAG', path: '/v1/rag/jobs', method: 'GET', fields: [
-      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'rag-job-get', label: 'Consulter un job RAG', path: '/v1/rag/jobs/get', method: 'GET', fields: [{ name: 'job_id', label: 'ID job', required: true }] },
-    { id: 'rag-job-run', label: 'Exécuter une tranche de job RAG', path: '/v1/rag/jobs/run', method: 'POST', fields: [{ name: 'job_id', label: 'ID job', required: true }, 'Opérateur'] },
-    { id: 'rag-job-artifact', label: 'Télécharger un export RAG', path: '/v1/rag/jobs/artifact', method: 'GET', download: true, fields: [{ name: 'job_id', label: 'ID job', required: true }] },
-  ] },
-  { id: 'ipam', label: 'IPAM', icon: 'grid', operations: [
-    { id: 'ipam-dashboard', label: 'Dashboard IPAM', path: '/v1/ipam/ui-dashboard', method: 'GET', fields: ['VRF'] },
-    { id: 'ipam-search', label: 'Rechercher dans l’IPAM', path: '/v1/ipam/ui-search', method: 'GET', fields: ['Recherche', 'VRF'] },
-    { id: 'ipam-define-vrf', label: 'Définir une VRF', path: '/v1/ipam/vrfs', method: 'POST', fields: ['Opérateur', 'Nom VRF', 'Route distinguisher'] },
-    { id: 'ipam-define-aggregate', label: 'Définir un agrégat IP', path: '/v1/ipam/aggregates', method: 'POST', fields: ['Opérateur', 'VRF', 'CIDR agrégat', 'Description'] },
-    { id: 'ipam-define-prefix', label: 'Définir un préfixe IP', path: '/v1/ipam/prefixes', method: 'POST', fields: ['Opérateur', 'VRF', 'CIDR préfixe', 'Description'] },
-    { id: 'ipam-list-prefixes', label: 'Lister les préfixes', path: '/v1/ipam/prefixes', method: 'GET', fields: ['VRF'] },
-    { id: 'ipam-define-range', label: 'Définir une plage IP', path: '/v1/ipam/ranges', method: 'POST', fields: ['Opérateur', 'VRF', 'Préfixe', 'Début plage', 'Fin plage', 'Usage plage', 'Description'] },
-    { id: 'ipam-register-address', label: 'Enregistrer une adresse IP', path: '/v1/ipam/addresses', method: 'POST', fields: ['Opérateur', 'VRF', 'Préfixe', 'Adresse IP', 'Nom DNS / équipement', 'Interface', 'Statut adresse'] },
-    { id: 'ipam-allocate', label: 'Allouer une adresse IP', path: '/v1/ipam/allocate', method: 'POST', fields: ['Opérateur', 'VRF', 'Préfixe', 'Nom DNS / équipement', 'Clé d’idempotence'] },
-    { id: 'ipam-reservation-wizard', label: 'Assistant de réservation IP', path: '/v1/ipam/reservation-wizard', method: 'POST', fields: ['Opérateur', 'VRF', 'Préfixe', 'Nom DNS / équipement', 'Clé d’idempotence', 'Appliquer la réservation'] },
-    { id: 'ipam-capacity', label: 'Calculer la capacité d’un préfixe', path: '/v1/ipam/capacity', method: 'GET', fields: ['VRF', 'Préfixe'] },
-    { id: 'ipam-network-bindings', label: 'Afficher les bindings réseau', path: '/v1/ipam/network-bindings', method: 'GET', fields: ['VRF'] },
-    { id: 'ipam-topology', label: 'Topologie opérationnelle IPAM', path: '/v1/ipam/topology', method: 'GET', fields: ['VRF'] },
-    { id: 'ipam-define-vlan-group', label: 'Définir un groupe VLAN', path: '/v1/ipam/vlan-groups', method: 'POST', fields: ['Opérateur', 'Groupe VLAN', 'Scope VLAN', 'Description'] },
-    { id: 'ipam-define-vxlan-vni', label: 'Définir un VXLAN VNI', path: '/v1/ipam/vxlan-vnis', method: 'POST', fields: ['Opérateur', 'VNI', 'Nom VNI', 'VRF', 'RT import', 'RT export', 'Description'] },
-    { id: 'ipam-define-vlan', label: 'Définir un VLAN', path: '/v1/ipam/vlans', method: 'POST', fields: ['Opérateur', 'Groupe VLAN', 'VLAN ID', 'Nom VLAN', 'VRF', 'VNI', 'Description'] },
-    { id: 'ipam-define-asn', label: 'Définir un ASN', path: '/v1/ipam/asns', method: 'POST', fields: ['Opérateur', 'ASN', 'Nom AS', 'Description'] },
-    { id: 'ipam-define-bgp-peer', label: 'Définir un peer BGP', path: '/v1/ipam/bgp-peers', method: 'POST', fields: ['Opérateur', 'VRF', 'ASN local', 'ASN distant', 'Adresse peer', 'Famille d’adresses', 'RT import', 'RT export', 'Description'] },
-    { id: 'ipam-observe-dns', label: 'Observer un enregistrement DNS', path: '/v1/ipam/dns-observations', method: 'POST', fields: ['Opérateur', 'VRF', 'Nom DNS', 'Adresse IP', 'Nom PTR', 'Source observation'] },
-    { id: 'ipam-observe-dhcp', label: 'Observer un bail DHCP', path: '/v1/ipam/dhcp-leases', method: 'POST', fields: ['Opérateur', 'VRF', 'Préfixe', 'Adresse IP', 'Adresse MAC', 'Nom DHCP', 'Source observation', 'Bail actif'] },
-    { id: 'ipam-conflicts', label: 'Détecter les conflits', path: '/v1/ipam/conflicts', method: 'GET', fields: ['VRF'] },
-    { id: 'ipam-ddi-preview', label: 'Prévisualiser DDI', path: '/v1/ipam/ddi-preview', method: 'POST', fields: ['Opérateur', 'VRF', 'Clé d’idempotence', 'Fournisseurs DDI', 'Zone DNS', 'Adresse MAC', 'TTL', 'Appliquer la prévisualisation'] },
-    { id: 'network-config-baseline-upsert', label: 'Créer ou réviser une golden configuration', path: '/v1/network-config/baselines/upsert', method: 'POST', fields: ['Opérateur', 'Code', 'Objet équipement RSOT', 'Plateforme réseau', 'Configuration attendue JSON', 'Chemins ignorés', 'Chemins critiques', 'Propriétaire', 'Justification'] },
-    { id: 'network-config-baseline-list', label: 'Lister les golden configurations', path: '/v1/network-config/baselines', method: 'GET', fields: ['Limite', 'Curseur', 'Inclure retirés'] },
-    { id: 'network-config-baseline-retire', label: 'Retirer une golden configuration', path: '/v1/network-config/baselines/retire', method: 'POST', fields: ['Opérateur', 'ID baseline'] },
-    { id: 'network-config-observation-submit', label: 'Ingérer une configuration découverte', path: '/v1/network-config/observations/submit', method: 'POST', fields: ['Opérateur', 'Clé d’idempotence', 'Source observation', 'Collecteur', 'Objet équipement RSOT', 'Plateforme réseau', 'Configuration observée JSON', 'Observé le (ISO-8601)'] },
-    { id: 'network-config-observation-list', label: 'Lister les configurations découvertes', path: '/v1/network-config/observations', method: 'GET', fields: ['Objet équipement RSOT', 'Plateforme réseau', 'Observé avant', 'Limite', 'Curseur'] },
-    { id: 'network-config-assessment', label: 'Évaluer la dérive réseau', path: '/v1/network-config/assessment', method: 'GET', fields: ['Opérateur', 'Code baseline', 'Date de référence', 'Statut conformité', 'Limite', 'Curseur'] },
-    { id: 'flow-declaration-upsert', label: 'Créer ou réviser un flux déclaré', path: '/v1/flows/declarations/upsert', method: 'POST', fields: ['Opérateur', 'Code', 'Sélecteur source', 'Sélecteur destination', 'Protocole', 'Port destination début', 'Port destination fin', 'Décision', 'Priorité', 'Propriétaire', 'Justification', 'Début validité', 'Fin validité'] },
-    { id: 'flow-declaration-list', label: 'Lister les flux déclarés', path: '/v1/flows/declarations', method: 'GET', fields: ['Limite', 'Curseur', 'Inclure retirés'] },
-    { id: 'flow-declaration-retire', label: 'Retirer un flux déclaré', path: '/v1/flows/declarations/retire', method: 'POST', fields: ['Opérateur', 'ID déclaration'] },
-    { id: 'flow-observation-submit', label: 'Ingérer un flux observé', path: '/v1/flows/observations/submit', method: 'POST', fields: ['Opérateur', 'Clé d’idempotence', 'Source observation', 'Collecteur', 'IP source', 'IP destination', 'Objet source', 'Objet destination', 'Protocole', 'Port destination', 'Paquets', 'Octets', 'Premier événement', 'Dernier événement'] },
-    { id: 'flow-observation-list', label: 'Lister les flux observés', path: '/v1/flows/observations', method: 'GET', fields: ['Début fenêtre', 'Fin fenêtre', 'Source observation', 'Limite', 'Curseur'] },
-    { id: 'flow-matrix', label: 'Comparer flux déclarés et observés', path: '/v1/flows/matrix', method: 'GET', fields: ['Début fenêtre', 'Fin fenêtre', 'Statut conformité', 'Source observation', 'Limite', 'Curseur'] },
-
-  ] },
-  { id: 'dcim', label: 'DCIM', icon: 'home', operations: [
-    { id: 'dcim-sites', label: 'Lister les sites DCIM', path: '/v1/dcim/sites', method: 'GET', fields: ['Inclure retirés'] },
-    { id: 'dcim-site', label: 'Consulter un site DCIM', path: '/v1/dcim/site', method: 'GET', fields: ['Site'] },
-    { id: 'multisite-grant-upsert', label: 'Affecter un accès à un site', path: '/v1/multisite/site-access/grants/upsert', method: 'POST', fields: [
-      { name: 'actor', label: 'Opérateur', required: true },
-      { name: 'subject', label: 'Identité', required: true, placeholder: 'prenom.nom@example.net' },
-      { name: 'site_code', label: 'Site', required: true, defaultValue: 'PAR1' },
-      { name: 'access_level', label: 'Niveau d’accès', type: 'select', required: true, options: [{ value: 'viewer', label: 'Lecture' }, { value: 'operator', label: 'Opérateur' }, { value: 'admin', label: 'Administrateur local' }], defaultValue: 'viewer' },
-    ] },
-    { id: 'multisite-grant-revoke', label: 'Révoquer un accès à un site', path: '/v1/multisite/site-access/grants/revoke', method: 'POST', fields: [
-      { name: 'actor', label: 'Opérateur', required: true },
-      { name: 'subject', label: 'Identité', required: true },
-      { name: 'site_code', label: 'Site', required: true, defaultValue: 'PAR1' },
-    ] },
-    { id: 'multisite-grants', label: 'Lister les accès par site', path: '/v1/multisite/site-access/grants', method: 'GET', fields: [
-      { name: 'subject', label: 'Identité' }, { name: 'site_code', label: 'Site' },
-      { name: 'active_only', label: 'Accès actifs uniquement', type: 'boolean', defaultValue: 'true' },
-      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100', min: 1, max: 500 },
-      { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'multisite-sites', label: 'Lister les sites accessibles', path: '/v1/multisite/sites', method: 'GET', fields: [
-      { name: 'subject', label: 'Identité' },
-      { name: 'required_level', label: 'Niveau minimal', type: 'select', options: ['viewer', 'operator', 'admin'], defaultValue: 'viewer' },
-    ] },
-    { id: 'multisite-report-generate', label: 'Générer un rapport multisite', path: '/v1/multisite/reports/generate', method: 'POST', fields: [
-      { name: 'actor', label: 'Opérateur', required: true }, { name: 'subject', label: 'Identité' },
-      { name: 'site_codes', label: 'Sites (JSON)', type: 'json', defaultValue: '[]' },
-    ] },
-    { id: 'multisite-reports', label: 'Lister les rapports multisites', path: '/v1/multisite/reports', method: 'GET', fields: [
-      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100', min: 1, max: 500 },
-      { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'multisite-report-get', label: 'Consulter un rapport multisite', path: '/v1/multisite/reports/get', method: 'GET', fields: [
-      { name: 'report_id', label: 'ID rapport', required: true },
-    ] },
-    { id: 'multisite-dr-plan-configure', label: 'Configurer un plan de reprise multisite', path: '/v1/multisite/disaster-recovery/plans/configure', method: 'POST', fields: [
-      { name: 'actor', label: 'Opérateur', required: true },
-      { name: 'name', label: 'Nom du plan', required: true, placeholder: 'Reprise PAR1 vers LON1' },
-      { name: 'primary_site_code', label: 'Site primaire', required: true, defaultValue: 'PAR1' },
-      { name: 'recovery_site_code', label: 'Site de secours', required: true, placeholder: 'LON1' },
-      { name: 'replication_mode', label: 'Mode de réplication', type: 'select', required: true, options: [{ value: 'asynchronous', label: 'Asynchrone' }, { value: 'synchronous', label: 'Synchrone' }], defaultValue: 'asynchronous' },
-      { name: 'rpo_seconds', label: 'RPO (secondes)', type: 'number', required: true, defaultValue: '300', min: 1, max: 86400 },
-      { name: 'rto_seconds', label: 'RTO (secondes)', type: 'number', required: true, defaultValue: '1800', min: 1, max: 604800 },
-      { name: 'max_backup_age_seconds', label: 'Âge maximal sauvegarde (secondes)', type: 'number', required: true, defaultValue: '86400', min: 60, max: 2592000 },
-    ] },
-    { id: 'multisite-dr-plan-disable', label: 'Désactiver un plan de reprise multisite', path: '/v1/multisite/disaster-recovery/plans/disable', method: 'POST', fields: [
-      { name: 'actor', label: 'Opérateur', required: true }, { name: 'plan_id', label: 'ID plan', required: true },
-    ] },
-    { id: 'multisite-dr-plans', label: 'Lister les plans de reprise multisites', path: '/v1/multisite/disaster-recovery/plans', method: 'GET', fields: [
-      { name: 'active_only', label: 'Plans actifs uniquement', type: 'boolean', defaultValue: 'true' },
-      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100', min: 1, max: 500 },
-      { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'multisite-dr-plan-get', label: 'Consulter un plan de reprise multisite', path: '/v1/multisite/disaster-recovery/plans/get', method: 'GET', fields: [
-      { name: 'plan_id', label: 'ID plan', required: true },
-    ] },
-    { id: 'multisite-dr-drill-execute', label: 'Enregistrer un exercice de perte du site primaire', path: '/v1/multisite/disaster-recovery/drills/execute', method: 'POST', fields: [
-      { name: 'actor', label: 'Opérateur', required: true }, { name: 'plan_id', label: 'ID plan', required: true },
-      { name: 'replication_lag_seconds', label: 'Retard réplication (secondes)', type: 'number', required: true, min: 0 },
-      { name: 'backup_age_seconds', label: 'Âge sauvegarde (secondes)', type: 'number', required: true, min: 0 },
-      { name: 'measured_rto_seconds', label: 'RTO mesuré (secondes)', type: 'number', required: true, min: 0 },
-      { name: 'restore_verified', label: 'Restauration vérifiée', type: 'boolean', required: true, defaultValue: 'false' },
-      { name: 'recovery_available', label: 'Site de secours disponible', type: 'boolean', required: true, defaultValue: 'false' },
-      { name: 'vip_reachable', label: 'DNS/VIP joignable', type: 'boolean', required: true, defaultValue: 'false' },
-      { name: 'operator_confirmed', label: 'Validation opérateur', type: 'boolean', required: true, defaultValue: 'false' },
-    ] },
-    { id: 'multisite-dr-drills', label: 'Lister les exercices de reprise multisites', path: '/v1/multisite/disaster-recovery/drills', method: 'GET', fields: [
-      { name: 'plan_id', label: 'ID plan' }, { name: 'status', label: 'Statut', type: 'select', options: ['', 'passed', 'failed'] },
-      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100', min: 1, max: 500 },
-      { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'multisite-dr-drill-get', label: 'Consulter un exercice de reprise multisite', path: '/v1/multisite/disaster-recovery/drills/get', method: 'GET', fields: [
-      { name: 'drill_id', label: 'ID exercice', required: true },
-    ] },
-    { id: 'multisite-route-configure', label: 'Configurer une route Discovery régionale', path: '/v1/multisite/regional-discovery/routes/configure', method: 'POST', fields: [
-      { name: 'actor', label: 'Opérateur', required: true },
-      { name: 'region_code', label: 'Région', required: true, placeholder: 'EU-WEST' },
-      { name: 'site_code', label: 'Site', required: true, defaultValue: 'PAR1' },
-      { name: 'vrf_code', label: 'VRF', required: true, placeholder: 'PROD' },
-      { name: 'collector_id', label: 'ID agent régional', required: true },
-    ] },
-    { id: 'multisite-route-disable', label: 'Désactiver une route Discovery régionale', path: '/v1/multisite/regional-discovery/routes/disable', method: 'POST', fields: [
-      { name: 'actor', label: 'Opérateur', required: true },
-      { name: 'route_id', label: 'ID route', required: true },
-    ] },
-    { id: 'multisite-routes', label: 'Lister les routes Discovery régionales', path: '/v1/multisite/regional-discovery/routes', method: 'GET', fields: [
-      { name: 'region_code', label: 'Région' }, { name: 'site_code', label: 'Site' },
-      { name: 'active_only', label: 'Routes actives uniquement', type: 'boolean', defaultValue: 'true' },
-      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100', min: 1, max: 500 },
-      { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'multisite-route-get', label: 'Consulter une route Discovery régionale', path: '/v1/multisite/regional-discovery/routes/get', method: 'GET', fields: [
-      { name: 'route_id', label: 'ID route', required: true },
-    ] },
-    { id: 'multisite-job-route', label: 'Router un job Discovery régional', path: '/v1/multisite/regional-discovery/jobs/route', method: 'POST', fields: [
-      { name: 'actor', label: 'Opérateur', required: true },
-      { name: 'region_code', label: 'Région', required: true, placeholder: 'EU-WEST' },
-      { name: 'site_code', label: 'Site', required: true, defaultValue: 'PAR1' },
-      { name: 'vrf_code', label: 'VRF', required: true, placeholder: 'PROD' },
-      { name: 'job_type', label: 'Type de job', required: true, placeholder: 'network-inventory' },
-      { name: 'target', label: 'Cible', required: true, placeholder: '10.20.0.0/24' },
-      { name: 'idempotency_key', label: 'Clé d’idempotence', required: true },
-      { name: 'max_attempts', label: 'Tentatives maximales', type: 'number', defaultValue: '3', min: 1, max: 10 },
-    ] },
-    { id: 'dcim-site-create', label: 'Créer un site DCIM', path: '/v1/dcim/site/create', method: 'POST', fields: ['Opérateur', 'Code site', 'Nom site', 'Pays ISO-2', 'Ville', 'Région'] },
-    { id: 'dcim-site-update', label: 'Modifier un site DCIM', path: '/v1/dcim/site/update', method: 'POST', fields: ['Opérateur', 'Site', 'Nom site', 'Pays ISO-2', 'Ville', 'Région', 'Statut'] },
-    { id: 'dcim-site-delete', label: 'Retirer un site DCIM', path: '/v1/dcim/site/delete', method: 'POST', fields: ['Opérateur', 'Site'] },
-    { id: 'dcim-buildings', label: 'Lister les bâtiments', path: '/v1/dcim/buildings', method: 'GET', fields: ['Site', 'Inclure retirés'] },
-    { id: 'dcim-building', label: 'Consulter un bâtiment', path: '/v1/dcim/building', method: 'GET', fields: ['Site', 'Code bâtiment'] },
-    { id: 'dcim-building-create', label: 'Créer un bâtiment', path: '/v1/dcim/building/create', method: 'POST', fields: ['Opérateur', 'Site', 'Code bâtiment', 'Nom bâtiment'] },
-    { id: 'dcim-building-update', label: 'Modifier un bâtiment', path: '/v1/dcim/building/update', method: 'POST', fields: ['Opérateur', 'Site', 'Code bâtiment', 'Nom bâtiment', 'Statut'] },
-    { id: 'dcim-building-delete', label: 'Retirer un bâtiment', path: '/v1/dcim/building/delete', method: 'POST', fields: ['Opérateur', 'Site', 'Code bâtiment'] },
-    { id: 'dcim-floors', label: 'Lister les étages', path: '/v1/dcim/floors', method: 'GET', fields: ['Site', 'Bâtiment', 'Inclure retirés'] },
-    { id: 'dcim-floor', label: 'Consulter un étage', path: '/v1/dcim/floor', method: 'GET', fields: ['Site', 'Bâtiment', 'Code étage'] },
-    { id: 'dcim-rooms-list', label: 'Lister les salles', path: '/v1/dcim/rooms', method: 'GET', fields: ['Site', 'Bâtiment', 'Inclure retirés'] },
-    { id: 'dcim-room', label: 'Consulter une salle', path: '/v1/dcim/room', method: 'GET', fields: ['Site', 'Bâtiment', 'Code salle'] },
-    { id: 'dcim-room-create', label: 'Créer une salle', path: '/v1/dcim/room/create', method: 'POST', fields: ['Opérateur', 'Site', 'Bâtiment', 'Étage', 'Code salle', 'Nom salle', 'Lignes salle', 'Colonnes salle'] },
-    { id: 'dcim-room-update', label: 'Modifier une salle', path: '/v1/dcim/room/update', method: 'POST', fields: ['Opérateur', 'Site', 'Bâtiment', 'Code salle', 'Nom salle', 'Lignes salle', 'Colonnes salle', 'Statut'] },
-    { id: 'dcim-room-delete', label: 'Retirer une salle', path: '/v1/dcim/room/delete', method: 'POST', fields: ['Opérateur', 'Site', 'Bâtiment', 'Code salle'] },
-    { id: 'dcim-zones', label: 'Lister les zones', path: '/v1/dcim/zones', method: 'GET', fields: ['Site', 'Bâtiment', 'Salle', 'Inclure retirés'] },
-    { id: 'dcim-zone', label: 'Consulter une zone', path: '/v1/dcim/zone', method: 'GET', fields: ['Site', 'Bâtiment', 'Salle', 'Code zone'] },
-    { id: 'dcim-zone-create', label: 'Créer une zone', path: '/v1/dcim/zone/create', method: 'POST', fields: ['Opérateur', 'Site', 'Bâtiment', 'Salle', 'Code zone', 'Nom zone', 'Lignes zone', 'Colonnes zone'] },
-    { id: 'dcim-zone-update', label: 'Modifier une zone', path: '/v1/dcim/zone/update', method: 'POST', fields: ['Opérateur', 'Site', 'Bâtiment', 'Salle', 'Code zone', 'Nom zone', 'Lignes zone', 'Colonnes zone', 'Statut'] },
-    { id: 'dcim-zone-delete', label: 'Retirer une zone', path: '/v1/dcim/zone/delete', method: 'POST', fields: ['Opérateur', 'Site', 'Bâtiment', 'Salle', 'Code zone'] },
-    { id: 'dcim-topology-catalog', label: 'Catalogue dépendances DCIM', path: '/v1/dcim/topology-catalog', method: 'GET', fields: ['Inclure retirés'] },
-    { id: 'dcim-locate-equipment', label: 'Localiser un équipement', path: '/v1/dcim/locations', method: 'POST', fields: ['Opérateur', 'Numéro d’actif', 'Nom équipement', 'Site', 'Bâtiment', 'Étage', 'Salle', 'Zone', 'Ligne salle', 'Colonne salle', 'Rack', 'Position U', 'Face rack', 'Hauteur U', 'Coordonnée X', 'Coordonnée Y', 'Coordonnée Z'] },
-    { id: 'dcim-rack-capacity', label: 'Capacité rack', path: '/v1/dcim/rack-capacity', method: 'GET', fields: ['Site', 'Bâtiment', 'Salle', 'Rack'] },
-    { id: 'dcim-room-plan', label: 'Plan de salle', path: '/v1/dcim/room-plan', method: 'GET', fields: ['Site', 'Bâtiment', 'Salle', 'Format rendu'] },
-    { id: 'dcim-rack-elevation', label: 'Élévation rack', path: '/v1/dcim/rack-elevation', method: 'GET', fields: ['Site', 'Bâtiment', 'Salle', 'Rack', 'Face rack', 'Format rendu'] },
-    { id: 'dcim-patch-panel', label: 'Définir un panneau de brassage', path: '/v1/dcim/patch-panels', method: 'POST', fields: ['Opérateur', 'Site', 'Bâtiment', 'Salle', 'Rack', 'Panneau de brassage', 'Face rack', 'Position U', 'Hauteur U', 'Nombre de ports', 'Connecteur', 'Média câble', 'Libellé', 'Préfixe ports'] },
-    { id: 'dcim-port', label: 'Définir un port DCIM', path: '/v1/dcim/ports', method: 'POST', fields: ['Opérateur', 'Type propriétaire', 'Code propriétaire', 'Nom port', 'Connecteur', 'Média câble', 'Site', 'Bâtiment', 'Salle', 'Port actif'] },
-    { id: 'dcim-cable', label: 'Connecter un câble', path: '/v1/dcim/cables', method: 'POST', fields: ['Opérateur', 'Identifiant câble', 'Type propriétaire A', 'Code propriétaire A', 'Port A', 'Type propriétaire B', 'Code propriétaire B', 'Port B', 'Média câble', 'Statut câble', 'Chemin câble', 'Longueur m', 'Libellé'] },
-    { id: 'dcim-power-device', label: 'Définir un équipement électrique', path: '/v1/dcim/power-devices', method: 'POST', fields: ['Opérateur', 'Code équipement électrique', 'Type équipement électrique', 'Site', 'Bâtiment', 'Salle', 'Rack', 'Chaîne électrique', 'Capacité watts', 'Derating %', 'Source amont', 'Tension sortie V', 'Libellé'] },
-    { id: 'dcim-power-circuit', label: 'Définir un circuit électrique', path: '/v1/dcim/power-circuits', method: 'POST', fields: ['Opérateur', 'Identifiant circuit', 'Source électrique', 'Site', 'Bâtiment', 'Salle', 'Rack', 'Chaîne électrique', 'Capacité watts', 'Calibre disjoncteur A', 'Groupe redondance', 'Libellé'] },
-    { id: 'dcim-cooling-zone', label: 'Définir une zone de refroidissement', path: '/v1/dcim/cooling-zones', method: 'POST', fields: ['Opérateur', 'Site', 'Bâtiment', 'Salle', 'Zone froid/chaud', 'Rôle refroidissement', 'Capacité froid watts', 'Température soufflage °C', 'Température retour °C', 'Libellé'] },
-    { id: 'dcim-power-reservation', label: 'Réserver la puissance équipement', path: '/v1/dcim/power-reservations', method: 'POST', fields: ['Opérateur', 'Numéro d’actif', 'Identifiant circuit', 'Puissance attendue watts', 'Libellé'] },
-    { id: 'field-sheet-list', label: 'Lister les fiches d’intervention', path: '/v1/field-operation-sheets', method: 'GET', fields: [
-      { name: 'status', label: 'Statut', type: 'select', options: ['ready', 'in-progress', 'completed', 'cancelled'] },
-      { name: 'target_type', label: 'Type de cible', type: 'select', options: ['equipment', 'rack', 'cable', 'power-device', 'certificate'] },
-      { name: 'site', label: 'Site' }, { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100', min: 1, max: 500 }, { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'field-sheet-get', label: 'Consulter une fiche d’intervention', path: '/v1/field-operation-sheets/get', method: 'GET', fields: [{ name: 'sheet_id', label: 'ID fiche', required: true }] },
-    { id: 'field-sheet-generate', label: 'Générer une fiche d’intervention', path: '/v1/field-operation-sheets/generate', method: 'POST', fields: [
-      { name: 'actor', label: 'Opérateur', required: true },
-      { name: 'target_type', label: 'Type de cible', type: 'select', options: ['equipment', 'rack', 'cable', 'power-device', 'certificate'], required: true },
-      { name: 'target_id', label: 'Identifiant cible', required: true }, { name: 'title', label: 'Titre', required: true },
-      { name: 'purpose', label: 'Objet de l’intervention', type: 'textarea', rows: 4, required: true },
-      { name: 'owner', label: 'Responsable', required: true }, { name: 'operator', label: 'Intervenant', required: true },
-      { name: 'source_object_key', label: 'Clé objet RSOT' }, { name: 'site', label: 'Site' }, { name: 'building', label: 'Bâtiment' }, { name: 'room', label: 'Salle' },
-      { name: 'location_target_type', label: 'Type de cible physique', type: 'select', options: ['equipment', 'rack', 'cable', 'power-device'] },
-      { name: 'location_target_id', label: 'Identifiant cible physique' },
-    ] },
-    { id: 'field-lock-acquire', label: 'Verrouiller la cible', path: '/v1/intervention-locks/acquire', method: 'POST', fields: [
-      { name: 'actor', label: 'Opérateur', required: true }, { name: 'sheet_id', label: 'ID fiche', required: true },
-      { name: 'idempotency_key', label: 'Clé d’idempotence', required: true }, { name: 'ttl_seconds', label: 'Durée du verrou (secondes)', type: 'number', defaultValue: '3600', min: 60, max: 86400 },
-    ] },
-    { id: 'field-operation-start', label: 'Démarrer l’intervention', path: '/v1/field-operation-sheets/start', method: 'POST', fields: [{ name: 'actor', label: 'Opérateur', required: true }, { name: 'sheet_id', label: 'ID fiche', required: true }] },
-    { id: 'field-checklist-record', label: 'Renseigner une étape de checklist', path: '/v1/field-operation-sheets/checklist', method: 'POST', fields: [
-      { name: 'actor', label: 'Opérateur', required: true }, { name: 'sheet_id', label: 'ID fiche', required: true }, { name: 'item_id', label: 'ID étape', required: true },
-      { name: 'result', label: 'Résultat', type: 'select', options: ['passed', 'failed', 'not-applicable'], required: true }, { name: 'operator_note', label: 'Note intervenant', type: 'textarea', rows: 3 },
-    ] },
-    { id: 'field-evidence-attach', label: 'Joindre une preuve terrain', path: '/v1/field-evidence/attach', method: 'POST', fields: [
-      { name: 'actor', label: 'Opérateur', required: true }, { name: 'sheet_id', label: 'ID fiche', required: true },
-      { name: 'phase', label: 'Phase', type: 'select', options: ['before', 'after'], required: true },
-      { name: 'evidence_file', label: 'Photo ou document', type: 'file', accept: 'image/jpeg,image/png,image/webp,application/pdf', capture: 'environment', required: true },
-      { name: 'caption', label: 'Description de la preuve', type: 'textarea', rows: 3, required: true },
-    ] },
-    { id: 'field-evidence-list', label: 'Lister les preuves terrain', path: '/v1/field-evidence', method: 'GET', fields: [{ name: 'sheet_id', label: 'ID fiche', required: true }] },
-    { id: 'field-evidence-validate', label: 'Valider une preuve terrain', path: '/v1/field-evidence/validate', method: 'POST', fields: [{ name: 'actor', label: 'Opérateur', required: true }, { name: 'evidence_id', label: 'ID preuve', required: true }] },
-    { id: 'field-operation-complete', label: 'Clôturer l’intervention', path: '/v1/field-operation-sheets/complete', method: 'POST', fields: [{ name: 'actor', label: 'Opérateur', required: true }, { name: 'sheet_id', label: 'ID fiche', required: true }] },
-    { id: 'field-operation-cancel', label: 'Annuler l’intervention', path: '/v1/field-operation-sheets/cancel', method: 'POST', fields: [{ name: 'actor', label: 'Opérateur', required: true }, { name: 'sheet_id', label: 'ID fiche', required: true }] },
-    { id: 'field-qr-verify', label: 'Vérifier un QR code terrain', path: '/v1/qr-codes/verify', method: 'POST', fields: [{ name: 'sheet_id', label: 'ID fiche', required: true }, { name: 'payload', label: 'Contenu QR', type: 'textarea', rows: 4, required: true }] },
-    { id: 'field-lock-release', label: 'Libérer le verrou terrain', path: '/v1/intervention-locks/release', method: 'POST', fields: [{ name: 'actor', label: 'Opérateur', required: true }, { name: 'lock_id', label: 'ID verrou', required: true }] },
-    { id: 'field-offline-create', label: 'Créer un paquet hors ligne', path: '/v1/offline-sync-packages/create', method: 'POST', fields: [
-      { name: 'actor', label: 'Opérateur', required: true }, { name: 'sheet_id', label: 'ID fiche', required: true },
-      { name: 'idempotency_key', label: 'Clé d’idempotence', required: true }, { name: 'ttl_seconds', label: 'Validité hors ligne (secondes)', type: 'number', defaultValue: '86400', min: 300, max: 604800 },
-    ] },
-    { id: 'field-offline-list', label: 'Lister les paquets hors ligne', path: '/v1/offline-sync-packages', method: 'GET', fields: [{ name: 'sheet_id', label: 'ID fiche' }, { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100', min: 1, max: 500 }, { name: 'cursor', label: 'Curseur' }] },
-    { id: 'field-offline-get', label: 'Consulter un paquet hors ligne', path: '/v1/offline-sync-packages/get', method: 'GET', fields: [{ name: 'package_id', label: 'ID paquet', required: true }, { name: 'include_payload', label: 'Inclure le contenu', type: 'boolean', defaultValue: 'true' }] },
-    { id: 'field-offline-sync', label: 'Synchroniser un paquet hors ligne', path: '/v1/offline-sync-packages/synchronize', method: 'POST', fields: [{ name: 'actor', label: 'Opérateur', required: true }, { name: 'package_id', label: 'ID paquet', required: true }, { name: 'payload_sha256', label: 'Empreinte SHA-256 du paquet', required: true, maxLength: 64 }] },
-    { id: 'greenops-source-create', label: 'Enregistrer une source de mesure', path: '/v1/greenops/measurement-sources/create', method: 'POST', fields: [
-      { name: 'actor', label: 'Opérateur', required: true }, { name: 'code', label: 'Code source', required: true },
-      { name: 'name', label: 'Nom source', required: true }, { name: 'source_type', label: 'Type de source', required: true },
-      { name: 'owner', label: 'Responsable', required: true }, { name: 'active', label: 'Source active', type: 'boolean', defaultValue: 'true' },
-    ] },
-    { id: 'greenops-sources', label: 'Lister les sources de mesure', path: '/v1/greenops/measurement-sources', method: 'GET', fields: [
-      { name: 'active_only', label: 'Sources actives uniquement', type: 'boolean', defaultValue: 'false' },
-      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100', min: 1, max: 500 }, { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'greenops-policy-upsert', label: 'Configurer la politique GreenOps d’un site', path: '/v1/greenops/policies/upsert', method: 'POST', fields: [
-      { name: 'actor', label: 'Opérateur', required: true }, { name: 'site_code', label: 'Site', required: true },
-      { name: 'default_pue', label: 'PUE par défaut', type: 'number', step: '0.000001', required: true },
-      { name: 'energy_cost_per_kwh', label: 'Coût énergie par kWh', type: 'number', step: '0.000001', required: true },
-      { name: 'currency', label: 'Devise ISO-4217', required: true, maxLength: 3 },
-      { name: 'carbon_factor_code', label: 'Code facteur carbone', required: true },
-      { name: 'underutilized_percent', label: 'Seuil de sous-utilisation (%)', type: 'number', defaultValue: '20', min: 0, max: 100 },
-      { name: 'warning_capacity_percent', label: 'Seuil capacité avertissement (%)', type: 'number', defaultValue: '80', min: 0, max: 100 },
-      { name: 'critical_capacity_percent', label: 'Seuil capacité critique (%)', type: 'number', defaultValue: '90', min: 0, max: 100 },
-      { name: 'minimum_samples', label: 'Échantillons minimaux', type: 'number', defaultValue: '3', min: 2, max: 1000 },
-    ] },
-    { id: 'greenops-policy-get', label: 'Consulter la politique GreenOps', path: '/v1/greenops/policies/get', method: 'GET', fields: [{ name: 'site_code', label: 'Site', required: true }] },
-    { id: 'greenops-factor-create', label: 'Enregistrer un facteur carbone', path: '/v1/greenops/carbon-factors/create', method: 'POST', fields: [
-      { name: 'actor', label: 'Opérateur', required: true }, { name: 'code', label: 'Code facteur', required: true },
-      { name: 'region', label: 'Région', required: true }, { name: 'grams_co2e_per_kwh', label: 'gCO₂e par kWh', type: 'number', step: '0.000001', required: true },
-      { name: 'source_name', label: 'Source du facteur', required: true }, { name: 'source_uri', label: 'URL de provenance', type: 'url' },
-      { name: 'period_start', label: 'Début de validité', type: 'date', required: true }, { name: 'period_end', label: 'Fin de validité', type: 'date', required: true },
-    ] },
-    { id: 'greenops-factors', label: 'Lister les facteurs carbone', path: '/v1/greenops/carbon-factors', method: 'GET', fields: [
-      { name: 'code', label: 'Code facteur' }, { name: 'region', label: 'Région' },
-      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100', min: 1, max: 500 }, { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'greenops-measurement-ingest', label: 'Ingérer une mesure énergétique', path: '/v1/greenops/energy-measurements/ingest', method: 'POST', fields: [
-      { name: 'actor', label: 'Opérateur', required: true }, { name: 'idempotency_key', label: 'Clé d’idempotence', required: true },
-      { name: 'source_code', label: 'Code source', required: true }, { name: 'kind', label: 'Nature de la mesure', type: 'select', options: ['observed', 'estimated'], required: true },
-      { name: 'scope', label: 'Périmètre', type: 'select', options: ['site', 'room', 'rack', 'pdu', 'asset', 'application'], required: true },
-      { name: 'scope_key', label: 'Identifiant du périmètre', required: true }, { name: 'site_code', label: 'Site', required: true },
-      { name: 'application_key', label: 'Application associée' },
-      { name: 'period_start', label: 'Début de mesure', type: 'datetime-local', required: true }, { name: 'period_end', label: 'Fin de mesure', type: 'datetime-local', required: true },
-      { name: 'energy_kwh', label: 'Énergie (kWh)', type: 'number', step: '0.000001', required: true },
-      { name: 'it_energy_kwh', label: 'Énergie IT (kWh)', type: 'number', step: '0.000001' }, { name: 'facility_energy_kwh', label: 'Énergie totale site (kWh)', type: 'number', step: '0.000001' },
-      { name: 'utilization_percent', label: 'Utilisation (%)', type: 'number', min: 0, max: 100, step: '0.0001' },
-      { name: 'energy_capacity_percent', label: 'Capacité énergie utilisée (%)', type: 'number', min: 0, max: 100, step: '0.0001' },
-      { name: 'cooling_capacity_percent', label: 'Capacité refroidissement utilisée (%)', type: 'number', min: 0, max: 100, step: '0.0001' },
-      { name: 'space_capacity_percent', label: 'Capacité espace utilisée (%)', type: 'number', min: 0, max: 100, step: '0.0001' },
-      { name: 'weight_capacity_percent', label: 'Capacité poids utilisée (%)', type: 'number', min: 0, max: 100, step: '0.0001' },
-      { name: 'metadata', label: 'Métadonnées JSON sans secret', type: 'json', defaultValue: '{}' },
-    ] },
-    { id: 'greenops-measurements', label: 'Lister les mesures énergétiques', path: '/v1/greenops/energy-measurements', method: 'GET', fields: [
-      { name: 'period_start', label: 'Début de période', type: 'datetime-local' }, { name: 'period_end', label: 'Fin de période', type: 'datetime-local' },
-      { name: 'site_code', label: 'Site' }, { name: 'scope', label: 'Périmètre', type: 'select', options: ['site', 'room', 'rack', 'pdu', 'asset', 'application'] },
-      { name: 'scope_key', label: 'Identifiant du périmètre' }, { name: 'kind', label: 'Nature', type: 'select', options: ['observed', 'estimated'] },
-      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100', min: 1, max: 500 }, { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'greenops-report-generate', label: 'Générer un rapport de durabilité', path: '/v1/greenops/reports/generate', method: 'POST', fields: [
-      { name: 'actor', label: 'Opérateur', required: true }, { name: 'site_code', label: 'Site', required: true },
-      { name: 'period_start', label: 'Début de période', type: 'date', required: true }, { name: 'period_end', label: 'Fin de période', type: 'date', required: true },
-      { name: 'scope', label: 'Périmètre', type: 'select', options: ['site', 'room', 'rack', 'pdu', 'asset', 'application'], defaultValue: 'site' },
-      { name: 'scope_key', label: 'Identifiant du périmètre' },
-    ] },
-    { id: 'greenops-report-get', label: 'Consulter un rapport de durabilité', path: '/v1/greenops/reports/get', method: 'GET', fields: [{ name: 'report_id', label: 'ID rapport', required: true }] },
-    { id: 'greenops-reports', label: 'Lister les rapports de durabilité', path: '/v1/greenops/reports', method: 'GET', fields: [
-      { name: 'site_code', label: 'Site' }, { name: 'scope', label: 'Périmètre' },
-      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100', min: 1, max: 500 }, { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'greenops-report-export', label: 'Exporter un rapport de durabilité', path: '/v1/greenops/reports/export', method: 'GET', download: true, fields: [
-      { name: 'report_id', label: 'ID rapport', required: true }, { name: 'format', label: 'Format', type: 'select', options: ['json', 'csv'], defaultValue: 'json' },
-    ] },
-    { id: 'greenops-anomalies', label: 'Lister les anomalies énergétiques', path: '/v1/greenops/anomalies', method: 'GET', fields: [
-      { name: 'site_code', label: 'Site' }, { name: 'severity', label: 'Sévérité', type: 'select', options: ['info', 'warning', 'error', 'critical'] },
-      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100', min: 1, max: 500 }, { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'greenops-forecasts', label: 'Lister les prévisions de capacité', path: '/v1/greenops/capacity-forecasts', method: 'GET', fields: [
-      { name: 'site_code', label: 'Site' }, { name: 'dimension', label: 'Dimension', type: 'select', options: ['energy', 'cooling', 'space', 'weight'] },
-      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100', min: 1, max: 500 }, { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'greenops-candidates', label: 'Lister les recommandations de consolidation', path: '/v1/greenops/consolidation-candidates', method: 'GET', fields: [
-      { name: 'site_code', label: 'Site' }, { name: 'risk_level', label: 'Niveau de risque', type: 'select', options: ['info', 'warning', 'error', 'critical'] },
-      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100', min: 1, max: 500 }, { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'greenops-scores', label: 'Lister les scores GreenOps', path: '/v1/greenops/green-scores', method: 'GET', fields: [
-      { name: 'scope', label: 'Périmètre' }, { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100', min: 1, max: 500 }, { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'dcim-digital-twin', label: 'Jumeau numérique salle', path: '/v1/dcim/digital-twin', method: 'GET', fields: ['Site', 'Bâtiment', 'Salle'] },
-    { id: 'dcim-energy-cooling-capacity', label: 'Capacité énergie/refroidissement', path: '/v1/dcim/energy-cooling-capacity', method: 'GET', fields: ['Site', 'Bâtiment', 'Salle', 'Rack'] },
-  ] },
-  { id: 'itam', label: 'IT Asset Management', shortLabel: 'ITAM', icon: 'asset', operations: [
-    { id: 'itam-organizations', label: 'Lister les organisations', path: '/v1/itam/organizations', method: 'GET', fields: ['Inclure retirées'] },
-    { id: 'itam-organization', label: 'Voir une organisation', path: '/v1/itam/organization', method: 'GET', fields: ['Organisation'] },
-    { id: 'itam-organization-create', label: 'Créer une organisation', path: '/v1/itam/organization/create', method: 'POST', fields: ['Code organisation', 'Opérateur', 'Raison sociale', 'N° immatriculation', 'Identifiant fiscal / TVA', 'Pays', 'Ville', 'Adresse siège', 'Email contact', 'Contact support'] },
-    { id: 'itam-organization-update', label: 'Modifier une organisation', path: '/v1/itam/organization/update', method: 'POST', fields: ['Organisation', 'Opérateur', 'Raison sociale', 'Nom d’usage', 'N° immatriculation', 'Identifiant fiscal / TVA', 'Pays', 'Ville', 'Adresse siège', 'Email contact', 'Contact support', 'Statut', 'Description'] },
-    { id: 'itam-organization-delete', label: 'Retirer une organisation', path: '/v1/itam/organization/delete', method: 'POST', fields: ['Organisation', 'Opérateur'] },
-    { id: 'itam-partners', label: 'Lister les fournisseurs et supports', path: '/v1/itam/partners', method: 'GET', fields: ['Organisation', 'Type partenaire', 'Inclure retirés'] },
-    { id: 'itam-partner', label: 'Voir un partenaire', path: '/v1/itam/partner', method: 'GET', fields: ['Organisation', 'Partenaire'] },
-    { id: 'itam-partner-create', label: 'Créer un partenaire', path: '/v1/itam/partner/create', method: 'POST', fields: ['Organisation', 'Code partenaire', 'Type partenaire', 'Opérateur', 'Raison sociale', 'Nom d’usage', 'N° immatriculation', 'Identifiant fiscal / TVA', 'Pays', 'Ville', 'Adresse siège', 'Email contact', 'Téléphone', 'Contact support', 'Site web', 'Statut', 'Description'] },
-    { id: 'itam-partner-update', label: 'Modifier un partenaire', path: '/v1/itam/partner/update', method: 'POST', fields: ['Organisation', 'Partenaire', 'Opérateur', 'Type partenaire', 'Raison sociale', 'Nom d’usage', 'N° immatriculation', 'Identifiant fiscal / TVA', 'Pays', 'Ville', 'Adresse siège', 'Email contact', 'Téléphone', 'Contact support', 'Site web', 'Statut', 'Description'] },
-    { id: 'itam-partner-delete', label: 'Retirer un partenaire', path: '/v1/itam/partner/delete', method: 'POST', fields: ['Organisation', 'Partenaire', 'Opérateur'] },
-    { id: 'itam-tenants', label: 'Lister les tenants', path: '/v1/itam/tenants', method: 'GET', fields: ['Inclure retirés'] },
-    { id: 'itam-tenant-create', label: 'Créer un tenant', path: '/v1/itam/tenant/create', method: 'POST', fields: ['Organisation', 'Code tenant', 'Opérateur', 'Nom tenant', 'Statut', 'Tenant par défaut', 'Description'] },
-    { id: 'itam-tenant-update', label: 'Modifier un tenant', path: '/v1/itam/tenant/update', method: 'POST', fields: ['Organisation', 'Tenant à modifier', 'Opérateur', 'Nom tenant', 'Statut', 'Tenant par défaut', 'Description'] },
-    { id: 'itam-tenant-delete', label: 'Retirer un tenant', path: '/v1/itam/tenant/delete', method: 'POST', fields: ['Organisation', 'Tenant à retirer', 'Opérateur'] },
-    { id: 'itam-support-profile', label: 'Profil support actif', path: '/v1/itam/support-profile', method: 'GET', fields: ['Numéro d’actif'] },
-    { id: 'itam-support-coverage', label: 'Couverture support actif', path: '/v1/itam/support-coverage', method: 'GET', fields: ['Numéro d’actif', 'Date de référence'] },
-    { id: 'itam-register-manufacturer', label: 'Déclarer garantie constructeur', path: '/v1/itam/support-profile/manufacturer', method: 'POST', fields: ['Opérateur', 'Numéro d’actif', 'Constructeur accrédité', 'Référence garantie', 'Niveau garantie', 'Début garantie', 'Fin garantie', 'Référence support', 'Niveau support', 'Contact support'] },
-    { id: 'itam-add-third-party', label: 'Ajouter support tiers', path: '/v1/itam/support-profile/third-party', method: 'POST', fields: ['Opérateur', 'Numéro d’actif', 'Support tiers accrédité', 'Référence contrat', 'Niveau support', 'Début support', 'Fin support', 'Contact support', 'Statut', 'Notes'] },
-    { id: 'itam-software-license', label: 'Licence logicielle', path: '/v1/itam/software-license', method: 'GET', fields: ['Référence licence'] },
-    { id: 'itam-software-compliance', label: 'Conformité licence', path: '/v1/itam/software-license/compliance', method: 'GET', fields: ['Référence licence', 'Date de référence'] },
-    { id: 'itam-register-software', label: 'Déclarer licence logicielle', path: '/v1/itam/software-license', method: 'POST', fields: ['Opérateur', 'Produit', 'Éditeur accrédité', 'Référence licence', 'Référence contrat', 'Métrique', 'Quantité achetée', 'Quantité assignée', 'Début droit', 'Fin droit', 'Version', 'Statut', 'Propriétaire', 'Notes'] },
-    { id: 'itam-update-license-assignment', label: 'Mettre à jour affectation licence', path: '/v1/itam/software-license/assignment', method: 'POST', fields: ['Opérateur', 'Référence licence', 'Quantité assignée', 'Notes'] },
-
-    { id: 'finops-rule-create', label: 'Créer une règle d’allocation', path: '/v1/finops/allocation-rules/create', method: 'POST', fields: [
-      'Opérateur', { name: 'name', label: 'Nom de la règle', required: true }, { name: 'priority', label: 'Priorité', type: 'number', defaultValue: '100' },
-      { name: 'dimension', label: 'Dimension', type: 'select', options: ['asset', 'application', 'business-service', 'tenant', 'owner', 'tag', 'cost-center', 'environment', 'dependency'], required: true },
-      { name: 'selector_key', label: 'Clé de sélection', required: true }, { name: 'fixed_target', label: 'Cible fixe' },
-      { name: 'percentage', label: 'Pourcentage', type: 'number', required: true }, { name: 'category', label: 'Catégorie de coût' },
-      { name: 'source', label: 'Source de coût' }, { name: 'active', label: 'Règle active', type: 'boolean', defaultValue: 'true' },
-    ] },
-    { id: 'finops-rules', label: 'Lister les règles d’allocation', path: '/v1/finops/allocation-rules', method: 'GET', fields: [
-      { name: 'active_only', label: 'Uniquement actives', type: 'boolean' }, { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'finops-import-submit', label: 'Importer des coûts', path: '/v1/finops/import-jobs/submit', method: 'POST', fields: [
-      'Opérateur', { name: 'idempotency_key', label: 'Clé d’idempotence', required: true }, { name: 'source', label: 'Source', required: true },
-      { name: 'records', label: 'Enregistrements de coûts JSON', type: 'json', required: true, defaultValue: '[]' },
-    ] },
-    { id: 'finops-import-get', label: 'Consulter un import de coûts', path: '/v1/finops/import-jobs/get', method: 'GET', fields: [
-      { name: 'job_id', label: 'ID import', required: true }, { name: 'include_records', label: 'Inclure les enregistrements', type: 'boolean' },
-    ] },
-    { id: 'finops-imports', label: 'Lister les imports de coûts', path: '/v1/finops/import-jobs', method: 'GET', fields: [
-      { name: 'status', label: 'Statut' }, { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'finops-import-run', label: 'Exécuter un import de coûts', path: '/v1/finops/import-jobs/run', method: 'POST', fields: ['Opérateur', { name: 'job_id', label: 'ID import', required: true }] },
-    { id: 'finops-import-cancel', label: 'Annuler un import de coûts', path: '/v1/finops/import-jobs/cancel', method: 'POST', fields: ['Opérateur', { name: 'job_id', label: 'ID import', required: true }] },
-    { id: 'finops-costs', label: 'Lister les coûts normalisés', path: '/v1/finops/cost-records', method: 'GET', fields: [
-      { name: 'period_start', label: 'Début de période', type: 'date' }, { name: 'period_end', label: 'Fin de période', type: 'date' },
-      { name: 'currency', label: 'Devise ISO-4217' }, { name: 'category', label: 'Catégorie' }, { name: 'source', label: 'Source' },
-      { name: 'quality_status', label: 'Qualité d’allocation' }, { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'finops-budget-upsert', label: 'Créer ou modifier un budget', path: '/v1/finops/budgets/upsert', method: 'POST', fields: [
-      'Opérateur', { name: 'dimension', label: 'Dimension', required: true }, { name: 'target', label: 'Cible', required: true },
-      { name: 'period_start', label: 'Début de période', type: 'date', required: true }, { name: 'period_end', label: 'Fin de période', type: 'date', required: true },
-      { name: 'currency', label: 'Devise ISO-4217', required: true }, { name: 'amount', label: 'Montant', type: 'number', required: true },
-      { name: 'warning_threshold_percent', label: 'Seuil d’alerte (%)', type: 'number', required: true }, { name: 'owner', label: 'Propriétaire', required: true },
-    ] },
-    { id: 'finops-budgets', label: 'Lister les budgets', path: '/v1/finops/budgets', method: 'GET', fields: [
-      { name: 'dimension', label: 'Dimension' }, { name: 'target', label: 'Cible' }, { name: 'currency', label: 'Devise' },
-      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'finops-period-close', label: 'Clôturer une période financière', path: '/v1/finops/periods/close', method: 'POST', fields: [
-      'Opérateur', { name: 'period_start', label: 'Début de période', type: 'date', required: true }, { name: 'period_end', label: 'Fin de période', type: 'date', required: true },
-      { name: 'currency', label: 'Devise ISO-4217', required: true },
-    ] },
-    { id: 'finops-periods', label: 'Lister les périodes financières', path: '/v1/finops/periods', method: 'GET', fields: [
-      { name: 'status', label: 'Statut' }, { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'finops-report-generate', label: 'Générer un showback / chargeback', path: '/v1/finops/reports/generate', method: 'POST', fields: [
-      'Opérateur', { name: 'kind', label: 'Type de rapport', type: 'select', options: ['showback', 'chargeback'], required: true },
-      { name: 'period_start', label: 'Début de période', type: 'date', required: true }, { name: 'period_end', label: 'Fin de période', type: 'date', required: true },
-      { name: 'group_by', label: 'Regroupement', required: true }, { name: 'currency', label: 'Devise ISO-4217', required: true },
-      { name: 'chargeback_markup_percent', label: 'Marge chargeback (%)', type: 'number', defaultValue: '0' },
-    ] },
-    { id: 'finops-report-get', label: 'Consulter un rapport financier', path: '/v1/finops/reports/get', method: 'GET', fields: [
-      { name: 'report_id', label: 'ID rapport', required: true },
-    ] },
-    { id: 'finops-reports', label: 'Lister les rapports financiers', path: '/v1/finops/reports', method: 'GET', fields: [
-      { name: 'kind', label: 'Type de rapport' }, { name: 'currency', label: 'Devise' }, { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'finops-report-export', label: 'Exporter un rapport financier', path: '/v1/finops/reports/export', method: 'GET', fields: [
-      { name: 'report_id', label: 'ID rapport', required: true }, { name: 'format', label: 'Format', type: 'select', options: ['json', 'csv'], defaultValue: 'json' },
-    ] },
-    { id: 'finops-anomalies', label: 'Lister les anomalies de coûts', path: '/v1/finops/anomalies', method: 'GET', fields: [
-      { name: 'severity', label: 'Sévérité' }, { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'finops-forecasts', label: 'Lister les prévisions de coûts', path: '/v1/finops/forecasts', method: 'GET', fields: [
-      { name: 'dimension', label: 'Dimension' }, { name: 'target', label: 'Cible' }, { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
-    ] },
-
-  ] },
-  { id: 'discovery', label: 'Discovery', icon: 'activity', operations: [
-    { id: 'discovery-evidence-list', label: 'Lister les preuves immuables', path: '/v1/discovery/evidence-list', method: 'GET', fields: ['Clé objet', 'Limite'] },
-    { id: 'discovery-evidence', label: 'Voir une preuve immuable', path: '/v1/discovery/evidence', method: 'GET', fields: ['ID preuve'] },
-    { id: 'discovery-evidence-submit', label: 'Enregistrer une preuve Discovery', path: '/v1/discovery/evidence', method: 'POST', fields: ['Opérateur', 'ID preuve imposé', 'Clé objet', 'Type objet', 'Source', 'Référence source', 'Scope', 'ID externe', 'Confiance', 'Observé le', 'Preuve JSON sans secret'] },
-    { id: 'discovery-reconciliation-list', label: 'Lister les rapprochements', path: '/v1/discovery/reconciliation-list', method: 'GET', fields: ['Statut', 'Limite'] },
-    { id: 'discovery-reconciliation', label: 'Voir un rapprochement', path: '/v1/discovery/reconciliation', method: 'GET', fields: ['ID rapprochement'] },
-    { id: 'discovery-reconcile', label: 'Rapprocher plusieurs preuves', path: '/v1/discovery/reconciliation', method: 'POST', fields: ['Opérateur', 'Clé objet', 'IDs preuves', 'Âge maximal'] },
-    { id: 'discovery-reconciliation-resolve', label: 'Résoudre les conflits', path: '/v1/discovery/reconciliation/resolve', method: 'POST', fields: ['Opérateur', 'ID rapprochement', 'Sélections par chemin JSON', 'Justification'] },
-    { id: 'local-discovery-plan', label: 'Plan discovery locale Lite/Pro', path: '/v1/discovery/local-plan', method: 'POST', fields: ['Opérateur', 'Nom plan', 'Scope', 'Protocole', 'Cibles', 'Référence secret', 'Concurrence max', 'Rate limit/min'] },
-    { id: 'agent-bootstrap-plan', label: 'Plan bootstrap agent Enterprise', path: '/v1/discovery/agent-bootstrap-plan', method: 'POST', fields: ['Opérateur', 'Nom agent', 'Rôle agent', 'Scopes autorisés', 'URL backend HTTPS', 'Empreinte certificat', 'Référence secret enrollment', 'Version agent', 'Compte service', 'Chemin configuration', 'Répertoire état', 'Répertoire logs'] },
-    { id: 'collectors-register', label: 'Enregistrer un agent proxy Enterprise', path: '/v1/discovery/collectors', method: 'POST', fields: ['Opérateur', 'Nom agent proxy', 'Type', 'Empreinte certificat', 'Scopes autorisés', 'Version agent', 'Endpoint mTLS'] },
-  ] },
-  { id: 'data', label: 'Imports / Exports', shortLabel: 'Data', icon: 'table', operations: [
-    { id: 'import-bulk-progress', label: 'Progression import massif', path: '/v1/imports/bulk-progress', method: 'GET', fields: ['Job ID'] },
-    { id: 'import-bulk-rollback', label: 'Rollback import massif', path: '/v1/imports/bulk-rollback', method: 'POST', fields: ['Opérateur', 'Job ID', 'Fichier source', 'Format', 'Mapping JSON', 'Appliquer', 'Politique conflit'] },
-    { id: 'import-migration-guide', label: 'Guide migration données', path: '/v1/imports/migration-guide', method: 'GET', fields: ['Source migration'] },
-    { id: 'export-artifact-chunk', label: 'Chunk export signé', path: '/v1/exports/artifact-chunk', method: 'GET', fields: ['Job export', 'Offset octets', 'Taille chunk'] },
-  ] },
-  { id: 'security', label: 'Sécurité / RBAC / Audit', shortLabel: 'Sécurité', icon: 'shield', operations: [
-    { id: 'edition-policies', label: 'Politiques éditions et quotas', path: '/v1/editions/policies', method: 'GET', fields: [] },
-    { id: 'edition-feature-check', label: 'Vérifier une capacité édition', path: '/v1/editions/feature-check', method: 'GET', fields: ['Édition', 'Capacité'] },
-    { id: 'edition-quota-check', label: 'Vérifier un quota édition', path: '/v1/editions/quota-check', method: 'GET', fields: ['Édition', 'Ressource quota', 'Incrément demandé'] },
-    { id: 'audit-events', label: 'Événements d’audit', path: '/v1/audit/events', method: 'GET', fields: ['Action', 'Type cible', 'Limite'] },
-    { id: 'certificate-import', label: 'Importer une chaîne PEM', path: '/v1/certificates/import', method: 'POST', fields: ['Opérateur', 'Chaîne de certificats PEM', 'Propriétaire', 'Environnement', 'Source certificat', 'Objet RSOT associé'] },
-    { id: 'certificate-get', label: 'Consulter un certificat', path: '/v1/certificates/get', method: 'GET', fields: ['Empreinte SHA-256'] },
-    { id: 'certificate-list', label: 'Lister les certificats', path: '/v1/certificates', method: 'GET', fields: ['Limite', 'Curseur', 'Inclure retirés'] },
-    { id: 'certificate-retire', label: 'Retirer un certificat', path: '/v1/certificates/retire', method: 'POST', fields: ['Opérateur', 'Empreinte SHA-256'] },
-    { id: 'certificate-endpoint-observe', label: 'Observer un endpoint TLS', path: '/v1/certificates/endpoints/observe', method: 'POST', fields: ['Opérateur', 'Clé d’idempotence', 'Protocole endpoint', 'Hôte endpoint', 'Port', 'Service', 'Empreinte certificat', 'Observé le (ISO-8601)', 'Source observation', 'Collecteur', 'Objet RSOT associé', 'Version TLS', 'Suite cryptographique'] },
-    { id: 'certificate-endpoint-list', label: 'Lister les endpoints TLS', path: '/v1/certificates/endpoints', method: 'GET', fields: ['Empreinte certificat', 'Limite', 'Curseur'] },
-    { id: 'certificate-assessment', label: 'Évaluer l’état PKI', path: '/v1/certificates/assessment', method: 'GET', fields: ['Date de référence', 'Seuil critique (jours)', 'Seuil avertissement (jours)', 'État certificat', 'Limite', 'Curseur'] },
-    { id: 'sbom-import', label: 'Importer une SBOM', path: '/v1/sbom/documents/import', method: 'POST', fields: [
-      { name: 'application', label: 'Application', required: true },
-      { name: 'release', label: 'Version / release', required: true },
-      { name: 'environment', label: 'Environnement', required: true },
-      { name: 'source_name', label: 'Source', required: true, defaultValue: 'ci-cd' },
-      { name: 'source_uri', label: 'URI de provenance', type: 'url' },
-      { name: 'sbom', label: 'Document CycloneDX ou SPDX (JSON)', type: 'json', required: true },
-    ] },
-    { id: 'sbom-documents', label: 'Lister les SBOM', path: '/v1/sbom/documents', method: 'GET', fields: [
-      { name: 'application', label: 'Application' }, { name: 'environment', label: 'Environnement' },
-      { name: 'format', label: 'Format', type: 'select', options: ['', 'cyclonedx', 'spdx'] },
-      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'sbom-document-get', label: 'Consulter une SBOM', path: '/v1/sbom/documents/get', method: 'GET', fields: [{ name: 'document_id', label: 'ID SBOM', required: true }] },
-    { id: 'sbom-vulnerability-import', label: 'Importer une vulnérabilité', path: '/v1/sbom/vulnerabilities/import', method: 'POST', fields: [
-      { name: 'cve_id', label: 'Identifiant CVE', required: true, placeholder: 'CVE-2026-12345' },
-      { name: 'component_name', label: 'Composant', required: true }, { name: 'component_version', label: 'Version', required: true },
-      { name: 'component_purl', label: 'Package URL (PURL)', placeholder: 'pkg:pypi/example@1.0.0' },
-      { name: 'cvss_score', label: 'Score CVSS', type: 'number', required: true, min: '0', max: '10', step: '0.1' },
-      { name: 'known_exploited', label: 'Exploitation connue', type: 'boolean' },
-      { name: 'exploit_maturity', label: 'Maturité de l’exploit', type: 'select', options: ['unknown', 'proof-of-concept', 'functional', 'weaponized'], defaultValue: 'unknown' },
-      { name: 'source_name', label: 'Source', required: true, defaultValue: 'external-scanner' },
-      { name: 'published_at', label: 'Publication', type: 'datetime-local' }, { name: 'modified_at', label: 'Modification', type: 'datetime-local' },
-      { name: 'references', label: 'Références (JSON)', type: 'json', defaultValue: '[]' }, { name: 'metadata', label: 'Métadonnées (JSON)', type: 'json', defaultValue: '{}' },
-    ] },
-    { id: 'sbom-vulnerabilities', label: 'Lister les vulnérabilités', path: '/v1/sbom/vulnerabilities', method: 'GET', fields: [
-      { name: 'cve_id', label: 'Identifiant CVE' }, { name: 'component', label: 'Composant ou PURL' },
-      { name: 'known_exploited', label: 'Exploitation connue', type: 'boolean' },
-      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'sbom-exposure-upsert', label: 'Définir le contexte d’exposition', path: '/v1/sbom/exposures/upsert', method: 'POST', fields: [
-      { name: 'application', label: 'Application', required: true }, { name: 'environment', label: 'Environnement', required: true },
-      { name: 'internet_exposed', label: 'Exposé à Internet', type: 'boolean' }, { name: 'flow_exposed', label: 'Accessible par les flux', type: 'boolean' },
-      { name: 'business_criticality', label: 'Criticité métier (1-5)', type: 'number', required: true, min: '1', max: '5', defaultValue: '3' },
-      { name: 'compensating_controls', label: 'Contrôles compensatoires (JSON)', type: 'json', defaultValue: '[]' },
-      { name: 'asset_ids', label: 'Actifs associés (JSON)', type: 'json', defaultValue: '[]' }, { name: 'service_ids', label: 'Services associés (JSON)', type: 'json', defaultValue: '[]' },
-    ] },
-    { id: 'sbom-exposures', label: 'Lister les contextes d’exposition', path: '/v1/sbom/exposures', method: 'GET', fields: [{ name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' }] },
-    { id: 'sbom-exposure-get', label: 'Consulter un contexte d’exposition', path: '/v1/sbom/exposures/get', method: 'GET', fields: [{ name: 'application', label: 'Application', required: true }, { name: 'environment', label: 'Environnement', required: true }] },
-    { id: 'sbom-risk-assess', label: 'Évaluer le risque contextualisé', path: '/v1/sbom/risk/assess', method: 'POST', fields: [{ name: 'document_id', label: 'ID SBOM', required: true }] },
-    { id: 'sbom-findings', label: 'Lister les constats de risque', path: '/v1/sbom/findings', method: 'GET', fields: [
-      { name: 'document_id', label: 'ID SBOM' }, { name: 'priority', label: 'Priorité', type: 'select', options: ['', 'critical', 'high', 'medium', 'low'] },
-      { name: 'status', label: 'Statut', type: 'select', options: ['', 'open', 'accepted', 'mitigated', 'false-positive'] },
-      { name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' },
-    ] },
-    { id: 'sbom-risk-export', label: 'Exporter le risque SBOM', path: '/v1/sbom/risk/export', method: 'GET', download: true, fields: [{ name: 'document_id', label: 'ID SBOM', required: true }, { name: 'format', label: 'Format', type: 'select', options: ['json', 'csv'], defaultValue: 'json' }] },
-    { id: 'sbom-compare', label: 'Comparer deux releases SBOM', path: '/v1/sbom/comparisons/create', method: 'POST', fields: [{ name: 'base_document_id', label: 'SBOM de référence', required: true }, { name: 'target_document_id', label: 'SBOM cible', required: true }] },
-    { id: 'sbom-comparisons', label: 'Lister les comparaisons SBOM', path: '/v1/sbom/comparisons', method: 'GET', fields: [{ name: 'limit', label: 'Limite', type: 'number', defaultValue: '100' }, { name: 'cursor', label: 'Curseur' }] },
-    { id: 'sbom-comparison-get', label: 'Consulter une comparaison SBOM', path: '/v1/sbom/comparisons/get', method: 'GET', fields: [{ name: 'comparison_id', label: 'ID comparaison', required: true }] },
-
-
-  ] },
-];
-
-const SIDEBAR_CONTEXTS = {
-  rsot: [
-    { label: 'Référentiel', operationIds: ['rsot-taxonomy', 'rsot-list', 'rsot-upsert'] },
-    { label: 'Relations & historique', operationIds: ['rsot-relations', 'rsot-as-of', 'rsot-object-audit'] },
-    { label: 'Qualité & gouvernance', operationIds: ['rsot-quality-object', 'rsot-quality-summary', 'rsot-governance', 'rsot-reconcile'] },
-    { label: 'Exploration', operationIds: ['graph-traverse', 'graph-path'] },
-    { label: 'Analyse d’impact', operationIds: ['graph-impact', 'graph-spof'] },
-    { label: 'Exports', operationIds: ['graph-export'] },
-    { label: 'Simulation & migrations', operationIds: ['simulation-create', 'simulation-list', 'simulation-run', 'simulation-reports', 'simulation-compare', 'simulation-comparisons'] },
-    { label: 'Assistant gouverné', operationIds: ['rag-query', 'rag-answers', 'rag-answer-get'] },
-    { label: 'Index de connaissances', operationIds: ['rag-document-upsert', 'rag-documents', 'rag-document-get', 'rag-document-deactivate', 'rag-rsot-sync'] },
-    { label: 'Imports / exports RAG', operationIds: ['rag-job-create', 'rag-jobs', 'rag-job-get', 'rag-job-run', 'rag-job-artifact'] },
-  ],
-  ipam: [
-    { label: 'Vue & recherche', operationIds: ['ipam-dashboard', 'ipam-search'] },
-    { label: 'Adressage IP', operationIds: ['ipam-define-vrf', 'ipam-define-aggregate', 'ipam-define-prefix', 'ipam-list-prefixes', 'ipam-define-range', 'ipam-register-address', 'ipam-allocate', 'ipam-reservation-wizard', 'ipam-capacity'] },
-    { label: 'Réseau L2/L3', operationIds: ['ipam-network-bindings', 'ipam-topology', 'ipam-define-vlan-group', 'ipam-define-vxlan-vni', 'ipam-define-vlan', 'ipam-define-asn', 'ipam-define-bgp-peer'] },
-    { label: 'Observations & DDI', operationIds: ['ipam-observe-dns', 'ipam-observe-dhcp', 'ipam-conflicts', 'ipam-ddi-preview'] },
-    { label: 'Conformité réseau', operationIds: ['network-config-baseline-upsert', 'network-config-baseline-list', 'network-config-baseline-retire', 'network-config-observation-submit', 'network-config-observation-list', 'network-config-assessment'] },
-    { label: 'Flux déclarés', operationIds: ['flow-declaration-upsert', 'flow-declaration-list', 'flow-declaration-retire'] },
-    { label: 'Flux observés', operationIds: ['flow-observation-submit', 'flow-observation-list'] },
-    { label: 'Conformité des flux', operationIds: ['flow-matrix'] },
-  ],
-  dcim: [
-    { label: 'Sites & dépendances', operationIds: ['dcim-sites', 'dcim-site', 'dcim-site-create', 'dcim-site-update', 'dcim-site-delete', 'dcim-buildings', 'dcim-building', 'dcim-building-create', 'dcim-building-update', 'dcim-building-delete', 'dcim-floors', 'dcim-floor', 'dcim-rooms-list', 'dcim-room', 'dcim-room-create', 'dcim-room-update', 'dcim-room-delete', 'dcim-zones', 'dcim-zone', 'dcim-zone-create', 'dcim-zone-update', 'dcim-zone-delete', 'dcim-topology-catalog'] },
-    { label: 'Pilotage multisite', operationIds: ['multisite-sites', 'multisite-grants', 'multisite-grant-upsert', 'multisite-grant-revoke', 'multisite-report-generate', 'multisite-reports', 'multisite-report-get', 'multisite-dr-plan-configure', 'multisite-dr-plan-disable', 'multisite-dr-plans', 'multisite-dr-plan-get', 'multisite-dr-drill-execute', 'multisite-dr-drills', 'multisite-dr-drill-get', 'multisite-routes', 'multisite-route-get', 'multisite-route-configure', 'multisite-route-disable', 'multisite-job-route'] },
-    { label: 'Localisation & capacité', operationIds: ['dcim-locate-equipment', 'dcim-rack-capacity', 'dcim-room-plan', 'dcim-rack-elevation'] },
-    { label: 'Connectivité', operationIds: ['dcim-patch-panel', 'dcim-port', 'dcim-cable', 'dcim-cable-trace'] },
-    { label: 'Énergie & refroidissement', operationIds: ['dcim-power-device', 'dcim-power-circuit', 'dcim-cooling-zone', 'dcim-power-reservation', 'dcim-energy-cooling-capacity'] },
-    { label: 'GreenOps — sources & politiques', operationIds: ['greenops-source-create', 'greenops-sources', 'greenops-policy-upsert', 'greenops-policy-get', 'greenops-factor-create', 'greenops-factors'] },
-    { label: 'GreenOps — mesures', operationIds: ['greenops-measurement-ingest', 'greenops-measurements'] },
-    { label: 'GreenOps — rapports & empreinte', operationIds: ['greenops-report-generate', 'greenops-report-get', 'greenops-reports', 'greenops-report-export', 'greenops-scores'] },
-    { label: 'GreenOps — capacité & recommandations', operationIds: ['greenops-anomalies', 'greenops-forecasts', 'greenops-candidates'] },
-    { label: 'Opérations terrain', operationIds: ['field-sheet-list', 'field-sheet-get', 'field-sheet-generate', 'field-lock-acquire', 'field-operation-start', 'field-checklist-record', 'field-evidence-attach', 'field-evidence-list', 'field-evidence-validate', 'field-operation-complete', 'field-operation-cancel', 'field-qr-verify', 'field-lock-release', 'field-offline-create', 'field-offline-list', 'field-offline-get', 'field-offline-sync'] },
-    { label: 'Jumeau numérique', operationIds: ['dcim-digital-twin'] },
-  ],
-  itam: [
-    { label: 'Organisations', operationIds: ['itam-organizations', 'itam-organization', 'itam-organization-create', 'itam-organization-update', 'itam-organization-delete'] },
-    { label: 'Tenants', operationIds: ['itam-tenants', 'itam-tenant', 'itam-tenant-create', 'itam-tenant-update', 'itam-tenant-delete'] },
-    { label: 'Partenaires', operationIds: ['itam-partners', 'itam-partner', 'itam-partner-create', 'itam-partner-update', 'itam-partner-delete'] },
-    { label: 'Support matériel', operationIds: ['itam-support-profile', 'itam-support-coverage', 'itam-register-manufacturer', 'itam-add-third-party'] },
-    { label: 'Licences logicielles', operationIds: ['itam-software-license', 'itam-software-compliance', 'itam-register-software', 'itam-update-license-assignment'] },
-    { label: 'Règles d’allocation', operationIds: ['finops-rule-create', 'finops-rules'] },
-    { label: 'Imports & coûts', operationIds: ['finops-import-submit', 'finops-import-get', 'finops-imports', 'finops-import-run', 'finops-import-cancel', 'finops-costs'] },
-    { label: 'Budgets & périodes', operationIds: ['finops-budget-upsert', 'finops-budgets', 'finops-period-close', 'finops-periods'] },
-    { label: 'Showback / chargeback', operationIds: ['finops-report-generate', 'finops-report-get', 'finops-reports', 'finops-report-export'] },
-    { label: 'Prévisions & anomalies', operationIds: ['finops-anomalies', 'finops-forecasts'] },
-  ],
-  discovery: [
-    { label: 'Locale Lite/Pro', operationIds: ['local-discovery-plan'] },
-    { label: 'Agents Enterprise', operationIds: ['agent-bootstrap-plan', 'collectors-list', 'collectors-register', 'job-authorize'] },
-  ],
-  data: [
-    { label: 'Imports', operationIds: ['import-bulk-progress', 'import-bulk-rollback'] },
-    { label: 'Migration', operationIds: ['import-migration-guide'] },
-    { label: 'Exports', operationIds: ['export-artifact-chunk'] },
-  ],
-  integrations: [
-    { label: 'Gouvernance ITSM', operationIds: ['itsm-providers'] },
-    { label: 'ServiceNow', operationIds: ['servicenow-validate', 'servicenow-ci-sync-plan'] },
-    { label: 'Jira Assets', operationIds: ['jira-validate', 'jira-asset-sync-plan'] },
-    { label: 'GLPI Inventory', operationIds: ['glpi-validate', 'glpi-asset-sync-plan'] },
-    { label: 'Freshservice Assets', operationIds: ['freshservice-validate', 'freshservice-asset-sync-plan'] },
-  ],
-  security: [
-    { label: 'Éditions & quotas', operationIds: ['edition-policies', 'edition-feature-check', 'edition-quota-check'] },
-    { label: 'Identité & accès', operationIds: ['tokens-list', 'effective-identity', 'access-rules'] },
-    { label: 'Audit', operationIds: ['audit-events', 'audit-integrity'] },
-    { label: 'Inventaire PKI', operationIds: ['certificate-import', 'certificate-get', 'certificate-list', 'certificate-retire'] },
-    { label: 'Endpoints TLS', operationIds: ['certificate-endpoint-observe', 'certificate-endpoint-list'] },
-    { label: 'Conformité PKI', operationIds: ['certificate-assessment'] },
-    { label: 'SBOM — inventaire & versions', operationIds: ['sbom-import', 'sbom-documents', 'sbom-document-get', 'sbom-compare', 'sbom-comparisons', 'sbom-comparison-get'] },
-    { label: 'Vulnérabilités & exposition', operationIds: ['sbom-vulnerability-import', 'sbom-vulnerabilities', 'sbom-exposure-upsert', 'sbom-exposures', 'sbom-exposure-get'] },
-    { label: 'Risque contextualisé', operationIds: ['sbom-risk-assess', 'sbom-findings', 'sbom-risk-export'] },
-  ],
-};
-
-
 function Icon({ name, className = 'bi' }) {
   return <svg className={className} width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d={ICONS[name] || ICONS.grid} /></svg>;
 }
@@ -1331,12 +36,16 @@ function componentModules() {
 }
 
 function moduleStatistics(module) {
-  const operations = module.operations.length;
-  const readOperations = module.operations.filter((operation) => operation.method === 'GET').length;
-  const writeOperations = operations - readOperations;
-  const fields = module.operations.reduce((total, operation) => total + operation.fields.length, 0);
+  const base = module.loaded ? {
+    operations: module.operations.length,
+    readOperations: module.operations.filter((operation) => operation.method === 'GET').length,
+    fields: module.operations.reduce((total, operation) => total + operation.fields.length, 0),
+  } : module.stats;
+  const operations = base.operations || 0;
+  const readOperations = base.readOperations || 0;
+  const writeOperations = base.writeOperations ?? operations - readOperations;
   const readPercent = operations === 0 ? 0 : Math.round((readOperations / operations) * 100);
-  return { operations, readOperations, writeOperations, fields, readPercent, writePercent: 100 - readPercent };
+  return { operations, readOperations, writeOperations, fields: base.fields || 0, readPercent, writePercent: 100 - readPercent };
 }
 
 function normalizeSearchText(value) {
@@ -1369,26 +78,21 @@ function apiDocumentationLinks(config) {
   };
 }
 
-function globalSearchGroups(query) {
+function globalSearchGroups(query, searchIndex) {
   const normalizedQuery = normalizeSearchText(query.trim());
-  if (!normalizedQuery) {
-    return [];
+  if (!normalizedQuery || !Array.isArray(searchIndex)) return [];
+  const grouped = new Map();
+  for (const operation of searchIndex) {
+    const haystack = [operation.moduleLabel, operation.id, operation.label, operation.method, operation.path].filter(Boolean).join(' ');
+    if (!normalizeSearchText(haystack).includes(normalizedQuery)) continue;
+    if (!grouped.has(operation.moduleId)) grouped.set(operation.moduleId, []);
+    grouped.get(operation.moduleId).push(operation);
   }
-  return componentModules().map((module) => {
-    const matches = module.operations.filter((operation) => {
-      const haystack = [
-        module.label,
-        module.shortLabel,
-        operation.id,
-        operation.label,
-        operation.method,
-        operation.path,
-        ...operation.fields,
-      ].filter(Boolean).join(' ');
-      return normalizeSearchText(haystack).includes(normalizedQuery);
-    });
-    return { module, operations: matches.slice(0, 8), total: matches.length };
-  }).filter((group) => group.total > 0);
+  return Array.from(grouped.entries()).map(([moduleId, operations]) => ({
+    module: MODULES.find((module) => module.id === moduleId),
+    operations: operations.slice(0, 8),
+    total: operations.length,
+  })).filter((group) => group.module && group.total > 0);
 }
 
 function sidebarOperationGroups(module) {
@@ -1461,6 +165,7 @@ function NavigationTree({
       <button type="button" id={accordionId} className={`openinfra-accordion-toggle ${activeNavigationModuleId === module.id ? 'active' : ''}`} aria-expanded={moduleOpened} aria-controls={panelId} aria-current={activeNavigationModuleId === module.id ? 'page' : undefined} onClick={() => toggleAccordion(module.id)}><span><Icon name={module.icon} />{module.shortLabel || module.label}</span><span className="openinfra-chevron">›</span></button>
       <div id={panelId} className={`openinfra-accordion-panel fade ${moduleOpened ? 'show' : ''}`} role="region" aria-labelledby={accordionId}>
         <div className="openinfra-accordion-panel-inner">
+          {!module.loaded && moduleOpened && <div className="px-3 py-2 small text-muted" role="status">Loading component…</div>}
           {sidebarOperationGroups(module).map((group) => {
             const contextKey = sidebarContextKey(module.id, group.label);
             const contextOpened = openedContexts.has(contextKey);
@@ -1572,12 +277,14 @@ function OperationForm({ i18n, language, selected, tenant, setTenant, execute })
 function Dashboard() {
   const [i18n] = useState(() => new OpenInfraI18n());
   const [language, setLanguage] = useState(i18n.language);
+  const [catalogRevision, setCatalogRevision] = useState(0);
+  const [searchIndex, setSearchIndex] = useState(null);
   useMemo(() => localizeOpenInfraCatalog({
     modules: MODULES,
     contexts: SIDEBAR_CONTEXTS,
     resourceTaxonomy: RESOURCE_TAXONOMY,
     resourceCategories: RESOURCE_CATEGORY_OPTIONS,
-  }, language), [language]);
+  }, language), [catalogRevision, language]);
   const [config, setConfig] = useState({ apiBaseUrl: '/api', apiDocumentation: { swaggerUrl: '/docs', redocUrl: '/redoc', openapiUrl: '/openapi.yaml' }, version: i18n.t('unavailable'), webBackendTrust: 'server-side' });
   const [ready, setReady] = useState(null);
   const [bffStatus, setBffStatus] = useState(null);
@@ -1599,12 +306,27 @@ function Dashboard() {
   const [announcement, setAnnouncement] = useState({ id: 0, text: '' });
   const mainContentRef = useRef(null);
   const lastComponentTriggerRef = useRef(null);
-  const businessModules = useMemo(() => componentModules(), []);
-  const operationsCount = useMemo(() => MODULES.reduce((total, module) => total + module.operations.length, 0), []);
+  const queryCacheRef = useRef(new OpenInfraQueryCache({ defaultTtlMs: 30_000, maxEntries: 192 }));
+  const businessModules = useMemo(() => componentModules(), [catalogRevision]);
+  const operationsCount = useMemo(() => MODULES.reduce((total, module) => total + moduleStatistics(module).operations, 0), [catalogRevision]);
   const businessFieldsCount = useMemo(() => businessModules.reduce((total, module) => total + moduleStatistics(module).fields, 0), [businessModules]);
-  const searchGroups = useMemo(() => globalSearchGroups(globalSearchQuery), [globalSearchQuery, language]);
+  const searchGroups = useMemo(() => globalSearchGroups(globalSearchQuery, searchIndex), [globalSearchQuery, language, searchIndex]);
   const apiDocs = useMemo(() => apiDocumentationLinks(config), [config]);
 
+
+  async function ensureDomain(moduleId) {
+    const domain = await loadDomain(moduleId);
+    if (moduleId === 'rsot' && Object.keys(RESOURCE_TAXONOMY).length === 0) {
+      const taxonomy = await import('./domains/rsot-taxonomy.js');
+      RESOURCE_TAXONOMY = taxonomy.RESOURCE_TAXONOMY;
+      RESOURCE_CATEGORY_OPTIONS = taxonomy.RESOURCE_CATEGORY_OPTIONS;
+    }
+    localizeOpenInfraCatalog({ modules: [domain], contexts: SIDEBAR_CONTEXTS, resourceTaxonomy: RESOURCE_TAXONOMY, resourceCategories: RESOURCE_CATEGORY_OPTIONS }, language);
+    setCatalogRevision((current) => current + 1);
+    return domain;
+  }
+
+  useEffect(() => installOpenInfraWebVitals({ target: window }), []);
 
   useLayoutEffect(() => {
     i18n.translateDom(document.getElementById('openinfra-root'));
@@ -1632,35 +354,34 @@ function Dashboard() {
   });
 
   useEffect(() => {
+    if (globalSearchQuery.trim() === '' || searchIndex) return undefined;
+    let active = true;
+    import('./search-index.js').then((loaded) => { if (active) setSearchIndex(loaded.default); }).catch(() => { if (active) setGlobalSearchError('search_index_unavailable'); });
+    return () => { active = false; };
+  }, [globalSearchQuery, searchIndex]);
+
+  useEffect(() => {
     const query = globalSearchQuery.trim();
+    const cache = queryCacheRef.current;
     if (query.length < 2) {
+      cache.abort('global-search');
       setGlobalSearchBackend(null);
       setGlobalSearchError(null);
       setGlobalSearchLoading(false);
       return undefined;
     }
-    let cancelled = false;
+    let active = true;
     setGlobalSearchLoading(true);
-    fetch(buildGlobalSearchUrl(config.apiBaseUrl, tenant, query, 6), {
-      credentials: 'same-origin',
-      headers: { Accept: 'application/json' },
-    }).then((response) => {
+    cache.run(`global-search:${tenant}:${query}`, async (signal) => {
+      const response = await fetch(buildGlobalSearchUrl(config.apiBaseUrl, tenant, query, 80), { credentials: 'same-origin', headers: { Accept: 'application/json' }, signal });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return response.json();
-    }).then((payload) => {
-      if (!cancelled) {
-        setGlobalSearchBackend(payload);
-        setGlobalSearchError(null);
-      }
+    }, { ttlMs: 15_000, scope: 'global-search' }).then((payload) => {
+      if (active) { setGlobalSearchBackend(payload); setGlobalSearchError(null); }
     }).catch((error) => {
-      if (!cancelled) {
-        setGlobalSearchBackend(null);
-        setGlobalSearchError('backend_unavailable');
-      }
-    }).finally(() => {
-      if (!cancelled) setGlobalSearchLoading(false);
-    });
-    return () => { cancelled = true; };
+      if (active && error?.name !== 'AbortError') { setGlobalSearchBackend(null); setGlobalSearchError('backend_unavailable'); }
+    }).finally(() => { if (active) setGlobalSearchLoading(false); });
+    return () => { active = false; cache.abort('global-search'); };
   }, [config.apiBaseUrl, globalSearchQuery, tenant]);
 
   useEffect(() => {
@@ -1702,21 +423,21 @@ function Dashboard() {
   }, [activeModuleId, i18n, megaMenuModuleId, mobileSidebarOpen]);
 
   useEffect(() => {
-    fetch('/bootstrap.json', { credentials: 'same-origin', headers: { Accept: 'application/json' } })
-      .then((response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.json();
-      })
-      .then((bootstrap) => {
-        setConfig((current) => bootstrap.config || current);
-        setVersion(bootstrap.version || null);
-        setBffStatus(bootstrap.status || { protectedForms: 'unknown', trust: {} });
-      })
-      .catch(() => setBffStatus({ protectedForms: 'unknown', trust: {} }));
-    fetch('/ready', { credentials: 'same-origin', headers: { Accept: 'application/json' } })
-      .then((response) => response.ok ? response.json() : { ready: false })
-      .then(setReady)
-      .catch(() => setReady({ ready: false }));
+    const cache = queryCacheRef.current;
+    cache.run('bootstrap', async (signal) => {
+      const response = await fetch('/bootstrap.json', { credentials: 'same-origin', headers: { Accept: 'application/json' }, signal });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.json();
+    }, { ttlMs: 60_000, scope: 'bootstrap' }).then((bootstrap) => {
+      setConfig((current) => bootstrap.config || current);
+      setVersion(bootstrap.version || null);
+      setBffStatus(bootstrap.status || { protectedForms: 'unknown', trust: {} });
+    }).catch(() => setBffStatus({ protectedForms: 'unknown', trust: {} }));
+    cache.run('readiness', async (signal) => {
+      const response = await fetch('/ready', { credentials: 'same-origin', headers: { Accept: 'application/json' }, signal });
+      return response.ok ? response.json() : { ready: false };
+    }, { ttlMs: 5_000, force: true, scope: 'readiness' }).then(setReady).catch(() => setReady({ ready: false }));
+    return () => { cache.abort('bootstrap'); cache.abort('readiness'); };
   }, []);
 
   function chooseOperation(module, operation, focusMain = false) {
@@ -1744,8 +465,10 @@ function Dashboard() {
     }
   }
 
-  function selectSearchOperation(module, operation) {
-    chooseOperation(module, operation, true);
+  async function selectSearchOperation(module, operation) {
+    const loadedModule = await ensureDomain(module.id);
+    const loadedOperation = loadedModule.operations.find((candidate) => candidate.id === operation.id);
+    if (loadedOperation) chooseOperation(loadedModule, loadedOperation, true);
     setGlobalSearchQuery('');
   }
 
@@ -1764,14 +487,14 @@ function Dashboard() {
     setGlobalSearchQuery('');
   }
 
-  function toggleAccordion(moduleId) {
-    const module = MODULES.find((item) => item.id === moduleId);
-    if (!module) {
-      return;
-    }
+  async function toggleAccordion(moduleId) {
+    let module = MODULES.find((item) => item.id === moduleId);
+    if (!module) return;
+    const willOpen = !opened.has(moduleId);
     setActiveNavigationModuleId(module.id);
-    setOpened((current) => current.has(moduleId) ? new Set() : new Set([moduleId]));
+    setOpened(willOpen ? new Set([moduleId]) : new Set());
     setOpenedContexts(new Set());
+    if (willOpen && !module.loaded) module = await ensureDomain(moduleId);
   }
 
   function toggleSidebarContext(moduleId, contextLabel) {
@@ -1798,25 +521,24 @@ function Dashboard() {
     setLanguage(normalized);
   }
 
-  function openMegaMenu(module, trigger = null) {
-    if (module.id === 'overview' || !isMegamenuViewport()) {
-      return;
-    }
-    if (trigger instanceof HTMLElement) {
-      lastComponentTriggerRef.current = trigger;
-    }
+  async function openMegaMenu(module, trigger = null) {
+    if (module.id === 'overview' || !isMegamenuViewport()) return;
+    if (trigger instanceof HTMLElement) lastComponentTriggerRef.current = trigger;
     setActiveNavigationModuleId(module.id);
     setMobileSidebarOpen(false);
     setMegaMenuModuleId(module.id);
     announce(i18n.t('navigationOpened', { component: module.shortLabel || module.label }));
+    if (!module.loaded) await ensureDomain(module.id);
   }
 
-  function handleModuleNavigation(module) {
-    if (module.id === 'overview' || !isMegamenuViewport()) {
-      chooseOperation(module, module.operations[0]);
+  async function handleModuleNavigation(module) {
+    if (module.id === 'overview') { chooseOperation(module, module.operations[0]); return; }
+    if (!isMegamenuViewport()) {
+      const loadedModule = module.loaded ? module : await ensureDomain(module.id);
+      chooseOperation(loadedModule, loadedModule.operations[0]);
       return;
     }
-    openMegaMenu(module);
+    await openMegaMenu(module);
   }
 
   function closeResponsiveNavigation({ restoreFocus = false } = {}) {
@@ -2056,7 +778,7 @@ function GlobalSearchResults({ i18n, query, groups, backend, loading, error, onS
     const resultGroups = (backend.groups || []).filter((group) => group.status === 'ok' && Array.isArray(group.items) && group.items.length > 0);
     const skipped = (backend.groups || []).filter((group) => group.status === 'skipped');
     if (resultGroups.length > 0) {
-      return <>{resultGroups.map((group) => <section className="openinfra-global-search-group" role="group" aria-label={`${i18n.t('globalSearchResults')} ${group.label || group.component}`} key={group.component}><div className="openinfra-global-search-group-title"><span>{group.label || group.component}</span><span>{i18n.count(group.total, 'result', 'results')}</span></div>{group.items.map((item) => <button type="button" className="openinfra-global-search-item" role="option" aria-selected="false" key={`${group.component}-${item.kind}-${item.label}`} onClick={() => onBackendSelect(item)}><span>{item.label}</span><small>{item.kind} · {item.description}</small></button>)}{group.total > group.items.length && <div className="openinfra-global-search-more">{i18n.t(group.total - group.items.length === 1 ? 'additionalResults' : 'additionalResultsPlural', { count: group.total - group.items.length })}</div>}</section>)}{skipped.length > 0 && <div className="openinfra-global-search-empty">{i18n.t('skippedComponents', { components: skipped.map((group) => group.label || group.component).join(', ') })}</div>}</>;
+      return <>{resultGroups.map((group) => <section className="openinfra-global-search-group" role="group" aria-label={`${i18n.t('globalSearchResults')} ${group.label || group.component}`} key={group.component}><div className="openinfra-global-search-group-title"><span>{group.label || group.component}</span><span>{i18n.count(group.total, 'result', 'results')}</span></div>{group.items.length > 40 ? <VirtualizedList items={group.items} ariaLabel={`${i18n.t('globalSearchResults')} ${group.label || group.component}`} renderItem={(item) => <button type="button" className="openinfra-global-search-item" role="option" aria-selected="false" onClick={() => onBackendSelect(item)}><span>{item.label}</span><small>{item.kind} · {item.description}</small></button>} /> : group.items.map((item) => <button type="button" className="openinfra-global-search-item" role="option" aria-selected="false" key={`${group.component}-${item.kind}-${item.label}`} onClick={() => onBackendSelect(item)}><span>{item.label}</span><small>{item.kind} · {item.description}</small></button>)}{group.total > group.items.length && <div className="openinfra-global-search-more">{i18n.t(group.total - group.items.length === 1 ? 'additionalResults' : 'additionalResultsPlural', { count: group.total - group.items.length })}</div>}</section>)}{skipped.length > 0 && <div className="openinfra-global-search-empty">{i18n.t('skippedComponents', { components: skipped.map((group) => group.label || group.component).join(', ') })}</div>}</>;
     }
   }
   if (error) {
@@ -2073,14 +795,14 @@ function OperationSearchResults({ i18n, query, groups, onSelect }) {
 }
 
 function OverviewStats({ i18n, modules, fieldsCount }) {
-  const operations = modules.reduce((total, module) => total + module.operations.length, 0);
+  const operations = modules.reduce((total, module) => total + moduleStatistics(module).operations, 0);
   return <section className="openinfra-overview" aria-label={i18n.t('componentStatistics')}><div className="card openinfra-overview-summary mb-4"><div className="card-body"><div className="d-flex flex-wrap justify-content-between align-items-start gap-3"><div><h2 className="h4 mb-1">{i18n.t('overviewTitle')}</h2><p className="text-muted mb-0">{i18n.t('overviewDescription')}</p></div><div><span className="badge text-bg-primary">{modules.length} {i18n.t('components')}</span><span className="badge text-bg-secondary ms-2">{operations} {i18n.t('operations')}</span></div></div><div className="row g-3 mt-3"><Metric title={i18n.t('fields')} value={String(fieldsCount)} /><Metric title={i18n.t('navigationMode')} value={i18n.t('accordions')} /><Metric title={i18n.t('browserSecrets')} value={i18n.t('noneExposed')} /><Metric title={i18n.t('uiParity')} value="CLI/API" /></div></div></div><div className="row g-3">{modules.map((module) => <ComponentStatsCard i18n={i18n} key={module.id} module={module} />)}</div></section>;
 }
 
 function ComponentStatsCard({ i18n, module }) {
   const stats = moduleStatistics(module);
   const style = { '--oi-read-end': `${stats.readPercent}%`, '--oi-write-end': `${stats.readPercent + stats.writePercent}%` };
-  return <article className="col-md-6 col-xxl-4"><div className="card h-100 openinfra-component-card"><div className="card-body"><div className="d-flex justify-content-between align-items-start gap-3"><div><h3 className="h5 mb-1">{module.shortLabel || module.label}</h3><p className="text-muted small mb-0">{i18n.t('operationsExposed', { count: module.operations.length })}</p></div><Icon name={module.icon} className="openinfra-component-icon" /></div><div className="openinfra-component-visual mt-3"><div className="openinfra-pie-chart" role="img" aria-label={i18n.t('distributionChart', { module: module.label, reads: stats.readOperations, mutations: stats.writeOperations })} style={style}><span>{stats.operations}</span></div><div className="openinfra-pie-legend small"><span><i className="openinfra-legend-read" />{stats.readOperations} {i18n.t('reads').toLowerCase()}</span><span><i className="openinfra-legend-write" />{stats.writeOperations} {i18n.t('mutations').toLowerCase()}</span></div></div><div className="row g-2 mt-3 openinfra-component-metrics"><div className="col-6"><strong>{stats.operations}</strong><span>{i18n.t('operations')}</span></div><div className="col-6"><strong>{stats.fields}</strong><span>{i18n.t('fields')}</span></div><div className="col-6"><strong>{stats.readOperations}</strong><span>{i18n.t('reads')}</span></div><div className="col-6"><strong>{stats.writeOperations}</strong><span>{i18n.t('mutations')}</span></div></div></div></div></article>;
+  return <article className="col-md-6 col-xxl-4"><div className="card h-100 openinfra-component-card"><div className="card-body"><div className="d-flex justify-content-between align-items-start gap-3"><div><h3 className="h5 mb-1">{module.shortLabel || module.label}</h3><p className="text-muted small mb-0">{i18n.t('operationsExposed', { count: moduleStatistics(module).operations })}</p></div><Icon name={module.icon} className="openinfra-component-icon" /></div><div className="openinfra-component-visual mt-3"><div className="openinfra-pie-chart" role="img" aria-label={i18n.t('distributionChart', { module: module.label, reads: stats.readOperations, mutations: stats.writeOperations })} style={style}><span>{stats.operations}</span></div><div className="openinfra-pie-legend small"><span><i className="openinfra-legend-read" />{stats.readOperations} {i18n.t('reads').toLowerCase()}</span><span><i className="openinfra-legend-write" />{stats.writeOperations} {i18n.t('mutations').toLowerCase()}</span></div></div><div className="row g-2 mt-3 openinfra-component-metrics"><div className="col-6"><strong>{stats.operations}</strong><span>{i18n.t('operations')}</span></div><div className="col-6"><strong>{stats.fields}</strong><span>{i18n.t('fields')}</span></div><div className="col-6"><strong>{stats.readOperations}</strong><span>{i18n.t('reads')}</span></div><div className="col-6"><strong>{stats.writeOperations}</strong><span>{i18n.t('mutations')}</span></div></div></div></div></article>;
 }
 
 function Metric({ title, value }) {

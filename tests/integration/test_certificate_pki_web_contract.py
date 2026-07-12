@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from tests.frontend_contract_sources import REACT_PORTAL, RUNTIME_PORTAL
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-STATIC_JS = PROJECT_ROOT / "src/openinfra/interfaces/rendering/static/assets/openinfra-web.js"
-REACT_JS = PROJECT_ROOT / "web/src/main.jsx"
+STATIC_JS = RUNTIME_PORTAL
+REACT_JS = REACT_PORTAL
 SOURCE_I18N = PROJECT_ROOT / "web/src/i18n.js"
 RUNTIME_I18N = PROJECT_ROOT / "src/openinfra/interfaces/rendering/static/assets/openinfra-i18n.js"
 
@@ -57,7 +59,7 @@ def test_certificate_pki_web_catalog_is_bilingual_and_runtime_i18n_is_identical(
 def test_pem_bundle_uses_multiline_accessible_control_in_packaged_runtime() -> None:
     static = STATIC_JS.read_text(encoding="utf-8")
 
-    assert 'name: "pem_bundle"' in static
-    assert 'type: "textarea"' in static
+    assert '"name": "pem_bundle"' in static
+    assert '"type": "textarea"' in static
     assert '<textarea class="form-control font-monospace"' in static
     assert 'rows="10"' in static

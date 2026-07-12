@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 
-const react = fs.readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
-const packaged = fs.readFileSync(new URL('../../src/openinfra/interfaces/rendering/static/assets/openinfra-web.js', import.meta.url), 'utf8');
+import { readReactPortalSource, readRuntimePortalSource } from './helpers/frontend-sources.mjs';
+
+const react = await readReactPortalSource();
+const packaged = await readRuntimePortalSource();
 
 const operations = [
   'sbom-import', 'sbom-documents', 'sbom-document-get',
@@ -34,10 +36,10 @@ test('SBOM is grouped under Security with complete route parity', () => {
 
 test('SBOM vulnerability dates use calendars and risk export is downloadable', () => {
   for (const source of [react, packaged]) {
-    assert.match(source, /name:\s*['"]published_at['"][^\n]*type:\s*['"]datetime-local['"]/u);
-    assert.match(source, /name:\s*['"]modified_at['"][^\n]*type:\s*['"]datetime-local['"]/u);
+    assert.match(source, /["']?name["']?\s*:\s*['"]published_at['"][\s\S]{0,240}?["']?type["']?\s*:\s*['"]datetime-local['"]/u);
+    assert.match(source, /["']?name["']?\s*:\s*['"]modified_at['"][\s\S]{0,240}?["']?type["']?\s*:\s*['"]datetime-local['"]/u);
     assert.match(source, /sbom-risk-export/u);
-    assert.match(source, /download:\s*true/u);
+    assert.match(source, /["']?download["']?\s*:\s*true/u);
   }
 });
 

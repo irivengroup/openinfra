@@ -8,6 +8,8 @@ import urllib.request
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from tests.frontend_contract_sources import REACT_PORTAL, RUNTIME_PORTAL
+
 from openinfra.application.container import ApplicationFactory
 from openinfra.application.security_services import BootstrapTokenCommand
 from openinfra.interfaces.cli import OpenInfraCLI
@@ -280,10 +282,8 @@ class TestFlowMatrixInterfaces:
 
 def test_openapi_and_web_assets_document_flow_matrix() -> None:
     openapi = Path("docs/api/openapi.yaml").read_text(encoding="utf-8")
-    react = Path("web/src/main.jsx").read_text(encoding="utf-8")
-    static = Path("src/openinfra/interfaces/rendering/static/assets/openinfra-web.js").read_text(
-        encoding="utf-8"
-    )
+    react = REACT_PORTAL.read_text(encoding="utf-8")
+    static = RUNTIME_PORTAL.read_text(encoding="utf-8")
     i18n = Path("web/src/i18n.js").read_text(encoding="utf-8")
 
     for route in (

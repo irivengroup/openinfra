@@ -1,6 +1,20 @@
-# OpenInfra v0.31.1
+# OpenInfra v0.31.2
 
-OpenInfra 0.31.1 clôt le périmètre fonctionnel de P20 / EPIC-2003 : la file durable et l’outbox transactionnelle pilotent désormais des workers spécialisés de reporting, imports, graphes et RAG. Les payloads et résultats volumineux restent hors PostgreSQL sur filesystem atomique ou stockage S3 compatible. Le thème approuvé de la version 0.30.9 est strictement conservé.
+OpenInfra 0.31.2 livre P20 / EPIC-2004 : le portail est découpé en chunks par domaine, les catalogues et l’index de recherche sont chargés à la demande, les lectures sont dédupliquées et annulables, les listes volumineuses sont virtualisées et les Web Vitals sont mesurés en mémoire. Les contrats métier et le thème approuvé de la version 0.30.9 restent strictement inchangés.
+
+## Frontend modulaire et virtualisé — P20 / EPIC-2004
+
+- huit chunks métier plus le Dashboard, chargés à la navigation ;
+- manifeste initial limité aux métadonnées statistiques ;
+- index de recherche et taxonomie RSOT différés ;
+- cache de requêtes mémoire avec TTL, déduplication, invalidation et `AbortController` ;
+- protection contre les réponses concurrentes obsolètes ;
+- virtualisation automatique au-delà de 40 résultats ;
+- observation LCP, INP et tâches longues ;
+- budgets CI de 250 Kio JavaScript brut et 150 Kio gzip pour le shell initial ;
+- aucune persistance sensible dans le navigateur et aucune modification CSS.
+
+Voir `docs/architecture/modular-virtualized-frontend.md` et `docs/operations/frontend-performance.md`.
 
 ## Outbox et workers spécialisés — P20 / EPIC-2003
 
@@ -90,7 +104,7 @@ Le benchmark P19 détecte les régressions du transport applicatif ; il ne const
 | Gate transport p95/p99 | Livré et bloquant | Certification de capacité/endurance P20 |
 | Pagination par curseur | Livrée en EPIC-2002 | Certification PostgreSQL réelle P20 |
 | Outbox et workers spécialisés | Périmètre fonctionnel EPIC-2003 livré | Qualification PostgreSQL/S3 réelle et politiques de rétention |
-| Frontend modulaire/virtualisé | Planifié | EPIC-2004 |
+| Frontend modulaire/virtualisé | Livré en EPIC-2004 | Qualification Web Vitals réelle et observabilité EPIC-2005 |
 | Stockage objet des payloads massifs | Livré : filesystem atomique et S3 compatible | Qualification S3 réelle et politiques de rétention P20 |
 
 Voir `docs/architecture/high-performance-pro-enterprise.md` et `docs/runbooks/HIGH_PERFORMANCE_RUNTIME.md`.

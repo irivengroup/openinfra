@@ -1,10 +1,9 @@
 from pathlib import Path
 
+from tests.frontend_contract_sources import REACT_PORTAL, RUNTIME_PORTAL
+
 ROOT = Path(__file__).resolve().parents[2]
-SOURCES = (
-    ROOT / "web/src/main.jsx",
-    ROOT / "src/openinfra/interfaces/rendering/static/assets/openinfra-web.js",
-)
+SOURCES = (REACT_PORTAL, RUNTIME_PORTAL)
 
 
 def test_sbom_is_grouped_under_security_with_route_parity() -> None:
@@ -58,7 +57,7 @@ def test_sbom_dates_json_validation_and_download_are_real_controls() -> None:
         source = source_path.read_text(encoding="utf-8")
         assert "published_at" in source and "datetime-local" in source
         assert "modified_at" in source
-        assert "type: 'json'" in source or 'type: "json"' in source
+        assert '"type": "json"' in source
         assert "sbom-risk-export" in source and "download" in source
     react = SOURCES[0].read_text(encoding="utf-8")
     assert "selected.id.startsWith('sbom-')" in react

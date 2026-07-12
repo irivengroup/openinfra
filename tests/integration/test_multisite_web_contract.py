@@ -1,10 +1,9 @@
 from pathlib import Path
 
+from tests.frontend_contract_sources import REACT_PORTAL, RUNTIME_PORTAL
+
 ROOT = Path(__file__).resolve().parents[2]
-SOURCES = (
-    ROOT / "web/src/main.jsx",
-    ROOT / "src/openinfra/interfaces/rendering/static/assets/openinfra-web.js",
-)
+SOURCES = (REACT_PORTAL, RUNTIME_PORTAL)
 
 
 def test_multisite_is_grouped_under_dcim_with_api_parity() -> None:
@@ -62,12 +61,12 @@ def test_multisite_is_grouped_under_dcim_with_api_parity() -> None:
 
 def test_multisite_static_forms_use_typed_controls_and_governed_regional_routes() -> None:
     source = SOURCES[1].read_text(encoding="utf-8")
-    assert 'name: "access_level"' in source and 'type: "select"' in source
-    assert 'name: "site_codes"' in source and 'type: "json"' in source
-    assert 'name: "active_only"' in source and 'type: "boolean"' in source
+    assert '"name": "access_level"' in source and '"type": "select"' in source
+    assert '"name": "site_codes"' in source and '"type": "json"' in source
+    assert '"name": "active_only"' in source and '"type": "boolean"' in source
     for field in ("region_code", "site_code", "vrf_code", "collector_id", "job_type"):
-        assert f'name: "{field}"' in source
-    assert 'name: "max_attempts"' in source and 'type: "number"' in source
+        assert f'"name": "{field}"' in source
+    assert '"name": "max_attempts"' in source and '"type": "number"' in source
     assert "/v1/multisite/agents" not in source
     assert "/v1/multisite/regions" not in source
 

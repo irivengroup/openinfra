@@ -3,13 +3,12 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import test from 'node:test';
 
+import { readReactPortalSource, readRuntimePortalSource } from './helpers/frontend-sources.mjs';
+
 const webRoot = resolve(import.meta.dirname, '..');
 const projectRoot = resolve(webRoot, '..');
-const reactSource = await readFile(resolve(webRoot, 'src/main.jsx'), 'utf8');
-const staticSource = await readFile(
-  resolve(projectRoot, 'src/openinfra/interfaces/rendering/static/assets/openinfra-web.js'),
-  'utf8',
-);
+const reactSource = await readReactPortalSource();
+const staticSource = await readRuntimePortalSource();
 
 const operations = [
   ['discovery-evidence-list', 'GET', '/v1/discovery/evidence-list'],
@@ -23,12 +22,11 @@ const operations = [
 
 test('React and static portals expose the complete Discovery reconciliation contract', () => {
   for (const [operationId, method, path] of operations) {
-    assert.match(reactSource, new RegExp(`id: '${operationId}'`));
-    assert.match(staticSource, new RegExp(`id: "${operationId}"`));
-    assert.match(reactSource, new RegExp(`path: '${path.replaceAll('/', '\\/')}'`));
-    assert.match(staticSource, new RegExp(`path: "${path.replaceAll('/', '\\/')}"`));
-    assert.match(reactSource, new RegExp(`method: '${method}'`));
-    assert.match(staticSource, new RegExp(`method: "${method}"`));
+    for (const source of [reactSource, staticSource]) {
+      assert.ok(source.includes(`"id": "${operationId}"`));
+      assert.ok(source.includes(`"path": "${path}"`));
+      assert.ok(source.includes(`"method": "${method}"`));
+    }
   }
 });
 

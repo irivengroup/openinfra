@@ -3,10 +3,12 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import test from 'node:test';
 
+import { readReactPortalSource, readRuntimePortalSource } from './helpers/frontend-sources.mjs';
+
 const webRoot = resolve(import.meta.dirname, '..');
 const projectRoot = resolve(webRoot, '..');
-const react = await readFile(resolve(webRoot, 'src/main.jsx'), 'utf8');
-const runtime = await readFile(resolve(projectRoot, 'src/openinfra/interfaces/rendering/static/assets/openinfra-web.js'), 'utf8');
+const react = await readReactPortalSource();
+const runtime = await readRuntimePortalSource();
 const theme = await readFile(resolve(webRoot, 'src/openinfra-theme.css'), 'utf8');
 
 for (const source of [react, runtime]) {

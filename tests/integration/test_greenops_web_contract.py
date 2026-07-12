@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from tests.frontend_contract_sources import REACT_PORTAL, RUNTIME_PORTAL
+
 ROOT = Path(__file__).resolve().parents[2]
-REACT = ROOT / "web/src/main.jsx"
-STATIC = ROOT / "src/openinfra/interfaces/rendering/static/assets/openinfra-web.js"
+REACT = REACT_PORTAL
+STATIC = RUNTIME_PORTAL
 
 
 def test_greenops_is_grouped_under_dcim_with_complete_route_parity() -> None:
@@ -61,7 +63,7 @@ def test_greenops_is_grouped_under_dcim_with_complete_route_parity() -> None:
 def test_greenops_temporal_fields_use_native_calendar_controls() -> None:
     for path in (REACT, STATIC):
         source = path.read_text(encoding="utf-8")
-        assert "type: 'date'" in source or 'type: "date"' in source
-        assert "type: 'datetime-local'" in source or 'type: "datetime-local"' in source
+        assert '"type": "date"' in source
+        assert '"type": "datetime-local"' in source
         assert "greenops-report-export" in source
-        assert "download: true" in source
+        assert '"download": true' in source

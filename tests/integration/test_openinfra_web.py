@@ -12,6 +12,11 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from tests.frontend_contract_sources import (
+    REACT_PORTAL,
+    RUNTIME_PORTAL,
+    javascript_contract_text,
+)
 
 from openinfra import __version__
 from openinfra.domain.common import OpenInfraError
@@ -152,12 +157,21 @@ class TestOpenInfraWeb:
                 static_form_fields = self._get_text(
                     web.base_url + "/assets/openinfra-form-fields.js"
                 )
-                static_js = self._get_text(web.base_url + "/assets/openinfra-web.js")
+                static_shell = self._get_text(web.base_url + "/assets/openinfra-web.js")
+                static_js = javascript_contract_text(
+                    "\n".join(
+                        (
+                            static_shell,
+                            RUNTIME_PORTAL.read_text(encoding="utf-8"),
+                            static_form_fields,
+                        )
+                    )
+                )
                 index_cache_control = self._get_header(web.base_url + "/", "Cache-Control")
                 asset_cache_control = self._get_header(
                     web.base_url + "/assets/openinfra-web.js", "Cache-Control"
                 )
-                main_js = Path("web/src/main.jsx").read_text(encoding="utf-8")
+                main_js = javascript_contract_text(REACT_PORTAL.read_text(encoding="utf-8"))
                 package_metadata = json.loads(Path("web/package.json").read_text(encoding="utf-8"))
                 public_config = self._get_json(web.base_url + "/config.json")
                 bootstrap = self._get_json(web.base_url + "/bootstrap.json")
@@ -333,10 +347,10 @@ class TestOpenInfraWeb:
         assert "/v1/imports/migration-guide" in static_js + main_js
         assert "Chunk export signé" in static_js + main_js
         assert "/v1/exports/artifact-chunk" in static_js + main_js
-        assert "FIELD_SETS.jobId" in static_js
-        assert "FIELD_SETS.exportJobId" in static_js
-        assert "FIELD_SETS.chunkOffset" in static_js
-        assert "FIELD_SETS.chunkSize" in static_js
+        assert '"name": "job_id"' in static_js
+        assert '"label": "Job export"' in static_js
+        assert '"name": "offset"' in static_js
+        assert '"name": "size"' in static_js
         assert "Plan discovery locale Lite/Pro" in static_js + main_js
         assert "/v1/discovery/local-plan" in static_js + main_js
         assert "Plan bootstrap agent Enterprise" in static_js + main_js
@@ -366,7 +380,7 @@ class TestOpenInfraWeb:
         assert "grid-template-columns: minmax(0, 1fr) minmax(0, 50%) minmax(0, 1fr)" in static_css
         assert "RSOT (Ressource Source of Truth)" in static_js
         assert 'icon: "reference"' in static_js
-        assert "icon: 'reference'" in main_js
+        assert "icon: 'reference'" in main_js or 'icon: "reference"' in main_js
         assert "RSOT" in static_js
         assert (
             "M1 2a2 2 0 0 1 2-2h1.6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V2zm6.7 0a2 2 0 0 1 2-2h1.6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9.7a2 2 0 0 1-2-2V2zm6.25.55A1.8 1.8 0 0 1 15 4.18v7.64a1.8 1.8 0 0 1-1.05 1.63V2.55z"
@@ -438,10 +452,9 @@ class TestOpenInfraWeb:
             "Audit",
         ):
             assert context_label in static_js + main_js
-        assert (
-            '{ label: "ServiceNow", operationIds: ["servicenow-validate", "servicenow-ci-sync-plan"] }'
-            in static_js
-        )
+        assert 'label: "ServiceNow"' in static_js
+        assert '"servicenow-validate"' in static_js
+        assert '"servicenow-ci-sync-plan"' in static_js
         assert "group.operationIds.map((id) => byId.get(id)).filter(Boolean)" in static_js
         assert 'groups.push({ label: "Autres", operations: remaining })' in static_js
         assert "openinfra-accordion" in static_js + static_css
@@ -584,7 +597,7 @@ class TestOpenInfraWeb:
         assert 'path: "/v1/rsot/reconcile-object"' in static_js
         assert "Réconcilier une ressource" in static_js
         assert "Catalogue catégories / types" in static_js
-        assert "RESOURCE_TAXONOMY" in static_js
+        assert "resourceTaxonomy" in static_js
         assert "physical-server" not in static_js
         assert "Rack server" in static_js and "Firewall" in static_js
         assert '"value": "rack-server"' in static_js
@@ -678,7 +691,7 @@ class TestOpenInfraWeb:
         assert "dcimReferenceLevel(field)" in static_js
         assert "dcimOptions(field)" in static_js
         assert "isDcimReferenceField(field)" in static_js
-        assert "DCIM topology catalog returned" in static_js
+        assert "catalog:dcim:" in static_js
         assert 'this.state.selected.id.startsWith("dcim-")' in static_js
         toggle_body = static_js.split("toggleAccordion(moduleId)", 1)[1].split(
             "toggleSidebarContext", 1
@@ -744,11 +757,9 @@ class TestOpenInfraWeb:
         }
 
     def test_dashboard_form_operation_paths_are_real_backend_contracts(self) -> None:
-        static_js = Path(
-            "src/openinfra/interfaces/rendering/static/assets/openinfra-web.js"
-        ).read_text(encoding="utf-8")
+        static_js = RUNTIME_PORTAL.read_text(encoding="utf-8")
         api_source = Path("src/openinfra/interfaces/http_api.py").read_text(encoding="utf-8")
-        operation_paths = sorted(set(re.findall(r'path: "([^"]+)"', static_js)))
+        operation_paths = sorted(set(re.findall(r'"path": "([^"]+)"', static_js)))
         api_routes = set(re.findall(r'"(/api/v1/[^"]+)"', api_source))
 
         assert operation_paths
@@ -1292,7 +1303,7 @@ class TestOpenInfraWebEdges:
 
 
 def test_openinfra_web_site_and_organization_address_fields_are_exposed() -> None:
-    static_js = (OpenInfraWebStaticLocator().resolve() / "assets" / "openinfra-web.js").read_text()
+    static_js = javascript_contract_text(RUNTIME_PORTAL.read_text(encoding="utf-8"))
 
     assert '{ name: "street_address", label: "Rue", required: true' in static_js
     assert '{ name: "postal_code", label: "Code postal", required: true' in static_js
@@ -1305,7 +1316,7 @@ def test_openinfra_web_site_and_organization_address_fields_are_exposed() -> Non
 
 
 def test_openinfra_web_exposes_resilient_discovery_job_operations() -> None:
-    static_js = (OpenInfraWebStaticLocator().resolve() / "assets" / "openinfra-web.js").read_text()
+    static_js = javascript_contract_text(RUNTIME_PORTAL.read_text(encoding="utf-8"))
 
     for operation_id, path in (
         ("discovery-job-list", "/v1/discovery/jobs"),
@@ -1325,14 +1336,14 @@ def test_openinfra_web_exposes_resilient_discovery_job_operations() -> None:
 
 def test_dependency_graph_catalog_is_available_in_both_web_runtimes() -> None:
     static_root = OpenInfraWebStaticLocator().resolve()
-    runtime_js = (static_root / "assets" / "openinfra-web.js").read_text(encoding="utf-8")
-    react_js = Path("web/src/main.jsx").read_text(encoding="utf-8")
+    runtime_js = RUNTIME_PORTAL.read_text(encoding="utf-8")
+    react_js = REACT_PORTAL.read_text(encoding="utf-8")
     i18n_js = (static_root / "assets" / "openinfra-i18n.js").read_text(encoding="utf-8")
 
     for operation_id in ("graph-traverse", "graph-impact", "graph-path"):
         assert operation_id in runtime_js
         assert operation_id in react_js
         assert operation_id in i18n_js
-    assert 'path: "/v1/graph/traverse"' in runtime_js
+    assert '"path": "/v1/graph/traverse"' in runtime_js
     assert "Explore dependency graph" in i18n_js
     assert "Analyse d\u2019impact" in runtime_js + react_js

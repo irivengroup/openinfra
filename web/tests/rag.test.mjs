@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 
-const react = fs.readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
-const packaged = fs.readFileSync(new URL('../../src/openinfra/interfaces/rendering/static/assets/openinfra-web.js', import.meta.url), 'utf8');
+import { readReactPortalSource, readRuntimePortalSource } from './helpers/frontend-sources.mjs';
+
+const react = await readReactPortalSource();
+const packaged = await readRuntimePortalSource();
 const service = fs.readFileSync(new URL('../../src/openinfra/application/rag_services.py', import.meta.url), 'utf8');
 const generator = fs.readFileSync(new URL('../../src/openinfra/infrastructure/rag_generator.py', import.meta.url), 'utf8');
 
@@ -37,11 +39,11 @@ test('governed RAG exposes typed permissions, citations and downloadable exports
     assert.match(source, /required_permissions/u);
     assert.match(source, /question/u);
     assert.match(source, /rag-job-artifact/u);
-    assert.match(source, /download:\s*true/u);
+    assert.match(source, /["']?download["']?\s*:\s*true/u);
   }
   for (const source of [react, packaged]) {
-    assert.match(source, /name:\s*['"]metadata['"][^}]*type:\s*['"]json['"]/u);
-    assert.match(source, /name:\s*['"]payload['"][^}]*type:\s*['"]json['"]/u);
+    assert.match(source, /["']?name["']?\s*:\s*['"]metadata['"][\s\S]{0,240}?["']?type["']?\s*:\s*['"]json['"]/u);
+    assert.match(source, /["']?name["']?\s*:\s*['"]payload['"][\s\S]{0,240}?["']?type["']?\s*:\s*['"]json['"]/u);
   }
   assert.match(service, /question_hash/u);
   assert.match(generator, /citations/u);

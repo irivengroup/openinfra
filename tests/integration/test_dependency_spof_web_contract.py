@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from tests.frontend_contract_sources import REACT_PORTAL, RUNTIME_PORTAL
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-STATIC_JS = PROJECT_ROOT / "src/openinfra/interfaces/rendering/static/assets/openinfra-web.js"
+STATIC_JS = RUNTIME_PORTAL
 STATIC_CSS = PROJECT_ROOT / "src/openinfra/interfaces/rendering/static/assets/openinfra-web.css"
-REACT_JS = PROJECT_ROOT / "web/src/main.jsx"
+REACT_JS = REACT_PORTAL
 REACT_CSS = PROJECT_ROOT / "web/src/openinfra-theme.css"
 SOURCE_I18N = PROJECT_ROOT / "web/src/i18n.js"
 RUNTIME_I18N = PROJECT_ROOT / "src/openinfra/interfaces/rendering/static/assets/openinfra-i18n.js"

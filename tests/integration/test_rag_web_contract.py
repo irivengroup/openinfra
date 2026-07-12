@@ -1,10 +1,9 @@
 from pathlib import Path
 
+from tests.frontend_contract_sources import REACT_PORTAL, RUNTIME_PORTAL
+
 ROOT = Path(__file__).resolve().parents[2]
-SOURCES = (
-    ROOT / "web/src/main.jsx",
-    ROOT / "src/openinfra/interfaces/rendering/static/assets/openinfra-web.js",
-)
+SOURCES = (REACT_PORTAL, RUNTIME_PORTAL)
 
 
 def test_rag_is_grouped_under_rsot_with_route_parity_and_download() -> None:
@@ -56,7 +55,7 @@ def test_rag_forms_use_validation_controls_and_no_destructive_action() -> None:
         source = path.read_text(encoding="utf-8")
         assert "required_permissions" in source
         assert "metadata" in source
-        assert "type: 'json'" in source or 'type: "json"' in source
+        assert '"type": "json"' in source
         assert "question" in source
         assert "deactivate_missing" in source
         assert "rag-" in source

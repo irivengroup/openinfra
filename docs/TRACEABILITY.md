@@ -1,5 +1,18 @@
 # Traçabilité OpenInfra
 
+## v0.31.2 — P20 / EPIC-2004, frontend modulaire et virtualisé
+
+| Exigence | Implémentation | Vérification |
+|---|---|---|
+| REQ-00836 / CDC-PERF-007 | manifeste léger et huit chunks métier chargés par import dynamique | tests de présence, unicité des 274 opérations et absence de définitions métier dans le shell |
+| Cache de requêtes | TTL/LRU mémoire, déduplication, `AbortController`, invalidation et générations anti-réponse obsolète | tests Node de concurrence/invalidation et parité source/runtime |
+| Virtualisation | fenêtres bornées au-delà de 40 résultats dans les portails packagé et React | tests de bornes, géométrie et intégration |
+| Web Vitals | LCP 2 500 ms, INP 200 ms et tâches longues 200 ms, mesures mémoire bornées | tests observers/budgets et événement `openinfra:web-vital` |
+| Budgets bundle | JS initial brut ≤ 250 Kio et shell initial gzip ≤ 150 Kio | gate Vite, test Python et build CI |
+| Compatibilité | routes, identifiants, permissions, i18n et thème inchangés | contrats frontend, API, accessibilité, comparaison CSS et smoke wheel |
+
+- Portée 0.31.2 : EPIC-2004 fonctionnellement livré ; la qualification Web Vitals p75 sur topologie réelle et la certification de charge restent dans EPIC-2005.
+
 ## v0.31.1 — P20 / EPIC-2003, workers spécialisés métier
 
 | Exigence | Implémentation | Vérification |

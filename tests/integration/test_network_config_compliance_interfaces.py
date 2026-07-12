@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
+from tests.frontend_contract_sources import REACT_PORTAL, RUNTIME_PORTAL
 
 from openinfra.application.container import ApplicationFactory
 from openinfra.application.security_services import BootstrapTokenCommand
@@ -230,10 +231,8 @@ class TestNetworkConfigComplianceInterfaces:
 
 def test_openapi_and_web_catalog_document_network_config_compliance() -> None:
     openapi = Path("docs/api/openapi.yaml").read_text(encoding="utf-8")
-    react = Path("web/src/main.jsx").read_text(encoding="utf-8")
-    runtime = Path("src/openinfra/interfaces/rendering/static/assets/openinfra-web.js").read_text(
-        encoding="utf-8"
-    )
+    react = REACT_PORTAL.read_text(encoding="utf-8")
+    runtime = RUNTIME_PORTAL.read_text(encoding="utf-8")
     for route in (
         "/api/v1/network-config/baselines:",
         "/api/v1/network-config/baselines/upsert:",

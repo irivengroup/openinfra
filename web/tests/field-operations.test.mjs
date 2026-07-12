@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 
-const react = fs.readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
-const packaged = fs.readFileSync(new URL('../../src/openinfra/interfaces/rendering/static/assets/openinfra-web.js', import.meta.url), 'utf8');
+import { readReactPortalSource, readRuntimePortalSource } from './helpers/frontend-sources.mjs';
+
+const react = await readReactPortalSource();
+const packaged = await readRuntimePortalSource();
 const sharedFields = fs.readFileSync(new URL('../src/form-fields.js', import.meta.url), 'utf8');
 
 const expectedOperations = [
@@ -25,7 +27,7 @@ test('field operations are grouped under DCIM in both portals', () => {
 test('field evidence uses camera-aware bounded file controls and API payload expansion', () => {
   for (const source of [react, packaged]) {
     assert.match(source, /image\/jpeg,image\/png,image\/webp,application\/pdf/u);
-    assert.match(source, /capture:\s*['"]environment['"]/u);
+    assert.match(source, /["']?capture["']?\s*:\s*["']environment["']/u);
     assert.match(source, /2 \* 1024 \* 1024/u);
     assert.match(source, /content_base64/u);
     assert.match(source, /media_type/u);

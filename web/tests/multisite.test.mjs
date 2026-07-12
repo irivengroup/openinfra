@@ -2,11 +2,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 
-const react = fs.readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
-const packaged = fs.readFileSync(
-  new URL('../../src/openinfra/interfaces/rendering/static/assets/openinfra-web.js', import.meta.url),
-  'utf8',
-);
+import { readReactPortalSource, readRuntimePortalSource } from './helpers/frontend-sources.mjs';
+
+const react = await readReactPortalSource();
+const packaged = await readRuntimePortalSource();
 const translations = fs.readFileSync(
   new URL('../../src/openinfra/interfaces/rendering/static/assets/openinfra-i18n.js', import.meta.url),
   'utf8',
@@ -88,9 +87,9 @@ test('Enterprise regional discovery routes keep static and React parity', () => 
       assert.match(source, new RegExp(route.replaceAll('/', '\\/'), 'u'));
     }
     for (const field of ['region_code', 'site_code', 'vrf_code', 'collector_id', 'job_type']) {
-      assert.match(source, new RegExp(`name:\\s*['"]${field}['"]`, 'u'));
+      assert.ok(source.includes(`"name": "${field}"`));
     }
-    assert.match(source, /name:\s*['"]max_attempts['"][^}]*type:\s*['"]number['"]/u);
+    assert.match(source, /["']?name["']?\s*:\s*['"]max_attempts['"][\s\S]{0,240}?["']?type["']?\s*:\s*['"]number['"]/u);
   }
   assert.match(translations, /Configure regional Discovery route/u);
   assert.match(translations, /Route regional Discovery job/u);
@@ -98,9 +97,9 @@ test('Enterprise regional discovery routes keep static and React parity', () => 
 
 test('multisite forms use typed access, boolean and site-list controls', () => {
   for (const source of [react, packaged]) {
-    assert.match(source, /name:\s*['"]access_level['"][^}]*type:\s*['"]select['"]/u);
-    assert.match(source, /name:\s*['"]active_only['"][^}]*type:\s*['"]boolean['"]/u);
-    assert.match(source, /name:\s*['"]site_codes['"][^}]*type:\s*['"]json['"]/u);
+    assert.match(source, /["']?name["']?\s*:\s*['"]access_level['"][\s\S]{0,240}?["']?type["']?\s*:\s*['"]select['"]/u);
+    assert.match(source, /["']?name["']?\s*:\s*['"]active_only['"][\s\S]{0,240}?["']?type["']?\s*:\s*['"]boolean['"]/u);
+    assert.match(source, /["']?name["']?\s*:\s*['"]site_codes['"][\s\S]{0,240}?["']?type["']?\s*:\s*['"]json['"]/u);
   }
   assert.match(translations, /Multisite management/u);
   assert.match(translations, /viewer:\s*['"]Viewer['"]/u);
@@ -129,7 +128,7 @@ test('multisite disaster recovery keeps typed static and React parity', () => {
       assert.match(source, new RegExp(route.replaceAll('/', '\\/'), 'u'));
     }
     for (const field of fields) {
-      assert.match(source, new RegExp(`name:\\s*['"]${field}['"]`, 'u'));
+      assert.ok(source.includes(`"name": "${field}"`));
     }
     assert.doesNotMatch(source, /automatic_promotion/u);
   }

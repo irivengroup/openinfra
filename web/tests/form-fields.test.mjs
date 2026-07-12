@@ -3,6 +3,8 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import test from 'node:test';
 
+import { readReactPortalSource, readRuntimePortalSource } from './helpers/frontend-sources.mjs';
+
 import {
   inferValidationKind,
   inputTypeForField,
@@ -14,8 +16,8 @@ import {
 
 const webRoot = resolve(import.meta.dirname, '..');
 const projectRoot = resolve(webRoot, '..');
-const react = await readFile(resolve(webRoot, 'src/main.jsx'), 'utf8');
-const runtime = await readFile(resolve(projectRoot, 'src/openinfra/interfaces/rendering/static/assets/openinfra-web.js'), 'utf8');
+const react = await readReactPortalSource();
+const runtime = await readRuntimePortalSource();
 const sourceHelper = await readFile(resolve(webRoot, 'src/form-fields.js'), 'utf8');
 const runtimeHelper = await readFile(resolve(projectRoot, 'src/openinfra/interfaces/rendering/static/assets/openinfra-form-fields.js'), 'utf8');
 const theme = await readFile(resolve(webRoot, 'src/openinfra-theme.css'), 'utf8');
@@ -67,9 +69,9 @@ test('React and packaged runtime share the exact validation implementation', () 
 test('graph operations are grouped under RSOT and no standalone graph component remains', () => {
   for (const source of [react, runtime]) {
     assert.doesNotMatch(source, /\{ id: ['"]graph['"], label:/);
-    assert.match(source, /label: ['"]Exploration['"]/);
-    assert.match(source, /label: ['"]Analyse d’impact['"]/);
-    assert.match(source, /label: ['"]Exports['"]/);
+    assert.match(source, /["']?label["']?\s*:\s*["']Exploration["']/);
+    assert.match(source, /["']?label["']?\s*:\s*["']Analyse d’impact["']/);
+    assert.match(source, /["']?label["']?\s*:\s*["']Exports["']/);
   }
 });
 

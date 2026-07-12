@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.31.2 - 2026-07-12
+
+### P20 / EPIC-2004 — frontend modulaire et virtualisé
+
+- découpage du portail packagé et du portail React en huit chunks métier chargés à la demande ;
+- Dashboard limité au manifeste statistique, sans catalogue métier ni taxonomie RSOT au démarrage ;
+- index de recherche globale différé ;
+- cache de requêtes mémoire avec TTL, déduplication, annulation, invalidation ciblée et protection contre les réponses obsolètes ;
+- virtualisation des groupes de résultats dépassant 40 éléments ;
+- observation LCP, INP et tâches longues avec budgets explicites ;
+- gates Vite et Python pour les chunks, la taille du shell, la parité des 274 opérations et l’absence de stockage navigateur sensible ;
+- documentation d’architecture, runbook, tests frontend/backend et packaging alignés ;
+- aucune migration, aucun changement de contrat public et aucune modification du thème ou des feuilles de style.
+
 ## 0.31.1 - 2026-07-12
 
 ### P20 / EPIC-2003 — workers imports, graphes et RAG

@@ -29,7 +29,7 @@ jobs:
           node-version: '22'
 
       - name: Install frontend dependencies
-        run: npm install --prefix web --ignore-scripts --no-audit --no-fund
+        run: npm ci --prefix web --ignore-scripts --no-audit --no-fund
 
       - name: Frontend contract lint
         run: npm --prefix web run lint
@@ -329,12 +329,14 @@ jobs:
             tests/integration/test_web_accessibility_contract.py \
             tests/integration/test_openinfra_web.py
 
-      - name: Web startup transfer, cache and lazy catalog regression
+      - name: Modular frontend, cache, virtualization and startup budgets
         if: matrix.python-version == '3.13'
         run: |
           python -m pytest -q --no-cov \
             tests/integration/test_openinfra_web.py \
-            tests/integration/test_frontend_runtime_startup.py
+            tests/integration/test_frontend_runtime_startup.py \
+            tests/integration/test_frontend_modular_performance.py
+          python scripts/validate_frontend.py --project-root .
 
       - name: Unit and integration tests with coverage
         run: python -m pytest

@@ -56,7 +56,15 @@ class FrontendContractValidator:
             raise FrontendValidationError("web/package.json must declare React and React DOM")
         if not bootstrap_declared:
             raise FrontendValidationError("web/package.json must declare Bootstrap 5")
-        main_source = (self._project_root / "web/src/main.jsx").read_text(encoding="utf-8")
+        main_shell = (self._project_root / "web/src/main.jsx").read_text(encoding="utf-8")
+        react_domain_root = self._project_root / "web/src/domains"
+        react_domain_sources = "\n".join(
+            path.read_text(encoding="utf-8") for path in sorted(react_domain_root.glob("*.js"))
+        )
+        react_manifest = (self._project_root / "web/src/domain-manifest.js").read_text(
+            encoding="utf-8"
+        )
+        main_source = "\n".join((main_shell, react_manifest, react_domain_sources))
         i18n_source = (self._project_root / "web/src/i18n.js").read_text(encoding="utf-8")
         if (
             "from 'react'" not in main_source
@@ -148,7 +156,7 @@ class FrontendContractValidator:
             or "Face rack" not in main_source
             or "IT Asset Management" not in main_source
             or "ITAM" not in main_source
-            or "icon: 'asset'" not in main_source
+            or ("icon: 'asset'" not in main_source and '"icon": "asset"' not in main_source)
             or "Tenant de sécurité" in main_source
             or "/v1/itam/support-profile" not in main_source
             or "/v1/itam/support-coverage" not in main_source
@@ -239,7 +247,7 @@ class FrontendContractValidator:
                 )
         forbidden_main_source = (
             "Search OpenInfra operations",
-            "openinfra-search",
+            'id="openinfra-search"',
             "Login</button>",
             "Sign-up",
             "Tenant de sécurité",
@@ -307,27 +315,12 @@ class FrontendContractValidator:
         return data
 
     @staticmethod
-    def _validate_static_operation_catalog(runtime_js: str) -> None:
-        field_sets_match = re.search(
-            r"const FIELD_SETS = \{(?P<body>.*?)\n\};\n\nconst OPENINFRA_MODULES",
-            runtime_js,
-            flags=re.DOTALL,
-        )
-        if field_sets_match is None:
-            raise FrontendValidationError("runtime FIELD_SETS catalog is missing")
-        declared = set(
-            re.findall(
-                r"^\s{2}([A-Za-z_$][A-Za-z0-9_$]*):",
-                field_sets_match.group("body"),
-                flags=re.MULTILINE,
-            )
-        )
-        referenced = set(re.findall(r"\bFIELD_SETS\.([A-Za-z_$][A-Za-z0-9_$]*)", runtime_js))
-        missing = sorted(referenced - declared)
-        if missing:
-            raise FrontendValidationError(
-                "runtime FIELD_SETS references are undefined: " + ", ".join(missing)
-            )
+    def _validate_static_operation_catalog(
+        runtime_js: str,
+        runtime_manifest: str,
+        runtime_catalog: str,
+        runtime_search_index: str,
+    ) -> None:
         required_startup_fragments = (
             "validateOperationCatalog(OPENINFRA_MODULES)",
             "this.render();\n    await this.refreshRuntime();",
@@ -337,6 +330,11 @@ class FrontendContractValidator:
             "loadCatalogsForOperation(operation)",
             "renderFatalStartupError(openInfraRoot, error)",
             ".filter((field) => field?.required)",
+            "ensureModuleLoaded(moduleId)",
+            "loadSearchIndex()",
+            "OpenInfraQueryCache",
+            "OpenInfraVirtualList",
+            "installOpenInfraWebVitals",
         )
         missing_startup = [
             fragment for fragment in required_startup_fragments if fragment not in runtime_js
@@ -344,6 +342,59 @@ class FrontendContractValidator:
         if missing_startup:
             raise FrontendValidationError(
                 "runtime startup resilience contract is incomplete: " + ", ".join(missing_startup)
+            )
+
+        required_manifest_fragments = (
+            "OPENINFRA_DOMAIN_LOADERS",
+            'import("./domains/rsot.js?v=',
+            'import("./domains/dcim.js?v=',
+            'import("./domains/security.js?v=',
+            '"operations": []',
+            '"loaded": false',
+        )
+        missing_manifest = [
+            fragment for fragment in required_manifest_fragments if fragment not in runtime_manifest
+        ]
+        if missing_manifest:
+            raise FrontendValidationError(
+                "runtime domain manifest contract is incomplete: " + ", ".join(missing_manifest)
+            )
+
+        operation_ids = re.findall(r'^\s{6}"id": "([^"]+)",?$', runtime_catalog, flags=re.MULTILINE)
+        if len(operation_ids) != 274:
+            raise FrontendValidationError(
+                f"runtime domain catalog must expose 274 operations, found {len(operation_ids)}"
+            )
+        duplicates = sorted(
+            operation_id
+            for operation_id in set(operation_ids)
+            if operation_ids.count(operation_id) > 1
+        )
+        if duplicates:
+            raise FrontendValidationError(
+                "runtime domain operation identifiers are duplicated: " + ", ".join(duplicates)
+            )
+        for required_operation in (
+            "rsot-list",
+            "ipam-dashboard",
+            "dcim-sites",
+            "itam-organizations",
+            "discovery-evidence-submit",
+            "export-artifact-chunk",
+            "servicenow-validate",
+            "audit-events",
+        ):
+            if required_operation not in operation_ids:
+                raise FrontendValidationError(
+                    "runtime domain catalog is missing operation: " + required_operation
+                )
+            if required_operation not in runtime_search_index:
+                raise FrontendValidationError(
+                    "runtime lazy search index is missing operation: " + required_operation
+                )
+        if '"path": "/v1/discovery/evidence"' in runtime_js:
+            raise FrontendValidationError(
+                "runtime shell must not embed business operation definitions"
             )
 
     def _validate_i18n_contract(self, main_source: str, i18n_source: str) -> None:
@@ -384,6 +435,19 @@ class FrontendContractValidator:
             "assets/openinfra-form-fields.js",
             "assets/openinfra-web.js",
             "assets/openinfra-web.css",
+            "assets/openinfra-domain-manifest.js",
+            "assets/openinfra-search-index.js",
+            "assets/openinfra-query-cache.js",
+            "assets/openinfra-virtual-list.js",
+            "assets/openinfra-web-vitals.js",
+            "assets/domains/rsot.js",
+            "assets/domains/ipam.js",
+            "assets/domains/dcim.js",
+            "assets/domains/itam.js",
+            "assets/domains/discovery.js",
+            "assets/domains/data.js",
+            "assets/domains/integrations.js",
+            "assets/domains/security.js",
         )
         missing = [name for name in required if not (root / name).is_file()]
         if missing:
@@ -407,12 +471,19 @@ class FrontendContractValidator:
                 "form validation implementation"
             )
         self._validate_i18n_contract(runtime_js, runtime_i18n)
-        self._validate_static_operation_catalog(runtime_js)
+        runtime_manifest = assets_by_name["assets/openinfra-domain-manifest.js"]
+        runtime_catalog = "\n".join(
+            assets_by_name[name] for name in required if name.startswith("assets/domains/")
+        )
+        runtime_search_index = assets_by_name["assets/openinfra-search-index.js"]
+        self._validate_static_operation_catalog(
+            runtime_js, runtime_manifest, runtime_catalog, runtime_search_index
+        )
         if "Dashboard de pilotage OpenInfra" in payload:
             raise FrontendValidationError("runtime dashboard title must be shortened to Dashboard")
         if "renderOverviewRuntimeMetrics(displayedVersion, config, protectedForms)" not in payload:
             raise FrontendValidationError("runtime dashboard metrics must be scoped to overview")
-        for fragment in (
+        required_runtime_fragments = (
             "Dashboard",
             "bg-dark text-white",
             "openinfra-sidebar",
@@ -506,9 +577,9 @@ class FrontendContractValidator:
             "distributed_discovery_agents",
             "discovery_collector",
             "requested_increment",
-            "exportJobId",
-            "chunkOffset",
-            "chunkSize",
+            '"name": "job_id"',
+            "Offset octets",
+            "Taille chunk",
             "#2a0015 0%, #4b001f 46%, #6a1430 100%",
             ".badge.openinfra-edition-badge",
             "openinfra-skip-link",
@@ -561,7 +632,7 @@ class FrontendContractValidator:
             "endpoint_url",
             "requested_scope",
             "RSOT (Ressource Source of Truth)",
-            'icon: "reference"',
+            '"icon": "reference"',
             "OPENINFRA_ICONS",
             "reference:",
             "asset:",
@@ -573,7 +644,7 @@ class FrontendContractValidator:
             ),
             "IT Asset Management",
             "ITAM",
-            'icon: "asset"',
+            '"icon": "asset"',
             "/v1/itam/support-profile",
             "/v1/itam/support-coverage",
             "Déclarer garantie constructeur",
@@ -584,8 +655,8 @@ class FrontendContractValidator:
             "/v1/rsot/reconcile-object",
             "Réconcilier une ressource",
             "Catalogue catégories / types",
-            "RESOURCE_TAXONOMY",
-            "RESOURCE_CATEGORY_OPTIONS",
+            "resourceTaxonomy",
+            "resourceCategories",
             "Rack server",
             "optionLabel(option)",
             "optionValue(option)",
@@ -664,11 +735,15 @@ class FrontendContractValidator:
             "Média câble",
             "Format rendu",
             "Face rack",
-        ):
-            if fragment not in payload:
-                raise FrontendValidationError(
-                    "runtime web assets do not expose the Bootstrap dashboard contract"
-                )
+        )
+        missing_runtime_fragments = [
+            fragment for fragment in required_runtime_fragments if fragment not in payload
+        ]
+        if missing_runtime_fragments:
+            raise FrontendValidationError(
+                "runtime web assets do not expose the Bootstrap dashboard contract: "
+                + ", ".join(missing_runtime_fragments)
+            )
         css_payload = assets_by_name["assets/openinfra-web.css"]
         if ".openinfra-sidebar {\n  width: 100%;" in css_payload:
             raise FrontendValidationError(
@@ -692,7 +767,7 @@ class FrontendContractValidator:
             ),
             "openinfra-method",
             "Search OpenInfra operations",
-            "openinfra-search",
+            'id="openinfra-search"',
             "openinfra-login",
             "openinfra-signup",
             'config?.authMode || "standard")}</span>',

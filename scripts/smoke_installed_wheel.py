@@ -13,7 +13,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.31.1"
+    EXPECTED_VERSION = "0.31.2"
     EXPECTED_ASYNC_ROUTES = (
         "/api/v1/async/jobs",
         "/api/v1/async/jobs/get",
@@ -198,6 +198,21 @@ class InstalledWheelSmoke:
         "openinfra-web.css",
         "openinfra-i18n.js",
         "openinfra-form-fields.js",
+        "openinfra-domain-manifest.js",
+        "openinfra-query-cache.js",
+        "openinfra-search-index.js",
+        "openinfra-virtual-list.js",
+        "openinfra-web-vitals.js",
+    )
+    EXPECTED_DOMAIN_ASSETS = (
+        "rsot.js",
+        "ipam.js",
+        "dcim.js",
+        "itam.js",
+        "discovery.js",
+        "data.js",
+        "integrations.js",
+        "security.js",
     )
 
     def run(self) -> dict[str, object]:
@@ -240,7 +255,7 @@ class InstalledWheelSmoke:
             "simulation_routes": len(self.EXPECTED_SIMULATION_ROUTES),
             "migrations": len(migrations),
             "last_migration": migrations[-1].name,
-            "runtime_assets": len(self.EXPECTED_ASSETS),
+            "runtime_assets": len(self.EXPECTED_ASSETS) + len(self.EXPECTED_DOMAIN_ASSETS),
             "dependency_graph_benchmark": True,
         }
 
@@ -376,6 +391,12 @@ class InstalledWheelSmoke:
     def _assert_assets(self, package_root: Path) -> None:
         assets_root = package_root / "interfaces" / "rendering" / "static" / "assets"
         missing = [name for name in self.EXPECTED_ASSETS if not (assets_root / name).is_file()]
+        domains_root = assets_root / "domains"
+        missing.extend(
+            f"domains/{name}"
+            for name in self.EXPECTED_DOMAIN_ASSETS
+            if not (domains_root / name).is_file()
+        )
         if missing:
             raise InstalledWheelSmokeError(
                 "installed runtime is missing web assets: " + ", ".join(missing)

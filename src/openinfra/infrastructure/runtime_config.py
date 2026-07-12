@@ -119,6 +119,21 @@ class RuntimeDatabaseDsnResolver:
             reference_key="OPENINFRA_DATABASE_READ_DSN_REF",
         )
 
+    def resolve_cursor_signing_secret(self, explicit_secret: str | None = None) -> str:
+        direct = (explicit_secret or "").strip() or os.environ.get(
+            "OPENINFRA_CURSOR_SIGNING_SECRET", ""
+        ).strip()
+        if direct:
+            return direct
+        runtime = self._loader.load()
+        configured = runtime.get("OPENINFRA_CURSOR_SIGNING_SECRET")
+        if configured:
+            return configured
+        reference = runtime.get("OPENINFRA_CURSOR_SIGNING_SECRET_REF")
+        if reference:
+            return self._secret_resolver.resolve(reference)
+        return self.resolve_consistency_secret()
+
     def resolve_consistency_secret(self, explicit_secret: str | None = None) -> str:
         direct = (explicit_secret or "").strip() or os.environ.get(
             "OPENINFRA_READ_CONSISTENCY_SECRET", ""

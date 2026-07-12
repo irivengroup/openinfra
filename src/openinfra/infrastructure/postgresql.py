@@ -287,6 +287,13 @@ from openinfra.domain.source_of_truth import (
     SourceRelation,
     SourceRelationPage,
 )
+from openinfra.infrastructure.cursor_pagination import (
+    CursorDirection,
+    CursorField,
+    CursorTokenCodec,
+    CursorValueType,
+    PostgreSQLKeysetPage,
+)
 from openinfra.infrastructure.field_operation_mapper import FieldOperationRecordMapper
 from openinfra.infrastructure.finops_mapper import FinOpsRecordMapper
 from openinfra.infrastructure.greenops_mapper import GreenOpsRecordMapper
@@ -1368,8 +1375,31 @@ class PostgreSQLTransactionManager(TransactionManager):
 
 
 class PostgreSQLRepositoryBase:
-    def __init__(self, registry: PostgreSQLSessionRegistry) -> None:
+    def __init__(
+        self,
+        registry: PostgreSQLSessionRegistry,
+        cursor_codec: CursorTokenCodec | None = None,
+    ) -> None:
         self._registry = registry
+        self._cursor_codec = cursor_codec
+
+    def _keyset_page(
+        self,
+        pagination: Pagination,
+        *,
+        scope: str,
+        tenant_id: TenantId,
+        filters: Mapping[str, object],
+        fields: Sequence[CursorField],
+    ) -> PostgreSQLKeysetPage:
+        return PostgreSQLKeysetPage.create(
+            pagination,
+            scope=scope,
+            tenant_id=tenant_id.value,
+            filters=filters,
+            fields=fields,
+            codec=self._cursor_codec,
+        )
 
     def _execute(self, query: str, params: Mapping[str, object] | None = None) -> CursorProtocol:
         cursor = self._registry.current().cursor()
@@ -5810,14 +5840,18 @@ class PostgreSQLSecurityRepository(PostgreSQLRepositoryBase, SecurityRepository)
         pagination: Pagination,
         include_inactive: bool,
     ) -> SecurityTokenPage:
-        try:
-            cursor_offset = int(pagination.cursor or "0")
-        except ValueError as exc:
-            raise ValidationError("pagination cursor must be a numeric offset") from exc
-        if cursor_offset < 0:
-            raise ValidationError("pagination cursor must be positive")
+        page = self._keyset_page(
+            pagination,
+            scope="security.api-tokens",
+            tenant_id=tenant_id,
+            filters={"include_inactive": include_inactive},
+            fields=(
+                CursorField("created_at", CursorDirection.ASC, CursorValueType.DATETIME),
+                CursorField("id"),
+            ),
+        )
         rows = self._fetch_all(
-            """
+            f"""
             SELECT id, tenant_id, subject, token_hash, token_prefix, roles, active, created_at,
                    expires_at, revoked_at, revoked_by, last_used_at, use_count
             FROM api_tokens
@@ -5830,22 +5864,19 @@ class PostgreSQLSecurityRepository(PostgreSQLRepositoryBase, SecurityRepository)
                     AND (expires_at IS NULL OR expires_at > now())
                 )
               )
+              {page.where_sql}
             ORDER BY created_at ASC, id ASC
-            LIMIT %(limit)s OFFSET %(offset)s
-            """,
+            LIMIT %(fetch_limit)s{page.offset_sql}
+            """,  # nosec B608 -- keyset SQL is generated from validated cursor fields
             {
                 "tenant_id": tenant_id.value,
                 "include_inactive": include_inactive,
-                "limit": pagination.limit + 1,
-                "offset": cursor_offset,
+                **page.parameters,
             },
         )
         selected_rows = tuple(rows[: pagination.limit])
         credentials = tuple(self._credential_from_row(row) for row in selected_rows)
-        next_cursor = (
-            str(cursor_offset + pagination.limit) if len(rows) > pagination.limit else None
-        )
-        return SecurityTokenPage(credentials, next_cursor)
+        return SecurityTokenPage(credentials, page.next_cursor(rows))
 
     def record_token_used(self, tenant_id: TenantId, token_hash: str) -> None:
         self._execute_without_result(
@@ -5931,36 +5962,34 @@ class PostgreSQLAccessPolicyRepository(PostgreSQLRepositoryBase, AccessPolicyRep
         pagination: Pagination,
         include_inactive: bool,
     ) -> AccessPolicyRulePage:
-        try:
-            cursor_offset = int(pagination.cursor or "0")
-        except ValueError as exc:
-            raise ValidationError("pagination cursor must be a numeric offset") from exc
-        if cursor_offset < 0:
-            raise ValidationError("pagination cursor must be positive")
+        page = self._keyset_page(
+            pagination,
+            scope="security.access-policy-rules",
+            tenant_id=tenant_id,
+            filters={"include_inactive": include_inactive},
+            fields=(CursorField("name"), CursorField("id")),
+        )
         rows = self._fetch_all(
-            """
+            f"""
             SELECT id, tenant_id, name, permission, effect, subjects, roles, site_codes,
                    environments, active, created_at
             FROM access_policy_rules
             WHERE tenant_id = %(tenant_id)s
               AND (%(include_inactive)s OR active = true)
+              {page.where_sql}
             ORDER BY name ASC, id ASC
-            LIMIT %(limit)s OFFSET %(offset)s
-            """,
+            LIMIT %(fetch_limit)s{page.offset_sql}
+            """,  # nosec B608 -- keyset SQL is generated from validated cursor fields
             {
                 "tenant_id": tenant_id.value,
                 "include_inactive": include_inactive,
-                "limit": pagination.limit + 1,
-                "offset": cursor_offset,
+                **page.parameters,
             },
         )
         selected_rows = tuple(rows[: pagination.limit])
-        next_cursor = (
-            str(cursor_offset + pagination.limit) if len(rows) > pagination.limit else None
-        )
         return AccessPolicyRulePage(
             tuple(self._rule_from_row(row) for row in selected_rows),
-            next_cursor,
+            page.next_cursor(rows),
         )
 
     def find_active_rules_for_permission(
@@ -6066,9 +6095,20 @@ class PostgreSQLSourceGovernanceRepository(PostgreSQLRepositoryBase, SourceGover
         include_inactive: bool = False,
         object_kind: str | None = None,
     ) -> SourceGovernanceRulePage:
-        offset = self._offset(pagination.cursor)
+        normalized_kind = object_kind.strip().lower() if object_kind is not None else None
+        page = self._keyset_page(
+            pagination,
+            scope="rsot.source-governance-rules",
+            tenant_id=tenant_id,
+            filters={"include_inactive": include_inactive, "object_kind": normalized_kind},
+            fields=(
+                CursorField("priority", CursorDirection.DESC, CursorValueType.INTEGER),
+                CursorField("name"),
+                CursorField("id"),
+            ),
+        )
         rows = self._fetch_all(
-            """
+            f"""
             SELECT id, tenant_id, name, object_kind, attribute_path, authoritative_source,
                    priority, freshness_seconds, conflict_strategy, active, created_at
             FROM source_governance_rules
@@ -6079,22 +6119,21 @@ class PostgreSQLSourceGovernanceRepository(PostgreSQLRepositoryBase, SourceGover
                 OR object_kind IS NULL
                 OR object_kind = %(object_kind)s
               )
+              {page.where_sql}
             ORDER BY priority DESC, name ASC, id ASC
-            LIMIT %(limit)s OFFSET %(offset)s
-            """,
+            LIMIT %(fetch_limit)s{page.offset_sql}
+            """,  # nosec B608 -- keyset SQL is generated from validated cursor fields
             {
                 "tenant_id": tenant_id.value,
                 "include_inactive": include_inactive,
-                "object_kind": object_kind.strip().lower() if object_kind is not None else None,
-                "limit": pagination.limit + 1,
-                "offset": offset,
+                "object_kind": normalized_kind,
+                **page.parameters,
             },
         )
         selected = tuple(rows[: pagination.limit])
-        next_cursor = str(offset + pagination.limit) if len(rows) > pagination.limit else None
         return SourceGovernanceRulePage(
             tuple(self._rule_from_row(row) for row in selected),
-            next_cursor,
+            page.next_cursor(rows),
         )
 
     def find_active_rules_for_kind(
@@ -6142,15 +6181,6 @@ class PostgreSQLSourceGovernanceRepository(PostgreSQLRepositoryBase, SourceGover
             "active": rule.active,
             "created_at": rule.created_at,
         }
-
-    def _offset(self, cursor: str | None) -> int:
-        try:
-            offset = int(cursor or "0")
-        except ValueError as exc:
-            raise ValidationError("pagination cursor must be a numeric offset") from exc
-        if offset < 0:
-            raise ValidationError("pagination cursor must be positive")
-        return offset
 
     def _rule_from_row(self, row: Mapping[str, object]) -> SourceGovernanceRule:
         return SourceGovernanceRule.restore(
@@ -6269,9 +6299,24 @@ class PostgreSQLSourceOfTruthRepository(PostgreSQLRepositoryBase, SourceOfTruthR
         tag: str | None = None,
         resource_type: str | None = None,
     ) -> SourceObjectPage:
-        offset = self._offset(pagination.cursor)
+        normalized_kind = kind.strip().lower() if kind is not None else None
+        normalized_tag = tag.strip().lower() if tag is not None else None
+        normalized_resource_type = (
+            resource_type.strip().lower() if resource_type is not None else None
+        )
+        page = self._keyset_page(
+            pagination,
+            scope="rsot.source-objects",
+            tenant_id=tenant_id,
+            filters={
+                "kind": normalized_kind,
+                "tag": normalized_tag,
+                "resource_type": normalized_resource_type,
+            },
+            fields=(CursorField("object_key"),),
+        )
         rows = self._fetch_all(
-            """
+            f"""
             SELECT id, tenant_id, object_key, kind, display_name, attributes, tags, source_system,
                    version, status, created_at, updated_at
             FROM source_objects
@@ -6279,23 +6324,23 @@ class PostgreSQLSourceOfTruthRepository(PostgreSQLRepositoryBase, SourceOfTruthR
               AND (%(kind)s IS NULL OR kind = %(kind)s)
               AND (%(tag)s IS NULL OR tags @> %(tag)s)
               AND (%(resource_type)s IS NULL OR attributes->>'resource_type' = %(resource_type)s)
+              {page.where_sql}
             ORDER BY object_key ASC
-            LIMIT %(limit)s OFFSET %(offset)s
-            """,
+            LIMIT %(fetch_limit)s{page.offset_sql}
+            """,  # nosec B608 -- keyset SQL is generated from validated cursor fields
             {
                 "tenant_id": tenant_id.value,
-                "kind": kind.strip().lower() if kind is not None else None,
-                "tag": [tag.strip().lower()] if tag is not None else None,
-                "resource_type": (
-                    resource_type.strip().lower() if resource_type is not None else None
-                ),
-                "limit": pagination.limit + 1,
-                "offset": offset,
+                "kind": normalized_kind,
+                "tag": [normalized_tag] if normalized_tag is not None else None,
+                "resource_type": normalized_resource_type,
+                **page.parameters,
             },
         )
         selected = tuple(rows[: pagination.limit])
-        next_cursor = str(offset + pagination.limit) if len(rows) > pagination.limit else None
-        return SourceObjectPage(tuple(self._object_from_row(row) for row in selected), next_cursor)
+        return SourceObjectPage(
+            tuple(self._object_from_row(row) for row in selected),
+            page.next_cursor(rows),
+        )
 
     def find_object_version(
         self,
@@ -6380,9 +6425,26 @@ class PostgreSQLSourceOfTruthRepository(PostgreSQLRepositoryBase, SourceOfTruthR
         relation_type: str | None = None,
         as_of: datetime | None = None,
     ) -> SourceRelationPage:
-        offset = self._offset(pagination.cursor)
+        normalized_source = source_key.strip().lower() if source_key is not None else None
+        normalized_target = target_key.strip().lower() if target_key is not None else None
+        normalized_type = relation_type.strip().lower() if relation_type is not None else None
+        page = self._keyset_page(
+            pagination,
+            scope="rsot.source-relations",
+            tenant_id=tenant_id,
+            filters={
+                "source_key": normalized_source,
+                "target_key": normalized_target,
+                "relation_type": normalized_type,
+                "as_of": as_of,
+            },
+            fields=(
+                CursorField("created_at", CursorDirection.DESC, CursorValueType.DATETIME),
+                CursorField("id", CursorDirection.DESC),
+            ),
+        )
         rows = self._fetch_all(
-            """
+            f"""
             SELECT id, tenant_id, relation_type, source_key, target_key, provenance,
                    valid_from, valid_to, active, created_at
             FROM source_relations
@@ -6392,25 +6454,23 @@ class PostgreSQLSourceOfTruthRepository(PostgreSQLRepositoryBase, SourceOfTruthR
               AND (%(relation_type)s IS NULL OR relation_type = %(relation_type)s)
               AND (%(as_of)s IS NULL OR (active = TRUE AND valid_from <= %(as_of)s
                    AND (valid_to IS NULL OR %(as_of)s < valid_to)))
+              {page.where_sql}
             ORDER BY created_at DESC, id DESC
-            LIMIT %(limit)s OFFSET %(offset)s
-            """,
+            LIMIT %(fetch_limit)s{page.offset_sql}
+            """,  # nosec B608 -- keyset SQL is generated from validated cursor fields
             {
                 "tenant_id": tenant_id.value,
-                "source_key": source_key.strip().lower() if source_key is not None else None,
-                "target_key": target_key.strip().lower() if target_key is not None else None,
-                "relation_type": relation_type.strip().lower()
-                if relation_type is not None
-                else None,
+                "source_key": normalized_source,
+                "target_key": normalized_target,
+                "relation_type": normalized_type,
                 "as_of": as_of,
-                "limit": pagination.limit + 1,
-                "offset": offset,
+                **page.parameters,
             },
         )
         selected = tuple(rows[: pagination.limit])
-        next_cursor = str(offset + pagination.limit) if len(rows) > pagination.limit else None
         return SourceRelationPage(
-            tuple(self._relation_from_row(row) for row in selected), next_cursor
+            tuple(self._relation_from_row(row) for row in selected),
+            page.next_cursor(rows),
         )
 
     def _object_params(self, source_object: SourceOfTruthObject) -> dict[str, object]:
@@ -6428,15 +6488,6 @@ class PostgreSQLSourceOfTruthRepository(PostgreSQLRepositoryBase, SourceOfTruthR
             "created_at": source_object.created_at,
             "updated_at": source_object.updated_at,
         }
-
-    def _offset(self, cursor: str | None) -> int:
-        try:
-            offset = int(cursor or "0")
-        except ValueError as exc:
-            raise ValidationError("pagination cursor must be a numeric offset") from exc
-        if offset < 0:
-            raise ValidationError("pagination cursor must be positive")
-        return offset
 
     def _object_from_row(self, row: Mapping[str, object]) -> SourceOfTruthObject:
         attributes = row["attributes"]
@@ -7226,40 +7277,51 @@ class PostgreSQLFieldOperationRepository(PostgreSQLRepositoryBase, FieldOperatio
         target_type: str | None = None,
         site: str | None = None,
     ) -> FieldOperationSheetPage:
-        offset = self._offset(pagination.cursor)
-        clauses = ["tenant_id = %(tenant_id)s"]
-        params: dict[str, object] = {
-            "tenant_id": tenant_id.value,
-            "fetch_limit": pagination.limit + 1,
-            "offset": offset,
+        normalized_status = status.strip().lower() if status else None
+        normalized_target = target_type.strip().lower().replace("_", "-") if target_type else None
+        normalized_site = Code.from_value(site, "site code").value if site else None
+        filters = {
+            "status": normalized_status,
+            "target_type": normalized_target,
+            "site_code": normalized_site,
         }
-        if status:
+        page = self._keyset_page(
+            pagination,
+            scope="field-operation.sheets",
+            tenant_id=tenant_id,
+            filters=filters,
+            fields=(
+                CursorField("updated_at", CursorDirection.DESC, CursorValueType.DATETIME),
+                CursorField("id", CursorDirection.DESC),
+            ),
+        )
+        clauses = ["tenant_id = %(tenant_id)s"]
+        params: dict[str, object] = {"tenant_id": tenant_id.value, **page.parameters}
+        if normalized_status is not None:
             clauses.append("status = %(status)s")
-            params["status"] = status.strip().lower()
-        if target_type:
+            params["status"] = normalized_status
+        if normalized_target is not None:
             clauses.append("target_type = %(target_type)s")
-            params["target_type"] = target_type.strip().lower().replace("_", "-")
-        if site:
+            params["target_type"] = normalized_target
+        if normalized_site is not None:
             clauses.append("site_code = %(site_code)s")
-            params["site_code"] = Code.from_value(site, "site code").value
-        where = " AND ".join(clauses)
+            params["site_code"] = normalized_site
         rows = self._fetch_all(
             f"""
-            SELECT payload FROM field_operation_sheets
-            WHERE {where}
+            SELECT payload, updated_at, id FROM field_operation_sheets
+            WHERE {" AND ".join(clauses)} {page.where_sql}
             ORDER BY updated_at DESC, id DESC
-            LIMIT %(fetch_limit)s OFFSET %(offset)s
-            """,  # nosec B608 -- predicates are fixed and values are bound
+            LIMIT %(fetch_limit)s{page.offset_sql}
+            """,  # nosec B608 -- predicates and keyset fields are validated internal values
             params,
         )
-        has_more = len(rows) > pagination.limit
         selected = rows[: pagination.limit]
         return FieldOperationSheetPage(
             tuple(
                 FieldOperationRecordMapper.sheet(self._json_mapping(row["payload"]))
                 for row in selected
             ),
-            str(offset + pagination.limit) if has_more else None,
+            page.next_cursor(rows),
         )
 
     def save_evidence(self, evidence: FieldEvidence) -> None:
@@ -7473,32 +7535,37 @@ class PostgreSQLFieldOperationRepository(PostgreSQLRepositoryBase, FieldOperatio
     def list_offline_packages(
         self, tenant_id: TenantId, pagination: Pagination, sheet_id: str | None = None
     ) -> OfflineSyncPackagePage:
-        offset = self._offset(pagination.cursor)
-        predicate = "" if sheet_id is None else "AND sheet_id = %(sheet_id)s"
-        params: dict[str, object] = {
-            "tenant_id": tenant_id.value,
-            "fetch_limit": pagination.limit + 1,
-            "offset": offset,
-        }
-        if sheet_id is not None:
-            params["sheet_id"] = EntityId.from_value(sheet_id).value
+        normalized_sheet_id = EntityId.from_value(sheet_id).value if sheet_id is not None else None
+        page = self._keyset_page(
+            pagination,
+            scope="field-operation.offline-packages",
+            tenant_id=tenant_id,
+            filters={"sheet_id": normalized_sheet_id},
+            fields=(
+                CursorField("created_at", CursorDirection.DESC, CursorValueType.DATETIME),
+                CursorField("id", CursorDirection.DESC),
+            ),
+        )
+        predicate = "" if normalized_sheet_id is None else "AND sheet_id = %(sheet_id)s"
+        params: dict[str, object] = {"tenant_id": tenant_id.value, **page.parameters}
+        if normalized_sheet_id is not None:
+            params["sheet_id"] = normalized_sheet_id
         rows = self._fetch_all(
             f"""
-            SELECT package_payload FROM offline_sync_packages
-            WHERE tenant_id = %(tenant_id)s {predicate}
+            SELECT package_payload, created_at, id FROM offline_sync_packages
+            WHERE tenant_id = %(tenant_id)s {predicate} {page.where_sql}
             ORDER BY created_at DESC, id DESC
-            LIMIT %(fetch_limit)s OFFSET %(offset)s
-            """,  # nosec B608 -- predicate is fixed and value is bound
+            LIMIT %(fetch_limit)s{page.offset_sql}
+            """,  # nosec B608 -- predicate and keyset fields are fixed internal values
             params,
         )
-        has_more = len(rows) > pagination.limit
         selected = rows[: pagination.limit]
         return OfflineSyncPackagePage(
             tuple(
                 FieldOperationRecordMapper.package(self._json_mapping(row["package_payload"]))
                 for row in selected
             ),
-            str(offset + pagination.limit) if has_more else None,
+            page.next_cursor(rows),
         )
 
     def append_event(self, event: DomainEvent) -> None:
@@ -7522,16 +7589,6 @@ class PostgreSQLFieldOperationRepository(PostgreSQLRepositoryBase, FieldOperatio
                 "occurred_at": event.occurred_at,
             },
         )
-
-    @staticmethod
-    def _offset(cursor: str | None) -> int:
-        try:
-            offset = int(cursor or "0")
-        except ValueError as exc:
-            raise ValidationError("pagination cursor must be a numeric offset") from exc
-        if offset < 0:
-            raise ValidationError("pagination cursor must be positive")
-        return offset
 
     @staticmethod
     def _json_mapping(value: object) -> dict[str, Any]:
@@ -7619,36 +7676,42 @@ class PostgreSQLSimulationRepository(PostgreSQLRepositoryBase, SimulationReposit
         status: str | None = None,
         site: str | None = None,
     ) -> SimulationScenarioPage:
-        offset = self._offset(pagination.cursor)
+        normalized_status = status.strip().lower() if status else None
+        normalized_site = site.strip().lower().replace("_", "-") if site else None
+        page = self._keyset_page(
+            pagination,
+            scope="simulation.scenarios",
+            tenant_id=tenant_id,
+            filters={"status": normalized_status, "site_code": normalized_site},
+            fields=(
+                CursorField("updated_at", CursorDirection.DESC, CursorValueType.DATETIME),
+                CursorField("id", CursorDirection.DESC),
+            ),
+        )
         clauses = ["tenant_id = %(tenant_id)s"]
-        params: dict[str, object] = {
-            "tenant_id": tenant_id.value,
-            "fetch_limit": pagination.limit + 1,
-            "offset": offset,
-        }
-        if status:
+        params: dict[str, object] = {"tenant_id": tenant_id.value, **page.parameters}
+        if normalized_status is not None:
             clauses.append("status = %(status)s")
-            params["status"] = status.strip().lower()
-        if site:
+            params["status"] = normalized_status
+        if normalized_site is not None:
             clauses.append("site_code = %(site_code)s")
-            params["site_code"] = site.strip().lower().replace("_", "-")
+            params["site_code"] = normalized_site
         rows = self._fetch_all(
             f"""
-            SELECT payload FROM simulation_scenarios
-            WHERE {" AND ".join(clauses)}
+            SELECT payload, updated_at, id FROM simulation_scenarios
+            WHERE {" AND ".join(clauses)} {page.where_sql}
             ORDER BY updated_at DESC, id DESC
-            LIMIT %(fetch_limit)s OFFSET %(offset)s
-            """,  # nosec B608 -- predicates are fixed and values are bound
+            LIMIT %(fetch_limit)s{page.offset_sql}
+            """,  # nosec B608 -- predicates and keyset fields are validated internal values
             params,
         )
-        has_more = len(rows) > pagination.limit
         selected = rows[: pagination.limit]
         return SimulationScenarioPage(
             tuple(
                 SimulationRecordMapper.scenario(self._json_mapping(row["payload"]))
                 for row in selected
             ),
-            str(offset + pagination.limit) if has_more else None,
+            page.next_cursor(rows),
         )
 
     def save_report(self, report: SimulationImpactReport) -> None:
@@ -7725,32 +7788,39 @@ class PostgreSQLSimulationRepository(PostgreSQLRepositoryBase, SimulationReposit
         pagination: Pagination,
         scenario_id: str | None = None,
     ) -> SimulationImpactReportPage:
-        offset = self._offset(pagination.cursor)
-        predicate = "" if scenario_id is None else "AND scenario_id = %(scenario_id)s"
-        params: dict[str, object] = {
-            "tenant_id": tenant_id.value,
-            "fetch_limit": pagination.limit + 1,
-            "offset": offset,
-        }
-        if scenario_id is not None:
-            params["scenario_id"] = EntityId.from_value(scenario_id).value
+        normalized_scenario_id = (
+            EntityId.from_value(scenario_id).value if scenario_id is not None else None
+        )
+        page = self._keyset_page(
+            pagination,
+            scope="simulation.reports",
+            tenant_id=tenant_id,
+            filters={"scenario_id": normalized_scenario_id},
+            fields=(
+                CursorField("generated_at", CursorDirection.DESC, CursorValueType.DATETIME),
+                CursorField("id", CursorDirection.DESC),
+            ),
+        )
+        predicate = "" if normalized_scenario_id is None else "AND scenario_id = %(scenario_id)s"
+        params: dict[str, object] = {"tenant_id": tenant_id.value, **page.parameters}
+        if normalized_scenario_id is not None:
+            params["scenario_id"] = normalized_scenario_id
         rows = self._fetch_all(
             f"""
-            SELECT payload FROM simulation_impact_reports
-            WHERE tenant_id = %(tenant_id)s {predicate}
+            SELECT payload, generated_at, id FROM simulation_impact_reports
+            WHERE tenant_id = %(tenant_id)s {predicate} {page.where_sql}
             ORDER BY generated_at DESC, id DESC
-            LIMIT %(fetch_limit)s OFFSET %(offset)s
-            """,  # nosec B608 -- predicate is fixed and value is bound
+            LIMIT %(fetch_limit)s{page.offset_sql}
+            """,  # nosec B608 -- predicate and keyset fields are fixed internal values
             params,
         )
-        has_more = len(rows) > pagination.limit
         selected = rows[: pagination.limit]
         return SimulationImpactReportPage(
             tuple(
                 SimulationRecordMapper.report(self._json_mapping(row["payload"]))
                 for row in selected
             ),
-            str(offset + pagination.limit) if has_more else None,
+            page.next_cursor(rows),
         )
 
     def save_comparison(self, comparison: SimulationScenarioComparison) -> None:
@@ -7800,28 +7870,32 @@ class PostgreSQLSimulationRepository(PostgreSQLRepositoryBase, SimulationReposit
     def list_comparisons(
         self, tenant_id: TenantId, pagination: Pagination
     ) -> SimulationComparisonPage:
-        offset = self._offset(pagination.cursor)
-        rows = self._fetch_all(
-            """
-            SELECT payload FROM simulation_scenario_comparisons
-            WHERE tenant_id = %(tenant_id)s
-            ORDER BY created_at DESC, id DESC
-            LIMIT %(fetch_limit)s OFFSET %(offset)s
-            """,
-            {
-                "tenant_id": tenant_id.value,
-                "fetch_limit": pagination.limit + 1,
-                "offset": offset,
-            },
+        page = self._keyset_page(
+            pagination,
+            scope="simulation.comparisons",
+            tenant_id=tenant_id,
+            filters={},
+            fields=(
+                CursorField("created_at", CursorDirection.DESC, CursorValueType.DATETIME),
+                CursorField("id", CursorDirection.DESC),
+            ),
         )
-        has_more = len(rows) > pagination.limit
+        rows = self._fetch_all(
+            f"""
+            SELECT payload, created_at, id FROM simulation_scenario_comparisons
+            WHERE tenant_id = %(tenant_id)s {page.where_sql}
+            ORDER BY created_at DESC, id DESC
+            LIMIT %(fetch_limit)s{page.offset_sql}
+            """,  # nosec B608 -- keyset SQL is generated from validated cursor fields
+            {"tenant_id": tenant_id.value, **page.parameters},
+        )
         selected = rows[: pagination.limit]
         return SimulationComparisonPage(
             tuple(
                 SimulationRecordMapper.comparison(self._json_mapping(row["payload"]))
                 for row in selected
             ),
-            str(offset + pagination.limit) if has_more else None,
+            page.next_cursor(rows),
         )
 
     def append_event(self, event: DomainEvent) -> None:
@@ -7845,16 +7919,6 @@ class PostgreSQLSimulationRepository(PostgreSQLRepositoryBase, SimulationReposit
                 "occurred_at": event.occurred_at,
             },
         )
-
-    @staticmethod
-    def _offset(cursor: str | None) -> int:
-        try:
-            offset = int(cursor or "0")
-        except ValueError as exc:
-            raise ValidationError("pagination cursor must be a numeric offset") from exc
-        if offset < 0:
-            raise ValidationError("pagination cursor must be positive")
-        return offset
 
     @staticmethod
     def _json_mapping(value: object) -> dict[str, Any]:
@@ -8351,43 +8415,71 @@ class PostgreSQLFinOpsRepository(PostgreSQLRepositoryBase, FinOpsRepository):
         extra_params: dict[str, object],
         ordering: str,
     ) -> tuple[list[dict[str, Any]], str | None]:
-        offset = self._offset(pagination.cursor)
+        field_catalog: dict[tuple[str, str], tuple[CursorField, ...]] = {
+            ("finops_allocation_rules", "priority ASC, id ASC"): (
+                CursorField("priority", value_type=CursorValueType.INTEGER),
+                CursorField("id"),
+            ),
+            ("finops_import_jobs", "submitted_at DESC, id DESC"): (
+                CursorField("submitted_at", CursorDirection.DESC, CursorValueType.DATETIME),
+                CursorField("id", CursorDirection.DESC),
+            ),
+            ("finops_cost_records", "period_start DESC, id DESC"): (
+                CursorField("period_start", CursorDirection.DESC, CursorValueType.DATE),
+                CursorField("id", CursorDirection.DESC),
+            ),
+            ("finops_budgets", "period_start DESC, id DESC"): (
+                CursorField("period_start", CursorDirection.DESC, CursorValueType.DATE),
+                CursorField("id", CursorDirection.DESC),
+            ),
+            ("finops_financial_periods", "period_start DESC, id DESC"): (
+                CursorField("period_start", CursorDirection.DESC, CursorValueType.DATE),
+                CursorField("id", CursorDirection.DESC),
+            ),
+            ("finops_cost_anomalies", "detected_at DESC, id DESC"): (
+                CursorField("detected_at", CursorDirection.DESC, CursorValueType.DATETIME),
+                CursorField("id", CursorDirection.DESC),
+            ),
+            ("finops_forecasts", "period_start DESC, id DESC"): (
+                CursorField("period_start", CursorDirection.DESC, CursorValueType.DATE),
+                CursorField("id", CursorDirection.DESC),
+            ),
+            ("finops_reports", "generated_at DESC, id DESC"): (
+                CursorField("generated_at", CursorDirection.DESC, CursorValueType.DATETIME),
+                CursorField("id", CursorDirection.DESC),
+            ),
+        }
+        fields = field_catalog.get((table, ordering))
+        if fields is None:
+            raise ValueError("unsupported FinOps pagination query")
+        page = self._keyset_page(
+            pagination,
+            scope="finops." + table.removeprefix("finops_"),
+            tenant_id=tenant_id,
+            filters=extra_params,
+            fields=fields,
+        )
+        field_names = ", ".join(field.name for field in fields)
         query = f"""
-            SELECT payload FROM {table}
-            WHERE tenant_id = %(tenant_id)s {predicate}
+            SELECT payload, {field_names} FROM {table}
+            WHERE tenant_id = %(tenant_id)s {predicate} {page.where_sql}
             ORDER BY {ordering}
-            LIMIT %(fetch_limit)s OFFSET %(offset)s
-        """  # nosec B608 -- table, predicate and ordering are fixed internal values
+            LIMIT %(fetch_limit)s{page.offset_sql}
+        """  # nosec B608 -- table, ordering and fields come from a closed internal catalog
         rows = self._fetch_all(
             query,
-            {
-                "tenant_id": tenant_id.value,
-                "fetch_limit": pagination.limit + 1,
-                "offset": offset,
-                **extra_params,
-            },
+            {"tenant_id": tenant_id.value, **extra_params, **page.parameters},
         )
-        has_more = len(rows) > pagination.limit
         selected = rows[: pagination.limit]
         return (
             [self._json_mapping(row["payload"]) for row in selected],
-            str(offset + pagination.limit) if has_more else None,
+            page.next_cursor(rows),
         )
 
     @staticmethod
     def _optional_filters(values: dict[str, object | None]) -> tuple[str, dict[str, object]]:
         params = {key: value for key, value in values.items() if value is not None}
         return " ".join(f"AND {key} = %({key})s" for key in params), params
-
-    @staticmethod
-    def _offset(cursor: str | None) -> int:
-        try:
-            offset = int(cursor or "0")
-        except ValueError as exc:
-            raise ValidationError("pagination cursor must be a numeric offset") from exc
-        if offset < 0:
-            raise ValidationError("pagination cursor must be positive")
-        return offset
 
     @staticmethod
     def _json_mapping(value: object) -> dict[str, Any]:
@@ -8919,54 +9011,66 @@ class PostgreSQLGreenOpsRepository(PostgreSQLRepositoryBase, GreenOpsRepository)
         params: dict[str, object],
         ordering: str,
     ) -> tuple[list[dict[str, Any]], str | None]:
-        allowed = {
-            ("greenops_measurement_sources", "code, id"),
-            ("greenops_carbon_factors", "period_start DESC, created_at DESC, id DESC"),
-            ("greenops_energy_measurements", "period_start DESC, id DESC"),
-            ("greenops_anomalies", "detected_at DESC, id DESC"),
-            ("greenops_forecasts", "generated_at DESC, id DESC"),
-            ("greenops_consolidation_candidates", "generated_at DESC, id DESC"),
-            ("greenops_scores", "generated_at DESC, id DESC"),
-            ("greenops_reports", "generated_at DESC, id DESC"),
+        field_catalog: dict[tuple[str, str], tuple[CursorField, ...]] = {
+            ("greenops_measurement_sources", "code, id"): (CursorField("code"), CursorField("id")),
+            ("greenops_carbon_factors", "period_start DESC, created_at DESC, id DESC"): (
+                CursorField("period_start", CursorDirection.DESC, CursorValueType.DATE),
+                CursorField("created_at", CursorDirection.DESC, CursorValueType.DATETIME),
+                CursorField("id", CursorDirection.DESC),
+            ),
+            ("greenops_energy_measurements", "period_start DESC, id DESC"): (
+                CursorField("period_start", CursorDirection.DESC, CursorValueType.DATETIME),
+                CursorField("id", CursorDirection.DESC),
+            ),
+            ("greenops_anomalies", "detected_at DESC, id DESC"): (
+                CursorField("detected_at", CursorDirection.DESC, CursorValueType.DATETIME),
+                CursorField("id", CursorDirection.DESC),
+            ),
+            ("greenops_forecasts", "generated_at DESC, id DESC"): (
+                CursorField("generated_at", CursorDirection.DESC, CursorValueType.DATETIME),
+                CursorField("id", CursorDirection.DESC),
+            ),
+            ("greenops_consolidation_candidates", "generated_at DESC, id DESC"): (
+                CursorField("generated_at", CursorDirection.DESC, CursorValueType.DATETIME),
+                CursorField("id", CursorDirection.DESC),
+            ),
+            ("greenops_scores", "generated_at DESC, id DESC"): (
+                CursorField("generated_at", CursorDirection.DESC, CursorValueType.DATETIME),
+                CursorField("id", CursorDirection.DESC),
+            ),
+            ("greenops_reports", "generated_at DESC, id DESC"): (
+                CursorField("generated_at", CursorDirection.DESC, CursorValueType.DATETIME),
+                CursorField("id", CursorDirection.DESC),
+            ),
         }
-        if (table, ordering) not in allowed:
+        fields = field_catalog.get((table, ordering))
+        if fields is None:
             raise ValueError("unsupported GreenOps pagination query")
-        offset = self._offset(pagination.cursor)
+        page = self._keyset_page(
+            pagination,
+            scope="greenops." + table.removeprefix("greenops_"),
+            tenant_id=tenant_id,
+            filters=params,
+            fields=fields,
+        )
+        field_names = ", ".join(field.name for field in fields)
         query = f"""
-            SELECT payload FROM {table}
-            WHERE tenant_id = %(tenant_id)s {predicate}
+            SELECT payload, {field_names} FROM {table}
+            WHERE tenant_id = %(tenant_id)s {predicate} {page.where_sql}
             ORDER BY {ordering}
-            LIMIT %(fetch_limit)s OFFSET %(offset)s
-        """  # nosec B608 -- table and ordering are validated against a closed internal whitelist
+            LIMIT %(fetch_limit)s{page.offset_sql}
+        """  # nosec B608 -- table, ordering and fields come from a closed internal catalog
         rows = self._fetch_all(
             query,
-            {
-                "tenant_id": tenant_id.value,
-                "fetch_limit": pagination.limit + 1,
-                "offset": offset,
-                **params,
-            },
+            {"tenant_id": tenant_id.value, **params, **page.parameters},
         )
-        has_more = len(rows) > pagination.limit
         selected = rows[: pagination.limit]
-        return [self._json_mapping(row["payload"]) for row in selected], (
-            str(offset + pagination.limit) if has_more else None
-        )
+        return [self._json_mapping(row["payload"]) for row in selected], page.next_cursor(rows)
 
     @staticmethod
     def _optional_filters(values: dict[str, object | None]) -> tuple[str, dict[str, object]]:
         params = {key: value for key, value in values.items() if value is not None}
         return " ".join(f"AND {key} = %({key})s" for key in params), params
-
-    @staticmethod
-    def _offset(cursor: str | None) -> int:
-        try:
-            value = int(cursor or "0")
-        except ValueError as exc:
-            raise ValidationError("pagination cursor must be a numeric offset") from exc
-        if value < 0:
-            raise ValidationError("pagination cursor must be positive")
-        return value
 
     @staticmethod
     def _json_mapping(value: object) -> dict[str, Any]:
@@ -9363,51 +9467,59 @@ class PostgreSQLSbomRepository(PostgreSQLRepositoryBase, SbomRepository):
         params: dict[str, object],
         ordering: str,
     ) -> tuple[list[dict[str, Any]], str | None]:
-        allowed = {
-            ("sbom_documents", "imported_at DESC, id DESC"),
-            ("sbom_vulnerabilities", "cvss_score DESC, cve_id, id"),
-            ("sbom_exposure_contexts", "application, environment, id"),
-            ("sbom_risk_findings", "contextual_score DESC, generated_at DESC, id DESC"),
-            ("sbom_comparisons", "generated_at DESC, id DESC"),
+        field_catalog: dict[tuple[str, str], tuple[CursorField, ...]] = {
+            ("sbom_documents", "imported_at DESC, id DESC"): (
+                CursorField("imported_at", CursorDirection.DESC, CursorValueType.DATETIME),
+                CursorField("id", CursorDirection.DESC),
+            ),
+            ("sbom_vulnerabilities", "cvss_score DESC, cve_id, id"): (
+                CursorField("cvss_score", CursorDirection.DESC, CursorValueType.FLOAT),
+                CursorField("cve_id"),
+                CursorField("id"),
+            ),
+            ("sbom_exposure_contexts", "application, environment, id"): (
+                CursorField("application"),
+                CursorField("environment"),
+                CursorField("id"),
+            ),
+            ("sbom_risk_findings", "contextual_score DESC, generated_at DESC, id DESC"): (
+                CursorField("contextual_score", CursorDirection.DESC, CursorValueType.FLOAT),
+                CursorField("generated_at", CursorDirection.DESC, CursorValueType.DATETIME),
+                CursorField("id", CursorDirection.DESC),
+            ),
+            ("sbom_comparisons", "generated_at DESC, id DESC"): (
+                CursorField("generated_at", CursorDirection.DESC, CursorValueType.DATETIME),
+                CursorField("id", CursorDirection.DESC),
+            ),
         }
-        if (table, ordering) not in allowed:
+        fields = field_catalog.get((table, ordering))
+        if fields is None:
             raise ValueError("unsupported SBOM pagination query")
-        offset = self._offset(pagination.cursor)
+        page = self._keyset_page(
+            pagination,
+            scope="sbom." + table.removeprefix("sbom_"),
+            tenant_id=tenant_id,
+            filters=params,
+            fields=fields,
+        )
+        field_names = ", ".join(field.name for field in fields)
         query = f"""
-            SELECT payload FROM {table}
-            WHERE tenant_id = %(tenant_id)s {predicate}
+            SELECT payload, {field_names} FROM {table}
+            WHERE tenant_id = %(tenant_id)s {predicate} {page.where_sql}
             ORDER BY {ordering}
-            LIMIT %(fetch_limit)s OFFSET %(offset)s
-        """  # nosec B608 -- table and ordering are validated against a closed whitelist
+            LIMIT %(fetch_limit)s{page.offset_sql}
+        """  # nosec B608 -- table, ordering and fields come from a closed internal catalog
         rows = self._fetch_all(
             query,
-            {
-                "tenant_id": tenant_id.value,
-                "fetch_limit": pagination.limit + 1,
-                "offset": offset,
-                **params,
-            },
+            {"tenant_id": tenant_id.value, **params, **page.parameters},
         )
-        has_more = len(rows) > pagination.limit
         selected = rows[: pagination.limit]
-        return [self._json_mapping(row["payload"]) for row in selected], (
-            str(offset + pagination.limit) if has_more else None
-        )
+        return [self._json_mapping(row["payload"]) for row in selected], page.next_cursor(rows)
 
     @staticmethod
     def _filters(values: dict[str, object | None]) -> tuple[str, dict[str, object]]:
         params = {key: value for key, value in values.items() if value is not None}
         return " ".join(f"AND {key} = %({key})s" for key in params), params
-
-    @staticmethod
-    def _offset(cursor: str | None) -> int:
-        try:
-            value = int(cursor or "0")
-        except ValueError as exc:
-            raise ValidationError("pagination cursor must be a numeric offset") from exc
-        if value < 0:
-            raise ValidationError("pagination cursor must be positive")
-        return value
 
     @staticmethod
     def _json_mapping(value: object) -> dict[str, Any]:
@@ -9518,33 +9630,40 @@ class PostgreSQLRagRepository(PostgreSQLRepositoryBase, RagRepository):
         source_type: str | None = None,
         active: bool | None = None,
     ) -> RagDocumentPage:
+        normalized_source_type = (
+            source_type.strip().lower().replace("_", "-") if source_type else None
+        )
+        page = self._keyset_page(
+            pagination,
+            scope="rag.documents",
+            tenant_id=tenant_id,
+            filters={"source_type": normalized_source_type, "active": active},
+            fields=(
+                CursorField("indexed_at", CursorDirection.DESC, CursorValueType.DATETIME),
+                CursorField("id", CursorDirection.DESC),
+            ),
+        )
         predicates: list[str] = []
-        params: dict[str, object] = {
-            "tenant_id": tenant_id.value,
-            "fetch_limit": pagination.limit + 1,
-            "offset": self._offset(pagination.cursor),
-        }
-        if source_type:
+        params: dict[str, object] = {"tenant_id": tenant_id.value, **page.parameters}
+        if normalized_source_type is not None:
             predicates.append("source_type = %(source_type)s")
-            params["source_type"] = source_type.strip().lower().replace("_", "-")
+            params["source_type"] = normalized_source_type
         if active is not None:
             predicates.append("active = %(active)s")
             params["active"] = active
         suffix = "" if not predicates else " AND " + " AND ".join(predicates)
         query = f"""
-            SELECT payload FROM rag_documents
-            WHERE tenant_id = %(tenant_id)s {suffix}
+            SELECT payload, indexed_at, id FROM rag_documents
+            WHERE tenant_id = %(tenant_id)s {suffix} {page.where_sql}
             ORDER BY indexed_at DESC, id DESC
-            LIMIT %(fetch_limit)s OFFSET %(offset)s
-        """  # nosec B608 -- suffix contains only closed, static predicate fragments
+            LIMIT %(fetch_limit)s{page.offset_sql}
+        """  # nosec B608 -- suffix contains only closed static predicates and keyset SQL
         rows = self._fetch_all(query, params)
-        has_more = len(rows) > pagination.limit
         selected = rows[: pagination.limit]
         items = tuple(
             RagRecordMapper.document(self._json_mapping(row["payload"])) for row in selected
         )
-        next_cursor = str(self._offset(pagination.cursor) + pagination.limit) if has_more else None
-        return RagDocumentPage(items, next_cursor)
+        return RagDocumentPage(items, page.next_cursor(rows))
 
     def search(
         self,
@@ -9788,42 +9907,36 @@ class PostgreSQLRagRepository(PostgreSQLRepositoryBase, RagRepository):
         pagination: Pagination,
         ordering: str,
     ) -> tuple[list[dict[str, Any]], str | None]:
-        allowed = {
-            ("rag_answers", "generated_at DESC, id DESC"),
-            ("rag_jobs", "created_at DESC, id DESC"),
+        field_catalog: dict[tuple[str, str], tuple[CursorField, ...]] = {
+            ("rag_answers", "generated_at DESC, id DESC"): (
+                CursorField("generated_at", CursorDirection.DESC, CursorValueType.DATETIME),
+                CursorField("id", CursorDirection.DESC),
+            ),
+            ("rag_jobs", "created_at DESC, id DESC"): (
+                CursorField("created_at", CursorDirection.DESC, CursorValueType.DATETIME),
+                CursorField("id", CursorDirection.DESC),
+            ),
         }
-        if (table, ordering) not in allowed:
+        fields = field_catalog.get((table, ordering))
+        if fields is None:
             raise ValueError("unsupported RAG pagination query")
-        offset = self._offset(pagination.cursor)
+        page = self._keyset_page(
+            pagination,
+            scope="rag." + table.removeprefix("rag_"),
+            tenant_id=tenant_id,
+            filters={},
+            fields=fields,
+        )
+        field_names = ", ".join(field.name for field in fields)
         query = f"""
-            SELECT payload FROM {table}
-            WHERE tenant_id = %(tenant_id)s
+            SELECT payload, {field_names} FROM {table}
+            WHERE tenant_id = %(tenant_id)s {page.where_sql}
             ORDER BY {ordering}
-            LIMIT %(fetch_limit)s OFFSET %(offset)s
-        """  # nosec B608 -- table and ordering are validated against a closed whitelist
-        rows = self._fetch_all(
-            query,
-            {
-                "tenant_id": tenant_id.value,
-                "fetch_limit": pagination.limit + 1,
-                "offset": offset,
-            },
-        )
-        has_more = len(rows) > pagination.limit
+            LIMIT %(fetch_limit)s{page.offset_sql}
+        """  # nosec B608 -- table, ordering and fields come from a closed internal catalog
+        rows = self._fetch_all(query, {"tenant_id": tenant_id.value, **page.parameters})
         selected = rows[: pagination.limit]
-        return [self._json_mapping(row["payload"]) for row in selected], (
-            str(offset + pagination.limit) if has_more else None
-        )
-
-    @staticmethod
-    def _offset(cursor: str | None) -> int:
-        try:
-            value = int(cursor or "0")
-        except ValueError as exc:
-            raise ValidationError("pagination cursor must be a numeric offset") from exc
-        if value < 0:
-            raise ValidationError("pagination cursor must be positive")
-        return value
+        return [self._json_mapping(row["payload"]) for row in selected], page.next_cursor(rows)
 
     @staticmethod
     def _json_mapping(value: object) -> dict[str, Any]:
@@ -10247,38 +10360,55 @@ class PostgreSQLMultisiteRepository(PostgreSQLRepositoryBase, MultisiteRepositor
         params: dict[str, object],
         ordering: str,
     ) -> tuple[list[dict[str, Any]], str | None]:
-        allowed = {
-            ("multisite_site_access_grants", "subject, site_code, id"),
-            ("multisite_reports", "generated_at DESC, id DESC"),
-            (
-                "multisite_regional_discovery_routes",
-                "region_code, site_code, vrf_code, id",
+        field_catalog: dict[tuple[str, str], tuple[CursorField, ...]] = {
+            ("multisite_site_access_grants", "subject, site_code, id"): (
+                CursorField("subject"),
+                CursorField("site_code"),
+                CursorField("id"),
             ),
-            ("multisite_dr_plans", "primary_site_code, recovery_site_code, id"),
-            ("multisite_dr_drills", "executed_at DESC, id DESC"),
+            ("multisite_reports", "generated_at DESC, id DESC"): (
+                CursorField("generated_at", CursorDirection.DESC, CursorValueType.DATETIME),
+                CursorField("id", CursorDirection.DESC),
+            ),
+            ("multisite_regional_discovery_routes", "region_code, site_code, vrf_code, id"): (
+                CursorField("region_code"),
+                CursorField("site_code"),
+                CursorField("vrf_code"),
+                CursorField("id"),
+            ),
+            ("multisite_dr_plans", "primary_site_code, recovery_site_code, id"): (
+                CursorField("primary_site_code"),
+                CursorField("recovery_site_code"),
+                CursorField("id"),
+            ),
+            ("multisite_dr_drills", "executed_at DESC, id DESC"): (
+                CursorField("executed_at", CursorDirection.DESC, CursorValueType.DATETIME),
+                CursorField("id", CursorDirection.DESC),
+            ),
         }
-        if (table, ordering) not in allowed:
+        fields = field_catalog.get((table, ordering))
+        if fields is None:
             raise ValueError("unsupported multisite pagination query")
-        offset = self._offset(pagination.cursor)
+        page = self._keyset_page(
+            pagination,
+            scope="multisite." + table.removeprefix("multisite_"),
+            tenant_id=tenant_id,
+            filters=params,
+            fields=fields,
+        )
+        field_names = ", ".join(field.name for field in fields)
         query = f"""
-            SELECT payload FROM {table}
-            WHERE tenant_id = %(tenant_id)s {predicate}
+            SELECT payload, {field_names} FROM {table}
+            WHERE tenant_id = %(tenant_id)s {predicate} {page.where_sql}
             ORDER BY {ordering}
-            LIMIT %(fetch_limit)s OFFSET %(offset)s
-        """  # nosec B608 -- table and ordering are validated against a closed whitelist
+            LIMIT %(fetch_limit)s{page.offset_sql}
+        """  # nosec B608 -- table, ordering and fields come from a closed internal catalog
         rows = self._fetch_all(
             query,
-            {
-                "tenant_id": tenant_id.value,
-                "fetch_limit": pagination.limit + 1,
-                "offset": offset,
-                **params,
-            },
+            {"tenant_id": tenant_id.value, **params, **page.parameters},
         )
         selected = rows[: pagination.limit]
-        return [self._json_mapping(row["payload"]) for row in selected], (
-            str(offset + pagination.limit) if len(rows) > pagination.limit else None
-        )
+        return [self._json_mapping(row["payload"]) for row in selected], page.next_cursor(rows)
 
     @staticmethod
     def _grant(value: dict[str, Any]) -> SiteAccessGrant:
@@ -10390,16 +10520,6 @@ class PostgreSQLMultisiteRepository(PostgreSQLRepositoryBase, MultisiteRepositor
         )
 
     @staticmethod
-    def _offset(cursor: str | None) -> int:
-        try:
-            value = int(cursor or "0")
-        except ValueError as exc:
-            raise ValidationError("pagination cursor must be a numeric offset") from exc
-        if value < 0:
-            raise ValidationError("pagination cursor must be positive")
-        return value
-
-    @staticmethod
     def _json_mapping(value: object) -> dict[str, Any]:
         loaded = json.loads(value) if isinstance(value, str) else value
         if not isinstance(loaded, Mapping):
@@ -10489,27 +10609,32 @@ class PostgreSQLCertificateInventoryRepository(
         pagination: Pagination,
         include_retired: bool = False,
     ) -> CertificateAssetPage:
-        offset = self._offset(pagination.cursor)
+        page = self._keyset_page(
+            pagination,
+            scope="security.certificate-inventory",
+            tenant_id=tenant_id,
+            filters={"include_retired": include_retired},
+            fields=(
+                CursorField("not_after", value_type=CursorValueType.DATETIME),
+                CursorField("subject_dn"),
+                CursorField("fingerprint_sha256"),
+            ),
+        )
         lifecycle_filter = "" if include_retired else "AND lifecycle <> 'retired'"
         rows = self._fetch_all(
             f"""
             SELECT {self._CERTIFICATE_COLUMNS}
             FROM certificate_inventory
-            WHERE tenant_id = %(tenant_id)s {lifecycle_filter}
+            WHERE tenant_id = %(tenant_id)s {lifecycle_filter} {page.where_sql}
             ORDER BY not_after ASC, subject_dn ASC, fingerprint_sha256 ASC
-            LIMIT %(fetch_limit)s OFFSET %(offset)s
-            """,  # nosec B608 -- selected columns and lifecycle predicate are fixed constants
-            {
-                "tenant_id": tenant_id.value,
-                "fetch_limit": pagination.limit + 1,
-                "offset": offset,
-            },
+            LIMIT %(fetch_limit)s{page.offset_sql}
+            """,  # nosec B608 -- columns, lifecycle predicate and keyset fields are fixed
+            {"tenant_id": tenant_id.value, **page.parameters},
         )
-        has_more = len(rows) > pagination.limit
         selected = rows[: pagination.limit]
         return CertificateAssetPage(
             tuple(self._certificate_from_row(row) for row in selected),
-            str(offset + pagination.limit) if has_more else None,
+            page.next_cursor(rows),
         )
 
     def save_endpoint_observation(self, observation: CertificateEndpointObservation) -> None:
@@ -10550,34 +10675,43 @@ class PostgreSQLCertificateInventoryRepository(
         pagination: Pagination,
         certificate_fingerprint: str | None = None,
     ) -> CertificateEndpointPage:
-        offset = self._offset(pagination.cursor)
+        normalized_fingerprint = (
+            certificate_fingerprint.strip().lower().replace(":", "")
+            if certificate_fingerprint is not None
+            else None
+        )
+        page = self._keyset_page(
+            pagination,
+            scope="security.certificate-endpoints",
+            tenant_id=tenant_id,
+            filters={"certificate_fingerprint": normalized_fingerprint},
+            fields=(
+                CursorField("observed_at", CursorDirection.DESC, CursorValueType.DATETIME),
+                CursorField("id", CursorDirection.DESC),
+            ),
+        )
         fingerprint_filter = (
             ""
-            if certificate_fingerprint is None
+            if normalized_fingerprint is None
             else "AND certificate_fingerprint = %(fingerprint)s"
         )
-        params: dict[str, object] = {
-            "tenant_id": tenant_id.value,
-            "fetch_limit": pagination.limit + 1,
-            "offset": offset,
-        }
-        if certificate_fingerprint is not None:
-            params["fingerprint"] = certificate_fingerprint.strip().lower().replace(":", "")
+        params: dict[str, object] = {"tenant_id": tenant_id.value, **page.parameters}
+        if normalized_fingerprint is not None:
+            params["fingerprint"] = normalized_fingerprint
         rows = self._fetch_all(
             f"""
             SELECT {self._ENDPOINT_COLUMNS}
             FROM certificate_endpoint_observations
-            WHERE tenant_id = %(tenant_id)s {fingerprint_filter}
+            WHERE tenant_id = %(tenant_id)s {fingerprint_filter} {page.where_sql}
             ORDER BY observed_at DESC, id DESC
-            LIMIT %(fetch_limit)s OFFSET %(offset)s
-            """,  # nosec B608 -- selected columns and fingerprint predicate are fixed constants
+            LIMIT %(fetch_limit)s{page.offset_sql}
+            """,  # nosec B608 -- columns, predicate and keyset fields are fixed
             params,
         )
-        has_more = len(rows) > pagination.limit
         selected = rows[: pagination.limit]
         return CertificateEndpointPage(
             tuple(self._endpoint_from_row(row) for row in selected),
-            str(offset + pagination.limit) if has_more else None,
+            page.next_cursor(rows),
         )
 
     @staticmethod
@@ -10695,16 +10829,6 @@ class PostgreSQLCertificateInventoryRepository(
         )
 
     @staticmethod
-    def _offset(cursor: str | None) -> int:
-        try:
-            offset = int(cursor or "0")
-        except ValueError as exc:
-            raise ValidationError("pagination cursor must be a numeric offset") from exc
-        if offset < 0:
-            raise ValidationError("pagination cursor must be positive")
-        return offset
-
-    @staticmethod
     def _json_sequence(value: object) -> Sequence[object]:
         if isinstance(value, str):
             return cast(Sequence[object], json.loads(value))
@@ -10795,27 +10919,28 @@ class PostgreSQLFlowMatrixRepository(PostgreSQLRepositoryBase, FlowMatrixReposit
         pagination: Pagination,
         include_retired: bool = False,
     ) -> FlowDeclarationPage:
-        offset = self._offset(pagination.cursor)
+        page = self._keyset_page(
+            pagination,
+            scope="ipam.flow-declarations",
+            tenant_id=tenant_id,
+            filters={"include_retired": include_retired},
+            fields=(CursorField("code"), CursorField("id")),
+        )
         status_filter = "" if include_retired else "AND status <> 'retired'"
         rows = self._fetch_all(
             f"""
             SELECT {self._DECLARATION_COLUMNS}
             FROM flow_declarations
-            WHERE tenant_id = %(tenant_id)s {status_filter}
+            WHERE tenant_id = %(tenant_id)s {status_filter} {page.where_sql}
             ORDER BY code ASC, id ASC
-            LIMIT %(fetch_limit)s OFFSET %(offset)s
-            """,  # nosec B608 -- selected columns and status predicate are fixed constants
-            {
-                "tenant_id": tenant_id.value,
-                "fetch_limit": pagination.limit + 1,
-                "offset": offset,
-            },
+            LIMIT %(fetch_limit)s{page.offset_sql}
+            """,  # nosec B608 -- columns, status predicate and keyset fields are fixed
+            {"tenant_id": tenant_id.value, **page.parameters},
         )
-        has_more = len(rows) > pagination.limit
         selected = rows[: pagination.limit]
         return FlowDeclarationPage(
             tuple(self._declaration_from_row(row) for row in selected),
-            str(offset + pagination.limit) if has_more else None,
+            page.next_cursor(rows),
         )
 
     def save_observation(self, observation: FlowObservation) -> None:
@@ -10859,17 +10984,30 @@ class PostgreSQLFlowMatrixRepository(PostgreSQLRepositoryBase, FlowMatrixReposit
         window_end: datetime,
         source: str | None = None,
     ) -> FlowObservationPage:
-        offset = self._offset(pagination.cursor)
-        source_filter = "" if source is None else "AND source = %(source)s"
+        normalized_source = source.strip().lower().replace("_", "-") if source else None
+        page = self._keyset_page(
+            pagination,
+            scope="ipam.flow-observations",
+            tenant_id=tenant_id,
+            filters={
+                "window_start": window_start,
+                "window_end": window_end,
+                "source": normalized_source,
+            },
+            fields=(
+                CursorField("last_seen", CursorDirection.DESC, CursorValueType.DATETIME),
+                CursorField("id", CursorDirection.DESC),
+            ),
+        )
+        source_filter = "" if normalized_source is None else "AND source = %(source)s"
         params: dict[str, object] = {
             "tenant_id": tenant_id.value,
             "window_start": window_start,
             "window_end": window_end,
-            "fetch_limit": pagination.limit + 1,
-            "offset": offset,
+            **page.parameters,
         }
-        if source is not None:
-            params["source"] = source.strip().lower().replace("_", "-")
+        if normalized_source is not None:
+            params["source"] = normalized_source
         rows = self._fetch_all(
             f"""
             SELECT {self._OBSERVATION_COLUMNS}
@@ -10878,16 +11016,16 @@ class PostgreSQLFlowMatrixRepository(PostgreSQLRepositoryBase, FlowMatrixReposit
               AND last_seen >= %(window_start)s
               AND first_seen < %(window_end)s
               {source_filter}
+              {page.where_sql}
             ORDER BY last_seen DESC, id DESC
-            LIMIT %(fetch_limit)s OFFSET %(offset)s
-            """,  # nosec B608 -- selected columns and source predicate are fixed constants
+            LIMIT %(fetch_limit)s{page.offset_sql}
+            """,  # nosec B608 -- columns, source predicate and keyset fields are fixed
             params,
         )
-        has_more = len(rows) > pagination.limit
         selected = rows[: pagination.limit]
         return FlowObservationPage(
             tuple(self._observation_from_row(row) for row in selected),
-            str(offset + pagination.limit) if has_more else None,
+            page.next_cursor(rows),
         )
 
     @staticmethod
@@ -11005,16 +11143,6 @@ class PostgreSQLFlowMatrixRepository(PostgreSQLRepositoryBase, FlowMatrixReposit
         )
 
     @staticmethod
-    def _offset(cursor: str | None) -> int:
-        try:
-            offset = int(cursor or "0")
-        except ValueError as exc:
-            raise ValidationError("pagination cursor must be a numeric offset") from exc
-        if offset < 0:
-            raise ValidationError("pagination cursor must be positive")
-        return offset
-
-    @staticmethod
     def _row_datetime(value: object) -> datetime:
         if isinstance(value, datetime):
             return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
@@ -11090,22 +11218,27 @@ class PostgreSQLNetworkConfigComplianceRepository(
     def list_baselines(
         self, tenant_id: TenantId, pagination: Pagination, include_retired: bool = False
     ) -> NetworkConfigBaselinePage:
-        offset = self._offset(pagination.cursor)
+        page = self._keyset_page(
+            pagination,
+            scope="ipam.network-config-baselines",
+            tenant_id=tenant_id,
+            filters={"include_retired": include_retired},
+            fields=(CursorField("code"), CursorField("id")),
+        )
         status_filter = "" if include_retired else "AND status <> 'retired'"
         rows = self._fetch_all(
             f"""
             SELECT {self._BASELINE_COLUMNS}
             FROM network_config_baselines
-            WHERE tenant_id = %(tenant_id)s {status_filter}
+            WHERE tenant_id = %(tenant_id)s {status_filter} {page.where_sql}
             ORDER BY code ASC, id ASC
-            LIMIT %(fetch_limit)s OFFSET %(offset)s
-            """,  # nosec B608 -- selected columns and status predicate are fixed
-            {"tenant_id": tenant_id.value, "fetch_limit": pagination.limit + 1, "offset": offset},
+            LIMIT %(fetch_limit)s{page.offset_sql}
+            """,  # nosec B608 -- columns, status predicate and keyset fields are fixed
+            {"tenant_id": tenant_id.value, **page.parameters},
         )
-        has_more = len(rows) > pagination.limit
         return NetworkConfigBaselinePage(
             tuple(self._baseline_from_row(row) for row in rows[: pagination.limit]),
-            str(offset + pagination.limit) if has_more else None,
+            page.next_cursor(rows),
         )
 
     def save_observation(self, observation: NetworkConfigObservation) -> None:
@@ -11146,19 +11279,31 @@ class PostgreSQLNetworkConfigComplianceRepository(
         platform: str | None = None,
         observed_before: datetime | None = None,
     ) -> NetworkConfigObservationPage:
-        offset = self._offset(pagination.cursor)
+        normalized_device = device_object_key.strip() if device_object_key is not None else None
+        normalized_platform = platform.strip().lower() if platform is not None else None
+        page = self._keyset_page(
+            pagination,
+            scope="ipam.network-config-observations",
+            tenant_id=tenant_id,
+            filters={
+                "device_object_key": normalized_device,
+                "platform": normalized_platform,
+                "observed_before": observed_before,
+            },
+            fields=(
+                CursorField("observed_at", CursorDirection.DESC, CursorValueType.DATETIME),
+                CursorField("received_at", CursorDirection.DESC, CursorValueType.DATETIME),
+                CursorField("id", CursorDirection.DESC),
+            ),
+        )
         filters = []
-        params: dict[str, object] = {
-            "tenant_id": tenant_id.value,
-            "fetch_limit": pagination.limit + 1,
-            "offset": offset,
-        }
-        if device_object_key is not None:
+        params: dict[str, object] = {"tenant_id": tenant_id.value, **page.parameters}
+        if normalized_device is not None:
             filters.append("AND device_object_key = %(device_object_key)s")
-            params["device_object_key"] = device_object_key.strip()
-        if platform is not None:
+            params["device_object_key"] = normalized_device
+        if normalized_platform is not None:
             filters.append("AND platform = %(platform)s")
-            params["platform"] = platform.strip().lower()
+            params["platform"] = normalized_platform
         if observed_before is not None:
             filters.append("AND observed_at <= %(observed_before)s")
             params["observed_before"] = observed_before
@@ -11166,16 +11311,15 @@ class PostgreSQLNetworkConfigComplianceRepository(
             f"""
             SELECT {self._OBSERVATION_COLUMNS}
             FROM network_config_observations
-            WHERE tenant_id = %(tenant_id)s {" ".join(filters)}
+            WHERE tenant_id = %(tenant_id)s {" ".join(filters)} {page.where_sql}
             ORDER BY observed_at DESC, received_at DESC, id DESC
-            LIMIT %(fetch_limit)s OFFSET %(offset)s
-            """,  # nosec B608 -- filters are fixed internal constants
+            LIMIT %(fetch_limit)s{page.offset_sql}
+            """,  # nosec B608 -- filters and keyset fields are fixed internal constants
             params,
         )
-        has_more = len(rows) > pagination.limit
         return NetworkConfigObservationPage(
             tuple(self._observation_from_row(row) for row in rows[: pagination.limit]),
-            str(offset + pagination.limit) if has_more else None,
+            page.next_cursor(rows),
         )
 
     @staticmethod
@@ -11252,16 +11396,6 @@ class PostgreSQLNetworkConfigComplianceRepository(
         )
 
     @staticmethod
-    def _offset(cursor: str | None) -> int:
-        try:
-            value = int(cursor or "0")
-        except ValueError as exc:
-            raise ValidationError("pagination cursor must be a numeric offset") from exc
-        if value < 0:
-            raise ValidationError("pagination cursor must be positive")
-        return value
-
-    @staticmethod
     def _json_mapping(value: object) -> Mapping[str, object]:
         return cast(Mapping[str, object], json.loads(value) if isinstance(value, str) else value)
 
@@ -11308,14 +11442,27 @@ class PostgreSQLAuditRepository(PostgreSQLRepositoryBase, AuditRepository):
         )
 
     def list_records(self, event_filter: AuditEventFilter) -> AuditEventPage:
-        try:
-            offset = int(event_filter.pagination.cursor or "0")
-        except ValueError as exc:
-            raise ValidationError("pagination cursor must be a numeric offset") from exc
-        if offset < 0:
-            raise ValidationError("pagination cursor must be positive")
+        filter_values = {
+            "actor": event_filter.actor,
+            "action": event_filter.action,
+            "target_type": event_filter.target_type,
+            "target_id": event_filter.target_id,
+            "severity": event_filter.severity.value if event_filter.severity is not None else None,
+            "created_from": event_filter.created_from,
+            "created_to": event_filter.created_to,
+        }
+        page = self._keyset_page(
+            event_filter.pagination,
+            scope="security.audit-events",
+            tenant_id=event_filter.tenant_id,
+            filters=filter_values,
+            fields=(
+                CursorField("created_at", CursorDirection.DESC, CursorValueType.DATETIME),
+                CursorField("id", CursorDirection.DESC),
+            ),
+        )
         rows = self._fetch_all(
-            """
+            f"""
             SELECT id, tenant_id, actor, action, target_type, target_id, severity,
                    metadata, created_at, previous_hash, record_hash
             FROM audit_events
@@ -11327,31 +11474,18 @@ class PostgreSQLAuditRepository(PostgreSQLRepositoryBase, AuditRepository):
               AND (%(severity)s IS NULL OR severity = %(severity)s)
               AND (%(created_from)s IS NULL OR created_at >= %(created_from)s)
               AND (%(created_to)s IS NULL OR created_at <= %(created_to)s)
+              {page.where_sql}
             ORDER BY created_at DESC, id DESC
-            LIMIT %(limit)s OFFSET %(offset)s
-            """,
+            LIMIT %(fetch_limit)s{page.offset_sql}
+            """,  # nosec B608 -- keyset SQL is generated from validated cursor fields
             {
                 "tenant_id": event_filter.tenant_id.value,
-                "actor": event_filter.actor,
-                "action": event_filter.action,
-                "target_type": event_filter.target_type,
-                "target_id": event_filter.target_id,
-                "severity": event_filter.severity.value
-                if event_filter.severity is not None
-                else None,
-                "created_from": event_filter.created_from,
-                "created_to": event_filter.created_to,
-                "limit": event_filter.pagination.limit + 1,
-                "offset": offset,
+                **filter_values,
+                **page.parameters,
             },
         )
         records = tuple(self._record_from_row(row) for row in rows[: event_filter.pagination.limit])
-        next_cursor = (
-            str(offset + event_filter.pagination.limit)
-            if len(rows) > event_filter.pagination.limit
-            else None
-        )
-        return AuditEventPage(records, next_cursor)
+        return AuditEventPage(records, page.next_cursor(rows))
 
     def verify_integrity(self, tenant_id: TenantId, limit: int = 500) -> AuditIntegrityReport:
         if not 1 <= int(limit) <= 10_000:

@@ -28,6 +28,7 @@ def test_compose_uses_idempotent_replication_and_transaction_pooling() -> None:
     assert "@pgbouncer-replica:6432/" in api_environment["OPENINFRA_DATABASE_READ_DSN"]
     assert api_environment["OPENINFRA_DB_READ_ROUTING_ENABLED"].endswith("-true}")
     assert "OPENINFRA_READ_CONSISTENCY_SECRET" in api_environment
+    assert "OPENINFRA_CURSOR_SIGNING_SECRET" in api_environment
 
     pgbouncer = (ROOT / "docker/pgbouncer/entrypoint.sh").read_text(encoding="utf-8")
     assert "pool_mode = transaction" in pgbouncer

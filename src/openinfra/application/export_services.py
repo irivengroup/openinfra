@@ -5,9 +5,12 @@ import csv
 import hashlib
 import hmac
 import json
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from html import escape
-from io import BytesIO, StringIO
+from io import TextIOWrapper
+from tempfile import SpooledTemporaryFile
+from typing import IO
 from zipfile import ZIP_DEFLATED, ZipFile
 
 from openinfra.application.ports import (
@@ -123,6 +126,184 @@ class ExportArtifactChunkDownload:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class ExportSerializationResult:
+    content: bytes
+    total_rows: int
+    spooled_to_disk: bool
+
+
+class ExportArtifactStreamBuilder:
+    def __init__(self, spool_threshold_bytes: int = 8_388_608) -> None:
+        if spool_threshold_bytes < 1:
+            raise ValidationError("export spool threshold must be positive")
+        self._spool_threshold_bytes = spool_threshold_bytes
+
+    def serialize(
+        self, export_format: ExportFormat, rows: Iterable[dict[str, object]]
+    ) -> ExportSerializationResult:
+        with SpooledTemporaryFile(max_size=self._spool_threshold_bytes, mode="w+b") as handle:
+            if export_format is ExportFormat.CSV:
+                total_rows = self._write_csv(handle, rows)
+            elif export_format is ExportFormat.JSON:
+                total_rows = self._write_json(handle, rows)
+            else:
+                total_rows = self._write_xlsx(handle, rows)
+            handle.flush()
+            spooled_to_disk = bool(getattr(handle, "_rolled", False))
+            handle.seek(0)
+            return ExportSerializationResult(
+                content=handle.read(),
+                total_rows=total_rows,
+                spooled_to_disk=spooled_to_disk,
+            )
+
+    def _write_json(self, handle: IO[bytes], rows: Iterable[dict[str, object]]) -> int:
+        handle.write(b"[")
+        total_rows = 0
+        for row in rows:
+            encoded = json.dumps(row, ensure_ascii=False, sort_keys=True, indent=2).splitlines()
+            prefix = b"\n" if total_rows == 0 else b",\n"
+            handle.write(prefix)
+            handle.write("\n".join("  " + line for line in encoded).encode("utf-8"))
+            total_rows += 1
+        if total_rows:
+            handle.write(b"\n")
+        handle.write(b"]")
+        return total_rows
+
+    def _write_csv(self, handle: IO[bytes], rows: Iterable[dict[str, object]]) -> int:
+        text_handle = self._text_wrapper(handle)
+        try:
+            writer = csv.DictWriter(text_handle, fieldnames=self._columns(), extrasaction="ignore")
+            writer.writeheader()
+            total_rows = 0
+            for row in rows:
+                writer.writerow(self._flat_row(row))
+                total_rows += 1
+            text_handle.flush()
+            return total_rows
+        finally:
+            text_handle.detach()
+
+    def _write_xlsx(self, handle: IO[bytes], rows: Iterable[dict[str, object]]) -> int:
+        total_rows = 0
+        with ZipFile(handle, "w", ZIP_DEFLATED) as archive:
+            archive.writestr("[Content_Types].xml", self._xlsx_content_types())
+            archive.writestr("_rels/.rels", self._xlsx_root_relationships())
+            archive.writestr("xl/workbook.xml", self._xlsx_workbook())
+            archive.writestr("xl/_rels/workbook.xml.rels", self._xlsx_workbook_relationships())
+            with archive.open("xl/worksheets/sheet1.xml", "w") as sheet:
+                sheet.write(
+                    b'<?xml version="1.0" encoding="UTF-8"?>'
+                    b'<worksheet xmlns="http://schemas.openxmlformats.org/'
+                    b'spreadsheetml/2006/main"><sheetData>'
+                )
+                sheet.write(self._xlsx_row(1, self._columns()).encode("utf-8"))
+                for row_index, row in enumerate(rows, start=2):
+                    flat = self._flat_row(row)
+                    values = [str(flat[column]) for column in self._columns()]
+                    sheet.write(self._xlsx_row(row_index, values).encode("utf-8"))
+                    total_rows += 1
+                sheet.write(b"</sheetData></worksheet>")
+        return total_rows
+
+    def _text_wrapper(self, handle: IO[bytes]) -> TextIOWrapper:
+        return TextIOWrapper(handle, encoding="utf-8", newline="", write_through=True)
+
+    def _flat_row(self, row: dict[str, object]) -> dict[str, object]:
+        tags = row["tags"]
+        if not isinstance(tags, list | tuple):
+            raise ValidationError("export source object tags are invalid")
+        return {
+            "key": row["key"],
+            "kind": row["kind"],
+            "display_name": row["display_name"],
+            "source": row["source"],
+            "tags": ",".join(str(item) for item in tags),
+            "version": row["version"],
+            "status": row["status"],
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
+            "attributes_json": json.dumps(row["attributes"], ensure_ascii=False, sort_keys=True),
+        }
+
+    def _columns(self) -> list[str]:
+        return [
+            "key",
+            "kind",
+            "display_name",
+            "source",
+            "tags",
+            "version",
+            "status",
+            "created_at",
+            "updated_at",
+            "attributes_json",
+        ]
+
+    def _xlsx_row(self, index: int, values: list[str]) -> str:
+        cells = []
+        for column_index, value in enumerate(values, start=1):
+            reference = self._xlsx_column_name(column_index) + str(index)
+            cells.append(f'<c r="{reference}" t="inlineStr"><is><t>{escape(value)}</t></is></c>')
+        return f'<row r="{index}">' + "".join(cells) + "</row>"
+
+    def _xlsx_column_name(self, index: int) -> str:
+        name = ""
+        current = index
+        while current:
+            current, remainder = divmod(current - 1, 26)
+            name = chr(65 + remainder) + name
+        return name
+
+    def _xlsx_content_types(self) -> str:
+        rels_type = "application/vnd.openxmlformats-package.relationships+xml"
+        workbook_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"
+        worksheet_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"
+        return (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+            f'<Default Extension="rels" ContentType="{rels_type}"/>'
+            '<Default Extension="xml" ContentType="application/xml"/>'
+            f'<Override PartName="/xl/workbook.xml" ContentType="{workbook_type}"/>'
+            f'<Override PartName="/xl/worksheets/sheet1.xml" ContentType="{worksheet_type}"/>'
+            "</Types>"
+        )
+
+    def _xlsx_root_relationships(self) -> str:
+        relationship_type = (
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
+        )
+        return (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            f'<Relationship Id="rId1" Type="{relationship_type}" Target="xl/workbook.xml"/>'
+            "</Relationships>"
+        )
+
+    def _xlsx_workbook(self) -> str:
+        return (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+            'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            '<sheets><sheet name="source_objects" sheetId="1" r:id="rId1"/></sheets>'
+            "</workbook>"
+        )
+
+    def _xlsx_workbook_relationships(self) -> str:
+        relationship_type = (
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet"
+        )
+        return (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            f'<Relationship Id="rId1" Type="{relationship_type}" '
+            'Target="worksheets/sheet1.xml"/>'
+            "</Relationships>"
+        )
+
+
 class ExportService:
     def __init__(
         self,
@@ -137,6 +318,7 @@ class ExportService:
         self._audit_repository = audit_repository
         self._transaction_manager = transaction_manager
         self._security_service = security_service
+        self._stream_builder = ExportArtifactStreamBuilder()
 
     def request_export(self, command: RequestExportCommand) -> ExportJob:
         tenant_id = TenantId.from_value(command.tenant_id)
@@ -184,10 +366,12 @@ class ExportService:
             self._export_repository.save_export_job(job)
             unit_of_work.commit()
         try:
-            rows = self._collect_source_objects(job, page_size)
-            content = self._serialize_rows(job.format, rows)
+            serialized = self._stream_builder.serialize(
+                job.format, self._iterate_source_objects(job, page_size)
+            )
+            content = serialized.content
             artifact = self._build_artifact(job, content)
-            completed = job.mark_completed(len(rows), artifact)
+            completed = job.mark_completed(serialized.total_rows, artifact)
             with self._transaction_manager.begin() as unit_of_work:
                 self._export_repository.save_export_artifact(completed, content)
                 self._export_repository.save_export_job(completed)
@@ -204,6 +388,8 @@ class ExportService:
                             "size_bytes": artifact.size_bytes,
                             "sha256": artifact.sha256,
                             "signature_algorithm": artifact.signature_algorithm,
+                            "streamed_serialization": True,
+                            "spooled_to_disk": serialized.spooled_to_disk,
                         },
                     )
                 )
@@ -292,24 +478,29 @@ class ExportService:
             raise ValidationError("export job is not queued: " + job.id.value)
         return job
 
-    def _collect_source_objects(self, job: ExportJob, page_size: int) -> list[dict[str, object]]:
+    def _iterate_source_objects(
+        self, job: ExportJob, page_size: int
+    ) -> Iterator[dict[str, object]]:
         if job.resource is not ExportResource.SOURCE_OBJECTS:
             raise ValidationError("unsupported export resource: " + job.resource.value)
-        rows: list[dict[str, object]] = []
+        emitted = 0
         cursor: str | None = None
-        while len(rows) < job.filter.limit:
-            remaining = job.filter.limit - len(rows)
+        while emitted < job.filter.limit:
+            remaining = job.filter.limit - emitted
             page = self._source_repository.list_objects(
                 job.tenant_id,
                 Pagination.from_values(min(page_size, remaining), cursor),
                 kind=job.filter.kind,
                 tag=job.filter.tag,
             )
-            rows.extend(self._source_object_row(item) for item in page.items)
+            for item in page.items:
+                if emitted >= job.filter.limit:
+                    break
+                yield self._source_object_row(item)
+                emitted += 1
             if page.next_cursor is None:
                 break
             cursor = page.next_cursor
-        return rows
 
     def _source_object_row(self, source_object: SourceOfTruthObject) -> dict[str, object]:
         return {
@@ -324,32 +515,6 @@ class ExportService:
             "updated_at": source_object.updated_at.isoformat(),
             "attributes": source_object.attributes,
         }
-
-    def _serialize_rows(self, export_format: ExportFormat, rows: list[dict[str, object]]) -> bytes:
-        if export_format is ExportFormat.CSV:
-            return self._serialize_csv(rows)
-        if export_format is ExportFormat.JSON:
-            return json.dumps(rows, ensure_ascii=False, sort_keys=True, indent=2).encode("utf-8")
-        return self._serialize_xlsx(rows)
-
-    def _serialize_csv(self, rows: list[dict[str, object]]) -> bytes:
-        columns = self._columns()
-        handle = StringIO(newline="")
-        writer = csv.DictWriter(handle, fieldnames=columns, extrasaction="ignore")
-        writer.writeheader()
-        for row in rows:
-            writer.writerow(self._flat_row(row))
-        return handle.getvalue().encode("utf-8")
-
-    def _serialize_xlsx(self, rows: list[dict[str, object]]) -> bytes:
-        output = BytesIO()
-        with ZipFile(output, "w", ZIP_DEFLATED) as archive:
-            archive.writestr("[Content_Types].xml", self._xlsx_content_types())
-            archive.writestr("_rels/.rels", self._xlsx_root_relationships())
-            archive.writestr("xl/workbook.xml", self._xlsx_workbook())
-            archive.writestr("xl/_rels/workbook.xml.rels", self._xlsx_workbook_relationships())
-            archive.writestr("xl/worksheets/sheet1.xml", self._xlsx_sheet(rows))
-        return output.getvalue()
 
     def _build_artifact(self, job: ExportJob, content: bytes) -> ExportArtifactMetadata:
         sha256 = hashlib.sha256(content).hexdigest()
@@ -386,107 +551,3 @@ class ExportService:
         if not 1 <= normalized <= 1_048_576:
             raise ValidationError("export artifact chunk size must be between 1 and 1048576")
         return normalized
-
-    def _flat_row(self, row: dict[str, object]) -> dict[str, object]:
-        tags = row["tags"]
-        if not isinstance(tags, list | tuple):
-            raise ValidationError("export source object tags are invalid")
-        return {
-            "key": row["key"],
-            "kind": row["kind"],
-            "display_name": row["display_name"],
-            "source": row["source"],
-            "tags": ",".join(str(item) for item in tags),
-            "version": row["version"],
-            "status": row["status"],
-            "created_at": row["created_at"],
-            "updated_at": row["updated_at"],
-            "attributes_json": json.dumps(row["attributes"], ensure_ascii=False, sort_keys=True),
-        }
-
-    def _columns(self) -> list[str]:
-        return [
-            "key",
-            "kind",
-            "display_name",
-            "source",
-            "tags",
-            "version",
-            "status",
-            "created_at",
-            "updated_at",
-            "attributes_json",
-        ]
-
-    def _xlsx_sheet(self, rows: list[dict[str, object]]) -> str:
-        xml_rows = [self._xlsx_row(1, self._columns())]
-        for index, row in enumerate(rows, start=2):
-            flat = self._flat_row(row)
-            xml_rows.append(
-                self._xlsx_row(index, [str(flat[column]) for column in self._columns()])
-            )
-        return (
-            '<?xml version="1.0" encoding="UTF-8"?>'
-            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-            "<sheetData>" + "".join(xml_rows) + "</sheetData></worksheet>"
-        )
-
-    def _xlsx_row(self, index: int, values: list[str]) -> str:
-        cells = []
-        for column_index, value in enumerate(values, start=1):
-            reference = self._xlsx_column_name(column_index) + str(index)
-            cells.append(f'<c r="{reference}" t="inlineStr"><is><t>{escape(value)}</t></is></c>')
-        return f'<row r="{index}">' + "".join(cells) + "</row>"
-
-    def _xlsx_column_name(self, index: int) -> str:
-        name = ""
-        current = index
-        while current:
-            current, remainder = divmod(current - 1, 26)
-            name = chr(65 + remainder) + name
-        return name
-
-    def _xlsx_content_types(self) -> str:
-        rels_type = "application/vnd.openxmlformats-package.relationships+xml"
-        workbook_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"
-        worksheet_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"
-        return (
-            '<?xml version="1.0" encoding="UTF-8"?>'
-            '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
-            f'<Default Extension="rels" ContentType="{rels_type}"/>'
-            '<Default Extension="xml" ContentType="application/xml"/>'
-            f'<Override PartName="/xl/workbook.xml" ContentType="{workbook_type}"/>'
-            f'<Override PartName="/xl/worksheets/sheet1.xml" ContentType="{worksheet_type}"/>'
-            "</Types>"
-        )
-
-    def _xlsx_root_relationships(self) -> str:
-        relationship_type = (
-            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
-        )
-        return (
-            '<?xml version="1.0" encoding="UTF-8"?>'
-            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-            f'<Relationship Id="rId1" Type="{relationship_type}" Target="xl/workbook.xml"/>'
-            "</Relationships>"
-        )
-
-    def _xlsx_workbook(self) -> str:
-        return (
-            '<?xml version="1.0" encoding="UTF-8"?>'
-            '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
-            'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
-            '<sheets><sheet name="source_objects" sheetId="1" r:id="rId1"/></sheets>'
-            "</workbook>"
-        )
-
-    def _xlsx_workbook_relationships(self) -> str:
-        relationship_type = (
-            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet"
-        )
-        return (
-            '<?xml version="1.0" encoding="UTF-8"?>'
-            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-            f'<Relationship Id="rId1" Type="{relationship_type}" Target="worksheets/sheet1.xml"/>'
-            "</Relationships>"
-        )

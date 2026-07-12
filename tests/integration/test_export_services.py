@@ -12,6 +12,7 @@ import pytest
 
 from openinfra.application.container import ApplicationFactory
 from openinfra.application.export_services import (
+    ExportArtifactStreamBuilder,
     GetExportArtifactChunkCommand,
     GetExportArtifactCommand,
     GetExportJobCommand,
@@ -497,10 +498,10 @@ class TestExportService:
         )
         object.__setattr__(unsupported_job, "resource", UnsupportedResource())
         with pytest.raises(ValidationError, match="unsupported export resource"):
-            app.export_service._collect_source_objects(unsupported_job, 10)
+            tuple(app.export_service._iterate_source_objects(unsupported_job, 10))
 
         with pytest.raises(ValidationError, match="tags are invalid"):
-            app.export_service._flat_row(
+            ExportArtifactStreamBuilder()._flat_row(
                 {
                     "key": "device/invalid",
                     "kind": "device",

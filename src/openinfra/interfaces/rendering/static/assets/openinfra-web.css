@@ -1966,7 +1966,7 @@ input.form-control[type="datetime-local"]::-webkit-calendar-picker-indicator:hov
   opacity: 1;
 }
 
-/* v0.30.6: OpenInfra visual excellence layer.
+/* v0.30.7: OpenInfra visual excellence layer.
  * The interface keeps the established IONOS-inspired navy identity while
  * improving hierarchy, depth, rhythm and interactive feedback. The layer is
  * deliberately token-driven so React and the packaged runtime stay identical.

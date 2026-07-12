@@ -265,9 +265,9 @@ def test_sbom_postgresql_read_filters_pagination_and_guards(
     )
     assert repo.list_comparisons(tenant, Pagination(limit=10)).items == (comparison,)
 
-    with pytest.raises(ValidationError, match="numeric offset"):
+    with pytest.raises(ValidationError, match="signing secret"):
         repo.list_documents(tenant, Pagination(limit=10, cursor="invalid"))
-    with pytest.raises(ValidationError, match="positive"):
+    with pytest.raises(ValidationError, match="signing secret"):
         repo.list_documents(tenant, Pagination(limit=10, cursor="-1"))
     with pytest.raises(ValueError, match="unsupported"):
         repo._page("not_allowed", tenant, Pagination(limit=10), "", {}, "id")

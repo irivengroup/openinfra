@@ -329,6 +329,12 @@ class HighPerformanceRuntimeGuard:
             "tests/integration/test_asgi_performance_runtime.py",
             "tests/performance/test_high_performance_runtime_benchmark.py",
             "scripts/benchmark_high_performance_runtime.py",
+            "src/openinfra/infrastructure/cursor_pagination.py",
+            "installers/migrations/postgresql/0053_keyset_pagination_indexes.sql",
+            "tests/unit/test_cursor_pagination.py",
+            "tests/unit/test_export_stream_builder.py",
+            "tests/performance/test_cursor_pagination_benchmark.py",
+            "scripts/benchmark_cursor_pagination.py",
             "docs/specifications/OpenInfra-CDC-SFG-STG-v4.9.0/00-Delta-v4.9.md",
             "docs/specifications/OpenInfra-Roadmap-Developpement-v2.1/02-roadmap-phases.csv",
         )
@@ -400,6 +406,32 @@ class HighPerformanceRuntimeGuard:
                 raise QualityGateError(
                     "CI must execute and persist the high-performance runtime regression: " + marker
                 )
+        for marker in (
+            "Cursor pagination and streaming export regression",
+            "benchmark_cursor_pagination.py",
+            "cursor-pagination.json",
+        ):
+            if marker not in workflow:
+                raise QualityGateError(
+                    "CI must execute and persist the cursor pagination regression: " + marker
+                )
+        cursor_source = (
+            self._project_root / "src/openinfra/infrastructure/cursor_pagination.py"
+        ).read_text(encoding="utf-8")
+        postgresql_source = (
+            self._project_root / "src/openinfra/infrastructure/postgresql.py"
+        ).read_text(encoding="utf-8")
+        export_source = (
+            self._project_root / "src/openinfra/application/export_services.py"
+        ).read_text(encoding="utf-8")
+        for fragment in ("CursorTokenCodec", "PostgreSQLKeysetPage", "legacy_offset"):
+            if fragment not in cursor_source:
+                raise QualityGateError("cursor pagination contract is incomplete: " + fragment)
+        if " OFFSET %(" in postgresql_source:
+            raise QualityGateError("PostgreSQL repositories must not use direct OFFSET pagination")
+        for fragment in ("SpooledTemporaryFile", "_iterate_source_objects", "spooled_to_disk"):
+            if fragment not in export_source:
+                raise QualityGateError("streaming export contract is incomplete: " + fragment)
 
 
 class PostgreSQLMigrationSchemaGuard:

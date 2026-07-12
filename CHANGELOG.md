@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.30.7 - 2026-07-12
+
+### P20 / EPIC-2002 — pagination par curseur et streaming des données
+
+- remplacement de la pagination PostgreSQL `OFFSET` par des parcours keyset indexables sur les collections non bornées ;
+- curseurs opaques Base64URL signés HMAC-SHA256, liés au tenant, aux filtres, au contexte et à l’ordre de tri ;
+- compatibilité ascendante temporaire avec les curseurs numériques historiques, immédiatement migrés vers un curseur opaque ;
+- migration additive `0053_keyset_pagination_indexes.sql` avec index composés tenant/tri ;
+- génération progressive des exports JSON, CSV et XLSX avec tampon mémoire borné et débordement disque ;
+- maintien des signatures d’artefacts, du téléchargement par chunks et des formats existants ;
+- gate CI et benchmark p95 page initiale/page profonde, sans revendication de certification PostgreSQL réelle.
+
 ## 0.30.6 - 2026-07-11
 
 ### Correctif UI — navigation du header

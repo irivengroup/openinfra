@@ -13,7 +13,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.30.6"
+    EXPECTED_VERSION = "0.30.7"
     EXPECTED_DATA_PLANE_ROUTES = ("/api/v1/database/routing",)
     EXPECTED_GRAPH_ROUTES = (
         "/api/v1/graph/traverse",
@@ -167,8 +167,8 @@ class InstalledWheelSmoke:
         "/api/v1/offline-sync-packages/create",
         "/api/v1/offline-sync-packages/synchronize",
     )
-    EXPECTED_LAST_MIGRATION = "0052_multisite_disaster_recovery.sql"
-    EXPECTED_MIGRATION_COUNT = 52
+    EXPECTED_LAST_MIGRATION = "0053_keyset_pagination_indexes.sql"
+    EXPECTED_MIGRATION_COUNT = 53
     EXPECTED_ASSETS = (
         "openinfra-web.js",
         "openinfra-web.css",

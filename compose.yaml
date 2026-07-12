@@ -165,7 +165,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.6}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.7}
     container_name: openinfra-migrate
     restart: 'no'
     depends_on:
@@ -182,7 +182,7 @@ services:
     networks:
     - openinfra
   auth-bootstrap:
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.6}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.7}
     container_name: openinfra-auth-bootstrap
     restart: 'no'
     depends_on:
@@ -210,7 +210,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.6}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.7}
     container_name: openinfra-api
     restart: unless-stopped
     depends_on:
@@ -242,6 +242,7 @@ services:
       OPENINFRA_DB_READ_FALLBACK_TO_PRIMARY: ${OPENINFRA_DB_READ_FALLBACK_TO_PRIMARY:-true}
       OPENINFRA_DB_READ_REQUIRE_RECOVERY: ${OPENINFRA_DB_READ_REQUIRE_RECOVERY:-true}
       OPENINFRA_READ_CONSISTENCY_SECRET: ${OPENINFRA_READ_CONSISTENCY_SECRET:?OPENINFRA_READ_CONSISTENCY_SECRET is required}
+      OPENINFRA_CURSOR_SIGNING_SECRET: ${OPENINFRA_CURSOR_SIGNING_SECRET:-}
       OPENINFRA_READ_AFTER_WRITE_TTL_SECONDS: ${OPENINFRA_READ_AFTER_WRITE_TTL_SECONDS:-10}
     healthcheck:
       test:
@@ -258,7 +259,7 @@ services:
     networks:
     - openinfra
   web:
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.6}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.7}
     container_name: openinfra-web
     restart: unless-stopped
     depends_on:
@@ -338,7 +339,7 @@ services:
     networks:
     - openinfra
   smoke:
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.6}
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.30.7}
     container_name: openinfra-smoke
     restart: 'no'
     depends_on:

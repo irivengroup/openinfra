@@ -21,12 +21,13 @@ def test_multisite_migration_is_partitioned_indexed_constrained_and_non_destruct
     assert "DELETE FROM" not in sql.upper()
 
 
-def test_multisite_dr_is_latest_postgresql_migration() -> None:
+def test_multisite_migrations_preserve_order_before_keyset_indexes() -> None:
     migrations = sorted((ROOT / "installers/migrations/postgresql").glob("*.sql"))
-    assert len(migrations) == 52
-    assert migrations[-3].name == "0050_pro_centralized_multisite.sql"
-    assert migrations[-2].name == "0051_enterprise_regional_discovery_routing.sql"
-    assert migrations[-1].name == "0052_multisite_disaster_recovery.sql"
+    assert len(migrations) == 53
+    assert migrations[-4].name == "0050_pro_centralized_multisite.sql"
+    assert migrations[-3].name == "0051_enterprise_regional_discovery_routing.sql"
+    assert migrations[-2].name == "0052_multisite_disaster_recovery.sql"
+    assert migrations[-1].name == "0053_keyset_pagination_indexes.sql"
 
 
 def test_enterprise_regional_discovery_migration_is_safe_and_operable() -> None:

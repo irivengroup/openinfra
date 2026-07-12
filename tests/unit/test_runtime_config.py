@@ -166,3 +166,8 @@ class TestRuntimeConfig:
             encoding="utf-8",
         )
         assert resolver.resolve_consistency_secret() == "c" * 32
+
+        assert resolver.resolve_cursor_signing_secret() == "c" * 32
+        monkeypatch.setenv("OPENINFRA_CURSOR_SIGNING_SECRET", "k" * 32)
+        assert resolver.resolve_cursor_signing_secret() == "k" * 32
+        assert resolver.resolve_cursor_signing_secret("z" * 32) == "z" * 32

@@ -14,6 +14,7 @@ from openinfra.domain.multisite import (
     SiteAccessGrant,
     SitePortfolioEntry,
 )
+from openinfra.infrastructure.cursor_pagination import CursorField
 from openinfra.infrastructure.postgresql import (
     PostgreSQLConnectionFactory,
     PostgreSQLMultisiteRepository,
@@ -107,10 +108,30 @@ def test_multisite_postgresql_reads_filters_pagination_and_guards(
 
     with pytest.raises(ValueError, match="unsupported multisite pagination"):
         repo._page("multisite_reports", tenant, Pagination(limit=1), "", {}, "id")
-    with pytest.raises(ValidationError, match="numeric offset"):
-        repo._offset("invalid")
-    with pytest.raises(ValidationError, match="positive"):
-        repo._offset("-1")
+    with pytest.raises(ValidationError, match="signing secret"):
+        repo._keyset_page(
+            Pagination.from_values(10, "invalid.cursor"),
+            scope="multisite.reports",
+            tenant_id=tenant,
+            filters={},
+            fields=(CursorField("id"),),
+        )
+    first_page = repo._keyset_page(
+        Pagination.from_values(10),
+        scope="multisite.reports",
+        tenant_id=tenant,
+        filters={},
+        fields=(CursorField("id"),),
+    )
+    legacy_page = repo._keyset_page(
+        Pagination.from_values(10, "25"),
+        scope="multisite.reports",
+        tenant_id=tenant,
+        filters={},
+        fields=(CursorField("id"),),
+    )
+    assert first_page.where_sql == "" and first_page.offset_sql == ""
+    assert legacy_page.parameters["legacy_offset"] == 25
     with pytest.raises(ValidationError, match="sites payload"):
         repo._report({**report.as_dict(), "sites": "invalid"})
     with pytest.raises(ValidationError, match="JSON object"):

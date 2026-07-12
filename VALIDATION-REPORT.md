@@ -1,64 +1,96 @@
-# OpenInfra v0.30.6 — rapport de validation
+# OpenInfra v0.30.7 — rapport de validation
 
-Date : 2026-07-11
+Date : 2026-07-12
 
 ## Périmètre
 
-Cette livraison corrige l'état actif des composants dans le header des portails React et statique. La surface blanche très visible introduite par la couche de design finale est supprimée au profit d'un état translucide, cohérent avec le header bleu nuit et la charte OpenInfra.
+Cette livraison réalise P20 / EPIC-2002 pour les éditions Pro et Entreprise : pagination PostgreSQL keyset par curseur opaque signé et génération progressive des exports JSON, CSV et XLSX.
 
-## Correctif visuel
+## Fonctionnalités validées
 
-- fond actif bleu/cyan translucide : 10,5 % vers 4,5 % d'opacité ;
-- suppression de toute carte ou bordure blanche opaque en mode normal ;
-- repère inférieur cyan à 42 % d'opacité ;
-- libellé actif bleu très clair à 94 % d'opacité globale ;
-- icône active cyan clair à 82 % d'opacité ;
-- ombre ramenée à une profondeur légère ;
-- hover/focus sans surface blanche ;
-- modes `prefers-contrast` et `forced-colors` conservés pour l'accessibilité ;
-- parité CSS exacte entre le portail React et le runtime statique packagé.
+### Pagination keyset
 
-## Contrastes
+- curseurs Base64URL signés HMAC-SHA256 ;
+- liaison du curseur au tenant, au contexte, aux filtres, à l'ordre et aux positions de tri ;
+- prédicats lexicographiques indexables, y compris pour les tris mixtes ascendants/descendants ;
+- rejet des curseurs altérés, hors contexte ou associés à d'autres filtres ;
+- compatibilité ascendante temporaire avec les curseurs numériques historiques ;
+- migration de la page suivante vers un curseur opaque dès qu'un secret stable est configuré ;
+- absence de clause `OFFSET` directe dans les repositories PostgreSQL ;
+- validation explicite des valeurs entières, flottantes, booléennes, dates et datetimes ;
+- migration additive `0053_keyset_pagination_indexes.sql` avec index composés tenant/tri.
 
-Le contraste est calculé sur l'extrémité la plus claire du dégradé du header (`#0a5ddb`) :
+### Exports progressifs
 
-- libellé actif : supérieur ou égal à 4,5:1 ;
-- icône active : supérieure ou égale à 3:1 ;
-- le fond translucide n'est pas le seul indicateur : le repère inférieur et `aria-current="page"` complètent l'état actif.
+- parcours de la source page par page ;
+- sérialisation progressive JSON, CSV et XLSX ;
+- tampon `SpooledTemporaryFile` borné à 8 MiB avant débordement disque ;
+- conservation des signatures HMAC et SHA-256 ;
+- conservation du téléchargement par chunks ;
+- maintien des formats et contrats publics existants ;
+- aucun chargement préalable de toutes les lignes dans une collection Python.
 
-## Tests et qualité
+## Validation backend
 
-- 991 tests Python collectés et réussis en 163 secondes ;
-- couverture globale : 98,01 % ;
+- 1 008 tests Python collectés et réussis ;
+- couverture : 35 712 lignes couvertes sur 36 440, soit 98,0022 % ;
 - seuil contractuel de 98 % : PASS ;
-- 51 tests frontend réussis ;
-- Ruff format : 282 fichiers conformes ;
+- Ruff format : 295 fichiers conformes ;
 - Ruff lint : PASS ;
-- mypy strict : 93 modules, PASS ;
+- mypy strict : 94 modules, PASS ;
 - `compileall` : PASS ;
 - Bandit : PASS ;
 - security gate : PASS ;
 - quality gate : PASS ;
+- deux contrats OpenAPI : PASS ;
+- six profils installateurs : PASS ;
+- alignement Enterprise : PASS ;
+- CDC 4.9.0 : 840 exigences / 529 entités, PASS ;
+- roadmap 2.1.0 : 21 phases / 125 epics / 10 gates / 106 tests, PASS ;
+- 53 migrations PostgreSQL validées, dernière migration `0053_keyset_pagination_indexes.sql`.
+
+## Validation frontend
+
+- 51 tests Node.js réussis ;
+- contrat statique : PASS ;
 - ESLint JSX : PASS ;
 - WCAG 2.2 AA : PASS ;
 - build Vite : PASS ;
 - audit npm : 0 vulnérabilité ;
-- deux contrats OpenAPI : PASS ;
-- six profils installateurs : PASS ;
-- runtime natif : PASS.
+- bundle JavaScript : 320,39 KiB brut / 92,87 KiB gzip ;
+- bundle CSS : 281,84 KiB brut / 40,15 KiB gzip.
 
-## Tests de non-régression ajoutés
+## Benchmark de construction keyset
 
-- interdiction d'un fond blanc ou quasi blanc dans les règles actives du header en mode normal ;
-- obligation d'utiliser les jetons sémantiques translucides du header ;
-- contrôle de l'opacité du libellé et de l'icône ;
-- contrôle du contraste WCAG du libellé et du contraste non textuel de l'icône ;
-- contrôle de parité des deux feuilles de style.
+Configuration : 5 000 itérations par scénario, seuil p95 de 1 ms.
+
+| Scénario | p50 | p95 | p99 | Résultat |
+|---|---:|---:|---:|---|
+| Première page | 0,001512 ms | 0,001642 ms | 0,004567 ms | PASS |
+| Page profonde | 0,016235 ms | 0,023255 ms | 0,030626 ms | PASS |
+
+Le rapport porte explicitement `scope=keyset-query-construction-regression` et `capacity_certification=false`. Il démontre que le coût de décodage et de construction du prédicat ne dépend pas de la profondeur logique ; il ne remplace pas un test `EXPLAIN (ANALYZE, BUFFERS)` sur PostgreSQL réel.
+
+## Sécurité des dépendances
+
+- audit npm : PASS, aucune vulnérabilité ;
+- Bandit et security gate : PASS ;
+- `pip-audit --strict` a été installé et exécuté, mais n'a pas pu résoudre `pypi.org` ;
+- le gate `pip-audit` demeure bloquant dans GitHub Actions avec accès réseau.
 
 ## Limites d'environnement
 
-- Docker/Podman et PostgreSQL réel ne sont pas disponibles dans l'environnement local ;
-- `pip-audit` réseau n'a pas été rejoué, les planchers sécurisés de la version 0.30.5 restent inchangés et le gate demeure bloquant en CI ;
-- aucune capture navigateur automatisée n'est revendiquée.
+- Docker et Podman ne sont pas disponibles ;
+- PostgreSQL réel et `psql` ne sont pas disponibles ;
+- les index `0053`, les plans d'exécution, la réplication, PgBouncer, l'endurance et la saturation n'ont donc pas été exécutés sur une topologie réelle ;
+- aucune certification de capacité Pro/Entreprise n'est revendiquée par le benchmark local.
 
-Le CDC 4.9.0 et la roadmap 2.1.0 ne sont pas modifiés : il s'agit d'un correctif visuel sans évolution métier ou architecturale.
+## Compatibilité et rollback
+
+- les clients utilisant encore un curseur numérique continuent de fonctionner ;
+- la compatibilité numérique est temporaire et isolée dans l'adaptateur de pagination ;
+- les index de la migration `0053` sont additifs et peuvent rester en place lors d'un rollback applicatif ;
+- un serveur antérieur à 0.30.7 ne comprend pas les nouveaux curseurs opaques : après rollback, les clients doivent reprendre à la première page ;
+- aucune fonctionnalité, route, commande CLI ou format d'export existant n'a été supprimé.
+
+Le CDC reste en version 4.9.0 et la roadmap en version 2.1.0 : EPIC-2002 y était déjà planifié. La traçabilité et le runbook opérationnel ont été mis à jour dans la livraison.

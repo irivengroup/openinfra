@@ -102,6 +102,22 @@ jobs:
           python docs/specifications/OpenInfra-Roadmap-Developpement-v2.1/scripts/validate_roadmap.py
           python scripts/validate_enterprise_alignment.py --project-root .
 
+      - name: Cursor pagination and streaming export regression
+        run: |
+          python -m pytest -q --no-cov \
+            tests/unit/test_cursor_pagination.py \
+            tests/unit/test_export_stream_builder.py \
+            tests/integration/test_keyset_pagination_migration.py \
+            tests/integration/test_export_services.py \
+            tests/integration/test_postgresql_runtime.py \
+            tests/performance/test_cursor_pagination_benchmark.py
+          mkdir -p build/reports
+          PYTHONPATH=src:. python scripts/benchmark_cursor_pagination.py \
+            --iterations 5000 \
+            --p95-threshold-ms 1 \
+            --output build/reports/cursor-pagination.json \
+            --enforce
+
       - name: GreenOps energy, carbon and capacity regression
         run: |
           python -m pytest -q --no-cov \

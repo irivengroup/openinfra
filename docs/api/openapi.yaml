@@ -1,9 +1,12 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.30.6
-  description: API OpenInfra organisée dans Swagger et ReDoc par composant, puis par contexte métier. Chaque opération appartient à un 
-    contexte unique afin de conserver une navigation déterministe.
+  version: 0.30.7
+  description: >-
+    API OpenInfra organisée dans Swagger et ReDoc par composant, puis par contexte métier.
+    Chaque opération appartient à un contexte unique afin de conserver une navigation déterministe.
+    Les collections volumineuses utilisent des curseurs opaques signés, liés au tenant, aux filtres
+    et au tri. Les curseurs numériques historiques restent temporairement acceptés pour compatibilité.
 components:
   securitySchemes:
     bearerToken:

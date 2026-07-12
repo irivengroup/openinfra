@@ -46,7 +46,7 @@ class TestGitHubWorkflows:
         assert 'PYTHONPATH="$target" python scripts/smoke_installed_wheel.py' in workflow
         smoke = (PROJECT_ROOT / "scripts/smoke_installed_wheel.py").read_text(encoding="utf-8")
         assert "OpenApiDocumentProvider().read_yaml()" in smoke
-        assert "EXPECTED_MIGRATION_COUNT = 52" in smoke
+        assert "EXPECTED_MIGRATION_COUNT = 53" in smoke
         assert "EXPECTED_DATA_PLANE_ROUTES" in smoke
         assert "/api/v1/database/routing" in smoke
         assert "EXPECTED_NETWORK_CONFIG_ROUTES" in smoke
@@ -54,7 +54,7 @@ class TestGitHubWorkflows:
         assert "EXPECTED_SIMULATION_ROUTES" in smoke
         assert "EXPECTED_GREENOPS_ROUTES" in smoke
         assert "EXPECTED_SBOM_ROUTES" in smoke
-        assert 'EXPECTED_LAST_MIGRATION = "0052_multisite_disaster_recovery.sql"' in smoke
+        assert 'EXPECTED_LAST_MIGRATION = "0053_keyset_pagination_indexes.sql"' in smoke
         for route in (
             "/api/v1/graph/traverse",
             "/api/v1/graph/impact",

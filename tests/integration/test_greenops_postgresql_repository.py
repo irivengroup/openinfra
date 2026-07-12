@@ -33,6 +33,7 @@ from openinfra.domain.greenops import (
     MeasurementSource,
     SustainabilityReport,
 )
+from openinfra.infrastructure.cursor_pagination import CursorField
 from openinfra.infrastructure.postgresql import (
     PostgreSQLConnectionFactory,
     PostgreSQLGreenOpsRepository,
@@ -379,16 +380,36 @@ def test_greenops_postgresql_internal_guards(monkeypatch: MonkeyPatch) -> None:
         repo._upsert_payload("users", tenant, EntityId.new().value, {}, {})
     with pytest.raises(ValueError, match="unsupported GreenOps pagination"):
         repo._payload_page("users", tenant, Pagination.from_values(10), "", {}, "id")
-    with pytest.raises(ValidationError, match="numeric offset"):
-        repo._offset("invalid")
-    with pytest.raises(ValidationError, match="positive"):
-        repo._offset("-1")
+    with pytest.raises(ValidationError, match="signing secret"):
+        repo._keyset_page(
+            Pagination.from_values(10, "invalid.cursor"),
+            scope="greenops.reports",
+            tenant_id=tenant,
+            filters={},
+            fields=(CursorField("id"),),
+        )
     with pytest.raises(ValidationError, match="JSON object"):
         repo._json_mapping("[]")
 
+    first_page = repo._keyset_page(
+        Pagination.from_values(10),
+        scope="greenops.reports",
+        tenant_id=tenant,
+        filters={},
+        fields=(CursorField("id"),),
+    )
+    legacy_page = repo._keyset_page(
+        Pagination.from_values(10, "25"),
+        scope="greenops.reports",
+        tenant_id=tenant,
+        filters={},
+        fields=(CursorField("id"),),
+    )
+    assert first_page.where_sql == "" and first_page.offset_sql == ""
+    assert legacy_page.offset_sql == " OFFSET %(legacy_offset)s"
+    assert legacy_page.parameters["legacy_offset"] == 25
     assert repo._optional_filters({"site_code": "par-01", "scope": None}) == (
         "AND site_code = %(site_code)s",
         {"site_code": "par-01"},
     )
-    assert repo._offset(None) == 0
     assert repo._json_mapping('{"site_code":"par-01"}') == {"site_code": "par-01"}

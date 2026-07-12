@@ -8,7 +8,8 @@ import pytest
 from tests.integration.test_postgresql_runtime import FakeConnection
 
 from openinfra.domain.access_policy import AccessRequestContext
-from openinfra.domain.common import TenantId, ValidationError
+from openinfra.domain.common import Pagination, TenantId, ValidationError
+from openinfra.infrastructure.cursor_pagination import CursorField
 from openinfra.infrastructure.postgresql import (
     PostgreSQLAccessPolicyRepository,
     PostgreSQLAuditRepository,
@@ -304,10 +305,14 @@ def test_postgresql_security_access_identity_and_ipam_row_mappers() -> None:
         AccessRequestContext.create(tenant, access_rule.permission, "PAR1", "prod")
     )
     assert governance_rule.authoritative_source.value == "discovery"
-    with pytest.raises(ValidationError):
-        governance._offset("bad")
-    with pytest.raises(ValidationError):
-        governance._offset("-1")
+    with pytest.raises(ValidationError, match="signing secret"):
+        governance._keyset_page(
+            Pagination.from_values(1, "opaque.cursor"),
+            scope="rsot.source-governance-rules",
+            tenant_id=tenant,
+            filters={},
+            fields=(CursorField("name"),),
+        )
 
 
 def test_postgresql_source_of_truth_and_audit_row_mappers() -> None:
@@ -379,10 +384,14 @@ def test_postgresql_source_of_truth_and_audit_row_mappers() -> None:
     assert relation.valid_to is not None
     assert params["object_key"] == "device/srv-1"
     assert event_record.verifies() is True
-    with pytest.raises(ValidationError):
-        sot._offset("bad")
-    with pytest.raises(ValidationError):
-        sot._offset("-1")
+    with pytest.raises(ValidationError, match="signing secret"):
+        sot._keyset_page(
+            Pagination.from_values(1, "opaque.cursor"),
+            scope="rsot.source-objects",
+            tenant_id=tenant,
+            filters={},
+            fields=(CursorField("object_key"),),
+        )
     with pytest.raises(ValidationError):
         audit.list_events(tenant, 0)
     with pytest.raises(ValidationError):
@@ -463,10 +472,14 @@ def test_postgresql_flow_matrix_row_mappers_and_parameters() -> None:
     assert observation.destination_object_key == "server/web-01"
     assert repo._row_datetime(now.replace(tzinfo=None)).tzinfo is not None
     assert repo._row_datetime(now.isoformat()) == now
-    with pytest.raises(ValidationError, match="numeric"):
-        repo._offset("bad")
-    with pytest.raises(ValidationError, match="positive"):
-        repo._offset("-1")
+    with pytest.raises(ValidationError, match="signing secret"):
+        repo._keyset_page(
+            Pagination.from_values(1, "opaque.cursor"),
+            scope="ipam.flow-declarations",
+            tenant_id=TenantId.from_value("default"),
+            filters={},
+            fields=(CursorField("code"),),
+        )
 
 
 def test_postgresql_certificate_inventory_row_mappers_and_parameters() -> None:
@@ -549,7 +562,11 @@ def test_postgresql_certificate_inventory_row_mappers_and_parameters() -> None:
     assert endpoint.host == "portal.example.net"
     assert repo._row_datetime(now.replace(tzinfo=None)).tzinfo is not None
     assert repo._json_sequence('["one"]') == ["one"]
-    with pytest.raises(ValidationError, match="numeric"):
-        repo._offset("bad")
-    with pytest.raises(ValidationError, match="positive"):
-        repo._offset("-1")
+    with pytest.raises(ValidationError, match="signing secret"):
+        repo._keyset_page(
+            Pagination.from_values(1, "opaque.cursor"),
+            scope="security.certificate-inventory",
+            tenant_id=TenantId.from_value("default"),
+            filters={},
+            fields=(CursorField("fingerprint_sha256"),),
+        )

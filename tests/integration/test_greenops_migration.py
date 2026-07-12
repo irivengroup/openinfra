@@ -46,8 +46,9 @@ def test_greenops_precedes_sbom_and_rag_without_being_modified() -> None:
         "0050_pro_centralized_multisite.sql",
         "0051_enterprise_regional_discovery_routing.sql",
         "0052_multisite_disaster_recovery.sql",
+        "0053_keyset_pagination_indexes.sql",
     )
-    assert len(names) == 52
+    assert len(names) == 53
     assert [names.index(name) for name in expected_order] == sorted(
         names.index(name) for name in expected_order
     )

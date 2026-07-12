@@ -1,5 +1,15 @@
 # Traçabilité OpenInfra
 
+## v0.30.7 — Pagination keyset et exports progressifs
+
+| Exigence / Epic | Implémentation | Vérification |
+|---|---|---|
+| REQ-00834 / EPIC-2002 — curseurs opaques | `CursorTokenCodec`, `PostgreSQLKeysetPage`, liaison tenant/filtres/scope et HMAC-SHA256 | tests unitaires de signature, altération, expiration de contexte et types |
+| Pagination profonde stable | prédicats lexicographiques, index `0053`, suppression des `OFFSET` directs | test migration, gate source et benchmark p50/p95/p99 |
+| Compatibilité ascendante | acceptation transitoire des curseurs numériques et émission immédiate d’un opaque | tests legacy offset et reprise opaque |
+| Exports bornés | itération par pages, `SpooledTemporaryFile`, JSON/CSV/XLSX progressifs | tests de générateur one-shot, bascule disque, formats et signatures |
+| CI/packaging | gate P20 dédié, benchmark JSON et migration embarquée | workflow CI, smoke wheel/sdist, quality gate |
+
 ## v0.30.0 — Socle haute performance Pro et Entreprise
 
 | Exigence / Epic | Implémentation | Vérification |

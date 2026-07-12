@@ -87,6 +87,7 @@ from openinfra.application.simulation_services import (
 from openinfra.application.source_governance_services import SourceGovernanceService
 from openinfra.application.source_of_truth_services import SourceOfTruthService
 from openinfra.infrastructure.certificate_parser import CryptographyCertificateParser
+from openinfra.infrastructure.cursor_pagination import CursorTokenCodec
 from openinfra.infrastructure.ddi_connectors import DdiConnectorFactory
 from openinfra.infrastructure.external_identity import LdapIpaDirectoryAuthenticator
 from openinfra.infrastructure.import_parsers import ImportDatasetParser
@@ -155,6 +156,7 @@ from openinfra.infrastructure.postgresql import (
 )
 from openinfra.infrastructure.rag_generator import DeterministicRagGenerator
 from openinfra.infrastructure.read_routing import PostgreSQLReadRoutingSettings
+from openinfra.infrastructure.runtime_config import RuntimeDatabaseDsnResolver
 from openinfra.infrastructure.sbom_parser import SbomPayloadParser
 
 
@@ -317,6 +319,7 @@ class ApplicationFactory:
         read_dsn: str = "",
         read_pool_settings: PostgreSQLConnectionPoolSettings | None = None,
         read_routing_settings: PostgreSQLReadRoutingSettings | None = None,
+        cursor_signing_secret: str | None = None,
     ) -> OpenInfraApplication:
         connection_factory = PostgreSQLConnectionFactory(
             dsn,
@@ -338,33 +341,41 @@ class ApplicationFactory:
             read_factory=read_factory,
             read_routing_settings=read_routing_settings,
         )
+        resolved_cursor_secret = RuntimeDatabaseDsnResolver().resolve_cursor_signing_secret(
+            cursor_signing_secret
+        )
+        cursor_codec = CursorTokenCodec(resolved_cursor_secret) if resolved_cursor_secret else None
         transaction_manager = PostgreSQLTransactionManager(registry)
-        dcim_repository = PostgreSQLDcimRepository(registry)
-        ipam_repository = PostgreSQLIpamRepository(registry)
-        audit_repository = PostgreSQLAuditRepository(registry)
-        security_repository = PostgreSQLSecurityRepository(registry)
-        identity_repository = PostgreSQLIdentityRepository(registry)
-        access_policy_repository = PostgreSQLAccessPolicyRepository(registry)
-        source_of_truth_repository = PostgreSQLSourceOfTruthRepository(registry)
-        source_governance_repository = PostgreSQLSourceGovernanceRepository(registry)
-        import_repository = PostgreSQLImportRepository(registry)
-        export_repository = PostgreSQLExportRepository(registry)
-        field_operation_repository = PostgreSQLFieldOperationRepository(registry)
-        simulation_repository = PostgreSQLSimulationRepository(registry)
-        finops_repository = PostgreSQLFinOpsRepository(registry)
-        greenops_repository = PostgreSQLGreenOpsRepository(registry)
-        sbom_repository = PostgreSQLSbomRepository(registry)
-        rag_repository = PostgreSQLRagRepository(registry)
-        multisite_repository = PostgreSQLMultisiteRepository(registry)
-        flow_matrix_repository = PostgreSQLFlowMatrixRepository(registry)
-        certificate_inventory_repository = PostgreSQLCertificateInventoryRepository(registry)
-        network_config_compliance_repository = PostgreSQLNetworkConfigComplianceRepository(registry)
-        discovery_repository = PostgreSQLDiscoveryRepository(registry)
-        itam_support_repository = PostgreSQLItamSupportRepository(registry)
+        dcim_repository = PostgreSQLDcimRepository(registry, cursor_codec)
+        ipam_repository = PostgreSQLIpamRepository(registry, cursor_codec)
+        audit_repository = PostgreSQLAuditRepository(registry, cursor_codec)
+        security_repository = PostgreSQLSecurityRepository(registry, cursor_codec)
+        identity_repository = PostgreSQLIdentityRepository(registry, cursor_codec)
+        access_policy_repository = PostgreSQLAccessPolicyRepository(registry, cursor_codec)
+        source_of_truth_repository = PostgreSQLSourceOfTruthRepository(registry, cursor_codec)
+        source_governance_repository = PostgreSQLSourceGovernanceRepository(registry, cursor_codec)
+        import_repository = PostgreSQLImportRepository(registry, cursor_codec)
+        export_repository = PostgreSQLExportRepository(registry, cursor_codec)
+        field_operation_repository = PostgreSQLFieldOperationRepository(registry, cursor_codec)
+        simulation_repository = PostgreSQLSimulationRepository(registry, cursor_codec)
+        finops_repository = PostgreSQLFinOpsRepository(registry, cursor_codec)
+        greenops_repository = PostgreSQLGreenOpsRepository(registry, cursor_codec)
+        sbom_repository = PostgreSQLSbomRepository(registry, cursor_codec)
+        rag_repository = PostgreSQLRagRepository(registry, cursor_codec)
+        multisite_repository = PostgreSQLMultisiteRepository(registry, cursor_codec)
+        flow_matrix_repository = PostgreSQLFlowMatrixRepository(registry, cursor_codec)
+        certificate_inventory_repository = PostgreSQLCertificateInventoryRepository(
+            registry, cursor_codec
+        )
+        network_config_compliance_repository = PostgreSQLNetworkConfigComplianceRepository(
+            registry, cursor_codec
+        )
+        discovery_repository = PostgreSQLDiscoveryRepository(registry, cursor_codec)
+        itam_support_repository = PostgreSQLItamSupportRepository(registry, cursor_codec)
         migration_catalog = PostgreSQLMigrationCatalog.from_project_root()
         readiness_probe = PostgreSQLReadinessProbe(registry, migration_catalog)
         schema_status_provider = PostgreSQLMigrationExecutor(registry, migration_catalog)
-        runtime_usage_repository = PostgreSQLRuntimeUsageRepository(registry)
+        runtime_usage_repository = PostgreSQLRuntimeUsageRepository(registry, cursor_codec)
         if seed:
             SeedDataFactory(
                 dcim_repository,

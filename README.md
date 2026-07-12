@@ -1,6 +1,6 @@
-# OpenInfra v0.30.6
+# OpenInfra v0.30.7
 
-OpenInfra 0.30.6 poursuit le socle d’exécution haute performance des éditions Pro et Entreprise. Cette version conserve la Clean Architecture, le DDD, les contrats métier, la CLI, REST, OpenAPI, RBAC et les migrations, tout en remplaçant les principaux plafonds techniques du runtime HTTP et de l’accès PostgreSQL.
+OpenInfra 0.30.7 poursuit le socle d’exécution haute performance des éditions Pro et Entreprise. Cette version conserve la Clean Architecture, le DDD, les contrats métier, la CLI, REST, OpenAPI, RBAC et les migrations, tout en remplaçant les principaux plafonds techniques du runtime HTTP et de l’accès PostgreSQL.
 
 ## Sécurité, design system et documentation API
 
@@ -15,6 +15,21 @@ Le correctif `0.30.6` rend l’état actif des composants du header plus discret
 - `x-tagGroups` pour ReDoc et tri métier déterministe dans Swagger UI.
 
 Voir `docs/operations/api-documentation-organization.md`.
+
+
+## Pagination keyset et exports progressifs — P20 / EPIC-2002
+
+OpenInfra 0.30.7 remplace les offsets profonds des collections PostgreSQL non bornées par des curseurs opaques signés. Les jetons sont liés au tenant, aux filtres et au tri, empêchant leur réutilisation hors contexte. Les anciens curseurs numériques restent acceptés temporairement pour compatibilité et la réponse suivante fournit immédiatement un curseur opaque.
+
+Les exports JSON, CSV et XLSX sont désormais sérialisés au fil des pages dans un tampon borné qui bascule sur disque au-delà du seuil. Les signatures HMAC, la vérification SHA-256 et le téléchargement par chunks sont conservés.
+
+```bash
+PYTHONPATH=src:. python scripts/benchmark_cursor_pagination.py \
+  --iterations 5000 --p95-threshold-ms 1 \
+  --output build/reports/cursor-pagination.json --enforce
+```
+
+Voir `docs/operations/keyset-pagination-streaming.md`.
 
 ## Plan de données PostgreSQL haute performance — P20 / EPIC-2001
 
@@ -55,13 +70,13 @@ Le benchmark P19 détecte les régressions du transport applicatif ; il ne const
 
 ## Séquencement professionnel P19 / P20
 
-| Capacité | État 0.30.6 | Étape suivante |
+| Capacité | État 0.30.7 | Étape suivante |
 |---|---|---|
 | ASGI API/Web, backpressure, workers | Livrée | Observabilité fine P20 |
 | Pool PostgreSQL borné | Livré | PgBouncer et routage lecture/écriture livrés en EPIC-2001 |
 | BFF HTTP persistant et streaming | Livré | Tests de saturation inter-services P20 |
 | Gate transport p95/p99 | Livré et bloquant | Certification de capacité/endurance P20 |
-| Pagination par curseur | Planifiée | EPIC-2002 |
+| Pagination par curseur | Livrée en EPIC-2002 | Certification PostgreSQL réelle P20 |
 | Outbox et workers spécialisés | Planifiés | EPIC-2003 |
 | Frontend modulaire/virtualisé | Planifié | EPIC-2004 |
 | Stockage objet des payloads massifs | Planifié | EPIC-2003 |

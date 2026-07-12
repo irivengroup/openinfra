@@ -24,6 +24,7 @@ class WheelVerifier:
         "openinfra/application/certificate_pki_services.py",
         "openinfra/infrastructure/certificate_parser.py",
         "openinfra/infrastructure/read_routing.py",
+        "openinfra/infrastructure/cursor_pagination.py",
         "openinfra/interfaces/asgi.py",
         "openinfra/interfaces/asgi_web.py",
         "openinfra/interfaces/openapi_taxonomy.py",
@@ -67,7 +68,7 @@ class WheelVerifier:
         "openinfra/migrations/postgresql/0049_rag_governed_assistant.sql",
         "openinfra/migrations/postgresql/0050_pro_centralized_multisite.sql",
         "openinfra/migrations/postgresql/0051_enterprise_regional_discovery_routing.sql",
-        "openinfra/migrations/postgresql/0052_multisite_disaster_recovery.sql",
+        "openinfra/migrations/postgresql/0053_keyset_pagination_indexes.sql",
     )
 
     def verify(self, path: Path) -> None:
@@ -94,6 +95,9 @@ class SourceDistributionVerifier:
         "src/openinfra/interfaces/openapi_taxonomy.py",
         "docs/api/openapi.yaml",
         "docs/operations/api-documentation-organization.md",
+        "docs/operations/keyset-pagination-streaming.md",
+        "scripts/benchmark_cursor_pagination.py",
+        "installers/migrations/postgresql/0053_keyset_pagination_indexes.sql",
         "requirements/runtime.txt",
         "requirements/security-audit.txt",
         ".github/workflows/ci.yml",

@@ -1,6 +1,8 @@
-# OpenInfra v0.30.7
+# OpenInfra v0.30.8
 
-OpenInfra 0.30.7 poursuit le socle d’exécution haute performance des éditions Pro et Entreprise. Cette version conserve la Clean Architecture, le DDD, les contrats métier, la CLI, REST, OpenAPI, RBAC et les migrations, tout en remplaçant les principaux plafonds techniques du runtime HTTP et de l’accès PostgreSQL.
+OpenInfra 0.30.8 poursuit le socle d’exécution haute performance des éditions Pro et Entreprise. Cette version conserve la Clean Architecture, le DDD, les contrats métier, la CLI, REST, OpenAPI, RBAC et les migrations, tout en remplaçant les principaux plafonds techniques du runtime HTTP et de l’accès PostgreSQL.
+> **Correctif visuel 0.30.8** — Le hover/focus d’un composant racine actif dans la sidebar conserve son fond et colore uniquement son texte et son icône avec le turquoise clair du thème. Aucun autre élément de la charte graphique n’est modifié.
+
 
 ## Sécurité, design system et documentation API
 

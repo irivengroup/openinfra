@@ -2134,6 +2134,14 @@ body {
   box-shadow: 0 .45rem 1rem rgba(0, 72, 175, .18), inset 0 1px 0 rgba(255, 255, 255, .18);
 }
 
+/* Keep the selected root component legible on interaction without altering its surface. */
+.openinfra-sidebar-dashboard.active:hover,
+.openinfra-sidebar-dashboard.active:focus,
+.openinfra-accordion-toggle.active:hover,
+.openinfra-accordion-toggle.active:focus {
+  color: var(--openinfra-header-nav-active-icon);
+}
+
 .openinfra-sidebar-context {
   border-left-color: rgba(var(--openinfra-action-rgb), .18);
 }

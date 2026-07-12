@@ -163,3 +163,25 @@ def test_active_header_component_is_translucent_without_white_card() -> None:
     active_icon = _blend((185, 240, 252), brightest_header_blue, 0.94 * 0.82)
     assert _contrast_ratio(active_text, brightest_header_blue) >= 4.5
     assert _contrast_ratio(active_icon, brightest_header_blue) >= 3.0
+
+
+def test_active_sidebar_root_hover_changes_only_foreground_to_theme_turquoise() -> None:
+    css = _read(STATIC_CSS)
+
+    match = re.search(
+        r"\.openinfra-sidebar-dashboard\.active:hover,\s*"
+        r"\.openinfra-sidebar-dashboard\.active:focus,\s*"
+        r"\.openinfra-accordion-toggle\.active:hover,\s*"
+        r"\.openinfra-accordion-toggle\.active:focus\s*"
+        r"\{(?P<body>[^}]*)\}",
+        css,
+        re.DOTALL,
+    )
+    assert match is not None
+    body = match.group("body")
+    assert "color: var(--openinfra-header-nav-active-icon);" in body
+    assert "background" not in body
+    assert "border" not in body
+    assert "box-shadow" not in body
+    assert ".openinfra-accordion-toggle svg" in css
+    assert "fill: currentColor" in css

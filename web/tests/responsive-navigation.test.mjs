@@ -77,3 +77,15 @@ test('toolbar controls remain aligned and touch targets expand on coarse pointer
   assert.match(runtimeCss, /\.openinfra-language-control \.form-select,[\s\S]*?\.openinfra-api-doc-actions \.btn[\s\S]*?height: var\(--openinfra-toolbar-action-height\);/);
   assert.match(runtimeCss, /@media \(pointer: coarse\)[\s\S]*?--openinfra-toolbar-control-height: 2\.75rem;/);
 });
+
+test('active sidebar root keeps its surface and turns only icon and text turquoise on hover', async () => {
+  const { runtimeCss } = await sources();
+
+  const match = runtimeCss.match(
+    /\.openinfra-sidebar-dashboard\.active:hover,[\s\S]*?\.openinfra-accordion-toggle\.active:focus\s*\{(?<body>[^}]*)\}/,
+  );
+  assert.ok(match?.groups?.body);
+  assert.match(match.groups.body, /color: var\(--openinfra-header-nav-active-icon\);/);
+  assert.doesNotMatch(match.groups.body, /background|border|box-shadow/);
+  assert.match(runtimeCss, /\.openinfra-accordion-toggle svg,[\s\S]*?fill: currentColor;/);
+});

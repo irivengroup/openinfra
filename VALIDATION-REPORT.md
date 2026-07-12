@@ -1,41 +1,33 @@
-# OpenInfra v0.30.7 — rapport de validation
+# OpenInfra v0.30.8 — rapport de validation
 
 Date : 2026-07-12
 
 ## Périmètre
 
-Cette livraison réalise P20 / EPIC-2002 pour les éditions Pro et Entreprise : pagination PostgreSQL keyset par curseur opaque signé et génération progressive des exports JSON, CSV et XLSX.
+Correctif visuel strictement limité au survol et au focus d’un composant racine déjà actif dans la sidebar.
 
-## Fonctionnalités validées
+- le fond actif existant est conservé sans modification ;
+- la bordure et l’ombre restent inchangées ;
+- seuls le texte, l’icône et le chevron héritant de `currentColor` passent au turquoise clair du thème ;
+- le portail React et le runtime statique packagé utilisent une feuille de style strictement identique ;
+- aucune migration, dépendance, route, règle métier ou évolution du CDC/roadmap n’est introduite.
 
-### Pagination keyset
+## Fichiers principaux modifiés
 
-- curseurs Base64URL signés HMAC-SHA256 ;
-- liaison du curseur au tenant, au contexte, aux filtres, à l'ordre et aux positions de tri ;
-- prédicats lexicographiques indexables, y compris pour les tris mixtes ascendants/descendants ;
-- rejet des curseurs altérés, hors contexte ou associés à d'autres filtres ;
-- compatibilité ascendante temporaire avec les curseurs numériques historiques ;
-- migration de la page suivante vers un curseur opaque dès qu'un secret stable est configuré ;
-- absence de clause `OFFSET` directe dans les repositories PostgreSQL ;
-- validation explicite des valeurs entières, flottantes, booléennes, dates et datetimes ;
-- migration additive `0053_keyset_pagination_indexes.sql` avec index composés tenant/tri.
+- `web/src/openinfra-theme.css`
+- `src/openinfra/interfaces/rendering/static/assets/openinfra-web.css`
+- `web/tests/responsive-navigation.test.mjs`
+- `tests/integration/test_responsive_navigation_contract.py`
+- métadonnées de version et documentation de livraison
 
-### Exports progressifs
+## Résultats
 
-- parcours de la source page par page ;
-- sérialisation progressive JSON, CSV et XLSX ;
-- tampon `SpooledTemporaryFile` borné à 8 MiB avant débordement disque ;
-- conservation des signatures HMAC et SHA-256 ;
-- conservation du téléchargement par chunks ;
-- maintien des formats et contrats publics existants ;
-- aucun chargement préalable de toutes les lignes dans une collection Python.
+### Backend et contrats
 
-## Validation backend
-
-- 1 008 tests Python collectés et réussis ;
-- couverture : 35 712 lignes couvertes sur 36 440, soit 98,0022 % ;
+- 1 009 tests Python réussis ;
+- couverture : 98,002195 % ;
 - seuil contractuel de 98 % : PASS ;
-- Ruff format : 295 fichiers conformes ;
+- Ruff format : 288 fichiers conformes ;
 - Ruff lint : PASS ;
 - mypy strict : 94 modules, PASS ;
 - `compileall` : PASS ;
@@ -44,53 +36,23 @@ Cette livraison réalise P20 / EPIC-2002 pour les éditions Pro et Entreprise : 
 - quality gate : PASS ;
 - deux contrats OpenAPI : PASS ;
 - six profils installateurs : PASS ;
-- alignement Enterprise : PASS ;
-- CDC 4.9.0 : 840 exigences / 529 entités, PASS ;
-- roadmap 2.1.0 : 21 phases / 125 epics / 10 gates / 106 tests, PASS ;
-- 53 migrations PostgreSQL validées, dernière migration `0053_keyset_pagination_indexes.sql`.
+- CDC 4.9.0 : 840 exigences et 529 entités, PASS ;
+- roadmap 2.1.0 : 21 phases, 125 epics, 10 gates et 106 tests, PASS.
 
-## Validation frontend
+### Frontend
 
-- 51 tests Node.js réussis ;
-- contrat statique : PASS ;
+- 52 tests Node.js réussis ;
+- parité CSS React/runtime statique : PASS ;
+- contrat du hover actif limité à la propriété `color` : PASS ;
 - ESLint JSX : PASS ;
 - WCAG 2.2 AA : PASS ;
 - build Vite : PASS ;
-- audit npm : 0 vulnérabilité ;
-- bundle JavaScript : 320,39 KiB brut / 92,87 KiB gzip ;
-- bundle CSS : 281,84 KiB brut / 40,15 KiB gzip.
-
-## Benchmark de construction keyset
-
-Configuration : 5 000 itérations par scénario, seuil p95 de 1 ms.
-
-| Scénario | p50 | p95 | p99 | Résultat |
-|---|---:|---:|---:|---|
-| Première page | 0,001512 ms | 0,001642 ms | 0,004567 ms | PASS |
-| Page profonde | 0,016235 ms | 0,023255 ms | 0,030626 ms | PASS |
-
-Le rapport porte explicitement `scope=keyset-query-construction-regression` et `capacity_certification=false`. Il démontre que le coût de décodage et de construction du prédicat ne dépend pas de la profondeur logique ; il ne remplace pas un test `EXPLAIN (ANALYZE, BUFFERS)` sur PostgreSQL réel.
+- audit npm : 0 vulnérabilité.
 
 ## Sécurité des dépendances
 
-- audit npm : PASS, aucune vulnérabilité ;
-- Bandit et security gate : PASS ;
-- `pip-audit --strict` a été installé et exécuté, mais n'a pas pu résoudre `pypi.org` ;
-- le gate `pip-audit` demeure bloquant dans GitHub Actions avec accès réseau.
+`pip-audit --strict --requirement requirements/security-audit.txt` a été lancé, mais l’environnement n’a pas pu résoudre `pypi.org`. Le gate reste bloquant dans GitHub Actions. Aucune dépendance n’est modifiée dans cette livraison.
 
-## Limites d'environnement
+## Validation visuelle
 
-- Docker et Podman ne sont pas disponibles ;
-- PostgreSQL réel et `psql` ne sont pas disponibles ;
-- les index `0053`, les plans d'exécution, la réplication, PgBouncer, l'endurance et la saturation n'ont donc pas été exécutés sur une topologie réelle ;
-- aucune certification de capacité Pro/Entreprise n'est revendiquée par le benchmark local.
-
-## Compatibilité et rollback
-
-- les clients utilisant encore un curseur numérique continuent de fonctionner ;
-- la compatibilité numérique est temporaire et isolée dans l'adaptateur de pagination ;
-- les index de la migration `0053` sont additifs et peuvent rester en place lors d'un rollback applicatif ;
-- un serveur antérieur à 0.30.7 ne comprend pas les nouveaux curseurs opaques : après rollback, les clients doivent reprendre à la première page ;
-- aucune fonctionnalité, route, commande CLI ou format d'export existant n'a été supprimé.
-
-Le CDC reste en version 4.9.0 et la roadmap en version 2.1.0 : EPIC-2002 y était déjà planifié. La traçabilité et le runbook opérationnel ont été mis à jour dans la livraison.
+Le contrat automatisé garantit l’absence de modification du fond, de la bordure et de l’ombre. L’approbation visuelle finale doit être effectuée dans le navigateur cible après reconstruction des assets et rechargement forcé. Après approbation, la charte graphique est considérée comme figée et ne doit plus être modifiée sans demande explicite.

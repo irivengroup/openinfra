@@ -1,5 +1,13 @@
 # Changelog
 
+
+## 0.30.8 - 2026-07-12
+
+### Corrigé
+
+- Le survol ou le focus d’un composant racine déjà actif dans la sidebar conserve désormais son fond actif et applique uniquement au texte et à l’icône le turquoise clair du thème. Le composant ne devient plus sombre ou illisible.
+- La parité React/runtime statique et un contrat de non-régression interdisent toute modification du fond, de la bordure ou de l’ombre pour cet état interactif ciblé.
+
 ## 0.30.7 - 2026-07-12
 
 ### P20 / EPIC-2002 — pagination par curseur et streaming des données

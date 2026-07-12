@@ -68,7 +68,11 @@ test('toolbar controls remain aligned and touch targets expand on coarse pointer
 
   assert.match(runtimeCss, /\.openinfra-global-toolbar-inner\s*\{[\s\S]*?grid-template-columns: minmax\(0, 1fr\) minmax\(0, 50%\) minmax\(0, 1fr\);/);
   assert.match(runtimeCss, /\.openinfra-component-nav\s*\{[\s\S]*?justify-content: flex-end !important;[\s\S]*?margin: 0 0 0 auto !important;/);
-  assert.match(runtimeCss, /\.openinfra-component-nav \.nav-link\.active,[\s\S]*?color: rgba\(255, 255, 255, \.96\);/);
+  assert.match(runtimeCss, /--openinfra-header-nav-active-bg: linear-gradient\(180deg, rgba\(var\(--openinfra-cyan-rgb\), \.105\), rgba\(var\(--openinfra-action-rgb\), \.045\)\);/);
+  assert.match(runtimeCss, /\.openinfra-component-nav \.nav-link\.active,[\s\S]*?background-color: transparent !important;[\s\S]*?background-image: var\(--openinfra-header-nav-active-bg\);[\s\S]*?opacity: \.94;/);
+  assert.match(runtimeCss, /\.openinfra-component-nav \.nav-link\.active \.openinfra-top-icon,[\s\S]*?color: var\(--openinfra-header-nav-active-icon\);[\s\S]*?opacity: \.82;/);
+  assert.doesNotMatch(runtimeCss, /\.openinfra-component-nav \.nav-link\.active,[^}]*background:\s*linear-gradient\([^}]*#fff/i);
+  assert.doesNotMatch(runtimeCss, /\.openinfra-component-nav \.nav-link\.active,[^}]*rgba\(255, 255, 255, \.9[3-9]\)/i);
   assert.match(runtimeCss, /--openinfra-toolbar-action-height: 1\.82rem;/);
   assert.match(runtimeCss, /\.openinfra-language-control \.form-select,[\s\S]*?\.openinfra-api-doc-actions \.btn[\s\S]*?height: var\(--openinfra-toolbar-action-height\);/);
   assert.match(runtimeCss, /@media \(pointer: coarse\)[\s\S]*?--openinfra-toolbar-control-height: 2\.75rem;/);

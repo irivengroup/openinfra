@@ -47,6 +47,12 @@
   --openinfra-sidebar-context-bg: rgba(var(--openinfra-cyan-rgb), .075);
   --openinfra-sidebar-context-bg-hover: rgba(var(--openinfra-cyan-rgb), .12);
   --openinfra-sidebar-context-bg-active: rgba(var(--openinfra-cyan-rgb), .16);
+  --openinfra-header-nav-color: rgba(224, 242, 255, .78);
+  --openinfra-header-nav-hover-color: rgba(235, 248, 255, .94);
+  --openinfra-header-nav-active-color: #e4f7ff;
+  --openinfra-header-nav-active-icon: #b9f0fc;
+  --openinfra-header-nav-hover-bg: linear-gradient(180deg, rgba(var(--openinfra-cyan-rgb), .09), rgba(var(--openinfra-action-rgb), .035));
+  --openinfra-header-nav-active-bg: linear-gradient(180deg, rgba(var(--openinfra-cyan-rgb), .105), rgba(var(--openinfra-action-rgb), .045));
   --bs-primary: var(--openinfra-action);
   --bs-primary-rgb: var(--openinfra-action-rgb);
   --bs-link-color: var(--openinfra-blue);
@@ -1176,28 +1182,31 @@ body {
 }
 
 .openinfra-component-nav .nav-link {
-  color: rgba(255, 255, 255, .84);
+  color: var(--openinfra-header-nav-color);
 }
 
 .openinfra-component-nav .nav-link:hover,
 .openinfra-component-nav .nav-link:focus-visible {
-  background: linear-gradient(180deg, rgba(255, 255, 255, .2), rgba(var(--openinfra-cyan-rgb), .14));
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .28), 0 .3rem .8rem rgba(0, 27, 65, .16);
-  color: #fff;
+  background-image: var(--openinfra-header-nav-hover-bg);
+  box-shadow: inset 0 0 0 1px rgba(var(--openinfra-cyan-rgb), .13), 0 .18rem .48rem rgba(0, 27, 65, .1);
+  color: var(--openinfra-header-nav-hover-color);
   transform: translateY(-1px);
 }
 
 .openinfra-component-nav .nav-link.active,
 .openinfra-component-nav .nav-link[aria-current="page"] {
-  background: linear-gradient(145deg, #fff, #eaf5ff 62%, #dff8ff);
-  box-shadow: 0 .45rem 1rem rgba(0, 27, 65, .2), inset 0 0 0 1px rgba(var(--openinfra-cyan-rgb), .34);
-  color: var(--openinfra-blue);
+  background-color: transparent !important;
+  background-image: var(--openinfra-header-nav-active-bg);
+  box-shadow: inset 0 -2px 0 rgba(var(--openinfra-cyan-rgb), .42), 0 .14rem .42rem rgba(0, 27, 65, .085);
+  color: var(--openinfra-header-nav-active-color);
+  opacity: .94;
 }
 
 .openinfra-component-nav .nav-link.active .openinfra-top-icon,
 .openinfra-component-nav .nav-link[aria-current="page"] .openinfra-top-icon {
-  color: var(--openinfra-action);
-  filter: drop-shadow(0 .12rem .22rem rgba(var(--openinfra-action-rgb), .2));
+  color: var(--openinfra-header-nav-active-icon);
+  filter: none;
+  opacity: .82;
 }
 
 .openinfra-compact-menu-button {
@@ -1592,8 +1601,8 @@ body {
 
 .openinfra-component-nav .nav-link {
   border-radius: var(--openinfra-component-radius) !important;
-  color: rgba(255, 255, 255, .82);
-  opacity: .94;
+  color: var(--openinfra-header-nav-color);
+  opacity: .9;
   transition:
     background-color .22s ease,
     box-shadow .22s ease,
@@ -1605,32 +1614,35 @@ body {
 .openinfra-component-nav .nav-link:hover,
 .openinfra-component-nav .nav-link:focus-visible {
   animation: openinfra-component-bounce-fade .34s var(--openinfra-nav-motion) both;
-  background: linear-gradient(180deg, rgba(255, 255, 255, .095), rgba(var(--openinfra-cyan-rgb), .055));
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14), 0 .2rem .55rem rgba(0, 27, 65, .1);
-  color: rgba(255, 255, 255, .98);
+  background-image: var(--openinfra-header-nav-hover-bg);
+  box-shadow: inset 0 0 0 1px rgba(var(--openinfra-cyan-rgb), .13), 0 .18rem .48rem rgba(0, 27, 65, .1);
+  color: var(--openinfra-header-nav-hover-color);
   opacity: 1;
   transform: translateY(-1px);
 }
 
 .openinfra-component-nav .nav-link.active,
 .openinfra-component-nav .nav-link[aria-current="page"] {
-  background: linear-gradient(180deg, rgba(255, 255, 255, .13), rgba(var(--openinfra-cyan-rgb), .075));
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .17), 0 .18rem .5rem rgba(0, 27, 65, .09);
-  color: rgba(255, 255, 255, .96);
-  opacity: 1;
+  background-color: transparent !important;
+  background-image: var(--openinfra-header-nav-active-bg);
+  box-shadow: inset 0 -2px 0 rgba(var(--openinfra-cyan-rgb), .42), 0 .14rem .42rem rgba(0, 27, 65, .085);
+  color: var(--openinfra-header-nav-active-color);
+  opacity: .94;
 }
 
 .openinfra-component-nav .nav-link.active .openinfra-top-icon,
 .openinfra-component-nav .nav-link[aria-current="page"] .openinfra-top-icon {
-  color: rgba(123, 225, 247, .94);
-  filter: drop-shadow(0 .08rem .16rem rgba(0, 27, 65, .2));
+  color: var(--openinfra-header-nav-active-icon);
+  filter: none;
+  opacity: .82;
 }
 
 .openinfra-component-nav .nav-link.active:hover,
 .openinfra-component-nav .nav-link[aria-current="page"]:hover,
 .openinfra-component-nav .nav-link.active:focus-visible,
 .openinfra-component-nav .nav-link[aria-current="page"]:focus-visible {
-  background: linear-gradient(180deg, rgba(255, 255, 255, .17), rgba(var(--openinfra-cyan-rgb), .095));
+  background-image: linear-gradient(180deg, rgba(var(--openinfra-cyan-rgb), .135), rgba(var(--openinfra-action-rgb), .06));
+  opacity: 1;
 }
 
 @keyframes openinfra-component-bounce-fade {
@@ -1954,7 +1966,7 @@ input.form-control[type="datetime-local"]::-webkit-calendar-picker-indicator:hov
   opacity: 1;
 }
 
-/* v0.30.5: OpenInfra visual excellence layer.
+/* v0.30.6: OpenInfra visual excellence layer.
  * The interface keeps the established IONOS-inspired navy identity while
  * improving hierarchy, depth, rhythm and interactive feedback. The layer is
  * deliberately token-driven so React and the packaged runtime stay identical.
@@ -2020,24 +2032,28 @@ body {
 .openinfra-component-nav .nav-link {
   border: 1px solid transparent;
   border-radius: .64rem;
-  color: rgba(255, 255, 255, .8);
+  color: var(--openinfra-header-nav-color);
+  opacity: .9;
   transition: background-color var(--openinfra-transition-fast), border-color var(--openinfra-transition-fast), color var(--openinfra-transition-fast), transform var(--openinfra-transition-fast);
 }
 
 .openinfra-component-nav .nav-link:hover,
 .openinfra-component-nav .nav-link:focus-visible {
-  background: rgba(255, 255, 255, .105);
-  border-color: rgba(255, 255, 255, .16);
-  color: #fff;
+  background-image: var(--openinfra-header-nav-hover-bg);
+  border-color: rgba(var(--openinfra-cyan-rgb), .14);
+  color: var(--openinfra-header-nav-hover-color);
+  opacity: 1;
   transform: translateY(-1px);
 }
 
 .openinfra-component-nav .nav-link.active,
 .openinfra-component-nav .nav-link[aria-current="page"] {
-  background: linear-gradient(180deg, rgba(255, 255, 255, .96), rgba(239, 247, 255, .93));
-  border-color: rgba(255, 255, 255, .75);
-  box-shadow: 0 .4rem 1rem rgba(0, 17, 47, .2), inset 0 1px 0 #fff;
-  color: var(--openinfra-blue);
+  background-color: transparent !important;
+  background-image: var(--openinfra-header-nav-active-bg);
+  border-color: rgba(var(--openinfra-cyan-rgb), .16);
+  box-shadow: inset 0 -2px 0 rgba(var(--openinfra-cyan-rgb), .42), 0 .14rem .42rem rgba(0, 17, 47, .085);
+  color: var(--openinfra-header-nav-active-color);
+  opacity: .94;
 }
 
 .openinfra-global-toolbar {

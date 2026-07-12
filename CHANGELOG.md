@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.30.6 - 2026-07-11
+
+### Correctif UI — navigation du header
+
+- suppression de la carte blanche utilisée par le composant actif dans le header ;
+- remplacement par un fond bleu/cyan translucide, un repère inférieur discret et une ombre réduite ;
+- atténuation de l’icône active par opacité sans perdre le contraste non textuel WCAG ;
+- maintien d’un contraste AA pour le libellé actif sur toute la plage du dégradé bleu du header ;
+- parité stricte entre le portail React et le runtime statique packagé ;
+- ajout de tests bloquants interdisant la réintroduction d’un fond blanc opaque pour l’état actif.
+
 ## 0.30.5 - 2026-07-11
 
 ### Sécurité des dépendances

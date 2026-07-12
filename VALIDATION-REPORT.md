@@ -1,52 +1,38 @@
-# OpenInfra v0.30.5 — rapport de validation
+# OpenInfra v0.30.6 — rapport de validation
 
 Date : 2026-07-11
 
 ## Périmètre
 
-Cette livraison regroupe trois corrections cohérentes :
+Cette livraison corrige l'état actif des composants dans le header des portails React et statique. La surface blanche très visible introduite par la couche de design finale est supprimée au profit d'un état translucide, cohérent avec le header bleu nuit et la charte OpenInfra.
 
-1. durcissement des dépendances détectées par `pip-audit` ;
-2. optimisation de la charte graphique React/runtime packagé ;
-3. regroupement Swagger/ReDoc par composant puis contexte métier.
+## Correctif visuel
 
-## Sécurité des dépendances
+- fond actif bleu/cyan translucide : 10,5 % vers 4,5 % d'opacité ;
+- suppression de toute carte ou bordure blanche opaque en mode normal ;
+- repère inférieur cyan à 42 % d'opacité ;
+- libellé actif bleu très clair à 94 % d'opacité globale ;
+- icône active cyan clair à 82 % d'opacité ;
+- ombre ramenée à une profondeur légère ;
+- hover/focus sans surface blanche ;
+- modes `prefers-contrast` et `forced-colors` conservés pour l'accessibilité ;
+- parité CSS exacte entre le portail React et le runtime statique packagé.
 
-- `cryptography>=48.0.1,<50.0` afin d'exclure les wheels antérieurs à la correction OpenSSL publiée en juin 2026 ;
-- `urllib3>=2.7.0,<3.0` afin d'exclure les vulnérabilités corrigées en 2.7.0 ;
-- `pip>=26.0` avant installation dans la CI et dans l'image Docker ;
-- `pip-audit --strict` reste un gate bloquant sur `requirements/security-audit.txt`.
+## Contrastes
 
-L'environnement local ne peut pas résoudre `pypi.org`. Le gate `pip-audit` complet n'a donc pas pu être rejoué localement ; les planchers corrigés sont vérifiés par tests de contrat et le contrôle réseau reste bloquant en CI.
+Le contraste est calculé sur l'extrémité la plus claire du dégradé du header (`#0a5ddb`) :
 
-## Documentation API
-
-- 331 opérations OpenAPI classifiées ;
-- 69 contextes métier ;
-- 16 composants ;
-- un tag unique par opération ;
-- groupes ReDoc via `x-tagGroups` ;
-- tri Swagger déterministe par composant puis contexte ;
-- deux documents OpenAPI synchronisés et valides ;
-- 319 paths OpenAPI.
-
-## Charte graphique
-
-- design system commun aux deux portails ;
-- identité bleu nuit/IONOS conservée ;
-- surfaces, cartes, formulaires, tableaux, navigation et états interactifs harmonisés ;
-- parité exacte des fichiers CSS React/runtime packagé ;
-- modes `prefers-contrast` et `prefers-reduced-motion` conservés ;
-- aucune nouvelle dépendance frontend ni ressource média ;
-- audit npm : 0 vulnérabilité.
+- libellé actif : supérieur ou égal à 4,5:1 ;
+- icône active : supérieure ou égale à 3:1 ;
+- le fond translucide n'est pas le seul indicateur : le repère inférieur et `aria-current="page"` complètent l'état actif.
 
 ## Tests et qualité
 
-- 990 tests Python réussis en 163,18 s ;
+- 991 tests Python collectés et réussis en 163 secondes ;
 - couverture globale : 98,01 % ;
 - seuil contractuel de 98 % : PASS ;
 - 51 tests frontend réussis ;
-- Ruff format : 289 fichiers conformes ;
+- Ruff format : 282 fichiers conformes ;
 - Ruff lint : PASS ;
 - mypy strict : 93 modules, PASS ;
 - `compileall` : PASS ;
@@ -56,28 +42,23 @@ L'environnement local ne peut pas résoudre `pypi.org`. Le gate `pip-audit` comp
 - ESLint JSX : PASS ;
 - WCAG 2.2 AA : PASS ;
 - build Vite : PASS ;
-- validation frontend statique : PASS ;
+- audit npm : 0 vulnérabilité ;
+- deux contrats OpenAPI : PASS ;
 - six profils installateurs : PASS ;
-- CDC 4.9.0 : 840 exigences / 529 entités, PASS ;
-- roadmap 2.1.0 : 21 phases / 125 epics / 10 gates / 106 tests, PASS ;
 - runtime natif : PASS.
 
-## Régression de performance ASGI
+## Tests de non-régression ajoutés
 
-Profil local : 200 requêtes par scénario, concurrence 25, 10 warmups.
-
-| Scénario | p95 | p99 | Seuil p95/p99 |
-|---|---:|---:|---:|
-| API `/health` | 10,977 ms | 12,653 ms | 150 / 300 ms |
-| Web `/bootstrap.json` | 0,258 ms | 0,412 ms | 150 / 300 ms |
-| Proxy BFF | 0,498 ms | 0,953 ms | 200 / 400 ms |
-
-Le benchmark valide le transport ASGI et non une certification de capacité PostgreSQL réelle.
+- interdiction d'un fond blanc ou quasi blanc dans les règles actives du header en mode normal ;
+- obligation d'utiliser les jetons sémantiques translucides du header ;
+- contrôle de l'opacité du libellé et de l'icône ;
+- contrôle du contraste WCAG du libellé et du contraste non textuel de l'icône ;
+- contrôle de parité des deux feuilles de style.
 
 ## Limites d'environnement
 
-- résolution DNS de `pypi.org` indisponible pour `pip-audit` ;
-- Docker/Podman et PostgreSQL réel non disponibles ;
-- capture Chromium headless non exploitable dans cet environnement.
+- Docker/Podman et PostgreSQL réel ne sont pas disponibles dans l'environnement local ;
+- `pip-audit` réseau n'a pas été rejoué, les planchers sécurisés de la version 0.30.5 restent inchangés et le gate demeure bloquant en CI ;
+- aucune capture navigateur automatisée n'est revendiquée.
 
-Ces validations restent bloquantes dans la CI ou sur une plateforme Pro/Enterprise représentative.
+Le CDC 4.9.0 et la roadmap 2.1.0 ne sont pas modifiés : il s'agit d'un correctif visuel sans évolution métier ou architecturale.

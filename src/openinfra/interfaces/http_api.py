@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import binascii
 import json
 import os
 import sys
@@ -39,6 +40,7 @@ from openinfra.application.async_processing_services import (
     RenewOutboxLeaseCommand,
     ReplayAsyncJobCommand,
     ReplayOutboxEventCommand,
+    StoreAsyncArtifactCommand,
     SubmitAsyncJobCommand,
 )
 from openinfra.application.audit_services import (
@@ -3810,10 +3812,40 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
-        if route == "/api/v1/async/workers/reporting/run-once":
+        if route == "/api/v1/async/artifacts/put":
             try:
                 payload = self._read_json_body()
-                result = self.server.application.reporting_worker.run_once(
+                encoded = self._required_payload_value(payload, "content_base64")
+                try:
+                    content = base64.b64decode(encoded, validate=True)
+                except (ValueError, binascii.Error) as exc:
+                    raise ValidationError("content_base64 must be valid Base64") from exc
+                result = self.server.application.async_processing_service.store_artifact(
+                    StoreAsyncArtifactCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        actor=str(payload.get("actor", "api")),
+                        purpose=self._required_payload_value(payload, "purpose"),
+                        content=content,
+                        media_type=self._required_payload_value(payload, "media_type"),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        worker_routes: dict[str, Any] = {
+            "/api/v1/async/workers/reporting/run-once": self.server.application.reporting_worker,
+            "/api/v1/async/workers/imports/run-once": self.server.application.import_worker,
+            "/api/v1/async/workers/graph/run-once": self.server.application.graph_worker,
+            "/api/v1/async/workers/rag/run-once": self.server.application.rag_worker,
+        }
+        if route in worker_routes:
+            try:
+                payload = self._read_json_body()
+                result = worker_routes[route].run_once(
                     tenant_id=self._required_payload_value(payload, "tenant_id"),
                     admin_token=self._bearer_token(),
                     worker_id=self._required_payload_value(payload, "worker_id"),
@@ -8671,8 +8703,12 @@ class OpenInfraApiRuntime(BaseServer):
                     "job_complete": "/api/v1/async/jobs/complete",
                     "job_fail": "/api/v1/async/jobs/fail",
                     "job_replay": "/api/v1/async/jobs/replay",
+                    "artifact_put": "/api/v1/async/artifacts/put",
                     "artifact_get": "/api/v1/async/artifacts/get",
-                    "reporting_worker_run_once": ("/api/v1/async/workers/reporting/run-once"),
+                    "reporting_worker_run_once": "/api/v1/async/workers/reporting/run-once",
+                    "imports_worker_run_once": "/api/v1/async/workers/imports/run-once",
+                    "graph_worker_run_once": "/api/v1/async/workers/graph/run-once",
+                    "rag_worker_run_once": "/api/v1/async/workers/rag/run-once",
                     "outbox_events": "/api/v1/async/outbox-events",
                     "outbox_event_get": "/api/v1/async/outbox-events/get",
                     "outbox_claim": "/api/v1/async/outbox-events/claim",

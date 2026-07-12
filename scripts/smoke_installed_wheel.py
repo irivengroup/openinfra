@@ -13,7 +13,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.31.0"
+    EXPECTED_VERSION = "0.31.1"
     EXPECTED_ASYNC_ROUTES = (
         "/api/v1/async/jobs",
         "/api/v1/async/jobs/get",
@@ -23,8 +23,12 @@ class InstalledWheelSmoke:
         "/api/v1/async/jobs/complete",
         "/api/v1/async/jobs/fail",
         "/api/v1/async/jobs/replay",
+        "/api/v1/async/artifacts/put",
         "/api/v1/async/artifacts/get",
         "/api/v1/async/workers/reporting/run-once",
+        "/api/v1/async/workers/imports/run-once",
+        "/api/v1/async/workers/graph/run-once",
+        "/api/v1/async/workers/rag/run-once",
         "/api/v1/async/outbox-events",
         "/api/v1/async/outbox-events/get",
         "/api/v1/async/outbox-events/claim",

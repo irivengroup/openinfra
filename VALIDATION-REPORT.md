@@ -1,108 +1,112 @@
-# OpenInfra v0.31.0 — rapport de validation
+# OpenInfra v0.31.1 — rapport de validation
 
 Date : 2026-07-12
 
 ## Périmètre
 
-Cette livraison réalise le premier incrément autonome de **P20 / EPIC-2003 — outbox transactionnelle et workers spécialisés** sans modifier le thème approuvé en 0.30.9.
+Cette livraison clôt le périmètre fonctionnel de **P20 / EPIC-2003 — outbox transactionnelle et workers spécialisés** en branchant les traitements imports, graphes et RAG sur l'infrastructure asynchrone durable introduite en 0.31.0, sans modifier le thème approuvé.
 
-- file de travaux durable et multi-tenant ;
-- idempotence par opération et clé métier ;
-- leases expirants avec jetons de fencing monotones ;
-- reprise après expiration, renouvellement contrôlé et finalisation protégée ;
-- retries bornés, DLQ et rejeu audité ;
-- outbox transactionnelle et publication idempotente ;
-- artefacts hors PostgreSQL, sur stockage local atomique ou S3 compatible signé AWS SigV4 ;
-- worker pilote de reporting et dispatcher d’outbox ;
-- parité domaine, application, persistance JSON/PostgreSQL, CLI, API HTTP et OpenAPI ;
-- migration PostgreSQL `0054_async_outbox_workers.sql` partitionnée par tenant ;
-- aucune modification CSS ni régression du thème.
+- worker `reporting` pour l'état de la file asynchrone ;
+- worker `imports` pour les imports unitaires et massifs depuis un artefact externe ;
+- worker `graph` pour la traversée, l'analyse d'impact, le calcul de chemin, la détection SPOF et l'export ;
+- worker `rag` pour la synchronisation RSOT, l'import documentaire et l'export des réponses ;
+- dépôt contrôlé d'artefacts d'entrée par CLI et HTTP ;
+- résultats volumineux externalisés dans l'object store avec intégrité SHA-256 ;
+- rôles dédiés en moindre privilège pour chaque spécialisation ;
+- parité domaine, application, persistance, CLI, HTTP, OpenAPI, documentation et tests ;
+- aucune migration supplémentaire : le schéma `0054_async_outbox_workers.sql` de 0.31.0 couvre les nouvelles spécialisations ;
+- aucune modification CSS ni régression de la charte graphique.
 
-Les exigences textuelles du CDC v4.9.0 et la roadmap v2.1 ne sont pas rééditées : `REQ-00835`, `REQ-00839`, `CDC-PERF-006`, `EPIC-2003` et `TST-P20-OUTBOX-WORKERS` couvraient déjà cet incrément. Seul le miroir OpenAPI placé dans le répertoire du CDC est synchronisé avec le contrat runtime ; la traçabilité d’implémentation est ajoutée dans `docs/TRACEABILITY.md`.
+Les exigences textuelles du CDC v4.9.0 et la roadmap v2.1 ne sont pas rééditées, car `REQ-00835`, `REQ-00839`, `CDC-PERF-006`, `EPIC-2003` et `TST-P20-OUTBOX-WORKERS` décrivent déjà le périmètre. Le miroir OpenAPI inclus dans le CDC est synchronisé avec le contrat runtime.
 
 ## Fichiers principaux
 
 - `src/openinfra/domain/async_processing.py`
 - `src/openinfra/application/async_processing_services.py`
-- `src/openinfra/infrastructure/async_processing.py`
-- `src/openinfra/infrastructure/postgresql.py`
+- `src/openinfra/application/specialized_worker_services.py`
+- `src/openinfra/application/container.py`
+- `src/openinfra/application/security_services.py`
 - `src/openinfra/interfaces/cli.py`
 - `src/openinfra/interfaces/http_api.py`
-- `installers/migrations/postgresql/0054_async_outbox_workers.sql`
 - `docs/architecture/transactional-outbox-workers.md`
 - `docs/runbooks/ASYNC_WORKERS.md`
 - `docs/api/openapi.yaml`
 - `docs/specifications/OpenInfra-CDC-SFG-STG-v4.9.0/09-API/OpenAPI/openapi.yaml`
-- tests unitaires, intégration, concurrence, migration, interfaces et packaging associés.
+- tests unitaires et d'intégration des workers, autorisations, interfaces et packaging.
 
 ## Invariants vérifiés
 
-- vingt-quatre soumissions concurrentes avec la même clé ne créent qu’un job et un événement outbox ;
-- un worker dont le lease a expiré ne peut plus renouveler, terminer ou échouer le travail avec un jeton obsolète ;
-- un job terminé ne peut pas être validé sans référence d’artefact résultat ;
-- l’expiration d’un lease réinsère le travail dans le cycle de reprise sans perte ;
-- le nombre maximal de tentatives mène obligatoirement à la DLQ ;
-- un rejeu DLQ réinitialise explicitement l’état sans réutiliser un ancien fencing token ;
-- une publication outbox déjà acquittée reste idempotente ;
-- l’intégrité des artefacts est contrôlée par SHA-256 ;
-- les chemins locaux sont bornés au répertoire configuré et écrits atomiquement ;
-- les requêtes S3 compatibles sont signées AWS SigV4 sans secret en code ;
-- l’isolation tenant est imposée dans les services, dépôts et clés de stockage ;
-- les opérations PostgreSQL s’exécutent dans une unité de travail et l’idempotence concurrente utilise un verrou consultatif transactionnel.
+- un worker ne réclame que les jobs correspondant à sa spécialisation ;
+- les payloads sont strictement typés et les opérations non supportées sont rejetées explicitement ;
+- les imports consomment un artefact externe, utilisent les services d'import existants et produisent un rapport immuable ;
+- les cinq opérations graphe utilisent les services métier existants et externalisent leurs résultats ;
+- l'import documentaire RAG est borné à 10 000 documents par job ;
+- l'export de réponses RAG est borné à 10 000 résultats et supporte JSON et CSV ;
+- les erreurs de payload, de lecture d'artefact ou d'exécution passent par le cycle retries/DLQ du socle 0.31.0 ;
+- les artefacts d'entrée sont soumis par un utilisateur autorisé et audités ;
+- les rôles workers possèdent uniquement les permissions asynchrones et métier nécessaires ;
+- les contenus volumineux ne sont pas insérés dans PostgreSQL ;
+- l'isolation tenant, le fencing, l'idempotence et les transitions d'état restent appliqués par le socle commun.
 
 ## Validations exécutées
 
 ### Python et contrats
 
-- collection : **1 066 tests** sur **185 fichiers** ;
-- exécution complète par lots déterministes : **PASS**, aucune erreur ;
-- couverture : **37 272 / 38 032 lignes**, soit **98,0016827934 %** ;
+- collection : **1 087 tests** sur **187 fichiers** ;
+- exécution complète par partitions déterministes : **PASS**, aucune erreur ;
+- couverture : **37 558 / 38 322 lignes**, soit **98,006367099838 %** ;
 - seuil bloquant `--fail-under=98` : **PASS**, sans arrondi ni exclusion ajoutée ;
-- Ruff format : **PASS**, 303 fichiers conformes ;
+- Ruff format : **PASS**, 306 fichiers conformes ;
 - Ruff lint : **PASS** ;
-- mypy strict : **PASS**, 97 modules source ;
+- mypy strict : **PASS**, 98 modules source ;
 - `compileall` : **PASS** ;
 - Bandit : **PASS**, aucun finding bloquant ;
 - gate de sécurité du dépôt : **PASS** ;
-- validation des installateurs : **PASS**, 6 profils ;
-- validation frontend statique depuis Python : **PASS** ;
-- validation des deux documents OpenAPI : **PASS** ;
-- tests de workflow GitHub Actions, migrations, packaging et smoke runtime : **PASS**.
+- gate qualité interne : **PASS** ;
+- validation des 6 profils installateur : **PASS** ;
+- validation de l'alignement CDC/roadmap : **PASS** ;
+- smoke des assets runtime natifs : **PASS** ;
+- validation des deux documents OpenAPI : **PASS**.
 
-La suite instrumentée est exécutée en partitions déterministes dans ce sandbox, car le processus monolithique avec xdist dépasse sa fenêtre de fermeture. Les données de couverture des mêmes fichiers source sont combinées puis vérifiées par le gate officiel ; aucun test ni seuil n’est désactivé.
+La suite instrumentée est exécutée en partitions dans ce sandbox afin d'éviter la limite de fermeture du processus monolithique sous xdist. Les mêmes fichiers source sont mesurés dans une base de couverture unique, consolidée puis vérifiée par le gate officiel. Aucun test ni seuil n'est désactivé.
 
 ### Frontend
 
 - tests Node : **53 réussis** ;
-- ESLint : **PASS** ;
-- contrôles WCAG 2.2 AA statiques et JSX : **PASS** ;
+- validation des assets statiques : **PASS** ;
+- ESLint JSX : **PASS** ;
+- contrôles WCAG 2.2 AA : **PASS** ;
 - build Vite : **PASS** ;
 - `npm audit --audit-level=high` : **PASS**, 0 vulnérabilité ;
-- diff CSS : **vide**.
+- les feuilles `web/src/openinfra-theme.css` et `src/openinfra/interfaces/rendering/static/assets/openinfra-web.css` sont **strictement identiques octet par octet** à la version 0.31.0.
 
-### Persistance et concurrence
+### Interfaces et persistance
 
-- migration `0054` : contraintes, transitions d’état, index de claim/DLQ/audit et **16 partitions hash** validés ;
-- politique PostgreSQL multi-tenant : **PASS** ;
-- idempotence concurrente : **PASS** ;
-- reprise, fencing, retries, DLQ et rejeu : **PASS** ;
-- adaptateurs JSON, PostgreSQL, filesystem et S3 compatible : **PASS**.
+- contrat OpenAPI : **341 chemins**, dont **22 opérations asynchrones** ;
+- CLI `openinfra async` : **20 sous-commandes** ;
+- migrations PostgreSQL embarquées : **54**, aucune nouvelle migration dans cet incrément ;
+- upload d'artefacts CLI/HTTP : **PASS** ;
+- workers reporting/imports/graph/RAG via CLI et HTTP : **PASS** ;
+- rôles dédiés et permissions minimales : **PASS** ;
+- adaptateurs JSON, PostgreSQL, filesystem et S3 compatible : non-régression **PASS**.
 
-### Packaging
+## Packaging
 
 - construction isolée Hatchling du wheel et du sdist : **PASS** ;
-- vérification structurelle des deux distributions : **PASS** ;
+- contrôle d’intégrité ZIP/TAR : **PASS** ;
+- wheel : migration `0054`, 54 migrations, OpenAPI et assets runtime présents ;
+- sdist : code, tests, documentation, scripts, installateurs et rapport de validation présents ;
 - installation du wheel dans un environnement Python vierge avec ses seules dépendances runtime : **PASS** ;
 - `pip check` : **PASS**, aucune dépendance cassée ;
-- smoke test installé : **PASS** — version `0.31.0`, 18 routes asynchrones, 54 migrations, OpenAPI, assets runtime et scripts console ;
-- commande `openinfra async --help` : **PASS**, 19 sous-commandes exposées.
+- smoke du wheel installé : **PASS** — version `0.31.1`, 22 routes asynchrones, 54 migrations et assets runtime ;
+- commande `openinfra async --help` : **PASS**, 20 sous-commandes exposées.
 
 ## Limites de validation
 
-- aucun serveur PostgreSQL ni endpoint S3 externe n’est disponible dans le sandbox ; les contrats SQL, migrations, transactions, signatures SigV4, erreurs réseau et adaptateurs sont couverts par tests déterministes, mais la qualification d’infrastructure réelle reste un gate de déploiement Pro/Entreprise ;
-- `pip-audit --strict --requirement requirements/security-audit.txt` n’a pas pu interroger `pypi.org` à cause d’une indisponibilité DNS du sandbox ; le gate CI réseau demeure inchangé et bloquant ;
-- les benchmarks de charge représentatifs de `GATE-09` restent hors du périmètre de cet incrément fonctionnel pilote.
+- aucun serveur PostgreSQL ni endpoint S3 externe n'est disponible dans le sandbox ; les contrats SQL, transactions, signatures SigV4, erreurs réseau et adaptateurs sont couverts par tests déterministes, mais leur qualification sur l'infrastructure cible reste un gate de déploiement Pro/Entreprise ;
+- `pip-audit --strict --requirement requirements/security-audit.txt` n'a pas pu interroger `pypi.org` en raison d'une indisponibilité DNS du sandbox ; le gate CI réseau reste inchangé et bloquant ;
+- les benchmarks de charge représentatifs de `GATE-09` restent un gate de qualification de l'environnement cible et ne sont pas simulés par des chiffres artificiels.
 
 ## Risques résiduels
 
-Le risque fonctionnel est faible et concentré sur l’intégration avec les infrastructures PostgreSQL/S3 réelles. Il est maîtrisé par les contraintes de schéma, les tests de concurrence, les contrats d’adaptateurs, l’idempotence, le fencing et les runbooks de reprise. EPIC-2003 reste ouvert pour le branchement des workers imports, graphes et RAG ; ces incréments devront réutiliser ce socle sans dupliquer les mécanismes de file ou de persistance.
+Le risque fonctionnel résiduel est faible. Il se concentre sur les caractéristiques de l'infrastructure réelle : latence et disponibilité PostgreSQL/S3, dimensionnement des workers, débit d'artefacts et politiques de rétention. Les mécanismes d'idempotence, de fencing, de retries, de DLQ, d'isolation tenant, de limitation des lots et d'intégrité SHA-256 réduisent ces risques. Le passage à l'étape suivante de la roadmap peut désormais s'appuyer sur un socle EPIC-2003 complet sans dupliquer les mécanismes de file, d'outbox ou de stockage d'artefacts.

@@ -26,19 +26,24 @@ Les identifiants doivent provenir du gestionnaire de secrets ou de l’environne
 
 ## Exploitation
 
-Soumettre un rapport :
+Déposer un artefact source puis soumettre un traitement :
 
 ```bash
+openinfra async artifact-put --backend postgresql --tenant default \
+  --admin-token "$OPENINFRA_TOKEN" --actor operator \
+  --file inventory.csv --purpose imports-source --media-type text/csv
+
 openinfra async job-submit --backend postgresql --tenant default \
-  --admin-token "$OPENINFRA_TOKEN" --idempotency-key health-20260712-01 \
-  --payload-file request.json
+  --admin-token "$OPENINFRA_TOKEN" --specialization imports \
+  --operation imports.dataset --idempotency-key import-20260712-01 \
+  --payload-file import-request.json
 ```
 
 Exécuter une itération de worker puis une publication d’outbox :
 
 ```bash
 openinfra async worker-run-once --backend postgresql --tenant default \
-  --admin-token "$OPENINFRA_TOKEN" --worker-id reporting-01
+  --admin-token "$OPENINFRA_TOKEN" --specialization imports --worker-id imports-01
 openinfra async outbox-dispatch-once --backend postgresql --tenant default \
   --admin-token "$OPENINFRA_TOKEN" --worker-id outbox-01 \
   --output-directory /var/lib/openinfra/outbox-published
@@ -72,3 +77,14 @@ Sauvegarder ensemble `async_jobs`, `outbox_events`, `audit_events` et le stockag
 - taux de retry élevé ;
 - échec S3, divergence SHA-256 ou indisponibilité du bucket ;
 - backlog outbox non publié.
+
+## Spécialisations et rôles
+
+| Spécialisation | Opérations | Rôle recommandé |
+|---|---|---|
+| `reporting` | `reporting.async-queue-health` | `async:reporting-worker` |
+| `imports` | `imports.dataset`, `imports.bulk-dataset` | `async:import-worker` |
+| `graph` | `graph.traverse`, `graph.impact`, `graph.path`, `graph.spof`, `graph.export` | `async:graph-worker` |
+| `rag` | `rag.sync-rsot`, `rag.document-import`, `rag.answer-export` | `async:rag-worker` |
+
+Exécuter chaque spécialisation avec une identité de service distincte. Ne pas partager les tokens workers entre processus ni leur attribuer le rôle `admin`.

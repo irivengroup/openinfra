@@ -25,10 +25,14 @@ from openinfra.application.async_processing_services import (
     RenewOutboxLeaseCommand,
     ReplayAsyncJobCommand,
     ReplayOutboxEventCommand,
+    StoreAsyncArtifactCommand,
     SubmitAsyncJobCommand,
 )
 from openinfra.application.container import ApplicationFactory
-from openinfra.application.security_services import BootstrapTokenCommand
+from openinfra.application.security_services import (
+    AuthenticateTokenCommand,
+    BootstrapTokenCommand,
+)
 from openinfra.domain.async_processing import (
     AsyncJob,
     OutboxEvent,
@@ -43,6 +47,7 @@ from openinfra.domain.common import (
     TenantId,
     ValidationError,
 )
+from openinfra.domain.security import Permission
 from openinfra.infrastructure.async_processing import FileOutboxPublisher
 
 
@@ -511,6 +516,64 @@ def test_workers_convert_processing_and_publication_failures_to_retries(tmp_path
         tenant_id="default", admin_token=token, worker_id="outbox-failure"
     )
     assert failed_event is not None and failed_event.state.status is WorkStatus.RETRY_WAIT
+
+
+def test_specialized_operations_artifact_storage_and_worker_roles(tmp_path) -> None:
+    app, token = build_app(tmp_path)
+    reference = app.async_processing_service.store_artifact(
+        StoreAsyncArtifactCommand(
+            "default",
+            token,
+            "pytest",
+            "specialized-source",
+            b"payload",
+            "application/octet-stream",
+        )
+    )
+    assert reference.size_bytes == 7
+
+    operations = {
+        "imports": ("imports.dataset", "imports.bulk-dataset"),
+        "graph": (
+            "graph.traverse",
+            "graph.impact",
+            "graph.path",
+            "graph.spof",
+            "graph.export",
+        ),
+        "rag": ("rag.sync-rsot", "rag.document-import", "rag.answer-export"),
+    }
+    for specialization, names in operations.items():
+        for index, operation in enumerate(names):
+            job = app.async_processing_service.submit_job(
+                SubmitAsyncJobCommand(
+                    "default",
+                    token,
+                    "pytest",
+                    specialization,
+                    operation,
+                    f"{specialization}-operation-{index:02d}",
+                    {},
+                )
+            )
+            assert job.specialization.value == specialization
+            assert job.operation == operation
+
+    role_permissions = {
+        "async:import-worker": (Permission.ASYNC_WORKER, Permission.RSOT_WRITE),
+        "async:graph-worker": (Permission.ASYNC_WORKER, Permission.RSOT_READ),
+        "async:rag-worker": (Permission.ASYNC_WORKER, Permission.RAG_IMPORT),
+    }
+    for index, (role, permissions) in enumerate(role_permissions.items()):
+        worker_token = (str(index + 1) * 40)[:40]
+        app.security_service.bootstrap_token(
+            BootstrapTokenCommand("default", "pytest", role, (role,), worker_token)
+        )
+        for permission in permissions:
+            principal = app.security_service.authenticate_token(
+                AuthenticateTokenCommand("default", worker_token, permission)
+            )
+            assert principal.subject == role
 
 
 def test_submission_rejects_unsupported_and_non_serializable_payloads(tmp_path) -> None:

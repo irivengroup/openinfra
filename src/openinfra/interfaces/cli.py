@@ -34,6 +34,7 @@ from openinfra.application.async_processing_services import (
     RenewOutboxLeaseCommand,
     ReplayAsyncJobCommand,
     ReplayOutboxEventCommand,
+    StoreAsyncArtifactCommand,
     SubmitAsyncJobCommand,
 )
 from openinfra.application.audit_services import (
@@ -481,7 +482,11 @@ class OpenInfraCLI:
         self._add_backend_arguments(submit)
         for name in ("tenant", "admin-token", "idempotency-key", "payload-file"):
             submit.add_argument(f"--{name}", required=True)
-        submit.add_argument("--specialization", choices=("reporting",), default="reporting")
+        submit.add_argument(
+            "--specialization",
+            choices=("reporting", "imports", "graph", "rag"),
+            default="reporting",
+        )
         submit.add_argument("--operation", default="reporting.async-queue-health")
         submit.add_argument("--max-attempts", type=int, default=3)
         submit.add_argument("--actor", default="cli")
@@ -492,7 +497,7 @@ class OpenInfraCLI:
         for name in ("tenant", "admin-token"):
             jobs.add_argument(f"--{name}", required=True)
         jobs.add_argument("--status")
-        jobs.add_argument("--specialization", choices=("reporting",))
+        jobs.add_argument("--specialization", choices=("reporting", "imports", "graph", "rag"))
         jobs.add_argument("--limit", type=int, default=100)
         jobs.add_argument("--cursor")
         jobs.set_defaults(handler=self._handle_async_jobs)
@@ -507,7 +512,11 @@ class OpenInfraCLI:
         self._add_backend_arguments(claim)
         for name in ("tenant", "admin-token", "worker-id"):
             claim.add_argument(f"--{name}", required=True)
-        claim.add_argument("--specialization", choices=("reporting",), default="reporting")
+        claim.add_argument(
+            "--specialization",
+            choices=("reporting", "imports", "graph", "rag"),
+            default="reporting",
+        )
         claim.add_argument("--lease-seconds", type=int, default=60)
         claim.add_argument("--actor", default="cli")
         claim.set_defaults(handler=self._handle_async_job_claim)
@@ -546,6 +555,15 @@ class OpenInfraCLI:
         replay.add_argument("--actor", default="cli")
         replay.set_defaults(handler=self._handle_async_job_replay)
 
+        artifact_put = commands.add_parser(
+            "artifact-put", help="store an immutable input artifact for a specialized worker"
+        )
+        self._add_backend_arguments(artifact_put)
+        for name in ("tenant", "admin-token", "file", "purpose", "media-type"):
+            artifact_put.add_argument(f"--{name}", required=True)
+        artifact_put.add_argument("--actor", default="cli")
+        artifact_put.set_defaults(handler=self._handle_async_artifact_put)
+
         artifact = commands.add_parser("artifact-get", help="export a payload or result artifact")
         self._add_backend_arguments(artifact)
         for name in ("tenant", "admin-token", "job-id", "output"):
@@ -553,10 +571,15 @@ class OpenInfraCLI:
         artifact.add_argument("--kind", choices=("payload", "result"), default="result")
         artifact.set_defaults(handler=self._handle_async_artifact_get)
 
-        worker = commands.add_parser("worker-run-once", help="run one reporting worker iteration")
+        worker = commands.add_parser("worker-run-once", help="run one specialized worker iteration")
         self._add_backend_arguments(worker)
         for name in ("tenant", "admin-token", "worker-id"):
             worker.add_argument(f"--{name}", required=True)
+        worker.add_argument(
+            "--specialization",
+            choices=("reporting", "imports", "graph", "rag"),
+            default="reporting",
+        )
         worker.add_argument("--lease-seconds", type=int, default=60)
         worker.add_argument("--retry-delay-seconds", type=int, default=30)
         worker.set_defaults(handler=self._handle_async_worker_run_once)
@@ -9719,6 +9742,20 @@ class OpenInfraCLI:
         print(json.dumps(result.as_dict(), sort_keys=True))
         return 0
 
+    def _handle_async_artifact_put(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).async_processing_service.store_artifact(
+            StoreAsyncArtifactCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                actor=args.actor,
+                purpose=args.purpose,
+                content=Path(args.file).read_bytes(),
+                media_type=args.media_type,
+            )
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
     def _handle_async_artifact_get(self, args: argparse.Namespace) -> int:
         result = self._create_application(args).async_processing_service.get_artifact(
             GetAsyncArtifactCommand(args.tenant, args.admin_token, args.job_id, args.kind)
@@ -9730,7 +9767,17 @@ class OpenInfraCLI:
         return 0
 
     def _handle_async_worker_run_once(self, args: argparse.Namespace) -> int:
-        result = self._create_application(args).reporting_worker.run_once(
+        app = self._create_application(args)
+        worker: Any
+        if args.specialization == "reporting":
+            worker = app.reporting_worker
+        elif args.specialization == "imports":
+            worker = app.import_worker
+        elif args.specialization == "graph":
+            worker = app.graph_worker
+        else:
+            worker = app.rag_worker
+        result = worker.run_once(
             tenant_id=args.tenant,
             admin_token=args.admin_token,
             worker_id=args.worker_id,

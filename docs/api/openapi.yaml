@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.31.0
+  version: 0.31.1
   description: >-
     API OpenInfra organisée dans Swagger et ReDoc par composant, puis par contexte métier.
     Chaque opération appartient à un contexte unique afin de conserver une navigation déterministe.
@@ -8351,6 +8351,9 @@ paths:
           type: string
           enum:
           - reporting
+          - imports
+          - graph
+          - rag
       responses:
         '200':
           description: Operation completed
@@ -8434,11 +8437,24 @@ paths:
                   type: string
                   enum:
                   - reporting
+                  - imports
+                  - graph
+                  - rag
                   default: reporting
                 operation:
                   type: string
                   enum:
                   - reporting.async-queue-health
+                  - imports.dataset
+                  - imports.bulk-dataset
+                  - graph.traverse
+                  - graph.impact
+                  - graph.path
+                  - graph.spof
+                  - graph.export
+                  - rag.sync-rsot
+                  - rag.document-import
+                  - rag.answer-export
                   default: reporting.async-queue-health
                 idempotency_key:
                   type: string
@@ -8507,6 +8523,9 @@ paths:
                   type: string
                   enum:
                   - reporting
+                  - imports
+                  - graph
+                  - rag
                   default: reporting
       responses:
         '200':
@@ -8764,6 +8783,62 @@ paths:
       - Plateforme · Traitements asynchrones
       x-openinfra-component: Plateforme
       x-openinfra-context: Traitements asynchrones
+  /api/v1/async/artifacts/put:
+    post:
+      summary: Store an immutable input artifact for a specialized worker
+      operationId: putAsyncArtifact
+      security:
+      - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - tenant_id
+              - purpose
+              - media_type
+              - content_base64
+              properties:
+                tenant_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                actor:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                  default: api
+                purpose:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                media_type:
+                  type: string
+                  minLength: 3
+                  maxLength: 255
+                content_base64:
+                  type: string
+                  format: byte
+                  minLength: 1
+      responses:
+        '201':
+          description: Immutable artifact stored outside the transactional database
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Invalid asynchronous processing request
+        '401':
+          description: Missing or invalid API token
+      tags:
+      - Plateforme · Traitements asynchrones
+      x-openinfra-component: Plateforme
+      x-openinfra-context: Traitements asynchrones
   /api/v1/async/artifacts/get:
     get:
       summary: Read and verify an externalized job artifact
@@ -8813,6 +8888,174 @@ paths:
     post:
       summary: Run one reporting worker iteration
       operationId: runReportingWorkerOnce
+      security:
+      - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - tenant_id
+              - worker_id
+              properties:
+                tenant_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                actor:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                  default: api
+                worker_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                lease_seconds:
+                  type: integer
+                  minimum: 5
+                  maximum: 3600
+                  default: 60
+                retry_delay_seconds:
+                  type: integer
+                  minimum: 0
+                  maximum: 86400
+                  default: 30
+      responses:
+        '200':
+          description: Operation completed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Invalid asynchronous processing request
+        '401':
+          description: Missing or invalid API token
+      tags:
+      - Plateforme · Traitements asynchrones
+      x-openinfra-component: Plateforme
+      x-openinfra-context: Traitements asynchrones
+  /api/v1/async/workers/imports/run-once:
+    post:
+      summary: Run one import worker iteration
+      operationId: runImportWorkerOnce
+      security:
+      - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - tenant_id
+              - worker_id
+              properties:
+                tenant_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                actor:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                  default: api
+                worker_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                lease_seconds:
+                  type: integer
+                  minimum: 5
+                  maximum: 3600
+                  default: 60
+                retry_delay_seconds:
+                  type: integer
+                  minimum: 0
+                  maximum: 86400
+                  default: 30
+      responses:
+        '200':
+          description: Operation completed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Invalid asynchronous processing request
+        '401':
+          description: Missing or invalid API token
+      tags:
+      - Plateforme · Traitements asynchrones
+      x-openinfra-component: Plateforme
+      x-openinfra-context: Traitements asynchrones
+  /api/v1/async/workers/graph/run-once:
+    post:
+      summary: Run one graph worker iteration
+      operationId: runGraphWorkerOnce
+      security:
+      - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - tenant_id
+              - worker_id
+              properties:
+                tenant_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                actor:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                  default: api
+                worker_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                lease_seconds:
+                  type: integer
+                  minimum: 5
+                  maximum: 3600
+                  default: 60
+                retry_delay_seconds:
+                  type: integer
+                  minimum: 0
+                  maximum: 86400
+                  default: 30
+      responses:
+        '200':
+          description: Operation completed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Invalid asynchronous processing request
+        '401':
+          description: Missing or invalid API token
+      tags:
+      - Plateforme · Traitements asynchrones
+      x-openinfra-component: Plateforme
+      x-openinfra-context: Traitements asynchrones
+  /api/v1/async/workers/rag/run-once:
+    post:
+      summary: Run one RAG worker iteration
+      operationId: runRagWorkerOnce
       security:
       - bearerToken: []
       requestBody:

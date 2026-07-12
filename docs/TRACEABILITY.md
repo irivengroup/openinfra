@@ -1,5 +1,18 @@
 # Traçabilité OpenInfra
 
+## v0.31.1 — P20 / EPIC-2003, workers spécialisés métier
+
+| Exigence | Implémentation | Vérification |
+|---|---|---|
+| REQ-00835 / EPIC-2003 | `ImportWorker`, `GraphWorker`, `RagWorker` sur le socle async partagé | tests unitaires de dispatch/payload et cycles d’intégration réels |
+| Imports hors chemin interactif | artefact source externe, import simple ou massif, rapport résultat externalisé | tests import appliqué, bulk, erreurs et retry/DLQ |
+| Graphes hors chemin interactif | traverse, impact, path, SPOF et export via worker `graph` | tests des cinq opérations et export d’artefact |
+| RAG hors chemin interactif | sync RSOT, import documentaire borné, export réponses JSON/CSV | tests validation documentaire, pagination et formats |
+| Moindre privilège | rôles workers dédiés combinant `async.worker` et permissions métier minimales | tests d’authentification par permission |
+| Parité publique | dépôt d’artefacts et workers exposés en CLI, HTTP et OpenAPI | tests interfaces, découverte API et smoke wheel |
+
+- Portée 0.31.1 : périmètre fonctionnel EPIC-2003 terminé ; la qualification PostgreSQL/S3 réelle, la rétention et le capacity planning restent des gates d’exploitation P20.
+
 ## v0.31.0 — P20 / EPIC-2003, incrément outbox et worker reporting
 
 | Exigence | Implémentation | Vérification |

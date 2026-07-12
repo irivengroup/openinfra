@@ -33,6 +33,26 @@ def test_cli_async_processing_cycle(tmp_path: Path, capsys) -> None:
         token,
     ]
     cli = OpenInfraCLI()
+    source = tmp_path / "source.csv"
+    source.write_text("key,kind\nserver/1,server\n", encoding="utf-8")
+    assert (
+        cli.run(
+            [
+                "async",
+                "artifact-put",
+                *common,
+                "--file",
+                str(source),
+                "--purpose",
+                "imports-source",
+                "--media-type",
+                "text/csv",
+            ]
+        )
+        == 0
+    )
+    stored = json.loads(capsys.readouterr().out)
+    assert stored["media_type"] == "text/csv"
     assert (
         cli.run(
             [
@@ -85,6 +105,22 @@ def test_cli_async_processing_cycle(tmp_path: Path, capsys) -> None:
     assert cli.run(["async", "metrics", *common]) == 0
     metrics = json.loads(capsys.readouterr().out)
     assert metrics["jobs"]["completed"] == 1
+    for specialization in ("imports", "graph", "rag"):
+        assert (
+            cli.run(
+                [
+                    "async",
+                    "worker-run-once",
+                    *common,
+                    "--specialization",
+                    specialization,
+                    "--worker-id",
+                    specialization + "-cli-01",
+                ]
+            )
+            == 0
+        )
+        assert json.loads(capsys.readouterr().out) is None
 
 
 def test_http_async_processing_cycle(tmp_path: Path) -> None:
@@ -98,6 +134,17 @@ def test_http_async_processing_cycle(tmp_path: Path) -> None:
     thread.start()
     try:
         base = f"http://127.0.0.1:{server.server_port}"
+        stored = post_json(
+            base + "/api/v1/async/artifacts/put",
+            {
+                "tenant_id": "default",
+                "purpose": "imports-source",
+                "media_type": "text/csv",
+                "content_base64": base64.b64encode(b"key,kind\nserver/1,server\n").decode(),
+            },
+            token,
+        )
+        assert stored["media_type"] == "text/csv"
         submitted = post_json(
             base + "/api/v1/async/jobs/submit",
             {
@@ -133,6 +180,17 @@ def test_http_async_processing_cycle(tmp_path: Path) -> None:
         assert discovery["documentation"]["async_processing"]["job_submit"] == (
             "/api/v1/async/jobs/submit"
         )
+        async_routes = discovery["documentation"]["async_processing"]
+        assert async_routes["artifact_put"] == "/api/v1/async/artifacts/put"
+        for specialization in ("imports", "graph", "rag"):
+            route = f"/api/v1/async/workers/{specialization}/run-once"
+            empty = post_json(
+                base + route,
+                {"tenant_id": "default", "worker_id": specialization + "-api-01"},
+                token,
+            )
+            assert empty["item"] is None
+            assert async_routes[specialization + "_worker_run_once"] == route
     finally:
         server.shutdown()
         server.server_close()

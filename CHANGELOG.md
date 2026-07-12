@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.31.1 - 2026-07-12
+
+### P20 / EPIC-2003 — workers imports, graphes et RAG
+
+- ajout des spécialisations durables `imports`, `graph` et `rag` sur le socle de jobs/outbox 0.31.0 ;
+- worker imports pour les imports unitaires et massifs depuis un artefact externe immuable ;
+- worker graphe pour parcours, impact, chemin, analyse SPOF et export hors base ;
+- worker RAG pour synchronisation RSOT, import documentaire externalisé et export JSON/CSV des réponses ;
+- dépôt d’artefacts d’entrée via CLI et HTTP avec contrôle d’accès, type MIME, SHA-256 et isolation tenant ;
+- rôles dédiés de moindre privilège `async:import-worker`, `async:graph-worker` et `async:rag-worker` ;
+- parité CLI, HTTP, OpenAPI, documentation, tests, smoke installé et packaging ;
+- aucune migration supplémentaire et aucune modification du thème ou des feuilles de style.
+
+
 ## 0.31.0 - 2026-07-12
 
 ### P20 / EPIC-2003 — socle outbox et premier worker spécialisé

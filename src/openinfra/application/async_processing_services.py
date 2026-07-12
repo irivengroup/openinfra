@@ -47,6 +47,16 @@ class SubmitAsyncJobCommand:
 
 
 @dataclass(frozen=True, slots=True)
+class StoreAsyncArtifactCommand:
+    tenant_id: str
+    admin_token: str
+    actor: str
+    purpose: str
+    content: bytes
+    media_type: str
+
+
+@dataclass(frozen=True, slots=True)
 class GetAsyncJobCommand:
     tenant_id: str
     admin_token: str
@@ -268,6 +278,30 @@ class AsyncProcessingService:
             )
             unit.commit()
         return job
+
+    def store_artifact(self, command: StoreAsyncArtifactCommand) -> ArtifactReference:
+        tenant_id, actor = self._authorize(
+            command.tenant_id, command.admin_token, command.actor, Permission.ASYNC_SUBMIT
+        )
+        artifact = self._artifact_store.write(
+            tenant_id, command.purpose, command.content, command.media_type
+        )
+        with self._transaction_manager.begin() as unit:
+            self._audit(
+                tenant_id,
+                actor,
+                "async.artifact.stored",
+                "async-artifact",
+                artifact.sha256,
+                {
+                    "purpose": command.purpose,
+                    "object_key": artifact.object_key,
+                    "media_type": artifact.media_type,
+                    "size_bytes": artifact.size_bytes,
+                },
+            )
+            unit.commit()
+        return artifact
 
     def get_job(self, command: GetAsyncJobCommand) -> AsyncJob:
         tenant_id, _ = self._authorize(
@@ -709,6 +743,19 @@ class AsyncProcessingService:
         normalized = operation.strip().lower()
         supported = {
             WorkerSpecialization.REPORTING: {"reporting.async-queue-health"},
+            WorkerSpecialization.IMPORTS: {"imports.dataset", "imports.bulk-dataset"},
+            WorkerSpecialization.GRAPH: {
+                "graph.traverse",
+                "graph.impact",
+                "graph.path",
+                "graph.spof",
+                "graph.export",
+            },
+            WorkerSpecialization.RAG: {
+                "rag.sync-rsot",
+                "rag.document-import",
+                "rag.answer-export",
+            },
         }
         if normalized not in supported[specialization]:
             raise ValidationError(

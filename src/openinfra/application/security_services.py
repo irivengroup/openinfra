@@ -219,6 +219,38 @@ class BuiltinRolePolicy:
         "async:worker": frozenset(
             (Permission.ASYNC_READ, Permission.ASYNC_WORKER, Permission.SCHEMA_READ)
         ),
+        "async:reporting-worker": frozenset(
+            (Permission.ASYNC_READ, Permission.ASYNC_WORKER, Permission.SCHEMA_READ)
+        ),
+        "async:import-worker": frozenset(
+            (
+                Permission.ASYNC_READ,
+                Permission.ASYNC_WORKER,
+                Permission.RSOT_READ,
+                Permission.RSOT_WRITE,
+                Permission.SCHEMA_READ,
+            )
+        ),
+        "async:graph-worker": frozenset(
+            (
+                Permission.ASYNC_READ,
+                Permission.ASYNC_WORKER,
+                Permission.RSOT_READ,
+                Permission.SCHEMA_READ,
+            )
+        ),
+        "async:rag-worker": frozenset(
+            (
+                Permission.ASYNC_READ,
+                Permission.ASYNC_WORKER,
+                Permission.RSOT_READ,
+                Permission.RAG_READ,
+                Permission.RAG_WRITE,
+                Permission.RAG_IMPORT,
+                Permission.RAG_EXPORT,
+                Permission.SCHEMA_READ,
+            )
+        ),
         "async:admin": frozenset(
             (
                 Permission.ASYNC_READ,

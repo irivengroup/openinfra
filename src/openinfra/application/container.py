@@ -93,6 +93,11 @@ from openinfra.application.simulation_services import (
 )
 from openinfra.application.source_governance_services import SourceGovernanceService
 from openinfra.application.source_of_truth_services import SourceOfTruthService
+from openinfra.application.specialized_worker_services import (
+    GraphWorker,
+    ImportWorker,
+    RagWorker,
+)
 from openinfra.infrastructure.async_processing import (
     JsonAsyncProcessingRepository,
     LocalArtifactStore,
@@ -180,6 +185,9 @@ class OpenInfraApplication:
     async_processing_repository: AsyncProcessingRepository
     artifact_store: ArtifactStore
     reporting_worker: ReportingWorker
+    import_worker: ImportWorker
+    graph_worker: GraphWorker
+    rag_worker: RagWorker
     dcim_service: DcimLocationService
     dcim_topology_service: DcimTopologyService
     dcim_rack_service: DcimRackService
@@ -799,12 +807,18 @@ class ApplicationFactory:
             security_service,
         )
         reporting_worker = ReportingWorker(async_processing_service)
+        import_worker = ImportWorker(async_processing_service, import_service, artifact_store)
+        graph_worker = GraphWorker(async_processing_service, dependency_graph_service)
+        rag_worker = RagWorker(async_processing_service, rag_service, artifact_store)
         return OpenInfraApplication(
             store=store,
             async_processing_service=async_processing_service,
             async_processing_repository=async_processing_repository,
             artifact_store=artifact_store,
             reporting_worker=reporting_worker,
+            import_worker=import_worker,
+            graph_worker=graph_worker,
+            rag_worker=rag_worker,
             dcim_service=DcimLocationService(
                 dcim_repository,
                 audit_repository,

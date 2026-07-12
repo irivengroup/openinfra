@@ -1,6 +1,6 @@
 # Outbox transactionnelle et workers spécialisés
 
-OpenInfra 0.31.0 livre le premier incrément autonome de **P20 / EPIC-2003** sans extraction prématurée en microservices. Le plan de contrôle reste un monolithe modulaire ; la file durable, l’outbox et le worker pilote de reporting établissent le contrat réutilisable qui permettra de sortir progressivement imports, graphes et RAG du chemin HTTP interactif.
+OpenInfra 0.31.1 complète le périmètre fonctionnel de **P20 / EPIC-2003** sans extraction prématurée en microservices. Le plan de contrôle reste un monolithe modulaire ; la file durable et l’outbox pilotent quatre spécialisations indépendantes — reporting, imports, graphes et RAG — tout en réutilisant les services métier existants et leurs règles d’autorisation.
 
 ## Invariants
 
@@ -35,9 +35,14 @@ Deux adaptateurs sont fournis :
 
 La clé est déterministe : `<tenant>/<purpose>/<préfixe-hash>/<sha256>.<extension>`. Une réécriture du même contenu est idempotente.
 
-## Worker pilote
+## Workers spécialisés
 
-Le worker `reporting` exécute `reporting.async-queue-health`. Il lit le payload externe, produit un rapport JSON des files, écrit le résultat hors base, termine le job et génère un nouvel événement d’outbox.
+- `reporting` exécute `reporting.async-queue-health` et produit l’état des files ;
+- `imports` exécute `imports.dataset` et `imports.bulk-dataset` depuis un artefact source externe ;
+- `graph` exécute `graph.traverse`, `graph.impact`, `graph.path`, `graph.spof` et `graph.export` ;
+- `rag` exécute `rag.sync-rsot`, `rag.document-import` et `rag.answer-export`.
+
+Chaque worker réclame exclusivement sa spécialisation, lit son payload externalisé, appelle le service métier existant, externalise le résultat, termine le job avec le fencing token courant et génère l’événement d’outbox correspondant. Toute erreur suit le même cycle retry/DLQ sans logique parallèle propre au worker.
 
 Le dispatcher d’outbox publie chaque événement vers un `OutboxPublisher`. Le publisher fichier livré est un sink déterministe pour intégration et reprise locale ; un bus externe peut implémenter le même port sans modifier le domaine.
 

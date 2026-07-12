@@ -28,6 +28,9 @@ class WorkStatus(StrEnum):
 
 class WorkerSpecialization(StrEnum):
     REPORTING = "reporting"
+    IMPORTS = "imports"
+    GRAPH = "graph"
+    RAG = "rag"
 
     @classmethod
     def from_value(cls, value: str) -> Self:

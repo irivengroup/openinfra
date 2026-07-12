@@ -35,8 +35,9 @@ def test_sbom_precedes_rag_postgresql_migration() -> None:
         "0051_enterprise_regional_discovery_routing.sql",
         "0052_multisite_disaster_recovery.sql",
         "0053_keyset_pagination_indexes.sql",
+        "0054_async_outbox_workers.sql",
     )
-    assert len(names) == 53
+    assert len(names) == 54
     assert [names.index(name) for name in expected_order] == sorted(
         names.index(name) for name in expected_order
     )

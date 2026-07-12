@@ -38,6 +38,11 @@ class OpenApiDocumentationTaxonomy:
             "Politiques, capacités et quotas des éditions OpenInfra.",
         ),
         OpenApiDocumentationContext(
+            "Plateforme",
+            "Traitements asynchrones",
+            "Outbox transactionnelle, workers spécialisés, artefacts et files de reprise.",
+        ),
+        OpenApiDocumentationContext(
             "Sécurité",
             "Authentification et jetons",
             "Identité courante et cycle de vie des jetons applicatifs.",
@@ -324,6 +329,8 @@ class OpenApiDocumentationTaxonomy:
             return "Plateforme", "Recherche globale"
         if path.startswith("/api/v1/editions/"):
             return "Plateforme", "Éditions et capacités"
+        if path.startswith("/api/v1/async/"):
+            return "Plateforme", "Traitements asynchrones"
         if path.startswith("/api/v1/security/"):
             return "Sécurité", "Authentification et jetons"
         if path.startswith("/api/v1/identity/"):

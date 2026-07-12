@@ -1,7 +1,17 @@
-# OpenInfra v0.30.9
+# OpenInfra v0.31.0
 
-OpenInfra 0.30.9 restaure la hiérarchie chromatique bleu nuit du portail sans modifier sa structure, ses comportements, ses contrats métier ni son thème approuvé.
-> **Correctif visuel 0.30.9** — Les composants racine inactifs de la sidebar et les titres contextuels des pages retrouvent le bleu IONOS `#003D8F`. Le hover/focus du composant racine actif reste turquoise et ne modifie ni son fond, ni sa bordure, ni son ombre.
+OpenInfra 0.31.0 livre le premier incrément autonome de P20 / EPIC-2003 : une outbox transactionnelle, une file durable, un worker spécialisé de reporting, une DLQ, des leases protégés par fencing et des artefacts hors base sur filesystem atomique ou stockage S3 compatible. Le thème approuvé de la version 0.30.9 est strictement conservé.
+
+## Outbox et workers spécialisés — P20 / EPIC-2003
+
+- soumission idempotente des jobs par tenant ;
+- claims concurrents, leases renouvelables et jetons de fencing monotones ;
+- retries bornés, dead-letter queue et rejeu sous permission administrative ;
+- worker pilote de reporting et dispatcher d’outbox ;
+- artefacts vérifiés par SHA-256, stockés hors PostgreSQL ;
+- parité CLI, REST, OpenAPI et métriques d’exploitation.
+
+Voir `docs/architecture/transactional-outbox-workers.md` et `docs/runbooks/ASYNC_WORKERS.md`.
 
 
 ## Sécurité, design system et documentation API
@@ -79,9 +89,9 @@ Le benchmark P19 détecte les régressions du transport applicatif ; il ne const
 | BFF HTTP persistant et streaming | Livré | Tests de saturation inter-services P20 |
 | Gate transport p95/p99 | Livré et bloquant | Certification de capacité/endurance P20 |
 | Pagination par curseur | Livrée en EPIC-2002 | Certification PostgreSQL réelle P20 |
-| Outbox et workers spécialisés | Planifiés | EPIC-2003 |
+| Outbox et workers spécialisés | Socle durable et worker reporting livrés | Workers imports, graphe et RAG dans la suite d’EPIC-2003 |
 | Frontend modulaire/virtualisé | Planifié | EPIC-2004 |
-| Stockage objet des payloads massifs | Planifié | EPIC-2003 |
+| Stockage objet des payloads massifs | Livré : filesystem atomique et S3 compatible | Qualification S3 réelle et politiques de rétention P20 |
 
 Voir `docs/architecture/high-performance-pro-enterprise.md` et `docs/runbooks/HIGH_PERFORMANCE_RUNTIME.md`.
 

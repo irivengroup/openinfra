@@ -20,6 +20,8 @@ from typing import Any, ClassVar, Protocol, Self, cast
 from openinfra.application.ports import (
     AccessPolicyRepository,
     AccessPolicyRulePage,
+    AsyncJobPage,
+    AsyncProcessingRepository,
     AuditRepository,
     CapacityForecastPage,
     CarbonFactorPage,
@@ -69,6 +71,7 @@ from openinfra.application.ports import (
     NetworkConfigComplianceRepository,
     NetworkConfigObservationPage,
     OfflineSyncPackagePage,
+    OutboxEventPage,
     RagRepository,
     ReadinessProbe,
     ReadinessStatus,
@@ -94,6 +97,14 @@ from openinfra.application.ports import (
     VulnerabilityRecordPage,
 )
 from openinfra.domain.access_policy import AccessPolicyRule
+from openinfra.domain.async_processing import (
+    ArtifactReference,
+    AsyncJob,
+    LeasedWorkState,
+    OutboxEvent,
+    WorkerSpecialization,
+    WorkStatus,
+)
 from openinfra.domain.audit import (
     AuditEventFilter,
     AuditEventPage,
@@ -11577,3 +11588,455 @@ class PostgreSQLAuditRepository(PostgreSQLRepositoryBase, AuditRepository):
                 else dict(cast(Mapping[str, Any], metadata))
             ),
         )
+
+
+class PostgreSQLAsyncProcessingRepository(PostgreSQLRepositoryBase, AsyncProcessingRepository):
+    _JOB_COLUMNS = """
+        id, tenant_id, specialization, operation, idempotency_key,
+        payload_object_key, payload_sha256, payload_size_bytes, payload_media_type,
+        payload_created_at, result_object_key, result_sha256, result_size_bytes,
+        result_media_type, result_created_at, requested_by, max_attempts, attempt_count,
+        status, lease_owner, lease_token, leased_until, next_attempt_at, last_error,
+        completed_at, created_at, updated_at
+    """
+    _OUTBOX_COLUMNS = """
+        id, tenant_id, aggregate_type, aggregate_id, event_name, idempotency_key,
+        payload, max_attempts, attempt_count, status, lease_owner, lease_token,
+        leased_until, next_attempt_at, last_error, completed_at, created_at, updated_at
+    """
+
+    def save_job(self, job: AsyncJob) -> None:
+        self._ensure_tenant(job.tenant_id)
+        current = self.get_job(job.tenant_id, job.id.value)
+        if current is not None:
+            job.assert_persistence_transition_from(current)
+        self._execute_without_result(
+            """
+            INSERT INTO async_jobs (
+                id, tenant_id, specialization, operation, idempotency_key,
+                payload_object_key, payload_sha256, payload_size_bytes, payload_media_type,
+                payload_created_at, result_object_key, result_sha256, result_size_bytes,
+                result_media_type, result_created_at, requested_by, max_attempts,
+                attempt_count, status, lease_owner, lease_token, leased_until,
+                next_attempt_at, last_error, completed_at, created_at, updated_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(specialization)s, %(operation)s,
+                %(idempotency_key)s, %(payload_object_key)s, %(payload_sha256)s,
+                %(payload_size_bytes)s, %(payload_media_type)s, %(payload_created_at)s,
+                %(result_object_key)s, %(result_sha256)s, %(result_size_bytes)s,
+                %(result_media_type)s, %(result_created_at)s, %(requested_by)s,
+                %(max_attempts)s, %(attempt_count)s, %(status)s, %(lease_owner)s,
+                %(lease_token)s, %(leased_until)s, %(next_attempt_at)s, %(last_error)s,
+                %(completed_at)s, %(created_at)s, %(updated_at)s
+            )
+            ON CONFLICT (tenant_id, id) DO UPDATE SET
+                result_object_key = EXCLUDED.result_object_key,
+                result_sha256 = EXCLUDED.result_sha256,
+                result_size_bytes = EXCLUDED.result_size_bytes,
+                result_media_type = EXCLUDED.result_media_type,
+                result_created_at = EXCLUDED.result_created_at,
+                attempt_count = EXCLUDED.attempt_count,
+                status = EXCLUDED.status,
+                lease_owner = EXCLUDED.lease_owner,
+                lease_token = EXCLUDED.lease_token,
+                leased_until = EXCLUDED.leased_until,
+                next_attempt_at = EXCLUDED.next_attempt_at,
+                last_error = EXCLUDED.last_error,
+                completed_at = EXCLUDED.completed_at,
+                updated_at = EXCLUDED.updated_at
+            """,
+            self._job_params(job),
+        )
+
+    def get_job(self, tenant_id: TenantId, job_id: str) -> AsyncJob | None:
+        row = self._fetch_one(
+            f"""
+            SELECT {self._JOB_COLUMNS}
+            FROM async_jobs
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s
+            """,  # nosec B608 -- selected columns are a fixed class constant
+            {"tenant_id": tenant_id.value, "id": EntityId.from_value(job_id).value},
+        )
+        return None if row is None else self._job_from_row(row)
+
+    def find_job_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> AsyncJob | None:
+        row = self._fetch_one(
+            f"""
+            SELECT {self._JOB_COLUMNS}
+            FROM async_jobs
+            WHERE tenant_id = %(tenant_id)s AND idempotency_key = %(idempotency_key)s
+            """,  # nosec B608 -- selected columns are a fixed class constant
+            {"tenant_id": tenant_id.value, "idempotency_key": idempotency_key.strip()},
+        )
+        return None if row is None else self._job_from_row(row)
+
+    def lock_job_idempotency(self, tenant_id: TenantId, idempotency_key: str) -> None:
+        normalized_key = idempotency_key.strip()
+        if not normalized_key:
+            raise ValidationError("idempotency key is required")
+        self._execute_without_result(
+            """
+            SELECT pg_advisory_xact_lock(hashtextextended(%(lock_key)s, 0))
+            """,
+            {"lock_key": f"{tenant_id.value}:{normalized_key}"},
+        )
+
+    def claim_next_job(
+        self,
+        tenant_id: TenantId,
+        specialization: WorkerSpecialization,
+        worker_id: str,
+        lease_seconds: int,
+        now: datetime,
+    ) -> AsyncJob | None:
+        while True:
+            row = self._fetch_one(
+                f"""
+                SELECT {self._JOB_COLUMNS}
+                FROM async_jobs
+                WHERE tenant_id = %(tenant_id)s
+                  AND specialization = %(specialization)s
+                  AND (
+                    (status IN ('queued', 'retry-wait') AND next_attempt_at <= %(now)s)
+                    OR (status = 'leased' AND leased_until <= %(now)s)
+                  )
+                ORDER BY created_at ASC, id ASC
+                FOR UPDATE SKIP LOCKED
+                LIMIT 1
+                """,  # nosec B608 -- selected columns are a fixed class constant
+                {
+                    "tenant_id": tenant_id.value,
+                    "specialization": specialization.value,
+                    "now": now,
+                },
+            )
+            if row is None:
+                return None
+            job = self._job_from_row(row)
+            if (
+                job.state.status is WorkStatus.LEASED
+                and job.state.attempt_count >= job.state.max_attempts
+            ):
+                self.save_job(job.expire_final_lease(now))
+                continue
+            claimed = job.claim(worker_id, lease_seconds, now)
+            self.save_job(claimed)
+            return claimed
+
+    def list_jobs(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        status: WorkStatus | None = None,
+        specialization: WorkerSpecialization | None = None,
+    ) -> AsyncJobPage:
+        page = self._keyset_page(
+            pagination,
+            scope="async.jobs",
+            tenant_id=tenant_id,
+            filters={
+                "status": None if status is None else status.value,
+                "specialization": None if specialization is None else specialization.value,
+            },
+            fields=(
+                CursorField("created_at", value_type=CursorValueType.DATETIME),
+                CursorField("id"),
+            ),
+        )
+        predicates = ["tenant_id = %(tenant_id)s"]
+        parameters: dict[str, object] = {"tenant_id": tenant_id.value, **page.parameters}
+        if status is not None:
+            predicates.append("status = %(status)s")
+            parameters["status"] = status.value
+        if specialization is not None:
+            predicates.append("specialization = %(specialization)s")
+            parameters["specialization"] = specialization.value
+        rows = self._fetch_all(
+            f"""
+            SELECT {self._JOB_COLUMNS}
+            FROM async_jobs
+            WHERE {" AND ".join(predicates)} {page.where_sql}
+            ORDER BY created_at ASC, id ASC
+            LIMIT %(fetch_limit)s{page.offset_sql}
+            """,  # nosec B608 -- clauses are fixed and predicates are selected locally
+            parameters,
+        )
+        selected = rows[: pagination.limit]
+        return AsyncJobPage(
+            tuple(self._job_from_row(row) for row in selected), page.next_cursor(rows)
+        )
+
+    def save_outbox_event(self, event: OutboxEvent) -> None:
+        self._ensure_tenant(event.tenant_id)
+        current = self.get_outbox_event(event.tenant_id, event.id.value)
+        if current is not None:
+            event.assert_persistence_transition_from(current)
+        self._execute_without_result(
+            """
+            INSERT INTO outbox_events (
+                id, tenant_id, aggregate_type, aggregate_id, event_name,
+                idempotency_key, payload, max_attempts, attempt_count, status,
+                lease_owner, lease_token, leased_until, next_attempt_at, last_error,
+                completed_at, created_at, updated_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(aggregate_type)s, %(aggregate_id)s,
+                %(event_name)s, %(idempotency_key)s, %(payload)s::jsonb,
+                %(max_attempts)s, %(attempt_count)s, %(status)s, %(lease_owner)s,
+                %(lease_token)s, %(leased_until)s, %(next_attempt_at)s, %(last_error)s,
+                %(completed_at)s, %(created_at)s, %(updated_at)s
+            )
+            ON CONFLICT (tenant_id, id) DO UPDATE SET
+                attempt_count = EXCLUDED.attempt_count,
+                status = EXCLUDED.status,
+                lease_owner = EXCLUDED.lease_owner,
+                lease_token = EXCLUDED.lease_token,
+                leased_until = EXCLUDED.leased_until,
+                next_attempt_at = EXCLUDED.next_attempt_at,
+                last_error = EXCLUDED.last_error,
+                completed_at = EXCLUDED.completed_at,
+                updated_at = EXCLUDED.updated_at
+            """,
+            self._outbox_params(event),
+        )
+
+    def get_outbox_event(self, tenant_id: TenantId, event_id: str) -> OutboxEvent | None:
+        row = self._fetch_one(
+            f"""
+            SELECT {self._OUTBOX_COLUMNS}
+            FROM outbox_events
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s
+            """,  # nosec B608 -- selected columns are a fixed class constant
+            {"tenant_id": tenant_id.value, "id": EntityId.from_value(event_id).value},
+        )
+        return None if row is None else self._outbox_from_row(row)
+
+    def claim_next_outbox_event(
+        self,
+        tenant_id: TenantId,
+        worker_id: str,
+        lease_seconds: int,
+        now: datetime,
+    ) -> OutboxEvent | None:
+        while True:
+            row = self._fetch_one(
+                f"""
+                SELECT {self._OUTBOX_COLUMNS}
+                FROM outbox_events
+                WHERE tenant_id = %(tenant_id)s
+                  AND (
+                    (status IN ('queued', 'retry-wait') AND next_attempt_at <= %(now)s)
+                    OR (status = 'leased' AND leased_until <= %(now)s)
+                  )
+                ORDER BY created_at ASC, id ASC
+                FOR UPDATE SKIP LOCKED
+                LIMIT 1
+                """,  # nosec B608 -- selected columns are a fixed class constant
+                {"tenant_id": tenant_id.value, "now": now},
+            )
+            if row is None:
+                return None
+            event = self._outbox_from_row(row)
+            if (
+                event.state.status is WorkStatus.LEASED
+                and event.state.attempt_count >= event.state.max_attempts
+            ):
+                self.save_outbox_event(event.expire_final_lease(now))
+                continue
+            claimed = event.claim(worker_id, lease_seconds, now)
+            self.save_outbox_event(claimed)
+            return claimed
+
+    def list_outbox_events(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        status: WorkStatus | None = None,
+    ) -> OutboxEventPage:
+        page = self._keyset_page(
+            pagination,
+            scope="async.outbox",
+            tenant_id=tenant_id,
+            filters={"status": None if status is None else status.value},
+            fields=(
+                CursorField("created_at", value_type=CursorValueType.DATETIME),
+                CursorField("id"),
+            ),
+        )
+        predicate = ""
+        parameters: dict[str, object] = {"tenant_id": tenant_id.value, **page.parameters}
+        if status is not None:
+            predicate = "AND status = %(status)s"
+            parameters["status"] = status.value
+        rows = self._fetch_all(
+            f"""
+            SELECT {self._OUTBOX_COLUMNS}
+            FROM outbox_events
+            WHERE tenant_id = %(tenant_id)s {predicate} {page.where_sql}
+            ORDER BY created_at ASC, id ASC
+            LIMIT %(fetch_limit)s{page.offset_sql}
+            """,  # nosec B608 -- clauses are fixed and status predicate is selected locally
+            parameters,
+        )
+        selected = rows[: pagination.limit]
+        return OutboxEventPage(
+            tuple(self._outbox_from_row(row) for row in selected), page.next_cursor(rows)
+        )
+
+    def queue_metrics(self, tenant_id: TenantId) -> dict[str, object]:
+        job_rows = self._fetch_all(
+            """
+            SELECT status, COUNT(*) AS total
+            FROM async_jobs
+            WHERE tenant_id = %(tenant_id)s
+            GROUP BY status
+            """,
+            {"tenant_id": tenant_id.value},
+        )
+        outbox_rows = self._fetch_all(
+            """
+            SELECT status, COUNT(*) AS total
+            FROM outbox_events
+            WHERE tenant_id = %(tenant_id)s
+            GROUP BY status
+            """,
+            {"tenant_id": tenant_id.value},
+        )
+        jobs = {str(row["status"]): self._row_int(row, "total") for row in job_rows}
+        outbox = {str(row["status"]): self._row_int(row, "total") for row in outbox_rows}
+        return {
+            "tenant_id": tenant_id.value,
+            "generated_at": datetime.now(UTC).isoformat(),
+            "jobs": {state.value: jobs.get(state.value, 0) for state in WorkStatus},
+            "outbox": {state.value: outbox.get(state.value, 0) for state in WorkStatus},
+        }
+
+    @staticmethod
+    def _job_params(job: AsyncJob) -> dict[str, object]:
+        result = job.result_artifact
+        return {
+            "id": job.id.value,
+            "tenant_id": job.tenant_id.value,
+            "specialization": job.specialization.value,
+            "operation": job.operation,
+            "idempotency_key": job.idempotency_key,
+            "payload_object_key": job.payload_artifact.object_key,
+            "payload_sha256": job.payload_artifact.sha256,
+            "payload_size_bytes": job.payload_artifact.size_bytes,
+            "payload_media_type": job.payload_artifact.media_type,
+            "payload_created_at": job.payload_artifact.created_at,
+            "result_object_key": None if result is None else result.object_key,
+            "result_sha256": None if result is None else result.sha256,
+            "result_size_bytes": None if result is None else result.size_bytes,
+            "result_media_type": None if result is None else result.media_type,
+            "result_created_at": None if result is None else result.created_at,
+            "requested_by": job.requested_by,
+            "max_attempts": job.state.max_attempts,
+            "attempt_count": job.state.attempt_count,
+            "status": job.state.status.value,
+            "lease_owner": job.state.lease_owner,
+            "lease_token": job.state.lease_token,
+            "leased_until": job.state.leased_until,
+            "next_attempt_at": job.state.next_attempt_at,
+            "last_error": job.state.last_error,
+            "completed_at": job.state.completed_at,
+            "created_at": job.created_at,
+            "updated_at": job.updated_at,
+        }
+
+    @staticmethod
+    def _outbox_params(event: OutboxEvent) -> dict[str, object]:
+        return {
+            "id": event.id.value,
+            "tenant_id": event.tenant_id.value,
+            "aggregate_type": event.aggregate_type,
+            "aggregate_id": event.aggregate_id,
+            "event_name": event.event_name,
+            "idempotency_key": event.idempotency_key,
+            "payload": json.dumps(event.payload, sort_keys=True, separators=(",", ":")),
+            "max_attempts": event.state.max_attempts,
+            "attempt_count": event.state.attempt_count,
+            "status": event.state.status.value,
+            "lease_owner": event.state.lease_owner,
+            "lease_token": event.state.lease_token,
+            "leased_until": event.state.leased_until,
+            "next_attempt_at": event.state.next_attempt_at,
+            "last_error": event.state.last_error,
+            "completed_at": event.state.completed_at,
+            "created_at": event.created_at,
+            "updated_at": event.updated_at,
+        }
+
+    @classmethod
+    def _job_from_row(cls, row: Mapping[str, object]) -> AsyncJob:
+        result = None
+        if row.get("result_object_key") is not None:
+            result = ArtifactReference.create(
+                object_key=str(row["result_object_key"]),
+                sha256=str(row["result_sha256"]),
+                size_bytes=int(str(row["result_size_bytes"])),
+                media_type=str(row["result_media_type"]),
+                created_at=cls._db_datetime(row["result_created_at"]),
+            )
+        return AsyncJob.restore(
+            job_id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            specialization=WorkerSpecialization.from_value(str(row["specialization"])),
+            operation=str(row["operation"]),
+            idempotency_key=str(row["idempotency_key"]),
+            payload_artifact=ArtifactReference.create(
+                object_key=str(row["payload_object_key"]),
+                sha256=str(row["payload_sha256"]),
+                size_bytes=int(str(row["payload_size_bytes"])),
+                media_type=str(row["payload_media_type"]),
+                created_at=cls._db_datetime(row["payload_created_at"]),
+            ),
+            result_artifact=result,
+            requested_by=str(row["requested_by"]),
+            state=cls._state_from_row(row),
+            created_at=cls._db_datetime(row["created_at"]),
+            updated_at=cls._db_datetime(row["updated_at"]),
+        )
+
+    @classmethod
+    def _outbox_from_row(cls, row: Mapping[str, object]) -> OutboxEvent:
+        payload_value = row["payload"]
+        payload = json.loads(payload_value) if isinstance(payload_value, str) else payload_value
+        if not isinstance(payload, Mapping):
+            raise ValidationError("outbox database payload must be a JSON object")
+        return OutboxEvent.restore(
+            event_id=EntityId.from_value(str(row["id"])),
+            tenant_id=TenantId.from_value(str(row["tenant_id"])),
+            aggregate_type=str(row["aggregate_type"]),
+            aggregate_id=str(row["aggregate_id"]),
+            event_name=str(row["event_name"]),
+            idempotency_key=str(row["idempotency_key"]),
+            payload={str(key): value for key, value in payload.items()},
+            state=cls._state_from_row(row),
+            created_at=cls._db_datetime(row["created_at"]),
+            updated_at=cls._db_datetime(row["updated_at"]),
+        )
+
+    @classmethod
+    def _state_from_row(cls, row: Mapping[str, object]) -> LeasedWorkState:
+        return LeasedWorkState.restore(
+            max_attempts=int(str(row["max_attempts"])),
+            attempt_count=int(str(row["attempt_count"])),
+            status=WorkStatus.from_value(str(row["status"])),
+            lease_owner=None if row.get("lease_owner") is None else str(row["lease_owner"]),
+            lease_token=int(str(row["lease_token"])),
+            leased_until=cls._db_optional_datetime(row.get("leased_until")),
+            next_attempt_at=cls._db_optional_datetime(row.get("next_attempt_at")),
+            last_error=None if row.get("last_error") is None else str(row["last_error"]),
+            completed_at=cls._db_optional_datetime(row.get("completed_at")),
+        )
+
+    @staticmethod
+    def _db_datetime(value: object) -> datetime:
+        parsed = value if isinstance(value, datetime) else datetime.fromisoformat(str(value))
+        return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
+
+    @classmethod
+    def _db_optional_datetime(cls, value: object | None) -> datetime | None:
+        return None if value is None else cls._db_datetime(value)

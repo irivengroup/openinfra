@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.31.0 - 2026-07-12
+
+### P20 / EPIC-2003 — socle outbox et premier worker spécialisé
+
+- file durable générique pour traitements asynchrones, idempotence par tenant et retries bornés ;
+- leases avec jetons de fencing, reprise après expiration, DLQ et rejeu administré ;
+- création atomique job/outbox/audit dans les unités de travail JSON et PostgreSQL ;
+- migration additive `0054_async_outbox_workers.sql` et claims concurrents `FOR UPDATE SKIP LOCKED` ;
+- worker pilote `reporting.async-queue-health` et dispatcher d’outbox idempotent ;
+- artefacts content-addressed hors base sur filesystem atomique ou stockage S3 compatible signé AWS SigV4 ;
+- permissions, rôles, CLI, API REST, OpenAPI, métriques, runbook, tests et gate CI dédiés ;
+- aucune modification du thème ou des feuilles de style.
+
 
 ## 0.30.9 - 2026-07-12
 

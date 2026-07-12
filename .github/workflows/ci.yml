@@ -102,6 +102,16 @@ jobs:
           python docs/specifications/OpenInfra-Roadmap-Developpement-v2.1/scripts/validate_roadmap.py
           python scripts/validate_enterprise_alignment.py --project-root .
 
+      - name: Transactional outbox and specialized workers regression
+        run: |
+          python -m pytest -q --no-cov \
+            tests/unit/test_async_processing_domain.py \
+            tests/unit/test_async_artifact_stores.py \
+            tests/integration/test_async_processing_services.py \
+            tests/integration/test_async_processing_interfaces.py \
+            tests/integration/test_async_processing_migration.py \
+            tests/integration/test_openapi_yaml_validation.py
+
       - name: Cursor pagination and streaming export regression
         run: |
           python -m pytest -q --no-cov \

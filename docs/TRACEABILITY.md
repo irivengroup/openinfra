@@ -1,5 +1,17 @@
 # Traçabilité OpenInfra
 
+## v0.31.0 — P20 / EPIC-2003, incrément outbox et worker reporting
+
+| Exigence | Implémentation | Vérification |
+|---|---|---|
+| REQ-00835 / EPIC-2003 | domaine async, service, repository JSON/PostgreSQL, migration `0054` | tests domaine, service, interfaces et migration |
+| Atomicité et idempotence | unité de travail job/outbox/audit, clé unique par tenant | tests transactionnels et reprise |
+| Fencing, retry et DLQ | lease token monotone, retries bornés, replay administré | tests stale worker, expiration et DLQ |
+| Artefacts hors base | filesystem atomique et S3 compatible SigV4 | tests intégrité, tenant, signature et configuration |
+| Parité publique | CLI, HTTP, OpenAPI et métriques | tests CLI/API/OpenAPI et smoke wheel |
+
+- Portée 0.31.0 : socle générique et worker reporting pilote ; les workers imports, graphe et RAG restent à brancher dans les incréments suivants d’EPIC-2003.
+
 ## v0.30.7 — Pagination keyset et exports progressifs
 
 | Exigence / Epic | Implémentation | Vérification |

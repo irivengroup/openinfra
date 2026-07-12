@@ -543,6 +543,8 @@ class JsonDocumentStore:
             "multisite_regional_discovery_routes": {},
             "multisite_dr_plans": {},
             "multisite_dr_drills": {},
+            "async_jobs": {},
+            "outbox_events": {},
             "discovery_collectors": {},
             "discovery_jobs": {},
             "discovery_protocol_profiles": {},
@@ -1335,6 +1337,8 @@ class JsonReadinessProbe(ReadinessProbe):
                     "discovery_collectors",
                     "asset_support_profiles",
                     "software_license_entitlements",
+                    "async_jobs",
+                    "outbox_events",
                 )
             )
         detail = (

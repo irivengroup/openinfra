@@ -23,11 +23,12 @@ def test_multisite_migration_is_partitioned_indexed_constrained_and_non_destruct
 
 def test_multisite_migrations_preserve_order_before_keyset_indexes() -> None:
     migrations = sorted((ROOT / "installers/migrations/postgresql").glob("*.sql"))
-    assert len(migrations) == 53
-    assert migrations[-4].name == "0050_pro_centralized_multisite.sql"
-    assert migrations[-3].name == "0051_enterprise_regional_discovery_routing.sql"
-    assert migrations[-2].name == "0052_multisite_disaster_recovery.sql"
-    assert migrations[-1].name == "0053_keyset_pagination_indexes.sql"
+    assert len(migrations) == 54
+    assert migrations[-5].name == "0050_pro_centralized_multisite.sql"
+    assert migrations[-4].name == "0051_enterprise_regional_discovery_routing.sql"
+    assert migrations[-3].name == "0052_multisite_disaster_recovery.sql"
+    assert migrations[-2].name == "0053_keyset_pagination_indexes.sql"
+    assert migrations[-1].name == "0054_async_outbox_workers.sql"
 
 
 def test_enterprise_regional_discovery_migration_is_safe_and_operable() -> None:

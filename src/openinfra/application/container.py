@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from openinfra.application.access_policy_services import AccessPolicyService
+from openinfra.application.async_processing_services import (
+    AsyncProcessingService,
+    ReportingWorker,
+)
 from openinfra.application.audit_services import AuditTrailService
 from openinfra.application.authentication_services import (
     AuthProviderPolicyService,
@@ -50,6 +55,8 @@ from openinfra.application.multisite_services import MultisiteService
 from openinfra.application.network_config_compliance_services import NetworkConfigComplianceService
 from openinfra.application.ports import (
     AccessPolicyRepository,
+    ArtifactStore,
+    AsyncProcessingRepository,
     AuditRepository,
     CertificateInventoryRepository,
     DcimRepository,
@@ -86,6 +93,11 @@ from openinfra.application.simulation_services import (
 )
 from openinfra.application.source_governance_services import SourceGovernanceService
 from openinfra.application.source_of_truth_services import SourceOfTruthService
+from openinfra.infrastructure.async_processing import (
+    JsonAsyncProcessingRepository,
+    LocalArtifactStore,
+    S3ArtifactStore,
+)
 from openinfra.infrastructure.certificate_parser import CryptographyCertificateParser
 from openinfra.infrastructure.cursor_pagination import CursorTokenCodec
 from openinfra.infrastructure.ddi_connectors import DdiConnectorFactory
@@ -123,6 +135,7 @@ from openinfra.infrastructure.json_store import (
 )
 from openinfra.infrastructure.postgresql import (
     PostgreSQLAccessPolicyRepository,
+    PostgreSQLAsyncProcessingRepository,
     PostgreSQLAuditRepository,
     PostgreSQLCertificateInventoryRepository,
     PostgreSQLClusterProfile,
@@ -163,6 +176,10 @@ from openinfra.infrastructure.sbom_parser import SbomPayloadParser
 @dataclass(frozen=True, slots=True)
 class OpenInfraApplication:
     store: Any
+    async_processing_service: AsyncProcessingService
+    async_processing_repository: AsyncProcessingRepository
+    artifact_store: ArtifactStore
+    reporting_worker: ReportingWorker
     dcim_service: DcimLocationService
     dcim_topology_service: DcimTopologyService
     dcim_rack_service: DcimRackService
@@ -273,6 +290,15 @@ class ApplicationFactory:
         readiness_probe = JsonReadinessProbe(store)
         schema_status_provider = JsonSchemaStatusProvider()
         runtime_usage_repository = JsonRuntimeUsageRepository(store)
+        async_processing_repository = JsonAsyncProcessingRepository(store)
+        artifact_store = self._create_artifact_store(
+            Path(
+                os.environ.get(
+                    "OPENINFRA_ARTIFACT_ROOT",
+                    str(data_path.parent / f"{data_path.name}.artifacts"),
+                )
+            )
+        )
         if seed:
             SeedDataFactory(
                 dcim_repository,
@@ -306,6 +332,8 @@ class ApplicationFactory:
             readiness_probe=readiness_probe,
             schema_status_provider=schema_status_provider,
             runtime_usage_repository=runtime_usage_repository,
+            async_processing_repository=async_processing_repository,
+            artifact_store=artifact_store,
             edition=edition,
         )
 
@@ -376,6 +404,10 @@ class ApplicationFactory:
         readiness_probe = PostgreSQLReadinessProbe(registry, migration_catalog)
         schema_status_provider = PostgreSQLMigrationExecutor(registry, migration_catalog)
         runtime_usage_repository = PostgreSQLRuntimeUsageRepository(registry, cursor_codec)
+        async_processing_repository = PostgreSQLAsyncProcessingRepository(registry, cursor_codec)
+        artifact_store = self._create_artifact_store(
+            Path(os.environ.get("OPENINFRA_ARTIFACT_ROOT", "/data/openinfra/artifacts"))
+        )
         if seed:
             SeedDataFactory(
                 dcim_repository,
@@ -409,7 +441,47 @@ class ApplicationFactory:
             readiness_probe=readiness_probe,
             schema_status_provider=schema_status_provider,
             runtime_usage_repository=runtime_usage_repository,
+            async_processing_repository=async_processing_repository,
+            artifact_store=artifact_store,
             edition=edition,
+        )
+
+    @staticmethod
+    def _create_artifact_store(default_root: Path) -> ArtifactStore:
+        backend = os.environ.get("OPENINFRA_ASYNC_ARTIFACT_BACKEND", "filesystem").strip().lower()
+        if backend == "filesystem":
+            return LocalArtifactStore(default_root)
+        if backend != "s3":
+            raise ValueError("OPENINFRA_ASYNC_ARTIFACT_BACKEND must be filesystem or s3")
+
+        required_names = (
+            "OPENINFRA_S3_ENDPOINT",
+            "OPENINFRA_S3_BUCKET",
+            "OPENINFRA_S3_REGION",
+            "OPENINFRA_S3_ACCESS_KEY",
+            "OPENINFRA_S3_SECRET_KEY",
+        )
+        values = {name: os.environ.get(name, "").strip() for name in required_names}
+        missing = [name for name, value in values.items() if not value]
+        if missing:
+            raise ValueError("missing S3 artifact configuration: " + ", ".join(missing))
+        verify_value = os.environ.get("OPENINFRA_S3_VERIFY_TLS", "true").strip().lower()
+        if verify_value not in {"true", "false"}:
+            raise ValueError("OPENINFRA_S3_VERIFY_TLS must be true or false")
+        timeout_value = os.environ.get("OPENINFRA_S3_TIMEOUT_SECONDS", "30").strip()
+        try:
+            timeout_seconds = float(timeout_value)
+        except ValueError as exc:
+            raise ValueError("OPENINFRA_S3_TIMEOUT_SECONDS must be numeric") from exc
+        return S3ArtifactStore(
+            endpoint=values["OPENINFRA_S3_ENDPOINT"],
+            bucket=values["OPENINFRA_S3_BUCKET"],
+            region=values["OPENINFRA_S3_REGION"],
+            access_key=values["OPENINFRA_S3_ACCESS_KEY"],
+            secret_key=values["OPENINFRA_S3_SECRET_KEY"],
+            session_token=os.environ.get("OPENINFRA_S3_SESSION_TOKEN") or None,
+            verify_tls=verify_value == "true",
+            timeout_seconds=timeout_seconds,
         )
 
     def _build_application(
@@ -425,6 +497,8 @@ class ApplicationFactory:
         readiness_probe: ReadinessProbe,
         schema_status_provider: SchemaStatusProvider,
         runtime_usage_repository: RuntimeUsageRepository | None = None,
+        async_processing_repository: AsyncProcessingRepository | None = None,
+        artifact_store: ArtifactStore | None = None,
         edition: str = "enterprise",
         source_of_truth_repository: SourceOfTruthRepository | None = None,
         source_governance_repository: SourceGovernanceRepository | None = None,
@@ -530,6 +604,15 @@ class ApplicationFactory:
                 runtime_usage_repository = JsonRuntimeUsageRepository(store)
             else:
                 runtime_usage_repository = PostgreSQLRuntimeUsageRepository(store)
+        if async_processing_repository is None:
+            if hasattr(store, "data"):
+                async_processing_repository = JsonAsyncProcessingRepository(store)
+            else:
+                async_processing_repository = PostgreSQLAsyncProcessingRepository(store)
+        if artifact_store is None:
+            artifact_store = self._create_artifact_store(
+                Path(os.environ.get("OPENINFRA_ARTIFACT_ROOT", "/data/openinfra/artifacts"))
+            )
         security_service = SecurityService(
             security_repository,
             audit_repository,
@@ -708,8 +791,20 @@ class ApplicationFactory:
             discovery_repository,
             discovery_service,
         )
+        async_processing_service = AsyncProcessingService(
+            async_processing_repository,
+            artifact_store,
+            audit_repository,
+            transaction_manager,
+            security_service,
+        )
+        reporting_worker = ReportingWorker(async_processing_service)
         return OpenInfraApplication(
             store=store,
+            async_processing_service=async_processing_service,
+            async_processing_repository=async_processing_repository,
+            artifact_store=artifact_store,
+            reporting_worker=reporting_worker,
             dcim_service=DcimLocationService(
                 dcim_repository,
                 audit_repository,

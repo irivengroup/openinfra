@@ -6,6 +6,13 @@ from datetime import date, datetime
 from typing import Generic, TypeVar
 
 from openinfra.domain.access_policy import AccessPolicyRule
+from openinfra.domain.async_processing import (
+    ArtifactReference,
+    AsyncJob,
+    OutboxEvent,
+    WorkerSpecialization,
+    WorkStatus,
+)
 from openinfra.domain.audit import AuditEventFilter, AuditEventPage, AuditIntegrityReport
 from openinfra.domain.certificate_pki import (
     CertificateAsset,
@@ -2523,6 +2530,125 @@ class AuditRepository(ABC):
 
     @abstractmethod
     def verify_integrity(self, tenant_id: TenantId, limit: int = 500) -> AuditIntegrityReport:
+        raise TypeError("adapter contract invoked directly")
+
+
+@dataclass(frozen=True, slots=True)
+class AsyncJobPage:
+    items: tuple[AsyncJob, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "items": [item.as_dict() for item in self.items],
+            "next_cursor": self.next_cursor,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class OutboxEventPage:
+    items: tuple[OutboxEvent, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "items": [item.as_dict() for item in self.items],
+            "next_cursor": self.next_cursor,
+        }
+
+
+class AsyncProcessingRepository(ABC):
+    @abstractmethod
+    def save_job(self, job: AsyncJob) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_job(self, tenant_id: TenantId, job_id: str) -> AsyncJob | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_job_by_idempotency_key(
+        self, tenant_id: TenantId, idempotency_key: str
+    ) -> AsyncJob | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def lock_job_idempotency(self, tenant_id: TenantId, idempotency_key: str) -> None:
+        """Serialize submissions sharing a tenant-scoped idempotency key."""
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def claim_next_job(
+        self,
+        tenant_id: TenantId,
+        specialization: WorkerSpecialization,
+        worker_id: str,
+        lease_seconds: int,
+        now: datetime,
+    ) -> AsyncJob | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_jobs(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        status: WorkStatus | None = None,
+        specialization: WorkerSpecialization | None = None,
+    ) -> AsyncJobPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def save_outbox_event(self, event: OutboxEvent) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_outbox_event(self, tenant_id: TenantId, event_id: str) -> OutboxEvent | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def claim_next_outbox_event(
+        self,
+        tenant_id: TenantId,
+        worker_id: str,
+        lease_seconds: int,
+        now: datetime,
+    ) -> OutboxEvent | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_outbox_events(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        status: WorkStatus | None = None,
+    ) -> OutboxEventPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def queue_metrics(self, tenant_id: TenantId) -> dict[str, object]:
+        raise TypeError("adapter contract invoked directly")
+
+
+class ArtifactStore(ABC):
+    @abstractmethod
+    def write(
+        self,
+        tenant_id: TenantId,
+        purpose: str,
+        content: bytes,
+        media_type: str,
+    ) -> ArtifactReference:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def read(self, tenant_id: TenantId, reference: ArtifactReference) -> bytes:
+        raise TypeError("adapter contract invoked directly")
+
+
+class OutboxPublisher(ABC):
+    @abstractmethod
+    def publish(self, event: OutboxEvent) -> None:
         raise TypeError("adapter contract invoked directly")
 
 

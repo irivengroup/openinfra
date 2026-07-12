@@ -13,7 +13,27 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.30.9"
+    EXPECTED_VERSION = "0.31.0"
+    EXPECTED_ASYNC_ROUTES = (
+        "/api/v1/async/jobs",
+        "/api/v1/async/jobs/get",
+        "/api/v1/async/jobs/submit",
+        "/api/v1/async/jobs/claim",
+        "/api/v1/async/jobs/renew",
+        "/api/v1/async/jobs/complete",
+        "/api/v1/async/jobs/fail",
+        "/api/v1/async/jobs/replay",
+        "/api/v1/async/artifacts/get",
+        "/api/v1/async/workers/reporting/run-once",
+        "/api/v1/async/outbox-events",
+        "/api/v1/async/outbox-events/get",
+        "/api/v1/async/outbox-events/claim",
+        "/api/v1/async/outbox-events/renew",
+        "/api/v1/async/outbox-events/publish",
+        "/api/v1/async/outbox-events/fail",
+        "/api/v1/async/outbox-events/replay",
+        "/api/v1/async/metrics",
+    )
     EXPECTED_DATA_PLANE_ROUTES = ("/api/v1/database/routing",)
     EXPECTED_GRAPH_ROUTES = (
         "/api/v1/graph/traverse",
@@ -167,8 +187,8 @@ class InstalledWheelSmoke:
         "/api/v1/offline-sync-packages/create",
         "/api/v1/offline-sync-packages/synchronize",
     )
-    EXPECTED_LAST_MIGRATION = "0053_keyset_pagination_indexes.sql"
-    EXPECTED_MIGRATION_COUNT = 53
+    EXPECTED_LAST_MIGRATION = "0054_async_outbox_workers.sql"
+    EXPECTED_MIGRATION_COUNT = 54
     EXPECTED_ASSETS = (
         "openinfra-web.js",
         "openinfra-web.css",
@@ -181,6 +201,7 @@ class InstalledWheelSmoke:
         package_root = Path(openinfra.__file__).resolve().parent
         openapi = OpenApiDocumentProvider().read_yaml()
         self._assert_openapi_taxonomy(openapi)
+        self._assert_async_routes(openapi)
         self._assert_data_plane_routes(openapi)
         self._assert_graph_routes(openapi)
         self._assert_flow_routes(openapi)
@@ -200,6 +221,7 @@ class InstalledWheelSmoke:
         return {
             "version": openinfra.__version__,
             "openapi_taxonomy": True,
+            "async_routes": len(self.EXPECTED_ASYNC_ROUTES),
             "data_plane_routes": len(self.EXPECTED_DATA_PLANE_ROUTES),
             "graph_routes": len(self.EXPECTED_GRAPH_ROUTES),
             "flow_routes": len(self.EXPECTED_FLOW_ROUTES),
@@ -241,6 +263,13 @@ class InstalledWheelSmoke:
         if distribution_version != self.EXPECTED_VERSION:
             raise InstalledWheelSmokeError(
                 "installed distribution metadata version does not match runtime version"
+            )
+
+    def _assert_async_routes(self, openapi: str) -> None:
+        missing = [route for route in self.EXPECTED_ASYNC_ROUTES if route not in openapi]
+        if missing:
+            raise InstalledWheelSmokeError(
+                "installed OpenAPI document is missing async routes: " + ", ".join(missing)
             )
 
     def _assert_data_plane_routes(self, openapi: str) -> None:

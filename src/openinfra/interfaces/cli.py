@@ -16,6 +16,26 @@ from openinfra.application.access_policy_services import (
     EvaluateAccessPolicyCommand,
     ListAccessPolicyRulesCommand,
 )
+from openinfra.application.async_processing_services import (
+    ClaimAsyncJobCommand,
+    ClaimOutboxEventCommand,
+    CompleteAsyncJobCommand,
+    FailAsyncJobCommand,
+    FailOutboxEventCommand,
+    GetAsyncArtifactCommand,
+    GetAsyncJobCommand,
+    GetAsyncQueueMetricsCommand,
+    GetOutboxEventCommand,
+    ListAsyncJobsCommand,
+    ListOutboxEventsCommand,
+    OutboxDispatcher,
+    PublishOutboxEventCommand,
+    RenewAsyncJobLeaseCommand,
+    RenewOutboxLeaseCommand,
+    ReplayAsyncJobCommand,
+    ReplayOutboxEventCommand,
+    SubmitAsyncJobCommand,
+)
 from openinfra.application.audit_services import (
     ExportAuditEventsCommand,
     ListAuditEventsCommand,
@@ -381,6 +401,7 @@ from openinfra.domain.authentication import ExternalDirectoryConfig
 from openinfra.domain.common import OpenInfraError, ValidationError
 from openinfra.domain.resource_taxonomy import ResourceTaxonomy
 from openinfra.domain.security import Permission
+from openinfra.infrastructure.async_processing import FileOutboxPublisher
 from openinfra.infrastructure.installer_config import InstallerConfigValidator
 from openinfra.infrastructure.postgresql import (
     PostgreSQLConnectionFactory,
@@ -425,6 +446,7 @@ class OpenInfraCLI:
         self._add_identity_commands(subparsers)
         self._add_access_policy_commands(subparsers)
         self._add_audit_commands(subparsers)
+        self._add_async_commands(subparsers)
         self._add_search_commands(subparsers)
         self._add_itam_commands(subparsers)
         self._add_import_commands(subparsers)
@@ -448,6 +470,168 @@ class OpenInfraCLI:
         self._add_ipam_commands(subparsers)
         self._add_dcim_commands(subparsers)
         return parser
+
+    def _add_async_commands(self, subparsers: Any) -> None:
+        asynchronous = subparsers.add_parser(
+            "async", help="transactional outbox and specialized worker operations"
+        )
+        commands = asynchronous.add_subparsers(dest="async_command", required=True)
+
+        submit = commands.add_parser("job-submit", help="submit an idempotent async job")
+        self._add_backend_arguments(submit)
+        for name in ("tenant", "admin-token", "idempotency-key", "payload-file"):
+            submit.add_argument(f"--{name}", required=True)
+        submit.add_argument("--specialization", choices=("reporting",), default="reporting")
+        submit.add_argument("--operation", default="reporting.async-queue-health")
+        submit.add_argument("--max-attempts", type=int, default=3)
+        submit.add_argument("--actor", default="cli")
+        submit.set_defaults(handler=self._handle_async_job_submit)
+
+        jobs = commands.add_parser("jobs", help="list async jobs")
+        self._add_backend_arguments(jobs)
+        for name in ("tenant", "admin-token"):
+            jobs.add_argument(f"--{name}", required=True)
+        jobs.add_argument("--status")
+        jobs.add_argument("--specialization", choices=("reporting",))
+        jobs.add_argument("--limit", type=int, default=100)
+        jobs.add_argument("--cursor")
+        jobs.set_defaults(handler=self._handle_async_jobs)
+
+        job_get = commands.add_parser("job-get", help="read one async job")
+        self._add_backend_arguments(job_get)
+        for name in ("tenant", "admin-token", "job-id"):
+            job_get.add_argument(f"--{name}", required=True)
+        job_get.set_defaults(handler=self._handle_async_job_get)
+
+        claim = commands.add_parser("job-claim", help="claim one job with a fencing token")
+        self._add_backend_arguments(claim)
+        for name in ("tenant", "admin-token", "worker-id"):
+            claim.add_argument(f"--{name}", required=True)
+        claim.add_argument("--specialization", choices=("reporting",), default="reporting")
+        claim.add_argument("--lease-seconds", type=int, default=60)
+        claim.add_argument("--actor", default="cli")
+        claim.set_defaults(handler=self._handle_async_job_claim)
+
+        renew = commands.add_parser("job-renew", help="renew a job lease")
+        self._add_backend_arguments(renew)
+        for name in ("tenant", "admin-token", "job-id", "worker-id"):
+            renew.add_argument(f"--{name}", required=True)
+        renew.add_argument("--lease-token", type=int, required=True)
+        renew.add_argument("--lease-seconds", type=int, default=60)
+        renew.add_argument("--actor", default="cli")
+        renew.set_defaults(handler=self._handle_async_job_renew)
+
+        complete = commands.add_parser("job-complete", help="complete a leased job")
+        self._add_backend_arguments(complete)
+        for name in ("tenant", "admin-token", "job-id", "worker-id", "result-file"):
+            complete.add_argument(f"--{name}", required=True)
+        complete.add_argument("--lease-token", type=int, required=True)
+        complete.add_argument("--media-type", default="application/json")
+        complete.add_argument("--actor", default="cli")
+        complete.set_defaults(handler=self._handle_async_job_complete)
+
+        fail = commands.add_parser("job-fail", help="fail or retry a leased job")
+        self._add_backend_arguments(fail)
+        for name in ("tenant", "admin-token", "job-id", "worker-id", "error"):
+            fail.add_argument(f"--{name}", required=True)
+        fail.add_argument("--lease-token", type=int, required=True)
+        fail.add_argument("--retry-delay-seconds", type=int, default=30)
+        fail.add_argument("--actor", default="cli")
+        fail.set_defaults(handler=self._handle_async_job_fail)
+
+        replay = commands.add_parser("job-replay", help="replay one dead-letter job")
+        self._add_backend_arguments(replay)
+        for name in ("tenant", "admin-token", "job-id"):
+            replay.add_argument(f"--{name}", required=True)
+        replay.add_argument("--actor", default="cli")
+        replay.set_defaults(handler=self._handle_async_job_replay)
+
+        artifact = commands.add_parser("artifact-get", help="export a payload or result artifact")
+        self._add_backend_arguments(artifact)
+        for name in ("tenant", "admin-token", "job-id", "output"):
+            artifact.add_argument(f"--{name}", required=True)
+        artifact.add_argument("--kind", choices=("payload", "result"), default="result")
+        artifact.set_defaults(handler=self._handle_async_artifact_get)
+
+        worker = commands.add_parser("worker-run-once", help="run one reporting worker iteration")
+        self._add_backend_arguments(worker)
+        for name in ("tenant", "admin-token", "worker-id"):
+            worker.add_argument(f"--{name}", required=True)
+        worker.add_argument("--lease-seconds", type=int, default=60)
+        worker.add_argument("--retry-delay-seconds", type=int, default=30)
+        worker.set_defaults(handler=self._handle_async_worker_run_once)
+
+        events = commands.add_parser("outbox-events", help="list outbox events")
+        self._add_backend_arguments(events)
+        for name in ("tenant", "admin-token"):
+            events.add_argument(f"--{name}", required=True)
+        events.add_argument("--status")
+        events.add_argument("--limit", type=int, default=100)
+        events.add_argument("--cursor")
+        events.set_defaults(handler=self._handle_async_outbox_events)
+
+        event_get = commands.add_parser("outbox-get", help="read one outbox event")
+        self._add_backend_arguments(event_get)
+        for name in ("tenant", "admin-token", "event-id"):
+            event_get.add_argument(f"--{name}", required=True)
+        event_get.set_defaults(handler=self._handle_async_outbox_get)
+
+        event_claim = commands.add_parser("outbox-claim", help="claim one outbox event")
+        self._add_backend_arguments(event_claim)
+        for name in ("tenant", "admin-token", "worker-id"):
+            event_claim.add_argument(f"--{name}", required=True)
+        event_claim.add_argument("--lease-seconds", type=int, default=60)
+        event_claim.add_argument("--actor", default="cli")
+        event_claim.set_defaults(handler=self._handle_async_outbox_claim)
+
+        event_renew = commands.add_parser("outbox-renew", help="renew an outbox lease")
+        self._add_backend_arguments(event_renew)
+        for name in ("tenant", "admin-token", "event-id", "worker-id"):
+            event_renew.add_argument(f"--{name}", required=True)
+        event_renew.add_argument("--lease-token", type=int, required=True)
+        event_renew.add_argument("--lease-seconds", type=int, default=60)
+        event_renew.add_argument("--actor", default="cli")
+        event_renew.set_defaults(handler=self._handle_async_outbox_renew)
+
+        event_publish = commands.add_parser("outbox-publish", help="mark an event published")
+        self._add_backend_arguments(event_publish)
+        for name in ("tenant", "admin-token", "event-id", "worker-id"):
+            event_publish.add_argument(f"--{name}", required=True)
+        event_publish.add_argument("--lease-token", type=int, required=True)
+        event_publish.add_argument("--actor", default="cli")
+        event_publish.set_defaults(handler=self._handle_async_outbox_publish)
+
+        event_fail = commands.add_parser("outbox-fail", help="fail or retry an outbox event")
+        self._add_backend_arguments(event_fail)
+        for name in ("tenant", "admin-token", "event-id", "worker-id", "error"):
+            event_fail.add_argument(f"--{name}", required=True)
+        event_fail.add_argument("--lease-token", type=int, required=True)
+        event_fail.add_argument("--retry-delay-seconds", type=int, default=30)
+        event_fail.add_argument("--actor", default="cli")
+        event_fail.set_defaults(handler=self._handle_async_outbox_fail)
+
+        event_replay = commands.add_parser("outbox-replay", help="replay a dead-letter event")
+        self._add_backend_arguments(event_replay)
+        for name in ("tenant", "admin-token", "event-id"):
+            event_replay.add_argument(f"--{name}", required=True)
+        event_replay.add_argument("--actor", default="cli")
+        event_replay.set_defaults(handler=self._handle_async_outbox_replay)
+
+        dispatch = commands.add_parser(
+            "outbox-dispatch-once", help="publish one event to an immutable file sink"
+        )
+        self._add_backend_arguments(dispatch)
+        for name in ("tenant", "admin-token", "worker-id", "event-sink"):
+            dispatch.add_argument(f"--{name}", required=True)
+        dispatch.add_argument("--lease-seconds", type=int, default=60)
+        dispatch.add_argument("--retry-delay-seconds", type=int, default=30)
+        dispatch.set_defaults(handler=self._handle_async_outbox_dispatch_once)
+
+        metrics = commands.add_parser("metrics", help="show async queue metrics")
+        self._add_backend_arguments(metrics)
+        for name in ("tenant", "admin-token"):
+            metrics.add_argument(f"--{name}", required=True)
+        metrics.set_defaults(handler=self._handle_async_metrics)
 
     def _add_version_command(self, subparsers: Any) -> None:
         parser = subparsers.add_parser("version", help="print OpenInfra version")
@@ -9425,6 +9609,234 @@ class OpenInfraCLI:
             GetDisasterRecoveryDrillCommand(args.tenant, args.admin_token, args.drill_id)
         )
         print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_async_job_submit(self, args: argparse.Namespace) -> int:
+        payload = json.loads(Path(args.payload_file).read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            raise OpenInfraError("async job payload file must contain a JSON object")
+        result = self._create_application(args).async_processing_service.submit_job(
+            SubmitAsyncJobCommand(
+                args.tenant,
+                args.admin_token,
+                args.actor,
+                args.specialization,
+                args.operation,
+                args.idempotency_key,
+                payload,
+                args.max_attempts,
+            )
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_async_jobs(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).async_processing_service.list_jobs(
+            ListAsyncJobsCommand(
+                args.tenant,
+                args.admin_token,
+                args.limit,
+                args.cursor,
+                args.status,
+                args.specialization,
+            )
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_async_job_get(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).async_processing_service.get_job(
+            GetAsyncJobCommand(args.tenant, args.admin_token, args.job_id)
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_async_job_claim(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).async_processing_service.claim_job(
+            ClaimAsyncJobCommand(
+                args.tenant,
+                args.admin_token,
+                args.actor,
+                args.specialization,
+                args.worker_id,
+                args.lease_seconds,
+            )
+        )
+        print(json.dumps(None if result is None else result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_async_job_renew(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).async_processing_service.renew_job_lease(
+            RenewAsyncJobLeaseCommand(
+                args.tenant,
+                args.admin_token,
+                args.actor,
+                args.job_id,
+                args.worker_id,
+                args.lease_token,
+                args.lease_seconds,
+            )
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_async_job_complete(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).async_processing_service.complete_job(
+            CompleteAsyncJobCommand(
+                args.tenant,
+                args.admin_token,
+                args.actor,
+                args.job_id,
+                args.worker_id,
+                args.lease_token,
+                Path(args.result_file).read_bytes(),
+                args.media_type,
+            )
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_async_job_fail(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).async_processing_service.fail_job(
+            FailAsyncJobCommand(
+                args.tenant,
+                args.admin_token,
+                args.actor,
+                args.job_id,
+                args.worker_id,
+                args.lease_token,
+                args.error,
+                args.retry_delay_seconds,
+            )
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_async_job_replay(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).async_processing_service.replay_job(
+            ReplayAsyncJobCommand(args.tenant, args.admin_token, args.actor, args.job_id)
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_async_artifact_get(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).async_processing_service.get_artifact(
+            GetAsyncArtifactCommand(args.tenant, args.admin_token, args.job_id, args.kind)
+        )
+        output = Path(args.output)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_bytes(result.content)
+        print(json.dumps({"artifact": result.reference.as_dict(), "output": str(output)}))
+        return 0
+
+    def _handle_async_worker_run_once(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).reporting_worker.run_once(
+            tenant_id=args.tenant,
+            admin_token=args.admin_token,
+            worker_id=args.worker_id,
+            lease_seconds=args.lease_seconds,
+            retry_delay_seconds=args.retry_delay_seconds,
+        )
+        print(json.dumps(None if result is None else result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_async_outbox_events(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).async_processing_service.list_outbox_events(
+            ListOutboxEventsCommand(
+                args.tenant, args.admin_token, args.limit, args.cursor, args.status
+            )
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_async_outbox_get(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).async_processing_service.get_outbox_event(
+            GetOutboxEventCommand(args.tenant, args.admin_token, args.event_id)
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_async_outbox_claim(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).async_processing_service.claim_outbox_event(
+            ClaimOutboxEventCommand(
+                args.tenant, args.admin_token, args.actor, args.worker_id, args.lease_seconds
+            )
+        )
+        print(json.dumps(None if result is None else result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_async_outbox_renew(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).async_processing_service.renew_outbox_lease(
+            RenewOutboxLeaseCommand(
+                args.tenant,
+                args.admin_token,
+                args.actor,
+                args.event_id,
+                args.worker_id,
+                args.lease_token,
+                args.lease_seconds,
+            )
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_async_outbox_publish(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).async_processing_service.mark_outbox_published(
+            PublishOutboxEventCommand(
+                args.tenant,
+                args.admin_token,
+                args.actor,
+                args.event_id,
+                args.worker_id,
+                args.lease_token,
+            )
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_async_outbox_fail(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).async_processing_service.fail_outbox_event(
+            FailOutboxEventCommand(
+                args.tenant,
+                args.admin_token,
+                args.actor,
+                args.event_id,
+                args.worker_id,
+                args.lease_token,
+                args.error,
+                args.retry_delay_seconds,
+            )
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_async_outbox_replay(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).async_processing_service.replay_outbox_event(
+            ReplayOutboxEventCommand(args.tenant, args.admin_token, args.actor, args.event_id)
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_async_outbox_dispatch_once(self, args: argparse.Namespace) -> int:
+        app = self._create_application(args)
+        dispatcher = OutboxDispatcher(
+            app.async_processing_service, FileOutboxPublisher(Path(args.event_sink))
+        )
+        result = dispatcher.run_once(
+            tenant_id=args.tenant,
+            admin_token=args.admin_token,
+            worker_id=args.worker_id,
+            lease_seconds=args.lease_seconds,
+            retry_delay_seconds=args.retry_delay_seconds,
+        )
+        print(json.dumps(None if result is None else result.as_dict(), sort_keys=True))
+        return 0
+
+    def _handle_async_metrics(self, args: argparse.Namespace) -> int:
+        result = self._create_application(args).async_processing_service.queue_metrics(
+            GetAsyncQueueMetricsCommand(args.tenant, args.admin_token)
+        )
+        print(json.dumps(result, sort_keys=True))
         return 0
 
     def _create_migration_executor(self, args: argparse.Namespace) -> PostgreSQLMigrationExecutor:

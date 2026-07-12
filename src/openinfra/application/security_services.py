@@ -143,6 +143,7 @@ class BuiltinRolePolicy:
                 Permission.RAG_QUERY,
                 Permission.MULTISITE_READ,
                 Permission.MULTISITE_REPORT,
+                Permission.ASYNC_READ,
             )
         ),
         "rsot:reader": frozenset(
@@ -207,6 +208,23 @@ class BuiltinRolePolicy:
                 Permission.RSOT_GOVERNANCE_READ,
                 Permission.RSOT_GOVERNANCE_WRITE,
                 Permission.RSOT_QUALITY_READ,
+                Permission.SCHEMA_READ,
+                Permission.AUDIT_READ,
+            )
+        ),
+        "async:reader": frozenset((Permission.ASYNC_READ, Permission.SCHEMA_READ)),
+        "async:operator": frozenset(
+            (Permission.ASYNC_READ, Permission.ASYNC_SUBMIT, Permission.SCHEMA_READ)
+        ),
+        "async:worker": frozenset(
+            (Permission.ASYNC_READ, Permission.ASYNC_WORKER, Permission.SCHEMA_READ)
+        ),
+        "async:admin": frozenset(
+            (
+                Permission.ASYNC_READ,
+                Permission.ASYNC_SUBMIT,
+                Permission.ASYNC_WORKER,
+                Permission.ASYNC_ADMIN,
                 Permission.SCHEMA_READ,
                 Permission.AUDIT_READ,
             )

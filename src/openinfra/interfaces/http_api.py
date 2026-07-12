@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 import sys
@@ -20,6 +21,25 @@ from openinfra.application.access_policy_services import (
     DeactivateAccessPolicyRuleCommand,
     EvaluateAccessPolicyCommand,
     ListAccessPolicyRulesCommand,
+)
+from openinfra.application.async_processing_services import (
+    ClaimAsyncJobCommand,
+    ClaimOutboxEventCommand,
+    CompleteAsyncJobCommand,
+    FailAsyncJobCommand,
+    FailOutboxEventCommand,
+    GetAsyncArtifactCommand,
+    GetAsyncJobCommand,
+    GetAsyncQueueMetricsCommand,
+    GetOutboxEventCommand,
+    ListAsyncJobsCommand,
+    ListOutboxEventsCommand,
+    PublishOutboxEventCommand,
+    RenewAsyncJobLeaseCommand,
+    RenewOutboxLeaseCommand,
+    ReplayAsyncJobCommand,
+    ReplayOutboxEventCommand,
+    SubmitAsyncJobCommand,
 )
 from openinfra.application.audit_services import (
     ExportAuditEventsCommand,
@@ -3531,6 +3551,113 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
+        if route == "/api/v1/async/jobs":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.async_processing_service.list_jobs(
+                    ListAsyncJobsCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        status=query.get("status", [None])[0],
+                        specialization=query.get("specialization", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/async/jobs/get":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.async_processing_service.get_job(
+                    GetAsyncJobCommand(
+                        self._first_query_value(query, "tenant_id"),
+                        self._bearer_token(),
+                        self._first_query_value(query, "job_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/async/artifacts/get":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.async_processing_service.get_artifact(
+                    GetAsyncArtifactCommand(
+                        self._first_query_value(query, "tenant_id"),
+                        self._bearer_token(),
+                        self._first_query_value(query, "job_id"),
+                        self._first_query_value(query, "kind", "result"),
+                    )
+                )
+                responder.send(
+                    HTTPStatus.OK,
+                    {
+                        "artifact": result.reference.as_dict(),
+                        "content_base64": base64.b64encode(result.content).decode("ascii"),
+                    },
+                )
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/async/outbox-events":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.async_processing_service.list_outbox_events(
+                    ListOutboxEventsCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        status=query.get("status", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/async/outbox-events/get":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.async_processing_service.get_outbox_event(
+                    GetOutboxEventCommand(
+                        self._first_query_value(query, "tenant_id"),
+                        self._bearer_token(),
+                        self._first_query_value(query, "event_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/async/metrics":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.async_processing_service.queue_metrics(
+                    GetAsyncQueueMetricsCommand(
+                        self._first_query_value(query, "tenant_id"), self._bearer_token()
+                    )
+                )
+                responder.send(HTTPStatus.OK, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
         if route == "/api/v1/ipam/conflicts":
             try:
                 query = parse_qs(parsed.query)
@@ -3552,6 +3679,252 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         route = self._canonical_route(urlparse(self.path).path)
         result: Any
         rule: Any
+
+        if route == "/api/v1/async/jobs/submit":
+            try:
+                payload = self._read_json_body()
+                raw_job_payload = payload.get("payload")
+                if not isinstance(raw_job_payload, dict):
+                    raise ValidationError("payload must be a JSON object")
+                result = self.server.application.async_processing_service.submit_job(
+                    SubmitAsyncJobCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        actor=str(payload.get("actor", "api")),
+                        specialization=str(payload.get("specialization", "reporting")),
+                        operation=str(payload.get("operation", "reporting.async-queue-health")),
+                        idempotency_key=self._required_payload_value(payload, "idempotency_key"),
+                        payload={str(key): value for key, value in raw_job_payload.items()},
+                        max_attempts=int(payload.get("max_attempts", 3)),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/async/jobs/claim":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.async_processing_service.claim_job(
+                    ClaimAsyncJobCommand(
+                        self._required_payload_value(payload, "tenant_id"),
+                        self._bearer_token(),
+                        str(payload.get("actor", "api")),
+                        str(payload.get("specialization", "reporting")),
+                        self._required_payload_value(payload, "worker_id"),
+                        int(payload.get("lease_seconds", 60)),
+                    )
+                )
+                responder.send(
+                    HTTPStatus.OK, {"item": None if result is None else result.as_dict()}
+                )
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/async/jobs/renew":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.async_processing_service.renew_job_lease(
+                    RenewAsyncJobLeaseCommand(
+                        self._required_payload_value(payload, "tenant_id"),
+                        self._bearer_token(),
+                        str(payload.get("actor", "api")),
+                        self._required_payload_value(payload, "job_id"),
+                        self._required_payload_value(payload, "worker_id"),
+                        int(payload["lease_token"]),
+                        int(payload.get("lease_seconds", 60)),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/async/jobs/complete":
+            try:
+                payload = self._read_json_body()
+                raw_result = payload.get("result")
+                if not isinstance(raw_result, dict):
+                    raise ValidationError("result must be a JSON object")
+                result_content = json.dumps(
+                    raw_result, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+                ).encode("utf-8")
+                result = self.server.application.async_processing_service.complete_job(
+                    CompleteAsyncJobCommand(
+                        self._required_payload_value(payload, "tenant_id"),
+                        self._bearer_token(),
+                        str(payload.get("actor", "api")),
+                        self._required_payload_value(payload, "job_id"),
+                        self._required_payload_value(payload, "worker_id"),
+                        int(payload["lease_token"]),
+                        result_content,
+                        "application/json",
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/async/jobs/fail":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.async_processing_service.fail_job(
+                    FailAsyncJobCommand(
+                        self._required_payload_value(payload, "tenant_id"),
+                        self._bearer_token(),
+                        str(payload.get("actor", "api")),
+                        self._required_payload_value(payload, "job_id"),
+                        self._required_payload_value(payload, "worker_id"),
+                        int(payload["lease_token"]),
+                        self._required_payload_value(payload, "error"),
+                        int(payload.get("retry_delay_seconds", 30)),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/async/jobs/replay":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.async_processing_service.replay_job(
+                    ReplayAsyncJobCommand(
+                        self._required_payload_value(payload, "tenant_id"),
+                        self._bearer_token(),
+                        str(payload.get("actor", "api")),
+                        self._required_payload_value(payload, "job_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/async/workers/reporting/run-once":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.reporting_worker.run_once(
+                    tenant_id=self._required_payload_value(payload, "tenant_id"),
+                    admin_token=self._bearer_token(),
+                    worker_id=self._required_payload_value(payload, "worker_id"),
+                    lease_seconds=int(payload.get("lease_seconds", 60)),
+                    retry_delay_seconds=int(payload.get("retry_delay_seconds", 30)),
+                )
+                responder.send(
+                    HTTPStatus.OK, {"item": None if result is None else result.as_dict()}
+                )
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/async/outbox-events/claim":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.async_processing_service.claim_outbox_event(
+                    ClaimOutboxEventCommand(
+                        self._required_payload_value(payload, "tenant_id"),
+                        self._bearer_token(),
+                        str(payload.get("actor", "api")),
+                        self._required_payload_value(payload, "worker_id"),
+                        int(payload.get("lease_seconds", 60)),
+                    )
+                )
+                responder.send(
+                    HTTPStatus.OK, {"item": None if result is None else result.as_dict()}
+                )
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/async/outbox-events/renew":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.async_processing_service.renew_outbox_lease(
+                    RenewOutboxLeaseCommand(
+                        self._required_payload_value(payload, "tenant_id"),
+                        self._bearer_token(),
+                        str(payload.get("actor", "api")),
+                        self._required_payload_value(payload, "event_id"),
+                        self._required_payload_value(payload, "worker_id"),
+                        int(payload["lease_token"]),
+                        int(payload.get("lease_seconds", 60)),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/async/outbox-events/publish":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.async_processing_service.mark_outbox_published(
+                    PublishOutboxEventCommand(
+                        self._required_payload_value(payload, "tenant_id"),
+                        self._bearer_token(),
+                        str(payload.get("actor", "api")),
+                        self._required_payload_value(payload, "event_id"),
+                        self._required_payload_value(payload, "worker_id"),
+                        int(payload["lease_token"]),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/async/outbox-events/fail":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.async_processing_service.fail_outbox_event(
+                    FailOutboxEventCommand(
+                        self._required_payload_value(payload, "tenant_id"),
+                        self._bearer_token(),
+                        str(payload.get("actor", "api")),
+                        self._required_payload_value(payload, "event_id"),
+                        self._required_payload_value(payload, "worker_id"),
+                        int(payload["lease_token"]),
+                        self._required_payload_value(payload, "error"),
+                        int(payload.get("retry_delay_seconds", 30)),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/async/outbox-events/replay":
+            try:
+                payload = self._read_json_body()
+                result = self.server.application.async_processing_service.replay_outbox_event(
+                    ReplayOutboxEventCommand(
+                        self._required_payload_value(payload, "tenant_id"),
+                        self._bearer_token(),
+                        str(payload.get("actor", "api")),
+                        self._required_payload_value(payload, "event_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
 
         if route == "/api/v1/network-config/baselines/upsert":
             try:
@@ -8288,6 +8661,26 @@ class OpenInfraApiRuntime(BaseServer):
                     "offline_package_get": "/api/v1/offline-sync-packages/get",
                     "offline_package_create": "/api/v1/offline-sync-packages/create",
                     "offline_package_sync": "/api/v1/offline-sync-packages/synchronize",
+                },
+                "async_processing": {
+                    "jobs": "/api/v1/async/jobs",
+                    "job_get": "/api/v1/async/jobs/get",
+                    "job_submit": "/api/v1/async/jobs/submit",
+                    "job_claim": "/api/v1/async/jobs/claim",
+                    "job_renew": "/api/v1/async/jobs/renew",
+                    "job_complete": "/api/v1/async/jobs/complete",
+                    "job_fail": "/api/v1/async/jobs/fail",
+                    "job_replay": "/api/v1/async/jobs/replay",
+                    "artifact_get": "/api/v1/async/artifacts/get",
+                    "reporting_worker_run_once": ("/api/v1/async/workers/reporting/run-once"),
+                    "outbox_events": "/api/v1/async/outbox-events",
+                    "outbox_event_get": "/api/v1/async/outbox-events/get",
+                    "outbox_claim": "/api/v1/async/outbox-events/claim",
+                    "outbox_renew": "/api/v1/async/outbox-events/renew",
+                    "outbox_publish": "/api/v1/async/outbox-events/publish",
+                    "outbox_fail": "/api/v1/async/outbox-events/fail",
+                    "outbox_replay": "/api/v1/async/outbox-events/replay",
+                    "metrics": "/api/v1/async/metrics",
                 },
                 "graph": {
                     "traverse": "/api/v1/graph/traverse",

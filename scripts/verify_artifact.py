@@ -69,6 +69,7 @@ class WheelVerifier:
         "openinfra/migrations/postgresql/0050_pro_centralized_multisite.sql",
         "openinfra/migrations/postgresql/0051_enterprise_regional_discovery_routing.sql",
         "openinfra/migrations/postgresql/0053_keyset_pagination_indexes.sql",
+        "openinfra/migrations/postgresql/0054_async_outbox_workers.sql",
     )
 
     def verify(self, path: Path) -> None:
@@ -98,6 +99,7 @@ class SourceDistributionVerifier:
         "docs/operations/keyset-pagination-streaming.md",
         "scripts/benchmark_cursor_pagination.py",
         "installers/migrations/postgresql/0053_keyset_pagination_indexes.sql",
+        "installers/migrations/postgresql/0054_async_outbox_workers.sql",
         "requirements/runtime.txt",
         "requirements/security-audit.txt",
         ".github/workflows/ci.yml",

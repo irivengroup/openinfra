@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.30.7
+  version: 0.31.0
   description: >-
     API OpenInfra organisée dans Swagger et ReDoc par composant, puis par contexte métier.
     Chaque opération appartient à un contexte unique afin de conserver une navigation déterministe.
@@ -8307,6 +8307,969 @@ paths:
       - Multisite · Discovery régional
       x-openinfra-component: Multisite
       x-openinfra-context: Discovery régional
+  /api/v1/async/jobs:
+    get:
+      summary: List durable asynchronous jobs
+      operationId: listAsyncJobs
+      security:
+      - bearerToken: []
+      parameters:
+      - name: tenant_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Tenant boundary
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 500
+          default: 100
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - queued
+          - leased
+          - retry-wait
+          - completed
+          - dead-letter
+      - name: specialization
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - reporting
+      responses:
+        '200':
+          description: Operation completed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Invalid asynchronous processing request
+        '401':
+          description: Missing or invalid API token
+      tags:
+      - Plateforme · Traitements asynchrones
+      x-openinfra-component: Plateforme
+      x-openinfra-context: Traitements asynchrones
+  /api/v1/async/jobs/get:
+    get:
+      summary: Get a durable asynchronous job
+      operationId: getAsyncJob
+      security:
+      - bearerToken: []
+      parameters:
+      - name: tenant_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Tenant boundary
+      - name: job_id
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 255
+      responses:
+        '200':
+          description: Operation completed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Invalid asynchronous processing request
+        '401':
+          description: Missing or invalid API token
+      tags:
+      - Plateforme · Traitements asynchrones
+      x-openinfra-component: Plateforme
+      x-openinfra-context: Traitements asynchrones
+  /api/v1/async/jobs/submit:
+    post:
+      summary: Submit an idempotent asynchronous job
+      operationId: submitAsyncJob
+      security:
+      - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - tenant_id
+              - idempotency_key
+              - payload
+              properties:
+                tenant_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                actor:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                  default: api
+                specialization:
+                  type: string
+                  enum:
+                  - reporting
+                  default: reporting
+                operation:
+                  type: string
+                  enum:
+                  - reporting.async-queue-health
+                  default: reporting.async-queue-health
+                idempotency_key:
+                  type: string
+                  minLength: 3
+                  maxLength: 255
+                payload:
+                  type: object
+                  additionalProperties: true
+                max_attempts:
+                  type: integer
+                  minimum: 1
+                  maximum: 20
+                  default: 3
+      responses:
+        '400':
+          description: Invalid asynchronous processing request
+        '401':
+          description: Missing or invalid API token
+        '201':
+          description: Durable asynchronous job created or returned idempotently
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+      tags:
+      - Plateforme · Traitements asynchrones
+      x-openinfra-component: Plateforme
+      x-openinfra-context: Traitements asynchrones
+  /api/v1/async/jobs/claim:
+    post:
+      summary: Claim the next eligible job with a fenced lease
+      operationId: claimAsyncJob
+      security:
+      - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - tenant_id
+              - worker_id
+              properties:
+                tenant_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                actor:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                  default: api
+                worker_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                lease_seconds:
+                  type: integer
+                  minimum: 5
+                  maximum: 3600
+                  default: 60
+                specialization:
+                  type: string
+                  enum:
+                  - reporting
+                  default: reporting
+      responses:
+        '200':
+          description: Operation completed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Invalid asynchronous processing request
+        '401':
+          description: Missing or invalid API token
+      tags:
+      - Plateforme · Traitements asynchrones
+      x-openinfra-component: Plateforme
+      x-openinfra-context: Traitements asynchrones
+  /api/v1/async/jobs/renew:
+    post:
+      summary: Renew a fenced asynchronous job lease
+      operationId: renewAsyncJobLease
+      security:
+      - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - tenant_id
+              - worker_id
+              - job_id
+              - lease_token
+              properties:
+                tenant_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                actor:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                  default: api
+                worker_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                lease_seconds:
+                  type: integer
+                  minimum: 5
+                  maximum: 3600
+                  default: 60
+                lease_token:
+                  type: integer
+                  minimum: 1
+                job_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+      responses:
+        '200':
+          description: Operation completed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Invalid asynchronous processing request
+        '401':
+          description: Missing or invalid API token
+      tags:
+      - Plateforme · Traitements asynchrones
+      x-openinfra-component: Plateforme
+      x-openinfra-context: Traitements asynchrones
+  /api/v1/async/jobs/complete:
+    post:
+      summary: Complete a job and externalize its result artifact
+      operationId: completeAsyncJob
+      security:
+      - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - tenant_id
+              - worker_id
+              - job_id
+              - lease_token
+              - result
+              properties:
+                tenant_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                actor:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                  default: api
+                worker_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                lease_seconds:
+                  type: integer
+                  minimum: 5
+                  maximum: 3600
+                  default: 60
+                lease_token:
+                  type: integer
+                  minimum: 1
+                job_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                result:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '200':
+          description: Operation completed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Invalid asynchronous processing request
+        '401':
+          description: Missing or invalid API token
+      tags:
+      - Plateforme · Traitements asynchrones
+      x-openinfra-component: Plateforme
+      x-openinfra-context: Traitements asynchrones
+  /api/v1/async/jobs/fail:
+    post:
+      summary: Fail a job with bounded retry or dead-letter transition
+      operationId: failAsyncJob
+      security:
+      - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - tenant_id
+              - worker_id
+              - job_id
+              - lease_token
+              - error
+              properties:
+                tenant_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                actor:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                  default: api
+                worker_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                lease_seconds:
+                  type: integer
+                  minimum: 5
+                  maximum: 3600
+                  default: 60
+                lease_token:
+                  type: integer
+                  minimum: 1
+                job_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                error:
+                  type: string
+                  minLength: 1
+                  maxLength: 4096
+                retry_delay_seconds:
+                  type: integer
+                  minimum: 0
+                  maximum: 86400
+                  default: 30
+      responses:
+        '200':
+          description: Operation completed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Invalid asynchronous processing request
+        '401':
+          description: Missing or invalid API token
+      tags:
+      - Plateforme · Traitements asynchrones
+      x-openinfra-component: Plateforme
+      x-openinfra-context: Traitements asynchrones
+  /api/v1/async/jobs/replay:
+    post:
+      summary: Replay a dead-lettered asynchronous job
+      operationId: replayAsyncJob
+      security:
+      - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - tenant_id
+              - job_id
+              properties:
+                tenant_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                actor:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                  default: api
+                job_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+      responses:
+        '200':
+          description: Operation completed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Invalid asynchronous processing request
+        '401':
+          description: Missing or invalid API token
+      tags:
+      - Plateforme · Traitements asynchrones
+      x-openinfra-component: Plateforme
+      x-openinfra-context: Traitements asynchrones
+  /api/v1/async/artifacts/get:
+    get:
+      summary: Read and verify an externalized job artifact
+      operationId: getAsyncArtifact
+      security:
+      - bearerToken: []
+      parameters:
+      - name: tenant_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Tenant boundary
+      - name: job_id
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 255
+      - name: kind
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - payload
+          - result
+          default: result
+      responses:
+        '200':
+          description: Operation completed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Invalid asynchronous processing request
+        '401':
+          description: Missing or invalid API token
+      tags:
+      - Plateforme · Traitements asynchrones
+      x-openinfra-component: Plateforme
+      x-openinfra-context: Traitements asynchrones
+  /api/v1/async/workers/reporting/run-once:
+    post:
+      summary: Run one reporting worker iteration
+      operationId: runReportingWorkerOnce
+      security:
+      - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - tenant_id
+              - worker_id
+              properties:
+                tenant_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                actor:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                  default: api
+                worker_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                lease_seconds:
+                  type: integer
+                  minimum: 5
+                  maximum: 3600
+                  default: 60
+                retry_delay_seconds:
+                  type: integer
+                  minimum: 0
+                  maximum: 86400
+                  default: 30
+      responses:
+        '200':
+          description: Operation completed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Invalid asynchronous processing request
+        '401':
+          description: Missing or invalid API token
+      tags:
+      - Plateforme · Traitements asynchrones
+      x-openinfra-component: Plateforme
+      x-openinfra-context: Traitements asynchrones
+  /api/v1/async/outbox-events:
+    get:
+      summary: List transactional outbox events
+      operationId: listOutboxEvents
+      security:
+      - bearerToken: []
+      parameters:
+      - name: tenant_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Tenant boundary
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 500
+          default: 100
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - queued
+          - leased
+          - retry-wait
+          - completed
+          - dead-letter
+      responses:
+        '200':
+          description: Operation completed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Invalid asynchronous processing request
+        '401':
+          description: Missing or invalid API token
+      tags:
+      - Plateforme · Traitements asynchrones
+      x-openinfra-component: Plateforme
+      x-openinfra-context: Traitements asynchrones
+  /api/v1/async/outbox-events/get:
+    get:
+      summary: Get a transactional outbox event
+      operationId: getOutboxEvent
+      security:
+      - bearerToken: []
+      parameters:
+      - name: tenant_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Tenant boundary
+      - name: event_id
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 255
+      responses:
+        '200':
+          description: Operation completed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Invalid asynchronous processing request
+        '401':
+          description: Missing or invalid API token
+      tags:
+      - Plateforme · Traitements asynchrones
+      x-openinfra-component: Plateforme
+      x-openinfra-context: Traitements asynchrones
+  /api/v1/async/outbox-events/claim:
+    post:
+      summary: Claim the next eligible outbox event with a fenced lease
+      operationId: claimOutboxEvent
+      security:
+      - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - tenant_id
+              - worker_id
+              properties:
+                tenant_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                actor:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                  default: api
+                worker_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                lease_seconds:
+                  type: integer
+                  minimum: 5
+                  maximum: 3600
+                  default: 60
+      responses:
+        '200':
+          description: Operation completed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Invalid asynchronous processing request
+        '401':
+          description: Missing or invalid API token
+      tags:
+      - Plateforme · Traitements asynchrones
+      x-openinfra-component: Plateforme
+      x-openinfra-context: Traitements asynchrones
+  /api/v1/async/outbox-events/renew:
+    post:
+      summary: Renew a fenced outbox event lease
+      operationId: renewOutboxEventLease
+      security:
+      - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - tenant_id
+              - worker_id
+              - event_id
+              - lease_token
+              properties:
+                tenant_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                actor:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                  default: api
+                worker_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                lease_seconds:
+                  type: integer
+                  minimum: 5
+                  maximum: 3600
+                  default: 60
+                lease_token:
+                  type: integer
+                  minimum: 1
+                event_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+      responses:
+        '200':
+          description: Operation completed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Invalid asynchronous processing request
+        '401':
+          description: Missing or invalid API token
+      tags:
+      - Plateforme · Traitements asynchrones
+      x-openinfra-component: Plateforme
+      x-openinfra-context: Traitements asynchrones
+  /api/v1/async/outbox-events/publish:
+    post:
+      summary: Mark an outbox event as published
+      operationId: publishOutboxEvent
+      security:
+      - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - tenant_id
+              - worker_id
+              - event_id
+              - lease_token
+              properties:
+                tenant_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                actor:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                  default: api
+                worker_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                lease_seconds:
+                  type: integer
+                  minimum: 5
+                  maximum: 3600
+                  default: 60
+                lease_token:
+                  type: integer
+                  minimum: 1
+                event_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+      responses:
+        '200':
+          description: Operation completed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Invalid asynchronous processing request
+        '401':
+          description: Missing or invalid API token
+      tags:
+      - Plateforme · Traitements asynchrones
+      x-openinfra-component: Plateforme
+      x-openinfra-context: Traitements asynchrones
+  /api/v1/async/outbox-events/fail:
+    post:
+      summary: Fail an outbox event with bounded retry or dead-letter transition
+      operationId: failOutboxEvent
+      security:
+      - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - tenant_id
+              - worker_id
+              - event_id
+              - lease_token
+              - error
+              properties:
+                tenant_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                actor:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                  default: api
+                worker_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                lease_seconds:
+                  type: integer
+                  minimum: 5
+                  maximum: 3600
+                  default: 60
+                lease_token:
+                  type: integer
+                  minimum: 1
+                event_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                error:
+                  type: string
+                  minLength: 1
+                  maxLength: 4096
+                retry_delay_seconds:
+                  type: integer
+                  minimum: 0
+                  maximum: 86400
+                  default: 30
+      responses:
+        '200':
+          description: Operation completed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Invalid asynchronous processing request
+        '401':
+          description: Missing or invalid API token
+      tags:
+      - Plateforme · Traitements asynchrones
+      x-openinfra-component: Plateforme
+      x-openinfra-context: Traitements asynchrones
+  /api/v1/async/outbox-events/replay:
+    post:
+      summary: Replay a dead-lettered outbox event
+      operationId: replayOutboxEvent
+      security:
+      - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - tenant_id
+              - event_id
+              properties:
+                tenant_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                actor:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                  default: api
+                event_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+      responses:
+        '200':
+          description: Operation completed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Invalid asynchronous processing request
+        '401':
+          description: Missing or invalid API token
+      tags:
+      - Plateforme · Traitements asynchrones
+      x-openinfra-component: Plateforme
+      x-openinfra-context: Traitements asynchrones
+  /api/v1/async/metrics:
+    get:
+      summary: Read asynchronous queue and outbox metrics
+      operationId: getAsyncQueueMetrics
+      security:
+      - bearerToken: []
+      parameters:
+      - name: tenant_id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Tenant boundary
+      responses:
+        '200':
+          description: Operation completed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Invalid asynchronous processing request
+        '401':
+          description: Missing or invalid API token
+      tags:
+      - Plateforme · Traitements asynchrones
+      x-openinfra-component: Plateforme
+      x-openinfra-context: Traitements asynchrones
 tags:
 - name: Plateforme · Exploitation et documentation
   description: Découverte API, documentation, santé, disponibilité et version du runtime.
@@ -8318,6 +9281,8 @@ tags:
   description: Recherche transverse dans les composants autorisés.
 - name: Plateforme · Éditions et capacités
   description: Politiques, capacités et quotas des éditions OpenInfra.
+- name: Plateforme · Traitements asynchrones
+  description: Outbox transactionnelle, workers spécialisés, artefacts et files de reprise.
 - name: Sécurité · Authentification et jetons
   description: Identité courante et cycle de vie des jetons applicatifs.
 - name: Sécurité · Identités et groupes
@@ -8454,6 +9419,7 @@ x-tagGroups:
   - Plateforme · Base de données
   - Plateforme · Recherche globale
   - Plateforme · Éditions et capacités
+  - Plateforme · Traitements asynchrones
 - name: Sécurité
   tags:
   - Sécurité · Authentification et jetons

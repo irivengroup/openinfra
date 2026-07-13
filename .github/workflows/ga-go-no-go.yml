@@ -1,0 +1,94 @@
+name: OpenInfra GA Go No-Go
+
+on:
+  workflow_dispatch:
+    inputs:
+      evidence_run_id:
+        description: GitHub Actions run ID containing the GA evidence bundle
+        required: true
+        type: string
+      evidence_artifact_name:
+        description: Artifact name containing candidate.json and evidence files
+        required: true
+        default: openinfra-ga-evidence
+        type: string
+  workflow_call:
+    inputs:
+      evidence_run_id:
+        required: true
+        type: string
+      evidence_artifact_name:
+        required: true
+        type: string
+    secrets:
+      OPENINFRA_RELEASE_SIGNING_PRIVATE_KEY_B64:
+        required: true
+      OPENINFRA_GA_TRUST_POLICY_B64:
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  ga-decision:
+    name: Evaluate GATE-07
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: pip
+
+      - name: Install runtime dependencies
+        run: |
+          python -m pip install --upgrade "pip>=26.0"
+          python -m pip install -e .
+
+      - name: Download signed GA evidence bundle
+        uses: actions/download-artifact@v6
+        with:
+          name: ${{ inputs.evidence_artifact_name }}
+          path: artifacts/ga/evidence
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.evidence_run_id }}
+
+      - name: Materialize trust policy
+        shell: bash
+        env:
+          OPENINFRA_GA_TRUST_POLICY_B64: ${{ secrets.OPENINFRA_GA_TRUST_POLICY_B64 }}
+        run: |
+          test -n "$OPENINFRA_GA_TRUST_POLICY_B64"
+          printf '%s' "$OPENINFRA_GA_TRUST_POLICY_B64" | base64 --decode > artifacts/ga/trust-policy.json
+          chmod 600 artifacts/ga/trust-policy.json
+
+      - name: Evaluate signed Go No-Go decision
+        env:
+          OPENINFRA_RELEASE_SIGNING_PRIVATE_KEY_B64: ${{ secrets.OPENINFRA_RELEASE_SIGNING_PRIVATE_KEY_B64 }}
+        run: |
+          python scripts/ga_go_no_go.py \
+            --manifest artifacts/ga/evidence/candidate.json \
+            --policy docs/release/ga-go-no-go-policy.json \
+            --trust-policy artifacts/ga/trust-policy.json \
+            --evidence-root artifacts/ga/evidence \
+            --output artifacts/ga/openinfra-$(cat VERSION)-go-no-go.json \
+            --enforce-go
+
+      - name: Upload signed GA decision
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: openinfra-ga-decision-${{ github.run_id }}
+          path: |
+            artifacts/ga/openinfra-*-go-no-go.json
+            artifacts/ga/openinfra-*-go-no-go.json.sig
+            artifacts/ga/openinfra-*-go-no-go.json.pub
+          if-no-files-found: error
+          retention-days: 365

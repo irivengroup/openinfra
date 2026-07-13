@@ -1,4 +1,47 @@
+## 0.32.4 — 2026-07-13
+
+- Correctif Docker : copie de toutes les ressources documentaires exigées par Hatchling avant `pip install`.
+- Le build runtime partage explicitement la même définition locale entre migrate, auth-bootstrap, API, web et smoke afin d’éviter toute tentative de pull du tag local.
+- Ajout de tests de non-régression du contexte de build Docker et des services Compose runtime.
+- Aucun changement métier, migration ou thème.
+
+## 0.32.3 — 2026-07-12
+
+- Implémentation P18 / EPIC-1805 : gate Go/No-Go GA signé et reproductible.
+- Politique fermée couvrant critères techniques, capacité, sécurité, packaging, documentation, exploitation, support et business.
+- Approbations Ed25519 par rôle et politique de confiance externe.
+- Validation des empreintes, dates de validité, risques et signature de décision.
+- Rapport NO-GO motivé tant que les preuves GATE-07 ne sont pas complètes.
+- Workflow GitHub Actions de promotion GA et runbook opérationnel.
+- Aucun changement de schéma PostgreSQL ni de charte graphique.
+
 # Changelog
+
+## 0.32.2 — 2026-07-12
+
+### Ajouté
+
+- documentation GA P18 / EPIC-1804 structurée par rôle ;
+- guides installation, administration, utilisateur, API, exploitation, PRA/PCA, mise à niveau et diagnostic ;
+- manifeste `docs/ga/documentation-manifest.json` ;
+- validateur `validate_ga_documentation.py` et rapport JSON ;
+- workflow GitHub Actions dédié et gate bloquant intégré à la CI.
+
+### Compatibilité
+
+- aucune migration PostgreSQL ;
+- aucun changement d'API ou de CLI ;
+- aucune modification CSS ou du thème approuvé.
+
+## 0.32.1 — 2026-07-12
+
+- Implémentation de P18 / EPIC-1803 : certification reproductible du packaging de release.
+- Double build byte-for-byte du wheel et du sdist avec `SOURCE_DATE_EPOCH`.
+- SBOM SPDX 2.3 déterministe, manifeste SHA-256 et signature détachée Ed25519.
+- Validation des six installateurs et preuve de rollback transactionnel.
+- Installation du wheel en environnement vierge, `pip check` et smoke installé.
+- Workflow de release bloquant et documentation d'exploitation.
+- Aucun changement de thème ni de schéma PostgreSQL.
 
 ## 0.32.0 - 2026-07-12
 

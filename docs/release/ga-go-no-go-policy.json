@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "gate_id": "GATE-07",
+  "epic": "EPIC-1805",
+  "required_evidence": [
+    {"id": "technical-validation", "report_kind": "technical-validation", "category": "technical", "max_age_days": 7},
+    {"id": "enterprise-capacity", "report_kind": "enterprise-capacity", "category": "technical", "max_age_days": 30},
+    {"id": "release-security", "report_kind": "release-security", "category": "security", "max_age_days": 7},
+    {"id": "release-packaging", "report_kind": "release-packaging", "category": "technical", "max_age_days": 7},
+    {"id": "ga-documentation", "report_kind": "ga-documentation", "category": "operations", "max_age_days": 30},
+    {"id": "operations-readiness", "report_kind": "operations-readiness", "category": "operations", "max_age_days": 30},
+    {"id": "support-readiness", "report_kind": "support-readiness", "category": "support", "max_age_days": 90},
+    {"id": "business-readiness", "report_kind": "business-readiness", "category": "business", "max_age_days": 30}
+  ],
+  "required_approval_roles": [
+    "product-owner",
+    "engineering-owner",
+    "security-owner",
+    "operations-owner",
+    "support-owner"
+  ],
+  "blocking_risk_severities": ["critical", "high"]
+}

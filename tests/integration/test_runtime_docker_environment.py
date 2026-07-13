@@ -3,10 +3,14 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import shutil
 import stat
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
+
+import yaml
 
 
 class TestRuntimeEnvironment:
@@ -97,6 +101,73 @@ class TestRuntimeEnvironment:
         assert '"MaintenanceDB": "openinfra"' in servers
         assert "openinfra" in smoke
         assert "production" in runbook.lower()
+
+    def test_docker_build_context_contains_all_forced_wheel_resources(self) -> None:
+        dockerfile = Path("Dockerfile").read_text(encoding="utf-8")
+        build_section = dockerfile.split("RUN python -m pip install", maxsplit=1)[0]
+        copied_sources = []
+        for line in build_section.splitlines():
+            stripped = line.strip()
+            if not stripped.startswith("COPY "):
+                continue
+            tokens = stripped.split()
+            copied_sources.extend(Path(token) for token in tokens[1:-1])
+
+        configuration = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+        forced = configuration["tool"]["hatch"]["build"]["targets"]["wheel"]["force-include"]
+        missing = []
+        for source in forced:
+            source_path = Path(source)
+            if not any(
+                source_path == copied or copied in source_path.parents for copied in copied_sources
+            ):
+                missing.append(source)
+
+        assert missing == []
+        assert "COPY docs/ga ./docs/ga" in dockerfile
+        assert "COPY docs/release ./docs/release" in dockerfile
+        assert "COPY docs/runbooks ./docs/runbooks" in dockerfile
+
+    def test_minimal_docker_context_can_build_runtime_wheel(self, tmp_path: Path) -> None:
+        project_root = Path.cwd()
+        staging = tmp_path / "docker-context"
+        staging.mkdir()
+        for file_name in ("pyproject.toml", "README.md", "LICENSE", "VERSION"):
+            shutil.copy2(project_root / file_name, staging / file_name)
+        for directory in ("src", "installers", "web"):
+            shutil.copytree(project_root / directory, staging / directory)
+        for directory in ("api", "ga", "release", "runbooks"):
+            shutil.copytree(project_root / "docs" / directory, staging / "docs" / directory)
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "pip",
+                "wheel",
+                ".",
+                "--no-deps",
+                "--no-build-isolation",
+                "--wheel-dir",
+                str(tmp_path / "wheelhouse"),
+            ],
+            cwd=staging,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert list((tmp_path / "wheelhouse").glob("openinfra-0.32.4-*.whl"))
+
+    def test_all_runtime_services_share_the_local_image_build(self) -> None:
+        compose = yaml.safe_load(Path("compose.yaml").read_text(encoding="utf-8"))
+        expected_build = {"context": ".", "dockerfile": "Dockerfile"}
+        for service_name in ("migrate", "auth-bootstrap", "api", "web", "smoke"):
+            service = compose["services"][service_name]
+            assert service["build"] == expected_build
+            assert service["image"] == "openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.32.4}"
+            assert service["pull_policy"] == "build"
 
     def test_runtime_user_matches_prometheus_tmpfs_owner(self) -> None:
         dockerfile = Path("Dockerfile").read_text(encoding="utf-8")

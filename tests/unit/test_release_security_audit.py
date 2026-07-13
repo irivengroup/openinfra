@@ -62,7 +62,7 @@ class TestReleaseSecurityAudit:
     def test_catalog_contains_all_release_controls(self, tmp_path: Path) -> None:
         controls = ReleaseSecurityControlCatalog.build(
             tmp_path,
-            image_ref="openinfra/runtime:0.32.0",
+            image_ref="openinfra/runtime:0.32.3",
             api_base_url="http://127.0.0.1:8080",
             web_base_url="http://127.0.0.1:2006",
         )
@@ -92,7 +92,7 @@ class TestReleaseSecurityAudit:
             tmp_path,
             output,
             tmp_path / "evidence",
-            image_ref="openinfra/runtime:0.32.0",
+            image_ref="openinfra/runtime:0.32.3",
             api_base_url="http://127.0.0.1:8080",
             web_base_url="http://127.0.0.1:2006",
             offline=False,
@@ -110,7 +110,7 @@ class TestReleaseSecurityAudit:
             tmp_path,
             tmp_path / "failed.json",
             tmp_path / "evidence-failed",
-            image_ref="openinfra/runtime:0.32.0",
+            image_ref="openinfra/runtime:0.32.3",
             api_base_url="http://127.0.0.1:8080",
             web_base_url="http://127.0.0.1:2006",
             offline=False,
@@ -119,7 +119,7 @@ class TestReleaseSecurityAudit:
             tmp_path,
             tmp_path / "offline.json",
             tmp_path / "evidence-offline",
-            image_ref="openinfra/runtime:0.32.0",
+            image_ref="openinfra/runtime:0.32.3",
             api_base_url="http://127.0.0.1:8080",
             web_base_url="http://127.0.0.1:2006",
             offline=True,
@@ -282,7 +282,7 @@ class TestReleaseSecurityAuditEdgeCases:
         with pytest.raises(ReleaseSecurityAuditError, match="catalog is incomplete"):
             ReleaseSecurityControlCatalog.build(
                 tmp_path,
-                image_ref="openinfra/runtime:0.32.0",
+                image_ref="openinfra/runtime:0.32.3",
                 api_base_url="http://127.0.0.1:8080",
                 web_base_url="http://127.0.0.1:2006",
             )
@@ -292,7 +292,7 @@ class TestReleaseSecurityAuditEdgeCases:
             tmp_path,
             tmp_path / "missing.json",
             tmp_path / "evidence",
-            image_ref="openinfra/runtime:0.32.0",
+            image_ref="openinfra/runtime:0.32.3",
             api_base_url="http://127.0.0.1:8080",
             web_base_url="http://127.0.0.1:2006",
             offline=False,

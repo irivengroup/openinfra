@@ -237,6 +237,181 @@ class ReleaseSecurityGuard:
             )
 
 
+class ReleasePackagingGuard:
+    def __init__(self, project_root: Path) -> None:
+        self._project_root = project_root
+
+    def assert_release_packaging_controls_are_present(self) -> None:
+        required_files = (
+            "src/openinfra/quality/release_packaging.py",
+            "scripts/release_packaging_audit.py",
+            ".github/workflows/release-packaging.yml",
+            "docs/architecture/release-packaging-certification.md",
+            "docs/runbooks/RELEASE_PACKAGING.md",
+            "tests/unit/test_release_packaging.py",
+            "tests/integration/test_release_packaging_workflow.py",
+            "tests/integration/test_release_packaging_installer_rollback.py",
+        )
+        missing = [
+            relative for relative in required_files if not (self._project_root / relative).is_file()
+        ]
+        if missing:
+            raise QualityGateError("missing release packaging controls: " + ", ".join(missing))
+        workflow = (self._project_root / ".github/workflows/release-packaging.yml").read_text(
+            encoding="utf-8"
+        )
+        required_fragments = (
+            "tags: ['v*']",
+            "workflow_dispatch:",
+            "actions/checkout@v6",
+            "fetch-depth: 0",
+            "actions/setup-python@v6",
+            "actions/upload-artifact@v6",
+            "OPENINFRA_RELEASE_SIGNING_PRIVATE_KEY_B64",
+            "release_packaging_audit.py",
+            "--signing-key-from-env",
+            "--enforce",
+            "sha256sum --check",
+            "ReleaseSignatureVerifier",
+            "retention-days: 90",
+        )
+        missing_fragments = [
+            fragment for fragment in required_fragments if fragment not in workflow
+        ]
+        if missing_fragments:
+            raise QualityGateError(
+                "release packaging workflow is incomplete: " + ", ".join(missing_fragments)
+            )
+        if "pull_request_target:" in workflow:
+            raise QualityGateError(
+                "release packaging workflow must not execute from pull_request_target"
+            )
+        package_lock = (self._project_root / "web/package-lock.json").read_text(encoding="utf-8")
+        for forbidden in ("applied-caas", ".internal.api", "artifactory/api/npm"):
+            if forbidden in package_lock:
+                raise QualityGateError(
+                    "frontend lockfile must not expose an internal registry: " + forbidden
+                )
+        source = (self._project_root / "src/openinfra/quality/release_packaging.py").read_text(
+            encoding="utf-8"
+        )
+        for fragment in (
+            "ReproducibleDistributionBuilder",
+            "ReleaseSbomBuilder",
+            "ReleaseSigningMaterial",
+            "InstallerPackagingValidator",
+            "IsolatedWheelSmokeValidator",
+            "ReleaseChecksumManifest",
+        ):
+            if fragment not in source:
+                raise QualityGateError(
+                    "release packaging implementation is incomplete: " + fragment
+                )
+
+
+class GaDocumentationGuard:
+    def __init__(self, project_root: Path) -> None:
+        self._project_root = project_root
+
+    def assert_ga_documentation_controls_are_present(self) -> None:
+        required_files = (
+            "src/openinfra/quality/documentation_ga.py",
+            "scripts/validate_ga_documentation.py",
+            ".github/workflows/documentation-ga.yml",
+            "docs/architecture/ga-documentation-governance.md",
+            "docs/ga/documentation-manifest.json",
+            "docs/ga/README.md",
+            "docs/ga/INSTALLATION.md",
+            "docs/ga/ADMINISTRATION.md",
+            "docs/ga/USER_GUIDE.md",
+            "docs/ga/API_GUIDE.md",
+            "docs/ga/OPERATIONS.md",
+            "docs/ga/DISASTER_RECOVERY.md",
+            "docs/ga/UPGRADE.md",
+            "docs/ga/TROUBLESHOOTING.md",
+            "tests/unit/test_documentation_ga.py",
+            "tests/integration/test_documentation_ga_contract.py",
+        )
+        missing = [
+            relative for relative in required_files if not (self._project_root / relative).is_file()
+        ]
+        if missing:
+            raise QualityGateError("missing GA documentation controls: " + ", ".join(missing))
+        workflow = (self._project_root / ".github/workflows/documentation-ga.yml").read_text(
+            encoding="utf-8"
+        )
+        required_fragments = (
+            "actions/checkout@v6",
+            "actions/setup-python@v6",
+            "actions/upload-artifact@v6",
+            "validate_ga_documentation.py",
+            "ga-documentation-report.json",
+            "retention-days: 90",
+        )
+        absent = [fragment for fragment in required_fragments if fragment not in workflow]
+        if absent:
+            raise QualityGateError("GA documentation workflow is incomplete: " + ", ".join(absent))
+        if "pull_request_target:" in workflow:
+            raise QualityGateError(
+                "GA documentation workflow must not execute from pull_request_target"
+            )
+
+
+class GaGoNoGoGuard:
+    def __init__(self, project_root: Path) -> None:
+        self._project_root = project_root
+
+    def assert_ga_go_no_go_controls_are_present(self) -> None:
+        required_files = (
+            "src/openinfra/quality/ga_go_no_go.py",
+            "scripts/ga_go_no_go.py",
+            ".github/workflows/ga-go-no-go.yml",
+            "docs/release/ga-go-no-go-policy.json",
+            "docs/release/ga-trust-policy.schema.json",
+            "docs/runbooks/GA_GO_NO_GO.md",
+            "tests/unit/test_ga_go_no_go.py",
+        )
+        missing = [
+            relative for relative in required_files if not (self._project_root / relative).is_file()
+        ]
+        if missing:
+            raise QualityGateError("missing GA Go/No-Go controls: " + ", ".join(missing))
+        workflow = (self._project_root / ".github/workflows/ga-go-no-go.yml").read_text(
+            encoding="utf-8"
+        )
+        required_fragments = (
+            "workflow_dispatch:",
+            "workflow_call:",
+            "actions/checkout@v6",
+            "actions/setup-python@v6",
+            "actions/download-artifact@v6",
+            "actions/upload-artifact@v6",
+            "OPENINFRA_RELEASE_SIGNING_PRIVATE_KEY_B64",
+            "OPENINFRA_GA_TRUST_POLICY_B64",
+            "scripts/ga_go_no_go.py",
+            "--enforce-go",
+            "retention-days: 365",
+        )
+        absent = [fragment for fragment in required_fragments if fragment not in workflow]
+        if absent:
+            raise QualityGateError("GA Go/No-Go workflow is incomplete: " + ", ".join(absent))
+        if "pull_request_target:" in workflow:
+            raise QualityGateError("GA Go/No-Go workflow must not use pull_request_target")
+        source = (self._project_root / "src/openinfra/quality/ga_go_no_go.py").read_text(
+            encoding="utf-8"
+        )
+        for fragment in (
+            "GATE-07",
+            "EPIC-1805",
+            "GaApprovalVerifier",
+            "GaRiskEvaluator",
+            "ReleaseSignatureVerifier",
+            "authorized_for_ga",
+        ):
+            if fragment not in source:
+                raise QualityGateError("GA Go/No-Go implementation is incomplete: " + fragment)
+
+
 class DockerRuntimeGuard:
     def __init__(self, project_root: Path) -> None:
         self._project_root = project_root
@@ -606,6 +781,18 @@ class QualityGate:
         HighPerformanceRuntimeGuard(self._project_root).assert_pro_enterprise_runtime_is_bounded()
         CiWorkflowTriggerGuard(self._project_root).assert_push_triggers_are_not_branch_locked()
         ReleaseSecurityGuard(self._project_root).assert_release_security_controls_are_present()
+        ReleasePackagingGuard(self._project_root).assert_release_packaging_controls_are_present()
+        GaDocumentationGuard(self._project_root).assert_ga_documentation_controls_are_present()
+        GaGoNoGoGuard(self._project_root).assert_ga_go_no_go_controls_are_present()
+        CommandRunner().run(
+            [
+                sys.executable,
+                "scripts/validate_ga_documentation.py",
+                "--project-root",
+                str(self._project_root),
+                "--enforce",
+            ]
+        )
         DockerRuntimeGuard(self._project_root).assert_optional_compose_runtime_is_well_scoped()
         CommandRunner().run(
             [sys.executable, "scripts/validate_autonomous_installer.py", "--root", "installers"]

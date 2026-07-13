@@ -1,6 +1,17 @@
-# OpenInfra v0.32.0
+# OpenInfra v0.32.4
 
-OpenInfra 0.32.0 ouvre l'industrialisation GA P18 avec EPIC-1802 : audit de sécurité de release, preuves versionnées et blocage de toute promotion incomplète. Le correctif Prometheus 0.31.4, les capacités P20 et le thème approuvé restent préservés.
+OpenInfra 0.32.4 corrige le build Docker runtime de 0.32.3 : toutes les ressources documentaires forcées par Hatchling sont copiées avant l’installation du package, et les services Compose utilisent explicitement le build local de `openinfra/runtime`. Le gate Go/No-Go GA d’EPIC-1805 reste fonctionnellement inchangé et le thème approuvé est préservé.
+
+## Documentation GA — P18 / EPIC-1804
+
+- point d'entrée unique dans `docs/ga/README.md` ;
+- guides administrateur, utilisateur, API, installation, exploitation, PRA/PCA, upgrade et diagnostic ;
+- manifeste machine-readable versionné ;
+- validation des liens, sections, commandes CLI, opérations OpenAPI et marqueurs de version ;
+- workflow GitHub Actions dédié et contrôle intégré au quality gate ;
+- aucune modification de la charte graphique ni des contrats métier.
+
+Voir `docs/ga/README.md` et `docs/architecture/ga-documentation-governance.md`.
 
 ## Audit sécurité de release — P18 / EPIC-1802
 

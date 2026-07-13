@@ -1,4 +1,7 @@
 name: openinfra-runtime
+x-openinfra-runtime-build: &openinfra-runtime-build
+  context: .
+  dockerfile: Dockerfile
 services:
   postgres:
     image: postgres:16-alpine
@@ -162,10 +165,9 @@ services:
     networks:
     - openinfra
   migrate:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.32.0}
+    build: *openinfra-runtime-build
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.32.4}
+    pull_policy: build
     container_name: openinfra-migrate
     restart: 'no'
     depends_on:
@@ -182,7 +184,9 @@ services:
     networks:
     - openinfra
   auth-bootstrap:
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.32.0}
+    build: *openinfra-runtime-build
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.32.4}
+    pull_policy: build
     container_name: openinfra-auth-bootstrap
     restart: 'no'
     depends_on:
@@ -207,10 +211,9 @@ services:
     networks:
     - openinfra
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.32.0}
+    build: *openinfra-runtime-build
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.32.4}
+    pull_policy: build
     container_name: openinfra-api
     restart: unless-stopped
     depends_on:
@@ -267,7 +270,9 @@ services:
     networks:
     - openinfra
   web:
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.32.0}
+    build: *openinfra-runtime-build
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.32.4}
+    pull_policy: build
     container_name: openinfra-web
     restart: unless-stopped
     depends_on:
@@ -427,7 +432,9 @@ services:
     networks:
     - openinfra
   smoke:
-    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.32.0}
+    build: *openinfra-runtime-build
+    image: openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.32.4}
+    pull_policy: build
     container_name: openinfra-smoke
     restart: 'no'
     depends_on:

@@ -83,6 +83,14 @@ jobs:
           docs/api/openapi.yaml
           docs/specifications/OpenInfra-CDC-SFG-STG-v4.9.0/09-API/OpenAPI/openapi.yaml
 
+      - name: GA documentation validation
+        run: |
+          mkdir -p build/reports
+          python scripts/validate_ga_documentation.py \
+            --project-root . \
+            --output build/reports/ga-documentation-report.json \
+            --enforce
+
       - name: High-performance ASGI and pooling regression
         run: |
           python -m pytest -q --no-cov \

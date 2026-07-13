@@ -17,6 +17,9 @@ COPY pyproject.toml README.md LICENSE VERSION ./
 COPY src ./src
 COPY installers ./installers
 COPY docs/api ./docs/api
+COPY docs/ga ./docs/ga
+COPY docs/release ./docs/release
+COPY docs/runbooks ./docs/runbooks
 COPY web ./web
 
 RUN python -m pip install --upgrade "pip>=26.0" \

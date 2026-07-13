@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "openinfra"
-version = "0.32.0"
+version = "0.32.4"
 description = "OpenInfra Python POO IT ressources management, DCIM and IPAM foundation"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -48,6 +48,9 @@ packages = ["src/openinfra"]
 [tool.hatch.build.targets.wheel.force-include]
 "installers/migrations/postgresql" = "openinfra/migrations/postgresql"
 "docs/api/openapi.yaml" = "openinfra/api/openapi.yaml"
+"docs/ga" = "openinfra/docs/ga"
+"docs/release" = "openinfra/docs/release"
+"docs/runbooks/GA_GO_NO_GO.md" = "openinfra/docs/runbooks/GA_GO_NO_GO.md"
 
 [tool.hatch.build.targets.sdist]
 include = ["src", "tests", "scripts", "docker", "installers", "docs", "web", "requirements", ".github", "README.md", "LICENSE", "VERSION", "CHANGELOG.md", "VALIDATION-REPORT.md", "compose.yaml", "Dockerfile", ".env.example"]

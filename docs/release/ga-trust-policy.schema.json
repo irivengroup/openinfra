@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OpenInfra GA trust policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "approval_keys", "decision_keys"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "approval_keys": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "uniqueItems": true
+      }
+    },
+    "decision_keys": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+      "uniqueItems": true
+    }
+  }
+}

@@ -1,3 +1,53 @@
+## v0.32.4 — Correctif du build Docker runtime
+
+| Élément | Correctif | Validation |
+| --- | --- | --- |
+| Contexte Hatchling | copie de `docs/ga`, `docs/release` et `docs/runbooks` avant `pip install` | build réel d'un wheel depuis le contexte Docker minimal |
+| Image locale Compose | définition de build partagée par `migrate`, `auth-bootstrap`, `api`, `web` et `smoke` | contrat YAML sur les cinq services |
+| Politique de pull | `pull_policy: build` sur l'image runtime locale | absence de dépendance à un dépôt `openinfra/runtime` externe |
+
+- Aucun changement métier, de schéma PostgreSQL, d'API, de CLI ou de charte graphique.
+- EPIC-1805 reste fonctionnellement identique à la version 0.32.3.
+
+## v0.32.3 — P18 / EPIC-1805, décision Go/No-Go GA
+
+| Élément | Implémentation | Validation |
+| --- | --- | --- |
+| Politique GATE-07 | catalogue fermé business, technique, sécurité, support et exploitation | schéma, unicité et complétude contrôlés |
+| Preuves | SHA-256, version, fraîcheur et statut certifiant | absence, péremption ou divergence bloquantes |
+| Approbations | déclarations Ed25519 par rôle et clés autorisées | cinq rôles obligatoires, décision `approve` |
+| Risques | criticité, statut, responsable, mitigation et expiration | risques critiques/hauts et acceptations expirées bloquants |
+| Décision | rapport JSON signé, signature détachée et clé publique | GO uniquement avec preuves, approbations et clé de décision de confiance |
+
+- Portée 0.32.3 : EPIC-1805 livré comme mécanisme de décision ; état courant NO-GO jusqu'à EPIC-1806 et aux preuves externes GATE-07.
+- Aucun changement de schéma PostgreSQL, d'API métier, de CLI métier ou de charte graphique.
+
+## v0.32.2 — P18 / EPIC-1804, documentation GA
+
+| Exigence | Implémentation | Vérification |
+|---|---|---|
+| EPIC-1804 / TST-RM-020 | corpus `docs/ga/` structuré par rôle et manifeste versionné | validateur dédié, tests unitaires et intégration CI |
+| Guides GA | administration, utilisateur, API, installation, exploitation, PRA/PCA, upgrade et diagnostic | sections obligatoires, liens relatifs et version contrôlés |
+| Contrats exécutables | commandes CLI et opérations HTTP citées vérifiées contre le parser et OpenAPI | tests de dérive et rapport JSON SHA-256 |
+| Industrialisation | workflow `documentation-ga.yml` et intégration au quality gate | preuve CI conservée 90 jours |
+
+- Portée 0.32.2 : EPIC-1804 livré ; le Go/No-Go et le modèle de support restent couverts par EPIC-1805 et EPIC-1806.
+- Aucun changement de CDC/roadmap n'est requis : EPIC-1804 existait déjà.
+- Aucune migration PostgreSQL ni modification de la charte graphique.
+
+## v0.32.1 — P18 / EPIC-1803, certification du packaging de release
+
+| Exigence | Implémentation | Preuves |
+|---|---|---|
+| EPIC-1803 / TST-RM-020 | `ReleasePackagingAuditService`, double build reproductible, contrôle de contenu et installation isolée | tests unitaires, workflow release, smoke wheel |
+| Packages, checksums et SBOM | manifeste de release, `SHA256SUMS`, SBOM SPDX 2.3 déterministe | tests de déterminisme, altération et contenu des distributions |
+| Signatures | signature détachée Ed25519 avec clé de release externe ; clé éphémère non certifiante | tests signature/altération, workflow avec secret GitHub |
+| Installateurs et rollback | dry-run et restauration réelle sur les six profils | test d'intégration multi-profils et preuve embarquée dans le manifeste |
+
+- Portée 0.32.1 : outillage et gate automatique EPIC-1803 livrés ; la clé privée reste hors dépôt et la publication GA demeure soumise aux gates EPIC-1804 à EPIC-1806.
+- Aucun changement de CDC/roadmap n'est requis : EPIC-1803 existait déjà.
+- Aucune migration PostgreSQL ni modification de la charte graphique.
+
 ## v0.32.0 — P18 / EPIC-1802, audit sécurité de release
 
 | Exigence | Implémentation | Vérification |

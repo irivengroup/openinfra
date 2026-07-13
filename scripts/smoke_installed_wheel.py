@@ -6,6 +6,8 @@ from pathlib import Path
 import openinfra
 from openinfra.interfaces.http_api import OpenApiDocumentProvider
 from openinfra.quality.dependency_graph_benchmark import DependencyGraphBenchmarkConfig
+from openinfra.quality.ga_go_no_go import GaGoNoGoPolicy
+from openinfra.quality.release_packaging import ReleaseSigningMaterial
 from openinfra.quality.release_security import ReleaseSecurityControlCatalog
 
 
@@ -14,7 +16,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.32.0"
+    EXPECTED_VERSION = "0.32.4"
     EXPECTED_ASYNC_ROUTES = (
         "/api/v1/async/jobs",
         "/api/v1/async/jobs/get",
@@ -216,6 +218,18 @@ class InstalledWheelSmoke:
         "integrations.js",
         "security.js",
     )
+    EXPECTED_GA_DOCUMENTS = (
+        "documentation-manifest.json",
+        "README.md",
+        "INSTALLATION.md",
+        "ADMINISTRATION.md",
+        "USER_GUIDE.md",
+        "API_GUIDE.md",
+        "OPERATIONS.md",
+        "DISASTER_RECOVERY.md",
+        "UPGRADE.md",
+        "TROUBLESHOOTING.md",
+    )
 
     def run(self) -> dict[str, object]:
         self._assert_version()
@@ -238,8 +252,11 @@ class InstalledWheelSmoke:
         self._assert_simulation_routes(openapi)
         migrations = self._assert_migrations(package_root)
         self._assert_assets(package_root)
+        self._assert_ga_documentation(package_root)
+        self._assert_ga_go_no_go_contract(package_root)
         self._assert_benchmark_contract()
         self._assert_release_security_contract(package_root)
+        self._assert_release_packaging_contract()
         self._assert_console_scripts()
         return {
             "version": openinfra.__version__,
@@ -261,8 +278,11 @@ class InstalledWheelSmoke:
             "migrations": len(migrations),
             "last_migration": migrations[-1].name,
             "runtime_assets": len(self.EXPECTED_ASSETS) + len(self.EXPECTED_DOMAIN_ASSETS),
+            "ga_documents": len(self.EXPECTED_GA_DOCUMENTS),
+            "ga_go_no_go_gate": "GATE-07",
             "dependency_graph_benchmark": True,
             "release_security_controls": 8,
+            "release_packaging_controls": 7,
         }
 
     def _assert_openapi_taxonomy(self, openapi: str) -> None:
@@ -416,6 +436,33 @@ class InstalledWheelSmoke:
                 "installed runtime is missing web assets: " + ", ".join(missing)
             )
 
+    def _assert_ga_documentation(self, package_root: Path) -> None:
+        documentation_root = package_root / "docs" / "ga"
+        missing = [
+            name for name in self.EXPECTED_GA_DOCUMENTS if not (documentation_root / name).is_file()
+        ]
+        if missing:
+            raise InstalledWheelSmokeError(
+                "installed wheel is missing GA documentation: " + ", ".join(missing)
+            )
+        manifest = (documentation_root / "documentation-manifest.json").read_text(encoding="utf-8")
+        if f'"release_version": "{self.EXPECTED_VERSION}"' not in manifest:
+            raise InstalledWheelSmokeError(
+                "installed GA documentation manifest version is inconsistent"
+            )
+
+    @staticmethod
+    def _assert_ga_go_no_go_contract(package_root: Path) -> None:
+        policy_path = package_root / "docs" / "release" / "ga-go-no-go-policy.json"
+        runbook_path = package_root / "docs" / "runbooks" / "GA_GO_NO_GO.md"
+        if not runbook_path.is_file():
+            raise InstalledWheelSmokeError("installed wheel is missing the GA Go/No-Go runbook")
+        policy = GaGoNoGoPolicy.load(policy_path)
+        if policy.gate_id != "GATE-07" or policy.epic != "EPIC-1805":
+            raise InstalledWheelSmokeError("installed GA Go/No-Go policy is inconsistent")
+        if len(policy.required_evidence) != 8 or len(policy.required_approval_roles) != 5:
+            raise InstalledWheelSmokeError("installed GA Go/No-Go policy is incomplete")
+
     def _assert_benchmark_contract(self) -> None:
         config = DependencyGraphBenchmarkConfig(
             node_count=100,
@@ -427,10 +474,19 @@ class InstalledWheelSmoke:
             raise InstalledWheelSmokeError("dependency graph benchmark contract is invalid")
 
     @staticmethod
+    def _assert_release_packaging_contract() -> None:
+        material = ReleaseSigningMaterial.generate_ephemeral()
+        payload = b"openinfra-installed-wheel"
+        signature = material.sign(payload)
+        material.verify(payload, signature)
+        if len(signature) != 64:
+            raise InstalledWheelSmokeError("installed release packaging signature is invalid")
+
+    @staticmethod
     def _assert_release_security_contract(package_root: Path) -> None:
         controls = ReleaseSecurityControlCatalog.build(
             package_root,
-            image_ref="openinfra/runtime:0.32.0",
+            image_ref="openinfra/runtime:0.32.4",
             api_base_url="http://127.0.0.1:8080",
             web_base_url="http://127.0.0.1:2006",
         )

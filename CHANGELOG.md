@@ -1,3 +1,11 @@
+## 0.32.8 — 2026-07-14
+
+- Correctif de non-régression sur le survol/focus du composant racine actif de la sidebar.
+- Le fond actif conserve exactement son rendu sélectionné ; la couche de hover transparente ne s’applique plus aux racines `.active`.
+- Seuls l’icône, le texte et le chevron passent au bleu turquoise via l’héritage de `currentColor`.
+- Ajout d’un test de cascade CSS empêchant qu’un hover générique tardif puisse de nouveau écraser la surface active.
+- Aucune autre modification de la palette, des transparences, du responsive, des API, de la CLI ou du schéma PostgreSQL.
+
 ## 0.32.7 — 2026-07-14
 
 - Raffinement visuel de la sidebar et de la hiérarchie contextuelle sans modification de la palette approuvée.

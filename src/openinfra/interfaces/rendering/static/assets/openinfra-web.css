@@ -2456,10 +2456,14 @@ body {
   color: var(--openinfra-ink);
 }
 
-.openinfra-sidebar-dashboard:hover,
-.openinfra-sidebar-dashboard:focus,
-.openinfra-accordion-toggle:hover,
-.openinfra-accordion-toggle:focus {
+/* v0.32.8: preserve the selected root component surface on hover/focus.
+ * Only inactive roots receive the translucent hover surface; active roots keep
+ * their selected background while their inherited foreground becomes turquoise.
+ */
+.openinfra-sidebar-dashboard:not(.active):hover,
+.openinfra-sidebar-dashboard:not(.active):focus,
+.openinfra-accordion-toggle:not(.active):hover,
+.openinfra-accordion-toggle:not(.active):focus {
   background: linear-gradient(90deg, rgba(var(--openinfra-action-rgb), .075), rgba(var(--openinfra-cyan-rgb), .045));
   border-color: rgba(var(--openinfra-action-rgb), .1);
   color: var(--openinfra-ink);

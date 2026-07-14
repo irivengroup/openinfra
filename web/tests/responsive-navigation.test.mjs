@@ -87,6 +87,10 @@ test('active sidebar root keeps its surface and turns only icon and text turquoi
   assert.ok(match?.groups?.body);
   assert.match(match.groups.body, /color: var\(--openinfra-header-nav-active-icon\);/);
   assert.doesNotMatch(match.groups.body, /background|border|box-shadow/);
+  assert.match(runtimeCss, /\.openinfra-sidebar-dashboard:not\(\.active\):hover/);
+  assert.match(runtimeCss, /\.openinfra-sidebar-dashboard:not\(\.active\):focus/);
+  assert.match(runtimeCss, /\.openinfra-accordion-toggle:not\(\.active\):hover/);
+  assert.match(runtimeCss, /\.openinfra-accordion-toggle:not\(\.active\):focus/);
   assert.match(runtimeCss, /\.openinfra-accordion-toggle svg,[\s\S]*?fill: currentColor;/);
 });
 

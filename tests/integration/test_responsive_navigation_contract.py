@@ -183,6 +183,12 @@ def test_active_sidebar_root_hover_changes_only_foreground_to_theme_turquoise() 
     assert "background" not in body
     assert "border" not in body
     assert "box-shadow" not in body
+
+    # The late visual-depth hover layer must never override the active surface.
+    assert ".openinfra-sidebar-dashboard:not(.active):hover" in css
+    assert ".openinfra-sidebar-dashboard:not(.active):focus" in css
+    assert ".openinfra-accordion-toggle:not(.active):hover" in css
+    assert ".openinfra-accordion-toggle:not(.active):focus" in css
     assert ".openinfra-accordion-toggle svg" in css
     assert "fill: currentColor" in css
 

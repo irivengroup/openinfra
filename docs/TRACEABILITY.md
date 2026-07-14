@@ -1,4 +1,4 @@
-## v0.32.7 — EPIC-1806 support et maintenance
+## v0.32.8 — EPIC-1806 support et maintenance
 
 - Portée : modèle support Lite/Pro/Enterprise, sévérités S1-S4, objectifs de réponse et restauration, cycle de vie, patch policy, migration, rollback et escalade.
 - Preuve : rapport `support-readiness` signé, workflow dédié et compatibilité directe avec GATE-07.

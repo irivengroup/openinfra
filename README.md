@@ -1,8 +1,8 @@
-# OpenInfra v0.32.7
+# OpenInfra v0.32.8
 
-OpenInfra 0.32.7 affine l’expérience visuelle du portail sans modifier la palette approuvée. Les menus racine de la sidebar et les titres contextuels utilisent désormais le bleu nuit le plus sombre du thème (`--openinfra-ink`), tandis qu’une couche de transparence contrôlée apporte davantage de profondeur aux surfaces sans réduire la lisibilité du contenu.
+OpenInfra 0.32.8 corrige la régression de survol du composant racine actif introduite par la couche de profondeur visuelle 0.32.7, sans modifier la palette approuvée ni les autres effets visuels. Le fond actif reste strictement inchangé au survol et au focus ; seuls l’icône, le texte et le chevron héritent alors du bleu turquoise du thème.
 
-## Hiérarchie bleu nuit et profondeur transparente — v0.32.7
+## Hiérarchie bleu nuit et profondeur transparente — v0.32.8
 
 - menus racine de la sidebar, contextes et titres de page en bleu nuit très foncé proche du noir ;
 - palette IONOS/OpenInfra inchangée et verrouillée par tests de non-régression ;
@@ -11,6 +11,7 @@ OpenInfra 0.32.7 affine l’expérience visuelle du portail sans modifier la pal
 - effets de profondeur par `backdrop-filter` avec fallback opaque pour les navigateurs non compatibles ;
 - mode contraste renforcé, réduction des animations, responsive et accessibilité conservés ;
 - synchronisation stricte du thème entre le frontend React et le runtime packagé.
+- fond du composant racine actif invariant au hover/focus ; seuls l’icône, le texte et le chevron passent au bleu turquoise.
 
 ## Support et maintenance — P18 / EPIC-1806
 

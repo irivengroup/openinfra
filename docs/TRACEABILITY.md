@@ -1,3 +1,17 @@
+## v0.32.9 — P17 / EPIC-1704 PRA/PCA complets
+
+| Exigence / Epic | Implémentation | Vérification |
+|---|---|---|
+| EPIC-1704 — RPO/RTO mesurés | `quality/continuity_certification.py`, mesure conservatrice DR + PITR | tests unitaires des seuils, dates et cas dégradés |
+| Sauvegarde et PITR | preuves JSON restauration, intégrité, chiffrement et cohérence | tests d’assemblage et de certification |
+| Procédures PRA/PCA | profil versionné avec dix étapes obligatoires | validation stricte du profil et refus des étapes manquantes |
+| Preuves immuables | SHA-256 des cinq sources et digest canonique du manifeste | test d’altération et workflow protégé |
+| CI / exploitation | `validate_pra_pca.py`, workflow `pra-pca-certification.yml`, runbook | gate CI, quality gate et tests d’intégration |
+
+- Réutilise les plans et exercices DR d’EPIC-1703 sans nouvelle source de vérité ni migration.
+- Aucune action de bascule, promotion, restauration ou mutation d’infrastructure n’est exécutée automatiquement.
+- CDC/roadmap inchangés : EPIC-1704 était déjà défini.
+
 ## v0.32.8 — EPIC-1806 support et maintenance
 
 - Portée : modèle support Lite/Pro/Enterprise, sévérités S1-S4, objectifs de réponse et restauration, cycle de vie, patch policy, migration, rollback et escalade.

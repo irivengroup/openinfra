@@ -2,7 +2,7 @@
 
 ## Objet
 
-OpenInfra 0.32.8 complète P18 / EPIC-1801 sur le socle P20 / EPIC-2005. Le dispositif sépare trois responsabilités :
+OpenInfra 0.32.9 complète P18 / EPIC-1801 sur le socle P20 / EPIC-2005. Le dispositif sépare trois responsabilités :
 
 1. l'observabilité continue des processus API, web et workers ;
 2. les benchmarks métier représentatifs API, IPAM, imports, Discovery, base de données et graphes ;

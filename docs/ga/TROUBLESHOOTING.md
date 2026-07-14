@@ -1,6 +1,6 @@
 # Diagnostic et support
 
-Version cible : `0.32.8`
+Version cible : `0.32.9`
 
 ## Collecte minimale
 

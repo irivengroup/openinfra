@@ -5,6 +5,7 @@ from pathlib import Path
 
 import openinfra
 from openinfra.interfaces.http_api import OpenApiDocumentProvider
+from openinfra.quality.continuity_certification import PraPcaCertificationEvidence
 from openinfra.quality.dependency_graph_benchmark import DependencyGraphBenchmarkConfig
 from openinfra.quality.ga_go_no_go import GaGoNoGoPolicy
 from openinfra.quality.release_packaging import ReleaseSigningMaterial
@@ -17,7 +18,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.32.8"
+    EXPECTED_VERSION = "0.32.9"
     EXPECTED_ASYNC_ROUTES = (
         "/api/v1/async/jobs",
         "/api/v1/async/jobs/get",
@@ -257,6 +258,7 @@ class InstalledWheelSmoke:
         self._assert_ga_documentation(package_root)
         self._assert_ga_go_no_go_contract(package_root)
         self._assert_support_readiness_contract(package_root)
+        self._assert_pra_pca_contract()
         self._assert_benchmark_contract()
         self._assert_release_security_contract(package_root)
         self._assert_release_packaging_contract()
@@ -287,7 +289,14 @@ class InstalledWheelSmoke:
             "release_security_controls": 8,
             "release_packaging_controls": 7,
             "support_readiness": True,
+            "pra_pca_certification": True,
         }
+
+    @staticmethod
+    def _assert_pra_pca_contract() -> None:
+        required = PraPcaCertificationEvidence.required_procedures()
+        if len(required) != 10 or "pitr-execution" not in required:
+            raise InstalledWheelSmokeError("installed PRA/PCA certification contract is incomplete")
 
     def _assert_openapi_taxonomy(self, openapi: str) -> None:
         required_fragments = (
@@ -502,7 +511,7 @@ class InstalledWheelSmoke:
     def _assert_release_security_contract(package_root: Path) -> None:
         controls = ReleaseSecurityControlCatalog.build(
             package_root,
-            image_ref="openinfra/runtime:0.32.8",
+            image_ref="openinfra/runtime:0.32.9",
             api_base_url="http://127.0.0.1:8080",
             web_base_url="http://127.0.0.1:2006",
         )

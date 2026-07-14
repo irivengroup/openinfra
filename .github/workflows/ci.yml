@@ -91,6 +91,13 @@ jobs:
             --output build/reports/ga-documentation-report.json \
             --enforce
 
+      - name: P17 PRA/PCA certification contracts
+        run: |
+          python scripts/validate_pra_pca.py --project-root .
+          python -m pytest -q --no-cov \
+            tests/unit/test_continuity_certification.py \
+            tests/integration/test_pra_pca_certification_tooling.py
+
       - name: EPIC-1806 support readiness validation
         run: |
           mkdir -p build/reports

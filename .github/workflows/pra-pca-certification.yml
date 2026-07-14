@@ -1,0 +1,94 @@
+name: PRA/PCA Certification
+
+on:
+  workflow_dispatch:
+    inputs:
+      edition:
+        description: Edition represented by the recovery exercise
+        required: true
+        default: enterprise
+        type: choice
+        options:
+          - pro
+          - enterprise
+
+permissions:
+  contents: read
+
+concurrency:
+  group: openinfra-pra-pca-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  certify:
+    name: Measure and certify RPO/RTO, backup and PITR evidence
+    runs-on: [self-hosted, linux, x64, openinfra-pra-pca]
+    environment: pra-pca-certification
+    timeout-minutes: 60
+    env:
+      OPENINFRA_PRA_PCA_PLAN_JSON: ${{ secrets.OPENINFRA_PRA_PCA_PLAN_JSON }}
+      OPENINFRA_PRA_PCA_DRILL_JSON: ${{ secrets.OPENINFRA_PRA_PCA_DRILL_JSON }}
+      OPENINFRA_PRA_PCA_BACKUP_RESTORE_JSON: ${{ secrets.OPENINFRA_PRA_PCA_BACKUP_RESTORE_JSON }}
+      OPENINFRA_PRA_PCA_PITR_JSON: ${{ secrets.OPENINFRA_PRA_PCA_PITR_JSON }}
+      OPENINFRA_PRA_PCA_PROCEDURES_JSON: ${{ secrets.OPENINFRA_PRA_PCA_PROCEDURES_JSON }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: pip
+
+      - name: Install certification dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements/runtime.txt -r requirements/dev.txt
+
+      - name: Validate PRA/PCA certification contracts
+        run: python scripts/validate_pra_pca.py --project-root .
+
+      - name: Materialize protected recovery evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$OPENINFRA_PRA_PCA_PLAN_JSON"
+          test -n "$OPENINFRA_PRA_PCA_DRILL_JSON"
+          test -n "$OPENINFRA_PRA_PCA_BACKUP_RESTORE_JSON"
+          test -n "$OPENINFRA_PRA_PCA_PITR_JSON"
+          test -n "$OPENINFRA_PRA_PCA_PROCEDURES_JSON"
+          umask 077
+          mkdir -p build/pra-pca
+          printf '%s\n' "$OPENINFRA_PRA_PCA_PLAN_JSON" > build/pra-pca/dr-plan.json
+          printf '%s\n' "$OPENINFRA_PRA_PCA_DRILL_JSON" > build/pra-pca/dr-drill.json
+          printf '%s\n' "$OPENINFRA_PRA_PCA_BACKUP_RESTORE_JSON" > build/pra-pca/backup-restore.json
+          printf '%s\n' "$OPENINFRA_PRA_PCA_PITR_JSON" > build/pra-pca/pitr.json
+          printf '%s\n' "$OPENINFRA_PRA_PCA_PROCEDURES_JSON" > build/pra-pca/procedures.json
+          for file in build/pra-pca/*.json; do python -m json.tool "$file" >/dev/null; done
+
+      - name: Assemble immutable evidence manifest
+        run: >-
+          python scripts/assemble_pra_pca_evidence.py
+          --profile docs/operations/pra-pca-profile.json
+          --edition '${{ inputs.edition }}'
+          --plan build/pra-pca/dr-plan.json
+          --drill build/pra-pca/dr-drill.json
+          --backup-restore build/pra-pca/backup-restore.json
+          --pitr build/pra-pca/pitr.json
+          --procedures build/pra-pca/procedures.json
+          --output build/pra-pca/evidence.json
+
+      - name: Enforce PRA/PCA objectives
+        run: >-
+          python scripts/certify_pra_pca.py
+          --evidence build/pra-pca/evidence.json
+          --output build/pra-pca/certification-report.json
+          --enforce
+
+      - name: Publish PRA/PCA evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: openinfra-pra-pca-${{ github.run_id }}
+          path: build/pra-pca
+          if-no-files-found: error
+          retention-days: 90

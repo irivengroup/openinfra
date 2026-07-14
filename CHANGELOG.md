@@ -1,3 +1,14 @@
+## 0.32.9 — 2026-07-14
+
+- Réalisation de P17 / EPIC-1704 : certification complète PRA/PCA pour les éditions Pro et Enterprise.
+- Agrégation des plans et exercices DR existants avec preuves de sauvegarde/restauration, PITR et procédures opérationnelles.
+- Mesure conservatrice du RPO, du RTO et de l’âge de sauvegarde à partir des pires observations réelles.
+- Validation bloquante de la restauration, de l’intégrité, du chiffrement, de la cohérence PITR et de dix étapes de procédure.
+- Hachage SHA-256 des cinq sources et digest déterministe du manifeste final pour détecter toute altération.
+- Workflow manuel protégé `PRA/PCA Certification`, validateur dédié et intégration aux gates CI/quality gate.
+- Aucune migration PostgreSQL, aucune rupture des contrats métier API/CLI et aucune modification du thème.
+- CDC et roadmap inchangés : EPIC-1704 était déjà planifié et aucune nouvelle recommandation n’impacte l’existant.
+
 ## 0.32.8 — 2026-07-14
 
 - Correctif de non-régression sur le survol/focus du composant racine actif de la sidebar.

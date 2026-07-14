@@ -1,6 +1,6 @@
 # PRA et PCA
 
-Version cible : `0.32.8`
+Version cible : `0.32.9`
 
 ## Objectifs RPO et RTO
 
@@ -69,3 +69,9 @@ Chaque exercice doit produire :
 ## PCA dégradé
 
 En cas de perte du réplica, les écritures peuvent continuer sur le primaire si les budgets de connexion restent respectés. En cas de perte d’un worker, les leases expirent et les jobs sont repris avec fencing. En cas de perte du stockage d’artefacts, suspendre les traitements asynchrones concernés plutôt que d’accepter des résultats non vérifiables.
+
+## Certification PRA/PCA
+
+À partir de la version 0.32.9, les éditions Pro et Enterprise peuvent produire une preuve de certification PRA/PCA reproductible. Le dispositif agrège le plan DR actif, un exercice DR, une preuve de sauvegarde/restauration, une preuve PITR et l’attestation des procédures. Les cinq sources sont hachées en SHA-256 et la certification conserve la mesure la plus défavorable pour le RPO, le RTO et l’âge de sauvegarde.
+
+La procédure complète est décrite dans `docs/runbooks/PRA_PCA_CERTIFICATION.md`. Le certificateur est strictement évaluatif : il ne déclenche ni failover, ni promotion PostgreSQL, ni restauration, ni modification DNS/VIP.

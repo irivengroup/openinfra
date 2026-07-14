@@ -1,6 +1,21 @@
-# OpenInfra v0.32.8
+# OpenInfra v0.32.9
 
-OpenInfra 0.32.8 corrige la régression de survol du composant racine actif introduite par la couche de profondeur visuelle 0.32.7, sans modifier la palette approuvée ni les autres effets visuels. Le fond actif reste strictement inchangé au survol et au focus ; seuls l’icône, le texte et le chevron héritent alors du bleu turquoise du thème.
+OpenInfra 0.32.9 réalise **P17 / EPIC-1704 — PRA/PCA complets** en certifiant les objectifs de continuité à partir des plans et exercices DR existants, de preuves de sauvegarde/restauration, de mesures PITR et de procédures opérationnelles complètes. Aucune bascule ou restauration n’est déclenchée automatiquement par le certificateur.
+
+## PRA/PCA complets — P17 / EPIC-1704
+
+- certification applicable aux éditions Pro et Enterprise ;
+- réutilisation des plans et exercices DR immuables livrés par EPIC-1703 ;
+- mesure conservatrice du RPO à partir du pire cas entre lag de réplication et perte de données PITR ;
+- mesure conservatrice du RTO à partir du pire cas entre exercice DR et récupération PITR ;
+- contrôle de fraîcheur des sauvegardes, restauration, intégrité, chiffrement et cohérence PITR ;
+- dix étapes de procédure obligatoires, toutes explicitement attestées ;
+- cinq sources hachées en SHA-256 et manifeste final protégé par un digest déterministe ;
+- workflow GitHub Actions manuel sur environnement protégé et runner dédié ;
+- gate CI et quality gate bloquants ;
+- aucune migration PostgreSQL, aucune modification d’API/CLI métier et aucune modification du thème.
+
+Voir `docs/runbooks/PRA_PCA_CERTIFICATION.md` et `docs/operations/pra-pca-profile.json`.
 
 ## Hiérarchie bleu nuit et profondeur transparente — v0.32.8
 

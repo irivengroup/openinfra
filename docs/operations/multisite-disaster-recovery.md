@@ -201,3 +201,7 @@ PYTHONPATH=src python -m pytest -q --no-cov \
   tests/integration/test_multisite_postgresql_repository.py \
   tests/integration/test_multisite_web_contract.py
 ```
+
+## Certification PRA/PCA complète — EPIC-1704
+
+La validation opérationnelle des objectifs RPO/RTO, des sauvegardes, du PITR et des procédures est réalisée par le gate décrit dans `docs/runbooks/PRA_PCA_CERTIFICATION.md`. Le certificateur consomme les preuves du plan et de l’exercice DR existants ; il n’exécute aucune promotion ni restauration automatique.

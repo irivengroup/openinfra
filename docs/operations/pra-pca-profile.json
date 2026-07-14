@@ -1,0 +1,26 @@
+{
+  "profile_id": "openinfra-pra-pca-v1",
+  "profile_version": 1,
+  "applicable_editions": [
+    "pro",
+    "enterprise"
+  ],
+  "required_procedures": [
+    "incident-declaration",
+    "stakeholder-communication",
+    "backup-selection",
+    "restore-execution",
+    "pitr-execution",
+    "service-validation",
+    "data-integrity-validation",
+    "business-validation",
+    "failback-readiness",
+    "postmortem"
+  ],
+  "measurement_policy": {
+    "rpo": "maximum of measured replication lag and PITR data loss",
+    "rto": "maximum of DR drill recovery time and PITR recovery time",
+    "backup_age": "maximum of DR drill backup age and actual backup age at incident"
+  },
+  "certification_rule": "All technical checks, objectives and procedure steps must pass."
+}

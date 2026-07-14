@@ -1,3 +1,19 @@
+# Changelog
+
+## v0.33.0 — P21 / EPIC-2101 Kubernetes & Cloud-native topology
+
+| Exigence / Epic | Implémentation | Vérification |
+|---|---|---|
+| REQ-00469 / EPIC-2101 | snapshots Kubernetes immuables et bornés à 50 000 ressources | tests domaine, service, HTTP, CLI et persistance |
+| Graphe cloud-native | cluster, namespace, ownership, service routing et pod→node | empreinte déterministe et intégrité référentielle |
+| Mapping physique | références externes VM→hyperviseur→serveur→rack→salle→site | tests de chaîne physique et couverture de mapping |
+| Sécurité | permissions dédiées, audit et rejet des clés sensibles | RBAC, tests de secrets et security gate |
+| Industrialisation | migration 0055, OpenAPI, portail Discovery, roadmap 2.2 et validateur P21 | CI, quality gate, packaging et smoke wheel |
+
+- Nouvelle phase `P21`, release `REL-11`, jalon `M13` et gate `GATE-10` dans la roadmap 2.2.0.
+- Le CDC reste en version 4.9.0 : `REQ-00469` et `REQ-00470` existaient déjà.
+- Aucune modification de la charte graphique.
+
 ## 0.32.12 — 2026-07-14
 
 - Matérialisation de `GATE-09 / REL-10` : certification finale de promotion Enterprise Scale-out après réalisation de tous les epics P20.

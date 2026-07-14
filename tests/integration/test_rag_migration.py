@@ -35,7 +35,7 @@ def test_rag_precedes_multisite_postgresql_migration() -> None:
         "0053_keyset_pagination_indexes.sql",
         "0054_async_outbox_workers.sql",
     )
-    assert len(names) == 54
+    assert len(names) == 55
     assert [names.index(name) for name in expected_order] == sorted(
         names.index(name) for name in expected_order
     )

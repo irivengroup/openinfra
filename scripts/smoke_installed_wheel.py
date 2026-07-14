@@ -23,7 +23,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.32.12"
+    EXPECTED_VERSION = "0.33.0"
     EXPECTED_ASYNC_ROUTES = (
         "/api/v1/async/jobs",
         "/api/v1/async/jobs/get",
@@ -162,6 +162,14 @@ class InstalledWheelSmoke:
         "/api/v1/rag/jobs/run",
         "/api/v1/rag/jobs/artifact",
     )
+    EXPECTED_KUBERNETES_ROUTES = (
+        "/api/v1/kubernetes/topologies",
+        "/api/v1/kubernetes/topologies/get",
+        "/api/v1/kubernetes/topologies/latest",
+        "/api/v1/kubernetes/topologies/topology",
+        "/api/v1/kubernetes/topologies/latest-topology",
+        "/api/v1/kubernetes/topologies/import",
+    )
     EXPECTED_MULTISITE_ROUTES = (
         "/api/v1/multisite/site-access/grants",
         "/api/v1/multisite/site-access/grants/upsert",
@@ -202,8 +210,8 @@ class InstalledWheelSmoke:
         "/api/v1/offline-sync-packages/create",
         "/api/v1/offline-sync-packages/synchronize",
     )
-    EXPECTED_LAST_MIGRATION = "0054_async_outbox_workers.sql"
-    EXPECTED_MIGRATION_COUNT = 54
+    EXPECTED_LAST_MIGRATION = "0055_kubernetes_topology_inventory.sql"
+    EXPECTED_MIGRATION_COUNT = 55
     EXPECTED_ASSETS = (
         "openinfra-web.js",
         "openinfra-web.css",
@@ -256,6 +264,7 @@ class InstalledWheelSmoke:
         self._assert_greenops_routes(openapi)
         self._assert_sbom_routes(openapi)
         self._assert_rag_routes(openapi)
+        self._assert_kubernetes_routes(openapi)
         self._assert_multisite_routes(openapi)
         self._assert_simulation_routes(openapi)
         migrations = self._assert_migrations(package_root)
@@ -286,6 +295,7 @@ class InstalledWheelSmoke:
             "greenops_routes": len(self.EXPECTED_GREENOPS_ROUTES),
             "sbom_routes": len(self.EXPECTED_SBOM_ROUTES),
             "rag_routes": len(self.EXPECTED_RAG_ROUTES),
+            "kubernetes_routes": len(self.EXPECTED_KUBERNETES_ROUTES),
             "multisite_routes": len(self.EXPECTED_MULTISITE_ROUTES),
             "simulation_routes": len(self.EXPECTED_SIMULATION_ROUTES),
             "migrations": len(migrations),
@@ -423,6 +433,13 @@ class InstalledWheelSmoke:
                 "installed OpenAPI is missing RAG routes: " + ", ".join(missing)
             )
 
+    def _assert_kubernetes_routes(self, openapi: str) -> None:
+        missing = [route for route in self.EXPECTED_KUBERNETES_ROUTES if route not in openapi]
+        if missing:
+            raise InstalledWheelSmokeError(
+                "installed OpenAPI is missing Kubernetes topology routes: " + ", ".join(missing)
+            )
+
     def _assert_multisite_routes(self, openapi: str) -> None:
         missing = [route for route in self.EXPECTED_MULTISITE_ROUTES if route not in openapi]
         if missing:
@@ -553,7 +570,7 @@ class InstalledWheelSmoke:
     def _assert_release_security_contract(package_root: Path) -> None:
         controls = ReleaseSecurityControlCatalog.build(
             package_root,
-            image_ref="openinfra/runtime:0.32.12",
+            image_ref="openinfra/runtime:0.33.0",
             api_base_url="http://127.0.0.1:8080",
             web_base_url="http://127.0.0.1:2006",
         )

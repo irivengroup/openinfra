@@ -64,6 +64,8 @@ from openinfra.application.ports import (
     ImportRepository,
     IpamRepository,
     ItamSupportRepository,
+    KubernetesTopologyRepository,
+    KubernetesTopologySnapshotPage,
     MeasurementSourcePage,
     MultisiteReportPage,
     MultisiteRepository,
@@ -253,6 +255,7 @@ from openinfra.domain.itam import (
     SoftwareLicenseEntitlement,
     ThirdPartySupportContract,
 )
+from openinfra.domain.kubernetes_topology import KubernetesTopologySnapshot
 from openinfra.domain.multisite import (
     DisasterRecoveryDrillStatus,
     MultisiteDisasterRecoveryDrill,
@@ -308,6 +311,7 @@ from openinfra.infrastructure.cursor_pagination import (
 from openinfra.infrastructure.field_operation_mapper import FieldOperationRecordMapper
 from openinfra.infrastructure.finops_mapper import FinOpsRecordMapper
 from openinfra.infrastructure.greenops_mapper import GreenOpsRecordMapper
+from openinfra.infrastructure.kubernetes_topology_mapper import KubernetesTopologyRecordMapper
 from openinfra.infrastructure.rag_mapper import RagRecordMapper
 from openinfra.infrastructure.read_routing import (
     PostgreSQLReadRoutingSettings,
@@ -9161,6 +9165,166 @@ class PostgreSQLGreenOpsRepository(PostgreSQLRepositoryBase, GreenOpsRepository)
         loaded = json.loads(value) if isinstance(value, str) else value
         if not isinstance(loaded, Mapping):
             raise ValidationError("GreenOps payload must be a JSON object")
+        return {str(key): item for key, item in loaded.items()}
+
+
+class PostgreSQLKubernetesTopologyRepository(
+    PostgreSQLRepositoryBase, KubernetesTopologyRepository
+):
+    def save_snapshot(self, snapshot: KubernetesTopologySnapshot) -> None:
+        self._ensure_tenant(snapshot.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO kubernetes_topology_snapshots (
+                id, tenant_id, cluster_key, provider, site_code, observed_at, imported_at,
+                fingerprint, resource_count, payload
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(cluster_key)s, %(provider)s, %(site_code)s,
+                %(observed_at)s, %(imported_at)s, %(fingerprint)s, %(resource_count)s,
+                %(payload)s::jsonb
+            ) ON CONFLICT (tenant_id, id) DO UPDATE SET
+                cluster_key = EXCLUDED.cluster_key,
+                provider = EXCLUDED.provider,
+                site_code = EXCLUDED.site_code,
+                observed_at = EXCLUDED.observed_at,
+                imported_at = EXCLUDED.imported_at,
+                fingerprint = EXCLUDED.fingerprint,
+                resource_count = EXCLUDED.resource_count,
+                payload = EXCLUDED.payload
+            """,
+            {
+                "id": snapshot.id.value,
+                "tenant_id": snapshot.tenant_id.value,
+                "cluster_key": snapshot.cluster_key,
+                "provider": snapshot.provider,
+                "site_code": snapshot.site_code,
+                "observed_at": snapshot.observed_at,
+                "imported_at": snapshot.imported_at,
+                "fingerprint": snapshot.fingerprint,
+                "resource_count": len(snapshot.resources),
+                "payload": json.dumps(snapshot.as_dict(include_resources=True), sort_keys=True),
+            },
+        )
+
+    def get_snapshot(
+        self, tenant_id: TenantId, snapshot_id: str
+    ) -> KubernetesTopologySnapshot | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM kubernetes_topology_snapshots
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s LIMIT 1
+            """,
+            {"tenant_id": tenant_id.value, "id": EntityId.from_value(snapshot_id).value},
+        )
+        return (
+            None
+            if row is None
+            else KubernetesTopologyRecordMapper.snapshot(self._json_mapping(row["payload"]))
+        )
+
+    def find_snapshot_by_fingerprint(
+        self, tenant_id: TenantId, fingerprint: str
+    ) -> KubernetesTopologySnapshot | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM kubernetes_topology_snapshots
+            WHERE tenant_id = %(tenant_id)s AND fingerprint = %(fingerprint)s LIMIT 1
+            """,
+            {"tenant_id": tenant_id.value, "fingerprint": fingerprint.strip().lower()},
+        )
+        return (
+            None
+            if row is None
+            else KubernetesTopologyRecordMapper.snapshot(self._json_mapping(row["payload"]))
+        )
+
+    def find_latest_snapshot(
+        self, tenant_id: TenantId, cluster_key: str
+    ) -> KubernetesTopologySnapshot | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM kubernetes_topology_snapshots
+            WHERE tenant_id = %(tenant_id)s AND cluster_key = %(cluster_key)s
+            ORDER BY observed_at DESC, imported_at DESC, id DESC
+            LIMIT 1
+            """,
+            {"tenant_id": tenant_id.value, "cluster_key": cluster_key.strip().lower()},
+        )
+        return (
+            None
+            if row is None
+            else KubernetesTopologyRecordMapper.snapshot(self._json_mapping(row["payload"]))
+        )
+
+    def list_snapshots(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        cluster_key: str | None = None,
+        provider: str | None = None,
+        site_code: str | None = None,
+    ) -> KubernetesTopologySnapshotPage:
+        filters = {
+            "cluster_key": cluster_key.strip().lower() if cluster_key else None,
+            "provider": provider.strip().lower() if provider else None,
+            "site_code": site_code.strip().lower() if site_code else None,
+        }
+        params = {key: value for key, value in filters.items() if value is not None}
+        predicate = " ".join(f"AND {key} = %({key})s" for key in params)
+        fields = (
+            CursorField("observed_at", CursorDirection.DESC, CursorValueType.DATETIME),
+            CursorField("imported_at", CursorDirection.DESC, CursorValueType.DATETIME),
+            CursorField("id", CursorDirection.DESC),
+        )
+        page = self._keyset_page(
+            pagination,
+            scope="kubernetes.topology.snapshots",
+            tenant_id=tenant_id,
+            filters=params,
+            fields=fields,
+        )
+        rows = self._fetch_all(
+            f"""
+            SELECT payload, observed_at, imported_at, id
+            FROM kubernetes_topology_snapshots
+            WHERE tenant_id = %(tenant_id)s {predicate} {page.where_sql}
+            ORDER BY observed_at DESC, imported_at DESC, id DESC
+            LIMIT %(fetch_limit)s{page.offset_sql}
+            """,  # nosec B608 -- predicate and ordering use a closed internal field set
+            {"tenant_id": tenant_id.value, **params, **page.parameters},
+        )
+        selected = rows[: pagination.limit]
+        items = tuple(
+            KubernetesTopologyRecordMapper.snapshot(self._json_mapping(row["payload"]))
+            for row in selected
+        )
+        return KubernetesTopologySnapshotPage(items, page.next_cursor(rows))
+
+    def append_event(self, event: DomainEvent) -> None:
+        self._execute_without_result(
+            """
+            INSERT INTO kubernetes_topology_event_outbox (
+                id, tenant_id, aggregate_id, name, payload, occurred_at, published_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(aggregate_id)s, %(name)s, %(payload)s::jsonb,
+                %(occurred_at)s, NULL
+            ) ON CONFLICT (tenant_id, id) DO NOTHING
+            """,
+            {
+                "id": event.id.value,
+                "tenant_id": event.tenant_id.value,
+                "aggregate_id": event.aggregate_id.value,
+                "name": event.name,
+                "payload": json.dumps(event.payload, sort_keys=True),
+                "occurred_at": event.occurred_at,
+            },
+        )
+
+    @staticmethod
+    def _json_mapping(value: object) -> dict[str, Any]:
+        loaded = json.loads(value) if isinstance(value, str) else value
+        if not isinstance(loaded, Mapping):
+            raise ValidationError("Kubernetes topology payload must be a JSON object")
         return {str(key): item for key, item in loaded.items()}
 
 

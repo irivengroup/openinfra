@@ -1,3 +1,13 @@
+## v0.33.0 — P21 / EPIC-2101 Kubernetes & Cloud-native topology
+
+| Exigence | Implémentation | Validation |
+|---|---|---|
+| REQ-00469 | inventaire Kubernetes versionné et graphe pod→node→infrastructure physique | `TST-P21-K8S-INVENTORY`, `TST-P21-K8S-PHYSICAL-MAPPING` |
+| REQ-00470 — socle | référentiel et roadmap P21 préparant expositions, GitOps et capacité | roadmap 2.2.0, `EPIC-2102` à `EPIC-2106` |
+| API/CLI/UI | routes Kubernetes, commandes `openinfra kubernetes`, opérations Discovery | tests HTTP, CLI, OpenAPI et web |
+| Persistance | JSON + PostgreSQL partitionné, migration 0055 et outbox dédiée | tests service, migration et repository PostgreSQL |
+| Sécurité | `kubernetes.read/write`, rôles minimaux, audit, rejet de clés sensibles | tests domaine/RBAC et gates sécurité |
+
 ## v0.32.12 — GATE-09 / REL-10 Promotion Enterprise Scale-out
 
 | Exigence / Gate | Implémentation | Vérification |

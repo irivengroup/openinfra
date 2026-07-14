@@ -37,8 +37,12 @@ def test_async_processing_migration_is_additive_transactional_and_indexed() -> N
     assert len(statements) >= 10
 
 
-def test_async_processing_migration_is_latest_catalog_entry() -> None:
+def test_async_processing_migration_precedes_current_catalog_entry() -> None:
     migrations = sorted((ROOT / "installers/migrations/postgresql").glob("*.sql"))
+    names = [migration.name for migration in migrations]
 
-    assert migrations[-1].name == MIGRATION.name
-    assert len(migrations) == 54
+    assert names[-2:] == [
+        "0054_async_outbox_workers.sql",
+        "0055_kubernetes_topology_inventory.sql",
+    ]
+    assert len(migrations) == 55

@@ -73,9 +73,9 @@ class EnterpriseAlignmentValidator:
                 errors.append(f"missing CDC v4.9.0 file: {path}")
         version_file = roadmap_root / "VERSION"
         if not version_file.is_file():
-            errors.append("missing roadmap v2.1 VERSION")
-        elif version_file.read_text(encoding="utf-8").strip() != "2.1.0":
-            errors.append("roadmap VERSION must be 2.1.0")
+            errors.append("missing roadmap v2.2 VERSION")
+        elif version_file.read_text(encoding="utf-8").strip() != "2.2.0":
+            errors.append("roadmap VERSION must be 2.2.0")
         alignment = roadmap_root / "14-alignement-cdc-v4.9.0.csv"
         if not alignment.is_file():
             errors.append("missing CDC v4.9.0 alignment matrix")
@@ -183,7 +183,7 @@ class EnterpriseAlignmentCli:
     def main(cls) -> int:
         parser = argparse.ArgumentParser(
             prog="validate_enterprise_alignment",
-            description="Validate OpenInfra project alignment with CDC v4.9.0 and roadmap v2.1.",
+            description="Validate OpenInfra project alignment with CDC v4.9.0 and roadmap v2.2.",
         )
         parser.add_argument(
             "--cdc-root",
@@ -193,7 +193,7 @@ class EnterpriseAlignmentCli:
         parser.add_argument(
             "--roadmap-root",
             type=Path,
-            default=Path("docs/specifications/OpenInfra-Roadmap-Developpement-v2.1"),
+            default=Path("docs/specifications/OpenInfra-Roadmap-Developpement-v2.2"),
         )
         parser.add_argument("--project-root", type=Path, default=Path("."))
         parser.add_argument("--json", action="store_true")

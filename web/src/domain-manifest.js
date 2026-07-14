@@ -84,11 +84,11 @@ export const MODULES = [
     "label": "Discovery",
     "icon": "activity",
     "stats": {
-      "operations": 10,
-      "readOperations": 4,
-      "writeOperations": 6,
-      "fields": 52,
-      "requiredFields": 0
+      "operations": 14,
+      "readOperations": 7,
+      "writeOperations": 7,
+      "fields": 69,
+      "requiredFields": 10
     },
     "operations": [],
     "loaded": false

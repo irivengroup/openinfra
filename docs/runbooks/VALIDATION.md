@@ -22,7 +22,7 @@ python scripts/validate_openapi.py \
   docs/api/openapi.yaml \
   docs/specifications/OpenInfra-CDC-SFG-STG-v4.9.0/09-API/OpenAPI/openapi.yaml
 python docs/specifications/OpenInfra-CDC-SFG-STG-v4.9.0/scripts/validate_docs.py
-python docs/specifications/OpenInfra-Roadmap-Developpement-v2.1/scripts/validate_roadmap.py
+python docs/specifications/OpenInfra-Roadmap-Developpement-v2.2/scripts/validate_roadmap.py
 python scripts/validate_enterprise_alignment.py --project-root .
 ```
 
@@ -177,7 +177,7 @@ PYTHONPATH=src python -m pytest -q   tests/unit/test_data_import_domain.py   tes
 PYTHONPATH=src python scripts/validate_frontend.py --project-root .
 node --check src/openinfra/interfaces/rendering/static/assets/openinfra-web.js
 PYTHONPATH=src python -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.9.0
-PYTHONPATH=src python docs/specifications/OpenInfra-Roadmap-Developpement-v2.1/scripts/validate_roadmap.py --root docs/specifications/OpenInfra-Roadmap-Developpement-v2.1
+PYTHONPATH=src python docs/specifications/OpenInfra-Roadmap-Developpement-v2.2/scripts/validate_roadmap.py --root docs/specifications/OpenInfra-Roadmap-Developpement-v2.2
 ```
 
 Ces contrôles garantissent que les guides Device42, NetBox, Nautobot, GLPI et CSV exposent template, étapes, contrôles, rollback et critères de succès via CLI/API/discovery/OpenAPI/portail web, sans mutation RSOT ni ticketing natif.
@@ -749,7 +749,7 @@ PYTHONPATH=src python scripts/security_gate.py
 PYTHONPATH=src python scripts/validate_enterprise_alignment.py --project-root .
 PYTHONPATH=src python scripts/validate_autonomous_installer.py --root installers
 PYTHONPATH=src python -m openinfra.interfaces.cli spec validate --root docs/specifications/OpenInfra-CDC-SFG-STG-v4.9.0
-python docs/specifications/OpenInfra-Roadmap-Developpement-v2.1/scripts/validate_roadmap.py
+python docs/specifications/OpenInfra-Roadmap-Developpement-v2.2/scripts/validate_roadmap.py
 PYTHONPATH=src python -m pytest --collect-only -q -o addopts='' --no-cov
 PYTHONPATH=src python -m pytest -q tests/integration/test_import_services.py tests/integration/test_cli_import.py -o addopts=''
 PYTHONPATH=src python -m pytest -q tests/integration/test_http_api.py::TestHttpApi::test_bulk_import_rollback_api_endpoint -o addopts=''

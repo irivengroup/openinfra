@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.32.12
+  version: 0.33.0
   description: >-
     API OpenInfra organisée dans Swagger et ReDoc par composant, puis par contexte métier.
     Chaque opération appartient à un contexte unique afin de conserver une navigation déterministe.
@@ -7584,6 +7584,132 @@ paths:
       - RAG · Jobs et artefacts
       x-openinfra-component: RAG
       x-openinfra-context: Jobs et artefacts
+  /api/v1/kubernetes/topologies:
+    get:
+      summary: List versioned Kubernetes topology snapshots
+      description: Returns immutable Kubernetes inventory snapshots using cursor pagination and optional cluster, provider and site filters.
+      security:
+      - bearerToken: []
+      parameters:
+      - {name: tenant_id, in: query, required: true, schema: {type: string}}
+      - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+      - {name: cursor, in: query, required: false, schema: {type: string}}
+      - {name: cluster_key, in: query, required: false, schema: {type: string}}
+      - {name: provider, in: query, required: false, schema: {type: string}}
+      - {name: site_code, in: query, required: false, schema: {type: string}}
+      responses:
+        '200': {description: Paginated Kubernetes topology snapshots}
+        '400': {description: Invalid filter or cursor}
+        '401': {description: Missing or invalid bearer token}
+      tags:
+      - Discovery · Kubernetes et cloud-native
+      x-openinfra-component: Discovery
+      x-openinfra-context: Kubernetes et cloud-native
+  /api/v1/kubernetes/topologies/get:
+    get:
+      summary: Get a Kubernetes topology snapshot
+      security:
+      - bearerToken: []
+      parameters:
+      - {name: tenant_id, in: query, required: true, schema: {type: string}}
+      - {name: snapshot_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Immutable snapshot including Kubernetes resources}
+        '400': {description: Invalid or unknown snapshot}
+        '401': {description: Missing or invalid bearer token}
+      tags:
+      - Discovery · Kubernetes et cloud-native
+      x-openinfra-component: Discovery
+      x-openinfra-context: Kubernetes et cloud-native
+  /api/v1/kubernetes/topologies/latest:
+    get:
+      summary: Get the latest Kubernetes topology snapshot for a cluster
+      security:
+      - bearerToken: []
+      parameters:
+      - {name: tenant_id, in: query, required: true, schema: {type: string}}
+      - {name: cluster_key, in: query, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Latest immutable snapshot including Kubernetes resources}
+        '400': {description: Invalid or unknown cluster}
+        '401': {description: Missing or invalid bearer token}
+      tags:
+      - Discovery · Kubernetes et cloud-native
+      x-openinfra-component: Discovery
+      x-openinfra-context: Kubernetes et cloud-native
+  /api/v1/kubernetes/topologies/topology:
+    get:
+      summary: Build the application and physical topology graph for a Kubernetes snapshot
+      description: Returns deterministic cluster, namespace, ownership, service-routing, pod-to-node and node-to-RSOT physical mapping edges.
+      security:
+      - bearerToken: []
+      parameters:
+      - {name: tenant_id, in: query, required: true, schema: {type: string}}
+      - {name: snapshot_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Deterministic Kubernetes and physical topology graph}
+        '400': {description: Invalid or unknown snapshot}
+        '401': {description: Missing or invalid bearer token}
+      tags:
+      - Discovery · Kubernetes et cloud-native
+      x-openinfra-component: Discovery
+      x-openinfra-context: Kubernetes et cloud-native
+  /api/v1/kubernetes/topologies/latest-topology:
+    get:
+      summary: Build the latest Kubernetes topology graph for a cluster
+      security:
+      - bearerToken: []
+      parameters:
+      - {name: tenant_id, in: query, required: true, schema: {type: string}}
+      - {name: cluster_key, in: query, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Latest deterministic Kubernetes and physical topology graph}
+        '400': {description: Invalid or unknown cluster}
+        '401': {description: Missing or invalid bearer token}
+      tags:
+      - Discovery · Kubernetes et cloud-native
+      x-openinfra-component: Discovery
+      x-openinfra-context: Kubernetes et cloud-native
+  /api/v1/kubernetes/topologies/import:
+    post:
+      summary: Import an immutable Kubernetes inventory snapshot
+      description: Validates referential integrity, rejects secret-like attributes, deduplicates by canonical fingerprint and records an audited immutable snapshot.
+      security:
+      - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, cluster_key, cluster_name, provider, kubernetes_version, source_ref, observed_at, resources]
+              properties:
+                tenant_id: {type: string}
+                actor: {type: string, default: api}
+                cluster_key: {type: string}
+                cluster_name: {type: string}
+                provider: {type: string}
+                kubernetes_version: {type: string}
+                region: {type: string}
+                site_code: {type: string}
+                source_ref: {type: string}
+                observed_at: {type: string, format: date-time}
+                resources:
+                  type: array
+                  minItems: 1
+                  maxItems: 50000
+                  items:
+                    type: object
+                    required: [kind, uid, name]
+                    additionalProperties: true
+      responses:
+        '201': {description: Imported or idempotently reused immutable topology snapshot}
+        '400': {description: Invalid topology or broken Kubernetes reference}
+        '401': {description: Missing or invalid bearer token}
+      tags:
+      - Discovery · Kubernetes et cloud-native
+      x-openinfra-component: Discovery
+      x-openinfra-context: Kubernetes et cloud-native
   /api/v1/sbom/documents:
     get:
       operationId: listSbomDocuments
@@ -9602,6 +9728,8 @@ tags:
   description: Collecteurs, profils de protocoles, intégrations et enrôlements.
 - name: Discovery · Orchestration des jobs
   description: Création, attribution, renouvellement, terminaison et reprise des jobs.
+- name: Discovery · Kubernetes et cloud-native
+  description: Inventaire Kubernetes versionné, topologie applicative et mapping physique jusqu'au site.
 - name: ITAM · Organisations et subdivisions
   description: Organisations, filiales et subdivisions propriétaires.
 - name: ITAM · Partenaires et support
@@ -9720,6 +9848,7 @@ x-tagGroups:
   - Discovery · Évidences et rapprochement
   - Discovery · Collecteurs et profils
   - Discovery · Orchestration des jobs
+  - Discovery · Kubernetes et cloud-native
 - name: ITAM
   tags:
   - ITAM · Organisations et subdivisions

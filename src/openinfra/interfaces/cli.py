@@ -312,6 +312,12 @@ from openinfra.application.itam_services import (
     UpdateItamTenantCommand,
     UpdateSoftwareLicenseAssignmentCommand,
 )
+from openinfra.application.kubernetes_topology_services import (
+    GetKubernetesTopologyCommand,
+    GetLatestKubernetesTopologyCommand,
+    ImportKubernetesTopologyCommand,
+    ListKubernetesTopologiesCommand,
+)
 from openinfra.application.multisite_services import (
     ConfigureDisasterRecoveryPlanCommand,
     ConfigureRegionalDiscoveryRouteCommand,
@@ -458,6 +464,7 @@ class OpenInfraCLI:
         self._add_simulation_commands(subparsers)
         self._add_finops_commands(subparsers)
         self._add_greenops_commands(subparsers)
+        self._add_kubernetes_commands(subparsers)
         self._add_sbom_commands(subparsers)
         self._add_rag_commands(subparsers)
         self._add_multisite_commands(subparsers)
@@ -2457,6 +2464,71 @@ class OpenInfraCLI:
             command.add_argument("--dimension")
             command.add_argument("--target")
             command.set_defaults(handler=handler)
+
+    def _add_kubernetes_commands(self, subparsers: Any) -> None:
+        kubernetes = subparsers.add_parser(
+            "kubernetes", help="Kubernetes inventory and cloud-native topology operations"
+        )
+        commands = kubernetes.add_subparsers(dest="kubernetes_command", required=True)
+
+        import_snapshot = commands.add_parser(
+            "import", help="import a validated Kubernetes topology snapshot"
+        )
+        self._add_backend_arguments(import_snapshot)
+        import_snapshot.add_argument("--tenant", required=True)
+        import_snapshot.add_argument("--admin-token", required=True)
+        import_snapshot.add_argument("--cluster-key", required=True)
+        import_snapshot.add_argument("--cluster-name", required=True)
+        import_snapshot.add_argument("--provider", required=True)
+        import_snapshot.add_argument("--kubernetes-version", required=True)
+        import_snapshot.add_argument("--source-ref", required=True)
+        import_snapshot.add_argument("--observed-at", required=True)
+        import_snapshot.add_argument("--resources-file", type=Path, required=True)
+        import_snapshot.add_argument("--region")
+        import_snapshot.add_argument("--site-code")
+        import_snapshot.add_argument("--actor", default="cli")
+        import_snapshot.set_defaults(handler=self._handle_kubernetes_import)
+
+        list_snapshots = commands.add_parser("list", help="list Kubernetes topology snapshots")
+        self._add_backend_arguments(list_snapshots)
+        list_snapshots.add_argument("--tenant", required=True)
+        list_snapshots.add_argument("--admin-token", required=True)
+        list_snapshots.add_argument("--cluster-key")
+        list_snapshots.add_argument("--provider")
+        list_snapshots.add_argument("--site-code")
+        list_snapshots.add_argument("--limit", type=int, default=100)
+        list_snapshots.add_argument("--cursor")
+        list_snapshots.set_defaults(handler=self._handle_kubernetes_list)
+
+        get_snapshot = commands.add_parser("get", help="get one Kubernetes topology snapshot")
+        self._add_backend_arguments(get_snapshot)
+        get_snapshot.add_argument("--tenant", required=True)
+        get_snapshot.add_argument("--admin-token", required=True)
+        get_snapshot.add_argument("--snapshot-id", required=True)
+        get_snapshot.set_defaults(handler=self._handle_kubernetes_get)
+
+        latest = commands.add_parser("latest", help="get the latest snapshot for a cluster")
+        self._add_backend_arguments(latest)
+        latest.add_argument("--tenant", required=True)
+        latest.add_argument("--admin-token", required=True)
+        latest.add_argument("--cluster-key", required=True)
+        latest.set_defaults(handler=self._handle_kubernetes_latest)
+
+        topology = commands.add_parser("topology", help="render the graph for one snapshot")
+        self._add_backend_arguments(topology)
+        topology.add_argument("--tenant", required=True)
+        topology.add_argument("--admin-token", required=True)
+        topology.add_argument("--snapshot-id", required=True)
+        topology.set_defaults(handler=self._handle_kubernetes_topology)
+
+        latest_topology = commands.add_parser(
+            "latest-topology", help="render the latest graph for a cluster"
+        )
+        self._add_backend_arguments(latest_topology)
+        latest_topology.add_argument("--tenant", required=True)
+        latest_topology.add_argument("--admin-token", required=True)
+        latest_topology.add_argument("--cluster-key", required=True)
+        latest_topology.set_defaults(handler=self._handle_kubernetes_latest_topology)
 
     def _add_sbom_commands(self, subparsers: Any) -> None:
         sbom = subparsers.add_parser(
@@ -6927,6 +6999,91 @@ class OpenInfraCLI:
         if any(not isinstance(item, dict) for item in payload):
             raise ValidationError("each FinOps record must be a JSON object")
         return tuple(dict(item) for item in payload)
+
+    @staticmethod
+    def _read_kubernetes_resources(path: Path) -> tuple[dict[str, Any], ...]:
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ValidationError("Kubernetes resources file must contain valid JSON") from exc
+        if not isinstance(payload, list):
+            raise ValidationError("Kubernetes resources file must contain a JSON array")
+        resources: list[dict[str, Any]] = []
+        for item in payload:
+            if not isinstance(item, dict):
+                raise ValidationError("each Kubernetes resource must be a JSON object")
+            resources.append({str(key): value for key, value in item.items()})
+        return tuple(resources)
+
+    @staticmethod
+    def _kubernetes_datetime(value: str) -> datetime:
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise ValidationError("observed-at must be ISO-8601") from exc
+
+    def _handle_kubernetes_import(self, args: argparse.Namespace) -> int:
+        item = self._create_application(args).kubernetes_topology_service.import_snapshot(
+            ImportKubernetesTopologyCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                cluster_key=args.cluster_key,
+                cluster_name=args.cluster_name,
+                provider=args.provider,
+                kubernetes_version=args.kubernetes_version,
+                source_ref=args.source_ref,
+                observed_at=self._kubernetes_datetime(args.observed_at),
+                resources=self._read_kubernetes_resources(args.resources_file),
+                region=args.region,
+                site_code=args.site_code,
+                actor=args.actor,
+            )
+        )
+        print(json.dumps(item.as_dict(include_resources=True), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_kubernetes_list(self, args: argparse.Namespace) -> int:
+        page = self._create_application(args).kubernetes_topology_service.list_snapshots(
+            ListKubernetesTopologiesCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                limit=args.limit,
+                cursor=args.cursor,
+                cluster_key=args.cluster_key,
+                provider=args.provider,
+                site_code=args.site_code,
+            )
+        )
+        print(json.dumps(page.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_kubernetes_get(self, args: argparse.Namespace) -> int:
+        item = self._create_application(args).kubernetes_topology_service.get_snapshot(
+            GetKubernetesTopologyCommand(args.tenant, args.admin_token, args.snapshot_id)
+        )
+        print(json.dumps(item.as_dict(include_resources=True), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_kubernetes_latest(self, args: argparse.Namespace) -> int:
+        item = self._create_application(args).kubernetes_topology_service.get_latest_snapshot(
+            GetLatestKubernetesTopologyCommand(args.tenant, args.admin_token, args.cluster_key)
+        )
+        print(json.dumps(item.as_dict(include_resources=True), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_kubernetes_topology(self, args: argparse.Namespace) -> int:
+        payload = self._create_application(args).kubernetes_topology_service.topology(
+            GetKubernetesTopologyCommand(args.tenant, args.admin_token, args.snapshot_id)
+        )
+        print(json.dumps(payload, indent=2, sort_keys=True))
+        return 0
+
+    def _handle_kubernetes_latest_topology(self, args: argparse.Namespace) -> int:
+        payload = self._create_application(args).kubernetes_topology_service.latest_topology(
+            GetLatestKubernetesTopologyCommand(args.tenant, args.admin_token, args.cluster_key)
+        )
+        print(json.dumps(payload, indent=2, sort_keys=True))
+        return 0
 
     @staticmethod
     def _read_sbom_json_object(path: Path | None, label: str) -> dict[str, object]:

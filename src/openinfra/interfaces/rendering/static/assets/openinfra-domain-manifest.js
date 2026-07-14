@@ -97,11 +97,11 @@ const OPENINFRA_MODULES = [
     "icon": "activity",
     "description": "Collecte backend locale en Lite/Pro ; agents proxy collectors Enterprise uniquement en topologie étoile.",
     "stats": {
-      "operations": 28,
-      "readOperations": 9,
-      "writeOperations": 19,
-      "fields": 146,
-      "requiredFields": 97
+      "operations": 32,
+      "readOperations": 12,
+      "writeOperations": 20,
+      "fields": 163,
+      "requiredFields": 107
     },
     "operations": [],
     "loaded": false
@@ -712,14 +712,14 @@ const OPENINFRA_SIDEBAR_CONTEXTS = {
 };
 
 const OPENINFRA_DOMAIN_LOADERS = {
-  "rsot": () => import("./domains/rsot.js?v=0.32.12"),
-  "ipam": () => import("./domains/ipam.js?v=0.32.12"),
-  "dcim": () => import("./domains/dcim.js?v=0.32.12"),
-  "itam": () => import("./domains/itam.js?v=0.32.12"),
-  "discovery": () => import("./domains/discovery.js?v=0.32.12"),
-  "data": () => import("./domains/data.js?v=0.32.12"),
-  "integrations": () => import("./domains/integrations.js?v=0.32.12"),
-  "security": () => import("./domains/security.js?v=0.32.12"),
+  "rsot": () => import("./domains/rsot.js?v=0.33.0"),
+  "ipam": () => import("./domains/ipam.js?v=0.33.0"),
+  "dcim": () => import("./domains/dcim.js?v=0.33.0"),
+  "itam": () => import("./domains/itam.js?v=0.33.0"),
+  "discovery": () => import("./domains/discovery.js?v=0.33.0"),
+  "data": () => import("./domains/data.js?v=0.33.0"),
+  "integrations": () => import("./domains/integrations.js?v=0.33.0"),
+  "security": () => import("./domains/security.js?v=0.33.0"),
 };
 
 

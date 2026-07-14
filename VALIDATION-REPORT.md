@@ -1,120 +1,92 @@
-# OpenInfra v0.32.12 — rapport de validation
+# OpenInfra v0.33.0 — Rapport de validation
 
-Date : 2026-07-14
+## Périmètre
 
-## Portée
+- Version : `0.33.0`
+- Phase : `P21 — Kubernetes & Cloud-native`
+- Epic : `EPIC-2101 — Inventaire Kubernetes et topologie physique`
+- Release roadmap : `REL-11`
+- Roadmap : `2.2.0`
+- CDC : `4.9.0` inchangé ; les exigences `REQ-00469` et `REQ-00470` existaient déjà.
 
-La version 0.32.12 matérialise **GATE-09 / REL-10 — Promotion Enterprise Scale-out** sans migration PostgreSQL, sans rupture des contrats API/CLI métier et sans modification du thème.
+## Fonctionnalités validées
 
-Le gate ne duplique aucun moteur de qualification existant. Il agrège et certifie sept preuves immuables déjà produites par les contrôles spécialisés :
+- instantanés Kubernetes immuables, dédupliqués par empreinte canonique SHA-256 et limités à 50 000 ressources ;
+- inventaire `namespace`, `node`, `workload`, `pod`, `service`, `ingress`, `network-policy` et `volume` ;
+- intégrité référentielle, relations typées et isolation inter-namespace ;
+- graphe `cluster → namespace → workload/pod/service → node → VM → hyperviseur → serveur → rack → salle → site` ;
+- persistance JSON et PostgreSQL avec pagination par curseur et migration `0055_kubernetes_topology_inventory.sql` ;
+- outbox PostgreSQL cohérente avec la clé primaire partitionnée `(tenant_id, id)` ;
+- permissions `kubernetes.read` et `kubernetes.write`, rôles `kubernetes:reader` et `kubernetes:operator`, audit et rejet des clés sensibles ;
+- parité HTTP, CLI, OpenAPI et portails React/runtime ;
+- catalogue runtime Discovery préservé : 28 opérations historiques + 4 opérations Kubernetes, soit 278 opérations runtime globales ;
+- ouverture de la roadmap `2.2.0` avec P21, REL-11, M13, GATE-10 et EPIC-2101 à EPIC-2106.
 
-1. contrats P20 de scale-out (`p20-contracts`) ;
-2. certification de capacité Enterprise (`enterprise-capacity`) ;
-3. campagne de chaos multisite (`multisite-chaos`) ;
-4. certification PRA/PCA (`pra-pca`) ;
-5. sécurité de release (`release-security`) ;
-6. packaging de release signé (`release-packaging`) ;
-7. décision GA Go/No-Go (`ga-go-no-go`).
+## Tests exécutés
 
-La promotion est refusée si une preuve est absente, périmée, altérée, non certifiée, rattachée à une version incohérente ou, pour la décision GA, à un commit source différent de celui du manifeste GATE-09.
+- collecte Python : **1 286 tests** ;
+- suite `tests/unit + tests/performance` : **615/615 PASS** ;
+- gate CI P21 exact : **19/19 PASS** ;
+- tests transverses ciblés installateurs/workflows/migrations/runtime/documentation/support : **69/69 PASS** ;
+- tests packaging et sécurité release : **40/40 PASS** ;
+- frontend Node : **63/63 PASS** ;
+- couverture ciblée du nouveau domaine et service Kubernetes : **403/403 instructions, 100 %**.
 
-Le périmètre livré ajoute :
+La suite complète `tests/architecture + tests/integration` a été tentée en isolation. Elle a identifié une attente historique obsolète qui imposait encore `0054` comme dernière migration ; ce test a été corrigé pour vérifier l'ordre `0054 → 0055` et repasse avec le test de migration P21. La campagne complète n'a toutefois pas terminé dans la fenêtre d'exécution du sandbox et n'est donc pas déclarée intégralement validée localement.
 
-- le moteur `openinfra.quality.scaleout_promotion` ;
-- la politique machine-readable `enterprise-scaleout-promotion-policy.json` ;
-- l'assemblage des sept preuves avec SHA-256 canonique ;
-- la certification bloquante `GATE-09 / REL-10` ;
-- un workflow GitHub Actions protégé utilisant des run IDs explicites et des artefacts amont immuables ;
-- l'intégration au CI, au `quality_gate.py`, au packaging et au smoke du wheel installé ;
-- le runbook opérationnel de promotion Enterprise Scale-out.
+Le seuil de couverture globale **≥ 98 %** reste bloquant dans GitHub Actions. La couverture globale complète n'a pas été recalculée localement dans ce sandbox.
 
-Le certificat est strictement évaluatif : il ne modifie ni topologie, ni base de données, ni trafic, ni infrastructure.
+## Qualité statique
 
-## Validations exécutées
-
-### Python et architecture
-
-- collecte : **1 267 tests** ;
-- suite `tests/unit + tests/performance` : **607/607 PASS** ;
-- tests d'intégration transverses ciblés : **59/59 PASS** ;
-- couverture ciblée `openinfra.quality.scaleout_promotion` : **274/274 instructions, 100 %** ;
-- Ruff format : **370 fichiers conformes** ;
+- Ruff format : **381 fichiers conformes** ;
 - Ruff lint : **PASS** ;
-- mypy strict : **111 modules conformes** ;
-- `compileall` : **PASS**.
-
-### Contrats GATE-09 et exploitation
-
-- validation des contrats P20 de scale-out : **PASS** ;
-- observabilité globale : **PASS** ;
-- observabilité multisite : **PASS** ;
-- chaos multisite : **PASS** ;
-- PRA/PCA : **PASS** ;
-- alignement Enterprise : **PASS** ;
+- mypy strict : **114 modules conformes** ;
+- `compileall` : **PASS** ;
+- OpenAPI opérationnel et OpenAPI CDC : **PASS** ;
+- validateur P21 : **PASS** ;
+- roadmap 2.2 : **22 phases, 131 epics, 11 gates, 112 tests — PASS** ;
+- documentation CDC : **840 exigences, 529 entités, traçabilité présente — PASS** ;
+- alignement Enterprise CDC 4.9.0 / roadmap 2.2 : **PASS** ;
 - six profils installateur : **PASS** ;
-- frontend runtime validator : **PASS** ;
-- documentation GA : **PASS**, version 0.32.12 ;
-- support-readiness : **PASS**, version 0.32.12.
+- documentation GA et support-readiness : **PASS** ;
+- observabilité, observabilité multisite, PRA/PCA, chaos multisite et GATE-09 : **PASS**.
 
-Les tests GATE-09 couvrent notamment :
+## Frontend et accessibilité
 
-- succès avec exactement sept preuves conformes ;
-- preuve manquante, altérée ou périmée ;
-- SHA-256 non canonique ;
-- path traversal hors racine de preuves ;
-- version incohérente ;
-- verdict amont non certifié ;
-- timestamp absent, futur ou périmé ;
-- manifeste trop ancien ou futur ;
-- format JSON invalide ;
-- commit source GA différent du manifeste ;
-- assemblage et copie des sept preuves avec empreintes recalculées.
-
-### Frontend
-
-- tests Node : **63/63 PASS** ;
-- contrat statique : **PASS** ;
+- tests frontend : **63/63 PASS** ;
+- contrat statique frontend : **PASS** ;
 - WCAG 2.2 AA : **PASS** ;
-- ESLint : **PASS** ;
-- build Vite : **PASS** ;
-- validation du bundle : **PASS** ;
-- `npm audit --audit-level=high` : **0 vulnérabilité**.
+- ESLint JSX : **PASS** ;
+- build Vite et budgets de bundle : **PASS** ;
+- `npm audit` : **0 vulnérabilité** ;
+- aucune modification du thème : `openinfra-web.css` est bit-pour-bit identique à la v0.32.12 ;
+- SHA-256 CSS : `334fc797cea05d9c2a0f670d8a098fbc8caa2c55a7cd228f3c296338f52c0555`.
 
-### Sécurité
+## Sécurité
 
-- `security_gate.py` : **PASS** ;
-- Bandit, périmètre CI `src/openinfra` : **PASS** ;
-- `pip-audit --strict --requirement requirements/security-audit.txt --progress-spinner off` : **non exécutable jusqu'au bout dans le sandbox**, échec de résolution DNS vers `pypi.org`.
+- `scripts/security_gate.py` : **PASS** ;
+- Bandit sur `src/openinfra` : **PASS**, aucun finding bloquant ;
+- `pip-audit --strict` : **NON TERMINÉ**, résolution DNS de `pypi.org` indisponible depuis le sandbox ;
+- aucun secret en clair ajouté ;
+- les attributs Kubernetes contenant des clés sensibles sont rejetés avant persistance.
 
-### Packaging
+## Packaging
 
-- build sdist `openinfra-0.32.12.tar.gz` : **PASS** ;
-- build wheel `openinfra-0.32.12-py3-none-any.whl` : **PASS** ;
+Validation intermédiaire avant rapport final :
+
+- wheel `openinfra-0.33.0-py3-none-any.whl` : **PASS** ;
+- sdist `openinfra-0.33.0.tar.gz` : **PASS** ;
 - vérification de contenu des artefacts : **PASS** ;
-- présence du moteur, de la politique, du runbook, des scripts et du workflow GATE-09 dans les artefacts attendus : **PASS** ;
 - smoke du wheel installé hors de l'arbre source : **PASS** ;
-- version installée : **0.32.12** ;
-- contrat de promotion installé : **GATE-09 / REL-10**, sept preuves obligatoires ;
-- migrations : **54**, dernière `0054_async_outbox_workers.sql`.
+- version installée : `0.33.0` ;
+- routes Kubernetes installées : **6** ;
+- migrations installées : **55** ;
+- dernière migration : `0055_kubernetes_topology_inventory.sql`.
 
-## Non-régression visuelle
+Les artefacts sont reconstruits une dernière fois après inclusion de ce rapport, puis revérifiés avant création de l'archive de livraison.
 
-Les fichiers de thème principal de la version 0.32.12 conservent exactement le même SHA-256 que dans la version 0.32.11 :
+## Limites de l'environnement
 
-```text
-334fc797cea05d9c2a0f670d8a098fbc8caa2c55a7cd228f3c296338f52c0555
-```
-
-Aucune modification du thème ou de la charte graphique n'a été effectuée.
-
-## Limites de l'environnement courant
-
-La suite complète `tests/architecture + tests/integration` a été tentée par lots. Certains processus d'intégration, notamment autour des installateurs, restent actifs après l'affichage de leurs résultats et ont fait dépasser la fenêtre d'exécution du sandbox. La suite complète n'est donc **pas déclarée intégralement validée localement**, même si les tests transverses directement impactés sont verts.
-
-La couverture globale complète n'a pas été recalculée dans ce sandbox ; le seuil contractuel **>= 98 %** reste bloquant dans GitHub Actions.
-
-Docker et Docker Compose ne sont pas disponibles dans l'environnement courant. Les smokes conteneurisés et les validations réelles de topologie Enterprise restent exécutés par les workflows dédiés sur runners adaptés.
-
-## CDC et roadmap
-
-**Inchangés**. GATE-09 et REL-10 étaient déjà définis dans la roadmap existante ; cette livraison matérialise leur décision de promotion sans introduire de nouvelle exigence fonctionnelle, réglementaire ou architecturale.
+- Docker et Docker Compose ne sont pas installés dans le sandbox : les smokes Compose restent bloquants dans la CI ;
+- `pip-audit` ne peut pas joindre PyPI depuis le sandbox ;
+- la suite d'intégration complète et la couverture globale complète restent exécutées par GitHub Actions avec le seuil contractuel de couverture **≥ 98 %**.

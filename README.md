@@ -1,18 +1,28 @@
-# OpenInfra v0.32.12
+# OpenInfra v0.33.0
 
-OpenInfra 0.32.12 matérialise **GATE-09 / REL-10 — Go scale-out Enterprise** en agrégeant les preuves certifiées produites par les capacités P20, la qualification Enterprise, le chaos, le PRA/PCA, la sécurité, le packaging signé et la décision GA.
+OpenInfra 0.33.0 ouvre **P21 / REL-11 — Kubernetes & Cloud-native** avec **EPIC-2101 : inventaire Kubernetes versionné et topologie physique**. La version complète le socle Discovery existant sans nouvelle source de vérité : les instantanés Kubernetes sont immuables, audités, dédupliqués par empreinte canonique et reliés au RSOT/DCIM par références externes.
 
-## Promotion Enterprise Scale-out — GATE-09 / REL-10
+## Kubernetes & Cloud-native — P21 / EPIC-2101
 
-- validation statique des contrats P20 du code courant ;
-- sept preuves obligatoires, copiées dans un dossier d'évidence et verrouillées par SHA-256 ;
-- contrôle strict de version et de fraîcheur par type de preuve ;
-- refus de la promotion si capacité, chaos, PRA/PCA, sécurité, packaging ou GA ne sont pas certifiés ;
-- manifeste canonique lié au commit source et au candidat de release ;
-- workflow manuel protégé sur runner `openinfra-enterprise-scaleout` ;
-- agrégation des artefacts de workflows existants, sans rejouer ni dupliquer leurs moteurs ;
-- aucune mutation d'infrastructure par le certificateur ;
-- aucune migration PostgreSQL, aucune rupture API/CLI métier et aucune modification du thème.
+- inventaire `namespace`, `node`, `workload`, `pod`, `service`, `ingress`, `network-policy` et `volume` ;
+- instantanés limités à 50 000 ressources et pagination curseur PostgreSQL ;
+- intégrité référentielle stricte, relations typées et isolation inter-namespace ;
+- rejet des attributs contenant des clés sensibles ;
+- mapping `pod → node → VM → hyperviseur → serveur → rack → salle → site` ;
+- API, CLI et portail Discovery en parité ;
+- permissions `kubernetes.read` et `kubernetes.write`, rôles dédiés et audit ;
+- persistance JSON et PostgreSQL partitionnée via migration `0055_kubernetes_topology_inventory.sql` ;
+- roadmap **2.2.0** avec P21, REL-11, M13 et GATE-10 ;
+- aucune modification de la charte graphique.
+
+Voir `docs/architecture/kubernetes-cloud-native-topology.md` et `docs/operations/kubernetes-topology.md`.
+
+## Promotion Enterprise Scale-out — GATE-09 / REL-10 — v0.32.12
+
+- agrégation de sept preuves certifiées produites par P20 et les gates Enterprise ;
+- contrôle de version, fraîcheur, SHA-256 et cohérence du commit source ;
+- workflow protégé `enterprise-scaleout-promotion.yml` ;
+- aucune mutation d'infrastructure par le certificateur.
 
 Voir `docs/runbooks/ENTERPRISE_SCALEOUT_PROMOTION.md` et `docs/release/enterprise-scaleout-promotion-policy.json`.
 

@@ -112,6 +112,7 @@ from openinfra.domain.itam import (
     PhysicalAssetSupportProfile,
     SoftwareLicenseEntitlement,
 )
+from openinfra.domain.kubernetes_topology import KubernetesTopologySnapshot
 from openinfra.domain.multisite import (
     MultisiteDisasterRecoveryDrill,
     MultisiteDisasterRecoveryPlan,
@@ -389,6 +390,18 @@ class SustainabilityReportPage:
 
     def as_dict(self) -> dict[str, object]:
         return {"items": [item.as_dict() for item in self.items], "next_cursor": self.next_cursor}
+
+
+@dataclass(frozen=True, slots=True)
+class KubernetesTopologySnapshotPage:
+    items: tuple[KubernetesTopologySnapshot, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "items": [item.as_dict(include_resources=False) for item in self.items],
+            "next_cursor": self.next_cursor,
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -2102,6 +2115,45 @@ class MultisiteRepository(ABC):
         plan_id: str | None = None,
         status: str | None = None,
     ) -> DisasterRecoveryDrillPage:
+        raise TypeError("adapter contract invoked directly")
+
+
+class KubernetesTopologyRepository(ABC):
+    @abstractmethod
+    def save_snapshot(self, snapshot: KubernetesTopologySnapshot) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_snapshot(
+        self, tenant_id: TenantId, snapshot_id: str
+    ) -> KubernetesTopologySnapshot | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_snapshot_by_fingerprint(
+        self, tenant_id: TenantId, fingerprint: str
+    ) -> KubernetesTopologySnapshot | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_latest_snapshot(
+        self, tenant_id: TenantId, cluster_key: str
+    ) -> KubernetesTopologySnapshot | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_snapshots(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        cluster_key: str | None = None,
+        provider: str | None = None,
+        site_code: str | None = None,
+    ) -> KubernetesTopologySnapshotPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def append_event(self, event: DomainEvent) -> None:
         raise TypeError("adapter contract invoked directly")
 
 

@@ -170,6 +170,12 @@ class OpenApiDocumentationTaxonomy:
             "Création, attribution, renouvellement, terminaison et reprise des jobs.",
         ),
         OpenApiDocumentationContext(
+            "Discovery",
+            "Kubernetes et cloud-native",
+            "Inventaire Kubernetes versionné, topologie applicative et mapping physique "
+            "jusqu'au site.",
+        ),
+        OpenApiDocumentationContext(
             "ITAM",
             "Organisations et subdivisions",
             "Organisations, filiales et subdivisions propriétaires.",
@@ -439,6 +445,8 @@ class OpenApiDocumentationTaxonomy:
             return "Discovery", "Collecteurs et profils"
         if path.startswith(("/api/v1/discovery/job", "/api/v1/discovery/jobs")):
             return "Discovery", "Orchestration des jobs"
+        if path.startswith("/api/v1/kubernetes/topologies"):
+            return "Discovery", "Kubernetes et cloud-native"
         if path.startswith(
             (
                 "/api/v1/itam/organization",

@@ -574,7 +574,7 @@ function Dashboard() {
   }
 
   async function execute(form, fields) {
-    const isLiveOperation = selected.id.startsWith('graph-') || selected.id.startsWith('field-') || selected.id.startsWith('simulation-') || selected.id.startsWith('greenops-') || selected.id.startsWith('sbom-') || selected.id.startsWith('rag-');
+    const isLiveOperation = selected.id.startsWith('graph-') || selected.id.startsWith('field-') || selected.id.startsWith('simulation-') || selected.id.startsWith('greenops-') || selected.id.startsWith('sbom-') || selected.id.startsWith('rag-') || selected.id.startsWith('kubernetes-');
     if (!isLiveOperation) {
       setResult({ tenant_id: tenant, action: selected.id, via: config.apiBaseUrl, trust: config.webBackendTrust });
       return;

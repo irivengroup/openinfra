@@ -2207,6 +2207,39 @@ const OPENINFRA_SEARCH_INDEX = [
     "method": "GET",
     "path": "/v1/sbom/comparisons/get"
   }
+,
+  {
+    "moduleId": "discovery",
+    "moduleLabel": "Discovery",
+    "id": "kubernetes-topologies-list",
+    "label": "Lister les instantanés Kubernetes",
+    "method": "GET",
+    "path": "/v1/kubernetes/topologies"
+  },
+  {
+    "moduleId": "discovery",
+    "moduleLabel": "Discovery",
+    "id": "kubernetes-topology-latest",
+    "label": "Consulter le dernier inventaire Kubernetes",
+    "method": "GET",
+    "path": "/v1/kubernetes/topologies/latest"
+  },
+  {
+    "moduleId": "discovery",
+    "moduleLabel": "Discovery",
+    "id": "kubernetes-topology-graph",
+    "label": "Afficher la topologie Kubernetes et physique",
+    "method": "GET",
+    "path": "/v1/kubernetes/topologies/latest-topology"
+  },
+  {
+    "moduleId": "discovery",
+    "moduleLabel": "Discovery",
+    "id": "kubernetes-topology-import",
+    "label": "Importer un inventaire Kubernetes",
+    "method": "POST",
+    "path": "/v1/kubernetes/topologies/import"
+  }
 ];
 
 export { OPENINFRA_SEARCH_INDEX };

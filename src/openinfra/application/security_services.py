@@ -143,6 +143,7 @@ class BuiltinRolePolicy:
                 Permission.RAG_QUERY,
                 Permission.MULTISITE_READ,
                 Permission.MULTISITE_REPORT,
+                Permission.KUBERNETES_READ,
                 Permission.ASYNC_READ,
             )
         ),
@@ -412,6 +413,16 @@ class BuiltinRolePolicy:
                 Permission.RAG_ADMIN,
                 Permission.RSOT_READ,
                 Permission.AUDIT_READ,
+                Permission.SCHEMA_READ,
+            )
+        ),
+        "kubernetes:reader": frozenset((Permission.KUBERNETES_READ, Permission.SCHEMA_READ)),
+        "kubernetes:operator": frozenset(
+            (
+                Permission.KUBERNETES_READ,
+                Permission.KUBERNETES_WRITE,
+                Permission.RSOT_READ,
+                Permission.DCIM_LOCATE,
                 Permission.SCHEMA_READ,
             )
         ),

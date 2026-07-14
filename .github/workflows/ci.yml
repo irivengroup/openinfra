@@ -126,7 +126,7 @@ jobs:
             --output build/reports/high-performance-runtime.json \
             --enforce
           python docs/specifications/OpenInfra-CDC-SFG-STG-v4.9.0/scripts/validate_docs.py
-          python docs/specifications/OpenInfra-Roadmap-Developpement-v2.1/scripts/validate_roadmap.py
+          python docs/specifications/OpenInfra-Roadmap-Developpement-v2.2/scripts/validate_roadmap.py
           python scripts/validate_enterprise_alignment.py --project-root .
 
       - name: Transactional outbox and specialized workers regression
@@ -391,6 +391,19 @@ jobs:
           python -m pytest -q --no-cov \
             tests/unit/test_scaleout_promotion.py \
             tests/integration/test_scaleout_promotion_tooling.py
+
+      - name: P21 Kubernetes and cloud-native topology contracts
+        run: |
+          python scripts/validate_kubernetes_topology.py --project-root . --enforce
+          python docs/specifications/OpenInfra-Roadmap-Developpement-v2.2/scripts/validate_roadmap.py
+          python -m pytest -q --no-cov \
+            tests/unit/test_kubernetes_topology.py \
+            tests/integration/test_kubernetes_topology_services.py \
+            tests/integration/test_kubernetes_topology_http_api.py \
+            tests/integration/test_kubernetes_topology_cli.py \
+            tests/integration/test_kubernetes_topology_migration.py \
+            tests/integration/test_kubernetes_topology_postgresql_repository.py \
+            tests/integration/test_kubernetes_topology_web_contract.py
 
       - name: Unit and integration tests with coverage
         run: python -m pytest

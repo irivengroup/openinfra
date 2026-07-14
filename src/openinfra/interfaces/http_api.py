@@ -316,6 +316,12 @@ from openinfra.application.itam_services import (
     UpdateItamTenantCommand,
     UpdateSoftwareLicenseAssignmentCommand,
 )
+from openinfra.application.kubernetes_topology_services import (
+    GetKubernetesTopologyCommand,
+    GetLatestKubernetesTopologyCommand,
+    ImportKubernetesTopologyCommand,
+    ListKubernetesTopologiesCommand,
+)
 from openinfra.application.multisite_services import (
     ConfigureDisasterRecoveryPlanCommand,
     ConfigureRegionalDiscoveryRouteCommand,
@@ -1862,6 +1868,91 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     rag_artifact.content_type,
                     rag_artifact.filename,
                 )
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/kubernetes/topologies":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.kubernetes_topology_service.list_snapshots(
+                    ListKubernetesTopologiesCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        limit=int(self._first_query_value(query, "limit", "100")),
+                        cursor=query.get("cursor", [None])[0],
+                        cluster_key=query.get("cluster_key", [None])[0],
+                        provider=query.get("provider", [None])[0],
+                        site_code=query.get("site_code", [None])[0],
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/kubernetes/topologies/get":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.kubernetes_topology_service.get_snapshot(
+                    GetKubernetesTopologyCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        snapshot_id=self._first_query_value(query, "snapshot_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict(include_resources=True))
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/kubernetes/topologies/latest":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.kubernetes_topology_service.get_latest_snapshot(
+                    GetLatestKubernetesTopologyCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        cluster_key=self._first_query_value(query, "cluster_key"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict(include_resources=True))
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/kubernetes/topologies/topology":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.kubernetes_topology_service.topology(
+                    GetKubernetesTopologyCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        snapshot_id=self._first_query_value(query, "snapshot_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/kubernetes/topologies/latest-topology":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.kubernetes_topology_service.latest_topology(
+                    GetLatestKubernetesTopologyCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        cluster_key=self._first_query_value(query, "cluster_key"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result)
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (ValueError, OpenInfraError) as exc:
@@ -4294,6 +4385,43 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     )
                 )
                 responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/kubernetes/topologies/import":
+            try:
+                payload = self._read_json_body()
+                raw_resources = payload.get("resources")
+                if not isinstance(raw_resources, list):
+                    raise ValidationError("resources must be a JSON array")
+                resources: list[dict[str, Any]] = []
+                for item in raw_resources:
+                    if not isinstance(item, dict):
+                        raise ValidationError("each Kubernetes resource must be a JSON object")
+                    resources.append({str(key): value for key, value in item.items()})
+                observed_at = self._required_payload_value(payload, "observed_at")
+                result = self.server.application.kubernetes_topology_service.import_snapshot(
+                    ImportKubernetesTopologyCommand(
+                        tenant_id=self._required_payload_value(payload, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        cluster_key=self._required_payload_value(payload, "cluster_key"),
+                        cluster_name=self._required_payload_value(payload, "cluster_name"),
+                        provider=self._required_payload_value(payload, "provider"),
+                        kubernetes_version=self._required_payload_value(
+                            payload, "kubernetes_version"
+                        ),
+                        source_ref=self._required_payload_value(payload, "source_ref"),
+                        observed_at=datetime.fromisoformat(observed_at.replace("Z", "+00:00")),
+                        resources=tuple(resources),
+                        region=self._optional_payload_value(payload, "region"),
+                        site_code=self._optional_payload_value(payload, "site_code"),
+                        actor=str(payload.get("actor", "api")),
+                    )
+                )
+                responder.send(HTTPStatus.CREATED, result.as_dict(include_resources=True))
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
@@ -8611,6 +8739,14 @@ class OpenInfraApiRuntime(BaseServer):
                     "job_create": "/api/v1/rag/jobs/create",
                     "job_run": "/api/v1/rag/jobs/run",
                     "job_artifact": "/api/v1/rag/jobs/artifact",
+                },
+                "kubernetes": {
+                    "topologies": "/api/v1/kubernetes/topologies",
+                    "topology_get": "/api/v1/kubernetes/topologies/get",
+                    "topology_latest": "/api/v1/kubernetes/topologies/latest",
+                    "topology_graph": "/api/v1/kubernetes/topologies/topology",
+                    "topology_latest_graph": "/api/v1/kubernetes/topologies/latest-topology",
+                    "topology_import": "/api/v1/kubernetes/topologies/import",
                 },
                 "sbom": {
                     "documents": "/api/v1/sbom/documents",

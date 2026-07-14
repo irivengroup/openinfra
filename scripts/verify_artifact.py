@@ -52,6 +52,9 @@ class WheelVerifier:
         "openinfra/application/multisite_services.py",
         "openinfra/infrastructure/rag_mapper.py",
         "openinfra/infrastructure/rag_generator.py",
+        "openinfra/domain/kubernetes_topology.py",
+        "openinfra/application/kubernetes_topology_services.py",
+        "openinfra/infrastructure/kubernetes_topology_mapper.py",
         "openinfra/domain/sbom.py",
         "openinfra/application/sbom_services.py",
         "openinfra/infrastructure/sbom_mapper.py",
@@ -94,6 +97,7 @@ class WheelVerifier:
         "openinfra/migrations/postgresql/0051_enterprise_regional_discovery_routing.sql",
         "openinfra/migrations/postgresql/0053_keyset_pagination_indexes.sql",
         "openinfra/migrations/postgresql/0054_async_outbox_workers.sql",
+        "openinfra/migrations/postgresql/0055_kubernetes_topology_inventory.sql",
     )
 
     def verify(self, path: Path) -> None:
@@ -179,6 +183,14 @@ class SourceDistributionVerifier:
         "scripts/benchmark_cursor_pagination.py",
         "installers/migrations/postgresql/0053_keyset_pagination_indexes.sql",
         "installers/migrations/postgresql/0054_async_outbox_workers.sql",
+        "installers/migrations/postgresql/0055_kubernetes_topology_inventory.sql",
+        "src/openinfra/domain/kubernetes_topology.py",
+        "src/openinfra/application/kubernetes_topology_services.py",
+        "src/openinfra/infrastructure/kubernetes_topology_mapper.py",
+        "docs/architecture/kubernetes-cloud-native-topology.md",
+        "docs/operations/kubernetes-topology.md",
+        "docs/specifications/OpenInfra-Roadmap-Developpement-v2.2/VERSION",
+        "scripts/validate_kubernetes_topology.py",
         "requirements/runtime.txt",
         "requirements/security-audit.txt",
         ".github/workflows/ci.yml",

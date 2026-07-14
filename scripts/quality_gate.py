@@ -32,9 +32,9 @@ class ContractFileGuard:
     def assert_sources_present(self) -> None:
         required = (
             self._project_root / "docs/specifications/OpenInfra-CDC-SFG-STG-v4.9.0/VERSION",
-            self._project_root / "docs/specifications/OpenInfra-Roadmap-Developpement-v2.1/VERSION",
+            self._project_root / "docs/specifications/OpenInfra-Roadmap-Developpement-v2.2/VERSION",
             self._project_root
-            / "docs/specifications/OpenInfra-Roadmap-Developpement-v2.1"
+            / "docs/specifications/OpenInfra-Roadmap-Developpement-v2.2"
             / "14-alignement-cdc-v4.9.0.csv",
         )
         missing = [str(path) for path in required if not path.is_file()]
@@ -644,7 +644,7 @@ class HighPerformanceRuntimeGuard:
             "tests/performance/test_cursor_pagination_benchmark.py",
             "scripts/benchmark_cursor_pagination.py",
             "docs/specifications/OpenInfra-CDC-SFG-STG-v4.9.0/00-Delta-v4.9.md",
-            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.1/02-roadmap-phases.csv",
+            "docs/specifications/OpenInfra-Roadmap-Developpement-v2.2/02-roadmap-phases.csv",
         )
         missing = [name for name in required_files if not (self._project_root / name).is_file()]
         if missing:
@@ -904,6 +904,15 @@ class QualityGate:
             [
                 sys.executable,
                 "scripts/validate_scaleout_promotion.py",
+                "--project-root",
+                str(self._project_root),
+                "--enforce",
+            ]
+        )
+        CommandRunner().run(
+            [
+                sys.executable,
+                "scripts/validate_kubernetes_topology.py",
                 "--project-root",
                 str(self._project_root),
                 "--enforce",

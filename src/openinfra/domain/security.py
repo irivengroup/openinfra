@@ -66,6 +66,8 @@ class Permission(StrEnum):
     MULTISITE_WRITE = "multisite.write"
     MULTISITE_REPORT = "multisite.report"
     MULTISITE_ADMIN = "multisite.admin"
+    KUBERNETES_READ = "kubernetes.read"
+    KUBERNETES_WRITE = "kubernetes.write"
     ASYNC_READ = "async.read"
     ASYNC_SUBMIT = "async.submit"
     ASYNC_WORKER = "async.worker"

@@ -58,6 +58,8 @@ from openinfra.application.ports import (
     ImportRepository,
     IpamRepository,
     ItamSupportRepository,
+    KubernetesTopologyRepository,
+    KubernetesTopologySnapshotPage,
     MeasurementSourcePage,
     MultisiteReportPage,
     MultisiteRepository,
@@ -240,6 +242,7 @@ from openinfra.domain.itam import (
     SoftwareLicenseEntitlement,
     ThirdPartySupportContract,
 )
+from openinfra.domain.kubernetes_topology import KubernetesTopologySnapshot
 from openinfra.domain.multisite import (
     DisasterRecoveryDrillStatus,
     MultisiteDisasterRecoveryDrill,
@@ -290,6 +293,7 @@ from openinfra.domain.source_of_truth import (
 from openinfra.infrastructure.field_operation_mapper import FieldOperationRecordMapper
 from openinfra.infrastructure.finops_mapper import FinOpsRecordMapper
 from openinfra.infrastructure.greenops_mapper import GreenOpsRecordMapper
+from openinfra.infrastructure.kubernetes_topology_mapper import KubernetesTopologyRecordMapper
 from openinfra.infrastructure.rag_mapper import RagRecordMapper
 from openinfra.infrastructure.sbom_mapper import SbomRecordMapper
 from openinfra.infrastructure.simulation_mapper import SimulationRecordMapper
@@ -527,6 +531,8 @@ class JsonDocumentStore:
             "greenops_scores": {},
             "greenops_reports": {},
             "greenops_event_outbox": {},
+            "kubernetes_topology_snapshots": {},
+            "kubernetes_topology_event_outbox": {},
             "sbom_documents": {},
             "sbom_vulnerabilities": {},
             "sbom_exposures": {},
@@ -4856,6 +4862,127 @@ class JsonGreenOpsRepository(GreenOpsRepository):
     def append_event(self, event: DomainEvent) -> None:
         self._save(
             "greenops_event_outbox",
+            event.tenant_id,
+            event.id.value,
+            {
+                "id": event.id.value,
+                "tenant_id": event.tenant_id.value,
+                "aggregate_id": event.aggregate_id.value,
+                "name": event.name,
+                "payload": event.payload,
+                "occurred_at": event.occurred_at.isoformat(),
+                "published_at": None,
+            },
+        )
+
+    def _tenant_values(self, bucket: str, tenant_id: TenantId) -> list[dict[str, Any]]:
+        return [
+            value
+            for value in self._store.data[bucket].values()
+            if value.get("tenant_id") == tenant_id.value
+        ]
+
+    def _get(self, bucket: str, tenant_id: TenantId, identifier: str) -> dict[str, Any] | None:
+        value = self._store.data[bucket].get(
+            self._key(tenant_id, EntityId.from_value(identifier).value)
+        )
+        return cast(dict[str, Any], value) if value is not None else None
+
+    def _save(
+        self, bucket: str, tenant_id: TenantId, identifier: str, value: dict[str, object]
+    ) -> None:
+        self._store.data[bucket][self._key(tenant_id, identifier)] = value
+        self._store.mark_dirty()
+
+    @classmethod
+    def _page(cls, items: list[Any], pagination: Pagination) -> tuple[list[Any], str | None]:
+        start = cls._offset(pagination.cursor)
+        selected = items[start : start + pagination.limit]
+        next_index = start + len(selected)
+        return selected, str(next_index) if next_index < len(items) else None
+
+    @staticmethod
+    def _key(tenant_id: TenantId, identifier: str) -> str:
+        return f"{tenant_id.value}:{identifier}"
+
+    @staticmethod
+    def _offset(cursor: str | None) -> int:
+        try:
+            offset = int(cursor or "0")
+        except ValueError as exc:
+            raise ValidationError("pagination cursor must be a numeric offset") from exc
+        if offset < 0:
+            raise ValidationError("pagination cursor must be positive")
+        return offset
+
+
+class JsonKubernetesTopologyRepository(KubernetesTopologyRepository):
+    def __init__(self, store: JsonDocumentStore) -> None:
+        self._store = store
+
+    def save_snapshot(self, snapshot: KubernetesTopologySnapshot) -> None:
+        self._save(
+            "kubernetes_topology_snapshots",
+            snapshot.tenant_id,
+            snapshot.id.value,
+            snapshot.as_dict(include_resources=True),
+        )
+
+    def get_snapshot(
+        self, tenant_id: TenantId, snapshot_id: str
+    ) -> KubernetesTopologySnapshot | None:
+        value = self._get("kubernetes_topology_snapshots", tenant_id, snapshot_id)
+        return KubernetesTopologyRecordMapper.snapshot(value) if value else None
+
+    def find_snapshot_by_fingerprint(
+        self, tenant_id: TenantId, fingerprint: str
+    ) -> KubernetesTopologySnapshot | None:
+        normalized = fingerprint.strip().lower()
+        for value in self._tenant_values("kubernetes_topology_snapshots", tenant_id):
+            if str(value.get("fingerprint", "")).strip().lower() == normalized:
+                return KubernetesTopologyRecordMapper.snapshot(value)
+        return None
+
+    def find_latest_snapshot(
+        self, tenant_id: TenantId, cluster_key: str
+    ) -> KubernetesTopologySnapshot | None:
+        normalized = cluster_key.strip().lower()
+        items = [
+            KubernetesTopologyRecordMapper.snapshot(value)
+            for value in self._tenant_values("kubernetes_topology_snapshots", tenant_id)
+            if value.get("cluster_key") == normalized
+        ]
+        if not items:
+            return None
+        return max(items, key=lambda item: (item.observed_at, item.imported_at, item.id.value))
+
+    def list_snapshots(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        cluster_key: str | None = None,
+        provider: str | None = None,
+        site_code: str | None = None,
+    ) -> KubernetesTopologySnapshotPage:
+        normalized_cluster = cluster_key.strip().lower() if cluster_key else None
+        normalized_provider = provider.strip().lower() if provider else None
+        normalized_site = site_code.strip().lower() if site_code else None
+        items = [
+            KubernetesTopologyRecordMapper.snapshot(value)
+            for value in self._tenant_values("kubernetes_topology_snapshots", tenant_id)
+            if (normalized_cluster is None or value.get("cluster_key") == normalized_cluster)
+            and (normalized_provider is None or value.get("provider") == normalized_provider)
+            and (normalized_site is None or value.get("site_code") == normalized_site)
+        ]
+        items.sort(
+            key=lambda item: (item.observed_at, item.imported_at, item.id.value), reverse=True
+        )
+        selected, cursor = self._page(items, pagination)
+        return KubernetesTopologySnapshotPage(tuple(selected), cursor)
+
+    def append_event(self, event: DomainEvent) -> None:
+        self._save(
+            "kubernetes_topology_event_outbox",
             event.tenant_id,
             event.id.value,
             {

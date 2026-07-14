@@ -121,6 +121,55 @@ const moduleDefinition = {
       ]
     },
     {
+      "id": "kubernetes-topologies-list",
+      "label": "Lister les instantanés Kubernetes",
+      "path": "/v1/kubernetes/topologies",
+      "method": "GET",
+      "fields": [
+        {"name": "limit", "label": "Limite", "type": "number", "defaultValue": "100", "min": 1, "max": 500},
+        {"name": "cursor", "label": "Curseur"},
+        {"name": "cluster_key", "label": "Clé cluster"},
+        {"name": "provider", "label": "Fournisseur Kubernetes"},
+        {"name": "site_code", "label": "Code site"}
+      ]
+    },
+    {
+      "id": "kubernetes-topology-latest",
+      "label": "Consulter le dernier inventaire Kubernetes",
+      "path": "/v1/kubernetes/topologies/latest",
+      "method": "GET",
+      "fields": [
+        {"name": "cluster_key", "label": "Clé cluster", "required": true}
+      ]
+    },
+    {
+      "id": "kubernetes-topology-graph",
+      "label": "Afficher la topologie Kubernetes et physique",
+      "path": "/v1/kubernetes/topologies/latest-topology",
+      "method": "GET",
+      "fields": [
+        {"name": "cluster_key", "label": "Clé cluster", "required": true}
+      ]
+    },
+    {
+      "id": "kubernetes-topology-import",
+      "label": "Importer un inventaire Kubernetes",
+      "path": "/v1/kubernetes/topologies/import",
+      "method": "POST",
+      "fields": [
+        {"name": "actor", "label": "Opérateur", "required": true, "defaultValue": "web"},
+        {"name": "cluster_key", "label": "Clé cluster", "required": true},
+        {"name": "cluster_name", "label": "Nom cluster", "required": true},
+        {"name": "provider", "label": "Fournisseur Kubernetes", "required": true},
+        {"name": "kubernetes_version", "label": "Version Kubernetes", "required": true},
+        {"name": "region", "label": "Région"},
+        {"name": "site_code", "label": "Code site"},
+        {"name": "source_ref", "label": "Référence source", "required": true},
+        {"name": "observed_at", "label": "Observé le", "format": "date-time", "required": true},
+        {"name": "resources", "label": "Ressources Kubernetes (JSON)", "type": "json", "required": true, "defaultValue": "[]"}
+      ]
+    },
+    {
       "id": "collectors-register",
       "label": "Enregistrer un agent proxy Enterprise",
       "path": "/v1/discovery/collectors",

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.33.0
+  version: 0.33.1
   description: >-
     API OpenInfra organisée dans Swagger et ReDoc par composant, puis par contexte métier.
     Chaque opération appartient à un contexte unique afin de conserver une navigation déterministe.
@@ -7664,6 +7664,40 @@ paths:
       - {name: cluster_key, in: query, required: true, schema: {type: string}}
       responses:
         '200': {description: Latest deterministic Kubernetes and physical topology graph}
+        '400': {description: Invalid or unknown cluster}
+        '401': {description: Missing or invalid bearer token}
+      tags:
+      - Discovery · Kubernetes et cloud-native
+      x-openinfra-component: Discovery
+      x-openinfra-context: Kubernetes et cloud-native
+  /api/v1/kubernetes/topologies/exposure:
+    get:
+      summary: Correlate Kubernetes network exposures with flow declarations and RSOT dependencies
+      description: Builds a deterministic read-only exposure graph for one immutable snapshot, covering ingress, load balancers, DNS, services and service-mesh routes.
+      security:
+      - bearerToken: []
+      parameters:
+      - {name: tenant_id, in: query, required: true, schema: {type: string}}
+      - {name: snapshot_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Deterministic cloud-native exposure, flow-correlation and RSOT dependency report}
+        '400': {description: Invalid or unknown snapshot}
+        '401': {description: Missing or invalid bearer token}
+      tags:
+      - Discovery · Kubernetes et cloud-native
+      x-openinfra-component: Discovery
+      x-openinfra-context: Kubernetes et cloud-native
+  /api/v1/kubernetes/topologies/latest-exposure:
+    get:
+      summary: Correlate the latest Kubernetes network exposures for a cluster
+      description: Resolves the latest immutable cluster snapshot and returns its deterministic read-only exposure, flow and dependency graph.
+      security:
+      - bearerToken: []
+      parameters:
+      - {name: tenant_id, in: query, required: true, schema: {type: string}}
+      - {name: cluster_key, in: query, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Latest cloud-native exposure, flow-correlation and RSOT dependency report}
         '400': {description: Invalid or unknown cluster}
         '401': {description: Missing or invalid bearer token}
       tags:

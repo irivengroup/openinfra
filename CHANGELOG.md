@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.33.1 — P21 / EPIC-2102 Expositions et dépendances réseau cloud-native
+
+- ajout des ressources Kubernetes `load-balancer`, `dns-record` et `mesh-route` dans les snapshots immuables existants ;
+- validation canonique des DNS, adresses IP, ports, protocoles, scopes, types de service et références RSOT ;
+- rapport déterministe d’exposition corrélant endpoints Kubernetes, déclarations de flux et relations de dépendance RSOT ;
+- identification explicite des expositions externes non gouvernées, sans mutation automatique de firewall, DNS, load balancer ou service mesh ;
+- bornes de corrélation : 10 000 déclarations de flux, 10 000 relations RSOT et 2 048 objets de dépendance ;
+- API, CLI, OpenAPI et portail Discovery alignés avec deux nouvelles opérations de lecture ;
+- CI, quality gate, packaging et smoke du wheel étendus au contrat EPIC-2102 ;
+- aucune migration PostgreSQL supplémentaire et aucune modification du thème.
+
 ## v0.33.0 — P21 / EPIC-2101 Kubernetes & Cloud-native topology
 
 | Exigence / Epic | Implémentation | Vérification |

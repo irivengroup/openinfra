@@ -63,3 +63,25 @@ La liste PostgreSQL utilise la pagination curseur/keyset sur `(observed_at, impo
 ## Sécurité
 
 Les permissions dédiées sont `kubernetes.read` et `kubernetes.write`. Les rôles `kubernetes:reader` et `kubernetes:operator` permettent une délégation minimale ; le rôle administrateur conserve l’ensemble des permissions. Les imports sont audités et produisent l’événement `kubernetes.topology.imported`.
+
+
+## EPIC-2102 — Expositions et dépendances réseau cloud-native
+
+OpenInfra 0.33.1 étend les instantanés immuables avec les ressources `load-balancer`, `dns-record` et `mesh-route`. Les services et ingress peuvent également porter des métadonnées d’exposition normalisées. Aucun nouveau stockage n’est créé : l’état observé reste versionné dans le snapshot Kubernetes, tandis que les déclarations de flux et les dépendances RSOT demeurent leurs propres sources de vérité.
+
+Le rapport d’exposition est une projection **read-only**, déterministe et calculée à la demande. Il corrèle :
+
+- les hôtes, adresses IP, ports et scopes `cluster`, `internal` ou `external` ;
+- les cibles Kubernetes typées jusqu’aux workloads et pods ;
+- les déclarations de flux `ANY`, `CIDR` et `OBJECT` existantes ;
+- les références `rsot_object_keys` et leurs relations de dépendance.
+
+Le graphe ajoute les relations `forwards-to`, `resolves-to`, `routes-to`, `exposes`, `correlates-to` et `governed-by-flow`. Une exposition externe non corrélée à une déclaration de flux reste visible comme **non gouvernée** ; OpenInfra ne l’autorise ni ne la bloque automatiquement.
+
+### Bornes et complexité
+
+La projection conserve la borne de 50 000 ressources par snapshot et limite la corrélation à 10 000 déclarations de flux, 10 000 relations RSOT et 2 048 objets de dépendance. Les lectures sont paginées, les curseurs cycliques sont refusés et le rapport expose `correlation_truncated` lorsqu’une borne protège la plateforme. Les index par UID, endpoints et clés RSOT évitent les recherches non bornées dans le graphe Kubernetes.
+
+### Sécurité
+
+Les valeurs de secrets restent interdites dans les attributs. Les DNS, IP, ports, protocoles, types de service et scopes sont normalisés et validés. La projection réutilise `kubernetes.read`; l’import reste protégé par `kubernetes.write`. Aucune règle de firewall, DNS, load balancer ou service mesh n’est modifiée par cette fonctionnalité.

@@ -23,7 +23,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.33.0"
+    EXPECTED_VERSION = "0.33.1"
     EXPECTED_ASYNC_ROUTES = (
         "/api/v1/async/jobs",
         "/api/v1/async/jobs/get",
@@ -168,6 +168,8 @@ class InstalledWheelSmoke:
         "/api/v1/kubernetes/topologies/latest",
         "/api/v1/kubernetes/topologies/topology",
         "/api/v1/kubernetes/topologies/latest-topology",
+        "/api/v1/kubernetes/topologies/exposure",
+        "/api/v1/kubernetes/topologies/latest-exposure",
         "/api/v1/kubernetes/topologies/import",
     )
     EXPECTED_MULTISITE_ROUTES = (
@@ -570,7 +572,7 @@ class InstalledWheelSmoke:
     def _assert_release_security_contract(package_root: Path) -> None:
         controls = ReleaseSecurityControlCatalog.build(
             package_root,
-            image_ref="openinfra/runtime:0.33.0",
+            image_ref="openinfra/runtime:0.33.1",
             api_base_url="http://127.0.0.1:8080",
             web_base_url="http://127.0.0.1:2006",
         )

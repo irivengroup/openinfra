@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import json
 import re
 from dataclasses import dataclass
@@ -9,6 +10,7 @@ from enum import StrEnum
 from typing import Any, Self, cast
 
 from openinfra.domain.common import EntityId, TenantId, ValidationError
+from openinfra.domain.source_of_truth import SourceObjectKey
 
 
 class KubernetesResourceKind(StrEnum):
@@ -18,6 +20,9 @@ class KubernetesResourceKind(StrEnum):
     POD = "pod"
     SERVICE = "service"
     INGRESS = "ingress"
+    LOAD_BALANCER = "load-balancer"
+    DNS_RECORD = "dns-record"
+    MESH_ROUTE = "mesh-route"
     NETWORK_POLICY = "network-policy"
     VOLUME = "volume"
 
@@ -30,6 +35,13 @@ class KubernetesResourceKind(StrEnum):
             "persistent-volume": cls.VOLUME.value,
             "persistentvolume": cls.VOLUME.value,
             "pvc": cls.VOLUME.value,
+            "loadbalancer": cls.LOAD_BALANCER.value,
+            "load-balancer": cls.LOAD_BALANCER.value,
+            "dnsrecord": cls.DNS_RECORD.value,
+            "dns-record": cls.DNS_RECORD.value,
+            "virtualservice": cls.MESH_ROUTE.value,
+            "httproute": cls.MESH_ROUTE.value,
+            "mesh-route": cls.MESH_ROUTE.value,
         }
         try:
             return cls(aliases.get(normalized, normalized))
@@ -120,6 +132,158 @@ class KubernetesTopologyValidator:
         if isinstance(value, (str, int, float, bool)) or value is None:
             return value
         raise ValidationError(f"{label} contains an unsupported JSON value at {path}")
+
+    @classmethod
+    def exposure_attributes(
+        cls, kind: KubernetesResourceKind, value: dict[str, Any]
+    ) -> dict[str, Any]:
+        normalized = cls.json_object(value, "resource attributes")
+        exposure_kinds = {
+            KubernetesResourceKind.SERVICE,
+            KubernetesResourceKind.INGRESS,
+            KubernetesResourceKind.LOAD_BALANCER,
+            KubernetesResourceKind.DNS_RECORD,
+            KubernetesResourceKind.MESH_ROUTE,
+        }
+        if kind not in exposure_kinds:
+            return normalized
+
+        result = dict(normalized)
+        if "scope" in result:
+            scope = str(result["scope"]).strip().lower()
+            if scope not in {"cluster", "internal", "external"}:
+                raise ValidationError(
+                    "Kubernetes exposure scope must be cluster, internal or external"
+                )
+            result["scope"] = scope
+        for key in ("hosts",):
+            if key in result:
+                result[key] = cls._string_array(
+                    result[key], key, lambda item, label=key: cls.name(item, label), maximum=128
+                )
+        for key in ("addresses", "cluster_ips", "external_ips"):
+            if key in result:
+                result[key] = cls._string_array(result[key], key, cls._ip_address, maximum=128)
+        if "ports" in result:
+            result["ports"] = cls._ports(result["ports"])
+        if "rsot_object_keys" in result:
+            result["rsot_object_keys"] = cls._string_array(
+                result["rsot_object_keys"],
+                "rsot_object_keys",
+                lambda item: SourceObjectKey.from_value(item).value,
+                maximum=128,
+            )
+        if "external_name" in result:
+            result["external_name"] = cls.name(str(result["external_name"]), "external_name")
+        if "service_type" in result:
+            service_type = (
+                str(result["service_type"]).strip().lower().replace("_", "").replace("-", "")
+            )
+            aliases = {
+                "clusterip": "cluster-ip",
+                "nodeport": "node-port",
+                "loadbalancer": "load-balancer",
+                "externalname": "external-name",
+            }
+            if service_type not in aliases:
+                raise ValidationError(
+                    "service_type must be ClusterIP, NodePort, LoadBalancer or ExternalName"
+                )
+            result["service_type"] = aliases[service_type]
+        if "scheme" in result:
+            scheme = str(result["scheme"]).strip().lower().replace("_", "-")
+            if scheme not in {"internal", "internet-facing"}:
+                raise ValidationError("load balancer scheme must be internal or internet-facing")
+            result["scheme"] = scheme
+        if "tls" in result and not isinstance(result["tls"], bool):
+            raise ValidationError("tls must be a boolean")
+        if "mesh" in result:
+            result["mesh"] = cls.token(str(result["mesh"]), "service mesh", 64)
+        if "protocol" in result:
+            protocol = str(result["protocol"]).strip().lower()
+            if protocol not in {"http", "https", "http2", "grpc", "tcp", "tls"}:
+                raise ValidationError("service mesh protocol is unsupported")
+            result["protocol"] = protocol
+        if kind is KubernetesResourceKind.DNS_RECORD:
+            record_type = str(result.get("record_type", "")).strip().upper()
+            if record_type not in {"A", "AAAA", "CNAME"}:
+                raise ValidationError("DNS record_type must be A, AAAA or CNAME")
+            raw_values = result.get("values")
+            if record_type in {"A", "AAAA"}:
+                values = cls._string_array(
+                    raw_values, "DNS record values", cls._ip_address, maximum=128
+                )
+                expected_version = 4 if record_type == "A" else 6
+                if any(ipaddress.ip_address(item).version != expected_version for item in values):
+                    raise ValidationError(
+                        f"DNS {record_type} record contains an incompatible address"
+                    )
+            else:
+                values = cls._string_array(
+                    raw_values,
+                    "DNS record values",
+                    lambda item: cls.name(item, "DNS target"),
+                    maximum=128,
+                )
+            if not values:
+                raise ValidationError("DNS record values cannot be empty")
+            ttl = int(result.get("ttl", 300))
+            if not 1 <= ttl <= 86_400:
+                raise ValidationError("DNS ttl must be between 1 and 86400 seconds")
+            result["record_type"] = record_type
+            result["values"] = values
+            result["ttl"] = ttl
+        return dict(sorted(result.items()))
+
+    @classmethod
+    def _string_array(
+        cls,
+        value: Any,
+        label: str,
+        normalizer: Any,
+        maximum: int,
+    ) -> list[str]:
+        if not isinstance(value, list):
+            raise ValidationError(f"{label} must be a JSON array")
+        if len(value) > maximum:
+            raise ValidationError(f"{label} cannot exceed {maximum} entries")
+        return sorted({normalizer(str(item)) for item in value})
+
+    @staticmethod
+    def _ip_address(value: str) -> str:
+        try:
+            return str(ipaddress.ip_address(value.strip()))
+        except ValueError as exc:
+            raise ValidationError("Kubernetes exposure address is invalid") from exc
+
+    @classmethod
+    def _ports(cls, value: Any) -> list[dict[str, object]]:
+        if not isinstance(value, list):
+            raise ValidationError("ports must be a JSON array")
+        if len(value) > 128:
+            raise ValidationError("ports cannot exceed 128 entries")
+        normalized: dict[tuple[int, str, str], dict[str, object]] = {}
+        for raw in value:
+            if not isinstance(raw, dict):
+                raise ValidationError("each port must be a JSON object")
+            raw_port = raw.get("port")
+            try:
+                port = int(str(raw_port))
+            except (TypeError, ValueError) as exc:
+                raise ValidationError("port must be an integer") from exc
+            if not 1 <= port <= 65_535:
+                raise ValidationError("port must be between 1 and 65535")
+            protocol = str(raw.get("protocol", "tcp")).strip().lower()
+            if protocol not in {"tcp", "udp", "sctp", "http", "https", "http2", "grpc", "tls"}:
+                raise ValidationError("Kubernetes exposure port protocol is unsupported")
+            name = str(raw.get("name", "")).strip().lower()
+            if name:
+                name = cls.token(name, "port name", 64)
+            entry = {"port": port, "protocol": protocol}
+            if name:
+                entry["name"] = name
+            normalized[(port, protocol, name)] = entry
+        return [normalized[key] for key in sorted(normalized)]
 
     @staticmethod
     def aware_datetime(value: datetime, label: str) -> datetime:
@@ -259,8 +423,8 @@ class KubernetesResource:
             owner_uid=KubernetesTopologyValidator.optional_token(owner_uid, "owner uid", 255),
             target_uids=targets,
             labels=KubernetesTopologyValidator.labels(labels or {}),
-            attributes=KubernetesTopologyValidator.json_object(
-                attributes or {}, "resource attributes"
+            attributes=KubernetesTopologyValidator.exposure_attributes(
+                normalized_kind, attributes or {}
             ),
             physical_path=physical_path,
         )
@@ -483,6 +647,20 @@ class KubernetesTopologySnapshot:
                 KubernetesResourceKind.POD,
             },
             KubernetesResourceKind.INGRESS: {KubernetesResourceKind.SERVICE},
+            KubernetesResourceKind.LOAD_BALANCER: {
+                KubernetesResourceKind.INGRESS,
+                KubernetesResourceKind.SERVICE,
+            },
+            KubernetesResourceKind.DNS_RECORD: {
+                KubernetesResourceKind.INGRESS,
+                KubernetesResourceKind.LOAD_BALANCER,
+                KubernetesResourceKind.SERVICE,
+            },
+            KubernetesResourceKind.MESH_ROUTE: {
+                KubernetesResourceKind.SERVICE,
+                KubernetesResourceKind.WORKLOAD,
+                KubernetesResourceKind.POD,
+            },
             KubernetesResourceKind.NETWORK_POLICY: {
                 KubernetesResourceKind.WORKLOAD,
                 KubernetesResourceKind.POD,
@@ -516,6 +694,41 @@ class KubernetesTopologySnapshot:
                     raise ValidationError(f"{item.kind.value} target must be one of: {expected}")
                 if item.namespace is not None and target.namespace != item.namespace:
                     raise ValidationError("Kubernetes target reference cannot cross namespaces")
+            KubernetesTopologySnapshot._validate_exposure_resource(item)
+
+    @staticmethod
+    def _validate_exposure_resource(item: KubernetesResource) -> None:
+        attributes = item.attributes
+        if item.kind is KubernetesResourceKind.LOAD_BALANCER:
+            if not item.target_uids:
+                raise ValidationError("load-balancer requires at least one target_uids entry")
+            if not attributes.get("addresses") and not attributes.get("hosts"):
+                raise ValidationError("load-balancer requires addresses or hosts")
+            if attributes.get("scope") not in {"internal", "external"}:
+                raise ValidationError("load-balancer requires an internal or external scope")
+        elif item.kind is KubernetesResourceKind.DNS_RECORD:
+            if not item.target_uids:
+                raise ValidationError("dns-record requires at least one target_uids entry")
+            if attributes.get("scope") not in {"internal", "external"}:
+                raise ValidationError("dns-record requires an internal or external scope")
+        elif item.kind is KubernetesResourceKind.MESH_ROUTE:
+            if not item.target_uids:
+                raise ValidationError("mesh-route requires at least one target_uids entry")
+            if not attributes.get("mesh"):
+                raise ValidationError("mesh-route requires a mesh attribute")
+            if not attributes.get("hosts"):
+                raise ValidationError("mesh-route requires at least one host")
+            if attributes.get("scope") not in {"internal", "external"}:
+                raise ValidationError("mesh-route requires an internal or external scope")
+        elif item.kind is KubernetesResourceKind.INGRESS and attributes:
+            exposure_keys = {"scope", "hosts", "addresses", "ports", "rsot_object_keys", "tls"}
+            if exposure_keys.intersection(attributes):
+                if not attributes.get("hosts") and not attributes.get("addresses"):
+                    raise ValidationError("ingress exposure metadata requires hosts or addresses")
+                if attributes.get("scope") not in {"internal", "external"}:
+                    raise ValidationError(
+                        "ingress exposure metadata requires internal or external scope"
+                    )
 
     @staticmethod
     def _fingerprint_payload(
@@ -588,6 +801,9 @@ class KubernetesTopologySnapshot:
                 relation = {
                     KubernetesResourceKind.SERVICE: "routes-to",
                     KubernetesResourceKind.INGRESS: "publishes",
+                    KubernetesResourceKind.LOAD_BALANCER: "forwards-to",
+                    KubernetesResourceKind.DNS_RECORD: "resolves-to",
+                    KubernetesResourceKind.MESH_ROUTE: "routes-to",
                     KubernetesResourceKind.NETWORK_POLICY: "governs",
                     KubernetesResourceKind.VOLUME: "mounted-by",
                 }.get(item.kind, "relates-to")

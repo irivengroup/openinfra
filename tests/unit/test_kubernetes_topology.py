@@ -35,7 +35,7 @@ def _resources() -> tuple[KubernetesResource, ...]:
             "api",
             namespace="production",
             labels={"app": "api"},
-            attributes={"replicas": 3, "image": "registry.example/openinfra/api:0.33.0"},
+            attributes={"replicas": 3, "image": "registry.example/openinfra/api:0.33.1"},
         ),
         KubernetesResource.create(
             "pod",

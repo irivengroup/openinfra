@@ -1,3 +1,11 @@
+## v0.33.1 — P21 / EPIC-2102 Expositions et dépendances réseau cloud-native
+
+- Roadmap : `P21`, `EPIC-2102`, `REL-11`, `REQ-00470`.
+- Domaine : ressources `load-balancer`, `dns-record`, `mesh-route` et projection `KubernetesExposureReport`.
+- Application : corrélation bornée avec déclarations de flux et dépendances RSOT.
+- Interfaces : API, CLI, OpenAPI et Discovery UI.
+- Validation : `scripts/validate_kubernetes_exposure.py` et tests dédiés unitaires/intégration.
+
 ## v0.33.0 — P21 / EPIC-2101 Kubernetes & Cloud-native topology
 
 | Exigence | Implémentation | Validation |

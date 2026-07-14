@@ -152,6 +152,24 @@ const moduleDefinition = {
       ]
     },
     {
+      "id": "kubernetes-exposure-latest",
+      "label": "Analyser les expositions réseau cloud-native",
+      "path": "/v1/kubernetes/topologies/latest-exposure",
+      "method": "GET",
+      "fields": [
+        {"name": "cluster_key", "label": "Clé cluster", "required": true}
+      ]
+    },
+    {
+      "id": "kubernetes-exposure-snapshot",
+      "label": "Analyser les expositions d’un instantané Kubernetes",
+      "path": "/v1/kubernetes/topologies/exposure",
+      "method": "GET",
+      "fields": [
+        {"name": "snapshot_id", "label": "ID instantané", "required": true}
+      ]
+    },
+    {
       "id": "kubernetes-topology-import",
       "label": "Importer un inventaire Kubernetes",
       "path": "/v1/kubernetes/topologies/import",

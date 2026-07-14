@@ -1,6 +1,20 @@
-# OpenInfra v0.33.0
+# OpenInfra v0.33.1
 
-OpenInfra 0.33.0 ouvre **P21 / REL-11 — Kubernetes & Cloud-native** avec **EPIC-2101 : inventaire Kubernetes versionné et topologie physique**. La version complète le socle Discovery existant sans nouvelle source de vérité : les instantanés Kubernetes sont immuables, audités, dédupliqués par empreinte canonique et reliés au RSOT/DCIM par références externes.
+OpenInfra 0.33.1 poursuit **P21 / REL-11 — Kubernetes & Cloud-native** avec **EPIC-2102 : expositions et dépendances réseau cloud-native**. La version corrèle ingress, load balancers, DNS, services et service mesh avec la matrice de flux et les dépendances RSOT existantes, sans nouvelle source de vérité ni mutation automatique de l’infrastructure.
+
+## Expositions cloud-native — P21 / EPIC-2102
+
+- corrélation `ingress`, `load-balancer`, `dns-record`, `service` et `mesh-route` ;
+- endpoints DNS/IP/ports normalisés et scopes `cluster`, `internal`, `external` ;
+- corrélation avec la matrice de flux existante (`ANY`, `CIDR`, `OBJECT`) ;
+- corrélation avec les objets et relations de dépendance RSOT ;
+- graphe déterministe d’exposition jusqu’aux workloads et dépendances réseau ;
+- signalement des expositions externes non gouvernées sans mutation automatique de l’infrastructure ;
+- bornes de protection : 10 000 déclarations de flux, 10 000 relations et 2 048 objets RSOT ;
+- API, CLI, OpenAPI et portail Discovery en parité ;
+- aucune migration supplémentaire et aucune modification de la charte graphique.
+
+Voir `docs/architecture/kubernetes-cloud-native-topology.md` et `docs/operations/kubernetes-topology.md`.
 
 ## Kubernetes & Cloud-native — P21 / EPIC-2101
 

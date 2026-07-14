@@ -1,6 +1,6 @@
 # Guide API
 
-Version cible : `0.33.0`
+Version cible : `0.33.1`
 
 ## Découverte des contrats
 

@@ -843,6 +843,8 @@ class ApplicationFactory:
             audit_repository,
             transaction_manager,
             security_service,
+            flow_matrix_repository,
+            source_of_truth_repository,
         )
         rag_service = RagService(
             rag_repository,

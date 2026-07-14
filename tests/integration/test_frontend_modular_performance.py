@@ -50,7 +50,7 @@ def test_packaged_runtime_loads_all_business_domains_on_demand() -> None:
 
     assert domain_files == EXPECTED_DOMAINS
     for domain in sorted(EXPECTED_DOMAINS):
-        assert f'import("./domains/{domain}.js?v=0.33.0")' in manifest
+        assert f'import("./domains/{domain}.js?v=0.33.1")' in manifest
     assert '"operations": []' in manifest
     assert '"loaded": false' in manifest
     assert '"path": "/v1/discovery/evidence"' not in shell
@@ -70,8 +70,8 @@ def test_runtime_domain_catalog_preserves_all_unique_operations() -> None:
             assert isinstance(operation_id, str) and operation_id
             operation_ids.append(operation_id)
 
-    assert len(operation_ids) == 274
-    assert len(set(operation_ids)) == 274
+    assert len(operation_ids) == 280
+    assert len(set(operation_ids)) == 280
 
 
 def test_react_reference_portal_exposes_a_chunk_for_every_business_domain() -> None:

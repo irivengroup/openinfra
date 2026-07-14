@@ -405,6 +405,16 @@ jobs:
             tests/integration/test_kubernetes_topology_postgresql_repository.py \
             tests/integration/test_kubernetes_topology_web_contract.py
 
+      - name: P21 Kubernetes cloud-native exposure contracts
+        run: |
+          python scripts/validate_kubernetes_exposure.py --project-root . --enforce
+          python -m pytest -q --no-cov \
+            tests/unit/test_kubernetes_exposure.py \
+            tests/integration/test_kubernetes_exposure_services.py \
+            tests/integration/test_kubernetes_exposure_http_api.py \
+            tests/integration/test_kubernetes_exposure_cli.py \
+            tests/integration/test_kubernetes_exposure_web_contract.py
+
       - name: Unit and integration tests with coverage
         run: python -m pytest
 

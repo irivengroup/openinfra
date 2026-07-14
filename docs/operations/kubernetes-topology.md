@@ -59,3 +59,42 @@ Les routes sont documentées dans Swagger/ReDoc sous **Discovery · Kubernetes e
 ## Rollback
 
 La migration 0055 est additive. Un rollback applicatif vers une version antérieure n’exige pas la suppression des tables : elles peuvent rester inutilisées. La suppression de données ou de tables n’est jamais exécutée automatiquement par OpenInfra.
+
+
+## EPIC-2102 — Expositions réseau cloud-native
+
+Les ressources suivantes peuvent être importées dans le même `resources-file` immuable :
+
+- `service` : `service_type`, `cluster_ips`, `external_ips`, `external_name`, `ports`, `scope`, `rsot_object_keys` ;
+- `ingress` : `hosts`, `addresses`, `ports`, `scope`, `tls`, `rsot_object_keys` ;
+- `load-balancer` : `hosts`, `addresses`, `ports`, `scope`, `scheme`, `rsot_object_keys` ;
+- `dns-record` : `record_type` (`A`, `AAAA`, `CNAME`), `values`, `ttl`, `scope`, `rsot_object_keys` ;
+- `mesh-route` : `mesh`, `protocol`, `hosts`, `ports`, `scope`, `rsot_object_keys`.
+
+Les cibles restent des UID Kubernetes présents dans le snapshot : load balancer vers ingress/service, DNS vers ingress/load balancer/service et route mesh vers service/workload/pod.
+
+### Rapport par snapshot
+
+```bash
+openinfra kubernetes exposure \
+  --data ./openinfra-state.json \
+  --tenant default \
+  --admin-token "$OPENINFRA_API_TOKEN" \
+  --snapshot-id "$SNAPSHOT_ID"
+```
+
+API : `GET /api/v1/kubernetes/topologies/exposure?tenant_id=default&snapshot_id=<uuid>`.
+
+### Rapport du dernier snapshot
+
+```bash
+openinfra kubernetes latest-exposure \
+  --data ./openinfra-state.json \
+  --tenant default \
+  --admin-token "$OPENINFRA_API_TOKEN" \
+  --cluster-key cluster-par-01
+```
+
+API : `GET /api/v1/kubernetes/topologies/latest-exposure?tenant_id=default&cluster_key=cluster-par-01`.
+
+Le résultat indique notamment le nombre d’expositions externes, les corrélations de flux autorisées/refusées, les expositions externes non gouvernées, les dépendances RSOT et l’état `correlation_truncated`. Une troncature protège la plateforme et doit déclencher une analyse opérationnelle ; elle ne doit jamais être interprétée comme une absence de dépendance.

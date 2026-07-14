@@ -361,9 +361,9 @@ class FrontendContractValidator:
             )
 
         operation_ids = re.findall(r'^\s{6}"id": "([^"]+)",?$', runtime_catalog, flags=re.MULTILINE)
-        if len(operation_ids) != 278:
+        if len(operation_ids) != 280:
             raise FrontendValidationError(
-                f"runtime domain catalog must expose 278 operations, found {len(operation_ids)}"
+                f"runtime domain catalog must expose 280 operations, found {len(operation_ids)}"
             )
         duplicates = sorted(
             operation_id
@@ -384,6 +384,8 @@ class FrontendContractValidator:
             "kubernetes-topology-latest",
             "kubernetes-topology-graph",
             "kubernetes-topology-import",
+            "kubernetes-exposure-latest",
+            "kubernetes-exposure-snapshot",
             "export-artifact-chunk",
             "servicenow-validate",
             "audit-events",

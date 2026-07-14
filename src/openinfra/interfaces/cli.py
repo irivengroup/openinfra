@@ -2530,6 +2530,24 @@ class OpenInfraCLI:
         latest_topology.add_argument("--cluster-key", required=True)
         latest_topology.set_defaults(handler=self._handle_kubernetes_latest_topology)
 
+        exposure = commands.add_parser(
+            "exposure", help="render the network exposure graph for one snapshot"
+        )
+        self._add_backend_arguments(exposure)
+        exposure.add_argument("--tenant", required=True)
+        exposure.add_argument("--admin-token", required=True)
+        exposure.add_argument("--snapshot-id", required=True)
+        exposure.set_defaults(handler=self._handle_kubernetes_exposure)
+
+        latest_exposure = commands.add_parser(
+            "latest-exposure", help="render the latest network exposure graph for a cluster"
+        )
+        self._add_backend_arguments(latest_exposure)
+        latest_exposure.add_argument("--tenant", required=True)
+        latest_exposure.add_argument("--admin-token", required=True)
+        latest_exposure.add_argument("--cluster-key", required=True)
+        latest_exposure.set_defaults(handler=self._handle_kubernetes_latest_exposure)
+
     def _add_sbom_commands(self, subparsers: Any) -> None:
         sbom = subparsers.add_parser(
             "sbom", help="Security SBOM, vulnerability and contextual exposure operations"
@@ -7083,6 +7101,20 @@ class OpenInfraCLI:
             GetLatestKubernetesTopologyCommand(args.tenant, args.admin_token, args.cluster_key)
         )
         print(json.dumps(payload, indent=2, sort_keys=True))
+        return 0
+
+    def _handle_kubernetes_exposure(self, args: argparse.Namespace) -> int:
+        report = self._create_application(args).kubernetes_topology_service.exposure(
+            GetKubernetesTopologyCommand(args.tenant, args.admin_token, args.snapshot_id)
+        )
+        print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_kubernetes_latest_exposure(self, args: argparse.Namespace) -> int:
+        report = self._create_application(args).kubernetes_topology_service.latest_exposure(
+            GetLatestKubernetesTopologyCommand(args.tenant, args.admin_token, args.cluster_key)
+        )
+        print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
         return 0
 
     @staticmethod

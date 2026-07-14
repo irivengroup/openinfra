@@ -119,6 +119,15 @@ class TestSecurityGate:
 
         assert findings == []
 
+    def test_secret_scanner_ignores_uri_scheme_continuations(self, tmp_path: Path) -> None:
+        document = tmp_path / "references.md"
+        document.write_text(
+            "kubernetes-secret://namespace/name\nexternal-secret://provider/object\n",
+            encoding="utf-8",
+        )
+
+        assert RepositorySecretScanner(tmp_path).scan() == []
+
     def test_security_gate_rejects_known_token_pattern(self, tmp_path: Path) -> None:
         workflow = tmp_path / ".github/workflows/ci.yml"
         workflow.parent.mkdir(parents=True)

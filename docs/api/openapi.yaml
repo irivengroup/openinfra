@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.33.2
+  version: 0.33.3
   description: >-
     API OpenInfra organisée dans Swagger et ReDoc par composant, puis par contexte métier.
     Chaque opération appartient à un contexte unique afin de conserver une navigation déterministe.
@@ -7704,10 +7704,44 @@ paths:
       - Discovery · Kubernetes et cloud-native
       x-openinfra-component: Discovery
       x-openinfra-context: Kubernetes et cloud-native
+  /api/v1/kubernetes/topologies/security:
+    get:
+      summary: Correlate Kubernetes images, SBOM findings, certificates and secret references
+      description: Builds a deterministic read-only security correlation report for one immutable snapshot. Secret values are never ingested or resolved; only approved references, masked displays and irreversible reference hashes are retained.
+      security:
+      - bearerToken: []
+      parameters:
+      - {name: tenant_id, in: query, required: true, schema: {type: string}}
+      - {name: snapshot_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Contextualized image, SBOM vulnerability, certificate and secret-reference report}
+        '400': {description: Invalid or unknown snapshot}
+        '401': {description: Missing or invalid bearer token}
+      tags:
+      - Discovery · Kubernetes et cloud-native
+      x-openinfra-component: Discovery
+      x-openinfra-context: Kubernetes et cloud-native
+  /api/v1/kubernetes/topologies/latest-security:
+    get:
+      summary: Correlate the latest Kubernetes security context for a cluster
+      description: Resolves the latest immutable cluster snapshot and returns its deterministic read-only image, SBOM, certificate and secret-reference correlation report.
+      security:
+      - bearerToken: []
+      parameters:
+      - {name: tenant_id, in: query, required: true, schema: {type: string}}
+      - {name: cluster_key, in: query, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Latest contextualized Kubernetes security correlation report}
+        '400': {description: Invalid or unknown cluster}
+        '401': {description: Missing or invalid bearer token}
+      tags:
+      - Discovery · Kubernetes et cloud-native
+      x-openinfra-component: Discovery
+      x-openinfra-context: Kubernetes et cloud-native
   /api/v1/kubernetes/topologies/import:
     post:
       summary: Import an immutable Kubernetes inventory snapshot
-      description: Validates referential integrity, rejects secret-like attributes, deduplicates by canonical fingerprint and records an audited immutable snapshot.
+      description: Validates referential integrity, rejects secret material, normalizes approved secret references into masked/hash-only representations, deduplicates by canonical fingerprint and records an audited immutable snapshot.
       security:
       - bearerToken: []
       requestBody:

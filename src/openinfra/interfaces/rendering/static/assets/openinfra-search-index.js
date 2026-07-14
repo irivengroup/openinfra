@@ -2251,6 +2251,22 @@ const OPENINFRA_SEARCH_INDEX = [
   {
     "moduleId": "discovery",
     "moduleLabel": "Discovery",
+    "id": "kubernetes-security-latest",
+    "label": "Corréler la sécurité cloud-native du cluster",
+    "method": "GET",
+    "path": "/v1/kubernetes/topologies/latest-security"
+  },
+  {
+    "moduleId": "discovery",
+    "moduleLabel": "Discovery",
+    "id": "kubernetes-security-snapshot",
+    "label": "Corréler la sécurité d’un instantané Kubernetes",
+    "method": "GET",
+    "path": "/v1/kubernetes/topologies/security"
+  },
+  {
+    "moduleId": "discovery",
+    "moduleLabel": "Discovery",
     "id": "kubernetes-topology-import",
     "label": "Importer un inventaire Kubernetes",
     "method": "POST",

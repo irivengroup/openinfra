@@ -1,6 +1,21 @@
-# OpenInfra v0.33.2
+# OpenInfra v0.33.3
 
-OpenInfra 0.33.2 améliore structurellement l’expérience opérateur sans modifier les contrats API/CLI : les familles CRUD homogènes de DCIM et ITAM sont consolidées en espaces de **gestion unifiée** avec tableau filtrable, consultation détaillée, création, édition et suppression gouvernée.
+OpenInfra 0.33.3 ajoute la **corrélation sécurité cloud-native** entre workloads Kubernetes, images OCI, documents SBOM, findings de vulnérabilité, certificats PKI et références de secrets, sans ingérer ni persister de secret en clair.
+
+## Corrélation sécurité cloud-native — P21 / EPIC-2103
+
+- images OCI normalisées et digest SHA-256 optionnel ;
+- association explicite ou contextuelle aux documents SBOM existants ;
+- contextualisation des findings actifs et critiques par workload/pod ;
+- corrélation des empreintes de certificats avec l’inventaire PKI ;
+- références de secrets approuvées, masquées pour les fournisseurs externes et hachées ;
+- aucun contenu de secret, mot de passe, token ou clé privée ingéré ;
+- rapport déterministe et borné, avec signalement explicite d’une corrélation tronquée ;
+- compatibilité des fingerprints de snapshots historiques préservée ;
+- API, CLI, OpenAPI et portail Discovery en parité ;
+- aucune nouvelle migration et aucune modification de la charte graphique.
+
+Voir `docs/architecture/kubernetes-cloud-native-security.md` et `docs/operations/kubernetes-security-correlation.md`.
 
 ## Gestion CRUD unifiée
 

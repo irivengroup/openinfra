@@ -104,7 +104,7 @@ class RepositorySecretScanner:
         )
         self._assignment_pattern = re.compile(
             r"(?i)\b(?:password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token)\b"
-            r"\s*[:=]\s*['\"]?([^'\"\s#]{16,})"
+            r"\s*[:=]\s*(?!//)['\"]?([^'\"\s#]{16,})"
         )
 
     def scan(self) -> list[SecretFinding]:

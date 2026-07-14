@@ -170,6 +170,24 @@ const moduleDefinition = {
       ]
     },
     {
+      "id": "kubernetes-security-latest",
+      "label": "Corréler la sécurité cloud-native du cluster",
+      "path": "/v1/kubernetes/topologies/latest-security",
+      "method": "GET",
+      "fields": [
+        {"name": "cluster_key", "label": "Clé cluster", "required": true}
+      ]
+    },
+    {
+      "id": "kubernetes-security-snapshot",
+      "label": "Corréler la sécurité d’un instantané Kubernetes",
+      "path": "/v1/kubernetes/topologies/security",
+      "method": "GET",
+      "fields": [
+        {"name": "snapshot_id", "label": "ID instantané", "required": true}
+      ]
+    },
+    {
       "id": "kubernetes-topology-import",
       "label": "Importer un inventaire Kubernetes",
       "path": "/v1/kubernetes/topologies/import",

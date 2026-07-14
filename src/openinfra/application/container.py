@@ -845,6 +845,8 @@ class ApplicationFactory:
             security_service,
             flow_matrix_repository,
             source_of_truth_repository,
+            sbom_repository,
+            certificate_inventory_repository,
         )
         rag_service = RagService(
             rag_repository,

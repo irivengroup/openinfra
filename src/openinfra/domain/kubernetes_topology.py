@@ -10,6 +10,7 @@ from enum import StrEnum
 from typing import Any, Self, cast
 
 from openinfra.domain.common import EntityId, TenantId, ValidationError
+from openinfra.domain.kubernetes_security import KubernetesImageReference, KubernetesSecretReference
 from openinfra.domain.source_of_truth import SourceObjectKey
 
 
@@ -367,6 +368,9 @@ class KubernetesResource:
     target_uids: tuple[str, ...]
     labels: dict[str, str]
     attributes: dict[str, Any]
+    images: tuple[KubernetesImageReference, ...]
+    certificate_fingerprints: tuple[str, ...]
+    secret_refs: tuple[KubernetesSecretReference, ...]
     physical_path: KubernetesPhysicalPath | None
 
     @classmethod
@@ -381,6 +385,9 @@ class KubernetesResource:
         target_uids: tuple[str, ...] = (),
         labels: dict[str, str] | None = None,
         attributes: dict[str, Any] | None = None,
+        images: tuple[KubernetesImageReference, ...] = (),
+        certificate_fingerprints: tuple[str, ...] = (),
+        secret_refs: tuple[KubernetesSecretReference, ...] = (),
         physical_path: KubernetesPhysicalPath | None = None,
     ) -> Self:
         normalized_kind = KubernetesResourceKind.from_value(kind)
@@ -414,6 +421,52 @@ class KubernetesResource:
         )
         if len(targets) > 1024:
             raise ValidationError("Kubernetes resource target_uids cannot exceed 1024 entries")
+        normalized_images = tuple(
+            sorted(
+                set(images),
+                key=lambda item: (item.reference, item.digest or "", item.sbom_document_ids),
+            )
+        )
+        if len(normalized_images) > 64:
+            raise ValidationError("Kubernetes resource images cannot exceed 64 entries")
+        if normalized_images and normalized_kind not in {
+            KubernetesResourceKind.WORKLOAD,
+            KubernetesResourceKind.POD,
+        }:
+            raise ValidationError("Kubernetes images are only valid for workloads and pods")
+        normalized_certificates = tuple(
+            sorted({cls._certificate_fingerprint(item) for item in certificate_fingerprints})
+        )
+        if len(normalized_certificates) > 64:
+            raise ValidationError("Kubernetes certificate references cannot exceed 64 entries")
+        certificate_kinds = {
+            KubernetesResourceKind.WORKLOAD,
+            KubernetesResourceKind.POD,
+            KubernetesResourceKind.SERVICE,
+            KubernetesResourceKind.INGRESS,
+            KubernetesResourceKind.LOAD_BALANCER,
+            KubernetesResourceKind.MESH_ROUTE,
+        }
+        if normalized_certificates and normalized_kind not in certificate_kinds:
+            raise ValidationError(
+                "certificate references are unsupported for this Kubernetes resource kind"
+            )
+        normalized_secrets = tuple(
+            sorted(set(secret_refs), key=lambda item: (item.provider, item.reference_hash))
+        )
+        if len(normalized_secrets) > 64:
+            raise ValidationError("Kubernetes secret references cannot exceed 64 entries")
+        secret_kinds = {
+            KubernetesResourceKind.WORKLOAD,
+            KubernetesResourceKind.POD,
+            KubernetesResourceKind.SERVICE,
+            KubernetesResourceKind.INGRESS,
+            KubernetesResourceKind.MESH_ROUTE,
+        }
+        if normalized_secrets and normalized_kind not in secret_kinds:
+            raise ValidationError(
+                "secret references are unsupported for this Kubernetes resource kind"
+            )
         return cls(
             kind=normalized_kind,
             uid=KubernetesTopologyValidator.token(uid, "resource uid", 255),
@@ -426,8 +479,18 @@ class KubernetesResource:
             attributes=KubernetesTopologyValidator.exposure_attributes(
                 normalized_kind, attributes or {}
             ),
+            images=normalized_images,
+            certificate_fingerprints=normalized_certificates,
+            secret_refs=normalized_secrets,
             physical_path=physical_path,
         )
+
+    @staticmethod
+    def _certificate_fingerprint(value: str) -> str:
+        normalized = value.strip().lower()
+        if not re.fullmatch(r"[a-f0-9]{64}", normalized):
+            raise ValidationError("Kubernetes certificate fingerprint must be a SHA-256 digest")
+        return normalized
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> Self:
@@ -436,11 +499,35 @@ class KubernetesResource:
             raise ValidationError("target_uids must be a JSON array")
         raw_labels = payload.get("labels") or {}
         raw_attributes = payload.get("attributes") or {}
+        raw_images = payload.get("images") or []
+        raw_certificates = payload.get("certificate_fingerprints") or []
+        raw_secret_refs = payload.get("secret_refs") or []
         raw_path = payload.get("physical_path")
         if not isinstance(raw_labels, dict) or not isinstance(raw_attributes, dict):
             raise ValidationError("labels and attributes must be JSON objects")
+        if not isinstance(raw_images, list):
+            raise ValidationError("images must be a JSON array")
+        if not isinstance(raw_certificates, list):
+            raise ValidationError("certificate_fingerprints must be a JSON array")
+        if not isinstance(raw_secret_refs, list):
+            raise ValidationError("secret_refs must be a JSON array")
         if raw_path is not None and not isinstance(raw_path, dict):
             raise ValidationError("physical_path must be a JSON object")
+        images: list[KubernetesImageReference] = []
+        for item in raw_images:
+            if not isinstance(item, dict):
+                raise ValidationError("each Kubernetes image reference must be a JSON object")
+            images.append(KubernetesImageReference.from_dict(cast(dict[str, Any], item)))
+        secret_refs: list[KubernetesSecretReference] = []
+        for item in raw_secret_refs:
+            if isinstance(item, str):
+                secret_refs.append(KubernetesSecretReference.create(item))
+            elif isinstance(item, dict):
+                secret_refs.append(KubernetesSecretReference.from_dict(cast(dict[str, Any], item)))
+            else:
+                raise ValidationError(
+                    "each Kubernetes secret reference must be a string or JSON object"
+                )
         return cls.create(
             kind=str(payload.get("kind") or ""),
             uid=str(payload.get("uid") or ""),
@@ -451,11 +538,14 @@ class KubernetesResource:
             target_uids=tuple(str(item) for item in raw_targets),
             labels={str(key): str(value) for key, value in raw_labels.items()},
             attributes=cast(dict[str, Any], raw_attributes),
+            images=tuple(images),
+            certificate_fingerprints=tuple(str(item) for item in raw_certificates),
+            secret_refs=tuple(secret_refs),
             physical_path=KubernetesPhysicalPath.from_dict(cast(dict[str, Any] | None, raw_path)),
         )
 
     def as_dict(self) -> dict[str, object]:
-        return {
+        payload: dict[str, object] = {
             "kind": self.kind.value,
             "uid": self.uid,
             "name": self.name,
@@ -467,6 +557,13 @@ class KubernetesResource:
             "attributes": self.attributes,
             "physical_path": None if self.physical_path is None else self.physical_path.as_dict(),
         }
+        if self.images:
+            payload["images"] = [item.as_dict() for item in self.images]
+        if self.certificate_fingerprints:
+            payload["certificate_fingerprints"] = list(self.certificate_fingerprints)
+        if self.secret_refs:
+            payload["secret_refs"] = [item.as_dict() for item in self.secret_refs]
+        return payload
 
 
 @dataclass(frozen=True, slots=True)

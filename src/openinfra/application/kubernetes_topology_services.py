@@ -6,9 +6,11 @@ from typing import Any
 
 from openinfra.application.ports import (
     AuditRepository,
+    CertificateInventoryRepository,
     FlowMatrixRepository,
     KubernetesTopologyRepository,
     KubernetesTopologySnapshotPage,
+    SbomRepository,
     SourceOfTruthRepository,
     TransactionManager,
 )
@@ -23,10 +25,12 @@ from openinfra.domain.common import (
 )
 from openinfra.domain.flow_matrix import FlowDeclaration
 from openinfra.domain.kubernetes_exposure import KubernetesExposureReport
+from openinfra.domain.kubernetes_security import KubernetesSecurityCorrelationReport
 from openinfra.domain.kubernetes_topology import (
     KubernetesResource,
     KubernetesTopologySnapshot,
 )
+from openinfra.domain.sbom import RiskFinding, SbomDocument
 from openinfra.domain.security import AuthenticatedPrincipal, Permission
 from openinfra.domain.source_of_truth import SourceRelation
 
@@ -78,6 +82,9 @@ class KubernetesTopologyService:
     _MAX_CORRELATION_OBJECT_KEYS = 128
     _MAX_DEPENDENCY_RELATIONS = 10_000
     _MAX_DEPENDENCY_OBJECTS = 2_048
+    _MAX_SBOM_DOCUMENTS = 2_000
+    _MAX_SBOM_DIRECT_REFERENCES = 512
+    _MAX_SBOM_FINDINGS = 10_000
 
     def __init__(
         self,
@@ -87,6 +94,8 @@ class KubernetesTopologyService:
         security_service: SecurityService,
         flow_matrix_repository: FlowMatrixRepository,
         source_of_truth_repository: SourceOfTruthRepository,
+        sbom_repository: SbomRepository | None = None,
+        certificate_repository: CertificateInventoryRepository | None = None,
     ) -> None:
         self._repository = repository
         self._audit_repository = audit_repository
@@ -94,6 +103,8 @@ class KubernetesTopologyService:
         self._security_service = security_service
         self._flow_matrix_repository = flow_matrix_repository
         self._source_of_truth_repository = source_of_truth_repository
+        self._sbom_repository = sbom_repository
+        self._certificate_repository = certificate_repository
 
     def import_snapshot(
         self, command: ImportKubernetesTopologyCommand
@@ -196,6 +207,131 @@ class KubernetesTopologyService:
     ) -> KubernetesExposureReport:
         snapshot = self.get_latest_snapshot(command)
         return self._exposure_report(snapshot)
+
+    def security(
+        self, command: GetKubernetesTopologyCommand
+    ) -> KubernetesSecurityCorrelationReport:
+        snapshot = self.get_snapshot(command)
+        return self._security_report(snapshot)
+
+    def latest_security(
+        self, command: GetLatestKubernetesTopologyCommand
+    ) -> KubernetesSecurityCorrelationReport:
+        snapshot = self.get_latest_snapshot(command)
+        return self._security_report(snapshot)
+
+    def _security_report(
+        self, snapshot: KubernetesTopologySnapshot
+    ) -> KubernetesSecurityCorrelationReport:
+        if self._sbom_repository is None or self._certificate_repository is None:
+            raise ValidationError("Kubernetes security correlation repositories are unavailable")
+        documents, documents_truncated = self._sbom_documents(snapshot.tenant_id)
+        direct_ids = sorted(
+            {
+                document_id
+                for resource in snapshot.resources
+                for image in resource.images
+                for document_id in image.sbom_document_ids
+            }
+        )
+        direct_truncated = len(direct_ids) > self._MAX_SBOM_DIRECT_REFERENCES
+        document_by_id = {item.id.value: item for item in documents}
+        for document_id in direct_ids[: self._MAX_SBOM_DIRECT_REFERENCES]:
+            if document_id in document_by_id:
+                continue
+            document = self._sbom_repository.get_document(snapshot.tenant_id, document_id)
+            if document is not None:
+                document_by_id[document.id.value] = document
+        normalized_documents = tuple(
+            sorted(
+                document_by_id.values(),
+                key=lambda item: (
+                    item.application,
+                    item.environment,
+                    item.document_version,
+                    item.id.value,
+                ),
+            )
+        )
+        findings, findings_truncated = self._sbom_findings(snapshot.tenant_id)
+        fingerprints = sorted(
+            {
+                fingerprint
+                for resource in snapshot.resources
+                for fingerprint in resource.certificate_fingerprints
+            }
+        )
+        certificates = {
+            fingerprint: certificate
+            for fingerprint in fingerprints
+            if (
+                certificate := self._certificate_repository.get_certificate_by_fingerprint(
+                    snapshot.tenant_id, fingerprint
+                )
+            )
+            is not None
+        }
+        return KubernetesSecurityCorrelationReport.build(
+            snapshot=snapshot,
+            sbom_documents=normalized_documents,
+            findings=findings,
+            certificates=certificates,
+            correlation_truncated=(documents_truncated or direct_truncated or findings_truncated),
+        )
+
+    def _sbom_documents(self, tenant_id: TenantId) -> tuple[tuple[SbomDocument, ...], bool]:
+        if self._sbom_repository is None:
+            return (), False
+        items: list[SbomDocument] = []
+        cursor: str | None = None
+        next_cursor: str | None = None
+        seen: set[str] = set()
+        truncated = False
+        while len(items) < self._MAX_SBOM_DOCUMENTS:
+            page = self._sbom_repository.list_documents(
+                tenant_id, Pagination.from_values(self._PAGE_SIZE, cursor)
+            )
+            items.extend(page.items)
+            next_cursor = page.next_cursor
+            if next_cursor is None:
+                break
+            if next_cursor in seen:
+                raise ValidationError("SBOM document repository returned a cyclic cursor")
+            seen.add(next_cursor)
+            cursor = next_cursor
+        if len(items) > self._MAX_SBOM_DOCUMENTS:
+            items = items[: self._MAX_SBOM_DOCUMENTS]
+            truncated = True
+        elif len(items) == self._MAX_SBOM_DOCUMENTS and next_cursor is not None:
+            truncated = True
+        return tuple(items), truncated
+
+    def _sbom_findings(self, tenant_id: TenantId) -> tuple[tuple[RiskFinding, ...], bool]:
+        if self._sbom_repository is None:
+            return (), False
+        items: list[RiskFinding] = []
+        cursor: str | None = None
+        next_cursor: str | None = None
+        seen: set[str] = set()
+        truncated = False
+        while len(items) < self._MAX_SBOM_FINDINGS:
+            page = self._sbom_repository.list_findings(
+                tenant_id, Pagination.from_values(self._PAGE_SIZE, cursor)
+            )
+            items.extend(page.items)
+            next_cursor = page.next_cursor
+            if next_cursor is None:
+                break
+            if next_cursor in seen:
+                raise ValidationError("SBOM finding repository returned a cyclic cursor")
+            seen.add(next_cursor)
+            cursor = next_cursor
+        if len(items) > self._MAX_SBOM_FINDINGS:
+            items = items[: self._MAX_SBOM_FINDINGS]
+            truncated = True
+        elif len(items) == self._MAX_SBOM_FINDINGS and next_cursor is not None:
+            truncated = True
+        return tuple(items), truncated
 
     def _exposure_report(self, snapshot: KubernetesTopologySnapshot) -> KubernetesExposureReport:
         declarations, flow_truncated = self._active_flow_declarations(snapshot.tenant_id)

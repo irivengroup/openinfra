@@ -1991,6 +1991,38 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             except (ValueError, OpenInfraError) as exc:
                 responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
+        if route == "/api/v1/kubernetes/topologies/security":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.kubernetes_topology_service.security(
+                    GetKubernetesTopologyCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        snapshot_id=self._first_query_value(query, "snapshot_id"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/kubernetes/topologies/latest-security":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.kubernetes_topology_service.latest_security(
+                    GetLatestKubernetesTopologyCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        cluster_key=self._first_query_value(query, "cluster_key"),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
 
         if route == "/api/v1/sbom/documents":
             try:
@@ -8781,6 +8813,8 @@ class OpenInfraApiRuntime(BaseServer):
                     "topology_latest_graph": "/api/v1/kubernetes/topologies/latest-topology",
                     "topology_exposure": "/api/v1/kubernetes/topologies/exposure",
                     "topology_latest_exposure": "/api/v1/kubernetes/topologies/latest-exposure",
+                    "topology_security": "/api/v1/kubernetes/topologies/security",
+                    "topology_latest_security": "/api/v1/kubernetes/topologies/latest-security",
                     "topology_import": "/api/v1/kubernetes/topologies/import",
                 },
                 "sbom": {

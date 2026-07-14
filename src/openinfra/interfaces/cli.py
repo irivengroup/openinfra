@@ -2548,6 +2548,29 @@ class OpenInfraCLI:
         latest_exposure.add_argument("--cluster-key", required=True)
         latest_exposure.set_defaults(handler=self._handle_kubernetes_latest_exposure)
 
+        security = commands.add_parser(
+            "security",
+            help="correlate images, SBOM, certificates and secret references for one snapshot",
+        )
+        self._add_backend_arguments(security)
+        security.add_argument("--tenant", required=True)
+        security.add_argument("--admin-token", required=True)
+        security.add_argument("--snapshot-id", required=True)
+        security.set_defaults(handler=self._handle_kubernetes_security)
+
+        latest_security = commands.add_parser(
+            "latest-security",
+            help=(
+                "correlate images, SBOM, certificates and secret references "
+                "for the latest cluster snapshot"
+            ),
+        )
+        self._add_backend_arguments(latest_security)
+        latest_security.add_argument("--tenant", required=True)
+        latest_security.add_argument("--admin-token", required=True)
+        latest_security.add_argument("--cluster-key", required=True)
+        latest_security.set_defaults(handler=self._handle_kubernetes_latest_security)
+
     def _add_sbom_commands(self, subparsers: Any) -> None:
         sbom = subparsers.add_parser(
             "sbom", help="Security SBOM, vulnerability and contextual exposure operations"
@@ -7112,6 +7135,20 @@ class OpenInfraCLI:
 
     def _handle_kubernetes_latest_exposure(self, args: argparse.Namespace) -> int:
         report = self._create_application(args).kubernetes_topology_service.latest_exposure(
+            GetLatestKubernetesTopologyCommand(args.tenant, args.admin_token, args.cluster_key)
+        )
+        print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_kubernetes_security(self, args: argparse.Namespace) -> int:
+        report = self._create_application(args).kubernetes_topology_service.security(
+            GetKubernetesTopologyCommand(args.tenant, args.admin_token, args.snapshot_id)
+        )
+        print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_kubernetes_latest_security(self, args: argparse.Namespace) -> int:
+        report = self._create_application(args).kubernetes_topology_service.latest_security(
             GetLatestKubernetesTopologyCommand(args.tenant, args.admin_token, args.cluster_key)
         )
         print(json.dumps(report.as_dict(), indent=2, sort_keys=True))

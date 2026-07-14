@@ -415,6 +415,17 @@ jobs:
             tests/integration/test_kubernetes_exposure_cli.py \
             tests/integration/test_kubernetes_exposure_web_contract.py
 
+      - name: P21 Kubernetes cloud-native security correlation contracts
+        run: |
+          python scripts/validate_kubernetes_security.py --project-root . --enforce
+          python -m pytest -q --no-cov \
+            tests/unit/test_kubernetes_security.py \
+            tests/integration/test_kubernetes_security_services.py \
+            tests/integration/test_kubernetes_security_http_api.py \
+            tests/integration/test_kubernetes_security_cli.py \
+            tests/integration/test_kubernetes_security_web_contract.py \
+            tests/integration/test_kubernetes_security_tooling.py
+
       - name: Unit and integration tests with coverage
         run: python -m pytest
 

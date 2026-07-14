@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.33.3 — P21 / EPIC-2103 Corrélation sécurité cloud-native
+
+- ajout d’un modèle sûr de références d’images OCI, certificats et secrets référencés dans les snapshots Kubernetes ;
+- corrélation en lecture seule `workload/pod → image → SBOM → findings` avec comptage des vulnérabilités actives et critiques ;
+- corrélation des empreintes de certificats avec l’inventaire PKI existant et signalement des certificats inconnus ou dégradés ;
+- références de secrets strictement bornées et normalisées, avec masquage des fournisseurs externes et hachage SHA-256 de la référence originale ;
+- refus de toute ingestion de contenu de Secret Kubernetes, mot de passe, token, clé privée ou URL de transport déguisée en référence OCI ;
+- préservation bit pour bit des payloads canoniques et fingerprints des snapshots historiques lorsque les nouveaux champs sont absents ;
+- rapport déterministe et borné à 2 000 documents SBOM et 10 000 findings, avec `correlation_truncated` uniquement lorsqu’un reliquat réel existe ;
+- deux routes HTTP, deux commandes CLI et deux opérations Discovery supplémentaires ;
+- validateur EPIC-2103 intégré à la CI, au quality gate, au packaging et au smoke du wheel installé ;
+- aucune migration PostgreSQL supplémentaire et aucune modification du thème.
+
 ## v0.33.2 — Gestion CRUD unifiée et navigation opérateur consolidée
 
 - Regroupement des familles CRUD homogènes sous une entrée unique `Gestion de …` dans la sidebar et le mégamenu.

@@ -1,3 +1,18 @@
+## v0.33.3 — P21 / EPIC-2103 Corrélation sécurité cloud-native
+
+| Exigence | Implémentation | Vérification |
+|---|---|---|
+| EPIC-2103 / TST-P21-K8S-SECURITY-CORRELATION | `KubernetesImageReference`, `KubernetesSecretReference` et `KubernetesSecurityCorrelationReport` | tests domaine, service, HTTP, CLI et contrat web |
+| Images → SBOM → findings | corrélation bornée avec les référentiels SBOM et vulnérabilités existants | tests de document explicite, métadonnées image/digest et findings critiques |
+| Certificats | résolution par empreinte SHA-256 dans l’inventaire PKI existant | tests certificat connu/inconnu, santé et durée restante |
+| Secrets référencés | références approuvées uniquement, masquage externe et hash SHA-256 ; aucun matériel secret persisté | tests de rejet du clair, vérification du JSON persistant et rapport masqué |
+| Compatibilité | nouveaux champs omis lorsqu’ils sont vides pour préserver les fingerprints historiques | test d’empreinte exacte d’un snapshot v0.33.0–0.33.2 |
+| Industrialisation | validateur, CI, quality gate, packaging et smoke wheel | tests d’outillage et artefacts |
+
+- Aucune migration supplémentaire : la chaîne reste à 55 migrations.
+- API, CLI, OpenAPI et UI Discovery sont en parité.
+- Aucune modification de la charte graphique.
+
 ## v0.33.2 — Gestion CRUD unifiée
 
 - **UX-WEB-CRUD-001** : consolider les opérations CRUD homogènes sous une entrée de navigation unique sans supprimer les contrats API/CLI existants.

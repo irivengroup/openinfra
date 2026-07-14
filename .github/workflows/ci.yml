@@ -385,6 +385,13 @@ jobs:
             tests/unit/test_multisite_chaos_certification.py \
             tests/integration/test_multisite_chaos_tooling.py
 
+      - name: GATE-09 Enterprise Scale-out promotion contracts
+        run: |
+          python scripts/validate_scaleout_promotion.py --project-root . --enforce
+          python -m pytest -q --no-cov \
+            tests/unit/test_scaleout_promotion.py \
+            tests/integration/test_scaleout_promotion_tooling.py
+
       - name: Unit and integration tests with coverage
         run: python -m pytest
 

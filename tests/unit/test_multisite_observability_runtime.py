@@ -38,7 +38,7 @@ def _application_with_route(tmp_path: Path):
             kind="network-proxy",
             certificate_fingerprint="a" * 64,
             scopes=scopes,
-            version="0.32.11",
+            version="0.32.12",
             endpoint_url="https://par1-agent.example.invalid:8443",
         )
     )
@@ -58,7 +58,7 @@ def _application_with_route(tmp_path: Path):
 def test_multisite_metrics_provider_aggregates_real_collector_heartbeats(tmp_path: Path) -> None:
     app, collector = _application_with_route(tmp_path)
     refreshed = app.discovery_service.heartbeat(
-        HeartbeatCollectorCommand("default", collector.id.value, "a" * 64, "0.32.11", "ok")
+        HeartbeatCollectorCommand("default", collector.id.value, "a" * 64, "0.32.12", "ok")
     )
     assert refreshed.last_heartbeat_at is not None
     provider = MultisiteOperationalMetricsProvider(
@@ -93,7 +93,7 @@ def test_multisite_metrics_provider_marks_stale_and_validates_environment(
 ) -> None:
     app, collector = _application_with_route(tmp_path)
     refreshed = app.discovery_service.heartbeat(
-        HeartbeatCollectorCommand("default", collector.id.value, "a" * 64, "0.32.11", "degraded")
+        HeartbeatCollectorCommand("default", collector.id.value, "a" * 64, "0.32.12", "degraded")
     )
     assert refreshed.last_heartbeat_at is not None
     provider = MultisiteOperationalMetricsProvider(

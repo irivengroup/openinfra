@@ -1,3 +1,16 @@
+## v0.32.12 — GATE-09 / REL-10 Promotion Enterprise Scale-out
+
+| Exigence / Gate | Implémentation | Vérification |
+|---|---|---|
+| GATE-09 — promotion scale-out | `quality/scaleout_promotion.py` agrège sept preuves certifiées | tests verdict, fraîcheur, empreinte, altération et path traversal |
+| Contrats P20 | `validate_scaleout_promotion.py` contrôle data plane, curseurs, workers, frontend, observabilité et runbooks | CI et quality gate bloquants |
+| Preuves immuables | `assemble_scaleout_promotion_evidence.py` copie et hache chaque rapport | manifeste canonique lié au commit source |
+| Qualification réelle | réutilisation des rapports Capacity, Chaos, PRA/PCA, Security, Packaging et GA | workflow `enterprise-scaleout-promotion.yml` sur runner protégé |
+| Exploitation | politique machine-readable et runbook GATE-09 | smoke wheel et vérification packaging |
+
+- Aucune migration PostgreSQL, aucune modification d'API/CLI métier et aucune modification de la charte graphique.
+- CDC/roadmap inchangés : `GATE-09` et `REL-10` étaient déjà définis.
+
 ## v0.32.11 — P17 / EPIC-1706 Chaos multisite
 
 | Exigence / Epic | Implémentation | Vérification |

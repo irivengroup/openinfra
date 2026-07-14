@@ -33,7 +33,7 @@ class SupportReadinessFixture:
         self.payload = {
             "schema_version": 1,
             "epic": "EPIC-1806",
-            "release_version": "0.32.11",
+            "release_version": "0.32.12",
             "support_profiles": {
                 "lite": self._profile(480, 1440, 48),
                 "pro": self._profile(120, 240, 12),

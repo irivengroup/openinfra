@@ -1,3 +1,13 @@
+## 0.32.12 — 2026-07-14
+
+- Matérialisation de `GATE-09 / REL-10` : certification finale de promotion Enterprise Scale-out après réalisation de tous les epics P20.
+- Agrégation de sept preuves immuables : contrats P20, capacité Enterprise, chaos multisite, PRA/PCA, sécurité release, packaging signé et décision GA.
+- Vérification bloquante de la version, de la fraîcheur, du verdict et de l'empreinte SHA-256 de chaque preuve.
+- Ajout d'un manifeste canonique, d'un rapport `scaleout_promotion_certification`, d'un workflow protégé et d'un runbook dédié.
+- Le workflow télécharge explicitement les artefacts de runs certifiants existants ; aucun moteur de benchmark, chaos ou PRA/PCA n'est dupliqué.
+- Aucune migration PostgreSQL, aucune rupture API/CLI métier et aucune modification du thème.
+- CDC et roadmap inchangés : `GATE-09` et `REL-10` étaient déjà définis dans la roadmap 2.1.
+
 ## 0.32.11 — 2026-07-14
 
 - Réalisation de P17 / EPIC-1706 : certification de chaos multisite sur six classes de panne — réseau, site, agent, base de données, saturation de file et frontend.

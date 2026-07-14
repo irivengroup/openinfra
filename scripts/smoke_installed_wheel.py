@@ -14,6 +14,7 @@ from openinfra.quality.ga_go_no_go import GaGoNoGoPolicy
 from openinfra.quality.multisite_chaos import MultisiteChaosCampaignEvidence
 from openinfra.quality.release_packaging import ReleaseSigningMaterial
 from openinfra.quality.release_security import ReleaseSecurityControlCatalog
+from openinfra.quality.scaleout_promotion import ScaleoutPromotionPolicy
 from openinfra.quality.support_readiness import SupportPolicy
 
 
@@ -22,7 +23,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.32.11"
+    EXPECTED_VERSION = "0.32.12"
     EXPECTED_ASYNC_ROUTES = (
         "/api/v1/async/jobs",
         "/api/v1/async/jobs/get",
@@ -265,6 +266,7 @@ class InstalledWheelSmoke:
         self._assert_pra_pca_contract()
         self._assert_multisite_observability_contract()
         self._assert_multisite_chaos_contract()
+        self._assert_scaleout_promotion_contract(package_root)
         self._assert_benchmark_contract()
         self._assert_release_security_contract(package_root)
         self._assert_release_packaging_contract()
@@ -298,7 +300,24 @@ class InstalledWheelSmoke:
             "pra_pca_certification": True,
             "multisite_observability": True,
             "multisite_chaos_certification": True,
+            "enterprise_scaleout_gate": "GATE-09",
         }
+
+    @staticmethod
+    def _assert_scaleout_promotion_contract(package_root: Path) -> None:
+        policy_path = (
+            package_root / "docs" / "release" / "enterprise-scaleout-promotion-policy.json"
+        )
+        runbook_path = package_root / "docs" / "runbooks" / "ENTERPRISE_SCALEOUT_PROMOTION.md"
+        if not runbook_path.is_file():
+            raise InstalledWheelSmokeError(
+                "installed wheel is missing the Enterprise Scale-out promotion runbook"
+            )
+        policy = ScaleoutPromotionPolicy.load(policy_path)
+        if policy.gate_id != "GATE-09" or policy.release_id != "REL-10":
+            raise InstalledWheelSmokeError("installed Enterprise Scale-out policy is inconsistent")
+        if len(policy.required_evidence) != 7:
+            raise InstalledWheelSmokeError("installed Enterprise Scale-out policy is incomplete")
 
     @staticmethod
     def _assert_multisite_observability_contract() -> None:
@@ -534,7 +553,7 @@ class InstalledWheelSmoke:
     def _assert_release_security_contract(package_root: Path) -> None:
         controls = ReleaseSecurityControlCatalog.build(
             package_root,
-            image_ref="openinfra/runtime:0.32.11",
+            image_ref="openinfra/runtime:0.32.12",
             api_base_url="http://127.0.0.1:8080",
             web_base_url="http://127.0.0.1:2006",
         )

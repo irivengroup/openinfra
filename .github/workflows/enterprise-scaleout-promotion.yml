@@ -1,0 +1,142 @@
+name: Enterprise Scale-out Promotion
+
+on:
+  workflow_dispatch:
+    inputs:
+      capacity_run_id:
+        description: Successful Enterprise Capacity workflow run ID
+        required: true
+        type: string
+      chaos_run_id:
+        description: Successful Multisite Chaos workflow run ID
+        required: true
+        type: string
+      pra_pca_run_id:
+        description: Successful PRA/PCA workflow run ID
+        required: true
+        type: string
+      release_security_run_id:
+        description: Successful Release Security workflow run ID
+        required: true
+        type: string
+      release_packaging_run_id:
+        description: Successful Release Packaging workflow run ID
+        required: true
+        type: string
+      ga_run_id:
+        description: Successful GA Go/No-Go workflow run ID
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: openinfra-enterprise-scaleout-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Certify GATE-09 Enterprise Scale-out
+    runs-on: [self-hosted, linux, x64, openinfra-enterprise-scaleout]
+    environment: enterprise-scaleout-promotion
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: pip
+
+      - name: Install promotion dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements/runtime.txt -r requirements/dev.txt
+
+      - name: Validate P20 contracts
+        run: >-
+          python scripts/validate_scaleout_promotion.py
+          --project-root .
+          --output build/scaleout/p20-contracts.json
+          --enforce
+
+      - name: Validate workflow run identifiers
+        env:
+          CAPACITY_RUN_ID: ${{ inputs.capacity_run_id }}
+          CHAOS_RUN_ID: ${{ inputs.chaos_run_id }}
+          PRA_PCA_RUN_ID: ${{ inputs.pra_pca_run_id }}
+          RELEASE_SECURITY_RUN_ID: ${{ inputs.release_security_run_id }}
+          RELEASE_PACKAGING_RUN_ID: ${{ inputs.release_packaging_run_id }}
+          GA_RUN_ID: ${{ inputs.ga_run_id }}
+        run: |
+          set -euo pipefail
+          for value in "$CAPACITY_RUN_ID" "$CHAOS_RUN_ID" "$PRA_PCA_RUN_ID" "$RELEASE_SECURITY_RUN_ID" "$RELEASE_PACKAGING_RUN_ID" "$GA_RUN_ID"; do
+            [[ "$value" =~ ^[0-9]+$ ]] || { echo "workflow run IDs must be numeric" >&2; exit 1; }
+          done
+
+      - name: Download immutable upstream evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p build/input/{capacity,chaos,pra-pca,security,packaging,ga}
+          gh run download '${{ inputs.capacity_run_id }}' --dir build/input/capacity
+          gh run download '${{ inputs.chaos_run_id }}' --dir build/input/chaos
+          gh run download '${{ inputs.pra_pca_run_id }}' --dir build/input/pra-pca
+          gh run download '${{ inputs.release_security_run_id }}' --dir build/input/security
+          gh run download '${{ inputs.release_packaging_run_id }}' --dir build/input/packaging
+          gh run download '${{ inputs.ga_run_id }}' --dir build/input/ga
+
+      - name: Resolve required reports
+        run: |
+          set -euo pipefail
+          mkdir -p build/scaleout/resolved
+          cp "$(find build/input/capacity -type f -name certification-report.json -print -quit)" build/scaleout/resolved/enterprise-capacity.json
+          cp "$(find build/input/chaos -type f -name certification-report.json -print -quit)" build/scaleout/resolved/multisite-chaos.json
+          cp "$(find build/input/pra-pca -type f -name certification-report.json -print -quit)" build/scaleout/resolved/pra-pca.json
+          cp "$(find build/input/security -type f -name release-security.json -print -quit)" build/scaleout/resolved/release-security.json
+          cp "$(find build/input/packaging -type f -name 'openinfra-*-release-packaging-report.json' -print -quit)" build/scaleout/resolved/release-packaging.json
+          cp "$(find build/input/ga -type f -name 'openinfra-*-go-no-go.json' -print -quit)" build/scaleout/resolved/ga-go-no-go.json
+          test -s build/scaleout/resolved/enterprise-capacity.json
+          test -s build/scaleout/resolved/multisite-chaos.json
+          test -s build/scaleout/resolved/pra-pca.json
+          test -s build/scaleout/resolved/release-security.json
+          test -s build/scaleout/resolved/release-packaging.json
+          test -s build/scaleout/resolved/ga-go-no-go.json
+
+      - name: Assemble GATE-09 manifest
+        run: >-
+          python scripts/assemble_scaleout_promotion_evidence.py
+          --candidate-id "openinfra-$(cat VERSION)-${GITHUB_SHA}"
+          --source-commit "$GITHUB_SHA"
+          --p20-contracts build/scaleout/p20-contracts.json
+          --enterprise-capacity build/scaleout/resolved/enterprise-capacity.json
+          --multisite-chaos build/scaleout/resolved/multisite-chaos.json
+          --pra-pca build/scaleout/resolved/pra-pca.json
+          --release-security build/scaleout/resolved/release-security.json
+          --release-packaging build/scaleout/resolved/release-packaging.json
+          --ga-go-no-go build/scaleout/resolved/ga-go-no-go.json
+          --evidence-root build/scaleout/evidence
+          --output build/scaleout/manifest.json
+
+      - name: Enforce GATE-09
+        run: >-
+          python scripts/certify_scaleout_promotion.py
+          --policy docs/release/enterprise-scaleout-promotion-policy.json
+          --manifest build/scaleout/manifest.json
+          --evidence-root build/scaleout/evidence
+          --output build/scaleout/certification-report.json
+          --enforce
+
+      - name: Publish immutable GATE-09 evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: openinfra-enterprise-scaleout-promotion-${{ github.run_id }}
+          path: build/scaleout
+          if-no-files-found: error
+          retention-days: 90

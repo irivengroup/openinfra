@@ -1,8 +1,22 @@
-# OpenInfra v0.32.11
+# OpenInfra v0.32.12
 
-OpenInfra 0.32.11 réalise **P17 / EPIC-1706 — Chaos multisite** avec une campagne de défaillances contrôlées, réversibles et certifiantes sur une topologie Enterprise représentative.
+OpenInfra 0.32.12 matérialise **GATE-09 / REL-10 — Go scale-out Enterprise** en agrégeant les preuves certifiées produites par les capacités P20, la qualification Enterprise, le chaos, le PRA/PCA, la sécurité, le packaging signé et la décision GA.
 
-## Chaos multisite — P17 / EPIC-1706
+## Promotion Enterprise Scale-out — GATE-09 / REL-10
+
+- validation statique des contrats P20 du code courant ;
+- sept preuves obligatoires, copiées dans un dossier d'évidence et verrouillées par SHA-256 ;
+- contrôle strict de version et de fraîcheur par type de preuve ;
+- refus de la promotion si capacité, chaos, PRA/PCA, sécurité, packaging ou GA ne sont pas certifiés ;
+- manifeste canonique lié au commit source et au candidat de release ;
+- workflow manuel protégé sur runner `openinfra-enterprise-scaleout` ;
+- agrégation des artefacts de workflows existants, sans rejouer ni dupliquer leurs moteurs ;
+- aucune mutation d'infrastructure par le certificateur ;
+- aucune migration PostgreSQL, aucune rupture API/CLI métier et aucune modification du thème.
+
+Voir `docs/runbooks/ENTERPRISE_SCALEOUT_PROMOTION.md` et `docs/release/enterprise-scaleout-promotion-policy.json`.
+
+## Chaos multisite — P17 / EPIC-1706 — v0.32.11
 
 - six scénarios obligatoires : partition réseau, perte de site, perte d’agent, perte DB, saturation de file et perte frontend ;
 - harness externe à protocole fixe `preflight` / `inject` / `recover` / `verify-recovered`, sans shell libre ;

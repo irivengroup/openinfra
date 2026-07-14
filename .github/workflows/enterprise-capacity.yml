@@ -32,6 +32,7 @@ jobs:
     env:
       OPENINFRA_CAPACITY_BEARER_TOKEN: ${{ secrets.OPENINFRA_CAPACITY_BEARER_TOKEN }}
       OPENINFRA_GRAFANA_ADMIN_PASSWORD: ${{ secrets.OPENINFRA_GRAFANA_ADMIN_PASSWORD }}
+      OPENINFRA_CAPACITY_BENCHMARK_PATHS_JSON: ${{ secrets.OPENINFRA_CAPACITY_BENCHMARK_PATHS_JSON }}
     steps:
       - uses: actions/checkout@v6
 
@@ -53,9 +54,20 @@ jobs:
           OPENINFRA_CAPACITY_TOPOLOGY_JSON: ${{ secrets.OPENINFRA_CAPACITY_TOPOLOGY_JSON }}
         run: |
           test -n "$OPENINFRA_CAPACITY_TOPOLOGY_JSON"
-          mkdir -p build/capacity/stages build/capacity/chaos
+          test -n "$OPENINFRA_CAPACITY_BENCHMARK_PATHS_JSON"
+          mkdir -p build/capacity/benchmarks build/capacity/stages build/capacity/chaos
           printf '%s\n' "$OPENINFRA_CAPACITY_TOPOLOGY_JSON" > build/capacity/topology.json
+          printf '%s\n' "$OPENINFRA_CAPACITY_BENCHMARK_PATHS_JSON" > build/capacity/benchmark-paths.json
           python -m json.tool build/capacity/topology.json >/dev/null
+          python -m json.tool build/capacity/benchmark-paths.json >/dev/null
+
+      - name: Enterprise workload benchmarks
+        run: >-
+          python scripts/run_enterprise_benchmark_suite.py
+          --base-url '${{ inputs.base_url }}'
+          --profile docs/operations/enterprise-capacity-profile.json
+          --paths build/capacity/benchmark-paths.json
+          --output-directory build/capacity/benchmarks
 
       - name: Baseline load
         run: >-
@@ -121,6 +133,7 @@ jobs:
           python scripts/assemble_enterprise_capacity_evidence.py
           --profile docs/operations/enterprise-capacity-profile.json
           --topology build/capacity/topology.json
+          --benchmarks build/capacity/benchmarks
           --stages build/capacity/stages
           --chaos build/capacity/chaos
           --output build/capacity/evidence.json

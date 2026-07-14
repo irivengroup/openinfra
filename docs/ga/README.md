@@ -1,6 +1,6 @@
 # Documentation GA OpenInfra
 
-Version cible : `0.32.4`  
+Version cible : `0.32.6`  
 Périmètre : `P18 / EPIC-1804`
 
 Cette documentation constitue le point d’entrée opérationnel de la version GA candidate. Elle complète le CDC et la roadmap sans les remplacer. Les contrats d’API font foi dans `docs/api/openapi.yaml` et les règles d’installation natives dans `installers/`.
@@ -15,6 +15,7 @@ Cette documentation constitue le point d’entrée opérationnel de la version G
 | Ingénieur plateforme | [Installation](INSTALLATION.md) | Compose local, installation native et contrôles post-installation |
 | SRE | [Exploitation](OPERATIONS.md) | Supervision, sauvegardes, maintenance et incidents |
 | Responsable PRA/PCA | [PRA et PCA](DISASTER_RECOVERY.md) | RPO/RTO, PITR, bascule et exercices |
+| Équipe support | [Support et maintenance](SUPPORT.md) | Sévérités, cycle de vie, correctifs et escalade |
 | Release manager | [Mise à niveau](UPGRADE.md) | Précontrôles, migration, validation et retour arrière |
 | Support N2/N3 | [Diagnostic](TROUBLESHOOTING.md) | Collecte de preuves et résolution structurée |
 

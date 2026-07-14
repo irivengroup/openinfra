@@ -31,13 +31,19 @@ def assemble_capacity_evidence(
     *,
     profile_path: Path,
     topology_path: Path,
+    benchmark_directory: Path | None = None,
     stage_directory: Path,
     chaos_directory: Path,
     output_path: Path,
 ) -> dict[str, object]:
     profile = _load_object(profile_path)
     topology = _load_object(topology_path)
+    required_benchmarks = profile.get("required_benchmark_workloads", [])
     required_stages = profile.get("required_capacity_stages")
+    if not isinstance(required_benchmarks, list) or not all(
+        isinstance(value, str) for value in required_benchmarks
+    ):
+        raise ValidationError("profile required_benchmark_workloads must be a string array")
     required_chaos = profile.get("required_chaos_scenarios")
     thresholds = profile.get("thresholds")
     if not isinstance(required_stages, list) or not all(
@@ -54,6 +60,21 @@ def assemble_capacity_evidence(
         "profile": _sha256(profile_path),
         "topology": _sha256(topology_path),
     }
+    benchmarks: list[dict[str, object]] = []
+    if required_benchmarks and benchmark_directory is None:
+        raise ValidationError("benchmark directory is required by the selected capacity profile")
+    resolved_benchmark_directory = benchmark_directory
+    for name in required_benchmarks:
+        if resolved_benchmark_directory is None:
+            raise ValidationError(
+                "benchmark directory is required by the selected capacity profile"
+            )
+        path = resolved_benchmark_directory / f"{name}.json"
+        evidence = _load_object(path)
+        if evidence.get("workload") != name:
+            raise ValidationError(f"benchmark file {path} does not identify workload {name}")
+        benchmarks.append(evidence)
+        source_hashes[f"benchmark:{name}"] = _sha256(path)
     stages: list[dict[str, object]] = []
     for name in required_stages:
         path = stage_directory / f"{name}.json"
@@ -75,6 +96,7 @@ def assemble_capacity_evidence(
         "profile_version": profile.get("profile_version"),
         "topology": topology,
         "thresholds": thresholds,
+        "benchmarks": benchmarks,
         "stages": stages,
         "chaos": chaos,
         "source_hashes": source_hashes,
@@ -92,6 +114,7 @@ class EnterpriseCapacityEvidenceAssemblerCli:
         parser = argparse.ArgumentParser(prog="assemble-enterprise-capacity-evidence")
         parser.add_argument("--profile", type=Path, required=True)
         parser.add_argument("--topology", type=Path, required=True)
+        parser.add_argument("--benchmarks", type=Path)
         parser.add_argument("--stages", type=Path, required=True)
         parser.add_argument("--chaos", type=Path, required=True)
         parser.add_argument("--output", type=Path, required=True)
@@ -99,6 +122,7 @@ class EnterpriseCapacityEvidenceAssemblerCli:
         payload = assemble_capacity_evidence(
             profile_path=args.profile,
             topology_path=args.topology,
+            benchmark_directory=args.benchmarks,
             stage_directory=args.stages,
             chaos_directory=args.chaos,
             output_path=args.output,

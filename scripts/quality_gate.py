@@ -329,6 +329,7 @@ class GaDocumentationGuard:
             "docs/ga/DISASTER_RECOVERY.md",
             "docs/ga/UPGRADE.md",
             "docs/ga/TROUBLESHOOTING.md",
+            "docs/ga/SUPPORT.md",
             "tests/unit/test_documentation_ga.py",
             "tests/integration/test_documentation_ga_contract.py",
         )
@@ -410,6 +411,63 @@ class GaGoNoGoGuard:
         ):
             if fragment not in source:
                 raise QualityGateError("GA Go/No-Go implementation is incomplete: " + fragment)
+
+
+class SupportReadinessGuard:
+    def __init__(self, project_root: Path) -> None:
+        self._project_root = project_root
+
+    def assert_support_readiness_controls_are_present(self) -> None:
+        required_files = (
+            "src/openinfra/quality/support_readiness.py",
+            "scripts/support_readiness.py",
+            ".github/workflows/support-readiness.yml",
+            "docs/release/support-maintenance-policy.json",
+            "docs/ga/SUPPORT.md",
+            "docs/runbooks/SUPPORT_MAINTENANCE.md",
+            "tests/unit/test_support_readiness.py",
+            "tests/integration/test_support_readiness_contract.py",
+        )
+        missing = [
+            relative for relative in required_files if not (self._project_root / relative).is_file()
+        ]
+        if missing:
+            raise QualityGateError("missing support readiness controls: " + ", ".join(missing))
+        workflow = (self._project_root / ".github/workflows/support-readiness.yml").read_text(
+            encoding="utf-8"
+        )
+        required_fragments = (
+            "actions/checkout@v6",
+            "actions/setup-python@v6",
+            "actions/upload-artifact@v6",
+            "scripts/support_readiness.py",
+            "--ephemeral-key",
+            "--enforce",
+            "retention-days: 365",
+        )
+        absent = [fragment for fragment in required_fragments if fragment not in workflow]
+        if absent:
+            raise QualityGateError("support readiness workflow is incomplete: " + ", ".join(absent))
+        if "pull_request_target:" in workflow:
+            raise QualityGateError("support readiness workflow must not use pull_request_target")
+        source = (self._project_root / "src/openinfra/quality/support_readiness.py").read_text(
+            encoding="utf-8"
+        )
+        for fragment in (
+            "EPIC-1806",
+            "support-readiness",
+            "SupportReadinessService",
+            "ReleaseSignatureVerifier",
+            "sla_defined",
+            "lifecycle_defined",
+            "patch_policy_defined",
+            "migration_policy_defined",
+            "escalation_matrix_defined",
+        ):
+            if fragment not in source:
+                raise QualityGateError(
+                    "support readiness implementation is incomplete: " + fragment
+                )
 
 
 class DockerRuntimeGuard:
@@ -784,6 +842,19 @@ class QualityGate:
         ReleasePackagingGuard(self._project_root).assert_release_packaging_controls_are_present()
         GaDocumentationGuard(self._project_root).assert_ga_documentation_controls_are_present()
         GaGoNoGoGuard(self._project_root).assert_ga_go_no_go_controls_are_present()
+        SupportReadinessGuard(self._project_root).assert_support_readiness_controls_are_present()
+        CommandRunner().run(
+            [
+                sys.executable,
+                "scripts/support_readiness.py",
+                "--project-root",
+                str(self._project_root),
+                "--output",
+                "artifacts/quality-gate/support-readiness.json",
+                "--ephemeral-key",
+                "--enforce",
+            ]
+        )
         CommandRunner().run(
             [
                 sys.executable,

@@ -91,6 +91,18 @@ jobs:
             --output build/reports/ga-documentation-report.json \
             --enforce
 
+      - name: EPIC-1806 support readiness validation
+        run: |
+          mkdir -p build/reports
+          python scripts/support_readiness.py \
+            --project-root . \
+            --output build/reports/support-readiness.json \
+            --ephemeral-key \
+            --enforce
+          python -m pytest -q --no-cov \
+            tests/unit/test_support_readiness.py \
+            tests/integration/test_support_readiness_contract.py
+
       - name: High-performance ASGI and pooling regression
         run: |
           python -m pytest -q --no-cov \
@@ -353,6 +365,7 @@ jobs:
             tests/unit/test_observability_runtime.py \
             tests/unit/test_capacity_certification.py \
             tests/unit/test_capacity_tooling.py \
+            tests/unit/test_enterprise_benchmark_tooling.py \
             tests/integration/test_observability_interfaces.py
 
       - name: Unit and integration tests with coverage

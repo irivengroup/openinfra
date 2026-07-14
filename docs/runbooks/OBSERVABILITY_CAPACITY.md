@@ -2,7 +2,7 @@
 
 ## 1. Prérequis
 
-- OpenInfra 0.32.4 en runtime ASGI ;
+- OpenInfra 0.32.6 en runtime ASGI ;
 - accès privé aux endpoints `/metrics` API et web ;
 - Docker Compose pour la pile locale d'observabilité ;
 - pour une certification : topologie Enterprise représentative, dataset minimal, runner dédié et fenêtre de maintenance pour les scénarios de chaos ;
@@ -87,6 +87,33 @@ Créer une preuve de topologie protégée conforme à ce schéma :
 }
 ```
 
+Préparer également `build/capacity/benchmark-paths.json`. Le document doit contenir exactement les six familles EPIC-1801 et uniquement des chemins HTTP relatifs en lecture seule :
+
+```json
+{
+  "api": "/api/v1/version",
+  "ipam": "/api/v1/ipam/ui-dashboard?tenant_id=capacity-benchmark",
+  "imports": "/api/v1/imports/migration-guide?source=netbox",
+  "discovery": "/api/v1/discovery/jobs?tenant_id=capacity-benchmark&limit=100",
+  "database": "/api/v1/database/routing?tenant_id=capacity-benchmark",
+  "graph": "/api/v1/graph/traverse?tenant_id=capacity-benchmark&root_key=server%2Fbenchmark-root&max_depth=3&max_nodes=500"
+}
+```
+
+Les valeurs ci-dessus illustrent le format. La certification officielle doit viser un tenant et un objet graphe présents dans le dataset représentatif.
+
+Exécuter les six benchmarks avec les durées, débits et concurrences du profil v2 :
+
+```bash
+PYTHONPATH=src:. python scripts/run_enterprise_benchmark_suite.py \
+  --base-url https://openinfra.example \
+  --profile docs/operations/enterprise-capacity-profile.json \
+  --paths build/capacity/benchmark-paths.json \
+  --output-directory build/capacity/benchmarks
+```
+
+Pour un smoke local uniquement, `--duration-scale 0.01` réduit les durées sans jamais produire une preuve de certification officielle.
+
 Les cinq phases de charge doivent être exécutées avec les durées du profil versionné. Exemple non certifiant à durée réduite :
 
 ```bash
@@ -119,6 +146,7 @@ Exécuter les quatre scénarios : `api-worker-loss`, `web-worker-loss`, `db-repl
 PYTHONPATH=src:. python scripts/assemble_enterprise_capacity_evidence.py \
   --profile docs/operations/enterprise-capacity-profile.json \
   --topology build/capacity/topology.json \
+  --benchmarks build/capacity/benchmarks \
   --stages build/capacity/stages \
   --chaos build/capacity/chaos \
   --output build/capacity/evidence.json
@@ -139,6 +167,7 @@ Le workflow `enterprise-capacity.yml` est manuel et requiert :
 - un environnement protégé `enterprise-capacity` ;
 - `OPENINFRA_CAPACITY_BEARER_TOKEN` ;
 - `OPENINFRA_CAPACITY_TOPOLOGY_JSON` ;
+- `OPENINFRA_CAPACITY_BENCHMARK_PATHS_JSON` ;
 - les URLs HTTPS de base, métriques et intégrité.
 
 Les preuves sont publiées comme artefact avec une rétention de 90 jours.

@@ -1,3 +1,22 @@
+## 0.32.6 — 2026-07-14
+
+- Implémentation P18 / EPIC-1801 : benchmarks Enterprise Scale reproductibles sur topologie représentative.
+- Profil de certification v2 exigeant six familles : API, IPAM, imports, Discovery, base de données et graphes.
+- Runner HTTP asynchrone en lecture seule avec HTTPS obligatoire, keep-alive, concurrence et tâches en vol bornées.
+- Mesure p95/p99, taux d’erreur, débit, octets et distribution des statuts pour chaque famille.
+- Intégration des preuves benchmark et de leurs SHA-256 dans la certification de capacité GATE-07.
+- Workflow Enterprise protégé et documentation d’exploitation alignés.
+- Aucune migration PostgreSQL, aucune rupture API/CLI métier et aucune modification de la charte graphique.
+
+## 0.32.5 — 2026-07-13
+
+- Implémentation P18 / EPIC-1806 : support, maintenance, politique de patch et cycle de vie.
+- Modèle machine-readable par édition avec sévérités S1-S4, objectifs de réponse, mise à jour et restauration.
+- Cycle de vie active, maintenance, sécurité uniquement et fin de vie, avec règles de migration et rollback.
+- Matrice d’escalade L1/L2/L3/incident command et preuve support-readiness signée compatible GATE-07.
+- Workflow GitHub Actions, documentation GA, runbook et tests bloquants.
+- Aucun changement de schéma PostgreSQL ni de charte graphique.
+
 ## 0.32.4 — 2026-07-13
 
 - Correctif Docker : copie de toutes les ressources documentaires exigées par Hatchling avant `pip install`.

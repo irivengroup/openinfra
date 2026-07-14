@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "openinfra"
-version = "0.32.4"
+version = "0.32.6"
 description = "OpenInfra Python POO IT ressources management, DCIM and IPAM foundation"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -51,6 +51,7 @@ packages = ["src/openinfra"]
 "docs/ga" = "openinfra/docs/ga"
 "docs/release" = "openinfra/docs/release"
 "docs/runbooks/GA_GO_NO_GO.md" = "openinfra/docs/runbooks/GA_GO_NO_GO.md"
+"docs/runbooks/SUPPORT_MAINTENANCE.md" = "openinfra/docs/runbooks/SUPPORT_MAINTENANCE.md"
 
 [tool.hatch.build.targets.sdist]
 include = ["src", "tests", "scripts", "docker", "installers", "docs", "web", "requirements", ".github", "README.md", "LICENSE", "VERSION", "CHANGELOG.md", "VALIDATION-REPORT.md", "compose.yaml", "Dockerfile", ".env.example"]

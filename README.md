@@ -1,6 +1,18 @@
-# OpenInfra v0.32.4
+# OpenInfra v0.32.6
 
-OpenInfra 0.32.4 corrige le build Docker runtime de 0.32.3 : toutes les ressources documentaires forcées par Hatchling sont copiées avant l’installation du package, et les services Compose utilisent explicitement le build local de `openinfra/runtime`. Le gate Go/No-Go GA d’EPIC-1805 reste fonctionnellement inchangé et le thème approuvé est préservé.
+OpenInfra 0.32.6 implémente P18 / EPIC-1806 : modèle de support par édition, sévérités S1 à S4, cycle de vie des versions, politique de correctifs, migration, rollback, escalade et preuve `support-readiness` signée pour GATE-07. Le correctif Docker 0.32.4 est conservé et le thème approuvé reste inchangé.
+
+## Support et maintenance — P18 / EPIC-1806
+
+- profils Lite, Pro et Enterprise avec canaux et horaires de service ;
+- sévérités S1 à S4 avec objectifs de réponse, de mise à jour et de restauration ;
+- cycle de vie active, maintenance, sécurité uniquement et fin de vie ;
+- politique de patch par criticité ;
+- migrations directes N-1, migrations étagées N-2 et rollback obligatoire ;
+- escalade L1, L2, L3 et incident command ;
+- preuve `support-readiness` signée et workflow CI bloquant.
+
+Voir `docs/ga/SUPPORT.md`, `docs/runbooks/SUPPORT_MAINTENANCE.md` et `docs/release/support-maintenance-policy.json`.
 
 ## Documentation GA — P18 / EPIC-1804
 
@@ -25,6 +37,18 @@ Voir `docs/ga/README.md` et `docs/architecture/ga-documentation-governance.md`.
 
 Voir `docs/architecture/release-security-certification.md` et `docs/runbooks/RELEASE_SECURITY.md`.
 
+## Benchmarks Enterprise Scale — P18 / EPIC-1801
+
+- profil de certification de capacité v2 rétrocompatible avec les preuves v1 historiques ;
+- six familles obligatoires : API, IPAM, imports, Discovery, base de données et graphes ;
+- runner HTTP asynchrone en lecture seule, keep-alive, concurrence et tâches en vol bornées ;
+- chemins de qualification externalisés pour viser un dataset Enterprise réellement représentatif ;
+- p95, p99, taux d'erreur, débit, octets et distribution des statuts par famille ;
+- intégration des six preuves et de leurs SHA-256 dans `capacity_certification` ;
+- workflow Enterprise bloquant : aucun `capacity_certification=true` n'est possible si une famille manque ou dépasse les seuils.
+
+Voir `docs/architecture/enterprise-observability-capacity.md` et `docs/runbooks/OBSERVABILITY_CAPACITY.md`.
+
 ## Observabilité et charge Enterprise — P20 / EPIC-2005
 
 - instrumentation API, BFF, workers, outbox, files asynchrones, pools PostgreSQL et réplication ;
@@ -32,7 +56,7 @@ Voir `docs/architecture/release-security-certification.md` et `docs/runbooks/REL
 - propagation W3C `traceparent` et export OTLP/HTTP optionnel ;
 - pile Compose optionnelle Prometheus, OpenTelemetry Collector, Tempo et Grafana ;
 - règles d'alerte p95/p99, 5xx, saturation, file bloquée, DLQ, pool et lag réplique ;
-- profil versionné en cinq phases de charge et quatre scénarios de chaos ;
+- profil v2 versionné avec six benchmarks métier, cinq phases de charge et quatre scénarios de chaos ;
 - rapport atomique avec empreintes SHA-256 et gate `--enforce` ;
 - aucune certification possible sans preuves Enterprise complètes.
 

@@ -9,6 +9,7 @@ from openinfra.quality.dependency_graph_benchmark import DependencyGraphBenchmar
 from openinfra.quality.ga_go_no_go import GaGoNoGoPolicy
 from openinfra.quality.release_packaging import ReleaseSigningMaterial
 from openinfra.quality.release_security import ReleaseSecurityControlCatalog
+from openinfra.quality.support_readiness import SupportPolicy
 
 
 class InstalledWheelSmokeError(RuntimeError):
@@ -16,7 +17,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.32.4"
+    EXPECTED_VERSION = "0.32.6"
     EXPECTED_ASYNC_ROUTES = (
         "/api/v1/async/jobs",
         "/api/v1/async/jobs/get",
@@ -229,6 +230,7 @@ class InstalledWheelSmoke:
         "DISASTER_RECOVERY.md",
         "UPGRADE.md",
         "TROUBLESHOOTING.md",
+        "SUPPORT.md",
     )
 
     def run(self) -> dict[str, object]:
@@ -254,6 +256,7 @@ class InstalledWheelSmoke:
         self._assert_assets(package_root)
         self._assert_ga_documentation(package_root)
         self._assert_ga_go_no_go_contract(package_root)
+        self._assert_support_readiness_contract(package_root)
         self._assert_benchmark_contract()
         self._assert_release_security_contract(package_root)
         self._assert_release_packaging_contract()
@@ -283,6 +286,7 @@ class InstalledWheelSmoke:
             "dependency_graph_benchmark": True,
             "release_security_controls": 8,
             "release_packaging_controls": 7,
+            "support_readiness": True,
         }
 
     def _assert_openapi_taxonomy(self, openapi: str) -> None:
@@ -463,6 +467,18 @@ class InstalledWheelSmoke:
         if len(policy.required_evidence) != 8 or len(policy.required_approval_roles) != 5:
             raise InstalledWheelSmokeError("installed GA Go/No-Go policy is incomplete")
 
+    @staticmethod
+    def _assert_support_readiness_contract(package_root: Path) -> None:
+        policy_path = package_root / "docs" / "release" / "support-maintenance-policy.json"
+        runbook_path = package_root / "docs" / "runbooks" / "SUPPORT_MAINTENANCE.md"
+        if not runbook_path.is_file():
+            raise InstalledWheelSmokeError(
+                "installed wheel is missing the support maintenance runbook"
+            )
+        policy = SupportPolicy.load(policy_path)
+        if policy.epic != "EPIC-1806" or len(policy.profiles) != 3:
+            raise InstalledWheelSmokeError("installed support readiness policy is incomplete")
+
     def _assert_benchmark_contract(self) -> None:
         config = DependencyGraphBenchmarkConfig(
             node_count=100,
@@ -486,7 +502,7 @@ class InstalledWheelSmoke:
     def _assert_release_security_contract(package_root: Path) -> None:
         controls = ReleaseSecurityControlCatalog.build(
             package_root,
-            image_ref="openinfra/runtime:0.32.4",
+            image_ref="openinfra/runtime:0.32.6",
             api_base_url="http://127.0.0.1:8080",
             web_base_url="http://127.0.0.1:2006",
         )

@@ -1,3 +1,9 @@
+## v0.32.6 — EPIC-1806 support et maintenance
+
+- Portée : modèle support Lite/Pro/Enterprise, sévérités S1-S4, objectifs de réponse et restauration, cycle de vie, patch policy, migration, rollback et escalade.
+- Preuve : rapport `support-readiness` signé, workflow dédié et compatibilité directe avec GATE-07.
+- Compatibilité : aucune migration, aucun changement des contrats métier, aucun changement CSS.
+
 ## v0.32.4 — Correctif du build Docker runtime
 
 | Élément | Correctif | Validation |

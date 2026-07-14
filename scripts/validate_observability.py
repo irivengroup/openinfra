@@ -182,8 +182,19 @@ class OpenInfraObservabilityValidator:
                 encoding="utf-8"
             )
         )
-        if not isinstance(profile, dict) or profile.get("profile_version") != 1:
-            raise ObservabilityValidationError("capacity profile must be versioned")
+        if not isinstance(profile, dict) or profile.get("profile_version") != 2:
+            raise ObservabilityValidationError("capacity profile must use certification schema v2")
+        if profile.get("required_benchmark_workloads") != [
+            "api",
+            "ipam",
+            "imports",
+            "discovery",
+            "database",
+            "graph",
+        ]:
+            raise ObservabilityValidationError(
+                "capacity profile must define the six EPIC-1801 benchmark workloads"
+            )
         if len(profile.get("required_capacity_stages", [])) != 5:
             raise ObservabilityValidationError("capacity profile must define five load stages")
         if len(profile.get("required_chaos_scenarios", [])) != 4:

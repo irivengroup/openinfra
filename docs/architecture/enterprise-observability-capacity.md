@@ -2,10 +2,11 @@
 
 ## Objet
 
-OpenInfra 0.31.4 consolide l'implémentation P20 / EPIC-2005. Le dispositif sépare deux responsabilités :
+OpenInfra 0.32.6 complète P18 / EPIC-1801 sur le socle P20 / EPIC-2005. Le dispositif sépare trois responsabilités :
 
 1. l'observabilité continue des processus API, web et workers ;
-2. la certification de capacité, exécutée uniquement sur une topologie Enterprise représentative avec preuves de charge, d'endurance et de chaos.
+2. les benchmarks métier représentatifs API, IPAM, imports, Discovery, base de données et graphes ;
+3. la certification de capacité, exécutée uniquement sur une topologie Enterprise représentative avec preuves de charge, d'endurance et de chaos.
 
 Une exécution locale, un benchmark de transport ou une CI standard ne produit jamais une certification Enterprise.
 
@@ -64,12 +65,15 @@ Le moteur `EnterpriseCapacityCertification` exige simultanément :
 - édition Enterprise ;
 - au moins 2 API, 2 web, 4 workers spécialisés, 1 primaire, 1 réplique et 2 PgBouncer ;
 - au moins 100 000 objets et 100 000 relations ;
+- six benchmarks en lecture seule couvrant API, IPAM, imports, Discovery, routage base de données et graphes ;
 - cinq phases : baseline, paliers, endurance, spike et saturation ;
 - quatre scénarios de chaos : perte API, perte web, perte réplique et redémarrage PgBouncer ;
 - métriques complètes, couverture de traces, intégrité des données et absence de perte de travail acquitté ;
 - empreintes SHA-256 de chaque preuve source.
 
 Le rapport est écrit atomiquement et porte une empreinte canonique des preuves. `--enforce` retourne un code non nul dès qu'un critère manque ou dépasse un seuil.
+
+Le profil de certification v2 refuse une certification si une famille EPIC-1801 manque. Chaque benchmark utilise uniquement `GET`, un pool HTTP borné, un débit cible, une concurrence maximale et une liste explicite de statuts HTTP attendus. Les chemins exacts sont fournis par l'environnement de qualification afin de viser des données réellement représentatives sans hardcoder d'identifiants de tenant ou de ressources dans le dépôt.
 
 ## Sécurité et confidentialité
 

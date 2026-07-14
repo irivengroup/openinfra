@@ -1,8 +1,19 @@
 {
-  "profile_id": "openinfra-enterprise-capacity-v1",
-  "profile_version": 1,
-  "required_capacity_stages": ["baseline", "step-load", "endurance", "spike", "saturation"],
-  "required_chaos_scenarios": ["api-worker-loss", "web-worker-loss", "db-replica-loss", "pgbouncer-restart"],
+  "profile_id": "openinfra-enterprise-capacity-v2",
+  "profile_version": 2,
+  "required_capacity_stages": [
+    "baseline",
+    "step-load",
+    "endurance",
+    "spike",
+    "saturation"
+  ],
+  "required_chaos_scenarios": [
+    "api-worker-loss",
+    "web-worker-loss",
+    "db-replica-loss",
+    "pgbouncer-restart"
+  ],
   "topology_minimums": {
     "api_instances": 2,
     "web_instances": 2,
@@ -25,10 +36,65 @@
     "trace_coverage_percent": 99
   },
   "stage_recommendations": {
-    "baseline": {"duration_seconds": 300, "target_rps": 10},
-    "step-load": {"duration_seconds": 1800, "target_rps": 100},
-    "endurance": {"duration_seconds": 21600, "target_rps": 100},
-    "spike": {"duration_seconds": 600, "target_rps": 500},
-    "saturation": {"duration_seconds": 900, "target_rps": 1000}
+    "baseline": {
+      "duration_seconds": 300,
+      "target_rps": 10
+    },
+    "step-load": {
+      "duration_seconds": 1800,
+      "target_rps": 100
+    },
+    "endurance": {
+      "duration_seconds": 21600,
+      "target_rps": 100
+    },
+    "spike": {
+      "duration_seconds": 600,
+      "target_rps": 500
+    },
+    "saturation": {
+      "duration_seconds": 900,
+      "target_rps": 1000
+    }
+  },
+  "required_benchmark_workloads": [
+    "api",
+    "ipam",
+    "imports",
+    "discovery",
+    "database",
+    "graph"
+  ],
+  "benchmark_recommendations": {
+    "api": {
+      "duration_seconds": 300,
+      "target_rps": 50,
+      "concurrency": 50
+    },
+    "ipam": {
+      "duration_seconds": 600,
+      "target_rps": 50,
+      "concurrency": 50
+    },
+    "imports": {
+      "duration_seconds": 600,
+      "target_rps": 25,
+      "concurrency": 25
+    },
+    "discovery": {
+      "duration_seconds": 600,
+      "target_rps": 50,
+      "concurrency": 50
+    },
+    "database": {
+      "duration_seconds": 600,
+      "target_rps": 25,
+      "concurrency": 25
+    },
+    "graph": {
+      "duration_seconds": 900,
+      "target_rps": 25,
+      "concurrency": 25
+    }
   }
 }

@@ -152,6 +152,11 @@ def test_capacity_evidence_validation_rejects_untrusted_shapes() -> None:
     with pytest.raises(ValidationError, match="unsupported capacity stage"):
         EnterpriseCapacityCertification.from_mapping(payload)
 
+    payload = _evidence()
+    payload["benchmarks"] = {}
+    with pytest.raises(ValidationError, match="benchmarks must be a JSON array"):
+        EnterpriseCapacityCertification.from_mapping(payload)
+
 
 def test_capacity_validation_covers_all_untrusted_scalar_and_shape_branches(tmp_path: Path) -> None:
     from copy import deepcopy
@@ -301,3 +306,84 @@ def test_capacity_validation_covers_all_untrusted_scalar_and_shape_branches(tmp_
     non_object.write_text("[]", encoding="utf-8")
     with pytest.raises(ValidationError, match="root must be"):
         EnterpriseCapacityCertification.load(non_object)
+
+
+def _benchmark(workload: str) -> dict[str, object]:
+    return {
+        "workload": workload,
+        "method": "GET",
+        "path": f"/api/v1/{workload}",
+        "duration_seconds": 300,
+        "requests": 5000,
+        "p95_ms": 125,
+        "p99_ms": 250,
+        "error_rate_percent": 0.1,
+        "throughput_rps": 50,
+        "response_bytes": 1024,
+        "expected_status_codes": [200],
+    }
+
+
+def test_capacity_v2_requires_and_certifies_all_enterprise_benchmark_workloads() -> None:
+    payload = _evidence()
+    payload["profile_id"] = "openinfra-enterprise-capacity-v2"
+    payload["profile_version"] = 2
+    payload["benchmarks"] = [
+        _benchmark(name) for name in ("api", "ipam", "imports", "discovery", "database", "graph")
+    ]
+
+    report = EnterpriseCapacityCertification.from_mapping(payload).evaluate()
+
+    assert report["schema_version"] == 2
+    assert report["capacity_certification"] is True
+    assert len(report["benchmarks"]) == 6  # type: ignore[arg-type]
+
+    payload["benchmarks"] = payload["benchmarks"][:-1]  # type: ignore[index]
+    report = EnterpriseCapacityCertification.from_mapping(payload).evaluate()
+    assert report["capacity_certification"] is False
+    assert "missing required benchmark workload: graph" in report["failures"]
+
+
+def test_benchmark_workload_validation_and_threshold_failures() -> None:
+    from openinfra.quality.capacity_certification import (
+        BenchmarkWorkloadEvidence,
+        EnterpriseCapacityThresholds,
+    )
+
+    thresholds = EnterpriseCapacityThresholds.from_mapping(
+        _evidence()["thresholds"]  # type: ignore[arg-type]
+    )
+    failing = _benchmark("api")
+    failing.update(
+        {
+            "duration_seconds": 0,
+            "requests": 0,
+            "p95_ms": 501,
+            "p99_ms": 1001,
+            "error_rate_percent": 2,
+            "throughput_rps": 0,
+        }
+    )
+    failures = "\n".join(BenchmarkWorkloadEvidence.from_mapping(failing).failures(thresholds))
+    assert "non-empty load evidence" in failures
+    assert "p95_ms" in failures
+    assert "p99_ms" in failures
+    assert "error_rate_percent" in failures
+    assert "positive throughput" in failures
+
+    invalid_cases = (
+        ({**_benchmark("api"), "workload": "unknown"}, "unsupported benchmark workload"),
+        ({**_benchmark("api"), "method": "POST"}, "only read-only GET"),
+        ({**_benchmark("api"), "path": "https://evil.example"}, "absolute HTTP path"),
+        ({**_benchmark("api"), "expected_status_codes": []}, "non-empty array"),
+        ({**_benchmark("api"), "expected_status_codes": [99]}, "invalid expected HTTP"),
+        ({**_benchmark("api"), "expected_status_codes": [200, 200]}, "must be unique"),
+    )
+    for invalid, message in invalid_cases:
+        with pytest.raises(ValidationError, match=message):
+            BenchmarkWorkloadEvidence.from_mapping(invalid)
+
+    duplicate = _evidence()
+    duplicate["benchmarks"] = [_benchmark("api"), _benchmark("api")]
+    with pytest.raises(ValidationError, match="benchmark workloads must be unique"):
+        EnterpriseCapacityCertification.from_mapping(duplicate)

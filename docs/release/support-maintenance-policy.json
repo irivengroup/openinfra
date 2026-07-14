@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "epic": "EPIC-1806",
+  "release_version": "0.32.6",
+  "support_profiles": {
+    "lite": {
+      "service_hours": "business-hours-8x5-europe-paris",
+      "channels": ["community", "email"],
+      "targets": {
+        "S1": {"response_minutes": 480, "update_minutes": 1440, "restoration_hours": 48},
+        "S2": {"response_minutes": 960, "update_minutes": 2880, "restoration_hours": 120},
+        "S3": {"response_minutes": 2880, "update_minutes": 10080, "restoration_hours": 360},
+        "S4": {"response_minutes": 10080, "update_minutes": 20160, "restoration_hours": 720}
+      }
+    },
+    "pro": {
+      "service_hours": "extended-business-hours-12x5-europe-paris",
+      "channels": ["support-portal", "email"],
+      "targets": {
+        "S1": {"response_minutes": 120, "update_minutes": 240, "restoration_hours": 12},
+        "S2": {"response_minutes": 240, "update_minutes": 480, "restoration_hours": 36},
+        "S3": {"response_minutes": 960, "update_minutes": 2880, "restoration_hours": 168},
+        "S4": {"response_minutes": 2880, "update_minutes": 10080, "restoration_hours": 480}
+      }
+    },
+    "enterprise": {
+      "service_hours": "24x7-for-s1-s2-and-12x5-for-s3-s4",
+      "channels": ["support-portal", "priority-email", "incident-phone"],
+      "targets": {
+        "S1": {"response_minutes": 30, "update_minutes": 60, "restoration_hours": 4},
+        "S2": {"response_minutes": 60, "update_minutes": 120, "restoration_hours": 12},
+        "S3": {"response_minutes": 480, "update_minutes": 1440, "restoration_hours": 72},
+        "S4": {"response_minutes": 1440, "update_minutes": 4320, "restoration_hours": 240}
+      }
+    }
+  },
+  "lifecycle": {
+    "versioning": "semantic-versioning",
+    "stages": [
+      {"name": "active", "duration_months": 12, "fixes": ["feature", "defect", "security"]},
+      {"name": "maintenance", "duration_months": 6, "fixes": ["defect", "security"]},
+      {"name": "security-only", "duration_months": 6, "fixes": ["security"]},
+      {"name": "end-of-life", "duration_months": 0, "fixes": []}
+    ]
+  },
+  "patch_policy": {
+    "critical": {"mitigation_hours": 24, "fix_days": 3},
+    "high": {"mitigation_hours": 72, "fix_days": 14},
+    "medium": {"mitigation_hours": 336, "fix_days": 60},
+    "low": {"mitigation_hours": 720, "fix_days": 180}
+  },
+  "migration_policy": {
+    "direct_upgrade_span": 1,
+    "staged_upgrade_span": 2,
+    "backup_required": true,
+    "rollback_required": true,
+    "schema_compatibility": "current-and-previous-minor",
+    "unsupported_versions_require_migration_plan": true
+  },
+  "escalation_matrix": [
+    {
+      "level": "L1",
+      "owner": "support-desk",
+      "triggers": ["ticket-intake", "evidence-collection", "known-issue-matching"]
+    },
+    {
+      "level": "L2",
+      "owner": "product-engineering",
+      "triggers": ["reproducible-defect", "workaround-required", "migration-failure"]
+    },
+    {
+      "level": "L3",
+      "owner": "security-and-sre",
+      "triggers": ["security-incident", "data-integrity-risk", "cluster-outage"]
+    },
+    {
+      "level": "incident-command",
+      "owner": "incident-commander",
+      "triggers": ["s1-enterprise", "multi-customer-impact", "public-advisory-required"]
+    }
+  ],
+  "required_documents": [
+    "docs/ga/SUPPORT.md",
+    "docs/ga/UPGRADE.md",
+    "docs/ga/TROUBLESHOOTING.md",
+    "docs/runbooks/SUPPORT_MAINTENANCE.md"
+  ]
+}

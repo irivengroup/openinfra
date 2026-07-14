@@ -153,3 +153,17 @@ class TestGitHubWorkflows:
             "tests/integration/test_multisite_disaster_recovery_http_api.py",
         ):
             assert test_path in workflow
+
+
+def test_enterprise_capacity_workflow_covers_all_epic_1801_workloads() -> None:
+    workflow = (PROJECT_ROOT / ".github/workflows/enterprise-capacity.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "OPENINFRA_CAPACITY_BENCHMARK_PATHS_JSON" in workflow
+    assert "python scripts/run_enterprise_benchmark_suite.py" in workflow
+    assert "--benchmarks build/capacity/benchmarks" in workflow
+    profile = (PROJECT_ROOT / "docs/operations/enterprise-capacity-profile.json").read_text(
+        encoding="utf-8"
+    )
+    for workload in ("api", "ipam", "imports", "discovery", "database", "graph"):
+        assert f'"{workload}"' in profile

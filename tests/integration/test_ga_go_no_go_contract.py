@@ -37,8 +37,8 @@ class TestGaGoNoGoContract:
         root = Path(__file__).resolve().parents[2]
         runbook = (root / "docs/runbooks/GA_GO_NO_GO.md").read_text(encoding="utf-8")
         traceability = (root / "docs/TRACEABILITY.md").read_text(encoding="utf-8")
-        assert "Version cible : `0.32.4`" in runbook
+        assert "Version cible : `0.32.6`" in runbook
         assert "EPIC-1806" in runbook
         assert "NO-GO" in runbook
-        assert "v0.32.4" in traceability
+        assert "v0.32.6" in traceability
         assert "EPIC-1805" in traceability

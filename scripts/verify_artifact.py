@@ -132,6 +132,8 @@ class SourceDistributionVerifier:
         "docker/observability/otel-collector.yaml",
         "docker/observability/tempo.yaml",
         "scripts/run_enterprise_capacity_profile.py",
+        "scripts/run_enterprise_workload_benchmark.py",
+        "scripts/run_enterprise_benchmark_suite.py",
         "scripts/run_enterprise_chaos_profile.py",
         "scripts/assemble_enterprise_capacity_evidence.py",
         "scripts/certify_enterprise_capacity.py",

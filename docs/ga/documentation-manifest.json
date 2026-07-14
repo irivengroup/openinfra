@@ -1,61 +1,137 @@
 {
   "schema_version": 1,
-  "release_version": "0.32.4",
+  "release_version": "0.32.6",
   "epic": "EPIC-1804",
   "documents": [
     {
       "id": "index",
       "path": "docs/ga/README.md",
       "audience": "all",
-      "required_headings": ["Documentation GA OpenInfra", "Parcours par rôle", "Matrice des éditions", "Contrôles de cohérence"]
+      "required_headings": [
+        "Documentation GA OpenInfra",
+        "Parcours par rôle",
+        "Matrice des éditions",
+        "Contrôles de cohérence"
+      ]
     },
     {
       "id": "installation",
       "path": "docs/ga/INSTALLATION.md",
       "audience": "platform-engineer",
-      "required_headings": ["Installation et démarrage", "Prérequis", "Docker Compose", "Installation native", "Validation post-installation", "Désinstallation contrôlée"]
+      "required_headings": [
+        "Installation et démarrage",
+        "Prérequis",
+        "Docker Compose",
+        "Installation native",
+        "Validation post-installation",
+        "Désinstallation contrôlée"
+      ]
     },
     {
       "id": "administration",
       "path": "docs/ga/ADMINISTRATION.md",
       "audience": "administrator",
-      "required_headings": ["Guide administrateur", "Authentification et jetons", "RBAC et périmètres", "Éditions et quotas", "Audit et traçabilité", "Administration PostgreSQL"]
+      "required_headings": [
+        "Guide administrateur",
+        "Authentification et jetons",
+        "RBAC et périmètres",
+        "Éditions et quotas",
+        "Audit et traçabilité",
+        "Administration PostgreSQL"
+      ]
     },
     {
       "id": "user-guide",
       "path": "docs/ga/USER_GUIDE.md",
       "audience": "operator",
-      "required_headings": ["Guide utilisateur", "Navigation", "Flux de travail métier", "Recherche globale", "Traitements asynchrones", "Accessibilité"]
+      "required_headings": [
+        "Guide utilisateur",
+        "Navigation",
+        "Flux de travail métier",
+        "Recherche globale",
+        "Traitements asynchrones",
+        "Accessibilité"
+      ]
     },
     {
       "id": "api-guide",
       "path": "docs/ga/API_GUIDE.md",
       "audience": "integrator",
-      "required_headings": ["Guide API", "Découverte des contrats", "Authentification", "Pagination et idempotence", "Erreurs", "Exemples vérifiés"]
+      "required_headings": [
+        "Guide API",
+        "Découverte des contrats",
+        "Authentification",
+        "Pagination et idempotence",
+        "Erreurs",
+        "Exemples vérifiés"
+      ]
     },
     {
       "id": "operations",
       "path": "docs/ga/OPERATIONS.md",
       "audience": "sre",
-      "required_headings": ["Guide d’exploitation", "Démarrage et arrêt", "Supervision", "Sauvegardes", "Maintenance", "Incidents courants"]
+      "required_headings": [
+        "Guide d’exploitation",
+        "Démarrage et arrêt",
+        "Supervision",
+        "Sauvegardes",
+        "Maintenance",
+        "Incidents courants"
+      ]
     },
     {
       "id": "disaster-recovery",
       "path": "docs/ga/DISASTER_RECOVERY.md",
       "audience": "sre",
-      "required_headings": ["PRA et PCA", "Objectifs RPO et RTO", "Sauvegarde et PITR", "Bascule contrôlée", "Restauration", "Exercice de reprise"]
+      "required_headings": [
+        "PRA et PCA",
+        "Objectifs RPO et RTO",
+        "Sauvegarde et PITR",
+        "Bascule contrôlée",
+        "Restauration",
+        "Exercice de reprise"
+      ]
     },
     {
       "id": "upgrade",
       "path": "docs/ga/UPGRADE.md",
       "audience": "release-manager",
-      "required_headings": ["Mise à niveau", "Précontrôles", "Sauvegarde", "Déploiement", "Validation", "Retour arrière"]
+      "required_headings": [
+        "Mise à niveau",
+        "Précontrôles",
+        "Sauvegarde",
+        "Déploiement",
+        "Validation",
+        "Retour arrière"
+      ]
     },
     {
       "id": "troubleshooting",
       "path": "docs/ga/TROUBLESHOOTING.md",
       "audience": "support",
-      "required_headings": ["Diagnostic et support", "Collecte minimale", "API indisponible", "Web indisponible", "PostgreSQL et migrations", "Observabilité"]
+      "required_headings": [
+        "Diagnostic et support",
+        "Collecte minimale",
+        "API indisponible",
+        "Web indisponible",
+        "PostgreSQL et migrations",
+        "Observabilité"
+      ]
+    },
+    {
+      "id": "support",
+      "path": "docs/ga/SUPPORT.md",
+      "audience": "support",
+      "required_headings": [
+        "Support, maintenance et cycle de vie",
+        "Périmètre du support",
+        "Sévérités S1 à S4",
+        "Cycle de vie des versions",
+        "Politique de correctifs",
+        "Mise à niveau et migration",
+        "Escalade et communication",
+        "Maintenance planifiée"
+      ]
     }
   ],
   "required_command_fragments": [

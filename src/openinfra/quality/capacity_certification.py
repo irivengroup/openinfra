@@ -24,6 +24,14 @@ _REQUIRED_CHAOS_SCENARIOS: Final[tuple[str, ...]] = (
     "db-replica-loss",
     "pgbouncer-restart",
 )
+_REQUIRED_BENCHMARK_WORKLOADS: Final[tuple[str, ...]] = (
+    "api",
+    "ipam",
+    "imports",
+    "discovery",
+    "database",
+    "graph",
+)
 
 
 class CapacityEvidenceParser:
@@ -305,6 +313,116 @@ class CapacityStageEvidence:
 
 
 @dataclass(frozen=True, slots=True)
+class BenchmarkWorkloadEvidence:
+    workload: str
+    method: str
+    path: str
+    duration_seconds: float
+    requests: int
+    p95_ms: float
+    p99_ms: float
+    error_rate_percent: float
+    throughput_rps: float
+    response_bytes: int
+    expected_status_codes: tuple[int, ...]
+
+    @classmethod
+    def from_mapping(cls, payload: dict[str, object]) -> BenchmarkWorkloadEvidence:
+        workload = str(payload.get("workload", "")).strip().lower()
+        if workload not in _REQUIRED_BENCHMARK_WORKLOADS:
+            raise ValidationError(f"unsupported benchmark workload: {workload or '<empty>'}")
+        method = str(payload.get("method", "")).strip().upper()
+        if method != "GET":
+            raise ValidationError(
+                f"benchmark {workload}: only read-only GET workloads are accepted"
+            )
+        path = str(payload.get("path", "")).strip()
+        if not path.startswith("/") or path.startswith("//"):
+            raise ValidationError(f"benchmark {workload}: path must be an absolute HTTP path")
+        raw_statuses = payload.get("expected_status_codes")
+        if not isinstance(raw_statuses, list) or not raw_statuses:
+            raise ValidationError(
+                f"benchmark {workload}: expected_status_codes must be a non-empty array"
+            )
+        expected_status_codes = tuple(
+            CapacityEvidenceParser.integer(value, f"benchmarks.{workload}.expected_status_codes")
+            for value in raw_statuses
+        )
+        if any(value < 100 or value > 599 for value in expected_status_codes):
+            raise ValidationError(f"benchmark {workload}: invalid expected HTTP status code")
+        if len(set(expected_status_codes)) != len(expected_status_codes):
+            raise ValidationError(
+                f"benchmark {workload}: expected HTTP status codes must be unique"
+            )
+        return cls(
+            workload=workload,
+            method=method,
+            path=path,
+            duration_seconds=CapacityEvidenceParser.number(
+                payload.get("duration_seconds"), f"benchmarks.{workload}.duration_seconds"
+            ),
+            requests=CapacityEvidenceParser.integer(
+                payload.get("requests"), f"benchmarks.{workload}.requests"
+            ),
+            p95_ms=CapacityEvidenceParser.number(
+                payload.get("p95_ms"), f"benchmarks.{workload}.p95_ms"
+            ),
+            p99_ms=CapacityEvidenceParser.number(
+                payload.get("p99_ms"), f"benchmarks.{workload}.p99_ms"
+            ),
+            error_rate_percent=CapacityEvidenceParser.number(
+                payload.get("error_rate_percent"),
+                f"benchmarks.{workload}.error_rate_percent",
+            ),
+            throughput_rps=CapacityEvidenceParser.number(
+                payload.get("throughput_rps"), f"benchmarks.{workload}.throughput_rps"
+            ),
+            response_bytes=CapacityEvidenceParser.integer(
+                payload.get("response_bytes"), f"benchmarks.{workload}.response_bytes"
+            ),
+            expected_status_codes=expected_status_codes,
+        )
+
+    def failures(self, thresholds: EnterpriseCapacityThresholds) -> tuple[str, ...]:
+        failures: list[str] = []
+        if self.duration_seconds <= 0 or self.requests <= 0:
+            failures.append(f"benchmark {self.workload}: non-empty load evidence required")
+        if self.p95_ms > thresholds.p95_ms:
+            failures.append(
+                f"benchmark {self.workload}: p95_ms={self.p95_ms:.6f} "
+                f"exceeds {thresholds.p95_ms:.6f}"
+            )
+        if self.p99_ms > thresholds.p99_ms:
+            failures.append(
+                f"benchmark {self.workload}: p99_ms={self.p99_ms:.6f} "
+                f"exceeds {thresholds.p99_ms:.6f}"
+            )
+        if self.error_rate_percent > thresholds.error_rate_percent:
+            failures.append(
+                f"benchmark {self.workload}: error_rate_percent={self.error_rate_percent:.6f} "
+                f"exceeds {thresholds.error_rate_percent:.6f}"
+            )
+        if self.throughput_rps <= 0:
+            failures.append(f"benchmark {self.workload}: positive throughput is required")
+        return tuple(failures)
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "workload": self.workload,
+            "method": self.method,
+            "path": self.path,
+            "duration_seconds": self.duration_seconds,
+            "requests": self.requests,
+            "p95_ms": self.p95_ms,
+            "p99_ms": self.p99_ms,
+            "error_rate_percent": self.error_rate_percent,
+            "throughput_rps": self.throughput_rps,
+            "response_bytes": self.response_bytes,
+            "expected_status_codes": list(self.expected_status_codes),
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class ChaosScenarioEvidence:
     scenario: str
     fault_injected: bool
@@ -373,6 +491,7 @@ class EnterpriseCapacityCertification:
     profile_version: int
     topology: EnterpriseTopologyEvidence
     thresholds: EnterpriseCapacityThresholds
+    benchmarks: tuple[BenchmarkWorkloadEvidence, ...]
     stages: tuple[CapacityStageEvidence, ...]
     chaos: tuple[ChaosScenarioEvidence, ...]
     source_hashes: dict[str, str]
@@ -389,15 +508,24 @@ class EnterpriseCapacityCertification:
             raise ValidationError("profile_version must be greater than zero")
         topology_payload = payload.get("topology")
         thresholds_payload = payload.get("thresholds")
+        benchmarks_payload = payload.get("benchmarks", [])
         stages_payload = payload.get("stages")
         chaos_payload = payload.get("chaos")
         hashes_payload = payload.get("source_hashes")
         if not isinstance(topology_payload, dict) or not isinstance(thresholds_payload, dict):
             raise ValidationError("topology and thresholds must be JSON objects")
+        if not isinstance(benchmarks_payload, list):
+            raise ValidationError("benchmarks must be a JSON array")
         if not isinstance(stages_payload, list) or not isinstance(chaos_payload, list):
             raise ValidationError("stages and chaos must be JSON arrays")
         if not isinstance(hashes_payload, dict):
             raise ValidationError("source_hashes must be a JSON object")
+        benchmarks = tuple(
+            BenchmarkWorkloadEvidence.from_mapping(
+                CapacityEvidenceParser.object_mapping(item, "benchmarks")
+            )
+            for item in benchmarks_payload
+        )
         stages = tuple(
             CapacityStageEvidence.from_mapping(
                 CapacityEvidenceParser.object_mapping(item, "stages")
@@ -408,8 +536,11 @@ class EnterpriseCapacityCertification:
             ChaosScenarioEvidence.from_mapping(CapacityEvidenceParser.object_mapping(item, "chaos"))
             for item in chaos_payload
         )
+        benchmark_names = tuple(item.workload for item in benchmarks)
         stage_names = tuple(item.stage for item in stages)
         chaos_names = tuple(item.scenario for item in chaos)
+        if len(set(benchmark_names)) != len(benchmark_names):
+            raise ValidationError("benchmark workloads must be unique")
         if len(set(stage_names)) != len(stage_names):
             raise ValidationError("capacity stages must be unique")
         if len(set(chaos_names)) != len(chaos_names):
@@ -426,6 +557,7 @@ class EnterpriseCapacityCertification:
             profile_version=profile_version,
             topology=EnterpriseTopologyEvidence.from_mapping(topology_payload),
             thresholds=EnterpriseCapacityThresholds.from_mapping(thresholds_payload),
+            benchmarks=benchmarks,
             stages=stages,
             chaos=chaos,
             source_hashes=source_hashes,
@@ -433,7 +565,14 @@ class EnterpriseCapacityCertification:
 
     def evaluate(self) -> dict[str, object]:
         failures = list(self.topology.qualification_failures())
+        benchmarks_by_name = {item.workload: item for item in self.benchmarks}
         stages_by_name = {item.stage: item for item in self.stages}
+        if self.profile_version >= 2:
+            failures.extend(
+                f"missing required benchmark workload: {name}"
+                for name in _REQUIRED_BENCHMARK_WORKLOADS
+                if name not in benchmarks_by_name
+            )
         chaos_by_name = {item.scenario: item for item in self.chaos}
         failures.extend(
             f"missing required capacity stage: {name}"
@@ -445,6 +584,8 @@ class EnterpriseCapacityCertification:
             for name in _REQUIRED_CHAOS_SCENARIOS
             if name not in chaos_by_name
         )
+        for benchmark in self.benchmarks:
+            failures.extend(benchmark.failures(self.thresholds))
         for stage in self.stages:
             failures.extend(stage.failures(self.thresholds))
         for scenario in self.chaos:
@@ -456,6 +597,7 @@ class EnterpriseCapacityCertification:
                 "profile_version": self.profile_version,
                 "topology": self.topology.as_dict(),
                 "thresholds": self.thresholds.as_dict(),
+                "benchmarks": [item.as_dict() for item in self.benchmarks],
                 "stages": [item.as_dict() for item in self.stages],
                 "chaos": [item.as_dict() for item in self.chaos],
                 "source_hashes": self.source_hashes,
@@ -464,7 +606,7 @@ class EnterpriseCapacityCertification:
             separators=(",", ":"),
         ).encode("utf-8")
         return {
-            "schema_version": 1,
+            "schema_version": 2,
             "certification": "openinfra-enterprise-capacity",
             "openinfra_version": __version__,
             "generated_at": datetime.now(UTC).isoformat(),
@@ -476,6 +618,7 @@ class EnterpriseCapacityCertification:
             "failures": failures,
             "topology": self.topology.as_dict(),
             "thresholds": self.thresholds.as_dict(),
+            "benchmarks": [item.as_dict() for item in self.benchmarks],
             "stages": [item.as_dict() for item in self.stages],
             "chaos": [item.as_dict() for item in self.chaos],
             "source_hashes": dict(sorted(self.source_hashes.items())),

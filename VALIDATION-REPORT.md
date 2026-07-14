@@ -1,70 +1,114 @@
-# OpenInfra v0.32.6 — rapport de validation
+# OpenInfra v0.32.7 — rapport de validation
 
 Date : 2026-07-14
 
 ## Objet
 
-Cette livraison implémente P18 / EPIC-1801 : benchmarks Enterprise Scale reproductibles pour les six familles de charge contractuelles API, IPAM, imports, Discovery, base de données et graphes. Elle étend sans rupture le mécanisme de certification de capacité Enterprise livré précédemment et conserve les contrôles de release P18 déjà présents.
+Cette livraison affine l'expérience visuelle du portail OpenInfra sans modifier la palette approuvée. Les menus racine de la sidebar, les titres de contexte et les titres de page utilisent le bleu nuit le plus sombre déjà présent dans le thème (`--openinfra-ink`). Une couche de transparence contrôlée renforce la profondeur visuelle des surfaces sans appliquer d'opacité aux contenus lisibles.
 
 ## Fonctionnalités livrées
 
-- profil de capacité Enterprise v2 avec six familles de benchmark obligatoires ;
-- runner HTTP asynchrone HTTPS, strictement GET/read-only, avec pool persistant et concurrence bornée ;
-- suite orchestrée des six workloads avec configuration externe des chemins représentatifs ;
-- mesures p95, p99, taux d'erreur, débit, volume de réponses et distribution des statuts HTTP ;
-- intégration des résultats et de leurs empreintes SHA-256 dans la preuve de certification de capacité ;
-- refus de `capacity_certification=true` si un benchmark requis est absent ou dépasse les seuils ;
-- workflow Enterprise Capacity étendu et secret protégé pour les chemins de benchmark ;
-- documentation d'architecture et runbook d'exploitation alignés ;
-- compatibilité ascendante de lecture des anciennes preuves de profil v1.
+- menus racine de la sidebar en bleu nuit très foncé proche du noir ;
+- titres de contexte de navigation et titres contextuels de page alignés sur le même niveau de hiérarchie visuelle ;
+- conservation stricte des états actifs existants, notamment le turquoise sur le texte et l'icône du composant actif au survol ;
+- transparence contrôlée sur sidebar, titlebar, cartes, formulaires, recherche globale, résultats, mégamenu, navigation compacte, tableaux et surfaces secondaires ;
+- profondeur visuelle obtenue par backgrounds alpha, bordures translucides, ombres légères et `backdrop-filter` ;
+- fallback opaque pour les navigateurs sans `backdrop-filter` ;
+- mode `prefers-contrast: more` rendu opaque et fortement contrasté ;
+- aucun `opacity` appliqué aux conteneurs de contenu, afin de ne pas dégrader textes, icônes ou contrôles ;
+- thème React et runtime packagé strictement synchronisés ;
+- tests de non-régression verrouillant la palette approuvée et la nouvelle hiérarchie bleu nuit.
 
-## Compatibilité et impact
+## Palette et compatibilité
+
+La palette existante n'a pas été modifiée. Les tests verrouillent notamment les valeurs suivantes :
+
+- `--openinfra-ink: #001b41` ;
+- `--openinfra-navy: #001b41` ;
+- `--openinfra-navy-2: #052f6f` ;
+- `--openinfra-blue: #003d8f` ;
+- `--openinfra-action: #0066ff` ;
+- `--openinfra-cyan: #00c2ff` ;
+- `--openinfra-green: #15a362` ;
+- `--openinfra-fuchsia: #ff00ff` ;
+- `--openinfra-page-bg: #f4f8ff`.
+
+Impact :
 
 - aucune migration PostgreSQL ;
 - aucune rupture d'API métier ou de CLI publique ;
-- aucune dépendance runtime ajoutée ;
-- aucune modification CSS, graphique ou du thème ;
-- aucune suppression de fonctionnalité existante ;
-- les preuves historiques de profil v1 restent lisibles ;
-- une certification officielle avec profil v2 exige désormais les six familles de benchmark.
+- aucune suppression de fonctionnalité ;
+- aucune nouvelle dépendance runtime ;
+- comportement responsive conservé ;
+- accessibilité WCAG 2.2 AA conservée ;
+- compatibilité ascendante complète avec la v0.32.6.
+
+## Fichiers principaux modifiés
+
+- `web/src/openinfra-theme.css` ;
+- `src/openinfra/interfaces/rendering/static/assets/openinfra-web.css` ;
+- `web/tests/theme-colors.test.mjs` ;
+- `VERSION` ;
+- `pyproject.toml` ;
+- `web/package.json` ;
+- `web/package-lock.json` ;
+- métadonnées et contrats de version 0.32.7 ;
+- `README.md` ;
+- `CHANGELOG.md` ;
+- `VALIDATION-REPORT.md`.
 
 ## Validations exécutées
 
-- tests Python collectés : **1 223** ;
+### Frontend
+
+- tests frontend Node : **63 réussis** ;
+- tests ciblés thème/navigation/accessibilité : **19 réussis** ;
+- validation des assets statiques : **PASS** ;
+- validation accessibilité WCAG 2.2 AA : **PASS** ;
+- ESLint JSX/accessibilité : **PASS** ;
+- build Vite production : **PASS** ;
+- validation du bundle : **PASS** ;
+- `npm audit --audit-level=high` : **0 vulnérabilité** ;
+- synchronisation exacte du CSS React/runtime : **PASS**.
+
+### Python et contrats runtime
+
+- tests collectés : **1 223** ;
 - suites unitaires et performance : **581 tests réussis** ;
-- intégration : **133 fichiers de tests réussis** en processus isolés ;
-- module modifié `capacity_certification.py` : **284 / 284 instructions couvertes, 100 %** ;
-- Ruff format, périmètre CI `src tests scripts docker installers` : **348 fichiers conformes** ;
-- Ruff lint, même périmètre CI : **PASS** ;
+- tests Python ciblés de régression frontend/runtime/documentation/version : **66 réussis** ;
+- Ruff format : **348 fichiers conformes** ;
+- Ruff lint : **PASS** ;
 - mypy strict : **107 modules conformes** ;
-- compileall `src tests scripts docker installers` : **PASS** ;
-- `scripts/security_gate.py` : **PASS** ;
-- Bandit complet `src/openinfra` : **PASS, 0 résultat** sur **95 309 lignes de code analysées** ;
-- validation frontend : **PASS** ;
-- validation documentation GA : **10 documents, 33 commandes CLI, 7 opérations API, version 0.32.6** ;
-- support-readiness : **PASS**, trois profils de support ;
-- six profils installateur autonome : **PASS** ;
+- `compileall` : **PASS** ;
+- validation frontend Python : **PASS** ;
+- validation documentation GA : **10 documents, 33 commandes CLI, 7 opérations API, version 0.32.7** ;
 - alignement Enterprise : **PASS** ;
 - runtime natif : **PASS** ;
-- tests frontend : **60 réussis** ;
-- ESLint : **PASS** ;
-- build Vite : **PASS** ;
-- npm audit niveau high : **0 vulnérabilité** ;
-- build sdist + wheel `openinfra 0.32.6` : **PASS** ;
-- vérification des artefacts : **PASS** ;
-- smoke du wheel installé : **PASS**, version **0.32.6**, **54 migrations** et contrats runtime/GA/release présents.
+- security gate : **PASS** ;
+- Bandit complet `src/openinfra` : **PASS, aucun résultat bloquant**.
 
-## Couverture globale et quality gate
+### Packaging
 
-La suite complète monolithique et une seconde tentative de collecte de couverture par processus parallèles ont dépassé la fenêtre d'exécution du sandbox, sans échec fonctionnel observé avant interruption. La couverture globale exacte de cette révision n'est donc pas déclarée comme exécutée localement.
+- build final sdist `openinfra-0.32.7.tar.gz` : **PASS** ;
+- build final wheel `openinfra-0.32.7-py3-none-any.whl` : **PASS** ;
+- vérification du contenu des deux artefacts : **PASS**.
+- smoke du wheel installé en environnement virtuel dédié : **PASS**, version **0.32.7**, **54 migrations**, assets runtime et contrats GA/release présents.
 
-La base v0.32.5 validée était à **98,00398220299402 % (39 869 / 40 681)**. Le principal module de production modifié par EPIC-1801 passe de 222 à 284 instructions et les **284 instructions sont couvertes à 100 %** par la suite dédiée. Le seuil contractuel global reste bloquant à **98 %** dans la CI GitHub ; la promotion de la release est interdite si ce gate échoue.
+## Couverture et intégration complète
 
-Le `quality_gate.py` global a été exécuté jusqu'à son étape finale. Tous les contrôles structurels et sous-gates précédents ont terminé avec succès ; le processus retourne **RC=1 uniquement sur `coverage report --fail-under=98`**, car la base `.coverage` locale est issue de la tentative de collecte interrompue et ne représente que 55 % du code. Ce taux partiel n'est pas une mesure de la couverture réelle de la suite complète.
+La suite d'intégration complète contient **133 fichiers**. Une exécution séquentielle isolée a été lancée afin d'éviter les interactions entre runtimes, mais elle a dépassé la fenêtre maximale d'exécution du sandbox avant de produire un résultat global exploitable. Elle n'est donc pas déclarée comme validée intégralement dans cet environnement.
+
+Les tests directement impactés par cette évolution visuelle et de version sont couverts par les **66 tests Python ciblés** et les **63 tests frontend**, tous réussis. Les **581 tests unitaires/performance** ont également tous réussi.
+
+Le seuil contractuel global de couverture **>= 98 %** reste bloquant dans GitHub Actions. Une exécution partielle ciblée ne peut pas fournir un taux global représentatif et n'est pas utilisée comme preuve de couverture de release.
 
 ## Limites de l'environnement
 
-Docker n'est pas installé dans le sandbox. Le build Compose réel, les smokes conteneurs, Trivy et le DAST doivent être exécutés par les workflows bloquants de release.
+Docker n'est pas disponible dans le sandbox. Les validations suivantes restent déléguées aux workflows bloquants de CI/CD :
 
-
-Aucun benchmark Enterprise officiel n'a été exécuté contre une infrastructure représentative, car il nécessite la topologie protégée, les données de charge et les secrets d'organisation. La livraison fournit le moteur, le profil, les preuves et le workflow nécessaires ; une certification officielle doit exécuter le profil v2 avec `duration_scale=1` sur la plateforme de référence.
+- build et démarrage Compose réels ;
+- smoke conteneurs ;
+- Trivy image/repository ;
+- DAST ;
+- couverture globale complète >= 98 % ;
+- exécution complète des 133 fichiers d'intégration dans l'environnement CI dédié.

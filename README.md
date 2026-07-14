@@ -1,6 +1,16 @@
-# OpenInfra v0.32.6
+# OpenInfra v0.32.7
 
-OpenInfra 0.32.6 implémente P18 / EPIC-1806 : modèle de support par édition, sévérités S1 à S4, cycle de vie des versions, politique de correctifs, migration, rollback, escalade et preuve `support-readiness` signée pour GATE-07. Le correctif Docker 0.32.4 est conservé et le thème approuvé reste inchangé.
+OpenInfra 0.32.7 affine l’expérience visuelle du portail sans modifier la palette approuvée. Les menus racine de la sidebar et les titres contextuels utilisent désormais le bleu nuit le plus sombre du thème (`--openinfra-ink`), tandis qu’une couche de transparence contrôlée apporte davantage de profondeur aux surfaces sans réduire la lisibilité du contenu.
+
+## Hiérarchie bleu nuit et profondeur transparente — v0.32.7
+
+- menus racine de la sidebar, contextes et titres de page en bleu nuit très foncé proche du noir ;
+- palette IONOS/OpenInfra inchangée et verrouillée par tests de non-régression ;
+- transparence appliquée aux surfaces de navigation, cartes, formulaires, recherche, tableaux et panneaux secondaires ;
+- aucun `opacity` appliqué aux conteneurs lisibles : textes, icônes et contrôles conservent leur contraste ;
+- effets de profondeur par `backdrop-filter` avec fallback opaque pour les navigateurs non compatibles ;
+- mode contraste renforcé, réduction des animations, responsive et accessibilité conservés ;
+- synchronisation stricte du thème entre le frontend React et le runtime packagé.
 
 ## Support et maintenance — P18 / EPIC-1806
 

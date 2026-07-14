@@ -1,3 +1,13 @@
+## 0.32.7 — 2026-07-14
+
+- Raffinement visuel de la sidebar et de la hiérarchie contextuelle sans modification de la palette approuvée.
+- Menus racine de la sidebar, contextes et titres de page en bleu nuit très foncé basé sur le token sémantique existant `--openinfra-ink`.
+- Couche de profondeur transparente sur sidebar, barre contextuelle, cartes, formulaires, recherche, mégamenu, tableaux et surfaces secondaires.
+- Transparence appliquée aux surfaces et non au contenu afin de préserver la lisibilité et les contrastes.
+- Fallback sans `backdrop-filter`, mode contraste renforcé et comportement responsive/accessibilité conservés.
+- Tests de non-régression verrouillant la palette, la synchronisation React/runtime et l'absence d'opacité appliquée au contenu.
+- Aucune migration PostgreSQL, aucune rupture API/CLI et aucune nouvelle dépendance runtime.
+
 ## 0.32.6 — 2026-07-14
 
 - Implémentation P18 / EPIC-1801 : benchmarks Enterprise Scale reproductibles sur topologie représentative.

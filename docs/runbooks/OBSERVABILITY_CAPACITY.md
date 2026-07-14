@@ -2,7 +2,7 @@
 
 ## 1. Prérequis
 
-- OpenInfra 0.32.6 en runtime ASGI ;
+- OpenInfra 0.32.7 en runtime ASGI ;
 - accès privé aux endpoints `/metrics` API et web ;
 - Docker Compose pour la pile locale d'observabilité ;
 - pour une certification : topologie Enterprise représentative, dataset minimal, runner dédié et fenêtre de maintenance pour les scénarios de chaos ;

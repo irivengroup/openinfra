@@ -92,3 +92,54 @@ test('visual excellence layer preserves premium surfaces and restrained interact
   assert.match(reactTheme, /@media \(prefers-reduced-motion: reduce\)/);
   assert.doesNotMatch(reactTheme, /^\s*filter:\s*blur\(/m);
 });
+
+test('approved OpenInfra palette remains unchanged in the transparent depth release', async () => {
+  const { reactTheme } = await themes();
+  const expectedPalette = new Map([
+    ['openinfra-ink', '#001b41'],
+    ['openinfra-navy', '#001b41'],
+    ['openinfra-navy-2', '#052f6f'],
+    ['openinfra-blue', '#003d8f'],
+    ['openinfra-action', '#0066ff'],
+    ['openinfra-cyan', '#00c2ff'],
+    ['openinfra-green', '#15a362'],
+    ['openinfra-fuchsia', '#ff00ff'],
+    ['openinfra-page-bg', '#f4f8ff'],
+  ]);
+
+  for (const [name, expected] of expectedPalette) {
+    assert.equal(parseHexVariable(reactTheme, name).toLowerCase(), expected, `--${name} must remain unchanged`);
+  }
+});
+
+test('sidebar root menu and contextual page titles use the darkest approved midnight blue', async () => {
+  const { reactTheme } = await themes();
+  assert.match(
+    reactTheme,
+    /\/\* v0\.32\.7:[\s\S]*?\.openinfra-sidebar-dashboard,\s*\n\.openinfra-accordion-toggle\s*\{\s*\n\s*color: var\(--openinfra-ink\);/,
+  );
+  assert.match(
+    reactTheme,
+    /\.openinfra-titlebar h1,\s*\n\.openinfra-operation-card h2\s*\{\s*\n\s*color: var\(--openinfra-ink\);/,
+  );
+  assert.match(reactTheme, /\.openinfra-sidebar-context-title\s*\{[\s\S]*?color: var\(--openinfra-ink\);/);
+});
+
+test('transparent depth is applied to surfaces without fading readable content', async () => {
+  const { reactTheme } = await themes();
+  const releaseLayer = reactTheme.slice(reactTheme.indexOf('/* v0.32.7:'));
+  assert.ok(releaseLayer.length > 0, 'v0.32.7 transparency layer must exist');
+  for (const selector of [
+    '.openinfra-sidebar',
+    '.openinfra-titlebar',
+    '.openinfra-global-toolbar',
+    '.openinfra-global-search-results',
+    '.openinfra-mega-menu-group',
+  ]) {
+    assert.ok(releaseLayer.includes(selector), `${selector} must participate in the depth layer`);
+  }
+  assert.match(releaseLayer, /background:\s*rgba\(255, 255, 255, \.9\);/);
+  assert.match(releaseLayer, /backdrop-filter: blur\(18px\) saturate\(125%\);/);
+  assert.match(releaseLayer, /@media \(prefers-contrast: more\)/);
+  assert.doesNotMatch(releaseLayer, /^\s*opacity:\s*\.[0-9]+;/m, 'surface transparency must not fade child content');
+});

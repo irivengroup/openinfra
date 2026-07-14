@@ -1,3 +1,15 @@
+## 0.32.10 — 2026-07-14
+
+- Réalisation de P17 / EPIC-1705 : observabilité multisite par région et par site pour les éditions Pro et Enterprise.
+- Agrégation du lag des agents Discovery à partir des heartbeats réellement persistés, avec déduplication des collecteurs utilisés par plusieurs VRF d’un même site.
+- Export Prometheus borné des métriques `openinfra_multisite_agent_lag_seconds`, `openinfra_multisite_agent_health` et `openinfra_multisite_agent_collectors`, sans label de tenant ni d’utilisateur.
+- Fédération HTTPS des endpoints `/metrics` des sites via file service discovery, répertoire monté en lecture seule et redirections désactivées.
+- Ajout du dashboard Grafana `OpenInfra Multisite Operations` couvrant disponibilité API, p95, erreurs 5xx, agents, réplication PostgreSQL et files de jobs.
+- Ajout de six alertes multisites, d’un profil machine-readable, d’un validateur de cibles et d’un runbook opérationnel.
+- Gate CI et quality gate étendus avec tests de non-régression sur la cardinalité, les labels et les contrats d’observabilité.
+- Aucune migration PostgreSQL, aucune rupture API/CLI métier et aucune modification du thème.
+- CDC et roadmap inchangés : EPIC-1705 était déjà planifié et aucune nouvelle recommandation n’impacte l’existant.
+
 ## 0.32.9 — 2026-07-14
 
 - Réalisation de P17 / EPIC-1704 : certification complète PRA/PCA pour les éditions Pro et Enterprise.

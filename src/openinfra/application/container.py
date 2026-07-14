@@ -140,6 +140,7 @@ from openinfra.infrastructure.json_store import (
     JsonTransactionManager,
     SeedDataFactory,
 )
+from openinfra.infrastructure.multisite_observability import MultisiteOperationalMetricsProvider
 from openinfra.infrastructure.observability import OpenInfraTelemetry
 from openinfra.infrastructure.postgresql import (
     PostgreSQLAccessPolicyRepository,
@@ -303,10 +304,15 @@ class ApplicationFactory:
         schema_status_provider = JsonSchemaStatusProvider()
         runtime_usage_repository = JsonRuntimeUsageRepository(store)
         async_processing_repository = JsonAsyncProcessingRepository(store)
+        multisite_metrics_provider = MultisiteOperationalMetricsProvider.from_environment(
+            multisite_repository,
+            discovery_repository,
+        )
         telemetry = OpenInfraTelemetry.from_environment(
             service_name="openinfra-api",
             edition=edition,
             queue_metrics_provider=async_processing_repository.operational_metrics,
+            multisite_metrics_provider=multisite_metrics_provider,
         )
         artifact_store = self._create_artifact_store(
             Path(
@@ -428,11 +434,21 @@ class ApplicationFactory:
             with registry.read_scope():
                 return async_processing_repository.operational_metrics()
 
+        raw_multisite_metrics_provider = MultisiteOperationalMetricsProvider.from_environment(
+            multisite_repository,
+            discovery_repository,
+        )
+
+        def multisite_metrics_provider() -> dict[str, object]:
+            with registry.read_scope():
+                return raw_multisite_metrics_provider()
+
         telemetry = OpenInfraTelemetry.from_environment(
             service_name="openinfra-api",
             edition=edition,
             queue_metrics_provider=queue_metrics_provider,
             runtime_metrics_provider=registry.operational_metrics,
+            multisite_metrics_provider=multisite_metrics_provider,
         )
         artifact_store = self._create_artifact_store(
             Path(os.environ.get("OPENINFRA_ARTIFACT_ROOT", "/data/openinfra/artifacts"))

@@ -1,8 +1,23 @@
-# OpenInfra v0.32.9
+# OpenInfra v0.32.10
 
-OpenInfra 0.32.9 réalise **P17 / EPIC-1704 — PRA/PCA complets** en certifiant les objectifs de continuité à partir des plans et exercices DR existants, de preuves de sauvegarde/restauration, de mesures PITR et de procédures opérationnelles complètes. Aucune bascule ou restauration n’est déclenchée automatiquement par le certificateur.
+OpenInfra 0.32.10 réalise **P17 / EPIC-1705 — Observabilité multisite** en donnant aux équipes SRE une vue opérationnelle par région et par site sur les agents Discovery, l’API, la réplication PostgreSQL, les files de jobs et la santé globale de la plateforme, sans créer de nouvelle source de vérité.
 
-## PRA/PCA complets — P17 / EPIC-1704
+## Observabilité multisite — P17 / EPIC-1705
+
+- lag maximal des agents Discovery calculé à partir des heartbeats réellement persistés ;
+- déduplication d’un même collecteur lorsqu’il dessert plusieurs VRF d’un même site ;
+- métriques Prometheus bornées par `region` et `site`, sans identifiant de tenant, d’utilisateur ou d’objet métier ;
+- fédération HTTPS des `/metrics` de chaque site avec file service discovery et redirections désactivées ;
+- dashboard Grafana `OpenInfra Multisite Operations` avec filtres région/site ;
+- visibilité sur disponibilité API, p95 HTTP, erreurs 5xx, agents, réplication PostgreSQL et files de jobs ;
+- six alertes multisites et seuils versionnés dans un profil machine-readable ;
+- validateur strict des fichiers de cibles : `host:port`, labels exacts `region`, `site`, `service`, aucune donnée secrète ;
+- gate CI et quality gate bloquants ;
+- aucune migration PostgreSQL, aucune rupture API/CLI métier et aucune modification du thème.
+
+Voir `docs/runbooks/MULTISITE_OBSERVABILITY.md` et `docs/operations/multisite-observability-profile.json`.
+
+## PRA/PCA complets — P17 / EPIC-1704 — v0.32.9
 
 - certification applicable aux éditions Pro et Enterprise ;
 - réutilisation des plans et exercices DR immuables livrés par EPIC-1703 ;

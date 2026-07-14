@@ -1,4 +1,4 @@
-import { OpenInfraI18n, localizeOpenInfraCatalog } from "./openinfra-i18n.js?v=0.32.9";
+import { OpenInfraI18n, localizeOpenInfraCatalog } from "./openinfra-i18n.js?v=0.32.10";
 import {
   fieldValidationMessage,
   formCountryCode,
@@ -7,11 +7,11 @@ import {
   normalizeFieldDefinition,
   normalizeFieldValue,
   validateControl
-} from "./openinfra-form-fields.js?v=0.32.9";
-import { OPENINFRA_DOMAIN_LOADERS, OPENINFRA_MODULES, OPENINFRA_SIDEBAR_CONTEXTS } from "./openinfra-domain-manifest.js?v=0.32.9";
-import { OpenInfraQueryCache } from "./openinfra-query-cache.js?v=0.32.9";
-import { OpenInfraVirtualList } from "./openinfra-virtual-list.js?v=0.32.9";
-import { installOpenInfraWebVitals } from "./openinfra-web-vitals.js?v=0.32.9";
+} from "./openinfra-form-fields.js?v=0.32.10";
+import { OPENINFRA_DOMAIN_LOADERS, OPENINFRA_MODULES, OPENINFRA_SIDEBAR_CONTEXTS } from "./openinfra-domain-manifest.js?v=0.32.10";
+import { OpenInfraQueryCache } from "./openinfra-query-cache.js?v=0.32.10";
+import { OpenInfraVirtualList } from "./openinfra-virtual-list.js?v=0.32.10";
+import { installOpenInfraWebVitals } from "./openinfra-web-vitals.js?v=0.32.10";
 
 
 class OpenInfraApiClient {
@@ -388,7 +388,7 @@ class OpenInfraDashboard {
 
   async loadSearchIndex() {
     if (this.searchIndex) return this.searchIndex;
-    const loaded = await import("./openinfra-search-index.js?v=0.32.9");
+    const loaded = await import("./openinfra-search-index.js?v=0.32.10");
     const syntheticModules = OPENINFRA_MODULES.map((module) => ({
       ...module,
       operations: loaded.default.filter((entry) => entry.moduleId === module.id).map((entry) => ({ ...entry }))

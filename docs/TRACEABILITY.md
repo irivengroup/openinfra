@@ -1,3 +1,16 @@
+## v0.32.10 — P17 / EPIC-1705 Observabilité multisite
+
+| Exigence / Epic | Implémentation | Vérification |
+|---|---|---|
+| EPIC-1705 — lag agents par site | `infrastructure/multisite_observability.py` agrège les heartbeats et déduplique les collecteurs par région/site | tests provider, stale threshold, déduplication et export Prometheus |
+| API, DB et jobs par site | fédération Prometheus HTTPS avec labels bornés `region`, `site`, `service` | validateur de job `openinfra-multisite` et contrat de cibles |
+| Dashboards et alertes | dashboard `openinfra-multisite-operations` et six alertes SRE | validation JSON/YAML et tests de contrat |
+| Sécurité/cardinalité | aucun label tenant/utilisateur, 10 000 routes maximum, cibles montées en lecture seule | tests de labels, validator et quality gate |
+| Exploitation | profil v1, runbook et validateur `validate_multisite_observability.py` | CI observability et quality gate |
+
+- Aucune migration PostgreSQL, aucune modification d’API/CLI métier et aucune modification de la charte graphique.
+- CDC/roadmap inchangés : EPIC-1705 était déjà défini.
+
 ## v0.32.9 — P17 / EPIC-1704 PRA/PCA complets
 
 | Exigence / Epic | Implémentation | Vérification |

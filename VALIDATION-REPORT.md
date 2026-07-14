@@ -1,42 +1,42 @@
-# OpenInfra v0.32.9 — rapport de validation
+# OpenInfra v0.32.10 — rapport de validation
 
 Date : 2026-07-14
 
 ## Périmètre livré
 
-La version 0.32.9 réalise **P17 / EPIC-1704 — PRA/PCA complets** sans nouvelle source de vérité ni migration PostgreSQL.
+La version 0.32.10 réalise **P17 / EPIC-1705 — Observabilité multisite** sans nouvelle source de vérité, sans migration PostgreSQL et sans modification du thème.
 
 Le dispositif :
 
-- réutilise les plans et exercices DR d’EPIC-1703 ;
-- agrège cinq preuves : plan DR, exercice DR, sauvegarde/restauration, PITR et procédures ;
-- mesure le RPO comme le pire cas entre lag de réplication et perte de données PITR ;
-- mesure le RTO comme le pire cas entre l’exercice DR et la récupération PITR ;
-- contrôle l’âge de sauvegarde, la restauration, l’intégrité, le chiffrement et la cohérence PITR ;
-- exige dix étapes de procédure complètes ;
-- hache chaque source en SHA-256 et protège le manifeste par un digest canonique ;
-- fournit un workflow GitHub Actions manuel sur environnement protégé et runner dédié ;
-- ne déclenche aucune bascule, promotion, restauration ou mutation d’infrastructure.
+- calcule le retard des collecteurs Discovery par région et par site à partir des heartbeats déjà persistés ;
+- déduplique un même collecteur lorsqu'il dessert plusieurs VRF d'un même site ;
+- exporte des métriques Prometheus bornées par `region`, `site` et état, sans identifiant de tenant, utilisateur ou objet métier dans les labels ;
+- borne la collecte à 10 000 routes régionales et protège la pagination contre les boucles de curseur ;
+- fédère les endpoints `/metrics` des sites via HTTPS et file service discovery ;
+- fournit un dashboard Grafana multisite couvrant API, agents, réplication PostgreSQL et files de jobs ;
+- ajoute six alertes multisite avec seuils explicites ;
+- fournit un profil machine-readable, un validateur strict et un runbook opérateur ;
+- intègre la validation au pipeline CI et au quality gate existants.
 
 ## Validations réussies
 
 ### Python et architecture
 
-- collecte globale : **1 235 tests** ;
-- suites unitaires et performance : **590/590 PASS** ;
-- tests ciblés PRA/PCA : **12/12 PASS** ;
-- régression transversale ciblée version, documentation, GA, runtime et frontend : **75/75 PASS** ;
-- couverture du nouveau module `openinfra.quality.continuity_certification` : **258/258 instructions, 100 %** ;
-- Ruff format : **354 fichiers conformes** ;
+- collecte globale : **1 244 tests** ;
+- suites unitaires et performance : **593/593 PASS** ;
+- tests ciblés observabilité multisite, workflow et régression : **18/18 PASS** lors du dernier passage ciblé ;
+- Ruff format : **357 fichiers conformes** ;
 - Ruff lint : **PASS** ;
-- mypy strict : **108 modules conformes** ;
+- mypy strict : **109 modules conformes** ;
 - `compileall` : **PASS** ;
+- validateur observabilité global : **PASS** ;
+- validateur observabilité multisite : **PASS** ;
 - validateur PRA/PCA : **PASS** ;
-- validateur documentation GA : **10 documents, 33 commandes CLI, 7 opérations API, version 0.32.9** ;
-- validation observabilité/capacité : **PASS** ;
+- validateur frontend : **PASS** ;
+- validateur documentation GA : **10 documents, 33 commandes CLI, 7 opérations API, version 0.32.10** ;
 - alignement Enterprise : **PASS** ;
 - validation des six profils installateur : **PASS** ;
-- quality gate : tous les contrôles préalables ont passé ; arrêt final attendu uniquement sur l’absence de base de couverture globale complète dans le sandbox.
+- support-readiness EPIC-1806 : **PASS** avec preuve signée par clé éphémère de validation locale.
 
 ### Frontend
 
@@ -52,25 +52,27 @@ Le dispositif :
 ### Sécurité
 
 - security gate : **PASS** ;
-- Bandit sur `src/openinfra` : **PASS**, aucun résultat bloquant ;
-- `pip-audit --strict -r requirements/security-audit.txt` : **NON EXÉCUTABLE dans le sandbox**, échec de résolution DNS vers PyPI ; le contrôle reste bloquant en CI.
+- Bandit : **PASS**, aucun résultat bloquant ;
+- `pip-audit --strict -r requirements/security-audit.txt` : **NON EXÉCUTABLE dans le sandbox**, échec de résolution DNS vers PyPI ; le contrôle reste obligatoire et bloquant en CI.
 
 ### Packaging
 
-- build sdist `openinfra-0.32.9.tar.gz` : **PASS** ;
-- build wheel `openinfra-0.32.9-py3-none-any.whl` : **PASS** ;
+- build sdist `openinfra-0.32.10.tar.gz` : **PASS** ;
+- build wheel `openinfra-0.32.10-py3-none-any.whl` : **PASS** ;
 - vérification du contenu des deux artefacts : **PASS** ;
+- runtime `multisite_observability` présent dans le wheel : **PASS** ;
+- profil, runbook, dashboard Grafana, cible file-SD et validateur multisite présents dans le sdist : **PASS** ;
 - smoke du wheel installé : **PASS** ;
-- version installée : **0.32.9** ;
+- version installée : **0.32.10** ;
 - migrations embarquées : **54**, dernière migration `0054_async_outbox_workers.sql` ;
-- contrat PRA/PCA présent dans le wheel installé : **PASS**.
+- contrat multisite installé, dont la borne de 10 000 routes : **PASS**.
 
 ## Limites d’exécution locales
 
-- La suite `tests/architecture + tests/integration` monolithique a dépassé la fenêtre d’exécution du sandbox. Aucun échec n’a été observé avant le timeout, mais la suite complète n’est **pas déclarée comme intégralement validée** localement.
-- La couverture globale du projet n’a pas été recalculée entièrement dans ce sandbox. Le seuil contractuel **≥ 98 %** reste bloquant dans GitHub Actions.
-- Docker et Docker Compose ne sont pas installés dans l’environnement courant ; les smokes Compose et les validations runtime conteneurisées restent délégués à la CI.
-- `pip-audit` n’a pas pu joindre PyPI à cause de la résolution DNS du sandbox ; il reste obligatoire et bloquant en CI.
+- La suite `tests/architecture + tests/integration` complète a dépassé la fenêtre d'exécution du sandbox. Aucun échec n'a été observé avant le timeout, mais la suite complète n'est **pas déclarée comme intégralement validée** localement.
+- La couverture globale du projet n'a pas été recalculée entièrement dans ce sandbox. Le seuil contractuel **≥ 98 %** reste bloquant dans GitHub Actions.
+- Docker et Docker Compose ne sont pas installés dans l'environnement courant ; les smokes Compose et les validations runtime conteneurisées restent délégués à la CI.
+- `pip-audit` n'a pas pu joindre PyPI à cause de la résolution DNS du sandbox ; il reste obligatoire et bloquant en CI.
 
 ## Compatibilité et impact
 
@@ -80,4 +82,4 @@ Le dispositif :
 - aucune suppression de fonctionnalité ;
 - aucune modification du thème ou de la charte graphique ;
 - compatibilité ascendante conservée ;
-- CDC et roadmap inchangés, EPIC-1704 étant déjà défini dans la roadmap 2.1.
+- CDC et roadmap inchangés, EPIC-1705 étant déjà défini dans la roadmap 2.1.

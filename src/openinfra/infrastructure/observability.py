@@ -169,6 +169,7 @@ class OpenInfraTelemetry(RuntimeTelemetry):
         environment: str,
         queue_metrics_provider: MetricsProvider | None = None,
         runtime_metrics_provider: MetricsProvider | None = None,
+        multisite_metrics_provider: MetricsProvider | None = None,
     ) -> None:
         normalized_service = service_name.strip().lower()
         normalized_edition = edition.strip().lower()
@@ -181,6 +182,7 @@ class OpenInfraTelemetry(RuntimeTelemetry):
         self._environment = environment.strip().lower() or "production"
         self._queue_metrics_provider = queue_metrics_provider
         self._runtime_metrics_provider = runtime_metrics_provider
+        self._multisite_metrics_provider = multisite_metrics_provider
         self._registry = CollectorRegistry(auto_describe=True)
         self._thread_state = local()
         self._close_lock = Lock()
@@ -299,6 +301,27 @@ class OpenInfraTelemetry(RuntimeTelemetry):
             registry=self._registry,
             multiprocess_mode="livemostrecent",
         )
+        self._multisite_agent_lag = Gauge(
+            "openinfra_multisite_agent_lag_seconds",
+            "Maximum Enterprise discovery agent heartbeat age grouped by region and site.",
+            ("region", "site"),
+            registry=self._registry,
+            multiprocess_mode="livemostrecent",
+        )
+        self._multisite_agent_health = Gauge(
+            "openinfra_multisite_agent_health",
+            "Whether every routed discovery agent is healthy for a region and site.",
+            ("region", "site"),
+            registry=self._registry,
+            multiprocess_mode="livemostrecent",
+        )
+        self._multisite_agent_collectors = Gauge(
+            "openinfra_multisite_agent_collectors",
+            "Discovery agent count grouped by region, site and bounded health state.",
+            ("region", "site", "state"),
+            registry=self._registry,
+            multiprocess_mode="livemostrecent",
+        )
         self._runtime_limit = Gauge(
             "openinfra_runtime_concurrency_limit",
             "Configured ASGI concurrency limit per process group.",
@@ -387,6 +410,7 @@ class OpenInfraTelemetry(RuntimeTelemetry):
         edition: str,
         queue_metrics_provider: MetricsProvider | None = None,
         runtime_metrics_provider: MetricsProvider | None = None,
+        multisite_metrics_provider: MetricsProvider | None = None,
     ) -> OpenInfraTelemetry:
         configured_service_name = os.environ.get(
             "OPENINFRA_TELEMETRY_SERVICE_NAME", service_name
@@ -397,6 +421,7 @@ class OpenInfraTelemetry(RuntimeTelemetry):
             environment=os.environ.get("OPENINFRA_ENVIRONMENT", "production"),
             queue_metrics_provider=queue_metrics_provider,
             runtime_metrics_provider=runtime_metrics_provider,
+            multisite_metrics_provider=multisite_metrics_provider,
         )
 
     def begin_http_request(
@@ -495,6 +520,8 @@ class OpenInfraTelemetry(RuntimeTelemetry):
             self._apply_queue_metrics(self._queue_metrics_provider())
         if self._runtime_metrics_provider is not None:
             self._apply_runtime_metrics(self._runtime_metrics_provider())
+        if self._multisite_metrics_provider is not None:
+            self._apply_multisite_metrics(self._multisite_metrics_provider())
 
     def close(self) -> None:
         with self._close_lock:
@@ -561,6 +588,41 @@ class OpenInfraTelemetry(RuntimeTelemetry):
                 for name, value in counters.items():
                     if re.fullmatch(r"[a-z][a-z0-9_]{1,63}", str(name)):
                         self._db_pool.labels("routing", str(name)).set(self._numeric(value))
+
+    def _apply_multisite_metrics(self, payload: dict[str, object]) -> None:
+        raw_sites = payload.get("sites", [])
+        if not isinstance(raw_sites, list):
+            return
+        for raw in raw_sites[:10_000]:
+            if not isinstance(raw, dict):
+                continue
+            region = self._normalize_metric_code(raw.get("region"))
+            site = self._normalize_metric_code(raw.get("site"))
+            if region is None or site is None:
+                continue
+            self._multisite_agent_lag.labels(region, site).set(
+                self._numeric(raw.get("agent_lag_seconds", 0.0))
+            )
+            self._multisite_agent_health.labels(region, site).set(
+                1.0 if bool(raw.get("healthy", False)) else 0.0
+            )
+            states = {
+                "healthy": raw.get("collectors_healthy", 0),
+                "degraded": raw.get("collectors_degraded", 0),
+                "maintenance": raw.get("collectors_maintenance", 0),
+                "stale": raw.get("collectors_stale", 0),
+            }
+            for state, value in states.items():
+                self._multisite_agent_collectors.labels(region, site, state).set(
+                    self._numeric(value)
+                )
+
+    @staticmethod
+    def _normalize_metric_code(value: object) -> str | None:
+        normalized = str(value or "").strip().upper()
+        if re.fullmatch(r"[A-Z0-9][A-Z0-9_.:-]{0,63}", normalized):
+            return normalized
+        return None
 
     def _resolved_concurrency_limit(self) -> int:
         service_specific = {

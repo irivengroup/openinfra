@@ -4,6 +4,9 @@ import importlib.metadata
 from pathlib import Path
 
 import openinfra
+from openinfra.infrastructure.multisite_observability import (
+    MultisiteOperationalMetricsProvider,
+)
 from openinfra.interfaces.http_api import OpenApiDocumentProvider
 from openinfra.quality.continuity_certification import PraPcaCertificationEvidence
 from openinfra.quality.dependency_graph_benchmark import DependencyGraphBenchmarkConfig
@@ -18,7 +21,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.32.9"
+    EXPECTED_VERSION = "0.32.10"
     EXPECTED_ASYNC_ROUTES = (
         "/api/v1/async/jobs",
         "/api/v1/async/jobs/get",
@@ -259,6 +262,7 @@ class InstalledWheelSmoke:
         self._assert_ga_go_no_go_contract(package_root)
         self._assert_support_readiness_contract(package_root)
         self._assert_pra_pca_contract()
+        self._assert_multisite_observability_contract()
         self._assert_benchmark_contract()
         self._assert_release_security_contract(package_root)
         self._assert_release_packaging_contract()
@@ -290,7 +294,15 @@ class InstalledWheelSmoke:
             "release_packaging_controls": 7,
             "support_readiness": True,
             "pra_pca_certification": True,
+            "multisite_observability": True,
         }
+
+    @staticmethod
+    def _assert_multisite_observability_contract() -> None:
+        if MultisiteOperationalMetricsProvider._max_routes != 10_000:
+            raise InstalledWheelSmokeError(
+                "installed multisite observability route bound is incomplete"
+            )
 
     @staticmethod
     def _assert_pra_pca_contract() -> None:
@@ -511,7 +523,7 @@ class InstalledWheelSmoke:
     def _assert_release_security_contract(package_root: Path) -> None:
         controls = ReleaseSecurityControlCatalog.build(
             package_root,
-            image_ref="openinfra/runtime:0.32.9",
+            image_ref="openinfra/runtime:0.32.10",
             api_base_url="http://127.0.0.1:8080",
             web_base_url="http://127.0.0.1:2006",
         )

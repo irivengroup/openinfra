@@ -81,3 +81,54 @@ groups:
           severity: critical
         annotations:
           summary: OpenInfra metrics endpoint is unavailable
+
+  - name: openinfra-multisite-slo
+    interval: 30s
+    rules:
+      - alert: OpenInfraMultisiteApiUnavailable
+        expr: up{job="openinfra-multisite"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: OpenInfra API is unavailable for site {{ $labels.site }} in {{ $labels.region }}
+
+      - alert: OpenInfraMultisiteApiP95LatencyHigh
+        expr: histogram_quantile(0.95, sum by (le, region, site) (rate(openinfra_http_request_duration_seconds_bucket{job="openinfra-multisite",service="openinfra-api"}[5m]))) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: OpenInfra API p95 exceeds 500 ms for site {{ $labels.site }} in {{ $labels.region }}
+
+      - alert: OpenInfraMultisiteAgentLagHigh
+        expr: max by (region, site) (openinfra_multisite_agent_lag_seconds) > 120
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: OpenInfra discovery agent heartbeat lag exceeds 120 seconds for site {{ $labels.site }} in {{ $labels.region }}
+
+      - alert: OpenInfraMultisiteAgentUnhealthy
+        expr: min by (region, site) (openinfra_multisite_agent_health) == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: OpenInfra discovery agent health is degraded for site {{ $labels.site }} in {{ $labels.region }}
+
+      - alert: OpenInfraMultisiteDatabaseLagHigh
+        expr: max by (region, site) (openinfra_db_replica_lag_seconds{job="openinfra-multisite"}) > 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: PostgreSQL replica lag exceeds 5 seconds for site {{ $labels.site }} in {{ $labels.region }}
+
+      - alert: OpenInfraMultisiteJobsStalled
+        expr: max by (region, site) (openinfra_async_oldest_ready_age_seconds{job="openinfra-multisite",kind="jobs"}) > 300
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: OpenInfra jobs are stalled for more than 5 minutes at site {{ $labels.site }} in {{ $labels.region }}

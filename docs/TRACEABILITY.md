@@ -1,3 +1,16 @@
+## v0.32.11 — P17 / EPIC-1706 Chaos multisite
+
+| Exigence / Epic | Implémentation | Vérification |
+|---|---|---|
+| EPIC-1706 — six classes de panne | profil `openinfra-multisite-chaos-v1` et runner `run_multisite_chaos_campaign.py` | tests de certification, assemblage et contrat du harness |
+| Dégradation contrôlée | sondes HTTPS, disponibilité, taux d’erreur et temps de récupération par scénario | seuils versionnés et certification `--enforce` |
+| Absence de corruption | SHA-256 déterministe avant/après, corruption et perte acquittée interdites | tests d’altération, digest canonique et six preuves obligatoires |
+| Récupération sûre | récupération systématique et arrêt de campagne si service/rollback non vérifié | tests du protocole fixe et workflow protégé |
+| Industrialisation | workflow `multisite-chaos.yml`, runbook, validateur, CI, quality gate et packaging | validation projet et artefacts de release |
+
+- Aucune migration PostgreSQL, aucune modification d’API/CLI métier et aucune modification de la charte graphique.
+- CDC/roadmap inchangés : EPIC-1706 était déjà défini.
+
 ## v0.32.10 — P17 / EPIC-1705 Observabilité multisite
 
 | Exigence / Epic | Implémentation | Vérification |

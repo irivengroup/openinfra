@@ -1,6 +1,6 @@
 # Guide utilisateur
 
-Version cible : `0.32.10`
+Version cible : `0.32.11`
 
 ## Navigation
 

@@ -378,6 +378,13 @@ jobs:
             tests/integration/test_observability_interfaces.py \
             tests/integration/test_multisite_observability_contract.py
 
+      - name: Multisite chaos controlled-degradation certification contracts
+        run: |
+          python scripts/validate_multisite_chaos.py --project-root .
+          python -m pytest -q --no-cov \
+            tests/unit/test_multisite_chaos_certification.py \
+            tests/integration/test_multisite_chaos_tooling.py
+
       - name: Unit and integration tests with coverage
         run: python -m pytest
 

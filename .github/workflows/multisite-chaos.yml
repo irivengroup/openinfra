@@ -1,0 +1,90 @@
+name: Multisite Chaos Certification
+
+on:
+  workflow_dispatch:
+    inputs:
+      topology_id:
+        description: Stable identifier of the representative Enterprise multisite topology
+        required: true
+        type: string
+      health_url:
+        description: HTTPS readiness endpoint reachable through the production-like entry point
+        required: true
+        type: string
+      integrity_url:
+        description: HTTPS deterministic read-only integrity endpoint
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: openinfra-multisite-chaos-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  certify:
+    name: Inject and certify six multisite failure classes
+    runs-on: [self-hosted, linux, x64, openinfra-multisite-chaos]
+    environment: multisite-chaos-certification
+    timeout-minutes: 180
+    env:
+      OPENINFRA_MULTISITE_CHAOS_BEARER_TOKEN: ${{ secrets.OPENINFRA_MULTISITE_CHAOS_BEARER_TOKEN }}
+      OPENINFRA_MULTISITE_CHAOS_HARNESS: ${{ vars.OPENINFRA_MULTISITE_CHAOS_HARNESS }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: pip
+
+      - name: Install production and chaos certification dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements/runtime.txt -r requirements/dev.txt
+
+      - name: Validate multisite chaos contracts
+        run: python scripts/validate_multisite_chaos.py --project-root .
+
+      - name: Validate protected chaos harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$OPENINFRA_MULTISITE_CHAOS_HARNESS"
+          test -x "$OPENINFRA_MULTISITE_CHAOS_HARNESS"
+          "$OPENINFRA_MULTISITE_CHAOS_HARNESS" preflight --scenario all | python -m json.tool >/dev/null
+
+      - name: Execute six-scenario multisite chaos campaign
+        run: >-
+          python scripts/run_multisite_chaos_campaign.py
+          --harness "$OPENINFRA_MULTISITE_CHAOS_HARNESS"
+          --health-url '${{ inputs.health_url }}'
+          --integrity-url '${{ inputs.integrity_url }}'
+          --profile docs/operations/multisite-chaos-profile.json
+          --output-directory build/multisite-chaos/reports
+
+      - name: Assemble immutable chaos evidence
+        run: >-
+          python scripts/assemble_multisite_chaos_evidence.py
+          --profile docs/operations/multisite-chaos-profile.json
+          --topology-id '${{ inputs.topology_id }}'
+          --reports build/multisite-chaos/reports
+          --output build/multisite-chaos/evidence.json
+
+      - name: Enforce controlled degradation and no-corruption objectives
+        run: >-
+          python scripts/certify_multisite_chaos.py
+          --evidence build/multisite-chaos/evidence.json
+          --output build/multisite-chaos/certification-report.json
+          --enforce
+
+      - name: Publish multisite chaos evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: openinfra-multisite-chaos-${{ github.run_id }}
+          path: build/multisite-chaos
+          if-no-files-found: warn
+          retention-days: 90

@@ -11,6 +11,7 @@ from openinfra.interfaces.http_api import OpenApiDocumentProvider
 from openinfra.quality.continuity_certification import PraPcaCertificationEvidence
 from openinfra.quality.dependency_graph_benchmark import DependencyGraphBenchmarkConfig
 from openinfra.quality.ga_go_no_go import GaGoNoGoPolicy
+from openinfra.quality.multisite_chaos import MultisiteChaosCampaignEvidence
 from openinfra.quality.release_packaging import ReleaseSigningMaterial
 from openinfra.quality.release_security import ReleaseSecurityControlCatalog
 from openinfra.quality.support_readiness import SupportPolicy
@@ -21,7 +22,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.32.10"
+    EXPECTED_VERSION = "0.32.11"
     EXPECTED_ASYNC_ROUTES = (
         "/api/v1/async/jobs",
         "/api/v1/async/jobs/get",
@@ -263,6 +264,7 @@ class InstalledWheelSmoke:
         self._assert_support_readiness_contract(package_root)
         self._assert_pra_pca_contract()
         self._assert_multisite_observability_contract()
+        self._assert_multisite_chaos_contract()
         self._assert_benchmark_contract()
         self._assert_release_security_contract(package_root)
         self._assert_release_packaging_contract()
@@ -295,6 +297,7 @@ class InstalledWheelSmoke:
             "support_readiness": True,
             "pra_pca_certification": True,
             "multisite_observability": True,
+            "multisite_chaos_certification": True,
         }
 
     @staticmethod
@@ -302,6 +305,14 @@ class InstalledWheelSmoke:
         if MultisiteOperationalMetricsProvider._max_routes != 10_000:
             raise InstalledWheelSmokeError(
                 "installed multisite observability route bound is incomplete"
+            )
+
+    @staticmethod
+    def _assert_multisite_chaos_contract() -> None:
+        scenarios = MultisiteChaosCampaignEvidence.required_scenarios()
+        if len(scenarios) != 6 or scenarios[-1] != "frontend-loss":
+            raise InstalledWheelSmokeError(
+                "installed multisite chaos certification contract is incomplete"
             )
 
     @staticmethod
@@ -523,7 +534,7 @@ class InstalledWheelSmoke:
     def _assert_release_security_contract(package_root: Path) -> None:
         controls = ReleaseSecurityControlCatalog.build(
             package_root,
-            image_ref="openinfra/runtime:0.32.10",
+            image_ref="openinfra/runtime:0.32.11",
             api_base_url="http://127.0.0.1:8080",
             web_base_url="http://127.0.0.1:2006",
         )

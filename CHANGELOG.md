@@ -1,3 +1,14 @@
+## 0.32.11 — 2026-07-14
+
+- Réalisation de P17 / EPIC-1706 : certification de chaos multisite sur six classes de panne — réseau, site, agent, base de données, saturation de file et frontend.
+- Runner de campagne sécurisé utilisant un harness externe à protocole fixe, sans commande shell arbitraire ni couplage à un fournisseur d’infrastructure.
+- Mesure de la disponibilité, du taux d’erreur, du temps de récupération et de l’intégrité SHA-256 avant/après chaque panne.
+- Récupération systématique après injection et arrêt immédiat de la campagne si le service ou le rollback n’est pas vérifié.
+- Certification bloquante en cas de corruption, perte de travail acquitté, dépassement des objectifs SLO ou altération des six preuves.
+- Workflow manuel protégé, profil machine-readable, runbook, validation CI, quality gate et vérification de packaging étendus.
+- Aucune migration PostgreSQL, aucune rupture API/CLI métier et aucune modification du thème.
+- CDC et roadmap inchangés : EPIC-1706 était déjà planifié et aucune nouvelle recommandation n’impacte l’existant.
+
 ## 0.32.10 — 2026-07-14
 
 - Réalisation de P17 / EPIC-1705 : observabilité multisite par région et par site pour les éditions Pro et Enterprise.

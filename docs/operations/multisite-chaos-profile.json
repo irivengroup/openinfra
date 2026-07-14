@@ -1,0 +1,48 @@
+{
+  "profile_id": "openinfra-multisite-chaos-v1",
+  "profile_version": 1,
+  "edition": "enterprise",
+  "observation_seconds": 30,
+  "probe_interval_seconds": 1,
+  "recovery_timeout_seconds": 180,
+  "required_scenarios": [
+    "network-partition",
+    "site-loss",
+    "agent-loss",
+    "database-loss",
+    "queue-saturation",
+    "frontend-loss"
+  ],
+  "objectives": {
+    "network-partition": {
+      "max_recovery_seconds": 120,
+      "min_availability_ratio": 0.95,
+      "max_error_rate": 0.05
+    },
+    "site-loss": {
+      "max_recovery_seconds": 180,
+      "min_availability_ratio": 0.90,
+      "max_error_rate": 0.10
+    },
+    "agent-loss": {
+      "max_recovery_seconds": 120,
+      "min_availability_ratio": 0.99,
+      "max_error_rate": 0.01
+    },
+    "database-loss": {
+      "max_recovery_seconds": 180,
+      "min_availability_ratio": 0.90,
+      "max_error_rate": 0.10
+    },
+    "queue-saturation": {
+      "max_recovery_seconds": 180,
+      "min_availability_ratio": 0.95,
+      "max_error_rate": 0.05
+    },
+    "frontend-loss": {
+      "max_recovery_seconds": 120,
+      "min_availability_ratio": 0.95,
+      "max_error_rate": 0.05
+    }
+  }
+}

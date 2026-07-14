@@ -1,85 +1,94 @@
-# OpenInfra v0.32.10 — rapport de validation
+# OpenInfra v0.32.11 — rapport de validation
 
 Date : 2026-07-14
 
-## Périmètre livré
+## Portée
 
-La version 0.32.10 réalise **P17 / EPIC-1705 — Observabilité multisite** sans nouvelle source de vérité, sans migration PostgreSQL et sans modification du thème.
+La version 0.32.11 réalise **P17 / EPIC-1706 — Chaos multisite** sans migration PostgreSQL, sans rupture API/CLI métier et sans modification du thème.
 
-Le dispositif :
+Le périmètre livré ajoute :
 
-- calcule le retard des collecteurs Discovery par région et par site à partir des heartbeats déjà persistés ;
-- déduplique un même collecteur lorsqu'il dessert plusieurs VRF d'un même site ;
-- exporte des métriques Prometheus bornées par `region`, `site` et état, sans identifiant de tenant, utilisateur ou objet métier dans les labels ;
-- borne la collecte à 10 000 routes régionales et protège la pagination contre les boucles de curseur ;
-- fédère les endpoints `/metrics` des sites via HTTPS et file service discovery ;
-- fournit un dashboard Grafana multisite couvrant API, agents, réplication PostgreSQL et files de jobs ;
-- ajoute six alertes multisite avec seuils explicites ;
-- fournit un profil machine-readable, un validateur strict et un runbook opérateur ;
-- intègre la validation au pipeline CI et au quality gate existants.
+- un profil versionné `openinfra-multisite-chaos-v1` ;
+- six scénarios obligatoires : réseau, site, agent, base de données, saturation de file et frontend ;
+- un runner de campagne utilisant un harness externe à protocole fixe et sans shell arbitraire ;
+- mesure disponibilité, taux d’erreur, récupération et intégrité SHA-256 avant/après ;
+- récupération systématique et arrêt de campagne après récupération/rollback non vérifié ;
+- assemblage de six preuves et digest canonique du manifeste ;
+- certification bloquante de la dégradation contrôlée et de l’absence de corruption ;
+- workflow GitHub Actions protégé, runbook, tests, CI, quality gate et packaging alignés.
 
-## Validations réussies
+## Validations exécutées
 
 ### Python et architecture
 
-- collecte globale : **1 244 tests** ;
-- suites unitaires et performance : **593/593 PASS** ;
-- tests ciblés observabilité multisite, workflow et régression : **18/18 PASS** lors du dernier passage ciblé ;
-- Ruff format : **357 fichiers conformes** ;
+- collecte : **1 255 tests** ;
+- suite `tests/unit + tests/performance` : **600/600 PASS** ;
+- tests EPIC-1706 ciblés : **11/11 PASS** ;
+- tests d’intégration transverses ciblés : **40/40 PASS** ;
+- couverture ciblée `openinfra.quality.multisite_chaos` : **201/201 instructions, 100 %** ;
+- Ruff format : **365 fichiers conformes** ;
 - Ruff lint : **PASS** ;
-- mypy strict : **109 modules conformes** ;
-- `compileall` : **PASS** ;
-- validateur observabilité global : **PASS** ;
-- validateur observabilité multisite : **PASS** ;
-- validateur PRA/PCA : **PASS** ;
-- validateur frontend : **PASS** ;
-- validateur documentation GA : **10 documents, 33 commandes CLI, 7 opérations API, version 0.32.10** ;
+- mypy strict : **110 modules conformes** ;
+- `compileall` : **PASS**.
+
+### Contrats d’exploitation
+
+- observabilité globale : **PASS** ;
+- observabilité multisite : **PASS** ;
+- PRA/PCA : **PASS** ;
+- chaos multisite : **PASS**, six scénarios ;
 - alignement Enterprise : **PASS** ;
-- validation des six profils installateur : **PASS** ;
-- support-readiness EPIC-1806 : **PASS** avec preuve signée par clé éphémère de validation locale.
+- six profils installateur : **PASS** ;
+- frontend runtime validator : **PASS** ;
+- documentation GA : **PASS**, version 0.32.11 ;
+- support-readiness : **PASS**, version 0.32.11.
 
 ### Frontend
 
-- tests Node.js : **63/63 PASS** ;
+- tests Node : **63/63 PASS** ;
 - contrat statique : **PASS** ;
 - WCAG 2.2 AA : **PASS** ;
-- ESLint JSX accessibilité : **PASS** ;
+- ESLint : **PASS** ;
 - build Vite : **PASS** ;
-- budgets frontend EPIC-2004 : **PASS** ;
-- `npm audit` : **0 vulnérabilité** ;
-- aucune modification fonctionnelle ou visuelle du thème dans cette version.
+- `npm audit --audit-level=high` : **0 vulnérabilité**.
 
 ### Sécurité
 
-- security gate : **PASS** ;
-- Bandit : **PASS**, aucun résultat bloquant ;
-- `pip-audit --strict -r requirements/security-audit.txt` : **NON EXÉCUTABLE dans le sandbox**, échec de résolution DNS vers PyPI ; le contrôle reste obligatoire et bloquant en CI.
+- `security_gate.py` : **PASS** ;
+- Bandit, périmètre CI `src/openinfra` : **PASS** ;
+- `pip-audit --strict` : **non exécutable jusqu’au bout dans le sandbox**, échec de résolution DNS vers `pypi.org`.
 
 ### Packaging
 
-- build sdist `openinfra-0.32.10.tar.gz` : **PASS** ;
-- build wheel `openinfra-0.32.10-py3-none-any.whl` : **PASS** ;
-- vérification du contenu des deux artefacts : **PASS** ;
-- runtime `multisite_observability` présent dans le wheel : **PASS** ;
-- profil, runbook, dashboard Grafana, cible file-SD et validateur multisite présents dans le sdist : **PASS** ;
+- build sdist `openinfra-0.32.11.tar.gz` : **PASS** ;
+- build wheel `openinfra-0.32.11-py3-none-any.whl` : **PASS** ;
+- vérification de contenu des artefacts : **PASS** ;
+- présence du profil, du runbook, du workflow et des scripts EPIC-1706 dans le sdist : **PASS** ;
 - smoke du wheel installé : **PASS** ;
-- version installée : **0.32.10** ;
-- migrations embarquées : **54**, dernière migration `0054_async_outbox_workers.sql` ;
-- contrat multisite installé, dont la borne de 10 000 routes : **PASS**.
+- version installée : **0.32.11** ;
+- contrat `multisite_chaos_certification` : **PASS** ;
+- migrations : **54**, dernière `0054_async_outbox_workers.sql`.
 
-## Limites d’exécution locales
+Le premier essai du smoke dans un venv sans dépendances runtime a échoué sur `uvicorn` absent. Le smoke final a été exécuté avec le wheel installé dans un répertoire isolé du code source et les dépendances runtime disponibles dans l’environnement, ce qui valide bien le contenu du wheel sans importer l’arbre `src` local.
 
-- La suite `tests/architecture + tests/integration` complète a dépassé la fenêtre d'exécution du sandbox. Aucun échec n'a été observé avant le timeout, mais la suite complète n'est **pas déclarée comme intégralement validée** localement.
-- La couverture globale du projet n'a pas été recalculée entièrement dans ce sandbox. Le seuil contractuel **≥ 98 %** reste bloquant dans GitHub Actions.
-- Docker et Docker Compose ne sont pas installés dans l'environnement courant ; les smokes Compose et les validations runtime conteneurisées restent délégués à la CI.
-- `pip-audit` n'a pas pu joindre PyPI à cause de la résolution DNS du sandbox ; il reste obligatoire et bloquant en CI.
+## Non-régression visuelle
 
-## Compatibilité et impact
+Le fichier `src/openinfra/interfaces/rendering/static/assets/openinfra-web.css` conserve exactement le même SHA-256 que dans la livraison 0.32.10 :
 
-- aucune migration PostgreSQL ;
-- aucune modification des 54 migrations existantes ;
-- aucune rupture des contrats métier API, CLI ou OpenAPI ;
-- aucune suppression de fonctionnalité ;
-- aucune modification du thème ou de la charte graphique ;
-- compatibilité ascendante conservée ;
-- CDC et roadmap inchangés, EPIC-1705 étant déjà défini dans la roadmap 2.1.
+```text
+334fc797cea05d9c2a0f670d8a098fbc8caa2c55a7cd228f3c296338f52c0555
+```
+
+Aucune modification du thème ou de la charte graphique n’a été effectuée.
+
+## Limites de l’environnement courant
+
+La suite complète `tests/architecture + tests/integration` a dépassé la fenêtre d’exécution du sandbox après plusieurs tests réussis et sans échec observé avant le timeout. Elle n’est donc **pas déclarée intégralement validée localement**.
+
+La couverture globale complète n’a pas été recalculée dans ce sandbox ; le seuil contractuel **>= 98 %** reste bloquant dans GitHub Actions.
+
+Docker et Docker Compose ne sont pas disponibles dans l’environnement courant. Les smokes conteneurisés et la campagne de chaos réelle sur topologie Enterprise représentative restent donc exécutés par les workflows dédiés sur runners self-hosted.
+
+## CDC et roadmap
+
+**Inchangés**. EPIC-1706 était déjà défini dans la roadmap existante et cette livraison n’introduit aucune nouvelle exigence fonctionnelle, réglementaire ou architecturale nécessitant leur révision.

@@ -1,8 +1,23 @@
-# OpenInfra v0.32.10
+# OpenInfra v0.32.11
 
-OpenInfra 0.32.10 réalise **P17 / EPIC-1705 — Observabilité multisite** en donnant aux équipes SRE une vue opérationnelle par région et par site sur les agents Discovery, l’API, la réplication PostgreSQL, les files de jobs et la santé globale de la plateforme, sans créer de nouvelle source de vérité.
+OpenInfra 0.32.11 réalise **P17 / EPIC-1706 — Chaos multisite** avec une campagne de défaillances contrôlées, réversibles et certifiantes sur une topologie Enterprise représentative.
 
-## Observabilité multisite — P17 / EPIC-1705
+## Chaos multisite — P17 / EPIC-1706
+
+- six scénarios obligatoires : partition réseau, perte de site, perte d’agent, perte DB, saturation de file et perte frontend ;
+- harness externe à protocole fixe `preflight` / `inject` / `recover` / `verify-recovered`, sans shell libre ;
+- harness absolu, exécutable, non symbolique et non modifiable par le groupe ou les autres utilisateurs ;
+- endpoints de santé et d’intégrité obligatoirement en HTTPS ;
+- mesure de disponibilité, taux d’erreur, temps de récupération et SHA-256 avant/après ;
+- récupération systématique dans le nettoyage et arrêt de campagne après un rollback non vérifié ;
+- refus de certification en cas de corruption, perte de travail acquitté, SLO dépassé ou preuve altérée ;
+- six rapports bruts, manifeste d’évidence signé par digest et rapport final conservés 90 jours ;
+- gate CI, quality gate et packaging étendus ;
+- aucune migration PostgreSQL, aucune rupture API/CLI métier et aucune modification du thème.
+
+Voir `docs/runbooks/MULTISITE_CHAOS.md` et `docs/operations/multisite-chaos-profile.json`.
+
+## Observabilité multisite — P17 / EPIC-1705 — v0.32.10
 
 - lag maximal des agents Discovery calculé à partir des heartbeats réellement persistés ;
 - déduplication d’un même collecteur lorsqu’il dessert plusieurs VRF d’un même site ;

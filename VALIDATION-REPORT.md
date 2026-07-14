@@ -1,103 +1,160 @@
-# OpenInfra v0.33.1 — Rapport de validation
+# OpenInfra v0.33.2 — Rapport de validation
 
 ## Identité de la livraison
 
-- Version : `0.33.1`
-- Phase : `P21`
-- Epic : `EPIC-2102`
-- Release roadmap : `REL-11`
-- Objet : expositions et dépendances réseau cloud-native
+- Version : `0.33.2`
+- Objet : gestion CRUD unifiée et navigation opérateur consolidée
+- Nature : amélioration structurelle UX/UI sans rupture des contrats métier
 - CDC : `4.9.0`, inchangé
-- Roadmap : `2.2.0`, inchangée ; EPIC-2102 y était déjà planifié
+- Roadmap : `2.2.0`, inchangée
+- Base fonctionnelle : OpenInfra `0.33.1`
 
-## Fonctionnalités validées
+## Objectif validé
 
-- nouveaux types de ressources Kubernetes : `load-balancer`, `dns-record`, `mesh-route` ;
-- métadonnées d’exposition normalisées pour services et ingress ;
-- validation stricte des DNS, IP, ports, protocoles, scopes, types de service, TLS et références RSOT ;
-- import immuable et idempotent dans le stockage Kubernetes existant ;
-- rapport déterministe `KubernetesExposureReport` ;
-- corrélation avec les déclarations de flux `ANY`, `CIDR` et `OBJECT` ;
-- corrélation avec les objets et relations de dépendance RSOT ;
-- graphe exposition → ressource Kubernetes → workload/pod → dépendances réseau ;
-- identification des expositions externes non gouvernées ;
-- bornes de protection : 10 000 déclarations de flux, 10 000 relations RSOT, 2 048 objets RSOT et 128 clés de corrélation directes ;
-- détection des curseurs cycliques ;
-- état `correlation_truncated` lorsqu'une borne de protection est atteinte ;
-- parité API, CLI, OpenAPI, portail React et runtime packagé ;
-- intégration CI, quality gate, vérification des artefacts et smoke du wheel installé.
+La navigation web ne présente plus une succession de liens `Créer`, `Consulter`, `Lister`, `Modifier` et `Retirer` pour les agrégats métier disposant d'un CRUD complet et homogène. Ces opérations sont regroupées derrière une entrée unique `Gestion de …`, sans supprimer ni fusionner les endpoints backend, les commandes CLI, les permissions, les événements d'audit ou les contrats OpenAPI existants.
 
-## Compatibilité et impact
+Le regroupement est piloté par les capacités réelles de la ressource, et non par une simple détection textuelle des verbes. Les opérations qui ne forment pas un cycle de vie homogène restent indépendantes.
 
-- aucune nouvelle migration PostgreSQL ;
-- chaîne conservée à 55 migrations, dernière `0055_kubernetes_topology_inventory.sql` ;
-- aucune nouvelle source de vérité ;
-- aucune mutation automatique de firewall, DNS, load balancer ou service mesh ;
-- permissions existantes `kubernetes.read` et `kubernetes.write` réutilisées ;
-- aucune suppression ou rupture des routes Kubernetes EPIC-2101 ;
-- catalogue runtime porté à 280 opérations uniques sans suppression d'opération historique ;
-- aucune modification du thème ou de la charte graphique.
+## Ressources regroupées
+
+### DCIM
+
+- sites ;
+- bâtiments ;
+- salles ;
+- châssis/racks ;
+- zones.
+
+### ITAM
+
+- organisations ;
+- filiales/subdivisions ;
+- partenaires.
+
+## Expérience opérateur validée
+
+Chaque espace `Gestion de …` fournit :
+
+- une liste tabulaire unique de la famille d'objets ;
+- recherche textuelle et filtres multicritères ;
+- remise à zéro des filtres ;
+- tri de colonnes ;
+- pagination bornée `25 / 50 / 100` ;
+- option d'inclusion des objets retirés lorsque le backend la supporte ;
+- bouton `+ Nouveau` ;
+- consultation du détail depuis le nom de l'objet dans un dialogue accessible ;
+- colonne `Actions` avec `Éditer` et `Supprimer` ;
+- confirmation explicite avant suppression/retrait ;
+- identification de l'opérateur pour l'opération destructive lorsque le contrat backend l'exige ;
+- écrans dédiés de création et d'édition ;
+- conservation des identifiants structurels immuables pendant l'édition ;
+- retour automatique à la page de gestion et rechargement de la liste après création, édition ou suppression ;
+- conservation de la sémantique de cycle de vie du backend, y compris le retrait logique lorsqu'il est imposé par le domaine.
+
+Les catalogues DCIM hiérarchiques sont aplatis en lecture pour l'affichage tabulaire sans mutation de la source.
+
+## Architecture et compatibilité
+
+- nouveau registre partagé de ressources de gestion entre le portail React et le runtime web packagé ;
+- registre chargé paresseusement avec les domaines DCIM/ITAM afin de ne pas alourdir le premier affichage ;
+- endpoints CRUD existants conservés intégralement ;
+- commandes CLI existantes conservées intégralement ;
+- contrats OpenAPI existants conservés ;
+- RBAC, audit et validations backend inchangés ;
+- aucune migration PostgreSQL ;
+- chaîne conservée à **55 migrations**, dernière `0055_kubernetes_topology_inventory.sql` ;
+- aucune suppression ou renommage d'opération métier existante.
 
 ## Tests Python
 
-- collecte : **1 313 tests** ;
+- collecte globale : **1 317 tests** ;
 - `tests/unit` + `tests/performance` : **635/635 PASS** ;
-- tests EPIC-2102 dédiés : **27/27 PASS** ;
-- tests transverses ciblés Kubernetes, OpenAPI, workflows, documentation, Docker runtime contract, scale-out et frontend modularisé : **59/59 PASS** ;
-- couverture ciblée domaine + service Kubernetes concernés : **99 %** ;
-- nouveau module `kubernetes_exposure.py` : **98 %** dans la campagne ciblée.
+- lot d'intégration ciblé frontend/runtime/packaging : **57/57 PASS** ;
+- contrats Python dédiés à la gestion CRUD : **4/4 PASS**, inclus dans le lot d'intégration ;
+- test d'installation/rollback des six profils installateur : **1/1 PASS**, inclus dans le lot ciblé final.
 
-## Qualité statique
+Le lot d'intégration couvre notamment :
 
-- `ruff format --check` : **381 fichiers conformes** ;
-- `ruff check` : **PASS** ;
-- `mypy` strict : **115 modules conformes** ;
-- `compileall` sur `src`, `tests`, `scripts`, `docker`, `installers` : **PASS**.
-
-## Validation P21 et documentation
-
-- `validate_kubernetes_topology.py --enforce` : **PASS** ;
-- `validate_kubernetes_exposure.py --enforce` : **PASS** ;
-- roadmap v2.2 : **PASS**, 22 phases, 131 epics, 11 gates, 112 tests ;
-- OpenAPI YAML : **PASS** ;
-- documentation GA 0.33.1 : **PASS** ;
-- frontend contract validator : **PASS**.
+- synchronisation du registre React/runtime ;
+- conservation des opérations CRUD brutes ;
+- démarrage du runtime packagé ;
+- modularisation et budgets de chargement ;
+- accessibilité web ;
+- environnement runtime/Docker contractuel ;
+- documentation GA ;
+- workflows GitHub Actions ;
+- serveur web/BFF ;
+- packaging et rollback installateur.
 
 ## Frontend
 
-- tests Node : **63/63 PASS** ;
-- validation des assets statiques : **PASS** ;
+- tests Node : **68/68 PASS** ;
+- tests dédiés au registre CRUD : **5/5 PASS**, inclus dans les 68 tests ;
+- validation du contrat statique : **PASS** ;
 - WCAG 2.2 AA : **PASS** ;
 - ESLint JSX/accessibilité : **PASS** ;
-- build Vite + validation du bundle : **PASS** ;
+- build Vite : **PASS** ;
 - `npm audit --audit-level=high` : **0 vulnérabilité** ;
-- catalogue runtime : **280 opérations uniques** ;
-- SHA-256 du CSS principal : `334fc797cea05d9c2a0f670d8a098fbc8caa2c55a7cd228f3c296338f52c0555`, identique à la v0.33.0.
+- budgets de chargement initial EPIC-2004 : **PASS** ;
+- registre de gestion chargé à la demande avec DCIM/ITAM : **PASS**.
+
+## Non-régression visuelle
+
+La structure CSS a été enrichie pour les espaces de gestion, mais **la palette du thème n'a pas été modifiée**.
+
+Comparaison avec la v0.33.1 :
+
+- couleurs hexadécimales distinctes avant : **52** ;
+- couleurs hexadécimales distinctes après : **52** ;
+- nouvelles couleurs hexadécimales : **aucune** ;
+- couleurs hexadécimales supprimées : **aucune** ;
+- styles de gestion construits à partir des tokens OpenInfra existants ;
+- règle de non-régression du fond du composant racine actif au survol toujours couverte par les tests frontend.
+
+## Qualité statique
+
+- `ruff format --check` : **390 fichiers conformes** ;
+- `ruff check` : **PASS** ;
+- `mypy` strict : **115 modules conformes** ;
+- `compileall` sur `src`, `tests` et `scripts` : **PASS**.
+
+## Documentation et contrats
+
+- OpenAPI produit `docs/api/openapi.yaml` : **PASS** ;
+- OpenAPI CDC 4.9.0 : **PASS** ;
+- documentation GA `0.33.2` : **PASS** ;
+- CDC : **840 exigences**, **529 entités**, traçabilité présente ;
+- roadmap v2.2 : **22 phases**, **131 epics**, **11 gates**, **112 tests** ;
+- alignement Enterprise : **PASS** ;
+- frontend contract validator : **PASS**.
 
 ## Sécurité
 
 - `security_gate.py` : **PASS** ;
 - Bandit sur `src/openinfra` : **PASS** ;
-- `pip-audit --strict` : **non terminé** ; la résolution DNS de `pypi.org` échoue dans le sandbox.
+- `npm audit --audit-level=high` : **0 vulnérabilité** ;
+- `pip-audit --strict` : **non terminé**, la résolution DNS de `pypi.org` échoue dans le sandbox.
 
 ## Packaging
 
-- wheel `openinfra-0.33.1-py3-none-any.whl` : **PASS** ;
-- sdist `openinfra-0.33.1.tar.gz` : **PASS** ;
+- wheel `openinfra-0.33.2-py3-none-any.whl` : **PASS** ;
+- sdist `openinfra-0.33.2.tar.gz` : **PASS** ;
 - `scripts/verify_artifact.py dist/*` : **PASS** ;
-- smoke du wheel installé dans un environnement virtuel distinct de l'arbre source : **PASS** ;
-- version installée : `0.33.1` ;
+- nouveau registre `openinfra-management-resources.js` exigé par le vérificateur de packaging : **PASS** ;
+- smoke du wheel installé hors de l'arbre source : **PASS** ;
+- version installée : `0.33.2` ;
+- assets runtime installés : **18** ;
 - routes Kubernetes installées : **8** ;
 - migrations installées : **55**, dernière `0055_kubernetes_topology_inventory.sql`.
 
 ## Limites de validation locale
 
-La suite monolithique `tests/architecture + tests/integration` a dépassé la fenêtre d'exécution du sandbox après plusieurs tests réussis, sans échec affiché avant l'interruption. Une tentative d'isolation de l'ensemble des 148 fichiers architecture/intégration a également dépassé la fenêtre globale avant de produire un agrégat final. La suite complète n'est donc pas déclarée intégralement validée localement ; elle reste bloquante dans GitHub Actions.
+La suite globale monolithique `tests/architecture + tests/integration` n'a pas été déclarée intégralement validée dans ce sandbox. Le périmètre directement impacté a été couvert par un lot ciblé de 57 tests d'intégration, en complément des 635 tests unitaires/performance et des 68 tests frontend.
 
-La couverture globale complète n'a pas été recalculée dans cette session. Le seuil contractuel **≥ 98 %** reste bloquant dans la CI.
+La couverture globale complète n'a pas été recalculée dans cette session. Le seuil contractuel **≥ 98 %** reste bloquant dans GitHub Actions.
 
 Docker n'est pas installé dans le sandbox courant ; les smokes Docker Compose restent délégués à la CI.
 
 ## Verdict local
 
-**PASS pour le périmètre EPIC-2102 et les gates exécutables localement, avec les limites explicites ci-dessus.**
+**PASS pour la gestion CRUD unifiée v0.33.2 et tous les gates exécutables localement, avec les limites explicites ci-dessus.**

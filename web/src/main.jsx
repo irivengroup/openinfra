@@ -8,6 +8,18 @@ import { MODULES, SIDEBAR_CONTEXTS, loadDomain } from './domain-manifest.js';
 import { OpenInfraQueryCache } from './core/query-cache.js';
 import { installOpenInfraWebVitals } from './core/web-vitals.js';
 import { VirtualizedList } from './VirtualizedList.jsx';
+import {
+  collapseManagementOperations,
+  localizedManagementLabel,
+  managementNavigationOperation,
+  managementResourceById,
+  managementResourceForOperation,
+  flattenManagementCollection,
+  managementDisplayName,
+  managementFieldValue,
+  managementIdentityPayload,
+} from './management-resources.js';
+import { loadManagementOperationSchema } from './management-operation-schema.js';
 
 let RESOURCE_TAXONOMY = {};
 let RESOURCE_CATEGORY_OPTIONS = [];
@@ -95,13 +107,14 @@ function globalSearchGroups(query, searchIndex) {
   })).filter((group) => group.module && group.total > 0);
 }
 
-function sidebarOperationGroups(module) {
+function sidebarOperationGroups(module, language = 'fr') {
   const configuredGroups = SIDEBAR_CONTEXTS[module.id] || [];
   const byId = new Map(module.operations.map((operation) => [operation.id, operation]));
   const groupedIds = new Set();
   const groups = configuredGroups.map((group) => {
-    const operations = group.operationIds.map((id) => byId.get(id)).filter(Boolean);
-    operations.forEach((operation) => groupedIds.add(operation.id));
+    const rawOperations = group.operationIds.map((id) => byId.get(id)).filter(Boolean);
+    rawOperations.forEach((operation) => groupedIds.add(operation.id));
+    const operations = collapseManagementOperations(module.id, module.operations, group.operationIds, language);
     return { label: group.label, operations };
   }).filter((group) => group.operations.length > 0);
   const remaining = module.operations.filter((operation) => !groupedIds.has(operation.id));
@@ -115,8 +128,10 @@ function sidebarContextKey(moduleId, label) {
   return `${moduleId}::${label}`;
 }
 
-function contextForOperation(module, operationId) {
-  return sidebarOperationGroups(module).find((group) => group.operations.some((operation) => operation.id === operationId));
+function contextForOperation(module, operationId, language = 'fr') {
+  const management = managementResourceForOperation(operationId);
+  const effectiveOperationId = management ? `management:${management.resource.id}` : operationId;
+  return sidebarOperationGroups(module, language).find((group) => group.operations.some((operation) => operation.id === effectiveOperationId));
 }
 
 function withoutModuleContexts(openedContexts, moduleId) {
@@ -153,6 +168,7 @@ function NavigationTree({
   toggleAccordion,
   toggleSidebarContext,
   surface = 'sidebar',
+  language = 'fr',
 }) {
   return modules.map((module) => {
     if (module.id === 'overview') {
@@ -166,7 +182,7 @@ function NavigationTree({
       <div id={panelId} className={`openinfra-accordion-panel fade ${moduleOpened ? 'show' : ''}`} role="region" aria-labelledby={accordionId}>
         <div className="openinfra-accordion-panel-inner">
           {!module.loaded && moduleOpened && <div className="px-3 py-2 small text-muted" role="status">Loading component…</div>}
-          {sidebarOperationGroups(module).map((group) => {
+          {sidebarOperationGroups(module, language).map((group) => {
             const contextKey = sidebarContextKey(module.id, group.label);
             const contextOpened = openedContexts.has(contextKey);
             const contextId = `openinfra-${surface}-context-${module.id}-${slugifyContextLabel(group.label)}`;
@@ -185,14 +201,14 @@ function NavigationTree({
   });
 }
 
-function MegaMenu({ module, selectedOperationId, chooseOperation, close, i18n }) {
+function MegaMenu({ module, selectedOperationId, chooseOperation, close, i18n, language = 'fr' }) {
   if (!module || module.id === 'overview') {
     return null;
   }
   return <section id="openinfra-mega-menu" className="openinfra-mega-menu" aria-label={module.shortLabel || module.label}>
     <div className="openinfra-mega-menu-header"><div><Icon name={module.icon} className="openinfra-mega-menu-icon" /><strong>{module.label}</strong></div><button type="button" className="openinfra-navigation-close" aria-label={i18n.t('closeNavigation')} onClick={close}>×</button></div>
     <div className="openinfra-mega-menu-grid">
-      {sidebarOperationGroups(module).map((group) => <section className="openinfra-mega-menu-group" role="group" aria-label={group.label} key={`${module.id}-${group.label}`}><h2>{group.label}</h2><div>{group.operations.map((operation) => <button key={operation.id} type="button" className={`openinfra-sidebar-operation ${selectedOperationId === operation.id ? 'active' : ''}`} aria-current={selectedOperationId === operation.id ? 'page' : undefined} onClick={() => chooseOperation(module, operation, true)}>{operation.label}</button>)}</div></section>)}
+      {sidebarOperationGroups(module, language).map((group) => <section className="openinfra-mega-menu-group" role="group" aria-label={group.label} key={`${module.id}-${group.label}`}><h2>{group.label}</h2><div>{group.operations.map((operation) => <button key={operation.id} type="button" className={`openinfra-sidebar-operation ${selectedOperationId === operation.id ? 'active' : ''}`} aria-current={selectedOperationId === operation.id ? 'page' : undefined} onClick={() => chooseOperation(module, operation, true)}>{operation.label}</button>)}</div></section>)}
     </div>
   </section>;
 }
@@ -272,6 +288,207 @@ function validateOperationForm(form, fields, i18n) {
 function OperationForm({ i18n, language, selected, tenant, setTenant, execute }) {
   const fields = selected.fields.map((entry, index) => normalizeFieldDefinition(entry, index));
   return <form aria-describedby="openinfra-required-fields-notice" noValidate onSubmit={(event) => { event.preventDefault(); if (validateOperationForm(event.currentTarget, fields, i18n)) execute(event.currentTarget, fields); }}><p id="openinfra-required-fields-notice" className="openinfra-required-notice">{i18n.t('requiredFieldsNotice')}</p><div className="row g-3 mb-3"><label className="col-md-4 form-label" htmlFor="openinfra-react-tenant">{i18n.t('organization')}</label><select id="openinfra-react-tenant" className="form-select" value={tenant} onChange={(event) => setTenant(event.target.value)}><option value="default">{i18n.t('defaultTenant')}</option></select></div><div className="row g-3">{fields.map((field, index) => <OperationField entry={field} index={index} i18n={i18n} language={language} key={field.name} />)}</div><button type="submit" className="btn btn-primary mt-3">{i18n.t('execute')}</button></form>;
+}
+
+function managementOperationFields(operation) {
+  return [...(operation?.query || []), ...(operation?.body || [])].map((field, index) => normalizeFieldDefinition(field, index));
+}
+
+function assignManagementBodyValue(body, target, value) {
+  const parts = String(target || '').split('.').filter(Boolean);
+  if (parts.length === 0) return;
+  let current = body;
+  for (const part of parts.slice(0, -1)) {
+    current[part] ||= {};
+    current = current[part];
+  }
+  current[parts.at(-1)] = value;
+}
+
+function normalizeManagementRequestValue(field, raw, payload) {
+  const value = normalizeFieldValue(field, raw, { countryCode: payload.country_code || payload.country || '' });
+  if (value === undefined) return undefined;
+  if (field.type === 'boolean') return ['1', 'true', 'yes', 'oui'].includes(String(value).toLowerCase());
+  return value;
+}
+
+async function requestManagementOperation({ config, tenant, operation, payload }) {
+  if (!operation) throw new Error('Operation de gestion indisponible.');
+  const apiBase = String(config.apiBaseUrl || '/api').replace(/\/$/u, '');
+  const path = String(operation.path || '').replace(/\{([^}]+)\}/gu, (_match, key) => encodeURIComponent(payload[key] ?? ''));
+  const tenantScoped = !String(operation.id || '').startsWith('itam-organization');
+  const query = new URLSearchParams();
+  for (const field of operation.query || []) {
+    const value = normalizeManagementRequestValue(field, payload[field.name], payload);
+    if (value !== undefined && value !== null && String(value).trim() !== '') query.set(field.name, String(value));
+  }
+  if (tenantScoped && tenant && !query.has('tenant_id')) query.set('tenant_id', tenant);
+  const body = {};
+  for (const field of operation.body || []) {
+    const value = normalizeManagementRequestValue(field, payload[field.name], payload);
+    if (value === undefined || value === null || String(value).trim?.() === '') {
+      if (field.required) throw new Error(`Champ obligatoire manquant : ${field.label || field.name}`);
+      continue;
+    }
+    assignManagementBodyValue(body, field.target || field.name, value);
+  }
+  if (tenantScoped && tenant && operation.method !== 'GET' && !Object.prototype.hasOwnProperty.call(body, 'tenant_id')) body.tenant_id = tenant;
+  const suffix = query.toString() ? `?${query.toString()}` : '';
+  const response = await fetch(`${apiBase}${path}${suffix}`, {
+    method: operation.method,
+    credentials: 'same-origin',
+    headers: operation.method === 'GET' ? { Accept: 'application/json' } : { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: operation.method === 'GET' ? undefined : JSON.stringify(body),
+  });
+  const contentType = response.headers.get('content-type') || '';
+  const data = contentType.includes('application/json') ? await response.json() : await response.text();
+  if (!response.ok) throw new Error(typeof data === 'string' ? data : (data.error || JSON.stringify(data)));
+  return data;
+}
+
+function ManagementWorkspace({ resource, config, tenant, i18n, language, announce }) {
+  const [mode, setMode] = useState('list');
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [notice, setNotice] = useState(null);
+  const [query, setQuery] = useState('');
+  const [filters, setFilters] = useState({});
+  const [includeRetired, setIncludeRetired] = useState(false);
+  const [sort, setSort] = useState({ key: resource.columns[0]?.key || '', direction: 'asc' });
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [detailItem, setDetailItem] = useState(null);
+  const [deleteItem, setDeleteItem] = useState(null);
+  const [actionOperation, setActionOperation] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const deleteActorRef = useRef(null);
+
+  const label = localizedManagementLabel(resource, language);
+  const singular = localizedManagementLabel(resource, language, 'singular');
+
+  async function loadItems() {
+    setLoading(true);
+    setError(null);
+    try {
+      const operationId = resource.sourceOperationId || resource.operations.list;
+      const operation = await loadManagementOperationSchema(resource.moduleId, operationId);
+      const payload = await requestManagementOperation({ config, tenant, operation, payload: { include_retired: includeRetired } });
+      setItems(flattenManagementCollection(resource, payload));
+      setPage(1);
+    } catch (loadError) {
+      setItems([]);
+      setError(loadError.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { void loadItems(); }, [resource.id, tenant, includeRetired]);
+
+  useEffect(() => {
+    if (deleteItem) window.requestAnimationFrame(() => deleteActorRef.current?.focus({ preventScroll: true }));
+  }, [deleteItem]);
+
+  useEffect(() => {
+    const closeDialog = (event) => {
+      if (event.key !== 'Escape') return;
+      if (deleteItem) setDeleteItem(null);
+      else if (detailItem) setDetailItem(null);
+    };
+    document.addEventListener('keydown', closeDialog);
+    return () => document.removeEventListener('keydown', closeDialog);
+  }, [deleteItem, detailItem]);
+
+  const filterOptions = useMemo(() => Object.fromEntries(resource.filters.map(({ key }) => [key, Array.from(new Set(items.map((item) => managementFieldValue(item, key)).filter(Boolean))).sort((left, right) => left.localeCompare(right, language))])), [items, language, resource.filters]);
+  const filteredItems = useMemo(() => {
+    const normalizedQuery = normalizeSearchText(query.trim());
+    const resultItems = items.filter((item) => {
+      if (normalizedQuery && !normalizeSearchText(Object.values(item || {}).map((value) => typeof value === 'object' ? JSON.stringify(value) : String(value ?? '')).join(' ')).includes(normalizedQuery)) return false;
+      return resource.filters.every(({ key }) => !filters[key] || managementFieldValue(item, key) === filters[key]);
+    });
+    if (!sort.key) return resultItems;
+    return [...resultItems].sort((left, right) => {
+      const comparison = managementFieldValue(left, sort.key).localeCompare(managementFieldValue(right, sort.key), language, { numeric: true, sensitivity: 'base' });
+      return sort.direction === 'desc' ? -comparison : comparison;
+    });
+  }, [filters, items, language, query, resource.filters, sort]);
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageItems = filteredItems.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  async function openAction(nextMode, item = null) {
+    const role = nextMode === 'create' ? 'create' : 'update';
+    const operation = await loadManagementOperationSchema(resource.moduleId, resource.operations[role]);
+    if (!operation) {
+      setError(i18n.t('managementUnavailable'));
+      return;
+    }
+    setActionOperation(operation);
+    setSelectedItem(item);
+    setNotice(null);
+    setMode(nextMode);
+  }
+
+  function managementFieldEntries() {
+    if (!actionOperation) return [];
+    return managementOperationFields(actionOperation).map((field) => ({ ...field, defaultValue: selectedItem?.[field.name] ?? field.defaultValue ?? '' }));
+  }
+
+  async function submitManagementForm(event) {
+    event.preventDefault();
+    if (!actionOperation) return;
+    const fields = managementFieldEntries();
+    if (!validateOperationForm(event.currentTarget, fields, i18n)) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const formData = new FormData(event.currentTarget);
+      const payload = Object.fromEntries(fields.map((field) => [field.name, formData.get(field.name)]));
+      await requestManagementOperation({ config, tenant, operation: actionOperation, payload });
+      setNotice(i18n.t(mode === 'create' ? 'managementCreated' : 'managementUpdated', { item: managementDisplayName(resource, selectedItem || payload) }));
+      setMode('list');
+      setSelectedItem(null);
+      setActionOperation(null);
+      await loadItems();
+      announce(i18n.t('success'));
+    } catch (submitError) {
+      setError(submitError.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function submitDelete(event) {
+    event.preventDefault();
+    if (!deleteItem) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const operation = await loadManagementOperationSchema(resource.moduleId, resource.operations.delete);
+      const formData = new FormData(event.currentTarget);
+      const payload = { ...managementIdentityPayload(resource, deleteItem), actor: formData.get('actor') };
+      await requestManagementOperation({ config, tenant, operation, payload });
+      setNotice(i18n.t('managementDeleted', { item: managementDisplayName(resource, deleteItem) }));
+      setDeleteItem(null);
+      await loadItems();
+      announce(i18n.t('success'));
+    } catch (deleteError) {
+      setError(deleteError.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (mode === 'create' || mode === 'edit') {
+    const fields = managementFieldEntries();
+    const immutableFields = new Set(mode === 'edit' ? resource.immutable : []);
+    const visibleFields = fields.filter((field) => !immutableFields.has(field.name));
+    return <section className="card openinfra-operation-card openinfra-management-card" aria-labelledby="openinfra-management-form-title"><div className="card-body"><div className="openinfra-management-heading"><div><p className="openinfra-management-kicker">{label}</p><h2 id="openinfra-management-form-title" className="h4">{i18n.t(mode === 'create' ? 'createManagementItem' : 'editManagementItem', { item: singular })}</h2><p className="text-muted mb-0">{i18n.t(mode === 'create' ? 'createManagementDescription' : 'editManagementDescription')}</p></div><button type="button" className="btn btn-light" onClick={() => { setMode('list'); setSelectedItem(null); setActionOperation(null); }}>{i18n.t('backToManagement')}</button></div>{error && <div className="alert alert-danger mt-3" role="alert">{error}</div>}{mode === 'edit' && selectedItem && <dl className="openinfra-management-identity mt-3">{resource.identity.map((key) => <div key={key}><dt>{key}</dt><dd>{managementFieldValue(selectedItem, key) || '—'}</dd></div>)}</dl>}<form className="mt-3" noValidate onSubmit={submitManagementForm}><p className="openinfra-required-notice">{i18n.t('requiredFieldsNotice')}</p>{fields.filter((field) => immutableFields.has(field.name)).map((field) => <input key={field.name} type="hidden" name={field.name} value={selectedItem?.[field.name] ?? ''} readOnly />)}<div className="row g-3">{visibleFields.map((field, index) => <OperationField entry={field} index={index} i18n={i18n} language={language} key={field.name} />)}</div><div className="openinfra-management-form-actions"><button type="submit" className="btn btn-primary" disabled={submitting}>{mode === 'create' ? i18n.t('create') : i18n.t('saveChanges')}</button><button type="button" className="btn btn-light" onClick={() => { setMode('list'); setSelectedItem(null); setActionOperation(null); }}>{i18n.t('cancel')}</button></div></form></div></section>;
+  }
+
+  return <section className="card openinfra-operation-card openinfra-management-card" aria-labelledby="openinfra-management-title"><div className="card-body"><div className="openinfra-management-heading"><div><p className="openinfra-management-kicker">{i18n.t('managementWorkspace')}</p><h2 id="openinfra-management-title" className="h4">{label}</h2><p className="text-muted mb-0">{i18n.t('managementDescription', { resource: localizedManagementLabel(resource, language, 'plural') })}</p></div><button type="button" className="btn btn-primary" onClick={() => void openAction('create')}>+ {i18n.t('newItem')}</button></div>{notice && <div className="alert alert-success mt-3" role="status">{notice}</div>}{error && <div className="alert alert-danger mt-3" role="alert">{error}</div>}<form className="openinfra-management-filter-panel mt-3" onSubmit={(event) => { event.preventDefault(); setPage(1); }}><div className="openinfra-management-filter-grid"><div><label className="form-label" htmlFor={`management-search-${resource.id}`}>{i18n.t('search')}</label><input id={`management-search-${resource.id}`} type="search" className="form-control" value={query} placeholder={i18n.t('managementSearchPlaceholder')} onChange={(event) => { setQuery(event.target.value); setPage(1); }} /></div>{resource.filters.map(({ key, label: filterLabel }) => <div key={key}><label className="form-label" htmlFor={`management-filter-${resource.id}-${key}`}>{filterLabel}</label><select id={`management-filter-${resource.id}-${key}`} className="form-select" value={filters[key] || ''} onChange={(event) => { setFilters((current) => ({ ...current, [key]: event.target.value })); setPage(1); }}><option value="">{i18n.t('allValues')}</option>{filterOptions[key].map((value) => <option value={value} key={value}>{value}</option>)}</select></div>)}</div><div className="form-check mt-3"><input id={`management-retired-${resource.id}`} className="form-check-input" type="checkbox" checked={includeRetired} onChange={(event) => setIncludeRetired(event.target.checked)} /><label className="form-check-label" htmlFor={`management-retired-${resource.id}`}>{i18n.t('includeRetired')}</label></div><button type="button" className="btn btn-light mt-3" onClick={() => { setQuery(''); setFilters({}); setPage(1); }}>{i18n.t('resetFilters')}</button></form><div className="openinfra-management-table-summary"><span>{i18n.t('managementResults', { count: filteredItems.length })}</span><label>{i18n.t('rowsPerPage')} <select className="form-select form-select-sm" value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}>{[25, 50, 100].map((size) => <option value={size} key={size}>{size}</option>)}</select></label></div>{loading ? <p role="status">{i18n.t('loadingManagementData')}</p> : <div className="openinfra-management-table-wrapper"><table className="table align-middle openinfra-management-table"><caption className="visually-hidden">{label}</caption><thead><tr>{resource.columns.map((column) => <th scope="col" key={column.key}><button type="button" className="openinfra-management-sort" onClick={() => setSort((current) => ({ key: column.key, direction: current.key === column.key && current.direction === 'asc' ? 'desc' : 'asc' }))}>{column.label}{sort.key === column.key ? (sort.direction === 'asc' ? ' ↑' : ' ↓') : ''}</button></th>)}<th scope="col">{i18n.t('actions')}</th></tr></thead><tbody>{pageItems.length === 0 ? <tr><td colSpan={resource.columns.length + 1}>{i18n.t('noManagementResults')}</td></tr> : pageItems.map((item) => { const key = JSON.stringify(managementIdentityPayload(resource, item)); return <tr key={key}>{resource.columns.map((column, index) => <td key={column.key}>{index === 0 ? <button type="button" className="openinfra-management-detail-link" onClick={() => setDetailItem(item)}>{managementFieldValue(item, column.key) || '—'}</button> : (managementFieldValue(item, column.key) || '—')}</td>)}<td><div className="openinfra-management-actions"><button type="button" className="btn btn-sm btn-light" onClick={() => void openAction('edit', item)}>{i18n.t('edit')}</button><button type="button" className="btn btn-sm btn-outline-danger" onClick={() => setDeleteItem(item)}>{i18n.t('delete')}</button></div></td></tr>; })}</tbody></table></div>}<div className="openinfra-management-pagination"><span>{i18n.t('pagination', { page: currentPage, pages: totalPages })}</span><div><button type="button" className="btn btn-sm btn-light" disabled={currentPage <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>{i18n.t('previous')}</button><button type="button" className="btn btn-sm btn-light" disabled={currentPage >= totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))}>{i18n.t('next')}</button></div></div>{detailItem && <div className="openinfra-management-modal" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDetailItem(null); }}><section className="openinfra-management-dialog" role="dialog" aria-modal="true" aria-labelledby="openinfra-management-detail-title"><div className="openinfra-management-dialog-header"><h3 id="openinfra-management-detail-title" className="h5">{managementDisplayName(resource, detailItem)}</h3><button type="button" className="btn btn-light" aria-label={i18n.t('close')} onClick={() => setDetailItem(null)}>×</button></div><dl className="openinfra-management-detail-grid">{Object.entries(detailItem).sort(([left], [right]) => left.localeCompare(right)).map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{value && typeof value === 'object' ? JSON.stringify(value) : String(value ?? '—')}</dd></div>)}</dl></section></div>}{deleteItem && <div className="openinfra-management-modal" role="presentation"><section className="openinfra-management-dialog" role="dialog" aria-modal="true" aria-labelledby="openinfra-management-delete-title"><div className="openinfra-management-dialog-header"><h3 id="openinfra-management-delete-title" className="h5">{i18n.t('confirmDeletion')}</h3><button type="button" className="btn btn-light" aria-label={i18n.t('close')} onClick={() => setDeleteItem(null)}>×</button></div><p>{i18n.t('deleteManagementConfirmation', { item: managementDisplayName(resource, deleteItem) })}</p><p className="text-muted small">{i18n.t('deleteManagementLifecycleNotice')}</p><form onSubmit={submitDelete}><label className="form-label" htmlFor={`management-delete-actor-${resource.id}`}>{i18n.t('operator')}</label><input id={`management-delete-actor-${resource.id}`} name="actor" className="form-control" required ref={deleteActorRef} /><div className="openinfra-management-form-actions"><button type="submit" className="btn btn-danger" disabled={submitting}>{i18n.t('delete')}</button><button type="button" className="btn btn-light" onClick={() => setDeleteItem(null)}>{i18n.t('cancel')}</button></div></form></section></div>}</div></section>;
 }
 
 function Dashboard() {
@@ -441,7 +658,12 @@ function Dashboard() {
   }, []);
 
   function chooseOperation(module, operation, focusMain = false) {
-    setSelected(operation);
+    const mappedManagement = managementResourceForOperation(operation.id);
+    const eligibleManagement = mappedManagement && ['list', 'create', 'update', 'delete'].every((role) => module.operations.some((candidate) => candidate.id === mappedManagement.resource.operations[role]));
+    const effectiveOperation = operation.managementResourceId
+      ? operation
+      : (eligibleManagement ? managementNavigationOperation(mappedManagement.resource, language) : operation);
+    setSelected(effectiveOperation);
     setActiveModuleId(module.id);
     setActiveNavigationModuleId(module.id);
     setOpened((current) => module.id === 'overview' ? new Set() : new Set([...current, module.id]));
@@ -450,14 +672,14 @@ function Dashboard() {
         return new Set();
       }
       const next = withoutModuleContexts(current, module.id);
-      const context = contextForOperation(module, operation.id);
+      const context = contextForOperation(module, effectiveOperation.id, language);
       if (context) {
         next.add(sidebarContextKey(module.id, context.label));
       }
       return next;
     });
     setResult(null);
-    announce(i18n.t('operationSelected', { operation: operation.label }));
+    announce(i18n.t('operationSelected', { operation: effectiveOperation.label }));
     setMobileSidebarOpen(false);
     setMegaMenuModuleId(null);
     if (focusMain) {
@@ -644,10 +866,13 @@ function Dashboard() {
   const submissionCompleted = result !== null;
   const protectedForms = bffStatus?.protectedForms === 'enabled' ? i18n.t('active') : i18n.t('configure');
   const activeModule = MODULES.find((module) => module.id === activeModuleId) || MODULES[0];
+  const activeManagementResource = selected.managementResourceId ? managementResourceById(selected.managementResourceId) : null;
   const pageTitle = activeModuleId === 'overview' ? 'Dashboard' : activeModule.shortLabel || activeModule.label;
   const pageSubtitle = activeModuleId === 'overview'
     ? i18n.t('dashboardSubtitle')
-    : i18n.t('operationSubtitle', { operation: selected.label });
+    : (activeManagementResource
+      ? i18n.t('managementSubtitle', { operation: localizedManagementLabel(activeManagementResource, language) })
+      : i18n.t('operationSubtitle', { operation: selected.label }));
 
   const megaMenuModule = MODULES.find((module) => module.id === megaMenuModuleId) || null;
   const runtimeStatus = <div className="px-2 small text-muted openinfra-runtime-status" role="status" aria-live="polite" aria-atomic="true">
@@ -697,10 +922,10 @@ function Dashboard() {
           </div>
         </div>
       </div>
-      <MegaMenu module={megaMenuModule} selectedOperationId={selected.id} chooseOperation={chooseOperation} close={closeResponsiveNavigation} i18n={i18n} />
+      <MegaMenu module={megaMenuModule} selectedOperationId={selected.id} chooseOperation={chooseOperation} close={closeResponsiveNavigation} i18n={i18n} language={language} />
       {mobileSidebarOpen && <nav id="openinfra-compact-navigation" className="openinfra-compact-navigation" aria-label={i18n.t('navigation')}>
         <div className="openinfra-compact-navigation-header"><strong>{i18n.t('navigation')}</strong><button type="button" className="openinfra-navigation-close" aria-label={i18n.t('closeNavigation')} onClick={() => closeResponsiveNavigation({ restoreFocus: true })}>×</button></div>
-        <div className="openinfra-compact-navigation-body"><div className="openinfra-sidebar-heading">{i18n.t('control')}</div><NavigationTree modules={filteredModules} activeNavigationModuleId={activeNavigationModuleId} selectedOperationId={selected.id} opened={opened} openedContexts={openedContexts} chooseOperation={chooseOperation} toggleAccordion={toggleAccordion} toggleSidebarContext={toggleSidebarContext} surface="compact" /><div className="openinfra-sidebar-heading">{i18n.t('runtimeStatus')}</div>{runtimeStatus}</div>
+        <div className="openinfra-compact-navigation-body"><div className="openinfra-sidebar-heading">{i18n.t('control')}</div><NavigationTree modules={filteredModules} activeNavigationModuleId={activeNavigationModuleId} selectedOperationId={selected.id} opened={opened} openedContexts={openedContexts} chooseOperation={chooseOperation} toggleAccordion={toggleAccordion} toggleSidebarContext={toggleSidebarContext} surface="compact" language={language} /><div className="openinfra-sidebar-heading">{i18n.t('runtimeStatus')}</div>{runtimeStatus}</div>
       </nav>}
     </header>
     {(mobileSidebarOpen || megaMenuModuleId) && <button type="button" className="openinfra-navigation-backdrop" aria-label={i18n.t('closeNavigation')} onClick={() => closeResponsiveNavigation({ restoreFocus: true })} />}
@@ -708,7 +933,7 @@ function Dashboard() {
       <div className="row">
         <nav id="openinfra-sidebar" className="col-xl-2 openinfra-sidebar" aria-label={i18n.t('navigation')}>
           <div className="openinfra-sidebar-heading">{i18n.t('control')}</div>
-          <NavigationTree modules={filteredModules} activeNavigationModuleId={activeNavigationModuleId} selectedOperationId={selected.id} opened={opened} openedContexts={openedContexts} chooseOperation={chooseOperation} toggleAccordion={toggleAccordion} toggleSidebarContext={toggleSidebarContext} />
+          <NavigationTree modules={filteredModules} activeNavigationModuleId={activeNavigationModuleId} selectedOperationId={selected.id} opened={opened} openedContexts={openedContexts} chooseOperation={chooseOperation} toggleAccordion={toggleAccordion} toggleSidebarContext={toggleSidebarContext} language={language} />
           <div className="openinfra-sidebar-heading">{i18n.t('runtimeStatus')}</div>
           {runtimeStatus}
         </nav>
@@ -716,7 +941,11 @@ function Dashboard() {
           <div className="pb-2 mb-3 openinfra-titlebar"><h1 className="h2">{pageTitle}</h1><p className="text-muted mb-0">{pageSubtitle}</p></div>
           {submissionCompleted && activeModuleId !== 'overview' && <div className="alert alert-success" role="status">{i18n.t('success')}</div>}
           {activeModuleId === 'overview' && <div className="row g-3 mb-4 openinfra-dashboard-metrics" aria-label={i18n.t('componentStatistics')}><Metric title={i18n.t('version')} value={displayedVersion} /><Metric title="API" value={config.apiBaseUrl || '/api'} /><Metric title={i18n.t('trust')} value={config.webBackendTrust || 'server-side'} /><Metric title={i18n.t('forms')} value={protectedForms} /><Metric title={i18n.t('modules')} value={`${operationsCount} ${i18n.t('operations')}`} /></div>}
-          {activeModuleId === 'overview' ? <OverviewStats i18n={i18n} modules={businessModules} fieldsCount={businessFieldsCount} /> : <section className="card openinfra-operation-card" aria-labelledby="openinfra-operation-title"><div className="card-body"><h2 id="openinfra-operation-title" className="h4">{selected.label}</h2><OperationForm i18n={i18n} language={language} selected={selected} tenant={tenant} setTenant={setTenant} execute={execute} /><GraphResultPanel i18n={i18n} operation={selected} result={result} /></div></section>}
+          {activeModuleId === 'overview'
+            ? <OverviewStats i18n={i18n} modules={businessModules} fieldsCount={businessFieldsCount} />
+            : (activeManagementResource
+              ? <ManagementWorkspace key={activeManagementResource.id} resource={activeManagementResource} config={config} tenant={tenant} i18n={i18n} language={language} announce={announce} />
+              : <section className="card openinfra-operation-card" aria-labelledby="openinfra-operation-title"><div className="card-body"><h2 id="openinfra-operation-title" className="h4">{selected.label}</h2><OperationForm i18n={i18n} language={language} selected={selected} tenant={tenant} setTenant={setTenant} execute={execute} /><GraphResultPanel i18n={i18n} operation={selected} result={result} /></div></section>)}
         </main>
       </div>
     </div>

@@ -1,6 +1,11 @@
-# OpenInfra v0.33.1
+# OpenInfra v0.33.2
 
-OpenInfra 0.33.1 poursuit **P21 / REL-11 — Kubernetes & Cloud-native** avec **EPIC-2102 : expositions et dépendances réseau cloud-native**. La version corrèle ingress, load balancers, DNS, services et service mesh avec la matrice de flux et les dépendances RSOT existantes, sans nouvelle source de vérité ni mutation automatique de l’infrastructure.
+OpenInfra 0.33.2 améliore structurellement l’expérience opérateur sans modifier les contrats API/CLI : les familles CRUD homogènes de DCIM et ITAM sont consolidées en espaces de **gestion unifiée** avec tableau filtrable, consultation détaillée, création, édition et suppression gouvernée.
+
+## Gestion CRUD unifiée
+
+La navigation web consolide les opérations CRUD homogènes en une entrée **Gestion de …** par ressource. Chaque espace propose une liste complète et paginée, une recherche plein texte, des filtres multicritères, un accès aux détails, un bouton **+ Nouveau**, des actions **Éditer** et **Supprimer**, puis un retour automatique à la liste après mutation. Les endpoints API et les commandes CLI historiques restent inchangés.
+
 
 ## Expositions cloud-native — P21 / EPIC-2102
 

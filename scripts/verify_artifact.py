@@ -71,6 +71,7 @@ class WheelVerifier:
         "openinfra/interfaces/rendering/static/assets/openinfra-i18n.js",
         "openinfra/interfaces/rendering/static/assets/openinfra-form-fields.js",
         "openinfra/interfaces/rendering/static/assets/openinfra-domain-manifest.js",
+        "openinfra/interfaces/rendering/static/assets/openinfra-management-resources.js",
         "openinfra/interfaces/rendering/static/assets/openinfra-query-cache.js",
         "openinfra/interfaces/rendering/static/assets/openinfra-search-index.js",
         "openinfra/interfaces/rendering/static/assets/openinfra-virtual-list.js",

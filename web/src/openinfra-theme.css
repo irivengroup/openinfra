@@ -2599,6 +2599,250 @@ body {
   background: linear-gradient(180deg, rgba(255, 255, 255, .88), rgba(247, 250, 255, .74));
 }
 
+.openinfra-management-card > .card-body {
+  padding: clamp(1rem, 2vw, 1.75rem);
+}
+
+.openinfra-management-heading {
+  align-items: flex-start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
+.openinfra-management-kicker {
+  color: var(--openinfra-text-muted);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  margin: 0 0 .35rem;
+  text-transform: uppercase;
+}
+
+.openinfra-management-filter-panel {
+  align-items: end;
+  background: rgba(255, 255, 255, .62);
+  border: 1px solid var(--openinfra-border);
+  border-radius: .9rem;
+  display: grid;
+  gap: .8rem;
+  grid-template-columns: minmax(14rem, 2fr) repeat(auto-fit, minmax(10rem, 1fr));
+  margin-bottom: 1rem;
+  padding: 1rem;
+}
+
+.openinfra-management-filter-panel .form-label,
+.openinfra-management-filter-panel .form-check {
+  margin: 0;
+}
+
+.openinfra-management-filter-panel .form-label > span {
+  display: block;
+  font-size: .78rem;
+  font-weight: 700;
+  margin-bottom: .35rem;
+}
+
+.openinfra-management-retired {
+  align-items: center;
+  display: flex;
+  gap: .45rem;
+  min-height: 2rem;
+}
+
+.openinfra-management-loading,
+.openinfra-management-table-summary,
+.openinfra-management-pagination {
+  align-items: center;
+  display: flex;
+  gap: .65rem;
+  justify-content: space-between;
+}
+
+.openinfra-management-loading {
+  justify-content: flex-start;
+  margin: .8rem 0;
+}
+
+.openinfra-management-table-summary {
+  color: var(--openinfra-text-secondary);
+  font-size: .82rem;
+  margin: .75rem 0;
+}
+
+.openinfra-management-table-summary label {
+  align-items: center;
+  display: inline-flex;
+  gap: .5rem;
+}
+
+.openinfra-management-table-summary select {
+  width: auto;
+}
+
+.openinfra-management-table-wrapper {
+  border: 1px solid var(--openinfra-border);
+  border-radius: .85rem;
+  margin-bottom: .85rem;
+}
+
+.openinfra-management-table {
+  margin: 0;
+  min-width: 46rem;
+}
+
+.openinfra-management-table th,
+.openinfra-management-table td {
+  vertical-align: middle;
+}
+
+.openinfra-management-sort,
+.openinfra-management-detail-link {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+}
+
+.openinfra-management-sort {
+  font-weight: 800;
+  width: 100%;
+}
+
+.openinfra-management-sort:hover,
+.openinfra-management-sort:focus,
+.openinfra-management-detail-link:hover,
+.openinfra-management-detail-link:focus {
+  color: var(--openinfra-action);
+  text-decoration: underline;
+  text-underline-offset: .18rem;
+}
+
+.openinfra-management-actions {
+  display: flex;
+  gap: .45rem;
+  white-space: nowrap;
+}
+
+.openinfra-management-pagination {
+  color: var(--openinfra-text-secondary);
+  font-size: .82rem;
+  flex-wrap: wrap;
+}
+
+.openinfra-management-identity,
+.openinfra-management-detail-list {
+  display: grid;
+  gap: .65rem 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  margin: 0 0 1.25rem;
+}
+
+.openinfra-management-identity > div,
+.openinfra-management-detail-list > div {
+  background: rgba(255, 255, 255, .58);
+  border: 1px solid var(--openinfra-border);
+  border-radius: .7rem;
+  min-width: 0;
+  padding: .7rem .8rem;
+}
+
+.openinfra-management-identity dt,
+.openinfra-management-detail-list dt {
+  color: var(--openinfra-text-muted);
+  font-size: .72rem;
+  letter-spacing: .04em;
+  margin-bottom: .2rem;
+  text-transform: uppercase;
+}
+
+.openinfra-management-identity dd,
+.openinfra-management-detail-list dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.openinfra-management-form-actions {
+  border-top: 1px solid var(--openinfra-border);
+  display: flex;
+  gap: .65rem;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+}
+
+.openinfra-management-modal {
+  align-items: center;
+  background: rgba(var(--openinfra-ink-rgb), .34);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 1rem;
+  position: fixed;
+  z-index: 1060;
+}
+
+.openinfra-management-dialog {
+  background: rgba(255, 255, 255, .97);
+  border: 1px solid var(--openinfra-border-strong);
+  border-radius: 1rem;
+  box-shadow: var(--openinfra-shadow);
+  max-height: min(48rem, calc(100vh - 2rem));
+  max-width: 54rem;
+  overflow: auto;
+  width: min(100%, 54rem);
+}
+
+.openinfra-management-confirm {
+  max-width: 34rem;
+}
+
+.openinfra-management-dialog-header,
+.openinfra-management-dialog-footer {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 1rem 1.2rem;
+}
+
+.openinfra-management-dialog-header {
+  border-bottom: 1px solid var(--openinfra-border);
+}
+
+.openinfra-management-dialog-body {
+  padding: 1.2rem;
+}
+
+.openinfra-management-dialog-footer {
+  border-top: 1px solid var(--openinfra-border);
+  justify-content: flex-end;
+}
+
+@media (max-width: 767.98px) {
+  .openinfra-management-heading,
+  .openinfra-management-pagination {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .openinfra-management-heading > .btn,
+  .openinfra-management-form-actions > .btn {
+    width: 100%;
+  }
+
+  .openinfra-management-filter-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .openinfra-management-form-actions {
+    flex-direction: column-reverse;
+  }
+}
+
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
   .openinfra-sidebar,
   .openinfra-titlebar,

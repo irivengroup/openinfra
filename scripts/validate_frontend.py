@@ -442,6 +442,7 @@ class FrontendContractValidator:
             "assets/openinfra-web.js",
             "assets/openinfra-web.css",
             "assets/openinfra-domain-manifest.js",
+            "assets/openinfra-management-resources.js",
             "assets/openinfra-search-index.js",
             "assets/openinfra-query-cache.js",
             "assets/openinfra-virtual-list.js",
@@ -467,6 +468,10 @@ class FrontendContractValidator:
         source_form_fields = (self._project_root / "web/src/form-fields.js").read_text(
             encoding="utf-8"
         )
+        runtime_management = assets_by_name["assets/openinfra-management-resources.js"]
+        source_management = (self._project_root / "web/src/management-resources.js").read_text(
+            encoding="utf-8"
+        )
         if runtime_i18n != source_i18n:
             raise FrontendValidationError(
                 "React and packaged runtime must share the exact same i18n implementation"
@@ -475,6 +480,10 @@ class FrontendContractValidator:
             raise FrontendValidationError(
                 "React and packaged runtime must share the exact same "
                 "form validation implementation"
+            )
+        if runtime_management != source_management:
+            raise FrontendValidationError(
+                "React and packaged runtime must share the exact same CRUD management registry"
             )
         self._validate_i18n_contract(runtime_js, runtime_i18n)
         runtime_manifest = assets_by_name["assets/openinfra-domain-manifest.js"]

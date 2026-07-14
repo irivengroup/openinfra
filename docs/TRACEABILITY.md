@@ -1,3 +1,11 @@
+## v0.33.2 — Gestion CRUD unifiée
+
+- **UX-WEB-CRUD-001** : consolider les opérations CRUD homogènes sous une entrée de navigation unique sans supprimer les contrats API/CLI existants.
+- **UX-WEB-CRUD-002** : fournir une page de gestion avec recherche, filtres multicritères, tri, pagination, consultation détaillée et actions gouvernées.
+- **UX-WEB-CRUD-003** : préserver les identifiants structurants en édition et revenir à la liste après toute mutation réussie.
+- **UX-WEB-CRUD-004** : conserver les budgets de chargement initial par chargement paresseux du registre de gestion.
+- **UX-WEB-CRUD-005** : préserver la palette validée et l’accessibilité WCAG 2.2 AA.
+
 ## v0.33.1 — P21 / EPIC-2102 Expositions et dépendances réseau cloud-native
 
 - Roadmap : `P21`, `EPIC-2102`, `REL-11`, `REQ-00470`.

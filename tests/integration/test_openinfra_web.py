@@ -455,8 +455,10 @@ class TestOpenInfraWeb:
         assert 'label: "ServiceNow"' in static_js
         assert '"servicenow-validate"' in static_js
         assert '"servicenow-ci-sync-plan"' in static_js
-        assert "group.operationIds.map((id) => byId.get(id)).filter(Boolean)" in static_js
-        assert 'groups.push({ label: "Autres", operations: remaining })' in static_js
+        assert "group.operationIds.filter((id) => byId.has(id))" in static_js
+        assert "collapseManagementOperations(" in static_js
+        assert 'label: "Autres"' in static_js
+        assert "remaining.map((operation) => operation.id)" in static_js
         assert "openinfra-accordion" in static_js + static_css
         assert ".openinfra-accordion-panel.show" in static_css
         assert "grid-template-rows: 0fr" in static_css

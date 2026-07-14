@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.33.2 — Gestion CRUD unifiée et navigation opérateur consolidée
+
+- Regroupement des familles CRUD homogènes sous une entrée unique `Gestion de …` dans la sidebar et le mégamenu.
+- Huit espaces de gestion : sites, bâtiments, salles, châssis/racks, zones, organisations, filiales/subdivisions et partenaires.
+- Page de gestion professionnelle avec recherche plein texte, filtres multicritères, tri, pagination bornée et option d’inclusion des objets retirés.
+- Consultation des détails dans une boîte de dialogue accessible ; création et édition sur des vues dédiées ; suppression après confirmation et identification de l’opérateur.
+- Retour automatique à la liste consolidée après création, modification ou suppression.
+- Identifiants structurants rendus immuables en édition et sémantique de cycle de vie du backend conservée.
+- Endpoints API, commandes CLI et catalogues CRUD historiques conservés intégralement pour compatibilité ascendante.
+- Registre de gestion chargé paresseusement avec DCIM/ITAM afin de préserver les budgets de performance du shell initial.
+- Parité structurelle entre le runtime web packagé et le portail React de référence.
+- Aucune modification de la palette ou de la charte graphique ; seuls des styles structurels utilisant les tokens existants sont ajoutés.
+
 ## v0.33.1 — P21 / EPIC-2102 Expositions et dépendances réseau cloud-native
 
 - ajout des ressources Kubernetes `load-balancer`, `dns-record` et `mesh-route` dans les snapshots immuables existants ;

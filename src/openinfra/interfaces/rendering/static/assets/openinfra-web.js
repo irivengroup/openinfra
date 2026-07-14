@@ -1,4 +1,38 @@
-import { OpenInfraI18n, localizeOpenInfraCatalog } from "./openinfra-i18n.js?v=0.33.1";
+import { OpenInfraI18n, localizeOpenInfraCatalog } from "./openinfra-i18n.js?v=0.33.2";
+let managementRegistryPromise = null;
+let collapseManagementOperations = (_moduleId, operations, operationIds) => {
+  const byId = new Map(operations.map((operation) => [operation.id, operation]));
+  return operationIds.map((operationId) => byId.get(operationId)).filter(Boolean);
+};
+let flattenManagementCollection = () => [];
+let localizedManagementLabel = (resource) => resource?.id || "";
+let managementDisplayName = (_resource, item) => String(item?.name || item?.code || item?.id || "");
+let managementFieldValue = (item, fieldName) => String(item?.[fieldName] ?? "");
+let managementIdentityPayload = () => ({});
+let managementNavigationOperation = () => null;
+let managementResourceById = () => null;
+let managementResourceForOperation = () => null;
+let managementResourcesForModule = () => [];
+
+async function ensureManagementRegistryLoaded() {
+  if (!managementRegistryPromise) {
+    managementRegistryPromise = import("./openinfra-management-resources.js?v=0.33.2").then((loaded) => {
+      collapseManagementOperations = loaded.collapseManagementOperations;
+      flattenManagementCollection = loaded.flattenManagementCollection;
+      localizedManagementLabel = loaded.localizedManagementLabel;
+      managementDisplayName = loaded.managementDisplayName;
+      managementFieldValue = loaded.managementFieldValue;
+      managementIdentityPayload = loaded.managementIdentityPayload;
+      managementNavigationOperation = loaded.managementNavigationOperation;
+      managementResourceById = loaded.managementResourceById;
+      managementResourceForOperation = loaded.managementResourceForOperation;
+      managementResourcesForModule = loaded.managementResourcesForModule;
+      return loaded;
+    });
+  }
+  return managementRegistryPromise;
+}
+
 import {
   fieldValidationMessage,
   formCountryCode,
@@ -7,11 +41,11 @@ import {
   normalizeFieldDefinition,
   normalizeFieldValue,
   validateControl
-} from "./openinfra-form-fields.js?v=0.33.1";
-import { OPENINFRA_DOMAIN_LOADERS, OPENINFRA_MODULES, OPENINFRA_SIDEBAR_CONTEXTS } from "./openinfra-domain-manifest.js?v=0.33.1";
-import { OpenInfraQueryCache } from "./openinfra-query-cache.js?v=0.33.1";
-import { OpenInfraVirtualList } from "./openinfra-virtual-list.js?v=0.33.1";
-import { installOpenInfraWebVitals } from "./openinfra-web-vitals.js?v=0.33.1";
+} from "./openinfra-form-fields.js?v=0.33.2";
+import { OPENINFRA_DOMAIN_LOADERS, OPENINFRA_MODULES, OPENINFRA_SIDEBAR_CONTEXTS } from "./openinfra-domain-manifest.js?v=0.33.2";
+import { OpenInfraQueryCache } from "./openinfra-query-cache.js?v=0.33.2";
+import { OpenInfraVirtualList } from "./openinfra-virtual-list.js?v=0.33.2";
+import { installOpenInfraWebVitals } from "./openinfra-web-vitals.js?v=0.33.2";
 
 
 class OpenInfraApiClient {
@@ -303,7 +337,26 @@ class OpenInfraDashboard {
       globalSearchError: null,
       catalogLoading: false,
       mobileSidebarOpen: false,
-      megaMenuModuleId: null
+      megaMenuModuleId: null,
+      management: {
+        resourceId: null,
+        mode: "list",
+        items: [],
+        loading: false,
+        error: null,
+        filters: {},
+        query: "",
+        includeRetired: false,
+        sortKey: null,
+        sortDirection: "asc",
+        page: 1,
+        pageSize: 25,
+        selectedItem: null,
+        detailItem: null,
+        detailLoading: false,
+        deleteItem: null,
+        notice: null
+      }
     };
     this.catalogPromises = new Map();
     this.catalogLoadSequence = 0;
@@ -326,6 +379,11 @@ class OpenInfraDashboard {
       }
     };
     this.handleDocumentKeydown = (event) => {
+      if (event.key === "Escape" && (this.state.management.detailItem || this.state.management.deleteItem)) {
+        event.preventDefault();
+        this.closeManagementDialogs();
+        return;
+      }
       if (event.key === "Escape" && (this.state.mobileSidebarOpen || this.state.megaMenuModuleId)) {
         event.preventDefault();
         this.closeResponsiveNavigation(true);
@@ -365,12 +423,18 @@ class OpenInfraDashboard {
   async ensureModuleLoaded(moduleId) {
     const current = OPENINFRA_MODULES.find((module) => module.id === moduleId);
     if (!current) throw new Error(`Composant OpenInfra inconnu : ${moduleId}`);
-    if (current.loaded) return current;
+    if (current.loaded) {
+      if (moduleId === "dcim" || moduleId === "itam") await ensureManagementRegistryLoaded();
+      return current;
+    }
     const existing = this.modulePromises.get(moduleId);
     if (existing) return existing;
     const loader = OPENINFRA_DOMAIN_LOADERS[moduleId];
     if (!loader) throw new Error(`Aucun chunk n’est déclaré pour le composant ${moduleId}.`);
-    const promise = loader().then((loaded) => {
+    const promise = Promise.all([
+      loader(),
+      moduleId === "dcim" || moduleId === "itam" ? ensureManagementRegistryLoaded() : Promise.resolve(null)
+    ]).then(([loaded]) => {
       const index = OPENINFRA_MODULES.findIndex((module) => module.id === moduleId);
       const definition = { ...loaded.default, stats: current.stats, loaded: true };
       OPENINFRA_MODULES.splice(index, 1, definition);
@@ -388,7 +452,7 @@ class OpenInfraDashboard {
 
   async loadSearchIndex() {
     if (this.searchIndex) return this.searchIndex;
-    const loaded = await import("./openinfra-search-index.js?v=0.33.1");
+    const loaded = await import("./openinfra-search-index.js?v=0.33.2");
     const syntheticModules = OPENINFRA_MODULES.map((module) => ({
       ...module,
       operations: loaded.default.filter((entry) => entry.moduleId === module.id).map((entry) => ({ ...entry }))
@@ -495,7 +559,8 @@ class OpenInfraDashboard {
     if (dependencies.includes("partners") && !this.catalogDependencyLoaded("partners")) {
       await this.catalogPromise("partners", () => this.refreshPartnerCatalog());
     }
-    if (sequence !== this.catalogLoadSequence || this.state.selected.id !== operation.id) {
+    const activeOperationId = this.managementActionOperation()?.id || this.state.selected.id;
+    if (sequence !== this.catalogLoadSequence || activeOperationId !== operation.id) {
       return;
     }
     this.state = { ...this.state, catalogLoading: false };
@@ -792,15 +857,29 @@ class OpenInfraDashboard {
     const byId = new Map(operations.map((operation) => [operation.id, operation]));
     const groupedIds = new Set();
     const groups = configuredGroups.map((group) => {
-      const groupOperations = group.operationIds.map((id) => byId.get(id)).filter(Boolean);
-      for (const operation of groupOperations) {
-        groupedIds.add(operation.id);
+      const existingIds = group.operationIds.filter((id) => byId.has(id));
+      for (const operationId of existingIds) {
+        groupedIds.add(operationId);
       }
+      const groupOperations = collapseManagementOperations(
+        module.id,
+        operations,
+        existingIds,
+        this.i18n.language
+      );
       return { label: group.label, operations: groupOperations };
     }).filter((group) => group.operations.length > 0);
     const remaining = operations.filter((operation) => !groupedIds.has(operation.id));
     if (remaining.length > 0) {
-      groups.push({ label: "Autres", operations: remaining });
+      groups.push({
+        label: "Autres",
+        operations: collapseManagementOperations(
+          module.id,
+          operations,
+          remaining.map((operation) => operation.id),
+          this.i18n.language
+        )
+      });
     }
     return groups;
   }
@@ -813,6 +892,36 @@ class OpenInfraDashboard {
     return this.sidebarOperationGroups(module, module.operations).find((group) => {
       return group.operations.some((operation) => operation.id === operationId);
     });
+  }
+
+  managementResource() {
+    return managementResourceById(this.state.management.resourceId);
+  }
+
+  operationById(moduleId, operationId) {
+    const module = OPENINFRA_MODULES.find((item) => item.id === moduleId);
+    return module?.operations.find((operation) => operation.id === operationId) || null;
+  }
+
+  managementOperation(resource, role) {
+    const operationId = resource?.operations?.[role];
+    return operationId ? this.operationById(resource.moduleId, operationId) : null;
+  }
+
+  withManagementState(overrides) {
+    return { ...this.state.management, ...overrides };
+  }
+
+  managementItemKey(resource, item) {
+    return resource.identity.map((key) => String(item?.[key] ?? "")).join("::");
+  }
+
+  managementItemByKey(resource, itemKey) {
+    return this.state.management.items.find((item) => this.managementItemKey(resource, item) === itemKey) || null;
+  }
+
+  managementSourceOperation(resource) {
+    return this.operationById(resource.moduleId, resource.sourceOperationId || resource.operations.list);
   }
 
   removeModuleContexts(openedContexts, moduleId) {
@@ -1062,7 +1171,9 @@ class OpenInfraDashboard {
     const pageTitle = activeModuleId === "overview" ? "Dashboard" : activeModule.shortLabel || activeModule.label;
     const pageSubtitle = activeModuleId === "overview"
       ? this.i18n.t("dashboardSubtitle")
-      : this.i18n.t("operationSubtitle", { operation: selected.label });
+      : selected?.managementResourceId
+        ? this.i18n.t("managementSubtitle", { operation: selected.label })
+        : this.i18n.t("operationSubtitle", { operation: selected.label });
     this.root.innerHTML = `
       <div class="openinfra-skip-links" aria-label="${this.escape(this.i18n.t("accessibilityStatus"))}">
         <a class="openinfra-skip-link" href="#openinfra-main-content">${this.escape(this.i18n.t("skipToContent"))}</a>
@@ -1120,8 +1231,16 @@ class OpenInfraDashboard {
     this.i18n.translateDom(this.root);
     this.syncFixedHeaderOffset();
     this.bindEvents();
+    this.focusManagementDialog();
     this.mountVirtualizedResults();
     this.focusMainContentIfRequested();
+  }
+
+  focusManagementDialog() {
+    const dialog = this.root.querySelector(".openinfra-management-dialog");
+    if (!dialog) return;
+    const target = dialog.querySelector("input:not([type=hidden]), button, select, textarea");
+    target?.focus({ preventScroll: true });
   }
 
   focusMainContentIfRequested() {
@@ -1135,6 +1254,9 @@ class OpenInfraDashboard {
   renderWorkspace(selected, result, displayedVersion, config, protectedForms) {
     if (this.state.activeModuleId === "overview") {
       return `${this.renderOverviewRuntimeMetrics(displayedVersion, config, protectedForms)}${this.renderOverviewDashboard()}`;
+    }
+    if (selected?.managementResourceId) {
+      return this.renderManagementWorkspace();
     }
     if (this.state.catalogLoading) {
       return `<section class="card openinfra-operation-card"><div class="card-body"><div class="d-flex align-items-center gap-3" role="status" aria-live="polite"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span>${this.escape(this.i18n.t("loadingFormReferences"))}</span></div></div></section>`;
@@ -1253,6 +1375,167 @@ class OpenInfraDashboard {
       return "";
     }
     return `<div class="row g-3 mb-3">${this.renderOrganizationSelector()}${this.renderTenantSelector()}</div>`;
+  }
+
+  managementActionOperation() {
+    const resource = this.managementResource();
+    if (!resource) return null;
+    if (this.state.management.mode === "create") return this.managementOperation(resource, "create");
+    if (this.state.management.mode === "edit") return this.managementOperation(resource, "update");
+    return null;
+  }
+
+  managementFormFields(resource, operation, item = null) {
+    const fields = [...(operation?.query || []), ...(operation?.body || [])];
+    return fields.map((field) => {
+      if (!item) return { ...field };
+      const value = managementFieldValue(item, field.name);
+      if (resource.immutable.includes(field.name)) {
+        return { ...field, type: "hidden", defaultValue: value };
+      }
+      return value === "" ? { ...field } : { ...field, defaultValue: value };
+    });
+  }
+
+  managementFilteredItems(resource) {
+    const query = String(this.state.management.query || "").trim().toLocaleLowerCase(this.i18n.language);
+    const activeFilters = this.state.management.filters || {};
+    let items = this.state.management.items.filter((item) => {
+      if (query) {
+        const haystack = Object.values(item || {}).map((value) => {
+          if (Array.isArray(value)) return value.join(" ");
+          if (value && typeof value === "object") return JSON.stringify(value);
+          return String(value ?? "");
+        }).join(" ").toLocaleLowerCase(this.i18n.language);
+        if (!haystack.includes(query)) return false;
+      }
+      return Object.entries(activeFilters).every(([key, expected]) => {
+        if (expected === undefined || expected === null || String(expected) === "") return true;
+        return String(item?.[key] ?? "") === String(expected);
+      });
+    });
+    const sortKey = this.state.management.sortKey || resource.columns[0]?.key;
+    const direction = this.state.management.sortDirection === "desc" ? -1 : 1;
+    if (sortKey) {
+      items = [...items].sort((left, right) => String(left?.[sortKey] ?? "").localeCompare(
+        String(right?.[sortKey] ?? ""),
+        this.i18n.language,
+        { numeric: true, sensitivity: "base" }
+      ) * direction);
+    }
+    return items;
+  }
+
+  managementFilterOptions(key) {
+    const values = new Set();
+    for (const item of this.state.management.items) {
+      const value = item?.[key];
+      if (value !== undefined && value !== null && String(value) !== "") values.add(String(value));
+    }
+    return [...values].sort((left, right) => left.localeCompare(right, this.i18n.language, { numeric: true, sensitivity: "base" }));
+  }
+
+  managementRenderedValue(value) {
+    if (value === true) return this.i18n.t("yes");
+    if (value === false) return this.i18n.t("no");
+    if (Array.isArray(value)) return value.join(", ") || "—";
+    if (value && typeof value === "object") return JSON.stringify(value);
+    return value === undefined || value === null || String(value) === "" ? "—" : String(value);
+  }
+
+  managementDetailLinkKey(resource) {
+    const columnKeys = new Set(resource.columns.map((column) => column.key));
+    return resource.display.find((key) => columnKeys.has(key)) || resource.columns[0]?.key;
+  }
+
+  renderManagementWorkspace() {
+    const resource = this.managementResource();
+    if (!resource) {
+      return `<section class="card openinfra-operation-card"><div class="card-body"><div class="alert alert-warning" role="alert">${this.escape(this.i18n.t("managementUnavailable"))}</div></div></section>`;
+    }
+    if (this.state.management.mode === "create" || this.state.management.mode === "edit") {
+      return this.renderManagementForm(resource);
+    }
+    return this.renderManagementList(resource);
+  }
+
+  renderManagementList(resource) {
+    const filtered = this.managementFilteredItems(resource);
+    const pageSize = Number(this.state.management.pageSize) || 25;
+    const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+    const page = Math.min(Math.max(1, Number(this.state.management.page) || 1), pageCount);
+    const start = (page - 1) * pageSize;
+    const visible = filtered.slice(start, start + pageSize);
+    const linkKey = this.managementDetailLinkKey(resource);
+    const label = localizedManagementLabel(resource, this.i18n.language);
+    const plural = localizedManagementLabel(resource, this.i18n.language, "plural");
+    const filters = resource.filters.map((filter) => {
+      const selected = String(this.state.management.filters?.[filter.key] ?? "");
+      const options = this.managementFilterOptions(filter.key);
+      return `<label class="form-label openinfra-management-filter"><span>${this.escape(filter.label)}</span><select class="form-select form-select-sm" data-management-filter="${this.escape(filter.key)}"><option value="">${this.escape(this.i18n.t("allValues"))}</option>${options.map((value) => `<option value="${this.escape(value)}" ${selected === value ? "selected" : ""}>${this.escape(this.managementRenderedValue(value))}</option>`).join("")}</select></label>`;
+    }).join("");
+    const rows = visible.map((item) => {
+      const itemKey = this.managementItemKey(resource, item);
+      const cells = resource.columns.map((column) => {
+        const value = column.key === linkKey && !item?.[column.key] ? managementDisplayName(resource, item) : this.managementRenderedValue(item?.[column.key]);
+        if (column.key === linkKey) {
+          return `<th scope="row"><button type="button" class="openinfra-management-detail-link" data-management-detail="${this.escape(itemKey)}">${this.escape(value)}</button></th>`;
+        }
+        return `<td>${this.escape(value)}</td>`;
+      }).join("");
+      return `<tr>${cells}<td class="openinfra-management-actions"><button type="button" class="btn btn-sm btn-outline-primary" data-management-edit="${this.escape(itemKey)}">${this.escape(this.i18n.t("edit"))}</button><button type="button" class="btn btn-sm btn-outline-danger" data-management-delete="${this.escape(itemKey)}">${this.escape(this.i18n.t("delete"))}</button></td></tr>`;
+    }).join("");
+    const firstItem = filtered.length === 0 ? 0 : start + 1;
+    const lastItem = Math.min(start + pageSize, filtered.length);
+    const notice = this.state.management.notice ? `<div class="alert alert-success openinfra-management-notice" role="status">${this.escape(this.state.management.notice)}</div>` : "";
+    const error = this.state.management.error ? `<div class="alert alert-warning" role="alert">${this.escape(this.state.management.error.message || this.state.management.error)}</div>` : "";
+    const loading = this.state.management.loading ? `<div class="openinfra-management-loading" role="status" aria-live="polite"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span>${this.escape(this.i18n.t("loadingManagementData"))}</span></div>` : "";
+    return `<section class="card openinfra-operation-card openinfra-management-card" aria-labelledby="openinfra-management-title"><div class="card-body">
+      <div class="openinfra-management-heading"><div><p class="openinfra-management-kicker">${this.escape(this.i18n.t("managementWorkspace"))}</p><h2 id="openinfra-management-title" class="h4 mb-1">${this.escape(label)}</h2><p class="text-muted mb-0">${this.escape(this.i18n.t("managementDescription", { resource: plural }))}</p></div><button type="button" id="openinfra-management-new" class="btn btn-primary">+ ${this.escape(this.i18n.t("newItem"))}</button></div>
+      ${notice}${error}
+      <form id="openinfra-management-filter-form" class="openinfra-management-filter-panel" role="search" aria-label="${this.escape(this.i18n.t("managementFilters"))}">
+        <label class="form-label openinfra-management-search"><span>${this.escape(this.i18n.t("search"))}</span><input type="search" class="form-control form-control-sm" id="openinfra-management-query" value="${this.escape(this.state.management.query || "")}" placeholder="${this.escape(this.i18n.t("managementSearchPlaceholder"))}"></label>
+        ${filters}
+        <label class="form-check openinfra-management-retired"><input class="form-check-input" type="checkbox" id="openinfra-management-include-retired" ${this.state.management.includeRetired ? "checked" : ""}><span class="form-check-label">${this.escape(this.i18n.t("includeRetired"))}</span></label>
+        <button type="submit" class="btn btn-sm btn-primary" id="openinfra-management-apply-filters">${this.escape(this.i18n.t("applyFilters"))}</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="openinfra-management-reset-filters">${this.escape(this.i18n.t("resetFilters"))}</button>
+      </form>
+      ${loading}
+      <div class="openinfra-management-table-summary"><span>${this.escape(this.i18n.t("managementResults", { count: filtered.length }))}</span><label>${this.escape(this.i18n.t("rowsPerPage"))}<select class="form-select form-select-sm" id="openinfra-management-page-size">${[25, 50, 100].map((size) => `<option value="${size}" ${pageSize === size ? "selected" : ""}>${size}</option>`).join("")}</select></label></div>
+      <div class="table-responsive openinfra-management-table-wrapper"><table class="table align-middle openinfra-management-table"><caption class="visually-hidden">${this.escape(label)}</caption><thead><tr>${resource.columns.map((column) => `<th scope="col"><button type="button" class="openinfra-management-sort" data-management-sort="${this.escape(column.key)}">${this.escape(column.label)}${this.state.management.sortKey === column.key ? `<span aria-hidden="true"> ${this.state.management.sortDirection === "desc" ? "↓" : "↑"}</span>` : ""}</button></th>`).join("")}<th scope="col">${this.escape(this.i18n.t("actions"))}</th></tr></thead><tbody>${rows || `<tr><td colspan="${resource.columns.length + 1}" class="text-center text-muted py-4">${this.escape(this.i18n.t("noManagementResults"))}</td></tr>`}</tbody></table></div>
+      <div class="openinfra-management-pagination"><span>${this.escape(this.i18n.t("managementRange", { first: firstItem, last: lastItem, total: filtered.length }))}</span><div class="btn-group" role="group" aria-label="${this.escape(this.i18n.t("pagination"))}"><button type="button" class="btn btn-sm btn-outline-secondary" data-management-page="${Math.max(1, page - 1)}" ${page <= 1 ? "disabled" : ""}>${this.escape(this.i18n.t("previous"))}</button><span class="btn btn-sm btn-outline-secondary disabled" aria-current="page">${page} / ${pageCount}</span><button type="button" class="btn btn-sm btn-outline-secondary" data-management-page="${Math.min(pageCount, page + 1)}" ${page >= pageCount ? "disabled" : ""}>${this.escape(this.i18n.t("next"))}</button></div></div>
+      ${this.renderManagementDetailDialog(resource)}${this.renderManagementDeleteDialog(resource)}
+    </div></section>`;
+  }
+
+  renderManagementForm(resource) {
+    const operation = this.managementActionOperation();
+    if (!operation) return `<section class="card openinfra-operation-card"><div class="card-body"><div class="alert alert-warning" role="alert">${this.escape(this.i18n.t("managementUnavailable"))}</div></div></section>`;
+    const editing = this.state.management.mode === "edit";
+    const item = editing ? this.state.management.selectedItem : null;
+    const fields = this.managementFormFields(resource, operation, item);
+    const hasRequiredFields = fields.some((field) => field.required);
+    const displayName = item ? managementDisplayName(resource, item) : localizedManagementLabel(resource, this.i18n.language, "singular");
+    const title = editing ? this.i18n.t("editManagementItem", { item: displayName }) : this.i18n.t("createManagementItem", { item: localizedManagementLabel(resource, this.i18n.language, "singular") });
+    const identitySummary = editing ? `<dl class="openinfra-management-identity">${resource.identity.map((key) => `<div><dt>${this.escape(key)}</dt><dd>${this.escape(this.managementRenderedValue(item?.[key]))}</dd></div>`).join("")}</dl>` : "";
+    return `<section class="card openinfra-operation-card openinfra-management-card" aria-labelledby="openinfra-management-form-title"><div class="card-body"><div class="openinfra-management-heading"><div><p class="openinfra-management-kicker">${this.escape(localizedManagementLabel(resource, this.i18n.language))}</p><h2 id="openinfra-management-form-title" class="h4 mb-1">${this.escape(title)}</h2><p class="text-muted mb-0">${this.escape(this.i18n.t(editing ? "editManagementDescription" : "createManagementDescription"))}</p></div><button type="button" id="openinfra-management-back" class="btn btn-outline-secondary">${this.escape(this.i18n.t("backToManagement"))}</button></div>${identitySummary}<form id="openinfra-management-form" novalidate ${hasRequiredFields ? 'aria-describedby="openinfra-required-fields-notice"' : ""}>${hasRequiredFields ? `<p id="openinfra-required-fields-notice" class="openinfra-required-notice">${this.escape(this.i18n.t("requiredFieldsNotice"))}</p>` : ""}${this.renderOperationScopeSelectors(operation)}<div class="row g-3">${fields.map((field) => this.renderField(field)).join("")}</div><div class="openinfra-management-form-actions"><button type="button" class="btn btn-outline-secondary" id="openinfra-management-cancel">${this.escape(this.i18n.t("cancel"))}</button><button type="submit" class="btn btn-primary">${this.escape(editing ? this.i18n.t("saveChanges") : this.i18n.t("create"))}</button></div></form></div></section>`;
+  }
+
+  renderManagementDetailDialog(resource) {
+    if (!this.state.management.detailItem && !this.state.management.detailLoading) return "";
+    const item = this.state.management.detailItem || {};
+    const title = managementDisplayName(resource, item);
+    const content = this.state.management.detailLoading
+      ? `<div class="openinfra-management-loading" role="status"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span>${this.escape(this.i18n.t("loadingDetails"))}</span></div>`
+      : `<dl class="openinfra-management-detail-list">${Object.entries(item).sort(([left], [right]) => left.localeCompare(right)).map(([key, value]) => `<div><dt>${this.escape(key)}</dt><dd>${this.escape(this.managementRenderedValue(value))}</dd></div>`).join("")}</dl>`;
+    return `<div class="openinfra-management-modal" role="presentation"><section class="openinfra-management-dialog" role="dialog" aria-modal="true" aria-labelledby="openinfra-management-detail-title"><div class="openinfra-management-dialog-header"><div><p class="openinfra-management-kicker">${this.escape(localizedManagementLabel(resource, this.i18n.language))}</p><h3 id="openinfra-management-detail-title" class="h5 mb-0">${this.escape(title)}</h3></div><button type="button" class="openinfra-navigation-close" data-management-close-dialog aria-label="${this.escape(this.i18n.t("close"))}">×</button></div><div class="openinfra-management-dialog-body">${content}</div><div class="openinfra-management-dialog-footer"><button type="button" class="btn btn-outline-secondary" data-management-close-dialog>${this.escape(this.i18n.t("close"))}</button></div></section></div>`;
+  }
+
+  renderManagementDeleteDialog(resource) {
+    const item = this.state.management.deleteItem;
+    if (!item) return "";
+    const displayName = managementDisplayName(resource, item);
+    return `<div class="openinfra-management-modal" role="presentation"><section class="openinfra-management-dialog openinfra-management-confirm" role="dialog" aria-modal="true" aria-labelledby="openinfra-management-delete-title"><div class="openinfra-management-dialog-header"><div><p class="openinfra-management-kicker">${this.escape(localizedManagementLabel(resource, this.i18n.language))}</p><h3 id="openinfra-management-delete-title" class="h5 mb-0">${this.escape(this.i18n.t("confirmDeletion"))}</h3></div><button type="button" class="openinfra-navigation-close" data-management-close-delete aria-label="${this.escape(this.i18n.t("close"))}">×</button></div><form id="openinfra-management-delete-form"><div class="openinfra-management-dialog-body"><p>${this.escape(this.i18n.t("deleteManagementConfirmation", { item: displayName }))}</p><p class="small text-muted">${this.escape(this.i18n.t("deleteManagementLifecycleNotice"))}</p><label class="form-label">${this.escape(this.i18n.t("operator"))}<input class="form-control" name="actor" required placeholder="admin@openinfra"></label></div><div class="openinfra-management-dialog-footer"><button type="button" class="btn btn-outline-secondary" data-management-close-delete>${this.escape(this.i18n.t("cancel"))}</button><button type="submit" class="btn btn-danger">${this.escape(this.i18n.t("delete"))}</button></div></form></section></div>`;
   }
 
   renderOperationPanel(operation, result) {
@@ -1621,7 +1904,7 @@ class OpenInfraDashboard {
   }
 
   operationFieldDefinitions() {
-    const operation = this.state.selected || {};
+    const operation = this.managementActionOperation() || this.state.selected || {};
     return [...(operation.query || []), ...(operation.body || [])].map((field, index) => normalizeFieldDefinition(field, index));
   }
 
@@ -1658,7 +1941,7 @@ class OpenInfraDashboard {
   }
 
   bindOperationFieldValidation() {
-    const form = document.getElementById("openinfra-operation-form");
+    const form = document.getElementById("openinfra-operation-form") || document.getElementById("openinfra-management-form");
     if (!form) {
       return;
     }
@@ -1705,6 +1988,98 @@ class OpenInfraDashboard {
         return;
       }
       this.executeSelected();
+    });
+    document.getElementById("openinfra-management-form")?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      void this.executeManagementForm();
+    });
+    document.getElementById("openinfra-management-new")?.addEventListener("click", () => {
+      const resource = this.managementResource();
+      if (resource) void this.selectManagementResource(resource.id, { mode: "create", focusMain: true });
+    });
+    for (const id of ["openinfra-management-back", "openinfra-management-cancel"]) {
+      document.getElementById(id)?.addEventListener("click", () => {
+        const resource = this.managementResource();
+        if (resource) void this.selectManagementResource(resource.id, { mode: "list", focusMain: true });
+      });
+    }
+    document.getElementById("openinfra-management-filter-form")?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const filters = {};
+      for (const select of event.currentTarget.querySelectorAll("[data-management-filter]")) {
+        filters[select.dataset.managementFilter] = select.value;
+      }
+      const includeRetired = Boolean(document.getElementById("openinfra-management-include-retired")?.checked);
+      const includeChanged = includeRetired !== this.state.management.includeRetired;
+      this.state = {
+        ...this.state,
+        management: this.withManagementState({
+          query: document.getElementById("openinfra-management-query")?.value || "",
+          filters,
+          includeRetired,
+          page: 1,
+          notice: null
+        })
+      };
+      if (includeChanged) void this.loadManagementItems();
+      else this.render();
+    });
+    document.getElementById("openinfra-management-reset-filters")?.addEventListener("click", () => {
+      const includeChanged = this.state.management.includeRetired;
+      this.state = {
+        ...this.state,
+        management: this.withManagementState({ query: "", filters: {}, includeRetired: false, page: 1, notice: null })
+      };
+      if (includeChanged) void this.loadManagementItems();
+      else this.render();
+    });
+    document.getElementById("openinfra-management-page-size")?.addEventListener("change", (event) => {
+      this.state = { ...this.state, management: this.withManagementState({ pageSize: Number(event.target.value) || 25, page: 1 }) };
+      this.render();
+    });
+    for (const button of document.querySelectorAll("[data-management-page]")) {
+      button.addEventListener("click", () => {
+        this.state = { ...this.state, management: this.withManagementState({ page: Number(button.dataset.managementPage) || 1 }) };
+        this.render();
+      });
+    }
+    for (const button of document.querySelectorAll("[data-management-sort]")) {
+      button.addEventListener("click", () => {
+        const sortKey = button.dataset.managementSort;
+        const sortDirection = this.state.management.sortKey === sortKey && this.state.management.sortDirection === "asc" ? "desc" : "asc";
+        this.state = { ...this.state, management: this.withManagementState({ sortKey, sortDirection, page: 1 }) };
+        this.render();
+      });
+    }
+    const managementResource = this.managementResource();
+    if (managementResource) {
+      for (const button of document.querySelectorAll("[data-management-detail]")) {
+        button.addEventListener("click", () => {
+          const item = this.managementItemByKey(managementResource, button.dataset.managementDetail);
+          if (item) void this.openManagementDetail(item);
+        });
+      }
+      for (const button of document.querySelectorAll("[data-management-edit]")) {
+        button.addEventListener("click", () => {
+          const item = this.managementItemByKey(managementResource, button.dataset.managementEdit);
+          if (item) void this.selectManagementResource(managementResource.id, { mode: "edit", item, focusMain: true });
+        });
+      }
+      for (const button of document.querySelectorAll("[data-management-delete]")) {
+        button.addEventListener("click", () => {
+          const item = this.managementItemByKey(managementResource, button.dataset.managementDelete);
+          if (!item) return;
+          this.state = { ...this.state, management: this.withManagementState({ deleteItem: item, detailItem: null, detailLoading: false }) };
+          this.render();
+        });
+      }
+    }
+    for (const button of document.querySelectorAll("[data-management-close-dialog], [data-management-close-delete]")) {
+      button.addEventListener("click", () => this.closeManagementDialogs());
+    }
+    document.getElementById("openinfra-management-delete-form")?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      void this.executeManagementDelete(event.currentTarget);
     });
     document.getElementById("openinfra-organization")?.addEventListener("change", async (event) => {
       const organization = event.target.value;
@@ -1889,6 +2264,193 @@ class OpenInfraDashboard {
     this.render();
   }
 
+  async selectManagementResource(resourceId, { mode = "list", item = null, focusMain = false } = {}) {
+    const resource = managementResourceById(resourceId);
+    if (!resource) return;
+    let module = OPENINFRA_MODULES.find((candidate) => candidate.id === resource.moduleId);
+    if (!module) return;
+    if (!module.loaded) {
+      module = await this.ensureModuleLoaded(module.id);
+    }
+    const selected = managementNavigationOperation(resource, this.i18n.language);
+    const openedModules = new Set([module.id]);
+    const openedContexts = new Set();
+    const context = this.contextForOperation(module, selected.id);
+    if (context) openedContexts.add(this.sidebarContextKey(module.id, context.label));
+    const sameResource = this.state.management.resourceId === resource.id;
+    const management = {
+      resourceId: resource.id,
+      mode,
+      items: sameResource ? this.state.management.items : [],
+      loading: false,
+      error: null,
+      filters: sameResource ? this.state.management.filters : {},
+      query: sameResource ? this.state.management.query : "",
+      includeRetired: sameResource ? this.state.management.includeRetired : false,
+      sortKey: sameResource ? this.state.management.sortKey : resource.columns[0]?.key || null,
+      sortDirection: sameResource ? this.state.management.sortDirection : "asc",
+      page: 1,
+      pageSize: sameResource ? this.state.management.pageSize : 25,
+      selectedItem: item,
+      detailItem: null,
+      detailLoading: false,
+      deleteItem: null,
+      notice: mode === "list" && sameResource ? this.state.management.notice : null
+    };
+    const actionOperation = mode === "create"
+      ? this.managementOperation(resource, "create")
+      : mode === "edit"
+        ? this.managementOperation(resource, "update")
+        : null;
+    const catalogLoading = Boolean(actionOperation && this.operationCatalogsNeedLoading(actionOperation));
+    this.state = {
+      ...this.state,
+      activeModuleId: module.id,
+      activeNavigationModuleId: module.id,
+      selected,
+      openedModules,
+      openedContexts,
+      result: null,
+      error: null,
+      catalogLoading,
+      mobileSidebarOpen: false,
+      megaMenuModuleId: null,
+      management
+    };
+    this.pendingMainFocus = focusMain;
+    this.render();
+    if (actionOperation && catalogLoading) {
+      await this.loadCatalogsForOperation(actionOperation);
+    }
+    if (mode === "list") {
+      await this.loadManagementItems();
+    }
+  }
+
+  async loadManagementItems() {
+    const resource = this.managementResource();
+    if (!resource) return;
+    const operation = this.managementSourceOperation(resource);
+    if (!operation) {
+      this.state = { ...this.state, management: this.withManagementState({ loading: false, error: new Error(this.i18n.t("managementUnavailable")) }) };
+      this.render();
+      return;
+    }
+    this.state = { ...this.state, management: this.withManagementState({ loading: true, error: null }) };
+    this.render();
+    try {
+      const payload = { include_retired: this.state.management.includeRetired ? "true" : "false" };
+      const data = await this.client().request(operation, payload);
+      const items = flattenManagementCollection(resource, data);
+      if (resource.moduleId === "dcim" && resource.sourceOperationId === "dcim-topology-catalog") {
+        this.state = { ...this.state, dcimCatalog: data };
+      }
+      this.state = {
+        ...this.state,
+        management: this.withManagementState({ items, loading: false, error: null, page: 1 })
+      };
+    } catch (error) {
+      this.state = { ...this.state, management: this.withManagementState({ loading: false, error }) };
+    }
+    this.render();
+  }
+
+  async openManagementDetail(item) {
+    const resource = this.managementResource();
+    if (!resource || !item) return;
+    const detailOperation = this.managementOperation(resource, "detail");
+    this.state = { ...this.state, management: this.withManagementState({ detailItem: item, detailLoading: Boolean(detailOperation) }) };
+    this.render();
+    if (!detailOperation) return;
+    try {
+      const detail = await this.client().request(detailOperation, managementIdentityPayload(resource, item));
+      this.state = { ...this.state, management: this.withManagementState({ detailItem: detail, detailLoading: false }) };
+    } catch (error) {
+      this.state = { ...this.state, management: this.withManagementState({ detailLoading: false, error }) };
+    }
+    this.render();
+  }
+
+  closeManagementDialogs() {
+    this.state = {
+      ...this.state,
+      management: this.withManagementState({ detailItem: null, detailLoading: false, deleteItem: null })
+    };
+    this.render();
+  }
+
+  async executeManagementForm() {
+    const resource = this.managementResource();
+    const operation = this.managementActionOperation();
+    const form = document.getElementById("openinfra-management-form");
+    if (!resource || !operation || !form) return;
+    if (!this.validateOperationForm(form)) {
+      form.reportValidity();
+      return;
+    }
+    try {
+      const payload = {};
+      for (const input of form.querySelectorAll("[data-field]")) {
+        if (input.disabled) continue;
+        if (input.type === "file") {
+          const file = input.files?.[0];
+          payload[input.dataset.field] = file ? await this.filePayload(file) : undefined;
+        } else {
+          payload[input.dataset.field] = input.value;
+        }
+      }
+      await this.client().request(operation, payload);
+      await this.refreshManagementReferenceCatalogs(operation);
+      const notice = this.i18n.t(this.state.management.mode === "create" ? "managementCreated" : "managementUpdated");
+      this.state = {
+        ...this.state,
+        management: this.withManagementState({ mode: "list", selectedItem: null, notice, error: null })
+      };
+      await this.loadManagementItems();
+    } catch (error) {
+      this.state = { ...this.state, management: this.withManagementState({ error }) };
+      this.render();
+    }
+  }
+
+  async executeManagementDelete(form) {
+    const resource = this.managementResource();
+    const item = this.state.management.deleteItem;
+    const operation = this.managementOperation(resource, "delete");
+    if (!resource || !item || !operation || !form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
+    try {
+      const payload = {
+        ...managementIdentityPayload(resource, item),
+        actor: String(new FormData(form).get("actor") || "")
+      };
+      await this.client().request(operation, payload);
+      await this.refreshManagementReferenceCatalogs(operation);
+      this.state = {
+        ...this.state,
+        management: this.withManagementState({ deleteItem: null, notice: this.i18n.t("managementDeleted"), error: null })
+      };
+      await this.loadManagementItems();
+    } catch (error) {
+      this.state = { ...this.state, management: this.withManagementState({ error }) };
+      this.render();
+    }
+  }
+
+  async refreshManagementReferenceCatalogs(operation) {
+    this.queryCache.invalidate("catalog:");
+    this.queryCache.invalidate("global-search:");
+    if (operation.id.startsWith("itam-organization")) {
+      await this.refreshOrganizationCatalog();
+      await this.refreshTenantCatalog();
+    }
+    if (operation.id.startsWith("itam-tenant")) await this.refreshTenantCatalog();
+    if (operation.id.startsWith("itam-partner")) await this.refreshPartnerCatalog();
+    if (operation.id.startsWith("dcim-")) await this.refreshDcimCatalog();
+  }
+
   async selectModule(moduleId) {
     let module = OPENINFRA_MODULES.find((item) => item.id === moduleId);
     if (!module) return;
@@ -1896,6 +2458,12 @@ class OpenInfraDashboard {
       this.state = { ...this.state, activeNavigationModuleId: module.id, openedModules: new Set([module.id]), openedContexts: new Set(), catalogLoading: true, mobileSidebarOpen: false, megaMenuModuleId: null };
       this.render();
       try { module = await this.ensureModuleLoaded(moduleId); } catch (error) { this.state = { ...this.state, error, catalogLoading: false }; this.render(); return; }
+    }
+    const firstOperationManagement = managementResourceForOperation(module.operations[0]?.id);
+    const eligibleManagementIds = new Set(managementResourcesForModule(module.id, module.operations).map((resource) => resource.id));
+    if (firstOperationManagement && eligibleManagementIds.has(firstOperationManagement.resource.id)) {
+      await this.selectManagementResource(firstOperationManagement.resource.id);
+      return;
     }
     const openedModules = new Set(this.state.openedModules);
     const openedContexts = new Set(this.state.openedContexts);
@@ -1937,6 +2505,22 @@ class OpenInfraDashboard {
   }
 
   selectOperation(operationId, focusMain = false) {
+    if (String(operationId).startsWith("management:")) {
+      void this.selectManagementResource(String(operationId).slice("management:".length), { focusMain });
+      return;
+    }
+    const managementMapping = managementResourceForOperation(operationId);
+    if (managementMapping) {
+      const module = OPENINFRA_MODULES.find((candidate) => candidate.id === managementMapping.resource.moduleId);
+      const eligible = module && managementResourcesForModule(module.id, module.operations).some((resource) => resource.id === managementMapping.resource.id);
+      if (eligible) {
+        void this.selectManagementResource(managementMapping.resource.id, {
+          mode: managementMapping.role === "create" ? "create" : "list",
+          focusMain
+        });
+        return;
+      }
+    }
     for (const module of OPENINFRA_MODULES) {
       const operation = module.operations.find((item) => item.id === operationId);
       if (operation) {

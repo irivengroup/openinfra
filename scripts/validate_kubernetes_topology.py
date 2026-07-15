@@ -92,10 +92,10 @@ class KubernetesTopologyProjectValidator:
             ("REQ-00469", "REQ-00470"),
         )
         migrations = sorted((self._root / "installers/migrations/postgresql").glob("*.sql"))
-        if len(migrations) != 55 or migrations[-1].name != "0055_kubernetes_topology_inventory.sql":
+        if len(migrations) < 55 or migrations[54].name != "0055_kubernetes_topology_inventory.sql":
             raise KubernetesTopologyProjectError(
-                "PostgreSQL migration chain must contain 55 migrations ending with "
-                "0055_kubernetes_topology_inventory.sql"
+                "PostgreSQL migration chain must contain at least 55 migrations with "
+                "position 55 equal to 0055_kubernetes_topology_inventory.sql"
             )
         return {
             "schema_version": 1,

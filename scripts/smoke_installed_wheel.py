@@ -23,7 +23,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.33.4"
+    EXPECTED_VERSION = "0.33.5"
     EXPECTED_ASYNC_ROUTES = (
         "/api/v1/async/jobs",
         "/api/v1/async/jobs/get",
@@ -173,6 +173,12 @@ class InstalledWheelSmoke:
         "/api/v1/kubernetes/topologies/security",
         "/api/v1/kubernetes/topologies/latest-security",
         "/api/v1/kubernetes/topologies/import",
+        "/api/v1/kubernetes/gitops-states",
+        "/api/v1/kubernetes/gitops-states/get",
+        "/api/v1/kubernetes/gitops-states/latest",
+        "/api/v1/kubernetes/gitops-states/drift",
+        "/api/v1/kubernetes/gitops-states/latest-drift",
+        "/api/v1/kubernetes/gitops-states/import",
     )
     EXPECTED_MULTISITE_ROUTES = (
         "/api/v1/multisite/site-access/grants",
@@ -214,8 +220,8 @@ class InstalledWheelSmoke:
         "/api/v1/offline-sync-packages/create",
         "/api/v1/offline-sync-packages/synchronize",
     )
-    EXPECTED_LAST_MIGRATION = "0055_kubernetes_topology_inventory.sql"
-    EXPECTED_MIGRATION_COUNT = 55
+    EXPECTED_LAST_MIGRATION = "0056_kubernetes_gitops_drift.sql"
+    EXPECTED_MIGRATION_COUNT = 56
     EXPECTED_ASSETS = (
         "openinfra-web.js",
         "openinfra-web.css",
@@ -577,7 +583,7 @@ class InstalledWheelSmoke:
     def _assert_release_security_contract(package_root: Path) -> None:
         controls = ReleaseSecurityControlCatalog.build(
             package_root,
-            image_ref="openinfra/runtime:0.33.4",
+            image_ref="openinfra/runtime:0.33.5",
             api_base_url="http://127.0.0.1:8080",
             web_base_url="http://127.0.0.1:2006",
         )

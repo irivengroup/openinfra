@@ -112,6 +112,7 @@ from openinfra.domain.itam import (
     PhysicalAssetSupportProfile,
     SoftwareLicenseEntitlement,
 )
+from openinfra.domain.kubernetes_gitops import KubernetesGitOpsState
 from openinfra.domain.kubernetes_topology import KubernetesTopologySnapshot
 from openinfra.domain.multisite import (
     MultisiteDisasterRecoveryDrill,
@@ -395,6 +396,18 @@ class SustainabilityReportPage:
 @dataclass(frozen=True, slots=True)
 class KubernetesTopologySnapshotPage:
     items: tuple[KubernetesTopologySnapshot, ...]
+    next_cursor: str | None
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "items": [item.as_dict(include_resources=False) for item in self.items],
+            "next_cursor": self.next_cursor,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class KubernetesGitOpsStatePage:
+    items: tuple[KubernetesGitOpsState, ...]
     next_cursor: str | None
 
     def as_dict(self) -> dict[str, object]:
@@ -2150,6 +2163,43 @@ class KubernetesTopologyRepository(ABC):
         provider: str | None = None,
         site_code: str | None = None,
     ) -> KubernetesTopologySnapshotPage:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def append_event(self, event: DomainEvent) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+
+class KubernetesGitOpsRepository(ABC):
+    @abstractmethod
+    def save_state(self, state: KubernetesGitOpsState) -> None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def get_state(self, tenant_id: TenantId, state_id: str) -> KubernetesGitOpsState | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_state_by_fingerprint(
+        self, tenant_id: TenantId, fingerprint: str
+    ) -> KubernetesGitOpsState | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def find_latest_state(
+        self, tenant_id: TenantId, cluster_key: str
+    ) -> KubernetesGitOpsState | None:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def list_states(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        cluster_key: str | None = None,
+        environment: str | None = None,
+        owner: str | None = None,
+    ) -> KubernetesGitOpsStatePage:
         raise TypeError("adapter contract invoked directly")
 
     @abstractmethod

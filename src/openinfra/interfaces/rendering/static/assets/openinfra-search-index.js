@@ -2272,6 +2272,55 @@ const OPENINFRA_SEARCH_INDEX = [
     "method": "POST",
     "path": "/v1/kubernetes/topologies/import"
   }
+  ,
+  {
+    "moduleId": "discovery",
+    "moduleLabel": "Discovery",
+    "id": "kubernetes-gitops-states-list",
+    "label": "Lister les états attendus GitOps Kubernetes",
+    "method": "GET",
+    "path": "/v1/kubernetes/gitops-states"
+  },
+  {
+    "moduleId": "discovery",
+    "moduleLabel": "Discovery",
+    "id": "kubernetes-gitops-state-get",
+    "label": "Consulter un état attendu GitOps Kubernetes",
+    "method": "GET",
+    "path": "/v1/kubernetes/gitops-states/get"
+  },
+  {
+    "moduleId": "discovery",
+    "moduleLabel": "Discovery",
+    "id": "kubernetes-gitops-state-latest",
+    "label": "Consulter le dernier état attendu GitOps",
+    "method": "GET",
+    "path": "/v1/kubernetes/gitops-states/latest"
+  },
+  {
+    "moduleId": "discovery",
+    "moduleLabel": "Discovery",
+    "id": "kubernetes-gitops-drift-snapshot",
+    "label": "Évaluer la dérive GitOps entre deux états",
+    "method": "GET",
+    "path": "/v1/kubernetes/gitops-states/drift"
+  },
+  {
+    "moduleId": "discovery",
+    "moduleLabel": "Discovery",
+    "id": "kubernetes-gitops-drift-latest",
+    "label": "Évaluer la dérive GitOps actuelle du cluster",
+    "method": "GET",
+    "path": "/v1/kubernetes/gitops-states/latest-drift"
+  },
+  {
+    "moduleId": "discovery",
+    "moduleLabel": "Discovery",
+    "id": "kubernetes-gitops-state-import",
+    "label": "Importer un état attendu GitOps Kubernetes",
+    "method": "POST",
+    "path": "/v1/kubernetes/gitops-states/import"
+  }
 ];
 
 export { OPENINFRA_SEARCH_INDEX };

@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.33.5 — P21 / EPIC-2104 Conformité GitOps et filtres multicritères de gestion
+
+- ajout d’états GitOps attendus immuables liés à un commit Git complet, une source, un owner et un environnement ;
+- politiques gouvernées pour labels, annotations, owner, environnement et détection des ressources inattendues ;
+- comparaison déterministe expected-vs-observed avec dérives typées et fingerprint du rapport ;
+- audit des évaluations et événement outbox `kubernetes.gitops.drift.detected` en cas de dérive ;
+- six routes HTTP, six commandes CLI et six opérations Discovery pour l’import, la consultation et l’évaluation ;
+- migration additive `0056_kubernetes_gitops_drift.sql`, partitionnée par tenant et indexée ;
+- validateur EPIC-2104 intégré à la CI, au quality gate, au packaging et au smoke du wheel ;
+- correction des pages `Gestion de …` : les critères multicritères contextuels et métier restent toujours visibles ;
+- filtres organisés en sections `Contexte parent` et `Critères métier`, avec état explicite lorsqu’aucune valeur n’est disponible ;
+- enrichissement des lignes DCIM aplaties pour rendre Étage, Ligne et Colonne réellement filtrables ;
+- panneau de filtres aligné sur le thème OpenInfra existant sans ajout ni modification de couleur.
+
 ## v0.33.4 — Hiérarchie parentale normalisée des formulaires de gestion
 
 - ordre canonique des contextes : Organisation → Filiale/Subdivision → Site → Bâtiment → Étage → Salle → Ligne/Colonne → Rack ;

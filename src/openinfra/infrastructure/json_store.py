@@ -58,6 +58,8 @@ from openinfra.application.ports import (
     ImportRepository,
     IpamRepository,
     ItamSupportRepository,
+    KubernetesGitOpsRepository,
+    KubernetesGitOpsStatePage,
     KubernetesTopologyRepository,
     KubernetesTopologySnapshotPage,
     MeasurementSourcePage,
@@ -242,6 +244,7 @@ from openinfra.domain.itam import (
     SoftwareLicenseEntitlement,
     ThirdPartySupportContract,
 )
+from openinfra.domain.kubernetes_gitops import KubernetesGitOpsState
 from openinfra.domain.kubernetes_topology import KubernetesTopologySnapshot
 from openinfra.domain.multisite import (
     DisasterRecoveryDrillStatus,
@@ -293,6 +296,7 @@ from openinfra.domain.source_of_truth import (
 from openinfra.infrastructure.field_operation_mapper import FieldOperationRecordMapper
 from openinfra.infrastructure.finops_mapper import FinOpsRecordMapper
 from openinfra.infrastructure.greenops_mapper import GreenOpsRecordMapper
+from openinfra.infrastructure.kubernetes_gitops_mapper import KubernetesGitOpsRecordMapper
 from openinfra.infrastructure.kubernetes_topology_mapper import KubernetesTopologyRecordMapper
 from openinfra.infrastructure.rag_mapper import RagRecordMapper
 from openinfra.infrastructure.sbom_mapper import SbomRecordMapper
@@ -533,6 +537,8 @@ class JsonDocumentStore:
             "greenops_event_outbox": {},
             "kubernetes_topology_snapshots": {},
             "kubernetes_topology_event_outbox": {},
+            "kubernetes_gitops_states": {},
+            "kubernetes_gitops_event_outbox": {},
             "sbom_documents": {},
             "sbom_vulnerabilities": {},
             "sbom_exposures": {},
@@ -4914,6 +4920,115 @@ class JsonGreenOpsRepository(GreenOpsRepository):
         if offset < 0:
             raise ValidationError("pagination cursor must be positive")
         return offset
+
+
+class JsonKubernetesGitOpsRepository(KubernetesGitOpsRepository):
+    def __init__(self, store: JsonDocumentStore) -> None:
+        self._store = store
+
+    def save_state(self, state: KubernetesGitOpsState) -> None:
+        self._save(
+            "kubernetes_gitops_states",
+            state.tenant_id,
+            state.id.value,
+            state.as_dict(include_resources=True),
+        )
+
+    def get_state(self, tenant_id: TenantId, state_id: str) -> KubernetesGitOpsState | None:
+        value = self._get("kubernetes_gitops_states", tenant_id, state_id)
+        return KubernetesGitOpsRecordMapper.state(value) if value else None
+
+    def find_state_by_fingerprint(
+        self, tenant_id: TenantId, fingerprint: str
+    ) -> KubernetesGitOpsState | None:
+        normalized = fingerprint.strip().lower()
+        for value in self._tenant_values("kubernetes_gitops_states", tenant_id):
+            if str(value.get("fingerprint", "")).strip().lower() == normalized:
+                return KubernetesGitOpsRecordMapper.state(value)
+        return None
+
+    def find_latest_state(
+        self, tenant_id: TenantId, cluster_key: str
+    ) -> KubernetesGitOpsState | None:
+        normalized = cluster_key.strip().lower()
+        items = [
+            KubernetesGitOpsRecordMapper.state(value)
+            for value in self._tenant_values("kubernetes_gitops_states", tenant_id)
+            if value.get("cluster_key") == normalized
+        ]
+        if not items:
+            return None
+        return max(items, key=lambda item: (item.captured_at, item.imported_at, item.id.value))
+
+    def list_states(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        cluster_key: str | None = None,
+        environment: str | None = None,
+        owner: str | None = None,
+    ) -> KubernetesGitOpsStatePage:
+        normalized_cluster = cluster_key.strip().lower() if cluster_key else None
+        normalized_environment = environment.strip().lower() if environment else None
+        normalized_owner = owner.strip().lower() if owner else None
+        items = [
+            KubernetesGitOpsRecordMapper.state(value)
+            for value in self._tenant_values("kubernetes_gitops_states", tenant_id)
+            if (normalized_cluster is None or value.get("cluster_key") == normalized_cluster)
+            and (
+                normalized_environment is None or value.get("environment") == normalized_environment
+            )
+            and (normalized_owner is None or value.get("owner") == normalized_owner)
+        ]
+        items.sort(
+            key=lambda item: (item.captured_at, item.imported_at, item.id.value), reverse=True
+        )
+        selected, cursor = self._page(items, pagination)
+        return KubernetesGitOpsStatePage(tuple(selected), cursor)
+
+    def append_event(self, event: DomainEvent) -> None:
+        self._save(
+            "kubernetes_gitops_event_outbox",
+            event.tenant_id,
+            event.id.value,
+            {
+                "id": event.id.value,
+                "tenant_id": event.tenant_id.value,
+                "aggregate_id": event.aggregate_id.value,
+                "name": event.name,
+                "payload": event.payload,
+                "occurred_at": event.occurred_at.isoformat(),
+                "published_at": None,
+            },
+        )
+
+    def _tenant_values(self, bucket: str, tenant_id: TenantId) -> list[dict[str, Any]]:
+        return [
+            value
+            for value in self._store.data[bucket].values()
+            if value.get("tenant_id") == tenant_id.value
+        ]
+
+    def _save(self, bucket: str, tenant_id: TenantId, key: str, value: dict[str, object]) -> None:
+        self._store.data[bucket][f"{tenant_id.value}:{key}"] = value
+        self._store.mark_dirty()
+
+    def _get(self, bucket: str, tenant_id: TenantId, key: str) -> dict[str, Any] | None:
+        normalized = EntityId.from_value(key).value
+        value = self._store.data[bucket].get(f"{tenant_id.value}:{normalized}")
+        return dict(value) if isinstance(value, dict) else None
+
+    @staticmethod
+    def _page(items: list[Any], pagination: Pagination) -> tuple[list[Any], str | None]:
+        try:
+            offset = int(pagination.cursor or "0")
+        except ValueError as exc:
+            raise ValidationError("pagination cursor must be a numeric offset") from exc
+        if offset < 0:
+            raise ValidationError("pagination cursor must be positive")
+        selected = items[offset : offset + pagination.limit]
+        next_offset = offset + len(selected)
+        return selected, str(next_offset) if next_offset < len(items) else None
 
 
 class JsonKubernetesTopologyRepository(KubernetesTopologyRepository):

@@ -55,6 +55,9 @@ def test_runtime_management_workspace_preserves_raw_crud_contracts() -> None:
         "managementIdentityPayload",
         "updateManagementFilters",
         "normalizeManagementFilters",
+        "managementFilterGroups",
+        "managementNoFilterValues",
+        "openinfra-management-filter-section",
         "orderManagementContextEntries",
         "isManagementContextAncestor",
         "data-dcim-reference-level",
@@ -94,6 +97,9 @@ def test_react_reference_portal_uses_the_same_management_pattern() -> None:
         "updateManagementFilters",
         "normalizeManagementFilters",
         "orderManagementContextEntries",
+        "managementFilterGroups",
+        "managementContextFilters",
+        "managementBusinessFilters",
     ):
         assert contract in source
 
@@ -105,3 +111,28 @@ def test_management_layout_uses_existing_theme_tokens_only() -> None:
     assert "--openinfra-" in management_css
     for forbidden in ("#ff0000", "#00ff00", "#0000ff"):
         assert forbidden not in management_css.lower()
+
+
+def test_management_filter_criteria_are_always_rendered_and_use_the_page_theme() -> None:
+    runtime = _read("src/openinfra/interfaces/rendering/static/assets/openinfra-web.js")
+    react = _read("web/src/main.jsx")
+    css = _read("web/src/openinfra-theme.css")
+    assert "resource.filters.filter((filter) =>" not in runtime
+    assert "resource.filters.filter(({ key }) =>" not in react
+    for contract in (
+        "managementFilterGroups(resource.filters)",
+        "managementContextFilters",
+        "managementBusinessFilters",
+        "managementNoFilterValues",
+        "openinfra-management-filter-header",
+        "openinfra-management-filter-section",
+        "openinfra-management-filter-actions",
+    ):
+        assert contract in runtime or contract in react
+    for token in (
+        "var(--openinfra-ink)",
+        "var(--openinfra-text-muted)",
+        "var(--openinfra-blue-rgb)",
+        "var(--openinfra-cyan-rgb)",
+    ):
+        assert token in css

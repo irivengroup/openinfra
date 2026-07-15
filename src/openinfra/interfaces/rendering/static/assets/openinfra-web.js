@@ -1,4 +1,4 @@
-import { OpenInfraI18n, localizeOpenInfraCatalog } from "./openinfra-i18n.js?v=0.33.4";
+import { OpenInfraI18n, localizeOpenInfraCatalog } from "./openinfra-i18n.js?v=0.33.5";
 let managementRegistryPromise = null;
 let collapseManagementOperations = (_moduleId, operations, operationIds) => {
   const byId = new Map(operations.map((operation) => [operation.id, operation]));
@@ -13,6 +13,7 @@ let managementContextLabel = () => "";
 let isManagementContextAncestor = () => false;
 let managementContextRank = () => Number.POSITIVE_INFINITY;
 let managementFilterOptions = () => ({});
+let managementFilterGroups = (definitions) => ({ context: [], business: [...(definitions || [])] });
 let managementItemMatchesFilter = () => true;
 let normalizeManagementFilters = (filters) => ({ ...(filters || {}) });
 let orderManagementContextEntries = (entries) => [...entries];
@@ -24,7 +25,7 @@ let managementResourcesForModule = () => [];
 
 async function ensureManagementRegistryLoaded() {
   if (!managementRegistryPromise) {
-    managementRegistryPromise = import("./management/resources.js?v=0.33.4").then((loaded) => {
+    managementRegistryPromise = import("./management/resources.js?v=0.33.5").then((loaded) => {
       collapseManagementOperations = loaded.collapseManagementOperations;
       flattenManagementCollection = loaded.flattenManagementCollection;
       localizedManagementLabel = loaded.localizedManagementLabel;
@@ -35,6 +36,7 @@ async function ensureManagementRegistryLoaded() {
       isManagementContextAncestor = loaded.isManagementContextAncestor;
       managementContextRank = loaded.managementContextRank;
       managementFilterOptions = loaded.managementFilterOptions;
+      managementFilterGroups = loaded.managementFilterGroups;
       managementItemMatchesFilter = loaded.managementItemMatchesFilter;
       normalizeManagementFilters = loaded.normalizeManagementFilters;
       orderManagementContextEntries = loaded.orderManagementContextEntries;
@@ -57,11 +59,11 @@ import {
   normalizeFieldDefinition,
   normalizeFieldValue,
   validateControl
-} from "./openinfra-form-fields.js?v=0.33.4";
-import { OPENINFRA_DOMAIN_LOADERS, OPENINFRA_MODULES, OPENINFRA_SIDEBAR_CONTEXTS } from "./openinfra-domain-manifest.js?v=0.33.4";
-import { OpenInfraQueryCache } from "./openinfra-query-cache.js?v=0.33.4";
-import { OpenInfraVirtualList } from "./openinfra-virtual-list.js?v=0.33.4";
-import { installOpenInfraWebVitals } from "./openinfra-web-vitals.js?v=0.33.4";
+} from "./openinfra-form-fields.js?v=0.33.5";
+import { OPENINFRA_DOMAIN_LOADERS, OPENINFRA_MODULES, OPENINFRA_SIDEBAR_CONTEXTS } from "./openinfra-domain-manifest.js?v=0.33.5";
+import { OpenInfraQueryCache } from "./openinfra-query-cache.js?v=0.33.5";
+import { OpenInfraVirtualList } from "./openinfra-virtual-list.js?v=0.33.5";
+import { installOpenInfraWebVitals } from "./openinfra-web-vitals.js?v=0.33.5";
 
 
 class OpenInfraApiClient {
@@ -468,7 +470,7 @@ class OpenInfraDashboard {
 
   async loadSearchIndex() {
     if (this.searchIndex) return this.searchIndex;
-    const loaded = await import("./openinfra-search-index.js?v=0.33.4");
+    const loaded = await import("./openinfra-search-index.js?v=0.33.5");
     const syntheticModules = OPENINFRA_MODULES.map((module) => ({
       ...module,
       operations: loaded.default.filter((entry) => entry.moduleId === module.id).map((entry) => ({ ...entry }))
@@ -1443,12 +1445,27 @@ class OpenInfraDashboard {
   }
 
   managementFilterOptionsForResource(resource) {
-    return managementFilterOptions(
+    const options = managementFilterOptions(
       this.state.management.items,
       this.state.management.filters || {},
       resource.filters,
       this.i18n.language
     );
+    const merge = (key, values) => {
+      const merged = new Set(options[key] || []);
+      for (const value of values) {
+        const normalized = String(value || "").trim();
+        if (normalized) merged.add(normalized);
+      }
+      options[key] = [...merged].sort((left, right) => left.localeCompare(right, this.i18n.language, { numeric: true, sensitivity: "base" }));
+    };
+    if (resource.filters.some((filter) => filter.key === "organization_id")) {
+      merge("organization_id", [this.state.organization, ...(this.state.organizationCatalog?.items || []).map((item) => item.organization_id)]);
+    }
+    if (resource.filters.some((filter) => filter.key === "tenant_id")) {
+      merge("tenant_id", [this.state.tenant, ...(this.state.tenantCatalog?.items || []).map((item) => item.tenant_id)]);
+    }
+    return options;
   }
 
   managementRenderedValue(value) {
@@ -1486,14 +1503,16 @@ class OpenInfraDashboard {
     const label = localizedManagementLabel(resource, this.i18n.language);
     const plural = localizedManagementLabel(resource, this.i18n.language, "plural");
     const availableFilterOptions = this.managementFilterOptionsForResource(resource);
-    const filters = resource.filters.filter((filter) => {
+    const filterGroups = managementFilterGroups(resource.filters);
+    const renderFilter = (filter) => {
       const selected = String(this.state.management.filters?.[filter.key] ?? "");
-      return selected !== "" || (availableFilterOptions[filter.key] || []).length > 0;
-    }).map((filter) => {
-      const selected = String(this.state.management.filters?.[filter.key] ?? "");
-      const options = availableFilterOptions[filter.key] || [];
-      return `<label class="form-label openinfra-management-filter"><span>${this.escape(managementContextLabel(filter.key, this.i18n.language) || filter.label)}</span><select class="form-select form-select-sm" data-management-filter="${this.escape(filter.key)}"><option value="">${this.escape(this.i18n.t("allValues"))}</option>${options.map((value) => `<option value="${this.escape(value)}" ${selected === value ? "selected" : ""}>${this.escape(this.managementRenderedValue(value))}</option>`).join("")}</select></label>`;
-    }).join("");
+      const available = availableFilterOptions[filter.key] || [];
+      const options = selected && !available.includes(selected) ? [selected, ...available] : available;
+      const unavailable = options.length === 0;
+      return `<label class="form-label openinfra-management-filter-control"><span>${this.escape(managementContextLabel(filter.key, this.i18n.language) || filter.label)}</span><select class="form-select form-select-sm" data-management-filter="${this.escape(filter.key)}" ${unavailable ? "disabled aria-disabled=\"true\"" : ""}><option value="">${this.escape(this.i18n.t(unavailable ? "managementNoFilterValues" : "allValues"))}</option>${options.map((value) => `<option value="${this.escape(value)}" ${selected === value ? "selected" : ""}>${this.escape(this.managementRenderedValue(value))}</option>`).join("")}</select></label>`;
+    };
+    const contextFilters = filterGroups.context.map(renderFilter).join("");
+    const businessFilters = filterGroups.business.map(renderFilter).join("");
     const rows = visible.map((item) => {
       const itemKey = this.managementItemKey(resource, item);
       const cells = resource.columns.map((column) => {
@@ -1513,12 +1532,12 @@ class OpenInfraDashboard {
     return `<section class="card openinfra-operation-card openinfra-management-card" aria-labelledby="openinfra-management-title"><div class="card-body">
       <div class="openinfra-management-heading"><div><p class="openinfra-management-kicker">${this.escape(this.i18n.t("managementWorkspace"))}</p><h2 id="openinfra-management-title" class="h4 mb-1">${this.escape(label)}</h2><p class="text-muted mb-0">${this.escape(this.i18n.t("managementDescription", { resource: plural }))}</p></div><button type="button" id="openinfra-management-new" class="btn btn-primary">+ ${this.escape(this.i18n.t("newItem"))}</button></div>
       ${notice}${error}
-      <form id="openinfra-management-filter-form" class="openinfra-management-filter-panel" role="search" aria-label="${this.escape(this.i18n.t("managementFilters"))}">
-        <label class="form-label openinfra-management-search"><span>${this.escape(this.i18n.t("search"))}</span><input type="search" class="form-control form-control-sm" id="openinfra-management-query" value="${this.escape(this.state.management.query || "")}" placeholder="${this.escape(this.i18n.t("managementSearchPlaceholder"))}"></label>
-        ${filters}
-        <label class="form-check openinfra-management-retired"><input class="form-check-input" type="checkbox" id="openinfra-management-include-retired" ${this.state.management.includeRetired ? "checked" : ""}><span class="form-check-label">${this.escape(this.i18n.t("includeRetired"))}</span></label>
-        <button type="submit" class="btn btn-sm btn-primary" id="openinfra-management-apply-filters">${this.escape(this.i18n.t("applyFilters"))}</button>
-        <button type="button" class="btn btn-sm btn-outline-secondary" id="openinfra-management-reset-filters">${this.escape(this.i18n.t("resetFilters"))}</button>
+      <form id="openinfra-management-filter-form" class="openinfra-management-filter-panel" role="search" aria-labelledby="openinfra-management-filter-title">
+        <div class="openinfra-management-filter-header"><div><p class="openinfra-management-filter-kicker">${this.escape(this.i18n.t("managementFilters"))}</p><h3 id="openinfra-management-filter-title" class="h5 mb-1">${this.escape(this.i18n.t("managementFilterTitle"))}</h3><p class="text-muted mb-0">${this.escape(this.i18n.t("managementFilterDescription"))}</p></div></div>
+        <div class="openinfra-management-search-block"><label class="form-label openinfra-management-search"><span>${this.escape(this.i18n.t("search"))}</span><input type="search" class="form-control form-control-sm" id="openinfra-management-query" value="${this.escape(this.state.management.query || "")}" placeholder="${this.escape(this.i18n.t("managementSearchPlaceholder"))}"></label></div>
+        ${contextFilters ? `<fieldset class="openinfra-management-filter-section"><legend>${this.escape(this.i18n.t("managementContextFilters"))}</legend><div class="openinfra-management-filter-grid">${contextFilters}</div></fieldset>` : ""}
+        ${businessFilters ? `<fieldset class="openinfra-management-filter-section"><legend>${this.escape(this.i18n.t("managementBusinessFilters"))}</legend><div class="openinfra-management-filter-grid">${businessFilters}</div></fieldset>` : ""}
+        <div class="openinfra-management-filter-actions"><label class="form-check openinfra-management-retired"><input class="form-check-input" type="checkbox" id="openinfra-management-include-retired" ${this.state.management.includeRetired ? "checked" : ""}><span class="form-check-label">${this.escape(this.i18n.t("includeRetired"))}</span></label><div class="openinfra-management-filter-buttons"><button type="submit" class="btn btn-sm btn-primary" id="openinfra-management-apply-filters">${this.escape(this.i18n.t("applyFilters"))}</button><button type="button" class="btn btn-sm btn-light" id="openinfra-management-reset-filters">${this.escape(this.i18n.t("resetFilters"))}</button></div></div>
       </form>
       ${loading}
       <div class="openinfra-management-table-summary"><span>${this.escape(this.i18n.t("managementResults", { count: filtered.length }))}</span><label>${this.escape(this.i18n.t("rowsPerPage"))}<select class="form-select form-select-sm" id="openinfra-management-page-size">${[25, 50, 100].map((size) => `<option value="${size}" ${pageSize === size ? "selected" : ""}>${size}</option>`).join("")}</select></label></div>

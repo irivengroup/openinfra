@@ -1142,6 +1142,76 @@ const moduleDefinition = {
       ]
     },
     {
+      "id": "kubernetes-gitops-states-list",
+      "label": "Lister les états attendus GitOps Kubernetes",
+      "path": "/v1/kubernetes/gitops-states",
+      "method": "GET",
+      "fields": [
+        {"name": "limit", "label": "Limite", "type": "number", "defaultValue": "100", "min": 1, "max": 500},
+        {"name": "cursor", "label": "Curseur"},
+        {"name": "cluster_key", "label": "Clé cluster"},
+        {"name": "environment", "label": "Environnement"},
+        {"name": "owner", "label": "Propriétaire"}
+      ]
+    },
+    {
+      "id": "kubernetes-gitops-state-get",
+      "label": "Consulter un état attendu GitOps Kubernetes",
+      "path": "/v1/kubernetes/gitops-states/get",
+      "method": "GET",
+      "fields": [
+        {"name": "state_id", "label": "ID état GitOps", "required": true}
+      ]
+    },
+    {
+      "id": "kubernetes-gitops-state-latest",
+      "label": "Consulter le dernier état attendu GitOps",
+      "path": "/v1/kubernetes/gitops-states/latest",
+      "method": "GET",
+      "fields": [
+        {"name": "cluster_key", "label": "Clé cluster", "required": true}
+      ]
+    },
+    {
+      "id": "kubernetes-gitops-drift-snapshot",
+      "label": "Évaluer la dérive GitOps entre deux états",
+      "path": "/v1/kubernetes/gitops-states/drift",
+      "method": "GET",
+      "fields": [
+        {"name": "expected_state_id", "label": "ID état GitOps attendu", "required": true},
+        {"name": "observed_snapshot_id", "label": "ID instantané observé", "required": true},
+        {"name": "actor", "label": "Opérateur", "defaultValue": "web"}
+      ]
+    },
+    {
+      "id": "kubernetes-gitops-drift-latest",
+      "label": "Évaluer la dérive GitOps actuelle du cluster",
+      "path": "/v1/kubernetes/gitops-states/latest-drift",
+      "method": "GET",
+      "fields": [
+        {"name": "cluster_key", "label": "Clé cluster", "required": true},
+        {"name": "actor", "label": "Opérateur", "defaultValue": "web"}
+      ]
+    },
+    {
+      "id": "kubernetes-gitops-state-import",
+      "label": "Importer un état attendu GitOps Kubernetes",
+      "path": "/v1/kubernetes/gitops-states/import",
+      "method": "POST",
+      "fields": [
+        {"name": "actor", "label": "Opérateur", "required": true, "defaultValue": "web"},
+        {"name": "cluster_key", "label": "Clé cluster", "required": true},
+        {"name": "repository_ref", "label": "Référence dépôt Git", "required": true},
+        {"name": "revision", "label": "Commit Git immuable", "required": true},
+        {"name": "source_path", "label": "Chemin source GitOps", "required": true},
+        {"name": "owner", "label": "Propriétaire", "required": true},
+        {"name": "environment", "label": "Environnement", "required": true},
+        {"name": "captured_at", "label": "Capturé le", "format": "date-time", "required": true},
+        {"name": "policy", "label": "Politique GitOps (JSON)", "type": "json", "required": true, "defaultValue": "{}"},
+        {"name": "resources", "label": "Ressources attendues (JSON)", "type": "json", "required": true, "defaultValue": "[]"}
+      ]
+    },
+    {
       "id": "kubernetes-topology-import",
       "label": "Importer un inventaire Kubernetes",
       "method": "POST",

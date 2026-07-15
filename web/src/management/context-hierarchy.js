@@ -92,6 +92,16 @@ export function orderManagementContextEntries(entries = []) {
     .map(({ entry }) => entry);
 }
 
+export function managementFilterGroups(definitions = []) {
+  const context = [];
+  const business = [];
+  for (const definition of definitions) {
+    if (Number.isFinite(managementContextRank(definition))) context.push(definition);
+    else business.push(definition);
+  }
+  return { context, business };
+}
+
 export function managementFilterValues(item, fieldName) {
   const value = item?.[fieldName];
   if (Array.isArray(value)) {

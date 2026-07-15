@@ -83,6 +83,31 @@ test('flattened management collections inherit explicit organization and subdivi
   assert.equal(building.tenant_id, 'FIL-A');
 });
 
+
+test('flattened DCIM children inherit the complete filter context required by management pages', () => {
+  const byId = Object.fromEntries(MANAGEMENT_RESOURCES.map((resource) => [resource.id, resource]));
+  const payload = {
+    sites: [{
+      code: 'PAR1', organization_id: 'ORG-A', tenant_id: 'FIL-A', buildings: [{
+        code: 'BAT-A', rooms: [{
+          code: 'ROOM-1', floor: 'ETG2', row: '03', column: 'B',
+          racks: [{ code: 'R01', units: 42 }], zones: [{ code: 'ZONE-A' }],
+        }],
+      }],
+    }],
+  };
+  const rack = flattenManagementCollection(byId['dcim-racks'], payload)[0];
+  const zone = flattenManagementCollection(byId['dcim-zones'], payload)[0];
+  assert.deepEqual(
+    { organization_id: rack.organization_id, tenant_id: rack.tenant_id, site: rack.site, building: rack.building, floor: rack.floor, room: rack.room, row: rack.row, column: rack.column },
+    { organization_id: 'ORG-A', tenant_id: 'FIL-A', site: 'PAR1', building: 'BAT-A', floor: 'ETG2', room: 'ROOM-1', row: '03', column: 'B' },
+  );
+  assert.deepEqual(
+    { organization_id: zone.organization_id, tenant_id: zone.tenant_id, floor: zone.floor, room: zone.room },
+    { organization_id: 'ORG-A', tenant_id: 'FIL-A', floor: 'ETG2', room: 'ROOM-1' },
+  );
+});
+
 test('management identity is stable and only contains business keys', () => {
   const resource = MANAGEMENT_RESOURCES.find((candidate) => candidate.id === 'itam-partners');
   assert.deepEqual(managementIdentityPayload(resource, { organization_id: 'ORG', partner_id: 'SUP', display_name: 'Supplier' }), {

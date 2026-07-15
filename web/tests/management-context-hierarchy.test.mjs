@@ -6,6 +6,7 @@ import {
   isManagementContextAncestor,
   managementContextRank,
   managementFilterOptions,
+  managementFilterGroups,
   managementItemMatchesFilter,
   normalizeManagementFilters,
   orderManagementContextEntries,
@@ -62,6 +63,16 @@ test('DCIM management resources expose the parent chain before business filters'
   assert.deepEqual(byId['dcim-zones'].filters.map((filter) => filter.key), ['organization_id', 'tenant_id', 'site', 'building', 'floor', 'room', 'rows', 'columns', 'status']);
   assert.deepEqual(byId['itam-tenants'].filters.map((filter) => filter.key).slice(0, 1), ['organization_id']);
   assert.deepEqual(byId['itam-partners'].filters.map((filter) => filter.key).slice(0, 1), ['organization_id']);
+});
+
+
+test('management filters are split into contextual and business criteria without hiding either group', () => {
+  const groups = managementFilterGroups([
+    { key: 'organization_id' }, { key: 'tenant_id' }, { key: 'site' },
+    { key: 'country' }, { key: 'status' },
+  ]);
+  assert.deepEqual(groups.context.map((filter) => filter.key), ['organization_id', 'tenant_id', 'site']);
+  assert.deepEqual(groups.business.map((filter) => filter.key), ['country', 'status']);
 });
 
 test('filter options cascade from parents and array coordinates remain individually selectable', () => {

@@ -19,9 +19,12 @@ def test_kubernetes_topology_migration_is_partitioned_indexed_constrained_and_no
     assert "DELETE FROM" not in sql.upper()
 
 
-def test_kubernetes_topology_is_latest_postgresql_migration() -> None:
+def test_kubernetes_topology_migration_remains_ordered_before_gitops_extension() -> None:
     names = [
         path.name for path in sorted((ROOT / "installers/migrations/postgresql").glob("*.sql"))
     ]
-    assert len(names) == 55
-    assert names[-1] == "0055_kubernetes_topology_inventory.sql"
+    assert len(names) >= 56
+    assert "0055_kubernetes_topology_inventory.sql" in names
+    assert names.index("0055_kubernetes_topology_inventory.sql") < names.index(
+        "0056_kubernetes_gitops_drift.sql"
+    )

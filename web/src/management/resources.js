@@ -8,6 +8,7 @@ export {
   managementFilterValues,
   managementItemMatchesFilter,
   managementFilterOptions,
+  managementFilterGroups,
   normalizeManagementFilters,
   orderManagementContextEntries,
   updateManagementFilters,
@@ -171,6 +172,11 @@ export function flattenManagementCollection(resource, payload, scope = {}) {
     ...(scope.tenant_id ? { tenant_id: scope.tenant_id } : {}),
     ...item,
   });
+  const withParentContext = (item, parent = {}) => withScope({
+    ...(!scope.organization_id && parent.organization_id && !item.organization_id ? { organization_id: parent.organization_id } : {}),
+    ...(!scope.tenant_id && parent.tenant_id && !item.tenant_id ? { tenant_id: parent.tenant_id } : {}),
+    ...item,
+  });
   if (resource.collection === 'items') return Array.isArray(payload.items) ? payload.items.map((item) => withScope(item)) : [];
   const sites = Array.isArray(payload.sites) ? payload.sites : [];
   if (resource.collection === 'sites') return sites.map(({ buildings: _buildings, ...site }) => withScope(site));
@@ -183,17 +189,17 @@ export function flattenManagementCollection(resource, payload, scope = {}) {
       const buildingBase = { ...building, site: building.site || site.code };
       delete buildingBase.floors;
       delete buildingBase.rooms;
-      buildings.push(withScope(buildingBase));
+      buildings.push(withParentContext(buildingBase, site));
       for (const room of Array.isArray(building.rooms) ? building.rooms : []) {
         const roomBase = { ...room, site: room.site || site.code, building: room.building || building.code };
         delete roomBase.zones;
         delete roomBase.racks;
-        rooms.push(withScope(roomBase));
+        rooms.push(withParentContext(roomBase, { ...site, ...buildingBase }));
         for (const rack of Array.isArray(room.racks) ? room.racks : []) {
-          racks.push(withScope({ ...rack, site: site.code, building: building.code, room: room.code, rack: rack.rack || rack.code }));
+          racks.push(withParentContext({ ...rack, site: site.code, building: building.code, ...(rack.floor || room.floor ? { floor: rack.floor || room.floor } : {}), room: room.code, ...(rack.row || rack.line || room.row ? { row: rack.row || rack.line || room.row } : {}), ...(rack.column || room.column ? { column: rack.column || room.column } : {}), rack: rack.rack || rack.code }, { ...site, ...buildingBase, ...roomBase }));
         }
         for (const zone of Array.isArray(room.zones) ? room.zones : []) {
-          zones.push(withScope({ ...zone, site: zone.site || site.code, building: zone.building || building.code, room: zone.room || room.code }));
+          zones.push(withParentContext({ ...zone, site: zone.site || site.code, building: zone.building || building.code, ...(zone.floor || room.floor ? { floor: zone.floor || room.floor } : {}), room: zone.room || room.code }, { ...site, ...buildingBase, ...roomBase }));
         }
       }
     }

@@ -51,6 +51,7 @@ from openinfra.application.it_resources_management_quality_services import (
     ITResourcesManagementQualityService,
 )
 from openinfra.application.itam_services import ItamSupportService
+from openinfra.application.kubernetes_gitops_services import KubernetesGitOpsService
 from openinfra.application.kubernetes_topology_services import KubernetesTopologyService
 from openinfra.application.multisite_services import MultisiteService
 from openinfra.application.network_config_compliance_services import NetworkConfigComplianceService
@@ -71,6 +72,7 @@ from openinfra.application.ports import (
     ImportRepository,
     IpamRepository,
     ItamSupportRepository,
+    KubernetesGitOpsRepository,
     KubernetesTopologyRepository,
     MultisiteRepository,
     NetworkConfigComplianceRepository,
@@ -128,6 +130,7 @@ from openinfra.infrastructure.json_store import (
     JsonImportRepository,
     JsonIpamRepository,
     JsonItamSupportRepository,
+    JsonKubernetesGitOpsRepository,
     JsonKubernetesTopologyRepository,
     JsonMultisiteRepository,
     JsonNetworkConfigComplianceRepository,
@@ -164,6 +167,7 @@ from openinfra.infrastructure.postgresql import (
     PostgreSQLImportRepository,
     PostgreSQLIpamRepository,
     PostgreSQLItamSupportRepository,
+    PostgreSQLKubernetesGitOpsRepository,
     PostgreSQLKubernetesTopologyRepository,
     PostgreSQLMigrationCatalog,
     PostgreSQLMigrationExecutor,
@@ -219,6 +223,7 @@ class OpenInfraApplication:
     greenops_service: GreenOpsService
     sbom_service: SbomService
     kubernetes_topology_service: KubernetesTopologyService
+    kubernetes_gitops_service: KubernetesGitOpsService
     rag_service: RagService
     multisite_service: MultisiteService
     flow_matrix_service: FlowMatrixService
@@ -236,6 +241,7 @@ class OpenInfraApplication:
     greenops_repository: GreenOpsRepository
     sbom_repository: SbomRepository
     kubernetes_topology_repository: KubernetesTopologyRepository
+    kubernetes_gitops_repository: KubernetesGitOpsRepository
     rag_repository: RagRepository
     multisite_repository: MultisiteRepository
     flow_matrix_repository: FlowMatrixRepository
@@ -300,6 +306,7 @@ class ApplicationFactory:
         greenops_repository = JsonGreenOpsRepository(store)
         sbom_repository = JsonSbomRepository(store)
         kubernetes_topology_repository = JsonKubernetesTopologyRepository(store)
+        kubernetes_gitops_repository = JsonKubernetesGitOpsRepository(store)
         rag_repository = JsonRagRepository(store)
         multisite_repository = JsonMultisiteRepository(store)
         flow_matrix_repository = JsonFlowMatrixRepository(store)
@@ -354,6 +361,7 @@ class ApplicationFactory:
             greenops_repository=greenops_repository,
             sbom_repository=sbom_repository,
             kubernetes_topology_repository=kubernetes_topology_repository,
+            kubernetes_gitops_repository=kubernetes_gitops_repository,
             rag_repository=rag_repository,
             multisite_repository=multisite_repository,
             flow_matrix_repository=flow_matrix_repository,
@@ -424,6 +432,7 @@ class ApplicationFactory:
         kubernetes_topology_repository = PostgreSQLKubernetesTopologyRepository(
             registry, cursor_codec
         )
+        kubernetes_gitops_repository = PostgreSQLKubernetesGitOpsRepository(registry, cursor_codec)
         rag_repository = PostgreSQLRagRepository(registry, cursor_codec)
         multisite_repository = PostgreSQLMultisiteRepository(registry, cursor_codec)
         flow_matrix_repository = PostgreSQLFlowMatrixRepository(registry, cursor_codec)
@@ -488,6 +497,7 @@ class ApplicationFactory:
             greenops_repository=greenops_repository,
             sbom_repository=sbom_repository,
             kubernetes_topology_repository=kubernetes_topology_repository,
+            kubernetes_gitops_repository=kubernetes_gitops_repository,
             rag_repository=rag_repository,
             multisite_repository=multisite_repository,
             flow_matrix_repository=flow_matrix_repository,
@@ -570,6 +580,7 @@ class ApplicationFactory:
         greenops_repository: GreenOpsRepository | None = None,
         sbom_repository: SbomRepository | None = None,
         kubernetes_topology_repository: KubernetesTopologyRepository | None = None,
+        kubernetes_gitops_repository: KubernetesGitOpsRepository | None = None,
         rag_repository: RagRepository | None = None,
         multisite_repository: MultisiteRepository | None = None,
         flow_matrix_repository: FlowMatrixRepository | None = None,
@@ -632,6 +643,11 @@ class ApplicationFactory:
                 kubernetes_topology_repository = JsonKubernetesTopologyRepository(store)
             else:
                 kubernetes_topology_repository = PostgreSQLKubernetesTopologyRepository(store)
+        if kubernetes_gitops_repository is None:
+            if hasattr(store, "data"):
+                kubernetes_gitops_repository = JsonKubernetesGitOpsRepository(store)
+            else:
+                kubernetes_gitops_repository = PostgreSQLKubernetesGitOpsRepository(store)
         if rag_repository is None:
             if hasattr(store, "data"):
                 rag_repository = JsonRagRepository(store)
@@ -848,6 +864,13 @@ class ApplicationFactory:
             sbom_repository,
             certificate_inventory_repository,
         )
+        kubernetes_gitops_service = KubernetesGitOpsService(
+            kubernetes_gitops_repository,
+            kubernetes_topology_repository,
+            audit_repository,
+            transaction_manager,
+            security_service,
+        )
         rag_service = RagService(
             rag_repository,
             audit_repository,
@@ -949,6 +972,7 @@ class ApplicationFactory:
             greenops_service=greenops_service,
             sbom_service=sbom_service,
             kubernetes_topology_service=kubernetes_topology_service,
+            kubernetes_gitops_service=kubernetes_gitops_service,
             rag_service=rag_service,
             multisite_service=multisite_service,
             flow_matrix_service=flow_matrix_service,
@@ -1002,6 +1026,7 @@ class ApplicationFactory:
             greenops_repository=greenops_repository,
             sbom_repository=sbom_repository,
             kubernetes_topology_repository=kubernetes_topology_repository,
+            kubernetes_gitops_repository=kubernetes_gitops_repository,
             rag_repository=rag_repository,
             multisite_repository=multisite_repository,
             flow_matrix_repository=flow_matrix_repository,

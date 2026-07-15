@@ -1,17 +1,28 @@
-# OpenInfra v0.33.4
+# OpenInfra v0.33.5
 
-OpenInfra 0.33.4 normalise la **hiérarchie parentale des formulaires et pages de gestion** afin de présenter partout un contexte cohérent : Organisation → Filiale/Subdivision → Site → Bâtiment → Étage → Salle → Ligne/Colonne → Rack.
+OpenInfra 0.33.5 livre **P21 / EPIC-2104 — Conformité GitOps et dérive observée** et corrige les formulaires de recherche/filtrage des espaces de gestion afin que les critères multicritères pertinents restent toujours visibles et cohérents avec le thème OpenInfra.
 
-## Hiérarchie parentale des formulaires de gestion — v0.33.4
+## Conformité GitOps et dérive observée — P21 / EPIC-2104
 
-- critères de contexte prioritaires et affichés uniquement lorsqu'ils sont pertinents ;
-- filtres en cascade avec invalidation automatique des descendants lors d'un changement de parent ;
-- lignes et colonnes filtrables individuellement, y compris lorsqu'elles sont stockées sous forme de listes ;
-- ordre des champs de rattachement normalisé dans les formulaires de gestion et les formulaires d'opération ;
-- sélecteurs DCIM dépendants du contexte parent afin d'éviter les références incohérentes ;
-- code source de gestion regroupé durablement sous `web/src/management/` et runtime packagé sous `assets/management/` ;
-- façades de compatibilité conservées pour les anciens imports ;
-- aucune migration, aucune rupture API/CLI/RBAC et aucune modification de la palette graphique.
+- états GitOps attendus immuables, versionnés par empreinte SHA-256 et liés à un commit Git complet ;
+- politiques explicites pour labels, annotations, owner, environnement et ressources inattendues ;
+- comparaison déterministe avec les snapshots Kubernetes observés existants ;
+- dérives typées et auditables, sans correction automatique silencieuse ;
+- persistance PostgreSQL partitionnée et outbox transactionnelle via `0056_kubernetes_gitops_drift.sql` ;
+- six opérations en parité HTTP, CLI, OpenAPI et portail Discovery ;
+- `automatic_remediation=false` contractuel.
+
+Voir `docs/architecture/kubernetes-gitops-drift.md` et `docs/operations/kubernetes-gitops-drift.md`.
+
+## Filtres multicritères des pages de gestion
+
+- critères toujours visibles, même lorsque la liste courante ne fournit encore aucune valeur ;
+- séparation professionnelle entre **Contexte parent** et **Critères métier** ;
+- ordre canonique Organisation → Filiale/Subdivision → Site → Bâtiment → Étage → Salle → Ligne/Colonne → Rack ;
+- filtres parents en cascade avec invalidation des descendants ;
+- contexte DCIM enrichi pour rendre Étage, Ligne et Colonne réellement filtrables ;
+- panneau de recherche entièrement aligné sur les surfaces, bordures, transparences, typographie et boutons du thème existant ;
+- aucune modification de la palette graphique.
 
 Voir `docs/ui/MANAGEMENT_CONTEXT_HIERARCHY.md`.
 

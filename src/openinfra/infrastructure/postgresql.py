@@ -64,6 +64,8 @@ from openinfra.application.ports import (
     ImportRepository,
     IpamRepository,
     ItamSupportRepository,
+    KubernetesGitOpsRepository,
+    KubernetesGitOpsStatePage,
     KubernetesTopologyRepository,
     KubernetesTopologySnapshotPage,
     MeasurementSourcePage,
@@ -255,6 +257,7 @@ from openinfra.domain.itam import (
     SoftwareLicenseEntitlement,
     ThirdPartySupportContract,
 )
+from openinfra.domain.kubernetes_gitops import KubernetesGitOpsState
 from openinfra.domain.kubernetes_topology import KubernetesTopologySnapshot
 from openinfra.domain.multisite import (
     DisasterRecoveryDrillStatus,
@@ -311,6 +314,7 @@ from openinfra.infrastructure.cursor_pagination import (
 from openinfra.infrastructure.field_operation_mapper import FieldOperationRecordMapper
 from openinfra.infrastructure.finops_mapper import FinOpsRecordMapper
 from openinfra.infrastructure.greenops_mapper import GreenOpsRecordMapper
+from openinfra.infrastructure.kubernetes_gitops_mapper import KubernetesGitOpsRecordMapper
 from openinfra.infrastructure.kubernetes_topology_mapper import KubernetesTopologyRecordMapper
 from openinfra.infrastructure.rag_mapper import RagRecordMapper
 from openinfra.infrastructure.read_routing import (
@@ -9165,6 +9169,164 @@ class PostgreSQLGreenOpsRepository(PostgreSQLRepositoryBase, GreenOpsRepository)
         loaded = json.loads(value) if isinstance(value, str) else value
         if not isinstance(loaded, Mapping):
             raise ValidationError("GreenOps payload must be a JSON object")
+        return {str(key): item for key, item in loaded.items()}
+
+
+class PostgreSQLKubernetesGitOpsRepository(PostgreSQLRepositoryBase, KubernetesGitOpsRepository):
+    def save_state(self, state: KubernetesGitOpsState) -> None:
+        self._ensure_tenant(state.tenant_id)
+        self._execute_without_result(
+            """
+            INSERT INTO kubernetes_gitops_states (
+                id, tenant_id, cluster_key, environment, owner, revision, captured_at, imported_at,
+                fingerprint, resource_count, payload
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(cluster_key)s, %(environment)s, %(owner)s, %(revision)s,
+                %(captured_at)s, %(imported_at)s, %(fingerprint)s, %(resource_count)s,
+                %(payload)s::jsonb
+            ) ON CONFLICT (tenant_id, id) DO UPDATE SET
+                cluster_key = EXCLUDED.cluster_key,
+                environment = EXCLUDED.environment,
+                owner = EXCLUDED.owner,
+                revision = EXCLUDED.revision,
+                captured_at = EXCLUDED.captured_at,
+                imported_at = EXCLUDED.imported_at,
+                fingerprint = EXCLUDED.fingerprint,
+                resource_count = EXCLUDED.resource_count,
+                payload = EXCLUDED.payload
+            """,
+            {
+                "id": state.id.value,
+                "tenant_id": state.tenant_id.value,
+                "cluster_key": state.cluster_key,
+                "environment": state.environment,
+                "owner": state.owner,
+                "revision": state.revision,
+                "captured_at": state.captured_at,
+                "imported_at": state.imported_at,
+                "fingerprint": state.fingerprint,
+                "resource_count": len(state.resources),
+                "payload": json.dumps(state.as_dict(include_resources=True), sort_keys=True),
+            },
+        )
+
+    def get_state(self, tenant_id: TenantId, state_id: str) -> KubernetesGitOpsState | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM kubernetes_gitops_states
+            WHERE tenant_id = %(tenant_id)s AND id = %(id)s LIMIT 1
+            """,
+            {"tenant_id": tenant_id.value, "id": EntityId.from_value(state_id).value},
+        )
+        return (
+            None
+            if row is None
+            else KubernetesGitOpsRecordMapper.state(self._json_mapping(row["payload"]))
+        )
+
+    def find_state_by_fingerprint(
+        self, tenant_id: TenantId, fingerprint: str
+    ) -> KubernetesGitOpsState | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM kubernetes_gitops_states
+            WHERE tenant_id = %(tenant_id)s AND fingerprint = %(fingerprint)s LIMIT 1
+            """,
+            {"tenant_id": tenant_id.value, "fingerprint": fingerprint.strip().lower()},
+        )
+        return (
+            None
+            if row is None
+            else KubernetesGitOpsRecordMapper.state(self._json_mapping(row["payload"]))
+        )
+
+    def find_latest_state(
+        self, tenant_id: TenantId, cluster_key: str
+    ) -> KubernetesGitOpsState | None:
+        row = self._fetch_one(
+            """
+            SELECT payload FROM kubernetes_gitops_states
+            WHERE tenant_id = %(tenant_id)s AND cluster_key = %(cluster_key)s
+            ORDER BY captured_at DESC, imported_at DESC, id DESC
+            LIMIT 1
+            """,
+            {"tenant_id": tenant_id.value, "cluster_key": cluster_key.strip().lower()},
+        )
+        return (
+            None
+            if row is None
+            else KubernetesGitOpsRecordMapper.state(self._json_mapping(row["payload"]))
+        )
+
+    def list_states(
+        self,
+        tenant_id: TenantId,
+        pagination: Pagination,
+        cluster_key: str | None = None,
+        environment: str | None = None,
+        owner: str | None = None,
+    ) -> KubernetesGitOpsStatePage:
+        filters = {
+            "cluster_key": cluster_key.strip().lower() if cluster_key else None,
+            "environment": environment.strip().lower() if environment else None,
+            "owner": owner.strip().lower() if owner else None,
+        }
+        params = {key: value for key, value in filters.items() if value is not None}
+        predicate = " ".join(f"AND {key} = %({key})s" for key in params)
+        fields = (
+            CursorField("captured_at", CursorDirection.DESC, CursorValueType.DATETIME),
+            CursorField("imported_at", CursorDirection.DESC, CursorValueType.DATETIME),
+            CursorField("id", CursorDirection.DESC),
+        )
+        page = self._keyset_page(
+            pagination,
+            scope="kubernetes.gitops.states",
+            tenant_id=tenant_id,
+            filters=params,
+            fields=fields,
+        )
+        rows = self._fetch_all(
+            f"""
+            SELECT payload, captured_at, imported_at, id
+            FROM kubernetes_gitops_states
+            WHERE tenant_id = %(tenant_id)s {predicate} {page.where_sql}
+            ORDER BY captured_at DESC, imported_at DESC, id DESC
+            LIMIT %(fetch_limit)s{page.offset_sql}
+            """,  # nosec B608 -- predicate and ordering use a closed internal field set
+            {"tenant_id": tenant_id.value, **params, **page.parameters},
+        )
+        selected = rows[: pagination.limit]
+        items = tuple(
+            KubernetesGitOpsRecordMapper.state(self._json_mapping(row["payload"]))
+            for row in selected
+        )
+        return KubernetesGitOpsStatePage(items, page.next_cursor(rows))
+
+    def append_event(self, event: DomainEvent) -> None:
+        self._execute_without_result(
+            """
+            INSERT INTO kubernetes_gitops_event_outbox (
+                id, tenant_id, aggregate_id, name, payload, occurred_at, published_at
+            ) VALUES (
+                %(id)s, %(tenant_id)s, %(aggregate_id)s, %(name)s, %(payload)s::jsonb,
+                %(occurred_at)s, NULL
+            ) ON CONFLICT (tenant_id, id) DO NOTHING
+            """,
+            {
+                "id": event.id.value,
+                "tenant_id": event.tenant_id.value,
+                "aggregate_id": event.aggregate_id.value,
+                "name": event.name,
+                "payload": json.dumps(event.payload, sort_keys=True),
+                "occurred_at": event.occurred_at,
+            },
+        )
+
+    @staticmethod
+    def _json_mapping(value: object) -> dict[str, Any]:
+        loaded = json.loads(value) if isinstance(value, str) else value
+        if not isinstance(loaded, Mapping):
+            raise ValidationError("Kubernetes GitOps payload must be a JSON object")
         return {str(key): item for key, item in loaded.items()}
 
 

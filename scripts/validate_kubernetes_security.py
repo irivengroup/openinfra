@@ -113,10 +113,10 @@ class KubernetesSecurityProjectValidator:
             ("TST-P21-K8S-SECURITY-CORRELATION", "Corrélation sécurité"),
         )
         migrations = sorted((self._root / "installers/migrations/postgresql").glob("*.sql"))
-        if len(migrations) != 55 or migrations[-1].name != "0055_kubernetes_topology_inventory.sql":
+        if len(migrations) < 55 or migrations[54].name != "0055_kubernetes_topology_inventory.sql":
             raise KubernetesSecurityProjectError(
                 "EPIC-2103 must reuse immutable Kubernetes snapshot storage and keep the "
-                "55-migration chain ending with 0055_kubernetes_topology_inventory.sql"
+                "migration chain containing 0055_kubernetes_topology_inventory.sql at position 55"
             )
         return {
             "schema_version": 1,

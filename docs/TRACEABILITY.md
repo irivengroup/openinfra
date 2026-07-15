@@ -1,3 +1,16 @@
+## v0.33.5 — P21 / EPIC-2104 GitOps drift et filtres multicritères
+
+| Exigence | Implémentation | Vérification |
+|---|---|---|
+| EPIC-2104 / TST-P21-K8S-GITOPS-DRIFT | états GitOps attendus immuables, politique et rapport de conformité | tests domaine, services, HTTP, CLI, PostgreSQL et contrat web |
+| Dérive explicite | comparaison expected-vs-observed, dérives typées, fingerprints et audit | tests de conformité, dérive et événements outbox |
+| Aucune correction silencieuse | `automatic_remediation=false` contractuel | validateur EPIC-2104 et smoke du wheel |
+| UX filtres multicritères | critères contextuels et métier toujours visibles, cascade parentale et thème cohérent | tests frontend, hiérarchie et intégration CRUD |
+| Migration | `0056_kubernetes_gitops_drift.sql`, additive et partitionnée tenant | tests migration et repository PostgreSQL |
+
+- API, CLI, OpenAPI et UI Discovery sont en parité.
+- La palette du thème reste inchangée.
+
 ## v0.33.4 — Normalisation structurelle des contextes de gestion
 
 - hiérarchie parentale canonique appliquée aux filtres et formulaires ;

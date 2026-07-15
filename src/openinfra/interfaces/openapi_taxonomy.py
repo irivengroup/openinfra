@@ -445,7 +445,12 @@ class OpenApiDocumentationTaxonomy:
             return "Discovery", "Collecteurs et profils"
         if path.startswith(("/api/v1/discovery/job", "/api/v1/discovery/jobs")):
             return "Discovery", "Orchestration des jobs"
-        if path.startswith("/api/v1/kubernetes/topologies"):
+        if path.startswith(
+            (
+                "/api/v1/kubernetes/topologies",
+                "/api/v1/kubernetes/gitops-states",
+            )
+        ):
             return "Discovery", "Kubernetes et cloud-native"
         if path.startswith(
             (

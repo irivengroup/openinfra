@@ -49,7 +49,7 @@ def test_greenops_precedes_sbom_and_rag_without_being_modified() -> None:
         "0053_keyset_pagination_indexes.sql",
         "0054_async_outbox_workers.sql",
     )
-    assert len(names) == 55
+    assert len(names) >= 55
     assert [names.index(name) for name in expected_order] == sorted(
         names.index(name) for name in expected_order
     )

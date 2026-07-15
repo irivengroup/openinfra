@@ -312,6 +312,14 @@ from openinfra.application.itam_services import (
     UpdateItamTenantCommand,
     UpdateSoftwareLicenseAssignmentCommand,
 )
+from openinfra.application.kubernetes_gitops_services import (
+    AssessKubernetesGitOpsDriftCommand,
+    AssessLatestKubernetesGitOpsDriftCommand,
+    GetKubernetesGitOpsStateCommand,
+    GetLatestKubernetesGitOpsStateCommand,
+    ImportKubernetesGitOpsStateCommand,
+    ListKubernetesGitOpsStatesCommand,
+)
 from openinfra.application.kubernetes_topology_services import (
     GetKubernetesTopologyCommand,
     GetLatestKubernetesTopologyCommand,
@@ -2570,6 +2578,76 @@ class OpenInfraCLI:
         latest_security.add_argument("--admin-token", required=True)
         latest_security.add_argument("--cluster-key", required=True)
         latest_security.set_defaults(handler=self._handle_kubernetes_latest_security)
+
+        gitops_import = commands.add_parser(
+            "gitops-import", help="import one immutable GitOps expected-state snapshot"
+        )
+        self._add_backend_arguments(gitops_import)
+        for name in (
+            "tenant",
+            "admin-token",
+            "cluster-key",
+            "repository-ref",
+            "revision",
+            "source-path",
+            "owner",
+            "environment",
+            "captured-at",
+        ):
+            gitops_import.add_argument(f"--{name}", required=True)
+        gitops_import.add_argument("--resources-file", type=Path, required=True)
+        gitops_import.add_argument("--policy-file", type=Path, required=True)
+        gitops_import.add_argument("--actor", default="cli")
+        gitops_import.set_defaults(handler=self._handle_kubernetes_gitops_import)
+
+        gitops_list = commands.add_parser("gitops-list", help="list GitOps expected states")
+        self._add_backend_arguments(gitops_list)
+        gitops_list.add_argument("--tenant", required=True)
+        gitops_list.add_argument("--admin-token", required=True)
+        gitops_list.add_argument("--cluster-key")
+        gitops_list.add_argument("--environment")
+        gitops_list.add_argument("--owner")
+        gitops_list.add_argument("--limit", type=int, default=100)
+        gitops_list.add_argument("--cursor")
+        gitops_list.set_defaults(handler=self._handle_kubernetes_gitops_list)
+
+        gitops_get = commands.add_parser("gitops-get", help="get one GitOps expected state")
+        self._add_backend_arguments(gitops_get)
+        gitops_get.add_argument("--tenant", required=True)
+        gitops_get.add_argument("--admin-token", required=True)
+        gitops_get.add_argument("--state-id", required=True)
+        gitops_get.set_defaults(handler=self._handle_kubernetes_gitops_get)
+
+        gitops_latest = commands.add_parser(
+            "gitops-latest", help="get the latest GitOps expected state for a cluster"
+        )
+        self._add_backend_arguments(gitops_latest)
+        gitops_latest.add_argument("--tenant", required=True)
+        gitops_latest.add_argument("--admin-token", required=True)
+        gitops_latest.add_argument("--cluster-key", required=True)
+        gitops_latest.set_defaults(handler=self._handle_kubernetes_gitops_latest)
+
+        gitops_drift = commands.add_parser(
+            "gitops-drift", help="compare one GitOps expected state with one observed snapshot"
+        )
+        self._add_backend_arguments(gitops_drift)
+        gitops_drift.add_argument("--tenant", required=True)
+        gitops_drift.add_argument("--admin-token", required=True)
+        gitops_drift.add_argument("--expected-state-id", required=True)
+        gitops_drift.add_argument("--observed-snapshot-id", required=True)
+        gitops_drift.add_argument("--actor", default="cli")
+        gitops_drift.set_defaults(handler=self._handle_kubernetes_gitops_drift)
+
+        gitops_latest_drift = commands.add_parser(
+            "gitops-latest-drift",
+            help="compare the latest GitOps expected state with the latest observed snapshot",
+        )
+        self._add_backend_arguments(gitops_latest_drift)
+        gitops_latest_drift.add_argument("--tenant", required=True)
+        gitops_latest_drift.add_argument("--admin-token", required=True)
+        gitops_latest_drift.add_argument("--cluster-key", required=True)
+        gitops_latest_drift.add_argument("--actor", default="cli")
+        gitops_latest_drift.set_defaults(handler=self._handle_kubernetes_gitops_latest_drift)
 
     def _add_sbom_commands(self, subparsers: Any) -> None:
         sbom = subparsers.add_parser(
@@ -7057,11 +7135,21 @@ class OpenInfraCLI:
         return tuple(resources)
 
     @staticmethod
-    def _kubernetes_datetime(value: str) -> datetime:
+    def _kubernetes_datetime(value: str, label: str = "observed-at") -> datetime:
         try:
             return datetime.fromisoformat(value.replace("Z", "+00:00"))
         except ValueError as exc:
-            raise ValidationError("observed-at must be ISO-8601") from exc
+            raise ValidationError(f"{label} must be ISO-8601") from exc
+
+    @staticmethod
+    def _read_kubernetes_gitops_policy(path: Path) -> dict[str, Any]:
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ValidationError("Kubernetes GitOps policy file must contain valid JSON") from exc
+        if not isinstance(payload, dict):
+            raise ValidationError("Kubernetes GitOps policy file must contain one JSON object")
+        return {str(key): value for key, value in payload.items()}
 
     def _handle_kubernetes_import(self, args: argparse.Namespace) -> int:
         item = self._create_application(args).kubernetes_topology_service.import_snapshot(
@@ -7150,6 +7238,77 @@ class OpenInfraCLI:
     def _handle_kubernetes_latest_security(self, args: argparse.Namespace) -> int:
         report = self._create_application(args).kubernetes_topology_service.latest_security(
             GetLatestKubernetesTopologyCommand(args.tenant, args.admin_token, args.cluster_key)
+        )
+        print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_kubernetes_gitops_import(self, args: argparse.Namespace) -> int:
+        item = self._create_application(args).kubernetes_gitops_service.import_state(
+            ImportKubernetesGitOpsStateCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                cluster_key=args.cluster_key,
+                repository_ref=args.repository_ref,
+                revision=args.revision,
+                source_path=args.source_path,
+                owner=args.owner,
+                environment=args.environment,
+                captured_at=self._kubernetes_datetime(args.captured_at, "captured-at"),
+                policy=self._read_kubernetes_gitops_policy(args.policy_file),
+                resources=self._read_kubernetes_resources(args.resources_file),
+                actor=args.actor,
+            )
+        )
+        print(json.dumps(item.as_dict(include_resources=True), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_kubernetes_gitops_list(self, args: argparse.Namespace) -> int:
+        page = self._create_application(args).kubernetes_gitops_service.list_states(
+            ListKubernetesGitOpsStatesCommand(
+                tenant_id=args.tenant,
+                admin_token=args.admin_token,
+                limit=args.limit,
+                cursor=args.cursor,
+                cluster_key=args.cluster_key,
+                environment=args.environment,
+                owner=args.owner,
+            )
+        )
+        print(json.dumps(page.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_kubernetes_gitops_get(self, args: argparse.Namespace) -> int:
+        item = self._create_application(args).kubernetes_gitops_service.get_state(
+            GetKubernetesGitOpsStateCommand(args.tenant, args.admin_token, args.state_id)
+        )
+        print(json.dumps(item.as_dict(include_resources=True), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_kubernetes_gitops_latest(self, args: argparse.Namespace) -> int:
+        item = self._create_application(args).kubernetes_gitops_service.get_latest_state(
+            GetLatestKubernetesGitOpsStateCommand(args.tenant, args.admin_token, args.cluster_key)
+        )
+        print(json.dumps(item.as_dict(include_resources=True), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_kubernetes_gitops_drift(self, args: argparse.Namespace) -> int:
+        report = self._create_application(args).kubernetes_gitops_service.assess(
+            AssessKubernetesGitOpsDriftCommand(
+                args.tenant,
+                args.admin_token,
+                args.expected_state_id,
+                args.observed_snapshot_id,
+                args.actor,
+            )
+        )
+        print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_kubernetes_gitops_latest_drift(self, args: argparse.Namespace) -> int:
+        report = self._create_application(args).kubernetes_gitops_service.assess_latest(
+            AssessLatestKubernetesGitOpsDriftCommand(
+                args.tenant, args.admin_token, args.cluster_key, args.actor
+            )
         )
         print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
         return 0

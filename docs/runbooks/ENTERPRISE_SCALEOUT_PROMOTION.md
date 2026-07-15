@@ -1,6 +1,6 @@
 # GATE-09 — Promotion Enterprise Scale-out
 
-Version cible : `0.33.3`
+Version cible : `0.33.4`
 
 ## Objet
 
@@ -31,15 +31,15 @@ PYTHONPATH=src:. python scripts/validate_scaleout_promotion.py \
 
 ```bash
 PYTHONPATH=src:. python scripts/assemble_scaleout_promotion_evidence.py \
-  --candidate-id openinfra-0.33.3-enterprise-scaleout \
+  --candidate-id openinfra-0.33.4-enterprise-scaleout \
   --source-commit 0123456789abcdef0123456789abcdef01234567 \
   --p20-contracts build/scaleout/p20-contracts.json \
   --enterprise-capacity build/input/capacity/certification-report.json \
   --multisite-chaos build/input/chaos/certification-report.json \
   --pra-pca build/input/pra-pca/certification-report.json \
   --release-security build/input/security/release-security.json \
-  --release-packaging build/input/packaging/openinfra-0.33.3-release-manifest.json \
-  --ga-go-no-go build/input/ga/openinfra-0.33.3-go-no-go.json \
+  --release-packaging build/input/packaging/openinfra-0.33.4-release-manifest.json \
+  --ga-go-no-go build/input/ga/openinfra-0.33.4-go-no-go.json \
   --evidence-root build/scaleout/evidence \
   --output build/scaleout/manifest.json
 ```

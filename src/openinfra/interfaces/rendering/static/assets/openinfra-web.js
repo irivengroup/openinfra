@@ -1,4 +1,4 @@
-import { OpenInfraI18n, localizeOpenInfraCatalog } from "./openinfra-i18n.js?v=0.33.3";
+import { OpenInfraI18n, localizeOpenInfraCatalog } from "./openinfra-i18n.js?v=0.33.4";
 let managementRegistryPromise = null;
 let collapseManagementOperations = (_moduleId, operations, operationIds) => {
   const byId = new Map(operations.map((operation) => [operation.id, operation]));
@@ -9,6 +9,14 @@ let localizedManagementLabel = (resource) => resource?.id || "";
 let managementDisplayName = (_resource, item) => String(item?.name || item?.code || item?.id || "");
 let managementFieldValue = (item, fieldName) => String(item?.[fieldName] ?? "");
 let managementIdentityPayload = () => ({});
+let managementContextLabel = () => "";
+let isManagementContextAncestor = () => false;
+let managementContextRank = () => Number.POSITIVE_INFINITY;
+let managementFilterOptions = () => ({});
+let managementItemMatchesFilter = () => true;
+let normalizeManagementFilters = (filters) => ({ ...(filters || {}) });
+let orderManagementContextEntries = (entries) => [...entries];
+let updateManagementFilters = (filters, _definitions, key, value) => ({ ...(filters || {}), [key]: value });
 let managementNavigationOperation = () => null;
 let managementResourceById = () => null;
 let managementResourceForOperation = () => null;
@@ -16,13 +24,21 @@ let managementResourcesForModule = () => [];
 
 async function ensureManagementRegistryLoaded() {
   if (!managementRegistryPromise) {
-    managementRegistryPromise = import("./openinfra-management-resources.js?v=0.33.3").then((loaded) => {
+    managementRegistryPromise = import("./management/resources.js?v=0.33.4").then((loaded) => {
       collapseManagementOperations = loaded.collapseManagementOperations;
       flattenManagementCollection = loaded.flattenManagementCollection;
       localizedManagementLabel = loaded.localizedManagementLabel;
       managementDisplayName = loaded.managementDisplayName;
       managementFieldValue = loaded.managementFieldValue;
       managementIdentityPayload = loaded.managementIdentityPayload;
+      managementContextLabel = loaded.managementContextLabel;
+      isManagementContextAncestor = loaded.isManagementContextAncestor;
+      managementContextRank = loaded.managementContextRank;
+      managementFilterOptions = loaded.managementFilterOptions;
+      managementItemMatchesFilter = loaded.managementItemMatchesFilter;
+      normalizeManagementFilters = loaded.normalizeManagementFilters;
+      orderManagementContextEntries = loaded.orderManagementContextEntries;
+      updateManagementFilters = loaded.updateManagementFilters;
       managementNavigationOperation = loaded.managementNavigationOperation;
       managementResourceById = loaded.managementResourceById;
       managementResourceForOperation = loaded.managementResourceForOperation;
@@ -41,11 +57,11 @@ import {
   normalizeFieldDefinition,
   normalizeFieldValue,
   validateControl
-} from "./openinfra-form-fields.js?v=0.33.3";
-import { OPENINFRA_DOMAIN_LOADERS, OPENINFRA_MODULES, OPENINFRA_SIDEBAR_CONTEXTS } from "./openinfra-domain-manifest.js?v=0.33.3";
-import { OpenInfraQueryCache } from "./openinfra-query-cache.js?v=0.33.3";
-import { OpenInfraVirtualList } from "./openinfra-virtual-list.js?v=0.33.3";
-import { installOpenInfraWebVitals } from "./openinfra-web-vitals.js?v=0.33.3";
+} from "./openinfra-form-fields.js?v=0.33.4";
+import { OPENINFRA_DOMAIN_LOADERS, OPENINFRA_MODULES, OPENINFRA_SIDEBAR_CONTEXTS } from "./openinfra-domain-manifest.js?v=0.33.4";
+import { OpenInfraQueryCache } from "./openinfra-query-cache.js?v=0.33.4";
+import { OpenInfraVirtualList } from "./openinfra-virtual-list.js?v=0.33.4";
+import { installOpenInfraWebVitals } from "./openinfra-web-vitals.js?v=0.33.4";
 
 
 class OpenInfraApiClient {
@@ -452,7 +468,7 @@ class OpenInfraDashboard {
 
   async loadSearchIndex() {
     if (this.searchIndex) return this.searchIndex;
-    const loaded = await import("./openinfra-search-index.js?v=0.33.3");
+    const loaded = await import("./openinfra-search-index.js?v=0.33.4");
     const syntheticModules = OPENINFRA_MODULES.map((module) => ({
       ...module,
       operations: loaded.default.filter((entry) => entry.moduleId === module.id).map((entry) => ({ ...entry }))
@@ -1386,7 +1402,7 @@ class OpenInfraDashboard {
   }
 
   managementFormFields(resource, operation, item = null) {
-    const fields = [...(operation?.query || []), ...(operation?.body || [])];
+    const fields = orderManagementContextEntries([...(operation?.query || []), ...(operation?.body || [])]);
     return fields.map((field) => {
       if (!item) return { ...field };
       const value = managementFieldValue(item, field.name);
@@ -1411,7 +1427,7 @@ class OpenInfraDashboard {
       }
       return Object.entries(activeFilters).every(([key, expected]) => {
         if (expected === undefined || expected === null || String(expected) === "") return true;
-        return String(item?.[key] ?? "") === String(expected);
+        return managementItemMatchesFilter(item, key, expected);
       });
     });
     const sortKey = this.state.management.sortKey || resource.columns[0]?.key;
@@ -1426,13 +1442,13 @@ class OpenInfraDashboard {
     return items;
   }
 
-  managementFilterOptions(key) {
-    const values = new Set();
-    for (const item of this.state.management.items) {
-      const value = item?.[key];
-      if (value !== undefined && value !== null && String(value) !== "") values.add(String(value));
-    }
-    return [...values].sort((left, right) => left.localeCompare(right, this.i18n.language, { numeric: true, sensitivity: "base" }));
+  managementFilterOptionsForResource(resource) {
+    return managementFilterOptions(
+      this.state.management.items,
+      this.state.management.filters || {},
+      resource.filters,
+      this.i18n.language
+    );
   }
 
   managementRenderedValue(value) {
@@ -1469,10 +1485,14 @@ class OpenInfraDashboard {
     const linkKey = this.managementDetailLinkKey(resource);
     const label = localizedManagementLabel(resource, this.i18n.language);
     const plural = localizedManagementLabel(resource, this.i18n.language, "plural");
-    const filters = resource.filters.map((filter) => {
+    const availableFilterOptions = this.managementFilterOptionsForResource(resource);
+    const filters = resource.filters.filter((filter) => {
       const selected = String(this.state.management.filters?.[filter.key] ?? "");
-      const options = this.managementFilterOptions(filter.key);
-      return `<label class="form-label openinfra-management-filter"><span>${this.escape(filter.label)}</span><select class="form-select form-select-sm" data-management-filter="${this.escape(filter.key)}"><option value="">${this.escape(this.i18n.t("allValues"))}</option>${options.map((value) => `<option value="${this.escape(value)}" ${selected === value ? "selected" : ""}>${this.escape(this.managementRenderedValue(value))}</option>`).join("")}</select></label>`;
+      return selected !== "" || (availableFilterOptions[filter.key] || []).length > 0;
+    }).map((filter) => {
+      const selected = String(this.state.management.filters?.[filter.key] ?? "");
+      const options = availableFilterOptions[filter.key] || [];
+      return `<label class="form-label openinfra-management-filter"><span>${this.escape(managementContextLabel(filter.key, this.i18n.language) || filter.label)}</span><select class="form-select form-select-sm" data-management-filter="${this.escape(filter.key)}"><option value="">${this.escape(this.i18n.t("allValues"))}</option>${options.map((value) => `<option value="${this.escape(value)}" ${selected === value ? "selected" : ""}>${this.escape(this.managementRenderedValue(value))}</option>`).join("")}</select></label>`;
     }).join("");
     const rows = visible.map((item) => {
       const itemKey = this.managementItemKey(resource, item);
@@ -1540,7 +1560,7 @@ class OpenInfraDashboard {
 
   renderOperationPanel(operation, result) {
     const module = this.moduleForOperation(operation);
-    const fields = [...(operation.query || []), ...(operation.body || [])];
+    const fields = orderManagementContextEntries([...(operation.query || []), ...(operation.body || [])]);
     const hasRequiredFields = fields.some((field) => field.required);
     return `<div class="row g-4">
       <section class="col-12 col-xxl-8" aria-labelledby="openinfra-operation-title">
@@ -1682,7 +1702,8 @@ class OpenInfraDashboard {
       const fallback = field.defaultValue || "";
       const renderedOptions = options.length > 0 ? options : (fallback ? [{ value: fallback, label: fallback }] : []);
       const selectedValue = renderedOptions.length === 1 ? this.optionValue(renderedOptions[0]) : fallback;
-      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(this.i18n.label(field.label || DCIM_REFERENCE_LABELS[this.dcimReferenceLevel(field)] || field.name))}${requiredText}<select class="form-select"${common}${required}><option value=""></option>${this.renderOptions(renderedOptions, selectedValue)}</select></label>`;
+      const referenceLevel = this.dcimReferenceLevel(field);
+      return `<label${visibility} class="col-md-6 col-xl-4 form-label">${this.escape(this.i18n.label(field.label || DCIM_REFERENCE_LABELS[referenceLevel] || field.name))}${requiredText}<select class="form-select"${common} data-dcim-reference-level="${this.escape(referenceLevel)}"${required}><option value=""></option>${this.renderOptions(renderedOptions, selectedValue)}</select></label>`;
     }
     if (field.type === "select") {
       const options = this.selectOptionsForField(field);
@@ -1760,52 +1781,42 @@ class OpenInfraDashboard {
     return DCIM_REFERENCE_FIELDS.has(String(field.name || "").toLowerCase());
   }
 
-  dcimOptions(field) {
+  dcimOptions(field, context = {}) {
     const level = this.dcimReferenceLevel(field);
     const sites = Array.isArray(this.state.dcimCatalog?.sites) ? this.state.dcimCatalog.sites : [];
     const options = [];
     const seen = new Set();
     const selectable = (item) => item && item.selectable !== false && item.status !== "retired";
+    const matchesAncestor = (contextField, actual) => {
+      const expected = context[contextField];
+      return !isManagementContextAncestor(contextField, level)
+        || !expected
+        || String(expected) === String(actual || "");
+    };
     const push = (value, label) => {
       const normalized = String(value || "").trim();
-      if (!normalized || seen.has(`${level}:${normalized}`)) {
-        return;
-      }
+      if (!normalized || seen.has(`${level}:${normalized}`)) return;
       seen.add(`${level}:${normalized}`);
       options.push({ value: normalized, label: label || normalized });
     };
     for (const site of sites) {
-      if (!selectable(site)) {
-        continue;
-      }
+      if (!selectable(site) || !matchesAncestor("site", site.code)) continue;
       const siteCode = site.code;
-      if (level === "site") {
-        push(siteCode, `${site.code}${site.name ? ` — ${site.name}` : ""}`);
-      }
+      if (level === "site") push(siteCode, `${site.code}${site.name ? ` — ${site.name}` : ""}`);
       for (const building of Array.isArray(site.buildings) ? site.buildings : []) {
-        if (!selectable(building)) {
-          continue;
-        }
+        if (!selectable(building) || !matchesAncestor("building", building.code)) continue;
         const buildingCode = building.code;
-        if (level === "building") {
-          push(buildingCode, `${building.code}${building.name ? ` — ${building.name}` : ""} (${siteCode})`);
-        }
+        if (level === "building") push(buildingCode, `${building.code}${building.name ? ` — ${building.name}` : ""} (${siteCode})`);
         for (const floor of Array.isArray(building.floors) ? building.floors : []) {
-          if (!selectable(floor)) {
-            continue;
-          }
+          if (!selectable(floor) || !matchesAncestor("floor", floor.code)) continue;
           if (level === "floor") {
             push(floor.code, `${floor.code} — ${this.i18n.floorName(floor.level_index, floor.name)} (${siteCode}/${buildingCode})`);
           }
         }
         for (const room of Array.isArray(building.rooms) ? building.rooms : []) {
-          if (!selectable(room)) {
-            continue;
-          }
+          if (!selectable(room) || !matchesAncestor("floor", room.floor) || !matchesAncestor("room", room.code)) continue;
           const roomCode = room.code;
-          if (level === "room") {
-            push(roomCode, `${room.code}${room.name ? ` — ${room.name}` : ""} (${siteCode}/${buildingCode})`);
-          }
+          if (level === "room") push(roomCode, `${room.code}${room.name ? ` — ${room.name}` : ""} (${siteCode}/${buildingCode})`);
           for (const zone of Array.isArray(room.zones) ? room.zones : []) {
             if (selectable(zone) && level === "zone") {
               push(zone.code, `${zone.code}${zone.name ? ` — ${zone.name}` : ""} (${siteCode}/${buildingCode}/${roomCode})`);
@@ -1813,24 +1824,82 @@ class OpenInfraDashboard {
           }
           for (const rack of Array.isArray(room.racks) ? room.racks : []) {
             const rackCode = rack.code || rack.rack || rack.name;
-            if (selectable(rack) && level === "rack") {
+            const rackFloor = rack.floor || room.floor;
+            if (!selectable(rack)
+              || !matchesAncestor("floor", rackFloor)
+              || !matchesAncestor("row", rack.row)
+              || !matchesAncestor("column", rack.column)) continue;
+            if (level === "rack") {
               push(rackCode, `${rackCode}${rack.label ? ` — ${rack.label}` : ""} (${siteCode}/${buildingCode}/${roomCode})`);
             }
           }
           for (const row of Array.isArray(room.rows) ? room.rows : []) {
-            if (level === "row") {
-              push(row, `${row} (${siteCode}/${buildingCode}/${roomCode})`);
-            }
+            if (level === "row" && matchesAncestor("row", row)) push(row, `${row} (${siteCode}/${buildingCode}/${roomCode})`);
           }
           for (const column of Array.isArray(room.columns) ? room.columns : []) {
-            if (level === "column") {
-              push(column, `${column} (${siteCode}/${buildingCode}/${roomCode})`);
-            }
+            if (level === "column" && matchesAncestor("column", column)) push(column, `${column} (${siteCode}/${buildingCode}/${roomCode})`);
           }
         }
       }
     }
     return options;
+  }
+
+  dcimFormContext(form) {
+    const context = {};
+    for (const control of form?.querySelectorAll?.("[data-field]") || []) {
+      if (!this.isDcimReferenceField({ name: control.dataset.field })) continue;
+      const level = this.dcimReferenceLevel({ name: control.dataset.field });
+      const value = String(control.value || "").trim();
+      if (value) context[level] = value;
+    }
+    return context;
+  }
+
+  refreshDcimReferenceSelect(select, form) {
+    const level = String(select.dataset.dcimReferenceLevel || "");
+    const currentRank = managementContextRank(level);
+    const controls = [...form.querySelectorAll("[data-field]")].filter((control) => {
+      if (!this.isDcimReferenceField({ name: control.dataset.field })) return false;
+      return managementContextRank(this.dcimReferenceLevel({ name: control.dataset.field })) < currentRank;
+    });
+    const blocked = controls.some((control) => !String(control.value || "").trim());
+    const selected = String(select.value || "");
+    if (blocked) {
+      select.innerHTML = `<option value="">${this.escape(this.i18n.t("selectParentContextFirst"))}</option>`;
+      select.disabled = true;
+      return;
+    }
+    select.disabled = false;
+    const field = { name: select.dataset.field };
+    const options = this.dcimOptions(field, this.dcimFormContext(form));
+    select.innerHTML = `<option value=""></option>${this.renderOptions(options, selected)}`;
+    if (options.some((option) => this.optionValue(option) === selected)) {
+      select.value = selected;
+    } else if (options.length === 1) {
+      select.value = this.optionValue(options[0]);
+    } else {
+      select.value = "";
+    }
+  }
+
+  bindDcimReferenceSelects() {
+    for (const form of document.querySelectorAll("form")) {
+      const selects = [...form.querySelectorAll("select[data-dcim-reference-level]")]
+        .sort((left, right) => managementContextRank(left.dataset.dcimReferenceLevel) - managementContextRank(right.dataset.dcimReferenceLevel));
+      if (selects.length === 0) continue;
+      const refreshFrom = (changedRank = Number.NEGATIVE_INFINITY) => {
+        for (const select of selects) {
+          if (managementContextRank(select.dataset.dcimReferenceLevel) > changedRank) {
+            this.refreshDcimReferenceSelect(select, form);
+          }
+        }
+      };
+      for (const select of selects) {
+        select.addEventListener("change", () => refreshFrom(managementContextRank(select.dataset.dcimReferenceLevel)));
+      }
+      refreshFrom();
+    }
   }
 
   selectOptionsForField(field) {
@@ -2003,6 +2072,27 @@ class OpenInfraDashboard {
         if (resource) void this.selectManagementResource(resource.id, { mode: "list", focusMain: true });
       });
     }
+    for (const select of document.querySelectorAll("[data-management-filter]")) {
+      select.addEventListener("change", () => {
+        const resource = this.managementResource();
+        if (!resource) return;
+        this.state = {
+          ...this.state,
+          management: this.withManagementState({
+            query: document.getElementById("openinfra-management-query")?.value || this.state.management.query || "",
+            filters: updateManagementFilters(
+              this.state.management.filters || {},
+              resource.filters,
+              select.dataset.managementFilter,
+              select.value
+            ),
+            page: 1,
+            notice: null
+          })
+        };
+        this.render();
+      });
+    }
     document.getElementById("openinfra-management-filter-form")?.addEventListener("submit", (event) => {
       event.preventDefault();
       const filters = {};
@@ -2015,7 +2105,7 @@ class OpenInfraDashboard {
         ...this.state,
         management: this.withManagementState({
           query: document.getElementById("openinfra-management-query")?.value || "",
-          filters,
+          filters: normalizeManagementFilters(filters, this.managementResource()?.filters || [], this.state.management.items),
           includeRetired,
           page: 1,
           notice: null
@@ -2124,6 +2214,7 @@ class OpenInfraDashboard {
     });
     this.bindSearchResultButtons();
     this.bindDependentSelects();
+    this.bindDcimReferenceSelects();
     document.getElementById("openinfra-compact-menu-button")?.addEventListener("click", () => {
       this.state = { ...this.state, mobileSidebarOpen: !this.state.mobileSidebarOpen, megaMenuModuleId: null };
       this.render();
@@ -2341,13 +2432,22 @@ class OpenInfraDashboard {
     try {
       const payload = { include_retired: this.state.management.includeRetired ? "true" : "false" };
       const data = await this.client().request(operation, payload);
-      const items = flattenManagementCollection(resource, data);
+      const items = flattenManagementCollection(resource, data, {
+        organization_id: this.state.organization,
+        tenant_id: this.state.tenant
+      });
       if (resource.moduleId === "dcim" && resource.sourceOperationId === "dcim-topology-catalog") {
         this.state = { ...this.state, dcimCatalog: data };
       }
       this.state = {
         ...this.state,
-        management: this.withManagementState({ items, loading: false, error: null, page: 1 })
+        management: this.withManagementState({
+          items,
+          filters: normalizeManagementFilters(this.state.management.filters || {}, resource.filters, items),
+          loading: false,
+          error: null,
+          page: 1
+        })
       };
     } catch (error) {
       this.state = { ...this.state, management: this.withManagementState({ loading: false, error }) };

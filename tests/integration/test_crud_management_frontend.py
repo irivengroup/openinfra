@@ -11,12 +11,25 @@ def _read(relative: str) -> str:
 
 
 def test_unified_crud_management_assets_are_packaged_and_synchronized() -> None:
-    react_registry = _read("web/src/management-resources.js")
+    react_registry = _read("web/src/management/resources.js")
     runtime_registry = _read(
-        "src/openinfra/interfaces/rendering/static/assets/openinfra-management-resources.js"
+        "src/openinfra/interfaces/rendering/static/assets/management/resources.js"
+    )
+    react_hierarchy = _read("web/src/management/context-hierarchy.js")
+    runtime_hierarchy = _read(
+        "src/openinfra/interfaces/rendering/static/assets/management/context-hierarchy.js"
     )
     assert react_registry == runtime_registry
+    assert react_hierarchy == runtime_hierarchy
+    assert (
+        _read("web/src/management-resources.js") == "export * from './management/resources.js';\n"
+    )
+    assert (
+        _read("src/openinfra/interfaces/rendering/static/assets/openinfra-management-resources.js")
+        == "export * from './management/resources.js';\n"
+    )
     assert "MANAGEMENT_RESOURCES" in react_registry
+    assert "MANAGEMENT_CONTEXT_LEVELS" in react_hierarchy
     assert react_registry.count("id: 'dcim-") >= 5
     assert react_registry.count("id: 'itam-") >= 3
 
@@ -40,6 +53,13 @@ def test_runtime_management_workspace_preserves_raw_crud_contracts() -> None:
         "executeManagementForm",
         "executeManagementDelete",
         "managementIdentityPayload",
+        "updateManagementFilters",
+        "normalizeManagementFilters",
+        "orderManagementContextEntries",
+        "isManagementContextAncestor",
+        "data-dcim-reference-level",
+        "bindDcimReferenceSelects",
+        "selectParentContextFirst",
     ):
         assert contract in shell
 
@@ -71,6 +91,9 @@ def test_react_reference_portal_uses_the_same_management_pattern() -> None:
         "openinfra-management-table",
         "openinfra-management-detail-link",
         "managementIdentityPayload",
+        "updateManagementFilters",
+        "normalizeManagementFilters",
+        "orderManagementContextEntries",
     ):
         assert contract in source
 

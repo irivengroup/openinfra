@@ -445,6 +445,8 @@ class FrontendContractValidator:
             "assets/openinfra-web.css",
             "assets/openinfra-domain-manifest.js",
             "assets/openinfra-management-resources.js",
+            "assets/management/context-hierarchy.js",
+            "assets/management/resources.js",
             "assets/openinfra-search-index.js",
             "assets/openinfra-query-cache.js",
             "assets/openinfra-virtual-list.js",
@@ -470,10 +472,14 @@ class FrontendContractValidator:
         source_form_fields = (self._project_root / "web/src/form-fields.js").read_text(
             encoding="utf-8"
         )
-        runtime_management = assets_by_name["assets/openinfra-management-resources.js"]
-        source_management = (self._project_root / "web/src/management-resources.js").read_text(
+        runtime_management = assets_by_name["assets/management/resources.js"]
+        source_management = (self._project_root / "web/src/management/resources.js").read_text(
             encoding="utf-8"
         )
+        runtime_management_hierarchy = assets_by_name["assets/management/context-hierarchy.js"]
+        source_management_hierarchy = (
+            self._project_root / "web/src/management/context-hierarchy.js"
+        ).read_text(encoding="utf-8")
         if runtime_i18n != source_i18n:
             raise FrontendValidationError(
                 "React and packaged runtime must share the exact same i18n implementation"
@@ -486,6 +492,16 @@ class FrontendContractValidator:
         if runtime_management != source_management:
             raise FrontendValidationError(
                 "React and packaged runtime must share the exact same CRUD management registry"
+            )
+        if runtime_management_hierarchy != source_management_hierarchy:
+            raise FrontendValidationError(
+                "React and packaged runtime must share the exact same management context hierarchy"
+            )
+        if assets_by_name["assets/openinfra-management-resources.js"].strip() != (
+            "export * from './management/resources.js';"
+        ):
+            raise FrontendValidationError(
+                "legacy CRUD management asset must remain a compatibility facade"
             )
         self._validate_i18n_contract(runtime_js, runtime_i18n)
         runtime_manifest = assets_by_name["assets/openinfra-domain-manifest.js"]

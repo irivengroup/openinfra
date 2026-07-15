@@ -9,8 +9,8 @@ import {
   flattenManagementCollection,
   managementIdentityPayload,
   managementResourceForOperation,
-} from '../src/management-resources.js';
-import { loadManagementOperationSchema } from '../src/management-operation-schema.js';
+} from '../src/management/resources.js';
+import { loadManagementOperationSchema } from '../src/management/operation-schema.js';
 
 const modules = new Map([['dcim', dcim], ['itam', itam]]);
 
@@ -65,6 +65,22 @@ test('nested DCIM topology is flattened without mutating the source hierarchy', 
   assert.deepEqual(flattenManagementCollection(byId['dcim-racks'], payload)[0], { code: 'R01', units: 42, site: 'PAR1', building: 'BAT-A', room: 'ROOM-1', rack: 'R01' });
   assert.deepEqual(flattenManagementCollection(byId['dcim-zones'], payload)[0], { code: 'ZONE-A', name: 'Zone A', site: 'PAR1', building: 'BAT-A', room: 'ROOM-1' });
   assert.equal(JSON.stringify(payload), serialized);
+});
+
+
+
+test('flattened management collections inherit explicit organization and subdivision scope without overriding item data', () => {
+  const byId = Object.fromEntries(MANAGEMENT_RESOURCES.map((resource) => [resource.id, resource]));
+  const payload = {
+    sites: [{ code: 'PAR1', organization_id: 'ORG-ITEM', buildings: [{ code: 'BAT-A' }] }],
+  };
+  const scope = { organization_id: 'ORG-SCOPE', tenant_id: 'FIL-A' };
+  const site = flattenManagementCollection(byId['dcim-sites'], payload, scope)[0];
+  const building = flattenManagementCollection(byId['dcim-buildings'], payload, scope)[0];
+  assert.equal(site.organization_id, 'ORG-ITEM');
+  assert.equal(site.tenant_id, 'FIL-A');
+  assert.equal(building.organization_id, 'ORG-SCOPE');
+  assert.equal(building.tenant_id, 'FIL-A');
 });
 
 test('management identity is stable and only contains business keys', () => {

@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.33.4 — Hiérarchie parentale normalisée des formulaires de gestion
+
+- ordre canonique des contextes : Organisation → Filiale/Subdivision → Site → Bâtiment → Étage → Salle → Ligne/Colonne → Rack ;
+- filtres parentaux prioritaires, affichés uniquement lorsqu'ils sont pertinents pour la ressource ;
+- filtres en cascade : une modification de parent invalide automatiquement les descendants ;
+- valeurs Ligne/Colonne multiples filtrables individuellement ;
+- ordre des champs de rattachement normalisé dans les formulaires de gestion et les formulaires d'opération ;
+- sélecteurs DCIM dépendants du contexte parent pour éviter les références incohérentes ;
+- déplacement du code de gestion dans `web/src/management/` et du runtime correspondant dans `assets/management/`, avec façades de compatibilité ;
+- aucune migration, aucun endpoint supprimé et aucune modification de la palette graphique.
+
 ## v0.33.3 — P21 / EPIC-2103 Corrélation sécurité cloud-native
 
 - ajout d’un modèle sûr de références d’images OCI, certificats et secrets référencés dans les snapshots Kubernetes ;

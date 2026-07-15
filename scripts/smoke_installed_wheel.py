@@ -23,7 +23,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.33.3"
+    EXPECTED_VERSION = "0.33.4"
     EXPECTED_ASYNC_ROUTES = (
         "/api/v1/async/jobs",
         "/api/v1/async/jobs/get",
@@ -223,6 +223,8 @@ class InstalledWheelSmoke:
         "openinfra-form-fields.js",
         "openinfra-domain-manifest.js",
         "openinfra-management-resources.js",
+        "management/context-hierarchy.js",
+        "management/resources.js",
         "openinfra-query-cache.js",
         "openinfra-search-index.js",
         "openinfra-virtual-list.js",
@@ -575,7 +577,7 @@ class InstalledWheelSmoke:
     def _assert_release_security_contract(package_root: Path) -> None:
         controls = ReleaseSecurityControlCatalog.build(
             package_root,
-            image_ref="openinfra/runtime:0.33.3",
+            image_ref="openinfra/runtime:0.33.4",
             api_base_url="http://127.0.0.1:8080",
             web_base_url="http://127.0.0.1:2006",
         )

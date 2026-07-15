@@ -1,6 +1,6 @@
 # Mise à niveau
 
-Version cible : `0.33.3`
+Version cible : `0.33.4`
 
 ## Précontrôles
 
@@ -37,7 +37,7 @@ python scripts/docker_environment.py init
 Définir la version cible :
 
 ```powershell
-python -c "from pathlib import Path; p=Path('.env'); rows=p.read_text(encoding='utf-8').splitlines(); p.write_text('\n'.join('OPENINFRA_IMAGE_TAG=0.33.3' if row.startswith('OPENINFRA_IMAGE_TAG=') else row for row in rows) + '\n', encoding='utf-8')"
+python -c "from pathlib import Path; p=Path('.env'); rows=p.read_text(encoding='utf-8').splitlines(); p.write_text('\n'.join('OPENINFRA_IMAGE_TAG=0.33.4' if row.startswith('OPENINFRA_IMAGE_TAG=') else row for row in rows) + '\n', encoding='utf-8')"
 ```
 
 Arrêter sans supprimer les volumes :

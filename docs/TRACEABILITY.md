@@ -1,3 +1,11 @@
+## v0.33.4 — Normalisation structurelle des contextes de gestion
+
+- hiérarchie parentale canonique appliquée aux filtres et formulaires ;
+- filtrage en cascade et invalidation des descendants ;
+- dépendances DCIM alignées sur la topologie réelle ;
+- modules de gestion intégrés durablement sous `web/src/management/` et dans les assets runtime packagés ;
+- compatibilité API/CLI/RBAC/migrations et thème préservée.
+
 ## v0.33.3 — P21 / EPIC-2103 Corrélation sécurité cloud-native
 
 | Exigence | Implémentation | Vérification |

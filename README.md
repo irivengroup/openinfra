@@ -1,6 +1,19 @@
-# OpenInfra v0.33.3
+# OpenInfra v0.33.4
 
-OpenInfra 0.33.3 ajoute la **corrélation sécurité cloud-native** entre workloads Kubernetes, images OCI, documents SBOM, findings de vulnérabilité, certificats PKI et références de secrets, sans ingérer ni persister de secret en clair.
+OpenInfra 0.33.4 normalise la **hiérarchie parentale des formulaires et pages de gestion** afin de présenter partout un contexte cohérent : Organisation → Filiale/Subdivision → Site → Bâtiment → Étage → Salle → Ligne/Colonne → Rack.
+
+## Hiérarchie parentale des formulaires de gestion — v0.33.4
+
+- critères de contexte prioritaires et affichés uniquement lorsqu'ils sont pertinents ;
+- filtres en cascade avec invalidation automatique des descendants lors d'un changement de parent ;
+- lignes et colonnes filtrables individuellement, y compris lorsqu'elles sont stockées sous forme de listes ;
+- ordre des champs de rattachement normalisé dans les formulaires de gestion et les formulaires d'opération ;
+- sélecteurs DCIM dépendants du contexte parent afin d'éviter les références incohérentes ;
+- code source de gestion regroupé durablement sous `web/src/management/` et runtime packagé sous `assets/management/` ;
+- façades de compatibilité conservées pour les anciens imports ;
+- aucune migration, aucune rupture API/CLI/RBAC et aucune modification de la palette graphique.
+
+Voir `docs/ui/MANAGEMENT_CONTEXT_HIERARCHY.md`.
 
 ## Corrélation sécurité cloud-native — P21 / EPIC-2103
 

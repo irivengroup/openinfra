@@ -38,7 +38,7 @@ test('business catalogs and domain chunks are loaded only for the selected opera
   assert.match(runtime, /Promise\.allSettled/);
   assert.match(runtime, /ensureModuleLoaded\(moduleId\)/);
   assert.match(runtime, /ensureManagementRegistryLoaded\(\)/);
-  assert.match(runtime, /import\("\.\/openinfra-management-resources\.js\?v=/);
+  assert.match(runtime, /import\("\.\/management\/resources\.js\?v=/);
   const escapedVersion = packageMetadata.version.replaceAll('.', '\\.');
   assert.match(manifest, new RegExp(`import\\("\\./domains/rsot\\.js\\?v=${escapedVersion}"\\)`));
   assert.match(manifest, new RegExp(`import\\("\\./domains/security\\.js\\?v=${escapedVersion}"\\)`));

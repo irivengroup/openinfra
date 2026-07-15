@@ -123,9 +123,6 @@ class KubernetesGitOpsService:
             policy=policy,
             resources=resources,
         )
-        existing = self._repository.find_state_by_fingerprint(tenant_id, candidate.fingerprint)
-        if existing is not None:
-            return existing
         actor = command.actor or principal.subject
         metadata = {
             "cluster_key": candidate.cluster_key,
@@ -136,6 +133,9 @@ class KubernetesGitOpsService:
             "fingerprint": candidate.fingerprint,
         }
         with self._transaction_manager.begin() as unit_of_work:
+            existing = self._repository.find_state_by_fingerprint(tenant_id, candidate.fingerprint)
+            if existing is not None:
+                return existing
             self._repository.save_state(candidate)
             self._repository.append_event(
                 DomainEvent.create(
@@ -162,10 +162,8 @@ class KubernetesGitOpsService:
         tenant_id, _ = self._authorize(
             command.tenant_id, command.admin_token, Permission.KUBERNETES_READ
         )
-        state = self._repository.get_state(tenant_id, command.state_id)
-        if state is None:
-            raise NotFoundError("Kubernetes GitOps state not found")
-        return state
+        with self._transaction_manager.begin():
+            return self._require_state(tenant_id, command.state_id)
 
     def get_latest_state(
         self, command: GetLatestKubernetesGitOpsStateCommand
@@ -173,22 +171,21 @@ class KubernetesGitOpsService:
         tenant_id, _ = self._authorize(
             command.tenant_id, command.admin_token, Permission.KUBERNETES_READ
         )
-        state = self._repository.find_latest_state(tenant_id, command.cluster_key)
-        if state is None:
-            raise NotFoundError("Kubernetes GitOps state not found")
-        return state
+        with self._transaction_manager.begin():
+            return self._require_latest_state(tenant_id, command.cluster_key)
 
     def list_states(self, command: ListKubernetesGitOpsStatesCommand) -> KubernetesGitOpsStatePage:
         tenant_id, _ = self._authorize(
             command.tenant_id, command.admin_token, Permission.KUBERNETES_READ
         )
-        return self._repository.list_states(
-            tenant_id,
-            Pagination.from_values(command.limit, command.cursor),
-            command.cluster_key,
-            command.environment,
-            command.owner,
-        )
+        with self._transaction_manager.begin():
+            return self._repository.list_states(
+                tenant_id,
+                Pagination.from_values(command.limit, command.cursor),
+                command.cluster_key,
+                command.environment,
+                command.owner,
+            )
 
     def assess(
         self, command: AssessKubernetesGitOpsDriftCommand
@@ -196,17 +193,16 @@ class KubernetesGitOpsService:
         tenant_id, principal = self._authorize(
             command.tenant_id, command.admin_token, Permission.KUBERNETES_READ
         )
-        expected = self._repository.get_state(tenant_id, command.expected_state_id)
-        if expected is None:
-            raise NotFoundError("Kubernetes GitOps state not found")
-        observed = self._topology_repository.get_snapshot(tenant_id, command.observed_snapshot_id)
-        if observed is None:
-            raise NotFoundError("Kubernetes topology snapshot not found")
-        return self._record_assessment(
-            expected,
-            observed,
-            command.actor or principal.subject,
-        )
+        with self._transaction_manager.begin() as unit_of_work:
+            expected = self._require_state(tenant_id, command.expected_state_id)
+            observed = self._require_snapshot(tenant_id, command.observed_snapshot_id)
+            report = self._record_assessment(
+                expected,
+                observed,
+                command.actor or principal.subject,
+            )
+            unit_of_work.commit()
+            return report
 
     def assess_latest(
         self, command: AssessLatestKubernetesGitOpsDriftCommand
@@ -214,17 +210,16 @@ class KubernetesGitOpsService:
         tenant_id, principal = self._authorize(
             command.tenant_id, command.admin_token, Permission.KUBERNETES_READ
         )
-        expected = self._repository.find_latest_state(tenant_id, command.cluster_key)
-        if expected is None:
-            raise NotFoundError("Kubernetes GitOps state not found")
-        observed = self._topology_repository.find_latest_snapshot(tenant_id, command.cluster_key)
-        if observed is None:
-            raise NotFoundError("Kubernetes topology snapshot not found")
-        return self._record_assessment(
-            expected,
-            observed,
-            command.actor or principal.subject,
-        )
+        with self._transaction_manager.begin() as unit_of_work:
+            expected = self._require_latest_state(tenant_id, command.cluster_key)
+            observed = self._require_latest_snapshot(tenant_id, command.cluster_key)
+            report = self._record_assessment(
+                expected,
+                observed,
+                command.actor or principal.subject,
+            )
+            unit_of_work.commit()
+            return report
 
     def _record_assessment(
         self,
@@ -244,28 +239,54 @@ class KubernetesGitOpsService:
             "drift_count": len(report.drifts),
             "automatic_remediation": False,
         }
-        with self._transaction_manager.begin() as unit_of_work:
-            if report.status is KubernetesGitOpsComplianceStatus.DRIFT:
-                self._repository.append_event(
-                    DomainEvent.create(
-                        expected.tenant_id,
-                        expected.id,
-                        "kubernetes.gitops.drift.detected",
-                        metadata,
-                    )
-                )
-            self._audit_repository.append(
-                AuditEvent.record(
+        if report.status is KubernetesGitOpsComplianceStatus.DRIFT:
+            self._repository.append_event(
+                DomainEvent.create(
                     expected.tenant_id,
-                    actor,
-                    "kubernetes.gitops.assessed",
-                    "kubernetes_gitops_state",
-                    expected.id.value,
-                    metadata=metadata,
+                    expected.id,
+                    "kubernetes.gitops.drift.detected",
+                    metadata,
                 )
             )
-            unit_of_work.commit()
+        self._audit_repository.append(
+            AuditEvent.record(
+                expected.tenant_id,
+                actor,
+                "kubernetes.gitops.assessed",
+                "kubernetes_gitops_state",
+                expected.id.value,
+                metadata=metadata,
+            )
+        )
         return report
+
+    def _require_state(self, tenant_id: TenantId, state_id: str) -> KubernetesGitOpsState:
+        state = self._repository.get_state(tenant_id, state_id)
+        if state is None:
+            raise NotFoundError("Kubernetes GitOps state not found")
+        return state
+
+    def _require_latest_state(self, tenant_id: TenantId, cluster_key: str) -> KubernetesGitOpsState:
+        state = self._repository.find_latest_state(tenant_id, cluster_key)
+        if state is None:
+            raise NotFoundError("Kubernetes GitOps state not found")
+        return state
+
+    def _require_snapshot(
+        self, tenant_id: TenantId, snapshot_id: str
+    ) -> KubernetesTopologySnapshot:
+        snapshot = self._topology_repository.get_snapshot(tenant_id, snapshot_id)
+        if snapshot is None:
+            raise NotFoundError("Kubernetes topology snapshot not found")
+        return snapshot
+
+    def _require_latest_snapshot(
+        self, tenant_id: TenantId, cluster_key: str
+    ) -> KubernetesTopologySnapshot:
+        snapshot = self._topology_repository.find_latest_snapshot(tenant_id, cluster_key)
+        if snapshot is None:
+            raise NotFoundError("Kubernetes topology snapshot not found")
+        return snapshot
 
     def _authorize(
         self, tenant_id: str, token: str, permission: Permission

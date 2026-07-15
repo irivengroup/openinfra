@@ -713,14 +713,14 @@ const OPENINFRA_SIDEBAR_CONTEXTS = {
 };
 
 const OPENINFRA_DOMAIN_LOADERS = {
-  "rsot": () => import("./domains/rsot.js?v=0.33.7"),
-  "ipam": () => import("./domains/ipam.js?v=0.33.7"),
-  "dcim": () => import("./domains/dcim.js?v=0.33.7"),
-  "itam": () => import("./domains/itam.js?v=0.33.7"),
-  "discovery": () => import("./domains/discovery.js?v=0.33.7"),
-  "data": () => import("./domains/data.js?v=0.33.7"),
-  "integrations": () => import("./domains/integrations.js?v=0.33.7"),
-  "security": () => import("./domains/security.js?v=0.33.7"),
+  "rsot": () => import("./domains/rsot.js?v=0.33.8"),
+  "ipam": () => import("./domains/ipam.js?v=0.33.8"),
+  "dcim": () => import("./domains/dcim.js?v=0.33.8"),
+  "itam": () => import("./domains/itam.js?v=0.33.8"),
+  "discovery": () => import("./domains/discovery.js?v=0.33.8"),
+  "data": () => import("./domains/data.js?v=0.33.8"),
+  "integrations": () => import("./domains/integrations.js?v=0.33.8"),
+  "security": () => import("./domains/security.js?v=0.33.8"),
 };
 
 

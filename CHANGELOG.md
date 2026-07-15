@@ -1,3 +1,12 @@
+## v0.33.8 — Correctif UnitOfWork PostgreSQL pour Kubernetes
+
+- corrige les lectures Kubernetes exécutées hors `UnitOfWork` avec le backend PostgreSQL ;
+- couvre les topologies, expositions, corrélations sécurité, capacité, imports idempotents et états GitOps ;
+- regroupe les lectures et écritures GitOps d’une évaluation dans une transaction unique, sans transaction imbriquée ;
+- conserve le comportement JSON tout en alignant le service sur le contrat transactionnel strict PostgreSQL ;
+- ajoute un test de non-régression qui échoue dès qu’un repository Kubernetes est appelé hors unité de travail ;
+- aucune migration, aucun endpoint, aucune commande CLI et aucune modification du thème.
+
 ## v0.33.7 — Correctif frontend Kubernetes et régression CI Outbox
 
 - ajoute le contexte frontend `Kubernetes et cloud-native` sous Discovery dans la sidebar et le mégamenu ;

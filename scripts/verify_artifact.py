@@ -239,6 +239,7 @@ class SourceDistributionVerifier:
         "tests/integration/test_kubernetes_capacity_cli.py",
         "tests/integration/test_kubernetes_capacity_web_contract.py",
         "tests/integration/test_kubernetes_capacity_tooling.py",
+        "tests/integration/test_kubernetes_unit_of_work_regression.py",
         "requirements/runtime.txt",
         "requirements/security-audit.txt",
         ".github/workflows/ci.yml",

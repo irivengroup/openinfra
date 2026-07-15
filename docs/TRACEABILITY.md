@@ -1,4 +1,4 @@
-## v0.33.7 — Correctif frontend Kubernetes et régression CI Outbox
+## v0.33.8 — Correctif frontend Kubernetes et régression CI Outbox
 
 - Correctif UX : exposition du contexte `Discovery · Kubernetes et cloud-native` dans la navigation frontend réelle.
 - Correctif CI : contrat de migration Outbox rendu compatible avec les migrations additives 0055 et 0056.

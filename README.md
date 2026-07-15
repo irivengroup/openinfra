@@ -1,6 +1,15 @@
-# OpenInfra v0.33.7
+# OpenInfra v0.33.8
 
-OpenInfra 0.33.7 corrige l’exposition frontend du contexte **Discovery · Kubernetes et cloud-native** et la régression CI du gate **Transactional outbox and specialized workers regression**, sans modifier le thème ni les contrats publics.
+OpenInfra 0.33.8 corrige la discipline transactionnelle PostgreSQL des services Kubernetes et GitOps : toutes les opérations de repository concernées s’exécutent désormais dans un `UnitOfWork` actif, sans modifier les contrats publics ni le thème.
+
+## Correctif PostgreSQL — UnitOfWork Kubernetes
+
+- toutes les lectures des repositories Kubernetes et GitOps s’exécutent dans un `UnitOfWork` actif ;
+- les imports idempotents vérifient désormais l’existence et écrivent dans la même unité de travail ;
+- les corrélations exposition/sécurité et les tendances de capacité conservent leurs lectures associées dans une frontière transactionnelle explicite ;
+- les évaluations GitOps lisent l’état attendu et observé puis écrivent audit/outbox dans une transaction unique, sans transaction imbriquée ;
+- un test de non-régression interdit tout nouvel accès repository Kubernetes hors unité de travail ;
+- aucune migration, route API, commande CLI ou modification du thème.
 
 ## Capacité Kubernetes — P21 / EPIC-2105
 

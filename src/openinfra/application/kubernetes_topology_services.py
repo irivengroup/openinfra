@@ -159,9 +159,6 @@ class KubernetesTopologyService:
             region=command.region,
             site_code=command.site_code,
         )
-        existing = self._repository.find_snapshot_by_fingerprint(tenant_id, candidate.fingerprint)
-        if existing is not None:
-            return existing
         actor = command.actor or principal.subject
         metadata = {
             "cluster_key": candidate.cluster_key,
@@ -170,6 +167,11 @@ class KubernetesTopologyService:
             "fingerprint": candidate.fingerprint,
         }
         with self._transaction_manager.begin() as unit_of_work:
+            existing = self._repository.find_snapshot_by_fingerprint(
+                tenant_id, candidate.fingerprint
+            )
+            if existing is not None:
+                return existing
             self._repository.save_snapshot(candidate)
             self._repository.append_event(
                 DomainEvent.create(
@@ -196,10 +198,8 @@ class KubernetesTopologyService:
         tenant_id, _ = self._authorize(
             command.tenant_id, command.admin_token, Permission.KUBERNETES_READ
         )
-        snapshot = self._repository.get_snapshot(tenant_id, command.snapshot_id)
-        if snapshot is None:
-            raise NotFoundError("Kubernetes topology snapshot not found")
-        return snapshot
+        with self._transaction_manager.begin():
+            return self._require_snapshot(tenant_id, command.snapshot_id)
 
     def get_latest_snapshot(
         self, command: GetLatestKubernetesTopologyCommand
@@ -207,10 +207,8 @@ class KubernetesTopologyService:
         tenant_id, _ = self._authorize(
             command.tenant_id, command.admin_token, Permission.KUBERNETES_READ
         )
-        snapshot = self._repository.find_latest_snapshot(tenant_id, command.cluster_key)
-        if snapshot is None:
-            raise NotFoundError("Kubernetes topology snapshot not found")
-        return snapshot
+        with self._transaction_manager.begin():
+            return self._require_latest_snapshot(tenant_id, command.cluster_key)
 
     def list_snapshots(
         self, command: ListKubernetesTopologiesCommand
@@ -218,13 +216,14 @@ class KubernetesTopologyService:
         tenant_id, _ = self._authorize(
             command.tenant_id, command.admin_token, Permission.KUBERNETES_READ
         )
-        return self._repository.list_snapshots(
-            tenant_id,
-            Pagination.from_values(command.limit, command.cursor),
-            command.cluster_key,
-            command.provider,
-            command.site_code,
-        )
+        with self._transaction_manager.begin():
+            return self._repository.list_snapshots(
+                tenant_id,
+                Pagination.from_values(command.limit, command.cursor),
+                command.cluster_key,
+                command.provider,
+                command.site_code,
+            )
 
     def topology(self, command: GetKubernetesTopologyCommand) -> dict[str, object]:
         return self.get_snapshot(command).topology()
@@ -233,14 +232,22 @@ class KubernetesTopologyService:
         return self.get_latest_snapshot(command).topology()
 
     def exposure(self, command: GetKubernetesTopologyCommand) -> KubernetesExposureReport:
-        snapshot = self.get_snapshot(command)
-        return self._exposure_report(snapshot)
+        tenant_id, _ = self._authorize(
+            command.tenant_id, command.admin_token, Permission.KUBERNETES_READ
+        )
+        with self._transaction_manager.begin():
+            snapshot = self._require_snapshot(tenant_id, command.snapshot_id)
+            return self._exposure_report(snapshot)
 
     def latest_exposure(
         self, command: GetLatestKubernetesTopologyCommand
     ) -> KubernetesExposureReport:
-        snapshot = self.get_latest_snapshot(command)
-        return self._exposure_report(snapshot)
+        tenant_id, _ = self._authorize(
+            command.tenant_id, command.admin_token, Permission.KUBERNETES_READ
+        )
+        with self._transaction_manager.begin():
+            snapshot = self._require_latest_snapshot(tenant_id, command.cluster_key)
+            return self._exposure_report(snapshot)
 
     def capacity(self, command: GetKubernetesCapacityCommand) -> KubernetesCapacityReport:
         snapshot = self.get_snapshot(
@@ -278,11 +285,12 @@ class KubernetesTopologyService:
             raise ValidationError(
                 f"capacity trend limit must be between 2 and {self._MAX_CAPACITY_TREND_SNAPSHOTS}"
             )
-        page = self._repository.list_snapshots(
-            tenant_id,
-            Pagination.from_values(command.limit),
-            cluster_key=command.cluster_key,
-        )
+        with self._transaction_manager.begin():
+            page = self._repository.list_snapshots(
+                tenant_id,
+                Pagination.from_values(command.limit),
+                cluster_key=command.cluster_key,
+            )
         if not page.items:
             raise NotFoundError("Kubernetes topology snapshot not found")
         return KubernetesCapacityTrendReport.build(
@@ -296,14 +304,38 @@ class KubernetesTopologyService:
     def security(
         self, command: GetKubernetesTopologyCommand
     ) -> KubernetesSecurityCorrelationReport:
-        snapshot = self.get_snapshot(command)
-        return self._security_report(snapshot)
+        tenant_id, _ = self._authorize(
+            command.tenant_id, command.admin_token, Permission.KUBERNETES_READ
+        )
+        with self._transaction_manager.begin():
+            snapshot = self._require_snapshot(tenant_id, command.snapshot_id)
+            return self._security_report(snapshot)
 
     def latest_security(
         self, command: GetLatestKubernetesTopologyCommand
     ) -> KubernetesSecurityCorrelationReport:
-        snapshot = self.get_latest_snapshot(command)
-        return self._security_report(snapshot)
+        tenant_id, _ = self._authorize(
+            command.tenant_id, command.admin_token, Permission.KUBERNETES_READ
+        )
+        with self._transaction_manager.begin():
+            snapshot = self._require_latest_snapshot(tenant_id, command.cluster_key)
+            return self._security_report(snapshot)
+
+    def _require_snapshot(
+        self, tenant_id: TenantId, snapshot_id: str
+    ) -> KubernetesTopologySnapshot:
+        snapshot = self._repository.get_snapshot(tenant_id, snapshot_id)
+        if snapshot is None:
+            raise NotFoundError("Kubernetes topology snapshot not found")
+        return snapshot
+
+    def _require_latest_snapshot(
+        self, tenant_id: TenantId, cluster_key: str
+    ) -> KubernetesTopologySnapshot:
+        snapshot = self._repository.find_latest_snapshot(tenant_id, cluster_key)
+        if snapshot is None:
+            raise NotFoundError("Kubernetes topology snapshot not found")
+        return snapshot
 
     def _security_report(
         self, snapshot: KubernetesTopologySnapshot

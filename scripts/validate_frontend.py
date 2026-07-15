@@ -361,9 +361,9 @@ class FrontendContractValidator:
             )
 
         operation_ids = re.findall(r'^\s{6}"id": "([^"]+)",?$', runtime_catalog, flags=re.MULTILINE)
-        if len(operation_ids) != 288:
+        if len(operation_ids) != 293:
             raise FrontendValidationError(
-                f"runtime domain catalog must expose 288 operations, found {len(operation_ids)}"
+                f"runtime domain catalog must expose 293 operations, found {len(operation_ids)}"
             )
         duplicates = sorted(
             operation_id

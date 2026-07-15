@@ -325,7 +325,10 @@ from openinfra.application.kubernetes_gitops_services import (
     ListKubernetesGitOpsStatesCommand,
 )
 from openinfra.application.kubernetes_topology_services import (
+    GetKubernetesCapacityCommand,
+    GetKubernetesCapacityTrendCommand,
     GetKubernetesTopologyCommand,
+    GetLatestKubernetesCapacityCommand,
     GetLatestKubernetesTopologyCommand,
     ImportKubernetesTopologyCommand,
     ListKubernetesTopologiesCommand,
@@ -2026,6 +2029,109 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
                     )
                 )
                 responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/kubernetes/topologies/capacity":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.kubernetes_topology_service.capacity(
+                    GetKubernetesCapacityCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        snapshot_id=self._first_query_value(query, "snapshot_id"),
+                        warning_threshold_percent=float(
+                            self._first_query_value(query, "warning_threshold_percent", "80")
+                        ),
+                        critical_threshold_percent=float(
+                            self._first_query_value(query, "critical_threshold_percent", "90")
+                        ),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/kubernetes/topologies/latest-capacity":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.kubernetes_topology_service.latest_capacity(
+                    GetLatestKubernetesCapacityCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        cluster_key=self._first_query_value(query, "cluster_key"),
+                        warning_threshold_percent=float(
+                            self._first_query_value(query, "warning_threshold_percent", "80")
+                        ),
+                        critical_threshold_percent=float(
+                            self._first_query_value(query, "critical_threshold_percent", "90")
+                        ),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route == "/api/v1/kubernetes/topologies/capacity-trend":
+            try:
+                query = parse_qs(parsed.query)
+                result = self.server.application.kubernetes_topology_service.capacity_trend(
+                    GetKubernetesCapacityTrendCommand(
+                        tenant_id=self._first_query_value(query, "tenant_id"),
+                        admin_token=self._bearer_token(),
+                        cluster_key=self._first_query_value(query, "cluster_key"),
+                        limit=int(self._first_query_value(query, "limit", "24")),
+                        warning_threshold_percent=float(
+                            self._first_query_value(query, "warning_threshold_percent", "80")
+                        ),
+                        critical_threshold_percent=float(
+                            self._first_query_value(query, "critical_threshold_percent", "90")
+                        ),
+                    )
+                )
+                responder.send(HTTPStatus.OK, result.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (ValueError, OpenInfraError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if route in {
+            "/api/v1/kubernetes/topologies/capacity-export",
+            "/api/v1/kubernetes/topologies/latest-capacity-export",
+        }:
+            try:
+                query = parse_qs(parsed.query)
+                warning = float(self._first_query_value(query, "warning_threshold_percent", "80"))
+                critical = float(self._first_query_value(query, "critical_threshold_percent", "90"))
+                if route.endswith("latest-capacity-export"):
+                    report = self.server.application.kubernetes_topology_service.latest_capacity(
+                        GetLatestKubernetesCapacityCommand(
+                            tenant_id=self._first_query_value(query, "tenant_id"),
+                            admin_token=self._bearer_token(),
+                            cluster_key=self._first_query_value(query, "cluster_key"),
+                            warning_threshold_percent=warning,
+                            critical_threshold_percent=critical,
+                        )
+                    )
+                else:
+                    report = self.server.application.kubernetes_topology_service.capacity(
+                        GetKubernetesCapacityCommand(
+                            tenant_id=self._first_query_value(query, "tenant_id"),
+                            admin_token=self._bearer_token(),
+                            snapshot_id=self._first_query_value(query, "snapshot_id"),
+                            warning_threshold_percent=warning,
+                            critical_threshold_percent=critical,
+                        )
+                    )
+                content_type, body = report.export(self._first_query_value(query, "format", "csv"))
+                text_responder.send(HTTPStatus.OK, body, content_type)
             except AccessDeniedError as exc:
                 responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
             except (ValueError, OpenInfraError) as exc:
@@ -8949,6 +9055,13 @@ class OpenInfraApiRuntime(BaseServer):
                     "topology_latest_exposure": "/api/v1/kubernetes/topologies/latest-exposure",
                     "topology_security": "/api/v1/kubernetes/topologies/security",
                     "topology_latest_security": "/api/v1/kubernetes/topologies/latest-security",
+                    "topology_capacity": "/api/v1/kubernetes/topologies/capacity",
+                    "topology_latest_capacity": "/api/v1/kubernetes/topologies/latest-capacity",
+                    "topology_capacity_trend": "/api/v1/kubernetes/topologies/capacity-trend",
+                    "topology_capacity_export": "/api/v1/kubernetes/topologies/capacity-export",
+                    "topology_latest_capacity_export": (
+                        "/api/v1/kubernetes/topologies/latest-capacity-export"
+                    ),
                     "topology_import": "/api/v1/kubernetes/topologies/import",
                 },
                 "sbom": {

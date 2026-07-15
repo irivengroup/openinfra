@@ -439,6 +439,17 @@ jobs:
             tests/integration/test_kubernetes_gitops_web_contract.py \
             tests/integration/test_kubernetes_gitops_tooling.py
 
+      - name: P21 Kubernetes cluster and namespace capacity contracts
+        run: |
+          python scripts/validate_kubernetes_capacity.py --project-root . --enforce
+          python -m pytest -q --no-cov \
+            tests/unit/test_kubernetes_capacity.py \
+            tests/integration/test_kubernetes_capacity_services.py \
+            tests/integration/test_kubernetes_capacity_http_api.py \
+            tests/integration/test_kubernetes_capacity_cli.py \
+            tests/integration/test_kubernetes_capacity_web_contract.py \
+            tests/integration/test_kubernetes_capacity_tooling.py
+
       - name: Unit and integration tests with coverage
         run: python -m pytest
 

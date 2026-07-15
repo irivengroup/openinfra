@@ -146,10 +146,11 @@ class KubernetesTopologyValidator:
             KubernetesResourceKind.DNS_RECORD,
             KubernetesResourceKind.MESH_ROUTE,
         }
-        if kind not in exposure_kinds:
-            return normalized
-
         result = dict(normalized)
+        if kind not in exposure_kinds:
+            if "capacity" in result:
+                result["capacity"] = cls.capacity_attributes(kind, result["capacity"])
+            return dict(sorted(result.items()))
         if "scope" in result:
             scope = str(result["scope"]).strip().lower()
             if scope not in {"cluster", "internal", "external"}:
@@ -234,7 +235,61 @@ class KubernetesTopologyValidator:
             result["record_type"] = record_type
             result["values"] = values
             result["ttl"] = ttl
+        if "capacity" in result:
+            result["capacity"] = cls.capacity_attributes(kind, result["capacity"])
         return dict(sorted(result.items()))
+
+    @classmethod
+    def capacity_attributes(cls, kind: KubernetesResourceKind, value: Any) -> dict[str, int]:
+        if not isinstance(value, dict):
+            raise ValidationError("capacity must be a JSON object")
+        allowed_by_kind = {
+            KubernetesResourceKind.NODE: {
+                "cpu_capacity_millicores",
+                "memory_capacity_bytes",
+                "storage_capacity_bytes",
+            },
+            KubernetesResourceKind.POD: {
+                "cpu_request_millicores",
+                "cpu_limit_millicores",
+                "cpu_usage_millicores",
+                "memory_request_bytes",
+                "memory_limit_bytes",
+                "memory_usage_bytes",
+            },
+            KubernetesResourceKind.VOLUME: {
+                "storage_request_bytes",
+                "storage_limit_bytes",
+                "storage_usage_bytes",
+                "storage_capacity_bytes",
+            },
+        }
+        allowed = allowed_by_kind.get(kind)
+        if allowed is None:
+            raise ValidationError("capacity metrics are only valid for nodes, pods and volumes")
+        unknown = sorted({str(key) for key in value} - allowed)
+        if unknown:
+            raise ValidationError(f"unsupported Kubernetes capacity metric: {unknown[0]}")
+        normalized: dict[str, int] = {}
+        for raw_key, raw_value in value.items():
+            key = str(raw_key)
+            if isinstance(raw_value, bool):
+                raise ValidationError(f"{key} must be a non-negative integer")
+            try:
+                number = int(raw_value)
+            except (TypeError, ValueError) as exc:
+                raise ValidationError(f"{key} must be a non-negative integer") from exc
+            if number < 0 or number > 9_223_372_036_854_775_807:
+                raise ValidationError(f"{key} must be between 0 and 9223372036854775807")
+            normalized[key] = number
+        for prefix in ("cpu", "memory", "storage"):
+            request = normalized.get(
+                f"{prefix}_request_{'millicores' if prefix == 'cpu' else 'bytes'}"
+            )
+            limit = normalized.get(f"{prefix}_limit_{'millicores' if prefix == 'cpu' else 'bytes'}")
+            if request is not None and limit is not None and request > limit:
+                raise ValidationError(f"{prefix} request cannot exceed limit")
+        return dict(sorted(normalized.items()))
 
     @classmethod
     def _string_array(

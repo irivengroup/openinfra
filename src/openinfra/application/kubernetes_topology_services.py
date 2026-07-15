@@ -24,6 +24,10 @@ from openinfra.domain.common import (
     ValidationError,
 )
 from openinfra.domain.flow_matrix import FlowDeclaration
+from openinfra.domain.kubernetes_capacity import (
+    KubernetesCapacityReport,
+    KubernetesCapacityTrendReport,
+)
 from openinfra.domain.kubernetes_exposure import KubernetesExposureReport
 from openinfra.domain.kubernetes_security import KubernetesSecurityCorrelationReport
 from openinfra.domain.kubernetes_topology import (
@@ -66,6 +70,34 @@ class GetLatestKubernetesTopologyCommand:
 
 
 @dataclass(frozen=True, slots=True)
+class GetKubernetesCapacityTrendCommand:
+    tenant_id: str
+    admin_token: str
+    cluster_key: str
+    limit: int = 24
+    warning_threshold_percent: float = 80.0
+    critical_threshold_percent: float = 90.0
+
+
+@dataclass(frozen=True, slots=True)
+class GetKubernetesCapacityCommand:
+    tenant_id: str
+    admin_token: str
+    snapshot_id: str
+    warning_threshold_percent: float = 80.0
+    critical_threshold_percent: float = 90.0
+
+
+@dataclass(frozen=True, slots=True)
+class GetLatestKubernetesCapacityCommand:
+    tenant_id: str
+    admin_token: str
+    cluster_key: str
+    warning_threshold_percent: float = 80.0
+    critical_threshold_percent: float = 90.0
+
+
+@dataclass(frozen=True, slots=True)
 class ListKubernetesTopologiesCommand:
     tenant_id: str
     admin_token: str
@@ -85,6 +117,8 @@ class KubernetesTopologyService:
     _MAX_SBOM_DOCUMENTS = 2_000
     _MAX_SBOM_DIRECT_REFERENCES = 512
     _MAX_SBOM_FINDINGS = 10_000
+    _MAX_CAPACITY_TREND_SNAPSHOTS = 96
+    _MAX_CAPACITY_TREND_RESOURCES = 1_000_000
 
     def __init__(
         self,
@@ -207,6 +241,57 @@ class KubernetesTopologyService:
     ) -> KubernetesExposureReport:
         snapshot = self.get_latest_snapshot(command)
         return self._exposure_report(snapshot)
+
+    def capacity(self, command: GetKubernetesCapacityCommand) -> KubernetesCapacityReport:
+        snapshot = self.get_snapshot(
+            GetKubernetesTopologyCommand(
+                command.tenant_id, command.admin_token, command.snapshot_id
+            )
+        )
+        return KubernetesCapacityReport.build(
+            snapshot,
+            command.warning_threshold_percent,
+            command.critical_threshold_percent,
+        )
+
+    def latest_capacity(
+        self, command: GetLatestKubernetesCapacityCommand
+    ) -> KubernetesCapacityReport:
+        snapshot = self.get_latest_snapshot(
+            GetLatestKubernetesTopologyCommand(
+                command.tenant_id, command.admin_token, command.cluster_key
+            )
+        )
+        return KubernetesCapacityReport.build(
+            snapshot,
+            command.warning_threshold_percent,
+            command.critical_threshold_percent,
+        )
+
+    def capacity_trend(
+        self, command: GetKubernetesCapacityTrendCommand
+    ) -> KubernetesCapacityTrendReport:
+        tenant_id, _ = self._authorize(
+            command.tenant_id, command.admin_token, Permission.KUBERNETES_READ
+        )
+        if not 2 <= command.limit <= self._MAX_CAPACITY_TREND_SNAPSHOTS:
+            raise ValidationError(
+                f"capacity trend limit must be between 2 and {self._MAX_CAPACITY_TREND_SNAPSHOTS}"
+            )
+        page = self._repository.list_snapshots(
+            tenant_id,
+            Pagination.from_values(command.limit),
+            cluster_key=command.cluster_key,
+        )
+        if not page.items:
+            raise NotFoundError("Kubernetes topology snapshot not found")
+        return KubernetesCapacityTrendReport.build(
+            command.cluster_key.strip().lower(),
+            page.items,
+            command.warning_threshold_percent,
+            command.critical_threshold_percent,
+            max_resources=self._MAX_CAPACITY_TREND_RESOURCES,
+        )
 
     def security(
         self, command: GetKubernetesTopologyCommand

@@ -1,3 +1,12 @@
+## v0.33.6 — P21 / EPIC-2105 Capacité cluster et namespace
+
+- Roadmap : `P21`, `EPIC-2105`, `REL-11`, `REQ-00470`.
+
+| Exigence | Couverture | Validation |
+|---|---|---|
+| EPIC-2105 / TST-P21-K8S-SCALE-GATE | capacité CPU/mémoire/stockage cluster et namespace, tendances bornées, alertes et exports | tests domaine, services, HTTP, CLI, web et validateur projet |
+| Compatibilité historique | snapshots sans métriques de capacité sérialisés à l’identique | test de fingerprint et absence de migration supplémentaire |
+
 ## v0.33.5 — P21 / EPIC-2104 GitOps drift et filtres multicritères
 
 | Exigence | Implémentation | Vérification |

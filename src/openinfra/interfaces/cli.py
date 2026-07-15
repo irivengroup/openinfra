@@ -321,7 +321,10 @@ from openinfra.application.kubernetes_gitops_services import (
     ListKubernetesGitOpsStatesCommand,
 )
 from openinfra.application.kubernetes_topology_services import (
+    GetKubernetesCapacityCommand,
+    GetKubernetesCapacityTrendCommand,
     GetKubernetesTopologyCommand,
+    GetLatestKubernetesCapacityCommand,
     GetLatestKubernetesTopologyCommand,
     ImportKubernetesTopologyCommand,
     ListKubernetesTopologiesCommand,
@@ -2578,6 +2581,65 @@ class OpenInfraCLI:
         latest_security.add_argument("--admin-token", required=True)
         latest_security.add_argument("--cluster-key", required=True)
         latest_security.set_defaults(handler=self._handle_kubernetes_latest_security)
+
+        capacity = commands.add_parser(
+            "capacity", help="calculate cluster and namespace capacity for one snapshot"
+        )
+        self._add_backend_arguments(capacity)
+        capacity.add_argument("--tenant", required=True)
+        capacity.add_argument("--admin-token", required=True)
+        capacity.add_argument("--snapshot-id", required=True)
+        capacity.add_argument("--warning-threshold", type=float, default=80.0)
+        capacity.add_argument("--critical-threshold", type=float, default=90.0)
+        capacity.set_defaults(handler=self._handle_kubernetes_capacity)
+
+        latest_capacity = commands.add_parser(
+            "latest-capacity", help="calculate capacity for the latest cluster snapshot"
+        )
+        self._add_backend_arguments(latest_capacity)
+        latest_capacity.add_argument("--tenant", required=True)
+        latest_capacity.add_argument("--admin-token", required=True)
+        latest_capacity.add_argument("--cluster-key", required=True)
+        latest_capacity.add_argument("--warning-threshold", type=float, default=80.0)
+        latest_capacity.add_argument("--critical-threshold", type=float, default=90.0)
+        latest_capacity.set_defaults(handler=self._handle_kubernetes_latest_capacity)
+
+        capacity_trend = commands.add_parser(
+            "capacity-trend", help="render a bounded capacity trend for one cluster"
+        )
+        self._add_backend_arguments(capacity_trend)
+        capacity_trend.add_argument("--tenant", required=True)
+        capacity_trend.add_argument("--admin-token", required=True)
+        capacity_trend.add_argument("--cluster-key", required=True)
+        capacity_trend.add_argument("--limit", type=int, default=24)
+        capacity_trend.add_argument("--warning-threshold", type=float, default=80.0)
+        capacity_trend.add_argument("--critical-threshold", type=float, default=90.0)
+        capacity_trend.set_defaults(handler=self._handle_kubernetes_capacity_trend)
+
+        capacity_export = commands.add_parser(
+            "capacity-export", help="export one snapshot capacity report as JSON or CSV"
+        )
+        self._add_backend_arguments(capacity_export)
+        capacity_export.add_argument("--tenant", required=True)
+        capacity_export.add_argument("--admin-token", required=True)
+        capacity_export.add_argument("--snapshot-id", required=True)
+        capacity_export.add_argument("--format", choices=("json", "csv"), default="csv")
+        capacity_export.add_argument("--warning-threshold", type=float, default=80.0)
+        capacity_export.add_argument("--critical-threshold", type=float, default=90.0)
+        capacity_export.set_defaults(handler=self._handle_kubernetes_capacity_export)
+
+        latest_capacity_export = commands.add_parser(
+            "latest-capacity-export",
+            help="export the latest cluster capacity report as JSON or CSV",
+        )
+        self._add_backend_arguments(latest_capacity_export)
+        latest_capacity_export.add_argument("--tenant", required=True)
+        latest_capacity_export.add_argument("--admin-token", required=True)
+        latest_capacity_export.add_argument("--cluster-key", required=True)
+        latest_capacity_export.add_argument("--format", choices=("json", "csv"), default="csv")
+        latest_capacity_export.add_argument("--warning-threshold", type=float, default=80.0)
+        latest_capacity_export.add_argument("--critical-threshold", type=float, default=90.0)
+        latest_capacity_export.set_defaults(handler=self._handle_kubernetes_latest_capacity_export)
 
         gitops_import = commands.add_parser(
             "gitops-import", help="import one immutable GitOps expected-state snapshot"
@@ -7240,6 +7302,67 @@ class OpenInfraCLI:
             GetLatestKubernetesTopologyCommand(args.tenant, args.admin_token, args.cluster_key)
         )
         print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    @staticmethod
+    def _capacity_thresholds(args: argparse.Namespace) -> tuple[float, float]:
+        return float(args.warning_threshold), float(args.critical_threshold)
+
+    def _handle_kubernetes_capacity(self, args: argparse.Namespace) -> int:
+        warning, critical = self._capacity_thresholds(args)
+        report = self._create_application(args).kubernetes_topology_service.capacity(
+            GetKubernetesCapacityCommand(
+                args.tenant, args.admin_token, args.snapshot_id, warning, critical
+            )
+        )
+        print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_kubernetes_latest_capacity(self, args: argparse.Namespace) -> int:
+        warning, critical = self._capacity_thresholds(args)
+        report = self._create_application(args).kubernetes_topology_service.latest_capacity(
+            GetLatestKubernetesCapacityCommand(
+                args.tenant, args.admin_token, args.cluster_key, warning, critical
+            )
+        )
+        print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_kubernetes_capacity_trend(self, args: argparse.Namespace) -> int:
+        warning, critical = self._capacity_thresholds(args)
+        report = self._create_application(args).kubernetes_topology_service.capacity_trend(
+            GetKubernetesCapacityTrendCommand(
+                args.tenant,
+                args.admin_token,
+                args.cluster_key,
+                args.limit,
+                warning,
+                critical,
+            )
+        )
+        print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
+        return 0
+
+    def _handle_kubernetes_capacity_export(self, args: argparse.Namespace) -> int:
+        warning, critical = self._capacity_thresholds(args)
+        report = self._create_application(args).kubernetes_topology_service.capacity(
+            GetKubernetesCapacityCommand(
+                args.tenant, args.admin_token, args.snapshot_id, warning, critical
+            )
+        )
+        _, body = report.export(args.format)
+        print(body, end="" if body.endswith("\n") else "\n")
+        return 0
+
+    def _handle_kubernetes_latest_capacity_export(self, args: argparse.Namespace) -> int:
+        warning, critical = self._capacity_thresholds(args)
+        report = self._create_application(args).kubernetes_topology_service.latest_capacity(
+            GetLatestKubernetesCapacityCommand(
+                args.tenant, args.admin_token, args.cluster_key, warning, critical
+            )
+        )
+        _, body = report.export(args.format)
+        print(body, end="" if body.endswith("\n") else "\n")
         return 0
 
     def _handle_kubernetes_gitops_import(self, args: argparse.Namespace) -> int:

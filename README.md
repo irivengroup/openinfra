@@ -1,6 +1,18 @@
-# OpenInfra v0.33.5
+# OpenInfra v0.33.6
 
-OpenInfra 0.33.5 livre **P21 / EPIC-2104 — Conformité GitOps et dérive observée** et corrige les formulaires de recherche/filtrage des espaces de gestion afin que les critères multicritères pertinents restent toujours visibles et cohérents avec le thème OpenInfra.
+OpenInfra 0.33.6 livre **P21 / EPIC-2105 — Capacité cluster et namespace** : read models bornés CPU, mémoire et stockage, tendances, alertes et exports à partir des snapshots Kubernetes immuables existants.
+
+## Capacité Kubernetes — P21 / EPIC-2105
+
+- agrégation cluster et namespace des demandes, limites et consommations ;
+- capacités CPU/mémoire issues des Nodes et stockage issu des Volumes ;
+- alertes warning/critical sur seuils explicites ;
+- tendances limitées à 96 snapshots et 1 000 000 de ressources cumulées ;
+- exports JSON et CSV ;
+- parité API, CLI et UI Discovery ;
+- aucune nouvelle migration, fingerprints historiques préservés.
+
+Documentation : `docs/architecture/kubernetes-capacity.md` et `docs/operations/kubernetes-capacity.md`.
 
 ## Conformité GitOps et dérive observée — P21 / EPIC-2104
 

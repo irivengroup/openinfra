@@ -23,7 +23,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.33.5"
+    EXPECTED_VERSION = "0.33.6"
     EXPECTED_ASYNC_ROUTES = (
         "/api/v1/async/jobs",
         "/api/v1/async/jobs/get",
@@ -219,6 +219,11 @@ class InstalledWheelSmoke:
         "/api/v1/offline-sync-packages/get",
         "/api/v1/offline-sync-packages/create",
         "/api/v1/offline-sync-packages/synchronize",
+        "/api/v1/kubernetes/topologies/capacity",
+        "/api/v1/kubernetes/topologies/latest-capacity",
+        "/api/v1/kubernetes/topologies/capacity-trend",
+        "/api/v1/kubernetes/topologies/capacity-export",
+        "/api/v1/kubernetes/topologies/latest-capacity-export",
     )
     EXPECTED_LAST_MIGRATION = "0056_kubernetes_gitops_drift.sql"
     EXPECTED_MIGRATION_COUNT = 56
@@ -583,7 +588,7 @@ class InstalledWheelSmoke:
     def _assert_release_security_contract(package_root: Path) -> None:
         controls = ReleaseSecurityControlCatalog.build(
             package_root,
-            image_ref="openinfra/runtime:0.33.5",
+            image_ref="openinfra/runtime:0.33.6",
             api_base_url="http://127.0.0.1:8080",
             web_base_url="http://127.0.0.1:2006",
         )

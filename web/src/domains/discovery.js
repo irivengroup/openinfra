@@ -188,6 +188,58 @@ const moduleDefinition = {
       ]
     },
     {
+      "id": "kubernetes-capacity-latest",
+      "label": "Analyser la capacité actuelle du cluster",
+      "path": "/v1/kubernetes/topologies/latest-capacity",
+      "method": "GET",
+      "fields": [
+        {"name": "cluster_key", "label": "Clé cluster", "required": true},
+        {"name": "warning_threshold_percent", "label": "Seuil alerte (%)", "type": "number", "defaultValue": "80", "min": 1, "max": 99},
+        {"name": "critical_threshold_percent", "label": "Seuil critique (%)", "type": "number", "defaultValue": "90", "min": 2, "max": 100}
+      ]
+    },
+    {
+      "id": "kubernetes-capacity-snapshot",
+      "label": "Analyser la capacité d’un instantané Kubernetes",
+      "path": "/v1/kubernetes/topologies/capacity",
+      "method": "GET",
+      "fields": [
+        {"name": "snapshot_id", "label": "ID instantané", "required": true},
+        {"name": "warning_threshold_percent", "label": "Seuil alerte (%)", "type": "number", "defaultValue": "80", "min": 1, "max": 99},
+        {"name": "critical_threshold_percent", "label": "Seuil critique (%)", "type": "number", "defaultValue": "90", "min": 2, "max": 100}
+      ]
+    },
+    {
+      "id": "kubernetes-capacity-trend",
+      "label": "Afficher la tendance de capacité Kubernetes",
+      "path": "/v1/kubernetes/topologies/capacity-trend",
+      "method": "GET",
+      "fields": [
+        {"name": "cluster_key", "label": "Clé cluster", "required": true},
+        {"name": "limit", "label": "Nombre d’instantanés", "type": "number", "defaultValue": "24", "min": 2, "max": 96}
+      ]
+    },
+    {
+      "id": "kubernetes-capacity-export",
+      "label": "Exporter la capacité d’un instantané Kubernetes",
+      "path": "/v1/kubernetes/topologies/capacity-export",
+      "method": "GET",
+      "fields": [
+        {"name": "snapshot_id", "label": "ID instantané", "required": true},
+        {"name": "format", "label": "Format", "defaultValue": "csv"}
+      ]
+    },
+    {
+      "id": "kubernetes-capacity-latest-export",
+      "label": "Exporter la capacité actuelle du cluster",
+      "path": "/v1/kubernetes/topologies/latest-capacity-export",
+      "method": "GET",
+      "fields": [
+        {"name": "cluster_key", "label": "Clé cluster", "required": true},
+        {"name": "format", "label": "Format", "defaultValue": "csv"}
+      ]
+    },
+    {
       "id": "kubernetes-gitops-states-list",
       "label": "Lister les états attendus GitOps Kubernetes",
       "path": "/v1/kubernetes/gitops-states",

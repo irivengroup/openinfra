@@ -945,6 +945,15 @@ class QualityGate:
                 "--enforce",
             ]
         )
+        CommandRunner().run(
+            [
+                sys.executable,
+                "scripts/validate_kubernetes_capacity.py",
+                "--project-root",
+                str(self._project_root),
+                "--enforce",
+            ]
+        )
         postgres_migration_guard = PostgreSQLMigrationSchemaGuard(self._project_root)
         postgres_migration_guard.assert_audit_indexes_use_created_at()
         postgres_migration_guard.assert_enterprise_ipam_migration_backfills_prefix_family()

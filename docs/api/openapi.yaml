@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.33.5
+  version: 0.33.6
   description: >-
     API OpenInfra organisée dans Swagger et ReDoc par composant, puis par contexte métier.
     Chaque opération appartient à un contexte unique afin de conserver une navigation déterministe.
@@ -7733,6 +7733,102 @@ paths:
       responses:
         '200': {description: Latest contextualized Kubernetes security correlation report}
         '400': {description: Invalid or unknown cluster}
+        '401': {description: Missing or invalid bearer token}
+      tags:
+      - Discovery · Kubernetes et cloud-native
+      x-openinfra-component: Discovery
+      x-openinfra-context: Kubernetes et cloud-native
+  /api/v1/kubernetes/topologies/capacity:
+    get:
+      operationId: getKubernetesCapacity
+      summary: Calculate cluster and namespace capacity for one Kubernetes snapshot
+      description: Aggregates bounded CPU, memory and storage requests, limits, usage, margins and threshold alerts from one immutable snapshot.
+      security:
+      - bearerToken: []
+      parameters:
+      - {name: tenant_id, in: query, required: true, schema: {type: string}}
+      - {name: snapshot_id, in: query, required: true, schema: {type: string, format: uuid}}
+      - {name: warning_threshold_percent, in: query, required: false, schema: {type: number, minimum: 1, maximum: 99, default: 80}}
+      - {name: critical_threshold_percent, in: query, required: false, schema: {type: number, minimum: 2, maximum: 100, default: 90}}
+      responses:
+        '200': {description: Cluster and namespace capacity read model with alerts}
+        '400': {description: Invalid thresholds or unknown snapshot}
+        '401': {description: Missing or invalid bearer token}
+      tags:
+      - Discovery · Kubernetes et cloud-native
+      x-openinfra-component: Discovery
+      x-openinfra-context: Kubernetes et cloud-native
+  /api/v1/kubernetes/topologies/latest-capacity:
+    get:
+      operationId: getLatestKubernetesCapacity
+      summary: Calculate capacity for the latest snapshot of a Kubernetes cluster
+      security:
+      - bearerToken: []
+      parameters:
+      - {name: tenant_id, in: query, required: true, schema: {type: string}}
+      - {name: cluster_key, in: query, required: true, schema: {type: string}}
+      - {name: warning_threshold_percent, in: query, required: false, schema: {type: number, minimum: 1, maximum: 99, default: 80}}
+      - {name: critical_threshold_percent, in: query, required: false, schema: {type: number, minimum: 2, maximum: 100, default: 90}}
+      responses:
+        '200': {description: Latest cluster and namespace capacity read model}
+        '400': {description: Invalid thresholds or unknown cluster}
+        '401': {description: Missing or invalid bearer token}
+      tags:
+      - Discovery · Kubernetes et cloud-native
+      x-openinfra-component: Discovery
+      x-openinfra-context: Kubernetes et cloud-native
+  /api/v1/kubernetes/topologies/capacity-trend:
+    get:
+      operationId: getKubernetesCapacityTrend
+      summary: Calculate a bounded Kubernetes capacity trend
+      description: Evaluates at most 96 immutable snapshots and never scans more than one million resources per request.
+      security:
+      - bearerToken: []
+      parameters:
+      - {name: tenant_id, in: query, required: true, schema: {type: string}}
+      - {name: cluster_key, in: query, required: true, schema: {type: string}}
+      - {name: limit, in: query, required: false, schema: {type: integer, minimum: 2, maximum: 96, default: 24}}
+      - {name: warning_threshold_percent, in: query, required: false, schema: {type: number, minimum: 1, maximum: 99, default: 80}}
+      - {name: critical_threshold_percent, in: query, required: false, schema: {type: number, minimum: 2, maximum: 100, default: 90}}
+      responses:
+        '200': {description: Chronological bounded capacity trend}
+        '400': {description: Invalid limit, thresholds or unknown cluster}
+        '401': {description: Missing or invalid bearer token}
+      tags:
+      - Discovery · Kubernetes et cloud-native
+      x-openinfra-component: Discovery
+      x-openinfra-context: Kubernetes et cloud-native
+  /api/v1/kubernetes/topologies/capacity-export:
+    get:
+      operationId: exportKubernetesCapacity
+      summary: Export one Kubernetes capacity report as JSON or CSV
+      security:
+      - bearerToken: []
+      parameters:
+      - {name: tenant_id, in: query, required: true, schema: {type: string}}
+      - {name: snapshot_id, in: query, required: true, schema: {type: string, format: uuid}}
+      - {name: format, in: query, required: false, schema: {type: string, enum: [json, csv], default: csv}}
+      responses:
+        '200': {description: Capacity export}
+        '400': {description: Invalid format or unknown snapshot}
+        '401': {description: Missing or invalid bearer token}
+      tags:
+      - Discovery · Kubernetes et cloud-native
+      x-openinfra-component: Discovery
+      x-openinfra-context: Kubernetes et cloud-native
+  /api/v1/kubernetes/topologies/latest-capacity-export:
+    get:
+      operationId: exportLatestKubernetesCapacity
+      summary: Export the latest Kubernetes cluster capacity report as JSON or CSV
+      security:
+      - bearerToken: []
+      parameters:
+      - {name: tenant_id, in: query, required: true, schema: {type: string}}
+      - {name: cluster_key, in: query, required: true, schema: {type: string}}
+      - {name: format, in: query, required: false, schema: {type: string, enum: [json, csv], default: csv}}
+      responses:
+        '200': {description: Latest capacity export}
+        '400': {description: Invalid format or unknown cluster}
         '401': {description: Missing or invalid bearer token}
       tags:
       - Discovery · Kubernetes et cloud-native

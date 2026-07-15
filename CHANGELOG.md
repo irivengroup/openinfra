@@ -1,3 +1,13 @@
+## v0.33.6 — P21 / EPIC-2105 Capacité cluster et namespace
+
+- Ajout d’un read model Kubernetes de capacité cluster/namespace pour CPU, mémoire et stockage.
+- Mesures typées et bornées dans les snapshots immuables : Nodes, Pods et Volumes uniquement.
+- Agrégation demandes, limites, consommation, capacité, marges et alertes warning/critical.
+- Tendances bornées à 96 snapshots et 1 000 000 de ressources cumulées maximum.
+- Exports JSON/CSV, parité API/CLI/UI et cinq nouvelles opérations Discovery cloud-native.
+- Compatibilité des fingerprints historiques préservée et aucune nouvelle migration PostgreSQL.
+- CI, quality gate, packaging, smoke installé, documentation architecture/exploitation et validateur EPIC-2105 intégrés.
+
 # Changelog
 
 ## v0.33.5 — P21 / EPIC-2104 Conformité GitOps et filtres multicritères de gestion

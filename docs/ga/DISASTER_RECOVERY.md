@@ -1,6 +1,6 @@
 # PRA et PCA
 
-Version cible : `0.33.5`
+Version cible : `0.33.6`
 
 ## Objectifs RPO et RTO
 

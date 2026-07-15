@@ -1,200 +1,174 @@
-# Rapport de validation — OpenInfra Python POO v0.33.5
+# Rapport de validation — OpenInfra Python POO v0.33.6
 
 ## Objet de la livraison
 
-La version **0.33.5** regroupe deux évolutions cohérentes et entièrement intégrées :
+La version **0.33.6** implémente **P21 / REL-11 / EPIC-2105 — Capacité cluster et namespace**.
 
-1. **P21 / REL-11 / EPIC-2104 — Conformité GitOps et dérive observée** ;
-2. correction et professionnalisation des **filtres multicritères contextuels** des pages `Gestion de …`.
+Cette livraison ajoute des read models de capacité Kubernetes sans créer de nouvelle source de vérité : les métriques de capacité sont portées par les snapshots Kubernetes immuables existants, et les agrégats sont calculés à la demande avec des bornes strictes.
 
-Cette livraison ne supprime ni ne renomme aucun endpoint public, aucune commande CLI, aucune permission RBAC et aucune opération historique du portail.
+Aucun endpoint historique, aucune commande CLI, aucune permission RBAC et aucune opération de portail existante n'est supprimé ou renommé.
 
-## EPIC-2104 — Conformité GitOps et dérive observée
+## EPIC-2105 — Capacité cluster et namespace
 
-Le référentiel Kubernetes distingue désormais explicitement :
+### Mesures prises en charge
 
-- l'état **attendu** issu de GitOps, immuable et lié à un commit Git complet de 40 ou 64 caractères hexadécimaux ;
-- l'état **observé** issu d'un snapshot Kubernetes Discovery immuable ;
-- un rapport de conformité déterministe entre ces deux sources.
+Les snapshots Kubernetes peuvent désormais porter des mesures normalisées et typées :
 
-Les dérives couvertes incluent :
+- **Node** : capacité CPU, mémoire et stockage ;
+- **Pod** : demandes, limites et consommation CPU/mémoire ;
+- **Volume** : demandes, limites, consommation et capacité de stockage.
 
-- ressource attendue absente ;
-- ressource inattendue ;
-- label ou annotation absent/non conforme ;
-- propriétaire absent/non conforme ;
-- environnement absent, non conforme ou hors politique ;
-- attribut attendu absent ou différent.
+Les unités sont explicites :
 
-Le moteur compare uniquement les champs explicitement gouvernés afin d'éviter les faux positifs liés aux données Kubernetes volatiles.
+- CPU : `millicores` ;
+- mémoire et stockage : `bytes`.
 
-### Sécurité et gouvernance
+Les valeurs doivent être des entiers non négatifs et les invariants `request <= limit` sont validés lorsque les deux valeurs existent.
 
-- aucun secret Git n'est accepté dans les références de dépôt ;
-- seuls les schémas de dépôt HTTPS et SSH autorisés sont acceptés ;
-- les chemins GitOps sont relatifs et refusent les traversées `..` ;
-- les clés sensibles sont refusées dans les métadonnées gouvernées ;
-- l'évaluation produit un audit `kubernetes.gitops.assessed` ;
-- une dérive produit un événement outbox transactionnel `kubernetes.gitops.drift.detected` ;
-- une évaluation conforme ne produit pas d'événement de dérive ;
-- **`automatic_remediation=false`** : aucune correction automatique silencieuse du cluster ou de l'état attendu.
+### Read models
 
-### API et CLI
+Le moteur produit :
 
-Six routes GitOps sont exposées :
+- capacité agrégée du cluster ;
+- capacité agrégée par namespace ;
+- marges disponibles ;
+- pourcentages d'utilisation et de réservation ;
+- alertes `warning` et `critical` selon des seuils paramétrables ;
+- tendances chronologiques bornées ;
+- exports JSON et CSV.
 
-- `GET /api/v1/kubernetes/gitops-states`
-- `GET /api/v1/kubernetes/gitops-states/get`
-- `GET /api/v1/kubernetes/gitops-states/latest`
-- `GET /api/v1/kubernetes/gitops-states/drift`
-- `GET /api/v1/kubernetes/gitops-states/latest-drift`
-- `POST /api/v1/kubernetes/gitops-states/import`
+Le calcul est déterministe et n'écrit aucune donnée supplémentaire.
+
+### Bornes de protection
+
+Les tendances sont limitées à :
+
+- **96 snapshots maximum** ;
+- **1 000 000 de ressources cumulées maximum**.
+
+Le rapport signale explicitement `truncated=true` lorsqu'une borne empêche de couvrir tout l'historique demandé.
+
+## API et CLI
+
+Cinq nouvelles routes sont exposées :
+
+- `GET /api/v1/kubernetes/topologies/capacity`
+- `GET /api/v1/kubernetes/topologies/latest-capacity`
+- `GET /api/v1/kubernetes/topologies/capacity-trend`
+- `GET /api/v1/kubernetes/topologies/capacity-export`
+- `GET /api/v1/kubernetes/topologies/latest-capacity-export`
 
 Les commandes CLI correspondantes sont disponibles :
 
-- `openinfra kubernetes gitops-import`
-- `openinfra kubernetes gitops-list`
-- `openinfra kubernetes gitops-get`
-- `openinfra kubernetes gitops-latest`
-- `openinfra kubernetes gitops-drift`
-- `openinfra kubernetes gitops-latest-drift`
+- `openinfra kubernetes capacity`
+- `openinfra kubernetes latest-capacity`
+- `openinfra kubernetes capacity-trend`
+- `openinfra kubernetes capacity-export`
+- `openinfra kubernetes latest-capacity-export`
 
 Swagger/ReDoc classe ces opérations sous **Discovery · Kubernetes et cloud-native**.
 
-## Persistance
+Le catalogue runtime contient désormais **293 opérations uniques**.
 
-Nouvelle migration additive :
+## Persistance et compatibilité
+
+Aucune nouvelle migration n'est requise.
+
+La livraison conserve **56 migrations**, la dernière étant :
 
 - `0056_kubernetes_gitops_drift.sql`
 
-La livraison contient désormais **56 migrations**.
+Les métriques de capacité sont stockées dans les attributs JSONB des snapshots Kubernetes existants. Les snapshots historiques qui ne contiennent pas de capacité conservent leur sérialisation et leur fingerprint antérieurs.
 
-Le modèle GitOps utilise :
+## Industrialisation
 
-- partitionnement par tenant ;
-- index de lecture du dernier état attendu ;
-- filtres cluster/environnement/propriétaire ;
-- pagination par curseur ;
-- outbox transactionnelle.
+EPIC-2105 est intégré à :
 
-## Filtres multicritères des pages de gestion
+- `scripts/validate_kubernetes_capacity.py` ;
+- GitHub Actions ;
+- `scripts/quality_gate.py` ;
+- la vérification du wheel et du sdist ;
+- le smoke test du wheel installé.
 
-Le défaut qui rendait les nouveaux formulaires de filtrage vides est corrigé.
+Le validateur vérifie notamment :
 
-### Comportement
+- la parité API / CLI / UI ;
+- la présence des read models cluster et namespace ;
+- les tendances bornées ;
+- les alertes ;
+- les exports JSON/CSV ;
+- la stabilité de la chaîne de migrations.
 
-Les critères pertinents au contexte sont désormais **toujours visibles**, même si la liste courante ne permet pas encore de dériver une valeur.
+## Non-régression visuelle
 
-Les critères sont structurés en deux groupes :
+Aucune modification du thème ou de la charte graphique n'a été introduite.
 
-1. **Contexte parent** ;
-2. **Critères métier**.
+Le fichier CSS runtime principal est strictement identique à celui de la v0.33.5 :
 
-La hiérarchie parentale canonique reste :
-
-1. Organisation ;
-2. Filiale/Subdivision ;
-3. Site ;
-4. Bâtiment ;
-5. Étage ;
-6. Salle ;
-7. Ligne/Colonne ;
-8. Rack.
-
-Les niveaux non pertinents au type d'objet ne sont pas affichés artificiellement.
-
-Lorsqu'un critère pertinent ne possède aucune valeur disponible, il reste visible avec un état désactivé explicite au lieu de disparaître.
-
-Les données DCIM aplaties héritent désormais, sans mutation de la source, du contexte nécessaire aux filtres, notamment :
-
-- Organisation/Filiale selon la portée ;
-- Étage ;
-- Ligne ;
-- Colonne ;
-- Rack.
-
-Les règles de cascade restent strictes : un parent filtre ses descendants mais ne se filtre jamais lui-même ; Ligne et Colonne restent au même niveau et filtrent ensemble le Rack.
-
-### Intégration au thème
-
-Le panneau de filtrage utilise exclusivement les tokens visuels OpenInfra existants :
-
-- surfaces et transparences existantes ;
-- bordures et rayons cohérents avec les autres cartes ;
-- typographie et hiérarchie visuelle de la page ;
-- états focus/disabled accessibles ;
-- responsive mobile/tablette conservé.
-
-Comparaison de palette avec v0.33.4 :
-
-- 52 couleurs hexadécimales distinctes avant ;
-- 52 couleurs hexadécimales distinctes après ;
-- aucune couleur ajoutée ;
-- aucune couleur supprimée.
-
-Le comportement approuvé de la sidebar est conservé : le fond du composant racine actif ne change pas au survol ; seuls le texte, l'icône et le chevron utilisent le turquoise prévu.
+`fb7feabe378613ac41efb18db94b0d95a8faa916b6f782c9fd0ea2b0d8e9fcf4`
 
 ## Validation exécutée
 
 ### Python
 
-- **1 366 tests collectés** ;
-- **660/660 tests unitaires et performance : PASS** ;
-- **62/62 tests ciblés GitOps, gestion CRUD, OpenAPI, workflows, packaging et runtime frontend : PASS** ;
-- nouveau domaine + service GitOps : **506/506 instructions couvertes, 100 %** ;
-- Ruff format : **410 fichiers conformes** ;
-- Ruff lint : **PASS** ;
-- mypy strict : **119 modules conformes** ;
-- `compileall` : **PASS**.
+- **1 377 tests collectés** ;
+- **654/654 tests unitaires : PASS** ;
+- **11/11 tests performance : PASS** ;
+- **46/46 tests d'intégration Kubernetes : PASS** ;
+- **31/31 tests d'intégration transverses rapides : PASS** ;
+- tests ciblés EPIC-2105 : **PASS** ;
+- couverture ciblée du nouveau moteur `kubernetes_capacity.py` : **204/204 instructions, 100 %** ;
+- Ruff format, périmètre CI `src tests scripts` : **410 fichiers conformes** ;
+- Ruff lint, périmètre CI `src tests scripts` : **PASS** ;
+- mypy strict sur les **5 fichiers source modifiés directement** : **PASS** ;
+- `compileall` sur `src tests scripts` : **PASS**.
+
+Le lancement mypy monolithique sur tout `src/openinfra` a dépassé la fenêtre locale sans produire de résultat final ; il n'est donc pas déclaré comme validé globalement dans ce rapport.
 
 ### Frontend
 
-- **78/78 tests frontend : PASS** ;
-- validation statique frontend : **PASS** ;
+- **78/78 tests : PASS** ;
+- contrat frontend statique : **PASS** ;
 - WCAG 2.2 AA : **PASS** ;
 - ESLint : **PASS** ;
 - build Vite : **PASS** ;
-- validation des budgets de chargement : **PASS** ;
+- budgets de chargement : **PASS** ;
 - `npm audit --audit-level=high` : **0 vulnérabilité**.
 
-### Sécurité et documentation
+### Sécurité et contrats
 
-- security gate : **PASS** ;
+- `security_gate.py` : **PASS** ;
 - Bandit sur `src/openinfra` : **PASS**, aucun finding bloquant ;
-- OpenAPI produit et OpenAPI CDC : **PASS** ;
-- documentation GA 0.33.5 : **PASS** ;
-- CDC : **840 exigences / 529 entités** ;
-- roadmap v2.2 : **22 phases / 131 epics / 11 gates / 112 tests** ;
-- alignement Enterprise : **PASS** ;
-- support-readiness : **PASS** ;
-- validateurs EPIC-2101, EPIC-2102, EPIC-2103 et EPIC-2104 : **PASS**.
+- validateurs EPIC-2101 à EPIC-2105 : **PASS** ;
+- OpenAPI produit + CDC : **PASS** ;
+- documentation GA 0.33.6 : **PASS** ;
+- roadmap v2.2 : **PASS** ;
+- alignement Enterprise : **PASS**.
 
-### Packaging et smoke installé
+### Packaging
 
-- wheel `openinfra-0.33.5-py3-none-any.whl` : **PASS** ;
-- sdist `openinfra-0.33.5.tar.gz` : **PASS** ;
+- wheel 0.33.6 : **PASS** ;
+- sdist 0.33.6 : **PASS** ;
 - vérification du contenu des artefacts : **PASS** ;
 - smoke du wheel réellement installé hors de l'arbre source : **PASS** ;
-- version installée : **0.33.5** ;
+- version installée : **0.33.6** ;
 - routes Kubernetes installées : **16** ;
-- migrations installées : **56** ;
-- dernière migration : `0056_kubernetes_gitops_drift.sql` ;
-- assets runtime packagés : **20**.
+- assets runtime : **20** ;
+- migrations : **56** ;
+- dernière migration : `0056_kubernetes_gitops_drift.sql`.
 
-## Limites de l'environnement local
+## Limites locales
 
-La couverture globale complète du dépôt n'a pas été recalculée dans ce sandbox. Le seuil contractuel global **≥ 98 % reste bloquant dans GitHub Actions**. Le nouveau domaine et service GitOps ont toutefois été mesurés séparément à **100 %**.
+La suite globale `tests/architecture + tests/integration` n'a pas été intégralement exécutée dans ce sandbox. Les périmètres Kubernetes et transverses directement concernés ont été validés séparément.
 
-`pip-audit --strict -r requirements/runtime.txt` a été lancé mais n'a pas pu joindre `pypi.org` en raison d'un échec de résolution DNS. Ce contrôle n'est donc pas déclaré comme réussi localement et reste exécuté par la CI lorsque le réseau est disponible.
+Le test `tests/integration/test_runtime_docker_environment.py` n'a pas produit de verdict final avant le timeout local et n'est pas déclaré comme validé.
 
-Docker/Docker Compose ne sont pas disponibles dans cet environnement. Les smokes conteneurisés restent donc exécutés par les workflows CI dédiés.
+La couverture globale du dépôt n'a pas été recalculée intégralement. Le seuil contractuel **>= 98 %** reste bloquant dans GitHub Actions.
 
-## Documentation de référence
+`pip-audit --strict` n'a pas produit de résultat final avant le timeout lié à l'accès au service PyPI ; il n'est pas déclaré comme validé localement.
 
-- CDC : **4.9.0**, inchangé ;
-- roadmap : **2.2.0**, inchangée ;
-- phase : **P21** ;
-- release : **REL-11** ;
-- epic principal : **EPIC-2104**.
+Docker n'est pas disponible dans cet environnement. Les smokes Docker Compose restent délégués à la CI.
 
-Aucune mise à jour du CDC ou de la roadmap n'est requise : EPIC-2104 est déjà défini dans la roadmap v2.2 et la correction des filtres constitue une amélioration structurelle/UX sans nouvelle exigence métier.
+## Documents de référence
+
+Le **CDC 4.9.0** et la **roadmap v2.2** restent inchangés : EPIC-2105 était déjà planifié et cette implémentation n'introduit aucune nouvelle exigence normative ou architecturale nécessitant leur révision.

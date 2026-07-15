@@ -158,7 +158,7 @@ class TestRuntimeEnvironment:
         )
 
         assert result.returncode == 0, result.stdout + result.stderr
-        assert list((tmp_path / "wheelhouse").glob("openinfra-0.33.5-*.whl"))
+        assert list((tmp_path / "wheelhouse").glob("openinfra-0.33.6-*.whl"))
 
     def test_all_runtime_services_share_the_local_image_build(self) -> None:
         compose = yaml.safe_load(Path("compose.yaml").read_text(encoding="utf-8"))
@@ -166,7 +166,7 @@ class TestRuntimeEnvironment:
         for service_name in ("migrate", "auth-bootstrap", "api", "web", "smoke"):
             service = compose["services"][service_name]
             assert service["build"] == expected_build
-            assert service["image"] == "openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.33.5}"
+            assert service["image"] == "openinfra/runtime:${OPENINFRA_IMAGE_TAG:-0.33.6}"
             assert service["pull_policy"] == "build"
 
     def test_runtime_user_matches_prometheus_tmpfs_owner(self) -> None:

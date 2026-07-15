@@ -2321,6 +2321,48 @@ const OPENINFRA_SEARCH_INDEX = [
     "method": "POST",
     "path": "/v1/kubernetes/gitops-states/import"
   }
+,
+{
+  "moduleId": "discovery",
+  "moduleLabel": "Discovery",
+  "id": "kubernetes-capacity-latest",
+  "label": "Analyser la capacité actuelle du cluster",
+  "method": "GET",
+  "path": "/v1/kubernetes/topologies/latest-capacity"
+},
+{
+  "moduleId": "discovery",
+  "moduleLabel": "Discovery",
+  "id": "kubernetes-capacity-snapshot",
+  "label": "Analyser la capacité d’un instantané Kubernetes",
+  "method": "GET",
+  "path": "/v1/kubernetes/topologies/capacity"
+},
+{
+  "moduleId": "discovery",
+  "moduleLabel": "Discovery",
+  "id": "kubernetes-capacity-trend",
+  "label": "Afficher la tendance de capacité Kubernetes",
+  "method": "GET",
+  "path": "/v1/kubernetes/topologies/capacity-trend"
+},
+{
+  "moduleId": "discovery",
+  "moduleLabel": "Discovery",
+  "id": "kubernetes-capacity-export",
+  "label": "Exporter la capacité d’un instantané Kubernetes",
+  "method": "GET",
+  "path": "/v1/kubernetes/topologies/capacity-export"
+},
+{
+  "moduleId": "discovery",
+  "moduleLabel": "Discovery",
+  "id": "kubernetes-capacity-latest-export",
+  "label": "Exporter la capacité actuelle du cluster",
+  "method": "GET",
+  "path": "/v1/kubernetes/topologies/latest-capacity-export"
+}
+
 ];
 
 export { OPENINFRA_SEARCH_INDEX };

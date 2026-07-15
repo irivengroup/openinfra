@@ -1,6 +1,6 @@
 # Guide d’exploitation
 
-Version cible : `0.33.5`
+Version cible : `0.33.6`
 
 ## Démarrage et arrêt
 

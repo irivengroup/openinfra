@@ -1,4 +1,4 @@
-import { OpenInfraI18n, localizeOpenInfraCatalog } from "./openinfra-i18n.js?v=0.33.6";
+import { OpenInfraI18n, localizeOpenInfraCatalog } from "./openinfra-i18n.js?v=0.33.7";
 let managementRegistryPromise = null;
 let collapseManagementOperations = (_moduleId, operations, operationIds) => {
   const byId = new Map(operations.map((operation) => [operation.id, operation]));
@@ -25,7 +25,7 @@ let managementResourcesForModule = () => [];
 
 async function ensureManagementRegistryLoaded() {
   if (!managementRegistryPromise) {
-    managementRegistryPromise = import("./management/resources.js?v=0.33.6").then((loaded) => {
+    managementRegistryPromise = import("./management/resources.js?v=0.33.7").then((loaded) => {
       collapseManagementOperations = loaded.collapseManagementOperations;
       flattenManagementCollection = loaded.flattenManagementCollection;
       localizedManagementLabel = loaded.localizedManagementLabel;
@@ -59,11 +59,11 @@ import {
   normalizeFieldDefinition,
   normalizeFieldValue,
   validateControl
-} from "./openinfra-form-fields.js?v=0.33.6";
-import { OPENINFRA_DOMAIN_LOADERS, OPENINFRA_MODULES, OPENINFRA_SIDEBAR_CONTEXTS } from "./openinfra-domain-manifest.js?v=0.33.6";
-import { OpenInfraQueryCache } from "./openinfra-query-cache.js?v=0.33.6";
-import { OpenInfraVirtualList } from "./openinfra-virtual-list.js?v=0.33.6";
-import { installOpenInfraWebVitals } from "./openinfra-web-vitals.js?v=0.33.6";
+} from "./openinfra-form-fields.js?v=0.33.7";
+import { OPENINFRA_DOMAIN_LOADERS, OPENINFRA_MODULES, OPENINFRA_SIDEBAR_CONTEXTS } from "./openinfra-domain-manifest.js?v=0.33.7";
+import { OpenInfraQueryCache } from "./openinfra-query-cache.js?v=0.33.7";
+import { OpenInfraVirtualList } from "./openinfra-virtual-list.js?v=0.33.7";
+import { installOpenInfraWebVitals } from "./openinfra-web-vitals.js?v=0.33.7";
 
 
 class OpenInfraApiClient {
@@ -470,7 +470,7 @@ class OpenInfraDashboard {
 
   async loadSearchIndex() {
     if (this.searchIndex) return this.searchIndex;
-    const loaded = await import("./openinfra-search-index.js?v=0.33.6");
+    const loaded = await import("./openinfra-search-index.js?v=0.33.7");
     const syntheticModules = OPENINFRA_MODULES.map((module) => ({
       ...module,
       operations: loaded.default.filter((entry) => entry.moduleId === module.id).map((entry) => ({ ...entry }))
@@ -875,7 +875,8 @@ class OpenInfraDashboard {
     const byId = new Map(operations.map((operation) => [operation.id, operation]));
     const groupedIds = new Set();
     const groups = configuredGroups.map((group) => {
-      const existingIds = group.operationIds.filter((id) => byId.has(id));
+      const requestedIds = group.operationIds || operations.filter(({ id }) => id.startsWith(group.operationIdPrefix)).map(({ id }) => id);
+      const existingIds = requestedIds.filter((id) => byId.has(id));
       for (const operationId of existingIds) {
         groupedIds.add(operationId);
       }

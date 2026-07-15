@@ -1,6 +1,6 @@
-# OpenInfra v0.33.6
+# OpenInfra v0.33.7
 
-OpenInfra 0.33.6 livre **P21 / EPIC-2105 — Capacité cluster et namespace** : read models bornés CPU, mémoire et stockage, tendances, alertes et exports à partir des snapshots Kubernetes immuables existants.
+OpenInfra 0.33.7 corrige l’exposition frontend du contexte **Discovery · Kubernetes et cloud-native** et la régression CI du gate **Transactional outbox and specialized workers regression**, sans modifier le thème ni les contrats publics.
 
 ## Capacité Kubernetes — P21 / EPIC-2105
 

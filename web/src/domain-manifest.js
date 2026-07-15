@@ -84,9 +84,9 @@ export const MODULES = [
     "label": "Discovery",
     "icon": "activity",
     "stats": {
-      "operations": 14,
-      "readOperations": 7,
-      "writeOperations": 7,
+      "operations": 29,
+      "readOperations": 21,
+      "writeOperations": 8,
       "fields": 69,
       "requiredFields": 10
     },
@@ -543,6 +543,10 @@ export const SIDEBAR_CONTEXTS = {
     }
   ],
   "discovery": [
+    {
+      "label": "Kubernetes et cloud-native",
+      "operationIdPrefix": "kubernetes-"
+    },
     {
       "label": "Locale Lite/Pro",
       "operationIds": [

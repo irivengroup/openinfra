@@ -437,6 +437,7 @@ class TestOpenInfraWeb:
             "Jumeau numérique",
             "Support matériel",
             "Licences logicielles",
+            "Kubernetes et cloud-native",
             "Locale Lite/Pro",
             "Agents Enterprise",
             "Imports",
@@ -455,7 +456,8 @@ class TestOpenInfraWeb:
         assert 'label: "ServiceNow"' in static_js
         assert '"servicenow-validate"' in static_js
         assert '"servicenow-ci-sync-plan"' in static_js
-        assert "group.operationIds.filter((id) => byId.has(id))" in static_js
+        assert "group.operationIdPrefix" in static_js
+        assert "requestedIds.filter((id) => byId.has(id))" in static_js
         assert "collapseManagementOperations(" in static_js
         assert 'label: "Autres"' in static_js
         assert "remaining.map((operation) => operation.id)" in static_js

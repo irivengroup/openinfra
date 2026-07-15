@@ -119,9 +119,12 @@ function sidebarOperationGroups(module, language = 'fr') {
   const byId = new Map(module.operations.map((operation) => [operation.id, operation]));
   const groupedIds = new Set();
   const groups = configuredGroups.map((group) => {
-    const rawOperations = group.operationIds.map((id) => byId.get(id)).filter(Boolean);
+    const operationIds = group.operationIds || (group.operationIdPrefix
+      ? module.operations.filter((operation) => operation.id.startsWith(group.operationIdPrefix)).map((operation) => operation.id)
+      : []);
+    const rawOperations = operationIds.map((id) => byId.get(id)).filter(Boolean);
     rawOperations.forEach((operation) => groupedIds.add(operation.id));
-    const operations = collapseManagementOperations(module.id, module.operations, group.operationIds, language);
+    const operations = collapseManagementOperations(module.id, module.operations, operationIds, language);
     return { label: group.label, operations };
   }).filter((group) => group.operations.length > 0);
   const remaining = module.operations.filter((operation) => !groupedIds.has(operation.id));

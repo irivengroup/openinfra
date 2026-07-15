@@ -37,12 +37,16 @@ def test_async_processing_migration_is_additive_transactional_and_indexed() -> N
     assert len(statements) >= 10
 
 
-def test_async_processing_migration_precedes_current_catalog_entry() -> None:
+def test_async_processing_migration_precedes_later_catalog_entries() -> None:
     migrations = sorted((ROOT / "installers/migrations/postgresql").glob("*.sql"))
     names = [migration.name for migration in migrations]
 
-    assert names[-2:] == [
-        "0054_async_outbox_workers.sql",
-        "0055_kubernetes_topology_inventory.sql",
-    ]
-    assert len(migrations) == 55
+    assert "0054_async_outbox_workers.sql" in names
+    assert "0055_kubernetes_topology_inventory.sql" in names
+    assert "0056_kubernetes_gitops_drift.sql" in names
+    assert (
+        names.index("0054_async_outbox_workers.sql")
+        < names.index("0055_kubernetes_topology_inventory.sql")
+        < names.index("0056_kubernetes_gitops_drift.sql")
+    )
+    assert len(migrations) == 56

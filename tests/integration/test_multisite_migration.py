@@ -21,14 +21,23 @@ def test_multisite_migration_is_partitioned_indexed_constrained_and_non_destruct
     assert "DELETE FROM" not in sql.upper()
 
 
-def test_multisite_migrations_preserve_order_before_keyset_indexes() -> None:
+def test_multisite_migrations_preserve_order_before_later_platform_migrations() -> None:
     migrations = sorted((ROOT / "installers/migrations/postgresql").glob("*.sql"))
-    assert len(migrations) == 55
-    assert migrations[-5].name == "0050_pro_centralized_multisite.sql"
-    assert migrations[-4].name == "0051_enterprise_regional_discovery_routing.sql"
-    assert migrations[-3].name == "0052_multisite_disaster_recovery.sql"
-    assert migrations[-2].name == "0053_keyset_pagination_indexes.sql"
-    assert migrations[-1].name == "0055_kubernetes_topology_inventory.sql"
+    names = [migration.name for migration in migrations]
+    expected = [
+        "0050_pro_centralized_multisite.sql",
+        "0051_enterprise_regional_discovery_routing.sql",
+        "0052_multisite_disaster_recovery.sql",
+        "0053_keyset_pagination_indexes.sql",
+        "0054_async_outbox_workers.sql",
+        "0055_kubernetes_topology_inventory.sql",
+        "0056_kubernetes_gitops_drift.sql",
+    ]
+    assert len(migrations) == 56
+    assert all(name in names for name in expected)
+    assert [names.index(name) for name in expected] == sorted(
+        names.index(name) for name in expected
+    )
 
 
 def test_enterprise_regional_discovery_migration_is_safe_and_operable() -> None:

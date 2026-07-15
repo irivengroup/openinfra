@@ -493,7 +493,7 @@ const PHRASE_EN = Object.freeze({
   'Jumeau numérique': 'Digital twin', 'Organisations': 'Organizations', 'Tenants': 'Subsidiaries/Divisions',
   'Partenaires': 'Partners', 'Fournisseurs et Supports': 'Partners',
   'Support matériel': 'Hardware support', 'Licences logicielles': 'Software licences',
-  'Locale Lite/Pro': 'Local Lite/Pro', 'Agents Enterprise': 'Enterprise agents', 'Imports': 'Imports',
+  'Kubernetes et cloud-native': 'Kubernetes and cloud-native', 'Locale Lite/Pro': 'Local Lite/Pro', 'Agents Enterprise': 'Enterprise agents', 'Imports': 'Imports',
   'Migration': 'Migration', 'Exports': 'Exports', 'Gouvernance ITSM': 'ITSM governance',
   'Éditions & quotas': 'Editions & quotas', 'Identité & accès': 'Identity & access', 'Audit': 'Audit',
   'Exploration': 'Exploration', 'Analyse d’impact': 'Impact analysis',

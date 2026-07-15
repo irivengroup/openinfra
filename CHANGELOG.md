@@ -1,3 +1,13 @@
+## v0.33.7 — Correctif frontend Kubernetes et régression CI Outbox
+
+- ajoute le contexte frontend `Kubernetes et cloud-native` sous Discovery dans la sidebar et le mégamenu ;
+- regroupe toutes les opérations Kubernetes existantes dans ce contexte au lieu du groupe générique `Autres` ;
+- synchronise le contexte entre le frontend React et le runtime web packagé ;
+- ajoute une localisation anglaise `Kubernetes and cloud-native` et un test de parité React/runtime ;
+- corrige le test CI `Transactional outbox and specialized workers regression` qui figeait à tort `0054`/`0055` comme dernières migrations ;
+- durcit les tests de politique de migration pour conserver l'ordre historique tout en acceptant la migration courante `0056_kubernetes_gitops_drift.sql` ;
+- aucune modification du thème, des endpoints, du CLI ou du schéma PostgreSQL.
+
 ## v0.33.6 — P21 / EPIC-2105 Capacité cluster et namespace
 
 - Ajout d’un read model Kubernetes de capacité cluster/namespace pour CPU, mémoire et stockage.

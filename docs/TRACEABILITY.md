@@ -1,3 +1,9 @@
+## v0.33.7 — Correctif frontend Kubernetes et régression CI Outbox
+
+- Correctif UX : exposition du contexte `Discovery · Kubernetes et cloud-native` dans la navigation frontend réelle.
+- Correctif CI : contrat de migration Outbox rendu compatible avec les migrations additives 0055 et 0056.
+- Non-régression : parité React/runtime, ordre des migrations, absence de modification de thème.
+
 ## v0.33.6 — P21 / EPIC-2105 Capacité cluster et namespace
 
 - Roadmap : `P21`, `EPIC-2105`, `REL-11`, `REQ-00470`.

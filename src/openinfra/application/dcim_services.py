@@ -641,21 +641,21 @@ class DcimTopologyService:
 
     def update_site(self, command: UpdateDcimSiteCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        site = self._dcim_repository.find_site(tenant_id, command.code)
-        if site is None:
-            raise NotFoundError("DCIM site does not exist")
-        updated = site.update(
-            name=command.name,
-            country=command.country,
-            city=command.city,
-            region=command.region,
-            street_address=command.street_address,
-            postal_code=command.postal_code,
-            contact_email=command.contact_email,
-            phone=command.phone,
-            status=command.status,
-        )
         with self._transaction_manager.begin() as unit_of_work:
+            site = self._dcim_repository.find_site(tenant_id, command.code)
+            if site is None:
+                raise NotFoundError("DCIM site does not exist")
+            updated = site.update(
+                name=command.name,
+                country=command.country,
+                city=command.city,
+                region=command.region,
+                street_address=command.street_address,
+                postal_code=command.postal_code,
+                contact_email=command.contact_email,
+                phone=command.phone,
+                status=command.status,
+            )
             self._dcim_repository.save_site(updated)
             self._audit_repository.append(
                 AuditEvent.record(
@@ -672,11 +672,11 @@ class DcimTopologyService:
 
     def delete_site(self, command: DeleteDcimSiteCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        site = self._dcim_repository.find_site(tenant_id, command.code)
-        if site is None:
-            raise NotFoundError("DCIM site does not exist")
-        retired_site = site.retire()
         with self._transaction_manager.begin() as unit_of_work:
+            site = self._dcim_repository.find_site(tenant_id, command.code)
+            if site is None:
+                raise NotFoundError("DCIM site does not exist")
+            retired_site = site.retire()
             self._dcim_repository.save_site(retired_site)
             for building in self._dcim_repository.list_buildings(
                 tenant_id, retired_site.code.value, include_retired=True
@@ -700,34 +700,36 @@ class DcimTopologyService:
 
     def get_site(self, command: GetDcimSiteCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        site = self._dcim_repository.find_site(tenant_id, command.code)
-        if site is None:
-            raise NotFoundError("DCIM site does not exist")
-        return site.as_dict()
+        with self._transaction_manager.begin():
+            site = self._dcim_repository.find_site(tenant_id, command.code)
+            if site is None:
+                raise NotFoundError("DCIM site does not exist")
+            return site.as_dict()
 
     def list_sites(self, command: ListDcimSitesCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        items = self._dcim_repository.list_sites(tenant_id, command.include_retired)
-        return {
-            "tenant_id": tenant_id.value,
-            "items": [item.as_dict() for item in items],
-            "count": len(items),
-        }
+        with self._transaction_manager.begin():
+            items = self._dcim_repository.list_sites(tenant_id, command.include_retired)
+            return {
+                "tenant_id": tenant_id.value,
+                "items": [item.as_dict() for item in items],
+                "count": len(items),
+            }
 
     def create_building(self, command: CreateDcimBuildingCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        site = self._require_selectable_site(tenant_id, command.site)
-        building = Building.create(
-            tenant_id,
-            site.code.value,
-            command.code,
-            command.name,
-            command.building_type,
-            command.initial_level,
-            command.final_level,
-        )
-        generated_floors = building.generated_floors()
         with self._transaction_manager.begin() as unit_of_work:
+            site = self._require_selectable_site(tenant_id, command.site)
+            building = Building.create(
+                tenant_id,
+                site.code.value,
+                command.code,
+                command.name,
+                command.building_type,
+                command.initial_level,
+                command.final_level,
+            )
+            generated_floors = building.generated_floors()
             if (
                 self._dcim_repository.find_building(tenant_id, site.code.value, building.code.value)
                 is not None
@@ -751,14 +753,14 @@ class DcimTopologyService:
 
     def update_building(self, command: UpdateDcimBuildingCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        site = self._require_site(tenant_id, command.site)
-        building = self._dcim_repository.find_building(tenant_id, site.code.value, command.code)
-        if building is None:
-            raise NotFoundError("DCIM building does not exist")
-        if command.status == "active" and not site.selectable():
-            raise ValidationError("cannot activate building under a non-active site")
-        updated = building.update(name=command.name, status=command.status)
         with self._transaction_manager.begin() as unit_of_work:
+            site = self._require_site(tenant_id, command.site)
+            building = self._dcim_repository.find_building(tenant_id, site.code.value, command.code)
+            if building is None:
+                raise NotFoundError("DCIM building does not exist")
+            if command.status == "active" and not site.selectable():
+                raise ValidationError("cannot activate building under a non-active site")
+            updated = building.update(name=command.name, status=command.status)
             self._dcim_repository.save_building(updated)
             self._audit_topology(command.actor, tenant_id, "dcim.building.updated", updated)
             unit_of_work.commit()
@@ -766,9 +768,9 @@ class DcimTopologyService:
 
     def delete_building(self, command: DeleteDcimBuildingCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        building = self._require_building(tenant_id, command.site, command.code)
-        retired = building.retire()
         with self._transaction_manager.begin() as unit_of_work:
+            building = self._require_building(tenant_id, command.site, command.code)
+            retired = building.retire()
             self._retire_building_tree(tenant_id, retired)
             self._audit_repository.append(
                 AuditEvent.record(
@@ -788,20 +790,22 @@ class DcimTopologyService:
 
     def get_building(self, command: GetDcimBuildingCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        return self._require_building(tenant_id, command.site, command.code).as_dict()
+        with self._transaction_manager.begin():
+            return self._require_building(tenant_id, command.site, command.code).as_dict()
 
     def list_buildings(self, command: ListDcimBuildingsCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        site = self._require_site(tenant_id, command.site)
-        items = self._dcim_repository.list_buildings(
-            tenant_id, site.code.value, command.include_retired
-        )
-        return {
-            "tenant_id": tenant_id.value,
-            "site": site.code.value,
-            "items": [item.as_dict() for item in items],
-            "count": len(items),
-        }
+        with self._transaction_manager.begin():
+            site = self._require_site(tenant_id, command.site)
+            items = self._dcim_repository.list_buildings(
+                tenant_id, site.code.value, command.include_retired
+            )
+            return {
+                "tenant_id": tenant_id.value,
+                "site": site.code.value,
+                "items": [item.as_dict() for item in items],
+                "count": len(items),
+            }
 
     def create_floor(self, command: CreateDcimFloorCommand) -> dict[str, object]:
         _ = command
@@ -823,39 +827,41 @@ class DcimTopologyService:
 
     def get_floor(self, command: GetDcimFloorCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        return self._require_floor(
-            tenant_id, command.site, command.building, command.code
-        ).as_dict()
+        with self._transaction_manager.begin():
+            return self._require_floor(
+                tenant_id, command.site, command.building, command.code
+            ).as_dict()
 
     def list_floors(self, command: ListDcimFloorsCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        building = self._require_building(tenant_id, command.site, command.building)
-        items = self._dcim_repository.list_floors(
-            tenant_id, building.site_code.value, building.code.value, command.include_retired
-        )
-        return {
-            "tenant_id": tenant_id.value,
-            "site": building.site_code.value,
-            "building": building.code.value,
-            "items": [item.as_dict() for item in items],
-            "count": len(items),
-        }
+        with self._transaction_manager.begin():
+            building = self._require_building(tenant_id, command.site, command.building)
+            items = self._dcim_repository.list_floors(
+                tenant_id, building.site_code.value, building.code.value, command.include_retired
+            )
+            return {
+                "tenant_id": tenant_id.value,
+                "site": building.site_code.value,
+                "building": building.code.value,
+                "items": [item.as_dict() for item in items],
+                "count": len(items),
+            }
 
     def create_room(self, command: CreateDcimRoomCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        building = self._require_selectable_building(tenant_id, command.site, command.building)
-        floor = self._resolve_room_floor_for_creation(tenant_id, building, command.floor)
-        room = Room.create(
-            tenant_id,
-            building.site_code.value,
-            building.code.value,
-            command.code,
-            command.name,
-            command.rows,
-            command.columns,
-            floor_code=floor.code.value if floor else None,
-        )
         with self._transaction_manager.begin() as unit_of_work:
+            building = self._require_selectable_building(tenant_id, command.site, command.building)
+            floor = self._resolve_room_floor_for_creation(tenant_id, building, command.floor)
+            room = Room.create(
+                tenant_id,
+                building.site_code.value,
+                building.code.value,
+                command.code,
+                command.name,
+                command.rows,
+                command.columns,
+                floor_code=floor.code.value if floor else None,
+            )
             if (
                 self._dcim_repository.find_room(
                     tenant_id, building.site_code.value, building.code.value, room.code.value
@@ -870,28 +876,31 @@ class DcimTopologyService:
 
     def update_room(self, command: UpdateDcimRoomCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        room = self._require_room(tenant_id, command.site, command.building, command.code)
-        if command.status == "active":
-            building = self._require_building(
-                tenant_id, room.site_code.value, room.building_code.value
-            )
-            if not building.selectable():
-                raise ValidationError("cannot activate room under a non-active building")
-            if room.floor_code is not None:
-                floor = self._require_floor(
-                    tenant_id, room.site_code.value, room.building_code.value, room.floor_code.value
-                )
-                if not floor.selectable():
-                    raise ValidationError("cannot activate room under a non-active floor")
-            elif building.requires_floor():
-                raise ValidationError("room floor is mandatory when building type is Etages")
-        updated = room.update(
-            name=command.name,
-            rows=command.rows,
-            columns=command.columns,
-            status=command.status,
-        )
         with self._transaction_manager.begin() as unit_of_work:
+            room = self._require_room(tenant_id, command.site, command.building, command.code)
+            if command.status == "active":
+                building = self._require_building(
+                    tenant_id, room.site_code.value, room.building_code.value
+                )
+                if not building.selectable():
+                    raise ValidationError("cannot activate room under a non-active building")
+                if room.floor_code is not None:
+                    floor = self._require_floor(
+                        tenant_id,
+                        room.site_code.value,
+                        room.building_code.value,
+                        room.floor_code.value,
+                    )
+                    if not floor.selectable():
+                        raise ValidationError("cannot activate room under a non-active floor")
+                elif building.requires_floor():
+                    raise ValidationError("room floor is mandatory when building type is Etages")
+            updated = room.update(
+                name=command.name,
+                rows=command.rows,
+                columns=command.columns,
+                status=command.status,
+            )
             for zone in self._dcim_repository.list_zones(
                 tenant_id,
                 updated.site_code.value,
@@ -907,9 +916,9 @@ class DcimTopologyService:
 
     def delete_room(self, command: DeleteDcimRoomCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        room = self._require_room(tenant_id, command.site, command.building, command.code)
-        retired = room.retire()
         with self._transaction_manager.begin() as unit_of_work:
+            room = self._require_room(tenant_id, command.site, command.building, command.code)
+            retired = room.retire()
             self._retire_room_tree(tenant_id, retired)
             self._audit_repository.append(
                 AuditEvent.record(
@@ -926,42 +935,46 @@ class DcimTopologyService:
 
     def get_room(self, command: GetDcimRoomCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        return self._require_room(tenant_id, command.site, command.building, command.code).as_dict()
+        with self._transaction_manager.begin():
+            return self._require_room(
+                tenant_id, command.site, command.building, command.code
+            ).as_dict()
 
     def list_rooms(self, command: ListDcimRoomsCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        building = self._require_building(tenant_id, command.site, command.building)
-        items = self._dcim_repository.list_rooms(
-            tenant_id, building.site_code.value, building.code.value, command.include_retired
-        )
-        return {
-            "tenant_id": tenant_id.value,
-            "site": building.site_code.value,
-            "building": building.code.value,
-            "items": [item.as_dict() for item in items],
-            "count": len(items),
-        }
+        with self._transaction_manager.begin():
+            building = self._require_building(tenant_id, command.site, command.building)
+            items = self._dcim_repository.list_rooms(
+                tenant_id, building.site_code.value, building.code.value, command.include_retired
+            )
+            return {
+                "tenant_id": tenant_id.value,
+                "site": building.site_code.value,
+                "building": building.code.value,
+                "items": [item.as_dict() for item in items],
+                "count": len(items),
+            }
 
     def create_zone(self, command: CreateDcimZoneCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        room = self._require_selectable_room(
-            tenant_id, command.site, command.building, command.room
-        )
-        if room.floor_code is None:
-            raise ValidationError("room floor is mandatory to create a zone")
-        zone = RoomZone.create(
-            tenant_id,
-            room.site_code.value,
-            room.building_code.value,
-            room.floor_code.value,
-            room.code.value,
-            command.code,
-            command.name,
-            command.rows,
-            command.columns,
-        )
-        zone.assert_within_room(room)
         with self._transaction_manager.begin() as unit_of_work:
+            room = self._require_selectable_room(
+                tenant_id, command.site, command.building, command.room
+            )
+            if room.floor_code is None:
+                raise ValidationError("room floor is mandatory to create a zone")
+            zone = RoomZone.create(
+                tenant_id,
+                room.site_code.value,
+                room.building_code.value,
+                room.floor_code.value,
+                room.code.value,
+                command.code,
+                command.name,
+                command.rows,
+                command.columns,
+            )
+            zone.assert_within_room(room)
             if (
                 self._dcim_repository.find_zone(
                     tenant_id,
@@ -980,22 +993,26 @@ class DcimTopologyService:
 
     def update_zone(self, command: UpdateDcimZoneCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        room = self._require_room(tenant_id, command.site, command.building, command.room)
-        zone = self._dcim_repository.find_zone(
-            tenant_id, room.site_code.value, room.building_code.value, room.code.value, command.code
-        )
-        if zone is None:
-            raise NotFoundError("DCIM zone does not exist")
-        if command.status == "active" and not room.selectable():
-            raise ValidationError("cannot activate zone under a non-active room")
-        updated = zone.update(
-            name=command.name,
-            rows=command.rows,
-            columns=command.columns,
-            status=command.status,
-        )
-        updated.assert_within_room(room)
         with self._transaction_manager.begin() as unit_of_work:
+            room = self._require_room(tenant_id, command.site, command.building, command.room)
+            zone = self._dcim_repository.find_zone(
+                tenant_id,
+                room.site_code.value,
+                room.building_code.value,
+                room.code.value,
+                command.code,
+            )
+            if zone is None:
+                raise NotFoundError("DCIM zone does not exist")
+            if command.status == "active" and not room.selectable():
+                raise ValidationError("cannot activate zone under a non-active room")
+            updated = zone.update(
+                name=command.name,
+                rows=command.rows,
+                columns=command.columns,
+                status=command.status,
+            )
+            updated.assert_within_room(room)
             self._dcim_repository.save_zone(updated)
             self._audit_topology(command.actor, tenant_id, "dcim.zone.updated", updated)
             unit_of_work.commit()
@@ -1003,11 +1020,11 @@ class DcimTopologyService:
 
     def delete_zone(self, command: DeleteDcimZoneCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        zone = self._require_zone(
-            tenant_id, command.site, command.building, command.room, command.code
-        )
-        retired = zone.retire()
         with self._transaction_manager.begin() as unit_of_work:
+            zone = self._require_zone(
+                tenant_id, command.site, command.building, command.room, command.code
+            )
+            retired = zone.retire()
             self._dcim_repository.save_zone(retired)
             self._audit_topology(command.actor, tenant_id, "dcim.zone.retired", retired)
             unit_of_work.commit()
@@ -1015,28 +1032,30 @@ class DcimTopologyService:
 
     def get_zone(self, command: GetDcimZoneCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        return self._require_zone(
-            tenant_id, command.site, command.building, command.room, command.code
-        ).as_dict()
+        with self._transaction_manager.begin():
+            return self._require_zone(
+                tenant_id, command.site, command.building, command.room, command.code
+            ).as_dict()
 
     def list_zones(self, command: ListDcimZonesCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        room = self._require_room(tenant_id, command.site, command.building, command.room)
-        items = self._dcim_repository.list_zones(
-            tenant_id,
-            room.site_code.value,
-            room.building_code.value,
-            room.code.value,
-            command.include_retired,
-        )
-        return {
-            "tenant_id": tenant_id.value,
-            "site": room.site_code.value,
-            "building": room.building_code.value,
-            "room": room.code.value,
-            "items": [item.as_dict() for item in items],
-            "count": len(items),
-        }
+        with self._transaction_manager.begin():
+            room = self._require_room(tenant_id, command.site, command.building, command.room)
+            items = self._dcim_repository.list_zones(
+                tenant_id,
+                room.site_code.value,
+                room.building_code.value,
+                room.code.value,
+                command.include_retired,
+            )
+            return {
+                "tenant_id": tenant_id.value,
+                "site": room.site_code.value,
+                "building": room.building_code.value,
+                "room": room.code.value,
+                "items": [item.as_dict() for item in items],
+                "count": len(items),
+            }
 
     def _require_site(self, tenant_id: TenantId, site_code: str) -> Site:
         site = self._dcim_repository.find_site(tenant_id, site_code)
@@ -1196,45 +1215,50 @@ class DcimTopologyService:
 
     def topology_catalog(self, command: DcimTopologyCatalogCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        sites_payload: list[dict[str, object]] = []
-        for site in self._dcim_repository.list_sites(tenant_id, command.include_retired):
-            buildings_payload: list[dict[str, object]] = []
-            for building in self._dcim_repository.list_buildings(
-                tenant_id, site.code.value, command.include_retired
-            ):
-                floors = self._dcim_repository.list_floors(
-                    tenant_id, site.code.value, building.code.value, command.include_retired
-                )
-                rooms_payload: list[dict[str, object]] = []
-                for room in self._dcim_repository.list_rooms(
-                    tenant_id, site.code.value, building.code.value, command.include_retired
+        with self._transaction_manager.begin():
+            sites_payload: list[dict[str, object]] = []
+            for site in self._dcim_repository.list_sites(tenant_id, command.include_retired):
+                buildings_payload: list[dict[str, object]] = []
+                for building in self._dcim_repository.list_buildings(
+                    tenant_id, site.code.value, command.include_retired
                 ):
-                    zones = self._dcim_repository.list_zones(
-                        tenant_id,
-                        site.code.value,
-                        building.code.value,
-                        room.code.value,
-                        command.include_retired,
+                    floors = self._dcim_repository.list_floors(
+                        tenant_id, site.code.value, building.code.value, command.include_retired
                     )
-                    racks = self._dcim_repository.list_racks_in_room(
-                        tenant_id, site.code.value, building.code.value, room.code.value
-                    )
-                    rooms_payload.append(
+                    rooms_payload: list[dict[str, object]] = []
+                    for room in self._dcim_repository.list_rooms(
+                        tenant_id, site.code.value, building.code.value, command.include_retired
+                    ):
+                        zones = self._dcim_repository.list_zones(
+                            tenant_id,
+                            site.code.value,
+                            building.code.value,
+                            room.code.value,
+                            command.include_retired,
+                        )
+                        racks = self._dcim_repository.list_racks_in_room(
+                            tenant_id,
+                            site.code.value,
+                            building.code.value,
+                            room.code.value,
+                            command.include_retired,
+                        )
+                        rooms_payload.append(
+                            {
+                                **room.as_dict(),
+                                "zones": [zone.as_dict() for zone in zones],
+                                "racks": [rack.as_capacity_seed() for rack in racks],
+                            }
+                        )
+                    buildings_payload.append(
                         {
-                            **room.as_dict(),
-                            "zones": [zone.as_dict() for zone in zones],
-                            "racks": [rack.as_capacity_seed() for rack in racks],
+                            **building.as_dict(),
+                            "floors": [floor.as_dict() for floor in floors],
+                            "rooms": rooms_payload,
                         }
                     )
-                buildings_payload.append(
-                    {
-                        **building.as_dict(),
-                        "floors": [floor.as_dict() for floor in floors],
-                        "rooms": rooms_payload,
-                    }
-                )
-            sites_payload.append({**site.as_dict(), "buildings": buildings_payload})
-        return {"tenant_id": tenant_id.value, "sites": sites_payload}
+                sites_payload.append({**site.as_dict(), "buildings": buildings_payload})
+            return {"tenant_id": tenant_id.value, "sites": sites_payload}
 
     def define_room(self, command: DefinePhysicalRoomCommand) -> dict[str, Any]:
         tenant_id = TenantId.from_value(command.tenant_id)
@@ -1438,29 +1462,29 @@ class DcimRackService:
 
     def define_rack(self, command: DefineRackCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        room = self._require_selectable_room(
-            tenant_id, command.site, command.building, command.room
-        )
-        self._validate_rack_context(command, room)
-        zone = self._resolve_zone(command, tenant_id, room)
-        coordinates = Coordinates3D.from_values(command.x, command.y, command.z)
-        rack = Rack.create(
-            tenant_id=tenant_id,
-            site_code=command.site,
-            building_code=command.building,
-            room_code=command.room,
-            code=command.rack,
-            row=command.row,
-            column=command.column,
-            units=command.units,
-            coordinates=coordinates,
-            floor_code=command.floor or (room.floor_code.value if room.floor_code else None),
-            zone_code=zone.code.value if zone else command.zone,
-            usable_faces=command.usable_faces,
-            max_weight_kg=command.max_weight_kg,
-            power_capacity_watts=command.power_capacity_watts,
-        )
         with self._transaction_manager.begin() as unit_of_work:
+            room = self._require_selectable_room(
+                tenant_id, command.site, command.building, command.room
+            )
+            self._validate_rack_context(command, room)
+            zone = self._resolve_zone(command, tenant_id, room)
+            coordinates = Coordinates3D.from_values(command.x, command.y, command.z)
+            rack = Rack.create(
+                tenant_id=tenant_id,
+                site_code=command.site,
+                building_code=command.building,
+                room_code=command.room,
+                code=command.rack,
+                row=command.row,
+                column=command.column,
+                units=command.units,
+                coordinates=coordinates,
+                floor_code=command.floor or (room.floor_code.value if room.floor_code else None),
+                zone_code=zone.code.value if zone else command.zone,
+                usable_faces=command.usable_faces,
+                max_weight_kg=command.max_weight_kg,
+                power_capacity_watts=command.power_capacity_watts,
+            )
             if (
                 self._dcim_repository.find_rack(
                     tenant_id,
@@ -1488,28 +1512,28 @@ class DcimRackService:
 
     def update_rack(self, command: UpdateRackCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        rack = self._require_rack(
-            tenant_id, command.site, command.building, command.room, command.rack
-        )
-        room = self._dcim_repository.find_room(
-            tenant_id, rack.site_code.value, rack.building_code.value, rack.room_code.value
-        )
-        if room is None:
-            raise NotFoundError("rack room does not exist")
-        if command.row is not None or command.column is not None:
-            room.assert_cell_exists(command.row or rack.row, command.column or rack.column)
-        if command.status == "active" and not room.selectable():
-            raise ValidationError("cannot activate rack under a non-active room")
-        updated = rack.update(
-            row=command.row,
-            column=command.column,
-            units=command.units,
-            usable_faces=command.usable_faces,
-            max_weight_kg=command.max_weight_kg,
-            power_capacity_watts=command.power_capacity_watts,
-            status=command.status,
-        )
         with self._transaction_manager.begin() as unit_of_work:
+            rack = self._require_rack(
+                tenant_id, command.site, command.building, command.room, command.rack
+            )
+            room = self._dcim_repository.find_room(
+                tenant_id, rack.site_code.value, rack.building_code.value, rack.room_code.value
+            )
+            if room is None:
+                raise NotFoundError("rack room does not exist")
+            if command.row is not None or command.column is not None:
+                room.assert_cell_exists(command.row or rack.row, command.column or rack.column)
+            if command.status == "active" and not room.selectable():
+                raise ValidationError("cannot activate rack under a non-active room")
+            updated = rack.update(
+                row=command.row,
+                column=command.column,
+                units=command.units,
+                usable_faces=command.usable_faces,
+                max_weight_kg=command.max_weight_kg,
+                power_capacity_watts=command.power_capacity_watts,
+                status=command.status,
+            )
             self._dcim_repository.save_rack(updated)
             self._audit_repository.append(
                 AuditEvent.record(
@@ -1526,11 +1550,11 @@ class DcimRackService:
 
     def delete_rack(self, command: DeleteRackCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        rack = self._require_rack(
-            tenant_id, command.site, command.building, command.room, command.rack
-        )
-        retired = rack.retire()
         with self._transaction_manager.begin() as unit_of_work:
+            rack = self._require_rack(
+                tenant_id, command.site, command.building, command.room, command.rack
+            )
+            retired = rack.retire()
             self._dcim_repository.save_rack(retired)
             self._audit_repository.append(
                 AuditEvent.record(
@@ -1547,50 +1571,53 @@ class DcimRackService:
 
     def get_rack(self, command: GetRackCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        return self._require_rack(
-            tenant_id, command.site, command.building, command.room, command.rack
-        ).as_dict()
+        with self._transaction_manager.begin():
+            return self._require_rack(
+                tenant_id, command.site, command.building, command.room, command.rack
+            ).as_dict()
 
     def list_racks(self, command: ListRacksCommand) -> dict[str, object]:
         tenant_id = TenantId.from_value(command.tenant_id)
-        room = self._require_room(tenant_id, command.site, command.building, command.room)
-        racks = self._dcim_repository.list_racks_in_room(
-            tenant_id,
-            room.site_code.value,
-            room.building_code.value,
-            room.code.value,
-            command.include_retired,
-        )
-        return {
-            "tenant_id": tenant_id.value,
-            "site": room.site_code.value,
-            "building": room.building_code.value,
-            "room": room.code.value,
-            "items": [rack.as_dict() for rack in racks],
-            "count": len(racks),
-        }
+        with self._transaction_manager.begin():
+            room = self._require_room(tenant_id, command.site, command.building, command.room)
+            racks = self._dcim_repository.list_racks_in_room(
+                tenant_id,
+                room.site_code.value,
+                room.building_code.value,
+                room.code.value,
+                command.include_retired,
+            )
+            return {
+                "tenant_id": tenant_id.value,
+                "site": room.site_code.value,
+                "building": room.building_code.value,
+                "room": room.code.value,
+                "items": [rack.as_dict() for rack in racks],
+                "count": len(racks),
+            }
 
     def capacity(self, command: RackCapacityCommand) -> RackCapacityReport:
         tenant_id = TenantId.from_value(command.tenant_id)
-        rack = self._dcim_repository.find_rack(
-            tenant_id,
-            command.site,
-            command.building,
-            command.room,
-            command.rack,
-        )
-        if rack is None:
-            raise NotFoundError("rack does not exist")
-        if not rack.selectable():
-            raise ValidationError("DCIM rack is not active")
-        equipment = self._dcim_repository.list_equipment_in_rack(
-            tenant_id,
-            command.site,
-            command.building,
-            command.room,
-            command.rack,
-        )
-        return RackCapacityReport(rack, equipment)
+        with self._transaction_manager.begin():
+            rack = self._dcim_repository.find_rack(
+                tenant_id,
+                command.site,
+                command.building,
+                command.room,
+                command.rack,
+            )
+            if rack is None:
+                raise NotFoundError("rack does not exist")
+            if not rack.selectable():
+                raise ValidationError("DCIM rack is not active")
+            equipment = self._dcim_repository.list_equipment_in_rack(
+                tenant_id,
+                command.site,
+                command.building,
+                command.room,
+                command.rack,
+            )
+            return RackCapacityReport(rack, equipment)
 
     def _require_room(
         self, tenant_id: TenantId, site_code: str, building_code: str, room_code: str

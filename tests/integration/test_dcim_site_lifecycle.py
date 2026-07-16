@@ -4,6 +4,7 @@ import json
 import threading
 import urllib.request
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -25,6 +26,7 @@ from openinfra.application.dcim_services import (
     GetDcimBuildingCommand,
     GetDcimFloorCommand,
     GetDcimRoomCommand,
+    GetDcimSiteCommand,
     GetDcimZoneCommand,
     GetRackCommand,
     ListDcimBuildingsCommand,
@@ -40,10 +42,61 @@ from openinfra.application.dcim_services import (
     UpdateDcimZoneCommand,
     UpdateRackCommand,
 )
+from openinfra.application.ports import DcimRepository, TransactionManager
 from openinfra.application.security_services import BootstrapTokenCommand
 from openinfra.domain.common import ValidationError
 from openinfra.interfaces.cli import OpenInfraCLI
 from openinfra.interfaces.http_api import OpenInfraThreadingServer
+
+
+class _GuardedUnitOfWork:
+    def __init__(self, delegate: Any, transaction_manager: _GuardedTransactionManager) -> None:
+        self._delegate = delegate
+        self._transaction_manager = transaction_manager
+
+    def __enter__(self) -> _GuardedUnitOfWork:
+        self._delegate.__enter__()
+        self._transaction_manager.depth += 1
+        return self
+
+    def __exit__(self, exc_type: object, exc: object, traceback: object) -> None:
+        try:
+            self._delegate.__exit__(exc_type, exc, traceback)
+        finally:
+            self._transaction_manager.depth -= 1
+
+    def commit(self) -> None:
+        self._delegate.commit()
+
+    def rollback(self) -> None:
+        self._delegate.rollback()
+
+
+class _GuardedTransactionManager:
+    def __init__(self, delegate: TransactionManager) -> None:
+        self._delegate = delegate
+        self.depth = 0
+
+    def begin(self) -> _GuardedUnitOfWork:
+        return _GuardedUnitOfWork(self._delegate.begin(), self)
+
+
+class _GuardedDcimRepository:
+    def __init__(self, delegate: DcimRepository, transaction_manager: _GuardedTransactionManager):
+        self._delegate = delegate
+        self._transaction_manager = transaction_manager
+
+    def __getattr__(self, name: str) -> Any:
+        attribute = getattr(self._delegate, name)
+        if not callable(attribute):
+            return attribute
+
+        def guarded(*args: object, **kwargs: object) -> Any:
+            if self._transaction_manager.depth <= 0:
+                raise AssertionError(f"DCIM repository operation outside UnitOfWork: {name}")
+            return attribute(*args, **kwargs)
+
+        return guarded
 
 
 class TestDcimSiteLifecycle:
@@ -236,6 +289,131 @@ class TestDcimSiteLifecycle:
         assert retired_building["floors"][0]["status"] == "retired"
         assert retired_building["rooms"][0]["status"] == "retired"
         assert retired_building["rooms"][0]["zones"][0]["status"] == "retired"
+
+    def test_management_crud_never_accesses_dcim_repository_outside_unit_of_work(
+        self, tmp_path: Path
+    ) -> None:
+        app = ApplicationFactory().create_json_application(tmp_path / "state.json", seed=False)
+        topology = app.dcim_topology_service
+        racks = app.dcim_rack_service
+        transaction_manager = _GuardedTransactionManager(topology._transaction_manager)
+        repository = _GuardedDcimRepository(topology._dcim_repository, transaction_manager)
+        guarded_transaction_manager = cast(TransactionManager, transaction_manager)
+        guarded_repository = cast(DcimRepository, repository)
+        topology._transaction_manager = guarded_transaction_manager
+        topology._dcim_repository = guarded_repository
+        racks._transaction_manager = guarded_transaction_manager
+        racks._dcim_repository = guarded_repository
+
+        topology.create_site(
+            CreateDcimSiteCommand(
+                "default",
+                "pytest",
+                "UOW1",
+                "UnitOfWork Site",
+                "FR",
+                "Paris",
+                "IDF",
+                "1 Rue des Transactions",
+                "75001",
+                "uow1@example.invalid",
+                "+33100000001",
+            )
+        )
+        topology.get_site(GetDcimSiteCommand("default", "UOW1"))
+        topology.list_sites(ListDcimSitesCommand("default"))
+        topology.update_site(
+            UpdateDcimSiteCommand("default", "pytest", "UOW1", name="Transactional Site")
+        )
+        topology.create_building(
+            CreateDcimBuildingCommand(
+                "default", "pytest", "UOW1", "BAT-U", "Transactional Building", "floors", 0, 1
+            )
+        )
+        topology.get_building(GetDcimBuildingCommand("default", "UOW1", "BAT-U"))
+        topology.list_buildings(ListDcimBuildingsCommand("default", "UOW1"))
+        topology.update_building(
+            UpdateDcimBuildingCommand("default", "pytest", "UOW1", "BAT-U", name="Building U")
+        )
+        topology.get_floor(GetDcimFloorCommand("default", "UOW1", "BAT-U", "L01"))
+        topology.list_floors(ListDcimFloorsCommand("default", "UOW1", "BAT-U"))
+        topology.create_room(
+            CreateDcimRoomCommand(
+                "default",
+                "pytest",
+                "UOW1",
+                "BAT-U",
+                "L01",
+                "RM-U",
+                "Transactional Room",
+                ("0-2",),
+                ("A-C",),
+            )
+        )
+        topology.get_room(GetDcimRoomCommand("default", "UOW1", "BAT-U", "RM-U"))
+        topology.list_rooms(ListDcimRoomsCommand("default", "UOW1", "BAT-U"))
+        topology.update_room(
+            UpdateDcimRoomCommand("default", "pytest", "UOW1", "BAT-U", "RM-U", name="Room U")
+        )
+        topology.create_zone(
+            CreateDcimZoneCommand(
+                "default",
+                "pytest",
+                "UOW1",
+                "BAT-U",
+                "RM-U",
+                "ZN-U",
+                "Transactional Zone",
+                ("1",),
+                ("B",),
+            )
+        )
+        topology.get_zone(GetDcimZoneCommand("default", "UOW1", "BAT-U", "RM-U", "ZN-U"))
+        topology.list_zones(ListDcimZonesCommand("default", "UOW1", "BAT-U", "RM-U"))
+        topology.update_zone(
+            UpdateDcimZoneCommand(
+                "default", "pytest", "UOW1", "BAT-U", "RM-U", "ZN-U", name="Zone U"
+            )
+        )
+        racks.define_rack(
+            DefineRackCommand(
+                tenant_id="default",
+                actor="pytest",
+                site="UOW1",
+                building="BAT-U",
+                room="RM-U",
+                rack="RK-U",
+                row="1",
+                column="B",
+                units=42,
+                floor="L01",
+                zone="ZN-U",
+            )
+        )
+        racks.get_rack(GetRackCommand("default", "UOW1", "BAT-U", "RM-U", "RK-U"))
+        racks.list_racks(ListRacksCommand("default", "UOW1", "BAT-U", "RM-U"))
+        racks.update_rack(
+            UpdateRackCommand("default", "pytest", "UOW1", "BAT-U", "RM-U", "RK-U", units=48)
+        )
+        active_catalog = topology.topology_catalog(DcimTopologyCatalogCommand("default"))
+
+        racks.delete_rack(DeleteRackCommand("default", "pytest", "UOW1", "BAT-U", "RM-U", "RK-U"))
+        topology.delete_zone(
+            DeleteDcimZoneCommand("default", "pytest", "UOW1", "BAT-U", "RM-U", "ZN-U")
+        )
+        topology.delete_room(DeleteDcimRoomCommand("default", "pytest", "UOW1", "BAT-U", "RM-U"))
+        topology.delete_building(DeleteDcimBuildingCommand("default", "pytest", "UOW1", "BAT-U"))
+        topology.delete_site(DeleteDcimSiteCommand("default", "pytest", "UOW1"))
+        retired_catalog = topology.topology_catalog(
+            DcimTopologyCatalogCommand("default", include_retired=True)
+        )
+
+        active_room = active_catalog["sites"][0]["buildings"][0]["rooms"][0]
+        retired_room = retired_catalog["sites"][0]["buildings"][0]["rooms"][0]
+        assert active_room["racks"][0]["rack"] == "RK-U"
+        assert retired_room["zones"][0]["status"] == "retired"
+        assert retired_room["racks"][0]["status"] == "retired"
+        assert transaction_manager.depth == 0
 
     def test_dcim_site_cli_contract(self, tmp_path: Path, capsys: object) -> None:
         data = tmp_path / "state.json"

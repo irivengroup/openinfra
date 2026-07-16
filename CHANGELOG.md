@@ -1,3 +1,13 @@
+## v0.33.9 — Correctifs CI Discovery, support EPIC-1806 et UnitOfWork DCIM
+
+- aligne le contrat racine HTTP sur les routes Kubernetes livrées en 0.33.8 afin de restaurer le job de réconciliation Discovery multisource ;
+- installe explicitement le package OpenInfra dans le workflow Support Readiness avant l’exécution de `scripts/support_readiness.py` ;
+- exécute toutes les lectures, validations et mutations des espaces de gestion DCIM Sites/Bâtiments/Étages/Salles/Zones/Racks dans un `UnitOfWork` actif ;
+- protège le catalogue agrégé `/api/v1/dcim/topology-catalog` et les actions Détails/Éditer/Supprimer contre le contrat PostgreSQL strict ;
+- ajoute un test de non-régression gardé couvrant le cycle de vie complet et refusant toute opération repository DCIM hors unité de travail ;
+- inclut les racks retirés dans le catalogue lorsque `include_retired=true` ;
+- aucune migration, aucun endpoint, aucune commande CLI et aucune modification du thème.
+
 ## v0.33.8 — Correctif UnitOfWork PostgreSQL pour Kubernetes
 
 - corrige les lectures Kubernetes exécutées hors `UnitOfWork` avec le backend PostgreSQL ;

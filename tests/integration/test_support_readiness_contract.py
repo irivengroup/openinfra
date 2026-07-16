@@ -73,6 +73,7 @@ class TestSupportReadinessContract:
             "actions/checkout@v6",
             "actions/setup-python@v6",
             "actions/upload-artifact@v6",
+            "python -m pip install -e .",
             "scripts/support_readiness.py",
             "--enforce",
             "retention-days: 365",

@@ -412,6 +412,25 @@ class TestHttpApi:
                     "job_replay": "/api/v1/discovery/jobs/replay",
                     "authorize_job": "/api/v1/discovery/jobs/authorize",
                 },
+                "kubernetes": {
+                    "topologies": "/api/v1/kubernetes/topologies",
+                    "topology_get": "/api/v1/kubernetes/topologies/get",
+                    "topology_latest": "/api/v1/kubernetes/topologies/latest",
+                    "topology_graph": "/api/v1/kubernetes/topologies/topology",
+                    "topology_latest_graph": "/api/v1/kubernetes/topologies/latest-topology",
+                    "topology_exposure": "/api/v1/kubernetes/topologies/exposure",
+                    "topology_latest_exposure": ("/api/v1/kubernetes/topologies/latest-exposure"),
+                    "topology_security": "/api/v1/kubernetes/topologies/security",
+                    "topology_latest_security": ("/api/v1/kubernetes/topologies/latest-security"),
+                    "topology_capacity": "/api/v1/kubernetes/topologies/capacity",
+                    "topology_latest_capacity": ("/api/v1/kubernetes/topologies/latest-capacity"),
+                    "topology_capacity_trend": ("/api/v1/kubernetes/topologies/capacity-trend"),
+                    "topology_capacity_export": ("/api/v1/kubernetes/topologies/capacity-export"),
+                    "topology_latest_capacity_export": (
+                        "/api/v1/kubernetes/topologies/latest-capacity-export"
+                    ),
+                    "topology_import": "/api/v1/kubernetes/topologies/import",
+                },
             }
             assert "SwaggerUIBundle" in swagger
             assert "SwaggerUIBundle" in swagger_alias

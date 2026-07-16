@@ -1,3 +1,16 @@
+## v0.33.9 — Stabilisation CI et frontières transactionnelles DCIM
+
+| Exigence | Implémentation | Vérification |
+|---|---|---|
+| Réconciliation Discovery multisource | contrat racine HTTP synchronisé avec les routes Kubernetes existantes | job CI Discovery, 106 tests |
+| EPIC-1806 Support Readiness | installation editable du package avant le validateur support | workflow dédié et 19 tests |
+| Gestion DCIM sous PostgreSQL | lectures, validations et écritures Sites/Bâtiments/Étages/Salles/Zones/Racks dans un UnitOfWork actif | 14 tests de cycle de vie dont repository gardé |
+| Compatibilité | API, CLI, migrations et thème inchangés | suites de régression, frontend et packaging |
+
+- CDC et roadmap inchangés : aucun besoin fonctionnel, architectural ou réglementaire nouveau.
+- Aucune migration PostgreSQL supplémentaire.
+- Le CSS validé en 0.33.8 est conservé sans modification.
+
 ## v0.33.8 — Correctif frontend Kubernetes et régression CI Outbox
 
 - Correctif UX : exposition du contexte `Discovery · Kubernetes et cloud-native` dans la navigation frontend réelle.

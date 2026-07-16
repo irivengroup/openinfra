@@ -434,6 +434,7 @@ from openinfra.infrastructure.proxy_enrollment import (
     ProxyEnrollmentPayloadFactory,
 )
 from openinfra.infrastructure.runtime_config import RuntimeConfigLoader, RuntimeDatabaseDsnResolver
+from openinfra.infrastructure.runtime_secrets import RuntimeBootstrapTokenStore
 from openinfra.infrastructure.spec_validation import ContractualSpecValidator
 
 
@@ -813,7 +814,13 @@ class OpenInfraCLI:
         bootstrap.add_argument("--actor", default="cli")
         bootstrap.add_argument("--subject", required=True)
         bootstrap.add_argument("--role", action="append", default=[])
-        bootstrap.add_argument("--token")
+        token_source = bootstrap.add_mutually_exclusive_group()
+        token_source.add_argument("--token")
+        token_source.add_argument(
+            "--token-file",
+            type=Path,
+            help="Read the internally managed bootstrap token from a protected file.",
+        )
         bootstrap.add_argument("--ttl-seconds", type=int)
         bootstrap.set_defaults(handler=self._handle_security_bootstrap_token)
         whoami = security_subparsers.add_parser(
@@ -5298,13 +5305,16 @@ class OpenInfraCLI:
     def _handle_security_bootstrap_token(self, args: argparse.Namespace) -> int:
         application = self._create_application(args)
         roles = tuple(args.role) if args.role else ("admin",)
+        token = args.token
+        if args.token_file is not None:
+            token = RuntimeBootstrapTokenStore(Path(args.token_file)).read()
         result = application.security_service.bootstrap_token(
             BootstrapTokenCommand(
                 tenant_id=args.tenant,
                 actor=args.actor,
                 subject=args.subject,
                 roles=roles,
-                token=args.token,
+                token=token,
                 ttl_seconds=args.ttl_seconds,
             )
         )

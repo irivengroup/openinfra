@@ -10,6 +10,8 @@ L'environnement n'est pas un simple conteneur de tests unitaires. Il exécute la
 
 - `postgres` : instance PostgreSQL 16 persistante avec healthcheck ;
 - `migrate` : conteneur applicatif OpenInfra exécutant `openinfra database apply-migrations` ;
+- `runtime-secrets` : service one-shot générant ou réutilisant le jeton bootstrap dans un volume séparé ;
+- `auth-bootstrap` : enregistrement haché du jeton runtime dans PostgreSQL via `--token-file` ;
 - `api` : API OpenInfra construite depuis le Dockerfile applicatif, lancée avec backend PostgreSQL ;
 - `web` : service `openinfra-web` servant le frontend et proxyfiant `/api/*` vers `api:8080`, sans DSN ni secret exposé au navigateur ;
 - `pgadmin` : console PostgreSQL de lab liée uniquement au réseau Compose ;
@@ -23,7 +25,16 @@ Le fichier `.env` n'est pas versionné. Il est créé ou mis à niveau localemen
 python scripts/docker_environment.py init
 ```
 
-Le script conserve les valeurs non vides déjà présentes et complète atomiquement les clés absentes ou les secrets obligatoires vides, notamment la réplication PostgreSQL, la cohérence de lecture, le bootstrap API et l'administration Grafana. Le fichier `.env.example` documente les variables attendues sans contenir de secret exploitable.
+Le script conserve les valeurs non vides déjà présentes et complète atomiquement les clés absentes ou les secrets obligatoires vides, notamment la réplication PostgreSQL, la cohérence de lecture et l'administration Grafana. Le fichier `.env.example` documente les variables attendues sans contenir de secret exploitable.
+
+Les valeurs suivantes sont gérées exclusivement par OpenInfra et ne font plus partie du contrat `.env` :
+
+- `OPENINFRA_IMAGE_TAG` : remplacé par un override Compose temporaire calculé depuis `VERSION`, sans variable d’environnement ;
+- `OPENINFRA_WEB_EDITION` : remplacé par la découverte de l’édition effective publiée par l’API active ;
+- `OPENINFRA_WEB_PUBLIC_API_BASE_URL` : dérivé du proxy BFF same-origin `/api` ;
+- `OPENINFRA_BOOTSTRAP_TOKEN` : remplacé par un jeton généré dans le volume Docker `openinfra-runtime-secrets`, jamais écrit dans `.env`.
+
+Lors d’un nouvel `init`, toute occurrence héritée de ces quatre clés est supprimée atomiquement du `.env`. Les commandes recommandées du lab passent par `scripts/docker_environment.py`, qui génère un override Compose temporaire depuis la version lue dans `VERSION` puis le supprime après exécution. Les appels Docker Compose directs restent compatibles grâce au tag figé de la release et au service interne `runtime-secrets`, mais ne doivent jamais réintroduire ces clés dans `.env`.
 
 ## Démarrage du runtime
 
@@ -31,7 +42,7 @@ Le script conserve les valeurs non vides déjà présentes et complète atomique
 python scripts/docker_environment.py up
 ```
 
-Cette commande construit l'image OpenInfra, démarre PostgreSQL, applique les migrations via la CLI OpenInfra, démarre l'API uniquement après succès du conteneur `migrate`, puis démarre `openinfra-web` uniquement quand l'API est saine.
+Cette commande construit l'image OpenInfra, démarre PostgreSQL, applique les migrations, génère ou réutilise le jeton bootstrap dans le volume secret, l'enregistre sous forme hachée en base, démarre l'API puis `openinfra-web` uniquement lorsque les dépendances sont saines.
 
 ## Validation fonctionnelle runtime
 
@@ -79,7 +90,7 @@ python scripts/docker_environment.py down
 python scripts/docker_environment.py reset
 ```
 
-Cette commande supprime aussi le volume PostgreSQL Docker afin de repartir d'un état vierge.
+Cette commande supprime les volumes PostgreSQL et `openinfra-runtime-secrets`. Le prochain démarrage repart donc d'une base vierge et génère automatiquement un nouveau jeton bootstrap.
 
 ## Contraintes respectées
 
@@ -90,18 +101,40 @@ Cette commande supprime aussi le volume PostgreSQL Docker afin de repartir d'un 
 - PostgreSQL comme socle de persistance runtime ;
 - API, CLI et frontend `openinfra-web` validés dans l'environnement d'exécution ;
 - réseau Docker isolé ;
-- données PostgreSQL stockées dans un volume nommé.
+- données PostgreSQL stockées dans un volume nommé ;
+- jeton bootstrap stocké dans un volume distinct, fichier `0400`, monté en lecture seule dans ses consommateurs.
 
-## Authentification du runtime v0.7.0
+## Authentification du runtime
 
-Le runtime Docker exécute la solution avec l’authentification API activée. Le script `python scripts/docker_environment.py init` génère deux valeurs locales non versionnées dans `.env` :
+Le runtime Docker active l’authentification API sans dépendre de `OPENINFRA_BOOTSTRAP_TOKEN` dans `.env`.
 
-- `OPENINFRA_POSTGRES_PASSWORD` pour PostgreSQL ;
-- `OPENINFRA_BOOTSTRAP_TOKEN` pour amorcer un client API `docker-runtime` et fournir le bearer server-side utilisé par `openinfra-web` lorsque `OPENINFRA_WEB_BACKEND_BEARER_TOKEN` n’est pas explicitement défini.
+Le service one-shot `runtime-secrets` :
 
-La chaîne Compose suit l’ordre suivant : PostgreSQL sain, migrations appliquées, jeton API haché en base, API démarrée avec `OPENINFRA_AUTH_REQUIRED=true`, web proxy configuré avec un bearer backend côté serveur, smoke tests API/CLI. Les smoke tests appellent `/api/v1/ipam/allocate` avec l’en-tête `Authorization: Bearer ...` et valident l’idempotence IPAM sur le backend PostgreSQL.
+1. crée le volume `openinfra-runtime-secrets` si nécessaire ;
+2. génère un jeton préfixé `oi_` à partir d’un générateur cryptographique ;
+3. conserve le même jeton lors des redémarrages non destructifs ;
+4. impose un répertoire `0700` et un fichier `0400` appartenant au compte runtime UID/GID `10001` ;
+5. ne journalise jamais la valeur du jeton.
 
-Le jeton n’est pas stocké en clair en base. Seul le hash SHA-256 et un préfixe d’identification opérationnelle sont persistés. La validation runtime vérifie aussi la création d’un jeton temporaire, l’inventaire paginé des métadonnées et la révocation auditée.
+`auth-bootstrap` lit ce fichier avec `--token-file`, `openinfra-web` avec `--backend-bearer-token-file`, et le smoke test depuis le même montage en lecture seule. Seul le hash SHA-256 et un préfixe d’identification sont persistés en base.
+
+La consultation explicite du jeton pour une opération d’administration s’effectue via le programme interne :
+
+```bash
+OPENINFRA_TOKEN="$(python scripts/docker_environment.py bootstrap-token)"
+openinfra security whoami --backend postgresql --tenant default --token "$OPENINFRA_TOKEN"
+unset OPENINFRA_TOKEN
+```
+
+Sous PowerShell :
+
+```powershell
+$OpenInfraToken = python scripts/docker_environment.py bootstrap-token
+openinfra security whoami --backend postgresql --tenant default --token $OpenInfraToken
+Remove-Variable OpenInfraToken
+```
+
+La commande `down` conserve le volume et donc le jeton. La commande `reset` supprime le volume et provoque une rotation automatique au prochain `up`.
 
 ## Validation runtime IAM v0.7.0
 

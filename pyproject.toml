@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "openinfra"
-version = "0.33.10"
+version = "0.33.12"
 description = "OpenInfra Python POO IT ressources management, DCIM and IPAM foundation"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -41,6 +41,7 @@ dev = [
 openinfra = "openinfra.interfaces.cli:OpenInfraCLI.main"
 openinfra-api = "openinfra.interfaces.http_api:OpenInfraApiEntrypoint.main"
 openinfra-web = "openinfra.interfaces.web:OpenInfraWebEntrypoint.main"
+openinfra-runtime-secrets = "openinfra.infrastructure.runtime_secrets:RuntimeSecretsCli.main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/openinfra"]

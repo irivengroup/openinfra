@@ -34,11 +34,10 @@ Cette commande crée ou met à niveau `.env` avec des permissions `0600`. Elle g
 - `OPENINFRA_POSTGRES_PASSWORD` ;
 - `OPENINFRA_POSTGRES_REPLICATION_PASSWORD` ;
 - `OPENINFRA_READ_CONSISTENCY_SECRET` ;
-- `OPENINFRA_BOOTSTRAP_TOKEN` ;
 - `OPENINFRA_PGADMIN_PASSWORD` ;
 - `OPENINFRA_GRAFANA_ADMIN_PASSWORD`.
 
-Les valeurs existantes non vides sont conservées. Les clés absentes ou les secrets obligatoires vides sont complétés atomiquement.
+Les valeurs existantes non vides sont conservées. Les clés absentes ou les secrets obligatoires vides sont complétés atomiquement. Le jeton bootstrap n'est pas écrit dans `.env` : le service interne `runtime-secrets` le génère dans un volume Docker dédié au premier démarrage.
 
 ## Exécution complète
 

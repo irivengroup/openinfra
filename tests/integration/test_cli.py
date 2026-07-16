@@ -159,6 +159,58 @@ class TestOpenInfraCli:
         assert "row=B" in captured.out
         assert "column=12" in captured.out
 
+    def test_security_bootstrap_accepts_internally_managed_token_file(
+        self, tmp_path: Path, capsys: object
+    ) -> None:
+        import os
+
+        from openinfra.infrastructure.runtime_secrets import RuntimeBootstrapTokenStore
+
+        data = tmp_path / "state.json"
+        token_path = tmp_path / "bootstrap-token"
+        token_store = RuntimeBootstrapTokenStore(
+            token_path,
+            owner_uid=os.getuid(),
+            owner_gid=os.getgid(),
+        )
+        token_store.ensure()
+        token = token_store.read()
+
+        create_code = OpenInfraCLI().run(
+            [
+                "security",
+                "bootstrap-token",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--subject",
+                "runtime-client",
+                "--role",
+                "admin",
+                "--token-file",
+                str(token_path),
+            ]
+        )
+        capsys.readouterr()
+        whoami_code = OpenInfraCLI().run(
+            [
+                "security",
+                "whoami",
+                "--data",
+                str(data),
+                "--tenant",
+                "default",
+                "--token",
+                token,
+            ]
+        )
+        principal = json.loads(capsys.readouterr().out)
+
+        assert create_code == 0
+        assert whoami_code == 0
+        assert principal["subject"] == "runtime-client"
+
     def test_security_lifecycle_commands(self, tmp_path: Path, capsys: object) -> None:
         data = tmp_path / "state.json"
         admin_token = "a" * 40

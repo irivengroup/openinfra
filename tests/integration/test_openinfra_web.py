@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import gzip
 import json
+import os
 import re
 import threading
 import urllib.error
@@ -22,7 +23,9 @@ from openinfra import __version__
 from openinfra.domain.common import OpenInfraError
 from openinfra.interfaces.web import (
     OpenInfraWebConfig,
+    OpenInfraWebConfigFactory,
     OpenInfraWebConfigValidator,
+    OpenInfraWebDynamicConfigurationResolver,
     OpenInfraWebServer,
     OpenInfraWebStaticLocator,
 )
@@ -41,6 +44,12 @@ class BackendFakeHandler(BaseHTTPRequestHandler):
         return None
 
     def do_GET(self) -> None:
+        if self.path == "/":
+            self._json(
+                HTTPStatus.OK,
+                {"service": "openinfra-api", "version": __version__, "edition": "enterprise"},
+            )
+            return
         if self.path == "/ready":
             self._json(HTTPStatus.OK, {"ready": True, "backend": "fake"})
             return
@@ -956,12 +965,61 @@ class TestOpenInfraWeb:
         assert not_modified.value.code == HTTPStatus.NOT_MODIFIED.value
         assert not_modified.value.headers["ETag"] == gzip_etag
 
-    def test_config_factory_falls_back_to_bootstrap_token_when_web_token_is_blank(
+    def test_dynamic_web_configuration_is_resolved_internally(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        monkeypatch.setenv("OPENINFRA_WEB_EDITION", "lite")
+        monkeypatch.setenv(
+            "OPENINFRA_WEB_PUBLIC_API_BASE_URL", "https://legacy.example.invalid/api"
+        )
+        monkeypatch.delenv("OPENINFRA_EDITION", raising=False)
         static_root = OpenInfraWebStaticLocator().resolve(None)
+
+        with RunningServer(ThreadingHTTPServer(("127.0.0.1", 0), BackendFakeHandler)) as backend:
+            config = OpenInfraWebConfigFactory().from_args(
+                [
+                    "--backend-url",
+                    backend.base_url,
+                    "--static-root",
+                    str(static_root),
+                    "--allow-insecure-backend",
+                ]
+            )
+
+        assert config.edition == "enterprise"
+        assert config.public_api_base_url == "/api"
+        assert config.edition != os.environ["OPENINFRA_WEB_EDITION"]
+        assert config.public_api_base_url != os.environ["OPENINFRA_WEB_PUBLIC_API_BASE_URL"]
+
+    def test_dynamic_web_configuration_has_safe_fallbacks_and_cli_compatibility(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        resolver = OpenInfraWebDynamicConfigurationResolver()
+        monkeypatch.setenv("OPENINFRA_EDITION", "pro")
+
+        assert resolver.resolve_edition("http://127.0.0.1:1", "auto", timeout_seconds=0.1) == "pro"
+        assert resolver.resolve_edition("ftp://invalid", "enterprise") == "enterprise"
+        assert resolver.resolve_public_api_base_url(None) == "/api"
+        assert (
+            resolver.resolve_public_api_base_url("https://api.example.net/api/")
+            == "https://api.example.net/api"
+        )
+
+    def test_config_factory_reads_internally_managed_bootstrap_token_file(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from openinfra.infrastructure.runtime_secrets import RuntimeBootstrapTokenStore
+
+        static_root = OpenInfraWebStaticLocator().resolve(None)
+        token_path = tmp_path / "bootstrap-token"
+        token = RuntimeBootstrapTokenStore(
+            token_path,
+            owner_uid=os.getuid(),
+            owner_gid=os.getgid(),
+        )
+        token.ensure()
         monkeypatch.setenv("OPENINFRA_WEB_BACKEND_BEARER_TOKEN", "   ")
-        monkeypatch.setenv("OPENINFRA_BOOTSTRAP_TOKEN", "bootstrap-runtime-token")
+        monkeypatch.setenv("OPENINFRA_BOOTSTRAP_TOKEN", "legacy-env-must-be-ignored")
         factory = __import__(
             "openinfra.interfaces.web", fromlist=["OpenInfraWebConfigFactory"]
         ).OpenInfraWebConfigFactory()
@@ -975,10 +1033,13 @@ class TestOpenInfraWeb:
                 "--edition",
                 "pro",
                 "--allow-insecure-backend",
+                "--backend-bearer-token-file",
+                str(token_path),
             ]
         )
 
-        assert config.backend_bearer_token == "bootstrap-runtime-token"
+        assert config.backend_bearer_token == token.read()
+        assert config.backend_bearer_token != os.environ["OPENINFRA_BOOTSTRAP_TOKEN"]
 
     def test_protected_web_proxy_never_returns_raw_missing_bearer_token(self) -> None:
         with RunningServer(ThreadingHTTPServer(("127.0.0.1", 0), BackendFakeHandler)) as backend:
@@ -991,7 +1052,8 @@ class TestOpenInfraWeb:
 
         assert status["protectedForms"] == "blocked-by-missing-server-bearer"
         assert status["trust"]["backendBearer"] == "not-configured"
-        assert "OPENINFRA_BOOTSTRAP_TOKEN" in status["remediation"]["environment"]
+        assert "OPENINFRA_BOOTSTRAP_TOKEN" not in status["remediation"]["environment"]
+        assert "--backend-bearer-token-file" in status["remediation"]["arguments"]
         assert exc.value.code == HTTPStatus.SERVICE_UNAVAILABLE.value
         assert payload["error"] == "web backend bearer token is not configured"
         assert "missing bearer token" not in json.dumps(payload)

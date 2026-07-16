@@ -9,8 +9,10 @@ import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
+from pathlib import Path
 
 from openinfra import __version__
+from openinfra.infrastructure.runtime_secrets import RuntimeBootstrapTokenStore, RuntimeSecretError
 
 
 class SmokeError(Exception):
@@ -609,17 +611,16 @@ class RuntimeSmokeCli:
         base_url = os.environ.get("OPENINFRA_API_BASE_URL", "http://api:8080").rstrip("/")
         web_base_url = os.environ.get("OPENINFRA_WEB_BASE_URL", "http://web:2006").rstrip("/")
         database_dsn = os.environ.get("OPENINFRA_DATABASE_DSN", "").strip()
-        token = os.environ.get("OPENINFRA_BOOTSTRAP_TOKEN", "").strip()
         if not database_dsn:
             print("OPENINFRA_DATABASE_DSN is required", file=sys.stderr)
             return 2
-        if len(token) < 32:
-            print("OPENINFRA_BOOTSTRAP_TOKEN is required", file=sys.stderr)
-            return 2
         try:
+            token = RuntimeBootstrapTokenStore(
+                Path("/run/openinfra/secrets/bootstrap-token")
+            ).read()
             RuntimeSmokeScenario(HttpJsonClient(base_url, token), database_dsn).run()
             RuntimeWebSmokeScenario(WebHttpClient(web_base_url)).run()
-        except SmokeError as exc:
+        except (RuntimeSecretError, SmokeError) as exc:
             print(str(exc), file=sys.stderr)
             return 1
         print("OpenInfra runtime smoke validation passed")

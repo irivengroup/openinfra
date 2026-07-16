@@ -8932,6 +8932,7 @@ class OpenInfraApiRuntime(BaseServer):
         return {
             "service": "openinfra-api",
             "version": __version__,
+            "edition": self.application.edition_guard.edition.value,
             "status": "ok",
             "health": "/health",
             "readiness": "/ready",

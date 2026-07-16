@@ -486,14 +486,33 @@ class DockerRuntimeGuard:
                 "Dockerfile must not define an API healthcheck inherited by migrate/auth-bootstrap"
             )
         current_version = (self._project_root / "VERSION").read_text(encoding="utf-8").strip()
-        expected_image = f"openinfra/runtime:${{OPENINFRA_IMAGE_TAG:-{current_version}}}"
+        expected_image = f"openinfra/runtime:{current_version}"
         if expected_image not in compose:
-            raise QualityGateError("compose.yaml must default to the current OpenInfra image tag")
-        if "OPENINFRA_WEB_BACKEND_BEARER_TOKEN:-${OPENINFRA_BOOTSTRAP_TOKEN" not in compose:
             raise QualityGateError(
-                "openinfra-web must fall back to OPENINFRA_BOOTSTRAP_TOKEN "
-                "when its dedicated backend bearer token is blank"
+                "compose.yaml must retain the release-pinned image used when the internal "
+                "runtime manager is not invoked"
             )
+        if "OPENINFRA_IMAGE_TAG" in compose:
+            raise QualityGateError(
+                "compose.yaml must not interpolate OPENINFRA_IMAGE_TAG from any environment file"
+            )
+        if "OPENINFRA_BOOTSTRAP_TOKEN" in compose:
+            raise QualityGateError(
+                "compose.yaml must not consume OPENINFRA_BOOTSTRAP_TOKEN from the environment"
+            )
+        for runtime_secret_contract in (
+            "  runtime-secrets:",
+            "openinfra-runtime-secrets",
+            "/run/openinfra/secrets/bootstrap-token",
+            "openinfra-runtime-secrets:/run/openinfra/secrets:ro",
+            "--backend-bearer-token-file",
+            "--token-file",
+        ):
+            if runtime_secret_contract not in compose:
+                raise QualityGateError(
+                    "compose.yaml is missing the internal bootstrap-token contract: "
+                    + runtime_secret_contract
+                )
         stale_tags = (
             "OPENINFRA_IMAGE_TAG=0.9.0",
             "OPENINFRA_IMAGE_TAG=0.14.0",
@@ -530,7 +549,6 @@ class DockerRuntimeGuard:
             "container_name: openinfra-web",
             "openinfra-web",
             "OPENINFRA_WEB_BACKEND_URL",
-            "OPENINFRA_WEB_PUBLIC_API_BASE_URL",
             "OPENINFRA_WEB_ALLOW_INSECURE_BACKEND",
             "${OPENINFRA_WEB_BIND:-127.0.0.1}:${OPENINFRA_WEB_PORT:-2006}:2006",
             "http://127.0.0.1:2006/health",
@@ -544,7 +562,6 @@ class DockerRuntimeGuard:
             "OPENINFRA_WEB_BIND=127.0.0.1",
             "OPENINFRA_WEB_PORT=2006",
             "OPENINFRA_WEB_BACKEND_URL=http://api:8080",
-            "OPENINFRA_WEB_PUBLIC_API_BASE_URL=/api",
             "OPENINFRA_WEB_ALLOW_INSECURE_BACKEND=true",
         )
         missing_web_env = [fragment for fragment in web_env_required if fragment not in env_example]
@@ -559,6 +576,37 @@ class DockerRuntimeGuard:
             raise QualityGateError(
                 "docker environment manager must generate openinfra-web settings"
             )
+        internally_managed = (
+            "OPENINFRA_IMAGE_TAG",
+            "OPENINFRA_WEB_EDITION",
+            "OPENINFRA_WEB_PUBLIC_API_BASE_URL",
+            "OPENINFRA_BOOTSTRAP_TOKEN",
+        )
+        leaked = [key for key in internally_managed if key in env_example]
+        if leaked:
+            raise QualityGateError(
+                ".env.example must not expose internally managed values: " + ", ".join(leaked)
+            )
+        for required_runtime_manager_contract in (
+            "RuntimeManagedConfiguration",
+            "compose_override_file",
+            "openinfra/runtime:",
+        ):
+            if required_runtime_manager_contract not in env_manager:
+                raise QualityGateError(
+                    "docker environment manager must generate a temporary Compose image override "
+                    "from VERSION"
+                )
+        for removed_web_key in (
+            "OPENINFRA_WEB_EDITION",
+            "OPENINFRA_WEB_PUBLIC_API_BASE_URL",
+            "OPENINFRA_BOOTSTRAP_TOKEN",
+        ):
+            if removed_web_key in compose:
+                raise QualityGateError(
+                    "compose.yaml must not configure internally resolved Web values: "
+                    + removed_web_key
+                )
 
         pgadmin_servers = self._project_root / "docker/pgadmin/servers.json"
         if "  pgadmin:" not in compose:

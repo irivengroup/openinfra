@@ -50,6 +50,7 @@ class TestHttpApi:
 
             assert root["service"] == "openinfra-api"
             assert root["version"] == __version__
+            assert root["edition"] == "enterprise"
             assert root["health"] == "/health"
             assert root["readiness"] == "/ready"
             assert root["api"] == api_index["api"]

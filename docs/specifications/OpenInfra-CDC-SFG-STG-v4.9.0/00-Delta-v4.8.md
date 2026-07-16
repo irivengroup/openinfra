@@ -163,7 +163,7 @@ Le dashboard d’accueil ne doit plus afficher d’alerte succès permanente `Ba
 
 - Ajout de REQ-00755 : la titlebar du dashboard d’accueil doit disposer d’un espacement vertical responsive autour du titre et du sous-titre.
 - Ajout de TST-WEB-058 : validation frontend et tests d’intégration inspectent les assets CSS runtime pour verrouiller `padding-block: clamp(1rem, 2vw, 1.75rem)`.
-- Ajout de REQ-00756 et TST-WEB-059 : le bearer backend server-side doit rester effectif lorsque `OPENINFRA_WEB_BACKEND_BEARER_TOKEN` est vide mais `OPENINFRA_BOOTSTRAP_TOKEN` est défini, et le navigateur ne doit plus recevoir d’erreur brute `missing bearer token`.
+- Ajout de REQ-00756 et TST-WEB-059 : le bearer backend server-side doit rester effectif lorsque la surcharge `OPENINFRA_WEB_BACKEND_BEARER_TOKEN` est vide grâce au secret runtime interne monté en lecture seule, et le navigateur ne doit plus recevoir d’erreur brute `missing bearer token`. `OPENINFRA_BOOTSTRAP_TOKEN` ne fait plus partie du contrat `.env`.
 ## Delta v0.29.22 — statut BFF web sans secret
 
 - Ajout de REQ-00757 et TST-WEB-060 : `openinfra-web` expose `/status` sans secret pour diagnostiquer le trust BFF et l’état des formulaires protégés.

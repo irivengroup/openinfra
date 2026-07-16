@@ -252,6 +252,10 @@ class SourceDistributionVerifier:
         "tests/integration/test_kubernetes_unit_of_work_regression.py",
         "requirements/runtime.txt",
         "requirements/security-audit.txt",
+        "scripts/docker_environment.py",
+        "tests/integration/test_runtime_docker_environment.py",
+        "tests/integration/test_openinfra_web.py",
+        "tests/integration/test_http_api.py",
         ".github/workflows/ci.yml",
         "VALIDATION-REPORT.md",
     )

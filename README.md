@@ -1,6 +1,15 @@
-# OpenInfra v0.33.10
+# OpenInfra v0.33.12
 
-OpenInfra 0.33.10 livre **P21 / EPIC-2106** et ferme **REL-11 Kubernetes & Cloud-native** par la certification bloquante **GATE-10**.
+OpenInfra 0.33.12 automatise la configuration runtime Docker et Web : le tag d’image est appliqué par un override Compose temporaire dérivé de `VERSION`, l’édition Web provient du backend actif et le préfixe API public provient du proxy BFF same-origin. Ces valeurs ne sont plus administrées dans `.env`.
+
+## Configuration runtime interne — v0.33.12
+
+- `OPENINFRA_IMAGE_TAG` est résolu depuis `VERSION` par un override Compose temporaire généré par `scripts/docker_environment.py` ;
+- `OPENINFRA_WEB_EDITION` est remplacé par la découverte de l’édition effective publiée par l’API ;
+- `OPENINFRA_WEB_PUBLIC_API_BASE_URL` est remplacé par la résolution interne `/api` ;
+- `python scripts/docker_environment.py init` retire automatiquement les anciennes entrées du `.env` ;
+- les options CLI explicites restent disponibles pour les scénarios autonomes et la rétrocompatibilité ;
+- aucune migration PostgreSQL et aucune modification du thème.
 
 ## Qualification Cloud-native — P21 / EPIC-2106
 

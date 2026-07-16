@@ -1,0 +1,22 @@
+{
+  "complete": true,
+  "document_sha256": "47763228ffbcf7bf1d801dac81c45131f01c6e009989f4dacf99fff907e3bde0",
+  "epic": "EPIC-1806",
+  "escalation_matrix_defined": true,
+  "failures": [],
+  "generated_at": "2026-07-16T18:10:45.270460+00:00",
+  "lifecycle_defined": true,
+  "lifecycle_months": 24,
+  "migration_policy_defined": true,
+  "patch_policy_defined": true,
+  "policy_sha256": "86071c2d90078f0a6f1e1d70f95c835398982125fe9581e3f8a2e69dab8a0e5e",
+  "profile_count": 3,
+  "release_version": "0.33.12",
+  "report_kind": "support-readiness",
+  "schema_version": 1,
+  "severity_count": 4,
+  "signing_key_sha256": "e2b74f53979b7ef8d2849589cce4f6c2f72955de9da0b2635d53ff5eb05259b5",
+  "sla_defined": true,
+  "support_readiness": true,
+  "trusted_signing_key": false
+}

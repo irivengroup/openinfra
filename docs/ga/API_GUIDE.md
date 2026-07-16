@@ -1,6 +1,6 @@
 # Guide API
 
-Version cible : `0.33.10`
+Version cible : `0.33.12`
 
 ## Découverte des contrats
 
@@ -18,20 +18,26 @@ Contrôles publics :
 
 ## Authentification
 
-Les opérations protégées utilisent :
+Les opérations protégées utilisent un bearer. Dans le lab Docker, sa valeur est générée dans le volume secret interne et récupérée explicitement :
 
-```http
-Authorization: Bearer $OPENINFRA_BOOTSTRAP_TOKEN
+```bash
+OPENINFRA_TOKEN="$(python scripts/docker_environment.py bootstrap-token)"
+curl -fsS \
+  -H "Authorization: Bearer $OPENINFRA_TOKEN" \
+  "http://127.0.0.1:8080/api/v1/dcim/sites?tenant_id=default"
+unset OPENINFRA_TOKEN
 ```
 
-Sous PowerShell, conserver le secret en variable d’environnement :
+Sous PowerShell :
 
 ```powershell
-$headers = @{ Authorization = "Bearer $env:OPENINFRA_BOOTSTRAP_TOKEN" }
+$OpenInfraToken = python scripts/docker_environment.py bootstrap-token
+$headers = @{ Authorization = "Bearer $OpenInfraToken" }
 Invoke-RestMethod -Uri "http://127.0.0.1:8080/api/v1/dcim/sites?tenant_id=default" -Headers $headers
+Remove-Variable OpenInfraToken
 ```
 
-Le token n’est jamais placé dans l’URL.
+Le jeton n’est jamais placé dans l’URL ni stocké dans `.env`.
 
 ## Pagination et idempotence
 
@@ -66,7 +72,7 @@ Recherche globale :
 
 ```powershell
 curl.exe -fsS `
-  -H "Authorization: Bearer $env:OPENINFRA_BOOTSTRAP_TOKEN" `
+  -H "Authorization: Bearer $OpenInfraToken" `
   "http://127.0.0.1:8080/api/v1/search/global?tenant_id=default&query=firewall&limit=5"
 ```
 
@@ -74,7 +80,7 @@ Sites DCIM :
 
 ```powershell
 curl.exe -fsS `
-  -H "Authorization: Bearer $env:OPENINFRA_BOOTSTRAP_TOKEN" `
+  -H "Authorization: Bearer $OpenInfraToken" `
   "http://127.0.0.1:8080/api/v1/dcim/sites?tenant_id=default"
 ```
 
@@ -82,6 +88,6 @@ Jobs asynchrones :
 
 ```powershell
 curl.exe -fsS `
-  -H "Authorization: Bearer $env:OPENINFRA_BOOTSTRAP_TOKEN" `
+  -H "Authorization: Bearer $OpenInfraToken" `
   "http://127.0.0.1:8080/api/v1/async/jobs?tenant_id=default&limit=100"
 ```

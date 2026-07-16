@@ -1180,6 +1180,23 @@ jobs:
             tests/integration/test_release_security_workflow.py \
             tests/integration/test_runtime_docker_environment.py
 
+      - name: Dynamic Docker, Web and bootstrap secret regression
+        if: matrix.python-version == '3.13'
+        run: |
+          python -m pytest -q --no-cov \
+            tests/unit/test_runtime_secrets.py \
+            tests/integration/test_runtime_docker_environment.py::TestRuntimeEnvironment::test_optional_docker_assets_remain_test_only \
+            tests/integration/test_runtime_docker_environment.py::TestRuntimeEnvironment::test_runtime_env_manager_creates_private_env_file \
+            tests/integration/test_runtime_docker_environment.py::TestRuntimeEnvironment::test_runtime_env_manager_upgrades_missing_and_blank_required_secrets \
+            tests/integration/test_runtime_docker_environment.py::TestRuntimeEnvironment::test_compose_runner_generates_runtime_image_override_from_version \
+            tests/integration/test_runtime_docker_environment.py::TestRuntimeEnvironment::test_compose_runner_cleans_runtime_override_when_docker_is_unavailable \
+            tests/integration/test_runtime_docker_environment.py::TestRuntimeEnvironment::test_runtime_managed_version_rejects_invalid_or_missing_version \
+            tests/integration/test_cli.py::TestOpenInfraCli::test_security_bootstrap_accepts_internally_managed_token_file \
+            tests/integration/test_openinfra_web.py::TestOpenInfraWeb::test_dynamic_web_configuration_is_resolved_internally \
+            tests/integration/test_openinfra_web.py::TestOpenInfraWeb::test_dynamic_web_configuration_has_safe_fallbacks_and_cli_compatibility \
+            tests/integration/test_openinfra_web.py::TestOpenInfraWeb::test_config_factory_reads_internally_managed_bootstrap_token_file \
+            tests/integration/test_http_api.py::TestHttpApi::test_health_and_ipam_allocation
+
       - name: Native runtime asset smoke
         run: python scripts/native_runtime_smoke.py --project-root .
 

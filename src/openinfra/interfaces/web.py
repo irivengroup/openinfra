@@ -22,6 +22,7 @@ import uvicorn
 from openinfra import __version__
 from openinfra.domain.common import OpenInfraError
 from openinfra.infrastructure.observability import PrometheusMultiprocessDirectory
+from openinfra.infrastructure.runtime_secrets import RuntimeBootstrapTokenStore
 from openinfra.interfaces.runtime_environment import OpenInfraRuntimeEnvironmentScope
 
 
@@ -110,10 +111,8 @@ class OpenInfraWebConfig:
         }
         if not backend_bearer_configured:
             status["remediation"] = {
-                "environment": [
-                    "OPENINFRA_WEB_BACKEND_BEARER_TOKEN",
-                    "OPENINFRA_BOOTSTRAP_TOKEN",
-                ],
+                "environment": ["OPENINFRA_WEB_BACKEND_BEARER_TOKEN"],
+                "arguments": ["--backend-bearer-token-file"],
                 "message": "configure a server-side backend bearer token for protected forms",
             }
         return status
@@ -124,6 +123,62 @@ class OpenInfraWebConfig:
             "status": self.as_status_dict(),
             "version": {"service": "openinfra-web", "version": __version__},
         }
+
+
+class OpenInfraWebDynamicConfigurationResolver:
+    _PUBLIC_API_PROXY_BASE_URL = "/api"
+    _ALLOWED_EDITIONS = frozenset({"lite", "pro", "enterprise"})
+
+    def resolve_public_api_base_url(self, explicit_value: str | None) -> str:
+        value = (explicit_value or "").strip().rstrip("/")
+        return value or self._PUBLIC_API_PROXY_BASE_URL
+
+    def resolve_edition(
+        self,
+        backend_url: str,
+        explicit_value: str | None,
+        *,
+        timeout_seconds: float = 2.0,
+    ) -> str:
+        explicit = (explicit_value or "").strip().lower()
+        if explicit and explicit != "auto":
+            return explicit
+        discovered = self._discover_backend_edition(backend_url, timeout_seconds)
+        if discovered:
+            return discovered
+        canonical = os.environ.get("OPENINFRA_EDITION", "").strip().lower()
+        if canonical in self._ALLOWED_EDITIONS:
+            return canonical
+        return "lite"
+
+    def _discover_backend_edition(self, backend_url: str, timeout_seconds: float) -> str:
+        parsed = urlparse(backend_url.strip())
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            return ""
+        if parsed.username or parsed.password:
+            return ""
+        if parsed.path not in ("", "/") or parsed.params or parsed.query or parsed.fragment:
+            return ""
+        discovery_request = request.Request(  # noqa: S310
+            urljoin(backend_url.rstrip("/") + "/", "./"),
+            method="GET",
+            headers={
+                "Accept": "application/json",
+                "X-OpenInfra-Web": "openinfra-web",
+                "X-OpenInfra-Web-Version": __version__,
+            },
+        )
+        try:
+            with request.urlopen(  # noqa: S310  # nosec B310
+                discovery_request, timeout=max(0.1, min(timeout_seconds, 5.0))
+            ) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError, error.URLError):
+            return ""
+        if not isinstance(payload, dict):
+            return ""
+        edition = str(payload.get("edition", "")).strip().lower()
+        return edition if edition in self._ALLOWED_EDITIONS else ""
 
 
 class OpenInfraWebConfigFactory:
@@ -145,7 +200,11 @@ class OpenInfraWebConfigFactory:
         )
         parser.add_argument(
             "--public-api-base-url",
-            default=os.environ.get("OPENINFRA_WEB_PUBLIC_API_BASE_URL", "/api"),
+            default=None,
+            help=(
+                "Optional compatibility override. By default openinfra-web derives the public "
+                "API base URL from its same-origin /api proxy."
+            ),
         )
         parser.add_argument(
             "--public-api-docs-base-url",
@@ -159,7 +218,12 @@ class OpenInfraWebConfigFactory:
             "--static-root",
             default=os.environ.get("OPENINFRA_WEB_STATIC_ROOT", ""),
         )
-        parser.add_argument("--edition", default=os.environ.get("OPENINFRA_EDITION", "lite"))
+        parser.add_argument(
+            "--edition",
+            choices=("auto", "lite", "pro", "enterprise"),
+            default="auto",
+            help="Resolve the Web edition from the active backend unless explicitly overridden.",
+        )
         parser.add_argument(
             "--auth-mode", default=os.environ.get("OPENINFRA_WEB_AUTH_MODE", "standard")
         )
@@ -171,11 +235,13 @@ class OpenInfraWebConfigFactory:
         )
         parser.add_argument(
             "--backend-bearer-token",
-            default=self._first_non_blank_env(
-                "OPENINFRA_WEB_BACKEND_BEARER_TOKEN",
-                "OPENINFRA_BOOTSTRAP_TOKEN",
-            ),
+            default=self._first_non_blank_env("OPENINFRA_WEB_BACKEND_BEARER_TOKEN"),
             help="Optional server-side bearer token used by openinfra-web when proxying API forms.",
+        )
+        parser.add_argument(
+            "--backend-bearer-token-file",
+            type=Path,
+            help="Read the internally managed backend bearer from a protected runtime file.",
         )
         parser.add_argument(
             "--database-dsn-ref",
@@ -216,20 +282,22 @@ class OpenInfraWebConfigFactory:
         )
         namespace = parser.parse_args(argv)
         static_root = OpenInfraWebStaticLocator().resolve(namespace.static_root or None)
+        dynamic = OpenInfraWebDynamicConfigurationResolver()
+        backend_url = str(namespace.backend_url)
         config = OpenInfraWebConfig(
             host=str(namespace.host),
             port=int(namespace.port),
-            backend_url=str(namespace.backend_url),
-            public_api_base_url=str(namespace.public_api_base_url),
+            backend_url=backend_url,
+            public_api_base_url=dynamic.resolve_public_api_base_url(namespace.public_api_base_url),
             public_api_docs_base_url=str(namespace.public_api_docs_base_url),
             static_root=static_root,
-            edition=str(namespace.edition).strip().lower(),
+            edition=dynamic.resolve_edition(backend_url, str(namespace.edition)),
             auth_mode=str(namespace.auth_mode).strip().lower(),
             allow_insecure_backend=bool(namespace.allow_insecure_backend),
             database_dsn_ref=str(namespace.database_dsn_ref).strip(),
             database_user_ref=str(namespace.database_user_ref).strip(),
             database_password_ref=str(namespace.database_password_ref).strip(),
-            backend_bearer_token=str(namespace.backend_bearer_token).strip(),
+            backend_bearer_token=self._resolve_backend_bearer_token(namespace),
             runtime=str(namespace.runtime),
             workers=int(namespace.workers),
             limit_concurrency=int(namespace.limit_concurrency),
@@ -238,6 +306,14 @@ class OpenInfraWebConfigFactory:
         )
         OpenInfraWebConfigValidator().validate(config)
         return config
+
+    def _resolve_backend_bearer_token(self, namespace: argparse.Namespace) -> str:
+        explicit = str(namespace.backend_bearer_token).strip()
+        if explicit:
+            return explicit
+        if namespace.backend_bearer_token_file is None:
+            return ""
+        return RuntimeBootstrapTokenStore(Path(namespace.backend_bearer_token_file)).read()
 
     def _first_non_blank_env(self, *names: str) -> str:
         for name in names:
@@ -460,8 +536,8 @@ class OpenInfraBackendProxy:
                 {
                     "error": "web backend bearer token is not configured",
                     "hint": (
-                        "set OPENINFRA_WEB_BACKEND_BEARER_TOKEN or "
-                        "OPENINFRA_BOOTSTRAP_TOKEN for openinfra-web"
+                        "set OPENINFRA_WEB_BACKEND_BEARER_TOKEN or use "
+                        "--backend-bearer-token-file for openinfra-web"
                     ),
                 },
             )
@@ -834,7 +910,6 @@ class OpenInfraWebEntrypoint:
             "OPENINFRA_WEB_HOST": config.host,
             "OPENINFRA_WEB_PORT": str(config.port),
             "OPENINFRA_WEB_BACKEND_URL": config.backend_url,
-            "OPENINFRA_WEB_PUBLIC_API_BASE_URL": config.public_api_base_url,
             "OPENINFRA_WEB_PUBLIC_API_DOCS_BASE_URL": config.public_api_docs_base_url,
             "OPENINFRA_WEB_STATIC_ROOT": str(config.static_root),
             "OPENINFRA_EDITION": config.edition,

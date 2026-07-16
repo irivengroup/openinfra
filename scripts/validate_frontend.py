@@ -286,16 +286,28 @@ class FrontendContractValidator:
             "  web:",
             "container_name: openinfra-web",
             "OPENINFRA_WEB_BACKEND_URL",
-            "OPENINFRA_WEB_PUBLIC_API_BASE_URL",
             "OPENINFRA_WEB_PUBLIC_API_DOCS_BASE_URL",
             "OPENINFRA_WEB_BACKEND_BEARER_TOKEN",
-            "OPENINFRA_BOOTSTRAP_TOKEN:?OPENINFRA_BOOTSTRAP_TOKEN is required",
+            "--backend-bearer-token-file",
+            "/run/openinfra/secrets/bootstrap-token",
             "http://127.0.0.1:2006/health",
         )
         missing_compose = [fragment for fragment in compose_required if fragment not in compose]
         if missing_compose:
             raise FrontendValidationError(
                 "compose.yaml openinfra-web service is incomplete: " + ", ".join(missing_compose)
+            )
+        forbidden_external_web_values = (
+            "OPENINFRA_IMAGE_TAG",
+            "OPENINFRA_WEB_EDITION",
+            "OPENINFRA_WEB_PUBLIC_API_BASE_URL",
+            "OPENINFRA_BOOTSTRAP_TOKEN",
+        )
+        leaked = [fragment for fragment in forbidden_external_web_values if fragment in compose]
+        if leaked:
+            raise FrontendValidationError(
+                "compose.yaml must delegate Web edition and public API base URL resolution "
+                "to openinfra-web: " + ", ".join(leaked)
             )
         assets = self._validate_static_assets()
         return FrontendValidationReport(

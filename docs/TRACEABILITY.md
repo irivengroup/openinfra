@@ -1,3 +1,31 @@
+## v0.33.12 — Jeton bootstrap runtime interne
+
+| Exigence | Implémentation | Vérification |
+|---|---|---|
+| Jeton bootstrap sans `.env` | `runtime-secrets` génère ou réutilise un jeton CSPRNG dans le volume `openinfra-runtime-secrets` | tests de création, idempotence, rotation, permissions et contrats Compose |
+| Consommation minimale | `auth-bootstrap`, Web et smoke montent le volume en lecture seule et utilisent un chemin de fichier fixe | tests CLI `--token-file`, Web `--backend-bearer-token-file` et validation runtime |
+| Migration de configuration | `EnvFileManager` supprime `OPENINFRA_BOOTSTRAP_TOKEN` des `.env` existants sans modifier les autres secrets | test d’upgrade idempotent et quality gate |
+| Cycle de vie | `down` conserve le jeton ; `reset --volumes` supprime le volume et déclenche une régénération au prochain démarrage | contrats orchestrateur et documentation opérateur |
+| Non-exposition | aucune valeur dans Compose, config publique, assets frontend ou logs ; consultation uniquement sur commande explicite | Bandit, Security Gate, tests BFF et inspection des artefacts |
+
+- CDC 4.9.0 mis à jour sur les exigences existantes `REQ-00753` et `REQ-00756`.
+- Roadmap v2.2 inchangée : durcissement de configuration runtime, sans nouveau jalon fonctionnel.
+- Aucune migration PostgreSQL supplémentaire.
+
+## v0.33.11 — Configuration runtime interne Docker et Web
+
+| Exigence | Implémentation | Vérification |
+|---|---|---|
+| Tag d’image sans `.env` | `RuntimeManagedConfiguration` lit `VERSION` et surcharge tout tag externe avant l’appel Docker Compose | tests d’injection, version absente/invalide et contrats Compose |
+| Migration de configuration | `EnvFileManager` supprime atomiquement les trois anciennes clés tout en préservant secrets et configuration opérateur | test d’upgrade idempotent du `.env` |
+| Édition Web dynamique | document de découverte API enrichi avec l’édition effective, résolveur Web backend-first avec fallback canonique sûr | tests API HTTP, Web legacy et runtime ASGI |
+| URL API publique interne | bootstrap Web construit depuis le proxy same-origin `/api`, sans variable `.env` | tests config/bootstrap et validation frontend |
+| Compatibilité | options CLI explicites conservées ; API/CLI métier, migrations et thème inchangés | suites ciblées, quality gate et packaging |
+
+- CDC 4.9.0 mis à jour sur l’exigence existante `REQ-00779`.
+- Roadmap v2.2 inchangée : évolution corrective de configuration, sans nouveau jalon fonctionnel.
+- Aucune migration PostgreSQL supplémentaire.
+
 ## v0.33.10 — P21 / EPIC-2106 Qualification cloud-native et GATE-10
 
 | Exigence / Gate | Implémentation | Vérification |

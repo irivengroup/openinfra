@@ -4,10 +4,16 @@ OpenInfra v0.29.63 prepares the future `openinfra-agent.service` runtime through
 
 ## CLI
 
+Le lab Docker fournit le jeton administrateur depuis son volume secret interne :
+
+```bash
+OPENINFRA_TOKEN="$(python scripts/docker_environment.py bootstrap-token)"
+```
+
 ```bash
 openinfra discovery agent-bootstrap-plan \
   --tenant default \
-  --admin-token "$OPENINFRA_BOOTSTRAP_TOKEN" \
+  --admin-token "$OPENINFRA_TOKEN" \
   --name "Agent Enterprise PAR1" \
   --role site \
   --scope site/par1 \

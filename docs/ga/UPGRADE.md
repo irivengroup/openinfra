@@ -1,6 +1,6 @@
 # Mise à niveau
 
-Version cible : `0.33.10`
+Version cible : `0.33.12`
 
 ## Précontrôles
 
@@ -34,34 +34,24 @@ Mettre à jour le fichier `.env` sans écraser les secrets :
 python scripts/docker_environment.py init
 ```
 
-Définir la version cible :
-
-```powershell
-python -c "from pathlib import Path; p=Path('.env'); rows=p.read_text(encoding='utf-8').splitlines(); p.write_text('\n'.join('OPENINFRA_IMAGE_TAG=0.33.10' if row.startswith('OPENINFRA_IMAGE_TAG=') else row for row in rows) + '\n', encoding='utf-8')"
-```
+La version de l’image applicative est résolue automatiquement depuis `VERSION` par `scripts/docker_environment.py`, qui génère un override Compose temporaire et le supprime après exécution. Aucune clé `OPENINFRA_IMAGE_TAG` ne doit être ajoutée au `.env`.
 
 Arrêter sans supprimer les volumes :
 
 ```powershell
-docker compose --env-file .env --profile observability down --remove-orphans
+python scripts/docker_environment.py down
 ```
 
-Reconstruire les images applicatives :
+Reconstruire et redémarrer avec les valeurs runtime internes :
 
 ```powershell
-docker compose --env-file .env build --no-cache migrate api web
-```
-
-Redémarrer :
-
-```powershell
-docker compose --env-file .env --profile observability up -d
+python scripts/docker_environment.py up
 ```
 
 ## Validation
 
 ```powershell
-docker compose --env-file .env --profile observability ps
+python scripts/docker_environment.py status
 curl.exe -f http://127.0.0.1:8080/health
 curl.exe -f http://127.0.0.1:8080/ready
 curl.exe -f http://127.0.0.1:2006/health

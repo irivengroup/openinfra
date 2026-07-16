@@ -1,6 +1,6 @@
 # Guide utilisateur
 
-Version cible : `0.33.10`
+Version cible : `0.33.12`
 
 ## Navigation
 
@@ -16,6 +16,16 @@ Les composants principaux sont :
 - Data : imports, exports et traitements asynchrones ;
 - Intégrations : connecteurs externes ;
 - Sécurité : identité, rôles, audit et conformité.
+
+## Jeton d’administration du lab Docker
+
+Le jeton bootstrap est géré par le runtime interne et n'est pas stocké dans `.env`. Pour une commande CLI ponctuelle :
+
+```bash
+OPENINFRA_TOKEN="$(python scripts/docker_environment.py bootstrap-token)"
+```
+
+Après les opérations, exécuter `unset OPENINFRA_TOKEN`.
 
 ## Flux de travail métier
 
@@ -44,7 +54,7 @@ openinfra search global \
   --backend postgresql \
   --tenant default \
   --query firewall \
-  --token "$OPENINFRA_BOOTSTRAP_TOKEN"
+  --token "$OPENINFRA_TOKEN"
 ```
 
 ## Traitements asynchrones
@@ -60,7 +70,7 @@ Les imports massifs, exports, graphes et traitements RAG sont exécutés hors du
 openinfra async jobs \
   --backend postgresql \
   --tenant default \
-  --admin-token "$OPENINFRA_BOOTSTRAP_TOKEN"
+  --admin-token "$OPENINFRA_TOKEN"
 ```
 
 ## Accessibilité

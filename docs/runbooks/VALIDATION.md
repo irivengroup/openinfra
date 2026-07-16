@@ -611,7 +611,8 @@ Critères attendus : rapport JSON contenant au minimum `duplicate_address`, `lea
 
 - Vérifier qu’aucune migration PostgreSQL ne référence `audit_events.occurred_at`.
 - Vérifier que le `Dockerfile` ne porte pas de `HEALTHCHECK` API global.
-- Vérifier que les tags Docker par défaut `.env.example`, `compose.yaml` et `scripts/docker_environment.py` sont alignés avec la version courante.
+- Vérifier que `OPENINFRA_IMAGE_TAG` est absent de `.env.example`, absent de `compose.yaml` et remplacé par un override temporaire calculé depuis `VERSION`; le fichier Compose conserve seulement le tag figé de la release pour les appels directs.
+- Vérifier que `OPENINFRA_WEB_EDITION` et `OPENINFRA_WEB_PUBLIC_API_BASE_URL` sont absents du `.env` et résolus par le runtime Web interne.
 
 
 ## Contrôles ajoutés en v0.22.2

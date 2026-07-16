@@ -314,8 +314,8 @@ class OpenInfraWebAsgiApplication:
                 {
                     "error": "web backend bearer token is not configured",
                     "hint": (
-                        "set OPENINFRA_WEB_BACKEND_BEARER_TOKEN or "
-                        "OPENINFRA_BOOTSTRAP_TOKEN for openinfra-web"
+                        "set OPENINFRA_WEB_BACKEND_BEARER_TOKEN or use "
+                        "--backend-bearer-token-file for openinfra-web"
                     ),
                 },
             )

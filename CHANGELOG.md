@@ -1,3 +1,25 @@
+## v0.33.12 — Jeton bootstrap runtime interne
+
+- retire `OPENINFRA_BOOTSTRAP_TOKEN` du contrat `.env` et purge automatiquement toute valeur héritée ;
+- ajoute un volume Docker distinct `openinfra-runtime-secrets` et un service one-shot générant le jeton avec un CSPRNG ;
+- impose un répertoire `0700`, un fichier `0400`, un propriétaire runtime dédié et le refus des liens symboliques ;
+- conserve le jeton lors des redémarrages non destructifs et le régénère après `reset --volumes` ;
+- fait lire le jeton par `auth-bootstrap`, `openinfra-web` et le smoke test via des montages en lecture seule ;
+- ajoute `--token-file`, `--backend-bearer-token-file` et la consultation explicite `python scripts/docker_environment.py bootstrap-token` ;
+- met à jour les contrats CDC existants REQ-00753/REQ-00756, la CI, les quality gates et les runbooks ;
+- aucune migration PostgreSQL, aucun endpoint métier supprimé et aucune modification du thème.
+
+## v0.33.11 — Configuration runtime interne Docker et Web
+
+- retire `OPENINFRA_IMAGE_TAG`, `OPENINFRA_WEB_EDITION` et `OPENINFRA_WEB_PUBLIC_API_BASE_URL` du contrat `.env` ;
+- résout le tag de l’image applicative depuis `VERSION` et l’applique via un override Compose temporaire supprimé après exécution ;
+- purge automatiquement les trois anciennes clés des fichiers `.env` existants sans modifier les autres réglages ni secrets ;
+- publie l’édition effective dans le document de découverte de l’API et la fait découvrir automatiquement par `openinfra-web` ;
+- dérive l’URL API publique depuis le proxy BFF same-origin `/api`, avec maintien de l’option CLI de compatibilité ;
+- ajoute les tests de migration `.env`, de génération d’override versionné, de validation de version, de découverte backend et de non-régression API/Web ;
+- met à jour les quality gates, la documentation opérateur et l’exigence CDC existante REQ-00779 ;
+- aucune migration PostgreSQL, aucun endpoint métier supprimé et aucune modification du thème.
+
 ## v0.33.10 — P21 / EPIC-2106 Qualification cloud-native et GATE-10
 
 - livre le gate bloquant GATE-10 pour la promotion de REL-11 Kubernetes & Cloud-native ;

@@ -1,16 +1,20 @@
 # Guide administrateur
 
-Version cible : `0.33.10`
+Version cible : `0.33.12`
 
 ## Authentification et jetons
 
-Le backend applique les jetons applicatifs. Le BFF web porte le jeton serveur et ne demande pas à l’opérateur de le saisir dans les formulaires métier.
+Le backend applique les jetons applicatifs. Le BFF web porte le jeton serveur et ne demande pas à l’opérateur de le saisir dans les formulaires métier. Dans le lab Docker, le jeton bootstrap est généré dans un volume interne et non dans `.env`.
 
-Afficher la version et vérifier un jeton :
+```bash
+OPENINFRA_TOKEN="$(python scripts/docker_environment.py bootstrap-token)"
+```
+
+Afficher la version et vérifier le jeton :
 
 ```bash
 openinfra version
-openinfra security whoami --backend postgresql --tenant default --token "$OPENINFRA_BOOTSTRAP_TOKEN"
+openinfra security whoami --backend postgresql --tenant default --token "$OPENINFRA_TOKEN"
 ```
 
 Créer ou remplacer un jeton applicatif à durée et rôle contrôlés :
@@ -64,12 +68,12 @@ Les quotas sont vérifiés avant la mutation. Une réponse de refus doit être t
 openinfra audit list \
   --backend postgresql \
   --tenant default \
-  --admin-token "$OPENINFRA_BOOTSTRAP_TOKEN"
+  --admin-token "$OPENINFRA_TOKEN"
 
 openinfra audit verify-integrity \
   --backend postgresql \
   --tenant default \
-  --admin-token "$OPENINFRA_BOOTSTRAP_TOKEN"
+  --admin-token "$OPENINFRA_TOKEN"
 ```
 
 Exporter les événements pour archivage :
@@ -78,7 +82,7 @@ Exporter les événements pour archivage :
 openinfra audit export \
   --backend postgresql \
   --tenant default \
-  --admin-token "$OPENINFRA_BOOTSTRAP_TOKEN" \
+  --admin-token "$OPENINFRA_TOKEN" \
   --format jsonl
 ```
 
@@ -102,9 +106,9 @@ Règles obligatoires :
 ## Administration des workers
 
 ```bash
-openinfra async metrics --backend postgresql --tenant default --token "$OPENINFRA_BOOTSTRAP_TOKEN"
-openinfra async jobs --backend postgresql --tenant default --admin-token "$OPENINFRA_BOOTSTRAP_TOKEN"
-openinfra async outbox-events --backend postgresql --tenant default --admin-token "$OPENINFRA_BOOTSTRAP_TOKEN"
+openinfra async metrics --backend postgresql --tenant default --token "$OPENINFRA_TOKEN"
+openinfra async jobs --backend postgresql --tenant default --admin-token "$OPENINFRA_TOKEN"
+openinfra async outbox-events --backend postgresql --tenant default --admin-token "$OPENINFRA_TOKEN"
 ```
 
 Une DLQ non vide, des leases expirés ou un âge de file croissant doivent déclencher une investigation avant tout rejeu administratif.

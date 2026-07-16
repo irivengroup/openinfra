@@ -1,6 +1,6 @@
 # Hiérarchie de contexte des formulaires de gestion
 
-Version cible : `0.33.10`
+Version cible : `0.33.12`
 
 ## Objectif
 

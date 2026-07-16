@@ -1,6 +1,14 @@
 # PRA et PCA
 
-Version cible : `0.33.10`
+Version cible : `0.33.12`
+
+## Jeton d’administration
+
+```bash
+OPENINFRA_TOKEN="$(python scripts/docker_environment.py bootstrap-token)"
+```
+
+Le jeton est lu explicitement depuis le volume runtime interne et n'est jamais chargé depuis `.env`.
 
 ## Objectifs RPO et RTO
 
@@ -20,7 +28,7 @@ openinfra database status --root installers/migrations/postgresql
 openinfra audit verify-integrity \
   --backend postgresql \
   --tenant default \
-  --admin-token "$OPENINFRA_BOOTSTRAP_TOKEN"
+  --admin-token "$OPENINFRA_TOKEN"
 ```
 
 Conserver la version applicative, le checksum des migrations, le manifeste de release et l’heure de coupure choisie pour le PITR.

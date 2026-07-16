@@ -1,3 +1,18 @@
+## v0.33.10 — P21 / EPIC-2106 Qualification cloud-native et GATE-10
+
+| Exigence / Gate | Implémentation | Vérification |
+|---|---|---|
+| EPIC-2106 / TST-P21-K8S-SCALE-GATE | qualification multi-cluster, snapshot de 50 000 ressources, performance et probes de corruption | benchmark runtime et tests unitaires/intégration |
+| GATE-10 / REL-11 | catalogue fermé de sept preuves EPIC-2101 à EPIC-2106 | politique JSON, manifeste SHA-256 et certificateur bloquant |
+| Sécurité | rejet secrets en clair, références inter-namespace et chemins physiques orphelins | probes runtime et validation des preuves |
+| Intégrité | fraîcheur, version, hash et confinement des chemins | tests d’altération, péremption et path traversal |
+| Industrialisation | workflow dédié, quality gate, sdist et smoke wheel | CI, vérification artefact et installation isolée |
+| Installateur autonome | payload web de production sans `node_modules`, `dist`, caches, couverture ni logs | test offline avec artefacts de développement présents dans l’arbre source |
+
+- Aucune migration PostgreSQL supplémentaire : chaîne maintenue à 56 migrations.
+- Aucun changement d’API/CLI métier ni de charte graphique.
+- CDC et roadmap inchangés : EPIC-2106, GATE-10 et REL-11 étaient déjà planifiés.
+
 ## v0.33.9 — Stabilisation CI et frontières transactionnelles DCIM
 
 | Exigence | Implémentation | Vérification |

@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "gate_id": "GATE-10",
+  "release_id": "REL-11",
+  "required_evidence": [
+    {
+      "id": "epic-2101-topology",
+      "report_kind": "kubernetes-cloud-native-topology-contract",
+      "max_age_hours": 24
+    },
+    {
+      "id": "epic-2102-exposure",
+      "report_kind": "kubernetes-cloud-native-exposure-contract",
+      "max_age_hours": 24
+    },
+    {
+      "id": "epic-2103-security",
+      "report_kind": "kubernetes-cloud-native-security-contract",
+      "max_age_hours": 24
+    },
+    {
+      "id": "epic-2104-gitops",
+      "report_kind": "kubernetes-gitops-drift-contract",
+      "max_age_hours": 24
+    },
+    {
+      "id": "epic-2105-capacity",
+      "report_kind": "kubernetes-capacity-contract",
+      "max_age_hours": 24
+    },
+    {
+      "id": "epic-2106-runtime",
+      "report_kind": "cloud-native-runtime-qualification",
+      "max_age_hours": 12
+    },
+    {
+      "id": "epic-2106-contract",
+      "report_kind": "cloud-native-qualification-contract",
+      "max_age_hours": 24
+    }
+  ]
+}

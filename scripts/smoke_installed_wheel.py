@@ -8,6 +8,7 @@ from openinfra.infrastructure.multisite_observability import (
     MultisiteOperationalMetricsProvider,
 )
 from openinfra.interfaces.http_api import OpenApiDocumentProvider
+from openinfra.quality.cloud_native_promotion import CloudNativePromotionPolicy
 from openinfra.quality.continuity_certification import PraPcaCertificationEvidence
 from openinfra.quality.dependency_graph_benchmark import DependencyGraphBenchmarkConfig
 from openinfra.quality.ga_go_no_go import GaGoNoGoPolicy
@@ -23,7 +24,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.33.9"
+    EXPECTED_VERSION = "0.33.10"
     EXPECTED_ASYNC_ROUTES = (
         "/api/v1/async/jobs",
         "/api/v1/async/jobs/get",
@@ -294,6 +295,7 @@ class InstalledWheelSmoke:
         self._assert_multisite_observability_contract()
         self._assert_multisite_chaos_contract()
         self._assert_scaleout_promotion_contract(package_root)
+        self._assert_cloud_native_promotion_contract(package_root)
         self._assert_benchmark_contract()
         self._assert_release_security_contract(package_root)
         self._assert_release_packaging_contract()
@@ -329,6 +331,7 @@ class InstalledWheelSmoke:
             "multisite_observability": True,
             "multisite_chaos_certification": True,
             "enterprise_scaleout_gate": "GATE-09",
+            "cloud_native_gate": "GATE-10",
         }
 
     @staticmethod
@@ -346,6 +349,22 @@ class InstalledWheelSmoke:
             raise InstalledWheelSmokeError("installed Enterprise Scale-out policy is inconsistent")
         if len(policy.required_evidence) != 7:
             raise InstalledWheelSmokeError("installed Enterprise Scale-out policy is incomplete")
+
+    @staticmethod
+    def _assert_cloud_native_promotion_contract(package_root: Path) -> None:
+        policy_path = package_root / "docs" / "release" / "cloud-native-promotion-policy.json"
+        runbook_path = package_root / "docs" / "runbooks" / "CLOUD_NATIVE_PROMOTION.md"
+        if not runbook_path.is_file():
+            raise InstalledWheelSmokeError(
+                "installed wheel is missing the Kubernetes Cloud-native promotion runbook"
+            )
+        policy = CloudNativePromotionPolicy.load(policy_path)
+        if policy.gate_id != "GATE-10" or policy.release_id != "REL-11":
+            raise InstalledWheelSmokeError(
+                "installed Cloud-native promotion policy is inconsistent"
+            )
+        if len(policy.required_evidence) != 7:
+            raise InstalledWheelSmokeError("installed Cloud-native promotion policy is incomplete")
 
     @staticmethod
     def _assert_multisite_observability_contract() -> None:
@@ -588,7 +607,7 @@ class InstalledWheelSmoke:
     def _assert_release_security_contract(package_root: Path) -> None:
         controls = ReleaseSecurityControlCatalog.build(
             package_root,
-            image_ref="openinfra/runtime:0.33.9",
+            image_ref="openinfra/runtime:0.33.10",
             api_base_url="http://127.0.0.1:8080",
             web_base_url="http://127.0.0.1:2006",
         )

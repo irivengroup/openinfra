@@ -834,7 +834,12 @@ class AutonomousInstallerProgram:
             return
         web_source = self._location.project_root / "web"
         if web_source.is_dir():
-            self._replace_tree(web_source, plan.application_root / "web", journal)
+            self._replace_tree(
+                web_source,
+                plan.application_root / "web",
+                journal,
+                ignored_names=("node_modules", "dist", ".vite", "coverage", "*.log"),
+            )
 
     def _run_postgresql_bootstrap(
         self, plan: InstallationPlan, journal: InstallationRollbackJournal
@@ -1206,14 +1211,20 @@ class AutonomousInstallerProgram:
             journal.record_created_directory(created)
 
     def _replace_tree(
-        self, source: Path, destination: Path, journal: InstallationRollbackJournal
+        self,
+        source: Path,
+        destination: Path,
+        journal: InstallationRollbackJournal,
+        *,
+        ignored_names: tuple[str, ...] = (),
     ) -> None:
         if not source.is_dir():
             raise InstallerRuntimeError(f"missing source directory: {source}")
         self._create_directory(destination.parent, journal)
         temporary = self._temporary_path(destination)
         backup = self._backup_existing(destination)
-        shutil.copytree(source, temporary)
+        ignore = shutil.ignore_patterns(*ignored_names) if ignored_names else None
+        shutil.copytree(source, temporary, ignore=ignore)
         temporary.replace(destination)
         journal.record_replacement(destination, backup)
 

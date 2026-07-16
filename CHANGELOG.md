@@ -1,3 +1,15 @@
+## v0.33.10 — P21 / EPIC-2106 Qualification cloud-native et GATE-10
+
+- livre le gate bloquant GATE-10 pour la promotion de REL-11 Kubernetes & Cloud-native ;
+- agrège sept preuves immuables couvrant EPIC-2101 à EPIC-2106 ;
+- vérifie SHA-256, fraîcheur, version, catalogue fermé et confinement des chemins ;
+- ajoute une qualification runtime multi-cluster avec un snapshot réel de 50 000 ressources ;
+- valide fingerprints déterministes, mapping physique et read model de capacité ;
+- exécute des probes de rejet des secrets en clair, références inter-namespace et mappings physiques orphelins ;
+- ajoute le workflow dédié, le runbook, la politique machine-readable, les tests et l’intégration packaging/smoke ;
+- exclut désormais `node_modules`, `dist`, caches Vite, couvertures et logs du payload web des installateurs autonomes ;
+- conserve la chaîne PostgreSQL à 56 migrations et le thème sans modification.
+
 ## v0.33.9 — Correctifs CI Discovery, support EPIC-1806 et UnitOfWork DCIM
 
 - aligne le contrat racine HTTP sur les routes Kubernetes livrées en 0.33.8 afin de restaurer le job de réconciliation Discovery multisource ;

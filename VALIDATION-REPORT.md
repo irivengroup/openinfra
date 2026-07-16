@@ -1,84 +1,108 @@
-# Rapport de validation — OpenInfra Python POO v0.33.9
+# Rapport de validation — OpenInfra Python POO v0.33.10
 
 ## Objet de la livraison
 
-La version **0.33.9** stabilise trois régressions indépendantes apparues dans les validations et dans l’espace de gestion DCIM :
+La version **0.33.10** clôt le jalon **P21 / EPIC-2106** et livre le gate bloquant **GATE-10** pour la promotion de **REL-11 Kubernetes & Cloud-native**.
 
-1. le job CI `Discovery multisource reconciliation regression` échouait parce que le contrat de la racine HTTP n’intégrait pas les routes Kubernetes déjà livrées en 0.33.8 ;
-2. le workflow `Validate EPIC-1806 support model` exécutait le validateur Support Readiness sans installer préalablement le package OpenInfra ;
-3. le catalogue agrégé et plusieurs opérations CRUD DCIM accédaient aux repositories PostgreSQL hors `UnitOfWork`, provoquant :
+La promotion repose sur un catalogue fermé de sept preuves immuables :
 
-```text
-postgresql operation requires an active unit of work
-```
+1. EPIC-2101 — topologie Kubernetes et mapping physique ;
+2. EPIC-2102 — exposition réseau et dépendances ;
+3. EPIC-2103 — corrélation sécurité, images, SBOM, certificats et références de secrets ;
+4. EPIC-2104 — conformité GitOps et dérives ;
+5. EPIC-2105 — capacité cluster/namespace ;
+6. EPIC-2106 — qualification runtime multi-cluster ;
+7. EPIC-2106 — contrat projet et industrialisation.
 
-Aucune migration PostgreSQL, route API, commande CLI, permission RBAC ou modification de thème n’est introduite.
+Aucune migration PostgreSQL, route métier, commande CLI métier, permission RBAC ou modification de thème n’est introduite. La chaîne reste à **56 migrations**, avec `0056_kubernetes_gitops_drift.sql` comme dernière migration.
 
-## Correctifs livrés
+## Implémentation livrée
 
-### Réconciliation Discovery multisource
+### Certification GATE-10
 
-Le contrat d’intégration de la racine HTTP expose désormais explicitement le groupe de routes Kubernetes existant. Le job Discovery vérifie de nouveau l’ensemble cohérent domaine, réconciliation, CLI, HTTP, Web et migrations sans faux négatif lié à une attente obsolète.
+Le moteur `openinfra.quality.cloud_native_promotion` :
 
-### Support Readiness — EPIC-1806
+- vérifie l’exactitude du catalogue de preuves ;
+- contrôle la version OpenInfra, la fraîcheur et les types de rapports ;
+- recalcule chaque SHA-256 avant certification ;
+- refuse les chemins absolus, traversées de répertoire et preuves hors racine ;
+- bloque la promotion sur preuve absente, altérée, périmée ou incohérente ;
+- produit un rapport déterministe autorisant ou refusant REL-11.
 
-Le workflow dédié installe maintenant le projet en mode editable avant d’exécuter `scripts/support_readiness.py` :
+Le workflow `.github/workflows/cloud-native-promotion.yml` construit les sept preuves, exécute les tests de régression, assemble le manifeste immuable, applique GATE-10 et publie les preuves avec une rétention de 90 jours.
 
-```bash
-python -m pip install -e .
-```
+### Qualification runtime multi-cluster
 
-Le contrat d’intégration du workflow rend cette étape obligatoire afin d’éviter toute nouvelle exécution du validateur sans package importable.
+La qualification locale réelle a exécuté :
 
-### Frontières transactionnelles DCIM
+- **3 clusters** ;
+- **50 256 ressources qualifiées** ;
+- un snapshot au plafond contractuel de **50 000 ressources** ;
+- un budget maximal de **30 secondes**.
 
-Les lectures, validations et mutations des espaces de gestion suivants sont désormais exécutées dans un `UnitOfWork` actif :
+Résultat mesuré : **1,023399 seconde**, statut `passed`.
 
-- Sites ;
-- Bâtiments ;
-- Étages ;
-- Salles ;
-- Zones ;
-- Châssis/Racks ;
-- catalogue agrégé `/api/v1/dcim/topology-catalog`.
+Les probes ont confirmé :
 
-Les actions de consultation, création, modification, suppression, capacité et listing partagent ainsi le même contrat transactionnel sur les backends JSON et PostgreSQL. Le paramètre `include_retired=true` est également propagé au listing des racks du catalogue.
+- fingerprints déterministes ;
+- mapping physique valide ;
+- read model de capacité valide ;
+- rejet du matériel secret en clair ;
+- rejet des références inter-namespace interdites ;
+- rejet des chemins physiques orphelins.
 
-Un repository gardé de non-régression refuse immédiatement toute opération DCIM exécutée hors unité de travail et couvre le cycle de vie complet de la topologie.
+La certification finale contient **7/7 critères passés**, aucun bloqueur et `authorized_for_cloud_native_release=true`.
+
+### Durcissement de l’installateur autonome
+
+Le déploiement des scopes `all-in-one` et `web` exclut désormais systématiquement :
+
+- `node_modules/` ;
+- `dist/` ;
+- caches Vite ;
+- rapports de couverture ;
+- fichiers de log.
+
+Cette correction empêche l’embarquement de dépendances de développement, réduit fortement le payload offline et préserve un comportement déterministe même lorsque l’arbre source a déjà exécuté `npm ci` et `npm run build`.
+
+Le test installateur correspondant passe de **21,1 s à 2,3 s** dans l’environnement local tout en vérifiant la présence des sources Web nécessaires et l’absence des artefacts interdits.
 
 ## Validation exécutée
 
-### Suites de régression Python
+### Tests Python
 
-- Discovery multisource : **106/106 PASS** ;
-- Transactional outbox et workers spécialisés : **63/63 PASS** ;
-- Support Readiness EPIC-1806 : **19/19 PASS** ;
-- cycle de vie et discipline transactionnelle DCIM : **14/14 PASS** ;
-- contrats de release, documentation, workflows, runtime Docker minimal, performance frontend et promotion scale-out : **35/35 PASS**.
+| Périmètre | Résultat |
+|---|---:|
+| Unitaires | inclus dans le lot de 674 tests |
+| Architecture | inclus dans le lot de 674 tests |
+| Performance | inclus dans le lot de 674 tests |
+| Lot unitaires + architecture + performance | **674/674 PASS** |
+| Intégration, tous les 167 fichiers | **714/714 PASS** |
+| Total Python exécuté | **1 388/1 388 PASS** |
+| Tests ciblés Kubernetes/GATE-10 | **105/105 PASS** |
+| Contrats GATE-10 spécifiques | **9/9 PASS** |
 
-Les suites ciblées ont été exécutées avec l’auto-chargement des plugins pytest externes désactivé afin d’isoler l’environnement du dépôt :
+Les fichiers d’intégration ont été instrumentés dans des processus isolés afin d’éviter la contamination d’état entre scénarios CLI/installateur et d’agréger une couverture déterministe.
 
-```bash
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONPATH=src \
-python -m pytest -p pytest_cov.plugin -q --no-cov <suites ciblées>
-```
+### Couverture
 
-### Qualité statique
+- lignes couvertes : **43 708 / 44 686** ;
+- lignes manquantes : **978** ;
+- couverture exacte : **97,811395 %** ;
+- affichage Coverage.py et seuil contractuel : **98 %** ;
+- `coverage report --fail-under=98` : **PASS** ;
+- aucune exclusion supplémentaire ni réduction du seuil.
 
-- Ruff format : **PASS** ;
-- Ruff lint : **PASS** ;
-- mypy : **120 fichiers source conformes** ;
+### Qualité statique et sécurité
+
 - `compileall` : **PASS** ;
+- Ruff format sur `src tests scripts docker installers` : **PASS** ;
+- Ruff lint : **PASS** ;
+- mypy strict : **121 modules source conformes** ;
 - Bandit sur `src/openinfra` : **PASS**, aucun finding bloquant ;
-- `scripts/security_gate.py` : **PASS**.
-
-### Documentation et contrats API
-
-- OpenAPI produit : **PASS** ;
-- OpenAPI CDC : **PASS** ;
-- documentation GA version 0.33.9 : **PASS** ;
-- manifeste documentaire GA : **PASS** ;
-- Support Readiness : **PASS**.
+- `scripts/security_gate.py` : **PASS** ;
+- `scripts/quality_gate.py` : **PASS** ;
+- GATE-10 local : **CERTIFIED**.
 
 ### Frontend
 
@@ -86,45 +110,54 @@ python -m pytest -p pytest_cov.plugin -q --no-cov <suites ciblées>
 - ESLint : **PASS** ;
 - contrôles JSX et accessibilité : **PASS** ;
 - WCAG 2.2 AA : **PASS** ;
-- build Vite : **PASS** ;
+- build Vite sous budgets : **PASS** ;
 - bundle initial : **2 556 octets bruts / 1 264 octets gzip** ;
 - chunks dynamiques : **13** ;
 - `npm audit --audit-level=high` : **0 vulnérabilité** ;
 - `npm audit --omit=dev --audit-level=high` : **0 vulnérabilité**.
 
-### Packaging
+### Packaging et smoke installé
 
-- wheel `openinfra-0.33.9-py3-none-any.whl` : **PASS** ;
-- sdist `openinfra-0.33.9.tar.gz` : **PASS** ;
-- contrôle du contenu des artefacts : **PASS** ;
-- build du wheel depuis le contexte Docker minimal : **PASS** ;
-- smoke du wheel installé hors de l’arbre source : **PASS** ;
-- version installée : **0.33.9** ;
+- wheel `openinfra-0.33.10-py3-none-any.whl` : **PASS** ;
+- sdist `openinfra-0.33.10.tar.gz` : **PASS** ;
+- `scripts/verify_artifact.py` sur les deux artefacts : **PASS** ;
+- sdist : **975 entrées**, sans `node_modules` ni `web/dist` ;
+- installation du wheel avec `--no-deps` hors arbre source : **PASS** ;
+- smoke du wheel installé : **PASS** ;
+- version installée : **0.33.10** ;
+- migrations installées : **56** ;
 - routes Kubernetes : **16** ;
-- migrations : **56** ;
-- dernière migration : `0056_kubernetes_gitops_drift.sql` ;
-- assets runtime : **20**.
+- assets runtime : **20** ;
+- gate cloud-native installé : **GATE-10**.
 
-Le sdist embarque notamment le workflow EPIC-1806 corrigé, le test transactionnel DCIM, le contrat HTTP Discovery et les services DCIM modifiés.
+### Documentation et contrats
+
+- validateur EPIC-2101 : **PASS** ;
+- validateur EPIC-2102 : **PASS** ;
+- validateur EPIC-2103 : **PASS** ;
+- validateur EPIC-2104 : **PASS** ;
+- validateur EPIC-2105 : **PASS** ;
+- validateur EPIC-2106 : **PASS** ;
+- assemblage du manifeste à sept preuves : **PASS** ;
+- vérification de l’intégrité SHA-256 : **PASS** ;
+- documentation GA et frontend : **PASS** ;
+- OpenAPI produit et CDC : **PASS**.
 
 ## Non-régression visuelle
 
-Le fichier `web/src/openinfra-theme.css` est bit pour bit identique à celui de la version 0.33.8 :
+Le thème n’a pas été modifié. Le fichier `web/src/openinfra-theme.css` conserve l’empreinte validée :
 
 ```text
 fb7feabe378613ac41efb18db94b0d95a8faa916b6f782c9fd0ea2b0d8e9fcf4
 ```
 
-Aucune couleur, surface, transparence, règle de survol ou autre comportement du thème n’a été modifié.
+Aucune couleur, surface, transparence, règle de survol ou structure visuelle n’a été changée.
 
-## Validations non exécutables localement
+## Validations dépendantes de l’environnement
 
-- la suite pytest globale a été lancée mais n’a pas terminé dans la fenêtre locale de **30 minutes** ; le seuil de couverture contractuel **>= 98 %** doit donc être recalculé et confirmé par GitHub Actions ;
-- `pip-audit --strict --requirement requirements/security-audit.txt` n’a pas pu interroger PyPI à cause d’un échec de résolution DNS vers `pypi.org` ; aucun résultat de vulnérabilité Python n’est donc revendiqué localement ;
-- le binaire Docker n’est pas disponible dans l’environnement courant : le build Docker réel et les smokes Docker Compose restent à confirmer par la CI ou sur un poste équipé de Docker.
-
-Ces limites n’affectent pas les suites de régression ciblées, les contrôles statiques, le build Python, le build frontend ni le smoke du wheel installé, tous exécutés avec succès.
+- Le binaire Docker n’est pas disponible dans l’environnement courant. Les contrats du contexte Docker minimal, de Compose et des services runtime sont testés, mais le démarrage réel des conteneurs reste à confirmer sur un hôte Docker ou dans GitHub Actions.
+- `pip-audit --strict --requirement requirements/security-audit.txt` a été exécuté, mais n’a pas pu résoudre `pypi.org` (`Temporary failure in name resolution`). Aucun résultat d’audit de vulnérabilités Python n’est donc revendiqué localement ; les contrôles Bandit, Security Gate et audits npm sont, eux, exécutés et verts.
 
 ## Documentation de planification
 
-Le **CDC 4.9.0** et la **roadmap v2.2** restent inchangés. Cette livraison corrige des régressions d’implémentation et de CI sans nouvelle exigence fonctionnelle, réglementaire ou architecturale.
+Le **CDC 4.9.0** et la **roadmap v2.2** restent inchangés : EPIC-2106, GATE-10 et REL-11 y étaient déjà planifiés. Cette livraison implémente le jalon existant sans nouvelle exigence fonctionnelle, réglementaire ou architecturale.

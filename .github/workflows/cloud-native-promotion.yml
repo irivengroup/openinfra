@@ -1,0 +1,100 @@
+name: Kubernetes Cloud-native Promotion
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: openinfra-cloud-native-promotion-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Certify GATE-10 Kubernetes Cloud-native
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: pip
+
+      - name: Install qualification dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements/runtime.txt -r requirements/dev.txt
+          python -m pip install -e .
+
+      - name: Generate EPIC-2101 to EPIC-2105 evidence
+        run: |
+          mkdir -p build/cloud-native
+          python scripts/validate_kubernetes_topology.py --project-root . --output build/cloud-native/topology.json --enforce
+          python scripts/validate_kubernetes_exposure.py --project-root . --output build/cloud-native/exposure.json --enforce
+          python scripts/validate_kubernetes_security.py --project-root . --output build/cloud-native/security.json --enforce
+          python scripts/validate_kubernetes_gitops.py --project-root . --output build/cloud-native/gitops.json --enforce
+          python scripts/validate_kubernetes_capacity.py --project-root . --output build/cloud-native/capacity.json --enforce
+
+      - name: Run multi-cluster scale and chaos qualification
+        run: >-
+          python scripts/run_cloud_native_qualification.py
+          --clusters 3
+          --resources 50000
+          --max-seconds 30
+          --output build/cloud-native/runtime.json
+          --enforce
+
+      - name: Validate EPIC-2106 project contract
+        run: >-
+          python scripts/validate_cloud_native_promotion.py
+          --project-root .
+          --output build/cloud-native/qualification.json
+          --enforce
+
+      - name: Execute GATE-10 regression tests
+        run: >-
+          python -m pytest -q --no-cov
+          tests/unit/test_cloud_native_promotion.py
+          tests/integration/test_cloud_native_promotion_tooling.py
+
+      - name: Assemble immutable GATE-10 evidence
+        run: >-
+          python scripts/assemble_cloud_native_promotion_evidence.py
+          --candidate-id "openinfra-$(cat VERSION)-${GITHUB_SHA}"
+          --source-commit "$GITHUB_SHA"
+          --topology build/cloud-native/topology.json
+          --exposure build/cloud-native/exposure.json
+          --security build/cloud-native/security.json
+          --gitops build/cloud-native/gitops.json
+          --capacity build/cloud-native/capacity.json
+          --runtime build/cloud-native/runtime.json
+          --qualification build/cloud-native/qualification.json
+          --evidence-root build/cloud-native/evidence
+          --output build/cloud-native/manifest.json
+
+      - name: Enforce GATE-10
+        run: >-
+          python scripts/certify_cloud_native_promotion.py
+          --policy docs/release/cloud-native-promotion-policy.json
+          --manifest build/cloud-native/manifest.json
+          --evidence-root build/cloud-native/evidence
+          --output build/cloud-native/certification-report.json
+          --enforce
+
+      - name: Publish immutable GATE-10 evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: openinfra-cloud-native-promotion-${{ github.run_id }}
+          path: build/cloud-native
+          if-no-files-found: error
+          retention-days: 90

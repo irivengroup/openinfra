@@ -450,6 +450,13 @@ jobs:
             tests/integration/test_kubernetes_capacity_web_contract.py \
             tests/integration/test_kubernetes_capacity_tooling.py
 
+      - name: P21 Kubernetes Cloud-native GATE-10 contracts
+        run: |
+          python scripts/validate_cloud_native_promotion.py --project-root . --enforce
+          python -m pytest -q --no-cov \
+            tests/unit/test_cloud_native_promotion.py \
+            tests/integration/test_cloud_native_promotion_tooling.py
+
       - name: Unit and integration tests with coverage
         run: python -m pytest
 

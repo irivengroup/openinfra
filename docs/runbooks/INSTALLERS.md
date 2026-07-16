@@ -88,6 +88,8 @@ Tous les programmes `install.py` déploient :
 
 Les scopes backend/all-in-one copient aussi `installers/migrations/postgresql` vers `/opt/openinfra/share/migrations/postgresql`, puis appliquent les migrations après bootstrap PostgreSQL. Les scopes `web` et `agent` ne copient pas les migrations et n’ont aucun accès direct à PostgreSQL.
 
+Pour les scopes `all-in-one` et `web`, le répertoire `web/` est déployé sans les artefacts de développement ou de build local : `node_modules/`, `dist/`, caches Vite, rapports de couverture et fichiers de log sont systématiquement exclus. Cette règle réduit le payload, empêche l’embarquement de dépendances de développement et rend l’installation déterministe même depuis un poste ayant exécuté `npm ci` ou `npm run build`.
+
 ## Règles `install.ini`
 
 `install.ini` reste volontairement succinct. Il ne porte jamais `edition`, `scope`, `service`, section `[operations]`, ports internes, `mountpoint`, `owner`, `group` ou chemin PGDATA. Le type d’installation est déduit par l’installateur depuis l’arborescence `installers/setup/...`.

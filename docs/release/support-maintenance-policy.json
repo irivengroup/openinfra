@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "epic": "EPIC-1806",
-  "release_version": "0.33.9",
+  "release_version": "0.33.10",
   "support_profiles": {
     "lite": {
       "service_hours": "business-hours-8x5-europe-paris",

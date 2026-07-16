@@ -1,16 +1,20 @@
-# OpenInfra v0.33.9
+# OpenInfra v0.33.10
 
-OpenInfra 0.33.9 stabilise les espaces de gestion DCIM sous PostgreSQL et restaure les gates CI Discovery multisource et Support Readiness EPIC-1806, sans modifier les contrats publics, les migrations ni le thème.
+OpenInfra 0.33.10 livre **P21 / EPIC-2106** et ferme **REL-11 Kubernetes & Cloud-native** par la certification bloquante **GATE-10**.
 
-## Correctifs v0.33.9
+## Qualification Cloud-native — P21 / EPIC-2106
 
-- le catalogue agrégé DCIM et toutes les actions de gestion Sites/Bâtiments/Étages/Salles/Zones/Racks s’exécutent dans un `UnitOfWork` actif ;
-- les validations précédant les mutations restent dans la même transaction que l’écriture et l’audit ;
-- le test racine HTTP inclut les routes Kubernetes déjà exposées, ce qui restaure le job Discovery multisource ;
-- le workflow Support Readiness installe le package OpenInfra avant d’exécuter le validateur EPIC-1806 ;
-- un repository gardé couvre le cycle de vie DCIM complet et échoue sur tout accès hors transaction ;
-- les racks retirés sont inclus dans le catalogue lorsque `include_retired=true` ;
-- aucune migration, aucun endpoint, aucune commande CLI et aucune modification du thème.
+- sept preuves immuables couvrant EPIC-2101 à EPIC-2106 ;
+- contrôle SHA-256, fraîcheur, version, catalogue fermé et protection contre le path traversal ;
+- benchmark runtime réel sur trois clusters, dont un snapshot de 50 000 ressources ;
+- vérification des fingerprints déterministes et du mapping physique ;
+- validation du read model de capacité cluster/namespace ;
+- probes de sécurité contre les secrets en clair, les références inter-namespace et les chemins physiques orphelins ;
+- workflow GitHub Actions bloquant `cloud-native-promotion.yml` ;
+- intégration au quality gate, au sdist et au smoke du wheel installé ;
+- aucune migration supplémentaire, aucun changement API/CLI métier et aucune modification du thème.
+
+Voir `docs/runbooks/CLOUD_NATIVE_PROMOTION.md` et `docs/release/cloud-native-promotion-policy.json`.
 
 ## Correctif PostgreSQL — UnitOfWork Kubernetes — v0.33.8
 

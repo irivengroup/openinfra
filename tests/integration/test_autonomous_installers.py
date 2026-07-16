@@ -121,6 +121,10 @@ class TestAutonomousScopeInstallers:
         assert 'OPENINFRA_WEB_RUNTIME="asgi"' in lite_runtime
         assert 'OPENINFRA_WEB_HTTP_MAX_CONNECTIONS="32"' in lite_runtime
         assert (lite_app / "config/.openinfra-installed.lock").is_file()
+        assert (lite_app / "web/package.json").is_file()
+        assert (lite_app / "web/src").is_dir()
+        assert not (lite_app / "web/node_modules").exists()
+        assert not (lite_app / "web/dist").exists()
         assert (tmp_path / "lite-target/etc/openinfra").is_symlink()
         assert (tmp_path / "lite-target/etc/openinfra").readlink() == Path("/opt/openinfra/config")
         assert (tmp_path / "lite-target/etc/systemd/system/openinfra.service").is_file()

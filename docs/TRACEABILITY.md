@@ -1,3 +1,14 @@
+## v0.34.1 — Correctif migration PostgreSQL 0057
+
+| Exigence | Implémentation | Vérification |
+|---|---|---|
+| Persistance identité fédérée et Team Sync | génération sûre des 96 partitions avec `lpad()` et `%I` | tests de rendu `p00..p31`, catalogue et exécuteur de migrations |
+| Prévention de régression | rejet des directives PostgreSQL `format()` de type `%02s` utilisées comme suffixes | test négatif du validateur de migration |
+| Compatibilité | chaîne maintenue à 57 migrations, PostgreSQL par défaut et Oracle optionnel | tests de politique, packaging et smoke installé |
+
+- Aucune évolution du CDC ou de la roadmap : correction d’implémentation d’une exigence déjà livrée en 0.34.0.
+- Aucun changement de thème, API publique, CLI métier ou modèle de données.
+
 ## v0.34.0 — Identité avancée, Team Sync, Oracle et production systemd
 
 | Exigence | Implémentation | Vérification |

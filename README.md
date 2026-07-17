@@ -1,6 +1,6 @@
-# OpenInfra v0.34.0
+# OpenInfra v0.34.1
 
-OpenInfra 0.34.0 introduit l’intégration d’identité avancée et le support multi-SGBD pour les déploiements de production natifs. PostgreSQL reste le backend par défaut ; Oracle Database est sélectionnable explicitement pour les éditions Pro et Enterprise. Docker demeure un environnement local facultatif : l’installation, les migrations, l’API, le Web, les secrets runtime et Team Sync sont exploitables directement sous systemd.
+OpenInfra 0.34.1 corrige l’application de la migration PostgreSQL `0057_federated_identity_team_sync.sql` livrée avec l’identité avancée et Team Sync. PostgreSQL reste le backend par défaut ; Oracle Database demeure sélectionnable explicitement pour les éditions Pro et Enterprise. Docker reste un environnement local facultatif : l’installation, les migrations, l’API, le Web, les secrets runtime et Team Sync sont exploitables directement sous systemd.
 
 ## Identité avancée, Team Sync et Oracle — P22 / REL-12
 

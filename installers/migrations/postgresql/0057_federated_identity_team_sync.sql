@@ -41,21 +41,26 @@ CREATE TABLE IF NOT EXISTS federated_identity_links (
 DO $$
 DECLARE
     partition_index integer;
+    partition_suffix text;
 BEGIN
     FOR partition_index IN 0..31 LOOP
+        partition_suffix := lpad(partition_index::text, 2, '0');
         EXECUTE format(
-            'CREATE TABLE IF NOT EXISTS identity_team_sync_sources_p%1$02s '
-            'PARTITION OF identity_team_sync_sources FOR VALUES WITH (MODULUS 32, REMAINDER %1$s)',
+            'CREATE TABLE IF NOT EXISTS %I '
+            'PARTITION OF identity_team_sync_sources FOR VALUES WITH (MODULUS 32, REMAINDER %s)',
+            'identity_team_sync_sources_p' || partition_suffix,
             partition_index
         );
         EXECUTE format(
-            'CREATE TABLE IF NOT EXISTS identity_team_sync_runs_p%1$02s '
-            'PARTITION OF identity_team_sync_runs FOR VALUES WITH (MODULUS 32, REMAINDER %1$s)',
+            'CREATE TABLE IF NOT EXISTS %I '
+            'PARTITION OF identity_team_sync_runs FOR VALUES WITH (MODULUS 32, REMAINDER %s)',
+            'identity_team_sync_runs_p' || partition_suffix,
             partition_index
         );
         EXECUTE format(
-            'CREATE TABLE IF NOT EXISTS federated_identity_links_p%1$02s '
-            'PARTITION OF federated_identity_links FOR VALUES WITH (MODULUS 32, REMAINDER %1$s)',
+            'CREATE TABLE IF NOT EXISTS %I '
+            'PARTITION OF federated_identity_links FOR VALUES WITH (MODULUS 32, REMAINDER %s)',
+            'federated_identity_links_p' || partition_suffix,
             partition_index
         );
     END LOOP;

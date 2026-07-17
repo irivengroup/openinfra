@@ -1,3 +1,13 @@
+## v0.34.1 — Correctif de génération des partitions identité et Team Sync
+
+- corrige la migration PostgreSQL `0057_federated_identity_team_sync.sql` qui produisait des identifiants de partition invalides tels que `identity_team_sync_sources_p 0` ;
+- remplace le faux zéro-padding `%1$02s` de `format()` par `lpad()` et le format d’identifiant sûr `%I` ;
+- crée déterministement les 96 partitions `p00` à `p31` pour les trois tables d’identité fédérée et Team Sync ;
+- ajoute une validation générale refusant les largeurs `%0Ns` dangereuses dans les migrations PostgreSQL ;
+- ajoute des tests de non-régression sur le rendu des noms, le catalogue et la politique de migration ;
+- conserve PostgreSQL comme backend par défaut, Oracle optionnel, les interfaces SAML/LDAP/Team Sync et le déploiement systemd sans modification fonctionnelle ;
+- aucune migration supplémentaire, aucun endpoint supprimé et aucune modification du thème.
+
 ## v0.34.0 — Identité avancée, Team Sync, Oracle et production systemd
 
 - ajoute l’authentification SAML 2.0 avec validation cryptographique, configuration serveur de confiance et mapping groupes externes vers rôles OpenInfra ;

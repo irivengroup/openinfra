@@ -1,6 +1,6 @@
 # Diagnostic et support
 
-Version cible : `0.34.0`
+Version cible : `0.34.1`
 
 ## Collecte minimale
 
@@ -74,3 +74,26 @@ Escalader au niveau supérieur lorsque :
 - la DLQ contient des opérations non rejouables ;
 - un secret ou une donnée sensible apparaît dans les logs ;
 - le correctif exige une modification de schéma, de sécurité ou de contrat public.
+## PostgreSQL — erreur `identity_team_sync_sources_p 0` pendant la migration 0057
+
+Cette erreur concerne uniquement la version 0.34.0. PostgreSQL `format()` applique une largeur minimale à `%s` en ajoutant des espaces ; `%1$02s` produit donc `p 0` et non `p00`. La version 0.34.1 utilise `lpad()` pour le suffixe et `%I` pour l’identifiant SQL.
+
+La migration est exécutée dans la transaction de l’exécuteur OpenInfra. Après l’échec, aucune partition 0057 ni entrée `openinfra_schema_migrations` ne doit être réparée manuellement. Mettez à niveau le package puis relancez les migrations.
+
+Déploiement serveur standard :
+
+```bash
+sudo /opt/openinfra/venv/bin/python -m pip install --upgrade /opt/openinfra/releases/openinfra-0.34.1-py3-none-any.whl
+sudo systemctl start openinfra-migrate.service
+sudo journalctl -u openinfra-migrate.service --no-pager --since today
+```
+
+Environnement Docker local :
+
+```bash
+docker compose --env-file .env up --build -d postgres migrate
+docker compose --env-file .env logs --no-color --tail=200 migrate
+```
+
+Vérifiez ensuite que `0057_federated_identity_team_sync.sql` apparaît dans l’état du schéma et que les partitions vont de `p00` à `p31`.
+

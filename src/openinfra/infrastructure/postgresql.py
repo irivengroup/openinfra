@@ -534,6 +534,11 @@ class PostgreSQLMigration:
             raise ValidationError("migration must create or maintain indexes")
         if "AUDIT_EVENTS" not in normalized:
             raise ValidationError("migration must include audit persistence or audit indexes")
+        if re.search(r"%(?:\d+\$)?0\d+s", self.sql):
+            raise ValidationError(
+                "PostgreSQL format() string widths pad %s values with spaces; "
+                "use lpad() for numeric suffixes and %I for identifiers"
+            )
         PostgreSQLPartitionConstraintValidator.validate(self.sql)
 
     def as_dict(self) -> dict[str, object]:

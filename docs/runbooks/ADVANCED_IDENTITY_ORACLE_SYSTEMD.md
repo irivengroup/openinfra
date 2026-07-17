@@ -154,7 +154,7 @@ Le snapshot doit être un fichier normal, non symbolique, avec signature HMAC va
 ## Installation et unités systemd
 
 ```bash
-sudo /opt/openinfra/venv/bin/python -m pip install '/opt/openinfra/openinfra-0.34.0-py3-none-any.whl[postgresql,advanced-identity]'
+sudo /opt/openinfra/venv/bin/python -m pip install '/opt/openinfra/openinfra-0.34.1-py3-none-any.whl[postgresql,advanced-identity]'
 # Oracle : remplacer postgresql par oracle.
 sudo install -o root -g root -m 0644 installers/systemd/openinfra-runtime-secrets.service /etc/systemd/system/
 sudo install -o root -g root -m 0644 installers/systemd/openinfra-migrate.service /etc/systemd/system/

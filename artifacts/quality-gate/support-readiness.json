@@ -11,7 +11,7 @@
   "patch_policy_defined": true,
   "policy_sha256": "f4963a87f7bdeca3fc953bc55981e911e87febea68965007f223fbe401d2028c",
   "profile_count": 3,
-  "release_version": "0.34.0",
+  "release_version": "0.34.1",
   "report_kind": "support-readiness",
   "schema_version": 1,
   "severity_count": 4,

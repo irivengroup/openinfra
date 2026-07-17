@@ -58,7 +58,7 @@ class NativeRuntimeAssetChecker:
             validator.render_systemd_unit("enterprise", "agent"),
         )
         required_fragments = (
-            "ExecStart=/opt/openinfra/venv/bin/openinfra-api",
+            "ExecStart=/opt/openinfra/venv/bin/openinfra-server-runtime api",
             "ExecStart=/opt/openinfra/venv/bin/openinfra-web",
             "openinfra-agent.service",
             "NoNewPrivileges=true",

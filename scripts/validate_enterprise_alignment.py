@@ -117,10 +117,10 @@ class EnterpriseAlignmentValidator:
             if "NoNewPrivileges=true" not in unit or "ProtectSystem=strict" not in unit:
                 errors.append(f"installer-rendered unit is not hardened: {service}")
         if (
-            "ExecStart=/opt/openinfra/venv/bin/openinfra-api"
+            "ExecStart=/opt/openinfra/venv/bin/openinfra-server-runtime api"
             not in rendered_units["openinfra.service"]
         ):
-            errors.append("openinfra.service renderer must launch openinfra-api")
+            errors.append("openinfra.service renderer must launch the backend-aware server runtime")
         enterprise_server = InstallerConfigValidator().validate_file(
             project_root / "installers/setup/enterprise/server/install.ini",
             edition="enterprise",

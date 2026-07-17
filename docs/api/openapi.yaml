@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: OpenInfra API Foundation
-  version: 0.33.12
+  version: 0.34.0
   description: >-
     API OpenInfra organisée dans Swagger et ReDoc par composant, puis par contexte métier.
     Chaque opération appartient à un contexte unique afin de conserver une navigation déterministe.
@@ -126,10 +126,10 @@ paths:
       x-openinfra-context: Exploitation et documentation
   /ready:
     get:
-      summary: Runtime readiness probe validating persistence and PostgreSQL schema state
+      summary: Runtime readiness probe validating persistence and the selected database schema state
       responses:
         '200':
-          description: Backend is reachable and schema is ready
+          description: Selected backend is reachable and schema is ready
         '503':
           description: Backend or schema is not ready
       tags:
@@ -159,12 +159,12 @@ paths:
       x-openinfra-context: Référentiels
   /api/v1/database/schema:
     get:
-      summary: PostgreSQL schema migration status
+      summary: Database schema migration status
       responses:
         '200':
-          description: Schema is up to date or JSON backend does not require migrations
+          description: Selected database schema is up to date or JSON backend does not require migrations
         '409':
-          description: PostgreSQL schema has pending migrations or checksum drift
+          description: Selected database schema has pending migrations or checksum drift
       tags:
       - Plateforme · Base de données
       x-openinfra-component: Plateforme
@@ -412,6 +412,83 @@ paths:
       - Sécurité · Authentification et jetons
       x-openinfra-component: Sécurité
       x-openinfra-context: Authentification et jetons
+  /api/v1/auth/saml/acs:
+    post:
+      summary: Validate a trusted SAML 2.0 assertion and issue an OpenInfra session token
+      description: >-
+        The identity-provider configuration, certificates and group-to-role mappings are loaded
+        exclusively from the trusted server configuration. Client requests may submit only the
+        SAMLResponse and optional RelayState fields.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [SAMLResponse]
+              additionalProperties: false
+              properties:
+                SAMLResponse:
+                  type: string
+                  minLength: 1
+                RelayState:
+                  type: string
+          application/json:
+            schema:
+              type: object
+              required: [SAMLResponse]
+              additionalProperties: false
+              properties:
+                SAMLResponse:
+                  type: string
+                  minLength: 1
+                RelayState:
+                  type: string
+      responses:
+        '200':
+          description: SAML assertion accepted and OpenInfra token issued
+        '400':
+          description: Invalid request or incomplete trusted SAML configuration
+        '401':
+          description: Assertion rejected or no RBAC mapping applies
+      tags:
+      - Sécurité · Authentification fédérée
+      x-openinfra-component: Sécurité
+      x-openinfra-context: Authentification fédérée
+  /api/v1/identity/team-sync:
+    post:
+      summary: Synchronize identities and managed group memberships from a trusted provider
+      description: >-
+        Supports LDAP, OAuth, Auth Proxy and Okta sources configured exclusively on the server.
+        The request cannot override provider endpoints, credentials, certificates or mappings.
+      security:
+      - bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [source_id]
+              additionalProperties: false
+              properties:
+                source_id:
+                  type: string
+                  pattern: '^[a-z][a-z0-9_.:-]{1,63}$'
+                actor:
+                  type: string
+                  default: api
+      responses:
+        '200':
+          description: Idempotent Team Sync result and membership changes
+        '400':
+          description: Invalid request, provider payload or trusted source configuration
+        '401':
+          description: Missing or invalid SECURITY_ADMIN bearer token
+      tags:
+      - Sécurité · Synchronisation des équipes
+      x-openinfra-component: Sécurité
+      x-openinfra-context: Synchronisation des équipes
   /api/v1/identity/users:
     post:
       summary: Create or update an IAM user
@@ -9964,13 +10041,17 @@ tags:
 - name: Plateforme · Référentiels
   description: Référentiels transverses publiés par la plateforme.
 - name: Plateforme · Base de données
-  description: État du schéma PostgreSQL et routage primaire/réplique.
+  description: État du schéma PostgreSQL ou Oracle et routage primaire/réplique PostgreSQL.
 - name: Plateforme · Recherche globale
   description: Recherche transverse dans les composants autorisés.
 - name: Plateforme · Éditions et capacités
   description: Politiques, capacités et quotas des éditions OpenInfra.
 - name: Plateforme · Traitements asynchrones
   description: Outbox transactionnelle, workers spécialisés, artefacts et files de reprise.
+- name: Sécurité · Authentification fédérée
+  description: Assertions SAML 2.0 validées depuis la configuration de confiance du serveur.
+- name: Sécurité · Synchronisation des équipes
+  description: Synchronisation idempotente LDAP, OAuth, Auth Proxy et Okta.
 - name: Sécurité · Authentification et jetons
   description: Identité courante et cycle de vie des jetons applicatifs.
 - name: Sécurité · Identités et groupes
@@ -10113,6 +10194,8 @@ x-tagGroups:
   - Plateforme · Traitements asynchrones
 - name: Sécurité
   tags:
+  - Sécurité · Authentification fédérée
+  - Sécurité · Synchronisation des équipes
   - Sécurité · Authentification et jetons
   - Sécurité · Identités et groupes
   - Sécurité · Autorisations

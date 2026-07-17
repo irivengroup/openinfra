@@ -111,3 +111,8 @@ TST-P21-K8S-EXPOSURE,P21,Expositions cloud-native,Valider ingress/LB/DNS/service
 TST-P21-K8S-SECURITY-CORRELATION,P21,Corrélation sécurité,Valider images/SBOM/certificats/références de secrets sans stockage de secret en clair.,Security/Integration/Regression
 TST-P21-K8S-GITOPS-DRIFT,P21,GitOps drift,"Valider expected-vs-observed, owners, labels, annotations et audit de dérive.",Integration/Governance/Regression
 TST-P21-K8S-SCALE-GATE,P21,Qualification REL-11,"Valider multi-cluster, 50 000 ressources/snapshot, pagination, performance, chaos et GATE-10.",Performance/Capacity/Chaos/CI
+TST-P22-SAML,P22,SAML 2.0,"Valider signatures, attributs, mappings, audit et refus d’injection de configuration.",Security/Integration/External
+TST-P22-LDAP,P22,LDAP/IPA avancé,"Valider TLS, pagination, timeouts, referrals et groupes imbriqués.",Security/Integration/Performance
+TST-P22-TEAM-SYNC,P22,Team Sync,"Valider LDAP/OAuth/Auth Proxy/Okta, idempotence, ownership, HMAC et same-origin.",Integration/Security/Regression
+TST-P22-ORACLE,P22,Oracle,"Valider pool, transactions, migration, readiness, performance et reprise sur instance réelle.",Integration/Performance/External
+TST-P22-SYSTEMD-GATE,P22,Qualification REL-12,"Valider installateur natif, secrets Unix, services/timers, packaging, couverture et GATE-11.",Packaging/Security/CI/External

@@ -1,6 +1,6 @@
 # Support, maintenance et cycle de vie
 
-Version cible : `0.33.12`
+Version cible : `0.34.0`
 
 ## Périmètre du support
 

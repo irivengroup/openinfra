@@ -1,16 +1,19 @@
-## v0.33.12 — Jeton bootstrap runtime interne
+## v0.34.0 — Identité avancée, Team Sync, Oracle et production systemd
 
 | Exigence | Implémentation | Vérification |
 |---|---|---|
-| Jeton bootstrap sans `.env` | `runtime-secrets` génère ou réutilise un jeton CSPRNG dans le volume `openinfra-runtime-secrets` | tests de création, idempotence, rotation, permissions et contrats Compose |
-| Consommation minimale | `auth-bootstrap`, Web et smoke montent le volume en lecture seule et utilisent un chemin de fichier fixe | tests CLI `--token-file`, Web `--backend-bearer-token-file` et validation runtime |
-| Migration de configuration | `EnvFileManager` supprime `OPENINFRA_BOOTSTRAP_TOKEN` des `.env` existants sans modifier les autres secrets | test d’upgrade idempotent et quality gate |
-| Cycle de vie | `down` conserve le jeton ; `reset --volumes` supprime le volume et déclenche une régénération au prochain démarrage | contrats orchestrateur et documentation opérateur |
-| Non-exposition | aucune valeur dans Compose, config publique, assets frontend ou logs ; consultation uniquement sur commande explicite | Bandit, Security Gate, tests BFF et inspection des artefacts |
+| SAML 2.0 | validation cryptographique `python3-saml`, configuration IdP/SP de confiance côté serveur, mapping groupes → rôles et ACS `/api/v1/auth/saml/acs` | tests domaine, adaptateur, service, HTTP/OpenAPI et workflow dédié |
+| LDAP/IPA avancé | LDAPS/StartTLS, CA, bases et attributs configurables, pagination, limites, timeouts, referrals et groupes imbriqués bornés | tests authentification historique et nouveaux contrats adaptateur |
+| Team Sync | sources LDAP, OAuth, Auth Proxy HMAC et Okta, propriété par source, idempotence, audit et politique des orphelins | tests parser, fournisseurs, service, CLI, HTTP, systemd et sécurité same-origin |
+| Oracle optionnel | pool `python-oracledb`, Unit of Work, verrou transactionnel, contrôle optimiste, readiness et migration Oracle | tests domaine/runtime/packaging et job CI live optionnel |
+| PostgreSQL par défaut | résolution automatique `postgresql`, migration additive partitionnée `0057_federated_identity_team_sync.sql` | tests installateur, migrations, smoke wheel et policy PostgreSQL |
+| Production sans Docker | `openinfra-server-runtime`, configuration `openinfra.conf`, secrets fichiers et unités systemd migrations/API/Web/Team Sync | tests installateur autonome, `systemd-analyze verify`, runbooks et smoke natif |
+| Jeton bootstrap inter-UID | ownership du répertoire et du fichier au compte runtime, modes `0700/0400` | test système root → UID/GID OpenInfra et contrats Compose/systemd |
 
-- CDC 4.9.0 mis à jour sur les exigences existantes `REQ-00753` et `REQ-00756`.
-- Roadmap v2.2 inchangée : durcissement de configuration runtime, sans nouveau jalon fonctionnel.
-- Aucune migration PostgreSQL supplémentaire.
+- CDC 4.9.0 : exigences `REQ-00841` à `REQ-00845` et tests `TST-ID-141` à `TST-OPS-145`.
+- Roadmap v2.2 : `P22`, `REL-12`, `EPIC-2201` à `EPIC-2206`, `M14` et `GATE-11`.
+- Chaîne PostgreSQL : 57 migrations, terminant par `0057_federated_identity_team_sync.sql`.
+- Aucun changement de charte graphique, aucune suppression d’API/CLI ou de permission existante.
 
 ## v0.33.11 — Configuration runtime interne Docker et Web
 

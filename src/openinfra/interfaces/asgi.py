@@ -12,6 +12,7 @@ from typing import Any, cast
 
 from openinfra.application.container import ApplicationFactory, OpenInfraApplication
 from openinfra.domain.common import OpenInfraError
+from openinfra.infrastructure.oracle import OracleConnectionSettings
 from openinfra.infrastructure.postgresql import PostgreSQLConnectionPoolSettings
 from openinfra.infrastructure.read_routing import (
     PostgreSQLReadRoutingSettings,
@@ -19,7 +20,10 @@ from openinfra.infrastructure.read_routing import (
     ReadRoute,
     ReadRoutingContext,
 )
-from openinfra.infrastructure.runtime_config import RuntimeDatabaseDsnResolver
+from openinfra.infrastructure.runtime_config import (
+    RuntimeDatabaseDsnResolver,
+    RuntimeOracleSettingsResolver,
+)
 from openinfra.interfaces.asgi_observability import ObservedAsgiSend
 from openinfra.interfaces.http_api import OpenInfraApiRuntime, OpenInfraRequestHandler
 
@@ -299,8 +303,18 @@ class OpenInfraApiEnvironmentApplicationFactory:
         if backend == "json":
             data_path = Path(os.environ.get("OPENINFRA_API_DATA", ".openinfra.json"))
             return ApplicationFactory().create_json_application(data_path, edition=edition)
+        if backend == "oracle":
+            settings = RuntimeOracleSettingsResolver().resolve(
+                explicit_dsn=os.environ.get("OPENINFRA_API_ORACLE_DSN"),
+                explicit_user=os.environ.get("OPENINFRA_API_ORACLE_USER"),
+            )
+            if not isinstance(settings, OracleConnectionSettings):
+                raise OpenInfraError("invalid Oracle runtime settings")
+            return ApplicationFactory().create_oracle_application(
+                settings, seed=False, edition=edition
+            )
         if backend != "postgresql":
-            raise OpenInfraError("OPENINFRA_API_BACKEND must be json or postgresql")
+            raise OpenInfraError("OPENINFRA_API_BACKEND must be json, postgresql or oracle")
         dsn = RuntimeDatabaseDsnResolver().resolve(os.environ.get("OPENINFRA_API_POSTGRES_DSN"))
         if not dsn:
             raise OpenInfraError("OPENINFRA_DATABASE_DSN is required for PostgreSQL ASGI runtime")

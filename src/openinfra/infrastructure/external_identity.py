@@ -90,8 +90,16 @@ class LdapIpaDirectoryAuthenticator:
             return ExternalAuthenticatedIdentity.create(
                 provider=config.mode.value,
                 subject=subject,
-                display_name=str(attrs.get("displayName") or attrs.get("cn") or subject),
-                email=(None if attrs.get("mail") is None else str(attrs.get("mail"))),
+                display_name=str(
+                    attrs.get(config.display_name_attribute)
+                    or attrs.get(config.username_attribute)
+                    or subject
+                ),
+                email=(
+                    None
+                    if attrs.get(config.email_attribute) is None
+                    else str(attrs.get(config.email_attribute))
+                ),
                 external_groups=tuple(group_dns),
                 user_dn=user_dn,
             )
@@ -111,7 +119,17 @@ class LdapIpaDirectoryAuthenticator:
         if config.ca_cert_ref is not None:
             ca_path = self._secret_resolver.resolve(config.ca_cert_ref)
             tls = ldap3.Tls(validate=ldap3.ssl.CERT_REQUIRED, ca_certs_file=ca_path)
-        return ldap3.Server(config.url, use_ssl=True, get_info=ldap3.NONE, tls=tls)
+        kwargs: dict[str, object] = {
+            "use_ssl": config.url.startswith("ldaps://"),
+            "get_info": ldap3.NONE,
+            "tls": tls,
+            "connect_timeout": config.connect_timeout_seconds,
+        }
+        try:
+            return ldap3.Server(config.url, **kwargs)
+        except TypeError:
+            kwargs.pop("connect_timeout", None)
+            return ldap3.Server(config.url, **kwargs)
 
     def _service_connection(
         self,
@@ -119,16 +137,31 @@ class LdapIpaDirectoryAuthenticator:
         server: Any,
         config: ExternalDirectoryConfig,
     ) -> Any:
-        if config.bind_dn_ref is None or config.bind_password_ref is None:
-            connection = ldap3.Connection(server, auto_bind=True, raise_exceptions=True)
-        else:
-            connection_kwargs: dict[str, object] = {
-                "user": self._secret_resolver.resolve(config.bind_dn_ref),
-                "pass" + "word": self._secret_resolver.resolve(config.bind_password_ref),
-                "auto_bind": True,
-                "raise_exceptions": True,
-            }
+        connection_kwargs: dict[str, object] = {
+            "auto_bind": not config.start_tls,
+            "raise_exceptions": True,
+            "receive_timeout": config.operation_timeout_seconds,
+            "auto_referrals": config.follow_referrals,
+        }
+        if config.bind_dn_ref is not None and config.bind_password_ref is not None:
+            connection_kwargs.update(
+                {
+                    "user": self._secret_resolver.resolve(config.bind_dn_ref),
+                    "pass" + "word": self._secret_resolver.resolve(config.bind_password_ref),
+                }
+            )
+        try:
             connection = ldap3.Connection(server, **connection_kwargs)
+        except TypeError:
+            connection_kwargs.pop("receive_timeout", None)
+            connection_kwargs.pop("auto_referrals", None)
+            connection = ldap3.Connection(server, **connection_kwargs)
+        if config.start_tls and (
+            not bool(connection.open())
+            or not bool(connection.start_tls())
+            or not bool(connection.bind())
+        ):
+            raise AccessDeniedError("LDAP StartTLS service bind failed")
         return connection
 
     def _search_user(
@@ -140,9 +173,13 @@ class LdapIpaDirectoryAuthenticator:
     ) -> tuple[str, dict[str, object]]:
         user_filter = config.user_filter.replace("{username}", self._escape_filter(ldap3, subject))
         connection.search(
-            search_base=config.base_dn,
+            search_base=config.user_base_dn or config.base_dn,
             search_filter=user_filter,
-            attributes=("cn", "displayName", "mail"),
+            attributes=(
+                config.username_attribute,
+                config.display_name_attribute,
+                config.email_attribute,
+            ),
             size_limit=2,
         )
         entries = list(connection.entries)
@@ -179,17 +216,66 @@ class LdapIpaDirectoryAuthenticator:
         config: ExternalDirectoryConfig,
         user_dn: str,
     ) -> tuple[str, ...]:
-        group_filter = config.group_filter.replace("{user_dn}", user_dn)
-        connection.search(
-            search_base=config.base_dn,
-            search_filter=group_filter,
-            attributes=("cn",),
-            size_limit=1000,
-        )
-        groups = tuple(str(entry.entry_dn) for entry in connection.entries)
-        if not groups:
+        direct = self._search_group_dns(connection, config, user_dn)
+        if not direct:
             raise AccessDeniedError("external identity has no mapped groups")
-        return groups
+        if not config.nested_groups:
+            return direct
+        discovered = set(direct)
+        frontier = list(direct)
+        for _ in range(config.nested_group_depth - 1):
+            if not frontier or len(discovered) >= config.size_limit:
+                break
+            next_frontier: list[str] = []
+            for group_dn in frontier:
+                for parent_dn in self._search_group_dns(connection, config, group_dn):
+                    if parent_dn not in discovered:
+                        discovered.add(parent_dn)
+                        next_frontier.append(parent_dn)
+                    if len(discovered) >= config.size_limit:
+                        break
+            frontier = next_frontier
+        return tuple(sorted(discovered))
+
+    def _search_group_dns(
+        self,
+        connection: Any,
+        config: ExternalDirectoryConfig,
+        member_dn: str,
+    ) -> tuple[str, ...]:
+        escaped_dn = self._escape_filter(self._load_ldap3(), member_dn)
+        group_filter = config.group_filter.replace("{user_dn}", escaped_dn)
+        paged_search = getattr(
+            getattr(getattr(connection, "extend", None), "standard", None),
+            "paged_search",
+            None,
+        )
+        if callable(paged_search):
+            rows = paged_search(
+                search_base=config.group_base_dn or config.base_dn,
+                search_filter=group_filter,
+                attributes=(config.group_name_attribute,),
+                paged_size=config.page_size,
+                size_limit=config.size_limit,
+                generator=False,
+            )
+            return tuple(
+                sorted(
+                    {
+                        str(row.get("dn", "")).strip()
+                        for row in rows
+                        if str(row.get("type", "")) == "searchResEntry"
+                        and str(row.get("dn", "")).strip()
+                    }
+                )
+            )
+        connection.search(
+            search_base=config.group_base_dn or config.base_dn,
+            search_filter=group_filter,
+            attributes=(config.group_name_attribute,),
+            size_limit=config.size_limit,
+        )
+        return tuple(str(entry.entry_dn) for entry in connection.entries)
 
     def _escape_filter(self, ldap3: Any, value: str) -> str:
         converter = ldap3.utils.conv.escape_filter_chars

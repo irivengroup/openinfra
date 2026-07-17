@@ -1,15 +1,24 @@
-# OpenInfra v0.33.12
+# OpenInfra v0.34.0
 
-OpenInfra 0.33.12 automatise la configuration runtime Docker et Web : le tag d’image est appliqué par un override Compose temporaire dérivé de `VERSION`, l’édition Web provient du backend actif et le préfixe API public provient du proxy BFF same-origin. Ces valeurs ne sont plus administrées dans `.env`.
+OpenInfra 0.34.0 introduit l’intégration d’identité avancée et le support multi-SGBD pour les déploiements de production natifs. PostgreSQL reste le backend par défaut ; Oracle Database est sélectionnable explicitement pour les éditions Pro et Enterprise. Docker demeure un environnement local facultatif : l’installation, les migrations, l’API, le Web, les secrets runtime et Team Sync sont exploitables directement sous systemd.
 
-## Configuration runtime interne — v0.33.12
+## Identité avancée, Team Sync et Oracle — P22 / REL-12
 
-- `OPENINFRA_IMAGE_TAG` est résolu depuis `VERSION` par un override Compose temporaire généré par `scripts/docker_environment.py` ;
-- `OPENINFRA_WEB_EDITION` est remplacé par la découverte de l’édition effective publiée par l’API ;
-- `OPENINFRA_WEB_PUBLIC_API_BASE_URL` est remplacé par la résolution interne `/api` ;
-- `python scripts/docker_environment.py init` retire automatiquement les anciennes entrées du `.env` ;
-- les options CLI explicites restent disponibles pour les scénarios autonomes et la rétrocompatibilité ;
-- aucune migration PostgreSQL et aucune modification du thème.
+- authentification SAML 2.0 avec validation cryptographique, configuration fournisseur chargée uniquement depuis le serveur et mapping groupes → rôles OpenInfra ;
+- LDAP/IPA avancé avec LDAPS, StartTLS, autorité de certification, pagination, timeouts, referrals et résolution bornée des groupes imbriqués ;
+- Team Sync idempotent pour LDAP, OAuth, Auth Proxy signé HMAC et Okta, avec propriété des appartenances par source, audit et politique contrôlée des orphelins ;
+- backend Oracle optionnel via `python-oracledb`, pool borné, Unit of Work, verrouillage transactionnel, contrôle optimiste et migrations versionnées ;
+- PostgreSQL reste le backend de référence et le choix automatique lorsqu’aucun backend n’est configuré ;
+- déploiement serveur standard avec `openinfra.conf`, fichiers de secrets protégés et unités systemd pour migrations, génération du jeton bootstrap, API/Web et synchronisation des équipes ;
+- correction du volume de secret runtime : le répertoire et le fichier sont attribués au compte OpenInfra avec permissions `0700/0400`, sous Docker comme sous systemd ;
+- migration PostgreSQL additive `0057_federated_identity_team_sync.sql`, partitionnée par tenant ;
+- aucune modification de la charte graphique ni suppression d’API, de CLI ou de permission existante.
+
+Voir `docs/runbooks/ADVANCED_IDENTITY_ORACLE_SYSTEMD.md` et `docs/runbooks/RUNTIME_NATIVE.md`.
+
+## Configuration runtime interne
+
+Les variables `OPENINFRA_IMAGE_TAG`, `OPENINFRA_WEB_EDITION`, `OPENINFRA_WEB_PUBLIC_API_BASE_URL` et `OPENINFRA_BOOTSTRAP_TOKEN` ne sont plus administrées dans `.env`. OpenInfra résout le tag depuis `VERSION`, découvre l’édition du backend, utilise le BFF same-origin `/api` et génère le jeton bootstrap dans un stockage runtime protégé. Les anciennes entrées `.env` sont purgées de façon atomique et idempotente.
 
 ## Qualification Cloud-native — P21 / EPIC-2106
 

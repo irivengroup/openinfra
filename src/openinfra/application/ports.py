@@ -54,6 +54,7 @@ from openinfra.domain.discovery import (
 )
 from openinfra.domain.discovery_jobs import DiscoveryJob
 from openinfra.domain.editions import QuotaResource
+from openinfra.domain.federated_identity import TeamSyncSnapshot
 from openinfra.domain.field_operations import (
     FieldEvidence,
     FieldOperationSheet,
@@ -2460,6 +2461,14 @@ class IdentityRepository(ABC):
         tenant_id: TenantId,
         subject: str,
     ) -> EffectiveIdentity:
+        raise TypeError("adapter contract invoked directly")
+
+    @abstractmethod
+    def apply_team_sync(
+        self,
+        snapshot: TeamSyncSnapshot,
+        deactivate_orphans: bool,
+    ) -> dict[str, int | str]:
         raise TypeError("adapter contract invoked directly")
 
 

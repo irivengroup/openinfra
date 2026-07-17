@@ -118,3 +118,8 @@ REQ-00839,Stockage append-only massif,P20,EPIC-2003,0.31.x,TST-P20-OUTBOX-WORKER
 REQ-00840,Compatibilité architecture,P19;P20,EPIC-1901;EPIC-1905,0.30.0,TST-P19-ARCH-GATE
 REQ-00469,Inventaire Kubernetes avancé et mapping pod→node→VM→hyperviseur→serveur→rack→salle,P21,EPIC-2101,REL-11,TST-P21-K8S-INVENTORY;TST-P21-K8S-PHYSICAL-MAPPING
 REQ-00470,"Conformité Kubernetes, dépendances, capacité et dérive GitOps",P21,EPIC-2102;EPIC-2104;EPIC-2105,REL-11,TST-P21-K8S-EXPOSURE;TST-P21-K8S-GITOPS-DRIFT;TST-P21-K8S-SCALE-GATE
+REQ-00841,Authentification SAML 2.0 de confiance,P22,EPIC-2201,REL-12,TST-P22-SAML
+REQ-00842,LDAP/IPA avancé,P22,EPIC-2202,REL-12,TST-P22-LDAP
+REQ-00843,Team Sync LDAP/OAuth/Auth Proxy/Okta,P22,EPIC-2203,REL-12,TST-P22-TEAM-SYNC
+REQ-00844,Oracle optionnel avec PostgreSQL par défaut,P22,EPIC-2204,REL-12,TST-P22-ORACLE
+REQ-00845,Déploiement serveur standard systemd sans Docker,P22,EPIC-2205;EPIC-2206,REL-12,TST-P22-SYSTEMD-GATE

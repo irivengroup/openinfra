@@ -218,7 +218,7 @@ def test_api_asgi_factories_and_worker_policy(
     assert _request(app, "GET", "/health")[0] == 200
 
     monkeypatch.setenv("OPENINFRA_API_BACKEND", "invalid")
-    with pytest.raises(OpenInfraError, match="json or postgresql"):
+    with pytest.raises(OpenInfraError, match="json, postgresql or oracle"):
         api_asgi.api_app_factory()
 
     monkeypatch.setenv("OPENINFRA_API_BACKEND", "postgresql")
@@ -491,7 +491,7 @@ def test_web_asgi_static_bootstrap_cache_and_security() -> None:
         app,
         "GET",
         "/assets/openinfra-web.js",
-        query=b"v=0.33.12",
+        query=b"v=0.34.0",
         headers=((b"accept-encoding", b"gzip"),),
     )
     assert asset_status == 200

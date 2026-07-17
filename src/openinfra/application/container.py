@@ -6,6 +6,10 @@ from pathlib import Path
 from typing import Any
 
 from openinfra.application.access_policy_services import AccessPolicyService
+from openinfra.application.advanced_identity_services import (
+    SamlAuthenticationService,
+    TeamSyncService,
+)
 from openinfra.application.async_processing_services import (
     AsyncProcessingService,
     ReportingWorker,
@@ -104,6 +108,7 @@ from openinfra.application.specialized_worker_services import (
     RagWorker,
 )
 from openinfra.application.telemetry import NullRuntimeTelemetry
+from openinfra.infrastructure.advanced_identity import Python3SamlAssertionValidator
 from openinfra.infrastructure.async_processing import (
     JsonAsyncProcessingRepository,
     LocalArtifactStore,
@@ -148,6 +153,14 @@ from openinfra.infrastructure.json_store import (
 )
 from openinfra.infrastructure.multisite_observability import MultisiteOperationalMetricsProvider
 from openinfra.infrastructure.observability import OpenInfraTelemetry
+from openinfra.infrastructure.oracle import (
+    OracleConnectionSettings,
+    OracleDocumentStore,
+    OracleMigrationCatalog,
+    OracleMigrationExecutor,
+    OracleReadinessProbe,
+    OracleTransactionManager,
+)
 from openinfra.infrastructure.postgresql import (
     PostgreSQLAccessPolicyRepository,
     PostgreSQLAsyncProcessingRepository,
@@ -250,6 +263,8 @@ class OpenInfraApplication:
     security_service: SecurityService
     identity_service: IdentityService
     external_authentication_service: ExternalAuthenticationService
+    saml_authentication_service: SamlAuthenticationService
+    team_sync_service: TeamSyncService
     external_itsm_service: ExternalItsmIntegrationService
     auth_provider_policy_service: AuthProviderPolicyService
     access_policy_service: AccessPolicyService
@@ -504,6 +519,95 @@ class ApplicationFactory:
             certificate_inventory_repository=certificate_inventory_repository,
             network_config_compliance_repository=network_config_compliance_repository,
             itam_support_repository=itam_support_repository,
+            transaction_manager=transaction_manager,
+            readiness_probe=readiness_probe,
+            schema_status_provider=schema_status_provider,
+            runtime_usage_repository=runtime_usage_repository,
+            async_processing_repository=async_processing_repository,
+            artifact_store=artifact_store,
+            telemetry=telemetry,
+            edition=edition,
+        )
+
+    def create_oracle_application(
+        self,
+        settings: OracleConnectionSettings,
+        seed: bool = False,
+        edition: str = "enterprise",
+    ) -> OpenInfraApplication:
+        store = OracleDocumentStore(settings)
+        transaction_manager = OracleTransactionManager(store)
+        dcim_repository = JsonDcimRepository(store)
+        ipam_repository = JsonIpamRepository(store)
+        audit_repository = JsonAuditRepository(store)
+        security_repository = JsonSecurityRepository(store)
+        identity_repository = JsonIdentityRepository(store)
+        access_policy_repository = JsonAccessPolicyRepository(store)
+        source_of_truth_repository = JsonSourceOfTruthRepository(store)
+        source_governance_repository = JsonSourceGovernanceRepository(store)
+        import_repository = JsonImportRepository(store)
+        export_repository = JsonExportRepository(store)
+        field_operation_repository = JsonFieldOperationRepository(store)
+        simulation_repository = JsonSimulationRepository(store)
+        finops_repository = JsonFinOpsRepository(store)
+        greenops_repository = JsonGreenOpsRepository(store)
+        sbom_repository = JsonSbomRepository(store)
+        kubernetes_topology_repository = JsonKubernetesTopologyRepository(store)
+        kubernetes_gitops_repository = JsonKubernetesGitOpsRepository(store)
+        rag_repository = JsonRagRepository(store)
+        multisite_repository = JsonMultisiteRepository(store)
+        flow_matrix_repository = JsonFlowMatrixRepository(store)
+        certificate_inventory_repository = JsonCertificateInventoryRepository(store)
+        network_config_compliance_repository = JsonNetworkConfigComplianceRepository(store)
+        discovery_repository = JsonDiscoveryRepository(store)
+        itam_support_repository = JsonItamSupportRepository(store)
+        runtime_usage_repository = JsonRuntimeUsageRepository(store)
+        async_processing_repository = JsonAsyncProcessingRepository(store)
+        migration_catalog = OracleMigrationCatalog.from_project_root()
+        readiness_probe = OracleReadinessProbe(store, migration_catalog)
+        schema_status_provider = OracleMigrationExecutor(settings, migration_catalog)
+        multisite_metrics_provider = MultisiteOperationalMetricsProvider.from_environment(
+            multisite_repository, discovery_repository
+        )
+        telemetry = OpenInfraTelemetry.from_environment(
+            service_name="openinfra-api",
+            edition=edition,
+            queue_metrics_provider=async_processing_repository.operational_metrics,
+            multisite_metrics_provider=multisite_metrics_provider,
+        )
+        artifact_store = self._create_artifact_store(
+            Path(os.environ.get("OPENINFRA_ARTIFACT_ROOT", "/data/openinfra/artifacts"))
+        )
+        if seed:
+            SeedDataFactory(dcim_repository, transaction_manager).ensure_minimal_datacenter(
+                "default"
+            )
+        return self._build_application(
+            store=store,
+            dcim_repository=dcim_repository,
+            ipam_repository=ipam_repository,
+            itam_support_repository=itam_support_repository,
+            audit_repository=audit_repository,
+            security_repository=security_repository,
+            identity_repository=identity_repository,
+            access_policy_repository=access_policy_repository,
+            source_of_truth_repository=source_of_truth_repository,
+            source_governance_repository=source_governance_repository,
+            import_repository=import_repository,
+            export_repository=export_repository,
+            discovery_repository=discovery_repository,
+            field_operation_repository=field_operation_repository,
+            simulation_repository=simulation_repository,
+            finops_repository=finops_repository,
+            greenops_repository=greenops_repository,
+            sbom_repository=sbom_repository,
+            kubernetes_topology_repository=kubernetes_topology_repository,
+            kubernetes_gitops_repository=kubernetes_gitops_repository,
+            rag_repository=rag_repository,
+            multisite_repository=multisite_repository,
+            flow_matrix_repository=flow_matrix_repository,
+            certificate_inventory_repository=certificate_inventory_repository,
+            network_config_compliance_repository=network_config_compliance_repository,
             transaction_manager=transaction_manager,
             readiness_probe=readiness_probe,
             schema_status_provider=schema_status_provider,
@@ -801,6 +905,19 @@ class ApplicationFactory:
             transaction_manager,
             auth_provider_policy_service,
         )
+        saml_authentication_service = SamlAuthenticationService(
+            Python3SamlAssertionValidator(),
+            identity_service,
+            security_service,
+            audit_repository,
+            transaction_manager,
+        )
+        team_sync_service = TeamSyncService(
+            identity_repository,
+            audit_repository,
+            transaction_manager,
+            security_service,
+        )
         itam_support_service = ItamSupportService(
             itam_support_repository,
             audit_repository,
@@ -982,6 +1099,8 @@ class ApplicationFactory:
             security_service=security_service,
             identity_service=identity_service,
             external_authentication_service=external_authentication_service,
+            saml_authentication_service=saml_authentication_service,
+            team_sync_service=team_sync_service,
             external_itsm_service=ExternalItsmIntegrationService(),
             auth_provider_policy_service=auth_provider_policy_service,
             source_of_truth_service=source_of_truth_service,

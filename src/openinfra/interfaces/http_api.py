@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import base64
 import binascii
+import inspect
 import json
 import os
 import sys
@@ -23,6 +24,7 @@ from openinfra.application.access_policy_services import (
     EvaluateAccessPolicyCommand,
     ListAccessPolicyRulesCommand,
 )
+from openinfra.application.advanced_identity_services import SamlLoginCommand, TeamSyncCommand
 from openinfra.application.async_processing_services import (
     ClaimAsyncJobCommand,
     ClaimOutboxEventCommand,
@@ -420,9 +422,22 @@ from openinfra.application.source_governance_services import (
 from openinfra.domain.access_policy import AccessRequestContext
 from openinfra.domain.common import AccessDeniedError, OpenInfraError, ValidationError
 from openinfra.domain.countries import CountryCatalog
+from openinfra.domain.federated_identity import FederatedProvider
 from openinfra.domain.security import AuthenticatedPrincipal, Permission
+from openinfra.infrastructure.advanced_identity import (
+    AuthProxyTeamSyncSource,
+    LdapTeamSyncSource,
+    OAuthTeamSyncSource,
+    SamlHttpRequestFactory,
+)
 from openinfra.infrastructure.observability import PrometheusMultiprocessDirectory
-from openinfra.infrastructure.runtime_config import RuntimeDatabaseDsnResolver
+from openinfra.infrastructure.oracle import OracleConnectionSettings
+from openinfra.infrastructure.runtime_config import (
+    RuntimeAdvancedIdentityConfigResolver,
+    RuntimeDatabaseBackendResolver,
+    RuntimeDatabaseDsnResolver,
+    RuntimeOracleSettingsResolver,
+)
 from openinfra.interfaces.openapi_taxonomy import OpenApiDocumentationTaxonomy
 from openinfra.interfaces.runtime_environment import OpenInfraRuntimeEnvironmentScope
 
@@ -4040,6 +4055,69 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
         route = self._canonical_route(urlparse(self.path).path)
         result: Any
         rule: Any
+
+        if route == "/api/v1/auth/saml/acs":
+            try:
+                form = self._read_form_or_json_body()
+                allowed = {"SAMLResponse", "RelayState"}
+                unexpected = set(form) - allowed
+                if unexpected:
+                    raise ValidationError("SAML ACS accepts only SAMLResponse and RelayState")
+                resolver = RuntimeAdvancedIdentityConfigResolver()
+                tenant_id = resolver.saml_tenant_id()
+                forwarded_proto = self.headers.get("X-Forwarded-Proto", "https").split(",", 1)[0]
+                request_data = SamlHttpRequestFactory.create(
+                    host=self.headers.get("Host", ""),
+                    path=route,
+                    query_string=urlparse(self.path).query,
+                    form_data={key: str(value) for key, value in form.items()},
+                    forwarded_proto=forwarded_proto,
+                    remote_addr=str(self.client_address[0]),
+                )
+                login = self.server.application.saml_authentication_service.login(
+                    SamlLoginCommand(
+                        tenant_id=tenant_id,
+                        edition=self.server.application.edition_guard.edition.value,
+                        actor="saml-acs",
+                        request_data=request_data,
+                        provider_config=resolver.saml_config(),
+                        mappings=resolver.saml_group_role_mappings(tenant_id),
+                    )
+                )
+                responder.send(HTTPStatus.OK, login.as_dict())
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+
+        if route == "/api/v1/identity/team-sync":
+            try:
+                payload = self._read_json_body()
+                allowed = {"source_id", "actor"}
+                unexpected = set(payload) - allowed
+                if unexpected:
+                    raise ValidationError("Team Sync request accepts only source_id and actor")
+                source_id = self._required_payload_value(payload, "source_id")
+                resolver = RuntimeAdvancedIdentityConfigResolver()
+                source_config = resolver.team_sync_source(source_id)
+                source = self._team_sync_source(source_config.provider, resolver)
+                snapshot = source.fetch(source_config)
+                result = self.server.application.team_sync_service.synchronize(
+                    TeamSyncCommand(
+                        tenant_id=source_config.tenant_id.value,
+                        actor=str(payload.get("actor", "api")),
+                        admin_token=self._bearer_token(),
+                        source_config=source_config,
+                        snapshot=snapshot,
+                    )
+                )
+                responder.send(HTTPStatus.OK, result)
+            except AccessDeniedError as exc:
+                responder.send(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except (KeyError, TypeError, json.JSONDecodeError, OpenInfraError, ValueError) as exc:
+                responder.send(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
 
         if route == "/api/v1/async/jobs/submit":
             try:
@@ -8890,6 +8968,31 @@ class OpenInfraRequestHandler(BaseHTTPRequestHandler):
             raise OpenInfraError("roles must be a list")
         return tuple(str(role) for role in roles_payload)
 
+    def _read_form_or_json_body(self) -> dict[str, Any]:
+        content_type = self.headers.get_content_type()
+        if content_type == "application/json":
+            return self._read_json_body()
+        if content_type != "application/x-www-form-urlencoded":
+            raise ValidationError("SAML ACS requires form-urlencoded or JSON content")
+        content_length = int(self.headers.get("Content-Length", "0"))
+        if content_length <= 0 or content_length > 1_048_576:
+            raise OpenInfraError("invalid content length")
+        raw = self.rfile.read(content_length).decode("utf-8")
+        parsed = parse_qs(raw, keep_blank_values=True, strict_parsing=True)
+        return {key: values[-1] for key, values in parsed.items() if values}
+
+    @staticmethod
+    def _team_sync_source(
+        provider: FederatedProvider, resolver: RuntimeAdvancedIdentityConfigResolver
+    ) -> Any:
+        if provider is FederatedProvider.LDAP:
+            return LdapTeamSyncSource(resolver.directory_config())
+        if provider in {FederatedProvider.OAUTH, FederatedProvider.OKTA}:
+            return OAuthTeamSyncSource()
+        if provider is FederatedProvider.AUTH_PROXY:
+            return AuthProxyTeamSyncSource()
+        raise ValidationError("unsupported Team Sync provider: " + provider.value)
+
     @staticmethod
     def _canonical_route(route: str) -> str:
         if route.startswith("/api/v1/rsot/"):
@@ -8993,6 +9096,10 @@ class OpenInfraApiRuntime(BaseServer):
                     "openservice_cmdb_sync_plan": (
                         "/api/v1/integrations/itsm/openservice/cmdb-sync-plan"
                     ),
+                },
+                "security": {
+                    "saml_acs": "/api/v1/auth/saml/acs",
+                    "team_sync": "/api/v1/identity/team-sync",
                 },
                 "itam": {
                     "organizations": "/api/v1/itam/organizations",
@@ -9355,9 +9462,11 @@ class OpenInfraApiEntrypoint:
         parser = argparse.ArgumentParser(prog="openinfra-api")
         parser.add_argument("--host", default="127.0.0.1")
         parser.add_argument("--port", type=int, default=8080)
-        parser.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        parser.add_argument("--backend", choices=("json", "postgresql", "oracle"), default="json")
         parser.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         parser.add_argument("--postgres-dsn")
+        parser.add_argument("--oracle-dsn")
+        parser.add_argument("--oracle-user")
         parser.add_argument("--edition", default=os.environ.get("OPENINFRA_EDITION", "enterprise"))
         parser.add_argument("--auth-required", action="store_true")
         parser.add_argument(
@@ -9418,6 +9527,12 @@ class OpenInfraApiEntrypoint:
         }
         if args.postgres_dsn:
             values["OPENINFRA_API_POSTGRES_DSN"] = str(args.postgres_dsn)
+        oracle_dsn = getattr(args, "oracle_dsn", None)
+        oracle_user = getattr(args, "oracle_user", None)
+        if oracle_dsn:
+            values["OPENINFRA_API_ORACLE_DSN"] = str(oracle_dsn)
+        if oracle_user:
+            values["OPENINFRA_API_ORACLE_USER"] = str(oracle_user)
         try:
             with OpenInfraRuntimeEnvironmentScope(values):
                 PrometheusMultiprocessDirectory.prepare_from_environment()
@@ -9508,17 +9623,29 @@ class OpenInfraApiEntrypoint:
 
     def _create_application(self, args: argparse.Namespace) -> OpenInfraApplication:
         edition = str(getattr(args, "edition", "enterprise")).strip().lower()
-        if args.backend == "json":
+        backend = RuntimeDatabaseBackendResolver().resolve(args.backend)
+        if backend == "json":
             return ApplicationFactory().create_json_application(args.data, edition=edition)
+        if backend == "oracle":
+            settings = RuntimeOracleSettingsResolver().resolve(
+                explicit_dsn=getattr(args, "oracle_dsn", None),
+                explicit_user=getattr(args, "oracle_user", None),
+            )
+            if not isinstance(settings, OracleConnectionSettings):
+                raise OpenInfraError("invalid Oracle runtime settings")
+            return ApplicationFactory().create_oracle_application(
+                settings, seed=False, edition=edition
+            )
         dsn = RuntimeDatabaseDsnResolver().resolve(args.postgres_dsn)
         if not dsn:
             raise OpenInfraError(
                 "--postgres-dsn, OPENINFRA_DATABASE_DSN or /opt/openinfra/config/"
                 "openinfra.conf is required for postgresql backend"
             )
-        if edition == "enterprise":
-            return ApplicationFactory().create_postgresql_application(dsn, seed=False)
-        return ApplicationFactory().create_postgresql_application(dsn, seed=False, edition=edition)
+        create_postgresql = ApplicationFactory().create_postgresql_application
+        if "edition" in inspect.signature(create_postgresql).parameters:
+            return create_postgresql(dsn, seed=False, edition=edition)
+        return create_postgresql(dsn, seed=False)
 
 
 if __name__ == "__main__":

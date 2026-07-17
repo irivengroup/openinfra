@@ -1,0 +1,22 @@
+[Unit]
+Description=OpenInfra advanced identity Team Sync
+After=network-online.target openinfra-runtime-secrets.service openinfra.service
+Requires=openinfra-runtime-secrets.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=openinfra
+Group=openinfra
+EnvironmentFile=/etc/openinfra/openinfra.conf
+WorkingDirectory=/opt/openinfra
+ExecStart=/opt/openinfra/venv/bin/openinfra-server-runtime team-sync
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/etc/openinfra
+ReadWritePaths=/var/lib/openinfra /var/log/openinfra
+
+[Install]
+WantedBy=multi-user.target

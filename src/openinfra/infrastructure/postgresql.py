@@ -191,6 +191,7 @@ from openinfra.domain.discovery import (
 )
 from openinfra.domain.discovery_jobs import DiscoveryJob, DiscoveryJobStatus
 from openinfra.domain.editions import QuotaResource
+from openinfra.domain.federated_identity import TeamSyncSnapshot
 from openinfra.domain.field_operations import (
     FieldEvidence,
     FieldOperationSheet,
@@ -5830,6 +5831,226 @@ class PostgreSQLIdentityRepository(PostgreSQLRepositoryBase, IdentityRepository)
             group_names.append(str(row["group_name"]))
             group_roles.extend(str(role) for role in cast(Sequence[object], row["group_roles"]))
         return EffectiveIdentity.from_parts(user, tuple(group_names), tuple(group_roles))
+
+    def apply_team_sync(
+        self,
+        snapshot: TeamSyncSnapshot,
+        deactivate_orphans: bool,
+    ) -> dict[str, int | str]:
+        self._ensure_tenant(snapshot.tenant_id)
+        previous = (
+            self._fetch_one(
+                """
+            SELECT users, owned_users, groups, memberships
+            FROM identity_team_sync_sources
+            WHERE tenant_id = %(tenant_id)s AND source_id = %(source_id)s
+            FOR UPDATE
+            """,
+                {"tenant_id": snapshot.tenant_id.value, "source_id": snapshot.source_id},
+            )
+            or {}
+        )
+        previous_users = {str(item) for item in cast(Sequence[object], previous.get("users", []))}
+        previous_groups = {str(item) for item in cast(Sequence[object], previous.get("groups", []))}
+        previous_memberships = {
+            str(item) for item in cast(Sequence[object], previous.get("memberships", []))
+        }
+        owned_users = {
+            str(item) for item in cast(Sequence[object], previous.get("owned_users", []))
+        }
+        current_users = {user.subject for user in snapshot.users}
+        current_groups = {group.name for group in snapshot.groups}
+        current_memberships = {
+            ":".join((member, group.name)) for group in snapshot.groups for member in group.members
+        }
+        created_users = 0
+        updated_users = 0
+        for user in snapshot.users:
+            exists = self._fetch_one(
+                """SELECT 1 AS found FROM identity_users
+                WHERE tenant_id = %(tenant_id)s AND username = %(username)s""",
+                {"tenant_id": snapshot.tenant_id.value, "username": user.subject},
+            )
+            if exists is None:
+                owned_users.add(user.subject)
+                created_users += 1
+            else:
+                updated_users += 1
+            self._execute_without_result(
+                """
+                INSERT INTO identity_users (
+                    id, tenant_id, username, display_name, email, roles, active
+                )
+                VALUES (
+                    %(id)s, %(tenant_id)s, %(username)s, %(display_name)s,
+                    %(email)s, '{}', %(active)s
+                )
+                ON CONFLICT (tenant_id, username) DO UPDATE SET
+                    display_name = EXCLUDED.display_name,
+                    email = EXCLUDED.email,
+                    active = EXCLUDED.active,
+                    updated_at = now()
+                """,
+                {
+                    "id": EntityId.new().value,
+                    "tenant_id": snapshot.tenant_id.value,
+                    "username": user.subject,
+                    "display_name": user.display_name,
+                    "email": user.email,
+                    "active": user.active,
+                },
+            )
+        created_groups = 0
+        updated_groups = 0
+        for group in snapshot.groups:
+            exists = self._fetch_one(
+                """SELECT 1 AS found FROM identity_groups
+                WHERE tenant_id = %(tenant_id)s AND name = %(name)s""",
+                {"tenant_id": snapshot.tenant_id.value, "name": group.name},
+            )
+            if exists is None:
+                created_groups += 1
+            else:
+                updated_groups += 1
+            self._execute_without_result(
+                """
+                INSERT INTO identity_groups (id, tenant_id, name, display_name, roles, active)
+                VALUES (%(id)s, %(tenant_id)s, %(name)s, %(display_name)s, %(roles)s, true)
+                ON CONFLICT (tenant_id, name) DO UPDATE SET
+                    display_name = EXCLUDED.display_name,
+                    roles = EXCLUDED.roles,
+                    active = true,
+                    updated_at = now()
+                """,
+                {
+                    "id": EntityId.new().value,
+                    "tenant_id": snapshot.tenant_id.value,
+                    "name": group.name,
+                    "display_name": group.display_name,
+                    "roles": list(group.roles),
+                },
+            )
+        removed_memberships = 0
+        for membership_key in previous_memberships - current_memberships:
+            username, group_name = membership_key.split(":", 1)
+            cursor = self._execute_without_result(
+                """DELETE FROM identity_group_memberships
+                WHERE tenant_id = %(tenant_id)s
+                  AND username = %(username)s AND group_name = %(group_name)s""",
+                {
+                    "tenant_id": snapshot.tenant_id.value,
+                    "username": username,
+                    "group_name": group_name,
+                },
+            )
+            rowcount = getattr(cursor, "rowcount", 0)
+            removed_memberships += max(0, int(rowcount or 0))
+        added_memberships = 0
+        for group in snapshot.groups:
+            for member in group.members:
+                cursor = self._execute_without_result(
+                    """
+                    INSERT INTO identity_group_memberships (tenant_id, username, group_name)
+                    VALUES (%(tenant_id)s, %(username)s, %(group_name)s)
+                    ON CONFLICT (tenant_id, username, group_name) DO NOTHING
+                    """,
+                    {
+                        "tenant_id": snapshot.tenant_id.value,
+                        "username": member,
+                        "group_name": group.name,
+                    },
+                )
+                rowcount = getattr(cursor, "rowcount", 0)
+                added_memberships += max(0, int(rowcount or 0))
+        deactivated_users = 0
+        if deactivate_orphans:
+            for subject in (previous_users - current_users) & owned_users:
+                managed_elsewhere = self._fetch_one(
+                    """
+                    SELECT 1 AS found FROM identity_team_sync_sources
+                    WHERE tenant_id = %(tenant_id)s AND source_id <> %(source_id)s
+                      AND %(subject)s = ANY(users)
+                    LIMIT 1
+                    """,
+                    {
+                        "tenant_id": snapshot.tenant_id.value,
+                        "source_id": snapshot.source_id,
+                        "subject": subject,
+                    },
+                )
+                if managed_elsewhere is not None:
+                    continue
+                cursor = self._execute_without_result(
+                    """UPDATE identity_users SET active = false, updated_at = now()
+                    WHERE tenant_id = %(tenant_id)s
+                      AND username = %(username)s AND active = true""",
+                    {"tenant_id": snapshot.tenant_id.value, "username": subject},
+                )
+                rowcount = getattr(cursor, "rowcount", 0)
+                deactivated_users += max(0, int(rowcount or 0))
+        for group_name in previous_groups - current_groups:
+            self._execute_without_result(
+                """UPDATE identity_groups SET active = false, updated_at = now()
+                WHERE tenant_id = %(tenant_id)s AND name = %(name)s""",
+                {"tenant_id": snapshot.tenant_id.value, "name": group_name},
+            )
+        result: dict[str, int | str] = {
+            "source_id": snapshot.source_id,
+            "fingerprint": snapshot.fingerprint,
+            "created_users": created_users,
+            "updated_users": updated_users,
+            "deactivated_users": deactivated_users,
+            "created_groups": created_groups,
+            "updated_groups": updated_groups,
+            "added_memberships": added_memberships,
+            "removed_memberships": removed_memberships,
+        }
+        self._execute_without_result(
+            """
+            INSERT INTO identity_team_sync_sources (
+                tenant_id, source_id, provider, fingerprint, captured_at, users, owned_users,
+                groups, memberships, last_result
+            ) VALUES (
+                %(tenant_id)s, %(source_id)s, %(provider)s, %(fingerprint)s, %(captured_at)s,
+                %(users)s, %(owned_users)s, %(groups)s, %(memberships)s, %(last_result)s::jsonb
+            )
+            ON CONFLICT (tenant_id, source_id) DO UPDATE SET
+                provider = EXCLUDED.provider, fingerprint = EXCLUDED.fingerprint,
+                captured_at = EXCLUDED.captured_at, users = EXCLUDED.users,
+                owned_users = EXCLUDED.owned_users, groups = EXCLUDED.groups,
+                memberships = EXCLUDED.memberships, last_result = EXCLUDED.last_result,
+                updated_at = now()
+            """,
+            {
+                "tenant_id": snapshot.tenant_id.value,
+                "source_id": snapshot.source_id,
+                "provider": snapshot.provider.value,
+                "fingerprint": snapshot.fingerprint,
+                "captured_at": snapshot.captured_at,
+                "users": sorted(current_users),
+                "owned_users": sorted(owned_users),
+                "groups": sorted(current_groups),
+                "memberships": sorted(current_memberships),
+                "last_result": json.dumps(result, sort_keys=True),
+            },
+        )
+        self._execute_without_result(
+            """INSERT INTO identity_team_sync_runs
+            (id, tenant_id, source_id, provider, fingerprint, result)
+            VALUES (
+                %(id)s, %(tenant_id)s, %(source_id)s, %(provider)s,
+                %(fingerprint)s, %(result)s::jsonb
+            )""",
+            {
+                "id": EntityId.new().value,
+                "tenant_id": snapshot.tenant_id.value,
+                "source_id": snapshot.source_id,
+                "provider": snapshot.provider.value,
+                "fingerprint": snapshot.fingerprint,
+                "result": json.dumps(result, sort_keys=True),
+            },
+        )
+        return result
 
     def _user_from_row(self, row: Mapping[str, object]) -> IdentityUser:
         roles = row["roles"]

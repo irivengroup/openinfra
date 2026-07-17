@@ -24,7 +24,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.33.12"
+    EXPECTED_VERSION = "0.34.0"
     EXPECTED_ASYNC_ROUTES = (
         "/api/v1/async/jobs",
         "/api/v1/async/jobs/get",
@@ -51,6 +51,10 @@ class InstalledWheelSmoke:
     )
     EXPECTED_OBSERVABILITY_ROUTES = ("/metrics",)
     EXPECTED_DATA_PLANE_ROUTES = ("/api/v1/database/routing",)
+    EXPECTED_ADVANCED_IDENTITY_ROUTES = (
+        "/api/v1/auth/saml/acs",
+        "/api/v1/identity/team-sync",
+    )
     EXPECTED_GRAPH_ROUTES = (
         "/api/v1/graph/traverse",
         "/api/v1/graph/impact",
@@ -226,8 +230,8 @@ class InstalledWheelSmoke:
         "/api/v1/kubernetes/topologies/capacity-export",
         "/api/v1/kubernetes/topologies/latest-capacity-export",
     )
-    EXPECTED_LAST_MIGRATION = "0056_kubernetes_gitops_drift.sql"
-    EXPECTED_MIGRATION_COUNT = 56
+    EXPECTED_LAST_MIGRATION = "0057_federated_identity_team_sync.sql"
+    EXPECTED_MIGRATION_COUNT = 57
     EXPECTED_ASSETS = (
         "openinfra-web.js",
         "openinfra-web.css",
@@ -274,6 +278,7 @@ class InstalledWheelSmoke:
         self._assert_async_routes(openapi)
         self._assert_observability_routes(openapi)
         self._assert_data_plane_routes(openapi)
+        self._assert_advanced_identity_routes(openapi)
         self._assert_graph_routes(openapi)
         self._assert_flow_routes(openapi)
         self._assert_certificate_routes(openapi)
@@ -300,12 +305,15 @@ class InstalledWheelSmoke:
         self._assert_release_security_contract(package_root)
         self._assert_release_packaging_contract()
         self._assert_console_scripts()
+        self._assert_advanced_identity_runtime_contract(package_root)
         return {
             "version": openinfra.__version__,
             "openapi_taxonomy": True,
             "async_routes": len(self.EXPECTED_ASYNC_ROUTES),
             "observability_routes": len(self.EXPECTED_OBSERVABILITY_ROUTES),
             "data_plane_routes": len(self.EXPECTED_DATA_PLANE_ROUTES),
+            "advanced_identity_routes": len(self.EXPECTED_ADVANCED_IDENTITY_ROUTES),
+            "advanced_identity_oracle_runtime": True,
             "graph_routes": len(self.EXPECTED_GRAPH_ROUTES),
             "flow_routes": len(self.EXPECTED_FLOW_ROUTES),
             "certificate_routes": len(self.EXPECTED_CERTIFICATE_ROUTES),
@@ -432,6 +440,15 @@ class InstalledWheelSmoke:
         if missing:
             raise InstalledWheelSmokeError(
                 "installed OpenAPI document is missing data-plane routes: " + ", ".join(missing)
+            )
+
+    def _assert_advanced_identity_routes(self, openapi: str) -> None:
+        missing = [
+            route for route in self.EXPECTED_ADVANCED_IDENTITY_ROUTES if route not in openapi
+        ]
+        if missing:
+            raise InstalledWheelSmokeError(
+                "installed OpenAPI is missing advanced identity routes: " + ", ".join(missing)
             )
 
     def _assert_graph_routes(self, openapi: str) -> None:
@@ -607,7 +624,7 @@ class InstalledWheelSmoke:
     def _assert_release_security_contract(package_root: Path) -> None:
         controls = ReleaseSecurityControlCatalog.build(
             package_root,
-            image_ref="openinfra/runtime:0.33.12",
+            image_ref="openinfra/runtime:0.34.0",
             api_base_url="http://127.0.0.1:8080",
             web_base_url="http://127.0.0.1:2006",
         )
@@ -626,6 +643,30 @@ class InstalledWheelSmoke:
                 "installed release security controls do not pin the Trivy OCI digest"
             )
 
+    @staticmethod
+    def _assert_advanced_identity_runtime_contract(package_root: Path) -> None:
+        required = (
+            package_root / "domain" / "federated_identity.py",
+            package_root / "application" / "advanced_identity_services.py",
+            package_root / "infrastructure" / "advanced_identity.py",
+            package_root / "infrastructure" / "external_identity.py",
+            package_root / "infrastructure" / "oracle.py",
+            package_root / "interfaces" / "server_runtime.py",
+            package_root / "migrations" / "oracle" / "0001_document_state.sql",
+            package_root / "docs" / "runbooks" / "RUNTIME_NATIVE.md",
+            package_root / "docs" / "runbooks" / "ADVANCED_IDENTITY_ORACLE_SYSTEMD.md",
+            package_root / "systemd" / "openinfra-runtime-secrets.service",
+            package_root / "systemd" / "openinfra-migrate.service",
+            package_root / "systemd" / "openinfra-team-sync.service",
+            package_root / "systemd" / "openinfra-team-sync.timer",
+        )
+        missing = [str(path.relative_to(package_root)) for path in required if not path.is_file()]
+        if missing:
+            raise InstalledWheelSmokeError(
+                "installed wheel is missing advanced identity/Oracle runtime assets: "
+                + ", ".join(missing)
+            )
+
     def _assert_console_scripts(self) -> None:
         entry_points = {
             entry_point.name: entry_point.value
@@ -636,6 +677,12 @@ class InstalledWheelSmoke:
             "openinfra": "openinfra.interfaces.cli:OpenInfraCLI.main",
             "openinfra-api": "openinfra.interfaces.http_api:OpenInfraApiEntrypoint.main",
             "openinfra-web": "openinfra.interfaces.web:OpenInfraWebEntrypoint.main",
+            "openinfra-runtime-secrets": (
+                "openinfra.infrastructure.runtime_secrets:RuntimeSecretsCli.main"
+            ),
+            "openinfra-server-runtime": (
+                "openinfra.interfaces.server_runtime:OpenInfraServerRuntime.main"
+            ),
         }
         if entry_points != expected:
             raise InstalledWheelSmokeError(

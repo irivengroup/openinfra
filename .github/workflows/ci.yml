@@ -223,6 +223,17 @@ jobs:
             tests/integration/test_multisite_postgresql_repository.py \
             tests/integration/test_multisite_web_contract.py
 
+      - name: Advanced identity, Oracle and native systemd regression
+        run: |
+          python -m pytest -q --no-cov \
+            tests/unit/test_federated_identity.py \
+            tests/unit/test_advanced_identity_adapters.py \
+            tests/unit/test_oracle_runtime.py \
+            tests/unit/test_runtime_secrets.py \
+            tests/integration/test_advanced_identity_server_runtime.py \
+            tests/integration/test_installer_alignment.py \
+            tests/integration/test_openapi_yaml_validation.py
+
       - name: Discovery multisource reconciliation regression
         run: |
           python -m pytest -q --no-cov \

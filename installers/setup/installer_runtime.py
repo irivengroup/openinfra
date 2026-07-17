@@ -62,6 +62,7 @@ class InstallationPlan:
     runtime_config_file: Path
     installation_lock_file: Path
     migrations_root: Path
+    database_backend: str
     systemd_root: Path
     deploy_src: bool
     deploy_requirements: bool
@@ -91,6 +92,7 @@ class InstallationPlan:
             "runtime_config_file": str(self.runtime_config_file),
             "installation_lock_file": str(self.installation_lock_file),
             "migrations_root": str(self.migrations_root),
+            "database_backend": self.database_backend,
             "systemd_root": str(self.systemd_root),
             "deploy_src": self.deploy_src,
             "deploy_requirements": self.deploy_requirements,
@@ -347,10 +349,13 @@ class AutonomousInstallerProgram:
         systemd_root = self._target_path(target_root, "/etc/systemd/system")
         runtime_config_file = configuration_root / "openinfra.conf"
         installation_lock_file = configuration_root / ".openinfra-installed.lock"
-        migrations_root = application_root / "share/migrations/postgresql"
+        database_backend = self._database_backend()
+        migrations_root = application_root / "share/migrations" / database_backend
         requirements_file = self._requirements_by_scope[(report.edition, report.scope)]
-        commands = self._build_commands(report, target_root, application_root, requirements_file)
-        prerequisites = self._build_prerequisites(report, target_root)
+        commands = self._build_commands(
+            report, target_root, application_root, requirements_file, database_backend
+        )
+        prerequisites = self._build_prerequisites(report, target_root, database_backend)
         return InstallationPlan(
             edition=report.edition,
             edition_directory=self._location.edition_directory,
@@ -362,11 +367,14 @@ class AutonomousInstallerProgram:
             runtime_config_file=runtime_config_file,
             installation_lock_file=installation_lock_file,
             migrations_root=migrations_root,
+            database_backend=database_backend,
             systemd_root=systemd_root,
             deploy_src=True,
             deploy_requirements=True,
             deploy_migrations=report.scope in {"all-in-one", "server"},
-            managed_postgresql=report.postgresql_plan is not None,
+            managed_postgresql=(
+                report.postgresql_plan is not None and database_backend == "postgresql"
+            ),
             managed_application_filesystem=report.managed_application_filesystem,
             application_filesystem=report.application_filesystem_plan,
             postgresql_filesystem=report.postgresql_filesystem_plan,
@@ -416,10 +424,11 @@ class AutonomousInstallerProgram:
             )
             if plan.deploy_migrations:
                 self._replace_tree(
-                    self._location.installers_root / "migrations" / "postgresql",
+                    self._location.installers_root / "migrations" / plan.database_backend,
                     plan.migrations_root,
                     journal,
                 )
+            self._deploy_supporting_systemd_units(plan, journal)
             unit = self._validator.render_systemd_unit(plan.edition, plan.scope)
             self._replace_text(
                 plan.systemd_root / plan.service_name, unit, mode=0o644, journal=journal
@@ -427,12 +436,17 @@ class AutonomousInstallerProgram:
             self._prepare_python_runtime(plan, journal)
             if plan.managed_postgresql:
                 self._run_postgresql_bootstrap(plan, journal)
+            if plan.deploy_migrations:
                 self.execute_migrations(plan)
             self._write_installation_lock(plan, journal)
             if plan.application_root == Path("/opt/openinfra") and not skip_service_enable:
                 self._run_command(("systemctl", "daemon-reload"))
+                self._run_command(("systemctl", "enable", "openinfra-runtime-secrets.service"))
+                self._run_command(("systemctl", "enable", "openinfra-migrate.service"))
+                self._run_command(("systemctl", "enable", "openinfra-team-sync.timer"))
                 self._run_command(("systemctl", "enable", plan.service_name))
                 self._run_command(("systemctl", "restart", plan.service_name))
+                self._run_command(("systemctl", "start", "openinfra-team-sync.timer"))
             journal.commit()
         except Exception:
             journal.rollback()
@@ -443,20 +457,32 @@ class AutonomousInstallerProgram:
             raise InstallerRuntimeError(f"{plan.edition}/{plan.scope} does not manage migrations")
         if plan.application_root != Path("/opt/openinfra"):
             return
-        dsn = self._resolve_database_dsn(plan)
+        environment: dict[str, str] = {
+            "OPENINFRA_DATABASE_BACKEND": plan.database_backend,
+            "OPENINFRA_RUNTIME_CONFIG": str(plan.runtime_config_file),
+        }
+        if plan.database_backend == "postgresql":
+            environment["OPENINFRA_DATABASE_DSN"] = self._resolve_database_dsn(plan)
         self._run_command(
             (
                 str(plan.application_root / "venv/bin/openinfra"),
                 "database",
                 "apply-migrations",
+                "--backend",
+                plan.database_backend,
                 "--root",
                 str(plan.migrations_root),
             ),
-            environment={"OPENINFRA_DATABASE_DSN": dsn},
+            environment=environment,
         )
 
     def _build_commands(
-        self, report: Any, target_root: Path, application_root: Path, requirements_file: str
+        self,
+        report: Any,
+        target_root: Path,
+        application_root: Path,
+        requirements_file: str,
+        database_backend: str,
     ) -> tuple[InstallationCommand, ...]:
         commands: list[InstallationCommand] = []
         venv_python = application_root / "venv/bin/python"
@@ -506,7 +532,7 @@ class AutonomousInstallerProgram:
                 ),
             )
         )
-        if report.postgresql_plan is not None:
+        if report.postgresql_plan is not None and database_backend == "postgresql":
             postgresql_plan = report.postgresql_plan
             if report.postgresql_filesystem_plan is not None:
                 commands.extend(self._filesystem_commands(report.postgresql_filesystem_plan))
@@ -572,7 +598,7 @@ class AutonomousInstallerProgram:
         return tuple(commands)
 
     def _build_prerequisites(
-        self, report: Any, target_root: Path
+        self, report: Any, target_root: Path, database_backend: str
     ) -> tuple[InstallationPrerequisite, ...]:
         prerequisites = [
             InstallationPrerequisite("Python virtualenv support", "python3", True),
@@ -594,7 +620,7 @@ class AutonomousInstallerProgram:
                     InstallationPrerequisite("ownership management", "chown"),
                 )
             )
-        if report.postgresql_plan is not None:
+        if report.postgresql_plan is not None and database_backend == "postgresql":
             package_manager = report.postgresql_plan.os_profile.package_manager
             prerequisites.append(
                 InstallationPrerequisite("PostgreSQL package manager", package_manager)
@@ -919,7 +945,8 @@ class AutonomousInstallerProgram:
             "OPENINFRA_CONFIG_COMPAT_SYMLINK": "/etc/openinfra",
             "OPENINFRA_RUNTIME_CONFIG": "/opt/openinfra/config/openinfra.conf",
             "OPENINFRA_INSTALL_LOCK": "/opt/openinfra/config/.openinfra-installed.lock",
-            "OPENINFRA_MIGRATIONS_ROOT": "/opt/openinfra/share/migrations/postgresql",
+            "OPENINFRA_DATABASE_BACKEND": plan.database_backend,
+            "OPENINFRA_MIGRATIONS_ROOT": "/opt/openinfra/share/migrations/" + plan.database_backend,
         }
         if plan.edition == "lite":
             values["OPENINFRA_DATABASE_DSN"] = "postgresql:///openinfra"
@@ -931,6 +958,7 @@ class AutonomousInstallerProgram:
                 env_key = "OPENINFRA_INSTALL_" + section.upper() + "_" + key.upper()
                 values[env_key] = self._sanitize_runtime_value(env_key, value)
         self._add_database_runtime_refs(parser, values)
+        self._add_advanced_identity_runtime_values(parser, values)
         self._add_dotenv_runtime_values(values)
         content = "\n".join(
             (
@@ -1098,6 +1126,93 @@ class AutonomousInstallerProgram:
         )
         self._replace_text(plan.installation_lock_file, content, 0o640, journal)
 
+    def _database_backend(self) -> str:
+        parser = configparser.ConfigParser(interpolation=None)
+        parser.read(self._location.config_path, encoding="utf-8")
+        backend = parser.get("database", "backend", fallback="postgresql").strip().lower()
+        if backend not in {"postgresql", "oracle"}:
+            raise InstallerRuntimeError("database.backend must be postgresql or oracle")
+        if backend == "oracle" and self._location.edition == "lite":
+            raise InstallerRuntimeError("Oracle backend is not available in Lite edition")
+        return backend
+
+    def _deploy_supporting_systemd_units(
+        self, plan: InstallationPlan, journal: InstallationRollbackJournal
+    ) -> None:
+        if plan.scope not in {"all-in-one", "server"}:
+            return
+        source_root = self._location.installers_root / "systemd"
+        for name in (
+            "openinfra-runtime-secrets.service",
+            "openinfra-migrate.service",
+            "openinfra-team-sync.service",
+            "openinfra-team-sync.timer",
+        ):
+            self._replace_file(source_root / name, plan.systemd_root / name, 0o644, journal)
+
+    def _add_advanced_identity_runtime_values(
+        self, parser: configparser.ConfigParser, values: dict[str, str]
+    ) -> None:
+        if parser.has_section("oracle"):
+            mapping = {
+                "dsn": "OPENINFRA_ORACLE_DSN",
+                "user": "OPENINFRA_ORACLE_USER",
+                "password_ref": "OPENINFRA_ORACLE_PASSWORD_REF",
+                "pool_min": "OPENINFRA_ORACLE_POOL_MIN",
+                "pool_max": "OPENINFRA_ORACLE_POOL_MAX",
+                "pool_increment": "OPENINFRA_ORACLE_POOL_INCREMENT",
+                "timeout_seconds": "OPENINFRA_ORACLE_TIMEOUT_SECONDS",
+            }
+            for option, key in mapping.items():
+                value = parser.get("oracle", option, fallback="").strip()
+                if value:
+                    values[key] = self._sanitize_runtime_value(key, value)
+        if parser.has_section("auth"):
+            auth_mapping = {
+                "mode": "OPENINFRA_LDAP_MODE",
+                "directory_url": "OPENINFRA_LDAP_URL",
+                "base_dn": "OPENINFRA_LDAP_BASE_DN",
+                "user_filter": "OPENINFRA_LDAP_USER_FILTER",
+                "group_filter": "OPENINFRA_LDAP_GROUP_FILTER",
+                "bind_dn_ref": "OPENINFRA_LDAP_BIND_DN_REF",
+                "bind_password_ref": "OPENINFRA_LDAP_BIND_PASSWORD_REF",
+                "ca_cert_ref": "OPENINFRA_LDAP_CA_CERT_REF",
+                "user_base_dn": "OPENINFRA_LDAP_USER_BASE_DN",
+                "group_base_dn": "OPENINFRA_LDAP_GROUP_BASE_DN",
+                "page_size": "OPENINFRA_LDAP_PAGE_SIZE",
+                "size_limit": "OPENINFRA_LDAP_SIZE_LIMIT",
+                "follow_referrals": "OPENINFRA_LDAP_FOLLOW_REFERRALS",
+                "start_tls": "OPENINFRA_LDAP_START_TLS",
+                "nested_group_depth": "OPENINFRA_LDAP_NESTED_GROUP_DEPTH",
+                "cache_ttl_seconds": "OPENINFRA_LDAP_CACHE_TTL_SECONDS",
+            }
+            for option, key in auth_mapping.items():
+                value = parser.get("auth", option, fallback="").strip()
+                if value:
+                    values[key] = self._sanitize_runtime_value(key, value)
+        if parser.has_section("saml"):
+            for option, value in parser.items("saml"):
+                key = "OPENINFRA_SAML_" + option.upper()
+                values[key] = self._sanitize_runtime_value(key, value)
+        sources: list[str] = []
+        for section in parser.sections():
+            if not section.startswith("team_sync_"):
+                continue
+            source_id = parser.get(
+                section, "source_id", fallback=section.removeprefix("team_sync_")
+            )
+            source_id = source_id.strip().lower()
+            sources.append(source_id)
+            prefix = "OPENINFRA_TEAM_SYNC_" + source_id.upper().replace("-", "_") + "_"
+            for option, value in parser.items(section):
+                if option == "source_id":
+                    continue
+                values[prefix + option.upper()] = self._sanitize_runtime_value(
+                    prefix + option.upper(), value
+                )
+        if sources:
+            values["OPENINFRA_TEAM_SYNC_SOURCES"] = ",".join(dict.fromkeys(sources))
+
     def _prepare_python_runtime(
         self, plan: InstallationPlan, journal: InstallationRollbackJournal
     ) -> None:
@@ -1114,6 +1229,29 @@ class AutonomousInstallerProgram:
             command = self._command_by_label(plan, label)
             if command is not None:
                 self._run_command(command.command)
+        parser = configparser.ConfigParser(interpolation=None)
+        parser.read(self._location.config_path, encoding="utf-8")
+        optional_requirements: list[str] = []
+        if plan.database_backend == "oracle":
+            optional_requirements.append("database-oracle.txt")
+        auth_mode = parser.get("auth", "mode", fallback="standard").strip().lower()
+        if auth_mode in {"ldap", "ipa"} or any(
+            section.startswith("team_sync_ldap") for section in parser.sections()
+        ):
+            optional_requirements.append("auth-ldap.txt")
+        if auth_mode == "saml" or parser.has_section("saml"):
+            optional_requirements.append("auth-saml.txt")
+        for requirement in dict.fromkeys(optional_requirements):
+            self._run_command(
+                (
+                    str(plan.application_root / "venv/bin/python"),
+                    "-m",
+                    "pip",
+                    "install",
+                    "-r",
+                    str(plan.application_root / "requirements" / requirement),
+                )
+            )
 
     def _command_by_label(self, plan: InstallationPlan, label: str) -> InstallationCommand | None:
         for command in plan.commands:
@@ -1180,7 +1318,7 @@ class AutonomousInstallerProgram:
         )
         missing = [str(path) for path in missing_sources if not path.exists()]
         if plan.deploy_migrations:
-            migrations_root = self._location.installers_root / "migrations" / "postgresql"
+            migrations_root = self._location.installers_root / "migrations" / plan.database_backend
             if not migrations_root.is_dir() or not any(migrations_root.glob("*.sql")):
                 missing.append(str(migrations_root))
         if missing:

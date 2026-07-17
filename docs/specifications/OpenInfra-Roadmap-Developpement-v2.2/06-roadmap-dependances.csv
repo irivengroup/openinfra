@@ -19,3 +19,4 @@ P18,P01-P17,GA dépend de tous les lots.
 P19,P01;P06;P07;P08,"Le runtime haute performance réutilise contrats API, PostgreSQL, auth et frontend existants."
 P20,P19;P06;P14;P16,Le scale-out dépend du socle ASGI/pools et des fonctions métier déjà stabilisées.
 P21,P14;P15;P16;P20,"Le cloud-native avancé réutilise Discovery, graphes, SBOM et le socle scale-out."
+P22,P03;P06;P07;P18;P20,"Les intégrations avancées dépendent des installateurs, de la persistance, de la sécurité, du packaging GA et du runtime scale-out."

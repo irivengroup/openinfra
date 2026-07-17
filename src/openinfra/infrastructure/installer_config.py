@@ -392,19 +392,8 @@ class InstallerScopeCatalog:
         "client_cert_ref",
         "client_key_ref",
     )
-    _backend_auth_required_options = (
-        "mode",
-        "postgresql_user_ref",
-        "postgresql_password_ref",
-    )
-    _backend_auth_options = (
-        "mode",
-        "postgresql_user_ref",
-        "postgresql_password_ref",
-    )
-    _web_auth_required_options = ("mode",)
-    _web_auth_options = (
-        "mode",
+    _backend_auth_required_options = ("mode",)
+    _directory_auth_options = (
         "directory_url",
         "base_dn",
         "user_filter",
@@ -413,6 +402,69 @@ class InstallerScopeCatalog:
         "bind_password_ref",
         "ca_cert_ref",
         "cache_ttl_seconds",
+        "user_base_dn",
+        "group_base_dn",
+        "username_attribute",
+        "display_name_attribute",
+        "email_attribute",
+        "group_name_attribute",
+        "group_member_attribute",
+        "connect_timeout_seconds",
+        "operation_timeout_seconds",
+        "page_size",
+        "size_limit",
+        "follow_referrals",
+        "start_tls",
+        "nested_groups",
+        "nested_group_depth",
+    )
+    _backend_auth_options = (
+        "mode",
+        "postgresql_user_ref",
+        "postgresql_password_ref",
+        *_directory_auth_options,
+    )
+    _web_auth_required_options = ("mode",)
+    _web_auth_options = ("mode", *_directory_auth_options)
+    _database_options = ("backend",)
+    _oracle_options = (
+        "dsn",
+        "user",
+        "password_ref",
+        "pool_min",
+        "pool_max",
+        "pool_increment",
+        "timeout_seconds",
+    )
+    _saml_options = (
+        "tenant_id",
+        "idp_entity_id",
+        "idp_sso_url",
+        "idp_x509_cert_ref",
+        "sp_entity_id",
+        "sp_acs_url",
+        "name_id_format",
+        "subject_attribute",
+        "display_name_attribute",
+        "email_attribute",
+        "groups_attribute",
+        "want_assertions_signed",
+        "want_messages_signed",
+        "clock_skew_seconds",
+        "group_role_mappings",
+    )
+    _team_sync_options = (
+        "source_id",
+        "tenant_id",
+        "provider",
+        "endpoint",
+        "token_ref",
+        "snapshot_file",
+        "signature_secret_ref",
+        "timeout_seconds",
+        "page_size",
+        "deactivate_orphans",
+        "group_role_mappings",
     )
     _web_database_required_options = (
         "postgresql_dsn_ref",
@@ -555,6 +607,17 @@ class InstallerScopeCatalog:
                 ),
             )
         }
+        for policy in self._policies.values():
+            policy.allowed_options["database"] = self._database_options
+            if policy.edition in {"pro", "enterprise"} and policy.scope in {
+                "server",
+                "web",
+            }:
+                policy.allowed_options["saml"] = self._saml_options
+            if policy.edition in {"pro", "enterprise"} and policy.scope == "server":
+                policy.allowed_options["oracle"] = self._oracle_options
+                for provider in ("ldap", "oauth", "auth_proxy", "okta"):
+                    policy.allowed_options["team_sync_" + provider] = self._team_sync_options
 
     def policy_for(self, edition: str, scope: str) -> InstallerScopePolicy | None:
         return self._policies.get(self._key(edition, scope))
@@ -651,7 +714,8 @@ class InstallerSystemdUnitRenderer:
             (
                 "[Unit]",
                 "Description=OpenInfra backend service",
-                "After=network-online.target postgresql.service",
+                "After=network-online.target openinfra-migrate.service",
+                "Requires=openinfra-migrate.service",
                 "Wants=network-online.target",
                 "",
                 "[Service]",
@@ -660,7 +724,7 @@ class InstallerSystemdUnitRenderer:
                 "Group=openinfra",
                 "EnvironmentFile=/etc/openinfra/openinfra.conf",
                 "WorkingDirectory=/opt/openinfra",
-                "ExecStart=/opt/openinfra/venv/bin/openinfra-api --backend postgresql",
+                "ExecStart=/opt/openinfra/venv/bin/openinfra-server-runtime api",
                 "Restart=on-failure",
                 "RestartSec=5s",
                 "NoNewPrivileges=true",
@@ -682,7 +746,8 @@ class InstallerSystemdUnitRenderer:
             (
                 "[Unit]",
                 "Description=OpenInfra web frontend service",
-                "After=network-online.target",
+                "After=network-online.target openinfra-runtime-secrets.service",
+                "Requires=openinfra-runtime-secrets.service",
                 "Wants=network-online.target",
                 "",
                 "[Service]",
@@ -691,7 +756,8 @@ class InstallerSystemdUnitRenderer:
                 "Group=openinfra",
                 "EnvironmentFile=/etc/openinfra/openinfra.conf",
                 "WorkingDirectory=/opt/openinfra",
-                "ExecStart=/opt/openinfra/venv/bin/openinfra-web",
+                "ExecStart=/opt/openinfra/venv/bin/openinfra-web "
+                "--backend-bearer-token-file /var/lib/openinfra/secrets/bootstrap-token",
                 "Restart=on-failure",
                 "RestartSec=5s",
                 "NoNewPrivileges=true",
@@ -699,6 +765,7 @@ class InstallerSystemdUnitRenderer:
                 "ProtectSystem=strict",
                 "ProtectHome=true",
                 *self._hardening_directives,
+                "ReadOnlyPaths=/var/lib/openinfra/secrets",
                 "ReadWritePaths=/var/log/openinfra",
                 "",
                 "[Install]",
@@ -763,6 +830,9 @@ class InstallerConfigValidator:
             self._validate_api(parser, policy, errors)
             self._validate_identity(parser, policy, errors)
             self._validate_auth(parser, policy, errors)
+            self._validate_database(parser, policy, errors)
+            self._validate_saml(parser, policy, errors)
+            self._validate_team_sync(parser, policy, errors)
             self._validate_security(parser, policy, errors)
             errors.extend(self._secret_policy.validate(parser))
         if policy is None:
@@ -1057,34 +1127,26 @@ class InstallerConfigValidator:
         if not parser.has_section("auth"):
             return
         mode = parser.get("auth", "mode", fallback="").strip().lower()
-        if mode not in {"standard", "ldap", "ipa"}:
-            errors.append(f"{policy.key} auth.mode must be standard, ldap or ipa")
+        if mode not in {"standard", "ldap", "ipa", "saml"}:
+            errors.append(f"{policy.key} auth.mode must be standard, ldap, ipa or saml")
             return
-        directory_options = (
-            "directory_url",
-            "base_dn",
-            "user_filter",
-            "group_filter",
-            "bind_dn_ref",
-            "bind_password_ref",
-            "ca_cert_ref",
-            "cache_ttl_seconds",
-        )
+        directory_options = InstallerScopeCatalog._directory_auth_options
         if mode == "standard":
             for option in directory_options:
                 if parser.get("auth", option, fallback="").strip():
                     errors.append(f"{policy.key} auth.{option} is only valid for ldap/ipa mode")
             return
+        if mode == "saml":
+            if policy.edition == "lite":
+                errors.append("lite auth.mode must remain standard")
+            if not parser.has_section("saml"):
+                errors.append("auth.mode=saml requires a [saml] section")
+            return
         if policy.edition == "lite":
             errors.append("lite auth.mode must remain standard")
             return
-        if policy.scope == "server":
-            errors.append(
-                f"{policy.key} backend API must not authenticate human operators directly"
-            )
-            return
-        if policy.scope != "web":
-            errors.append(f"{policy.key} must not authenticate operators through LDAP/IPA")
+        if policy.scope not in {"server", "web"}:
+            errors.append(f"{policy.key} must not configure LDAP/IPA")
             return
         url = self._required(parser, "auth", "directory_url", errors)
         base_dn = self._required(parser, "auth", "base_dn", errors)
@@ -1092,8 +1154,13 @@ class InstallerConfigValidator:
         group_filter = self._required(parser, "auth", "group_filter", errors)
         if url:
             parsed = urlparse(url)
-            if parsed.scheme != "ldaps" or not parsed.netloc:
-                errors.append("auth.directory_url must use ldaps:// with a host")
+            start_tls = parser.getboolean("auth", "start_tls", fallback=False)
+            if parsed.scheme not in {"ldap", "ldaps"} or not parsed.netloc:
+                errors.append("auth.directory_url must use ldap:// or ldaps:// with a host")
+            if parsed.scheme == "ldap" and not start_tls:
+                errors.append("ldap:// auth.directory_url requires auth.start_tls=true")
+            if parsed.scheme == "ldaps" and start_tls:
+                errors.append("auth.start_tls must be false with ldaps://")
             if parsed.username or parsed.password:
                 errors.append("auth.directory_url must not embed credentials")
         if base_dn and not re.search(r"(^|,)dc=[^,]+", base_dn, flags=re.IGNORECASE):
@@ -1115,6 +1182,73 @@ class InstallerConfigValidator:
             else:
                 if not 30 <= value <= 3600:
                     errors.append("auth.cache_ttl_seconds must be between 30 and 3600")
+
+    def _validate_database(
+        self, parser: configparser.ConfigParser, policy: InstallerScopePolicy, errors: list[str]
+    ) -> None:
+        backend = parser.get("database", "backend", fallback="postgresql").strip().lower()
+        if backend not in {"postgresql", "oracle"}:
+            errors.append("database.backend must be postgresql or oracle")
+            return
+        if backend == "oracle":
+            if policy.edition == "lite" or policy.scope != "server":
+                errors.append("Oracle backend is supported only by Pro/Enterprise server scopes")
+                return
+            if not parser.has_section("oracle"):
+                errors.append("database.backend=oracle requires an [oracle] section")
+                return
+            for option in ("dsn", "user", "password_ref"):
+                self._required(parser, "oracle", option, errors)
+        elif policy.scope in {"server", "all-in-one"} and policy.edition != "lite":
+            for option in ("postgresql_user_ref", "postgresql_password_ref"):
+                self._required(parser, "auth", option, errors)
+
+    def _validate_saml(
+        self, parser: configparser.ConfigParser, policy: InstallerScopePolicy, errors: list[str]
+    ) -> None:
+        if not parser.has_section("saml"):
+            return
+        if policy.edition == "lite":
+            errors.append("SAML is not available in Lite edition")
+            return
+        for option in (
+            "tenant_id",
+            "idp_entity_id",
+            "idp_sso_url",
+            "idp_x509_cert_ref",
+            "sp_entity_id",
+            "sp_acs_url",
+            "group_role_mappings",
+        ):
+            self._required(parser, "saml", option, errors)
+        for option in ("idp_sso_url", "sp_acs_url"):
+            value = parser.get("saml", option, fallback="").strip()
+            if value:
+                parsed = urlparse(value)
+                if parsed.scheme != "https" or not parsed.netloc:
+                    errors.append(f"saml.{option} must be an HTTPS URL")
+
+    def _validate_team_sync(
+        self, parser: configparser.ConfigParser, policy: InstallerScopePolicy, errors: list[str]
+    ) -> None:
+        for section in parser.sections():
+            if not section.startswith("team_sync_"):
+                continue
+            if policy.edition == "lite" or policy.scope != "server":
+                errors.append("Team Sync is supported only by Pro/Enterprise server scopes")
+                continue
+            provider = parser.get(section, "provider", fallback=section.removeprefix("team_sync_"))
+            provider = provider.strip().lower()
+            if provider not in {"ldap", "oauth", "auth_proxy", "okta"}:
+                errors.append(f"{section}.provider is invalid")
+                continue
+            self._required(parser, section, "tenant_id", errors)
+            if provider in {"oauth", "okta"}:
+                self._required(parser, section, "endpoint", errors)
+                self._required(parser, section, "token_ref", errors)
+            if provider == "auth_proxy":
+                self._required(parser, section, "snapshot_file", errors)
+                self._required(parser, section, "signature_secret_ref", errors)
 
     def _validate_security(
         self, parser: configparser.ConfigParser, policy: InstallerScopePolicy, errors: list[str]
@@ -1223,13 +1357,13 @@ class InstallerConfigValidator:
             )
         if policy.scope == "server" and policy.edition in {"pro", "enterprise"}:
             actions.append(
-                "enforce backend API-only operator model: token validation, RBAC and "
-                "audit without direct LDAP/IPA login"
+                "configure trusted SAML/LDAP identity validation, Team Sync, RBAC and audit "
+                "without accepting provider secrets from client requests"
             )
         if policy.scope == "web":
             actions.append(
-                "install web frontend without PostgreSQL storage deployment; operator "
-                "LDAP/IPA login is frontend-scoped"
+                "install web frontend without PostgreSQL storage deployment; browser sessions "
+                "use the server-side BFF and trusted backend identity endpoints"
             )
         if policy.scope == "agent":
             actions.append(

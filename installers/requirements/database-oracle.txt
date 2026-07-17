@@ -1,0 +1,2 @@
+# Oracle Database driver; thin mode is used by default.
+oracledb>=2.5,<4.0

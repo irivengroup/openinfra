@@ -87,6 +87,21 @@ class AuthProviderPolicyService:
                 "backend_contract": "api-token-rbac-audit",
                 "rbac_authority": "openinfra",
             }
+        if mode == AuthProviderMode.SAML:
+            if command.directory_config is not None:
+                raise ValidationError("SAML authentication must use trusted server configuration")
+            return {
+                "edition": edition.value,
+                "mode": mode.value,
+                "federated_authentication_enabled": True,
+                "operator_auth_scope": "frontend-web-only",
+                "backend_authenticates_human_operators": False,
+                "backend_contract": "api-token-rbac-audit",
+                "rbac_authority": "openinfra",
+                "group_mapping_required": True,
+                "permissions_source": "openinfra-effective-rbac",
+                "configuration_source": "trusted-runtime-config",
+            }
         if command.directory_config is None:
             raise ValidationError("LDAP/IPA authentication requires a directory config")
         if command.directory_config.mode != mode:

@@ -32,7 +32,7 @@ class OpenApiDocumentationTaxonomy:
         OpenApiDocumentationContext(
             "Plateforme",
             "Base de données",
-            "État du schéma PostgreSQL et routage primaire/réplique.",
+            "État du schéma PostgreSQL ou Oracle et routage primaire/réplique PostgreSQL.",
         ),
         OpenApiDocumentationContext(
             "Plateforme", "Recherche globale", "Recherche transverse dans les composants autorisés."
@@ -46,6 +46,16 @@ class OpenApiDocumentationTaxonomy:
             "Plateforme",
             "Traitements asynchrones",
             "Outbox transactionnelle, workers spécialisés, artefacts et files de reprise.",
+        ),
+        OpenApiDocumentationContext(
+            "Sécurité",
+            "Authentification fédérée",
+            "Assertions SAML 2.0 validées depuis la configuration de confiance du serveur.",
+        ),
+        OpenApiDocumentationContext(
+            "Sécurité",
+            "Synchronisation des équipes",
+            "Synchronisation idempotente LDAP, OAuth, Auth Proxy et Okta.",
         ),
         OpenApiDocumentationContext(
             "Sécurité",
@@ -346,6 +356,10 @@ class OpenApiDocumentationTaxonomy:
             return "Plateforme", "Traitements asynchrones"
         if path.startswith("/api/v1/security/"):
             return "Sécurité", "Authentification et jetons"
+        if path == "/api/v1/auth/saml/acs":
+            return "Sécurité", "Authentification fédérée"
+        if path == "/api/v1/identity/team-sync":
+            return "Sécurité", "Synchronisation des équipes"
         if path.startswith("/api/v1/identity/"):
             return "Sécurité", "Identités et groupes"
         if path.startswith("/api/v1/access/"):

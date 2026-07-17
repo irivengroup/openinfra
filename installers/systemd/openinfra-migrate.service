@@ -1,0 +1,22 @@
+[Unit]
+Description=OpenInfra database schema migrations
+After=network-online.target openinfra-runtime-secrets.service
+Requires=openinfra-runtime-secrets.service
+Wants=network-online.target
+Before=openinfra.service
+
+[Service]
+Type=oneshot
+User=openinfra
+Group=openinfra
+EnvironmentFile=/etc/openinfra/openinfra.conf
+WorkingDirectory=/opt/openinfra
+ExecStart=/opt/openinfra/venv/bin/openinfra-server-runtime migrate
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/openinfra /data/openinfra /var/log/openinfra /var/lib/openinfra
+
+[Install]
+WantedBy=multi-user.target

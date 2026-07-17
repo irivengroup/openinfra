@@ -131,9 +131,9 @@ class TestInstallerAlignment:
         combined_requirements = "\n".join(path.read_text(encoding="utf-8") for path in requirements)
 
         assert not Path("migrations").exists()
-        assert len(installer_migrations) == 56
+        assert len(installer_migrations) == 57
         assert installer_migrations[0].name == "0001_bootstrap.sql"
-        assert installer_migrations[-1].name == "0056_kubernetes_gitops_drift.sql"
+        assert installer_migrations[-1].name == "0057_federated_identity_team_sync.sql"
         assert "psycopg[binary]" in combined_requirements
         forbidden_dev_tools = ("pytest", "ruff", "mypy", "bandit", "pip-audit", "build")
         assert not any(tool in combined_requirements for tool in forbidden_dev_tools)
@@ -147,7 +147,7 @@ class TestInstallerAlignment:
 
         assert report.valid is True
 
-    def test_installer_auth_policy_keeps_backend_api_only_and_allows_web_ldap(
+    def test_installer_auth_policy_supports_trusted_server_and_web_ldap(
         self, tmp_path: Path
     ) -> None:
         ldap_payload = "\n".join(
@@ -183,14 +183,14 @@ class TestInstallerAlignment:
         )
         web_report = InstallerConfigValidator().validate_file(ldap_web, edition="pro", scope="web")
 
-        assert server_report.valid is False
+        assert server_report.valid is True
         assert any(
-            "backend API must not authenticate human operators" in error
-            for error in server_report.errors
+            "configure trusted SAML/LDAP identity validation" in action
+            for action in server_report.actions
         )
         assert web_report.valid is True
         assert any(
-            "operator LDAP/IPA login is frontend-scoped" in action for action in web_report.actions
+            "browser sessions use the server-side BFF" in action for action in web_report.actions
         )
 
     def test_cli_auth_policy_rejects_lite_ldap_and_accepts_enterprise_ipa(

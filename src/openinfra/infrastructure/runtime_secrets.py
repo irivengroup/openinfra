@@ -76,6 +76,7 @@ class RuntimeBootstrapTokenStore:
         parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         if parent.is_symlink() or not parent.is_dir():
             raise RuntimeSecretError(f"runtime secret directory is invalid: {parent}")
+        self._apply_owner(parent)
         parent.chmod(0o700)
 
     def _secure_existing_file(self) -> None:

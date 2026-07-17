@@ -228,7 +228,7 @@ class TestInstallerConfigDomain:
         success = validator.assert_tree_valid(Path("installers"))
 
         assert report.valid is True
-        assert "ExecStart=/opt/openinfra/venv/bin/openinfra-api" in backend_unit
+        assert "ExecStart=/opt/openinfra/venv/bin/openinfra-server-runtime api" in backend_unit
         assert "PrivateDevices=true" in backend_unit
         assert "ProtectKernelTunables=true" in backend_unit
         assert "openinfra-web.service" in web_unit
@@ -533,7 +533,7 @@ class TestInstallerConfigDomain:
             validator.validate_file(invalid_ttl, edition="pro", scope="web").errors
         )
 
-        assert "auth.directory_url must use ldaps:// with a host" in invalid_errors
+        assert "ldap:// auth.directory_url requires auth.start_tls=true" in invalid_errors
         assert "auth.directory_url must not embed credentials" in invalid_errors
         assert "auth.base_dn must be an LDAP distinguished name" in invalid_errors
         assert "auth.user_filter must contain {username}" in invalid_errors
@@ -545,9 +545,25 @@ class TestInstallerConfigDomain:
         assert "auth.cache_ttl_seconds must be between 30 and 3600" in ttl_errors
         backend_direct = tmp_path / "backend-direct-ldap.ini"
         backend_direct.write_text(
-            server_base.replace("mode = standard", "mode = ldap"), encoding="utf-8"
+            server_base.replace(
+                "mode = standard",
+                "\n".join(
+                    (
+                        "mode = ldap",
+                        "directory_url = ldaps://ldap.example.net:636",
+                        "base_dn = dc=example,dc=net",
+                        "user_filter = (uid={username})",
+                        "group_filter = (member={user_dn})",
+                        "bind_dn_ref = file:///etc/openinfra/secrets/ldap-bind-dn",
+                        "bind_password_ref = file:///etc/openinfra/secrets/ldap-bind-password",
+                    )
+                ),
+            ),
+            encoding="utf-8",
         )
-        backend_errors = "\n".join(
-            validator.validate_file(backend_direct, edition="pro", scope="server").errors
+        backend_report = validator.validate_file(backend_direct, edition="pro", scope="server")
+        assert backend_report.valid is True
+        assert any(
+            "configure trusted SAML/LDAP identity validation" in action
+            for action in backend_report.actions
         )
-        assert "backend API must not authenticate human operators directly" in backend_errors

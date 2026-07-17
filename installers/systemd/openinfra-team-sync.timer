@@ -1,0 +1,12 @@
+[Unit]
+Description=Schedule OpenInfra advanced identity Team Sync
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=15min
+RandomizedDelaySec=60
+Persistent=true
+Unit=openinfra-team-sync.service
+
+[Install]
+WantedBy=timers.target

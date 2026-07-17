@@ -1,0 +1,2 @@
+# SAML 2.0 production adapter for Pro and Enterprise server scopes.
+python3-saml>=1.16,<2.0

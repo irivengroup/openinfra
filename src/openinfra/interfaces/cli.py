@@ -16,6 +16,10 @@ from openinfra.application.access_policy_services import (
     EvaluateAccessPolicyCommand,
     ListAccessPolicyRulesCommand,
 )
+from openinfra.application.advanced_identity_services import (
+    SamlLoginCommand,
+    TeamSyncCommand,
+)
 from openinfra.application.async_processing_services import (
     ClaimAsyncJobCommand,
     ClaimOutboxEventCommand,
@@ -417,10 +421,22 @@ from openinfra.application.source_governance_services import (
 from openinfra.domain.access_policy import AccessRequestContext
 from openinfra.domain.authentication import ExternalDirectoryConfig
 from openinfra.domain.common import OpenInfraError, ValidationError
+from openinfra.domain.federated_identity import FederatedProvider
 from openinfra.domain.resource_taxonomy import ResourceTaxonomy
 from openinfra.domain.security import Permission
+from openinfra.infrastructure.advanced_identity import (
+    AuthProxyTeamSyncSource,
+    LdapTeamSyncSource,
+    OAuthTeamSyncSource,
+    TeamSyncSource,
+)
 from openinfra.infrastructure.async_processing import FileOutboxPublisher
 from openinfra.infrastructure.installer_config import InstallerConfigValidator
+from openinfra.infrastructure.oracle import (
+    OracleConnectionSettings,
+    OracleMigrationCatalog,
+    OracleMigrationExecutor,
+)
 from openinfra.infrastructure.postgresql import (
     PostgreSQLConnectionFactory,
     PostgreSQLMigrationCatalog,
@@ -433,7 +449,13 @@ from openinfra.infrastructure.proxy_enrollment import (
     ProxyEnrollmentHttpClient,
     ProxyEnrollmentPayloadFactory,
 )
-from openinfra.infrastructure.runtime_config import RuntimeConfigLoader, RuntimeDatabaseDsnResolver
+from openinfra.infrastructure.runtime_config import (
+    RuntimeAdvancedIdentityConfigResolver,
+    RuntimeConfigLoader,
+    RuntimeDatabaseBackendResolver,
+    RuntimeDatabaseDsnResolver,
+    RuntimeOracleSettingsResolver,
+)
 from openinfra.infrastructure.runtime_secrets import RuntimeBootstrapTokenStore
 from openinfra.infrastructure.spec_validation import ContractualSpecValidator
 
@@ -725,7 +747,9 @@ class OpenInfraCLI:
         feature_check = edition_subparsers.add_parser(
             "feature-check", help="check whether an edition allows a feature capability"
         )
-        feature_check.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        feature_check.add_argument(
+            "--backend", choices=("json", "postgresql", "oracle"), default="json"
+        )
         feature_check.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         feature_check.add_argument("--postgres-dsn")
         feature_check.add_argument("--tenant", default="default")
@@ -758,14 +782,20 @@ class OpenInfraCLI:
             "status",
             help="report PostgreSQL schema migration status",
         )
+        status.add_argument("--backend", choices=("postgresql", "oracle"), default="postgresql")
         status.add_argument("--postgres-dsn")
+        status.add_argument("--oracle-dsn")
+        status.add_argument("--oracle-user")
         status.add_argument("--root", type=Path)
         status.set_defaults(handler=self._handle_database_status)
         apply = database_subparsers.add_parser(
             "apply-migrations",
             help="apply PostgreSQL migrations idempotently",
         )
+        apply.add_argument("--backend", choices=("postgresql", "oracle"), default="postgresql")
         apply.add_argument("--postgres-dsn")
+        apply.add_argument("--oracle-dsn")
+        apply.add_argument("--oracle-user")
         apply.add_argument("--root", type=Path)
         apply.add_argument("--dry-run", action="store_true")
         apply.set_defaults(handler=self._handle_database_apply_migrations)
@@ -788,7 +818,7 @@ class OpenInfraCLI:
             help="validate local, LDAP or IPA authentication policy for an edition",
         )
         self._add_backend_arguments(policy)
-        policy.add_argument("--mode", choices=("standard", "ldap", "ipa"), required=True)
+        policy.add_argument("--mode", choices=("standard", "ldap", "ipa", "saml"), required=True)
         policy.add_argument("--url")
         policy.add_argument("--base-dn")
         policy.add_argument("--user-filter", default="(uid={username})")
@@ -798,7 +828,23 @@ class OpenInfraCLI:
         policy.add_argument("--ca-cert-ref")
         policy.add_argument("--cache-ttl-seconds", type=int, default=300)
         policy.add_argument("--no-nested-groups", action="store_true")
+        policy.add_argument("--start-tls", action="store_true")
+        policy.add_argument("--follow-referrals", action="store_true")
+        policy.add_argument("--user-base-dn")
+        policy.add_argument("--group-base-dn")
+        policy.add_argument("--page-size", type=int, default=500)
+        policy.add_argument("--size-limit", type=int, default=5000)
+        policy.add_argument("--nested-group-depth", type=int, default=5)
         policy.set_defaults(handler=self._handle_auth_policy)
+        saml_login = auth_subparsers.add_parser(
+            "saml-login", help="validate a SAML ACS payload using trusted runtime configuration"
+        )
+        self._add_backend_arguments(saml_login)
+        saml_login.add_argument("--tenant", default="default")
+        saml_login.add_argument("--actor", default="cli")
+        saml_login.add_argument("--request-json", type=Path, required=True)
+        saml_login.add_argument("--ttl-seconds", type=int, default=28800)
+        saml_login.set_defaults(handler=self._handle_auth_saml_login)
 
     def _add_security_commands(self, subparsers: Any) -> None:
         security = subparsers.add_parser("security", help="api token and rbac operations")
@@ -807,7 +853,9 @@ class OpenInfraCLI:
             "bootstrap-token",
             help="create or replace an API token hash and role binding",
         )
-        bootstrap.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        bootstrap.add_argument(
+            "--backend", choices=("json", "postgresql", "oracle"), default="json"
+        )
         bootstrap.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         bootstrap.add_argument("--postgres-dsn")
         bootstrap.add_argument("--tenant", required=True)
@@ -827,7 +875,7 @@ class OpenInfraCLI:
             "whoami",
             help="validate an API token and print the authenticated principal",
         )
-        whoami.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        whoami.add_argument("--backend", choices=("json", "postgresql", "oracle"), default="json")
         whoami.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         whoami.add_argument("--postgres-dsn")
         whoami.add_argument("--tenant", required=True)
@@ -837,7 +885,7 @@ class OpenInfraCLI:
             "revoke-token",
             help="revoke an API token using a security administrator token",
         )
-        revoke.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        revoke.add_argument("--backend", choices=("json", "postgresql", "oracle"), default="json")
         revoke.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         revoke.add_argument("--postgres-dsn")
         revoke.add_argument("--tenant", required=True)
@@ -849,7 +897,7 @@ class OpenInfraCLI:
             "rotate-token",
             help="rotate a security administrator token and revoke the previous token",
         )
-        rotate.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        rotate.add_argument("--backend", choices=("json", "postgresql", "oracle"), default="json")
         rotate.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         rotate.add_argument("--postgres-dsn")
         rotate.add_argument("--tenant", required=True)
@@ -864,7 +912,9 @@ class OpenInfraCLI:
             "list-tokens",
             help="list API token metadata without exposing token hashes or secrets",
         )
-        list_tokens.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        list_tokens.add_argument(
+            "--backend", choices=("json", "postgresql", "oracle"), default="json"
+        )
         list_tokens.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         list_tokens.add_argument("--postgres-dsn")
         list_tokens.add_argument("--tenant", required=True)
@@ -939,6 +989,26 @@ class OpenInfraCLI:
         effective.add_argument("--admin-token", required=True)
         effective.add_argument("--subject", required=True)
         effective.set_defaults(handler=self._handle_identity_effective)
+        team_sync = identity_subparsers.add_parser(
+            "team-sync", help="synchronize users and groups from a trusted configured source"
+        )
+        self._add_backend_arguments(team_sync)
+        team_sync.add_argument("--tenant", default="default")
+        team_sync.add_argument("--actor", default="cli")
+        team_sync.add_argument("--admin-token")
+        team_sync.add_argument("--token-file", type=Path)
+        team_sync.add_argument("--source", required=True)
+        team_sync.set_defaults(handler=self._handle_identity_team_sync)
+        team_sync_runtime = identity_subparsers.add_parser(
+            "team-sync-runtime", help="run all configured Team Sync sources for systemd"
+        )
+        self._add_backend_arguments(team_sync_runtime)
+        team_sync_runtime.add_argument("--tenant", default="default")
+        team_sync_runtime.add_argument("--actor", default="systemd-team-sync")
+        team_sync_runtime.add_argument(
+            "--token-file", type=Path, default=Path("/var/lib/openinfra/secrets/bootstrap-token")
+        )
+        team_sync_runtime.set_defaults(handler=self._handle_identity_team_sync_runtime)
 
     def _add_access_policy_commands(self, subparsers: Any) -> None:
         access = subparsers.add_parser("access", help="attribute-based access policy operations")
@@ -4031,9 +4101,11 @@ class OpenInfraCLI:
         quality_summary.set_defaults(handler=self._handle_sot_quality_summary)
 
     def _add_backend_arguments(self, parser: Any) -> None:
-        parser.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        parser.add_argument("--backend", choices=("json", "postgresql", "oracle"), default="json")
         parser.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         parser.add_argument("--postgres-dsn")
+        parser.add_argument("--oracle-dsn")
+        parser.add_argument("--oracle-user")
         parser.add_argument(
             "--edition",
             choices=("lite", "pro", "enterprise"),
@@ -4047,7 +4119,7 @@ class OpenInfraCLI:
             "allocate",
             help="allocate an address transactionally",
         )
-        allocate.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        allocate.add_argument("--backend", choices=("json", "postgresql", "oracle"), default="json")
         allocate.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         allocate.add_argument("--postgres-dsn")
         allocate.add_argument("--tenant", required=True)
@@ -4774,7 +4846,9 @@ class OpenInfraCLI:
             "define-room",
             help="define a physical DCIM room hierarchy",
         )
-        define_room.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        define_room.add_argument(
+            "--backend", choices=("json", "postgresql", "oracle"), default="json"
+        )
         define_room.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         define_room.add_argument("--postgres-dsn")
         define_room.add_argument("--tenant", default="default")
@@ -4814,7 +4888,9 @@ class OpenInfraCLI:
             "define-rack",
             help="define a rack with U capacity and usable mounting faces",
         )
-        define_rack.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        define_rack.add_argument(
+            "--backend", choices=("json", "postgresql", "oracle"), default="json"
+        )
         define_rack.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         define_rack.add_argument("--postgres-dsn")
         define_rack.add_argument("--tenant", default="default")
@@ -4885,7 +4961,9 @@ class OpenInfraCLI:
             "rack-capacity",
             help="report rack U occupation by face",
         )
-        rack_capacity.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        rack_capacity.add_argument(
+            "--backend", choices=("json", "postgresql", "oracle"), default="json"
+        )
         rack_capacity.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         rack_capacity.add_argument("--postgres-dsn")
         rack_capacity.add_argument("--tenant", default="default")
@@ -4896,7 +4974,7 @@ class OpenInfraCLI:
         rack_capacity.set_defaults(handler=self._handle_dcim_rack_capacity)
 
         locate = dcim_subparsers.add_parser("locate", help="locate equipment physically")
-        locate.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        locate.add_argument("--backend", choices=("json", "postgresql", "oracle"), default="json")
         locate.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         locate.add_argument("--postgres-dsn")
         locate.add_argument("--tenant", default="default")
@@ -4923,7 +5001,9 @@ class OpenInfraCLI:
             "define-patch-panel",
             help="define a rack-mounted patch panel and generate its ports",
         )
-        define_patch_panel.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        define_patch_panel.add_argument(
+            "--backend", choices=("json", "postgresql", "oracle"), default="json"
+        )
         define_patch_panel.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         define_patch_panel.add_argument("--postgres-dsn")
         define_patch_panel.add_argument("--tenant", default="default")
@@ -4947,7 +5027,9 @@ class OpenInfraCLI:
             "define-port",
             help="define a DCIM port on an equipment or patch panel",
         )
-        define_port.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        define_port.add_argument(
+            "--backend", choices=("json", "postgresql", "oracle"), default="json"
+        )
         define_port.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         define_port.add_argument("--postgres-dsn")
         define_port.add_argument("--tenant", default="default")
@@ -4969,7 +5051,9 @@ class OpenInfraCLI:
             "connect-cable",
             help="connect two compatible DCIM ports with a point-to-point cable",
         )
-        connect_cable.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        connect_cable.add_argument(
+            "--backend", choices=("json", "postgresql", "oracle"), default="json"
+        )
         connect_cable.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         connect_cable.add_argument("--postgres-dsn")
         connect_cable.add_argument("--tenant", default="default")
@@ -4998,7 +5082,9 @@ class OpenInfraCLI:
             "cable-trace",
             help="trace a DCIM cable path and endpoints",
         )
-        cable_trace.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        cable_trace.add_argument(
+            "--backend", choices=("json", "postgresql", "oracle"), default="json"
+        )
         cable_trace.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         cable_trace.add_argument("--postgres-dsn")
         cable_trace.add_argument("--tenant", default="default")
@@ -5010,7 +5096,9 @@ class OpenInfraCLI:
             "locator-sheet",
             help="generate QR-backed field locator sheet for an equipment",
         )
-        locator_sheet.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        locator_sheet.add_argument(
+            "--backend", choices=("json", "postgresql", "oracle"), default="json"
+        )
         locator_sheet.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         locator_sheet.add_argument("--postgres-dsn")
         locator_sheet.add_argument("--tenant", default="default")
@@ -5023,7 +5111,9 @@ class OpenInfraCLI:
             "verify-scan",
             help="verify a field QR payload against the current equipment location",
         )
-        verify_scan.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        verify_scan.add_argument(
+            "--backend", choices=("json", "postgresql", "oracle"), default="json"
+        )
         verify_scan.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         verify_scan.add_argument("--postgres-dsn")
         verify_scan.add_argument("--tenant", default="default")
@@ -5036,7 +5126,9 @@ class OpenInfraCLI:
             "room-plan",
             help="render a 2D room grid with racks and equipment occupancy",
         )
-        room_plan.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        room_plan.add_argument(
+            "--backend", choices=("json", "postgresql", "oracle"), default="json"
+        )
         room_plan.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         room_plan.add_argument("--postgres-dsn")
         room_plan.add_argument("--tenant", default="default")
@@ -5051,7 +5143,9 @@ class OpenInfraCLI:
             "rack-elevation",
             help="render rack U occupation for one rack face",
         )
-        rack_elevation.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        rack_elevation.add_argument(
+            "--backend", choices=("json", "postgresql", "oracle"), default="json"
+        )
         rack_elevation.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         rack_elevation.add_argument("--postgres-dsn")
         rack_elevation.add_argument("--tenant", default="default")
@@ -5069,7 +5163,7 @@ class OpenInfraCLI:
             help="define a DCIM PDU or UPS power source",
         )
         define_power_device.add_argument(
-            "--backend", choices=("json", "postgresql"), default="json"
+            "--backend", choices=("json", "postgresql", "oracle"), default="json"
         )
         define_power_device.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         define_power_device.add_argument("--postgres-dsn")
@@ -5094,7 +5188,7 @@ class OpenInfraCLI:
             help="define an A/B power circuit from a power source to a rack",
         )
         define_power_circuit.add_argument(
-            "--backend", choices=("json", "postgresql"), default="json"
+            "--backend", choices=("json", "postgresql", "oracle"), default="json"
         )
         define_power_circuit.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         define_power_circuit.add_argument("--postgres-dsn")
@@ -5118,7 +5212,7 @@ class OpenInfraCLI:
             help="define a hot/cold aisle cooling capacity zone",
         )
         define_cooling_zone.add_argument(
-            "--backend", choices=("json", "postgresql"), default="json"
+            "--backend", choices=("json", "postgresql", "oracle"), default="json"
         )
         define_cooling_zone.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         define_cooling_zone.add_argument("--postgres-dsn")
@@ -5141,7 +5235,9 @@ class OpenInfraCLI:
             "reserve-power",
             help="reserve expected power draw for a rack-mounted equipment on a circuit",
         )
-        reserve_power.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        reserve_power.add_argument(
+            "--backend", choices=("json", "postgresql", "oracle"), default="json"
+        )
         reserve_power.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         reserve_power.add_argument("--postgres-dsn")
         reserve_power.add_argument("--tenant", default="default")
@@ -5156,7 +5252,9 @@ class OpenInfraCLI:
             "energy-cooling-capacity",
             help="report rack A/B power and cooling capacity",
         )
-        energy_cooling.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        energy_cooling.add_argument(
+            "--backend", choices=("json", "postgresql", "oracle"), default="json"
+        )
         energy_cooling.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         energy_cooling.add_argument("--postgres-dsn")
         energy_cooling.add_argument("--tenant", default="default")
@@ -5171,7 +5269,9 @@ class OpenInfraCLI:
             "digital-twin",
             help="render the initial room digital twin across racks, cabling and capacity",
         )
-        digital_twin.add_argument("--backend", choices=("json", "postgresql"), default="json")
+        digital_twin.add_argument(
+            "--backend", choices=("json", "postgresql", "oracle"), default="json"
+        )
         digital_twin.add_argument("--data", type=Path, default=Path(".openinfra.json"))
         digital_twin.add_argument("--postgres-dsn")
         digital_twin.add_argument("--tenant", default="default")
@@ -5252,6 +5352,12 @@ class OpenInfraCLI:
 
     def _handle_database_apply_migrations(self, args: argparse.Namespace) -> int:
         executor = self._create_migration_executor(args)
+        if isinstance(executor, OracleMigrationExecutor):
+            if args.dry_run:
+                print(json.dumps(executor.status_as_dict(), sort_keys=True))
+                return 0
+            print(json.dumps(executor.apply_all(), sort_keys=True))
+            return 0
         status = executor.apply_all(dry_run=bool(args.dry_run))
         print(json.dumps(status.as_dict(), sort_keys=True))
         return 0
@@ -5290,6 +5396,13 @@ class OpenInfraCLI:
                 ca_cert_ref=args.ca_cert_ref,
                 nested_groups=not bool(args.no_nested_groups),
                 cache_ttl_seconds=args.cache_ttl_seconds,
+                start_tls=bool(args.start_tls),
+                follow_referrals=bool(args.follow_referrals),
+                user_base_dn=args.user_base_dn,
+                group_base_dn=args.group_base_dn,
+                page_size=args.page_size,
+                size_limit=args.size_limit,
+                nested_group_depth=args.nested_group_depth,
             )
         application = self._create_application(args)
         payload = application.auth_provider_policy_service.validate(
@@ -5300,6 +5413,25 @@ class OpenInfraCLI:
             )
         )
         print(json.dumps(payload, sort_keys=True, indent=2))
+        return 0
+
+    def _handle_auth_saml_login(self, args: argparse.Namespace) -> int:
+        request_data = json.loads(args.request_json.read_text(encoding="utf-8"))
+        if not isinstance(request_data, dict):
+            raise ValidationError("SAML request document must be a JSON object")
+        resolver = RuntimeAdvancedIdentityConfigResolver()
+        result = self._create_application(args).saml_authentication_service.login(
+            SamlLoginCommand(
+                tenant_id=args.tenant,
+                edition=args.edition,
+                actor=args.actor,
+                request_data=request_data,
+                provider_config=resolver.saml_config(),
+                mappings=resolver.saml_group_role_mappings(args.tenant),
+                ttl_seconds=args.ttl_seconds,
+            )
+        )
+        print(json.dumps(result.as_dict(), sort_keys=True))
         return 0
 
     def _handle_security_bootstrap_token(self, args: argparse.Namespace) -> int:
@@ -5455,6 +5587,71 @@ class OpenInfraCLI:
         )
         print(json.dumps(identity.as_dict(), sort_keys=True))
         return 0
+
+    def _handle_identity_team_sync(self, args: argparse.Namespace) -> int:
+        token = str(args.admin_token or "").strip()
+        if args.token_file is not None:
+            token = RuntimeBootstrapTokenStore(Path(args.token_file)).read()
+        if not token:
+            raise ValidationError("--admin-token or --token-file is required")
+        resolver = RuntimeAdvancedIdentityConfigResolver()
+        source_config = resolver.team_sync_source(args.source)
+        if source_config.tenant_id.value != args.tenant:
+            raise ValidationError("configured Team Sync source tenant does not match --tenant")
+        source = self._team_sync_source(source_config.provider, resolver)
+        snapshot = source.fetch(source_config)
+        result = self._create_application(args).team_sync_service.synchronize(
+            TeamSyncCommand(
+                tenant_id=args.tenant,
+                actor=args.actor,
+                admin_token=token,
+                source_config=source_config,
+                snapshot=snapshot,
+            )
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    def _handle_identity_team_sync_runtime(self, args: argparse.Namespace) -> int:
+        token = RuntimeBootstrapTokenStore(Path(args.token_file)).read()
+        resolver = RuntimeAdvancedIdentityConfigResolver()
+        source_ids = resolver.team_sync_sources()
+        if not source_ids:
+            print(json.dumps({"status": "skipped", "reason": "no Team Sync source configured"}))
+            return 0
+        application = self._create_application(args)
+        results: list[dict[str, object]] = []
+        for source_id in source_ids:
+            source_config = resolver.team_sync_source(source_id)
+            if source_config.tenant_id.value != args.tenant:
+                continue
+            source = self._team_sync_source(source_config.provider, resolver)
+            snapshot = source.fetch(source_config)
+            results.append(
+                application.team_sync_service.synchronize(
+                    TeamSyncCommand(
+                        tenant_id=args.tenant,
+                        actor=args.actor,
+                        admin_token=token,
+                        source_config=source_config,
+                        snapshot=snapshot,
+                    )
+                )
+            )
+        print(json.dumps({"status": "ok", "sources": results}, sort_keys=True))
+        return 0
+
+    @staticmethod
+    def _team_sync_source(
+        provider: FederatedProvider, resolver: RuntimeAdvancedIdentityConfigResolver
+    ) -> TeamSyncSource:
+        if provider is FederatedProvider.LDAP:
+            return LdapTeamSyncSource(resolver.directory_config())
+        if provider in {FederatedProvider.OAUTH, FederatedProvider.OKTA}:
+            return OAuthTeamSyncSource()
+        if provider is FederatedProvider.AUTH_PROXY:
+            return AuthProxyTeamSyncSource()
+        raise ValidationError("unsupported Team Sync provider: " + provider.value)
 
     def _handle_access_create_rule(self, args: argparse.Namespace) -> int:
         application = self._create_application(args)
@@ -10406,8 +10603,22 @@ class OpenInfraCLI:
         print(json.dumps(result, sort_keys=True))
         return 0
 
-    def _create_migration_executor(self, args: argparse.Namespace) -> PostgreSQLMigrationExecutor:
-        dsn = RuntimeDatabaseDsnResolver().resolve(args.postgres_dsn)
+    def _create_migration_executor(
+        self, args: argparse.Namespace
+    ) -> PostgreSQLMigrationExecutor | OracleMigrationExecutor:
+        backend = RuntimeDatabaseBackendResolver().resolve(getattr(args, "backend", None))
+        if backend == "oracle":
+            settings = RuntimeOracleSettingsResolver().resolve(
+                explicit_dsn=getattr(args, "oracle_dsn", None),
+                explicit_user=getattr(args, "oracle_user", None),
+            )
+            if not isinstance(settings, OracleConnectionSettings):
+                raise OpenInfraError("invalid Oracle runtime settings")
+            root = Path(getattr(args, "root", None) or "installers/migrations/oracle")
+            return OracleMigrationExecutor(settings, OracleMigrationCatalog(root))
+        if backend != "postgresql":
+            raise ValidationError("database migrations support postgresql or oracle")
+        dsn = RuntimeDatabaseDsnResolver().resolve(getattr(args, "postgres_dsn", None))
         if not dsn:
             raise OpenInfraError(
                 "--postgres-dsn, OPENINFRA_DATABASE_DSN or /opt/openinfra/config/"
@@ -10436,11 +10647,22 @@ class OpenInfraCLI:
         return Path(__file__).resolve().parents[1] / "migrations" / "postgresql"
 
     def _create_application(self, args: argparse.Namespace) -> OpenInfraApplication:
-        backend = str(args.backend)
+        explicit_backend = getattr(args, "backend", None)
+        backend = RuntimeDatabaseBackendResolver().resolve(explicit_backend)
         edition = getattr(args, "edition", os.environ.get("OPENINFRA_EDITION", "enterprise"))
         if backend == "json":
             return ApplicationFactory().create_json_application(args.data, edition=edition)
-        dsn = RuntimeDatabaseDsnResolver().resolve(args.postgres_dsn)
+        if backend == "oracle":
+            settings = RuntimeOracleSettingsResolver().resolve(
+                explicit_dsn=getattr(args, "oracle_dsn", None),
+                explicit_user=getattr(args, "oracle_user", None),
+            )
+            if not isinstance(settings, OracleConnectionSettings):
+                raise OpenInfraError("invalid Oracle runtime settings")
+            return ApplicationFactory().create_oracle_application(
+                settings, seed=False, edition=edition
+            )
+        dsn = RuntimeDatabaseDsnResolver().resolve(getattr(args, "postgres_dsn", None))
         if not dsn:
             raise OpenInfraError(
                 "--postgres-dsn, OPENINFRA_DATABASE_DSN or /opt/openinfra/config/"

@@ -88,6 +88,10 @@ class TestHttpApi:
                     "migration_report": "/api/v1/imports/migration-report",
                 },
                 "search": {"global": "/api/v1/search/global"},
+                "security": {
+                    "saml_acs": "/api/v1/auth/saml/acs",
+                    "team_sync": "/api/v1/identity/team-sync",
+                },
                 "editions": {
                     "policies": "/api/v1/editions/policies",
                     "feature_check": "/api/v1/editions/feature-check",

@@ -16,6 +16,10 @@ class AuthProviderMode(StrEnum):
     STANDARD = "standard"
     LDAP = "ldap"
     IPA = "ipa"
+    SAML = "saml"
+    OAUTH = "oauth"
+    AUTH_PROXY = "auth_proxy"
+    OKTA = "okta"
 
     @classmethod
     def from_value(cls, value: str) -> Self:
@@ -39,6 +43,20 @@ class ExternalDirectoryConfig:
     tls_required: bool
     nested_groups: bool
     cache_ttl_seconds: int
+    user_base_dn: str | None = None
+    group_base_dn: str | None = None
+    username_attribute: str = "uid"
+    display_name_attribute: str = "displayName"
+    email_attribute: str = "mail"
+    group_name_attribute: str = "cn"
+    group_member_attribute: str = "member"
+    connect_timeout_seconds: int = 5
+    operation_timeout_seconds: int = 15
+    page_size: int = 500
+    size_limit: int = 5000
+    follow_referrals: bool = False
+    start_tls: bool = False
+    nested_group_depth: int = 5
 
     @classmethod
     def create(
@@ -54,11 +72,25 @@ class ExternalDirectoryConfig:
         tls_required: bool = True,
         nested_groups: bool = True,
         cache_ttl_seconds: int = 300,
+        user_base_dn: str | None = None,
+        group_base_dn: str | None = None,
+        username_attribute: str = "uid",
+        display_name_attribute: str = "displayName",
+        email_attribute: str = "mail",
+        group_name_attribute: str = "cn",
+        group_member_attribute: str = "member",
+        connect_timeout_seconds: int = 5,
+        operation_timeout_seconds: int = 15,
+        page_size: int = 500,
+        size_limit: int = 5000,
+        follow_referrals: bool = False,
+        start_tls: bool = False,
+        nested_group_depth: int = 5,
     ) -> Self:
         normalized_mode = AuthProviderMode.from_value(mode)
-        if normalized_mode == AuthProviderMode.STANDARD:
-            raise ValidationError("standard mode does not use an external directory config")
-        normalized_url = cls._normalize_url(url)
+        if normalized_mode not in {AuthProviderMode.LDAP, AuthProviderMode.IPA}:
+            raise ValidationError("external directory config requires ldap or ipa mode")
+        normalized_url = cls._normalize_url(url, start_tls=bool(start_tls))
         normalized_base = DirectoryName.normalize(base_dn, "base_dn")
         normalized_user_filter = DirectoryFilter.normalize(user_filter, "user_filter")
         normalized_group_filter = DirectoryFilter.normalize(group_filter, "group_filter")
@@ -74,6 +106,38 @@ class ExternalDirectoryConfig:
             raise ValidationError("cache_ttl_seconds must be between 30 and 3600")
         if not tls_required:
             raise ValidationError("LDAP/IPA TLS validation is mandatory")
+        normalized_user_base = (
+            DirectoryName.normalize(user_base_dn, "user_base_dn")
+            if user_base_dn is not None and user_base_dn.strip()
+            else normalized_base
+        )
+        normalized_group_base = (
+            DirectoryName.normalize(group_base_dn, "group_base_dn")
+            if group_base_dn is not None and group_base_dn.strip()
+            else normalized_base
+        )
+        attributes = {
+            "username_attribute": cls._normalize_attribute(username_attribute),
+            "display_name_attribute": cls._normalize_attribute(display_name_attribute),
+            "email_attribute": cls._normalize_attribute(email_attribute),
+            "group_name_attribute": cls._normalize_attribute(group_name_attribute),
+            "group_member_attribute": cls._normalize_attribute(group_member_attribute),
+        }
+        connect_timeout = int(connect_timeout_seconds)
+        operation_timeout = int(operation_timeout_seconds)
+        normalized_page_size = int(page_size)
+        normalized_size_limit = int(size_limit)
+        normalized_depth = int(nested_group_depth)
+        if not 1 <= connect_timeout <= 60:
+            raise ValidationError("connect_timeout_seconds must be between 1 and 60")
+        if not 1 <= operation_timeout <= 120:
+            raise ValidationError("operation_timeout_seconds must be between 1 and 120")
+        if not 1 <= normalized_page_size <= 1000:
+            raise ValidationError("page_size must be between 1 and 1000")
+        if not 1 <= normalized_size_limit <= 100000:
+            raise ValidationError("size_limit must be between 1 and 100000")
+        if not 1 <= normalized_depth <= 20:
+            raise ValidationError("nested_group_depth must be between 1 and 20")
         return cls(
             mode=normalized_mode,
             url=normalized_url,
@@ -86,19 +150,44 @@ class ExternalDirectoryConfig:
             tls_required=True,
             nested_groups=bool(nested_groups),
             cache_ttl_seconds=ttl,
+            user_base_dn=normalized_user_base,
+            group_base_dn=normalized_group_base,
+            username_attribute=attributes["username_attribute"],
+            display_name_attribute=attributes["display_name_attribute"],
+            email_attribute=attributes["email_attribute"],
+            group_name_attribute=attributes["group_name_attribute"],
+            group_member_attribute=attributes["group_member_attribute"],
+            connect_timeout_seconds=connect_timeout,
+            operation_timeout_seconds=operation_timeout,
+            page_size=normalized_page_size,
+            size_limit=normalized_size_limit,
+            follow_referrals=bool(follow_referrals),
+            start_tls=bool(start_tls),
+            nested_group_depth=normalized_depth,
         )
 
     @classmethod
-    def _normalize_url(cls, value: str) -> str:
+    def _normalize_url(cls, value: str, *, start_tls: bool) -> str:
         normalized = value.strip()
         parsed = urlparse(normalized)
-        if parsed.scheme != "ldaps" or not parsed.netloc:
-            raise ValidationError("directory url must use ldaps:// with a host")
+        if parsed.scheme not in {"ldap", "ldaps"} or not parsed.netloc:
+            raise ValidationError("directory url must use ldap:// or ldaps:// with a host")
+        if parsed.scheme == "ldap" and not start_tls:
+            raise ValidationError("ldap:// directory url requires StartTLS")
+        if parsed.scheme == "ldaps" and start_tls:
+            raise ValidationError("StartTLS must not be enabled with ldaps://")
         if parsed.username or parsed.password:
             raise ValidationError("directory url must not embed credentials")
         if parsed.path not in ("", "/") or parsed.query or parsed.fragment:
             raise ValidationError("directory url must be an origin URL without path/query")
         return normalized.rstrip("/")
+
+    @staticmethod
+    def _normalize_attribute(value: str) -> str:
+        normalized = value.strip()
+        if re.fullmatch(r"[A-Za-z][A-Za-z0-9;-]{0,63}", normalized) is None:
+            raise ValidationError("LDAP attribute names must contain 1 to 64 safe characters")
+        return normalized
 
     def as_safe_dict(self) -> dict[str, object]:
         return {
@@ -113,6 +202,20 @@ class ExternalDirectoryConfig:
             "tls_required": self.tls_required,
             "nested_groups": self.nested_groups,
             "cache_ttl_seconds": self.cache_ttl_seconds,
+            "user_base_dn": self.user_base_dn,
+            "group_base_dn": self.group_base_dn,
+            "username_attribute": self.username_attribute,
+            "display_name_attribute": self.display_name_attribute,
+            "email_attribute": self.email_attribute,
+            "group_name_attribute": self.group_name_attribute,
+            "group_member_attribute": self.group_member_attribute,
+            "connect_timeout_seconds": self.connect_timeout_seconds,
+            "operation_timeout_seconds": self.operation_timeout_seconds,
+            "page_size": self.page_size,
+            "size_limit": self.size_limit,
+            "follow_referrals": self.follow_referrals,
+            "start_tls": self.start_tls,
+            "nested_group_depth": self.nested_group_depth,
         }
 
 

@@ -86,7 +86,7 @@ class CloudNativePromotionProjectValidator:
             ("TST-P21-K8S-SCALE-GATE", "50 000 ressources/snapshot"),
         )
         migrations = sorted((self._root / "installers/migrations/postgresql").glob("*.sql"))
-        if len(migrations) != 56 or migrations[-1].name != "0056_kubernetes_gitops_drift.sql":
+        if len(migrations) != 57 or migrations[-1].name != "0057_federated_identity_team_sync.sql":
             raise CloudNativePromotionProjectError(
                 "EPIC-2106 must preserve the 56-migration chain ending with "
                 "0056_kubernetes_gitops_drift.sql"
@@ -113,7 +113,7 @@ class CloudNativePromotionProjectValidator:
             "required_evidence_count": 7,
             "max_resources_per_snapshot": 50_000,
             "minimum_cluster_count": 3,
-            "migration_count": 56,
+            "migration_count": 57,
         }
 
     def _assert_fragments(self, relative: str, fragments: tuple[str, ...]) -> None:

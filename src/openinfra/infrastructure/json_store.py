@@ -178,6 +178,7 @@ from openinfra.domain.discovery import (
 )
 from openinfra.domain.discovery_jobs import DiscoveryJob, DiscoveryJobStatus
 from openinfra.domain.editions import QuotaResource
+from openinfra.domain.federated_identity import TeamSyncSnapshot
 from openinfra.domain.field_operations import (
     FieldEvidence,
     FieldOperationSheet,
@@ -490,6 +491,7 @@ class JsonDocumentStore:
             "identity_users": {},
             "identity_groups": {},
             "identity_memberships": {},
+            "identity_team_sync_sources": {},
             "access_policy_rules": {},
             "source_objects": {},
             "source_object_snapshots": [],
@@ -3241,6 +3243,121 @@ class JsonIdentityRepository(IdentityRepository):
                 group_names.append(str(group_value["name"]))
                 group_roles.extend(str(role) for role in group_value.get("roles", []))
         return EffectiveIdentity.from_parts(user, tuple(group_names), tuple(group_roles))
+
+    def apply_team_sync(
+        self,
+        snapshot: TeamSyncSnapshot,
+        deactivate_orphans: bool,
+    ) -> dict[str, int | str]:
+        source_key = ":".join((snapshot.tenant_id.value, snapshot.source_id))
+        states = self._store.data["identity_team_sync_sources"]
+        previous = states.get(source_key, {})
+        previous_users = {str(item) for item in previous.get("users", [])}
+        previous_groups = {str(item) for item in previous.get("groups", [])}
+        previous_memberships = {str(item) for item in previous.get("memberships", [])}
+        owned_users = {str(item) for item in previous.get("owned_users", [])}
+
+        current_users = {user.subject for user in snapshot.users}
+        current_groups = {group.name for group in snapshot.groups}
+        current_memberships = {
+            self._membership_key(snapshot.tenant_id, member, group.name)
+            for group in snapshot.groups
+            for member in group.members
+        }
+        created_users = 0
+        updated_users = 0
+        for user in snapshot.users:
+            key = self._user_key(snapshot.tenant_id, user.subject)
+            existing = self._store.data["identity_users"].get(key)
+            if existing is None:
+                entity = IdentityUser.create(
+                    snapshot.tenant_id, user.subject, user.display_name, user.email, ()
+                )
+                payload = entity.as_dict()
+                payload["active"] = user.active
+                self._store.data["identity_users"][key] = payload
+                owned_users.add(user.subject)
+                created_users += 1
+            else:
+                existing["display_name"] = user.display_name
+                existing["email"] = user.email
+                existing["active"] = user.active
+                updated_users += 1
+
+        created_groups = 0
+        updated_groups = 0
+        for group in snapshot.groups:
+            key = self._group_key(snapshot.tenant_id, group.name)
+            existing = self._store.data["identity_groups"].get(key)
+            if existing is None:
+                group_entity = IdentityGroup.create(
+                    snapshot.tenant_id, group.name, group.display_name, group.roles
+                )
+                self._store.data["identity_groups"][key] = group_entity.as_dict()
+                created_groups += 1
+            else:
+                existing["display_name"] = group.display_name
+                existing["roles"] = list(group.roles)
+                existing["active"] = True
+                updated_groups += 1
+
+        removed_memberships = 0
+        for key in previous_memberships - current_memberships:
+            if self._store.data["identity_memberships"].pop(key, None) is not None:
+                removed_memberships += 1
+        added_memberships = 0
+        for group in snapshot.groups:
+            for member in group.members:
+                membership = GroupMembership.create(snapshot.tenant_id, member, group.name)
+                key = self._membership_key(snapshot.tenant_id, member, group.name)
+                if key not in self._store.data["identity_memberships"]:
+                    added_memberships += 1
+                self._store.data["identity_memberships"][key] = membership.as_dict()
+
+        deactivated_users = 0
+        if deactivate_orphans:
+            other_managed: set[str] = set()
+            for key, state in states.items():
+                if key != source_key and str(state.get("tenant_id")) == snapshot.tenant_id.value:
+                    other_managed.update(str(item) for item in state.get("users", []))
+            for subject in (previous_users - current_users) & owned_users:
+                if subject in other_managed:
+                    continue
+                user_key = self._user_key(snapshot.tenant_id, subject)
+                value = self._store.data["identity_users"].get(user_key)
+                if value is not None and bool(value.get("active", True)):
+                    value["active"] = False
+                    deactivated_users += 1
+
+        for group_name in previous_groups - current_groups:
+            group_key = self._group_key(snapshot.tenant_id, group_name)
+            value = self._store.data["identity_groups"].get(group_key)
+            if value is not None:
+                value["active"] = False
+
+        states[source_key] = {
+            "tenant_id": snapshot.tenant_id.value,
+            "source_id": snapshot.source_id,
+            "provider": snapshot.provider.value,
+            "fingerprint": snapshot.fingerprint,
+            "captured_at": snapshot.captured_at.isoformat(),
+            "users": sorted(current_users),
+            "owned_users": sorted(owned_users),
+            "groups": sorted(current_groups),
+            "memberships": sorted(current_memberships),
+        }
+        self._store.mark_dirty()
+        return {
+            "source_id": snapshot.source_id,
+            "fingerprint": snapshot.fingerprint,
+            "created_users": created_users,
+            "updated_users": updated_users,
+            "deactivated_users": deactivated_users,
+            "created_groups": created_groups,
+            "updated_groups": updated_groups,
+            "added_memberships": added_memberships,
+            "removed_memberships": removed_memberships,
+        }
 
     def _user_key(self, tenant_id: TenantId, username: str) -> str:
         return ":".join((tenant_id.value, IdentitySubject.normalize(username)))

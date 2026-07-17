@@ -1,3 +1,15 @@
+## v0.34.0 — Identité avancée, Team Sync, Oracle et production systemd
+
+- ajoute l’authentification SAML 2.0 avec validation cryptographique, configuration serveur de confiance et mapping groupes externes vers rôles OpenInfra ;
+- enrichit LDAP/IPA avec LDAPS, StartTLS, CA, pagination, timeouts, referrals et groupes imbriqués bornés ;
+- ajoute Team Sync idempotent pour LDAP, OAuth, Auth Proxy signé HMAC et Okta, avec audit et gestion contrôlée des identités orphelines ;
+- ajoute Oracle Database comme backend optionnel Pro/Enterprise, PostgreSQL restant le backend par défaut ;
+- ajoute les migrations Oracle et la migration PostgreSQL partitionnée `0057_federated_identity_team_sync.sql` ;
+- rend l’installation et l’exploitation complètes sous systemd, sans dépendance Docker en production ;
+- corrige les permissions du répertoire de jeton bootstrap pour permettre sa lecture par l’UID/GID runtime sans élargir les droits ;
+- ajoute CLI, API, OpenAPI, unités/timer systemd, installateurs, tests, documentation et workflow GitHub Actions dédiés ;
+- préserve la compatibilité ascendante et la charte graphique existante.
+
 ## v0.33.12 — Jeton bootstrap runtime interne
 
 - retire `OPENINFRA_BOOTSTRAP_TOKEN` du contrat `.env` et purge automatiquement toute valeur héritée ;

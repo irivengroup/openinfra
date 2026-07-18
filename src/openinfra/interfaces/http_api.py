@@ -422,6 +422,7 @@ from openinfra.application.source_governance_services import (
 from openinfra.domain.access_policy import AccessRequestContext
 from openinfra.domain.common import AccessDeniedError, OpenInfraError, ValidationError
 from openinfra.domain.countries import CountryCatalog
+from openinfra.domain.editions import EditionDatabasePolicy
 from openinfra.domain.federated_identity import FederatedProvider
 from openinfra.domain.security import AuthenticatedPrincipal, Permission
 from openinfra.infrastructure.advanced_identity import (
@@ -9623,7 +9624,8 @@ class OpenInfraApiEntrypoint:
 
     def _create_application(self, args: argparse.Namespace) -> OpenInfraApplication:
         edition = str(getattr(args, "edition", "enterprise")).strip().lower()
-        backend = RuntimeDatabaseBackendResolver().resolve(args.backend)
+        backend = RuntimeDatabaseBackendResolver().resolve(args.backend, edition)
+        EditionDatabasePolicy.validate(edition, backend)
         if backend == "json":
             return ApplicationFactory().create_json_application(args.data, edition=edition)
         if backend == "oracle":

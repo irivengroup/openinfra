@@ -12,7 +12,6 @@ import sys
 import tempfile
 import time
 import tomllib
-import venv
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -535,66 +534,65 @@ class InstallerPackagingValidator:
 
 
 class IsolatedWheelSmokeValidator:
+    _WORKER_TIMEOUT_SECONDS: Final[int] = 1500
+
     def validate(self, project_root: Path, wheel_path: Path, work_root: Path) -> dict[str, object]:
-        environment_root = work_root / "isolated-wheel"
-        if environment_root.exists():
-            shutil.rmtree(environment_root)
-        venv.EnvBuilder(with_pip=True, clear=True).create(environment_root)
-        python_path = self._python_path(environment_root)
-        environment = self._isolated_environment()
-        install = subprocess.run(  # noqa: S603  # nosec B603
-            (
-                str(python_path),
-                "-I",
-                "-m",
-                "pip",
-                "install",
-                "--disable-pip-version-check",
-                str(wheel_path),
-            ),
-            cwd=project_root,
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=900,
-            env=environment,
-        )
-        if install.returncode != 0:
-            raise ReleasePackagingError(
-                "isolated wheel installation failed: " + (install.stderr or install.stdout).strip()
+        worker = project_root / "scripts/isolated_wheel_smoke.py"
+        if not worker.is_file():
+            raise ReleasePackagingError(f"isolated wheel smoke worker does not exist: {worker}")
+        try:
+            completed = subprocess.run(  # noqa: S603  # nosec B603
+                (
+                    sys.executable,
+                    "-I",
+                    str(worker),
+                    "--project-root",
+                    str(project_root),
+                    "--wheel",
+                    str(wheel_path),
+                    "--work-root",
+                    str(work_root),
+                ),
+                cwd=project_root,
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=self._WORKER_TIMEOUT_SECONDS,
+                env=self._isolated_environment(),
             )
-        check = subprocess.run(  # noqa: S603  # nosec B603
-            (str(python_path), "-I", "-m", "pip", "check"),
-            cwd=project_root,
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=300,
-            env=environment,
-        )
-        if check.returncode != 0:
+        except subprocess.TimeoutExpired as exc:
             raise ReleasePackagingError(
-                "isolated wheel dependency check failed: " + (check.stderr or check.stdout).strip()
-            )
-        smoke = subprocess.run(  # noqa: S603  # nosec B603
-            (str(python_path), "-I", "scripts/smoke_installed_wheel.py"),
-            cwd=project_root,
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=300,
-            env=environment,
-        )
-        if smoke.returncode != 0:
+                f"isolated wheel smoke worker exceeded {self._WORKER_TIMEOUT_SECONDS} seconds"
+            ) from exc
+        except OSError as exc:
             raise ReleasePackagingError(
-                "installed wheel smoke failed: " + (smoke.stderr or smoke.stdout).strip()
-            )
-        return {
-            "python": str(python_path),
+                f"isolated wheel smoke worker could not start: {exc}"
+            ) from exc
+        if completed.returncode != 0:
+            detail = (completed.stderr or completed.stdout).strip()
+            suffix = f": {detail}" if detail else ""
+            raise ReleasePackagingError(f"isolated wheel smoke worker failed{suffix}")
+        try:
+            payload = json.loads(completed.stdout)
+        except json.JSONDecodeError as exc:
+            raise ReleasePackagingError(
+                "isolated wheel smoke worker returned invalid JSON"
+            ) from exc
+        if not isinstance(payload, dict):
+            raise ReleasePackagingError("isolated wheel smoke worker returned a non-object payload")
+        required = {
             "pip_check": "passed",
             "smoke": "passed",
             "wheel": wheel_path.name,
+            "worker_process_isolated": True,
         }
+        mismatches = [key for key, expected in required.items() if payload.get(key) != expected]
+        if mismatches:
+            raise ReleasePackagingError(
+                "isolated wheel smoke worker evidence is incomplete: "
+                + ", ".join(sorted(mismatches))
+            )
+        return payload
 
     @classmethod
     def _isolated_environment(cls) -> dict[str, str]:
@@ -688,11 +686,11 @@ class ReleasePackagingAuditService:
     _REQUIRED_CONTROLS: Final[tuple[str, ...]] = (
         "reproducible-distributions",
         "artifact-content",
+        "isolated-wheel-smoke",
         "installer-dry-run-and-rollback",
         "release-sbom",
         "release-manifest-and-signature",
         "checksums",
-        "isolated-wheel-smoke",
     )
 
     def __init__(
@@ -748,6 +746,18 @@ class ReleasePackagingAuditService:
                     started,
                     "wheel and source distribution contain all required runtime and release assets",
                     {"artifacts": [item.name for item in artifacts]},
+                )
+            )
+
+            started = time.perf_counter()
+            wheel = next(output_dir / item.name for item in artifacts if item.kind == "wheel")
+            smoke_evidence = self._smoke_validator.validate(project_root, wheel, work_root)
+            controls.append(
+                self._passed(
+                    "isolated-wheel-smoke",
+                    started,
+                    "wheel installs with runtime dependencies and passes installed-package smoke",
+                    smoke_evidence,
                 )
             )
 
@@ -838,18 +848,6 @@ class ReleasePackagingAuditService:
                         "entries": len(signed_files),
                         "sha256": hashlib.sha256(checksum_path.read_bytes()).hexdigest(),
                     },
-                )
-            )
-
-            started = time.perf_counter()
-            wheel = next(output_dir / item.name for item in artifacts if item.kind == "wheel")
-            smoke_evidence = self._smoke_validator.validate(project_root, wheel, work_root)
-            controls.append(
-                self._passed(
-                    "isolated-wheel-smoke",
-                    started,
-                    "wheel installs with runtime dependencies and passes installed-package smoke",
-                    smoke_evidence,
                 )
             )
 

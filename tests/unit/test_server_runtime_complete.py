@@ -23,7 +23,7 @@ class TestServerRuntimeComplete:
     def test_all_runtime_actions(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         monkeypatch.setattr(
             "openinfra.interfaces.server_runtime.RuntimeDatabaseBackendResolver.resolve",
-            lambda self: "oracle",
+            lambda self, explicit_edition=None: "oracle",
         )
         monkeypatch.setattr("openinfra.interfaces.server_runtime.OpenInfraCLI", _Cli)
         runtime = OpenInfraServerRuntime()

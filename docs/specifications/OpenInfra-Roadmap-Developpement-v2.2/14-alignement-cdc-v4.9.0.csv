@@ -121,5 +121,5 @@ REQ-00470,"Conformité Kubernetes, dépendances, capacité et dérive GitOps",P2
 REQ-00841,Authentification SAML 2.0 de confiance,P22,EPIC-2201,REL-12,TST-P22-SAML
 REQ-00842,LDAP/IPA avancé,P22,EPIC-2202,REL-12,TST-P22-LDAP
 REQ-00843,Team Sync LDAP/OAuth/Auth Proxy/Okta,P22,EPIC-2203,REL-12,TST-P22-TEAM-SYNC
-REQ-00844,Oracle optionnel avec PostgreSQL par défaut,P22,EPIC-2204,REL-12,TST-P22-ORACLE
+REQ-00844,Oracle optionnel Enterprise avec PostgreSQL par défaut,P22,EPIC-2204,REL-12,TST-P22-ORACLE
 REQ-00845,Déploiement serveur standard systemd sans Docker,P22,EPIC-2205;EPIC-2206,REL-12,TST-P22-SYSTEMD-GATE

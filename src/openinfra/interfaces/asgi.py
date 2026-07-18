@@ -12,6 +12,7 @@ from typing import Any, cast
 
 from openinfra.application.container import ApplicationFactory, OpenInfraApplication
 from openinfra.domain.common import OpenInfraError
+from openinfra.domain.editions import EditionDatabasePolicy
 from openinfra.infrastructure.oracle import OracleConnectionSettings
 from openinfra.infrastructure.postgresql import PostgreSQLConnectionPoolSettings
 from openinfra.infrastructure.read_routing import (
@@ -300,6 +301,9 @@ class OpenInfraApiEnvironmentApplicationFactory:
     def create(self) -> OpenInfraApplication:
         backend = os.environ.get("OPENINFRA_API_BACKEND", "postgresql").strip().lower()
         edition = os.environ.get("OPENINFRA_EDITION", "enterprise").strip().lower()
+        if backend not in {"json", "postgresql", "oracle"}:
+            raise OpenInfraError("OPENINFRA_API_BACKEND must be json, postgresql or oracle")
+        EditionDatabasePolicy.validate(edition, backend)
         if backend == "json":
             data_path = Path(os.environ.get("OPENINFRA_API_DATA", ".openinfra.json"))
             return ApplicationFactory().create_json_application(data_path, edition=edition)
@@ -314,7 +318,7 @@ class OpenInfraApiEnvironmentApplicationFactory:
                 settings, seed=False, edition=edition
             )
         if backend != "postgresql":
-            raise OpenInfraError("OPENINFRA_API_BACKEND must be json, postgresql or oracle")
+            raise AssertionError(f"unhandled API backend: {backend}")
         dsn = RuntimeDatabaseDsnResolver().resolve(os.environ.get("OPENINFRA_API_POSTGRES_DSN"))
         if not dsn:
             raise OpenInfraError("OPENINFRA_DATABASE_DSN is required for PostgreSQL ASGI runtime")

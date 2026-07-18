@@ -1,6 +1,6 @@
 # Runbook production — déploiement serveur natif OpenInfra
 
-OpenInfra s’exécute directement sur des serveurs Linux sous systemd. Docker ne fait pas partie de la chaine d'execution production. Docker sert uniquement aux essais locaux et aux smokes facultatifs ; il n’est ni requis ni supposé en production. PostgreSQL 15+ reste le backend par défaut. Oracle Database est disponible en option pour les éditions Pro et Enterprise.
+OpenInfra s’exécute directement sur des serveurs Linux sous systemd. Docker ne fait pas partie de la chaine d'execution production. Docker sert uniquement aux essais locaux et aux smokes facultatifs ; il n’est ni requis ni supposé en production. PostgreSQL 15+ reste le backend par défaut. Oracle Database est disponible uniquement pour l’édition Enterprise.
 
 ## Systèmes cibles
 
@@ -33,7 +33,7 @@ sudo install -d -o root -g openinfra -m 0750 /etc/openinfra/secrets /var/lib/ope
 sudo ln -sfn /opt/openinfra/config /etc/openinfra
 python3.11 -m venv /opt/openinfra/venv
 /opt/openinfra/venv/bin/python -m pip install --upgrade pip
-/opt/openinfra/venv/bin/python -m pip install '/opt/openinfra/openinfra-0.34.3-py3-none-any.whl[postgresql,advanced-identity]'
+/opt/openinfra/venv/bin/python -m pip install '/opt/openinfra/openinfra-0.34.4-py3-none-any.whl[postgresql,advanced-identity]'
 ```
 
 Pour Oracle, utiliser l’extra `oracle` à la place de `postgresql`.
@@ -52,6 +52,8 @@ OPENINFRA_DATABASE_DSN_REF="file:///etc/openinfra/secrets/postgresql-dsn"
 OPENINFRA_RUNTIME_CONFIG="/opt/openinfra/config/openinfra.conf"
 OPENINFRA_MIGRATIONS_ROOT="/opt/openinfra/share/migrations/postgresql"
 ```
+
+Oracle est refusé en Lite et Pro avant tout chargement du pilote ou accès réseau.
 
 Configuration Oracle minimale :
 

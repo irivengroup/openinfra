@@ -17,7 +17,8 @@ from pathlib import Path
 from typing import Any, ClassVar
 
 from openinfra import __version__
-from openinfra.domain.common import OpenInfraError
+from openinfra.domain.common import OpenInfraError, ValidationError
+from openinfra.domain.editions import EditionDatabasePolicy
 from openinfra.infrastructure.oracle import OracleMigrationCatalog
 
 
@@ -275,6 +276,21 @@ class Gate11ContractsQualification:
         )
         package_source = (root / "pyproject.toml").read_text(encoding="utf-8")
         entrypoint_present = "openinfra-gate11" in package_source
+        promotion_policy_valid = False
+        enterprise_gate_valid = False
+        try:
+            promotion_policy = Gate11PromotionPolicy.load(
+                root / "docs/release/advanced-identity-oracle-promotion-policy.json"
+            )
+            promotion_policy_valid = promotion_policy.required_edition == "enterprise"
+            EditionDatabasePolicy.validate("enterprise", "oracle")
+            try:
+                EditionDatabasePolicy.validate("pro", "oracle")
+            except ValidationError:
+                enterprise_gate_valid = True
+        except (OSError, Gate11QualificationError, ValidationError):
+            promotion_policy_valid = False
+            enterprise_gate_valid = False
         checks = {
             "postgresql_catalog_present": len(postgres_names) > 0,
             "oracle_catalog_present": len(oracle_names) > 0,
@@ -283,6 +299,8 @@ class Gate11ContractsQualification:
             "systemd_assets_present": systemd_present,
             "gate11_workflow_complete": workflow_complete,
             "gate11_entrypoint_present": entrypoint_present,
+            "promotion_policy_requires_enterprise": promotion_policy_valid,
+            "oracle_enterprise_gate_active": enterprise_gate_valid,
         }
         return Gate11Report.build(
             report_kind="advanced-identity-oracle-contracts",
@@ -295,6 +313,7 @@ class Gate11ContractsQualification:
                 "oracle_migration_count": len(oracle_names),
                 "oracle_manifest_entry_count": manifest_entries,
                 "systemd_assets": list(cls.REQUIRED_SYSTEMD_ASSETS),
+                "required_edition": "enterprise",
             },
         )
 
@@ -317,7 +336,14 @@ class Gate11OracleQualification:
         expected_catalog_count = len(tuple(root.glob("[0-9][0-9][0-9][0-9]_*.sql")))
         if expected_catalog_count < 1:
             raise Gate11QualificationError("Oracle migration catalog is empty")
-        common = ["--backend", "oracle", "--root", str(root)]
+        common = [
+            "--backend",
+            "oracle",
+            "--edition",
+            "enterprise",
+            "--root",
+            str(root),
+        ]
         apply_result = runner.run(
             [openinfra_binary, "database", "apply-migrations", *common],
             timeout_seconds=timeout_seconds,
@@ -357,6 +383,7 @@ class Gate11OracleQualification:
                 "applied_count": status.get("applied_count"),
                 "newly_applied_count": len(newly_applied) if isinstance(newly_applied, list) else 0,
                 "manifest_sha256": Gate11Input.sha256_file(manifest_path),
+                "edition": "enterprise",
             },
         )
 
@@ -705,6 +732,7 @@ class Gate11EvidencePolicy:
 @dataclass(frozen=True, slots=True)
 class Gate11PromotionPolicy:
     required_evidence: tuple[Gate11EvidencePolicy, ...]
+    required_edition: str = "enterprise"
 
     EXPECTED_EVIDENCE: ClassVar[dict[str, str]] = {
         "gate11-contracts": "advanced-identity-oracle-contracts",
@@ -728,7 +756,9 @@ class Gate11PromotionPolicy:
         actual = {item.identifier: item.report_kind for item in evidence}
         if actual != cls.EXPECTED_EVIDENCE:
             raise Gate11QualificationError("GATE-11 evidence catalog is incomplete or unsupported")
-        return cls(evidence)
+        if payload.get("required_edition") != "enterprise":
+            raise Gate11QualificationError("GATE-11 Oracle policy must require Enterprise edition")
+        return cls(evidence, required_edition="enterprise")
 
 
 @dataclass(frozen=True, slots=True)

@@ -30,7 +30,7 @@ from openinfra.quality.advanced_identity_oracle_promotion import (
     Gate11TeamSyncQualification,
 )
 
-CANDIDATE = "openinfra-0.34.3-rc1"
+CANDIDATE = "openinfra-0.34.4-rc1"
 COMMIT = "a" * 40
 ENVIRONMENT = "qualification-lab-01"
 
@@ -105,7 +105,7 @@ class TestGate11InputAndReport:
             source_commit=COMMIT,
             environment_id=ENVIRONMENT,
             checks={"one": True, "two": False},
-            details={"count": 57},
+            details={"count": 58},
             failures=["explicit failure"],
             generated_at=datetime(2026, 7, 18, tzinfo=UTC),
         )
@@ -171,8 +171,11 @@ class TestGate11LiveQualifications:
         )
         assert report["status"] == "passed"
         assert report["details"]["catalog_count"] == 3
+        assert report["details"]["edition"] == "enterprise"
         assert runner.commands[0][1:3] == ["database", "apply-migrations"]
         assert runner.commands[1][1:3] == ["database", "status"]
+        for command in runner.commands:
+            assert command[command.index("--edition") + 1] == "enterprise"
 
         failed = _Runner([Gate11CommandResult(2, "", "ORA-01017")])
         with pytest.raises(Gate11QualificationError, match="application failed"):
@@ -589,10 +592,13 @@ class TestGate11PromotionEvidence:
             source_commit=COMMIT,
             environment_id=ENVIRONMENT,
         )
-        assert report["details"]["postgresql_migration_count"] == 57
-        assert report["details"]["oracle_migration_count"] == 57
+        assert report["details"]["postgresql_migration_count"] == 58
+        assert report["details"]["oracle_migration_count"] == 58
         assert report["checks"]["migration_filenames_match"] is True
         assert report["checks"]["gate11_entrypoint_present"] is True
+        assert report["checks"]["promotion_policy_requires_enterprise"] is True
+        assert report["checks"]["oracle_enterprise_gate_active"] is True
+        assert report["details"]["required_edition"] == "enterprise"
 
 
 class TestGate11CommandRunnerAndHttp:

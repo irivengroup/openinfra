@@ -13,4 +13,4 @@ M10,GA signée,P18,T0+34 mois,Release GA complète et validée.
 M11,Socle haute performance disponible,P19,T0+3 mois,"OpenInfra 0.30.x ASGI avec pools bornés, streaming, rollback et CI validés."
 M12,Scale-out Pro/Entreprise validé,P20,T0+9 mois,"PgBouncer, réplicas, curseurs, workers/outbox, frontend modulaire et charge réelles validés."
 M13,Kubernetes & Cloud-native qualifié,P21,T0+38 mois,"Inventaire, topologie physique, exposition, sécurité, GitOps et capacité cloud-native validés."
-M14,Identité avancée et Oracle qualifiés,P22,T0+40 mois,"SAML, LDAP avancé, Team Sync, Oracle optionnel et déploiement systemd certifiés."
+M14,Identité avancée et Oracle qualifiés,P22,T0+40 mois,"SAML, LDAP avancé, Team Sync, Oracle optionnel Enterprise et déploiement systemd certifiés."

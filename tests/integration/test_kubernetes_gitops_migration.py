@@ -26,9 +26,10 @@ def test_kubernetes_gitops_precedes_federated_identity_migration() -> None:
     names = [
         path.name for path in sorted((ROOT / "installers/migrations/postgresql").glob("*.sql"))
     ]
-    assert len(names) == 57
-    assert names[-3:] == [
+    assert len(names) == 58
+    assert names[-4:] == [
         "0055_kubernetes_topology_inventory.sql",
         "0056_kubernetes_gitops_drift.sql",
         "0057_federated_identity_team_sync.sql",
+        "0058_oracle_document_shards.sql",
     ]

@@ -48,7 +48,7 @@ jobs:
           mkdir -p artifacts/gate11
           openinfra-gate11 contracts \
             --project-root . \
-            --candidate-id "openinfra-0.34.3-${GITHUB_RUN_ID}" \
+            --candidate-id "openinfra-0.34.4-${GITHUB_RUN_ID}" \
             --source-commit "${GITHUB_SHA}" \
             --environment-id ci-contracts \
             --output artifacts/gate11/contracts.json \
@@ -91,7 +91,7 @@ jobs:
 
       - name: Verify and smoke installed wheel outside source tree
         run: |
-          python -m pip install --no-deps --target /tmp/openinfra-wheel dist/openinfra-0.34.3-py3-none-any.whl
+          python -m pip install --no-deps --target /tmp/openinfra-wheel dist/openinfra-0.34.4-py3-none-any.whl
           cd /tmp
           PYTHONPATH=/tmp/openinfra-wheel python - <<'PY'
           import openinfra
@@ -99,7 +99,7 @@ jobs:
           from openinfra.infrastructure.runtime_config import RuntimeDatabaseBackendResolver
           from openinfra.quality.advanced_identity_oracle_promotion import Gate11PromotionPolicy
 
-          assert openinfra.__version__ == "0.34.3"
+          assert openinfra.__version__ == "0.34.4"
           assert RuntimeDatabaseBackendResolver().resolve() == "postgresql"
           assert len(Gate11PromotionPolicy.EXPECTED_EVIDENCE) == 5
           assert OracleConnectionSettings.create(
@@ -123,7 +123,7 @@ jobs:
     runs-on: [self-hosted, linux, openinfra-gate11]
     needs: identity-oracle-contracts
     env:
-      GATE11_CANDIDATE_ID: openinfra-0.34.3-${{ github.run_id }}
+      GATE11_CANDIDATE_ID: openinfra-0.34.4-${{ github.run_id }}
       GATE11_SOURCE_COMMIT: ${{ github.sha }}
       GATE11_ENVIRONMENT_ID: ${{ vars.OPENINFRA_GATE11_ENVIRONMENT_ID }}
       GATE11_BACKEND: ${{ vars.OPENINFRA_GATE11_BACKEND }}
@@ -131,6 +131,7 @@ jobs:
       GATE11_HEALTH_URL: ${{ vars.OPENINFRA_GATE11_HEALTH_URL }}
       GATE11_READY_URL: ${{ vars.OPENINFRA_GATE11_READY_URL }}
       OPENINFRA_DATABASE_BACKEND: ${{ vars.OPENINFRA_GATE11_BACKEND }}
+      OPENINFRA_EDITION: enterprise
       OPENINFRA_ORACLE_DSN: ${{ secrets.OPENINFRA_ORACLE_DSN }}
       OPENINFRA_ORACLE_USER: ${{ secrets.OPENINFRA_ORACLE_USER }}
       OPENINFRA_ORACLE_PASSWORD: ${{ secrets.OPENINFRA_ORACLE_PASSWORD }}
@@ -147,6 +148,7 @@ jobs:
           set -euo pipefail
           test -n "$GATE11_ENVIRONMENT_ID"
           test "$GATE11_BACKEND" = "oracle"
+          test "$OPENINFRA_EDITION" = "enterprise"
           test -n "$GATE11_TEAM_SYNC_SOURCE"
           test -n "$GATE11_HEALTH_URL"
           test -n "$GATE11_READY_URL"
@@ -154,7 +156,7 @@ jobs:
           test -n "$OPENINFRA_ORACLE_USER"
           test -n "$OPENINFRA_ORACLE_PASSWORD"
           test -n "$OPENINFRA_GATE11_SAML_REQUEST_JSON_B64"
-          test "$(/opt/openinfra/venv/bin/openinfra version)" = "0.34.3"
+          test "$(/opt/openinfra/venv/bin/openinfra version)" = "0.34.4"
           test -x /opt/openinfra/venv/bin/openinfra-gate11
 
       - name: Prepare protected evidence workspace

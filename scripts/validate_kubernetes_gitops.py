@@ -126,7 +126,7 @@ class KubernetesGitOpsProjectValidator:
             ("TST-P21-K8S-GITOPS-DRIFT", "GitOps drift"),
         )
         migrations = sorted((self._root / "installers/migrations/postgresql").glob("*.sql"))
-        if len(migrations) != 57 or migrations[-1].name != "0057_federated_identity_team_sync.sql":
+        if len(migrations) != 58 or migrations[-1].name != "0058_oracle_document_shards.sql":
             raise KubernetesGitOpsProjectError(
                 "EPIC-2104 requires the 56-migration chain ending with "
                 "0056_kubernetes_gitops_drift.sql"
@@ -148,7 +148,7 @@ class KubernetesGitOpsProjectValidator:
             "transactional_outbox": True,
             "automatic_remediation": False,
             "api_cli_web_parity": True,
-            "migration_count": 57,
+            "migration_count": 58,
         }
 
     def _assert_fragments(self, relative: str, fragments: tuple[str, ...]) -> None:

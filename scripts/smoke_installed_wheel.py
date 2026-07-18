@@ -26,7 +26,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.34.3"
+    EXPECTED_VERSION = "0.34.4"
     EXPECTED_ASYNC_ROUTES = (
         "/api/v1/async/jobs",
         "/api/v1/async/jobs/get",
@@ -232,8 +232,8 @@ class InstalledWheelSmoke:
         "/api/v1/kubernetes/topologies/capacity-export",
         "/api/v1/kubernetes/topologies/latest-capacity-export",
     )
-    EXPECTED_LAST_MIGRATION = "0057_federated_identity_team_sync.sql"
-    EXPECTED_MIGRATION_COUNT = 57
+    EXPECTED_LAST_MIGRATION = "0058_oracle_document_shards.sql"
+    EXPECTED_MIGRATION_COUNT = 58
     EXPECTED_ASSETS = (
         "openinfra-web.js",
         "openinfra-web.css",
@@ -626,7 +626,7 @@ class InstalledWheelSmoke:
     def _assert_release_security_contract(package_root: Path) -> None:
         controls = ReleaseSecurityControlCatalog.build(
             package_root,
-            image_ref="openinfra/runtime:0.34.3",
+            image_ref="openinfra/runtime:0.34.4",
             api_base_url="http://127.0.0.1:8080",
             web_base_url="http://127.0.0.1:2006",
         )
@@ -656,6 +656,7 @@ class InstalledWheelSmoke:
             package_root / "interfaces" / "server_runtime.py",
             package_root / "migrations" / "oracle" / "0001_bootstrap.sql",
             package_root / "migrations" / "oracle" / "0057_federated_identity_team_sync.sql",
+            package_root / "migrations" / "oracle" / "0058_oracle_document_shards.sql",
             package_root / "migrations" / "oracle" / "manifest.json",
             package_root / "docs" / "runbooks" / "RUNTIME_NATIVE.md",
             package_root / "docs" / "runbooks" / "ADVANCED_IDENTITY_ORACLE_SYSTEMD.md",

@@ -1191,8 +1191,10 @@ class InstallerConfigValidator:
             errors.append("database.backend must be postgresql or oracle")
             return
         if backend == "oracle":
-            if policy.edition == "lite" or policy.scope != "server":
-                errors.append("Oracle backend is supported only by Pro/Enterprise server scopes")
+            if policy.edition != "enterprise" or policy.scope != "server":
+                errors.append(
+                    "Oracle database backend is supported only by Enterprise server scope"
+                )
                 return
             if not parser.has_section("oracle"):
                 errors.append("database.backend=oracle requires an [oracle] section")

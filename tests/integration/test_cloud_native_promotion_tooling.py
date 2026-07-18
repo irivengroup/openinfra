@@ -19,7 +19,7 @@ def test_epic_2106_project_contract_is_complete() -> None:
     assert report["gate_id"] == "GATE-10"
     assert report["required_evidence_count"] == 7
     assert report["max_resources_per_snapshot"] == 50_000
-    assert report["migration_count"] == 57
+    assert report["migration_count"] == 58
 
 
 def test_gate_10_is_integrated_into_ci_quality_packaging_and_wheel_smoke() -> None:

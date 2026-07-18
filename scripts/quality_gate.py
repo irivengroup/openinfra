@@ -245,6 +245,7 @@ class ReleasePackagingGuard:
         required_files = (
             "src/openinfra/quality/release_packaging.py",
             "scripts/release_packaging_audit.py",
+            "scripts/isolated_wheel_smoke.py",
             ".github/workflows/release-packaging.yml",
             "docs/architecture/release-packaging-certification.md",
             "docs/runbooks/RELEASE_PACKAGING.md",

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+from dataclasses import replace
 from pathlib import Path
 from types import ModuleType
 from typing import Any, cast
@@ -225,6 +226,30 @@ class TestAutonomousScopeInstallers:
 
         assert not (tmp_path / "rollback-target/opt/openinfra/src").exists()
         assert not (tmp_path / "rollback-target/opt/openinfra/requirements").exists()
+
+    def test_oracle_backend_is_rejected_by_lite_and_pro_installer_runtimes(
+        self, tmp_path: Path
+    ) -> None:
+        module = InstallerRuntimeModule().load()
+        program_cls = cast(Any, module).AutonomousInstallerProgram
+        runtime_error = cast(Any, module).InstallerRuntimeError
+
+        for entrypoint in (
+            Path("installers/setup/lite/install.py"),
+            Path("installers/setup/pro/server/install.py"),
+        ):
+            installer = program_cls(entrypoint)
+            config_path = tmp_path / (installer._location.edition + "-install.ini")
+            config_path.write_text("[database]\nbackend = oracle\n", encoding="utf-8")
+            installer._location = replace(installer._location, config_path=config_path)
+            with pytest.raises(runtime_error, match="Enterprise edition"):
+                installer._database_backend()
+
+        enterprise = program_cls(Path("installers/setup/enterprise/server/install.py"))
+        enterprise_config = tmp_path / "enterprise-install.ini"
+        enterprise_config.write_text("[database]\nbackend = oracle\n", encoding="utf-8")
+        enterprise._location = replace(enterprise._location, config_path=enterprise_config)
+        assert enterprise._database_backend() == "oracle"
 
     def test_backend_migration_dsn_is_resolved_from_secret_refs_without_cli_exposure(
         self, monkeypatch: pytest.MonkeyPatch

@@ -497,51 +497,96 @@ class TestReleasePackagingFailureBranches:
             "count": 1
         }
 
-    @pytest.mark.parametrize("failed_step", ["install", "check", "smoke", "none"])
-    def test_isolated_wheel_smoke_subprocess_paths(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failed_step: str
+    @pytest.mark.parametrize(
+        ("mode", "returncode", "stdout", "stderr", "expected"),
+        (
+            (
+                "success",
+                0,
+                '{"pip_check":"passed","smoke":"passed","wheel":"openinfra.whl",'
+                '"worker_process_isolated":true,"python":"/tmp/python"}',
+                "",
+                None,
+            ),
+            ("worker", 2, "", "worker-failed", "worker failed"),
+            ("invalid-json", 0, "not-json", "", "invalid JSON"),
+            ("non-object", 0, "[]", "", "non-object"),
+            (
+                "incomplete",
+                0,
+                '{"pip_check":"passed","smoke":"failed","wheel":"openinfra.whl",'
+                '"worker_process_isolated":true}',
+                "",
+                "evidence is incomplete",
+            ),
+        ),
+    )
+    def test_isolated_wheel_smoke_worker_contract(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        mode: str,
+        returncode: int,
+        stdout: str,
+        stderr: str,
+        expected: str | None,
     ) -> None:
         import subprocess
 
+        project_root = tmp_path / "project"
+        scripts = project_root / "scripts"
+        scripts.mkdir(parents=True)
+        (scripts / "isolated_wheel_smoke.py").write_text("worker", encoding="utf-8")
         wheel = tmp_path / "openinfra.whl"
         wheel.write_bytes(b"wheel")
         work = tmp_path / "work"
-        environment_root = work / "isolated-wheel"
-        environment_root.mkdir(parents=True)
-
-        def create(root: Path) -> None:
-            python = root / "bin/python"
-            python.parent.mkdir(parents=True, exist_ok=True)
-            python.write_text("", encoding="utf-8")
-
-        monkeypatch.setattr(
-            "openinfra.quality.release_packaging.venv.EnvBuilder.create",
-            lambda self, root: create(Path(root)),
-        )
-        calls = {"value": 0}
+        captured: dict[str, object] = {}
 
         def run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
-            del args, kwargs
-            calls["value"] += 1
-            step = ("install", "check", "smoke")[calls["value"] - 1]
-            return subprocess.CompletedProcess(
-                [], 1 if step == failed_step else 0, "", f"{step}-failed"
-            )
+            captured["args"] = args
+            captured["kwargs"] = kwargs
+            return subprocess.CompletedProcess([], returncode, stdout, stderr)
 
         monkeypatch.setattr("openinfra.quality.release_packaging.subprocess.run", run)
         validator = IsolatedWheelSmokeValidator()
-        if failed_step == "none":
-            result = validator.validate(tmp_path, wheel, work)
-            assert result["smoke"] == "passed"
+        if expected is None:
+            result = validator.validate(project_root, wheel, work)
+            assert result["worker_process_isolated"] is True
+            assert "isolated_wheel_smoke.py" in str(captured["args"])
+            environment = captured["kwargs"]
+            assert isinstance(environment, dict)
+            assert environment["env"]["PYTHONNOUSERSITE"] == "1"
         else:
-            with pytest.raises(ReleasePackagingError, match=failed_step):
-                validator.validate(tmp_path, wheel, work)
+            with pytest.raises(ReleasePackagingError, match=expected):
+                validator.validate(project_root, wheel, work)
 
-        windows_root = tmp_path / "windows"
+        windows_root = tmp_path / f"windows-{mode}"
         windows_python = windows_root / "Scripts/python.exe"
         windows_python.parent.mkdir(parents=True)
         windows_python.write_text("", encoding="utf-8")
         assert validator._python_path(windows_root) == windows_python
+
+    def test_isolated_wheel_smoke_worker_timeout_and_missing_file(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import subprocess
+
+        validator = IsolatedWheelSmokeValidator()
+        wheel = tmp_path / "openinfra.whl"
+        wheel.write_bytes(b"wheel")
+        with pytest.raises(ReleasePackagingError, match="does not exist"):
+            validator.validate(tmp_path, wheel, tmp_path / "work")
+        worker = tmp_path / "scripts/isolated_wheel_smoke.py"
+        worker.parent.mkdir(parents=True)
+        worker.write_text("worker", encoding="utf-8")
+
+        def timeout(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+            del args, kwargs
+            raise subprocess.TimeoutExpired(["worker"], 1)
+
+        monkeypatch.setattr("openinfra.quality.release_packaging.subprocess.run", timeout)
+        with pytest.raises(ReleasePackagingError, match="exceeded"):
+            validator.validate(tmp_path, wheel, tmp_path / "work")
 
     def test_checksum_and_manifest_validation_failures(self, tmp_path: Path) -> None:
         missing = tmp_path / "missing-SHA256SUMS"

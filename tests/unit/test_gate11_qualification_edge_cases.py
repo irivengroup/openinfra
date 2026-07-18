@@ -32,7 +32,7 @@ from openinfra.quality.advanced_identity_oracle_promotion import (
     Gate11TeamSyncQualification,
 )
 
-CANDIDATE = "openinfra-0.34.3-rc1"
+CANDIDATE = "openinfra-0.34.4-rc1"
 COMMIT = "a" * 40
 ENVIRONMENT = "qualification-lab-01"
 NOW = datetime(2026, 7, 18, 8, tzinfo=UTC)
@@ -364,6 +364,16 @@ class TestGate11PolicyManifestAndEvaluatorEdges:
             policy_path.write_text(json.dumps(payload), encoding="utf-8")
             with pytest.raises(Gate11QualificationError, match=pattern):
                 Gate11PromotionPolicy.load(policy_path)
+
+        valid_policy = json.loads(
+            Path("docs/release/advanced-identity-oracle-promotion-policy.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        valid_policy["required_edition"] = "pro"
+        policy_path.write_text(json.dumps(valid_policy), encoding="utf-8")
+        with pytest.raises(Gate11QualificationError, match="Enterprise edition"):
+            Gate11PromotionPolicy.load(policy_path)
 
         with pytest.raises(Gate11QualificationError, match="SHA-256"):
             Gate11EvidenceReference.from_mapping(

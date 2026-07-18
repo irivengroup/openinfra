@@ -1,3 +1,14 @@
+## v0.34.4 — Oracle Enterprise et état documentaire segmenté
+
+- réserve le backend Oracle à l’édition Enterprise dans le domaine, les factories, la CLI, l’API, ASGI, systemd et les installateurs ;
+- ajoute le symbole explicite `ORACLE_DATABASE_BACKEND` (valeur publique rétrocompatible `oracle_database`), refusé en Lite et Pro avant toute connexion ;
+- ajoute la migration additive `0058_oracle_document_shards.sql` aux catalogues PostgreSQL et Oracle ;
+- migre paresseusement et idempotemment l’ancien CLOB global vers des segments versionnés par collection métier ;
+- limite chaque commit Oracle aux segments réellement modifiés et applique un contrôle optimiste indépendant par segment ;
+- conserve la lecture et le rollback compatibles avec les installations Oracle antérieures à `0058` ;
+- met à jour GATE-11, readiness, packaging, smoke, CDC v4.9.0 et roadmap v2.2 pour la règle Enterprise-only ;
+- ne modifie ni les API métier, ni les permissions RBAC, ni la charte graphique.
+
 ## v0.34.3 — Qualification externe GATE-11 et preuves immuables
 
 - ajoute l'exécutable `openinfra-gate11` pour qualifier les contrats REL-12, Oracle 19c réel, SAML 2.0 réel, l'idempotence Team Sync et le runtime systemd ;

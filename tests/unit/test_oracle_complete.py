@@ -34,10 +34,12 @@ class _Cursor:
         self.rowcount = 1
         self._last = ""
         self.executed: list[tuple[str, object]] = []
+        self._parameters: object = None
 
     def execute(self, statement: str, parameters: object = None, **kwargs: object) -> None:
         self._last = " ".join(statement.split())
-        self.executed.append((self._last, parameters or kwargs))
+        self._parameters = parameters or kwargs
+        self.executed.append((self._last, self._parameters))
         if self.connection.raise_on and self.connection.raise_on in self._last:
             raise RuntimeError("oracle failure")
         for pattern, error in self.connection.errors.items():
@@ -50,6 +52,21 @@ class _Cursor:
                 self.connection.state_row = _Lob(str(values["payload"]))
                 self.connection.version += 1
         values = parameters if isinstance(parameters, dict) else kwargs
+        if self._last.startswith("MERGE INTO openinfra_document_shards target"):
+            key = str(values["shard_key"])
+            self.connection.shards.setdefault(key, (_Lob(str(values["payload"])), 0))
+        if self._last.startswith("UPDATE openinfra_document_shards"):
+            key = str(values["shard_key"])
+            current = self.connection.shards.get(key)
+            expected = int(values["expected_version"])
+            if current is None or current[1] != expected or self.connection.update_rowcount == 0:
+                self.rowcount = 0
+            else:
+                self.rowcount = 1
+                self.connection.shards[key] = (
+                    _Lob(str(values["payload"])),
+                    current[1] + 1,
+                )
         if self._last.startswith("MERGE INTO openinfra_schema_migrations target"):
             self.connection.upsert_migration(
                 str(values["version"]),
@@ -74,7 +91,12 @@ class _Cursor:
 
     def fetchone(self) -> tuple[object, ...] | None:
         if "COUNT(*) FROM user_tables" in self._last:
+            values = self._parameters if isinstance(self._parameters, dict) else {}
+            if values.get("table_name") == "OPENINFRA_DOCUMENT_SHARDS":
+                return (1 if self.connection.shard_table_exists else 0,)
             return (1 if self.connection.history_exists else 0,)
+        if self._last.startswith("SELECT COUNT(*) FROM openinfra_document_shards"):
+            return (len(self.connection.shards),)
         if "openinfra_document_state" in self._last:
             if self.connection.state_row is None:
                 return None
@@ -84,6 +106,13 @@ class _Cursor:
         return None
 
     def fetchall(self) -> list[tuple[object, ...]]:
+        if self._last.startswith(
+            "SELECT shard_key, payload, version FROM openinfra_document_shards"
+        ):
+            return [
+                (key, payload, version)
+                for key, (payload, version) in sorted(self.connection.shards.items())
+            ]
         if "SELECT column_name FROM user_tab_columns" in self._last:
             return [(column,) for column in self.connection.history_columns]
         if self._last.startswith(
@@ -106,6 +135,8 @@ class _Connection:
         self.version = 1
         self.update_rowcount = 1
         self.history_exists = True
+        self.shard_table_exists = False
+        self.shards: dict[str, tuple[object, int]] = {}
         self.migrations: list[tuple[str, str, str, str, object, str]] = []
         self.history_columns = {
             "VERSION",
@@ -272,6 +303,65 @@ class TestOracleComplete:
         store.close()
         assert driver.pool.closed is True
 
+    def test_document_store_bootstraps_and_updates_oracle_shards(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        connection = _Connection(
+            {
+                "identity_users": {"default:alice": {"username": "alice"}},
+                "sites": {},
+            }
+        )
+        connection.shard_table_exists = True
+        driver = _Driver([connection])
+        monkeypatch.setattr(OracleDriver, "load", staticmethod(lambda: driver))
+
+        store = OracleDocumentStore(_settings())
+
+        assert store.sharded is True
+        assert connection.commits == 1
+        assert "identity_users" in connection.shards
+        assert "sites" in connection.shards
+
+        manager = OracleTransactionManager(store)
+        with manager.begin() as unit_of_work:
+            store.data["identity_users"]["default:bob"] = {"username": "bob"}
+            unit_of_work.commit()
+
+        shard_updates = [
+            parameters
+            for cursor in connection.cursors
+            for statement, parameters in cursor.executed
+            if statement.startswith("UPDATE openinfra_document_shards")
+        ]
+        assert len(shard_updates) == 1
+        assert shard_updates[0]["shard_key"] == "identity_users"
+        payload, version = connection.shards["identity_users"]
+        assert version == 1
+        assert json.loads(payload.read())["default:bob"]["username"] == "bob"
+
+    def test_document_store_detects_concurrent_update_per_shard(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        connection = _Connection({"identity_users": {}, "sites": {}})
+        connection.shard_table_exists = True
+        driver = _Driver([connection])
+        monkeypatch.setattr(OracleDriver, "load", staticmethod(lambda: driver))
+        store = OracleDocumentStore(_settings())
+        manager = OracleTransactionManager(store)
+
+        with manager.begin() as unit_of_work:
+            store.data["sites"]["default:par1"] = {"code": "PAR1"}
+            payload, version = connection.shards["sites"]
+            connection.shards["sites"] = (payload, version + 1)
+            with pytest.raises(ConflictError, match="shard changed concurrently: sites"):
+                unit_of_work.commit()
+
+        with manager.begin() as unit_of_work:
+            store.data["identity_users"]["default:alice"] = {"username": "alice"}
+            unit_of_work.commit()
+        assert connection.shards["identity_users"][1] == 1
+
     def test_document_store_reload_errors_and_enter_cleanup(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -384,9 +474,9 @@ class TestOracleComplete:
 
         migrations = OracleMigrationCatalog(oracle_root, postgresql_root).migrations()
 
-        assert len(migrations) == 57
+        assert len(migrations) == 58
         assert migrations[0].version == "0001"
-        assert migrations[-1].version == "0057"
+        assert migrations[-1].version == "0058"
         assert all(migration.oracle_checksum for migration in migrations)
         assert all(migration.source_checksum for migration in migrations)
         manifest_only = OracleMigrationCatalog(oracle_root).migrations()
@@ -406,7 +496,7 @@ class TestOracleComplete:
 
         shutil.rmtree(copied_oracle)
         shutil.copytree(oracle_root, copied_oracle)
-        (copied_postgresql / "0057_federated_identity_team_sync.sql").unlink()
+        (copied_postgresql / "0058_oracle_document_shards.sql").unlink()
         with pytest.raises(OpenInfraError, match="filenames diverge"):
             OracleMigrationCatalog(copied_oracle, copied_postgresql).migrations()
 

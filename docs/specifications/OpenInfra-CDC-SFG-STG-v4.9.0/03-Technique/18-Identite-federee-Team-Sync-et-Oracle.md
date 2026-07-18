@@ -2,7 +2,7 @@
 
 ## Principes
 
-PostgreSQL reste la persistance transactionnelle par défaut. Oracle est un backend optionnel Pro/Entreprise, sélectionné explicitement et isolé derrière les mêmes ports applicatifs et frontières `UnitOfWork`. Les dépendances Oracle ne sont pas installées lorsque PostgreSQL est utilisé.
+PostgreSQL reste la persistance transactionnelle par défaut. Oracle est un backend optionnel réservé à l’édition Entreprise, sélectionné explicitement et isolé derrière les mêmes ports applicatifs et frontières `UnitOfWork`. Les dépendances Oracle ne sont pas installées lorsque PostgreSQL est utilisé.
 
 L’authentification SAML 2.0 valide les assertions et signatures côté serveur. Les certificats, endpoints IdP, attributs et mappings groupes-vers-rôles proviennent exclusivement de `openinfra.conf` et de références de secrets. Le client ACS ne transmet que `SAMLResponse` et éventuellement `RelayState`.
 
@@ -13,3 +13,5 @@ Team Sync prend en charge LDAP, OAuth, Auth Proxy signé HMAC et Okta. Chaque so
 ## Production sans Docker
 
 Le déploiement de production utilise l’installateur natif, `/opt/openinfra/config/openinfra.conf`, des fichiers secrets protégés et les unités systemd `openinfra-runtime-secrets`, `openinfra-migrate`, `openinfra`, `openinfra-web` et `openinfra-team-sync`. Docker n’est pas une dépendance de production.
+
+La migration 0058 segmente l’état documentaire Oracle par collection métier avec version optimiste indépendante et reprise idempotente depuis le document global historique.

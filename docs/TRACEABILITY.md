@@ -1,3 +1,17 @@
+## v0.34.4 — Oracle Enterprise et segmentation transactionnelle
+
+| Exigence | Implémentation | Vérification |
+|---|---|---|
+| Backend de base de données Oracle réservé à Enterprise | symbole `ORACLE_DATABASE_BACKEND` (valeur compatible `oracle_database`), `EditionDatabasePolicy`, contrôles CLI/API/ASGI/systemd/installateur/factory | tests Lite/Pro refusés et Enterprise accepté |
+| Réduction de contention Oracle | table `openinfra_document_shards`, détection des segments modifiés et version optimiste par segment | tests bootstrap legacy, écriture ciblée et conflit concurrent |
+| Parité des migrations | catalogues PostgreSQL/Oracle `0001` à `0058` et manifeste SHA-256 | générateur `--check`, tests continuité et packaging |
+| Compatibilité ascendante | fallback sur `openinfra_document_state` avant `0058`, migration paresseuse idempotente | tests legacy et rollback |
+| Readiness | présence des shards et concordance stricte des 58 migrations | tests readiness et GATE-11 |
+
+- CDC v4.9.0 : `REQ-00844` et `TST-DATA-144` précisent désormais Enterprise uniquement.
+- Roadmap v2.2 : P22/EPIC-2204/REL-12/GATE-11 sont alignés sur Oracle Enterprise.
+- PostgreSQL reste le backend par défaut de Lite, Pro et Enterprise.
+
 ## v0.34.3 — Qualification externe et décision GATE-11
 
 - `openinfra-gate11 contracts` valide les actifs statiques de REL-12 et la parité du catalogue ;

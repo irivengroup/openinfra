@@ -386,26 +386,26 @@ def test_cli_oracle_migration_handlers_and_runtime_factories(
 
     class FakeOracleExecutor:
         def status_as_dict(self) -> dict[str, object]:
-            return {"backend": "oracle", "pending": 57}
+            return {"backend": "oracle", "pending": 58}
 
         def apply_all(self) -> dict[str, object]:
-            return {"backend": "oracle", "applied": 57}
+            return {"backend": "oracle", "applied": 58}
 
     monkeypatch.setattr(cli_module, "OracleMigrationExecutor", FakeOracleExecutor)
     cli._create_migration_executor = lambda _args: FakeOracleExecutor()  # type: ignore[method-assign]
     args = SimpleNamespace(dry_run=True)
     assert cli._handle_database_apply_migrations(args) == 0
-    assert json.loads(capsys.readouterr().out)["pending"] == 57
+    assert json.loads(capsys.readouterr().out)["pending"] == 58
     args.dry_run = False
     assert cli._handle_database_apply_migrations(args) == 0
-    assert json.loads(capsys.readouterr().out)["applied"] == 57
+    assert json.loads(capsys.readouterr().out)["applied"] == 58
 
     cli = OpenInfraCLI()
 
     class BackendResolver:
         selected = "oracle"
 
-        def resolve(self, _explicit: object) -> str:
+        def resolve(self, _explicit: object, _edition: object = None) -> str:
             return self.selected
 
     backend_resolver = BackendResolver()
@@ -464,7 +464,7 @@ def test_cli_application_factory_backend_matrix(
     class BackendResolver:
         selected = "json"
 
-        def resolve(self, _explicit: object) -> str:
+        def resolve(self, _explicit: object, _edition: object = None) -> str:
             return self.selected
 
     class Factory:

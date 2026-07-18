@@ -8,6 +8,7 @@ from urllib.parse import quote
 
 from openinfra.domain.authentication import ExternalDirectoryConfig, ExternalGroupRoleMapping
 from openinfra.domain.common import ValidationError
+from openinfra.domain.editions import EditionDatabasePolicy
 from openinfra.domain.federated_identity import SamlProviderConfig, TeamSyncSourceConfig
 from openinfra.infrastructure.oracle import OracleConnectionSettings
 
@@ -175,16 +176,27 @@ class RuntimeDatabaseBackendResolver:
     def __init__(self, loader: RuntimeConfigLoader | None = None) -> None:
         self._loader = loader or RuntimeConfigLoader()
 
-    def resolve(self, explicit_backend: str | None = None) -> str:
+    def resolve(
+        self,
+        explicit_backend: str | None = None,
+        explicit_edition: str | None = None,
+    ) -> str:
+        runtime = self._loader.load()
         value = (
             (explicit_backend or "").strip()
             or os.environ.get("OPENINFRA_DATABASE_BACKEND", "").strip()
-            or self._loader.load().get("OPENINFRA_DATABASE_BACKEND", "postgresql").strip()
+            or runtime.get("OPENINFRA_DATABASE_BACKEND", "postgresql").strip()
             or "postgresql"
         ).lower()
         if value not in self._SUPPORTED:
             raise ValidationError("database backend must be postgresql, oracle or json")
-        return value
+        edition = (
+            (explicit_edition or "").strip()
+            or os.environ.get("OPENINFRA_EDITION", "").strip()
+            or runtime.get("OPENINFRA_EDITION", "enterprise").strip()
+            or "enterprise"
+        )
+        return EditionDatabasePolicy.validate(edition, value)
 
 
 class RuntimeOracleSettingsResolver:

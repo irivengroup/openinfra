@@ -75,13 +75,13 @@ class TestScaleoutPromotionTooling:
             sources[identifier] = path
         evidence_root = tmp_path / "evidence"
         manifest = ScaleoutPromotionAssembler.assemble(
-            candidate_id="openinfra-0.34.3-rc1",
+            candidate_id="openinfra-0.34.4-rc1",
             source_commit="a" * 40,
             sources=sources,
             evidence_root=evidence_root,
         )
         assert manifest["gate_id"] == "GATE-09"
-        assert manifest["release_version"] == "0.34.3"
+        assert manifest["release_version"] == "0.34.4"
         assert len(manifest["evidence"]) == 7
         for reference in manifest["evidence"]:
             copied = evidence_root / str(reference["path"])

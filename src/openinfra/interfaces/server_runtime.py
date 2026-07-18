@@ -38,7 +38,9 @@ class OpenInfraServerRuntime:
             return 2
 
     def run(self, args: argparse.Namespace) -> int:
-        backend = RuntimeDatabaseBackendResolver().resolve()
+        backend = RuntimeDatabaseBackendResolver().resolve(
+            explicit_edition=os.environ.get("OPENINFRA_EDITION", "enterprise")
+        )
         if args.action == "ensure-secret":
             uid, gid = self._openinfra_identity()
             RuntimeBootstrapTokenStore(args.token_file, uid, gid).ensure()

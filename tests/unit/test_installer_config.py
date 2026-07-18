@@ -582,9 +582,16 @@ def test_installer_oracle_saml_team_sync_and_plan_private_branches() -> None:
     catalog = InstallerScopeCatalog()
     lite = catalog.policy_for("lite", "all-in-one")
     server = catalog.policy_for("pro", "server")
+    enterprise_server = catalog.policy_for("enterprise", "server")
     web = catalog.policy_for("pro", "web")
     agent = catalog.policy_for("enterprise", "agent")
-    assert lite is not None and server is not None and web is not None and agent is not None
+    assert (
+        lite is not None
+        and server is not None
+        and enterprise_server is not None
+        and web is not None
+        and agent is not None
+    )
 
     empty = _installer_parser("[empty]\nvalue = true\n")
     assert (
@@ -653,18 +660,24 @@ def test_installer_oracle_saml_team_sync_and_plan_private_branches() -> None:
 
     errors = []
     validator._validate_database(_installer_parser("[database]\nbackend = oracle\n"), web, errors)
-    assert any("Pro/Enterprise server scopes" in error for error in errors)
+    assert errors == ["Oracle database backend is supported only by Enterprise server scope"]
 
     errors = []
     validator._validate_database(
         _installer_parser("[database]\nbackend = oracle\n"), server, errors
+    )
+    assert errors == ["Oracle database backend is supported only by Enterprise server scope"]
+
+    errors = []
+    validator._validate_database(
+        _installer_parser("[database]\nbackend = oracle\n"), enterprise_server, errors
     )
     assert errors == ["database.backend=oracle requires an [oracle] section"]
 
     errors = []
     validator._validate_database(
         _installer_parser("[database]\nbackend = oracle\n[oracle]\ndsn = db/service\n"),
-        server,
+        enterprise_server,
         errors,
     )
     assert "missing option: oracle.user" in errors

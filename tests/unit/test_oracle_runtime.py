@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from openinfra.application.container import ApplicationFactory
 from openinfra.domain.common import ValidationError
 from openinfra.infrastructure.oracle import (
     OracleConnectionSettings,
@@ -26,14 +27,35 @@ class _Loader:
 
 
 class TestOracleRuntime:
-    def test_postgresql_is_default_and_oracle_is_explicit(self) -> None:
+    def test_postgresql_is_default_and_oracle_is_enterprise_only(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("OPENINFRA_EDITION", raising=False)
+        monkeypatch.delenv("OPENINFRA_DATABASE_BACKEND", raising=False)
         assert RuntimeDatabaseBackendResolver(_Loader({})).resolve() == "postgresql"
         assert (
             RuntimeDatabaseBackendResolver(
-                _Loader({"OPENINFRA_DATABASE_BACKEND": "oracle"})
+                _Loader(
+                    {
+                        "OPENINFRA_DATABASE_BACKEND": "oracle",
+                        "OPENINFRA_EDITION": "enterprise",
+                    }
+                )
             ).resolve()
             == "oracle"
         )
+        for edition in ("lite", "pro"):
+            with pytest.raises(ValidationError, match="only in Enterprise"):
+                RuntimeDatabaseBackendResolver(
+                    _Loader(
+                        {
+                            "OPENINFRA_DATABASE_BACKEND": "oracle",
+                            "OPENINFRA_EDITION": edition,
+                        }
+                    )
+                ).resolve()
+        with pytest.raises(ValidationError, match="only in Enterprise"):
+            RuntimeDatabaseBackendResolver(_Loader({})).resolve("oracle", "pro")
         with pytest.raises(ValidationError, match="postgresql, oracle or json"):
             RuntimeDatabaseBackendResolver(_Loader({})).resolve("mysql")
 
@@ -59,6 +81,16 @@ class TestOracleRuntime:
         assert settings.user == "openinfra"
         assert settings.password == "correct-horse-battery-staple"
         assert (settings.pool_min, settings.pool_max, settings.pool_increment) == (2, 12, 2)
+
+    def test_application_factory_rejects_oracle_outside_enterprise(self) -> None:
+        settings = OracleConnectionSettings.create(
+            dsn="db.example.net:1521/OPENINFRA",
+            user="openinfra",
+            password="secret",  # noqa: S106
+        )
+        for edition in ("lite", "pro"):
+            with pytest.raises(ValidationError, match="only in Enterprise"):
+                ApplicationFactory().create_oracle_application(settings, edition=edition)
 
     def test_oracle_settings_and_migration_catalog_are_strict(self, tmp_path: Path) -> None:
         with pytest.raises(ValidationError, match="pool bounds"):

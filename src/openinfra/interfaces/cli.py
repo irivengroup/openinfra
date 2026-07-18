@@ -783,6 +783,11 @@ class OpenInfraCLI:
             help="report PostgreSQL schema migration status",
         )
         status.add_argument("--backend", choices=("postgresql", "oracle"), default="postgresql")
+        status.add_argument(
+            "--edition",
+            choices=("lite", "pro", "enterprise"),
+            default=os.environ.get("OPENINFRA_EDITION", "enterprise"),
+        )
         status.add_argument("--postgres-dsn")
         status.add_argument("--oracle-dsn")
         status.add_argument("--oracle-user")
@@ -793,6 +798,11 @@ class OpenInfraCLI:
             help="apply PostgreSQL migrations idempotently",
         )
         apply.add_argument("--backend", choices=("postgresql", "oracle"), default="postgresql")
+        apply.add_argument(
+            "--edition",
+            choices=("lite", "pro", "enterprise"),
+            default=os.environ.get("OPENINFRA_EDITION", "enterprise"),
+        )
         apply.add_argument("--postgres-dsn")
         apply.add_argument("--oracle-dsn")
         apply.add_argument("--oracle-user")
@@ -10606,7 +10616,10 @@ class OpenInfraCLI:
     def _create_migration_executor(
         self, args: argparse.Namespace
     ) -> PostgreSQLMigrationExecutor | OracleMigrationExecutor:
-        backend = RuntimeDatabaseBackendResolver().resolve(getattr(args, "backend", None))
+        backend = RuntimeDatabaseBackendResolver().resolve(
+            getattr(args, "backend", None),
+            getattr(args, "edition", None),
+        )
         if backend == "oracle":
             settings = RuntimeOracleSettingsResolver().resolve(
                 explicit_dsn=getattr(args, "oracle_dsn", None),
@@ -10656,8 +10669,8 @@ class OpenInfraCLI:
 
     def _create_application(self, args: argparse.Namespace) -> OpenInfraApplication:
         explicit_backend = getattr(args, "backend", None)
-        backend = RuntimeDatabaseBackendResolver().resolve(explicit_backend)
         edition = getattr(args, "edition", os.environ.get("OPENINFRA_EDITION", "enterprise"))
+        backend = RuntimeDatabaseBackendResolver().resolve(explicit_backend, str(edition))
         if backend == "json":
             return ApplicationFactory().create_json_application(args.data, edition=edition)
         if backend == "oracle":

@@ -1,17 +1,20 @@
-# OpenInfra v0.34.3
+# OpenInfra v0.34.4
 
-OpenInfra 0.34.3 industrialise la prise en charge Oracle 19c pour l’ensemble du schéma applicatif. Les **57 migrations PostgreSQL** disposent désormais de **57 migrations Oracle correspondantes**, générées de manière déterministe, vérifiées par empreintes SHA-256 et exécutées avec suivi d’état, reprise idempotente et détection de dérive. PostgreSQL reste le backend par défaut ; Oracle doit être sélectionné explicitement pour les éditions Pro et Enterprise.
+OpenInfra 0.34.4 réserve strictement le **backend de base de données Oracle 19c** à l’édition **Enterprise** et segmente l’état documentaire Oracle par domaine afin de supprimer le verrou transactionnel du document global entre processus. Les **58 migrations PostgreSQL** disposent de **58 migrations Oracle correspondantes**, générées de manière déterministe et vérifiées par empreintes SHA-256. PostgreSQL reste le backend par défaut de toutes les éditions.
 
 ## Parité PostgreSQL / Oracle — P22 / GATE-11
 
-- catalogue Oracle complet `0001` à `0057`, aligné sur les noms, versions et fonctionnalités du catalogue PostgreSQL ;
+- catalogue Oracle complet `0001` à `0058`, aligné sur les noms, versions et fonctionnalités du catalogue PostgreSQL ;
 - convertisseur déterministe PostgreSQL → Oracle 19c, limité aux constructions réellement utilisées par OpenInfra et bloquant toute syntaxe PostgreSQL résiduelle ;
 - manifeste `installers/migrations/oracle/manifest.json` avec empreintes SHA-256 source/cible et nombre d’instructions ;
 - adaptation des types, UUID, JSON, CLOB/BLOB, identités, contraintes, index fonctionnels, partitionnement hash, `MERGE`, DML et blocs PL/SQL ;
 - refus des index B-tree sur LOB, des clés d’index dépassant la limite conservatrice de 6 000 octets, des identifiants incompatibles et des migrations modifiées manuellement ;
 - journal Oracle `applying` / `applied` / `failed`, contrôle des deux empreintes, détection de dérive et reprise idempotente après interruption ;
 - compatibilité de reprise avec l’ancien historique Oracle limité à `0001_document_state.sql` ;
-- readiness Oracle exigeant le document state et l’application cohérente des 57 migrations ;
+- migration `0058_oracle_document_shards.sql` et persistance Oracle segmentée par collection métier, avec reprise transparente depuis l’ancien document global ;
+- contrôle optimiste par segment : une collision sur un domaine est refusée sans bloquer les écritures d’un autre domaine dans les autres processus ;
+- garde d’édition centralisée : toute sélection Oracle en Lite ou Pro échoue avant chargement du pilote, connexion ou migration ;
+- readiness Oracle exigeant les shards et l’application cohérente des 58 migrations ;
 - GATE-11 bloquant dans les workflows CI avant lint, typage, sécurité, build et promotion ;
 - packaging du catalogue PostgreSQL, du catalogue Oracle et du manifeste dans le wheel et le sdist ;
 - aucune modification du thème, d’une route API, d’une commande CLI métier ou d’une permission RBAC.

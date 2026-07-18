@@ -37,6 +37,8 @@ class FeatureCapability(StrEnum):
     MULTISITE_DISASTER_RECOVERY = "multisite_disaster_recovery"
     DISTRIBUTED_DISCOVERY_AGENTS = "distributed_discovery_agents"
     INSTALLER_AGENT_SCOPE = "installer_agent_scope"
+    ORACLE_DATABASE_BACKEND = "oracle_database"
+    ORACLE_DATABASE = "oracle_database"  # Backward-compatible alias.
 
     @classmethod
     def from_value(cls, value: str | FeatureCapability) -> Self:
@@ -203,6 +205,7 @@ class EditionPolicyCatalog:
                         FeatureCapability.MULTISITE_DISASTER_RECOVERY,
                         FeatureCapability.DISTRIBUTED_DISCOVERY_AGENTS,
                         FeatureCapability.INSTALLER_AGENT_SCOPE,
+                        FeatureCapability.ORACLE_DATABASE_BACKEND,
                     }
                 ),
                 quotas=dict.fromkeys(QuotaResource, None),
@@ -215,3 +218,24 @@ class EditionPolicyCatalog:
 
     def all_policies(self) -> tuple[EditionPolicy, ...]:
         return tuple(self._policies[edition] for edition in OpenInfraEdition)
+
+
+class EditionDatabasePolicy:
+    _SUPPORTED_BACKENDS = frozenset({"json", "postgresql", "oracle"})
+
+    @classmethod
+    def validate(
+        cls,
+        edition: str | OpenInfraEdition,
+        backend: str,
+    ) -> str:
+        normalized_backend = backend.strip().lower()
+        if normalized_backend not in cls._SUPPORTED_BACKENDS:
+            raise ValidationError("database backend must be postgresql, oracle or json")
+        normalized_edition = OpenInfraEdition.from_value(edition)
+        policy = EditionPolicyCatalog().policy_for(normalized_edition)
+        if normalized_backend == "oracle" and not policy.supports(
+            FeatureCapability.ORACLE_DATABASE_BACKEND
+        ):
+            raise ValidationError("Oracle database backend is available only in Enterprise edition")
+        return normalized_backend

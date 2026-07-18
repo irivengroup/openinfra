@@ -1132,8 +1132,10 @@ class AutonomousInstallerProgram:
         backend = parser.get("database", "backend", fallback="postgresql").strip().lower()
         if backend not in {"postgresql", "oracle"}:
             raise InstallerRuntimeError("database.backend must be postgresql or oracle")
-        if backend == "oracle" and self._location.edition == "lite":
-            raise InstallerRuntimeError("Oracle backend is not available in Lite edition")
+        if backend == "oracle" and self._location.edition != "enterprise":
+            raise InstallerRuntimeError(
+                "Oracle database backend is available only in Enterprise edition"
+            )
         return backend
 
     def _deploy_supporting_systemd_units(

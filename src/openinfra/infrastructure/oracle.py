@@ -74,12 +74,14 @@ class OracleDriver:
             return importlib.import_module("oracledb")
         except ModuleNotFoundError as exc:
             raise OpenInfraError(
-                "python-oracledb is required for the Oracle backend; install openinfra[oracle]"
+                "python-oracledb is required for the Oracle database backend; "
+                "install openinfra[oracle]"
             ) from exc
 
 
 class OracleDocumentStore(JsonDocumentStore):
     _STATE_KEY = "global"
+    _SHARD_TABLE = "OPENINFRA_DOCUMENT_SHARDS"
 
     def __init__(self, settings: OracleConnectionSettings) -> None:
         self._settings = settings
@@ -87,6 +89,8 @@ class OracleDocumentStore(JsonDocumentStore):
         self._lock = threading.RLock()
         self._state = _JsonState(data=self._empty_state(), dirty=False)
         self._version = 0
+        self._shard_versions: dict[str, int] = {}
+        self._sharded = False
         self._pool = self._driver.create_pool(
             user=settings.user,
             password=settings.password,
@@ -111,6 +115,10 @@ class OracleDocumentStore(JsonDocumentStore):
     def pool(self) -> Any:
         return self._pool
 
+    @property
+    def sharded(self) -> bool:
+        return self._sharded
+
     def mark_dirty(self) -> None:
         self._state.dirty = True
 
@@ -124,47 +132,175 @@ class OracleDocumentStore(JsonDocumentStore):
             raise OpenInfraError("Oracle connection is unavailable")
         try:
             cursor = conn.cursor()
-            statement = (
-                "SELECT payload, version FROM openinfra_document_state "
-                "WHERE state_key = :state_key FOR UPDATE"
-                if for_update
-                else "SELECT payload, version FROM openinfra_document_state "
-                "WHERE state_key = :state_key"
+            self._sharded = self._shard_table_exists(cursor)
+            if self._sharded:
+                loaded, versions = self._load_shards(cursor)
+                legacy_row = self._load_legacy(cursor, required=not loaded, for_update=False)
+                legacy = {} if legacy_row is None else legacy_row[0]
+                merged = self._merge_with_empty(legacy)
+                for key, value in loaded.items():
+                    if key in merged or key == "export_signing_secret":
+                        merged[key] = value
+                missing = tuple(key for key in merged if key not in loaded)
+                if missing:
+                    self._bootstrap_shards(cursor, merged, missing)
+                    versions.update(dict.fromkeys(missing, 0))
+                    if owned:
+                        conn.commit()
+                self._state = _JsonState(data=merged, dirty=False)
+                self._shard_versions = versions
+                return
+
+            legacy_row = self._load_legacy(
+                cursor,
+                required=True,
+                for_update=for_update,
             )
-            cursor.execute(statement, state_key=self._STATE_KEY)  # nosec B608 - fixed statements
-            row = cursor.fetchone()
-            if row is None:
+            if legacy_row is None:
                 raise OpenInfraError("Oracle OpenInfra schema is not initialized")
-            raw_payload = row[0].read() if hasattr(row[0], "read") else str(row[0])
-            loaded = json.loads(raw_payload)
-            if not isinstance(loaded, dict):
-                raise OpenInfraError("Oracle OpenInfra state payload is invalid")
+            loaded, version = legacy_row
             self._state = _JsonState(data=self._merge_with_empty(loaded), dirty=False)
-            self._version = int(row[1])
+            self._version = version
+            self._shard_versions = {}
         finally:
             if owned:
                 self._pool.release(conn)
 
-    def flush_with_connection(self, connection: Any) -> None:
-        if not self._state.dirty:
-            return
-        payload = json.dumps(self._state.data, sort_keys=True, separators=(",", ":"))
-        cursor = connection.cursor()
+    def _shard_table_exists(self, cursor: Any) -> bool:
         cursor.execute(
-            """
-            UPDATE openinfra_document_state
-            SET payload = :payload, version = version + 1, updated_at = SYSTIMESTAMP
-            WHERE state_key = :state_key AND version = :expected_version
-            """,
-            payload=payload,
-            state_key=self._STATE_KEY,
-            expected_version=self._version,
+            "SELECT COUNT(*) FROM user_tables WHERE table_name = :table_name",
+            table_name=self._SHARD_TABLE,
         )
-        if int(cursor.rowcount or 0) != 1:
-            raise ConflictError(
-                "Oracle OpenInfra state changed concurrently; retry the transaction"
+        row = cursor.fetchone()
+        return row is not None and int(row[0]) == 1
+
+    @staticmethod
+    def _read_payload(value: object) -> object:
+        raw = value.read() if hasattr(value, "read") else str(value)
+        return json.loads(raw)
+
+    def _load_legacy(
+        self,
+        cursor: Any,
+        *,
+        required: bool,
+        for_update: bool,
+    ) -> tuple[dict[str, Any], int] | None:
+        statement = (
+            "SELECT payload, version FROM openinfra_document_state "
+            "WHERE state_key = :state_key FOR UPDATE"
+            if for_update
+            else "SELECT payload, version FROM openinfra_document_state "
+            "WHERE state_key = :state_key"
+        )
+        cursor.execute(statement, state_key=self._STATE_KEY)
+        row = cursor.fetchone()
+        if row is None:
+            if required:
+                raise OpenInfraError("Oracle OpenInfra schema is not initialized")
+            return None
+        loaded = self._read_payload(row[0])
+        if not isinstance(loaded, dict):
+            raise OpenInfraError("Oracle OpenInfra state payload is invalid")
+        return cast(dict[str, Any], loaded), int(row[1])
+
+    def _load_shards(self, cursor: Any) -> tuple[dict[str, Any], dict[str, int]]:
+        cursor.execute(
+            "SELECT shard_key, payload, version FROM openinfra_document_shards ORDER BY shard_key"
+        )
+        loaded: dict[str, Any] = {}
+        versions: dict[str, int] = {}
+        for row in cursor.fetchall():
+            key = str(row[0])
+            payload = self._read_payload(row[1])
+            if not isinstance(payload, (dict, list, str)):
+                raise OpenInfraError("Oracle OpenInfra shard payload is invalid: " + key)
+            loaded[key] = payload
+            versions[key] = int(row[2])
+        return loaded, versions
+
+    @staticmethod
+    def _bootstrap_shards(
+        cursor: Any,
+        state: dict[str, Any],
+        keys: tuple[str, ...],
+    ) -> None:
+        statement = """
+            MERGE INTO openinfra_document_shards target
+            USING (SELECT :shard_key AS shard_key, :payload AS payload FROM dual) source
+            ON (target.shard_key = source.shard_key)
+            WHEN NOT MATCHED THEN INSERT (shard_key, payload, version)
+            VALUES (source.shard_key, source.payload, 0)
+        """
+        for key in keys:
+            cursor.execute(
+                statement,
+                shard_key=key,
+                payload=json.dumps(state[key], sort_keys=True, separators=(",", ":")),
             )
-        self._version += 1
+
+    def flush_with_connection(
+        self,
+        connection: Any,
+        baseline: dict[str, Any] | None = None,
+    ) -> dict[str, int]:
+        if not self._state.dirty:
+            return {}
+        if not self._sharded:
+            payload = json.dumps(self._state.data, sort_keys=True, separators=(",", ":"))
+            cursor = connection.cursor()
+            cursor.execute(
+                """
+                UPDATE openinfra_document_state
+                SET payload = :payload, version = version + 1, updated_at = SYSTIMESTAMP
+                WHERE state_key = :state_key AND version = :expected_version
+                """,
+                payload=payload,
+                state_key=self._STATE_KEY,
+                expected_version=self._version,
+            )
+            if int(cursor.rowcount or 0) != 1:
+                raise ConflictError(
+                    "Oracle OpenInfra state changed concurrently; retry the transaction"
+                )
+            return {self._STATE_KEY: self._version + 1}
+
+        previous = baseline or self._empty_state()
+        changed = tuple(
+            sorted(
+                key
+                for key in set(previous) | set(self._state.data)
+                if previous.get(key) != self._state.data.get(key)
+            )
+        )
+        if not changed:
+            return {}
+        cursor = connection.cursor()
+        next_versions: dict[str, int] = {}
+        for key in changed:
+            expected_version = self._shard_versions.get(key, 0)
+            payload = json.dumps(self._state.data.get(key), sort_keys=True, separators=(",", ":"))
+            cursor.execute(
+                """
+                UPDATE openinfra_document_shards
+                SET payload = :payload, version = version + 1, updated_at = SYSTIMESTAMP
+                WHERE shard_key = :shard_key AND version = :expected_version
+                """,
+                payload=payload,
+                shard_key=key,
+                expected_version=expected_version,
+            )
+            if int(cursor.rowcount or 0) != 1:
+                raise ConflictError("Oracle OpenInfra shard changed concurrently: " + key)
+            next_versions[key] = expected_version + 1
+        return next_versions
+
+    def accept_flush(self, next_versions: dict[str, int]) -> None:
+        if not self._sharded:
+            if self._STATE_KEY in next_versions:
+                self._version = next_versions[self._STATE_KEY]
+        else:
+            self._shard_versions.update(next_versions)
         self._state.dirty = False
 
     def snapshot(self) -> dict[str, Any]:
@@ -214,8 +350,9 @@ class OracleUnitOfWork(UnitOfWork):
         if connection is None:
             raise OpenInfraError("Oracle commit requires an active UnitOfWork")
         self._store.mark_dirty()
-        self._store.flush_with_connection(connection)
+        next_versions = self._store.flush_with_connection(connection, self._snapshot)
         connection.commit()
+        self._store.accept_flush(next_versions)
         self._committed = True
 
     def rollback(self) -> None:
@@ -740,17 +877,24 @@ class OracleReadinessProbe(ReadinessProbe):
             migrations = self._catalog.migrations()
             with self._store.pool.acquire() as connection:
                 cursor = connection.cursor()
-                cursor.execute(
-                    "SELECT version FROM openinfra_document_state WHERE state_key = 'global'"
-                )
-                state_row = cursor.fetchone()
+                requires_shards = any(migration.version == "0058" for migration in migrations)
+                if requires_shards:
+                    cursor.execute("SELECT COUNT(*) FROM openinfra_document_shards")
+                    state_row = cursor.fetchone()
+                    state_ready = state_row is not None and int(state_row[0]) > 0
+                else:
+                    cursor.execute(
+                        "SELECT version FROM openinfra_document_state WHERE state_key = 'global'"
+                    )
+                    state_row = cursor.fetchone()
+                    state_ready = state_row is not None
                 cursor.execute(
                     "SELECT version, filename, oracle_checksum, source_checksum, status "
                     "FROM openinfra_schema_migrations ORDER BY version"
                 )
                 rows = cursor.fetchall()
             expected = {migration.version: migration for migration in migrations}
-            ready = state_row is not None and len(rows) == len(expected)
+            ready = state_ready and len(rows) == len(expected)
             for row in rows:
                 version = str(row[0])
                 migration = expected.get(version)

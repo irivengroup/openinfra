@@ -1,6 +1,6 @@
 # PRA et PCA
 
-Version cible : `0.34.3`
+Version cible : `0.34.4`
 
 ## Jeton d’administration
 

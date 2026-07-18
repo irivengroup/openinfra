@@ -108,6 +108,7 @@ from openinfra.application.specialized_worker_services import (
     RagWorker,
 )
 from openinfra.application.telemetry import NullRuntimeTelemetry
+from openinfra.domain.editions import EditionDatabasePolicy
 from openinfra.infrastructure.advanced_identity import Python3SamlAssertionValidator
 from openinfra.infrastructure.async_processing import (
     JsonAsyncProcessingRepository,
@@ -535,6 +536,7 @@ class ApplicationFactory:
         seed: bool = False,
         edition: str = "enterprise",
     ) -> OpenInfraApplication:
+        EditionDatabasePolicy.validate(edition, "oracle")
         store = OracleDocumentStore(settings)
         transaction_manager = OracleTransactionManager(store)
         dcim_repository = JsonDcimRepository(store)

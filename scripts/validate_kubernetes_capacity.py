@@ -104,7 +104,7 @@ class KubernetesCapacityProjectValidator:
             ("TST-P21-K8S-SCALE-GATE", "Qualification REL-11"),
         )
         migrations = sorted((self._root / "installers/migrations/postgresql").glob("*.sql"))
-        if len(migrations) != 57 or migrations[-1].name != "0057_federated_identity_team_sync.sql":
+        if len(migrations) != 58 or migrations[-1].name != "0058_oracle_document_shards.sql":
             raise KubernetesCapacityProjectError(
                 "EPIC-2105 must reuse the 56-migration chain ending with "
                 "0056_kubernetes_gitops_drift.sql"
@@ -127,7 +127,7 @@ class KubernetesCapacityProjectValidator:
             "max_trend_snapshots": 96,
             "max_trend_resources": 1_000_000,
             "api_cli_web_parity": True,
-            "migration_count": 57,
+            "migration_count": 58,
         }
 
     def _assert_fragments(self, relative: str, fragments: tuple[str, ...]) -> None:

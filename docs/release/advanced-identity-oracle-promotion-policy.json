@@ -2,6 +2,7 @@
   "schema_version": 1,
   "gate_id": "GATE-11",
   "release_id": "REL-12",
+  "required_edition": "enterprise",
   "required_evidence": [
     {
       "id": "gate11-contracts",

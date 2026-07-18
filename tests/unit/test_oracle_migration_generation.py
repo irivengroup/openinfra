@@ -30,10 +30,10 @@ class TestOracleMigrationGeneration:
         converted = generate_catalog(source, target, check=True)
         manifest = json.loads((target / "manifest.json").read_text(encoding="utf-8"))
 
-        assert len(converted) == 57
-        assert manifest["count"] == 57
+        assert len(converted) == 58
+        assert manifest["count"] == 58
         assert converted[0].name == "0001_bootstrap.sql"
-        assert converted[-1].name == "0057_federated_identity_team_sync.sql"
+        assert converted[-1].name == "0058_oracle_document_shards.sql"
         assert all(item.source_sha256 and item.oracle_sha256 for item in converted)
         assert "VARCHAR2(64 CHAR))" not in converted[0].output.split("UNIQUE", 1)[1]
         assert "CREATE UNIQUE INDEX uq_rag_documents_active_source" in converted[48].output

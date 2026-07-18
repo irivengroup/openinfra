@@ -89,6 +89,13 @@ def test_edition_policy_catalog_exposes_expected_gates_and_quotas() -> None:
     assert lite.quota_for(QuotaResource.USER) == 5
     assert lite.quota_for(QuotaResource.DISCOVERY_COLLECTOR) == 0
     assert enterprise.supports(FeatureCapability.INSTALLER_AGENT_SCOPE)
+    assert enterprise.supports(FeatureCapability.ORACLE_DATABASE_BACKEND)
+    assert (
+        FeatureCapability.from_value("oracle-database") is FeatureCapability.ORACLE_DATABASE_BACKEND
+    )
+    assert FeatureCapability.ORACLE_DATABASE is FeatureCapability.ORACLE_DATABASE_BACKEND
+    assert not lite.supports(FeatureCapability.ORACLE_DATABASE_BACKEND)
+    assert not service.policy_for("pro").supports(FeatureCapability.ORACLE_DATABASE_BACKEND)
     assert denied.as_dict()["allowed"] is False
     assert allowed.as_dict()["allowed"] is True
     assert limited_decision.allowed is True

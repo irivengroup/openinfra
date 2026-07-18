@@ -1,6 +1,6 @@
-# OpenInfra v0.34.2
+# OpenInfra v0.34.3
 
-OpenInfra 0.34.2 industrialise la prise en charge Oracle 19c pour l’ensemble du schéma applicatif. Les **57 migrations PostgreSQL** disposent désormais de **57 migrations Oracle correspondantes**, générées de manière déterministe, vérifiées par empreintes SHA-256 et exécutées avec suivi d’état, reprise idempotente et détection de dérive. PostgreSQL reste le backend par défaut ; Oracle doit être sélectionné explicitement pour les éditions Pro et Enterprise.
+OpenInfra 0.34.3 industrialise la prise en charge Oracle 19c pour l’ensemble du schéma applicatif. Les **57 migrations PostgreSQL** disposent désormais de **57 migrations Oracle correspondantes**, générées de manière déterministe, vérifiées par empreintes SHA-256 et exécutées avec suivi d’état, reprise idempotente et détection de dérive. PostgreSQL reste le backend par défaut ; Oracle doit être sélectionné explicitement pour les éditions Pro et Enterprise.
 
 ## Parité PostgreSQL / Oracle — P22 / GATE-11
 

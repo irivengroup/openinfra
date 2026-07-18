@@ -470,6 +470,58 @@ class SupportReadinessGuard:
                 )
 
 
+class AdvancedIdentityOracleGuard:
+    def __init__(self, project_root: Path) -> None:
+        self._project_root = project_root
+
+    def assert_gate11_controls_are_present(self) -> None:
+        required_files = (
+            "src/openinfra/quality/advanced_identity_oracle_promotion.py",
+            "docs/release/advanced-identity-oracle-promotion-policy.json",
+            "docs/runbooks/ADVANCED_IDENTITY_ORACLE_SYSTEMD.md",
+            ".github/workflows/advanced-identity-oracle.yml",
+            "tests/unit/test_gate11_qualification.py",
+            "tests/integration/test_gate11_qualification_contract.py",
+        )
+        missing = [
+            relative for relative in required_files if not (self._project_root / relative).is_file()
+        ]
+        if missing:
+            raise QualityGateError("missing GATE-11 qualification controls: " + ", ".join(missing))
+        workflow = (
+            self._project_root / ".github/workflows/advanced-identity-oracle.yml"
+        ).read_text(encoding="utf-8")
+        required_fragments = (
+            "openinfra-gate11 contracts",
+            "openinfra-gate11 assemble",
+            "openinfra-gate11 evaluate",
+            "runs-on: [self-hosted, linux, openinfra-gate11]",
+            "OPENINFRA_GATE11_SAML_REQUEST_JSON_B64",
+            "actions/upload-artifact@v6",
+            "retention-days: 365",
+        )
+        absent = [fragment for fragment in required_fragments if fragment not in workflow]
+        if absent:
+            raise QualityGateError("GATE-11 workflow is incomplete: " + ", ".join(absent))
+        if "pull_request_target:" in workflow:
+            raise QualityGateError("GATE-11 workflow must not use pull_request_target")
+        source = (
+            self._project_root / "src/openinfra/quality/advanced_identity_oracle_promotion.py"
+        ).read_text(encoding="utf-8")
+        for fragment in (
+            "GATE-11",
+            "REL-12",
+            "Gate11OracleQualification",
+            "Gate11SamlQualification",
+            "Gate11TeamSyncQualification",
+            "Gate11SystemdQualification",
+            "Gate11PromotionEvaluator",
+            "authorized_for_rel12",
+        ):
+            if fragment not in source:
+                raise QualityGateError("GATE-11 implementation is incomplete: " + fragment)
+
+
 class DockerRuntimeGuard:
     def __init__(self, project_root: Path) -> None:
         self._project_root = project_root
@@ -891,6 +943,26 @@ class QualityGate:
         GaDocumentationGuard(self._project_root).assert_ga_documentation_controls_are_present()
         GaGoNoGoGuard(self._project_root).assert_ga_go_no_go_controls_are_present()
         SupportReadinessGuard(self._project_root).assert_support_readiness_controls_are_present()
+        AdvancedIdentityOracleGuard(self._project_root).assert_gate11_controls_are_present()
+        CommandRunner().run(
+            [
+                sys.executable,
+                "-m",
+                "openinfra.quality.advanced_identity_oracle_promotion",
+                "contracts",
+                "--project-root",
+                str(self._project_root),
+                "--candidate-id",
+                "openinfra-quality-gate",
+                "--source-commit",
+                "0" * 40,
+                "--environment-id",
+                "quality-gate",
+                "--output",
+                "artifacts/quality-gate/gate11-contracts.json",
+                "--enforce",
+            ]
+        )
         CommandRunner().run(
             [
                 sys.executable,

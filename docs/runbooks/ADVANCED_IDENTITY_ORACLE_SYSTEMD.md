@@ -189,7 +189,7 @@ Le snapshot doit être un fichier normal, non symbolique, avec signature HMAC va
 ## Installation et unités systemd
 
 ```bash
-sudo /opt/openinfra/venv/bin/python -m pip install '/opt/openinfra/openinfra-0.34.2-py3-none-any.whl[postgresql,advanced-identity]'
+sudo /opt/openinfra/venv/bin/python -m pip install '/opt/openinfra/openinfra-0.34.3-py3-none-any.whl[postgresql,advanced-identity]'
 # Oracle : remplacer postgresql par oracle.
 sudo install -o root -g root -m 0644 installers/systemd/openinfra-runtime-secrets.service /etc/systemd/system/
 sudo install -o root -g root -m 0644 installers/systemd/openinfra-migrate.service /etc/systemd/system/
@@ -227,3 +227,122 @@ sudo systemctl stop openinfra-team-sync.timer openinfra-web.service openinfra.se
 sudo /opt/openinfra/venv/bin/python -m pip install --force-reinstall /opt/openinfra/releases/openinfra-0.34.1-py3-none-any.whl
 sudo systemctl start openinfra-migrate.service openinfra.service openinfra-web.service openinfra-team-sync.timer
 ```
+
+## Qualification externe GATE-11
+
+La promotion REL-12 exige cinq preuves JSON produites sur le même commit, pour le même candidat et le même environnement : contrats statiques, Oracle réel, SAML réel, idempotence Team Sync et runtime systemd. Les preuves live expirent après 24 heures ; la preuve de contrats expire après 168 heures. Une preuve absente, modifiée, périmée ou issue d'un autre commit impose automatiquement une décision `no-go`.
+
+Préparer un identifiant de candidat, le SHA-1 Git complet et un identifiant stable de l'environnement :
+
+```bash
+export GATE11_CANDIDATE_ID="openinfra-0.34.3-rc1"
+export GATE11_SOURCE_COMMIT="$(git rev-parse HEAD)"
+export GATE11_ENVIRONMENT_ID="oracle19c-idp-prodlike-01"
+umask 077
+mkdir -p artifacts/gate11/evidence
+```
+
+### Contrats statiques
+
+```bash
+openinfra-gate11 contracts \
+  --project-root . \
+  --candidate-id "$GATE11_CANDIDATE_ID" \
+  --source-commit "$GATE11_SOURCE_COMMIT" \
+  --environment-id "$GATE11_ENVIRONMENT_ID" \
+  --output artifacts/gate11/contracts.json \
+  --enforce
+```
+
+### Oracle 19c réel
+
+La commande applique le catalogue avec le compte applicatif configuré côté serveur, puis exige `current=true`, les 57 migrations appliquées et une liste de dérive vide. Le mot de passe Oracle reste fourni par `OPENINFRA_ORACLE_PASSWORD_REF` ou par l'environnement protégé du service ; il n'est jamais transmis comme argument de processus.
+
+```bash
+openinfra-gate11 oracle \
+  --openinfra-binary /opt/openinfra/venv/bin/openinfra \
+  --migrations-root /opt/openinfra/share/migrations/oracle \
+  --candidate-id "$GATE11_CANDIDATE_ID" \
+  --source-commit "$GATE11_SOURCE_COMMIT" \
+  --environment-id "$GATE11_ENVIRONMENT_ID" \
+  --output artifacts/gate11/oracle.json \
+  --enforce
+```
+
+### SAML 2.0 réel
+
+Exporter depuis l'IdP une requête ACS de qualification signée, dédiée au compte de test et à durée de vie courte. Le fichier doit être non symbolique et protégé en `0600` ou plus strict. Le jeton SAML complet n'est jamais écrit dans la preuve ; seuls le préfixe borné, les compteurs de rôles/groupes et les empreintes SHA-256 sont conservés.
+
+```bash
+chmod 600 /run/openinfra-qualification/saml-request.json
+openinfra-gate11 saml \
+  --openinfra-binary /opt/openinfra/venv/bin/openinfra \
+  --backend oracle \
+  --tenant default \
+  --edition enterprise \
+  --request-json /run/openinfra-qualification/saml-request.json \
+  --candidate-id "$GATE11_CANDIDATE_ID" \
+  --source-commit "$GATE11_SOURCE_COMMIT" \
+  --environment-id "$GATE11_ENVIRONMENT_ID" \
+  --output artifacts/gate11/saml.json \
+  --enforce
+```
+
+### Team Sync réel et idempotent
+
+Le collecteur exécute deux synchronisations consécutives de la même source. La seconde doit conserver la même empreinte et produire zéro création, mise à jour, désactivation ou modification d'appartenance.
+
+```bash
+openinfra-gate11 team-sync \
+  --openinfra-binary /opt/openinfra/venv/bin/openinfra \
+  --backend oracle \
+  --tenant default \
+  --edition enterprise \
+  --source ldap-main \
+  --token-file /var/lib/openinfra/secrets/bootstrap-token \
+  --candidate-id "$GATE11_CANDIDATE_ID" \
+  --source-commit "$GATE11_SOURCE_COMMIT" \
+  --environment-id "$GATE11_ENVIRONMENT_ID" \
+  --output artifacts/gate11/team-sync.json \
+  --enforce
+```
+
+### Runtime systemd réel
+
+La qualification vérifie les unités, leur état, leur activation, les directives de durcissement, les comptes système, les permissions `0700/0400` du jeton bootstrap et les endpoints `/health` et `/ready`.
+
+```bash
+openinfra-gate11 systemd \
+  --health-url http://127.0.0.1:8080/health \
+  --ready-url http://127.0.0.1:8080/ready \
+  --candidate-id "$GATE11_CANDIDATE_ID" \
+  --source-commit "$GATE11_SOURCE_COMMIT" \
+  --environment-id "$GATE11_ENVIRONMENT_ID" \
+  --output artifacts/gate11/systemd.json \
+  --enforce
+```
+
+### Assemblage immuable et décision
+
+```bash
+openinfra-gate11 assemble \
+  --candidate-id "$GATE11_CANDIDATE_ID" \
+  --source-commit "$GATE11_SOURCE_COMMIT" \
+  --environment-id "$GATE11_ENVIRONMENT_ID" \
+  --contracts artifacts/gate11/contracts.json \
+  --oracle artifacts/gate11/oracle.json \
+  --saml artifacts/gate11/saml.json \
+  --team-sync artifacts/gate11/team-sync.json \
+  --systemd artifacts/gate11/systemd.json \
+  --evidence-root artifacts/gate11/evidence \
+  --output artifacts/gate11/manifest.json
+
+openinfra-gate11 evaluate \
+  --policy docs/release/advanced-identity-oracle-promotion-policy.json \
+  --manifest artifacts/gate11/manifest.json \
+  --evidence-root artifacts/gate11/evidence \
+  --output artifacts/gate11/decision.json \
+  --enforce
+```
+
+La promotion est autorisée uniquement lorsque `authorized_for_rel12=true` et `status=go`. Les preuves et la décision doivent être archivées 365 jours. Le workflow `.github/workflows/advanced-identity-oracle.yml` automatise ce parcours sur un runner self-hosted portant le label `openinfra-gate11` lorsque la variable `OPENINFRA_GATE11_LIVE_TESTS=true` est activée.

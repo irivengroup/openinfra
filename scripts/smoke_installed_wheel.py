@@ -9,6 +9,7 @@ from openinfra.infrastructure.multisite_observability import (
 )
 from openinfra.infrastructure.oracle import OracleMigrationCatalog
 from openinfra.interfaces.http_api import OpenApiDocumentProvider
+from openinfra.quality.advanced_identity_oracle_promotion import Gate11PromotionPolicy
 from openinfra.quality.cloud_native_promotion import CloudNativePromotionPolicy
 from openinfra.quality.continuity_certification import PraPcaCertificationEvidence
 from openinfra.quality.dependency_graph_benchmark import DependencyGraphBenchmarkConfig
@@ -25,7 +26,7 @@ class InstalledWheelSmokeError(RuntimeError):
 
 
 class InstalledWheelSmoke:
-    EXPECTED_VERSION = "0.34.2"
+    EXPECTED_VERSION = "0.34.3"
     EXPECTED_ASYNC_ROUTES = (
         "/api/v1/async/jobs",
         "/api/v1/async/jobs/get",
@@ -625,7 +626,7 @@ class InstalledWheelSmoke:
     def _assert_release_security_contract(package_root: Path) -> None:
         controls = ReleaseSecurityControlCatalog.build(
             package_root,
-            image_ref="openinfra/runtime:0.34.2",
+            image_ref="openinfra/runtime:0.34.3",
             api_base_url="http://127.0.0.1:8080",
             web_base_url="http://127.0.0.1:2006",
         )
@@ -658,6 +659,7 @@ class InstalledWheelSmoke:
             package_root / "migrations" / "oracle" / "manifest.json",
             package_root / "docs" / "runbooks" / "RUNTIME_NATIVE.md",
             package_root / "docs" / "runbooks" / "ADVANCED_IDENTITY_ORACLE_SYSTEMD.md",
+            package_root / "docs" / "release" / "advanced-identity-oracle-promotion-policy.json",
             package_root / "systemd" / "openinfra-runtime-secrets.service",
             package_root / "systemd" / "openinfra-migrate.service",
             package_root / "systemd" / "openinfra-team-sync.service",
@@ -682,6 +684,11 @@ class InstalledWheelSmoke:
             raise InstalledWheelSmokeError(
                 "installed wheel Oracle migration catalog is not current"
             )
+        gate11_policy = Gate11PromotionPolicy.load(
+            package_root / "docs" / "release" / "advanced-identity-oracle-promotion-policy.json"
+        )
+        if len(gate11_policy.required_evidence) != 5:
+            raise InstalledWheelSmokeError("installed GATE-11 promotion policy is incomplete")
 
     def _assert_console_scripts(self) -> None:
         entry_points = {
@@ -698,6 +705,9 @@ class InstalledWheelSmoke:
             ),
             "openinfra-server-runtime": (
                 "openinfra.interfaces.server_runtime:OpenInfraServerRuntime.main"
+            ),
+            "openinfra-gate11": (
+                "openinfra.quality.advanced_identity_oracle_promotion:Gate11QualificationCli.main"
             ),
         }
         if entry_points != expected:

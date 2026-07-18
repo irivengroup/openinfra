@@ -1,3 +1,14 @@
+## v0.34.3 — Qualification externe et décision GATE-11
+
+- `openinfra-gate11 contracts` valide les actifs statiques de REL-12 et la parité du catalogue ;
+- `openinfra-gate11 oracle` applique et qualifie les 57 migrations sur Oracle réel ;
+- `openinfra-gate11 saml` valide une assertion signée sans exposer le jeton dans les preuves ;
+- `openinfra-gate11 team-sync` vérifie l'idempotence par deux exécutions consécutives ;
+- `openinfra-gate11 systemd` vérifie services, timer, durcissement, secrets et readiness ;
+- `assemble` et `evaluate` épinglent les preuves par SHA-256 et rendent une décision REL-12 fail-closed ;
+- tests : `tests/unit/test_gate11_qualification.py` et `tests/integration/test_gate11_qualification_contract.py` ;
+- CI : `.github/workflows/advanced-identity-oracle.yml` sur runner self-hosted labellisé `openinfra-gate11`.
+
 ## v0.34.2 — Parité complète des migrations PostgreSQL et Oracle
 
 | Exigence | Implémentation | Vérification |

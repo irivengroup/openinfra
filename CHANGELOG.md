@@ -1,3 +1,15 @@
+## v0.34.3 — Qualification externe GATE-11 et preuves immuables
+
+- ajoute l'exécutable `openinfra-gate11` pour qualifier les contrats REL-12, Oracle 19c réel, SAML 2.0 réel, l'idempotence Team Sync et le runtime systemd ;
+- applique les migrations Oracle avec le compte applicatif puis exige le catalogue complet, `current=true` et une dérive vide ;
+- valide une assertion SAML signée sans persister le jeton émis et conserve uniquement des empreintes et compteurs bornés ;
+- exécute deux synchronisations Team Sync consécutives et impose zéro mutation lors de la seconde ;
+- contrôle les unités systemd, leur activation, leur durcissement, leurs comptes, les permissions des secrets et les endpoints `/health` et `/ready` ;
+- assemble cinq preuves JSON épinglées par SHA-256, liées au même candidat, commit et environnement, avec fraîcheur maximale de 24/168 heures ;
+- produit une décision fail-closed `go`/`no-go` et refuse REL-12 si une preuve manque, dérive, expire ou ne correspond pas au candidat ;
+- ajoute un workflow self-hosted `openinfra-gate11`, les tests unitaires/intégration, le packaging, le smoke wheel et le runbook d'exploitation ;
+- conserve les 57 migrations PostgreSQL/Oracle, les interfaces publiques et le thème graphique sans modification.
+
 ## v0.34.2 — Parité complète des migrations Oracle 19c
 
 - conversion déterministe des 57 migrations PostgreSQL vers un catalogue Oracle 19c de même ordre et de mêmes noms ;

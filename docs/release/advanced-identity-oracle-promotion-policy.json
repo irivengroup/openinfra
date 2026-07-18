@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "gate_id": "GATE-11",
+  "release_id": "REL-12",
+  "required_evidence": [
+    {
+      "id": "gate11-contracts",
+      "report_kind": "advanced-identity-oracle-contracts",
+      "max_age_hours": 168
+    },
+    {
+      "id": "gate11-oracle-live",
+      "report_kind": "oracle-live-qualification",
+      "max_age_hours": 24
+    },
+    {
+      "id": "gate11-saml-live",
+      "report_kind": "saml-live-qualification",
+      "max_age_hours": 24
+    },
+    {
+      "id": "gate11-team-sync-live",
+      "report_kind": "team-sync-live-qualification",
+      "max_age_hours": 24
+    },
+    {
+      "id": "gate11-systemd-live",
+      "report_kind": "systemd-live-qualification",
+      "max_age_hours": 24
+    }
+  ]
+}

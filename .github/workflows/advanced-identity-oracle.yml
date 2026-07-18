@@ -43,6 +43,17 @@ jobs:
             tests/unit/test_oracle_complete.py \
             tests/unit/test_oracle_runtime.py
 
+      - name: GATE-11 static qualification contract
+        run: |
+          mkdir -p artifacts/gate11
+          openinfra-gate11 contracts \
+            --project-root . \
+            --candidate-id "openinfra-0.34.3-${GITHUB_RUN_ID}" \
+            --source-commit "${GITHUB_SHA}" \
+            --environment-id ci-contracts \
+            --output artifacts/gate11/contracts.json \
+            --enforce
+
       - name: Format and lint
         run: |
           ruff format --check src tests scripts docker installers
@@ -59,9 +70,11 @@ jobs:
           python -m pytest -q --no-cov \
             tests/unit/test_federated_identity.py \
             tests/unit/test_advanced_identity_adapters.py \
+            tests/unit/test_gate11_qualification.py \
             tests/unit/test_oracle_runtime.py \
             tests/unit/test_runtime_secrets.py \
             tests/integration/test_advanced_identity_server_runtime.py \
+            tests/integration/test_gate11_qualification_contract.py \
             tests/integration/test_installer_alignment.py \
             tests/integration/test_http_api.py \
             tests/integration/test_asgi_performance_runtime.py \
@@ -78,15 +91,17 @@ jobs:
 
       - name: Verify and smoke installed wheel outside source tree
         run: |
-          python -m pip install --no-deps --target /tmp/openinfra-wheel dist/openinfra-0.34.2-py3-none-any.whl
+          python -m pip install --no-deps --target /tmp/openinfra-wheel dist/openinfra-0.34.3-py3-none-any.whl
           cd /tmp
           PYTHONPATH=/tmp/openinfra-wheel python - <<'PY'
           import openinfra
           from openinfra.infrastructure.oracle import OracleConnectionSettings
           from openinfra.infrastructure.runtime_config import RuntimeDatabaseBackendResolver
+          from openinfra.quality.advanced_identity_oracle_promotion import Gate11PromotionPolicy
 
-          assert openinfra.__version__ == "0.34.2"
+          assert openinfra.__version__ == "0.34.3"
           assert RuntimeDatabaseBackendResolver().resolve() == "postgresql"
+          assert len(Gate11PromotionPolicy.EXPECTED_EVIDENCE) == 5
           assert OracleConnectionSettings.create(
               dsn="db.example.net:1521/OPENINFRA",
               user="openinfra",
@@ -94,37 +109,172 @@ jobs:
           ).pool_max == 10
           PY
 
-  oracle-live-qualification:
-    name: Oracle live qualification
-    if: ${{ vars.OPENINFRA_ORACLE_LIVE_TESTS == 'true' }}
-    runs-on: ubuntu-latest
+      - name: Upload static GATE-11 contract evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: gate11-contracts-python-${{ matrix.python-version }}
+          path: artifacts/gate11/contracts.json
+          if-no-files-found: error
+          retention-days: 90
+
+  gate11-live-qualification:
+    name: GATE-11 live Oracle, SAML, Team Sync and systemd qualification
+    if: ${{ vars.OPENINFRA_GATE11_LIVE_TESTS == 'true' }}
+    runs-on: [self-hosted, linux, openinfra-gate11]
+    needs: identity-oracle-contracts
     env:
-      OPENINFRA_DATABASE_BACKEND: oracle
+      GATE11_CANDIDATE_ID: openinfra-0.34.3-${{ github.run_id }}
+      GATE11_SOURCE_COMMIT: ${{ github.sha }}
+      GATE11_ENVIRONMENT_ID: ${{ vars.OPENINFRA_GATE11_ENVIRONMENT_ID }}
+      GATE11_BACKEND: ${{ vars.OPENINFRA_GATE11_BACKEND }}
+      GATE11_TEAM_SYNC_SOURCE: ${{ vars.OPENINFRA_GATE11_TEAM_SYNC_SOURCE }}
+      GATE11_HEALTH_URL: ${{ vars.OPENINFRA_GATE11_HEALTH_URL }}
+      GATE11_READY_URL: ${{ vars.OPENINFRA_GATE11_READY_URL }}
+      OPENINFRA_DATABASE_BACKEND: ${{ vars.OPENINFRA_GATE11_BACKEND }}
       OPENINFRA_ORACLE_DSN: ${{ secrets.OPENINFRA_ORACLE_DSN }}
       OPENINFRA_ORACLE_USER: ${{ secrets.OPENINFRA_ORACLE_USER }}
       OPENINFRA_ORACLE_PASSWORD: ${{ secrets.OPENINFRA_ORACLE_PASSWORD }}
+      OPENINFRA_GATE11_SAML_REQUEST_JSON_B64: ${{ secrets.OPENINFRA_GATE11_SAML_REQUEST_JSON_B64 }}
     steps:
-      - name: Checkout
+      - name: Checkout exact candidate
         uses: actions/checkout@v6
-
-      - name: Setup Python
-        uses: actions/setup-python@v6
         with:
-          python-version: '3.13'
-          cache: pip
+          fetch-depth: 0
 
-      - name: Install Oracle runtime
+      - name: Validate target qualification inputs
+        shell: bash
         run: |
-          python -m pip install --upgrade "pip>=26.0"
-          python -m pip install -e '.[oracle]'
-
-      - name: Validate required secrets
-        run: |
+          set -euo pipefail
+          test -n "$GATE11_ENVIRONMENT_ID"
+          test "$GATE11_BACKEND" = "oracle"
+          test -n "$GATE11_TEAM_SYNC_SOURCE"
+          test -n "$GATE11_HEALTH_URL"
+          test -n "$GATE11_READY_URL"
           test -n "$OPENINFRA_ORACLE_DSN"
           test -n "$OPENINFRA_ORACLE_USER"
           test -n "$OPENINFRA_ORACLE_PASSWORD"
+          test -n "$OPENINFRA_GATE11_SAML_REQUEST_JSON_B64"
+          test "$(/opt/openinfra/venv/bin/openinfra version)" = "0.34.3"
+          test -x /opt/openinfra/venv/bin/openinfra-gate11
 
-      - name: Apply Oracle migrations and verify readiness
+      - name: Prepare protected evidence workspace
+        shell: bash
         run: |
-          openinfra database apply-migrations --backend oracle
-          openinfra database status --backend oracle
+          set -euo pipefail
+          umask 077
+          rm -rf artifacts/gate11-live
+          mkdir -p artifacts/gate11-live/input artifacts/gate11-live/evidence
+          printf '%s' "$OPENINFRA_GATE11_SAML_REQUEST_JSON_B64" \
+            | base64 --decode > artifacts/gate11-live/input/saml-request.json
+          chmod 600 artifacts/gate11-live/input/saml-request.json
+
+      - name: Collect GATE-11 static contract evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          /opt/openinfra/venv/bin/openinfra-gate11 contracts \
+            --project-root . \
+            --candidate-id "$GATE11_CANDIDATE_ID" \
+            --source-commit "$GATE11_SOURCE_COMMIT" \
+            --environment-id "$GATE11_ENVIRONMENT_ID" \
+            --output artifacts/gate11-live/contracts.json \
+            --enforce
+
+      - name: Collect Oracle live evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          /opt/openinfra/venv/bin/openinfra-gate11 oracle \
+            --openinfra-binary /opt/openinfra/venv/bin/openinfra \
+            --migrations-root /opt/openinfra/share/migrations/oracle \
+            --candidate-id "$GATE11_CANDIDATE_ID" \
+            --source-commit "$GATE11_SOURCE_COMMIT" \
+            --environment-id "$GATE11_ENVIRONMENT_ID" \
+            --output artifacts/gate11-live/oracle.json \
+            --enforce
+
+      - name: Collect SAML live evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          /opt/openinfra/venv/bin/openinfra-gate11 saml \
+            --openinfra-binary /opt/openinfra/venv/bin/openinfra \
+            --backend "$GATE11_BACKEND" \
+            --tenant default \
+            --edition enterprise \
+            --request-json artifacts/gate11-live/input/saml-request.json \
+            --candidate-id "$GATE11_CANDIDATE_ID" \
+            --source-commit "$GATE11_SOURCE_COMMIT" \
+            --environment-id "$GATE11_ENVIRONMENT_ID" \
+            --output artifacts/gate11-live/saml.json \
+            --enforce
+
+      - name: Collect Team Sync idempotence evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          /opt/openinfra/venv/bin/openinfra-gate11 team-sync \
+            --openinfra-binary /opt/openinfra/venv/bin/openinfra \
+            --backend "$GATE11_BACKEND" \
+            --tenant default \
+            --edition enterprise \
+            --source "$GATE11_TEAM_SYNC_SOURCE" \
+            --token-file /var/lib/openinfra/secrets/bootstrap-token \
+            --candidate-id "$GATE11_CANDIDATE_ID" \
+            --source-commit "$GATE11_SOURCE_COMMIT" \
+            --environment-id "$GATE11_ENVIRONMENT_ID" \
+            --output artifacts/gate11-live/team-sync.json \
+            --enforce
+
+      - name: Collect systemd runtime evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          /opt/openinfra/venv/bin/openinfra-gate11 systemd \
+            --health-url "$GATE11_HEALTH_URL" \
+            --ready-url "$GATE11_READY_URL" \
+            --candidate-id "$GATE11_CANDIDATE_ID" \
+            --source-commit "$GATE11_SOURCE_COMMIT" \
+            --environment-id "$GATE11_ENVIRONMENT_ID" \
+            --output artifacts/gate11-live/systemd.json \
+            --enforce
+
+      - name: Assemble immutable evidence and evaluate REL-12 promotion
+        shell: bash
+        run: |
+          set -euo pipefail
+          /opt/openinfra/venv/bin/openinfra-gate11 assemble \
+            --candidate-id "$GATE11_CANDIDATE_ID" \
+            --source-commit "$GATE11_SOURCE_COMMIT" \
+            --environment-id "$GATE11_ENVIRONMENT_ID" \
+            --contracts artifacts/gate11-live/contracts.json \
+            --oracle artifacts/gate11-live/oracle.json \
+            --saml artifacts/gate11-live/saml.json \
+            --team-sync artifacts/gate11-live/team-sync.json \
+            --systemd artifacts/gate11-live/systemd.json \
+            --evidence-root artifacts/gate11-live/evidence \
+            --output artifacts/gate11-live/manifest.json
+          /opt/openinfra/venv/bin/openinfra-gate11 evaluate \
+            --policy docs/release/advanced-identity-oracle-promotion-policy.json \
+            --manifest artifacts/gate11-live/manifest.json \
+            --evidence-root artifacts/gate11-live/evidence \
+            --output artifacts/gate11-live/decision.json \
+            --enforce
+          rm -rf artifacts/gate11-live/input
+
+      - name: Upload immutable GATE-11 evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: gate11-live-${{ github.run_id }}
+          path: |
+            artifacts/gate11-live/contracts.json
+            artifacts/gate11-live/oracle.json
+            artifacts/gate11-live/saml.json
+            artifacts/gate11-live/team-sync.json
+            artifacts/gate11-live/systemd.json
+            artifacts/gate11-live/evidence/
+            artifacts/gate11-live/manifest.json
+            artifacts/gate11-live/decision.json
+          if-no-files-found: error
+          retention-days: 365
